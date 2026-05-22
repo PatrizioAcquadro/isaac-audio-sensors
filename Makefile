@@ -1,7 +1,9 @@
-PYTHON ?= python3.11
+VENV_PYTHON := .venv/bin/python
+PYTHON ?= $(if $(wildcard $(VENV_PYTHON)),$(VENV_PYTHON),python3)
 ISAAC_SIM_COMMAND ?= $(PYTHON)
 ISAAC_LAB_PYTHON ?= $(PYTHON)
 ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
+BUILD_FLAGS ?= --no-isolation
 
 .PHONY: test lint format build import-smoke validate-config live-isaac-sim-audio live-isaac-lab-audio diagnose-isaac
 
@@ -15,7 +17,7 @@ format:
 	$(PYTHON) -m ruff format .
 
 build:
-	$(PYTHON) -m build
+	$(PYTHON) -m build $(BUILD_FLAGS)
 
 import-smoke:
 	$(PYTHON) -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"

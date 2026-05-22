@@ -26,4 +26,3 @@ generated/
 .env.*
 .agents/
 .codex/
-.gitdir/
