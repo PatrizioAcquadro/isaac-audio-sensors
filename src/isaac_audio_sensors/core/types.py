@@ -10,6 +10,9 @@ from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     DEFAULT_SAMPLE_RATE_HZ,
     DETECTION_MODES,
+    FRAME_PROVENANCE_VALUES,
+    FRAME_SCHEMA_VERSION,
+    FRAME_UNITS,
 )
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
 from isaac_audio_sensors.core.math_utils import (
@@ -19,6 +22,56 @@ from isaac_audio_sensors.core.math_utils import (
     as_vector3,
     normalize_bearing_deg,
 )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Pose3D:
+    """World-frame pose used by the public audio sensor frame schema."""
+
+    position_m: Vector3
+    orientation_xyzw: Quaternion | None = None
+    frame: str = "world"
+    coordinate_convention: str = COORDINATE_CONVENTION
+
+    def __post_init__(self) -> None:
+        _require_non_empty(self.frame, "Pose3D.frame")
+        _require_non_empty(
+            self.coordinate_convention,
+            "Pose3D.coordinate_convention",
+        )
+        object.__setattr__(
+            self,
+            "position_m",
+            as_vector3(self.position_m, "Pose3D.position_m"),
+        )
+        if self.orientation_xyzw is not None:
+            object.__setattr__(
+                self,
+                "orientation_xyzw",
+                as_quaternion_xyzw(
+                    self.orientation_xyzw,
+                    "Pose3D.orientation_xyzw",
+                ),
+            )
+
+    @classmethod
+    def from_array(cls, array: MicrophoneArraySpec) -> Pose3D:
+        """Build an array pose from a microphone array spec."""
+
+        return cls(
+            position_m=array.position_world,
+            orientation_xyzw=array.orientation_world_quat,
+            coordinate_convention=array.coordinate_convention,
+        )
+
+    @classmethod
+    def from_source(cls, source: AudioSourceSpec) -> Pose3D:
+        """Build a source pose from a source spec."""
+
+        return cls(
+            position_m=source.position_world,
+            orientation_xyzw=source.orientation_world_quat,
+        )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -201,6 +254,7 @@ class AudioTimeWindow:
     timestamp_ms: int
     sample_rate_hz: int
     frame_index: int | None = None
+    max_events: int | None = None
 
     def __post_init__(self) -> None:
         _require_finite(self.start_time_s, "AudioTimeWindow.start_time_s")
@@ -213,6 +267,11 @@ class AudioTimeWindow:
         object.__setattr__(self, "timestamp_ms", int(self.timestamp_ms))
         if self.frame_index is not None and int(self.frame_index) < 0:
             raise ValueError("AudioTimeWindow.frame_index must be non-negative.")
+        if self.max_events is not None:
+            max_events = int(self.max_events)
+            if max_events < 0:
+                raise ValueError("AudioTimeWindow.max_events must be non-negative.")
+            object.__setattr__(self, "max_events", max_events)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -260,6 +319,7 @@ class AudioDetection:
     ground_truth_bearing_deg: float | None
     source_distance_m: float | None
     doa: DoaEstimate
+    source_pose: Pose3D | None = None
     per_mic_delay_s: dict[str, float] = field(default_factory=dict)
     per_mic_rms: dict[str, float] = field(default_factory=dict)
     audio_asset_path: str | None = None
@@ -318,6 +378,17 @@ class AudioSensorFrame:
     timestamp_ms: int
     backend_id: str
     array_id: str
+    schema_version: str = FRAME_SCHEMA_VERSION
+    frame_name: str | None = None
+    array_pose: Pose3D | None = None
+    start_time_s: float | None = None
+    end_time_s: float | None = None
+    sample_rate_hz: int | None = None
+    frame_index: int | None = None
+    coordinate_convention: str = COORDINATE_CONVENTION
+    units: dict[str, str] = field(default_factory=lambda: dict(FRAME_UNITS))
+    provenance: str = "synthetic/core"
+    max_events: int | None = None
     detections: tuple[AudioDetection, ...] = field(default_factory=tuple)
     aggregate_per_mic_rms: dict[str, float] = field(default_factory=dict)
     waveform_paths: tuple[str, ...] = field(default_factory=tuple)
@@ -327,8 +398,63 @@ class AudioSensorFrame:
         _require_non_empty(self.frame_id, "AudioSensorFrame.frame_id")
         _require_non_empty(self.backend_id, "AudioSensorFrame.backend_id")
         _require_non_empty(self.array_id, "AudioSensorFrame.array_id")
+        _require_non_empty(self.schema_version, "AudioSensorFrame.schema_version")
+        if self.frame_name is None:
+            object.__setattr__(self, "frame_name", self.frame_id)
+        else:
+            _require_non_empty(self.frame_name, "AudioSensorFrame.frame_name")
+        _require_non_empty(
+            self.coordinate_convention,
+            "AudioSensorFrame.coordinate_convention",
+        )
+        _require_non_empty(self.provenance, "AudioSensorFrame.provenance")
+        if self.schema_version != FRAME_SCHEMA_VERSION:
+            raise ValueError(
+                "AudioSensorFrame.schema_version must be "
+                f"{FRAME_SCHEMA_VERSION!r}."
+            )
+        if self.provenance not in FRAME_PROVENANCE_VALUES:
+            raise ValueError(
+                "AudioSensorFrame.provenance must be one of "
+                f"{sorted(FRAME_PROVENANCE_VALUES)}."
+            )
         object.__setattr__(self, "timestamp_ms", int(self.timestamp_ms))
-        object.__setattr__(self, "detections", tuple(self.detections))
+        if self.start_time_s is not None:
+            _require_finite(self.start_time_s, "AudioSensorFrame.start_time_s")
+        if self.end_time_s is not None:
+            _require_finite(self.end_time_s, "AudioSensorFrame.end_time_s")
+        if (
+            self.start_time_s is not None
+            and self.end_time_s is not None
+            and self.end_time_s <= self.start_time_s
+        ):
+            raise ValueError("AudioSensorFrame end time must be after start time.")
+        if self.sample_rate_hz is not None:
+            if int(self.sample_rate_hz) <= 0:
+                raise ValueError("AudioSensorFrame.sample_rate_hz must be positive.")
+            object.__setattr__(self, "sample_rate_hz", int(self.sample_rate_hz))
+        if self.frame_index is not None:
+            frame_index = int(self.frame_index)
+            if frame_index < 0:
+                raise ValueError("AudioSensorFrame.frame_index must be non-negative.")
+            object.__setattr__(self, "frame_index", frame_index)
+        if self.max_events is not None:
+            max_events = int(self.max_events)
+            if max_events < 0:
+                raise ValueError("AudioSensorFrame.max_events must be non-negative.")
+            object.__setattr__(self, "max_events", max_events)
+        units = {str(key): str(value) for key, value in self.units.items()}
+        missing_units = set(FRAME_UNITS) - set(units)
+        if missing_units:
+            raise ValueError(
+                "AudioSensorFrame.units is missing required keys "
+                f"{sorted(missing_units)}."
+            )
+        object.__setattr__(self, "units", units)
+        detections = tuple(self.detections)
+        if self.max_events is not None and len(detections) > self.max_events:
+            detections = detections[: self.max_events]
+        object.__setattr__(self, "detections", detections)
         object.__setattr__(
             self,
             "aggregate_per_mic_rms",

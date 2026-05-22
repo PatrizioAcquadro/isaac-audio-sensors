@@ -11,6 +11,7 @@ from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.config import build_scene_snapshot, load_audio_config
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict, write_frame_trace
+from isaac_audio_sensors.core.schema import write_audio_sensor_frame_json_schema
 from isaac_audio_sensors.core.types import AudioTimeWindow
 
 
@@ -31,6 +32,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     simulate_parser.add_argument("--timestamp-ms", type=int, default=0)
     simulate_parser.add_argument("--start-time-s", type=float, default=0.0)
     simulate_parser.add_argument("--end-time-s", type=float, default=1.0)
+    simulate_parser.add_argument("--max-events", type=int, default=None)
     simulate_parser.add_argument("--out", type=Path, default=None)
 
     trace_parser = subparsers.add_parser("export-trace")
@@ -38,7 +40,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     trace_parser.add_argument("--backend", default=None)
     trace_parser.add_argument("--array-id", default=None)
     trace_parser.add_argument("--timestamp-ms", type=int, default=0)
+    trace_parser.add_argument("--start-time-s", type=float, default=0.0)
+    trace_parser.add_argument("--end-time-s", type=float, default=1.0)
+    trace_parser.add_argument("--max-events", type=int, default=None)
     trace_parser.add_argument("--out", type=Path, required=True)
+
+    schema_parser = subparsers.add_parser("export-schema")
+    schema_parser.add_argument("--out", type=Path, required=True)
 
     args = parser.parse_args(argv)
     if args.command == "validate-config":
@@ -71,6 +79,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps({"wrote": str(args.out)}, sort_keys=True))
         return 0
 
+    if args.command == "export-schema":
+        write_audio_sensor_frame_json_schema(args.out)
+        print(json.dumps({"wrote": str(args.out)}, sort_keys=True))
+        return 0
+
     parser.error(f"Unhandled command {args.command!r}.")
     return 2
 
@@ -87,6 +100,7 @@ def _simulate_from_args(args: argparse.Namespace):
         timestamp_ms=args.timestamp_ms,
         sample_rate_hz=sensor.sample_rate_hz,
         frame_index=0,
+        max_events=getattr(args, "max_events", None),
     )
     backend_kwargs = {}
     if backend_id in {"tdoa_synthetic", "room_acoustics"}:

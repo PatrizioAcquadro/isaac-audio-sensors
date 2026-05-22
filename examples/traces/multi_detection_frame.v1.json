@@ -1,0 +1,146 @@
+{
+  "aggregate_per_mic_rms": {
+    "front": 0.13046039090984038,
+    "left": 0.12902849936601404,
+    "rear": 0.12347361421491562,
+    "right": 0.1249452610430181
+  },
+  "array_id": "rig_front",
+  "array_pose": {
+    "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+    "frame": "world",
+    "orientation_xyzw": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "position_m": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "backend_id": "geometry_only",
+  "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+  "detections": [
+    {
+      "audio_asset_path": "generated://impulse",
+      "class_label": "Speech",
+      "detection_id": "geometry_only_demo_audio_lab_single_source_rig_front_500_0_speaker_front_right_00",
+      "detection_mode": "scheduled_known_source",
+      "diagnostics": {
+        "backend": "geometry_only",
+        "forward_component_m": 4.0,
+        "horizontal_distance_m": 4.47213595499958,
+        "physical_waveform": false,
+        "right_component_m": 2.0,
+        "up_component_m": 0.0
+      },
+      "doa": {
+        "ambiguity_class": null,
+        "ambiguity_reason": null,
+        "bearing_confidence": 1.0,
+        "bearing_sector": "straight_right",
+        "candidate_bearing_deg": [
+          26.56505117707799
+        ],
+        "estimated_bearing_deg": 26.56505117707799
+      },
+      "ground_truth_bearing_deg": 26.56505117707799,
+      "per_mic_delay_s": {},
+      "per_mic_rms": {
+        "front": 0.051635822868473236,
+        "left": 0.04919710327455919,
+        "rear": 0.04843459392436454,
+        "right": 0.05079648894668401
+      },
+      "source_distance_m": 4.47213595499958,
+      "source_id": "speaker_front_right",
+      "source_pose": {
+        "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+        "frame": "world",
+        "orientation_xyzw": null,
+        "position_m": [
+          4.0,
+          2.0,
+          0.0
+        ]
+      },
+      "timestamp_ms": 500
+    },
+    {
+      "audio_asset_path": "generated://pulse",
+      "class_label": "Footsteps",
+      "detection_id": "geometry_only_demo_audio_lab_single_source_rig_front_500_0_speaker_left_01",
+      "detection_mode": "scheduled_known_source",
+      "diagnostics": {
+        "backend": "geometry_only",
+        "forward_component_m": 2.0,
+        "horizontal_distance_m": 3.605551275463989,
+        "physical_waveform": false,
+        "right_component_m": -3.0,
+        "up_component_m": 0.0
+      },
+      "doa": {
+        "ambiguity_class": null,
+        "ambiguity_reason": null,
+        "bearing_confidence": 1.0,
+        "bearing_sector": "straight_left",
+        "candidate_bearing_deg": [
+          303.69006752597977
+        ],
+        "estimated_bearing_deg": 303.69006752597977
+      },
+      "ground_truth_bearing_deg": 303.69006752597977,
+      "per_mic_delay_s": {},
+      "per_mic_rms": {
+        "front": 0.07882456804136714,
+        "left": 0.07983139609145486,
+        "rear": 0.07503902029055108,
+        "right": 0.0741487720963341
+      },
+      "source_distance_m": 3.605551275463989,
+      "source_id": "speaker_left",
+      "source_pose": {
+        "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+        "frame": "world",
+        "orientation_xyzw": null,
+        "position_m": [
+          2.0,
+          -3.0,
+          0.0
+        ]
+      },
+      "timestamp_ms": 500
+    }
+  ],
+  "diagnostics": {
+    "active_source_count": 2,
+    "backend": "geometry_only",
+    "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+    "source_count": 2
+  },
+  "end_time_s": 0.75,
+  "frame_id": "geometry_only_demo_audio_lab_single_source_rig_front_500_0",
+  "frame_index": 0,
+  "frame_name": "demo_audio_lab_single_source/rig_front/geometry_only/frame0_t500ms",
+  "max_events": null,
+  "provenance": "synthetic/core",
+  "sample_rate_hz": 48000,
+  "schema_version": "ias.audio_sensor_frame.v1",
+  "start_time_s": 0.5,
+  "timestamp_ms": 500,
+  "units": {
+    "bearing": "deg_clockwise_from_array_forward",
+    "distance": "m",
+    "gain": "dB",
+    "orientation": "quaternion_xyzw",
+    "position": "m",
+    "rms": "linear",
+    "sample_rate": "Hz",
+    "time": "s",
+    "timestamp": "ms"
+  },
+  "waveform_paths": []
+}

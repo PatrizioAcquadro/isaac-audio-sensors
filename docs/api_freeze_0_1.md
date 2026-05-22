@@ -20,6 +20,7 @@ Core data models:
 - `AudioSensorFrame`
 - `AudioDetection`
 - `DoaEstimate`
+- `Pose3D`
 
 Microphone array helpers:
 
@@ -42,6 +43,16 @@ Backend selection and configuration:
 Isaac Sim helper entry points:
 
 - `IsaacAudioArraySensor`
+  - `from_stage`
+  - `from_config`
+  - `start`
+  - `stop`
+  - `reset`
+  - `update`
+  - `capture`
+  - `get_latest_frame`
+  - `configure_writer`
+  - `close`
 - `create_sound_prim`
 - `create_listener_prim`
 - `attach_microphone_array_attrs`
@@ -63,6 +74,22 @@ CLI commands:
 - `isaac-audio-sensors validate-config`
 - `isaac-audio-sensors simulate`
 - `isaac-audio-sensors export-trace`
+- `isaac-audio-sensors export-schema`
+
+Schema and trace helpers:
+
+- `frame_to_trace_dict`
+- `frame_from_trace_dict`
+- `write_frame_trace`
+- `read_frame_trace`
+- `append_frame_jsonl`
+- `AudioFrameJsonlWriter`
+- `audio_sensor_frame_json_schema`
+- `write_audio_sensor_frame_json_schema`
+
+The stable frame schema version is `ias.audio_sensor_frame.v1`. It is distinct
+from the package version and is exported as
+`docs/schemas/audio_sensor_frame.v1.schema.json`.
 
 ## Experimental
 

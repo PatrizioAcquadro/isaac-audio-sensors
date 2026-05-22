@@ -1,7 +1,7 @@
 [package]
 version = "0.1.0"
 title = "Isaac Audio Sensors"
-description = "Thin Omniverse wrapper for the isaac_audio_sensors Python package."
+description = "Live audio array sensor workflow for Isaac Sim stages."
 category = "Simulation"
 keywords = ["audio", "microphone", "sensor", "robotics"]
 

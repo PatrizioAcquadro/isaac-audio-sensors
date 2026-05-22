@@ -23,10 +23,44 @@ The smoke script:
 
 - creates an in-memory USD stage;
 - authors sound source, listener, and microphone-array metadata;
-- discovers the authored stage objects;
-- captures a synthetic TDOA `AudioSensorFrame`;
-- writes optional JSON evidence under ignored `outputs/`.
+- binds `IsaacAudioArraySensor` to `/World/Rig/AudioArray`;
+- calls `start()`, repeated `update(...)`, `get_latest_frame()`, and `close()`;
+- moves the source and array between ticks and verifies changed frame output;
+- evaluates the inactive sound window after the authored duration;
+- builds debug primitives and uses Isaac debug draw when available;
+- writes JSON evidence and JSONL frame traces under ignored `outputs/`.
 
-This package is not an official NVIDIA extension. The thin extension metadata
-under `exts/` is included for developers who want to experiment with an
-Omniverse extension wrapper.
+Programmatic lifecycle:
+
+```python
+from isaac_audio_sensors.isaac import IsaacAudioArraySensor
+
+sensor = IsaacAudioArraySensor.from_stage(
+    stage=stage,
+    array_prim_path="/World/Rig/AudioArray",
+    backend="tdoa_synthetic",
+    update_period_s=0.05,
+    max_events=4,
+    debug_draw=True,
+    writer_path="outputs/isaac_audio_sensors/frames.jsonl",
+)
+sensor.start()
+frame = sensor.update(sim_time_s=0.0)
+latest = sensor.get_latest_frame()
+sensor.stop()
+sensor.close()
+```
+
+`update()` rebuilds the stage snapshot every time. For authored metadata, active
+sources are selected by half-open windows `[start_time_s, end_time_s)`. A source
+with `ias:start_time_s = 0.1` and `ias:duration_s = 0.2` is active for windows
+that overlap `[0.1, 0.3)`.
+
+Native USD/Isaac sound attributes are read on a best-effort basis where the
+stage exposes them through ordinary attributes such as `filePath`, `startTime`,
+`duration`, and `gain`. Package metadata under `ias:*` is the documented path.
+
+This package is not an official NVIDIA extension. The extension metadata under
+`exts/` is included for developers who want a lightweight Kit workflow with
+start/stop/update/export controls. Replicator annotator/writer registration is
+not implemented yet; use the package JSONL writer for frame recording.

@@ -11,6 +11,8 @@ python -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
 python -m pytest
 python -m ruff check .
 python -m build
+python -m isaac_audio_sensors.cli export-schema --out /tmp/audio_sensor_frame.v1.schema.json
+python -m isaac_audio_sensors.cli export-trace configs/isaac_audio_sensors_demo.toml --out /tmp/audio_sensor_frame.v1.json
 git diff --check
 ```
 
@@ -21,6 +23,8 @@ Expected behavior:
 - Isaac Sim and Isaac Lab unavailable-path tests raise clear optional-runtime
   errors rather than import failures;
 - package build creates a source distribution and wheel without generated media.
+- JSON Schema and trace exports include `schema_version`, poses, units,
+  provenance, and `max_events`.
 
 Optional live checks:
 
@@ -43,3 +47,13 @@ python -m zipfile -l dist/isaac_audio_sensors-0.1.0-py3-none-any.whl
 
 The archives should not contain `outputs/`, `runs/`, generated media, private
 recordings, local environment files, or third-party scene assets.
+
+Public naming hygiene:
+
+```bash
+grep -RInE '<legacy project-specific token pattern>' \
+  README.md CHANGELOG.md Makefile pyproject.toml configs examples docs src tests exts
+```
+
+Ignored build artifacts such as `dist/`, `*.egg-info/`, `.pytest_cache/`, and
+`.ruff_cache/` should be absent or regenerated before public release checks.

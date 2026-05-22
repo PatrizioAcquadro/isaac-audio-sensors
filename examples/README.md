@@ -18,4 +18,7 @@ PYTHONPATH=src "$ISAAC_SIM_PYTHON" scripts/live_isaac_sim_audio_smoke.py
 PYTHONPATH=src "$ISAAC_LAB_PYTHON" scripts/live_isaac_lab_audio_smoke.py
 ```
 
+Frame trace examples are tracked under `examples/traces/` and match
+`docs/schemas/audio_sensor_frame.v1.schema.json`.
+
 The examples are generic and do not depend on downstream project contracts.

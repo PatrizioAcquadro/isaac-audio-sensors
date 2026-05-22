@@ -18,13 +18,18 @@ Source repository: <https://github.com/PatrizioAcquadro/isaac-audio-sensors>
 
 - Pure Python core models for scenes, sound sources, time windows, microphone
   arrays, detections, DOA estimates, and sensor frames.
+- Stable `AudioSensorFrame` v1 trace contract with schema version, frame name,
+  poses, units, provenance, max-event semantics, and JSON Schema export.
 - `geometry_only` backend for deterministic source bearing and sector labels.
 - `tdoa_synthetic` backend for per-microphone delay and RMS diagnostics.
 - Explicit two-microphone front/back ambiguity reporting.
 - Optional `room_acoustics` backend using `pyroomacoustics` when installed.
-- Lazy Isaac Sim helpers for USD sound/listener/microphone-array metadata.
+- Lazy Isaac Sim helpers for USD sound/listener/microphone-array metadata,
+  live update-loop capture, moving source/array snapshots, active sound
+  windows, debug visualization records, and JSONL writer output.
 - Lazy Isaac Lab wrapper classes for observation-style sensor data.
-- CLI commands for config validation, simulation, and trace export.
+- CLI commands for config validation, simulation, schema export, and trace
+  export.
 
 ## Architecture
 
@@ -100,8 +105,13 @@ frame = TdoaSyntheticBackend().simulate(
         sample_rate_hz=array.sample_rate_hz,
     ),
 )
+print(frame.schema_version, frame.frame_name)
 print(frame.detections[0].doa)
 ```
+
+The frame serializes to the public v1 JSON shape. The JSON Schema is available
+at `docs/schemas/audio_sensor_frame.v1.schema.json`, and example traces live
+under `examples/traces/`.
 
 ## Isaac Sim Example
 
@@ -110,8 +120,10 @@ PYTHONPATH=src "$ISAAC_SIM_PYTHON" scripts/live_isaac_sim_audio_smoke.py
 ```
 
 The script creates an in-memory USD stage, authors a sound source and
-microphone array metadata, captures a synthetic TDOA frame, and writes optional
-evidence under ignored `outputs/`.
+microphone array metadata, starts `IsaacAudioArraySensor`, moves the source and
+array between update ticks, verifies the changed frame output, records an
+inactive sound window, and writes optional JSON/JSONL evidence under ignored
+`outputs/`.
 
 ## Isaac Lab Example
 
@@ -132,6 +144,7 @@ python -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
 python -m pytest
 python -m ruff check .
 python -m build
+python -m isaac_audio_sensors.cli export-schema --out /tmp/audio_sensor_frame.v1.schema.json
 git diff --check
 ```
 
@@ -148,7 +161,9 @@ NVIDIA runtimes are large environment installs, not package dependencies.
   treated as an approximate shoebox-room simulation.
 - Two microphones cannot resolve front/back ambiguity without an additional
   prior. Four or more non-collinear microphones are recommended for DOA.
-- The Isaac helpers do not make this an official NVIDIA extension.
+- The Isaac helpers include a developer extension wrapper, but this is not an
+  official NVIDIA extension. Replicator writer registration remains a future
+  integration; the package writer currently records JSONL frames.
 
 ## Documentation
 

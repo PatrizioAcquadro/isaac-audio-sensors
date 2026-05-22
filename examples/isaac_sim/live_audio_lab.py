@@ -1,4 +1,4 @@
-"""Isaac Sim script sketch for Phase 5.5 audio arrays."""
+"""Isaac Sim script sketch for a live audio array scene."""
 
 from __future__ import annotations
 

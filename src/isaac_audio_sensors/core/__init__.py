@@ -16,6 +16,10 @@ from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
     microphone_world_positions,
 )
+from isaac_audio_sensors.core.schema import (
+    audio_sensor_frame_json_schema,
+    write_audio_sensor_frame_json_schema,
+)
 from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSceneSnapshot,
@@ -25,6 +29,7 @@ from isaac_audio_sensors.core.types import (
     DoaEstimate,
     MicrophoneArraySpec,
     MicrophoneSpec,
+    Pose3D,
     RoomAcousticsSpec,
 )
 
@@ -40,13 +45,16 @@ __all__ = [
     "GeometryBackend",
     "MicrophoneArraySpec",
     "MicrophoneSpec",
+    "Pose3D",
     "RoomAcousticsBackend",
     "RoomAcousticsSpec",
     "TdoaSyntheticBackend",
+    "audio_sensor_frame_json_schema",
     "build_scene_snapshot",
     "create_microphone_array",
     "get_backend",
     "load_audio_config",
     "microphone_world_positions",
     "validate_audio_config",
+    "write_audio_sensor_frame_json_schema",
 ]

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from isaac_audio_sensors.cli import main as cli_main
@@ -257,6 +259,89 @@ def test_isaac_stage_snapshot_and_sensor_capture_from_duck_typed_stage():
     assert frame.detections[0].doa.estimated_bearing_deg == pytest.approx(0.0, abs=2.0)
 
 
+def test_live_isaac_sensor_updates_moving_stage_windows_writer_and_debug(tmp_path):
+    source_prim = _FakePrim(
+        "/World/Sources/SpeakerA",
+        "Sound",
+        {
+            "filePath": "generated://impulse",
+            "ias:source_id": "speaker_a",
+            "ias:class_label": "Speech",
+            "ias:position_world": (5.0, 0.0, 0.0),
+            "ias:start_time_s": 0.0,
+            "ias:duration_s": 0.2,
+        },
+    )
+    array_prim = _FakePrim(
+        "/World/Rig/AudioArray",
+        "Xform",
+        {
+            "ias:array_id": "rig_front",
+            "ias:sample_rate_hz": 48000,
+            "ias:position_world": (0.0, 0.0, 0.0),
+            "ias:orientation_world_quat": (0.0, 0.0, 0.0, 1.0),
+        },
+    )
+    stage = _FakeStage(
+        (
+            source_prim,
+            array_prim,
+            _FakePrim(
+                "/World/Rig/AudioArray/front",
+                "Xform",
+                {
+                    "ias:microphone_id": "front",
+                    "ias:relative_position_m": (0.08, 0.0, 0.0),
+                },
+            ),
+            _FakePrim(
+                "/World/Rig/AudioArray/right",
+                "Xform",
+                {
+                    "ias:microphone_id": "right",
+                    "ias:relative_position_m": (0.0, 0.08, 0.0),
+                },
+            ),
+        )
+    )
+    trace_path = tmp_path / "frames.jsonl"
+    sensor = IsaacAudioArraySensor.from_stage(
+        stage=stage,
+        array_prim_path="/World/Rig/AudioArray",
+        backend="geometry_only",
+        update_period_s=0.1,
+        max_events=1,
+        debug_draw=True,
+        writer_path=trace_path,
+    ).start()
+
+    first = sensor.update(sim_time_s=0.0)
+    source_prim.attributes["ias:position_world"] = (0.0, 5.0, 0.0)
+    array_prim.attributes["ias:position_world"] = (1.0, 0.0, 0.0)
+    second = sensor.update(sim_time_s=0.1)
+    third = sensor.update(sim_time_s=0.3)
+
+    assert first.provenance == "isaac_live"
+    assert first.frame_index == 0
+    assert first.detections[0].source_pose.position_m == (5.0, 0.0, 0.0)
+    assert second.frame_index == 1
+    assert second.array_pose.position_m == (1.0, 0.0, 0.0)
+    assert second.detections[0].source_pose.position_m == (0.0, 5.0, 0.0)
+    assert second.detections[0].doa.estimated_bearing_deg != (
+        first.detections[0].doa.estimated_bearing_deg
+    )
+    assert third.detections == ()
+    assert sensor.get_latest_frame() is third
+    assert sensor.latest_debug_primitives
+
+    lines = trace_path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 3
+    assert json.loads(lines[0])["provenance"] == "isaac_live"
+    sensor.close()
+    with pytest.raises(RuntimeError, match="closed"):
+        sensor.update(force=True)
+
+
 def test_isaac_lab_update_period_reuses_buffer_until_elapsed():
     array = create_microphone_array(
         array_id="rig",
@@ -323,16 +408,16 @@ def test_isaac_lab_bound_scene_snapshot_updates_without_repassing_scene():
 
 def test_cli_validate_and_simulate_smoke(capsys):
     assert (
-        cli_main(["validate-config", "configs/isaac_audio_sensors_phase55.toml"]) == 0
+        cli_main(["validate-config", "configs/isaac_audio_sensors_demo.toml"]) == 0
     )
     validate_out = capsys.readouterr().out
-    assert "phase55_audio_lab_single_source" in validate_out
+    assert "demo_audio_lab_single_source" in validate_out
 
     assert (
         cli_main(
             [
                 "simulate",
-                "configs/isaac_audio_sensors_phase55.toml",
+                "configs/isaac_audio_sensors_demo.toml",
                 "--backend",
                 "geometry_only",
                 "--array-id",

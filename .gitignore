@@ -26,3 +26,4 @@ generated/
 .env.*
 .agents/
 .codex/
+.local-goals/

@@ -33,6 +33,7 @@ from isaac_audio_sensors.core.scene import (
     active_sources,
     deterministic_detection_id,
     deterministic_frame_id,
+    deterministic_frame_name,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -41,6 +42,7 @@ from isaac_audio_sensors.core.types import (
     AudioSourceSpec,
     AudioTimeWindow,
     MicrophoneArraySpec,
+    Pose3D,
     RoomAcousticsSpec,
 )
 
@@ -100,7 +102,8 @@ class RoomAcousticsBackend:
         detections: list[AudioDetection] = []
         aggregate_rms = {microphone.mic_id: 0.0 for microphone in sensor.microphones}
         per_source_rir_lengths: dict[str, dict[str, int]] = {}
-        for index, source in enumerate(active_sources(scene, time_window)):
+        active = active_sources(scene, time_window)
+        for index, source in enumerate(active):
             result = self._simulate_one_source(
                 pra=pra,
                 room_spec=scene.room,
@@ -135,6 +138,7 @@ class RoomAcousticsBackend:
                         subtract(source.position_world, sensor.position_world)
                     ),
                     doa=doa,
+                    source_pose=Pose3D.from_source(source),
                     per_mic_delay_s=result.per_mic_delay_s,
                     per_mic_rms=result.per_mic_rms,
                     audio_asset_path=source.audio_asset_path,
@@ -168,9 +172,24 @@ class RoomAcousticsBackend:
 
         return AudioSensorFrame(
             frame_id=frame_id,
+            frame_name=deterministic_frame_name(
+                backend_id=self.backend_id,
+                stage_id=scene.stage_id,
+                array_id=sensor.array_id,
+                timestamp_ms=time_window.timestamp_ms,
+                frame_index=time_window.frame_index,
+            ),
             timestamp_ms=time_window.timestamp_ms,
             backend_id=self.backend_id,
             array_id=sensor.array_id,
+            array_pose=Pose3D.from_array(sensor),
+            start_time_s=time_window.start_time_s,
+            end_time_s=time_window.end_time_s,
+            sample_rate_hz=time_window.sample_rate_hz,
+            frame_index=time_window.frame_index,
+            coordinate_convention=sensor.coordinate_convention,
+            provenance="room_acoustics",
+            max_events=time_window.max_events,
             detections=tuple(detections),
             aggregate_per_mic_rms=aggregate_rms,
             waveform_paths=(),

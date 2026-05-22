@@ -2,11 +2,22 @@
 
 from __future__ import annotations
 
-from isaac_audio_sensors.core.io.traces import frame_to_trace_dict, write_frame_trace
+from isaac_audio_sensors.core.io.traces import (
+    AudioFrameJsonlWriter,
+    append_frame_jsonl,
+    frame_from_trace_dict,
+    frame_to_trace_dict,
+    read_frame_trace,
+    write_frame_trace,
+)
 from isaac_audio_sensors.core.io.wav_assets import generated_impulse_metadata
 
 __all__ = [
+    "AudioFrameJsonlWriter",
+    "append_frame_jsonl",
+    "frame_from_trace_dict",
     "frame_to_trace_dict",
     "generated_impulse_metadata",
+    "read_frame_trace",
     "write_frame_trace",
 ]

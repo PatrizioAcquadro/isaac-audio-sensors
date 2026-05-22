@@ -3,6 +3,11 @@
 Backends implement `AudioSimulationBackend.simulate(scene, sensor, window)` and
 return an `AudioSensorFrame`.
 
+All backends populate the v1 frame contract with the array pose, source poses
+when known, explicit units, time-window fields, and provenance. `max_events` is
+read from `AudioTimeWindow.max_events`; active sources are selected in a stable
+order and truncated before detections are emitted.
+
 ## geometry_only
 
 `GeometryBackend` computes direct geometric bearing, source distance, and an
@@ -30,3 +35,4 @@ waveforms. If the dependency is missing, the backend raises
 `OptionalDependencyUnavailable` with a clear install hint.
 
 Use it for approximate room experiments, not as a calibrated acoustic twin.
+Frames from this backend use provenance `room_acoustics`.

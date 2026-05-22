@@ -1,5 +1,5 @@
 [scene]
-scene_id = "phase55_audio_lab_single_source"
+scene_id = "demo_audio_lab_single_source"
 stage_units = "meters"
 up_axis = "z"
 

@@ -129,15 +129,21 @@ def attach_microphone_array_attrs(
     sample_rate_hz: int,
     coordinate_convention: str,
     layout_name: str,
+    position_world: tuple[float, float, float] | None = None,
+    orientation_world_quat: tuple[float, float, float, float] | None = None,
 ) -> dict[str, object]:
     """Attach namespaced microphone-array metadata to an existing prim."""
 
-    attrs = {
+    attrs: dict[str, object] = {
         "ias:array_id": array_id,
         "ias:sample_rate_hz": int(sample_rate_hz),
         "ias:coordinate_convention": coordinate_convention,
         "ias:layout_name": layout_name,
     }
+    if position_world is not None:
+        attrs["ias:position_world"] = position_world
+    if orientation_world_quat is not None:
+        attrs["ias:orientation_world_quat"] = orientation_world_quat
     for name, value in attrs.items():
         _set_attr(prim, name, value)
     return attrs

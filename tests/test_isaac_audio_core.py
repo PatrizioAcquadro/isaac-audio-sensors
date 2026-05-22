@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 import isaac_audio_sensors
+from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.config import (
     build_scene_snapshot,
     load_audio_config,
     validate_audio_config,
 )
 from isaac_audio_sensors.core.constants import COORDINATE_CONVENTION
+from isaac_audio_sensors.core.io.traces import (
+    frame_from_trace_dict,
+    frame_to_trace_dict,
+)
 from isaac_audio_sensors.core.math_utils import (
     basis_from_quaternion,
     quaternion_from_yaw_deg,
@@ -26,6 +34,7 @@ from isaac_audio_sensors.core.types import (
     AudioSensorFrame,
     AudioTimeWindow,
     DoaEstimate,
+    Pose3D,
 )
 
 
@@ -33,13 +42,13 @@ def test_core_package_imports_and_exposes_version():
     assert isaac_audio_sensors.__version__ == "0.1.0"
 
 
-def test_config_validation_accepts_phase55_config():
-    config = load_audio_config("configs/isaac_audio_sensors_phase55.toml")
+def test_config_validation_accepts_demo_config():
+    config = load_audio_config("configs/isaac_audio_sensors_demo.toml")
     scene = build_scene_snapshot(config, timestamp_ms=1234)
 
     assert config.default_backend == "tdoa_synthetic"
     assert sorted(config.arrays) == ["rig_front", "rig_stereo"]
-    assert scene.stage_id == "phase55_audio_lab_single_source"
+    assert scene.stage_id == "demo_audio_lab_single_source"
 
 
 def test_config_validation_rejects_duplicate_microphone_ids():
@@ -209,8 +218,118 @@ def test_frame_shapes_allow_empty_single_and_multiple_detections():
         detections=(first, second),
     )
     assert empty.detections == ()
+    assert empty.schema_version == "ias.audio_sensor_frame.v1"
+    assert empty.frame_name == "empty"
+    assert empty.units["position"] == "m"
+    assert empty.provenance == "synthetic/core"
     assert single.detections == (first,)
     assert len(multi.detections) == 2
+
+
+def test_frame_contract_serializes_and_round_trips():
+    frame = AudioSensorFrame(
+        frame_id="frame_1",
+        frame_name="demo/frame_1",
+        timestamp_ms=50,
+        start_time_s=0.05,
+        end_time_s=0.10,
+        sample_rate_hz=48_000,
+        frame_index=2,
+        backend_id="geometry_only",
+        array_id="rig_front",
+        array_pose=Pose3D(position_m=(1.0, 2.0, 0.0)),
+        max_events=1,
+        detections=(
+            AudioDetection(
+                detection_id="det_1",
+                source_id="speaker",
+                class_label="Speech",
+                detection_mode="scheduled_known_source",
+                timestamp_ms=50,
+                ground_truth_bearing_deg=45.0,
+                source_distance_m=3.0,
+                doa=DoaEstimate(
+                    estimated_bearing_deg=45.0,
+                    candidate_bearing_deg=(45.0,),
+                    bearing_confidence=0.9,
+                ),
+                source_pose=Pose3D(position_m=(3.0, 4.0, 0.0)),
+            ),
+        ),
+    )
+
+    payload = frame_to_trace_dict(frame)
+    json.dumps(payload)
+    rebuilt = frame_from_trace_dict(payload)
+
+    assert payload["schema_version"] == "ias.audio_sensor_frame.v1"
+    assert payload["array_pose"]["position_m"] == [1.0, 2.0, 0.0]
+    assert payload["detections"][0]["source_pose"]["position_m"] == [3.0, 4.0, 0.0]
+    assert rebuilt == frame
+
+
+def test_schema_file_exists_and_is_json():
+    schema_path = Path("docs/schemas/audio_sensor_frame.v1.schema.json")
+    assert schema_path.exists()
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+
+    assert schema["properties"]["schema_version"]["const"] == (
+        "ias.audio_sensor_frame.v1"
+    )
+    assert "array_pose" in schema["required"]
+    assert "source_pose" in schema["properties"]["detections"]["items"]["required"]
+
+
+def test_trace_examples_use_public_schema_shape():
+    schema = json.loads(
+        Path("docs/schemas/audio_sensor_frame.v1.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    required = set(schema["required"])
+    trace_paths = sorted(Path("examples/traces").glob("*.json"))
+
+    assert trace_paths
+    for trace_path in trace_paths:
+        payload = json.loads(trace_path.read_text(encoding="utf-8"))
+        assert required <= set(payload)
+        assert payload["schema_version"] == "ias.audio_sensor_frame.v1"
+        if payload["max_events"] is not None:
+            assert len(payload["detections"]) <= payload["max_events"]
+
+
+def test_public_files_use_neutral_demo_names():
+    assert Path("configs/isaac_audio_sensors_demo.toml").exists()
+    assert Path("examples/isaac_sim/live_audio_lab.py").exists()
+
+    checked_roots = [
+        Path("README.md"),
+        Path("CHANGELOG.md"),
+        Path("Makefile"),
+        Path("configs"),
+        Path("docs"),
+        Path("examples"),
+    ]
+    public_files: list[Path] = []
+    for root in checked_roots:
+        if root.is_file():
+            public_files.append(root)
+        else:
+            public_files.extend(
+                path
+                for path in root.rglob("*")
+                if path.suffix in {".md", ".py", ".toml"}
+            )
+
+    forbidden = (
+        "Phase " + "5.5",
+        "phase" + "55",
+        "phase_5" + "_5",
+        "Squad" + "Bot",
+    )
+    for path in public_files:
+        text = path.read_text(encoding="utf-8")
+        assert not any(term in text for term in forbidden), path
 
 
 def test_detection_mode_validation_rejects_unknown_mode():
@@ -225,3 +344,25 @@ def test_detection_mode_validation_rejects_unknown_mode():
             source_distance_m=None,
             doa=DoaEstimate(estimated_bearing_deg=None, bearing_confidence=0.0),
         )
+
+
+def test_max_events_limits_detections_in_deterministic_order():
+    config = load_audio_config("configs/isaac_audio_sensors_demo.toml")
+    scene = build_scene_snapshot(config, timestamp_ms=500)
+    sensor = scene.array_by_id("rig_front")
+    frame = GeometryBackend().simulate(
+        scene,
+        sensor,
+        AudioTimeWindow(
+            start_time_s=0.5,
+            end_time_s=0.75,
+            timestamp_ms=500,
+            sample_rate_hz=sensor.sample_rate_hz,
+            frame_index=0,
+            max_events=1,
+        ),
+    )
+
+    assert frame.max_events == 1
+    assert len(frame.detections) == 1
+    assert frame.detections[0].source_id == "speaker_front_right"

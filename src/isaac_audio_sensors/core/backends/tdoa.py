@@ -28,6 +28,7 @@ from isaac_audio_sensors.core.scene import (
     active_sources,
     deterministic_detection_id,
     deterministic_frame_id,
+    deterministic_frame_name,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -36,6 +37,7 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     DoaEstimate,
     MicrophoneArraySpec,
+    Pose3D,
 )
 
 
@@ -86,7 +88,8 @@ class TdoaSyntheticBackend:
         detections: list[AudioDetection] = []
         aggregate_rms = {microphone.mic_id: 0.0 for microphone in sensor.microphones}
 
-        for index, source in enumerate(active_sources(scene, time_window)):
+        active = active_sources(scene, time_window)
+        for index, source in enumerate(active):
             delay_result = self._per_mic_delays_and_rms(source.position_world, sensor)
             ground_truth_bearing = _ground_truth_bearing(source.position_world, sensor)
             doa = self._estimate_doa(
@@ -111,6 +114,7 @@ class TdoaSyntheticBackend:
                     ground_truth_bearing_deg=ground_truth_bearing,
                     source_distance_m=delay_result.source_distance_m,
                     doa=doa,
+                    source_pose=Pose3D.from_source(source),
                     per_mic_delay_s=delay_result.per_mic_delay_s,
                     per_mic_rms=delay_result.per_mic_rms,
                     audio_asset_path=source.audio_asset_path,
@@ -128,9 +132,24 @@ class TdoaSyntheticBackend:
 
         return AudioSensorFrame(
             frame_id=frame_id,
+            frame_name=deterministic_frame_name(
+                backend_id=self.backend_id,
+                stage_id=scene.stage_id,
+                array_id=sensor.array_id,
+                timestamp_ms=time_window.timestamp_ms,
+                frame_index=time_window.frame_index,
+            ),
             timestamp_ms=time_window.timestamp_ms,
             backend_id=self.backend_id,
             array_id=sensor.array_id,
+            array_pose=Pose3D.from_array(sensor),
+            start_time_s=time_window.start_time_s,
+            end_time_s=time_window.end_time_s,
+            sample_rate_hz=time_window.sample_rate_hz,
+            frame_index=time_window.frame_index,
+            coordinate_convention=sensor.coordinate_convention,
+            provenance="synthetic/core",
+            max_events=time_window.max_events,
             detections=tuple(detections),
             aggregate_per_mic_rms=aggregate_rms,
             waveform_paths=(),

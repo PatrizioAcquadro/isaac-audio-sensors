@@ -5,7 +5,7 @@ ISAAC_LAB_PYTHON ?= $(PYTHON)
 ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
 
-.PHONY: test lint format build import-smoke validate-config live-isaac-sim-audio live-isaac-lab-audio diagnose-isaac
+.PHONY: test lint format build import-smoke validate-config export-schema live-isaac-sim-audio live-isaac-lab-audio diagnose-isaac
 
 test:
 	$(PYTHON) -m pytest
@@ -20,10 +20,13 @@ build:
 	$(PYTHON) -m build $(BUILD_FLAGS)
 
 import-smoke:
-	$(PYTHON) -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
 
 validate-config:
-	$(PYTHON) -m isaac_audio_sensors.cli validate-config configs/isaac_audio_sensors_phase55.toml
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors.cli validate-config configs/isaac_audio_sensors_demo.toml
+
+export-schema:
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors.cli export-schema --out docs/schemas/audio_sensor_frame.v1.schema.json
 
 live-isaac-sim-audio:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_isaac_sim_audio_smoke.py

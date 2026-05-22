@@ -66,10 +66,20 @@ def main() -> int:
         sensor = IsaacAudioArraySensor.from_stage(
             stage=stage,
             array_prim_path="/World/Rig/AudioArray",
-            backend="tdoa_synthetic",
+            backend="geometry_only",
             timestamp_ms=0,
+            update_period_s=0.1,
+            max_events=1,
+            debug_draw=True,
+            writer_path=args.out.with_suffix(".frames.jsonl"),
         )
-        frame = sensor.capture(timestamp_ms=0, start_time_s=0.0, end_time_s=1.0)
+        sensor.start()
+        first_frame = sensor.update(sim_time_s=0.0)
+        _move_authored_stage(stage)
+        _update_kit_once(evidence)
+        moved_frame = sensor.update(sim_time_s=0.1)
+        inactive_frame = sensor.update(sim_time_s=0.5)
+        sensor.close()
         evidence.update(
             {
                 "status": "passed",
@@ -77,7 +87,16 @@ def main() -> int:
                 "source_count": len(snapshot.sources),
                 "array_count": len(snapshot.arrays),
                 "microphone_count": len(snapshot.arrays[0].microphones),
-                "frame": frame_to_trace_dict(frame),
+                "first_frame": frame_to_trace_dict(first_frame),
+                "moved_frame": frame_to_trace_dict(moved_frame),
+                "inactive_frame": frame_to_trace_dict(inactive_frame),
+                "movement_changed_bearing": (
+                    first_frame.detections[0].doa.estimated_bearing_deg
+                    != moved_frame.detections[0].doa.estimated_bearing_deg
+                ),
+                "inactive_detection_count": len(inactive_frame.detections),
+                "debug_primitive_count": len(sensor.latest_debug_primitives),
+                "jsonl_writer_path": str(args.out.with_suffix(".frames.jsonl")),
             }
         )
         _write_evidence(args.out, evidence)
@@ -138,6 +157,8 @@ def _author_stage(stage) -> None:
         sample_rate_hz=48_000,
         coordinate_convention="x_forward_y_right_z_up_clockwise_bearing",
         layout_name="quad_front",
+        position_world=(0.0, 0.0, 0.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
     )
     for microphone in microphone_layout("quad_front"):
         mic_prim = stage.DefinePrim(
@@ -154,6 +175,29 @@ def _author_stage(stage) -> None:
         stage,
         prim_path="/World/Rig/AudioArray/Listener",
         array_id="rig_front",
+    )
+
+
+def _move_authored_stage(stage) -> None:
+    sound = stage.GetPrimAtPath("/World/Sources/SpeakerFront/Sound")
+    attach_sound_source_attrs(
+        sound,
+        source_id="speaker_front",
+        class_label="Speech",
+        position_world=(0.0, 4.0, 0.0),
+        start_time_s=0.0,
+        duration_s=0.25,
+        gain_db=0.0,
+    )
+    array_prim = stage.GetPrimAtPath("/World/Rig/AudioArray")
+    attach_microphone_array_attrs(
+        array_prim,
+        array_id="rig_front",
+        sample_rate_hz=48_000,
+        coordinate_convention="x_forward_y_right_z_up_clockwise_bearing",
+        layout_name="quad_front",
+        position_world=(1.0, 0.0, 0.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
     )
 
 
