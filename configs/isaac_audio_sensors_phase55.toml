@@ -1,0 +1,87 @@
+[scene]
+scene_id = "phase55_audio_lab_single_source"
+stage_units = "meters"
+up_axis = "z"
+
+[audio]
+sample_rate_hz = 48000
+speed_of_sound_mps = 343.0
+default_backend = "tdoa_synthetic"
+write_waveforms = false
+default_array_layout = "quad_front"
+tdoa_ambiguity_policy = "none"
+
+[[sources]]
+source_id = "speaker_front_right"
+prim_path = "/World/Sources/SpeakerFrontRight"
+class_label = "Speech"
+audio_asset_path = "generated://impulse"
+position_world = [4.0, 2.0, 0.0]
+gain_db = 0.0
+start_time_s = 0.0
+duration_s = 1.0
+directivity = "omni"
+
+[[sources]]
+source_id = "speaker_left"
+prim_path = "/World/Sources/SpeakerLeft"
+class_label = "Footsteps"
+audio_asset_path = "generated://pulse"
+position_world = [2.0, -3.0, 0.0]
+gain_db = -3.0
+start_time_s = 0.5
+duration_s = 1.0
+directivity = "omni"
+
+[arrays.rig_front]
+array_id = "rig_front"
+prim_path = "/World/Rig/AudioArray"
+position_world = [0.0, 0.0, 0.0]
+orientation_world_quat = [0.0, 0.0, 0.0, 1.0]
+sample_rate_hz = 48000
+coordinate_convention = "x_forward_y_right_z_up_clockwise_bearing"
+
+[[arrays.rig_front.microphones]]
+mic_id = "front"
+relative_position_m = [0.08, 0.0, 0.0]
+
+[[arrays.rig_front.microphones]]
+mic_id = "right"
+relative_position_m = [0.0, 0.08, 0.0]
+
+[[arrays.rig_front.microphones]]
+mic_id = "rear"
+relative_position_m = [-0.08, 0.0, 0.0]
+
+[[arrays.rig_front.microphones]]
+mic_id = "left"
+relative_position_m = [0.0, -0.08, 0.0]
+
+[arrays.rig_stereo]
+array_id = "rig_stereo"
+prim_path = "/World/Rig/StereoAudioArray"
+position_world = [0.0, 0.0, 0.0]
+orientation_world_quat = [0.0, 0.0, 0.0, 1.0]
+sample_rate_hz = 48000
+coordinate_convention = "x_forward_y_right_z_up_clockwise_bearing"
+
+[[arrays.rig_stereo.microphones]]
+mic_id = "left"
+relative_position_m = [0.0, -0.08, 0.0]
+
+[[arrays.rig_stereo.microphones]]
+mic_id = "right"
+relative_position_m = [0.0, 0.08, 0.0]
+
+[lab]
+enabled = true
+prim_path = "{ENV_REGEX_NS}/Robot/audio_array"
+update_period = 0.05
+debug_vis = true
+observation_fields = ["bearing", "bearing_confidence", "ambiguity", "rms"]
+
+[room]
+room_id = "lab_room_a"
+dimensions_m = [5.0, 4.0, 2.7]
+absorption = 0.35
+max_order = 2

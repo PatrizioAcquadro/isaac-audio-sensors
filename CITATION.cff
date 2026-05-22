@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+title: "isaac-audio-sensors"
+version: "0.1.0"
+date-released: "2026-05-21"
+message: "If you use isaac-audio-sensors in research or demos, please cite this software package."
+authors:
+  - name: "isaac-audio-sensors contributors"
+license: "Apache-2.0"
+repository-code: "https://github.com/PatrizioAcquadro/isaac-audio-sensors"
+url: "https://isaac-audio-showcase-site.vercel.app"

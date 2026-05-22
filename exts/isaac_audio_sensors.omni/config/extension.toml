@@ -1,0 +1,11 @@
+[package]
+version = "0.1.0"
+title = "Isaac Audio Sensors"
+description = "Thin Omniverse wrapper for the isaac_audio_sensors Python package."
+category = "Simulation"
+keywords = ["audio", "microphone", "sensor", "robotics"]
+
+[dependencies]
+
+[[python.module]]
+name = "isaac_audio_sensors_omni"
