@@ -268,6 +268,101 @@ def test_frame_contract_serializes_and_round_trips():
     assert rebuilt == frame
 
 
+def test_audio_sensor_frame_v1_schema_required_keys_match_trace_contract():
+    frame = AudioSensorFrame(
+        frame_id="contract",
+        timestamp_ms=10,
+        start_time_s=0.0,
+        end_time_s=0.1,
+        sample_rate_hz=48_000,
+        frame_index=0,
+        backend_id="geometry_only",
+        array_id="rig_front",
+        array_pose=Pose3D(position_m=(0.0, 0.0, 0.0)),
+        max_events=1,
+        detections=(
+            AudioDetection(
+                detection_id="det_1",
+                source_id="speaker",
+                class_label="Speech",
+                detection_mode="scheduled_known_source",
+                timestamp_ms=10,
+                ground_truth_bearing_deg=0.0,
+                source_distance_m=1.0,
+                doa=DoaEstimate(
+                    estimated_bearing_deg=0.0,
+                    candidate_bearing_deg=(0.0,),
+                    bearing_confidence=1.0,
+                ),
+                source_pose=Pose3D(position_m=(1.0, 0.0, 0.0)),
+            ),
+        ),
+    )
+    payload = frame_to_trace_dict(frame)
+    schema = isaac_audio_sensors.audio_sensor_frame_json_schema()
+
+    expected_top_level = {
+        "schema_version",
+        "frame_id",
+        "frame_name",
+        "timestamp_ms",
+        "start_time_s",
+        "end_time_s",
+        "sample_rate_hz",
+        "frame_index",
+        "backend_id",
+        "array_id",
+        "array_pose",
+        "coordinate_convention",
+        "units",
+        "provenance",
+        "max_events",
+        "detections",
+        "aggregate_per_mic_rms",
+        "waveform_paths",
+        "diagnostics",
+    }
+    expected_detection = {
+        "detection_id",
+        "source_id",
+        "class_label",
+        "detection_mode",
+        "timestamp_ms",
+        "ground_truth_bearing_deg",
+        "source_distance_m",
+        "doa",
+        "source_pose",
+        "per_mic_delay_s",
+        "per_mic_rms",
+        "audio_asset_path",
+        "diagnostics",
+    }
+    expected_doa = {
+        "estimated_bearing_deg",
+        "candidate_bearing_deg",
+        "bearing_sector",
+        "bearing_confidence",
+        "ambiguity_class",
+        "ambiguity_reason",
+    }
+    expected_pose = {
+        "position_m",
+        "orientation_xyzw",
+        "frame",
+        "coordinate_convention",
+    }
+
+    assert set(schema["required"]) == expected_top_level
+    assert set(payload) == expected_top_level
+    detection_schema = schema["properties"]["detections"]["items"]
+    assert set(detection_schema["required"]) == expected_detection
+    assert set(payload["detections"][0]) == expected_detection
+    assert set(detection_schema["properties"]["doa"]["required"]) == expected_doa
+    assert set(payload["detections"][0]["doa"]) == expected_doa
+    assert set(payload["array_pose"]) == expected_pose
+    assert set(payload["detections"][0]["source_pose"]) == expected_pose
+
+
 def test_schema_file_exists_and_is_json():
     schema_path = Path("docs/schemas/audio_sensor_frame.v1.schema.json")
     assert schema_path.exists()

@@ -14,6 +14,17 @@
   and latest-frame export entry points.
 - Renamed the bundled config and Isaac Sim example away from legacy project
   phase naming.
+- Documented the 0.1.x API freeze with stable, provisional, experimental, and
+  internal/private surfaces after the Isaac-native Sim/Lab upgrades.
+- Added public release-candidate docs for versioning, archive auditing,
+  completed roadmap items, live Isaac validation expectations, and API-change
+  deprecation policy.
+- Added a distribution audit script and `make audit-dist`; `make build` now
+  checks the built source distribution and wheel for required public files,
+  forbidden generated/private paths, and public-package leak tokens.
+- Kept the package version at `0.1.0`; the current hardening remains part of
+  the initial release-candidate surface, while the frame contract stays
+  `ias.audio_sensor_frame.v1`.
 
 ## 0.1.0 - 2026-05-21
 

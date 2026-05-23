@@ -25,9 +25,16 @@ Source repository: <https://github.com/PatrizioAcquadro/isaac-audio-sensors>
 - Explicit two-microphone front/back ambiguity reporting.
 - Optional `room_acoustics` backend using `pyroomacoustics` when installed.
 - Lazy Isaac Sim helpers for USD sound/listener/microphone-array metadata,
-  live update-loop capture, moving source/array snapshots, active sound
-  windows, debug visualization records, and JSONL writer output.
-- Lazy Isaac Lab wrapper classes for observation-style sensor data.
+  live update-loop capture, USD-native world-pose reads, nested transform
+  stacks, robot/base-mounted arrays, moving sources/arrays/microphone children,
+  semantic array/source discovery, active sound windows, debug visualization
+  records, and JSONL writer output.
+- Lazy Isaac Lab integration that becomes a real `SensorBaseCfg`/`SensorBase`
+  sensor when imported inside an initialized Isaac Lab runtime, with a public
+  recovery API, vectorized multi-env RL buffers, GPU validation, USD transform
+  stack stage binding, scene/env binding helpers, semantic cloned-stage
+  discovery, and scene entity/articulation tensor binding for robot/link
+  mounted arrays and source entities.
 - CLI commands for config validation, simulation, schema export, and trace
   export.
 
@@ -40,8 +47,9 @@ The package is organized into four layers:
    Omniverse, room-acoustics, ROS 2, or project-specific modules.
 2. `isaac_audio_sensors.isaac`: optional Isaac Sim and Omniverse helpers. These
    modules import Isaac packages lazily and raise clear errors when unavailable.
-3. `isaac_audio_sensors.lab`: optional Isaac Lab wrapper classes that expose
-   deterministic sensor observations from a bound scene snapshot.
+3. `isaac_audio_sensors.lab`: optional Isaac Lab sensor classes. In Lab mode
+   they inherit `SensorBaseCfg`/`SensorBase`; outside Lab they stay import-safe
+   and exercise the same tensor conversion path in tests.
 4. Optional project adapters: downstream projects can convert
    `AudioSensorFrame` records into their own message or graph contracts outside
    the core package.
@@ -119,11 +127,12 @@ under `examples/traces/`.
 PYTHONPATH=src "$ISAAC_SIM_PYTHON" scripts/live_isaac_sim_audio_smoke.py
 ```
 
-The script creates an in-memory USD stage, authors a sound source and
-microphone array metadata, starts `IsaacAudioArraySensor`, moves the source and
-array between update ticks, verifies the changed frame output, records an
-inactive sound window, and writes optional JSON/JSONL evidence under ignored
-`outputs/`.
+The script creates an in-memory USD stage, semantically discovers sources and a
+robot-mounted array from `ias:*`, native sound attributes, names, and child
+microphone prims, then starts `IsaacAudioArraySensor.from_discovered_stage`.
+It reads time-coded live world poses between update ticks, verifies changed
+frame output, records an inactive sound window, and writes GPU, discovery,
+transform-provenance, JSON, and JSONL evidence under ignored `outputs/`.
 
 ## Isaac Lab Example
 
@@ -131,8 +140,23 @@ inactive sound window, and writes optional JSON/JSONL evidence under ignored
 PYTHONPATH=src "$ISAAC_LAB_PYTHON" scripts/live_isaac_lab_audio_smoke.py
 ```
 
-The script imports the active Isaac Lab runtime, builds a small scene snapshot,
-and updates `AudioArraySensor` once.
+The script launches Isaac Lab first, imports the sensor layer, verifies real
+`SensorBaseCfg`/`SensorBase` inheritance through
+`ensure_isaac_lab_sensor_classes()`, binds two environment-indexed scene
+snapshots, discovers arrays and sources in two cloned USD stage environments
+through authored Xform ops, binds a duck-typed Lab scene entity setup from
+articulation and rigid-object tensors, and checks tensor buffer shapes/device
+plus selected-env reset and update behavior.
+
+Lab observations expose `event_presence`, `bearing_deg`, `confidence`,
+`sector_onehot`, `per_mic_rms`, and `ambiguity_mask` as fixed-shape tensors
+`[num_envs, max_events, ...]` suitable for RL pipelines.
+
+GPU-required validation fails instead of passing on CPU:
+
+```bash
+make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
+```
 
 ## Validation Status
 
@@ -144,12 +168,14 @@ python -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
 python -m pytest
 python -m ruff check .
 python -m build
+python scripts/audit_distribution.py --dist-dir dist
 python -m isaac_audio_sensors.cli export-schema --out /tmp/audio_sensor_frame.v1.schema.json
 git diff --check
 ```
 
-Live Isaac Sim and Isaac Lab checks are optional manual checks because the
-NVIDIA runtimes are large environment installs, not package dependencies.
+Live Isaac Sim and Isaac Lab checks use user-managed NVIDIA runtimes, not PyPI
+dependencies. The GPU Isaac Lab target is expected to fail with a concrete CUDA
+blocker when no NVIDIA GPU is available to the Isaac Lab runtime.
 
 ## Known Limitations
 
@@ -161,6 +187,12 @@ NVIDIA runtimes are large environment installs, not package dependencies.
   treated as an approximate shoebox-room simulation.
 - Two microphones cannot resolve front/back ambiguity without an additional
   prior. Four or more non-collinear microphones are recommended for DOA.
+- Isaac Sim pose extraction supports USD transform stacks, fallback attrs, and
+  semantic discovery from common audio metadata, but full articulation semantic
+  adapters remain task-specific.
+- Isaac Lab entity binding supports common scene/entity tensor fields such as
+  `root_state_w`, `root_pos_w`, `root_quat_w`, `body_state_w`, `body_pos_w`,
+  and `body_quat_w` without requiring exact Isaac Lab classes at import time.
 - The Isaac helpers include a developer extension wrapper, but this is not an
   official NVIDIA extension. Replicator writer registration remains a future
   integration; the package writer currently records JSONL frames.
@@ -177,6 +209,9 @@ NVIDIA runtimes are large environment installs, not package dependencies.
 - [API Freeze 0.1](docs/api_freeze_0_1.md)
 - [Validation](docs/validation.md)
 - [Limitations](docs/limitations.md)
+- [Versioning](docs/versioning.md)
+- [Open Source Release Checklist](docs/open_source_release_checklist.md)
+- [Roadmap](docs/roadmap.md)
 - [Showcase](docs/showcase.md)
 
 ## License And Citation

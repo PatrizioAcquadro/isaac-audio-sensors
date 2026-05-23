@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,10 @@ from isaac_audio_sensors.core.types import (
     AudioSensorFrame,
     AudioTimeWindow,
     MicrophoneArraySpec,
+)
+from isaac_audio_sensors.isaac.discovery import (
+    IsaacAudioSceneBindingCfg,
+    discover_stage_audio,
 )
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 from isaac_audio_sensors.isaac.viz.debug_draw import IsaacDebugDrawer
@@ -35,6 +40,10 @@ class IsaacAudioArraySensor:
     stage_snapshot: AudioSceneSnapshot | None = None
     stage: Any | None = None
     array_prim_path: str | None = None
+    robot_base_prim_path: str | None = None
+    scene_binding_cfg: IsaacAudioSceneBindingCfg | None = None
+    usd_time_code_scale: float | None = None
+    usd_time_code_offset: float = 0.0
     update_period_s: float = 0.05
     max_events: int | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
@@ -53,6 +62,10 @@ class IsaacAudioArraySensor:
     _last_update_time_s: float | None = field(default=None, init=False)
     _latest_scene: AudioSceneSnapshot | None = field(default=None, init=False)
     _latest_sensor: MicrophoneArraySpec | None = field(default=None, init=False)
+    _latest_stage_diagnostics: dict[str, Any] | None = field(
+        default=None,
+        init=False,
+    )
     _update_subscription: Any | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
@@ -60,6 +73,12 @@ class IsaacAudioArraySensor:
             raise ValueError("update_period_s must be positive.")
         if self.max_events is not None and self.max_events < 0:
             raise ValueError("max_events must be non-negative.")
+        if self.usd_time_code_scale is not None and not math.isfinite(
+            float(self.usd_time_code_scale)
+        ):
+            raise ValueError("usd_time_code_scale must be finite.")
+        if not math.isfinite(float(self.usd_time_code_offset)):
+            raise ValueError("usd_time_code_offset must be finite.")
 
     @classmethod
     def from_stage(
@@ -69,6 +88,9 @@ class IsaacAudioArraySensor:
         array_prim_path: str,
         backend: str = "tdoa_synthetic",
         timestamp_ms: int = 0,
+        robot_base_prim_path: str | None = None,
+        usd_time_code_scale: float | None = None,
+        usd_time_code_offset: float = 0.0,
         update_period_s: float = 0.05,
         max_events: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
@@ -82,6 +104,7 @@ class IsaacAudioArraySensor:
             stage,
             timestamp_ms=timestamp_ms,
             array_prim_path=array_prim_path,
+            robot_base_prim_path=robot_base_prim_path,
         )
         if len(snapshot.arrays) != 1:
             raise ValueError(
@@ -94,15 +117,79 @@ class IsaacAudioArraySensor:
             stage_snapshot=snapshot,
             stage=stage,
             array_prim_path=array_prim_path,
+            robot_base_prim_path=robot_base_prim_path,
+            usd_time_code_scale=usd_time_code_scale,
+            usd_time_code_offset=usd_time_code_offset,
             update_period_s=update_period_s,
             max_events=max_events,
             speed_of_sound_mps=speed_of_sound_mps,
             ambiguity_policy=ambiguity_policy,
             debug_draw_enabled=debug_draw,
             writer=(
-                None
-                if writer_path is None
-                else AudioFrameJsonlWriter(writer_path)
+                None if writer_path is None else AudioFrameJsonlWriter(writer_path)
+            ),
+        )
+
+    @classmethod
+    def from_discovered_stage(
+        cls,
+        *,
+        stage: Any,
+        binding_cfg: IsaacAudioSceneBindingCfg | None = None,
+        backend: str = "tdoa_synthetic",
+        timestamp_ms: int = 0,
+        usd_time_code: Any | None = None,
+        usd_time_code_scale: float | None = None,
+        usd_time_code_offset: float = 0.0,
+        update_period_s: float = 0.05,
+        max_events: int | None = None,
+        speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
+        ambiguity_policy: str = "none",
+        debug_draw: bool = False,
+        writer_path: str | Path | None = None,
+    ) -> IsaacAudioArraySensor:
+        """Create a live sensor by discovering arrays and sources on a stage."""
+
+        binding = binding_cfg or IsaacAudioSceneBindingCfg()
+        result = discover_stage_audio(
+            stage,
+            cfg=binding.to_discovery_cfg(),
+            timestamp_ms=timestamp_ms,
+            usd_time_code=usd_time_code,
+            preferred_array=binding.preferred_array,
+            preferred_source=binding.preferred_source,
+        )
+        if result.selected_array is None:
+            raise ValueError("No microphone array was discovered for stage binding.")
+        sources = (
+            (result.selected_source.spec,)
+            if binding.preferred_source is not None
+            and result.selected_source is not None
+            else tuple(source.spec for source in result.sources)
+        )
+        snapshot = AudioSceneSnapshot(
+            stage_id=result.stage_id,
+            timestamp_ms=timestamp_ms,
+            sources=sources,
+            arrays=tuple(array.spec for array in result.arrays),
+            room=None,
+        )
+        return cls(
+            array_id=result.selected_array.spec.array_id,
+            backend=backend,
+            stage_snapshot=snapshot,
+            stage=stage,
+            robot_base_prim_path=binding.robot_base_prim_path,
+            scene_binding_cfg=binding,
+            usd_time_code_scale=usd_time_code_scale,
+            usd_time_code_offset=usd_time_code_offset,
+            update_period_s=update_period_s,
+            max_events=max_events,
+            speed_of_sound_mps=speed_of_sound_mps,
+            ambiguity_policy=ambiguity_policy,
+            debug_draw_enabled=debug_draw,
+            writer=(
+                None if writer_path is None else AudioFrameJsonlWriter(writer_path)
             ),
         )
 
@@ -186,6 +273,7 @@ class IsaacAudioArraySensor:
         sim_time_s: float | None = None,
         dt: float | None = None,
         timestamp_ms: int | None = None,
+        usd_time_code: Any | None = None,
         force: bool = False,
     ) -> AudioSensorFrame:
         """Capture a repeatable live frame for one update-loop tick."""
@@ -214,9 +302,12 @@ class IsaacAudioArraySensor:
             end_time_s=update_time_s + window_s,
             frame_index=self._frame_index,
             max_events=self.max_events,
+            usd_time_code=self._resolve_usd_time_code(
+                explicit_time_code=usd_time_code,
+                sim_time_s=update_time_s,
+                timestamp_ms=timestamp,
+            ),
         )
-        if self.stage is not None:
-            frame = replace(frame, provenance="isaac_live")
 
         self.latest_frame = frame
         self._last_update_time_s = update_time_s
@@ -236,12 +327,22 @@ class IsaacAudioArraySensor:
         frame_index: int | None = 0,
         max_events: int | None = None,
         source_prim_path: str | None = None,
+        usd_time_code: Any | None = None,
     ) -> AudioSensorFrame:
         """Capture one deterministic offline frame."""
 
         scene = self._scene_for_capture(
             timestamp_ms=timestamp_ms,
             source_prim_path=source_prim_path,
+            usd_time_code=(
+                usd_time_code
+                if usd_time_code is not None or self.stage is None
+                else self._resolve_usd_time_code(
+                    explicit_time_code=None,
+                    sim_time_s=None,
+                    timestamp_ms=timestamp_ms,
+                )
+            ),
         )
         sensor = scene.array_by_id(self.array_id)
         time_window = AudioTimeWindow(
@@ -260,6 +361,15 @@ class IsaacAudioArraySensor:
             }
         backend = get_backend(self.backend, **kwargs)
         frame = backend.simulate(scene, sensor, time_window)
+        if self.stage is not None:
+            frame = replace(
+                frame,
+                provenance="isaac_live",
+                diagnostics={
+                    **frame.diagnostics,
+                    "stage_snapshot": self._latest_stage_diagnostics or {},
+                },
+            )
         self._latest_scene = scene
         self._latest_sensor = sensor
         return frame
@@ -269,17 +379,41 @@ class IsaacAudioArraySensor:
         *,
         timestamp_ms: int,
         source_prim_path: str | None,
+        usd_time_code: Any | None,
     ) -> AudioSceneSnapshot:
         if self.stage is not None:
-            if self.array_prim_path is None:
+            if self.scene_binding_cfg is not None:
+                binding = self.scene_binding_cfg
+                diagnostics: dict[str, Any] = {}
+                scene = build_stage_snapshot(
+                    self.stage,
+                    timestamp_ms=timestamp_ms,
+                    robot_base_prim_path=binding.robot_base_prim_path,
+                    source_prim_path=source_prim_path,
+                    usd_time_code=usd_time_code,
+                    discovery_cfg=binding.to_discovery_cfg(),
+                    preferred_array=binding.preferred_array,
+                    preferred_source=binding.preferred_source,
+                    diagnostics_out=diagnostics,
+                )
+                self._latest_stage_diagnostics = diagnostics
+            elif self.array_prim_path is None:
                 raise RuntimeError("Live Isaac stage sensor has no array prim path.")
-            scene = build_stage_snapshot(
-                self.stage,
-                timestamp_ms=timestamp_ms,
-                array_prim_path=self.array_prim_path,
-            )
+            else:
+                diagnostics = {}
+                scene = build_stage_snapshot(
+                    self.stage,
+                    timestamp_ms=timestamp_ms,
+                    array_prim_path=self.array_prim_path,
+                    robot_base_prim_path=self.robot_base_prim_path,
+                    source_prim_path=source_prim_path,
+                    usd_time_code=usd_time_code,
+                    diagnostics_out=diagnostics,
+                )
+                self._latest_stage_diagnostics = diagnostics
         elif self.config is not None:
             scene = build_scene_snapshot(self.config, timestamp_ms=timestamp_ms)
+            self._latest_stage_diagnostics = None
         elif self.stage_snapshot is not None:
             scene = AudioSceneSnapshot(
                 stage_id=self.stage_snapshot.stage_id,
@@ -288,6 +422,7 @@ class IsaacAudioArraySensor:
                 arrays=self.stage_snapshot.arrays,
                 room=self.stage_snapshot.room,
             )
+            self._latest_stage_diagnostics = None
         else:
             raise RuntimeError("IsaacAudioArraySensor has no config or stage snapshot.")
 
@@ -326,6 +461,28 @@ class IsaacAudioArraySensor:
             if self._last_update_time_s is None
             else self._last_update_time_s + self.update_period_s
         )
+
+    def _resolve_usd_time_code(
+        self,
+        *,
+        explicit_time_code: Any | None,
+        sim_time_s: float | None,
+        timestamp_ms: int,
+    ) -> Any | None:
+        if explicit_time_code is not None:
+            return explicit_time_code
+        if self.usd_time_code_scale is not None:
+            base_time_s = (
+                float(sim_time_s)
+                if sim_time_s is not None
+                else float(timestamp_ms) / 1000.0
+            )
+            return base_time_s * float(self.usd_time_code_scale) + float(
+                self.usd_time_code_offset
+            )
+        if sim_time_s is not None:
+            return sim_time_s
+        return float(timestamp_ms) / 1000.0
 
     def _emit_debug_primitives(
         self,

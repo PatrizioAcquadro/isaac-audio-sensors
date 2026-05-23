@@ -14,6 +14,7 @@ public users.
 - [AudioSensorFrame Schema](schemas/audio_sensor_frame.v1.schema.json)
 - [Validation](validation.md)
 - [Limitations](limitations.md)
+- [Versioning](versioning.md)
+- [Roadmap](roadmap.md)
 - [Showcase](showcase.md)
 - [Open Source Release Checklist](open_source_release_checklist.md)
-- [Versioning](versioning.md)

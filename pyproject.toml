@@ -25,6 +25,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -62,6 +63,8 @@ isaac-audio-sensors = "isaac_audio_sensors.cli:main"
 Source = "https://github.com/PatrizioAcquadro/isaac-audio-sensors"
 Showcase = "https://isaac-audio-showcase-site.vercel.app"
 Documentation = "https://isaac-audio-showcase-site.vercel.app"
+Changelog = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/CHANGELOG.md"
+Issues = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

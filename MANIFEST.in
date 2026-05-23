@@ -18,6 +18,17 @@ recursive-include .github *.yml
 global-exclude *.py[cod]
 global-exclude __pycache__
 global-exclude .DS_Store
+global-exclude .env
+global-exclude .env.*
+global-exclude *.wav
+global-exclude *.mp4
+global-exclude *.mov
+global-exclude *.png
+global-exclude *.jpg
+global-exclude *.jpeg
+global-exclude *.pdf
+recursive-exclude * __pycache__
+recursive-exclude * *.py[cod]
 prune outputs
 prune runs
 prune data
@@ -25,3 +36,11 @@ prune generated
 prune build
 prune dist
 prune .venv
+prune venv
+prune .local-goals
+prune .pytest_cache
+prune .ruff_cache
+prune .mypy_cache
+prune .agents
+prune .codex
+prune src/*.egg-info
