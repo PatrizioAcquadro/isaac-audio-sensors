@@ -67,10 +67,12 @@ REQUIRED_SDIST_ENTRIES = (
     "examples/traces/minimal_frame.v1.json",
     "examples/traces/multi_detection_frame.v1.json",
     "exts/isaac_audio_sensors.omni/config/extension.toml",
+    "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py",
     "scripts/audit_distribution.py",
     "scripts/live_isaac_sim_audio_smoke.py",
     "src/isaac_audio_sensors/__init__.py",
     "src/isaac_audio_sensors/core/fidelity.py",
+    "src/isaac_audio_sensors/isaac/extension_ui.py",
     "tests/test_acoustic_fidelity.py",
     "tests/test_isaac_audio_core.py",
 )
@@ -78,6 +80,7 @@ REQUIRED_WHEEL_ENTRIES = (
     "isaac_audio_sensors/__init__.py",
     "isaac_audio_sensors/core/types.py",
     "isaac_audio_sensors/isaac/extension.py",
+    "isaac_audio_sensors/isaac/extension_ui.py",
     "isaac_audio_sensors/lab/audio_array_sensor.py",
 )
 REQUIRED_WHEEL_SUFFIXES = (

@@ -53,7 +53,7 @@ def create_sound_prim(
         raise ValueError("prim_path must be non-empty.")
     if audio_asset_path.strip() == "":
         raise ValueError("audio_asset_path must be non-empty.")
-    prim = stage.DefinePrim(prim_path, "Sound")
+    prim = get_or_define_prim(stage, prim_path=prim_path, prim_type="Sound")
     _set_attr(prim, "filePath", audio_asset_path)
     _set_attr(prim, "spatial", bool(spatial))
     _set_attr(prim, "loop", bool(loop))
@@ -120,7 +120,7 @@ def create_listener_prim(
         raise ValueError("prim_path must be non-empty.")
     if array_id.strip() == "":
         raise ValueError("array_id must be non-empty.")
-    prim = stage.DefinePrim(prim_path, "Listener")
+    prim = get_or_define_prim(stage, prim_path=prim_path, prim_type="Listener")
     _set_attr(prim, "ias:array_id", array_id)
     return AuthoredPrimRecord(
         prim_path=prim_path,
@@ -191,9 +191,47 @@ def attach_microphone_attrs(
     return attrs
 
 
+def get_or_define_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any:
+    """Return an existing prim or define it on a USD-like stage."""
+
+    _require_stage(stage)
+    if prim_path.strip() == "":
+        raise ValueError("prim_path must be non-empty.")
+    prim = _existing_prim(stage, prim_path)
+    if prim is not None:
+        return prim
+    return stage.DefinePrim(prim_path, prim_type)
+
+
 def _require_stage(stage: Any) -> None:
     if stage is None or not hasattr(stage, "DefinePrim"):
         raise ValueError("stage must provide a DefinePrim method.")
+
+
+def _existing_prim(stage: Any, prim_path: str) -> Any | None:
+    if hasattr(stage, "GetPrimAtPath"):
+        prim = stage.GetPrimAtPath(prim_path)
+        if _prim_is_valid(prim):
+            return prim
+    if hasattr(stage, "Traverse"):
+        for prim in stage.Traverse():
+            path = getattr(prim, "path", None)
+            if path is None and hasattr(prim, "GetPath"):
+                path = prim.GetPath()
+            if str(path) == prim_path:
+                return prim
+    return None
+
+
+def _prim_is_valid(prim: Any) -> bool:
+    if prim is None:
+        return False
+    if hasattr(prim, "IsValid"):
+        try:
+            return bool(prim.IsValid())
+        except Exception:
+            return False
+    return True
 
 
 def _set_attr(prim: Any, name: str, value: object) -> None:

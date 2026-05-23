@@ -99,6 +99,24 @@ array, discovery reasons, before/after source pose, array pose, bearing,
 transform provenance, stage time code, and frame traces in
 `outputs/isaac_audio_sensors/isaac_sim_live_smoke.json`.
 
+The Omniverse extension entrypoint also has a pure Python import smoke:
+
+```bash
+PYTHONPATH=src:exts/isaac_audio_sensors.omni python - <<'PY'
+import isaac_audio_sensors_omni
+
+ext = isaac_audio_sensors_omni.Extension()
+ext.on_startup("test.ext")
+ext.on_shutdown()
+print("extension import smoke ok")
+PY
+```
+
+This smoke verifies that extension import/startup/shutdown does not require
+`omni`, `pxr`, Isaac Sim, a display, CUDA, or a GPU. Full UI and stage behavior
+is covered by fake `omni.ui`/`omni.usd` tests and by the real Isaac Sim live
+smoke.
+
 The GPU target fails if CUDA is unavailable or if any audio tensor, timestamp
 tensor, or outdated-mask tensor is allocated on CPU. It records `torch.cuda`
 and `nvidia-smi` evidence in

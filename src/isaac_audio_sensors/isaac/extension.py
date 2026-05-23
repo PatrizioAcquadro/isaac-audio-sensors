@@ -253,6 +253,11 @@ class IsaacAudioArraySensor:
         self.stop()
         if self.writer is not None:
             self.writer.close()
+            self.writer = None
+        if self.debug_drawer is not None:
+            self.debug_drawer.close()
+            self.debug_drawer = None
+        self.latest_debug_primitives = ()
         self._closed = True
 
     def get_latest_frame(self) -> AudioSensorFrame | None:

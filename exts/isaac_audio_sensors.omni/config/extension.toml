@@ -6,6 +6,9 @@ category = "Simulation"
 keywords = ["audio", "microphone", "sensor", "robotics"]
 
 [dependencies]
+"omni.ui" = {}
+"omni.usd" = {}
+"omni.kit.app" = {}
 
 [[python.module]]
 name = "isaac_audio_sensors_omni"

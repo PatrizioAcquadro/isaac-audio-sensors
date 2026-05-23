@@ -174,7 +174,8 @@ anchors for 0.1.x. They may change after changelog documentation.
 - `isaac_audio_sensors.isaac.viz`
 - structured debug primitive details beyond their documented fields
 - diagnostic JSON files emitted by live smoke scripts
-- developer Kit extension metadata and wrapper code under `exts/`
+- reference Kit extension UI/controller code under
+  `isaac_audio_sensors.isaac.extension_ui` and `exts/`
 - `isaac_audio_sensors.examples`
 - scripts under `scripts/`, except for the command-line contract documented in
   `docs/validation.md`

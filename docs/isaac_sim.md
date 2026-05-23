@@ -37,6 +37,64 @@ The smoke script:
   stage time-code diagnostics, JSON evidence, and JSONL frame traces under
   ignored `outputs/`.
 
+## Reference Extension UX
+
+The source distribution includes a lightweight Kit extension at
+`exts/isaac_audio_sensors.omni`. Load it from Isaac Sim by adding the repository
+`exts/` directory to the Extension Manager search paths, then enable
+`Isaac Audio Sensors`. The extension entrypoint is import-safe in normal Python:
+it does not import `omni`, `pxr`, Isaac Sim, a display, CUDA, or a GPU until the
+live stage or UI path is used.
+
+The extension window is organized around the live authoring workflow:
+
+- `Stage`: refreshes the current stage selection, shows selected prim paths,
+  binds the first selected prim as the array, source, or robot/base frame, and
+  runs semantic discovery from configurable roots.
+- `Author Array`: configures target prim path, array id, layout
+  (`quad_front`, `quad_cross`, `stereo_y`, `two_mic_y`, `mono`), sample rate,
+  coordinate convention, and optional child microphone prim authoring.
+- `Author Source`: configures target prim path, source id, class label, audio
+  URI, start time, duration, and gain.
+- `Sensor`: selects one implemented v1 backend (`geometry_only`,
+  `tdoa_synthetic`, `room_acoustics`), ambiguity policy, update period, max
+  events, debug overlay toggle, JSONL writer toggle/path, and
+  start/stop/update lifecycle buttons.
+- `Export`: writes the latest frame JSON and a reusable stage-binding/config
+  summary.
+
+The authoring buttons use ordinary USD custom attributes under `ias:*`; they do
+not register or require a custom USD schema. If the target prim exists, the
+extension attaches or updates metadata on that prim. If no prim exists at the
+target path, the extension defines a minimal prim and adds fallback world pose
+metadata so a one-array, one-source live scene can run immediately. Array
+authoring reuses `attach_microphone_array_attrs(...)` and
+`attach_microphone_attrs(...)`; source authoring reuses `create_sound_prim(...)`
+and `attach_sound_source_attrs(...)`.
+
+The `Start` action builds an `IsaacAudioArraySensor` from the current stage. It
+uses the explicit array prim path when that prim exists; otherwise it falls back
+to semantic discovery through `IsaacAudioSceneBindingCfg` and
+`discover_stage_audio(...)`. `Stop` leaves the latest frame available, and
+`Update` forces one frame, updates latest-frame status, appends to the JSONL
+trace when enabled, and refreshes overlay state.
+
+Debug overlay records are built with `build_debug_primitives(...)` and rendered
+through `IsaacDebugDrawer` when `omni.isaac.debug_draw` is available. The same
+structured primitives are retained when debug draw is unavailable, so the UI
+still reports primitive count/labels and the config export still contains the
+serialized microphone, source, bearing-ray, and sector-wedge evidence.
+
+Default export paths are ignored public-output paths:
+
+- latest frame JSON: `outputs/isaac_audio_sensors/extension_latest_frame.json`;
+- JSONL trace: `outputs/isaac_audio_sensors/extension_trace.frames.jsonl`;
+- reusable binding/config summary:
+  `outputs/isaac_audio_sensors/extension_binding.json`.
+
+The v1 recording path is the package JSON/JSONL export. Replicator
+annotator/writer registration is not implemented by this extension.
+
 Programmatic lifecycle:
 
 ```python
@@ -166,6 +224,7 @@ provenance. Discovery does not add a custom USD schema; all package metadata is
 ordinary custom `ias:*` attributes.
 
 This package is not an official NVIDIA extension. The extension metadata under
-`exts/` is included for developers who want a lightweight Kit workflow with
-start/stop/update/export controls. Replicator annotator/writer registration is
-not implemented yet; use the package JSONL writer for frame recording.
+`exts/` is included as a reference Kit UX for authoring arrays and sources,
+binding a live stage, visualizing debug primitives, and exporting package
+JSON/JSONL evidence. Replicator annotator/writer registration is not
+implemented yet; use the package JSONL writer for frame recording.

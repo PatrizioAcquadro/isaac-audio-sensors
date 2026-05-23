@@ -94,11 +94,18 @@ custom task adapters.
 
 ## Extension And Writer
 
-The `exts/isaac_audio_sensors.omni` wrapper provides a developer Kit extension
-entry point. It can configure/start/stop/update a live sensor and export the
-latest frame when loaded in Isaac. A full Replicator annotator/writer
-registration is not implemented in this iteration; the supported writer path is
-the package JSONL writer, `AudioFrameJsonlWriter`.
+The `exts/isaac_audio_sensors.omni` wrapper provides a reference Kit extension
+UX. The import-safe entrypoint delegates to a pure Python controller/model layer
+that can be tested with fake `omni.ui` and `omni.usd` modules. Inside Isaac Sim,
+the panel can bind selected stage prims, author `ias:*` array/source metadata,
+choose an implemented v1 backend, start/stop/update `IsaacAudioArraySensor`,
+render structured debug primitives through Isaac debug draw when available, and
+export latest-frame JSON, JSONL traces, and a reusable stage-binding/config
+summary.
+
+A full Replicator annotator/writer registration is not implemented in this
+iteration; the supported writer path is the package JSONL writer,
+`AudioFrameJsonlWriter`.
 
 ## Optional Project Adapters
 

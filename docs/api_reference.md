@@ -247,6 +247,13 @@ Debug visualization uses structured primitives that are available without
 Isaac. When `omni.isaac.debug_draw` is available, `IsaacDebugDrawer` draws
 microphones, sources, bearing rays, and sector wedges.
 
+The reference Kit extension under `exts/isaac_audio_sensors.omni` uses the same
+public Isaac helpers. Its controller can author array/source `ias:*` metadata,
+bind explicit or discovered stage prims, run `IsaacAudioArraySensor`, retain
+serialized overlay primitives when debug draw is unavailable, and export
+package JSON/JSONL traces plus a reusable binding/config summary. It is not a
+Replicator annotator or writer registration.
+
 ## Isaac Lab AudioArraySensor
 
 `isaac_audio_sensors.lab.AudioArraySensorCfg` is a real `SensorBaseCfg`

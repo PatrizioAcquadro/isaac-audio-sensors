@@ -149,6 +149,15 @@ It reads time-coded live world poses between update ticks, verifies changed
 frame output, records an inactive sound window, and writes GPU, discovery,
 transform-provenance, JSON, and JSONL evidence under ignored `outputs/`.
 
+The source distribution also includes a reference Kit extension at
+`exts/isaac_audio_sensors.omni`. Add the repository `exts/` directory to Isaac
+Sim's Extension Manager search paths and enable `Isaac Audio Sensors` to use a
+panel for selected-prim binding, array/source `ias:*` metadata authoring,
+backend selection, start/stop/update lifecycle controls, debug overlay
+primitives, and latest-frame JSON, JSONL trace, and reusable binding/config
+exports. The extension uses the package JSON/JSONL recording path; Replicator
+writer registration is not implemented.
+
 ## Isaac Lab Example
 
 ```bash
@@ -213,7 +222,7 @@ blocker when no NVIDIA GPU is available to the Isaac Lab runtime.
 - Isaac Lab entity binding supports common scene/entity tensor fields such as
   `root_state_w`, `root_pos_w`, `root_quat_w`, `body_state_w`, `body_pos_w`,
   and `body_quat_w` without requiring exact Isaac Lab classes at import time.
-- The Isaac helpers include a developer extension wrapper, but this is not an
+- The Isaac helpers include a reference extension wrapper, but this is not an
   official NVIDIA extension. Replicator writer registration remains a future
   integration; the package writer currently records JSONL frames.
 
