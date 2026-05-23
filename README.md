@@ -145,9 +145,22 @@ PYTHONPATH=src "$ISAAC_SIM_PYTHON" scripts/live_isaac_sim_audio_smoke.py
 The script creates an in-memory USD stage, semantically discovers sources and a
 robot-mounted array from `ias:*`, native sound attributes, names, and child
 microphone prims, then starts `IsaacAudioArraySensor.from_discovered_stage`.
-It reads time-coded live world poses between update ticks, verifies changed
-frame output, records an inactive sound window, and writes GPU, discovery,
-transform-provenance, JSON, and JSONL evidence under ignored `outputs/`.
+It reads time-coded live world poses between update ticks, runs `geometry_only`
+and `tdoa_synthetic`, verifies changed frame output, records an inactive sound
+window, and writes GPU, discovery, transform-provenance, config JSON, evidence
+JSON, and JSONL frame traces under ignored `outputs/`.
+
+Latest local Task 6 live validation, run on 2026-05-23 with the Isaac Python
+runtime selected by `ISAAC_SIM_COMMAND`, passed on real Isaac Sim 5.1.0 / Kit
+`107.3.3+production.229672.69cbf6ad.gl` with an NVIDIA GeForce RTX 4090,
+driver `570.211.01`, and Torch `2.7.0+cu128`. It produced 6
+`AudioSensorFrame` v1 JSONL records: 3 `geometry_only` and 3 `tdoa_synthetic`.
+`room_acoustics` skipped cleanly because `pyroomacoustics` was not installed in
+that Isaac runtime. Artifacts:
+
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.json`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
 
 The source distribution also includes a reference Kit extension at
 `exts/isaac_audio_sensors.omni`. Add the repository `exts/` directory to Isaac

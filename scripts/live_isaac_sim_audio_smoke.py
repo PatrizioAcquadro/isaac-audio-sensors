@@ -6,16 +6,23 @@ import argparse
 import importlib.util
 import json
 import os
+import platform
+import shutil
+import subprocess
 import sys
 import traceback
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
+from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.io.traces import (
+    append_frame_jsonl,
     frame_from_trace_dict,
-    frame_to_trace_dict,
 )
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.core.microphone_array import microphone_layout
+from isaac_audio_sensors.core.types import AudioSensorFrame, RoomAcousticsSpec
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
@@ -27,6 +34,14 @@ from isaac_audio_sensors.isaac.stage_audio import (
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 from isaac_audio_sensors.isaac.viz.overlays import debug_primitives_to_dicts
 
+REQUIRED_BACKENDS = ("geometry_only", "tdoa_synthetic")
+OPTIONAL_BACKENDS = ("room_acoustics",)
+SMOKE_PHASES = (
+    ("before", 0.0),
+    ("moved", 0.1),
+    ("inactive", 0.5),
+)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -36,47 +51,60 @@ def main() -> int:
         default=Path("outputs/isaac_audio_sensors/isaac_sim_live_smoke.json"),
     )
     args = parser.parse_args()
-    evidence: dict[str, object] = {
-        "python_executable": sys.executable,
-        "argv": sys.argv,
-        "status": "started",
-    }
-    frame_trace_path = args.out.with_suffix(".frames.jsonl")
-    if frame_trace_path.exists():
-        frame_trace_path.unlink()
-    _record_isaacsim_preflight(evidence)
-    _record_gpu_preflight(evidence)
-    simulation_app = None
-    try:
-        try:
-            import omni  # type: ignore
-            from pxr import Usd  # type: ignore
-        except ModuleNotFoundError:
-            from isaacsim import SimulationApp  # type: ignore
 
-            simulation_app = SimulationApp({"headless": True})
-            evidence["simulation_app_bootstrap"] = "created"
-            import omni  # type: ignore
-            from pxr import Usd  # type: ignore
+    frame_trace_path = args.out.with_suffix(".frames.jsonl")
+    config_path = args.out.with_suffix(".config.json")
+    _remove_existing_artifacts(args.out, frame_trace_path, config_path)
+
+    evidence: dict[str, Any] = {
+        "argv": sys.argv,
+        "python_executable": sys.executable,
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "status": "started",
+        "required_backends": REQUIRED_BACKENDS,
+        "optional_backends": OPTIONAL_BACKENDS,
+        "evidence_path": str(args.out),
+        "frame_trace_path": str(frame_trace_path),
+        "config_path": str(config_path),
+        "headless": True,
+    }
+    simulation_app = None
+    exit_code = 0
+
+    try:
+        _record_isaacsim_preflight(evidence)
+        _record_gpu_preflight(evidence)
+        _record_nvidia_smi(evidence)
+        simulation_app = _ensure_isaac_runtime(evidence)
+
+        import omni  # type: ignore
+        from pxr import Usd  # type: ignore
 
         evidence["pxr_imported"] = True
         evidence["omni_imported"] = True
         evidence["omni_module"] = str(getattr(omni, "__file__", "built-in"))
-        if not evidence.get("gpu_visible"):
-            raise RuntimeError("GPU is not visible to the Isaac Sim smoke runtime.")
+        _record_loaded_runtime_modules(evidence)
+        _record_gpu_preflight(evidence)
+        _validate_runtime(evidence)
+
         stage = Usd.Stage.CreateInMemory("isaac_audio_live_smoke.usda")
         _author_stage(stage)
         _update_kit_once(evidence)
 
-        binding_cfg = IsaacAudioSceneBindingCfg(
-            discovery_roots=("/World",),
-            robot_base_prim_path="/World/RobotBase",
-            restrict_arrays_to_robot=True,
-            preferred_array="rig_front",
-            required_arrays=True,
-            required_sources=True,
+        binding_cfg = _binding_cfg()
+        room_spec = _room_spec()
+        config = _write_config(
+            evidence_path=args.out,
+            config_path=config_path,
+            frame_trace_path=frame_trace_path,
+            binding_cfg=binding_cfg,
+            room_spec=room_spec,
         )
-        snapshot = build_stage_snapshot(
+        evidence["config"] = config
+
+        initial_diagnostics: dict[str, Any] = {}
+        initial_snapshot = build_stage_snapshot(
             stage,
             timestamp_ms=0,
             stage_id="isaac_sim_live_smoke",
@@ -84,125 +112,399 @@ def main() -> int:
             usd_time_code=0.0,
             discovery_cfg=binding_cfg.to_discovery_cfg(),
             preferred_array=binding_cfg.preferred_array,
+            diagnostics_out=initial_diagnostics,
         )
-        sensor = IsaacAudioArraySensor.from_discovered_stage(
-            stage=stage,
-            binding_cfg=binding_cfg,
-            backend="geometry_only",
-            timestamp_ms=0,
-            usd_time_code=0.0,
-            usd_time_code_scale=1.0,
-            update_period_s=0.1,
-            max_events=1,
-            debug_draw=True,
-            writer_path=frame_trace_path,
-        )
-        sensor.start()
-        first_frame = sensor.update(sim_time_s=0.0)
-        _update_kit_once(evidence)
-        moved_frame = sensor.update(sim_time_s=0.1)
-        moved_debug_primitives = debug_primitives_to_dicts(
-            sensor.latest_debug_primitives
-        )
-        inactive_frame = sensor.update(sim_time_s=0.5)
-        latest_frame = sensor.get_latest_frame()
-        inactive_debug_primitives = debug_primitives_to_dicts(
-            sensor.latest_debug_primitives
-        )
-        frame_trace_count = _validate_jsonl_frames(frame_trace_path)
-        sensor.close()
-        movement_changed_bearing = (
-            first_frame.detections[0].doa.estimated_bearing_deg
-            != moved_frame.detections[0].doa.estimated_bearing_deg
-        )
-        inactive_detection_count = len(inactive_frame.detections)
-        debug_primitive_count = len(moved_debug_primitives)
-        if not movement_changed_bearing:
-            raise RuntimeError("Expected source/array motion to change frame bearing.")
-        if inactive_detection_count != 0:
-            raise RuntimeError("Expected inactive source window to emit no detections.")
-        if debug_primitive_count <= 0:
-            raise RuntimeError("Expected debug primitives from the live smoke frame.")
-        if frame_trace_count <= 0:
-            raise RuntimeError("Expected JSONL frame trace records.")
+        trace_record_index = 0
+        backend_results: dict[str, Any] = {}
+        for backend_id in REQUIRED_BACKENDS:
+            result, trace_record_index = _run_backend_smoke(
+                stage=stage,
+                backend_id=backend_id,
+                binding_cfg=binding_cfg,
+                room_spec=None,
+                frame_trace_path=frame_trace_path,
+                config_path=config_path,
+                start_record_index=trace_record_index,
+                evidence=evidence,
+            )
+            _validate_backend_result(result)
+            backend_results[backend_id] = result
+
+        room_available = RoomAcousticsBackend.is_available()
+        evidence["room_acoustics_available"] = room_available
+        if room_available:
+            result, trace_record_index = _run_backend_smoke(
+                stage=stage,
+                backend_id="room_acoustics",
+                binding_cfg=binding_cfg,
+                room_spec=room_spec,
+                frame_trace_path=frame_trace_path,
+                config_path=config_path,
+                start_record_index=trace_record_index,
+                evidence=evidence,
+            )
+            _validate_backend_result(result)
+            backend_results["room_acoustics"] = result
+        else:
+            backend_results["room_acoustics"] = {
+                "status": "skipped",
+                "skip_reason": (
+                    "pyroomacoustics is not importable in this Isaac Python "
+                    "runtime; room_acoustics is optional for Task 6."
+                ),
+            }
+
+        trace_summary = _validate_jsonl_frames(frame_trace_path)
         evidence.update(
             {
                 "status": "passed",
-                "stage_id": snapshot.stage_id,
-                "source_count": len(snapshot.sources),
-                "array_count": len(snapshot.arrays),
-                "microphone_count": len(snapshot.arrays[0].microphones),
+                "stage_id": initial_snapshot.stage_id,
+                "source_count": len(initial_snapshot.sources),
+                "array_count": len(initial_snapshot.arrays),
+                "microphone_count": len(initial_snapshot.arrays[0].microphones),
                 "semantic_discovery": True,
-                "selected_array_id": sensor.array_id,
+                "selected_array_id": initial_snapshot.arrays[0].array_id,
                 "selected_array_preference": binding_cfg.preferred_array,
                 "motion_authoring": "time_sampled_usd_xform_ops",
-                "before_source_pose": _first_source_pose(first_frame),
-                "after_source_pose": _first_source_pose(moved_frame),
-                "before_array_pose": _array_pose(first_frame),
-                "after_array_pose": _array_pose(moved_frame),
-                "before_bearing_deg": (
-                    first_frame.detections[0].doa.estimated_bearing_deg
+                "initial_stage_diagnostics": initial_diagnostics,
+                "backend_results": backend_results,
+                "backend_statuses": {
+                    backend_id: result["status"]
+                    for backend_id, result in backend_results.items()
+                },
+                "jsonl_frame_count": trace_summary["frame_count"],
+                "jsonl_backend_frame_counts": trace_summary["backend_frame_counts"],
+                "diagnostics_namespaces": trace_summary["diagnostics_namespaces"],
+                "debug_primitive_count": sum(
+                    int(result.get("debug_primitive_count", 0))
+                    for result in backend_results.values()
+                    if result.get("status") == "passed"
                 ),
-                "after_bearing_deg": (
-                    moved_frame.detections[0].doa.estimated_bearing_deg
-                ),
-                "before_stage_diagnostics": first_frame.diagnostics.get(
-                    "stage_snapshot",
-                    {},
-                ),
-                "after_stage_diagnostics": moved_frame.diagnostics.get(
-                    "stage_snapshot",
-                    {},
-                ),
-                "inactive_stage_diagnostics": inactive_frame.diagnostics.get(
-                    "stage_snapshot",
-                    {},
-                ),
-                "latest_frame_id": (
-                    None if latest_frame is None else latest_frame.frame_id
-                ),
-                "first_frame": frame_to_trace_dict(first_frame),
-                "moved_frame": frame_to_trace_dict(moved_frame),
-                "inactive_frame": frame_to_trace_dict(inactive_frame),
-                "movement_changed_bearing": movement_changed_bearing,
-                "inactive_detection_count": inactive_detection_count,
-                "debug_primitive_count": debug_primitive_count,
-                "debug_primitives": moved_debug_primitives,
-                "inactive_debug_primitives": inactive_debug_primitives,
-                "jsonl_frame_count": frame_trace_count,
-                "jsonl_writer_path": str(frame_trace_path),
             }
         )
-        _write_evidence(args.out, evidence)
-        print(json.dumps(evidence, indent=2, sort_keys=True))
-        sys.stdout.flush()
     except BaseException as exc:  # noqa: BLE001 - smoke evidence records exact error.
         if isinstance(exc, KeyboardInterrupt):
             raise
+        exit_code = 2
         evidence.update(
             {
                 "status": "blocked",
                 "error_type": type(exc).__name__,
                 "error": str(exc),
                 "traceback": traceback.format_exc(),
+                "smallest_next_fix": _smallest_next_fix(exc, evidence),
             }
         )
-        _write_evidence(args.out, evidence)
-        print(json.dumps(evidence, indent=2, sort_keys=True))
-        return 2
     finally:
+        _write_evidence(args.out, evidence)
         if simulation_app is not None:
             try:
                 simulation_app.close()
+                evidence["simulation_app_closed"] = True
             except Exception as exc:  # noqa: BLE001 - shutdown diagnostic only.
                 evidence["simulation_app_close_error"] = f"{type(exc).__name__}: {exc}"
+        _write_evidence(args.out, evidence)
+        print(json.dumps(evidence, indent=2, sort_keys=True))
+        sys.stdout.flush()
 
-    _write_evidence(args.out, evidence)
-    print(json.dumps(evidence, indent=2, sort_keys=True))
-    return 0
+    return exit_code
 
 
-def _author_stage(stage) -> None:
+def _binding_cfg() -> IsaacAudioSceneBindingCfg:
+    return IsaacAudioSceneBindingCfg(
+        discovery_roots=("/World",),
+        robot_base_prim_path="/World/RobotBase",
+        restrict_arrays_to_robot=True,
+        preferred_array="rig_front",
+        required_arrays=True,
+        required_sources=True,
+    )
+
+
+def _room_spec() -> RoomAcousticsSpec:
+    return RoomAcousticsSpec(
+        room_id="isaac_sim_live_smoke_room",
+        dimensions_m=(6.0, 6.0, 3.0),
+        absorption=0.35,
+        max_order=0,
+        air_absorption=False,
+        ray_tracing=False,
+    )
+
+
+def _run_backend_smoke(
+    *,
+    stage: Any,
+    backend_id: str,
+    binding_cfg: IsaacAudioSceneBindingCfg,
+    room_spec: RoomAcousticsSpec | None,
+    frame_trace_path: Path,
+    config_path: Path,
+    start_record_index: int,
+    evidence: dict[str, Any],
+) -> tuple[dict[str, Any], int]:
+    sensor = IsaacAudioArraySensor.from_discovered_stage(
+        stage=stage,
+        binding_cfg=binding_cfg,
+        backend=backend_id,
+        timestamp_ms=0,
+        usd_time_code=0.0,
+        usd_time_code_scale=1.0,
+        update_period_s=0.05,
+        max_events=1,
+        room=room_spec,
+        debug_draw=True,
+    )
+    sensor.start()
+    frames: dict[str, AudioSensorFrame] = {}
+    debug_primitives: dict[str, list[dict[str, Any]]] = {}
+    trace_record_index = start_record_index
+    try:
+        for phase, sim_time_s in SMOKE_PHASES:
+            _update_kit_once(evidence)
+            raw_frame = sensor.update(sim_time_s=sim_time_s, force=True)
+            frame = _augment_live_frame(
+                frame=raw_frame,
+                phase=phase,
+                reference_frame=frames.get("before"),
+                frame_trace_path=frame_trace_path,
+                config_path=config_path,
+                record_index=trace_record_index,
+            )
+            append_frame_jsonl(frame, frame_trace_path)
+            frames[phase] = frame
+            debug_primitives[phase] = debug_primitives_to_dicts(
+                sensor.latest_debug_primitives
+            )
+            trace_record_index += 1
+    finally:
+        sensor.close()
+
+    result = _summarize_backend(
+        backend_id=backend_id,
+        frames=frames,
+        debug_primitives=debug_primitives,
+    )
+    return result, trace_record_index
+
+
+def _augment_live_frame(
+    *,
+    frame: AudioSensorFrame,
+    phase: str,
+    reference_frame: AudioSensorFrame | None,
+    frame_trace_path: Path,
+    config_path: Path,
+    record_index: int,
+) -> AudioSensorFrame:
+    diagnostics = dict(frame.diagnostics)
+    stage_snapshot = dict(diagnostics.get("stage_snapshot", {}))
+    diagnostics.update(
+        {
+            "stage_snapshot": stage_snapshot,
+            "discovery": {
+                "selected_array": stage_snapshot.get("selected_array"),
+                "selected_source": stage_snapshot.get("selected_source"),
+                "array_count": stage_snapshot.get("array_count"),
+                "source_count": stage_snapshot.get("source_count"),
+                "discovery_roots": stage_snapshot.get("discovery_roots"),
+                "metadata_precedence": stage_snapshot.get("metadata_precedence"),
+            },
+            "transforms": {
+                "robot_base_transform": stage_snapshot.get("robot_base_transform"),
+                "array_transforms": stage_snapshot.get("array_transforms", {}),
+                "source_transforms": stage_snapshot.get("source_transforms", {}),
+                "microphone_transforms": stage_snapshot.get(
+                    "microphone_transforms",
+                    {},
+                ),
+            },
+            "backend_diagnostics": {
+                "backend_id": frame.backend_id,
+                "frame_backend": diagnostics.get("backend"),
+                "active_source_count": diagnostics.get("active_source_count"),
+                "detection_count": len(frame.detections),
+            },
+            "movement": _movement_diagnostics(
+                phase=phase,
+                frame=frame,
+                reference_frame=reference_frame,
+            ),
+            "writer": {
+                "format": "AudioSensorFrame v1 JSONL",
+                "jsonl_path": str(frame_trace_path),
+                "config_path": str(config_path),
+                "record_index": record_index,
+            },
+        }
+    )
+    return replace(frame, diagnostics=diagnostics)
+
+
+def _summarize_backend(
+    *,
+    backend_id: str,
+    frames: dict[str, AudioSensorFrame],
+    debug_primitives: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    before = frames["before"]
+    moved = frames["moved"]
+    inactive = frames["inactive"]
+    before_detection = _first_detection(before)
+    moved_detection = _first_detection(moved)
+    before_bearing = _bearing(before)
+    moved_bearing = _bearing(moved)
+    before_source_pose = _first_source_pose(before)
+    moved_source_pose = _first_source_pose(moved)
+    before_array_pose = _array_pose(before)
+    moved_array_pose = _array_pose(moved)
+    moved_debug_primitives = debug_primitives.get("moved", [])
+    moved_kinds = sorted({str(item.get("kind")) for item in moved_debug_primitives})
+    result: dict[str, Any] = {
+        "status": "passed",
+        "backend_id": backend_id,
+        "frame_ids": {phase: frame.frame_id for phase, frame in frames.items()},
+        "frame_indices": {phase: frame.frame_index for phase, frame in frames.items()},
+        "timestamps_ms": {phase: frame.timestamp_ms for phase, frame in frames.items()},
+        "stage_time_codes": {
+            phase: frame.diagnostics.get("stage_snapshot", {}).get("time_code")
+            for phase, frame in frames.items()
+        },
+        "before_source_pose": before_source_pose,
+        "after_source_pose": moved_source_pose,
+        "before_array_pose": before_array_pose,
+        "after_array_pose": moved_array_pose,
+        "before_bearing_deg": before_bearing,
+        "after_bearing_deg": moved_bearing,
+        "movement_changed_bearing": _changed_scalar(before_bearing, moved_bearing),
+        "movement_changed_source_pose": _changed_pose(
+            before_source_pose,
+            moved_source_pose,
+        ),
+        "movement_changed_array_pose": _changed_pose(
+            before_array_pose,
+            moved_array_pose,
+        ),
+        "movement_changed_stage_time_code": (
+            before.diagnostics.get("stage_snapshot", {}).get("time_code")
+            != moved.diagnostics.get("stage_snapshot", {}).get("time_code")
+        ),
+        "backend_diagnostics_changed": (
+            None
+            if before_detection is None or moved_detection is None
+            else before_detection.diagnostics != moved_detection.diagnostics
+        ),
+        "inactive_detection_count": len(inactive.detections),
+        "debug_primitive_count": len(moved_debug_primitives),
+        "debug_primitive_kinds": moved_kinds,
+        "diagnostics_namespaces": sorted(moved.diagnostics),
+        "jsonl_record_indices": {
+            phase: frame.diagnostics["writer"]["record_index"]
+            for phase, frame in frames.items()
+        },
+    }
+    if backend_id == "tdoa_synthetic" and moved_detection is not None:
+        result["tdoa_diagnostics_present"] = bool(
+            moved_detection.per_mic_delay_s
+            and moved_detection.diagnostics.get("tdoa_matrix_s")
+        )
+        result["tdoa_matrix_s"] = moved_detection.diagnostics.get("tdoa_matrix_s")
+        result["per_mic_delay_s"] = moved_detection.per_mic_delay_s
+    if backend_id == "room_acoustics" and moved_detection is not None:
+        room_keys = (
+            "room_config",
+            "pyroomacoustics_version",
+            "estimated_tdoa_matrix_s",
+            "gcc_phat_peaks",
+            "direct_path_delay_s",
+            "per_mic_rms",
+            "rir_length_samples",
+            "rir_peak_delay_s",
+            "waveform_sample_count",
+        )
+        result["room_diagnostics_present"] = all(
+            key in moved_detection.diagnostics for key in room_keys
+        )
+        result["room_frame_diagnostics_present"] = bool(
+            moved.diagnostics.get("physical_waveform")
+            and moved.diagnostics.get("room_config")
+            and moved.diagnostics.get("per_source_rir_summary")
+        )
+        result["room_config"] = moved.diagnostics.get("room_config")
+        result["pyroomacoustics_version"] = moved.diagnostics.get(
+            "pyroomacoustics_version"
+        )
+        result["rir_length_samples"] = moved_detection.diagnostics.get(
+            "rir_length_samples"
+        )
+        result["rir_peak_delay_s"] = moved_detection.diagnostics.get(
+            "rir_peak_delay_s"
+        )
+        result["waveform_sample_count"] = moved_detection.diagnostics.get(
+            "waveform_sample_count"
+        )
+    return result
+
+
+def _validate_backend_result(result: dict[str, Any]) -> None:
+    backend_id = str(result.get("backend_id"))
+    if result.get("status") != "passed":
+        raise RuntimeError(f"{backend_id} did not pass the live smoke.")
+    required_true = (
+        "movement_changed_bearing",
+        "movement_changed_source_pose",
+        "movement_changed_array_pose",
+        "movement_changed_stage_time_code",
+    )
+    missing = [key for key in required_true if not result.get(key)]
+    if missing:
+        raise RuntimeError(
+            f"{backend_id} did not prove live movement changes: {missing}."
+        )
+    if result.get("inactive_detection_count") != 0:
+        raise RuntimeError(f"{backend_id} emitted detections for an inactive source.")
+    if int(result.get("debug_primitive_count", 0)) <= 0:
+        raise RuntimeError(f"{backend_id} did not produce debug primitives.")
+    if backend_id == "tdoa_synthetic" and not result.get("tdoa_diagnostics_present"):
+        raise RuntimeError("tdoa_synthetic did not expose TDOA diagnostics.")
+    if backend_id == "room_acoustics" and not (
+        result.get("room_diagnostics_present")
+        and result.get("room_frame_diagnostics_present")
+    ):
+        raise RuntimeError("room_acoustics did not expose room/RIR diagnostics.")
+
+
+def _validate_jsonl_frames(path: Path) -> dict[str, Any]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        raise RuntimeError("Expected at least one JSONL frame trace record.")
+    backend_counts: dict[str, int] = {}
+    diagnostics_namespaces: set[str] = set()
+    for line in lines:
+        frame = frame_from_trace_dict(json.loads(line))
+        backend_counts[frame.backend_id] = backend_counts.get(frame.backend_id, 0) + 1
+        diagnostics_namespaces.update(frame.diagnostics)
+        for key in (
+            "stage_snapshot",
+            "discovery",
+            "transforms",
+            "backend_diagnostics",
+            "movement",
+            "writer",
+        ):
+            if key not in frame.diagnostics:
+                raise RuntimeError(
+                    f"Frame {frame.frame_id!r} is missing diagnostics namespace "
+                    f"{key!r}."
+                )
+    return {
+        "frame_count": len(lines),
+        "backend_frame_counts": backend_counts,
+        "diagnostics_namespaces": sorted(diagnostics_namespaces),
+    }
+
+
+def _author_stage(stage: Any) -> None:
     stage.DefinePrim("/World", "Xform")
     robot_base = stage.DefinePrim("/World/RobotBase", "Xform")
     _set_translate_samples(
@@ -298,7 +600,55 @@ def _author_stage(stage) -> None:
     )
 
 
-def _update_kit_once(evidence: dict[str, object]) -> None:
+def _ensure_isaac_runtime(evidence: dict[str, Any]) -> Any | None:
+    try:
+        import omni.kit.app  # type: ignore
+
+        app = omni.kit.app.get_app()
+        if app is not None:
+            evidence["simulation_app_bootstrap"] = "attached_existing_kit_app"
+            _record_kit_app_info(evidence, app)
+            return None
+    except Exception as exc:  # noqa: BLE001 - diagnostic before bootstrap.
+        evidence["kit_app_prebootstrap_error"] = f"{type(exc).__name__}: {exc}"
+
+    try:
+        from isaacsim import SimulationApp  # type: ignore
+    except Exception as exc:  # noqa: BLE001 - evidence records exact blocker.
+        raise RuntimeError(
+            "Could not import isaacsim.SimulationApp from the requested Python "
+            "runtime."
+        ) from exc
+
+    simulation_app = SimulationApp({"headless": True})
+    evidence["simulation_app_bootstrap"] = "created"
+    import omni.kit.app  # type: ignore
+
+    app = omni.kit.app.get_app()
+    if app is None:
+        raise RuntimeError("SimulationApp started, but omni.kit.app.get_app() is None.")
+    _record_kit_app_info(evidence, app)
+    return simulation_app
+
+
+def _record_kit_app_info(evidence: dict[str, Any], app: Any) -> None:
+    evidence["kit_app_available"] = True
+    for method_name, evidence_key in (
+        ("get_app_version", "kit_app_version"),
+        ("get_build_version", "kit_build_version"),
+        ("get_version", "kit_version"),
+    ):
+        method = getattr(app, method_name, None)
+        if not callable(method):
+            evidence[evidence_key] = "unavailable"
+            continue
+        try:
+            evidence[evidence_key] = str(method())
+        except Exception as exc:  # noqa: BLE001 - diagnostic only.
+            evidence[evidence_key] = f"unavailable: {type(exc).__name__}: {exc}"
+
+
+def _update_kit_once(evidence: dict[str, Any]) -> None:
     try:
         import omni.kit.app  # type: ignore
 
@@ -313,7 +663,16 @@ def _update_kit_once(evidence: dict[str, object]) -> None:
     evidence["kit_frame_update"] = "unavailable"
 
 
-def _set_translate_samples(prim, samples) -> None:
+def _validate_runtime(evidence: dict[str, Any]) -> None:
+    if not evidence.get("kit_app_available"):
+        raise RuntimeError("No live Kit app was available for the Isaac Sim smoke.")
+    if not evidence.get("pxr_imported") or not evidence.get("omni_imported"):
+        raise RuntimeError("pxr and omni must import inside the Isaac Sim smoke.")
+    if not evidence.get("gpu_visible"):
+        raise RuntimeError("GPU is not visible to the Isaac Sim smoke runtime.")
+
+
+def _set_translate_samples(prim: Any, samples: dict[Any, Any]) -> None:
     from pxr import Gf, Usd, UsdGeom  # type: ignore
 
     op = UsdGeom.Xformable(prim).AddTranslateOp()
@@ -325,7 +684,7 @@ def _set_translate_samples(prim, samples) -> None:
             op.Set(value, Usd.TimeCode(float(time_code)))
 
 
-def _set_orient_samples(prim, samples) -> None:
+def _set_orient_samples(prim: Any, samples: dict[Any, Any]) -> None:
     from pxr import Gf, Usd, UsdGeom  # type: ignore
 
     op = UsdGeom.Xformable(prim).AddOrientOp()
@@ -338,12 +697,12 @@ def _set_orient_samples(prim, samples) -> None:
             op.Set(value, Usd.TimeCode(float(time_code)))
 
 
-def _set_custom_attr(prim, name: str, value: object) -> None:
+def _set_custom_attr(prim: Any, name: str, value: object) -> None:
     attr = prim.CreateAttribute(name, _value_type_name(value), custom=True)
     attr.Set(value)
 
 
-def _value_type_name(value: object):
+def _value_type_name(value: object) -> Any:
     from pxr import Sdf  # type: ignore
 
     if isinstance(value, bool):
@@ -355,7 +714,41 @@ def _value_type_name(value: object):
     return Sdf.ValueTypeNames.String
 
 
-def _array_pose(frame) -> dict[str, object] | None:
+def _movement_diagnostics(
+    *,
+    phase: str,
+    frame: AudioSensorFrame,
+    reference_frame: AudioSensorFrame | None,
+) -> dict[str, Any]:
+    source_pose = _first_source_pose(frame)
+    array_pose = _array_pose(frame)
+    bearing = _bearing(frame)
+    return {
+        "phase": phase,
+        "timestamp_ms": frame.timestamp_ms,
+        "frame_index": frame.frame_index,
+        "source_pose": source_pose,
+        "array_pose": array_pose,
+        "bearing_deg": bearing,
+        "source_pose_changed_from_reference": (
+            False
+            if reference_frame is None
+            else _changed_pose(_first_source_pose(reference_frame), source_pose)
+        ),
+        "array_pose_changed_from_reference": (
+            False
+            if reference_frame is None
+            else _changed_pose(_array_pose(reference_frame), array_pose)
+        ),
+        "bearing_changed_from_reference": (
+            False
+            if reference_frame is None
+            else _changed_scalar(_bearing(reference_frame), bearing)
+        ),
+    }
+
+
+def _array_pose(frame: AudioSensorFrame) -> dict[str, Any] | None:
     if frame.array_pose is None:
         return None
     return {
@@ -365,10 +758,11 @@ def _array_pose(frame) -> dict[str, object] | None:
     }
 
 
-def _first_source_pose(frame) -> dict[str, object] | None:
-    if not frame.detections or frame.detections[0].source_pose is None:
+def _first_source_pose(frame: AudioSensorFrame) -> dict[str, Any] | None:
+    detection = _first_detection(frame)
+    if detection is None or detection.source_pose is None:
         return None
-    pose = frame.detections[0].source_pose
+    pose = detection.source_pose
     return {
         "position_m": pose.position_m,
         "orientation_xyzw": pose.orientation_xyzw,
@@ -376,7 +770,40 @@ def _first_source_pose(frame) -> dict[str, object] | None:
     }
 
 
-def _record_isaacsim_preflight(evidence: dict[str, object]) -> None:
+def _first_detection(frame: AudioSensorFrame) -> Any | None:
+    return None if not frame.detections else frame.detections[0]
+
+
+def _bearing(frame: AudioSensorFrame) -> float | None:
+    detection = _first_detection(frame)
+    if detection is None:
+        return None
+    return detection.doa.estimated_bearing_deg
+
+
+def _changed_pose(left: dict[str, Any] | None, right: dict[str, Any] | None) -> bool:
+    if left is None or right is None:
+        return left != right
+    return _changed_sequence(left.get("position_m"), right.get("position_m")) or (
+        _changed_sequence(left.get("orientation_xyzw"), right.get("orientation_xyzw"))
+    )
+
+
+def _changed_sequence(left: Any, right: Any) -> bool:
+    if left is None or right is None:
+        return left != right
+    return any(
+        abs(float(a) - float(b)) > 1e-6 for a, b in zip(left, right, strict=True)
+    )
+
+
+def _changed_scalar(left: float | None, right: float | None) -> bool:
+    if left is None or right is None:
+        return left != right
+    return abs(float(left) - float(right)) > 1e-6
+
+
+def _record_isaacsim_preflight(evidence: dict[str, Any]) -> None:
     spec = importlib.util.find_spec("isaacsim")
     if spec is None or spec.origin is None:
         evidence["isaacsim_package"] = "not_found"
@@ -405,7 +832,24 @@ def _record_isaacsim_preflight(evidence: dict[str, object]) -> None:
     )
 
 
-def _record_gpu_preflight(evidence: dict[str, object]) -> None:
+def _record_loaded_runtime_modules(evidence: dict[str, Any]) -> None:
+    for module_name, evidence_key in (
+        ("isaacsim", "isaacsim_version"),
+        ("omni", "omni_version"),
+        ("pxr", "pxr_version"),
+    ):
+        try:
+            module = __import__(module_name)
+        except Exception as exc:  # noqa: BLE001 - diagnostic only.
+            evidence[evidence_key] = f"unavailable: {type(exc).__name__}: {exc}"
+            continue
+        evidence[evidence_key] = str(getattr(module, "__version__", "unavailable"))
+        module_file = getattr(module, "__file__", None)
+        if module_file is not None:
+            evidence[f"{module_name}_module_file"] = str(module_file)
+
+
+def _record_gpu_preflight(evidence: dict[str, Any]) -> None:
     try:
         import torch  # type: ignore
 
@@ -420,6 +864,7 @@ def _record_gpu_preflight(evidence: dict[str, object]) -> None:
                     torch.cuda.get_device_name(index) for index in range(device_count)
                 ],
                 "torch_version": str(getattr(torch, "__version__", "")),
+                "cuda_visible_devices_env": os.environ.get("CUDA_VISIBLE_DEVICES"),
             }
         )
     except Exception as exc:  # noqa: BLE001 - smoke evidence records this.
@@ -432,6 +877,106 @@ def _record_gpu_preflight(evidence: dict[str, object]) -> None:
         )
 
 
+def _record_nvidia_smi(evidence: dict[str, Any]) -> None:
+    nvidia_smi = shutil.which("nvidia-smi")
+    evidence["nvidia_smi_path"] = nvidia_smi
+    if nvidia_smi is None:
+        evidence["nvidia_smi"] = "not_found"
+        return
+    try:
+        completed = subprocess.run(
+            [
+                nvidia_smi,
+                "--query-gpu=name,driver_version,memory.total",
+                "--format=csv,noheader",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=8,
+        )
+        evidence["nvidia_smi"] = {
+            "returncode": completed.returncode,
+            "stdout": completed.stdout.strip(),
+            "stderr": completed.stderr.strip(),
+        }
+    except Exception as exc:  # noqa: BLE001 - diagnostic only.
+        evidence["nvidia_smi"] = f"{type(exc).__name__}: {exc}"
+
+
+def _write_config(
+    *,
+    evidence_path: Path,
+    config_path: Path,
+    frame_trace_path: Path,
+    binding_cfg: IsaacAudioSceneBindingCfg,
+    room_spec: RoomAcousticsSpec,
+) -> dict[str, Any]:
+    config: dict[str, Any] = {
+        "stage": {
+            "mode": "in_memory_usd_authored_inside_isaac_sim",
+            "root": "/World",
+            "robot_base_prim_path": "/World/RobotBase",
+            "array_prim_path": "/World/RobotBase/ArrayMount/AudioArray",
+            "source_prim_path": "/World/MovingSource/Sound",
+            "motion_time_codes": [0.0, 0.1, 0.5],
+            "motion": {
+                "robot_base_translate_m": {
+                    "0.0": [0.0, 0.0, 0.0],
+                    "0.1": [1.0, 0.0, 0.0],
+                },
+                "source_translate_m": {
+                    "0.0": [4.0, 0.0, 0.0],
+                    "0.1": [0.0, 4.0, 0.0],
+                },
+                "array_yaw_deg": {"0.0": 0.0, "0.1": 90.0},
+                "front_microphone_translate_m": {
+                    "0.0": [0.08, 0.0, 0.0],
+                    "0.1": [0.12, 0.0, 0.0],
+                },
+            },
+        },
+        "binding": {
+            "discovery_roots": list(binding_cfg.discovery_roots),
+            "robot_base_prim_path": binding_cfg.robot_base_prim_path,
+            "restrict_arrays_to_robot": binding_cfg.restrict_arrays_to_robot,
+            "preferred_array": binding_cfg.preferred_array,
+            "required_arrays": binding_cfg.required_arrays,
+            "required_sources": binding_cfg.required_sources,
+        },
+        "sensor": {
+            "backends": list(REQUIRED_BACKENDS + OPTIONAL_BACKENDS),
+            "required_backends": list(REQUIRED_BACKENDS),
+            "optional_backends": list(OPTIONAL_BACKENDS),
+            "usd_time_code_scale": 1.0,
+            "update_period_s": 0.05,
+            "max_events": 1,
+            "debug_draw": True,
+        },
+        "room_acoustics": {
+            "room_id": room_spec.room_id,
+            "dimensions_m": list(room_spec.dimensions_m),
+            "absorption": room_spec.absorption,
+            "max_order": room_spec.max_order,
+            "air_absorption": room_spec.air_absorption,
+            "ray_tracing": room_spec.ray_tracing,
+        },
+        "outputs": {
+            "evidence_json": str(evidence_path),
+            "frames_jsonl": str(frame_trace_path),
+            "config_json": str(config_path),
+        },
+    }
+    _write_json(config_path, config)
+    return config
+
+
+def _remove_existing_artifacts(*paths: Path) -> None:
+    for path in paths:
+        if path.exists():
+            path.unlink()
+
+
 def _read_first_line(path: Path) -> str:
     if not path.is_file():
         return ""
@@ -441,16 +986,33 @@ def _read_first_line(path: Path) -> str:
         return ""
 
 
-def _validate_jsonl_frames(path: Path) -> int:
-    lines = path.read_text(encoding="utf-8").splitlines()
-    for line in lines:
-        frame_from_trace_dict(json.loads(line))
-    return len(lines)
+def _smallest_next_fix(exc: BaseException, evidence: dict[str, Any]) -> str:
+    message = str(exc)
+    if "GPU is not visible" in message:
+        return (
+            "Rerun the live target in the host-visible Isaac Sim runtime with CUDA "
+            "and NVIDIA devices exposed."
+        )
+    if "SimulationApp" in message:
+        return (
+            "Point ISAAC_SIM_COMMAND at an Isaac Sim Python that can import "
+            "isaacsim.SimulationApp."
+        )
+    if evidence.get("room_acoustics_available") and "room_acoustics" in message:
+        return (
+            "Inspect the installed pyroomacoustics runtime and room diagnostics; "
+            "Task 6 requires L2 only when the optional dependency is present."
+        )
+    return "Inspect the recorded traceback and rerun the exact live target."
 
 
-def _write_evidence(path: Path, evidence: dict[str, object]) -> None:
+def _write_evidence(path: Path, evidence: dict[str, Any]) -> None:
+    _write_json(path, evidence)
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
 if __name__ == "__main__":

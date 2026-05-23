@@ -17,6 +17,7 @@ from isaac_audio_sensors.core.types import (
     AudioSensorFrame,
     AudioTimeWindow,
     MicrophoneArraySpec,
+    RoomAcousticsSpec,
 )
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioSceneBindingCfg,
@@ -39,6 +40,7 @@ class IsaacAudioArraySensor:
     config: AudioSensorConfig | None = None
     stage_snapshot: AudioSceneSnapshot | None = None
     stage: Any | None = None
+    room: RoomAcousticsSpec | None = None
     array_prim_path: str | None = None
     robot_base_prim_path: str | None = None
     scene_binding_cfg: IsaacAudioSceneBindingCfg | None = None
@@ -95,6 +97,7 @@ class IsaacAudioArraySensor:
         max_events: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
+        room: RoomAcousticsSpec | None = None,
         debug_draw: bool = False,
         writer_path: str | Path | None = None,
     ) -> IsaacAudioArraySensor:
@@ -116,6 +119,7 @@ class IsaacAudioArraySensor:
             backend=backend,
             stage_snapshot=snapshot,
             stage=stage,
+            room=room,
             array_prim_path=array_prim_path,
             robot_base_prim_path=robot_base_prim_path,
             usd_time_code_scale=usd_time_code_scale,
@@ -145,6 +149,7 @@ class IsaacAudioArraySensor:
         max_events: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
+        room: RoomAcousticsSpec | None = None,
         debug_draw: bool = False,
         writer_path: str | Path | None = None,
     ) -> IsaacAudioArraySensor:
@@ -179,6 +184,7 @@ class IsaacAudioArraySensor:
             backend=backend,
             stage_snapshot=snapshot,
             stage=stage,
+            room=room,
             robot_base_prim_path=binding.robot_base_prim_path,
             scene_binding_cfg=binding,
             usd_time_code_scale=usd_time_code_scale,
@@ -430,6 +436,9 @@ class IsaacAudioArraySensor:
             self._latest_stage_diagnostics = None
         else:
             raise RuntimeError("IsaacAudioArraySensor has no config or stage snapshot.")
+
+        if self.room is not None:
+            scene = replace(scene, room=self.room)
 
         if source_prim_path is None:
             return scene

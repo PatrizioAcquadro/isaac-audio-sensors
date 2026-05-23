@@ -34,8 +34,27 @@ The smoke script:
 - evaluates the inactive sound window after the authored duration;
 - builds debug primitives and uses Isaac debug draw when available;
 - records GPU visibility, transform provenance, before/after poses, bearings,
-  stage time-code diagnostics, JSON evidence, and JSONL frame traces under
-  ignored `outputs/`.
+  backend diagnostics, movement diagnostics, writer diagnostics, JSON evidence,
+  config JSON, and JSONL frame traces under ignored `outputs/`.
+
+Latest local Task 6 validation was run on 2026-05-23 with the Isaac Python
+runtime selected by `ISAAC_SIM_COMMAND`. It passed in real Isaac Sim 5.1.0 with
+Kit build `107.3.3+production.229672.69cbf6ad.gl`, `pxr` and `omni` imported,
+headless `SimulationApp` bootstrap, Torch `2.7.0+cu128`, and an NVIDIA GeForce
+RTX 4090 visible through CUDA and `nvidia-smi` driver `570.211.01`.
+
+The smoke authored a synthetic USD stage inside Isaac Sim and produced:
+
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.json`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
+
+The JSONL trace contains 6 valid `AudioSensorFrame` v1 records: 3
+`geometry_only` frames and 3 `tdoa_synthetic` frames. Both required backends
+proved changed source pose, array pose, bearing, stage time code, backend
+diagnostics, and debug primitive output after live USD motion. `room_acoustics`
+was skipped with an explicit evidence reason because `pyroomacoustics` was not
+installed in that Isaac runtime.
 
 ## Reference Extension UX
 
