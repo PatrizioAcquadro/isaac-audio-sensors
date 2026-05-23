@@ -45,6 +45,8 @@ class IsaacDebugDrawer:
     def __init__(self, interface: Any | None = None) -> None:
         self.interface = interface
         self.last_primitives: tuple[DebugPrimitive, ...] = ()
+        self.last_status = "idle"
+        self.last_error: str | None = None
 
     def draw(
         self,
@@ -66,6 +68,8 @@ class IsaacDebugDrawer:
             interface.clear_points()
         _draw_points(interface, primitives)
         _draw_lines(interface, primitives)
+        self.last_status = "drawn"
+        self.last_error = None
         return self.last_primitives
 
     def clear(self) -> None:
@@ -77,12 +81,15 @@ class IsaacDebugDrawer:
                 interface = acquire_debug_draw_interface()
             except IsaacIntegrationUnavailable:
                 self.last_primitives = ()
+                self.last_status = "unavailable"
                 return
         if hasattr(interface, "clear_lines"):
             interface.clear_lines()
         if hasattr(interface, "clear_points"):
             interface.clear_points()
         self.last_primitives = ()
+        self.last_status = "cleared"
+        self.last_error = None
 
     def close(self) -> None:
         """Release best-effort debug-draw state."""

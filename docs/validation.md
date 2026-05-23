@@ -75,6 +75,7 @@ Optional live checks:
 
 ```bash
 make live-isaac-sim-audio ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
+make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
 make live-isaac-lab-audio ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
 make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
 ```
@@ -125,9 +126,30 @@ PY
 ```
 
 This smoke verifies that extension import/startup/shutdown does not require
-`omni`, `pxr`, Isaac Sim, a display, CUDA, or a GPU. Full UI and stage behavior
-is covered by fake `omni.ui`/`omni.usd` tests and by the real Isaac Sim live
-smoke.
+`omni`, `pxr`, Isaac Sim, Replicator, a display, CUDA, or a GPU. Fake
+`omni.ui`, `omni.usd`, and fake Replicator tests cover import-safe UI,
+selection binding, authoring, discovery, errors, config import/export,
+serialized overlays, writer registration, payload shape, write, flush, stop,
+and missing-runtime errors.
+
+The live extension UX smoke is:
+
+```bash
+make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
+```
+
+It starts or attaches to real Kit, records Isaac/Kit/GPU/runtime facts, starts
+the extension entrypoint, creates a real USD stage, exercises selected-prim
+array/source/base binding, authors array/source metadata, discovers and binds
+the stage, selects a backend, starts and updates the sensor, records overlay
+primitive kinds, writes package JSON/JSONL traces, starts/writes/flushes/stops
+the Replicator writer, exports and imports config JSON, attempts viewport
+screenshot capture, and stops cleanly. Evidence is written to:
+
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.frames.jsonl`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.config.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.replicator/`
 
 The GPU target fails if CUDA is unavailable or if any audio tensor, timestamp
 tensor, or outdated-mask tensor is allocated on CPU. It records `torch.cuda`

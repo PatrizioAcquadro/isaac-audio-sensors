@@ -26,6 +26,11 @@ from isaac_audio_sensors.isaac.discovery import (
 )
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.pose_resolver import prim_path
+from isaac_audio_sensors.isaac.replicator import (
+    DEFAULT_REPLICATOR_ANNOTATOR_NAME,
+    DEFAULT_REPLICATOR_WRITER_NAME,
+    AudioSensorReplicatorRecorder,
+)
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
     attach_microphone_attrs,
@@ -115,6 +120,20 @@ class ExtensionUiState:
         DEFAULT_OUTPUT_ROOT / "extension_latest_frame.json"
     )
     config_export_path: str = str(DEFAULT_OUTPUT_ROOT / "extension_binding.json")
+    config_import_path: str = str(DEFAULT_OUTPUT_ROOT / "extension_binding.json")
+
+    replicator_enabled: bool = False
+    replicator_output_dir: str = str(DEFAULT_OUTPUT_ROOT / "replicator")
+    replicator_writer_name: str = DEFAULT_REPLICATOR_WRITER_NAME
+    replicator_annotator_name: str = DEFAULT_REPLICATOR_ANNOTATOR_NAME
+    replicator_recording: bool = False
+    replicator_status_message: str = "Replicator idle."
+    replicator_write_count: int = 0
+    replicator_flush_count: int = 0
+    replicator_latest_write_path: str | None = None
+    replicator_latest_jsonl_path: str | None = None
+    replicator_latest_error: str | None = None
+    replicator_output_artifacts: tuple[str, ...] = ()
 
     discovered_arrays: tuple[DiscoveredPrimSummary, ...] = ()
     discovered_sources: tuple[DiscoveredPrimSummary, ...] = ()
@@ -128,6 +147,8 @@ class ExtensionUiState:
     latest_sector: str | None = None
     latest_overlay_primitive_count: int = 0
     latest_overlay_labels: tuple[str, ...] = ()
+    latest_overlay_status: str = "none"
+    latest_overlay_error: str | None = None
 
 
 class ExtensionController:
@@ -142,6 +163,7 @@ class ExtensionController:
         self.state = state or ExtensionUiState()
         self.stage_context_provider = stage_context_provider
         self.sensor: IsaacAudioArraySensor | None = None
+        self.replicator_recorder: AudioSensorReplicatorRecorder | None = None
         self.ext_id: str | None = None
         self.window: Any | None = None
         self.ui_available = False
@@ -157,6 +179,7 @@ class ExtensionController:
     def on_shutdown(self) -> None:
         """Stop live work and release UI/debug resources."""
 
+        self.stop_replicator()
         self.close_sensor()
         self._ui_window = None
         self.window = None
@@ -502,6 +525,8 @@ class ExtensionController:
                 raise ExtensionActionError("Sensor is not configured.")
             frame = self.sensor.update(force=force)
             self._record_latest_frame(frame)
+            if self.state.replicator_enabled:
+                self._write_replicator_frame(frame)
             return frame
         except Exception as exc:
             self._record_error("Sensor update failed", exc)
@@ -542,6 +567,25 @@ class ExtensionController:
             return output
         except Exception as exc:
             self._record_error("Config export failed", exc)
+            return None
+
+    def import_config_summary(self, path: str | Path | None = None) -> Path | None:
+        """Load a deterministic extension config summary into UI state."""
+
+        try:
+            input_path = Path(path or self.state.config_import_path)
+            payload = json.loads(input_path.read_text(encoding="utf-8"))
+            if payload.get("schema_version") != "ias.omni_extension_binding.v1":
+                raise ExtensionActionError(
+                    "Config import requires schema_version "
+                    "'ias.omni_extension_binding.v1'."
+                )
+            self._apply_config_summary(payload)
+            self.state.config_import_path = str(input_path)
+            self._set_status(f"Imported config summary from {input_path}.")
+            return input_path
+        except Exception as exc:
+            self._record_error("Config import failed", exc)
             return None
 
     def config_summary_dict(self) -> dict[str, Any]:
@@ -590,6 +634,17 @@ class ExtensionController:
                     "writer_path": (
                         state.jsonl_trace_path if state.trace_enabled else None
                     ),
+                    "runtime_options": {
+                        "subscribe_to_update_stream_default": True,
+                        "import_safe_outside_isaac": True,
+                    },
+                },
+                "recording": {
+                    "package_jsonl": {
+                        "enabled": state.trace_enabled,
+                        "path": state.jsonl_trace_path,
+                    },
+                    "replicator": self._replicator_status_dict(),
                 },
                 "authored_metadata": state.authored_metadata,
                 "latest_frame": {
@@ -602,10 +657,67 @@ class ExtensionController:
                 "overlay": {
                     "primitive_count": state.latest_overlay_primitive_count,
                     "labels": state.latest_overlay_labels,
+                    "status": state.latest_overlay_status,
+                    "error": state.latest_overlay_error,
                     "primitives": debug_primitives_to_dicts(primitives),
                 },
             }
         )
+
+    def start_replicator(self) -> dict[str, Any] | None:
+        """Start the Omniverse-native Replicator writer path."""
+
+        try:
+            self.state.replicator_enabled = True
+            if self.replicator_recorder is not None:
+                self.replicator_recorder.stop()
+            recorder = AudioSensorReplicatorRecorder(
+                output_dir=self.state.replicator_output_dir,
+                writer_name=self.state.replicator_writer_name,
+                annotator_name=self.state.replicator_annotator_name,
+            )
+            self.replicator_recorder = recorder
+            status = recorder.start()
+            self._apply_replicator_status(status.to_dict())
+            self._set_status(
+                "Replicator recording started at "
+                f"{self.state.replicator_output_dir}."
+            )
+            return self._replicator_status_dict()
+        except Exception as exc:
+            self.replicator_recorder = None
+            self._record_error("Replicator start failed", exc)
+            return None
+
+    def flush_replicator(self) -> dict[str, Any] | None:
+        """Flush Replicator writer output."""
+
+        try:
+            if self.replicator_recorder is None:
+                raise ExtensionActionError("Replicator recording is not started.")
+            status = self.replicator_recorder.flush()
+            self._apply_replicator_status(status.to_dict())
+            self._set_status("Replicator recording flushed.")
+            return self._replicator_status_dict()
+        except Exception as exc:
+            self._record_error("Replicator flush failed", exc)
+            return None
+
+    def stop_replicator(self) -> dict[str, Any] | None:
+        """Stop Replicator recording without disabling configured settings."""
+
+        try:
+            if self.replicator_recorder is None:
+                self.state.replicator_recording = False
+                self.state.replicator_status_message = "Replicator idle."
+                return self._replicator_status_dict()
+            status = self.replicator_recorder.stop()
+            self._apply_replicator_status(status.to_dict())
+            self._set_status("Replicator recording stopped.")
+            return self._replicator_status_dict()
+        except Exception as exc:
+            self._record_error("Replicator stop failed", exc)
+            return None
 
     def close_sensor(self) -> None:
         """Close the live sensor and writer/debug handles."""
@@ -675,6 +787,10 @@ class ExtensionController:
             raise ExtensionActionError("update_period_s must be positive and finite.")
         if state.max_events < 0:
             raise ExtensionActionError("max_events must be non-negative.")
+        if state.array_prim_path.strip():
+            _validate_abs_path(state.array_prim_path, "array_prim_path")
+        if state.robot_base_prim_path.strip():
+            _validate_abs_path(state.robot_base_prim_path, "robot_base_prim_path")
 
     def _author_child_microphones(
         self,
@@ -799,9 +915,210 @@ class ExtensionController:
         self.state.latest_overlay_labels = tuple(
             primitive.label for primitive in primitives
         )
+        self._record_overlay_status()
         self._set_status(
             f"Updated {frame.frame_id}: {len(detections)} detection(s), "
             f"{len(primitives)} overlay primitive(s)."
+        )
+
+    def _record_overlay_status(self) -> None:
+        if self.sensor is None or self.sensor.debug_drawer is None:
+            self.state.latest_overlay_status = (
+                "disabled"
+                if not self.state.debug_overlay_enabled
+                else "serialized_without_debug_drawer"
+            )
+            self.state.latest_overlay_error = None
+            return
+        drawer = self.sensor.debug_drawer
+        self.state.latest_overlay_status = str(
+            getattr(drawer, "last_status", "serialized")
+        )
+        latest_error = getattr(drawer, "last_error", None)
+        self.state.latest_overlay_error = None if latest_error is None else str(
+            latest_error
+        )
+
+    def _write_replicator_frame(self, frame: Any) -> None:
+        if self.replicator_recorder is None:
+            raise ExtensionActionError(
+                "Replicator recording is enabled but not started."
+            )
+        result = self.replicator_recorder.write_frame(
+            frame,
+            metadata=self._replicator_frame_metadata(frame),
+        )
+        self._apply_replicator_status(
+            self.replicator_recorder.status.to_dict(),
+        )
+        self._set_status(
+            f"Updated {frame.frame_id}; Replicator wrote {result.json_path}."
+        )
+
+    def _replicator_frame_metadata(self, frame: Any) -> dict[str, Any]:
+        return _json_ready(
+            {
+                "extension_id": self.ext_id,
+                "extension_state": {
+                    "backend": self.state.backend,
+                    "array_prim_path": self.state.array_prim_path,
+                    "source_prim_path": self.state.source_prim_path,
+                    "robot_base_prim_path": self.state.robot_base_prim_path or None,
+                    "discovery_roots": self._discovery_roots(),
+                    "selected_prim_paths": self.state.selected_prim_paths,
+                    "update_period_s": self.state.update_period_s,
+                    "max_events": self.state.max_events,
+                    "ambiguity_policy": self.state.ambiguity_policy,
+                    "debug_overlay_enabled": self.state.debug_overlay_enabled,
+                },
+                "package_recording": {
+                    "jsonl_enabled": self.state.trace_enabled,
+                    "jsonl_trace_path": self.state.jsonl_trace_path,
+                    "latest_frame_export_path": self.state.latest_frame_export_path,
+                    "config_export_path": self.state.config_export_path,
+                },
+                "overlay": {
+                    "primitive_count": self.state.latest_overlay_primitive_count,
+                    "labels": self.state.latest_overlay_labels,
+                    "status": self.state.latest_overlay_status,
+                    "error": self.state.latest_overlay_error,
+                },
+                "frame": {
+                    "frame_id": frame.frame_id,
+                    "backend_id": frame.backend_id,
+                    "array_id": frame.array_id,
+                    "timestamp_ms": frame.timestamp_ms,
+                },
+            }
+        )
+
+    def _apply_replicator_status(self, status: Mapping[str, Any]) -> None:
+        self.state.replicator_recording = bool(status.get("started"))
+        self.state.replicator_write_count = int(status.get("write_count", 0))
+        self.state.replicator_flush_count = int(status.get("flush_count", 0))
+        self.state.replicator_latest_write_path = status.get("latest_write_path")
+        self.state.replicator_latest_jsonl_path = status.get("latest_jsonl_path")
+        self.state.replicator_latest_error = status.get("latest_error")
+        self.state.replicator_output_artifacts = tuple(
+            str(item) for item in status.get("output_artifacts", ())
+        )
+        self.state.replicator_status_message = (
+            f"Replicator started={status.get('started')} "
+            f"writer_registered={status.get('writer_registered')} "
+            f"writes={status.get('write_count', 0)} "
+            f"flushes={status.get('flush_count', 0)}"
+        )
+
+    def _replicator_status_dict(self) -> dict[str, Any]:
+        state = self.state
+        if self.replicator_recorder is not None:
+            status = self.replicator_recorder.status.to_dict()
+            status["enabled"] = state.replicator_enabled
+            return status
+        return {
+            "enabled": state.replicator_enabled,
+            "writer_name": state.replicator_writer_name,
+            "annotator_name": state.replicator_annotator_name,
+            "output_dir": state.replicator_output_dir,
+            "started": state.replicator_recording,
+            "write_count": state.replicator_write_count,
+            "flush_count": state.replicator_flush_count,
+            "latest_write_path": state.replicator_latest_write_path,
+            "latest_jsonl_path": state.replicator_latest_jsonl_path,
+            "latest_error": state.replicator_latest_error,
+            "output_artifacts": list(state.replicator_output_artifacts),
+            "status_message": state.replicator_status_message,
+        }
+
+    def _apply_config_summary(self, payload: Mapping[str, Any]) -> None:
+        array = dict(payload.get("array", {}))
+        source = dict(payload.get("source", {}))
+        binding = dict(payload.get("stage_binding", {}))
+        lifecycle = dict(payload.get("lifecycle", {}))
+        recording = dict(payload.get("recording", {}))
+        package_recording = dict(recording.get("package_jsonl", {}))
+        replicator = dict(recording.get("replicator", {}))
+
+        self.state.backend = str(payload.get("backend", self.state.backend))
+        self.state.array_prim_path = str(
+            array.get("prim_path", self.state.array_prim_path)
+        )
+        self.state.array_id = str(array.get("array_id", self.state.array_id))
+        self.state.layout_name = str(array.get("layout_name", self.state.layout_name))
+        self.state.sample_rate_hz = int(
+            array.get("sample_rate_hz", self.state.sample_rate_hz)
+        )
+        self.state.coordinate_convention = str(
+            array.get("coordinate_convention", self.state.coordinate_convention)
+        )
+        self.state.source_prim_path = str(
+            source.get("prim_path", self.state.source_prim_path)
+        )
+        self.state.source_id = str(source.get("source_id", self.state.source_id))
+        self.state.source_class_label = str(
+            source.get("class_label", self.state.source_class_label)
+        )
+        self.state.audio_asset_path = str(
+            source.get("audio_asset_path", self.state.audio_asset_path)
+        )
+        self.state.source_start_time_s = float(
+            source.get("start_time_s", self.state.source_start_time_s)
+        )
+        self.state.source_duration_s = float(
+            source.get("duration_s", self.state.source_duration_s)
+        )
+        self.state.source_gain_db = float(
+            source.get("gain_db", self.state.source_gain_db)
+        )
+        self.state.robot_base_prim_path = str(
+            binding.get("robot_base_prim_path") or ""
+        )
+        roots = binding.get("discovery_roots", self._discovery_roots())
+        self.state.discovery_roots_text = ", ".join(str(root) for root in roots)
+        self.state.selected_prim_paths = _normalize_paths(
+            binding.get("selected_prim_paths", ())
+        )
+        self.state.update_period_s = float(
+            lifecycle.get("update_period_s", self.state.update_period_s)
+        )
+        self.state.max_events = int(lifecycle.get("max_events", self.state.max_events))
+        self.state.ambiguity_policy = str(
+            lifecycle.get("ambiguity_policy", self.state.ambiguity_policy)
+        )
+        self.state.debug_overlay_enabled = bool(
+            lifecycle.get(
+                "debug_overlay_enabled",
+                self.state.debug_overlay_enabled,
+            )
+        )
+        self.state.trace_enabled = bool(
+            package_recording.get(
+                "enabled",
+                lifecycle.get("writer_enabled", self.state.trace_enabled),
+            )
+        )
+        self.state.jsonl_trace_path = str(
+            package_recording.get(
+                "path",
+                lifecycle.get("writer_path", self.state.jsonl_trace_path),
+            )
+            or self.state.jsonl_trace_path
+        )
+        self.state.replicator_enabled = bool(
+            replicator.get("enabled", self.state.replicator_enabled)
+        )
+        self.state.replicator_output_dir = str(
+            replicator.get("output_dir", self.state.replicator_output_dir)
+        )
+        self.state.replicator_writer_name = str(
+            replicator.get("writer_name", self.state.replicator_writer_name)
+        )
+        self.state.replicator_annotator_name = str(
+            replicator.get("annotator_name", self.state.replicator_annotator_name)
+        )
+        self.state.authored_metadata = tuple(
+            _authored_metadata_from_dict(item)
+            for item in payload.get("authored_metadata", ())
         )
 
     def _set_status(self, message: str, *, error: bool = False) -> None:
@@ -838,6 +1155,7 @@ class OmniReferenceWindow:
             self._build_array_section()
             self._build_source_section()
             self._build_control_section()
+            self._build_replicator_section()
             self._build_export_section()
             self._labels["status"] = ui.Label(
                 self.controller.state.status_message,
@@ -869,7 +1187,13 @@ class OmniReferenceWindow:
             "overlay",
             "Overlay: "
             f"{state.latest_overlay_primitive_count} primitive(s) | "
-            f"{', '.join(state.latest_overlay_labels) or 'none'}",
+            f"{', '.join(state.latest_overlay_labels) or 'none'} | "
+            f"{state.latest_overlay_status}",
+        )
+        self._set_label(
+            "replicator",
+            f"{state.replicator_status_message} | "
+            f"latest={state.replicator_latest_write_path or 'none'}",
         )
         self._set_label("status", state.status_message)
 
@@ -988,11 +1312,34 @@ class OmniReferenceWindow:
             self._labels["latest"] = ui.Label("", word_wrap=True)
             self._labels["overlay"] = ui.Label("", word_wrap=True)
 
+    def _build_replicator_section(self) -> None:
+        ui = self.ui
+        with self._section("Replicator"):
+            self._bool_row("Enable", "replicator_enabled")
+            self._string_row("Output Dir", "replicator_output_dir")
+            self._string_row("Writer", "replicator_writer_name")
+            self._string_row("Annotator", "replicator_annotator_name")
+            with ui.HStack(spacing=4):
+                ui.Button(
+                    "Start",
+                    clicked_fn=self._action(self.controller.start_replicator),
+                )
+                ui.Button(
+                    "Flush",
+                    clicked_fn=self._action(self.controller.flush_replicator),
+                )
+                ui.Button(
+                    "Stop",
+                    clicked_fn=self._action(self.controller.stop_replicator),
+                )
+            self._labels["replicator"] = ui.Label("", word_wrap=True)
+
     def _build_export_section(self) -> None:
         ui = self.ui
         with self._section("Export"):
             self._string_row("Latest JSON", "latest_frame_export_path")
             self._string_row("Config JSON", "config_export_path")
+            self._string_row("Load Config", "config_import_path")
             with ui.HStack(spacing=4):
                 ui.Button(
                     "Export Latest",
@@ -1001,6 +1348,10 @@ class OmniReferenceWindow:
                 ui.Button(
                     "Export Config",
                     clicked_fn=self._action(self.controller.export_config_summary),
+                )
+                ui.Button(
+                    "Load Config",
+                    clicked_fn=self._action(self.controller.import_config_summary),
                 )
 
     def _section(self, title: str) -> Any:
@@ -1178,6 +1529,17 @@ def _json_ready(value: Any) -> Any:
     if isinstance(value, Path):
         return str(value)
     return value
+
+
+def _authored_metadata_from_dict(value: Any) -> AuthoredMetadataSummary:
+    if not isinstance(value, Mapping):
+        raise ExtensionActionError("authored_metadata entries must be objects.")
+    return AuthoredMetadataSummary(
+        kind=str(value.get("kind", "")),
+        prim_path=str(value.get("prim_path", "")),
+        id=str(value.get("id", "")),
+        attributes=_jsonable_mapping(dict(value.get("attributes", {}))),
+    )
 
 
 def _summary_ids(items: tuple[DiscoveredPrimSummary, ...]) -> str:

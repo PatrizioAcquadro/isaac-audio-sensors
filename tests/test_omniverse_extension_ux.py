@@ -15,6 +15,7 @@ from isaac_audio_sensors.isaac.extension_ui import (
     ExtensionController,
     current_omni_stage_context,
 )
+from isaac_audio_sensors.isaac.replicator import PAYLOAD_SCHEMA_VERSION
 
 
 class _FakePrim:
@@ -127,6 +128,43 @@ class _FakeUI(ModuleType):
         self.Button = _FakeWidget
 
 
+class _FakeWriterRegistry:
+    registered: dict[str, type] = {}
+
+    @classmethod
+    def register(cls, writer_cls: type) -> None:
+        cls.registered[writer_cls.__name__] = writer_cls
+
+    @classmethod
+    def get(cls, name: str) -> object:
+        return cls.registered[name]()
+
+
+class _FakeAnnotatorRegistry:
+    registered: dict[str, object] = {}
+
+    @classmethod
+    def register(cls, name: str, annotator: object) -> None:
+        cls.registered[name] = annotator
+
+
+def _install_fake_replicator(monkeypatch):
+    _FakeWriterRegistry.registered = {}
+    _FakeAnnotatorRegistry.registered = {}
+    omni = sys.modules.get("omni") or ModuleType("omni")
+    replicator = ModuleType("omni.replicator")
+    core = ModuleType("omni.replicator.core")
+    core.Writer = object
+    core.WriterRegistry = _FakeWriterRegistry
+    core.AnnotatorRegistry = _FakeAnnotatorRegistry
+    replicator.core = core
+    omni.replicator = replicator
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.replicator", replicator)
+    monkeypatch.setitem(sys.modules, "omni.replicator.core", core)
+    return core
+
+
 def test_omni_extension_entrypoint_import_smoke_without_isaac_modules():
     repo = Path(__file__).resolve().parents[1]
     code = textwrap.dedent(
@@ -194,6 +232,8 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     frame = controller.update_sensor()
     latest_path = controller.export_latest_frame()
     config_path = controller.export_config_summary()
+    imported = ExtensionController()
+    imported_path = imported.import_config_summary(config_path)
 
     assert array_record is not None
     assert source_record is not None
@@ -216,9 +256,15 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert summary["array"]["prim_path"] == "/World/Rig/AudioArray"
     assert summary["source"]["prim_path"] == "/World/Sources/SpeakerA"
     assert summary["lifecycle"]["writer_path"].endswith("frames.jsonl")
+    assert summary["recording"]["package_jsonl"]["path"].endswith("frames.jsonl")
+    assert summary["recording"]["replicator"]["enabled"] is False
     assert summary["overlay"]["primitive_count"] == (
         controller.state.latest_overlay_primitive_count
     )
+    assert imported_path == config_path
+    assert imported.state.array_prim_path == "/World/Rig/AudioArray"
+    assert imported.state.source_prim_path == "/World/Sources/SpeakerA"
+    assert imported.state.jsonl_trace_path.endswith("frames.jsonl")
 
 
 def test_extension_controller_reads_fake_omni_usd_selection(monkeypatch):
@@ -267,6 +313,8 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "backend",
         "layout_name",
     }
+    assert "replicator_enabled" in controller._ui_window._bool_fields
+    assert "replicator_output_dir" in controller._ui_window._string_fields
 
 
 def test_extension_controller_reports_visible_errors_without_raising():
@@ -277,3 +325,58 @@ def test_extension_controller_reports_visible_errors_without_raising():
     assert result is None
     assert controller.state.error_message is not None
     assert "Sensor configure failed" in controller.state.error_message
+
+
+def test_extension_controller_replicator_lifecycle_and_payload(
+    monkeypatch,
+    tmp_path,
+):
+    _install_fake_replicator(monkeypatch)
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0, 0, 0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.ext_id = "test.ext"
+    controller.state.backend = "geometry_only"
+    controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
+    controller.state.replicator_enabled = True
+    controller.state.replicator_output_dir = str(tmp_path / "replicator")
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.author_source(stage=stage) is not None
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    status = controller.start_replicator()
+    frame = controller.update_sensor()
+    flushed = controller.flush_replicator()
+    stopped = controller.stop_replicator()
+
+    assert status is not None
+    assert status["writer_registered"] is True
+    assert status["annotator_registered"] is True
+    assert frame is not None
+    assert flushed is not None
+    assert flushed["flushed"] is True
+    assert stopped is not None
+    assert stopped["stopped"] is True
+    assert controller.state.replicator_write_count == 1
+    payload_path = Path(controller.state.replicator_latest_write_path or "")
+    payload = json.loads(payload_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == PAYLOAD_SCHEMA_VERSION
+    assert payload["summary"]["backend_id"] == "geometry_only"
+    assert payload["summary"]["detection_count"] == 1
+    assert payload["metadata"]["extension_id"] == "test.ext"
+    assert (tmp_path / "replicator" / "audio_sensor_frames.jsonl").exists()
+
+
+def test_extension_controller_replicator_missing_runtime_is_readable(tmp_path):
+    controller = ExtensionController()
+    controller.state.replicator_output_dir = str(tmp_path / "replicator")
+
+    status = controller.start_replicator()
+
+    assert status is None
+    assert controller.state.error_message is not None
+    assert "Replicator start failed" in controller.state.error_message
+    assert "omni.replicator.core" in controller.state.error_message

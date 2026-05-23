@@ -32,7 +32,8 @@ Source repository: <https://github.com/PatrizioAcquadro/isaac-audio-sensors>
   live update-loop capture, USD-native world-pose reads, nested transform
   stacks, robot/base-mounted arrays, moving sources/arrays/microphone children,
   semantic array/source discovery, active sound windows, debug visualization
-  records, and JSONL writer output.
+  records, JSONL writer output, and a reference Kit extension with Replicator
+  recording.
 - Lazy Isaac Lab integration that becomes a real `SensorBaseCfg`/`SensorBase`
   sensor when imported inside an initialized Isaac Lab runtime, with a public
   recovery API, vectorized multi-env RL buffers, GPU validation, USD transform
@@ -168,8 +169,23 @@ Sim's Extension Manager search paths and enable `Isaac Audio Sensors` to use a
 panel for selected-prim binding, array/source `ias:*` metadata authoring,
 backend selection, start/stop/update lifecycle controls, debug overlay
 primitives, and latest-frame JSON, JSONL trace, and reusable binding/config
-exports. The extension uses the package JSON/JSONL recording path; Replicator
-writer registration is not implemented.
+exports. The extension supports two recording paths:
+
+- package-native JSON/JSONL records containing `AudioSensorFrame` v1 payloads;
+- Omniverse-native Replicator writer payloads under a user-selected output
+  directory, with lazy `omni.replicator.core` registration and readable
+  missing-runtime/write/flush errors.
+
+The live reference UX smoke is:
+
+```bash
+make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
+```
+
+It records real Kit version/runtime facts, selected-prim workflow status,
+overlay primitive evidence, JSON/JSONL exports, config import/export,
+Replicator registration/write/flush/stop status, and screenshot status under
+`outputs/isaac_audio_sensors/`.
 
 ## Isaac Lab Example
 
@@ -236,8 +252,10 @@ blocker when no NVIDIA GPU is available to the Isaac Lab runtime.
   `root_state_w`, `root_pos_w`, `root_quat_w`, `body_state_w`, `body_pos_w`,
   and `body_quat_w` without requiring exact Isaac Lab classes at import time.
 - The Isaac helpers include a reference extension wrapper, but this is not an
-  official NVIDIA extension. Replicator writer registration remains a future
-  integration; the package writer currently records JSONL frames.
+  official NVIDIA extension.
+- Replicator recording is an Omniverse extension feature and is imported lazily
+  inside Isaac Sim/Kit. The core package and extension import smoke do not
+  require Replicator outside Isaac.
 
 ## Documentation
 

@@ -53,12 +53,17 @@
 - Entity positions are treated as world-frame by default. Env-origin addition
   is opt-in through `state_position_frame="env"` and must not be enabled for
   normal Isaac Lab `*_w` world-frame tensors.
-- Replicator writer integration and production acoustic realism remain future
-  work.
+- Replicator recording is implemented for the reference Omniverse extension,
+  not for pure Python imports. It requires `omni.replicator.core` inside
+  Isaac Sim/Kit, registers a Python writer, and records recoverable
+  `AudioSensorFrame` v1 payloads plus metadata. Kit versions with no compatible
+  writer registry, writer lookup, or flush API report a readable blocker and
+  should still use the package JSON/JSONL recording path.
 - This package is independent and is not an official NVIDIA extension.
 - Isaac debug draw is best-effort. When the Isaac debug draw API is unavailable,
   the package still emits structured debug primitives for tests and export.
-- Replicator annotator/writer registration is not included yet. Use
-  `AudioFrameJsonlWriter` for frame recording.
+- Replicator annotator registration is best-effort because public Kit Python
+  APIs vary by Isaac version. The writer path is the supported v1 recording
+  path; annotator registration status is captured in config/live evidence.
 - Generated showcase artifacts are linked through the showcase site; they are
   not tracked source files in this repository.

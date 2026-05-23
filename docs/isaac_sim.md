@@ -79,8 +79,11 @@ The extension window is organized around the live authoring workflow:
   `tdoa_synthetic`, `room_acoustics`), ambiguity policy, update period, max
   events, debug overlay toggle, JSONL writer toggle/path, and
   start/stop/update lifecycle buttons.
-- `Export`: writes the latest frame JSON and a reusable stage-binding/config
-  summary.
+- `Replicator`: enables the Omniverse-native writer path, sets output
+  directory, writer name, and annotator name, and exposes start, flush, stop,
+  write-count, and latest-artifact status.
+- `Export`: writes the latest frame JSON, writes a reusable
+  stage-binding/config summary, and loads a saved config summary.
 
 The authoring buttons use ordinary USD custom attributes under `ias:*`; they do
 not register or require a custom USD schema. If the target prim exists, the
@@ -110,9 +113,51 @@ Default export paths are ignored public-output paths:
 - JSONL trace: `outputs/isaac_audio_sensors/extension_trace.frames.jsonl`;
 - reusable binding/config summary:
   `outputs/isaac_audio_sensors/extension_binding.json`.
+- Replicator output directory:
+  `outputs/isaac_audio_sensors/replicator/`.
 
-The v1 recording path is the package JSON/JSONL export. Replicator
-annotator/writer registration is not implemented by this extension.
+Practical Isaac Sim workflow:
+
+1. Open Isaac Sim with the repository available on disk.
+2. In `Window -> Extensions`, add the repository `exts/` directory to search
+   paths and enable `Isaac Audio Sensors`.
+3. Select or create a prim for the array target, then click `Refresh` and
+   `Use Array`.
+4. In `Author Array`, choose an array id and layout, then click
+   `Create/Attach Array`.
+5. Select or create a sound-source prim, click `Use Source`, configure source
+   metadata, then click `Create/Attach Source`.
+6. Optionally select a robot/base prim and click `Use Base`.
+7. Click `Discover` and confirm the array/source ids in the discovery status.
+8. Pick `geometry_only`, `tdoa_synthetic`, or `room_acoustics`; set update
+   period, max events, overlay, and JSONL writer path.
+9. Click `Start`, then `Update`; the latest-frame and overlay labels should
+   show detection count, backend, bearing, sector, and primitive count.
+10. In `Replicator`, enable recording, set the output directory, click
+    `Start`, click `Update` again, then click `Flush`.
+11. In `Export`, write the latest JSON frame and config JSON. Use `Load Config`
+    on a later run to restore backend, prim paths, roots, writer paths,
+    update settings, overlay setting, and Replicator settings.
+12. Click `Stop` in `Sensor`, then `Stop` in `Replicator`.
+
+Recording paths:
+
+- Package-native JSON/JSONL is the stable v1 package trace path. It writes full
+  `AudioSensorFrame` v1 records through `AudioFrameJsonlWriter` and
+  `write_frame_trace`.
+- Omniverse-native Replicator is the stable v1 extension recording path. It is
+  imported lazily from `omni.replicator.core`, registers
+  `IsaacAudioSensorFrameWriter`, writes a recoverable payload containing the
+  full `AudioSensorFrame` v1 object plus backend, array/source ids, bearing,
+  sector, diagnostics namespaces, overlay metadata, extension config, and
+  provenance, and flushes a manifest/status file.
+
+Replicator remains optional at package import time. If `omni.replicator.core`,
+`WriterRegistry`, writer lookup, output path creation, write, or flush is
+unavailable, the extension reports a readable status/error and leaves the
+package JSON/JSONL path usable. Some Isaac/Kit versions do not expose a simple
+Python annotator registration API; in that case the writer still records audio
+frames and the config/evidence records the annotator API status.
 
 Programmatic lifecycle:
 
@@ -244,6 +289,5 @@ ordinary custom `ias:*` attributes.
 
 This package is not an official NVIDIA extension. The extension metadata under
 `exts/` is included as a reference Kit UX for authoring arrays and sources,
-binding a live stage, visualizing debug primitives, and exporting package
-JSON/JSONL evidence. Replicator annotator/writer registration is not
-implemented yet; use the package JSONL writer for frame recording.
+binding a live stage, visualizing debug primitives, exporting package
+JSON/JSONL evidence, and recording Omniverse-native Replicator payloads.

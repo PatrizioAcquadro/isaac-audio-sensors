@@ -5,7 +5,7 @@ ISAAC_LAB_PYTHON ?= $(PYTHON)
 ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
 
-.PHONY: test lint format build audit-dist import-smoke validate-config export-schema live-isaac-sim-audio live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac
+.PHONY: test lint format build audit-dist import-smoke validate-config export-schema live-isaac-sim-audio live-omniverse-extension-ux live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac
 
 test:
 	$(PYTHON) -m pytest
@@ -35,6 +35,10 @@ export-schema:
 live-isaac-sim-audio:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_isaac_sim_audio_smoke.py
 	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/isaac_sim_live_smoke.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
+
+live-omniverse-extension-ux:
+	PYTHONPATH=$(CURDIR)/src:$(CURDIR)/exts/isaac_audio_sensors.omni:$(CURDIR)/scripts:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_omniverse_extension_ux.py
+	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/omniverse_extension_live_ux.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
 
 live-isaac-lab-audio:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) scripts/live_isaac_lab_audio_smoke.py

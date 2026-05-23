@@ -21,6 +21,13 @@ from isaac_audio_sensors.isaac.pose_resolver import (
     StagePose,
     resolve_world_pose,
 )
+from isaac_audio_sensors.isaac.replicator import (
+    AudioSensorReplicatorRecorder,
+    ReplicatorIntegrationError,
+    ReplicatorRecorderStatus,
+    audio_sensor_frame_replicator_payload,
+    require_replicator_core,
+)
 from isaac_audio_sensors.isaac.source_registry import SourceRecord
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
@@ -42,6 +49,9 @@ __all__ = [
     "IsaacAudioSceneBindingCfg",
     "IsaacStagePoseResolver",
     "ListenerRecord",
+    "AudioSensorReplicatorRecorder",
+    "ReplicatorIntegrationError",
+    "ReplicatorRecorderStatus",
     "SourceRecord",
     "StagePose",
     "attach_microphone_array_attrs",
@@ -52,6 +62,8 @@ __all__ = [
     "create_sound_prim",
     "discover_stage_audio",
     "discover_microphone_arrays",
+    "audio_sensor_frame_replicator_payload",
     "require_isaac_usd",
+    "require_replicator_core",
     "resolve_world_pose",
 ]

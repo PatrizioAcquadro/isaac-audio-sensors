@@ -513,8 +513,10 @@ class IsaacAudioArraySensor:
             self.debug_drawer = IsaacDebugDrawer()
         try:
             return self.debug_drawer.draw(primitives)
-        except IsaacIntegrationUnavailable:
+        except IsaacIntegrationUnavailable as exc:
             self.debug_drawer.last_primitives = primitives
+            self.debug_drawer.last_status = "serialized_fallback_debug_draw_unavailable"
+            self.debug_drawer.last_error = str(exc)
             return primitives
 
     def _subscribe_to_isaac_updates(self) -> Any:

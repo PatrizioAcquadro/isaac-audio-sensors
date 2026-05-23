@@ -66,6 +66,21 @@ class Extension(_i_ext_base()):
 
         self.controller.stop_sensor()
 
+    def author_array(self, *, stage: Any | None = None) -> Any | None:
+        """Author microphone-array metadata through the extension controller."""
+
+        return self.controller.author_array(stage=stage)
+
+    def author_source(self, *, stage: Any | None = None) -> Any | None:
+        """Author sound-source metadata through the extension controller."""
+
+        return self.controller.author_source(stage=stage)
+
+    def refresh_discovery(self, *, stage: Any | None = None) -> Any:
+        """Run semantic array/source discovery through the controller."""
+
+        return self.controller.refresh_discovery(stage=stage)
+
     def update_sensor(self, *, force: bool = True) -> Any | None:
         """Manually capture one frame from the configured sensor."""
 
@@ -80,6 +95,26 @@ class Extension(_i_ext_base()):
         """Write a reusable extension config/stage-binding summary."""
 
         return self.controller.export_config_summary(path)
+
+    def import_config_summary(self, path: str | Path | None = None) -> Path | None:
+        """Load a reusable extension config/stage-binding summary."""
+
+        return self.controller.import_config_summary(path)
+
+    def start_replicator(self) -> dict[str, Any] | None:
+        """Start the Omniverse Replicator recording path."""
+
+        return self.controller.start_replicator()
+
+    def flush_replicator(self) -> dict[str, Any] | None:
+        """Flush the Omniverse Replicator recording path."""
+
+        return self.controller.flush_replicator()
+
+    def stop_replicator(self) -> dict[str, Any] | None:
+        """Stop the Omniverse Replicator recording path."""
+
+        return self.controller.stop_replicator()
 
     @property
     def sensor(self) -> IsaacAudioArraySensor | None:
@@ -150,6 +185,22 @@ class Extension(_i_ext_base()):
     @latest_frame_export_path.setter
     def latest_frame_export_path(self, value: str) -> None:
         self.controller.state.latest_frame_export_path = value
+
+    @property
+    def replicator_enabled(self) -> bool:
+        return self.controller.state.replicator_enabled
+
+    @replicator_enabled.setter
+    def replicator_enabled(self, value: bool) -> None:
+        self.controller.state.replicator_enabled = bool(value)
+
+    @property
+    def replicator_output_dir(self) -> str:
+        return self.controller.state.replicator_output_dir
+
+    @replicator_output_dir.setter
+    def replicator_output_dir(self, value: str) -> None:
+        self.controller.state.replicator_output_dir = value
 
 
 __all__ = ["Extension"]
