@@ -1,6 +1,8 @@
-"""Isaac Lab audio observation config and tensor field example."""
+"""Minimal Isaac Lab audio observation helper."""
 
 from __future__ import annotations
+
+from typing import Any
 
 from isaac_audio_sensors.lab import (
     LabAudioEntityBindingCfg,
@@ -8,6 +10,18 @@ from isaac_audio_sensors.lab import (
     LabAudioStageBindingCfg,
     ensure_isaac_lab_sensor_classes,
     get_audio_array_sensor_classes,
+)
+
+AUDIO_OBSERVATION_KEYS = (
+    "audio/event_presence",
+    "audio/bearing_deg",
+    "audio/confidence",
+    "audio/sector_onehot",
+    "audio/per_mic_rms",
+    "audio/ambiguity_mask",
+)
+AUDIO_OBSERVATION_FIELDS = tuple(
+    key.removeprefix("audio/") for key in AUDIO_OBSERVATION_KEYS
 )
 
 _classes = get_audio_array_sensor_classes(require_real=False)
@@ -19,15 +33,6 @@ audio_array = _classes.cfg(
     microphone_layout="quad_front",
     max_events=2,
     debug_vis=True,
-)
-
-AUDIO_OBSERVATION_FIELDS = (
-    "event_presence",
-    "bearing_deg",
-    "confidence",
-    "sector_onehot",
-    "per_mic_rms",
-    "ambiguity_mask",
 )
 
 explicit_stage_binding = LabAudioStageBindingCfg(
@@ -50,7 +55,7 @@ discovered_scene_binding = LabAudioStageBindingCfg(
 entity_tensor_binding = LabAudioEntityBindingCfg(
     num_envs=2,
     robot_entity_name="robot",
-    array_mount_body_name="head",
+    array_mount_body_name=None,
     array_relative_position_m=(0.08, 0.0, 0.0),
     microphone_layout="quad_front",
     source_entities=(
@@ -64,7 +69,7 @@ entity_tensor_binding = LabAudioEntityBindingCfg(
 )
 
 
-def bind_from_stage(stage):
+def bind_from_stage(stage: object):
     """Create the live Lab sensor after AppLauncher/SimulationApp starts."""
 
     classes = ensure_isaac_lab_sensor_classes()
@@ -81,7 +86,7 @@ def bind_from_stage(stage):
     )
 
 
-def bind_from_scene(scene):
+def bind_from_scene(scene: object):
     """Bind from a scene/env wrapper that exposes stage and num_envs."""
 
     classes = ensure_isaac_lab_sensor_classes()
@@ -98,12 +103,12 @@ def bind_from_scene(scene):
     )
 
 
-def bind_from_scene_entities(scene):
+def bind_from_scene_entities(scene: object):
     """Bind from a scene wrapper that exposes Lab entity tensor state."""
 
     classes = ensure_isaac_lab_sensor_classes()
     cfg = classes.cfg(
-        prim_path="{ENV_REGEX_NS}/Robot/head/audio_array",
+        prim_path="{ENV_REGEX_NS}/Robot/root/audio_array",
         update_period=0.05,
         backend="tdoa_synthetic",
         microphone_layout="quad_front",
@@ -113,3 +118,58 @@ def bind_from_scene_entities(scene):
         scene=scene,
         binding_cfg=entity_tensor_binding,
     )
+
+
+def audio_observation(
+    sensor: object,
+    *,
+    dt: float,
+    update_env_ids: list[int] | tuple[int, ...] | None = None,
+    reset_env_ids: list[int] | tuple[int, ...] | None = None,
+    force_recompute: bool = True,
+) -> dict[str, Any]:
+    """Return stable RL observation tensors from an AudioArraySensor."""
+
+    if reset_env_ids is not None:
+        sensor.reset(env_ids=reset_env_ids)
+    if update_env_ids is None:
+        sensor.update(dt=dt, force_recompute=force_recompute)
+    else:
+        sensor.update(
+            dt=dt,
+            force_recompute=force_recompute,
+            env_ids=update_env_ids,
+        )
+    data = sensor.data
+    return {
+        "audio/event_presence": data.event_presence,
+        "audio/bearing_deg": data.bearing_deg,
+        "audio/confidence": data.confidence,
+        "audio/sector_onehot": data.sector_onehot,
+        "audio/per_mic_rms": data.per_mic_rms,
+        "audio/ambiguity_mask": data.ambiguity_mask,
+    }
+
+
+def ambiguity_observation(observation: dict[str, Any]) -> dict[str, Any]:
+    """Split valid detections into ambiguous and unambiguous masks."""
+
+    event_presence = observation["audio/event_presence"]
+    ambiguity_mask = observation["audio/ambiguity_mask"]
+    return {
+        "audio/ambiguous_event_presence": event_presence & ambiguity_mask,
+        "audio/unambiguous_event_presence": event_presence & ~ambiguity_mask,
+    }
+
+
+def observation_spec(observation: dict[str, Any]) -> dict[str, dict[str, object]]:
+    """Summarize keys, shapes, dtypes, and devices for observation managers."""
+
+    return {
+        key: {
+            "shape": tuple(value.shape),
+            "dtype": str(value.dtype),
+            "device": str(value.device),
+        }
+        for key, value in observation.items()
+    }

@@ -276,34 +276,34 @@ outdated. The next `data` access recomputes them if bindings are available.
 
 ## RL Observation Example
 
+The copyable example is
+`examples/isaac_lab/isaac_lab_audio_observation.py`. It exposes stable
+observation keys, selected reset/update usage, and an ambiguity mask split:
+
 ```python
-from isaac_audio_sensors.lab import ensure_isaac_lab_sensor_classes
-
-classes = ensure_isaac_lab_sensor_classes()
-AudioArraySensor = classes.sensor
-AudioArraySensorCfg = classes.cfg
-
-cfg = AudioArraySensorCfg(
-    prim_path="{ENV_REGEX_NS}/Robot/audio_array",
-    update_period=0.05,
-    backend="tdoa_synthetic",
-    microphone_layout="quad_front",
-    max_events=2,
+from examples.isaac_lab.isaac_lab_audio_observation import (
+    ambiguity_observation,
+    audio_observation,
+    observation_spec,
 )
-sensor = AudioArraySensor(cfg).bind_envs(
-    scene_snapshots=(env0_snapshot, env1_snapshot),
-    sensors=(env0_array, env1_array),
+
+obs = audio_observation(
+    sensor,
+    dt=0.05,
+    update_env_ids=[1],
+    reset_env_ids=[1],
 )
-sensor.update(dt=0.05, force_recompute=True)
-audio_obs = {
-    "audio/event_presence": sensor.data.event_presence,
-    "audio/bearing_deg": sensor.data.bearing_deg,
-    "audio/confidence": sensor.data.confidence,
-    "audio/sector_onehot": sensor.data.sector_onehot,
-    "audio/per_mic_rms": sensor.data.per_mic_rms,
-    "audio/ambiguity_mask": sensor.data.ambiguity_mask,
-}
+ambiguous = ambiguity_observation(obs)
+spec = observation_spec(obs)
 ```
+
+The observation keys are fixed:
+`audio/event_presence`, `audio/bearing_deg`, `audio/confidence`,
+`audio/sector_onehot`, `audio/per_mic_rms`, and `audio/ambiguity_mask`.
+All values are dense tensors on the sensor device. `audio/event_presence`
+separates real detections from padding, while
+`audio/ambiguous_event_presence` marks detections whose TDOA estimate has
+front/back ambiguity.
 
 ## Live Smoke Evidence
 
@@ -311,10 +311,14 @@ The live smoke launches Isaac Lab, imports the sensor layer after runtime
 initialization, resolves the public classes through
 `ensure_isaac_lab_sensor_classes()`, checks both subclass relationships with
 `issubclass`, binds a minimal two-environment setup, auto-binds a two-env stage,
-binds a duck-typed entity scene with articulation/rigid-object tensors,
-verifies tensor shapes/device, resets one environment, performs selected-env
-updates, proves semantic cloned-env discovery for two stage environments, and
-records before/after entity-source bearing changes.
+and binds an entity tensor scene for robot/source pose reads. It verifies tensor
+shape, dtype, and device for every RL-facing buffer plus timestamp/outdated
+bookkeeping, proves selected-env update/reset with row comparisons, proves
+semantic cloned-env discovery for two stage environments, and records
+before/after entity-source bearing changes. When a full real
+`InteractiveScene`/`RigidObject` entity probe is blocked by the local Isaac
+Lab/PhysX runtime, the evidence records the blocker and keeps the closest
+supported tensor-scene path active.
 It writes JSON evidence under `outputs/isaac_audio_sensors/`.
 
 ```bash
