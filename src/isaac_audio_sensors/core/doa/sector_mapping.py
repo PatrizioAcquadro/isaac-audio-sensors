@@ -9,7 +9,7 @@ from isaac_audio_sensors.core.math_utils import normalize_bearing_deg
 def bearing_deg_to_sector_name(deg: float) -> str:
     """Map a clockwise bearing angle into the canonical 8-sector name."""
 
-    normalized = normalize_bearing_deg(deg)
+    normalized = round(normalize_bearing_deg(deg), 10)
     sector_index = int(((normalized + 22.5) % 360.0) // 45.0)
     return SECTOR_ORDER[sector_index]
 

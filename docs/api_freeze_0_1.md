@@ -166,6 +166,24 @@ Isaac Lab stage and entity binding:
 - `AudioArraySensor.from_scene_snapshot(...)`
 - `AudioArraySensor.from_lab_entities(...)`
 
+Omniverse Replicator recording path:
+
+- `AudioSensorReplicatorRecorder`
+- `ReplicatorRecorderStatus`
+- `ReplicatorWriteResult`
+- `ReplicatorIntegrationError`
+- `audio_sensor_frame_replicator_payload(...)`
+- `require_replicator_core()`
+- `DEFAULT_REPLICATOR_WRITER_NAME`
+- `DEFAULT_REPLICATOR_ANNOTATOR_NAME`
+- `PAYLOAD_SCHEMA_VERSION`
+
+The Replicator path is optional and imported lazily. Compatible 0.1.x releases
+should preserve readable missing-runtime errors, full `AudioSensorFrame` v1
+payload recovery, and additive payload metadata. Writer and annotator
+registration details may vary by Isaac/Kit runtime and are recorded as
+diagnostics rather than treated as stable core behavior.
+
 ## Experimental
 
 Experimental surfaces are useful for development but are not compatibility
@@ -182,8 +200,9 @@ anchors for 0.1.x. They may change after changelog documentation.
 - extra `room_acoustics` diagnostics beyond the supported optional L2 names
   listed in this document
 
-The package does not implement a Replicator annotator/writer registration in
-0.1.x. `AudioFrameJsonlWriter` is the supported frame recording path.
+Package-native `AudioFrameJsonlWriter` remains the stable core recording path.
+Omniverse Replicator recording is supported only inside Isaac Sim/Kit runtimes
+that expose compatible `omni.replicator.core` APIs.
 
 ## Internal And Private
 

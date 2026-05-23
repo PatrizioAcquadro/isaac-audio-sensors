@@ -37,6 +37,9 @@ capabilities that already exist.
 - Isaac Lab entity binding for common scene/entity tensor patterns, including
   root/body pose tensors, body-name lookup, robot/body-mounted arrays,
   env-origin handling, and per-env diagnostics.
+- Reference Omniverse extension UX for selected-prim binding, array/source
+  authoring, backend selection, live update/export, overlay state, reusable
+  config import/export, and optional Replicator recording.
 - Release-candidate hygiene docs, versioning notes, archive audit script, and
   build-time distribution audit.
 
@@ -44,7 +47,8 @@ capabilities that already exist.
 
 - Automated Isaac Sim and Isaac Lab smoke CI on capable GPU runners.
 - Optional USD geometry authoring for debug primitives.
-- Replicator annotator/writer registration.
+- Broader Replicator annotator compatibility and richer dataset capture beyond
+  the current extension writer path.
 - L3 advanced realism implementation for richer wave/RIR, material,
   occlusion, directivity, noise, and estimator realism.
 - L4 sim-real calibration tooling for measured array pose, gain, time-offset,

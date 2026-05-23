@@ -22,6 +22,11 @@
   access, structured debug primitives, and package writer integration.
 - Expanded the Omniverse extension wrapper with configure/start/stop/update
   and latest-frame export entry points.
+- Added reference Omniverse extension UX coverage for selected-prim binding,
+  array/source metadata authoring, live overlay state, config import/export,
+  and optional Replicator writer recording.
+- Fixed floating-point sector-boundary classification so L0/L1 bearing sectors
+  stay consistent at exact 45-degree boundary cases.
 - Renamed the bundled config and Isaac Sim example away from legacy project
   phase naming.
 - Documented the 0.1.x API freeze with stable, provisional, experimental, and

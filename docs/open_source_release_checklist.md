@@ -47,13 +47,13 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
 - [x] README and docs describe a standalone open-source Isaac Sim/Lab audio
   sensor package.
 - [x] Docs avoid claims of full acoustic realism, production beamforming,
-  speech recognition, or full Replicator integration.
+  speech recognition, or universal Replicator/annotator compatibility.
 - [x] Docs state that L3 advanced realism and L4 sim-real calibration are
   future-compatible metadata/tooling directions, not complete v1 runtime
   systems.
 - [x] Limitations document the optional approximate `pyroomacoustics` path.
-- [x] Limitations document that Replicator annotator/writer registration is not
-  implemented.
+- [x] Limitations document that Replicator recording is an optional extension
+  writer path, while annotator registration remains best-effort by Kit version.
 - [x] Limitations document that Lab entity binding covers common Isaac Lab
   tensor/entity patterns, not arbitrary custom task APIs.
 - [x] Validation docs state that live Isaac checks require user-managed Isaac

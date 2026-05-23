@@ -103,9 +103,12 @@ render structured debug primitives through Isaac debug draw when available, and
 export latest-frame JSON, JSONL traces, and a reusable stage-binding/config
 summary.
 
-A full Replicator annotator/writer registration is not implemented in this
-iteration; the supported writer path is the package JSONL writer,
-`AudioFrameJsonlWriter`.
+The package JSONL writer, `AudioFrameJsonlWriter`, is the stable core writer
+path. The extension also exposes an optional Replicator recorder that imports
+`omni.replicator.core` lazily, registers a Python writer when the Kit runtime
+supports it, writes recoverable `AudioSensorFrame` v1 payloads plus extension
+metadata, and reports readable blockers when writer, annotator, write, or flush
+APIs differ across Isaac/Kit versions.
 
 ## Optional Project Adapters
 
