@@ -20,6 +20,60 @@ FRAME_UNITS = {
     "gain": "dB",
 }
 
+FRAME_TOP_LEVEL_FIELDS = (
+    "schema_version",
+    "frame_id",
+    "frame_name",
+    "timestamp_ms",
+    "start_time_s",
+    "end_time_s",
+    "sample_rate_hz",
+    "frame_index",
+    "backend_id",
+    "array_id",
+    "array_pose",
+    "coordinate_convention",
+    "units",
+    "provenance",
+    "max_events",
+    "detections",
+    "aggregate_per_mic_rms",
+    "waveform_paths",
+    "diagnostics",
+)
+
+DETECTION_FIELDS = (
+    "detection_id",
+    "source_id",
+    "class_label",
+    "detection_mode",
+    "timestamp_ms",
+    "ground_truth_bearing_deg",
+    "source_distance_m",
+    "doa",
+    "source_pose",
+    "per_mic_delay_s",
+    "per_mic_rms",
+    "audio_asset_path",
+    "diagnostics",
+)
+
+DOA_FIELDS = (
+    "estimated_bearing_deg",
+    "candidate_bearing_deg",
+    "bearing_sector",
+    "bearing_confidence",
+    "ambiguity_class",
+    "ambiguity_reason",
+)
+
+POSE3D_FIELDS = (
+    "position_m",
+    "orientation_xyzw",
+    "frame",
+    "coordinate_convention",
+)
+
 FRAME_PROVENANCE_VALUES = frozenset(
     {
         "synthetic/core",
@@ -27,6 +81,12 @@ FRAME_PROVENANCE_VALUES = frozenset(
         "isaac_live",
         "replay/trace",
     }
+)
+
+STABLE_DIAGNOSTIC_NAMESPACES = (
+    "stage_snapshot",
+    "stage_binding",
+    "entity_binding",
 )
 
 DETECTION_MODES = frozenset(

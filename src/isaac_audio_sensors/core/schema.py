@@ -8,9 +8,13 @@ from typing import Any
 
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
+    DETECTION_FIELDS,
+    DOA_FIELDS,
     FRAME_PROVENANCE_VALUES,
     FRAME_SCHEMA_VERSION,
+    FRAME_TOP_LEVEL_FIELDS,
     FRAME_UNITS,
+    POSE3D_FIELDS,
 )
 
 
@@ -19,13 +23,8 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
 
     pose_schema: dict[str, Any] = {
         "type": "object",
-        "additionalProperties": False,
-        "required": [
-            "position_m",
-            "orientation_xyzw",
-            "frame",
-            "coordinate_convention",
-        ],
+        "additionalProperties": True,
+        "required": list(POSE3D_FIELDS),
         "properties": {
             "position_m": {
                 "type": "array",
@@ -56,28 +55,8 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
         "$id": "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v1.schema.json",
         "title": "Isaac Audio Sensors AudioSensorFrame v1",
         "type": "object",
-        "additionalProperties": False,
-        "required": [
-            "schema_version",
-            "frame_id",
-            "frame_name",
-            "timestamp_ms",
-            "start_time_s",
-            "end_time_s",
-            "sample_rate_hz",
-            "frame_index",
-            "backend_id",
-            "array_id",
-            "array_pose",
-            "coordinate_convention",
-            "units",
-            "provenance",
-            "max_events",
-            "detections",
-            "aggregate_per_mic_rms",
-            "waveform_paths",
-            "diagnostics",
-        ],
+        "additionalProperties": True,
+        "required": list(FRAME_TOP_LEVEL_FIELDS),
         "properties": {
             "schema_version": {"const": FRAME_SCHEMA_VERSION},
             "frame_id": {"type": "string", "minLength": 1},
@@ -110,21 +89,7 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                 "items": {
                     "type": "object",
                     "additionalProperties": True,
-                    "required": [
-                        "detection_id",
-                        "source_id",
-                        "class_label",
-                        "detection_mode",
-                        "timestamp_ms",
-                        "ground_truth_bearing_deg",
-                        "source_distance_m",
-                        "doa",
-                        "source_pose",
-                        "per_mic_delay_s",
-                        "per_mic_rms",
-                        "audio_asset_path",
-                        "diagnostics",
-                    ],
+                    "required": list(DETECTION_FIELDS),
                     "properties": {
                         "detection_id": {"type": "string", "minLength": 1},
                         "source_id": {"type": ["string", "null"]},
@@ -137,15 +102,8 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                         "source_distance_m": {"type": ["number", "null"]},
                         "doa": {
                             "type": "object",
-                            "additionalProperties": False,
-                            "required": [
-                                "estimated_bearing_deg",
-                                "candidate_bearing_deg",
-                                "bearing_sector",
-                                "bearing_confidence",
-                                "ambiguity_class",
-                                "ambiguity_reason",
-                            ],
+                            "additionalProperties": True,
+                            "required": list(DOA_FIELDS),
                             "properties": {
                                 "estimated_bearing_deg": {
                                     "type": ["number", "null"]

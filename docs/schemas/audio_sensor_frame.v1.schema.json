@@ -1,7 +1,7 @@
 {
   "$id": "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "aggregate_per_mic_rms": {
       "additionalProperties": {
@@ -19,7 +19,7 @@
           "type": "null"
         },
         {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "coordinate_convention": {
               "const": "x_forward_y_right_z_up_clockwise_bearing",
@@ -99,7 +99,7 @@
             "type": "object"
           },
           "doa": {
-            "additionalProperties": false,
+            "additionalProperties": true,
             "properties": {
               "ambiguity_class": {
                 "type": [
@@ -183,7 +183,7 @@
                 "type": "null"
               },
               {
-                "additionalProperties": false,
+                "additionalProperties": true,
                 "properties": {
                   "coordinate_convention": {
                     "const": "x_forward_y_right_z_up_clockwise_bearing",

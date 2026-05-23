@@ -12,6 +12,12 @@ from isaac_audio_sensors.core.config import (
     load_audio_config,
     validate_audio_config,
 )
+from isaac_audio_sensors.core.fidelity import (
+    ACOUSTIC_FIDELITY_LADDER,
+    AcousticFidelityLevel,
+    AcousticFidelityMetadata,
+    fidelity_level_for_backend,
+)
 from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
     microphone_world_positions,
@@ -41,6 +47,9 @@ __all__ = [
     "AudioSimulationBackend",
     "AudioSourceSpec",
     "AudioTimeWindow",
+    "ACOUSTIC_FIDELITY_LADDER",
+    "AcousticFidelityLevel",
+    "AcousticFidelityMetadata",
     "DoaEstimate",
     "GeometryBackend",
     "MicrophoneArraySpec",
@@ -52,6 +61,7 @@ __all__ = [
     "audio_sensor_frame_json_schema",
     "build_scene_snapshot",
     "create_microphone_array",
+    "fidelity_level_for_backend",
     "get_backend",
     "load_audio_config",
     "microphone_world_positions",

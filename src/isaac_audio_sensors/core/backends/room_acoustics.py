@@ -101,8 +101,31 @@ class RoomAcousticsBackend:
 
         detections: list[AudioDetection] = []
         aggregate_rms = {microphone.mic_id: 0.0 for microphone in sensor.microphones}
-        per_source_rir_lengths: dict[str, dict[str, int]] = {}
         active = active_sources(scene, time_window)
+        room_config = _room_config_summary(scene.room)
+        mic_world = microphone_world_positions(sensor)
+        source_room_positions: dict[str, tuple[float, float, float]] = {}
+        mic_room_positions: dict[str, tuple[float, float, float]] = {}
+        if active:
+            source_positions = {
+                f"source:{source.source_id}": source.position_world
+                for source in active
+            }
+            microphone_positions = {
+                f"mic:{mic_id}": position for mic_id, position in mic_world.items()
+            }
+            room_positions = _fit_world_positions_to_room(
+                room_spec=scene.room,
+                positions={**source_positions, **microphone_positions},
+            )
+            source_room_positions = {
+                source.source_id: room_positions[f"source:{source.source_id}"]
+                for source in active
+            }
+            mic_room_positions = {
+                mic_id: room_positions[f"mic:{mic_id}"] for mic_id in mic_world
+            }
+        per_source_rir_summary: dict[str, dict[str, object]] = {}
         for index, source in enumerate(active):
             result = self._simulate_one_source(
                 pra=pra,
@@ -110,6 +133,8 @@ class RoomAcousticsBackend:
                 source=source,
                 sensor=sensor,
                 time_window=time_window,
+                source_room_position=source_room_positions[source.source_id],
+                mic_room_positions=mic_room_positions,
             )
             ground_truth_bearing = _ground_truth_bearing(source.position_world, sensor)
             doa = estimate_doa_from_delays(
@@ -146,17 +171,23 @@ class RoomAcousticsBackend:
                         "backend": self.backend_id,
                         "physical_waveform": True,
                         "room_id": scene.room.room_id,
+                        "room_config": room_config,
                         "room_dimensions_m": scene.room.dimensions_m,
                         "absorption": scene.room.absorption,
                         "max_order": scene.room.max_order,
                         "air_absorption": scene.room.air_absorption,
                         "ray_tracing": scene.room.ray_tracing,
+                        "pyroomacoustics_version": getattr(
+                            pra, "__version__", "unknown"
+                        ),
                         "speed_of_sound_mps": self.speed_of_sound_mps,
                         "sample_rate_hz": time_window.sample_rate_hz,
                         "array_geometry_rank_xy": layout_rank_xy(sensor),
                         "estimated_tdoa_matrix_s": result.tdoa_matrix_s,
+                        "gcc_phat_peaks": result.gcc_phat_peak,
                         "gcc_phat_peak": result.gcc_phat_peak,
                         "direct_path_delay_s": result.direct_path_delay_s,
+                        "per_mic_rms": result.per_mic_rms,
                         "rir_length_samples": result.rir_length_samples,
                         "rir_peak_delay_s": result.rir_peak_delay_s,
                         "waveform_sample_count": result.waveform_sample_count,
@@ -168,7 +199,14 @@ class RoomAcousticsBackend:
                     },
                 )
             )
-            per_source_rir_lengths[source.source_id] = result.rir_length_samples
+            per_source_rir_summary[source.source_id] = {
+                "rir_length_samples": result.rir_length_samples,
+                "rir_peak_delay_s": result.rir_peak_delay_s,
+                "waveform_sample_count": result.waveform_sample_count,
+                "source_waveform_mode": result.source_waveform_mode,
+                "room_source_position_m": result.room_source_position_m,
+                "room_microphone_positions_m": result.room_microphone_positions_m,
+            }
 
         return AudioSensorFrame(
             frame_id=frame_id,
@@ -196,11 +234,24 @@ class RoomAcousticsBackend:
             diagnostics={
                 "backend": self.backend_id,
                 "active_source_count": len(detections),
+                "scheduled_source_ids": tuple(source.source_id for source in active),
                 "physical_waveform": True,
                 "room_id": scene.room.room_id,
+                "room_config": room_config,
                 "pyroomacoustics_version": getattr(pra, "__version__", "unknown"),
+                "speed_of_sound_mps": self.speed_of_sound_mps,
+                "sample_rate_hz": time_window.sample_rate_hz,
                 "ambiguity_policy": self.ambiguity_policy,
-                "per_source_rir_length_samples": per_source_rir_lengths,
+                "max_events": time_window.max_events,
+                "time_window_s": (
+                    time_window.start_time_s,
+                    time_window.end_time_s,
+                ),
+                "per_source_rir_summary": per_source_rir_summary,
+                "per_source_rir_length_samples": {
+                    source_id: summary["rir_length_samples"]
+                    for source_id, summary in per_source_rir_summary.items()
+                },
             },
         )
 
@@ -212,6 +263,8 @@ class RoomAcousticsBackend:
         source: AudioSourceSpec,
         sensor: MicrophoneArraySpec,
         time_window: AudioTimeWindow,
+        source_room_position: tuple[float, float, float],
+        mic_room_positions: dict[str, tuple[float, float, float]],
     ) -> _RoomSourceResult:
         source_signal, waveform_mode = _source_waveform(
             source,
@@ -221,14 +274,9 @@ class RoomAcousticsBackend:
                 time_window.end_time_s - time_window.start_time_s,
             ),
         )
-        mic_world = microphone_world_positions(sensor)
-        room_positions = _fit_world_positions_to_room(
-            room_spec=room_spec,
-            positions={"__source__": source.position_world, **mic_world},
-        )
-        source_room = room_positions["__source__"]
+        source_room = source_room_position
         mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
-        mic_room = {mic_id: room_positions[mic_id] for mic_id in mic_ids}
+        mic_room = {mic_id: mic_room_positions[mic_id] for mic_id in mic_ids}
 
         room = _build_shoebox_room(
             pra=pra,
@@ -421,6 +469,19 @@ def _load_public_waveform(
     *,
     sample_rate_hz: int,
 ) -> tuple[np.ndarray, str]:
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(
+            "audio_asset_path for room_acoustics must be a relative public "
+            "package path."
+        )
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(Path.cwd().resolve())
+    except ValueError as exc:
+        raise ValueError(
+            "audio_asset_path for room_acoustics must stay under the current "
+            "package checkout."
+        ) from exc
     if not path.exists():
         raise ValueError(f"Audio asset {str(path)!r} does not exist.")
     try:
@@ -439,6 +500,25 @@ def _load_public_waveform(
             "the MVP room_acoustics backend."
         )
     return waveform, f"file:{path}"
+
+
+def _room_config_summary(room_spec: RoomAcousticsSpec) -> dict[str, object]:
+    return {
+        "room_id": room_spec.room_id,
+        "dimensions_m": room_spec.dimensions_m,
+        "absorption": _absorption_summary(room_spec.absorption),
+        "max_order": room_spec.max_order,
+        "air_absorption": room_spec.air_absorption,
+        "ray_tracing": room_spec.ray_tracing,
+    }
+
+
+def _absorption_summary(
+    absorption: float | dict[str, float],
+) -> float | dict[str, float]:
+    if isinstance(absorption, dict):
+        return {str(key): float(value) for key, value in sorted(absorption.items())}
+    return float(absorption)
 
 
 def _fit_world_positions_to_room(

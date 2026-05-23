@@ -10,6 +10,9 @@ capabilities that already exist.
   tests, and source distribution metadata.
 - Stable `AudioSensorFrame` v1 trace contract with JSON Schema export, trace
   examples, explicit units, poses, provenance, and deterministic `max_events`.
+- Public acoustic fidelity ladder that marks L0 `geometry_only` and L1
+  `tdoa_synthetic` as stable v1, L2 `room_acoustics` as supported optional v1,
+  and L3/L4 as future-compatible metadata directions.
 - Pure Python core with geometry-only and synthetic TDOA backends that import
   without Isaac Sim, Isaac Lab, Omniverse, pyroomacoustics, protobuf, ROS 2,
   CUDA, or torch.
@@ -42,9 +45,11 @@ capabilities that already exist.
 - Automated Isaac Sim and Isaac Lab smoke CI on capable GPU runners.
 - Optional USD geometry authoring for debug primitives.
 - Replicator annotator/writer registration.
-- Richer `pyroomacoustics` waveform, RIR, and calibration artifacts.
+- L3 advanced realism implementation for richer wave/RIR, material,
+  occlusion, directivity, noise, and estimator realism.
+- L4 sim-real calibration tooling for measured array pose, gain, time-offset,
+  noise, validation artifacts, and sim-vs-real comparisons.
 - GCC-PHAT and SRP-PHAT estimation paths as documented public backends.
-- Sim-vs-real calibration tools for microphone-array pose and gain alignment.
 - ROS 2 adapter as an optional downstream/project layer.
 - Broader tested adapters for custom Isaac Lab task asset APIs beyond the
   common tensor/entity patterns documented in 0.1.x.

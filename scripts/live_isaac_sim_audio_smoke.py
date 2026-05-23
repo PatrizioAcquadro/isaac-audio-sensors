@@ -10,17 +10,22 @@ import sys
 import traceback
 from pathlib import Path
 
-from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
+from isaac_audio_sensors.core.io.traces import (
+    frame_from_trace_dict,
+    frame_to_trace_dict,
+)
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.core.microphone_array import microphone_layout
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
+    attach_sound_source_attrs,
     create_listener_prim,
     create_sound_prim,
 )
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
+from isaac_audio_sensors.isaac.viz.overlays import debug_primitives_to_dicts
 
 
 def main() -> int:
@@ -36,6 +41,9 @@ def main() -> int:
         "argv": sys.argv,
         "status": "started",
     }
+    frame_trace_path = args.out.with_suffix(".frames.jsonl")
+    if frame_trace_path.exists():
+        frame_trace_path.unlink()
     _record_isaacsim_preflight(evidence)
     _record_gpu_preflight(evidence)
     simulation_app = None
@@ -87,14 +95,36 @@ def main() -> int:
             update_period_s=0.1,
             max_events=1,
             debug_draw=True,
-            writer_path=args.out.with_suffix(".frames.jsonl"),
+            writer_path=frame_trace_path,
         )
         sensor.start()
         first_frame = sensor.update(sim_time_s=0.0)
         _update_kit_once(evidence)
         moved_frame = sensor.update(sim_time_s=0.1)
+        moved_debug_primitives = debug_primitives_to_dicts(
+            sensor.latest_debug_primitives
+        )
         inactive_frame = sensor.update(sim_time_s=0.5)
+        latest_frame = sensor.get_latest_frame()
+        inactive_debug_primitives = debug_primitives_to_dicts(
+            sensor.latest_debug_primitives
+        )
+        frame_trace_count = _validate_jsonl_frames(frame_trace_path)
         sensor.close()
+        movement_changed_bearing = (
+            first_frame.detections[0].doa.estimated_bearing_deg
+            != moved_frame.detections[0].doa.estimated_bearing_deg
+        )
+        inactive_detection_count = len(inactive_frame.detections)
+        debug_primitive_count = len(moved_debug_primitives)
+        if not movement_changed_bearing:
+            raise RuntimeError("Expected source/array motion to change frame bearing.")
+        if inactive_detection_count != 0:
+            raise RuntimeError("Expected inactive source window to emit no detections.")
+        if debug_primitive_count <= 0:
+            raise RuntimeError("Expected debug primitives from the live smoke frame.")
+        if frame_trace_count <= 0:
+            raise RuntimeError("Expected JSONL frame trace records.")
         evidence.update(
             {
                 "status": "passed",
@@ -128,16 +158,19 @@ def main() -> int:
                     "stage_snapshot",
                     {},
                 ),
+                "latest_frame_id": (
+                    None if latest_frame is None else latest_frame.frame_id
+                ),
                 "first_frame": frame_to_trace_dict(first_frame),
                 "moved_frame": frame_to_trace_dict(moved_frame),
                 "inactive_frame": frame_to_trace_dict(inactive_frame),
-                "movement_changed_bearing": (
-                    first_frame.detections[0].doa.estimated_bearing_deg
-                    != moved_frame.detections[0].doa.estimated_bearing_deg
-                ),
-                "inactive_detection_count": len(inactive_frame.detections),
-                "debug_primitive_count": len(sensor.latest_debug_primitives),
-                "jsonl_writer_path": str(args.out.with_suffix(".frames.jsonl")),
+                "movement_changed_bearing": movement_changed_bearing,
+                "inactive_detection_count": inactive_detection_count,
+                "debug_primitive_count": debug_primitive_count,
+                "debug_primitives": moved_debug_primitives,
+                "inactive_debug_primitives": inactive_debug_primitives,
+                "jsonl_frame_count": frame_trace_count,
+                "jsonl_writer_path": str(frame_trace_path),
             }
         )
         _write_evidence(args.out, evidence)
@@ -201,12 +234,16 @@ def _author_stage(stage) -> None:
         gain_db=0.0,
     )
     sound = stage.GetPrimAtPath("/World/MovingSource/Sound")
-    _set_custom_attr(sound, "ias:source_id", "speaker_front")
-    _set_custom_attr(sound, "ias:class_label", "Speech")
-    _set_custom_attr(sound, "ias:start_time_s", 0.0)
-    _set_custom_attr(sound, "ias:duration_s", 0.25)
-    _set_custom_attr(sound, "ias:gain_db", 0.0)
-    _set_custom_attr(sound, "ias:directivity", "omni")
+    attach_sound_source_attrs(
+        sound,
+        source_id="speaker_front",
+        class_label="Speech",
+        audio_asset_path="generated://impulse",
+        start_time_s=0.0,
+        duration_s=0.25,
+        gain_db=0.0,
+        directivity="omni",
+    )
     array_prim = stage.DefinePrim("/World/RobotBase/ArrayMount/AudioArray", "Xform")
     _set_translate_samples(
         array_prim,
@@ -402,6 +439,13 @@ def _read_first_line(path: Path) -> str:
         return path.read_text(encoding="utf-8").splitlines()[0].strip()
     except (OSError, UnicodeDecodeError, IndexError):
         return ""
+
+
+def _validate_jsonl_frames(path: Path) -> int:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for line in lines:
+        frame_from_trace_dict(json.loads(line))
+    return len(lines)
 
 
 def _write_evidence(path: Path, evidence: dict[str, object]) -> None:

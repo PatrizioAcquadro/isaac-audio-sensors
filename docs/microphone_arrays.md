@@ -7,7 +7,12 @@ clockwise toward local `+Y`.
 Built-in layouts:
 
 - `mono`: one center microphone, valid for geometry-only frames;
-- `stereo_y`: left/right two-mic layout, valid for TDOA with explicit ambiguity;
-- `quad_front` / `quad_cross`: four-mic cross layout recommended for DOA.
+- `stereo_y` / `two_mic_y`: left/right two-mic layout, valid for TDOA only
+  with an explicit ambiguity policy;
+- `quad_front` / `quad_cross`: four-mic front/right/rear/left cross layout
+  recommended for unambiguous DOA examples.
 
 Arbitrary N-mic arrays can be built with explicit `MicrophoneSpec` records.
+TDOA arrays need at least two microphones with non-degenerate local-XY spacing;
+four or more non-collinear microphones are preferred when a single localized
+bearing is required.

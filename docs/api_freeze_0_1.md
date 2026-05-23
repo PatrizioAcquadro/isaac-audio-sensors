@@ -4,7 +4,8 @@ This document defines the public compatibility surface for
 `isaac-audio-sensors` 0.1.x. The project is a standalone open-source Isaac
 Sim/Lab audio sensor package. It is not tied to a downstream research project,
 and the pure Python core must remain importable without Isaac Sim, Isaac Lab,
-Omniverse, `pyroomacoustics`, protobuf, ROS 2, CUDA, or torch installed.
+Omniverse, `pyroomacoustics`, `scipy`, `soundfile`, protobuf, ROS 2, CUDA, or
+torch installed.
 
 The distribution version is currently `0.1.0`. The frame schema version is
 independent and remains `ias.audio_sensor_frame.v1` for all compatible 0.1.x
@@ -53,6 +54,29 @@ Backend selection, configuration, and core backends:
 - `validate_audio_config`
 - `build_scene_snapshot`
 - backend ids `geometry_only`, `tdoa_synthetic`, and `room_acoustics`
+
+Supported optional L2 room-acoustics diagnostics are stable by name in 0.1.x,
+though compatible releases may add more diagnostic keys. Frame diagnostics
+include `room_config`, `pyroomacoustics_version`, `speed_of_sound_mps`,
+`sample_rate_hz`, `active_source_count`, `scheduled_source_ids`,
+`per_source_rir_summary`, and `per_source_rir_length_samples`. Detection
+diagnostics include `estimated_tdoa_matrix_s`, `gcc_phat_peaks`,
+`direct_path_delay_s`, `per_mic_rms`, `rir_length_samples`,
+`rir_peak_delay_s`, `waveform_sample_count`, `source_waveform_mode`,
+`room_source_position_m`, and `room_microphone_positions_m`.
+
+`room_acoustics` remains optional: pure package import and L0/L1 use do not
+require `pyroomacoustics`, `scipy`, or `soundfile`. Missing
+`pyroomacoustics` raises `OptionalDependencyUnavailable` lazily when L2 is
+used. `soundfile` is required only for real file-backed `audio_asset_path`
+loading, not generated waveforms.
+
+Acoustic fidelity ladder metadata:
+
+- `AcousticFidelityLevel`
+- `AcousticFidelityMetadata`
+- `ACOUSTIC_FIDELITY_LADDER`
+- `fidelity_level_for_backend`
 
 Frame trace and schema helpers:
 
@@ -154,8 +178,8 @@ anchors for 0.1.x. They may change after changelog documentation.
 - `isaac_audio_sensors.examples`
 - scripts under `scripts/`, except for the command-line contract documented in
   `docs/validation.md`
-- detailed `room_acoustics` RIR and waveform diagnostics beyond the stable
-  backend id and frame shape
+- extra `room_acoustics` diagnostics beyond the supported optional L2 names
+  listed in this document
 
 The package does not implement a Replicator annotator/writer registration in
 0.1.x. `AudioFrameJsonlWriter` is the supported frame recording path.
@@ -212,9 +236,34 @@ Detection objects must preserve:
 
 `Pose3D` objects must preserve `position_m`, `orientation_xyzw`, `frame`, and
 `coordinate_convention`. Coordinates use
-`x_forward_y_right_z_up_clockwise_bearing`, positions are meters, bearings are
-degrees clockwise from array forward, timestamps are milliseconds, and time
-windows are seconds.
+`x_forward_y_right_z_up_clockwise_bearing`: local `+X` is array forward, local
+`+Y` is array right, `+Z` is up, positions are meters, and bearings are degrees
+clockwise from array forward.
+
+`DoaEstimate` objects must preserve:
+
+- `estimated_bearing_deg`
+- `candidate_bearing_deg`
+- `bearing_sector`
+- `bearing_confidence`
+- `ambiguity_class`
+- `ambiguity_reason`
+
+`units` must include these stable keys and values:
+
+- `position`: `m`
+- `orientation`: `quaternion_xyzw`
+- `bearing`: `deg_clockwise_from_array_forward`
+- `distance`: `m`
+- `time`: `s`
+- `timestamp`: `ms`
+- `sample_rate`: `Hz`
+- `rms`: `linear`
+- `gain`: `dB`
+
+`timestamp_ms` is an integer timestamp in milliseconds. `start_time_s` and
+`end_time_s` are seconds. `frame_index` is non-negative when present.
+`end_time_s` must be greater than `start_time_s` when both are present.
 
 `max_events` is deterministic: frame producers must not emit more detections
 than the configured limit. When the limit truncates detections, the ordering
@@ -231,6 +280,51 @@ Diagnostics are intentionally open-ended dictionaries. Compatible releases may
 add diagnostic keys. They must not remove or rename documented diagnostics used
 to identify provenance for current live-stage and Lab bindings without a
 deprecation period.
+
+The v1 JSON Schema uses required stable fields plus forward-compatible optional
+fields. Compatible 0.1.x releases may add optional frame, detection, DOA, pose,
+or diagnostics fields. They must not remove, rename, or change semantics of the
+documented v1 fields without creating a new schema version or documenting a
+deprecation path.
+
+Two-microphone front/back ambiguity must stay explicit. Producers must use
+`doa.ambiguity_class`, `doa.ambiguity_reason`, and
+`doa.candidate_bearing_deg` rather than pretending the bearing is unique. Isaac
+Lab tensorization exposes the same state through `ambiguity_mask`, where a
+non-null `ambiguity_class` maps to `True`.
+
+## Acoustic Fidelity Ladder Compatibility
+
+The public acoustic fidelity ladder is documented in
+`docs/acoustic_fidelity.md` and exposed from the pure core through
+`ACOUSTIC_FIDELITY_LADDER`, `AcousticFidelityLevel`,
+`AcousticFidelityMetadata`, and `fidelity_level_for_backend(...)`.
+
+The v1 levels are:
+
+- L0 `geometry_only`: stable v1 runtime backend id for deterministic bearing,
+  distance, and sector labels.
+- L1 `tdoa_synthetic`: stable v1 runtime backend id for direct-path synthetic
+  delay/RMS diagnostics and explicit ambiguity metadata.
+- L2 `room_acoustics`: supported optional v1 runtime backend id using
+  `pyroomacoustics` only when that backend is used.
+- L3 `advanced_realism`: provisional v1 future backend family for richer
+  wave/RIR, occlusion, material, directivity, noise, and estimator realism.
+- L4 `sim_real_calibration`: experimental/tooling v1 future family for
+  measured array pose, gain, time-offset, noise, validation artifacts, and
+  sim-vs-real comparison tools.
+
+`KNOWN_BACKENDS` and `get_backend(...)` remain limited to implemented runtime
+backend ids in v1: `geometry_only`, `tdoa_synthetic`, and `room_acoustics`.
+L3 and L4 may appear in ladder metadata and docs, but they are not selectable
+stable runtime backends in 0.1.x unless future implementations and tests are
+added.
+
+All levels must emit, or future implementations must emit, `AudioSensorFrame`
+v1-compatible records until a new schema version is introduced. L3/L4
+extensions must use optional config, optional diagnostics, optional artifacts,
+and optional dependency extras instead of changing stable v1 required fields or
+breaking L0-L2 readers.
 
 ## Core Compatibility Promises
 
@@ -344,6 +438,18 @@ Compatible releases may add fields to these dictionaries. Existing fields that
 identify transform provenance, selected array/source, time code, robot/body
 source, env-origin handling, tensor device, and selected-env read counts should
 not be removed in 0.1.x without a deprecation note.
+
+The namespace meanings are stable even though their inner dictionaries are
+open-ended:
+
+- `stage_snapshot` records live Isaac Sim stage evidence such as selected prims,
+  transform source, stage time code, and discovery or pose provenance.
+- `stage_binding` records Isaac Lab cloned-stage binding evidence such as
+  environment id, namespace expansion, selected array/source prims, transform
+  source, and time-code mapping.
+- `entity_binding` records Isaac Lab scene/entity tensor evidence such as robot
+  entity and body, source entity and body, env-origin handling, tensor device,
+  and selected-env reads.
 
 ## Deprecation Policy
 

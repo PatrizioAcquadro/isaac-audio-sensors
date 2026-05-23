@@ -26,16 +26,23 @@ from isaac_audio_sensors.core.types import (
 )
 
 
-def _source(source_id: str, position: tuple[float, float, float]) -> AudioSourceSpec:
+def _source(
+    source_id: str,
+    position: tuple[float, float, float],
+    *,
+    audio_asset_path: str | None = "generated://impulse",
+    start_time_s: float = 0.0,
+    duration_s: float | None = 1.0,
+) -> AudioSourceSpec:
     return AudioSourceSpec(
         source_id=source_id,
         prim_path=f"/World/Sources/{source_id}",
         class_label="Speech",
-        audio_asset_path="generated://impulse",
+        audio_asset_path=audio_asset_path,
         position_world=position,
         orientation_world_quat=None,
-        start_time_s=0.0,
-        duration_s=1.0,
+        start_time_s=start_time_s,
+        duration_s=duration_s,
         gain_db=0.0,
     )
 
@@ -64,12 +71,18 @@ def _room_scene_with_sources(*sources: AudioSourceSpec, array):
     )
 
 
-def _window() -> AudioTimeWindow:
+def _window(
+    *,
+    start_time_s: float = 0.0,
+    end_time_s: float = 1.0,
+    max_events: int | None = None,
+) -> AudioTimeWindow:
     return AudioTimeWindow(
-        start_time_s=0.0,
-        end_time_s=1.0,
+        start_time_s=start_time_s,
+        end_time_s=end_time_s,
         timestamp_ms=0,
         sample_rate_hz=48_000,
+        max_events=max_events,
     )
 
 
@@ -248,12 +261,7 @@ def test_gcc_phat_delay_sign_and_relative_tdoa_matrix():
 
 
 def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch):
-    fake_pra = types.ModuleType("pyroomacoustics")
-    fake_pra.__version__ = "fake-test"
-    fake_pra.Material = _FakeMaterial
-    fake_pra.MicrophoneArray = _FakeMicrophoneArray
-    fake_pra.ShoeBox = _FakeShoeBox
-    monkeypatch.setitem(sys.modules, "pyroomacoustics", fake_pra)
+    _install_fake_pyroom(monkeypatch)
 
     array = create_microphone_array(
         array_id="rig",
@@ -269,7 +277,22 @@ def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch):
     detection = frame.detections[0]
     assert frame.backend_id == "room_acoustics"
     assert frame.diagnostics["physical_waveform"] is True
+    assert frame.diagnostics["pyroomacoustics_version"] == "fake-test"
+    assert frame.diagnostics["scheduled_source_ids"] == ("speaker",)
+    assert frame.diagnostics["room_config"] == {
+        "room_id": "unit_room",
+        "dimensions_m": (6.0, 5.0, 3.0),
+        "absorption": 0.35,
+        "max_order": 1,
+        "air_absorption": False,
+        "ray_tracing": False,
+    }
+    assert frame.diagnostics["per_source_rir_summary"]["speaker"][
+        "rir_length_samples"
+    ]
     assert detection.diagnostics["physical_waveform"] is True
+    assert detection.diagnostics["pyroomacoustics_version"] == "fake-test"
+    assert detection.diagnostics["room_config"] == frame.diagnostics["room_config"]
     assert detection.diagnostics["source_waveform_mode"] == "generated://impulse"
     assert set(detection.diagnostics["rir_length_samples"]) == {
         "front",
@@ -277,6 +300,10 @@ def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch):
         "rear",
         "left",
     }
+    assert set(detection.diagnostics["gcc_phat_peaks"]) == set(
+        detection.diagnostics["estimated_tdoa_matrix_s"]
+    )
+    assert detection.diagnostics["per_mic_rms"] == detection.per_mic_rms
     assert detection.diagnostics["estimated_tdoa_matrix_s"]["rear->front"] > 0.0
     assert (
         detection.diagnostics["direct_path_delay_s"]["rear"]
@@ -284,6 +311,99 @@ def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch):
     )
     assert detection.doa.estimated_bearing_deg == pytest.approx(0.0, abs=15.0)
     assert all(value > 0.0 for value in frame.aggregate_per_mic_rms.values())
+    assert _FakeShoeBox.instances[-1].fs == 48_000
+    assert _FakeShoeBox.instances[-1].max_order == 1
+    assert _FakeShoeBox.instances[-1].kwargs["air_absorption"] is False
+    assert _FakeShoeBox.instances[-1].kwargs["ray_tracing"] is False
+
+
+def test_room_acoustics_fake_pyroom_schedules_multiple_sources(monkeypatch):
+    _install_fake_pyroom(monkeypatch)
+
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    scene = _room_scene_with_sources(
+        _source("ended", (4.0, 0.0, 0.0), start_time_s=-1.0, duration_s=1.0),
+        _source("b_second", (0.0, 3.0, 0.0), start_time_s=0.1, duration_s=0.5),
+        _source("a_first", (3.0, 0.0, 0.0), start_time_s=0.0, duration_s=0.5),
+        _source("c_truncated", (-3.0, 0.0, 0.0), start_time_s=0.2, duration_s=0.5),
+        _source("future", (0.0, -3.0, 0.0), start_time_s=1.0, duration_s=0.5),
+        array=array,
+    )
+    backend = RoomAcousticsBackend()
+    window = _window(max_events=2)
+
+    first = backend.simulate(scene, array, window)
+    second = backend.simulate(scene, array, window)
+
+    assert first == second
+    assert tuple(detection.source_id for detection in first.detections) == (
+        "a_first",
+        "b_second",
+    )
+    by_source_id = {detection.source_id: detection for detection in first.detections}
+    assert by_source_id["a_first"].doa.estimated_bearing_deg == pytest.approx(
+        0.0,
+        abs=20.0,
+    )
+    assert by_source_id["b_second"].doa.estimated_bearing_deg == pytest.approx(
+        90.0,
+        abs=20.0,
+    )
+    assert first.diagnostics["active_source_count"] == 2
+    assert first.diagnostics["scheduled_source_ids"] == ("a_first", "b_second")
+    assert set(first.diagnostics["per_source_rir_summary"]) == {
+        "a_first",
+        "b_second",
+    }
+    assert len(first.detections) == first.max_events == 2
+    assert first.detections[0].detection_id == (
+        "room_acoustics_room_backend_test_rig_0_a_first_00"
+    )
+    assert first.detections[1].detection_id == (
+        "room_acoustics_room_backend_test_rig_0_b_second_01"
+    )
+    assert (
+        first.detections[0].diagnostics["room_microphone_positions_m"]
+        == first.detections[1].diagnostics["room_microphone_positions_m"]
+    )
+
+
+def test_room_acoustics_rejects_non_public_file_asset_paths(monkeypatch, tmp_path):
+    _install_fake_pyroom(monkeypatch)
+
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    source = _source(
+        "speaker",
+        (3.0, 0.0, 0.0),
+        audio_asset_path=str(tmp_path / "private.wav"),
+    )
+    scene = _room_scene_with_sources(source, array=array)
+
+    with pytest.raises(ValueError, match="relative public package path"):
+        RoomAcousticsBackend().simulate(scene, array, _window())
+
+
+def test_room_acoustics_rejects_malformed_pyroom_signals(monkeypatch):
+    fake_pra = _install_fake_pyroom(monkeypatch)
+    fake_pra.ShoeBox = _MalformedSignalShoeBox
+
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    scene = _room_scene_with_sources(_source("speaker", (3.0, 0.0, 0.0)), array=array)
+
+    with pytest.raises(ValueError, match="unexpected mic signal shape"):
+        RoomAcousticsBackend().simulate(scene, array, _window())
 
 
 def test_room_acoustics_optional_skip_or_runs_cleanly():
@@ -318,6 +438,17 @@ def test_room_acoustics_unavailable_error_is_clear():
         RoomAcousticsBackend().simulate(scene, array, _window())
 
 
+def _install_fake_pyroom(monkeypatch):
+    fake_pra = types.ModuleType("pyroomacoustics")
+    fake_pra.__version__ = "fake-test"
+    fake_pra.Material = _FakeMaterial
+    fake_pra.MicrophoneArray = _FakeMicrophoneArray
+    fake_pra.ShoeBox = _FakeShoeBox
+    _FakeShoeBox.instances = []
+    monkeypatch.setitem(sys.modules, "pyroomacoustics", fake_pra)
+    return fake_pra
+
+
 class _FakeMaterial:
     def __init__(self, absorption):
         self.absorption = absorption
@@ -331,17 +462,23 @@ class _FakeMicrophoneArray:
 
 
 class _FakeShoeBox:
+    instances = []
+
     def __init__(self, dimensions, *, fs, max_order=0, c=343.0, **kwargs):
         self.dimensions = dimensions
         self.fs = int(fs)
         self.max_order = int(max_order)
         self.c = float(c)
+        self.kwargs = dict(kwargs)
         self.sources = []
         self.mic_array = None
         self.rir = []
+        type(self).instances.append(self)
 
     def add_source(self, position, signal):
-        self.sources.append((np.asarray(position, dtype=float), np.asarray(signal)))
+        self.sources.append(
+            (np.asarray(position, dtype=float), np.asarray(signal, dtype=float))
+        )
 
     def add_microphone_array(self, mic_array):
         self.mic_array = mic_array
@@ -370,3 +507,8 @@ class _FakeShoeBox:
         for index, signal in enumerate(signals):
             padded[index, : len(signal)] = signal
         self.mic_array.signals = padded
+
+
+class _MalformedSignalShoeBox(_FakeShoeBox):
+    def simulate(self):
+        self.mic_array.signals = np.zeros((1, 16))

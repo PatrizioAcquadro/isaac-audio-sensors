@@ -29,6 +29,11 @@ Patch releases in `0.1.x` keep the stable API in
 - additive diagnostics;
 - new provisional helpers that do not require existing users to change code.
 
+The acoustic fidelity ladder follows the same policy. L0 `geometry_only` and
+L1 `tdoa_synthetic` are stable v1 runtime levels, L2 `room_acoustics` is
+supported optional v1, and L3/L4 may evolve additively as provisional or
+experimental/tooling metadata until complete runtime implementations exist.
+
 Minor releases may add or promote public APIs. Major releases may introduce
 incompatible public API changes.
 
@@ -42,9 +47,17 @@ The frame schema version is not the package version. `AudioSensorFrame` v1 uses
 `schema_version = "ias.audio_sensor_frame.v1"` and is the stable trace contract
 for 0.1.x.
 
-Patch releases must not remove or rename required v1 fields. If a future change
+Patch releases must not remove, rename, or change the semantics of documented
+v1 fields, provenance values, unit meanings, coordinate policy, timestamp
+semantics, ambiguity representation, or stable diagnostics namespaces. They may
+add optional fields or diagnostics that readers can ignore. If a future change
 needs an incompatible trace shape, create a new schema version instead of
 silently changing `ias.audio_sensor_frame.v1`.
+
+The generated schema in
+`docs/schemas/audio_sensor_frame.v1.schema.json` is the checked-in public
+artifact. `make export-schema` regenerates it from code and tests compare the
+generated schema with the checked-in file.
 
 ## Release Checklist
 

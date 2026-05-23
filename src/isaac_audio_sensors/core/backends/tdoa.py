@@ -125,7 +125,13 @@ class TdoaSyntheticBackend:
                         "array_geometry_rank_xy": layout_rank_xy(sensor),
                         "per_mic_distance_m": delay_result.per_mic_distance_m,
                         "tdoa_matrix_s": _tdoa_matrix(delay_result.per_mic_delay_s),
+                        "noise_std_s": self.noise_std_s,
+                        "clock_jitter_s": self.clock_jitter_s,
                         "gain_mismatch_db": self.gain_mismatch_db,
+                        "per_mic_gain_offset_db": (
+                            delay_result.per_mic_gain_offset_db
+                        ),
+                        "stress_controls_deterministic": True,
                     },
                 )
             )
@@ -159,7 +165,9 @@ class TdoaSyntheticBackend:
                 "ambiguity_policy": self.ambiguity_policy,
                 "noise_std_s": self.noise_std_s,
                 "clock_jitter_s": self.clock_jitter_s,
+                "gain_mismatch_db": self.gain_mismatch_db,
                 "array_geometry_rank_xy": layout_rank_xy(sensor),
+                "stress_controls_deterministic": True,
             },
         )
 
@@ -172,21 +180,25 @@ class TdoaSyntheticBackend:
         distances: dict[str, float] = {}
         delays: dict[str, float] = {}
         rms: dict[str, float] = {}
+        gain_offsets: dict[str, float] = {}
         for index, microphone in enumerate(sensor.microphones):
             mic_position = positions[microphone.mic_id]
             distance = norm(subtract(source_position_world, mic_position))
             deterministic_noise = self._deterministic_delay_noise(index)
             delay = distance / self.speed_of_sound_mps + deterministic_noise
-            gain_scale = 10.0 ** ((microphone.gain_db + self.gain_mismatch_db) / 20.0)
+            gain_offset_db = self._deterministic_gain_offset_db(index)
+            gain_scale = 10.0 ** ((microphone.gain_db + gain_offset_db) / 20.0)
             amplitude = gain_scale / max(distance, 0.1) ** 2
             distances[microphone.mic_id] = distance
             delays[microphone.mic_id] = delay
             rms[microphone.mic_id] = amplitude
+            gain_offsets[microphone.mic_id] = gain_offset_db
         source_distance = norm(subtract(source_position_world, sensor.position_world))
         return _DelayResult(
             per_mic_distance_m=distances,
             per_mic_delay_s=delays,
             per_mic_rms=rms,
+            per_mic_gain_offset_db=gain_offsets,
             source_distance_m=source_distance,
         )
 
@@ -196,6 +208,13 @@ class TdoaSyntheticBackend:
         sign = -1.0 if mic_index % 2 == 0 else 1.0
         taper = 1.0 + mic_index * 0.1
         return sign * (self.noise_std_s + self.clock_jitter_s) * taper
+
+    def _deterministic_gain_offset_db(self, mic_index: int) -> float:
+        magnitude = abs(self.gain_mismatch_db)
+        if magnitude == 0.0:
+            return 0.0
+        sign = -1.0 if mic_index % 2 == 0 else 1.0
+        return sign * magnitude / 2.0
 
     def _estimate_doa(
         self,
@@ -236,13 +255,13 @@ class TdoaSyntheticBackend:
             baseline_unit_xy=(baseline[0] / spacing, baseline[1] / spacing),
             projection=projection,
         )
-        noise_penalty = self._noise_penalty(spacing / self.speed_of_sound_mps)
+        stress_penalty = self._stress_penalty(spacing / self.speed_of_sound_mps)
         if len(candidates) <= 1:
             estimated = candidates[0] if candidates else None
             return DoaEstimate(
                 estimated_bearing_deg=estimated,
                 candidate_bearing_deg=candidates,
-                bearing_confidence=0.9 * noise_penalty,
+                bearing_confidence=0.9 * stress_penalty,
                 ambiguity_class=None,
                 ambiguity_reason=None,
             )
@@ -251,7 +270,7 @@ class TdoaSyntheticBackend:
             return DoaEstimate(
                 estimated_bearing_deg=estimated,
                 candidate_bearing_deg=candidates,
-                bearing_confidence=0.65 * noise_penalty,
+                bearing_confidence=0.65 * stress_penalty,
                 ambiguity_class="front_hemisphere_prior",
                 ambiguity_reason=(
                     "Two-mic TDOA is front/back ambiguous; selected a bearing "
@@ -261,7 +280,7 @@ class TdoaSyntheticBackend:
         return DoaEstimate(
             estimated_bearing_deg=None,
             candidate_bearing_deg=candidates,
-            bearing_confidence=0.35 * noise_penalty,
+            bearing_confidence=0.35 * stress_penalty,
             ambiguity_class="ambiguous_front_back",
             ambiguity_reason=(
                 "Two-mic linear TDOA cannot distinguish mirrored front/back "
@@ -302,7 +321,7 @@ class TdoaSyntheticBackend:
             else angular_error_deg(bearing, ground_truth_bearing_deg)
         )
         residual_penalty = 1.0 / (1.0 + residual * 40.0)
-        confidence = 0.95 * self._noise_penalty(0.001) * residual_penalty
+        confidence = 0.95 * self._stress_penalty(0.001) * residual_penalty
         confidence *= max(0.0, 1.0 - min(error, 90.0) / 180.0)
         return DoaEstimate(
             estimated_bearing_deg=bearing,
@@ -313,11 +332,20 @@ class TdoaSyntheticBackend:
             ambiguity_reason=None,
         )
 
-    def _noise_penalty(self, reference_delay_s: float) -> float:
+    def _stress_penalty(self, reference_delay_s: float) -> float:
+        return self._delay_noise_penalty(reference_delay_s) * self._gain_penalty()
+
+    def _delay_noise_penalty(self, reference_delay_s: float) -> float:
         noise = self.noise_std_s + self.clock_jitter_s
         if noise <= 0.0:
             return 1.0
         return 1.0 / (1.0 + noise / max(reference_delay_s, 1e-6))
+
+    def _gain_penalty(self) -> float:
+        mismatch_db = abs(self.gain_mismatch_db)
+        if mismatch_db == 0.0:
+            return 1.0
+        return 1.0 / (1.0 + mismatch_db / 12.0)
 
 
 def estimate_doa_from_delays(
@@ -347,11 +375,13 @@ class _DelayResult:
         per_mic_distance_m: dict[str, float],
         per_mic_delay_s: dict[str, float],
         per_mic_rms: dict[str, float],
+        per_mic_gain_offset_db: dict[str, float],
         source_distance_m: float,
     ) -> None:
         self.per_mic_distance_m = per_mic_distance_m
         self.per_mic_delay_s = per_mic_delay_s
         self.per_mic_rms = per_mic_rms
+        self.per_mic_gain_offset_db = per_mic_gain_offset_db
         self.source_distance_m = source_distance_m
 
 

@@ -35,7 +35,7 @@ class Pose3D:
 
     def __post_init__(self) -> None:
         _require_non_empty(self.frame, "Pose3D.frame")
-        _require_non_empty(
+        _require_coordinate_convention(
             self.coordinate_convention,
             "Pose3D.coordinate_convention",
         )
@@ -176,7 +176,7 @@ class MicrophoneArraySpec:
     def __post_init__(self) -> None:
         _require_non_empty(self.array_id, "MicrophoneArraySpec.array_id")
         _require_non_empty(self.prim_path, "MicrophoneArraySpec.prim_path")
-        _require_non_empty(
+        _require_coordinate_convention(
             self.coordinate_convention,
             "MicrophoneArraySpec.coordinate_convention",
         )
@@ -305,6 +305,12 @@ class DoaEstimate:
             self.bearing_confidence,
             "DoaEstimate.bearing_confidence",
         )
+        if self.bearing_sector is not None:
+            _require_non_empty(self.bearing_sector, "DoaEstimate.bearing_sector")
+        if self.ambiguity_class is not None:
+            _require_non_empty(self.ambiguity_class, "DoaEstimate.ambiguity_class")
+        if self.ambiguity_reason is not None:
+            _require_non_empty(self.ambiguity_reason, "DoaEstimate.ambiguity_reason")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -403,7 +409,7 @@ class AudioSensorFrame:
             object.__setattr__(self, "frame_name", self.frame_id)
         else:
             _require_non_empty(self.frame_name, "AudioSensorFrame.frame_name")
-        _require_non_empty(
+        _require_coordinate_convention(
             self.coordinate_convention,
             "AudioSensorFrame.coordinate_convention",
         )
@@ -449,6 +455,16 @@ class AudioSensorFrame:
             raise ValueError(
                 "AudioSensorFrame.units is missing required keys "
                 f"{sorted(missing_units)}."
+            )
+        changed_units = {
+            key: units[key]
+            for key, expected_value in FRAME_UNITS.items()
+            if units[key] != expected_value
+        }
+        if changed_units:
+            raise ValueError(
+                "AudioSensorFrame.units changed stable unit values "
+                f"{changed_units!r}."
             )
         object.__setattr__(self, "units", units)
         detections = tuple(self.detections)
@@ -500,6 +516,12 @@ class AudioSceneSnapshot:
 def _require_non_empty(value: str, field_name: str) -> None:
     if value.strip() == "":
         raise ValueError(f"{field_name} must be non-empty.")
+
+
+def _require_coordinate_convention(value: str, field_name: str) -> None:
+    _require_non_empty(value, field_name)
+    if value != COORDINATE_CONVENTION:
+        raise ValueError(f"{field_name} must be {COORDINATE_CONVENTION!r}.")
 
 
 def _require_finite(value: float, field_name: str) -> None:

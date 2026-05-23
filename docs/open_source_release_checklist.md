@@ -22,6 +22,10 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
 - [x] `docs/api_freeze_0_1.md` separates stable, provisional, experimental, and
   private surfaces.
 - [x] `AudioSensorFrame` v1 is documented as the primary stable data contract.
+- [x] `AudioSensorFrame.schema_version` is documented as independent from the
+  Python package version.
+- [x] Checked-in JSON Schema parity, JSON corpus coverage, and NDJSON corpus
+  coverage are release gates.
 - [x] Core data models, backend ids, trace/schema helpers, and CLI commands are
   listed with compatibility expectations.
 - [x] Isaac Sim live stage lifecycle and explicit stage binding are documented.
@@ -31,6 +35,11 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
   entity binding are documented with compatibility limits.
 - [x] Diagnostic/provenance namespaces are documented as open-ended but
   supported evidence fields.
+- [x] Acoustic fidelity ladder is documented with stable L0/L1, supported
+  optional L2, provisional L3, and experimental/tooling L4 boundaries.
+- [x] Coordinate policy, units, timestamps, provenance values, ambiguity
+  representation, and stable diagnostics namespaces are documented in public
+  contract terms.
 - [x] Deprecation and API-change release checklist are documented.
 
 ## Documentation Consistency
@@ -39,6 +48,9 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
   sensor package.
 - [x] Docs avoid claims of full acoustic realism, production beamforming,
   speech recognition, or full Replicator integration.
+- [x] Docs state that L3 advanced realism and L4 sim-real calibration are
+  future-compatible metadata/tooling directions, not complete v1 runtime
+  systems.
 - [x] Limitations document the optional approximate `pyroomacoustics` path.
 - [x] Limitations document that Replicator annotator/writer registration is not
   implemented.
@@ -80,12 +92,12 @@ Run and record:
 ```bash
 make test
 make lint
+make export-schema
+git diff --check
 make build
 make import-smoke
 make validate-config
-make export-schema
 make audit-dist
-git diff --check
 ```
 
 Run live checks on a local Isaac runtime when available:
@@ -102,6 +114,7 @@ validation that did run.
 ## Final Pre-Publish Checks
 
 - [ ] Public hygiene grep returns no project-specific or private path leaks.
+- [ ] Acoustic fidelity ladder tests and docs links pass before release.
 - [ ] `git ls-files` shows no tracked caches, generated outputs, local goals,
   virtual environments, build artifacts, or private environment files.
 - [ ] Built archive audit passes after a fresh `make build`.

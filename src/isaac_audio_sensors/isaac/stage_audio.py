@@ -77,7 +77,9 @@ def attach_sound_source_attrs(
     *,
     source_id: str,
     class_label: str,
-    position_world: tuple[float, float, float],
+    position_world: tuple[float, float, float] | None = None,
+    orientation_world_quat: tuple[float, float, float, float] | None = None,
+    audio_asset_path: str | None = None,
     start_time_s: float = 0.0,
     duration_s: float | None = None,
     gain_db: float = 0.0,
@@ -88,11 +90,16 @@ def attach_sound_source_attrs(
     attrs: dict[str, object] = {
         "ias:source_id": source_id,
         "ias:class_label": class_label,
-        "ias:position_world": position_world,
         "ias:start_time_s": float(start_time_s),
         "ias:gain_db": float(gain_db),
         "ias:directivity": directivity,
     }
+    if audio_asset_path is not None:
+        attrs["ias:audio_asset_path"] = audio_asset_path
+    if position_world is not None:
+        attrs["ias:position_world"] = position_world
+    if orientation_world_quat is not None:
+        attrs["ias:orientation_world_quat"] = orientation_world_quat
     if duration_s is not None:
         attrs["ias:duration_s"] = float(duration_s)
     for name, value in attrs.items():
@@ -131,6 +138,9 @@ def attach_microphone_array_attrs(
     layout_name: str,
     position_world: tuple[float, float, float] | None = None,
     orientation_world_quat: tuple[float, float, float, float] | None = None,
+    microphone_relative_offsets_m: tuple[tuple[float, float, float], ...]
+    | None = None,
+    microphone_ids: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     """Attach namespaced microphone-array metadata to an existing prim."""
 
@@ -144,6 +154,13 @@ def attach_microphone_array_attrs(
         attrs["ias:position_world"] = position_world
     if orientation_world_quat is not None:
         attrs["ias:orientation_world_quat"] = orientation_world_quat
+    if microphone_relative_offsets_m is not None:
+        attrs["ias:microphone_relative_offsets_m"] = tuple(
+            tuple(float(component) for component in offset)
+            for offset in microphone_relative_offsets_m
+        )
+    if microphone_ids is not None:
+        attrs["ias:microphone_ids"] = tuple(str(mic_id) for mic_id in microphone_ids)
     for name, value in attrs.items():
         _set_attr(prim, name, value)
     return attrs
@@ -154,7 +171,9 @@ def attach_microphone_attrs(
     *,
     mic_id: str,
     relative_position_m: tuple[float, float, float],
+    relative_orientation_quat: tuple[float, float, float, float] | None = None,
     gain_db: float = 0.0,
+    self_noise_db: float | None = None,
 ) -> dict[str, object]:
     """Attach one microphone's metadata to an array child prim."""
 
@@ -163,6 +182,10 @@ def attach_microphone_attrs(
         "ias:relative_position_m": relative_position_m,
         "ias:gain_db": float(gain_db),
     }
+    if relative_orientation_quat is not None:
+        attrs["ias:relative_orientation_quat"] = relative_orientation_quat
+    if self_noise_db is not None:
+        attrs["ias:self_noise_db"] = float(self_noise_db)
     for name, value in attrs.items():
         _set_attr(prim, name, value)
     return attrs
@@ -204,6 +227,10 @@ def _usd_value_type_name(value: object, *, attr_name: str) -> Any:
         return Sdf.ValueTypeNames.Double
     if isinstance(value, str):
         return Sdf.ValueTypeNames.String
+    if _is_sequence_of_numeric_tuples(value, 3):
+        return Sdf.ValueTypeNames.Double3Array
+    if _is_sequence_of_strings(value):
+        return Sdf.ValueTypeNames.StringArray
     if _is_numeric_tuple(value, 3):
         return Sdf.ValueTypeNames.Double3
     if _is_numeric_tuple(value, 4):
@@ -218,6 +245,10 @@ def _usd_value(value: object, *, attr_name: str) -> object:
         return value
     if attr_name in {"filePath", "inputs:file"} and isinstance(value, str):
         return Sdf.AssetPath(value)
+    if _is_sequence_of_numeric_tuples(value, 3):
+        return [Gf.Vec3d(float(x), float(y), float(z)) for x, y, z in value]
+    if _is_sequence_of_strings(value):
+        return [str(item) for item in value]
     if _is_numeric_tuple(value, 3):
         x, y, z = value
         return Gf.Vec3d(float(x), float(y), float(z))
@@ -231,3 +262,15 @@ def _is_numeric_tuple(value: object, length: int) -> bool:
     if not isinstance(value, tuple) or len(value) != length:
         return False
     return all(isinstance(component, (int, float)) for component in value)
+
+
+def _is_sequence_of_numeric_tuples(value: object, length: int) -> bool:
+    if not isinstance(value, tuple):
+        return False
+    return all(_is_numeric_tuple(item, length) for item in value)
+
+
+def _is_sequence_of_strings(value: object) -> bool:
+    if not isinstance(value, tuple):
+        return False
+    return all(isinstance(item, str) for item in value)

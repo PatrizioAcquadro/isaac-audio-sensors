@@ -126,6 +126,30 @@ Callers can pass `usd_time_code=...` to `update()` or `capture()`, set
 Native USD/Isaac sound attributes are read on a best-effort basis where the
 stage exposes them through ordinary attributes such as `filePath`, `startTime`,
 `duration`, and `gain`. Package metadata under `ias:*` is the documented path.
+These are ordinary USD custom attributes, not a custom USD schema.
+
+Supported `ias:*` metadata:
+
+| Prim kind | Attribute | Meaning |
+| --- | --- | --- |
+| Array or listener | `ias:array_id` | Stable array id used by frames and discovery |
+| Array | `ias:layout_name` | Named package microphone layout fallback |
+| Array | `ias:sample_rate_hz` | Frame sample rate for the array |
+| Array | `ias:coordinate_convention` | Coordinate convention string for emitted frames |
+| Array | `ias:microphone_relative_offsets_m` | Array-local microphone offsets when child prims are not authored |
+| Array | `ias:microphone_ids` | Optional ids matching `ias:microphone_relative_offsets_m` |
+| Microphone child | `ias:microphone_id` | Stable microphone id |
+| Microphone child | `ias:relative_position_m` | Array-local offset override in meters |
+| Microphone child | `ias:relative_orientation_quat` | Array-local microphone orientation in `[x, y, z, w]` order |
+| Microphone child | `ias:gain_db` | Per-microphone gain |
+| Microphone child | `ias:self_noise_db` | Optional per-microphone self-noise diagnostic |
+| Source | `ias:source_id` | Stable source id used by detections |
+| Source | `ias:class_label` | Detection class label, such as `Speech` or `Alarm` |
+| Source | `ias:audio_asset_path` | Package-level audio asset reference; native `filePath` is also read |
+| Source | `ias:start_time_s` | Active-window start time in seconds |
+| Source | `ias:duration_s` | Active-window duration in seconds |
+| Source | `ias:gain_db` | Source gain in decibels |
+| Source | `ias:directivity` | Source directivity label, currently diagnostic |
 
 Array discovery signals are `ias:array_id`, child microphone prims with
 `ias:microphone_id`, `ias:layout_name`, configured array name/type patterns, and

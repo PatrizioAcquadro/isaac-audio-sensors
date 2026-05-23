@@ -7,6 +7,7 @@ public users.
 - [Quickstart](quickstart.md)
 - [Isaac Sim](isaac_sim.md)
 - [Isaac Lab](isaac_lab.md)
+- [Acoustic Fidelity Ladder](acoustic_fidelity.md)
 - [Backends](backends.md)
 - [Room Acoustics](room_acoustics.md)
 - [TDOA And DOA](tdoa_doa.md)

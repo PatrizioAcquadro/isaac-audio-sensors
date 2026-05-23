@@ -1,0 +1,102 @@
+{
+  "aggregate_per_mic_rms": {
+    "left": 0.04,
+    "right": 0.04
+  },
+  "array_id": "stereo_rig",
+  "array_pose": {
+    "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+    "frame": "world",
+    "orientation_xyzw": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "position_m": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "backend_id": "tdoa_synthetic",
+  "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+  "detections": [
+    {
+      "audio_asset_path": "generated://impulse",
+      "class_label": "Tone",
+      "detection_id": "tdoa_synthetic_two_mic_ambiguity_stereo_rig_0_0_tone_00",
+      "detection_mode": "scheduled_known_source",
+      "diagnostics": {
+        "array_geometry_rank_xy": 1,
+        "backend": "tdoa_synthetic",
+        "physical_waveform": false,
+        "tdoa_matrix_s": {
+          "left->right": 0.0,
+          "right->left": 0.0
+        }
+      },
+      "doa": {
+        "ambiguity_class": "ambiguous_front_back",
+        "ambiguity_reason": "Two-mic linear TDOA cannot distinguish mirrored front/back bearings without an explicit prior.",
+        "bearing_confidence": 0.35,
+        "bearing_sector": null,
+        "candidate_bearing_deg": [
+          0.0,
+          180.0
+        ],
+        "estimated_bearing_deg": null
+      },
+      "ground_truth_bearing_deg": 0.0,
+      "per_mic_delay_s": {
+        "left": 0.014577259475218658,
+        "right": 0.014577259475218658
+      },
+      "per_mic_rms": {
+        "left": 0.04,
+        "right": 0.04
+      },
+      "source_distance_m": 5.0,
+      "source_id": "tone_front",
+      "source_pose": {
+        "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+        "frame": "world",
+        "orientation_xyzw": null,
+        "position_m": [
+          5.0,
+          0.0,
+          0.0
+        ]
+      },
+      "timestamp_ms": 0
+    }
+  ],
+  "diagnostics": {
+    "active_source_count": 1,
+    "ambiguity_policy": "none",
+    "array_geometry_rank_xy": 1,
+    "backend": "tdoa_synthetic"
+  },
+  "end_time_s": 0.1,
+  "frame_id": "tdoa_synthetic_two_mic_ambiguity_stereo_rig_0_0",
+  "frame_index": 0,
+  "frame_name": "two_mic_ambiguity/stereo_rig/tdoa_synthetic/frame0_t0ms",
+  "max_events": 1,
+  "provenance": "synthetic/core",
+  "sample_rate_hz": 48000,
+  "schema_version": "ias.audio_sensor_frame.v1",
+  "start_time_s": 0.0,
+  "timestamp_ms": 0,
+  "units": {
+    "bearing": "deg_clockwise_from_array_forward",
+    "distance": "m",
+    "gain": "dB",
+    "orientation": "quaternion_xyzw",
+    "position": "m",
+    "rms": "linear",
+    "sample_rate": "Hz",
+    "time": "s",
+    "timestamp": "ms"
+  },
+  "waveform_paths": []
+}

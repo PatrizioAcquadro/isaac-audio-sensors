@@ -3,13 +3,29 @@
 - The package is simulation tooling, not a safety-certified perception system.
 - `geometry_only` is deterministic geometry, not acoustic propagation.
 - `tdoa_synthetic` models direct-path delay from known geometry and optional
-  synthetic noise; it does not model occlusion, multipath, or microphone
-  frequency response.
+  deterministic stress controls; it does not model occlusion, multipath, or
+  microphone frequency response.
 - `room_acoustics` is an optional approximate shoebox simulation and depends on
-  `pyroomacoustics`.
+  `pyroomacoustics`. It generates RIRs and microphone waveforms, then derives
+  TDOA through GCC-PHAT, but it does not provide realistic occlusion, material
+  behavior, source directivity, calibrated microphone response, production
+  beamforming, mixed-source separation, or sim-real transfer.
+- `room_acoustics` file-backed `audio_asset_path` loading is intentionally
+  narrow: paths must be relative public files under the checkout and sample
+  rates must match the frame sample rate.
+- L3 advanced realism is a provisional API direction for future richer
+  wave/RIR, material, occlusion, directivity, noise, and estimator realism; it
+  is not a complete v1 runtime backend.
+- L4 sim-real calibration is experimental/tooling direction for future
+  calibration artifacts and sim-vs-real comparisons; it is not a stable v1
+  runtime backend or automatic hardware calibration pipeline.
 - Two-microphone arrays have front/back ambiguity. The package exposes that
   ambiguity instead of hiding it.
 - Four or more non-collinear microphones are recommended for robust DOA demos.
+- L1 `noise_std_s`, `clock_jitter_s`, and `gain_mismatch_db` are deterministic
+  stress knobs, not calibrated hardware noise. They perturb delay/RMS and
+  confidence diagnostics but do not model stochastic sensor drift, electronics
+  noise spectra, clipping, automatic gain control, or hardware clock recovery.
 - Isaac Sim and Isaac Lab integrations require a user-managed NVIDIA runtime.
 - Isaac Sim stage extraction supports live per-step USD world-pose reads,
   nested transform stacks, robot/base-mounted arrays, moving sources and

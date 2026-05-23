@@ -23,6 +23,9 @@ from isaac_audio_sensors.isaac.pose_resolver import (
 )
 from isaac_audio_sensors.isaac.source_registry import SourceRecord
 from isaac_audio_sensors.isaac.stage_audio import (
+    attach_microphone_array_attrs,
+    attach_microphone_attrs,
+    attach_sound_source_attrs,
     create_listener_prim,
     create_sound_prim,
     require_isaac_usd,
@@ -41,6 +44,9 @@ __all__ = [
     "ListenerRecord",
     "SourceRecord",
     "StagePose",
+    "attach_microphone_array_attrs",
+    "attach_microphone_attrs",
+    "attach_sound_source_attrs",
     "build_stage_snapshot",
     "create_listener_prim",
     "create_sound_prim",

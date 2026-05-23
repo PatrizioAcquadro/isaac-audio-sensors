@@ -55,4 +55,15 @@ try:
 except OptionalDependencyUnavailable as exc:
     print(f"room_acoustics skipped: {exc}")
 else:
-    print(frame.diagnostics)
+    print(
+        {
+            "backend": frame.backend_id,
+            "active_source_count": frame.diagnostics["active_source_count"],
+            "pyroomacoustics_version": frame.diagnostics[
+                "pyroomacoustics_version"
+            ],
+            "room_config": frame.diagnostics["room_config"],
+            "rir_summary": frame.diagnostics["per_source_rir_summary"],
+        }
+    )
+    print(frame.detections[0].diagnostics["estimated_tdoa_matrix_s"])

@@ -40,6 +40,8 @@ from isaac_audio_sensors.isaac.listener_registry import discover_listeners
 from isaac_audio_sensors.isaac.source_registry import discover_sound_sources
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
+    attach_microphone_attrs,
+    attach_sound_source_attrs,
     create_listener_prim,
     create_sound_prim,
     require_isaac_usd,
@@ -165,6 +167,8 @@ def test_public_imports_do_not_require_optional_runtime_modules():
             "isaacsim",
             "isaaclab",
             "pyroomacoustics",
+            "scipy",
+            "soundfile",
             "google.protobuf",
             "rclpy",
             "torch",
@@ -384,6 +388,16 @@ def test_isaac_stage_authoring_helpers_work_with_duck_typed_stage():
         prim_path="/World/Rig/AudioArray/Listener",
         array_id="rig_front",
     )
+    source_attrs = attach_sound_source_attrs(
+        stage._prims[0],
+        source_id="speaker_a",
+        class_label="Speech",
+        audio_asset_path="generated://impulse",
+        start_time_s=1.0,
+        duration_s=0.5,
+        gain_db=-3.0,
+        directivity="omni",
+    )
     array_prim = stage.DefinePrim("/World/Rig/AudioArray", "Xform")
     attrs = attach_microphone_array_attrs(
         array_prim,
@@ -391,12 +405,28 @@ def test_isaac_stage_authoring_helpers_work_with_duck_typed_stage():
         sample_rate_hz=48_000,
         coordinate_convention="x_forward_y_right_z_up_clockwise_bearing",
         layout_name="quad_front",
+        microphone_relative_offsets_m=((0.08, 0.0, 0.0), (0.0, 0.08, 0.0)),
+        microphone_ids=("front", "right"),
+    )
+    mic_prim = stage.DefinePrim("/World/Rig/AudioArray/front", "Microphone")
+    mic_attrs = attach_microphone_attrs(
+        mic_prim,
+        mic_id="front",
+        relative_position_m=(0.08, 0.0, 0.0),
+        relative_orientation_quat=(0.0, 0.0, 0.0, 1.0),
+        gain_db=-1.0,
+        self_noise_db=24.0,
     )
 
     assert sound.attributes["filePath"] == "generated://impulse"
     assert sound.attributes["gain"] == -3.0
+    assert source_attrs["ias:audio_asset_path"] == "generated://impulse"
+    assert stage._prims[0].attributes["ias:duration_s"] == 0.5
     assert listener.attributes["ias:array_id"] == "rig_front"
     assert attrs["ias:layout_name"] == "quad_front"
+    assert attrs["ias:microphone_ids"] == ("front", "right")
+    assert mic_attrs["ias:relative_orientation_quat"] == (0.0, 0.0, 0.0, 1.0)
+    assert mic_attrs["ias:self_noise_db"] == 24.0
 
 
 def test_isaac_stage_snapshot_and_sensor_capture_from_duck_typed_stage():

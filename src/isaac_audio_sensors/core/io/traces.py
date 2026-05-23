@@ -45,7 +45,13 @@ def append_frame_jsonl(frame: AudioSensorFrame, path: str | Path) -> Path:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("a", encoding="utf-8") as output_file:
-        output_file.write(json.dumps(frame_to_trace_dict(frame), sort_keys=True))
+        output_file.write(
+            json.dumps(
+                frame_to_trace_dict(frame),
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        )
         output_file.write("\n")
     return output_path
 

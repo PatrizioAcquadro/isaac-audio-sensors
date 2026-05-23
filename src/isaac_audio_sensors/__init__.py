@@ -6,6 +6,12 @@ from isaac_audio_sensors.core.backends.base import AudioSimulationBackend
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.fidelity import (
+    ACOUSTIC_FIDELITY_LADDER,
+    AcousticFidelityLevel,
+    AcousticFidelityMetadata,
+    fidelity_level_for_backend,
+)
 from isaac_audio_sensors.core.schema import audio_sensor_frame_json_schema
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -30,6 +36,9 @@ __all__ = [
     "AudioSimulationBackend",
     "AudioSourceSpec",
     "AudioTimeWindow",
+    "ACOUSTIC_FIDELITY_LADDER",
+    "AcousticFidelityLevel",
+    "AcousticFidelityMetadata",
     "DoaEstimate",
     "GeometryBackend",
     "MicrophoneArraySpec",
@@ -39,4 +48,5 @@ __all__ = [
     "RoomAcousticsSpec",
     "TdoaSyntheticBackend",
     "audio_sensor_frame_json_schema",
+    "fidelity_level_for_backend",
 ]

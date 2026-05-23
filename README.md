@@ -23,7 +23,11 @@ Source repository: <https://github.com/PatrizioAcquadro/isaac-audio-sensors>
 - `geometry_only` backend for deterministic source bearing and sector labels.
 - `tdoa_synthetic` backend for per-microphone delay and RMS diagnostics.
 - Explicit two-microphone front/back ambiguity reporting.
-- Optional `room_acoustics` backend using `pyroomacoustics` when installed.
+- Optional `room_acoustics` backend using `pyroomacoustics` for shoebox RIRs,
+  generated microphone waveforms, and waveform-derived GCC-PHAT TDOA when
+  installed.
+- Public acoustic fidelity ladder documenting stable L0/L1, supported optional
+  L2, provisional L3, and experimental/tooling L4 compatibility boundaries.
 - Lazy Isaac Sim helpers for USD sound/listener/microphone-array metadata,
   live update-loop capture, USD-native world-pose reads, nested transform
   stacks, robot/base-mounted arrays, moving sources/arrays/microphone children,
@@ -119,7 +123,18 @@ print(frame.detections[0].doa)
 
 The frame serializes to the public v1 JSON shape. The JSON Schema is available
 at `docs/schemas/audio_sensor_frame.v1.schema.json`, and example traces live
-under `examples/traces/`.
+under `examples/traces/`. The public contract is documented in
+[API Freeze 0.1](docs/api_freeze_0_1.md) and [API Reference](docs/api_reference.md):
+`AudioSensorFrame.schema_version` is `ias.audio_sensor_frame.v1`, independent
+from the Python package version, and covers the coordinate policy, units,
+timestamps, provenance values, ambiguity fields, diagnostics namespaces, JSON
+examples, and NDJSON trace corpus.
+
+The acoustic fidelity ladder is documented in
+[Acoustic Fidelity Ladder](docs/acoustic_fidelity.md). L0 `geometry_only` and
+L1 `tdoa_synthetic` are stable v1 runtime levels, L2 `room_acoustics` is a
+supported optional v1 runtime level, and L3/L4 are future-facing metadata
+directions rather than complete v1 backends.
 
 ## Isaac Sim Example
 
@@ -183,8 +198,13 @@ blocker when no NVIDIA GPU is available to the Isaac Lab runtime.
   propagation.
 - `tdoa_synthetic` computes direct-path synthetic delays and does not model
   reverberation or occlusion.
-- `room_acoustics` is optional and depends on `pyroomacoustics`; it should be
-  treated as an approximate shoebox-room simulation.
+- `room_acoustics` is optional and depends on the `room` extra; it should be
+  treated as an approximate shoebox-room simulation, not realistic occlusion,
+  material behavior, directivity, microphone calibration, production
+  beamforming, or sim-real transfer.
+- L3 advanced realism and L4 sim-real calibration are not complete v1 runtime
+  systems. They are documented extension directions for optional config,
+  diagnostics, artifacts, and dependencies.
 - Two microphones cannot resolve front/back ambiguity without an additional
   prior. Four or more non-collinear microphones are recommended for DOA.
 - Isaac Sim pose extraction supports USD transform stacks, fallback attrs, and
@@ -203,6 +223,7 @@ blocker when no NVIDIA GPU is available to the Isaac Lab runtime.
 - [Quickstart](docs/quickstart.md)
 - [Isaac Sim](docs/isaac_sim.md)
 - [Isaac Lab](docs/isaac_lab.md)
+- [Acoustic Fidelity Ladder](docs/acoustic_fidelity.md)
 - [Backends](docs/backends.md)
 - [Room Acoustics](docs/room_acoustics.md)
 - [TDOA And DOA](docs/tdoa_doa.md)
