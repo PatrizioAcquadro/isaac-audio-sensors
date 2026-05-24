@@ -11,7 +11,7 @@ gate for SquadBot, Alex, ROS 2, or any downstream research system.
 
 | Category | V1 scope | Release meaning |
 | --- | --- | --- |
-| Stable public contract | Stable `AudioSensorFrame` v1 public contract | The `ias.audio_sensor_frame.v1` JSON shape, stable fields, units, provenance values, coordinate convention, ambiguity fields, schema export, and trace round-trip behavior are compatibility commitments for 0.1.x. |
+| Stable public contract | Stable `AudioSensorFrame` v1 public contract | The `ias.audio_sensor_frame.v1` JSON shape, stable fields, units, provenance values, coordinate convention, ambiguity fields, schema export, and trace round-trip behavior are compatibility commitments for compatible v1 releases starting with `1.0.0rc1`. |
 | Stable backends | Stable L0 `geometry_only` backend | Deterministic bearing, distance, sector, `max_events`, and frame-contract behavior are stable v1 runtime behavior. |
 | Stable backends | Stable L1 `tdoa_synthetic` backend | Deterministic direct-path synthetic delay/RMS diagnostics, stress controls, and explicit two-mic ambiguity metadata are stable v1 runtime behavior. |
 | Supported optional backend | Supported optional L2 `room_acoustics` backend | The backend is dependency-gated behind the `room` extra, skips or raises clear optional-dependency errors when absent, and records stable L2 diagnostics when present. |

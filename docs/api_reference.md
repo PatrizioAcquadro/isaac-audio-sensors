@@ -1,7 +1,7 @@
 # API Reference
 
 The stable, provisional, experimental, and private compatibility surfaces are
-defined in [API Freeze 0.1](api_freeze_0_1.md).
+defined in [API Freeze](api_freeze_0_1.md).
 [V1 Public Scope](v1_scope.md) defines the package promise boundary and the
 explicit v1 non-promises.
 

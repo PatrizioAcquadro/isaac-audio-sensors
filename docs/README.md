@@ -13,7 +13,7 @@ public users.
 - [Backends](backends.md)
 - [Room Acoustics](room_acoustics.md)
 - [TDOA And DOA](tdoa_doa.md)
-- [API Freeze 0.1](api_freeze_0_1.md)
+- [API Freeze](api_freeze_0_1.md)
 - [AudioSensorFrame Schema](schemas/audio_sensor_frame.v1.schema.json)
 - [Validation](validation.md)
 - [Limitations](limitations.md)

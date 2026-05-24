@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.0.0rc1 - 2026-05-24
+
+This is a release candidate for the v1 package line, not the final `1.0.0`
+release.
 
 - Strengthened `AudioSensorFrame` as the public v1 frame contract with
   `schema_version`, `frame_name`, `Pose3D` array/source poses, explicit units,
@@ -29,7 +32,7 @@
   stay consistent at exact 45-degree boundary cases.
 - Renamed the bundled config and Isaac Sim example away from legacy project
   phase naming.
-- Documented the 0.1.x API freeze with stable, provisional, experimental, and
+- Documented the public API freeze with stable, provisional, experimental, and
   internal/private surfaces after the Isaac-native Sim/Lab upgrades.
 - Added public release-candidate docs for versioning, archive auditing,
   completed roadmap items, live Isaac validation expectations, and API-change
@@ -40,9 +43,12 @@
 - Added a canonical v1 public scope page plus guardrails for v1 promises,
   non-promises, downstream non-gates, and optional extension-only Replicator
   wording.
-- Kept the package version at `0.1.0`; the current hardening remains part of
-  the initial release-candidate surface, while the frame contract stays
-  `ias.audio_sensor_frame.v1`.
+- Set the package version to `1.0.0rc1` while keeping the frame contract
+  version separate at `ias.audio_sensor_frame.v1`.
+- Closed the release-candidate scope around the stable frame contract, stable
+  L0 `geometry_only`, stable L1 `tdoa_synthetic`, supported optional L2
+  `room_acoustics`, Isaac Sim, Isaac Lab, Omniverse reference UX, stable
+  JSON/JSONL export, and optional extension-only Replicator support.
 
 ## 0.1.0 - 2026-05-21
 

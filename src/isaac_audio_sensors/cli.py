@@ -1,4 +1,4 @@
-"""Command line interface for the 0.1.0 audio-sensor MVP."""
+"""Command line interface for isaac-audio-sensors."""
 
 from __future__ import annotations
 

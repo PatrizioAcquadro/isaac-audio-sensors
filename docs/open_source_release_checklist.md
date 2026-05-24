@@ -103,18 +103,18 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
 
 ## Versioning And Changelog
 
-- [x] Version remains `0.1.0` while the repository is preparing the initial
-  release candidate.
+- [x] Package version is `1.0.0rc1`, using exact PEP 440 spelling.
+- [x] `1.0.0rc1` is documented as a release candidate, not final `1.0.0`.
 - [x] `docs/versioning.md` explains that package version and frame schema
   version are separate.
-- [x] `CHANGELOG.md` has an Unreleased section for the current release
-  candidate hardening.
-- [ ] When maintainers decide to cut the release, move Unreleased entries under
-  a dated version heading before tagging.
+- [x] `CHANGELOG.md` has a dated `1.0.0rc1` section covering the release
+  candidate scope.
+- [ ] When maintainers decide to cut final `1.0.0`, add a new dated changelog
+  section instead of editing the frame schema version.
 
 ## Required Validation
 
-Run and record:
+Run and record these required local release-candidate gates:
 
 ```bash
 make test
@@ -122,17 +122,17 @@ make lint
 make export-schema
 git diff --check
 make build
-make validate-config
 make audit-dist
 make import-smoke
 ```
 
 These required local gates cover contract/schema/trace validation, L0/L1 tests,
 optional L2 behavior, JSON/JSONL export, package build, packaging audit, import
-smoke, lint, and distribution audit.
+smoke, lint, and distribution audit. `make validate-config` is a useful local
+usage smoke and may be run in addition, but it is not a downstream project gate.
 
-Run and record live sensor gates on a local Isaac runtime before publishing or
-tagging a release candidate:
+Run and record live sensor gates on a local Isaac runtime when refreshing live
+runtime evidence before publishing or tagging a release candidate:
 
 ```bash
 make live-isaac-sim-audio ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
@@ -170,6 +170,8 @@ validation that did run.
 - [ ] Public hygiene grep returns no project-specific or private path leaks
   outside the allowed scope/non-promise docs.
 - [ ] Acoustic fidelity ladder tests and docs links pass before release.
+- [ ] `python -m isaac_audio_sensors --version` reports `1.0.0rc1` from the
+  built wheel in a clean environment.
 - [ ] `git ls-files` shows no tracked caches, generated outputs, local goals,
   virtual environments, build artifacts, or private environment files.
 - [ ] Built archive audit passes after a fresh `make build`.

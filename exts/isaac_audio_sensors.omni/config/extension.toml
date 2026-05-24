@@ -1,5 +1,5 @@
 [package]
-version = "0.1.0"
+version = "1.0.0rc1"
 title = "Isaac Audio Sensors"
 description = "Live audio array sensor workflow for Isaac Sim stages."
 category = "Simulation"

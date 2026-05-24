@@ -14,6 +14,10 @@ Showcase site: <https://isaac-audio-showcase-site.vercel.app>
 
 Source repository: <https://github.com/PatrizioAcquadro/isaac-audio-sensors>
 
+Current package release candidate: `1.0.0rc1`. This is not the final `1.0.0`
+release. The frame schema version remains separate at
+`ias.audio_sensor_frame.v1`.
+
 ## Features
 
 - Pure Python core models for scenes, sound sources, time windows, microphone
@@ -74,6 +78,15 @@ occlusions or material acoustics, mandatory ROS 2 or downstream adapters, or
 Alex/SquadBot validation before releasing the sensor package.
 
 ## Quick Install
+
+For the local release-candidate wheel after `make build`:
+
+```bash
+python -m pip install dist/isaac_audio_sensors-1.0.0rc1-py3-none-any.whl
+python -m isaac_audio_sensors --version
+```
+
+For development from a checkout:
 
 ```bash
 python3 -m venv .venv
@@ -139,7 +152,7 @@ print(frame.detections[0].doa)
 The frame serializes to the public v1 JSON shape. The JSON Schema is available
 at `docs/schemas/audio_sensor_frame.v1.schema.json`, and example traces live
 under `examples/traces/`. The public contract is documented in
-[API Freeze 0.1](docs/api_freeze_0_1.md) and [API Reference](docs/api_reference.md):
+[API Freeze](docs/api_freeze_0_1.md) and [API Reference](docs/api_reference.md):
 `AudioSensorFrame.schema_version` is `ias.audio_sensor_frame.v1`, independent
 from the Python package version, and covers the coordinate policy, units,
 timestamps, provenance values, ambiguity fields, diagnostics namespaces, JSON
@@ -237,6 +250,7 @@ Current core validation is reproducible without Isaac:
 ```bash
 python -m pip install -e ".[dev]"
 python -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
+python -m isaac_audio_sensors --version
 python -m pytest
 python -m ruff check .
 python -m build
@@ -287,7 +301,7 @@ blocker when no NVIDIA GPU is available to the Isaac Lab runtime.
 - [Backends](docs/backends.md)
 - [Room Acoustics](docs/room_acoustics.md)
 - [TDOA And DOA](docs/tdoa_doa.md)
-- [API Freeze 0.1](docs/api_freeze_0_1.md)
+- [API Freeze](docs/api_freeze_0_1.md)
 - [Validation](docs/validation.md)
 - [Limitations](docs/limitations.md)
 - [Versioning](docs/versioning.md)

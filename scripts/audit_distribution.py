@@ -52,6 +52,9 @@ TEXT_SUFFIXES = (
     ".yaml",
 )
 MAX_TEXT_SCAN_BYTES = 1_000_000
+PACKAGE_VERSION = "1.0.0rc1"
+EXPECTED_SDIST_NAME = f"isaac_audio_sensors-{PACKAGE_VERSION}.tar.gz"
+EXPECTED_WHEEL_NAME = f"isaac_audio_sensors-{PACKAGE_VERSION}-py3-none-any.whl"
 
 V1_SCOPE_REQUIRED_PHRASES = (
     "Stable `AudioSensorFrame` v1 public contract",
@@ -112,13 +115,27 @@ FORBIDDEN_SCOPE_OVERCLAIM_PHRASES = (
 REQUIRED_SDIST_ENTRIES = (
     "README.md",
     "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE",
+    "CITATION.cff",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
     "MANIFEST.in",
     "pyproject.toml",
+    "configs/isaac_audio_sensors_demo.toml",
     "docs/acoustic_fidelity.md",
     "docs/api_freeze_0_1.md",
     "docs/api_reference.md",
+    "docs/installation.md",
+    "docs/open_source_release_checklist.md",
+    "docs/quickstart.md",
+    "docs/validation.md",
+    "docs/versioning.md",
     "docs/v1_scope.md",
     "docs/schemas/audio_sensor_frame.v1.schema.json",
+    "examples/README.md",
+    "examples/core/single_source_bearing.py",
     "examples/traces/ambiguity_frame.v1.json",
     "examples/traces/diagnostics_provenance_sequence.v1.ndjson",
     "examples/traces/minimal_frame.v1.json",
@@ -129,7 +146,12 @@ REQUIRED_SDIST_ENTRIES = (
     "scripts/live_omniverse_extension_ux.py",
     "scripts/live_isaac_sim_audio_smoke.py",
     "src/isaac_audio_sensors/__init__.py",
+    "src/isaac_audio_sensors/__main__.py",
+    "src/isaac_audio_sensors/cli.py",
     "src/isaac_audio_sensors/core/fidelity.py",
+    "src/isaac_audio_sensors/core/schema.py",
+    "src/isaac_audio_sensors/core/types.py",
+    "src/isaac_audio_sensors/core/io/traces.py",
     "src/isaac_audio_sensors/isaac/extension_ui.py",
     "src/isaac_audio_sensors/isaac/replicator.py",
     "tests/test_acoustic_fidelity.py",
@@ -138,7 +160,11 @@ REQUIRED_SDIST_ENTRIES = (
 )
 REQUIRED_WHEEL_ENTRIES = (
     "isaac_audio_sensors/__init__.py",
+    "isaac_audio_sensors/__main__.py",
+    "isaac_audio_sensors/cli.py",
+    "isaac_audio_sensors/core/schema.py",
     "isaac_audio_sensors/core/types.py",
+    "isaac_audio_sensors/core/io/traces.py",
     "isaac_audio_sensors/isaac/extension.py",
     "isaac_audio_sensors/isaac/extension_ui.py",
     "isaac_audio_sensors/isaac/replicator.py",
@@ -202,6 +228,7 @@ def audit_archive(path: str | Path) -> ArchiveAudit:
     )
 
     findings: list[str] = []
+    findings.extend(_archive_name_findings(archive_path, kind=kind))
     findings.extend(_forbidden_path_findings(entries, kind=kind))
     findings.extend(_required_entry_findings(entries, kind=kind))
     findings.extend(_forbidden_content_findings(archive_path, kind=kind))
@@ -219,6 +246,13 @@ def _archive_kind(path: Path) -> str:
     if path.suffix == ".whl":
         return "wheel"
     raise ValueError(f"Unsupported archive type: {path}")
+
+
+def _archive_name_findings(path: Path, *, kind: str) -> tuple[str, ...]:
+    expected = EXPECTED_SDIST_NAME if kind == "sdist" else EXPECTED_WHEEL_NAME
+    if path.name != expected:
+        return (f"unexpected {kind} filename: {path.name} != {expected}",)
+    return ()
 
 
 def _archive_entries(path: Path, *, kind: str) -> tuple[str, ...]:
@@ -282,6 +316,7 @@ def _forbidden_content_findings(path: Path, *, kind: str) -> tuple[str, ...]:
                 findings.append(
                     f"{entry_name}: forbidden public-package text token {token!r}"
                 )
+        findings.extend(_stale_version_findings(entry_name, content))
         findings.extend(_project_scope_token_findings(entry_name, content))
         findings.extend(_scope_overclaim_findings(entry_name, content))
     if kind == "sdist":
@@ -327,6 +362,17 @@ def _forbidden_text_tokens() -> tuple[str, ...]:
         "Pur" + "due",
         "prof" + "essor",
         "/home/" + "pacquadr",
+    )
+
+
+def _stale_version_findings(entry_name: str, content: str) -> tuple[str, ...]:
+    if entry_name == "CHANGELOG.md":
+        return ()
+    stale_tokens = ("0." + "1.0", "0." + "1.x")
+    return tuple(
+        f"{entry_name}: stale active release version token {token!r}"
+        for token in stale_tokens
+        if token in content
     )
 
 

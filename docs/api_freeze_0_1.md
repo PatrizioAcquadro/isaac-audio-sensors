@@ -1,15 +1,15 @@
-# API Freeze 0.1
+# API Freeze
 
 This document defines the public compatibility surface for
-`isaac-audio-sensors` 0.1.x. The project is a standalone open-source Isaac
-Sim/Lab audio sensor package. It is not tied to a downstream research project,
-and the pure Python core must remain importable without Isaac Sim, Isaac Lab,
-Omniverse, `pyroomacoustics`, `scipy`, `soundfile`, protobuf, ROS 2, CUDA, or
-torch installed.
+`isaac-audio-sensors` `1.0.0rc1` and compatible v1 releases. The project is a
+standalone open-source Isaac Sim/Lab audio sensor package. It is not tied to a
+downstream research project, and the pure Python core must remain importable
+without Isaac Sim, Isaac Lab, Omniverse, `pyroomacoustics`, `scipy`,
+`soundfile`, protobuf, ROS 2, CUDA, or torch installed.
 
-The distribution version is currently `0.1.0`. The frame schema version is
-independent and remains `ias.audio_sensor_frame.v1` for all compatible 0.1.x
-patch releases.
+The distribution version is currently the `1.0.0rc1` release candidate, not
+final `1.0.0`. The frame schema version is independent and remains
+`ias.audio_sensor_frame.v1` for all compatible v1 releases.
 
 [V1 Public Scope](v1_scope.md) is the single source of truth for release
 promises and non-promises. This API freeze defines compatibility for those
@@ -17,12 +17,15 @@ promises; it does not make SquadBot, Alex, ROS 2/downstream adapters, sim-real
 calibration, real hardware benchmarks, complete L3/L4 fidelity, or realistic
 material/occlusion acoustics into v1 release gates.
 
-## Stable For 0.1.x
+The file name is retained for existing documentation links; the active release
+target is `1.0.0rc1`.
+
+## Stable For V1-Compatible Releases
 
 Stable APIs should keep names, import paths, required fields, and documented
-semantics compatible throughout 0.1.x. Patch releases may add optional fields,
-new enum values where documented as open-ended, stricter validation for invalid
-inputs, and bug fixes that preserve valid behavior.
+semantics compatible throughout the v1 line. Compatible releases may add
+optional fields, new enum values where documented as open-ended, stricter
+validation for invalid inputs, and bug fixes that preserve valid behavior.
 
 Package import and version:
 
@@ -61,8 +64,8 @@ Backend selection, configuration, and core backends:
 - `build_scene_snapshot`
 - backend ids `geometry_only`, `tdoa_synthetic`, and `room_acoustics`
 
-Supported optional L2 room-acoustics diagnostics are stable by name in 0.1.x,
-though compatible releases may add more diagnostic keys. Frame diagnostics
+Supported optional L2 room-acoustics diagnostics are stable by name in the v1
+line, though compatible releases may add more diagnostic keys. Frame diagnostics
 include `room_config`, `pyroomacoustics_version`, `speed_of_sound_mps`,
 `sample_rate_hz`, `active_source_count`, `scheduled_source_ids`,
 `per_source_rir_summary`, and `per_source_rir_length_samples`. Detection
@@ -124,10 +127,11 @@ stable by their module paths under `isaac_audio_sensors.isaac.stage_audio`.
 
 ## Provisional But Supported
 
-Provisional APIs are supported in 0.1.x and should not be removed or renamed in
-patch releases. Their detailed config fields, diagnostics payloads, and
-selection heuristics may grow as Isaac Sim/Lab integration is validated on more
-assets. Changes must be additive or documented with a deprecation note.
+Provisional APIs are supported in compatible v1 releases and should not be
+removed or renamed without a deprecation path. Their detailed config fields,
+diagnostics payloads, and selection heuristics may grow as Isaac Sim/Lab
+integration is validated on more assets. Changes must be additive or documented
+with a deprecation note.
 
 Isaac Sim semantic discovery and pose resolution:
 
@@ -196,7 +200,7 @@ Optional Omniverse Replicator recording path:
 - `DEFAULT_REPLICATOR_ANNOTATOR_NAME`
 - `PAYLOAD_SCHEMA_VERSION`
 
-The Replicator path is optional and imported lazily. Compatible 0.1.x releases
+The Replicator path is optional and imported lazily. Compatible v1 releases
 should preserve readable missing-runtime errors, full `AudioSensorFrame` v1
 payload recovery, and additive payload metadata. Writer and annotator
 registration details may vary by Isaac/Kit runtime and are recorded as
@@ -208,7 +212,8 @@ Lab sensor APIs must remain usable without `omni.replicator.core`.
 ## Experimental
 
 Experimental surfaces are useful for development but are not compatibility
-anchors for 0.1.x. They may change after changelog documentation.
+anchors for the v1 stable surface. They may change after changelog
+documentation.
 
 - `isaac_audio_sensors.isaac.viz`
 - structured debug primitive details beyond their documented fields
@@ -237,11 +242,11 @@ not public API unless they are explicitly listed above.
 
 ## AudioSensorFrame V1 Contract
 
-`AudioSensorFrame` is the primary stable data contract for 0.1.x. The public
+`AudioSensorFrame` is the primary stable data contract for the v1 line. The public
 schema is `ias.audio_sensor_frame.v1`, exported at
 `docs/schemas/audio_sensor_frame.v1.schema.json`.
 
-Compatible 0.1.x releases must preserve these top-level JSON fields:
+Compatible v1 releases must preserve these top-level JSON fields:
 
 - `schema_version`
 - `frame_id`
@@ -327,8 +332,8 @@ to identify provenance for current live-stage and Lab bindings without a
 deprecation period.
 
 The v1 JSON Schema uses required stable fields plus forward-compatible optional
-fields. Compatible 0.1.x releases may add optional frame, detection, DOA, pose,
-or diagnostics fields. They must not remove, rename, or change semantics of the
+fields. Compatible v1 releases may add optional frame, detection, DOA, pose, or
+diagnostics fields. They must not remove, rename, or change semantics of the
 documented v1 fields without creating a new schema version or documenting a
 deprecation path.
 
@@ -362,8 +367,8 @@ The v1 levels are:
 `KNOWN_BACKENDS` and `get_backend(...)` remain limited to implemented runtime
 backend ids in v1: `geometry_only`, `tdoa_synthetic`, and `room_acoustics`.
 L3 and L4 may appear in ladder metadata and docs, but they are not selectable
-stable runtime backends in 0.1.x unless future implementations and tests are
-added.
+stable runtime backends in the v1 line unless future implementations and tests
+are added.
 
 All levels must emit, or future implementations must emit, `AudioSensorFrame`
 v1-compatible records until a new schema version is introduced. L3/L4
@@ -399,7 +404,7 @@ the backend is used. It is not a full engine-level acoustics replacement.
 4. read `get_latest_frame()`;
 5. call `stop()` and `close()`.
 
-Compatible 0.1.x releases must keep live Isaac failures lazy and explicit.
+Compatible v1 releases must keep live Isaac failures lazy and explicit.
 Importing `isaac_audio_sensors.isaac` in a non-Isaac Python process must not
 require `pxr`, `omni`, `isaacsim`, CUDA, or an NVIDIA GPU.
 
@@ -482,7 +487,7 @@ their corresponding path is used:
 Compatible releases may add fields to these dictionaries. Existing fields that
 identify transform provenance, selected array/source, time code, robot/body
 source, env-origin handling, tensor device, and selected-env read counts should
-not be removed in 0.1.x without a deprecation note.
+not be removed in the v1 line without a deprecation note.
 
 The namespace meanings are stable even though their inner dictionaries are
 open-ended:
@@ -498,10 +503,10 @@ open-ended:
 
 ## Deprecation Policy
 
-For 0.1.x, stable APIs should not be removed or renamed. If a stable API must
+For compatible v1 releases, stable APIs should not be removed or renamed. If a stable API must
 change, add a replacement first, document the deprecation in `CHANGELOG.md`,
-keep the old path working through the next 0.1.x patch release, and add tests
-for both old and new paths while both are supported.
+keep the old path working through the next compatible pre-release or patch
+release, and add tests for both old and new paths while both are supported.
 
 Provisional APIs follow the same no-surprise rule for names and import paths,
 but fields and diagnostics may grow. Experimental APIs may change with a
@@ -516,7 +521,8 @@ Semantic versioning expectation:
 
 ## API Change Release Checklist
 
-Before any 0.1.x release that changes public API, verify:
+Before any release candidate or compatible release that changes public API,
+verify:
 
 - `docs/api_freeze_0_1.md` lists each stable, provisional, experimental, and
   private surface correctly.

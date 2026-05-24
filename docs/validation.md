@@ -29,6 +29,7 @@ Run:
 ```bash
 python -m pip install -e ".[dev]"
 python -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
+python -m isaac_audio_sensors --version
 python -m pytest
 python -m ruff check .
 python -m build
@@ -43,12 +44,11 @@ The Makefile wraps the same release-candidate checks:
 ```bash
 make test
 make lint
-make build
-make import-smoke
-make validate-config
 make export-schema
-make audit-dist
 git diff --check
+make build
+make audit-dist
+make import-smoke
 ```
 
 Expected behavior:
@@ -186,8 +186,8 @@ Before a public release, inspect the package contents:
 ```bash
 make build
 make audit-dist
-python -m tarfile -l dist/isaac_audio_sensors-0.1.0.tar.gz
-python -m zipfile -l dist/isaac_audio_sensors-0.1.0-py3-none-any.whl
+python -m tarfile -l dist/isaac_audio_sensors-1.0.0rc1.tar.gz
+python -m zipfile -l dist/isaac_audio_sensors-1.0.0rc1-py3-none-any.whl
 ```
 
 The archives should not contain `outputs/`, `runs/`, generated media, private

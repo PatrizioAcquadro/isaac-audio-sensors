@@ -4,6 +4,7 @@ ISAAC_SIM_COMMAND ?= $(PYTHON)
 ISAAC_LAB_PYTHON ?= $(PYTHON)
 ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
+EXPECTED_VERSION ?= 1.0.0rc1
 
 .PHONY: test lint format build audit-dist import-smoke validate-config export-schema live-isaac-sim-audio live-omniverse-extension-ux live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac
 
@@ -17,6 +18,7 @@ format:
 	$(PYTHON) -m ruff format .
 
 build:
+	$(PYTHON) -c "import shutil; from pathlib import Path; shutil.rmtree('dist', ignore_errors=True); Path('dist').mkdir()"
 	$(PYTHON) -m build $(BUILD_FLAGS)
 	$(PYTHON) scripts/audit_distribution.py --dist-dir dist
 
@@ -24,7 +26,7 @@ audit-dist:
 	$(PYTHON) scripts/audit_distribution.py --dist-dir dist
 
 import-smoke:
-	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -c "import isaac_audio_sensors, sys; print(isaac_audio_sensors.__version__); sys.exit(0 if isaac_audio_sensors.__version__ == '$(EXPECTED_VERSION)' else 1)"
 
 validate-config:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors.cli validate-config configs/isaac_audio_sensors_demo.toml

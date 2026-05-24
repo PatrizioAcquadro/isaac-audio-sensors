@@ -7,15 +7,15 @@ separate schema-version policy for frame traces.
 
 - distribution: `isaac-audio-sensors`
 - import package: `isaac_audio_sensors`
-- package version: `0.1.0`
+- package version: `1.0.0rc1`
 - frame schema version: `ias.audio_sensor_frame.v1`
 - pure Python support: Python 3.10 or newer
 
-The current release-candidate work keeps the package version at `0.1.0`.
-Changing to a pre-release marker would add churn without fixing an inconsistency:
-the repository is still preparing the initial 0.1.0 release surface, and the
-compatibility contract is documented through the Unreleased changelog entries
-and the 0.1 API freeze.
+`1.0.0rc1` is a release candidate, not final `1.0.0`. It is the first v1
+package candidate that makes the frozen frame contract, stable L0/L1,
+supported optional L2, Isaac Sim path, Isaac Lab path, Omniverse reference UX,
+JSON/JSONL export, and optional extension-only Replicator support coherent as a
+third-party Python package.
 
 The package's v1 promise boundary is frozen in [V1 Public Scope](v1_scope.md).
 Versioning changes must not expand v1 into downstream release gates, sim-real
@@ -25,8 +25,8 @@ explicit future scope change.
 
 ## Package Compatibility
 
-Patch releases in `0.1.x` keep the stable API in
-`docs/api_freeze_0_1.md` compatible. Compatible changes include:
+Compatible v1 releases keep the stable API in `docs/api_freeze_0_1.md`
+compatible. Compatible changes include:
 
 - bug fixes;
 - documentation fixes;
@@ -51,19 +51,18 @@ contract.
 
 The frame schema version is not the package version. `AudioSensorFrame` v1 uses
 `schema_version = "ias.audio_sensor_frame.v1"` and is the stable trace contract
-for 0.1.x.
+for compatible v1 package releases.
 
-Patch releases must not remove, rename, or change the semantics of documented
-v1 fields, provenance values, unit meanings, coordinate policy, timestamp
-semantics, ambiguity representation, or stable diagnostics namespaces. They may
-add optional fields or diagnostics that readers can ignore. If a future change
-needs an incompatible trace shape, create a new schema version instead of
-silently changing `ias.audio_sensor_frame.v1`.
+Compatible releases must not remove, rename, or change the semantics of
+documented v1 fields, provenance values, unit meanings, coordinate policy,
+timestamp semantics, ambiguity representation, or stable diagnostics
+namespaces. They may add optional fields or diagnostics that readers can
+ignore. If a future change needs an incompatible trace shape, create a new
+schema version instead of silently changing `ias.audio_sensor_frame.v1`.
 
-The generated schema in
-`docs/schemas/audio_sensor_frame.v1.schema.json` is the checked-in public
-artifact. `make export-schema` regenerates it from code and tests compare the
-generated schema with the checked-in file.
+The generated schema in `docs/schemas/audio_sensor_frame.v1.schema.json` is the
+checked-in public artifact. `make export-schema` regenerates it from code and
+tests compare the generated schema with the checked-in file.
 
 ## Release Checklist
 
@@ -72,15 +71,15 @@ Before cutting a release or tag, run:
 ```bash
 make test
 make lint
-make build
-make import-smoke
-make validate-config
 make export-schema
-make audit-dist
 git diff --check
+make build
+make audit-dist
+make import-smoke
 ```
 
-Also attempt live runtime validation on an installed Isaac Sim/Lab environment:
+Also attempt live runtime validation on an installed Isaac Sim/Lab environment
+when refreshing live evidence:
 
 ```bash
 make live-isaac-sim-audio ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
@@ -88,4 +87,5 @@ make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
 ```
 
 Do not publish to PyPI or create a git tag until the release checklist,
-changelog, archive audit, and live-runtime evidence are reviewed.
+changelog, archive audit, install smoke, and live-runtime evidence or blockers
+are reviewed.

@@ -9,6 +9,8 @@ import tarfile
 import zipfile
 from pathlib import Path
 
+RELEASE_VERSION = "1.0.0rc1"
+
 
 def _load_audit_module():
     script_path = (
@@ -28,17 +30,35 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
     dist_dir = tmp_path / "dist"
     dist_dir.mkdir()
     _write_sdist(
-        dist_dir / "isaac_audio_sensors-0.1.0.tar.gz",
+        dist_dir / f"isaac_audio_sensors-{RELEASE_VERSION}.tar.gz",
         {
             "README.md": "# isaac-audio-sensors\n",
-            "CHANGELOG.md": "# Changelog\n",
+            "CHANGELOG.md": "# Changelog\n\n## 0." + "1.0 - historical\n",
+            "LICENSE": "Apache-2.0\n",
+            "NOTICE": "notice\n",
+            "CITATION.cff": f'version: "{RELEASE_VERSION}"\n',
+            "CODE_OF_CONDUCT.md": "# Code of Conduct\n",
+            "CONTRIBUTING.md": "# Contributing\n",
+            "SECURITY.md": "# Security\n",
             "MANIFEST.in": "include README.md\n",
-            "pyproject.toml": "[project]\nname = 'isaac-audio-sensors'\n",
+            "pyproject.toml": (
+                "[project]\n"
+                "name = 'isaac-audio-sensors'\n"
+                f"version = '{RELEASE_VERSION}'\n"
+            ),
+            "configs/isaac_audio_sensors_demo.toml": "[scene]\n",
             "docs/acoustic_fidelity.md": "# Acoustic Fidelity Ladder\n",
-            "docs/api_freeze_0_1.md": "# API Freeze 0.1\n",
+            "docs/api_freeze_0_1.md": "# API Freeze\n",
             "docs/api_reference.md": "# API Reference\n",
+            "docs/installation.md": "# Installation\n",
+            "docs/open_source_release_checklist.md": "# Checklist\n",
+            "docs/quickstart.md": "# Quickstart\n",
+            "docs/validation.md": "# Validation\n",
+            "docs/versioning.md": f"package version: `{RELEASE_VERSION}`\n",
             "docs/v1_scope.md": _scope_doc_text(),
             "docs/schemas/audio_sensor_frame.v1.schema.json": "{}\n",
+            "examples/README.md": "# Examples\n",
+            "examples/core/single_source_bearing.py": "print('example')\n",
             "examples/traces/ambiguity_frame.v1.json": "{}\n",
             "examples/traces/diagnostics_provenance_sequence.v1.ndjson": "{}\n",
             "examples/traces/minimal_frame.v1.json": "{}\n",
@@ -48,8 +68,15 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "scripts/audit_distribution.py": "print('audit')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",
             "scripts/live_omniverse_extension_ux.py": "print('ux')\n",
-            "src/isaac_audio_sensors/__init__.py": "__version__ = '0.1.0'\n",
+            "src/isaac_audio_sensors/__init__.py": (
+                f"__version__ = '{RELEASE_VERSION}'\n"
+            ),
+            "src/isaac_audio_sensors/__main__.py": "from .cli import main\n",
+            "src/isaac_audio_sensors/cli.py": "def main(): return 0\n",
             "src/isaac_audio_sensors/core/fidelity.py": "LADDER = ()\n",
+            "src/isaac_audio_sensors/core/schema.py": "\n",
+            "src/isaac_audio_sensors/core/types.py": "\n",
+            "src/isaac_audio_sensors/core/io/traces.py": "\n",
             "src/isaac_audio_sensors/isaac/extension_ui.py": "\n",
             "src/isaac_audio_sensors/isaac/replicator.py": "\n",
             "tests/test_acoustic_fidelity.py": "def test_ladder():\n    assert True\n",
@@ -58,16 +85,22 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
         },
     )
     _write_wheel(
-        dist_dir / "isaac_audio_sensors-0.1.0-py3-none-any.whl",
+        dist_dir / f"isaac_audio_sensors-{RELEASE_VERSION}-py3-none-any.whl",
         {
-            "isaac_audio_sensors/__init__.py": "__version__ = '0.1.0'\n",
+            "isaac_audio_sensors/__init__.py": f"__version__ = '{RELEASE_VERSION}'\n",
+            "isaac_audio_sensors/__main__.py": "from .cli import main\n",
+            "isaac_audio_sensors/cli.py": "def main(): return 0\n",
+            "isaac_audio_sensors/core/schema.py": "\n",
             "isaac_audio_sensors/core/types.py": "\n",
+            "isaac_audio_sensors/core/io/traces.py": "\n",
             "isaac_audio_sensors/isaac/extension.py": "\n",
             "isaac_audio_sensors/isaac/extension_ui.py": "\n",
             "isaac_audio_sensors/isaac/replicator.py": "\n",
             "isaac_audio_sensors/lab/audio_array_sensor.py": "\n",
-            "isaac_audio_sensors-0.1.0.dist-info/METADATA": "Name: x\n",
-            "isaac_audio_sensors-0.1.0.dist-info/entry_points.txt": "\n",
+            f"isaac_audio_sensors-{RELEASE_VERSION}.dist-info/METADATA": (
+                "Name: x\n"
+            ),
+            f"isaac_audio_sensors-{RELEASE_VERSION}.dist-info/entry_points.txt": "\n",
         },
     )
 
@@ -79,19 +112,37 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
 
 def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
     audit = _load_audit_module()
-    archive_path = tmp_path / "isaac_audio_sensors-0.1.0.tar.gz"
+    archive_path = tmp_path / f"isaac_audio_sensors-{RELEASE_VERSION}.tar.gz"
     _write_sdist(
         archive_path,
         {
             "README.md": "# isaac-audio-sensors\n",
-            "CHANGELOG.md": "# Changelog\n",
+            "CHANGELOG.md": "# Changelog\n\n## 0." + "1.0 - historical\n",
+            "LICENSE": "Apache-2.0\n",
+            "NOTICE": "notice\n",
+            "CITATION.cff": f'version: "{RELEASE_VERSION}"\n',
+            "CODE_OF_CONDUCT.md": "# Code of Conduct\n",
+            "CONTRIBUTING.md": "# Contributing\n",
+            "SECURITY.md": "# Security\n",
             "MANIFEST.in": "include README.md\n",
-            "pyproject.toml": "[project]\nname = 'isaac-audio-sensors'\n",
+            "pyproject.toml": (
+                "[project]\n"
+                "name = 'isaac-audio-sensors'\n"
+                f"version = '{RELEASE_VERSION}'\n"
+            ),
+            "configs/isaac_audio_sensors_demo.toml": "[scene]\n",
             "docs/acoustic_fidelity.md": "# Acoustic Fidelity Ladder\n",
-            "docs/api_freeze_0_1.md": "# API Freeze 0.1\n",
+            "docs/api_freeze_0_1.md": "# API Freeze\n",
             "docs/api_reference.md": "# API Reference\n",
+            "docs/installation.md": "# Installation\n",
+            "docs/open_source_release_checklist.md": "# Checklist\n",
+            "docs/quickstart.md": "# Quickstart\n",
+            "docs/validation.md": "# Validation\n",
+            "docs/versioning.md": f"package version: `{RELEASE_VERSION}`\n",
             "docs/v1_scope.md": _scope_doc_text(),
             "docs/schemas/audio_sensor_frame.v1.schema.json": "{}\n",
+            "examples/README.md": "# Examples\n",
+            "examples/core/single_source_bearing.py": "print('example')\n",
             "examples/traces/ambiguity_frame.v1.json": "{}\n",
             "examples/traces/diagnostics_provenance_sequence.v1.ndjson": "{}\n",
             "examples/traces/minimal_frame.v1.json": "{}\n",
@@ -101,8 +152,15 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
             "scripts/audit_distribution.py": "print('audit')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",
             "scripts/live_omniverse_extension_ux.py": "print('ux')\n",
-            "src/isaac_audio_sensors/__init__.py": "__version__ = '0.1.0'\n",
+            "src/isaac_audio_sensors/__init__.py": (
+                f"__version__ = '{RELEASE_VERSION}'\n"
+            ),
+            "src/isaac_audio_sensors/__main__.py": "from .cli import main\n",
+            "src/isaac_audio_sensors/cli.py": "def main(): return 0\n",
             "src/isaac_audio_sensors/core/fidelity.py": "LADDER = ()\n",
+            "src/isaac_audio_sensors/core/schema.py": "\n",
+            "src/isaac_audio_sensors/core/types.py": "\n",
+            "src/isaac_audio_sensors/core/io/traces.py": "\n",
             "src/isaac_audio_sensors/isaac/extension_ui.py": "\n",
             "src/isaac_audio_sensors/isaac/replicator.py": "\n",
             "tests/test_acoustic_fidelity.py": "def test_ladder():\n    assert True\n",
@@ -118,6 +176,43 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
     assert any(".local-goals" in finding for finding in result.findings)
     assert any(
         "forbidden public-package text token" in finding
+        for finding in result.findings
+    )
+
+
+def test_distribution_audit_rejects_unexpected_archive_version(tmp_path):
+    audit = _load_audit_module()
+    archive_path = tmp_path / "isaac_audio_sensors-9.9.9.tar.gz"
+    _write_sdist(
+        archive_path,
+        {
+            "README.md": "# isaac-audio-sensors\n",
+            "CHANGELOG.md": "# Changelog\n",
+        },
+    )
+
+    result = audit.audit_archive(archive_path)
+
+    assert any(
+        "unexpected sdist filename" in finding for finding in result.findings
+    )
+
+
+def test_distribution_audit_rejects_stale_active_version_text(tmp_path):
+    audit = _load_audit_module()
+    archive_path = tmp_path / f"isaac_audio_sensors-{RELEASE_VERSION}.tar.gz"
+    _write_sdist(
+        archive_path,
+        {
+            "README.md": "current release remains " + "0." + "1.0\n",
+            "CHANGELOG.md": "# Changelog\n",
+        },
+    )
+
+    result = audit.audit_archive(archive_path)
+
+    assert any(
+        "stale active release version token" in finding
         for finding in result.findings
     )
 
@@ -148,7 +243,7 @@ def _scope_doc_text() -> str:
 
 
 def _write_sdist(path: Path, files: dict[str, str]) -> None:
-    root = "isaac_audio_sensors-0.1.0"
+    root = f"isaac_audio_sensors-{RELEASE_VERSION}"
     with tarfile.open(path, "w:gz") as archive:
         for name, content in files.items():
             payload = content.encode("utf-8")

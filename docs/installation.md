@@ -2,7 +2,15 @@
 
 ## Core Install
 
-Use Python 3.10 or newer for the pure package:
+Use Python 3.10 or newer for the pure package. After building the local release
+candidate, install the wheel directly:
+
+```bash
+python -m pip install dist/isaac_audio_sensors-1.0.0rc1-py3-none-any.whl
+python -m isaac_audio_sensors --version
+```
+
+For development from a checkout:
 
 ```bash
 python3 -m venv .venv
@@ -15,6 +23,7 @@ Verify that the core package imports without Isaac Sim or Isaac Lab:
 
 ```bash
 python -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
+python -m isaac_audio_sensors --version
 ```
 
 ## Optional Extras

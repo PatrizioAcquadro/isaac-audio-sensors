@@ -11,6 +11,7 @@ Before opening a pull request, run:
 ```bash
 python -m pytest
 python -m ruff check .
+python -m isaac_audio_sensors --version
 python -m build
 git diff --check
 ```
@@ -27,5 +28,5 @@ Contribution rules:
 - Add tests for behavior changes and docs for public API changes.
 
 Versioning follows semantic versioning. Public APIs listed in
-`docs/api_freeze_0_1.md` remain stable for `0.1.x` except for documented
-deprecations.
+`docs/api_freeze_0_1.md` remain stable for compatible v1 releases except for
+documented deprecations.

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -39,7 +41,31 @@ from isaac_audio_sensors.core.types import (
 
 
 def test_core_package_imports_and_exposes_version():
-    assert isaac_audio_sensors.__version__ == "0.1.0"
+    assert isaac_audio_sensors.__version__ == "1.0.0rc1"
+
+
+def test_version_surfaces_match_release_candidate():
+    root = Path(__file__).resolve().parents[1]
+    expected = "1.0.0rc1"
+    assert f'version = "{expected}"' in (root / "pyproject.toml").read_text()
+    assert f'version = "{expected}"' in (
+        root / "exts/isaac_audio_sensors.omni/config/extension.toml"
+    ).read_text()
+    assert f'version: "{expected}"' in (root / "CITATION.cff").read_text()
+    assert f"package version: `{expected}`" in (
+        root / "docs/versioning.md"
+    ).read_text()
+    assert f"## {expected} - 2026-05-24" in (root / "CHANGELOG.md").read_text()
+
+
+def test_package_module_version_entrypoint_reports_release_candidate():
+    result = subprocess.run(
+        [sys.executable, "-m", "isaac_audio_sensors", "--version"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout.strip() == "1.0.0rc1"
 
 
 def test_config_validation_accepts_demo_config():

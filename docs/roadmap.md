@@ -62,6 +62,6 @@ change.
 - GCC-PHAT and SRP-PHAT estimation paths as documented public backends.
 - ROS 2 adapter as an optional downstream/project layer.
 - Broader tested adapters for custom Isaac Lab task asset APIs beyond the
-  common tensor/entity patterns documented in 0.1.x.
+  common tensor/entity patterns documented for the v1 release candidate.
 - Pre-publish license, asset, and live-runtime evidence review before any PyPI
   release or git tag.
