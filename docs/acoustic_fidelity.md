@@ -6,6 +6,11 @@ runtime behavior from future realism work. The ladder is public API through
 `isaac_audio_sensors.AcousticFidelityLevel`, and
 `isaac_audio_sensors.fidelity_level_for_backend(...)`.
 
+[V1 Public Scope](v1_scope.md) is the release-scope source of truth. This
+ladder documents compatibility boundaries; it does not promise complete L3/L4
+runtime fidelity, sim-real calibration, real hardware benchmarks, or realistic
+material/occlusion acoustics in v1.
+
 `KNOWN_BACKENDS` and `get_backend(...)` remain the runtime backend registry.
 Only L0, L1, and L2 are selectable runtime backend levels in v1. L3 and L4 are
 documented so future config, diagnostics, artifacts, and optional dependencies

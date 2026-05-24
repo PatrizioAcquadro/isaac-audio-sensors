@@ -14,6 +14,8 @@ The core frame boundary is `AudioSensorFrame` schema
 source poses, explicit units, provenance, time-window fields, and `max_events`
 semantics for downstream consumers.
 
+The release promise boundary is maintained in [V1 Public Scope](v1_scope.md).
+
 ## Isaac Sim
 
 `isaac_audio_sensors.isaac` contains lazy Isaac Sim helpers for authoring and
@@ -108,7 +110,9 @@ path. The extension also exposes an optional Replicator recorder that imports
 `omni.replicator.core` lazily, registers a Python writer when the Kit runtime
 supports it, writes recoverable `AudioSensorFrame` v1 payloads plus extension
 metadata, and reports readable blockers when writer, annotator, write, or flush
-APIs differ across Isaac/Kit versions.
+APIs differ across Isaac/Kit versions. Replicator is optional extension
+functionality, not a core import dependency, and is not required by the Isaac
+Sim base sensor or the Isaac Lab sensor.
 
 ## Optional Project Adapters
 

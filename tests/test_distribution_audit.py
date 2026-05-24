@@ -37,6 +37,7 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "docs/acoustic_fidelity.md": "# Acoustic Fidelity Ladder\n",
             "docs/api_freeze_0_1.md": "# API Freeze 0.1\n",
             "docs/api_reference.md": "# API Reference\n",
+            "docs/v1_scope.md": _scope_doc_text(),
             "docs/schemas/audio_sensor_frame.v1.schema.json": "{}\n",
             "examples/traces/ambiguity_frame.v1.json": "{}\n",
             "examples/traces/diagnostics_provenance_sequence.v1.ndjson": "{}\n",
@@ -53,6 +54,7 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "src/isaac_audio_sensors/isaac/replicator.py": "\n",
             "tests/test_acoustic_fidelity.py": "def test_ladder():\n    assert True\n",
             "tests/test_isaac_audio_core.py": "def test_core():\n    assert True\n",
+            "tests/test_v1_scope_docs.py": "def test_scope():\n    assert True\n",
         },
     )
     _write_wheel(
@@ -88,6 +90,7 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
             "docs/acoustic_fidelity.md": "# Acoustic Fidelity Ladder\n",
             "docs/api_freeze_0_1.md": "# API Freeze 0.1\n",
             "docs/api_reference.md": "# API Reference\n",
+            "docs/v1_scope.md": _scope_doc_text(),
             "docs/schemas/audio_sensor_frame.v1.schema.json": "{}\n",
             "examples/traces/ambiguity_frame.v1.json": "{}\n",
             "examples/traces/diagnostics_provenance_sequence.v1.ndjson": "{}\n",
@@ -104,6 +107,7 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
             "src/isaac_audio_sensors/isaac/replicator.py": "\n",
             "tests/test_acoustic_fidelity.py": "def test_ladder():\n    assert True\n",
             "tests/test_isaac_audio_core.py": "def test_core():\n    assert True\n",
+            "tests/test_v1_scope_docs.py": "def test_scope():\n    assert True\n",
             ".local-goals/private.md": "local notes\n",
             "docs/private.md": "/home/" + "pacquadr/Desktop/private\n",
         },
@@ -115,6 +119,31 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
     assert any(
         "forbidden public-package text token" in finding
         for finding in result.findings
+    )
+
+
+def _scope_doc_text() -> str:
+    return "\n".join(
+        (
+            "# V1 Public Scope",
+            "Stable `AudioSensorFrame` v1 public contract",
+            "Stable L0 `geometry_only` backend",
+            "Stable L1 `tdoa_synthetic` backend",
+            "Supported optional L2 `room_acoustics` backend",
+            "Supported Isaac Sim live sensor path",
+            "Supported Isaac Lab sensor path",
+            "Omniverse extension as the reference UX",
+            "Stable JSON/JSONL export",
+            "Replicator as an optional extension capability",
+            "SquadBot as a v1 release gate",
+            "Sim-real calibration",
+            "Real hardware benchmarks",
+            "Complete L3/L4 acoustic fidelity",
+            "Realistic occlusions or material acoustics",
+            "Mandatory ROS 2 or downstream adapters",
+            "Alex or SquadBot validation before releasing the sensor package",
+            "",
+        )
     )
 
 

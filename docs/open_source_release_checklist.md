@@ -17,6 +17,28 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
 - [x] Public metadata points to the package source repository, docs/showcase,
   changelog, and issue tracker.
 
+## V1 Scope Freeze
+
+- [x] [V1 Public Scope](v1_scope.md) is the canonical public source of truth
+  for v1 promises and non-promises.
+- [x] V1 promises only the stable `AudioSensorFrame` v1 public contract,
+  stable L0 `geometry_only`, stable L1 `tdoa_synthetic`, supported optional L2
+  `room_acoustics`, supported Isaac Sim live sensor path, supported Isaac Lab
+  sensor path, Omniverse extension as the reference UX, stable JSON/JSONL
+  export, and Replicator as an optional extension capability.
+- [x] V1 does not promise SquadBot as a v1 release gate, sim-real calibration,
+  real hardware benchmarks, complete L3/L4 acoustic fidelity, realistic
+  occlusions or material acoustics, mandatory ROS 2 or downstream adapters, or
+  Alex or SquadBot validation before releasing the sensor package.
+- [x] Explicit non-promises use the canonical labels: SquadBot as a v1 release
+  gate; Sim-real calibration; Real hardware benchmarks; Complete L3/L4
+  acoustic fidelity; Realistic occlusions or material acoustics; Mandatory
+  ROS 2 or downstream adapters; Alex or SquadBot validation before releasing
+  the sensor package.
+- [x] Replicator is documented as extension-only and optional; core package
+  import, `AudioSensorFrame`, JSON/JSONL export, the Isaac Sim base sensor, and
+  the Isaac Lab sensor do not depend on `omni.replicator.core`.
+
 ## API Freeze
 
 - [x] `docs/api_freeze_0_1.md` separates stable, provisional, experimental, and
@@ -47,17 +69,22 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
 - [x] README and docs describe a standalone open-source Isaac Sim/Lab audio
   sensor package.
 - [x] Docs avoid claims of full acoustic realism, production beamforming,
-  speech recognition, or universal Replicator/annotator compatibility.
+  speech recognition, core-required Replicator integration, or universal
+  Replicator/annotator compatibility.
 - [x] Docs state that L3 advanced realism and L4 sim-real calibration are
   future-compatible metadata/tooling directions, not complete v1 runtime
   systems.
 - [x] Limitations document the optional approximate `pyroomacoustics` path.
 - [x] Limitations document that Replicator recording is an optional extension
-  writer path, while annotator registration remains best-effort by Kit version.
+  writer path, while annotator registration remains best-effort by Kit version
+  and missing Kit Replicator APIs do not block core package JSON/JSONL output.
 - [x] Limitations document that Lab entity binding covers common Isaac Lab
   tensor/entity patterns, not arbitrary custom task APIs.
 - [x] Validation docs state that live Isaac checks require user-managed Isaac
   runtimes, GPU access, and non-sandboxed runtime visibility.
+- [x] Validation docs state that SquadBot, Alex, ROS 2/downstream adapters, real
+  hardware benchmarks, sim-real calibration, complete L3/L4, and realistic
+  material/occlusion acoustics are not v1 package release gates.
 - [x] Roadmap separates completed release-candidate work from future work.
 
 ## Packaging And Distribution
@@ -95,25 +122,53 @@ make lint
 make export-schema
 git diff --check
 make build
-make import-smoke
 make validate-config
 make audit-dist
+make import-smoke
 ```
 
-Run live checks on a local Isaac runtime when available:
+These required local gates cover contract/schema/trace validation, L0/L1 tests,
+optional L2 behavior, JSON/JSONL export, package build, packaging audit, import
+smoke, lint, and distribution audit.
+
+Run and record live sensor gates on a local Isaac runtime before publishing or
+tagging a release candidate:
 
 ```bash
 make live-isaac-sim-audio ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
 make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
 ```
 
+Run the extension UX smoke when Kit is available and the reference UX evidence
+is being refreshed:
+
+```bash
+make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
+```
+
+Replicator validation is an optional extension-capability gate. A missing
+Replicator runtime or incompatible Kit writer/annotator API must be recorded as
+extension evidence, but it must not block the core v1 package unless the release
+specifically claims Replicator is enabled for that environment.
+
 If a live command cannot run because of sandboxing, EULA, GPU visibility, or
 runtime availability, record the exact command, exact error, and the closest
 validation that did run.
 
+## Non-Gates For V1 Package Release
+
+- [x] SquadBot validation is not required before releasing the sensor package.
+- [x] Alex validation is not required before releasing the sensor package.
+- [x] ROS 2 and downstream adapters are optional project layers, not mandatory
+  v1 package gates.
+- [x] Real hardware benchmarks and sim-real calibration are outside v1 scope.
+- [x] Complete L3/L4 fidelity, realistic materials, and realistic occlusion are
+  outside v1 scope.
+
 ## Final Pre-Publish Checks
 
-- [ ] Public hygiene grep returns no project-specific or private path leaks.
+- [ ] Public hygiene grep returns no project-specific or private path leaks
+  outside the allowed scope/non-promise docs.
 - [ ] Acoustic fidelity ladder tests and docs links pass before release.
 - [ ] `git ls-files` shows no tracked caches, generated outputs, local goals,
   virtual environments, build artifacts, or private environment files.

@@ -14,6 +14,12 @@ If `pyroomacoustics` is absent, core package import still succeeds and
 `OptionalDependencyUnavailable` with an install hint for the `room` extra.
 Tests that need the real dependency skip cleanly when it is unavailable.
 
+The v1 scope for L2 is defined in [V1 Public Scope](v1_scope.md): dependency
+gated, cleanly skipped or explicitly unavailable when the dependency is absent,
+and diagnostic-rich when present. It is not a release promise for realistic
+occlusion, material acoustics, sim-real calibration, or real hardware
+benchmarks.
+
 `RoomAcousticsBackend` uses `pyroomacoustics.ShoeBox` when available. It differs
 from the synthetic TDOA backend in four ways:
 

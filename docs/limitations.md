@@ -1,6 +1,12 @@
 # Limitations
 
 - The package is simulation tooling, not a safety-certified perception system.
+- [V1 Public Scope](v1_scope.md) is the canonical promise boundary. V1 does not
+  promise SquadBot as a v1 release gate, Alex as a v1 release gate, mandatory
+  ROS 2 or downstream adapters, sim-real calibration, real hardware
+  benchmarks, complete L3/L4 acoustic fidelity, realistic occlusions or
+  material acoustics, or Alex/SquadBot validation before releasing the sensor
+  package.
 - `geometry_only` is deterministic geometry, not acoustic propagation.
 - `tdoa_synthetic` models direct-path delay from known geometry and optional
   deterministic stress controls; it does not model occlusion, multipath, or

@@ -17,6 +17,12 @@ the repository is still preparing the initial 0.1.0 release surface, and the
 compatibility contract is documented through the Unreleased changelog entries
 and the 0.1 API freeze.
 
+The package's v1 promise boundary is frozen in [V1 Public Scope](v1_scope.md).
+Versioning changes must not expand v1 into downstream release gates, sim-real
+calibration, real hardware benchmarks, complete L3/L4 fidelity, realistic
+material/occlusion acoustics, or mandatory ROS 2/project adapters without an
+explicit future scope change.
+
 ## Package Compatibility
 
 Patch releases in `0.1.x` keep the stable API in

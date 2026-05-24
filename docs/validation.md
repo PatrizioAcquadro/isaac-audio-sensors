@@ -3,6 +3,27 @@
 Core validation does not require Isaac Sim, Isaac Lab, Omniverse, or
 `pyroomacoustics`.
 
+## V1 Release Scope Gates
+
+[V1 Public Scope](v1_scope.md) is the canonical source for release promises and
+non-promises. A v1 release candidate must validate the stable
+`AudioSensorFrame` contract, JSON Schema parity, JSON and JSONL trace corpus,
+stable L0 `geometry_only`, stable L1 `tdoa_synthetic`, supported optional L2
+`room_acoustics` behavior, package JSON/JSONL export, import smoke, lint,
+build, and distribution audit.
+
+The supported Isaac Sim and Isaac Lab sensor paths have their own live smoke
+gates when a user-managed runtime is available. The Omniverse extension UX
+smoke is the gate for the reference UX when Kit is available. Replicator is only
+an optional extension capability gate: absence of `omni.replicator.core` must
+not block the core v1 package unless the release specifically claims
+Replicator is enabled in that environment.
+
+The following are non-gates for v1 package release: SquadBot, Alex,
+ROS 2/downstream adapters, real hardware benchmarks, sim-real calibration,
+complete L3/L4 acoustic fidelity, realistic materials or occlusion acoustics,
+and Alex or SquadBot validation before releasing the sensor package.
+
 Run:
 
 ```bash

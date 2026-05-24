@@ -9,6 +9,10 @@ The backend ids below are tied to the public
 v1. L3 advanced realism and L4 sim-real calibration are documented future
 directions, not selectable v1 runtime backends.
 
+The canonical promise boundary is [V1 Public Scope](v1_scope.md). Backends do
+not make sim-real calibration, real hardware benchmarks, complete L3/L4, or
+realistic occlusion/material acoustics part of the v1 release.
+
 All backends populate the v1 frame contract with the array pose, source poses
 when known, explicit units, time-window fields, and provenance. `max_events` is
 read from `AudioTimeWindow.max_events`; active sources are selected in a stable

@@ -420,11 +420,30 @@ def test_public_files_use_neutral_demo_names():
         "Phase " + "5.5",
         "phase" + "55",
         "phase_5" + "_5",
-        "Squad" + "Bot",
+    )
+    project_token = "Squad" + "Bot"
+    project_token_allowed_paths = {
+        "README.md",
+        "docs/README.md",
+        "docs/api_freeze_0_1.md",
+        "docs/isaac_lab.md",
+        "docs/limitations.md",
+        "docs/open_source_release_checklist.md",
+        "docs/v1_scope.md",
+        "docs/validation.md",
+    }
+    forbidden_project_context = (
+        "release gate",
+        "validation before releasing",
+        "validation is not required",
+        "does not promise",
     )
     for path in public_files:
         text = path.read_text(encoding="utf-8")
         assert not any(term in text for term in forbidden), path
+        if project_token in text:
+            assert path.as_posix() in project_token_allowed_paths, path
+            assert any(phrase in text for phrase in forbidden_project_context), path
 
 
 def test_detection_mode_validation_rejects_unknown_mode():

@@ -3,6 +3,10 @@
 The `isaac_audio_sensors.isaac` layer provides optional helpers for Isaac Sim
 and Omniverse USD stages.
 
+The supported v1 Isaac Sim scope is defined in [V1 Public Scope](v1_scope.md):
+the live sensor path is supported, the Kit extension is the reference UX, and
+Replicator is only an optional extension capability.
+
 Supported compatibility target:
 
 - Isaac Sim 5.1: live smoke supported when the user's Isaac Python runtime is
@@ -79,7 +83,7 @@ The extension window is organized around the live authoring workflow:
   `tdoa_synthetic`, `room_acoustics`), ambiguity policy, update period, max
   events, debug overlay toggle, JSONL writer toggle/path, and
   start/stop/update lifecycle buttons.
-- `Replicator`: enables the Omniverse-native writer path, sets output
+- `Replicator`: optionally enables the Omniverse-native writer path, sets output
   directory, writer name, and annotator name, and exposes start, flush, stop,
   write-count, and latest-artifact status.
 - `Export`: writes the latest frame JSON, writes a reusable
@@ -133,7 +137,7 @@ Practical Isaac Sim workflow:
    period, max events, overlay, and JSONL writer path.
 9. Click `Start`, then `Update`; the latest-frame and overlay labels should
    show detection count, backend, bearing, sector, and primitive count.
-10. In `Replicator`, enable recording, set the output directory, click
+10. Optionally, in `Replicator`, enable recording, set the output directory, click
     `Start`, click `Update` again, then click `Flush`.
 11. In `Export`, write the latest JSON frame and config JSON. Use `Load Config`
     on a later run to restore backend, prim paths, roots, writer paths,
@@ -145,19 +149,22 @@ Recording paths:
 - Package-native JSON/JSONL is the stable v1 package trace path. It writes full
   `AudioSensorFrame` v1 records through `AudioFrameJsonlWriter` and
   `write_frame_trace`.
-- Omniverse-native Replicator is the stable v1 extension recording path. It is
-  imported lazily from `omni.replicator.core`, registers
+- Omniverse-native Replicator is a supported optional v1 extension recording
+  capability. It is imported lazily from `omni.replicator.core`, registers
   `IsaacAudioSensorFrameWriter`, writes a recoverable payload containing the
   full `AudioSensorFrame` v1 object plus backend, array/source ids, bearing,
   sector, diagnostics namespaces, overlay metadata, extension config, and
   provenance, and flushes a manifest/status file.
 
-Replicator remains optional at package import time. If `omni.replicator.core`,
-`WriterRegistry`, writer lookup, output path creation, write, or flush is
-unavailable, the extension reports a readable status/error and leaves the
-package JSON/JSONL path usable. Some Isaac/Kit versions do not expose a simple
-Python annotator registration API; in that case the writer still records audio
-frames and the config/evidence records the annotator API status.
+Replicator remains optional at package import time and is not a core dependency.
+Core import, `AudioSensorFrame`, JSON/JSONL export, `IsaacAudioArraySensor`,
+and the Isaac Lab sensor do not depend on Replicator availability. If
+`omni.replicator.core`, `WriterRegistry`, writer lookup, output path creation,
+write, or flush is unavailable, the extension reports a readable status/error
+and leaves the package JSON/JSONL path usable. Some Isaac/Kit versions do not
+expose a simple Python annotator registration API; in that case the writer
+still records audio frames and the config/evidence records the annotator API
+status.
 
 Programmatic lifecycle:
 

@@ -2,6 +2,8 @@
 
 The stable, provisional, experimental, and private compatibility surfaces are
 defined in [API Freeze 0.1](api_freeze_0_1.md).
+[V1 Public Scope](v1_scope.md) defines the package promise boundary and the
+explicit v1 non-promises.
 
 Primary imports are available from `isaac_audio_sensors` for common model and
 backend classes. More specific helpers live under:
@@ -252,7 +254,10 @@ public Isaac helpers. Its controller can author array/source `ias:*` metadata,
 bind explicit or discovered stage prims, run `IsaacAudioArraySensor`, retain
 serialized overlay primitives when debug draw is unavailable, and export
 package JSON/JSONL traces plus a reusable binding/config summary. It is not a
-Replicator annotator or writer registration.
+core package dependency. Optional Replicator recording is available only through
+the extension path inside Isaac Sim/Kit; it imports `omni.replicator.core`
+lazily, records recoverable `AudioSensorFrame` v1 payloads when available, and
+does not affect the core JSON/JSONL export contract.
 
 ## Isaac Lab AudioArraySensor
 

@@ -4,6 +4,10 @@ This roadmap tracks package-level work for `isaac-audio-sensors`. Completed
 items are listed separately so future work does not repeat release-candidate
 capabilities that already exist.
 
+[V1 Public Scope](v1_scope.md) is the release-scope source of truth. Future
+items below are not v1 release gates unless they are promoted by a later scope
+change.
+
 ## Completed In Current Release Candidate
 
 - Standalone Apache-2.0 package boundary with public docs, examples, schemas,
@@ -39,7 +43,8 @@ capabilities that already exist.
   env-origin handling, and per-env diagnostics.
 - Reference Omniverse extension UX for selected-prim binding, array/source
   authoring, backend selection, live update/export, overlay state, reusable
-  config import/export, and optional Replicator recording.
+  config import/export, and optional lazy Replicator recording for recoverable
+  `AudioSensorFrame` v1 payloads when Kit exposes the needed APIs.
 - Release-candidate hygiene docs, versioning notes, archive audit script, and
   build-time distribution audit.
 
@@ -48,7 +53,8 @@ capabilities that already exist.
 - Automated Isaac Sim and Isaac Lab smoke CI on capable GPU runners.
 - Optional USD geometry authoring for debug primitives.
 - Broader Replicator annotator compatibility and richer dataset capture beyond
-  the current extension writer path.
+  the current extension writer path, including richer annotator integration
+  where public APIs permit it.
 - L3 advanced realism implementation for richer wave/RIR, material,
   occlusion, directivity, noise, and estimator realism.
 - L4 sim-real calibration tooling for measured array pose, gain, time-offset,

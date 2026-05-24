@@ -11,6 +11,12 @@ The distribution version is currently `0.1.0`. The frame schema version is
 independent and remains `ias.audio_sensor_frame.v1` for all compatible 0.1.x
 patch releases.
 
+[V1 Public Scope](v1_scope.md) is the single source of truth for release
+promises and non-promises. This API freeze defines compatibility for those
+promises; it does not make SquadBot, Alex, ROS 2/downstream adapters, sim-real
+calibration, real hardware benchmarks, complete L3/L4 fidelity, or realistic
+material/occlusion acoustics into v1 release gates.
+
 ## Stable For 0.1.x
 
 Stable APIs should keep names, import paths, required fields, and documented
@@ -166,9 +172,21 @@ Isaac Lab stage and entity binding:
 - `AudioArraySensor.from_scene_snapshot(...)`
 - `AudioArraySensor.from_lab_entities(...)`
 
-Omniverse Replicator recording path:
+Reference Omniverse extension UX and optional Replicator capability:
+
+- import-safe extension package under `exts/isaac_audio_sensors.omni`
+- selected-prim array/source/base binding through the reference UI/controller
+- array/source `ias:*` metadata authoring
+- semantic discovery, start/update/stop lifecycle controls, and debug overlays
+- package-native latest-frame JSON, JSONL trace, and config import/export
+
+Optional Omniverse Replicator recording path:
 
 - `AudioSensorReplicatorRecorder`
+- `AudioSensorReplicatorRecorder.start(...)`
+- `AudioSensorReplicatorRecorder.write_frame(...)`
+- `AudioSensorReplicatorRecorder.flush()`
+- `AudioSensorReplicatorRecorder.stop()`
 - `ReplicatorRecorderStatus`
 - `ReplicatorWriteResult`
 - `ReplicatorIntegrationError`
@@ -182,7 +200,10 @@ The Replicator path is optional and imported lazily. Compatible 0.1.x releases
 should preserve readable missing-runtime errors, full `AudioSensorFrame` v1
 payload recovery, and additive payload metadata. Writer and annotator
 registration details may vary by Isaac/Kit runtime and are recorded as
-diagnostics rather than treated as stable core behavior.
+diagnostics rather than treated as stable core behavior. Replicator is supported
+only as an optional extension capability: core package import,
+`AudioSensorFrame`, JSON/JSONL export, `IsaacAudioArraySensor`, and the Isaac
+Lab sensor APIs must remain usable without `omni.replicator.core`.
 
 ## Experimental
 
@@ -192,8 +213,10 @@ anchors for 0.1.x. They may change after changelog documentation.
 - `isaac_audio_sensors.isaac.viz`
 - structured debug primitive details beyond their documented fields
 - diagnostic JSON files emitted by live smoke scripts
-- reference Kit extension UI/controller code under
+- reference Kit extension UI layout and controller implementation details under
   `isaac_audio_sensors.isaac.extension_ui` and `exts/`
+- Replicator annotator-registration details and non-contract payload metadata
+  beyond the recoverable `AudioSensorFrame` v1 payload
 - `isaac_audio_sensors.examples`
 - scripts under `scripts/`, except for the command-line contract documented in
   `docs/validation.md`
@@ -202,7 +225,9 @@ anchors for 0.1.x. They may change after changelog documentation.
 
 Package-native `AudioFrameJsonlWriter` remains the stable core recording path.
 Omniverse Replicator recording is supported only inside Isaac Sim/Kit runtimes
-that expose compatible `omni.replicator.core` APIs.
+that expose compatible `omni.replicator.core` APIs. `AudioFrameJsonlWriter`
+and package JSON/JSONL exports remain the stable v1 package-native recording
+path.
 
 ## Internal And Private
 

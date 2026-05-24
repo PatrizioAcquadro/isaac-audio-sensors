@@ -3,6 +3,11 @@
 `isaac_audio_sensors.lab` exposes audio observations through an Isaac
 Lab-compatible sensor layer.
 
+The supported v1 Lab scope is defined in [V1 Public Scope](v1_scope.md). Isaac
+Lab support is a package sensor path with its own live validation gate; Alex,
+SquadBot, ROS 2, and downstream task validation are not v1 release gates for
+the sensor package.
+
 When Isaac Lab is initialized before import, the public classes are real Isaac
 Lab subclasses:
 

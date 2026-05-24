@@ -32,8 +32,8 @@ Source repository: <https://github.com/PatrizioAcquadro/isaac-audio-sensors>
   live update-loop capture, USD-native world-pose reads, nested transform
   stacks, robot/base-mounted arrays, moving sources/arrays/microphone children,
   semantic array/source discovery, active sound windows, debug visualization
-  records, JSONL writer output, and a reference Kit extension with Replicator
-  recording.
+  records, JSONL writer output, and a reference Kit extension with optional
+  extension-only Replicator recording.
 - Lazy Isaac Lab integration that becomes a real `SensorBaseCfg`/`SensorBase`
   sensor when imported inside an initialized Isaac Lab runtime, with a public
   recovery API, vectorized multi-env RL buffers, GPU validation, USD transform
@@ -58,6 +58,20 @@ The package is organized into four layers:
 4. Optional project adapters: downstream projects can convert
    `AudioSensorFrame` records into their own message or graph contracts outside
    the core package.
+
+## V1 Scope
+
+The canonical v1 scope is frozen in [V1 Public Scope](docs/v1_scope.md). V1
+promises only the stable `AudioSensorFrame` v1 contract, stable L0
+`geometry_only`, stable L1 `tdoa_synthetic`, supported optional L2
+`room_acoustics`, supported Isaac Sim and Isaac Lab sensor paths, the Omniverse
+extension as reference UX, stable JSON/JSONL export, and Replicator only as an
+optional extension capability.
+
+V1 does not promise SquadBot or Alex as release gates, sim-real calibration,
+real hardware benchmarks, complete L3/L4 acoustic fidelity, realistic
+occlusions or material acoustics, mandatory ROS 2 or downstream adapters, or
+Alex/SquadBot validation before releasing the sensor package.
 
 ## Quick Install
 
@@ -135,7 +149,8 @@ The acoustic fidelity ladder is documented in
 [Acoustic Fidelity Ladder](docs/acoustic_fidelity.md). L0 `geometry_only` and
 L1 `tdoa_synthetic` are stable v1 runtime levels, L2 `room_acoustics` is a
 supported optional v1 runtime level, and L3/L4 are future-facing metadata
-directions rather than complete v1 backends.
+directions rather than complete v1 backends. The complete promise and
+non-promise boundary is documented in [V1 Public Scope](docs/v1_scope.md).
 
 ## Isaac Sim Example
 
@@ -175,6 +190,10 @@ exports. The extension supports two recording paths:
 - Omniverse-native Replicator writer payloads under a user-selected output
   directory, with lazy `omni.replicator.core` registration and readable
   missing-runtime/write/flush errors.
+
+Replicator is optional extension functionality only. The core package import,
+`AudioSensorFrame`, JSON/JSONL export, Isaac Sim base sensor, and Isaac Lab
+sensor do not depend on Replicator availability.
 
 The live reference UX smoke is:
 
@@ -261,6 +280,7 @@ blocker when no NVIDIA GPU is available to the Isaac Lab runtime.
 
 - [Installation](docs/installation.md)
 - [Quickstart](docs/quickstart.md)
+- [V1 Public Scope](docs/v1_scope.md)
 - [Isaac Sim](docs/isaac_sim.md)
 - [Isaac Lab](docs/isaac_lab.md)
 - [Acoustic Fidelity Ladder](docs/acoustic_fidelity.md)

@@ -53,6 +53,62 @@ TEXT_SUFFIXES = (
 )
 MAX_TEXT_SCAN_BYTES = 1_000_000
 
+V1_SCOPE_REQUIRED_PHRASES = (
+    "Stable `AudioSensorFrame` v1 public contract",
+    "Stable L0 `geometry_only` backend",
+    "Stable L1 `tdoa_synthetic` backend",
+    "Supported optional L2 `room_acoustics` backend",
+    "Supported Isaac Sim live sensor path",
+    "Supported Isaac Lab sensor path",
+    "Omniverse extension as the reference UX",
+    "Stable JSON/JSONL export",
+    "Replicator as an optional extension capability",
+    "SquadBot as a v1 release gate",
+    "Sim-real calibration",
+    "Real hardware benchmarks",
+    "Complete L3/L4 acoustic fidelity",
+    "Realistic occlusions or material acoustics",
+    "Mandatory ROS 2 or downstream adapters",
+    "Alex or SquadBot validation before releasing the sensor package",
+)
+SCOPE_TOKEN_ALLOWLIST_ENTRIES = frozenset(
+    {
+        "README.md",
+        "docs/README.md",
+        "docs/api_freeze_0_1.md",
+        "docs/isaac_lab.md",
+        "docs/limitations.md",
+        "docs/open_source_release_checklist.md",
+        "docs/v1_scope.md",
+        "docs/validation.md",
+        "scripts/audit_distribution.py",
+        "tests/test_distribution_audit.py",
+        "tests/test_v1_scope_docs.py",
+    }
+)
+SCOPE_GUARDRAIL_CODE_ENTRIES = frozenset(
+    {
+        "scripts/audit_distribution.py",
+        "tests/test_distribution_audit.py",
+        "tests/test_v1_scope_docs.py",
+    }
+)
+FORBIDDEN_SCOPE_OVERCLAIM_PHRASES = (
+    "SquadBot validation is required",
+    "Alex validation is required",
+    "SquadBot release gate",
+    "Alex release gate",
+    "ROS 2 adapter is required",
+    "ROS2 adapter is required",
+    "downstream adapter is required",
+    "real hardware benchmark is required",
+    "sim-real calibration is required",
+    "complete L3 runtime backend",
+    "complete L4 runtime backend",
+    "Replicator is required for core",
+    "Replicator is a core dependency",
+)
+
 REQUIRED_SDIST_ENTRIES = (
     "README.md",
     "CHANGELOG.md",
@@ -61,6 +117,7 @@ REQUIRED_SDIST_ENTRIES = (
     "docs/acoustic_fidelity.md",
     "docs/api_freeze_0_1.md",
     "docs/api_reference.md",
+    "docs/v1_scope.md",
     "docs/schemas/audio_sensor_frame.v1.schema.json",
     "examples/traces/ambiguity_frame.v1.json",
     "examples/traces/diagnostics_provenance_sequence.v1.ndjson",
@@ -77,6 +134,7 @@ REQUIRED_SDIST_ENTRIES = (
     "src/isaac_audio_sensors/isaac/replicator.py",
     "tests/test_acoustic_fidelity.py",
     "tests/test_isaac_audio_core.py",
+    "tests/test_v1_scope_docs.py",
 )
 REQUIRED_WHEEL_ENTRIES = (
     "isaac_audio_sensors/__init__.py",
@@ -215,12 +273,19 @@ def _required_entry_findings(entries: tuple[str, ...], *, kind: str) -> tuple[st
 
 def _forbidden_content_findings(path: Path, *, kind: str) -> tuple[str, ...]:
     findings: list[str] = []
+    scope_text: str | None = None
     for entry_name, content in _iter_text_members(path, kind=kind):
+        if entry_name == "docs/v1_scope.md":
+            scope_text = content
         for token in _forbidden_text_tokens():
             if token in content:
                 findings.append(
                     f"{entry_name}: forbidden public-package text token {token!r}"
                 )
+        findings.extend(_project_scope_token_findings(entry_name, content))
+        findings.extend(_scope_overclaim_findings(entry_name, content))
+    if kind == "sdist":
+        findings.extend(_scope_doc_content_findings(scope_text))
     return tuple(findings)
 
 
@@ -258,11 +323,38 @@ def _forbidden_text_tokens() -> tuple[str, ...]:
         "Phase " + "5.5",
         "phase" + "55",
         "phase_5" + "_5",
-        "Squad" + "Bot",
         "NS" + "MRL",
         "Pur" + "due",
         "prof" + "essor",
         "/home/" + "pacquadr",
+    )
+
+
+def _project_scope_token_findings(entry_name: str, content: str) -> tuple[str, ...]:
+    token = "Squad" + "Bot"
+    if token not in content or entry_name in SCOPE_TOKEN_ALLOWLIST_ENTRIES:
+        return ()
+    return (f"{entry_name}: project token {token!r} outside scope docs",)
+
+
+def _scope_overclaim_findings(entry_name: str, content: str) -> tuple[str, ...]:
+    if entry_name in SCOPE_GUARDRAIL_CODE_ENTRIES:
+        return ()
+    lowered = content.lower()
+    findings: list[str] = []
+    for phrase in FORBIDDEN_SCOPE_OVERCLAIM_PHRASES:
+        if phrase.lower() in lowered:
+            findings.append(f"{entry_name}: forbidden v1 scope overclaim {phrase!r}")
+    return tuple(findings)
+
+
+def _scope_doc_content_findings(scope_text: str | None) -> tuple[str, ...]:
+    if scope_text is None:
+        return ()
+    return tuple(
+        f"docs/v1_scope.md: required v1 scope phrase missing: {phrase!r}"
+        for phrase in V1_SCOPE_REQUIRED_PHRASES
+        if phrase not in scope_text
     )
 
 

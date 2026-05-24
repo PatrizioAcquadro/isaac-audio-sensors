@@ -37,6 +37,9 @@
 - Added a distribution audit script and `make audit-dist`; `make build` now
   checks the built source distribution and wheel for required public files,
   forbidden generated/private paths, and public-package leak tokens.
+- Added a canonical v1 public scope page plus guardrails for v1 promises,
+  non-promises, downstream non-gates, and optional extension-only Replicator
+  wording.
 - Kept the package version at `0.1.0`; the current hardening remains part of
   the initial release-candidate surface, while the frame contract stays
   `ias.audio_sensor_frame.v1`.

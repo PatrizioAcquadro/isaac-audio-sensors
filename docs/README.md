@@ -5,6 +5,7 @@ public users.
 
 - [Installation](installation.md)
 - [Quickstart](quickstart.md)
+- [V1 Public Scope](v1_scope.md)
 - [Isaac Sim](isaac_sim.md)
 - [Omniverse Extension UX](isaac_sim.md#reference-extension-ux)
 - [Isaac Lab](isaac_lab.md)
@@ -28,7 +29,15 @@ Kit extension for authoring microphone arrays and sound sources directly in
 Isaac Sim. The documented workflow covers selected-prim binding, array/source
 metadata authoring, discovery, backend selection, start/update/stop lifecycle,
 debug overlay primitives, package JSON/JSONL export, config import/export, and
-Omniverse Replicator recording.
+optional Omniverse Replicator recording.
+
+## V1 Scope Boundary
+
+[V1 Public Scope](v1_scope.md) is the canonical promise and non-promise page for
+the release. V1 does not make SquadBot, Alex, ROS 2/downstream adapters,
+sim-real calibration, real hardware benchmarks, complete L3/L4 fidelity,
+realistic material/occlusion acoustics, or downstream project validation into
+package release gates.
 
 Validation artifacts from the live extension smoke are written under ignored
 `outputs/isaac_audio_sensors/`, including:
