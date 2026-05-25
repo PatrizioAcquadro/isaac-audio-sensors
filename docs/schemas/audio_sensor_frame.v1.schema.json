@@ -2,14 +2,17 @@
   "$id": "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
+  "description": "Stable AudioSensorFrame v1 trace contract. The schema_version is separate from the Python package version. Public fields, unit meanings, timestamp semantics, provenance values, coordinate convention, ambiguity representation, stable backend identifiers, and bearing-sector semantics are compatibility commitments for v1.",
   "properties": {
     "aggregate_per_mic_rms": {
       "additionalProperties": {
         "type": "number"
       },
+      "description": "Per-microphone aggregate RMS values in linear units.",
       "type": "object"
     },
     "array_id": {
+      "description": "Microphone-array identifier.",
       "minLength": 1,
       "type": "string"
     },
@@ -20,16 +23,20 @@
         },
         {
           "additionalProperties": true,
+          "description": "World-frame pose using x_forward_y_right_z_up_clockwise_bearing.",
           "properties": {
             "coordinate_convention": {
               "const": "x_forward_y_right_z_up_clockwise_bearing",
+              "description": "Stable v1 coordinate and bearing convention.",
               "type": "string"
             },
             "frame": {
+              "description": "Coordinate frame name; v1 examples use world.",
               "minLength": 1,
               "type": "string"
             },
             "orientation_xyzw": {
+              "description": "Quaternion orientation in x, y, z, w order.",
               "oneOf": [
                 {
                   "type": "null"
@@ -45,6 +52,7 @@
               ]
             },
             "position_m": {
+              "description": "Position in meters.",
               "items": {
                 "type": "number"
               },
@@ -64,14 +72,17 @@
       ]
     },
     "backend_id": {
+      "description": "Public backend identifier such as geometry_only, tdoa_synthetic, or room_acoustics.",
       "minLength": 1,
       "type": "string"
     },
     "coordinate_convention": {
       "const": "x_forward_y_right_z_up_clockwise_bearing",
+      "description": "Stable v1 coordinate and bearing convention.",
       "type": "string"
     },
     "detections": {
+      "description": "Detected, scheduled, or externally described events.",
       "items": {
         "additionalProperties": true,
         "properties": {
@@ -100,14 +111,17 @@
           },
           "doa": {
             "additionalProperties": true,
+            "description": "Direction-of-arrival estimate with explicit candidate and ambiguity representation.",
             "properties": {
               "ambiguity_class": {
+                "description": "Stable ambiguity class namespace when a bearing is not unique.",
                 "type": [
                   "string",
                   "null"
                 ]
               },
               "ambiguity_reason": {
+                "description": "Human-readable explanation for ambiguity_class.",
                 "type": [
                   "string",
                   "null"
@@ -119,12 +133,14 @@
                 "type": "number"
               },
               "bearing_sector": {
+                "description": "Canonical 8-sector label using corrected half-open v1 sector semantics.",
                 "type": [
                   "string",
                   "null"
                 ]
               },
               "candidate_bearing_deg": {
+                "description": "Candidate bearings in degrees clockwise from array forward.",
                 "items": {
                   "type": "number"
                 },
@@ -184,16 +200,20 @@
               },
               {
                 "additionalProperties": true,
+                "description": "World-frame pose using x_forward_y_right_z_up_clockwise_bearing.",
                 "properties": {
                   "coordinate_convention": {
                     "const": "x_forward_y_right_z_up_clockwise_bearing",
+                    "description": "Stable v1 coordinate and bearing convention.",
                     "type": "string"
                   },
                   "frame": {
+                    "description": "Coordinate frame name; v1 examples use world.",
                     "minLength": 1,
                     "type": "string"
                   },
                   "orientation_xyzw": {
+                    "description": "Quaternion orientation in x, y, z, w order.",
                     "oneOf": [
                       {
                         "type": "null"
@@ -209,6 +229,7 @@
                     ]
                   },
                   "position_m": {
+                    "description": "Position in meters.",
                     "items": {
                       "type": "number"
                     },
@@ -251,19 +272,23 @@
       "type": "array"
     },
     "diagnostics": {
+      "description": "Open-ended additive diagnostics; stable namespaces keep their documented meanings.",
       "type": "object"
     },
     "end_time_s": {
+      "description": "Exclusive frame-window end time in seconds.",
       "type": [
         "number",
         "null"
       ]
     },
     "frame_id": {
+      "description": "Stable machine-readable frame identifier.",
       "minLength": 1,
       "type": "string"
     },
     "frame_index": {
+      "description": "Non-negative producer frame index when present.",
       "minimum": 0,
       "type": [
         "integer",
@@ -271,10 +296,12 @@
       ]
     },
     "frame_name": {
+      "description": "Human-readable frame name; defaults to frame_id.",
       "minLength": 1,
       "type": "string"
     },
     "max_events": {
+      "description": "Non-negative deterministic detection cap when set.",
       "minimum": 0,
       "type": [
         "integer",
@@ -282,6 +309,7 @@
       ]
     },
     "provenance": {
+      "description": "Stable producer provenance namespace.",
       "enum": [
         "isaac_live",
         "replay/trace",
@@ -290,6 +318,7 @@
       ]
     },
     "sample_rate_hz": {
+      "description": "Audio sample rate in Hz when known.",
       "minimum": 1,
       "type": [
         "integer",
@@ -297,21 +326,25 @@
       ]
     },
     "schema_version": {
-      "const": "ias.audio_sensor_frame.v1"
+      "const": "ias.audio_sensor_frame.v1",
+      "description": "Stable frame schema id for all compatible v1 frames."
     },
     "start_time_s": {
+      "description": "Inclusive frame-window start time in seconds.",
       "type": [
         "number",
         "null"
       ]
     },
     "timestamp_ms": {
+      "description": "Frame timestamp in integer milliseconds.",
       "type": "integer"
     },
     "units": {
       "additionalProperties": {
         "type": "string"
       },
+      "description": "Stable unit names and meanings for v1 fields.",
       "properties": {
         "bearing": {
           "const": "deg_clockwise_from_array_forward",
@@ -364,6 +397,7 @@
       "type": "object"
     },
     "waveform_paths": {
+      "description": "Optional producer artifact paths.",
       "items": {
         "type": "string"
       },

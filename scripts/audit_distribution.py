@@ -74,6 +74,22 @@ V1_SCOPE_REQUIRED_PHRASES = (
     "Mandatory ROS 2 or downstream adapters",
     "Alex or SquadBot validation before releasing the sensor package",
 )
+V1_CONTRACT_REQUIRED_PHRASES = (
+    "Renaming public fields is a breaking change",
+    "Removing public fields is a breaking change",
+    (
+        "Changing `schema_version` away from `ias.audio_sensor_frame.v1` "
+        "is a breaking change"
+    ),
+    "Changing bearing-sector semantics is a breaking change",
+    (
+        "`geometry_only`, `tdoa_synthetic`, and `room_acoustics` are stable "
+        "backend identifiers"
+    ),
+    "Additive optional fields and additive diagnostics namespaces are compatible",
+    "Corrected bearing-sector behavior is the stable v1 contract",
+    "schema version is separate from the Python package version",
+)
 SCOPE_TOKEN_ALLOWLIST_ENTRIES = frozenset(
     {
         "README.md",
@@ -308,9 +324,12 @@ def _required_entry_findings(entries: tuple[str, ...], *, kind: str) -> tuple[st
 def _forbidden_content_findings(path: Path, *, kind: str) -> tuple[str, ...]:
     findings: list[str] = []
     scope_text: str | None = None
+    api_freeze_text: str | None = None
     for entry_name, content in _iter_text_members(path, kind=kind):
         if entry_name == "docs/v1_scope.md":
             scope_text = content
+        if entry_name == "docs/api_freeze_0_1.md":
+            api_freeze_text = content
         for token in _forbidden_text_tokens():
             if token in content:
                 findings.append(
@@ -321,6 +340,7 @@ def _forbidden_content_findings(path: Path, *, kind: str) -> tuple[str, ...]:
         findings.extend(_scope_overclaim_findings(entry_name, content))
     if kind == "sdist":
         findings.extend(_scope_doc_content_findings(scope_text))
+        findings.extend(_api_freeze_contract_findings(api_freeze_text))
     return tuple(findings)
 
 
@@ -401,6 +421,16 @@ def _scope_doc_content_findings(scope_text: str | None) -> tuple[str, ...]:
         f"docs/v1_scope.md: required v1 scope phrase missing: {phrase!r}"
         for phrase in V1_SCOPE_REQUIRED_PHRASES
         if phrase not in scope_text
+    )
+
+
+def _api_freeze_contract_findings(api_freeze_text: str | None) -> tuple[str, ...]:
+    if api_freeze_text is None:
+        return ()
+    return tuple(
+        f"docs/api_freeze_0_1.md: required v1 contract phrase missing: {phrase!r}"
+        for phrase in V1_CONTRACT_REQUIRED_PHRASES
+        if phrase not in api_freeze_text
     )
 
 

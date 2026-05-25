@@ -19,6 +19,9 @@ PYTHONPATH=src "$ISAAC_LAB_PYTHON" scripts/live_isaac_lab_audio_smoke.py
 ```
 
 Frame trace examples are tracked under `examples/traces/` and match
-`docs/schemas/audio_sensor_frame.v1.schema.json`.
+`docs/schemas/audio_sensor_frame.v1.schema.json`. They intentionally cover the
+stable v1 trace shape: an empty minimal frame, multiple detections, explicit
+two-microphone ambiguity, stable provenance namespaces, fixed units, and the
+corrected bearing-sector semantics.
 
 The examples are generic and do not depend on downstream project contracts.

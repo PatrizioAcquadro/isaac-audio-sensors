@@ -14,7 +14,10 @@ from isaac_audio_sensors.core.constants import (
     FRAME_SCHEMA_VERSION,
     SECTOR_ORDER,
 )
-from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
+from isaac_audio_sensors.core.doa.sector_mapping import (
+    bearing_deg_to_sector_name,
+    sector_bounds_deg,
+)
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
     quaternion_from_yaw_deg,
@@ -50,14 +53,41 @@ SECTOR_BOUNDARY_CASES = (
 SECTOR_CENTER_CASES = tuple(
     (index * 45.0, sector_name) for index, sector_name in enumerate(SECTOR_ORDER)
 )
+CANONICAL_SECTOR_ORDER = (
+    "straight",
+    "straight_right",
+    "right",
+    "behind_right",
+    "behind",
+    "behind_left",
+    "left",
+    "straight_left",
+)
 
 
 def test_sector_mapping_matches_locked_boundary_table() -> None:
+    assert SECTOR_ORDER == CANONICAL_SECTOR_ORDER
+
     for bearing_deg, expected_sector in SECTOR_BOUNDARY_CASES:
         assert bearing_deg_to_sector_name(bearing_deg) == expected_sector
 
     for bearing_deg, expected_sector in SECTOR_CENTER_CASES:
         assert bearing_deg_to_sector_name(bearing_deg) == expected_sector
+
+
+def test_sector_bounds_are_lower_inclusive_upper_exclusive_clockwise_bins() -> None:
+    epsilon = 1e-6
+    for index, sector_name in enumerate(CANONICAL_SECTOR_ORDER):
+        lower, upper = sector_bounds_deg(sector_name)
+        center = index * 45.0
+        next_sector = CANONICAL_SECTOR_ORDER[(index + 1) % len(CANONICAL_SECTOR_ORDER)]
+
+        assert lower == pytest.approx((center - 22.5) % 360.0)
+        assert upper == pytest.approx((center + 22.5) % 360.0)
+        assert bearing_deg_to_sector_name(center) == sector_name
+        assert bearing_deg_to_sector_name(lower) == sector_name
+        assert bearing_deg_to_sector_name(upper - epsilon) == sector_name
+        assert bearing_deg_to_sector_name(upper) == next_sector
 
 
 def test_geometry_backend_covers_all_sector_centers_and_boundaries() -> None:
@@ -77,9 +107,7 @@ def test_geometry_backend_covers_all_sector_centers_and_boundaries() -> None:
         assert doa.estimated_bearing_deg is not None
         assert angular_error_deg(doa.estimated_bearing_deg, bearing_deg) < 1e-6
         assert doa.bearing_sector == expected_sector
-        assert doa.candidate_bearing_deg == pytest.approx(
-            (doa.estimated_bearing_deg,)
-        )
+        assert doa.candidate_bearing_deg == pytest.approx((doa.estimated_bearing_deg,))
 
 
 def test_geometry_backend_zero_horizontal_vectors_have_no_fake_bearing() -> None:
@@ -122,13 +150,9 @@ def test_geometry_backend_respects_rotated_array_forward_right_basis() -> None:
     )
 
     by_source_id = {detection.source_id: detection for detection in frame.detections}
-    assert by_source_id["local_forward"].doa.estimated_bearing_deg == pytest.approx(
-        0.0
-    )
+    assert by_source_id["local_forward"].doa.estimated_bearing_deg == pytest.approx(0.0)
     assert by_source_id["local_forward"].doa.bearing_sector == "straight"
-    assert by_source_id["local_left"].doa.estimated_bearing_deg == pytest.approx(
-        270.0
-    )
+    assert by_source_id["local_left"].doa.estimated_bearing_deg == pytest.approx(270.0)
     assert by_source_id["local_left"].doa.bearing_sector == "left"
 
 

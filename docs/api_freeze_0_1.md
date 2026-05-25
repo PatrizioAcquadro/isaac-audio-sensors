@@ -27,6 +27,45 @@ semantics compatible throughout the v1 line. Compatible releases may add
 optional fields, new enum values where documented as open-ended, stricter
 validation for invalid inputs, and bug fixes that preserve valid behavior.
 
+## AudioSensorFrame V1 Breaking Change Policy
+
+`AudioSensorFrame` v1 is already the stable public data contract. The schema
+version is separate from the Python package version and must remain
+`ias.audio_sensor_frame.v1` for compatible v1 frame records.
+
+Renaming public fields is a breaking change for v1. Removing public fields is a
+breaking change for v1. Changing the meaning of units, timestamps, provenance,
+coordinate convention, ambiguity fields, diagnostics namespaces, stable backend
+identifiers, or bearing sectors is a breaking change for v1. Changing
+`schema_version` away from `ias.audio_sensor_frame.v1` is a breaking change.
+Changing bearing-sector semantics is a breaking change.
+
+The active audit guardrails require these exact policy statements:
+
+- schema version is separate from the Python package version.
+- Renaming public fields is a breaking change.
+- Removing public fields is a breaking change.
+- Changing `schema_version` away from `ias.audio_sensor_frame.v1` is a breaking change.
+- Changing bearing-sector semantics is a breaking change.
+- `geometry_only`, `tdoa_synthetic`, and `room_acoustics` are stable backend identifiers.
+- Additive optional fields and additive diagnostics namespaces are compatible.
+- Corrected bearing-sector behavior is the stable v1 contract.
+
+`geometry_only`, `tdoa_synthetic`, and `room_acoustics` are stable backend
+identifiers. They are public values in frames, configs, trace examples, docs,
+the acoustic fidelity ladder, and backend selection. They must not be renamed
+within the v1 line.
+
+Additive optional fields and additive diagnostics namespaces are compatible
+when existing readers can ignore them. A documented bug fix is compatible only
+when it corrects an inconsistency, keeps existing public field names, keeps the
+serialized frame shape readable by v1 readers, and is covered by tests.
+
+Corrected bearing-sector behavior is the stable v1 contract. The recent sector
+consistency fix is treated as a bug correction because it aligned the emitted
+sector labels with the documented clockwise convention; it does not reopen the
+contract for reshaping.
+
 Package import and version:
 
 - `import isaac_audio_sensors`
@@ -298,6 +337,27 @@ clockwise from array forward.
 - `bearing_confidence`
 - `ambiguity_class`
 - `ambiguity_reason`
+
+Bearing sectors are frozen as canonical 8-way labels in the
+`x_forward_y_right_z_up_clockwise_bearing` convention. Bearings are normalized
+into `[0, 360)`, measured clockwise from array forward, and assigned to
+half-open 45-degree bins centered on:
+
+| Sector | Center | Inclusive lower bound | Exclusive upper bound |
+| --- | ---: | ---: | ---: |
+| `straight` | `0.0` | `337.5` | `22.5` |
+| `straight_right` | `45.0` | `22.5` | `67.5` |
+| `right` | `90.0` | `67.5` | `112.5` |
+| `behind_right` | `135.0` | `112.5` | `157.5` |
+| `behind` | `180.0` | `157.5` | `202.5` |
+| `behind_left` | `225.0` | `202.5` | `247.5` |
+| `left` | `270.0` | `247.5` | `292.5` |
+| `straight_left` | `315.0` | `292.5` | `337.5` |
+
+The wraparound `straight` bin includes `337.5 <= bearing < 360.0` and
+`0.0 <= bearing < 22.5`. The upper boundary belongs to the next clockwise
+sector, so `22.5` maps to `straight_right`, `67.5` maps to `right`, and
+`337.5` maps to `straight`.
 
 `units` must include these stable keys and values:
 

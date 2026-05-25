@@ -55,6 +55,14 @@ Expected behavior:
 
 - core import succeeds in a normal Python environment;
 - optional room-acoustics tests skip when `pyroomacoustics` is unavailable;
+- contract-lock tests fail if `AudioSensorFrame` v1 field names, required
+  schema keys, stable backend ids, unit values, provenance values, diagnostics
+  namespaces, timestamp semantics, ambiguity fields, or bearing-sector
+  semantics drift;
+- the distribution audit fails if active `docs/api_freeze_0_1.md` no longer
+  documents the v1 breaking-change policy, stable backend identifiers, separate
+  frame schema version, compatible additive extension path, and corrected
+  bearing-sector behavior;
 - fake-pyroom tests still exercise supported L2 RIR, waveform, GCC-PHAT
   diagnostics, deterministic multi-source scheduling, and lazy dependency
   behavior when the real dependency is unavailable;

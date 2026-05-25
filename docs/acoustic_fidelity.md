@@ -17,6 +17,12 @@ documented so future config, diagnostics, artifacts, and optional dependencies
 can be added without changing L0-L2 backend ids or required
 `AudioSensorFrame` v1 fields.
 
+L0 `geometry_only`, L1 `tdoa_synthetic`, and L2 `room_acoustics` are stable
+public backend identifiers. Their names appear in configs, trace
+`backend_id`, docs, tests, and the ladder metadata. Compatible v1 releases may
+add new backend ids, but must not rename these ids or reuse them with changed
+meaning.
+
 All levels emit, or future implementations must emit, records compatible with
 `AudioSensorFrame` v1 until a future schema version is introduced. New
 diagnostics, artifact references, calibration files, and dependency-specific
@@ -121,6 +127,8 @@ transfer in v1.
 - L0 and L1 backend ids are stable v1 API.
 - L2 backend id and frame shape are supported optional v1 API; detailed room
   diagnostics may grow additively.
+- Renaming `geometry_only`, `tdoa_synthetic`, or `room_acoustics` is a
+  breaking change.
 - L3 and L4 names, statuses, and future backend families may evolve
   additively during v1, but they must not be presented as implemented stable
   runtime backends until implementations and tests exist.

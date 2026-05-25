@@ -9,6 +9,10 @@ from typing import Any
 
 import pytest
 
+from isaac_audio_sensors.core.backends.base import get_backend
+from isaac_audio_sensors.core.backends.geometry import GeometryBackend
+from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     DETECTION_FIELDS,
@@ -18,6 +22,7 @@ from isaac_audio_sensors.core.constants import (
     FRAME_SCHEMA_VERSION,
     FRAME_TOP_LEVEL_FIELDS,
     FRAME_UNITS,
+    KNOWN_BACKENDS,
     POSE3D_FIELDS,
     STABLE_DIAGNOSTIC_NAMESPACES,
 )
@@ -37,6 +42,92 @@ from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 SCHEMA_PATH = Path("docs/schemas/audio_sensor_frame.v1.schema.json")
 TRACE_DIR = Path("examples/traces")
 
+CANONICAL_FRAME_SCHEMA_VERSION = "ias.audio_sensor_frame.v1"
+CANONICAL_COORDINATE_CONVENTION = "x_forward_y_right_z_up_clockwise_bearing"
+CANONICAL_FRAME_TOP_LEVEL_FIELDS = (
+    "schema_version",
+    "frame_id",
+    "frame_name",
+    "timestamp_ms",
+    "start_time_s",
+    "end_time_s",
+    "sample_rate_hz",
+    "frame_index",
+    "backend_id",
+    "array_id",
+    "array_pose",
+    "coordinate_convention",
+    "units",
+    "provenance",
+    "max_events",
+    "detections",
+    "aggregate_per_mic_rms",
+    "waveform_paths",
+    "diagnostics",
+)
+CANONICAL_DETECTION_FIELDS = (
+    "detection_id",
+    "source_id",
+    "class_label",
+    "detection_mode",
+    "timestamp_ms",
+    "ground_truth_bearing_deg",
+    "source_distance_m",
+    "doa",
+    "source_pose",
+    "per_mic_delay_s",
+    "per_mic_rms",
+    "audio_asset_path",
+    "diagnostics",
+)
+CANONICAL_DOA_FIELDS = (
+    "estimated_bearing_deg",
+    "candidate_bearing_deg",
+    "bearing_sector",
+    "bearing_confidence",
+    "ambiguity_class",
+    "ambiguity_reason",
+)
+CANONICAL_POSE3D_FIELDS = (
+    "position_m",
+    "orientation_xyzw",
+    "frame",
+    "coordinate_convention",
+)
+CANONICAL_FRAME_UNITS = {
+    "position": "m",
+    "orientation": "quaternion_xyzw",
+    "bearing": "deg_clockwise_from_array_forward",
+    "distance": "m",
+    "time": "s",
+    "timestamp": "ms",
+    "sample_rate": "Hz",
+    "rms": "linear",
+    "gain": "dB",
+}
+CANONICAL_PROVENANCE_VALUES = frozenset(
+    {
+        "synthetic/core",
+        "room_acoustics",
+        "isaac_live",
+        "replay/trace",
+    }
+)
+CANONICAL_DETECTION_MODES = frozenset(
+    {
+        "scheduled_known_source",
+        "external_metadata",
+        "signal_energy",
+        "manual_annotation",
+    }
+)
+CANONICAL_STABLE_DIAGNOSTIC_NAMESPACES = (
+    "stage_snapshot",
+    "stage_binding",
+    "entity_binding",
+)
+CANONICAL_BACKEND_IDS = frozenset({"geometry_only", "tdoa_synthetic", "room_acoustics"})
+
 
 def test_generated_schema_matches_checked_in_schema_exactly():
     generated = (
@@ -44,6 +135,50 @@ def test_generated_schema_matches_checked_in_schema_exactly():
     )
 
     assert SCHEMA_PATH.read_text(encoding="utf-8") == generated
+
+
+def test_v1_contract_snapshots_guard_public_names_and_semantics():
+    assert FRAME_SCHEMA_VERSION == CANONICAL_FRAME_SCHEMA_VERSION
+    assert COORDINATE_CONVENTION == CANONICAL_COORDINATE_CONVENTION
+    assert FRAME_TOP_LEVEL_FIELDS == CANONICAL_FRAME_TOP_LEVEL_FIELDS
+    assert DETECTION_FIELDS == CANONICAL_DETECTION_FIELDS
+    assert DOA_FIELDS == CANONICAL_DOA_FIELDS
+    assert POSE3D_FIELDS == CANONICAL_POSE3D_FIELDS
+    assert FRAME_UNITS == CANONICAL_FRAME_UNITS
+    assert FRAME_PROVENANCE_VALUES == CANONICAL_PROVENANCE_VALUES
+    assert DETECTION_MODES == CANONICAL_DETECTION_MODES
+    assert STABLE_DIAGNOSTIC_NAMESPACES == CANONICAL_STABLE_DIAGNOSTIC_NAMESPACES
+    assert KNOWN_BACKENDS == CANONICAL_BACKEND_IDS
+
+
+def test_backend_identifiers_are_stable_public_v1_ids():
+    assert GeometryBackend.backend_id == "geometry_only"
+    assert TdoaSyntheticBackend.backend_id == "tdoa_synthetic"
+    assert RoomAcousticsBackend.backend_id == "room_acoustics"
+
+    for backend_id, backend_cls in (
+        ("geometry_only", GeometryBackend),
+        ("tdoa_synthetic", TdoaSyntheticBackend),
+        ("room_acoustics", RoomAcousticsBackend),
+    ):
+        assert isinstance(get_backend(backend_id), backend_cls)
+
+
+def test_schema_documents_v1_contract_lock_semantics():
+    schema = _checked_in_schema()
+
+    assert schema["properties"]["schema_version"]["const"] == (
+        CANONICAL_FRAME_SCHEMA_VERSION
+    )
+    assert "separate from the Python package version" in schema["description"]
+    assert "bearing-sector semantics" in schema["description"]
+    assert "stable backend identifiers" in schema["description"]
+    assert schema["properties"]["backend_id"]["description"].endswith("room_acoustics.")
+    assert "half-open v1 sector semantics" in (
+        schema["properties"]["detections"]["items"]["properties"]["doa"]["properties"][
+            "bearing_sector"
+        ]["description"]
+    )
 
 
 def test_schema_required_keys_match_dataclasses_and_trace_serialization():
@@ -64,9 +199,7 @@ def test_schema_required_keys_match_dataclasses_and_trace_serialization():
     assert set(field.name for field in fields(AudioSensorFrame)) == set(
         FRAME_TOP_LEVEL_FIELDS
     )
-    assert set(field.name for field in fields(AudioDetection)) == set(
-        DETECTION_FIELDS
-    )
+    assert set(field.name for field in fields(AudioDetection)) == set(DETECTION_FIELDS)
     assert set(field.name for field in fields(DoaEstimate)) == set(DOA_FIELDS)
     assert set(field.name for field in fields(Pose3D)) == set(POSE3D_FIELDS)
 
@@ -141,6 +274,15 @@ def test_trace_corpus_files_are_deterministically_formatted():
 
 
 def test_dataclasses_enforce_contract_policy_values():
+    with pytest.raises(ValueError, match="schema_version"):
+        AudioSensorFrame(
+            frame_id="bad_schema",
+            timestamp_ms=0,
+            backend_id="geometry_only",
+            array_id="rig",
+            schema_version="ias.audio_sensor_frame.v2",
+        )
+
     with pytest.raises(ValueError, match="coordinate_convention"):
         Pose3D(
             position_m=(0.0, 0.0, 0.0),
@@ -165,6 +307,17 @@ def test_dataclasses_enforce_contract_policy_values():
             backend_id="geometry_only",
             array_id="rig",
             units=changed_units,
+        )
+
+    missing_units = dict(FRAME_UNITS)
+    del missing_units["timestamp"]
+    with pytest.raises(ValueError, match="missing required keys"):
+        AudioSensorFrame(
+            frame_id="missing_units",
+            timestamp_ms=0,
+            backend_id="geometry_only",
+            array_id="rig",
+            units=missing_units,
         )
 
     with pytest.raises(ValueError, match="provenance"):
@@ -226,9 +379,7 @@ def test_ambiguity_fields_drive_import_safe_lab_ambiguity_mask():
 
     data = AudioArraySensorData.from_frame(frame)
 
-    assert frame.detections[0].doa.candidate_bearing_deg == pytest.approx(
-        (0.0, 180.0)
-    )
+    assert frame.detections[0].doa.candidate_bearing_deg == pytest.approx((0.0, 180.0))
     assert data.ambiguity_mask == (True,)
 
 
@@ -254,12 +405,21 @@ def test_contract_policy_is_documented_in_public_docs():
         assert f"`{field_name}`" in docs
     for namespace in STABLE_DIAGNOSTIC_NAMESPACES:
         assert f"`{namespace}`" in docs
+    for backend_id in CANONICAL_BACKEND_IDS:
+        assert f"`{backend_id}`" in docs
     for phrase in (
+        "Renaming public fields is a breaking change",
+        "Removing public fields is a breaking change",
+        "Changing bearing-sector semantics is a breaking change",
+        "Corrected bearing-sector behavior is the stable v1 contract",
+        "Additive optional fields and additive diagnostics namespaces",
+        "schema version is separate from the Python package version",
         "milliseconds",
         "seconds",
         "non-negative",
         "ambiguity_mask",
         "optional fields",
+        "337.5 <= bearing < 360.0",
     ):
         assert phrase in docs
 

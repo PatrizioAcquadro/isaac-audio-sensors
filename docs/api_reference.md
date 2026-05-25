@@ -75,6 +75,22 @@ when the bearing is ambiguous, producers record candidate bearings plus
 `ambiguity_class` and `ambiguity_reason`. Isaac Lab tensor views map a non-null
 `ambiguity_class` to `ambiguity_mask=True`.
 
+`bearing_sector` uses the corrected stable v1 8-sector mapping. Bearings are
+normalized into `[0, 360)`, measured clockwise from array forward, and assigned
+to half-open 45-degree sectors centered at `0`, `45`, `90`, `135`, `180`,
+`225`, `270`, and `315` degrees. The wraparound `straight` sector includes
+`337.5 <= bearing < 360.0` and `0.0 <= bearing < 22.5`; `22.5` maps to
+`straight_right`, `67.5` maps to `right`, and `337.5` maps to `straight`.
+This sector fix is a compatible bug correction, not permission to reshape the
+`AudioSensorFrame` v1 contract.
+
+For compatible v1 releases, renaming or removing any public frame, detection,
+DOA, pose, units, diagnostics namespace, or trace field is breaking. Changing
+`schema_version`, stable backend ids, unit meanings, timestamp semantics,
+provenance values, coordinate convention, ambiguity representation, or
+bearing-sector semantics is also breaking. Compatible extension work should use
+optional fields or additive diagnostics.
+
 Diagnostics are open-ended and may grow additively. These top-level namespaces
 are stable and must remain readable when their corresponding path is used:
 

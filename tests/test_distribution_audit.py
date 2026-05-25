@@ -48,7 +48,7 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             ),
             "configs/isaac_audio_sensors_demo.toml": "[scene]\n",
             "docs/acoustic_fidelity.md": "# Acoustic Fidelity Ladder\n",
-            "docs/api_freeze_0_1.md": "# API Freeze\n",
+            "docs/api_freeze_0_1.md": _api_freeze_doc_text(),
             "docs/api_reference.md": "# API Reference\n",
             "docs/installation.md": "# Installation\n",
             "docs/open_source_release_checklist.md": "# Checklist\n",
@@ -97,9 +97,7 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "isaac_audio_sensors/isaac/extension_ui.py": "\n",
             "isaac_audio_sensors/isaac/replicator.py": "\n",
             "isaac_audio_sensors/lab/audio_array_sensor.py": "\n",
-            f"isaac_audio_sensors-{RELEASE_VERSION}.dist-info/METADATA": (
-                "Name: x\n"
-            ),
+            f"isaac_audio_sensors-{RELEASE_VERSION}.dist-info/METADATA": ("Name: x\n"),
             f"isaac_audio_sensors-{RELEASE_VERSION}.dist-info/entry_points.txt": "\n",
         },
     )
@@ -132,7 +130,7 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
             ),
             "configs/isaac_audio_sensors_demo.toml": "[scene]\n",
             "docs/acoustic_fidelity.md": "# Acoustic Fidelity Ladder\n",
-            "docs/api_freeze_0_1.md": "# API Freeze\n",
+            "docs/api_freeze_0_1.md": _api_freeze_doc_text(),
             "docs/api_reference.md": "# API Reference\n",
             "docs/installation.md": "# Installation\n",
             "docs/open_source_release_checklist.md": "# Checklist\n",
@@ -175,8 +173,7 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
 
     assert any(".local-goals" in finding for finding in result.findings)
     assert any(
-        "forbidden public-package text token" in finding
-        for finding in result.findings
+        "forbidden public-package text token" in finding for finding in result.findings
     )
 
 
@@ -193,9 +190,7 @@ def test_distribution_audit_rejects_unexpected_archive_version(tmp_path):
 
     result = audit.audit_archive(archive_path)
 
-    assert any(
-        "unexpected sdist filename" in finding for finding in result.findings
-    )
+    assert any("unexpected sdist filename" in finding for finding in result.findings)
 
 
 def test_distribution_audit_rejects_stale_active_version_text(tmp_path):
@@ -212,8 +207,53 @@ def test_distribution_audit_rejects_stale_active_version_text(tmp_path):
     result = audit.audit_archive(archive_path)
 
     assert any(
-        "stale active release version token" in finding
-        for finding in result.findings
+        "stale active release version token" in finding for finding in result.findings
+    )
+
+
+def test_distribution_audit_rejects_missing_api_freeze_contract_lock(tmp_path):
+    audit = _load_audit_module()
+    archive_path = tmp_path / f"isaac_audio_sensors-{RELEASE_VERSION}.tar.gz"
+    _write_sdist(
+        archive_path,
+        {
+            "README.md": "# isaac-audio-sensors\n",
+            "CHANGELOG.md": "# Changelog\n",
+            "docs/api_freeze_0_1.md": "# API Freeze\n",
+            "docs/v1_scope.md": _scope_doc_text(),
+        },
+    )
+
+    result = audit.audit_archive(archive_path)
+
+    assert any(
+        "required v1 contract phrase missing" in finding for finding in result.findings
+    )
+
+
+def _api_freeze_doc_text() -> str:
+    return "\n".join(
+        (
+            "# API Freeze",
+            "The schema version is separate from the Python package version.",
+            "Renaming public fields is a breaking change.",
+            "Removing public fields is a breaking change.",
+            (
+                "Changing `schema_version` away from "
+                "`ias.audio_sensor_frame.v1` is a breaking change."
+            ),
+            "Changing bearing-sector semantics is a breaking change.",
+            (
+                "`geometry_only`, `tdoa_synthetic`, and `room_acoustics` "
+                "are stable backend identifiers."
+            ),
+            (
+                "Additive optional fields and additive diagnostics namespaces "
+                "are compatible."
+            ),
+            "Corrected bearing-sector behavior is the stable v1 contract.",
+            "",
+        )
     )
 
 

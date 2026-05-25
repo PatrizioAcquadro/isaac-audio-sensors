@@ -60,6 +60,20 @@ namespaces. They may add optional fields or diagnostics that readers can
 ignore. If a future change needs an incompatible trace shape, create a new
 schema version instead of silently changing `ias.audio_sensor_frame.v1`.
 
+For `AudioSensorFrame` v1, the following are breaking changes:
+
+- renaming or removing public frame, detection, DOA, pose, units, diagnostics
+  namespace, or trace fields;
+- changing `schema_version` away from `ias.audio_sensor_frame.v1`;
+- changing unit meanings, timestamp meanings, provenance values, coordinate
+  convention, ambiguity representation, diagnostics namespace meanings, stable
+  backend ids, or bearing-sector semantics.
+
+The corrected sector behavior is frozen as the v1 contract: normalized
+clockwise bearings use 45-degree half-open bins, and the wraparound `straight`
+sector includes `337.5 <= bearing < 360.0` plus `0.0 <= bearing < 22.5`. That
+correction is a documented bug fix, not a schema redesign.
+
 The generated schema in `docs/schemas/audio_sensor_frame.v1.schema.json` is the
 checked-in public artifact. `make export-schema` regenerates it from code and
 tests compare the generated schema with the checked-in file.

@@ -23,16 +23,21 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
 
     pose_schema: dict[str, Any] = {
         "type": "object",
+        "description": (
+            "World-frame pose using x_forward_y_right_z_up_clockwise_bearing."
+        ),
         "additionalProperties": True,
         "required": list(POSE3D_FIELDS),
         "properties": {
             "position_m": {
                 "type": "array",
+                "description": "Position in meters.",
                 "minItems": 3,
                 "maxItems": 3,
                 "items": {"type": "number"},
             },
             "orientation_xyzw": {
+                "description": "Quaternion orientation in x, y, z, w order.",
                 "oneOf": [
                     {"type": "null"},
                     {
@@ -41,40 +46,96 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                         "maxItems": 4,
                         "items": {"type": "number"},
                     },
-                ]
+                ],
             },
-            "frame": {"type": "string", "minLength": 1},
+            "frame": {
+                "type": "string",
+                "description": "Coordinate frame name; v1 examples use world.",
+                "minLength": 1,
+            },
             "coordinate_convention": {
                 "type": "string",
+                "description": "Stable v1 coordinate and bearing convention.",
                 "const": COORDINATE_CONVENTION,
             },
         },
     }
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "$id": "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v1.schema.json",
+        "$id": (
+            "https://isaac-audio-sensors.dev/schemas/"
+            "audio_sensor_frame.v1.schema.json"
+        ),
         "title": "Isaac Audio Sensors AudioSensorFrame v1",
+        "description": (
+            "Stable AudioSensorFrame v1 trace contract. The schema_version is "
+            "separate from the Python package version. Public fields, unit "
+            "meanings, timestamp semantics, provenance values, coordinate "
+            "convention, ambiguity representation, stable backend identifiers, "
+            "and bearing-sector semantics are compatibility commitments for v1."
+        ),
         "type": "object",
         "additionalProperties": True,
         "required": list(FRAME_TOP_LEVEL_FIELDS),
         "properties": {
-            "schema_version": {"const": FRAME_SCHEMA_VERSION},
-            "frame_id": {"type": "string", "minLength": 1},
-            "frame_name": {"type": "string", "minLength": 1},
-            "timestamp_ms": {"type": "integer"},
-            "start_time_s": {"type": ["number", "null"]},
-            "end_time_s": {"type": ["number", "null"]},
-            "sample_rate_hz": {"type": ["integer", "null"], "minimum": 1},
-            "frame_index": {"type": ["integer", "null"], "minimum": 0},
-            "backend_id": {"type": "string", "minLength": 1},
-            "array_id": {"type": "string", "minLength": 1},
+            "schema_version": {
+                "description": "Stable frame schema id for all compatible v1 frames.",
+                "const": FRAME_SCHEMA_VERSION,
+            },
+            "frame_id": {
+                "type": "string",
+                "description": "Stable machine-readable frame identifier.",
+                "minLength": 1,
+            },
+            "frame_name": {
+                "type": "string",
+                "description": "Human-readable frame name; defaults to frame_id.",
+                "minLength": 1,
+            },
+            "timestamp_ms": {
+                "type": "integer",
+                "description": "Frame timestamp in integer milliseconds.",
+            },
+            "start_time_s": {
+                "type": ["number", "null"],
+                "description": "Inclusive frame-window start time in seconds.",
+            },
+            "end_time_s": {
+                "type": ["number", "null"],
+                "description": "Exclusive frame-window end time in seconds.",
+            },
+            "sample_rate_hz": {
+                "type": ["integer", "null"],
+                "description": "Audio sample rate in Hz when known.",
+                "minimum": 1,
+            },
+            "frame_index": {
+                "type": ["integer", "null"],
+                "description": "Non-negative producer frame index when present.",
+                "minimum": 0,
+            },
+            "backend_id": {
+                "type": "string",
+                "description": (
+                    "Public backend identifier such as geometry_only, "
+                    "tdoa_synthetic, or room_acoustics."
+                ),
+                "minLength": 1,
+            },
+            "array_id": {
+                "type": "string",
+                "description": "Microphone-array identifier.",
+                "minLength": 1,
+            },
             "array_pose": {"oneOf": [{"type": "null"}, pose_schema]},
             "coordinate_convention": {
                 "type": "string",
+                "description": "Stable v1 coordinate and bearing convention.",
                 "const": COORDINATE_CONVENTION,
             },
             "units": {
                 "type": "object",
+                "description": "Stable unit names and meanings for v1 fields.",
                 "required": sorted(FRAME_UNITS),
                 "additionalProperties": {"type": "string"},
                 "properties": {
@@ -82,10 +143,18 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                     for key, value in sorted(FRAME_UNITS.items())
                 },
             },
-            "provenance": {"enum": sorted(FRAME_PROVENANCE_VALUES)},
-            "max_events": {"type": ["integer", "null"], "minimum": 0},
+            "provenance": {
+                "description": "Stable producer provenance namespace.",
+                "enum": sorted(FRAME_PROVENANCE_VALUES),
+            },
+            "max_events": {
+                "type": ["integer", "null"],
+                "description": "Non-negative deterministic detection cap when set.",
+                "minimum": 0,
+            },
             "detections": {
                 "type": "array",
+                "description": "Detected, scheduled, or externally described events.",
                 "items": {
                     "type": "object",
                     "additionalProperties": True,
@@ -96,30 +165,52 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                         "class_label": {"type": ["string", "null"]},
                         "detection_mode": {"type": "string", "minLength": 1},
                         "timestamp_ms": {"type": "integer"},
-                        "ground_truth_bearing_deg": {
-                            "type": ["number", "null"]
-                        },
+                        "ground_truth_bearing_deg": {"type": ["number", "null"]},
                         "source_distance_m": {"type": ["number", "null"]},
                         "doa": {
                             "type": "object",
+                            "description": (
+                                "Direction-of-arrival estimate with explicit "
+                                "candidate and ambiguity representation."
+                            ),
                             "additionalProperties": True,
                             "required": list(DOA_FIELDS),
                             "properties": {
-                                "estimated_bearing_deg": {
-                                    "type": ["number", "null"]
-                                },
+                                "estimated_bearing_deg": {"type": ["number", "null"]},
                                 "candidate_bearing_deg": {
                                     "type": "array",
+                                    "description": (
+                                        "Candidate bearings in degrees clockwise "
+                                        "from array forward."
+                                    ),
                                     "items": {"type": "number"},
                                 },
-                                "bearing_sector": {"type": ["string", "null"]},
+                                "bearing_sector": {
+                                    "type": ["string", "null"],
+                                    "description": (
+                                        "Canonical 8-sector label using corrected "
+                                        "half-open v1 sector semantics."
+                                    ),
+                                },
                                 "bearing_confidence": {
                                     "type": "number",
                                     "minimum": 0.0,
                                     "maximum": 1.0,
                                 },
-                                "ambiguity_class": {"type": ["string", "null"]},
-                                "ambiguity_reason": {"type": ["string", "null"]},
+                                "ambiguity_class": {
+                                    "type": ["string", "null"],
+                                    "description": (
+                                        "Stable ambiguity class namespace when "
+                                        "a bearing is not unique."
+                                    ),
+                                },
+                                "ambiguity_reason": {
+                                    "type": ["string", "null"],
+                                    "description": (
+                                        "Human-readable explanation for "
+                                        "ambiguity_class."
+                                    ),
+                                },
                             },
                         },
                         "source_pose": {"oneOf": [{"type": "null"}, pose_schema]},
@@ -138,10 +229,21 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
             },
             "aggregate_per_mic_rms": {
                 "type": "object",
+                "description": "Per-microphone aggregate RMS values in linear units.",
                 "additionalProperties": {"type": "number"},
             },
-            "waveform_paths": {"type": "array", "items": {"type": "string"}},
-            "diagnostics": {"type": "object"},
+            "waveform_paths": {
+                "type": "array",
+                "description": "Optional producer artifact paths.",
+                "items": {"type": "string"},
+            },
+            "diagnostics": {
+                "type": "object",
+                "description": (
+                    "Open-ended additive diagnostics; stable namespaces keep "
+                    "their documented meanings."
+                ),
+            },
         },
     }
 

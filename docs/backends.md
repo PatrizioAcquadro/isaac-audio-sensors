@@ -9,6 +9,11 @@ The backend ids below are tied to the public
 v1. L3 advanced realism and L4 sim-real calibration are documented future
 directions, not selectable v1 runtime backends.
 
+The implemented backend ids `geometry_only`, `tdoa_synthetic`, and
+`room_acoustics` are public v1 identifiers. Renaming them would break config,
+trace, docs, and ladder compatibility; new backend families must be added under
+new ids instead.
+
 The canonical promise boundary is [V1 Public Scope](v1_scope.md). Backends do
 not make sim-real calibration, real hardware benchmarks, complete L3/L4, or
 realistic occlusion/material acoustics part of the v1 release.
@@ -31,6 +36,13 @@ left, and values normalize into `[0, 360)`. Sector labels use eight
 half-open bins centered every 45 degrees:
 `straight`, `straight_right`, `right`, `behind_right`, `behind`,
 `behind_left`, `left`, and `straight_left`.
+
+The corrected v1 sector mapping is now frozen. Each sector includes its lower
+boundary and excludes its upper boundary after bearing normalization. The
+wraparound `straight` sector covers `337.5 <= bearing < 360.0` and
+`0.0 <= bearing < 22.5`; `22.5` belongs to `straight_right`, `67.5` belongs to
+`right`, and `337.5` belongs to `straight`. This was a compatibility-preserving
+bug fix to align code and docs, not an opening to change sector meanings.
 
 It does not simulate propagation, waveforms, reverberation, occlusion, or
 physical microphone response.
