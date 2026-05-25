@@ -64,6 +64,14 @@ def main() -> int:
             "sensor_base_module": sensor_base.__module__,
             "sensor_base_cfg_module": sensor_base_cfg.__module__,
         }
+        evidence["fallback_classes_used_in_lab"] = not bool(classes.real)
+        evidence["import_order"] = {
+            "app_launcher_initialized_before_sensor_class_resolution": (
+                simulation_app is not None
+            ),
+            "sensor_classes_resolved_with": "ensure_isaac_lab_sensor_classes",
+            "lab_facing_imports_after_app_launcher": True,
+        }
         evidence["sensor_is_sensorbase_subclass"] = issubclass(
             AudioArraySensor,
             sensor_base,
@@ -168,7 +176,7 @@ def main() -> int:
         if args.require_gpu:
             _assert_cuda_buffers(explicit_devices)
 
-        stage, stage_kind = _create_audio_stage()
+        stage, stage_kind = _create_audio_stage(require_pxr_stage=args.require_gpu)
         evidence["stage_kind"] = stage_kind
         stage_wrapper = AudioArraySensor(
             cfg=AudioArraySensorCfg(
@@ -351,6 +359,11 @@ def main() -> int:
         evidence.update(
             {
                 "status": "passed",
+                "multi_env": {
+                    "num_envs": int(data.event_presence.shape[0]),
+                    "max_events": int(data.event_presence.shape[1]),
+                    "num_mics": int(data.per_mic_rms.shape[2]),
+                },
                 "event_presence_shape": list(data.event_presence.shape),
                 "bearing_deg_shape": list(data.bearing_deg.shape),
                 "confidence_shape": list(data.confidence.shape),
@@ -358,8 +371,14 @@ def main() -> int:
                 "per_mic_rms_shape": list(data.per_mic_rms.shape),
                 "ambiguity_mask_shape": list(data.ambiguity_mask.shape),
                 "device": str(data.event_presence.device),
+                "buffer_device_map": explicit_devices,
                 "explicit_buffer_devices": explicit_devices,
                 "explicit_buffer_summary": explicit_buffer_summary,
+                "observation_surface": _observation_surface_summary(
+                    sensor=wrapper,
+                    data=data,
+                    rl_observation_example=rl_observation_example,
+                ),
                 "event_presence": _tensor_to_json(data.event_presence),
                 "bearing_deg": _tensor_to_json(data.bearing_deg),
                 "confidence": _tensor_to_json(data.confidence),
@@ -375,6 +394,7 @@ def main() -> int:
                     "buffer_summary": stage_buffer_summary,
                     "semantic_discovery": True,
                     "stage_ran_inside_kit_lab": stage_kind == "pxr.Usd.Stage",
+                    "stage_kind": stage_kind,
                     "event_presence_shape": list(stage_data.event_presence.shape),
                     "bearing_deg": _tensor_to_json(stage_data.bearing_deg),
                     "event_presence": _tensor_to_json(stage_data.event_presence),
@@ -736,6 +756,7 @@ def _rl_observation_example_evidence(sensor: object) -> dict[str, object]:
     summaries = {key: _tensor_summary(value) for key, value in obs.items()}
     devices = {summary["device"] for summary in summaries.values()}
     return {
+        "status": "passed",
         "path": str(path),
         "keys": expected_keys,
         "all_expected_keys_present": not missing,
@@ -746,6 +767,32 @@ def _rl_observation_example_evidence(sensor: object) -> dict[str, object]:
         "ambiguous_event_presence_shape": list(
             ambiguity["audio/ambiguous_event_presence"].shape
         ),
+    }
+
+
+def _observation_surface_summary(
+    *,
+    sensor: object,
+    data: object,
+    rl_observation_example: dict[str, object],
+) -> dict[str, object]:
+    """Summarize the machine-checkable Lab/RL observation contract."""
+
+    tensor_fields = {
+        field: _tensor_summary(getattr(data, field))
+        for field in _TENSOR_FIELDS
+        if hasattr(getattr(data, field), "shape")
+    }
+    bookkeeping_fields = {
+        field: _tensor_summary(getattr(sensor, field))
+        for field in _BOOKKEEPING_FIELDS
+        if hasattr(getattr(sensor, field, None), "shape")
+    }
+    return {
+        "rl_keys": rl_observation_example["keys"],
+        "tensor_fields": tensor_fields,
+        "bookkeeping_fields": bookkeeping_fields,
+        "metadata_handles": _metadata_summary(data),
     }
 
 
@@ -914,7 +961,7 @@ class _FakeStage:
         return tuple(self._prims)
 
 
-def _create_audio_stage() -> tuple[object, str]:
+def _create_audio_stage(*, require_pxr_stage: bool = False) -> tuple[object, str]:
     try:
         from pxr import Usd, UsdGeom  # type: ignore
 
@@ -942,7 +989,12 @@ def _create_audio_stage() -> tuple[object, str]:
             _set_usd_attr(source, "ias:start_time_s", 0.0)
             _set_usd_attr(source, "ias:duration_s", 1.0)
         return stage, "pxr.Usd.Stage"
-    except Exception:
+    except Exception as exc:
+        if require_pxr_stage:
+            raise RuntimeError(
+                "Could not create a pxr.Usd.Stage inside the live Isaac Lab/Kit "
+                "runtime; required-GPU validation cannot use a duck-typed stage."
+            ) from exc
         return _create_fake_audio_stage(), "duck-typed stage"
 
 

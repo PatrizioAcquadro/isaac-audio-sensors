@@ -335,6 +335,39 @@ The GPU target additionally records `torch.cuda` and `nvidia-smi` evidence and
 fails if any audio tensor, timestamp tensor, or outdated-mask tensor is on CPU
 or split across devices.
 
+The 2026-05-24 local-time live Lab GPU run used:
+
+```bash
+make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
+```
+
+It wrote `outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json` with
+`status: "passed"` on Isaac Lab `0.54.2`, Isaac Sim `5.1.0`, Kit
+`107.3.3+production.229672.69cbf6ad.gl`, Torch `2.7.0+cu128`, and
+`NVIDIA GeForce RTX 4090`. The evidence records `classes_real: true`,
+`fallback_classes_used_in_lab: false`, `AudioArraySensorCfg` as a real
+`SensorBaseCfg` subclass, and `AudioArraySensor` as a real `SensorBase`
+subclass.
+
+The same evidence records two envs, two max events, and four microphones. Every
+RL-facing tensor and bookkeeping tensor was on `cuda:0`: `event_presence`,
+`bearing_deg`, `confidence`, `sector_onehot`, `per_mic_rms`, `ambiguity_mask`,
+`last_update_time_s`, `_timestamp`, `_timestamp_last_update`, and
+`_is_outdated`. Selected-env update, reset, and repopulate checks passed for the
+explicit binding, `pxr.Usd.Stage` binding, and entity tensor binding paths.
+The RL observation example reported stable keys and CUDA tensors for
+`audio/event_presence`, `audio/bearing_deg`, `audio/confidence`,
+`audio/sector_onehot`, `audio/per_mic_rms`, and `audio/ambiguity_mask`.
+
+Stage binding ran against a real `pxr.Usd.Stage` inside the live Lab/Kit
+runtime, with transform provenance recorded as
+`usd:ComputeLocalToWorldTransform`. Entity binding ran inside the live Lab
+runtime against CUDA tensor-backed scene/entity objects. A full real
+`InteractiveScene`/`RigidObject` probe remains blocked in this local runtime:
+the evidence records prior GPU SimulationContext PhysX CUDA illegal-memory
+errors and CPU SimulationContext Kit-shutdown hangs, so the required target
+keeps the stable live tensor-scene entity path active.
+
 If a full Isaac Lab simulation context is unavailable, the smoke still records
 the exact blocker. The pure tests remain authoritative for tensor conversion,
 padding, selected `env_ids`, reset, import-order recovery, and cloned-env stage

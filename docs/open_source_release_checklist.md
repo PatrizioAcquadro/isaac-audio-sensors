@@ -155,6 +155,19 @@ If a live command cannot run because of sandboxing, EULA, GPU visibility, or
 runtime availability, record the exact command, exact error, and the closest
 validation that did run.
 
+Latest local Isaac Lab GPU evidence was refreshed on 2026-05-24 local time with
+`make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"`.
+The artifact `outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json`
+reported `status: "passed"` on Isaac Lab `0.54.2`, Isaac Sim `5.1.0`, Kit
+`107.3.3+production.229672.69cbf6ad.gl`, Torch `2.7.0+cu128`, CUDA device
+`cuda:0`, and `NVIDIA GeForce RTX 4090`. It proved real
+`SensorBaseCfg`/`SensorBase` subclassing, no fallback classes in Lab, CUDA
+placement for all RL-facing and bookkeeping tensors, selected update/reset
+checks for explicit, stage, and entity paths, stable RL observation keys, and
+real `pxr.Usd.Stage` binding. The full real `InteractiveScene`/`RigidObject`
+entity probe remains documented as a local runtime blocker; the required target
+uses the live CUDA tensor-scene entity path.
+
 ## Non-Gates For V1 Package Release
 
 - [x] SquadBot validation is not required before releasing the sensor package.

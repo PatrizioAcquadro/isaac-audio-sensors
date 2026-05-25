@@ -189,6 +189,27 @@ tensor, or outdated-mask tensor is allocated on CPU. It records `torch.cuda`
 and `nvidia-smi` evidence in
 `outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json`.
 
+The 2026-05-24 local-time live Lab GPU run passed with:
+
+```bash
+make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
+```
+
+The evidence artifact was
+`outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json`. It records Isaac
+Lab `0.54.2`, Isaac Sim `5.1.0`, Kit
+`107.3.3+production.229672.69cbf6ad.gl`, Torch `2.7.0+cu128`, CUDA device
+`cuda:0`, and `NVIDIA GeForce RTX 4090`. It also records real
+`SensorBaseCfg`/`SensorBase` subclass checks, `fallback_classes_used_in_lab:
+false`, two-env shapes for fixed RL buffers, all tensor/bookkeeping devices on
+`cuda:0`, selected update/reset/repopulate passing for explicit, stage, and
+entity paths, stable RL observation keys, and `pxr.Usd.Stage` binding inside
+Kit/Lab. The live entity path uses CUDA tensor-backed scene/entity objects; the
+full real `InteractiveScene`/`RigidObject` probe remains a documented local
+runtime blocker because the GPU SimulationContext path raised PhysX CUDA
+illegal-memory errors and the CPU SimulationContext path hung during Kit
+shutdown.
+
 Use `scripts/discover_isaac_runtimes.py` to print likely local runtime
 candidates. The discovery script is a convenience probe; users should still set
 their own `ISAAC_SIM_PYTHON` or `ISAAC_LAB_PYTHON` explicitly.
