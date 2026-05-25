@@ -52,7 +52,7 @@ TEXT_SUFFIXES = (
     ".yaml",
 )
 MAX_TEXT_SCAN_BYTES = 1_000_000
-PACKAGE_VERSION = "1.0.0rc1"
+PACKAGE_VERSION = "1.0.0"
 EXPECTED_SDIST_NAME = f"isaac_audio_sensors-{PACKAGE_VERSION}.tar.gz"
 EXPECTED_WHEEL_NAME = f"isaac_audio_sensors-{PACKAGE_VERSION}-py3-none-any.whl"
 

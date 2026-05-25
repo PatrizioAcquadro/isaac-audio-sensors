@@ -227,7 +227,7 @@ def _write_minimal_evidence(root: Path) -> None:
                 "status": "enabled",
                 "verification": {
                     "enabled_extension_id": (
-                        "isaac_audio_sensors.omni-1.0.0-rc.1"
+                        "isaac_audio_sensors.omni-1.0.0"
                     )
                 },
             },

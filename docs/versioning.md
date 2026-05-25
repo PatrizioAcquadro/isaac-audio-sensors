@@ -7,27 +7,25 @@ separate schema-version policy for frame traces.
 
 - distribution: `isaac-audio-sensors`
 - import package: `isaac_audio_sensors`
-- package version: `1.0.0rc1`
-- Kit extension manifest version: `1.0.0-rc.1`
+- package version: `1.0.0`
+- Kit extension manifest version: `1.0.0`
 - frame schema version: `ias.audio_sensor_frame.v1`
 - pure Python support: Python 3.10 or newer
 
-`1.0.0rc1` is a release candidate, not final `1.0.0`. It is the first v1
-package candidate that makes the frozen frame contract, stable L0/L1,
-supported optional L2, Isaac Sim path, Isaac Lab path, Omniverse reference UX,
-JSON/JSONL export, and optional extension-only Replicator support coherent as a
-third-party Python package.
+`1.0.0` is the first final v1 package release. It makes the frozen frame
+contract, stable L0/L1, supported optional L2, Isaac Sim path, Isaac Lab path,
+Omniverse reference UX, JSON/JSONL export, and optional extension-only
+Replicator support coherent as a third-party Python package.
 
 The `AudioSensorFrame` v1 API is frozen for compatible v1 releases except for
-bug fixes and additive compatible diagnostics or fields. The RC feedback window
-for this tag is 2026-05-24 through 2026-06-07. Final `1.0.0` still depends on
-RC feedback and review of real downstream usage; SquadBot is not included in
-the `v1.0.0rc1` release gate, and phases 9, 10, and 11 are planned after the
-RC rather than as prerequisites for this tag.
+bug fixes and additive compatible diagnostics or fields. The `1.0.0rc1`
+feedback window was reviewed, and final `1.0.0` was promoted early on
+2026-05-24 with explicit maintainer approval. SquadBot, Alex, ROS 2, and
+downstream adapters are not final v1 package release gates, and phases 9, 10,
+and 11 remain planned post-v1 work rather than prerequisites for this tag.
 
-The Kit extension manifest uses SemVer spelling because Omniverse Kit rejects
-PEP 440 release-candidate strings in `extension.toml`. The corresponding Python
-package release remains `1.0.0rc1`.
+The Kit extension manifest uses SemVer spelling. For final `1.0.0`, the Kit
+extension manifest and Python package version both use `1.0.0`.
 
 The package's v1 promise boundary is frozen in [V1 Public Scope](v1_scope.md).
 Versioning changes must not expand v1 into downstream release gates, sim-real

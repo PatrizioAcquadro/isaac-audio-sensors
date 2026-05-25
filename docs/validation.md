@@ -6,7 +6,7 @@ Core validation does not require Isaac Sim, Isaac Lab, Omniverse, or
 ## V1 Release Scope Gates
 
 [V1 Public Scope](v1_scope.md) is the canonical source for release promises and
-non-promises. A v1 release candidate must validate the stable
+non-promises. A v1 release must validate the stable
 `AudioSensorFrame` contract, JSON Schema parity, JSON and JSONL trace corpus,
 stable L0 `geometry_only`, stable L1 `tdoa_synthetic`, supported optional L2
 `room_acoustics` behavior, package JSON/JSONL export, import smoke, lint,
@@ -39,7 +39,7 @@ python -m isaac_audio_sensors.cli export-trace configs/isaac_audio_sensors_demo.
 git diff --check
 ```
 
-The Makefile wraps the same release-candidate checks:
+The Makefile wraps the same release checks:
 
 ```bash
 make test
@@ -53,9 +53,10 @@ make import-smoke
 
 ## Minimal External Consumer Smoke
 
-The `1.0.0rc1` wheel was also validated from an independent temporary consumer
+The `1.0.0rc1` wheel was validated from an independent temporary consumer
 workspace outside the repository on 2026-05-24 local time (Kit logs at
-`2026-05-25T03:10Z`). The install used `pip --target`, not an editable install:
+`2026-05-25T03:10Z`) before final `1.0.0` promotion. The install used
+`pip --target`, not an editable install:
 
 ```bash
 python -m pip install --no-deps --target /tmp/isaac-audio-sensors-rc-consumer/site \
@@ -89,6 +90,10 @@ keys `audio/event_presence`, `audio/bearing_deg`, `audio/confidence`,
 `audio/sector_onehot`, `audio/per_mic_rms`, and `audio/ambiguity_mask`. This
 external consumer smoke is not the live GPU gate; GPU placement remains covered
 by `make live-isaac-lab-audio-gpu`.
+
+Final `1.0.0` does not add SquadBot, Alex, ROS 2, or downstream adapters as
+release gates. The final wheel is still clean-install smoked separately from
+the build artifact before tag publication.
 
 Evidence files:
 
@@ -211,7 +216,7 @@ and frame traces in:
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
 
-The 2026-05-24 local-time Task 6 live run (`2026-05-25T02:46Z` Kit log
+The 2026-05-24 local-time final `1.0.0` live run (`2026-05-25T03:34Z` Kit log
 timestamp) passed. The artifact's `isaacsim_version` and `kit_version` fields
 were `unavailable`, while `kit_app_version` recorded Isaac Sim app `5.1.0` and
 `kit_build_version` recorded `107.3.3+production.229672.69cbf6ad.gl`. CUDA saw
@@ -264,14 +269,15 @@ and stops cleanly. Evidence is written to:
 - `outputs/isaac_audio_sensors/omniverse_extension_live_ux.config.json`
 - `outputs/isaac_audio_sensors/omniverse_extension_live_ux.replicator/`
 
-The 2026-05-24 local-time extension UX run (`2026-05-25T02:47Z` Kit log
-timestamp) passed on the host-visible Isaac runtime. The artifact's
+The 2026-05-24 local-time final `1.0.0` extension UX run
+(`2026-05-25T03:38Z` Kit log timestamp) passed on the host-visible Isaac
+runtime. The artifact's
 `isaacsim_version` and `kit_version` fields were `unavailable`, while
 `kit_app_version` recorded Isaac Sim app `5.1.0` and `kit_build_version`
 recorded `107.3.3+production.229672.69cbf6ad.gl`. It also records Torch
 `2.7.0+cu128`, CUDA visibility for `NVIDIA GeForce RTX 4090`, `nvidia-smi`
 driver `570.211.01`, extension-manager status `enabled`, enabled extension id
-`isaac_audio_sensors.omni-1.0.0-rc.1`, `omni_usd_context_stage`, three real
+`isaac_audio_sensors.omni-1.0.0`, `omni_usd_context_stage`, three real
 `omni.usd` selection updates, 16 passed workflow steps, one valid
 `AudioSensorFrame` v1 JSONL record, 7 overlay primitives, Replicator writer
 registration/write/flush/stop, and readable error messages for no stage, no
@@ -316,8 +322,8 @@ Before a public release, inspect the package contents:
 ```bash
 make build
 make audit-dist
-python -m tarfile -l dist/isaac_audio_sensors-1.0.0rc1.tar.gz
-python -m zipfile -l dist/isaac_audio_sensors-1.0.0rc1-py3-none-any.whl
+python -m tarfile -l dist/isaac_audio_sensors-1.0.0.tar.gz
+python -m zipfile -l dist/isaac_audio_sensors-1.0.0-py3-none-any.whl
 ```
 
 The archives should not contain `outputs/`, `runs/`, generated media, private

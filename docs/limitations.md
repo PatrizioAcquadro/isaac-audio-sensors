@@ -19,8 +19,8 @@
 - `room_acoustics` file-backed `audio_asset_path` loading is intentionally
   narrow: paths must be relative public files under the checkout and sample
   rates must match the frame sample rate.
-- The 2026-05-24 local-time Task 6 live Isaac Sim validation
-  (`2026-05-25T02:46Z` Kit log timestamp) skipped `room_acoustics` because
+- The 2026-05-24 local-time final `1.0.0` live Isaac Sim validation
+  (`2026-05-25T03:34Z` Kit log timestamp) skipped `room_acoustics` because
   `pyroomacoustics` was absent from the Isaac runtime. The live proof covered
   `geometry_only` and `tdoa_synthetic`; room/RIR diagnostics are live-validated
   only when the optional dependency is installed and the smoke reports that

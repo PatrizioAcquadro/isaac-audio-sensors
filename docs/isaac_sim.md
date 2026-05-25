@@ -41,8 +41,8 @@ The smoke script:
   backend diagnostics, movement diagnostics, writer diagnostics, JSON evidence,
   config JSON, and JSONL frame traces under ignored `outputs/`.
 
-Latest local Task 6 validation was rerun on 2026-05-24 local time
-(`2026-05-25T02:46Z` Kit log timestamp) with the Isaac Python runtime selected
+Latest local final `1.0.0` validation was rerun on 2026-05-24 local time
+(`2026-05-25T03:34Z` Kit log timestamp) with the Isaac Python runtime selected
 by `ISAAC_SIM_COMMAND`. It passed with `pxr` and `omni` imported, headless
 `SimulationApp` bootstrap, `kit_app_version` `5.1.0`, Kit build
 `107.3.3+production.229672.69cbf6ad.gl`, Torch `2.7.0+cu128`, and an NVIDIA
@@ -83,9 +83,9 @@ Run it with `make live-evidence-report`. The generator is
 The source distribution includes a lightweight Kit extension at
 `exts/isaac_audio_sensors.omni`. Load it from Isaac Sim by adding the repository
 `exts/` directory to the Extension Manager search paths, then enable
-`Isaac Audio Sensors`. The Kit manifest uses version `1.0.0-rc.1` because
-Omniverse Kit requires SemVer in `extension.toml`; the Python package version
-remains `1.0.0rc1`. The extension entrypoint is import-safe in normal Python:
+`Isaac Audio Sensors`. The Kit manifest uses version `1.0.0`, matching the
+final Python package version. The extension entrypoint is import-safe in normal
+Python:
 it does not import `omni`, `pxr`, Isaac Sim, a display, CUDA, or a GPU until
 the live stage or UI path is used.
 
@@ -140,8 +140,8 @@ Default export paths are ignored public-output paths:
 - Replicator output directory:
   `outputs/isaac_audio_sensors/replicator/`.
 
-Latest local extension UX validation was rerun on 2026-05-24 local time
-(`2026-05-25T02:47Z` Kit log timestamp) with:
+Latest local final `1.0.0` extension UX validation was rerun on 2026-05-24
+local time (`2026-05-25T03:38Z` Kit log timestamp) with:
 
 ```bash
 make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
@@ -152,7 +152,7 @@ build `107.3.3+production.229672.69cbf6ad.gl`, an NVIDIA GeForce RTX 4090
 visible through Torch CUDA, and `nvidia-smi` driver `570.211.01`. The
 artifact's `isaacsim_version` and `kit_version` fields were `unavailable`.
 The Kit extension manager enabled
-`isaac_audio_sensors.omni-1.0.0-rc.1`, `omni.usd` provided the stage, and the
+`isaac_audio_sensors.omni-1.0.0`, `omni.usd` provided the stage, and the
 selection API set `/World/Rig/AudioArray`, `/World/Sources/SpeakerA`, and
 `/World/Rig`. The workflow authored one array and one source, discovered
 `rig_front` and `speaker_a`, selected `tdoa_synthetic`, started/updated/stopped

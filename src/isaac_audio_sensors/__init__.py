@@ -26,7 +26,7 @@ from isaac_audio_sensors.core.types import (
     RoomAcousticsSpec,
 )
 
-__version__ = "1.0.0rc1"
+__version__ = "1.0.0"
 
 __all__ = [
     "__version__",

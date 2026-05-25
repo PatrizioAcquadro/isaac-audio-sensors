@@ -1,15 +1,15 @@
 # API Freeze
 
 This document defines the public compatibility surface for
-`isaac-audio-sensors` `1.0.0rc1` and compatible v1 releases. The project is a
+`isaac-audio-sensors` `1.0.0` and compatible v1 releases. The project is a
 standalone open-source Isaac Sim/Lab audio sensor package. It is not tied to a
 downstream research project, and the pure Python core must remain importable
 without Isaac Sim, Isaac Lab, Omniverse, `pyroomacoustics`, `scipy`,
 `soundfile`, protobuf, ROS 2, CUDA, or torch installed.
 
-The distribution version is currently the `1.0.0rc1` release candidate, not
-final `1.0.0`. The frame schema version is independent and remains
-`ias.audio_sensor_frame.v1` for all compatible v1 releases.
+The distribution version is currently final `1.0.0`. The frame schema version
+is independent and remains `ias.audio_sensor_frame.v1` for all compatible v1
+releases.
 
 [V1 Public Scope](v1_scope.md) is the single source of truth for release
 promises and non-promises. This API freeze defines compatibility for those
@@ -18,7 +18,7 @@ calibration, real hardware benchmarks, complete L3/L4 fidelity, or realistic
 material/occlusion acoustics into v1 release gates.
 
 The file name is retained for existing documentation links; the active release
-target is `1.0.0rc1`.
+target is `1.0.0`.
 
 ## Stable For V1-Compatible Releases
 

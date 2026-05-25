@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.0.0 - 2026-05-24
+
+This is the final v1 package release promoted from `1.0.0rc1`.
+
+- Freezes the `AudioSensorFrame` v1 API/data contract for the v1 line except
+  for compatible additive changes and bug fixes.
+- Keeps the frame schema version separate from the package version at
+  `ias.audio_sensor_frame.v1`.
+- Reviewed the `1.0.0rc1` feedback window and promoted early with explicit
+  maintainer approval on 2026-05-24.
+- Confirmed the changes after `v1.0.0rc1` were non-breaking docs and evidence
+  updates before the final version bump; no frame fields, schema semantics,
+  stable backend ids, units, timestamps, provenance values, bearing sectors,
+  public APIs, or core dependency boundaries were broken.
+- Promotes the same v1 scope validated by the RC: stable L0 `geometry_only`,
+  stable L1 `tdoa_synthetic`, supported optional L2 `room_acoustics`, Isaac
+  Sim, Isaac Lab, Omniverse reference UX, stable JSON/JSONL export, and
+  optional extension-only Replicator support.
+- Documents that SquadBot, Alex, ROS 2, and downstream project adapters are not
+  final v1 package release gates.
+- Leaves phases 9, 10, and 11 as post-v1 planned work, not prerequisites for
+  this release.
+
 ## 1.0.0rc1 - 2026-05-24
 
 This is a release candidate for the v1 package line, not the final `1.0.0`

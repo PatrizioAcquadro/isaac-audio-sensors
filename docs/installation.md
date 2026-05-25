@@ -2,11 +2,11 @@
 
 ## Core Install
 
-Use Python 3.10 or newer for the pure package. After building the local release
-candidate, install the wheel directly:
+Use Python 3.10 or newer for the pure package. After building the local final
+release, install the wheel directly:
 
 ```bash
-python -m pip install dist/isaac_audio_sensors-1.0.0rc1-py3-none-any.whl
+python -m pip install dist/isaac_audio_sensors-1.0.0-py3-none-any.whl
 python -m isaac_audio_sensors --version
 ```
 
@@ -70,8 +70,9 @@ PYTHONPATH=/tmp/isaac-audio-sensors-rc-consumer/site \
   "$ISAAC_LAB_PYTHON" generic_isaac_lab_consumer.py
 ```
 
-The 2026-05-24 local-time external consumer smoke used this mode and imported
-`isaac_audio_sensors` from
+The 2026-05-24 local-time `1.0.0rc1` external consumer smoke used this mode and
+was reviewed before final `1.0.0` promotion. It imported `isaac_audio_sensors`
+from
 `/tmp/isaac-audio-sensors-rc-consumer/site/isaac_audio_sensors/__init__.py`,
 not from an editable checkout.
 

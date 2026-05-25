@@ -1,14 +1,14 @@
 # Roadmap
 
 This roadmap tracks package-level work for `isaac-audio-sensors`. Completed
-items are listed separately so future work does not repeat release-candidate
-capabilities that already exist.
+items are listed separately so future work does not repeat v1 capabilities that
+already exist.
 
 [V1 Public Scope](v1_scope.md) is the release-scope source of truth. Future
 items below are not v1 release gates unless they are promoted by a later scope
 change.
 
-## Completed In Current Release Candidate
+## Completed In V1.0.0
 
 - Standalone Apache-2.0 package boundary with public docs, examples, schemas,
   tests, and source distribution metadata.
@@ -45,13 +45,13 @@ change.
   authoring, backend selection, live update/export, overlay state, reusable
   config import/export, and optional lazy Replicator recording for recoverable
   `AudioSensorFrame` v1 payloads when Kit exposes the needed APIs.
-- Release-candidate hygiene docs, versioning notes, archive audit script, and
-  build-time distribution audit.
+- Release hygiene docs, versioning notes, archive audit script, build-time
+  distribution audit, and final `1.0.0` promotion notes.
 
 ## Future Work
 
-- Phases 9, 10, and 11 are planned after the `1.0.0rc1` tag and are not
-  prerequisites for the release-candidate gate.
+- Phases 9, 10, and 11 are planned after the `1.0.0` release and are not
+  prerequisites for the final v1 package gate.
 - Automated Isaac Sim and Isaac Lab smoke CI on capable GPU runners.
 - Optional USD geometry authoring for debug primitives.
 - Broader Replicator annotator compatibility and richer dataset capture beyond
@@ -64,6 +64,6 @@ change.
 - GCC-PHAT and SRP-PHAT estimation paths as documented public backends.
 - ROS 2 adapter as an optional downstream/project layer.
 - Broader tested adapters for custom Isaac Lab task asset APIs beyond the
-  common tensor/entity patterns documented for the v1 release candidate.
+  common tensor/entity patterns documented for the v1 release.
 - Pre-publish license, asset, and live-runtime evidence review before any PyPI
   release or git tag.

@@ -1,8 +1,8 @@
 # Open Source Release Checklist
 
-This checklist is for preparing a public `isaac-audio-sensors` release
-candidate. It is intentionally separate from publishing. Do not tag, push, or
-publish to PyPI from this checklist unless a maintainer explicitly requests it.
+This checklist is for preparing a public `isaac-audio-sensors` release. It is
+intentionally separate from publishing. Do not tag, push, or publish to PyPI
+from this checklist unless a maintainer explicitly requests it.
 
 ## Repository Boundary
 
@@ -85,7 +85,7 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
 - [x] Validation docs state that SquadBot, Alex, ROS 2/downstream adapters, real
   hardware benchmarks, sim-real calibration, complete L3/L4, and realistic
   material/occlusion acoustics are not v1 package release gates.
-- [x] Roadmap separates completed release-candidate work from future work.
+- [x] Roadmap separates completed v1 release work from future work.
 
 ## Packaging And Distribution
 
@@ -103,27 +103,25 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
 
 ## Versioning And Changelog
 
-- [x] Package version is `1.0.0rc1`, using exact PEP 440 spelling.
-- [x] `1.0.0rc1` is documented as a release candidate, not final `1.0.0`.
+- [x] Package version is `1.0.0`, using exact PEP 440 spelling.
+- [x] `1.0.0` is documented as the final v1 package release.
 - [x] Release notes state that `AudioSensorFrame` v1 API is frozen except for
   bug fixes and additive compatible diagnostics or fields.
-- [x] Release notes state the RC feedback window is 2026-05-24 through
-  2026-06-07 before final `1.0.0` consideration.
-- [x] Release notes state this RC is not final `1.0.0` until RC feedback and
-  real downstream usage are reviewed.
-- [x] Release notes state SquadBot is not included in the `v1.0.0rc1` release
-  gate.
-- [x] Release notes state phases 9, 10, and 11 are planned after the RC.
+- [x] Release notes state the `1.0.0rc1` feedback window was reviewed and final
+  `1.0.0` was promoted early with explicit maintainer approval.
+- [x] Release notes state SquadBot, Alex, ROS 2, and downstream adapters are
+  not final v1 package release gates.
+- [x] Release notes state phases 9, 10, and 11 remain post-v1 planned work.
 - [x] `docs/versioning.md` explains that package version and frame schema
   version are separate.
-- [x] `CHANGELOG.md` has a dated `1.0.0rc1` section covering the release
-  candidate scope.
-- [ ] When maintainers decide to cut final `1.0.0`, add a new dated changelog
-  section instead of editing the frame schema version.
+- [x] `CHANGELOG.md` has a dated `1.0.0` section covering the final release
+  scope.
+- [x] Historical `1.0.0rc1` changelog entries remain historical, and the frame
+  schema version remains `ias.audio_sensor_frame.v1`.
 
 ## Required Validation
 
-Run and record these required local release-candidate gates:
+Run and record these required local release gates:
 
 ```bash
 make test
@@ -158,10 +156,11 @@ in addition, but it is not a downstream project gate.
   observation keys/shapes on CPU. This smoke does not replace the live Lab GPU
   gate.
 - [x] External consumer evidence recorded no repo-source `sys.path` entries and
-  no SquadBot/Alex/downstream module imports.
+  no SquadBot/Alex/downstream module imports. This RC external consumer proof
+  was reviewed before final `1.0.0` promotion.
 
 Run and record live sensor gates on a local Isaac runtime when refreshing live
-runtime evidence before publishing or tagging a release candidate:
+runtime evidence before publishing or tagging a release:
 
 ```bash
 make live-isaac-sim-audio ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
@@ -221,7 +220,7 @@ The artifact `outputs/isaac_audio_sensors/omniverse_extension_live_ux.json`
 reported `status: "passed"` on the host-visible Isaac runtime with Isaac Sim
 5.1.0 / Kit `107.3.3+production.229672.69cbf6ad.gl`, CUDA-visible
 `NVIDIA GeForce RTX 4090`, extension-manager status `enabled`, enabled
-extension id `isaac_audio_sensors.omni-1.0.0-rc.1`, real `omni.usd` stage and
+extension id `isaac_audio_sensors.omni-1.0.0`, real `omni.usd` stage and
 selection updates, array/source authoring and discovery, `tdoa_synthetic`
 start/update/stop, one valid `AudioSensorFrame` v1 JSONL record, 7 overlay
 primitives, latest-frame/config JSON exports, Replicator writer
@@ -242,7 +241,7 @@ registration/write/flush/stop, and readable error checks.
 - [ ] Public hygiene grep returns no project-specific or private path leaks
   outside the allowed scope/non-promise docs.
 - [ ] Acoustic fidelity ladder tests and docs links pass before release.
-- [ ] `python -m isaac_audio_sensors --version` reports `1.0.0rc1` from the
+- [ ] `python -m isaac_audio_sensors --version` reports `1.0.0` from the
   built wheel in a clean environment.
 - [ ] `git ls-files` shows no tracked caches, generated outputs, local goals,
   virtual environments, build artifacts, or private environment files.
