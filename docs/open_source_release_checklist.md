@@ -142,6 +142,24 @@ smoke, lint, distribution audit, and the machine-local live-evidence report
 source/PDF. `make validate-config` is a useful local usage smoke and may be run
 in addition, but it is not a downstream project gate.
 
+- [x] Minimal external consumer smoke for `1.0.0rc1` passed from
+  `/tmp/isaac-audio-sensors-rc-consumer` using `pip --target` into
+  `/tmp/isaac-audio-sensors-rc-consumer/site`, not `pip install -e` and not
+  `PYTHONPATH=src`.
+- [x] External import resolved to
+  `/tmp/isaac-audio-sensors-rc-consumer/site/isaac_audio_sensors/__init__.py`
+  with package version `1.0.0rc1`.
+- [x] Generic Isaac Sim consumer emitted valid `AudioSensorFrame` v1 records for
+  `geometry_only` and `tdoa_synthetic` from a generic in-memory USD stage,
+  generic array, and generic source.
+- [x] Generic Isaac Lab consumer launched AppLauncher first, recovered real
+  `AudioArraySensorCfg`/`AudioArraySensor` classes, proved
+  `SensorBaseCfg`/`SensorBase` subclassing, and exposed stable two-env
+  observation keys/shapes on CPU. This smoke does not replace the live Lab GPU
+  gate.
+- [x] External consumer evidence recorded no repo-source `sys.path` entries and
+  no SquadBot/Alex/downstream module imports.
+
 Run and record live sensor gates on a local Isaac runtime when refreshing live
 runtime evidence before publishing or tagging a release candidate:
 

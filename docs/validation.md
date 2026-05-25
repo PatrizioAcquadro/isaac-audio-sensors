@@ -51,6 +51,51 @@ make audit-dist
 make import-smoke
 ```
 
+## Minimal External Consumer Smoke
+
+The `1.0.0rc1` wheel was also validated from an independent temporary consumer
+workspace outside the repository on 2026-05-24 local time (Kit logs at
+`2026-05-25T03:10Z`). The install used `pip --target`, not an editable install:
+
+```bash
+python -m pip install --no-deps --target /tmp/isaac-audio-sensors-rc-consumer/site \
+  dist/isaac_audio_sensors-1.0.0rc1-py3-none-any.whl
+cd /tmp/isaac-audio-sensors-rc-consumer
+PYTHONPATH=/tmp/isaac-audio-sensors-rc-consumer/site \
+  "$ISAAC_LAB_PYTHON" generic_isaac_sim_consumer.py \
+  --out /tmp/isaac-audio-sensors-rc-consumer/evidence/generic_isaac_sim_consumer.evidence.json
+PYTHONPATH=/tmp/isaac-audio-sensors-rc-consumer/site \
+  "$ISAAC_LAB_PYTHON" generic_isaac_lab_consumer.py \
+  --out /tmp/isaac-audio-sensors-rc-consumer/evidence/generic_isaac_lab_consumer.evidence.json
+```
+
+Both generated consumer scripts were run from
+`/tmp/isaac-audio-sensors-rc-consumer`, and both imported package version
+`1.0.0rc1` from
+`/tmp/isaac-audio-sensors-rc-consumer/site/isaac_audio_sensors/__init__.py`.
+The evidence recorded empty repo-source `sys.path` blocks and no downstream
+module imports.
+
+The generic Isaac Sim consumer created an in-memory USD stage named
+`generic_external_consumer.usda` with generic array/source prims under
+`/World/GenericAudioStage`, then emitted two valid `AudioSensorFrame` v1 JSONL
+records: one `geometry_only` and one `tdoa_synthetic`.
+
+The generic Isaac Lab consumer launched `isaaclab.app.AppLauncher` before
+resolving the package Lab classes, recovered real `AudioArraySensorCfg` and
+`AudioArraySensor` classes, and proved `SensorBaseCfg`/`SensorBase`
+subclassing. It exposed a two-environment CPU observation surface with stable
+keys `audio/event_presence`, `audio/bearing_deg`, `audio/confidence`,
+`audio/sector_onehot`, `audio/per_mic_rms`, and `audio/ambiguity_mask`. This
+external consumer smoke is not the live GPU gate; GPU placement remains covered
+by `make live-isaac-lab-audio-gpu`.
+
+Evidence files:
+
+- `/tmp/isaac-audio-sensors-rc-consumer/evidence/generic_isaac_sim_consumer.evidence.json`
+- `/tmp/isaac-audio-sensors-rc-consumer/evidence/generic_isaac_sim_consumer.frames.jsonl`
+- `/tmp/isaac-audio-sensors-rc-consumer/evidence/generic_isaac_lab_consumer.evidence.json`
+
 ## Local Evidence Report And PDF
 
 The current live-evidence report is generated from the ignored JSON/JSONL

@@ -56,4 +56,23 @@ PYTHONPATH=src "$ISAAC_SIM_PYTHON" scripts/live_isaac_sim_audio_smoke.py
 PYTHONPATH=src "$ISAAC_LAB_PYTHON" scripts/live_isaac_lab_audio_smoke.py
 ```
 
+For external consumer validation without modifying the Isaac runtime
+environment, install the wheel into a temporary target directory and point
+`PYTHONPATH` only at that target:
+
+```bash
+python -m pip install --no-deps --target /tmp/isaac-audio-sensors-rc-consumer/site \
+  dist/isaac_audio_sensors-1.0.0rc1-py3-none-any.whl
+cd /tmp/isaac-audio-sensors-rc-consumer
+PYTHONPATH=/tmp/isaac-audio-sensors-rc-consumer/site \
+  "$ISAAC_LAB_PYTHON" generic_isaac_sim_consumer.py
+PYTHONPATH=/tmp/isaac-audio-sensors-rc-consumer/site \
+  "$ISAAC_LAB_PYTHON" generic_isaac_lab_consumer.py
+```
+
+The 2026-05-24 local-time external consumer smoke used this mode and imported
+`isaac_audio_sensors` from
+`/tmp/isaac-audio-sensors-rc-consumer/site/isaac_audio_sensors/__init__.py`,
+not from an editable checkout.
+
 If Isaac is unavailable, the pure core tests still run.
