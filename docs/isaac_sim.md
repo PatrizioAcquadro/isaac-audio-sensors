@@ -41,11 +41,12 @@ The smoke script:
   backend diagnostics, movement diagnostics, writer diagnostics, JSON evidence,
   config JSON, and JSONL frame traces under ignored `outputs/`.
 
-Latest local Task 6 validation was run on 2026-05-23 with the Isaac Python
-runtime selected by `ISAAC_SIM_COMMAND`. It passed in real Isaac Sim 5.1.0 with
-Kit build `107.3.3+production.229672.69cbf6ad.gl`, `pxr` and `omni` imported,
-headless `SimulationApp` bootstrap, Torch `2.7.0+cu128`, and an NVIDIA GeForce
-RTX 4090 visible through CUDA and `nvidia-smi` driver `570.211.01`.
+Latest local Task 6 validation was rerun on 2026-05-24 local time
+(`2026-05-25T01:24Z` Kit log timestamp) with the Isaac Python runtime selected
+by `ISAAC_SIM_COMMAND`. It passed in real Isaac Sim 5.1.0 with Kit build
+`107.3.3+production.229672.69cbf6ad.gl`, `pxr` and `omni` imported, headless
+`SimulationApp` bootstrap, Torch `2.7.0+cu128`, and an NVIDIA GeForce RTX 4090
+visible through CUDA and `nvidia-smi` driver `570.211.01`.
 
 The smoke authored a synthetic USD stage inside Isaac Sim and produced:
 
@@ -54,11 +55,16 @@ The smoke authored a synthetic USD stage inside Isaac Sim and produced:
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
 
 The JSONL trace contains 6 valid `AudioSensorFrame` v1 records: 3
-`geometry_only` frames and 3 `tdoa_synthetic` frames. Both required backends
+`geometry_only` frames and 3 `tdoa_synthetic` frames. Semantic discovery
+selected array `rig_front` at `/World/RobotBase/ArrayMount/AudioArray` and
+source `speaker_front` at `/World/MovingSource/Sound`. Both required backends
 proved changed source pose, array pose, bearing, stage time code, backend
-diagnostics, and debug primitive output after live USD motion. `room_acoustics`
-was skipped with an explicit evidence reason because `pyroomacoustics` was not
-installed in that Isaac runtime.
+diagnostics, and debug primitives after live USD motion. The evidence records
+debug primitive kinds `microphone`, `source`, `bearing_ray`, and
+`sector_wedge`, with labels for `mic:front`, `mic:left`, `mic:rear`,
+`mic:right`, `source:speaker_front`, bearing rays, and `sector:straight`.
+`room_acoustics` was skipped with an explicit evidence reason because
+`pyroomacoustics` was not installed in that Isaac runtime.
 
 ## Reference Extension UX
 

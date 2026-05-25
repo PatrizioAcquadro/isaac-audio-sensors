@@ -179,13 +179,17 @@ and `tdoa_synthetic`, verifies changed frame output, records an inactive sound
 window, and writes GPU, discovery, transform-provenance, config JSON, evidence
 JSON, and JSONL frame traces under ignored `outputs/`.
 
-Latest local Task 6 live validation, run on 2026-05-23 with the Isaac Python
-runtime selected by `ISAAC_SIM_COMMAND`, passed on real Isaac Sim 5.1.0 / Kit
+Latest local Task 6 live validation, rerun on 2026-05-24 local time
+(`2026-05-25T01:24Z` Kit log timestamp) with the Isaac Python runtime selected
+by `ISAAC_SIM_COMMAND`, passed on real Isaac Sim 5.1.0 / Kit
 `107.3.3+production.229672.69cbf6ad.gl` with an NVIDIA GeForce RTX 4090,
 driver `570.211.01`, and Torch `2.7.0+cu128`. It produced 6
-`AudioSensorFrame` v1 JSONL records: 3 `geometry_only` and 3 `tdoa_synthetic`.
-`room_acoustics` skipped cleanly because `pyroomacoustics` was not installed in
-that Isaac runtime. Artifacts:
+`AudioSensorFrame` v1 JSONL records: 3 `geometry_only` and 3 `tdoa_synthetic`,
+selected array `rig_front` at `/World/RobotBase/ArrayMount/AudioArray`, and
+selected source `speaker_front` at `/World/MovingSource/Sound`. The evidence
+records debug primitive labels for microphones, source, bearing rays, and
+sector. `room_acoustics` skipped cleanly because `pyroomacoustics` was not
+installed in that Isaac runtime. Artifacts:
 
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.json`
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`

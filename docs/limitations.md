@@ -19,11 +19,12 @@
 - `room_acoustics` file-backed `audio_asset_path` loading is intentionally
   narrow: paths must be relative public files under the checkout and sample
   rates must match the frame sample rate.
-- The 2026-05-23 Task 6 live Isaac Sim validation skipped `room_acoustics`
-  because `pyroomacoustics` was absent from the Isaac runtime. The live proof
-  covered `geometry_only` and `tdoa_synthetic`; room/RIR diagnostics are
-  live-validated only when the optional dependency is installed and the smoke
-  reports that backend as passed.
+- The 2026-05-24 local-time Task 6 live Isaac Sim validation
+  (`2026-05-25T01:24Z` Kit log timestamp) skipped `room_acoustics` because
+  `pyroomacoustics` was absent from the Isaac runtime. The live proof covered
+  `geometry_only` and `tdoa_synthetic`; room/RIR diagnostics are live-validated
+  only when the optional dependency is installed and the smoke reports that
+  backend as passed.
 - L3 advanced realism is a provisional API direction for future richer
   wave/RIR, material, occlusion, directivity, noise, and estimator realism; it
   is not a complete v1 runtime backend.

@@ -134,12 +134,16 @@ and frame traces in:
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
 
-The 2026-05-23 Task 6 live run passed on Isaac Sim 5.1.0 / Kit
+The 2026-05-24 local-time Task 6 live run (`2026-05-25T01:24Z` Kit log
+timestamp) passed on Isaac Sim 5.1.0 / Kit
 `107.3.3+production.229672.69cbf6ad.gl` with an NVIDIA GeForce RTX 4090,
 driver `570.211.01`, and Torch `2.7.0+cu128`. It emitted 6 valid
 `AudioSensorFrame` v1 JSONL records: 3 `geometry_only` and 3
-`tdoa_synthetic`. `room_acoustics` was skipped cleanly because
-`pyroomacoustics` was absent from that Isaac runtime.
+`tdoa_synthetic`. Semantic discovery selected array `rig_front` at
+`/World/RobotBase/ArrayMount/AudioArray` and source `speaker_front` at
+`/World/MovingSource/Sound`. The evidence recorded debug primitive labels for
+microphones, source, bearing rays, and sector. `room_acoustics` was skipped
+cleanly because `pyroomacoustics` was absent from that Isaac runtime.
 
 The Omniverse extension entrypoint also has a pure Python import smoke:
 

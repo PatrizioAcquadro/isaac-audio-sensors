@@ -155,16 +155,30 @@ def main() -> int:
             }
 
         trace_summary = _validate_jsonl_frames(frame_trace_path)
+        room_result = backend_results["room_acoustics"]
         evidence.update(
             {
                 "status": "passed",
                 "stage_id": initial_snapshot.stage_id,
+                "stage_summary": {
+                    "stage_id": initial_snapshot.stage_id,
+                    "mode": config["stage"]["mode"],
+                    "root": config["stage"]["root"],
+                    "robot_base_prim_path": config["stage"]["robot_base_prim_path"],
+                    "array_prim_path": config["stage"]["array_prim_path"],
+                    "source_prim_path": config["stage"]["source_prim_path"],
+                    "motion_time_codes": config["stage"]["motion_time_codes"],
+                },
                 "source_count": len(initial_snapshot.sources),
                 "array_count": len(initial_snapshot.arrays),
                 "microphone_count": len(initial_snapshot.arrays[0].microphones),
                 "semantic_discovery": True,
                 "selected_array_id": initial_snapshot.arrays[0].array_id,
                 "selected_array_preference": binding_cfg.preferred_array,
+                "selected_array": initial_diagnostics.get("selected_array"),
+                "selected_source": initial_diagnostics.get("selected_source"),
+                "array_ids": [array.array_id for array in initial_snapshot.arrays],
+                "source_ids": [source.source_id for source in initial_snapshot.sources],
                 "motion_authoring": "time_sampled_usd_xform_ops",
                 "initial_stage_diagnostics": initial_diagnostics,
                 "backend_results": backend_results,
@@ -180,6 +194,16 @@ def main() -> int:
                     for result in backend_results.values()
                     if result.get("status") == "passed"
                 ),
+                "debug_primitive_kinds": _aggregate_backend_debug_field(
+                    backend_results,
+                    "debug_primitive_kinds",
+                ),
+                "debug_primitive_labels": _aggregate_backend_debug_field(
+                    backend_results,
+                    "debug_primitive_labels",
+                ),
+                "room_acoustics_status": room_result["status"],
+                "room_acoustics_skip_reason": room_result.get("skip_reason"),
             }
         )
     except BaseException as exc:  # noqa: BLE001 - smoke evidence records exact error.
@@ -360,6 +384,23 @@ def _summarize_backend(
     moved_array_pose = _array_pose(moved)
     moved_debug_primitives = debug_primitives.get("moved", [])
     moved_kinds = sorted({str(item.get("kind")) for item in moved_debug_primitives})
+    moved_labels = sorted(
+        {
+            str(item["label"])
+            for item in moved_debug_primitives
+            if item.get("label") is not None
+        }
+    )
+    moved_labels_by_kind: dict[str, list[str]] = {}
+    for item in moved_debug_primitives:
+        kind = item.get("kind")
+        label = item.get("label")
+        if kind is None or label is None:
+            continue
+        moved_labels_by_kind.setdefault(str(kind), []).append(str(label))
+    moved_labels_by_kind = {
+        kind: sorted(labels) for kind, labels in sorted(moved_labels_by_kind.items())
+    }
     result: dict[str, Any] = {
         "status": "passed",
         "backend_id": backend_id,
@@ -397,6 +438,8 @@ def _summarize_backend(
         "inactive_detection_count": len(inactive.detections),
         "debug_primitive_count": len(moved_debug_primitives),
         "debug_primitive_kinds": moved_kinds,
+        "debug_primitive_labels": moved_labels,
+        "debug_primitive_labels_by_kind": moved_labels_by_kind,
         "diagnostics_namespaces": sorted(moved.diagnostics),
         "jsonl_record_indices": {
             phase: frame.diagnostics["writer"]["record_index"]
@@ -437,9 +480,7 @@ def _summarize_backend(
         result["rir_length_samples"] = moved_detection.diagnostics.get(
             "rir_length_samples"
         )
-        result["rir_peak_delay_s"] = moved_detection.diagnostics.get(
-            "rir_peak_delay_s"
-        )
+        result["rir_peak_delay_s"] = moved_detection.diagnostics.get("rir_peak_delay_s")
         result["waveform_sample_count"] = moved_detection.diagnostics.get(
             "waveform_sample_count"
         )
@@ -465,6 +506,30 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         raise RuntimeError(f"{backend_id} emitted detections for an inactive source.")
     if int(result.get("debug_primitive_count", 0)) <= 0:
         raise RuntimeError(f"{backend_id} did not produce debug primitives.")
+    debug_kinds = set(result.get("debug_primitive_kinds", ()))
+    required_debug_kinds = {"microphone", "source", "bearing_ray", "sector_wedge"}
+    missing_debug_kinds = sorted(required_debug_kinds - debug_kinds)
+    if missing_debug_kinds:
+        raise RuntimeError(
+            f"{backend_id} did not produce required debug primitive kinds: "
+            f"{missing_debug_kinds}."
+        )
+    debug_labels = tuple(
+        str(label) for label in result.get("debug_primitive_labels", ())
+    )
+    if not debug_labels:
+        raise RuntimeError(f"{backend_id} did not record debug primitive labels.")
+    required_label_prefixes = ("mic:", "source:", "bearing:", "sector:")
+    missing_label_prefixes = [
+        prefix
+        for prefix in required_label_prefixes
+        if not any(label.startswith(prefix) for label in debug_labels)
+    ]
+    if missing_label_prefixes:
+        raise RuntimeError(
+            f"{backend_id} did not record required debug primitive labels: "
+            f"{missing_label_prefixes}."
+        )
     if backend_id == "tdoa_synthetic" and not result.get("tdoa_diagnostics_present"):
         raise RuntimeError("tdoa_synthetic did not expose TDOA diagnostics.")
     if backend_id == "room_acoustics" and not (
@@ -502,6 +567,19 @@ def _validate_jsonl_frames(path: Path) -> dict[str, Any]:
         "backend_frame_counts": backend_counts,
         "diagnostics_namespaces": sorted(diagnostics_namespaces),
     }
+
+
+def _aggregate_backend_debug_field(
+    backend_results: dict[str, Any],
+    field_name: str,
+) -> list[str]:
+    values: set[str] = set()
+    for result in backend_results.values():
+        if result.get("status") != "passed":
+            continue
+        for value in result.get(field_name, ()):
+            values.add(str(value))
+    return sorted(values)
 
 
 def _author_stage(stage: Any) -> None:
@@ -616,8 +694,7 @@ def _ensure_isaac_runtime(evidence: dict[str, Any]) -> Any | None:
         from isaacsim import SimulationApp  # type: ignore
     except Exception as exc:  # noqa: BLE001 - evidence records exact blocker.
         raise RuntimeError(
-            "Could not import isaacsim.SimulationApp from the requested Python "
-            "runtime."
+            "Could not import isaacsim.SimulationApp from the requested Python runtime."
         ) from exc
 
     simulation_app = SimulationApp({"headless": True})
