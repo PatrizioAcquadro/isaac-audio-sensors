@@ -105,6 +105,15 @@ publish to PyPI from this checklist unless a maintainer explicitly requests it.
 
 - [x] Package version is `1.0.0rc1`, using exact PEP 440 spelling.
 - [x] `1.0.0rc1` is documented as a release candidate, not final `1.0.0`.
+- [x] Release notes state that `AudioSensorFrame` v1 API is frozen except for
+  bug fixes and additive compatible diagnostics or fields.
+- [x] Release notes state the RC feedback window is 2026-05-24 through
+  2026-06-07 before final `1.0.0` consideration.
+- [x] Release notes state this RC is not final `1.0.0` until RC feedback and
+  real downstream usage are reviewed.
+- [x] Release notes state SquadBot is not included in the `v1.0.0rc1` release
+  gate.
+- [x] Release notes state phases 9, 10, and 11 are planned after the RC.
 - [x] `docs/versioning.md` explains that package version and frame schema
   version are separate.
 - [x] `CHANGELOG.md` has a dated `1.0.0rc1` section covering the release

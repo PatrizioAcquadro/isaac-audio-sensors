@@ -5,6 +5,15 @@
 This is a release candidate for the v1 package line, not the final `1.0.0`
 release.
 
+- `AudioSensorFrame` v1 API is frozen except for bug fixes and additive
+  compatible diagnostics or fields.
+- The RC feedback window is open from 2026-05-24 through 2026-06-07 before
+  final `1.0.0` consideration.
+- This RC is not final `1.0.0`; final release still depends on RC feedback and
+  review of real downstream usage.
+- SquadBot is not included in the `v1.0.0rc1` release gate.
+- Phases 9, 10, and 11 are planned after the RC and are not prerequisites for
+  this tag.
 - Strengthened `AudioSensorFrame` as the public v1 frame contract with
   `schema_version`, `frame_name`, `Pose3D` array/source poses, explicit units,
   provenance, time-window fields, and deterministic `max_events` semantics.

@@ -50,6 +50,8 @@ change.
 
 ## Future Work
 
+- Phases 9, 10, and 11 are planned after the `1.0.0rc1` tag and are not
+  prerequisites for the release-candidate gate.
 - Automated Isaac Sim and Isaac Lab smoke CI on capable GPU runners.
 - Optional USD geometry authoring for debug primitives.
 - Broader Replicator annotator compatibility and richer dataset capture beyond

@@ -180,7 +180,7 @@ window, and writes GPU, discovery, transform-provenance, config JSON, evidence
 JSON, and JSONL frame traces under ignored `outputs/`.
 
 Latest local Task 6 live validation, rerun on 2026-05-24 local time
-(`2026-05-25T01:24Z` Kit log timestamp) with the Isaac Python runtime selected
+(`2026-05-25T02:46Z` Kit log timestamp) with the Isaac Python runtime selected
 by `ISAAC_SIM_COMMAND`, passed on real Isaac Sim 5.1.0 / Kit
 `107.3.3+production.229672.69cbf6ad.gl` with an NVIDIA GeForce RTX 4090,
 driver `570.211.01`, and Torch `2.7.0+cu128`. It produced 6

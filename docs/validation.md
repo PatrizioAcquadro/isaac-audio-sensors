@@ -166,7 +166,7 @@ and frame traces in:
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
 
-The 2026-05-24 local-time Task 6 live run (`2026-05-25T01:24Z` Kit log
+The 2026-05-24 local-time Task 6 live run (`2026-05-25T02:46Z` Kit log
 timestamp) passed. The artifact's `isaacsim_version` and `kit_version` fields
 were `unavailable`, while `kit_app_version` recorded Isaac Sim app `5.1.0` and
 `kit_build_version` recorded `107.3.3+production.229672.69cbf6ad.gl`. CUDA saw
@@ -219,7 +219,7 @@ and stops cleanly. Evidence is written to:
 - `outputs/isaac_audio_sensors/omniverse_extension_live_ux.config.json`
 - `outputs/isaac_audio_sensors/omniverse_extension_live_ux.replicator/`
 
-The 2026-05-24 local-time extension UX run (`2026-05-25T02:03Z` Kit log
+The 2026-05-24 local-time extension UX run (`2026-05-25T02:47Z` Kit log
 timestamp) passed on the host-visible Isaac runtime. The artifact's
 `isaacsim_version` and `kit_version` fields were `unavailable`, while
 `kit_app_version` recorded Isaac Sim app `5.1.0` and `kit_build_version`

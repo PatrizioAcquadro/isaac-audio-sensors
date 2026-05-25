@@ -42,7 +42,7 @@ The smoke script:
   config JSON, and JSONL frame traces under ignored `outputs/`.
 
 Latest local Task 6 validation was rerun on 2026-05-24 local time
-(`2026-05-25T01:24Z` Kit log timestamp) with the Isaac Python runtime selected
+(`2026-05-25T02:46Z` Kit log timestamp) with the Isaac Python runtime selected
 by `ISAAC_SIM_COMMAND`. It passed with `pxr` and `omni` imported, headless
 `SimulationApp` bootstrap, `kit_app_version` `5.1.0`, Kit build
 `107.3.3+production.229672.69cbf6ad.gl`, Torch `2.7.0+cu128`, and an NVIDIA
@@ -141,7 +141,7 @@ Default export paths are ignored public-output paths:
   `outputs/isaac_audio_sensors/replicator/`.
 
 Latest local extension UX validation was rerun on 2026-05-24 local time
-(`2026-05-25T02:03Z` Kit log timestamp) with:
+(`2026-05-25T02:47Z` Kit log timestamp) with:
 
 ```bash
 make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"

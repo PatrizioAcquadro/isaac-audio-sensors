@@ -92,6 +92,7 @@ V1_CONTRACT_REQUIRED_PHRASES = (
 )
 SCOPE_TOKEN_ALLOWLIST_ENTRIES = frozenset(
     {
+        "CHANGELOG.md",
         "README.md",
         "docs/README.md",
         "docs/api_freeze_0_1.md",
@@ -100,6 +101,7 @@ SCOPE_TOKEN_ALLOWLIST_ENTRIES = frozenset(
         "docs/open_source_release_checklist.md",
         "docs/v1_scope.md",
         "docs/validation.md",
+        "docs/versioning.md",
         "scripts/audit_distribution.py",
         "scripts/generate_live_evidence_report.py",
         "tests/test_distribution_audit.py",

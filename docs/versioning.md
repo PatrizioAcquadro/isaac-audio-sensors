@@ -18,6 +18,13 @@ supported optional L2, Isaac Sim path, Isaac Lab path, Omniverse reference UX,
 JSON/JSONL export, and optional extension-only Replicator support coherent as a
 third-party Python package.
 
+The `AudioSensorFrame` v1 API is frozen for compatible v1 releases except for
+bug fixes and additive compatible diagnostics or fields. The RC feedback window
+for this tag is 2026-05-24 through 2026-06-07. Final `1.0.0` still depends on
+RC feedback and review of real downstream usage; SquadBot is not included in
+the `v1.0.0rc1` release gate, and phases 9, 10, and 11 are planned after the
+RC rather than as prerequisites for this tag.
+
 The Kit extension manifest uses SemVer spelling because Omniverse Kit rejects
 PEP 440 release-candidate strings in `extension.toml`. The corresponding Python
 package release remains `1.0.0rc1`.

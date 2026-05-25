@@ -456,6 +456,7 @@ def test_public_files_use_neutral_demo_names():
     )
     project_token = "Squad" + "Bot"
     project_token_allowed_paths = {
+        "CHANGELOG.md",
         "README.md",
         "docs/README.md",
         "docs/api_freeze_0_1.md",
@@ -464,6 +465,7 @@ def test_public_files_use_neutral_demo_names():
         "docs/open_source_release_checklist.md",
         "docs/v1_scope.md",
         "docs/validation.md",
+        "docs/versioning.md",
     }
     forbidden_project_context = (
         "release gate",
