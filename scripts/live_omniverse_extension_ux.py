@@ -413,6 +413,12 @@ def _validate_live_extension_outputs(
         raise RuntimeError(f"JSONL trace export is missing: {frame_trace_path}")
     if not config_path.is_file():
         raise RuntimeError(f"Config export is missing: {config_path}")
+    manager_status = evidence.get("kit_extension_manager", {})
+    if manager_status.get("status") != "enabled":
+        raise RuntimeError(
+            "Kit extension manager did not prove extension enabled: "
+            f"{manager_status}"
+        )
     trace_lines = frame_trace_path.read_text(encoding="utf-8").splitlines()
     if not trace_lines:
         raise RuntimeError("JSONL trace has no AudioSensorFrame records.")
@@ -470,7 +476,10 @@ def _try_enable_extension_manager(
     extension_id: str,
     extension_path: Path,
 ) -> dict[str, Any]:
-    result: dict[str, Any] = {"requested_extension_id": extension_id}
+    result: dict[str, Any] = {
+        "requested_extension_id": extension_id,
+        "extension_path": str(extension_path),
+    }
     try:
         import omni.kit.app  # type: ignore
 
@@ -479,6 +488,7 @@ def _try_enable_extension_manager(
         if manager is None:
             return {"status": "unavailable", "reason": "no extension manager"}
         result["manager_type"] = type(manager).__name__
+        result["manager_methods"] = _extension_manager_methods(manager)
         for method_name in ("add_path", "add_search_path", "add_extension_search_path"):
             method = getattr(manager, method_name, None)
             if not callable(method):
@@ -489,21 +499,227 @@ def _try_enable_extension_manager(
                 break
             except Exception as exc:  # noqa: BLE001 - try next API name.
                 result[f"{method_name}_error"] = f"{type(exc).__name__}: {exc}"
+        enable_called = False
         for method_name in ("set_extension_enabled_immediate", "set_extension_enabled"):
             method = getattr(manager, method_name, None)
             if not callable(method):
                 continue
             try:
-                method(extension_id, True)
+                enable_result = method(extension_id, True)
                 result["enable_method"] = method_name
-                result["status"] = "enable_called"
-                return result
+                result["enable_result"] = str(enable_result)
+                enable_called = True
+                break
             except Exception as exc:  # noqa: BLE001 - direct startup may still work.
                 result[f"{method_name}_error"] = f"{type(exc).__name__}: {exc}"
-        result["status"] = "enable_api_unavailable_or_failed"
+        result["kit_update_after_enable"] = _pump_kit_app(app)
+        result["verification"] = _verify_extension_manager_load(
+            manager=manager,
+            extension_id=extension_id,
+            extension_path=extension_path,
+            module_name="isaac_audio_sensors_omni",
+        )
+        if result["verification"].get("enabled") is True:
+            result["status"] = "enabled"
+        elif enable_called:
+            result["status"] = "enable_called_unverified"
+        else:
+            result["status"] = "enable_api_unavailable_or_failed"
         return result
     except Exception as exc:  # noqa: BLE001 - direct startup may still work.
         return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
+
+
+def _extension_manager_methods(manager: Any) -> list[str]:
+    names = []
+    for name in dir(manager):
+        lowered = name.lower()
+        if "extension" in lowered or "enabled" in lowered:
+            names.append(name)
+    return sorted(names)[:80]
+
+
+def _pump_kit_app(app: Any, *, updates: int = 4) -> dict[str, Any]:
+    result: dict[str, Any] = {"requested_updates": updates, "called_updates": 0}
+    update = getattr(app, "update", None)
+    if not callable(update):
+        result["status"] = "update_unavailable"
+        return result
+    for _ in range(updates):
+        try:
+            update()
+            result["called_updates"] += 1
+        except Exception as exc:  # noqa: BLE001 - diagnostic only.
+            result["status"] = f"{type(exc).__name__}: {exc}"
+            return result
+    result["status"] = "updated"
+    return result
+
+
+def _verify_extension_manager_load(
+    *,
+    manager: Any,
+    extension_id: str,
+    extension_path: Path,
+    module_name: str,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {"enabled": False, "checks": []}
+    full_ids: list[str] = []
+
+    for method_name in ("is_extension_enabled", "is_extension_enabled_immediate"):
+        check = _call_manager_method(manager, method_name, extension_id)
+        result["checks"].append(check)
+        if check.get("value") is True:
+            result["enabled"] = True
+
+    enabled_id_check = _call_manager_method(
+        manager,
+        "get_enabled_extension_id",
+        extension_id,
+    )
+    result["checks"].append(enabled_id_check)
+    enabled_id = enabled_id_check.get("value")
+    if enabled_id:
+        result["enabled"] = True
+        full_ids.append(str(enabled_id))
+        result["enabled_extension_id"] = str(enabled_id)
+
+    module_id_check = _call_manager_method(
+        manager,
+        "get_extension_id_by_module",
+        module_name,
+    )
+    result["checks"].append(module_id_check)
+    module_id = module_id_check.get("value")
+    if module_id:
+        result["enabled"] = True
+        full_ids.append(str(module_id))
+        result["module_extension_id"] = str(module_id)
+
+    for candidate_id in (extension_id, *full_ids):
+        dict_check = _call_manager_method(manager, "get_extension_dict", candidate_id)
+        result["checks"].append(dict_check)
+        entry = dict_check.get("value")
+        if isinstance(entry, dict):
+            summary = _extension_entry_summary(entry)
+            result.setdefault("extension_dicts", []).append(summary)
+            if _entry_says_enabled(summary):
+                result["enabled"] = True
+
+    list_method = getattr(manager, "get_extensions", None)
+    if callable(list_method):
+        try:
+            entries = list_method()
+        except Exception as exc:  # noqa: BLE001 - diagnostic only.
+            result["checks"].append(
+                {
+                    "method": "get_extensions",
+                    "status": "error",
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+            )
+        else:
+            result["checks"].append(
+                {
+                    "method": "get_extensions",
+                    "status": "called",
+                    "value": f"{len(entries)} extension entries",
+                }
+            )
+            result["extension_count"] = len(entries)
+            matches = []
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                summary = _extension_entry_summary(entry)
+                if _extension_entry_matches(
+                    summary,
+                    extension_id=extension_id,
+                    extension_path=extension_path,
+                    module_name=module_name,
+                ):
+                    matches.append(summary)
+                    if _entry_says_enabled(summary):
+                        result["enabled"] = True
+            result["matched_extensions"] = matches
+    else:
+        result["checks"].append({"method": "get_extensions", "status": "missing"})
+
+    return result
+
+
+def _call_manager_method(manager: Any, method_name: str, *args: Any) -> dict[str, Any]:
+    method = getattr(manager, method_name, None)
+    if not callable(method):
+        return {"method": method_name, "status": "missing"}
+    try:
+        value = method(*args)
+    except Exception as exc:  # noqa: BLE001 - diagnostic only.
+        return {
+            "method": method_name,
+            "status": "error",
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+    return {
+        "method": method_name,
+        "status": "called",
+        "value": _compact_manager_value(value),
+    }
+
+
+def _compact_manager_value(value: Any) -> Any:
+    if isinstance(value, str | int | float | bool) or value is None:
+        return value
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, dict):
+        return _extension_entry_summary(value)
+    if isinstance(value, tuple | list):
+        return [
+            _compact_manager_value(item)
+            for item in value[:50]
+        ]
+    return str(value)
+
+
+def _extension_entry_summary(entry: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        "id",
+        "name",
+        "package_id",
+        "version",
+        "path",
+        "enabled",
+        "loaded",
+        "state",
+        "python_module",
+        "python_modules",
+        "modules",
+    )
+    return {key: _compact_manager_value(entry[key]) for key in keys if key in entry}
+
+
+def _entry_says_enabled(entry: dict[str, Any]) -> bool:
+    for key in ("enabled", "loaded"):
+        if entry.get(key) is True:
+            return True
+    state = str(entry.get("state", "")).lower()
+    return "enabled" in state or "loaded" in state or "started" in state
+
+
+def _extension_entry_matches(
+    entry: dict[str, Any],
+    *,
+    extension_id: str,
+    extension_path: Path,
+    module_name: str,
+) -> bool:
+    joined = json.dumps(entry, sort_keys=True)
+    return (
+        extension_id in joined
+        or module_name in joined
+        or str(extension_path) in joined
+    )
 
 
 def _prepare_output_dir(path: Path) -> None:

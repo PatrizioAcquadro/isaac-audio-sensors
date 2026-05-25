@@ -8,6 +8,7 @@ separate schema-version policy for frame traces.
 - distribution: `isaac-audio-sensors`
 - import package: `isaac_audio_sensors`
 - package version: `1.0.0rc1`
+- Kit extension manifest version: `1.0.0-rc.1`
 - frame schema version: `ias.audio_sensor_frame.v1`
 - pure Python support: Python 3.10 or newer
 
@@ -16,6 +17,10 @@ package candidate that makes the frozen frame contract, stable L0/L1,
 supported optional L2, Isaac Sim path, Isaac Lab path, Omniverse reference UX,
 JSON/JSONL export, and optional extension-only Replicator support coherent as a
 third-party Python package.
+
+The Kit extension manifest uses SemVer spelling because Omniverse Kit rejects
+PEP 440 release-candidate strings in `extension.toml`. The corresponding Python
+package release remains `1.0.0rc1`.
 
 The package's v1 promise boundary is frozen in [V1 Public Scope](v1_scope.md).
 Versioning changes must not expand v1 into downstream release gates, sim-real

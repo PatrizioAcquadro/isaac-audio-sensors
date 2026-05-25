@@ -168,6 +168,19 @@ real `pxr.Usd.Stage` binding. The full real `InteractiveScene`/`RigidObject`
 entity probe remains documented as a local runtime blocker; the required target
 uses the live CUDA tensor-scene entity path.
 
+Latest local Omniverse extension UX evidence was refreshed on 2026-05-24 local
+time with
+`make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"`.
+The artifact `outputs/isaac_audio_sensors/omniverse_extension_live_ux.json`
+reported `status: "passed"` on the host-visible Isaac runtime with Isaac Sim
+5.1.0 / Kit `107.3.3+production.229672.69cbf6ad.gl`, CUDA-visible
+`NVIDIA GeForce RTX 4090`, extension-manager status `enabled`, enabled
+extension id `isaac_audio_sensors.omni-1.0.0-rc.1`, real `omni.usd` stage and
+selection updates, array/source authoring and discovery, `tdoa_synthetic`
+start/update/stop, one valid `AudioSensorFrame` v1 JSONL record, 7 overlay
+primitives, latest-frame/config JSON exports, Replicator writer
+registration/write/flush/stop, and readable error checks.
+
 ## Non-Gates For V1 Package Release
 
 - [x] SquadBot validation is not required before releasing the sensor package.

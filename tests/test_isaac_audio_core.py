@@ -47,12 +47,19 @@ def test_core_package_imports_and_exposes_version():
 def test_version_surfaces_match_release_candidate():
     root = Path(__file__).resolve().parents[1]
     expected = "1.0.0rc1"
+    kit_manifest_expected = "1.0.0-rc.1"
     assert f'version = "{expected}"' in (root / "pyproject.toml").read_text()
-    assert f'version = "{expected}"' in (
+    extension_manifest = (
         root / "exts/isaac_audio_sensors.omni/config/extension.toml"
     ).read_text()
+    assert f'version = "{kit_manifest_expected}"' in extension_manifest
+    assert "Python package release" in extension_manifest
+    assert expected in extension_manifest
     assert f'version: "{expected}"' in (root / "CITATION.cff").read_text()
     assert f"package version: `{expected}`" in (
+        root / "docs/versioning.md"
+    ).read_text()
+    assert f"Kit extension manifest version: `{kit_manifest_expected}`" in (
         root / "docs/versioning.md"
     ).read_text()
     assert f"## {expected} - 2026-05-24" in (root / "CHANGELOG.md").read_text()

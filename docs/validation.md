@@ -171,18 +171,34 @@ The live extension UX smoke is:
 make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
 ```
 
-It starts or attaches to real Kit, records Isaac/Kit/GPU/runtime facts, starts
-the extension entrypoint, creates a real USD stage, exercises selected-prim
-array/source/base binding, authors array/source metadata, discovers and binds
-the stage, selects a backend, starts and updates the sensor, records overlay
-primitive kinds, writes package JSON/JSONL traces, starts/writes/flushes/stops
-the Replicator writer, exports and imports config JSON, attempts viewport
-screenshot capture, and stops cleanly. Evidence is written to:
+It starts or attaches to real Kit, records Isaac/Kit/GPU/runtime facts, enables
+`isaac_audio_sensors.omni` through Kit's extension manager, starts the extension
+entrypoint, creates a real USD stage, exercises selected-prim array/source/base
+binding, authors array/source metadata, discovers and binds the stage, selects
+a backend, starts and updates the sensor, records overlay primitive kinds,
+writes package JSON/JSONL traces, starts/writes/flushes/stops the Replicator
+writer, exports and imports config JSON, attempts viewport screenshot capture,
+and stops cleanly. Evidence is written to:
 
 - `outputs/isaac_audio_sensors/omniverse_extension_live_ux.json`
 - `outputs/isaac_audio_sensors/omniverse_extension_live_ux.frames.jsonl`
 - `outputs/isaac_audio_sensors/omniverse_extension_live_ux.config.json`
 - `outputs/isaac_audio_sensors/omniverse_extension_live_ux.replicator/`
+
+The 2026-05-24 local-time extension UX run (`2026-05-25T02:03Z` Kit log
+timestamp) passed on the host-visible Isaac runtime. The evidence records Isaac
+Sim 5.1.0 / Kit `107.3.3+production.229672.69cbf6ad.gl`, Torch
+`2.7.0+cu128`, CUDA visibility for `NVIDIA GeForce RTX 4090`, `nvidia-smi`
+driver `570.211.01`, extension-manager status `enabled`, enabled extension id
+`isaac_audio_sensors.omni-1.0.0-rc.1`, `omni_usd_context_stage`, three real
+`omni.usd` selection updates, 16 passed workflow steps, one valid
+`AudioSensorFrame` v1 JSONL record, 7 overlay primitives, Replicator writer
+registration/write/flush/stop, and readable error messages for no stage, no
+selection, invalid prim path, invalid backend, and invalid Replicator output.
+The Replicator writer passed with `omni.replicator.core`; annotator registration
+was recorded as unavailable because that Kit shape has no supported simple
+Python annotator registration API. Headless screenshot capture was recorded as
+unavailable because the active viewport has no `capture_to_file` method.
 
 The GPU target fails if CUDA is unavailable or if any audio tensor, timestamp
 tensor, or outdated-mask tensor is allocated on CPU. It records `torch.cuda`

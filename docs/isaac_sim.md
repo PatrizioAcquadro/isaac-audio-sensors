@@ -71,9 +71,11 @@ debug primitive kinds `microphone`, `source`, `bearing_ray`, and
 The source distribution includes a lightweight Kit extension at
 `exts/isaac_audio_sensors.omni`. Load it from Isaac Sim by adding the repository
 `exts/` directory to the Extension Manager search paths, then enable
-`Isaac Audio Sensors`. The extension entrypoint is import-safe in normal Python:
-it does not import `omni`, `pxr`, Isaac Sim, a display, CUDA, or a GPU until the
-live stage or UI path is used.
+`Isaac Audio Sensors`. The Kit manifest uses version `1.0.0-rc.1` because
+Omniverse Kit requires SemVer in `extension.toml`; the Python package version
+remains `1.0.0rc1`. The extension entrypoint is import-safe in normal Python:
+it does not import `omni`, `pxr`, Isaac Sim, a display, CUDA, or a GPU until
+the live stage or UI path is used.
 
 The extension window is organized around the live authoring workflow:
 
@@ -125,6 +127,35 @@ Default export paths are ignored public-output paths:
   `outputs/isaac_audio_sensors/extension_binding.json`.
 - Replicator output directory:
   `outputs/isaac_audio_sensors/replicator/`.
+
+Latest local extension UX validation was rerun on 2026-05-24 local time
+(`2026-05-25T02:03Z` Kit log timestamp) with:
+
+```bash
+make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
+```
+
+It passed in real Isaac Sim 5.1.0 / Kit
+`107.3.3+production.229672.69cbf6ad.gl` using the host-visible runtime, with
+an NVIDIA GeForce RTX 4090 visible through Torch CUDA and `nvidia-smi` driver
+`570.211.01`. The Kit extension manager enabled
+`isaac_audio_sensors.omni-1.0.0-rc.1`, `omni.usd` provided the stage, and the
+selection API set `/World/Rig/AudioArray`, `/World/Sources/SpeakerA`, and
+`/World/Rig`. The workflow authored one array and one source, discovered
+`rig_front` and `speaker_a`, selected `tdoa_synthetic`, started/updated/stopped
+the sensor, exported latest frame JSON plus reusable config JSON, and wrote one
+valid `AudioSensorFrame` v1 JSONL record.
+
+The same evidence recorded 7 overlay primitives with kinds `microphone`,
+`source`, `bearing_ray`, and `sector_wedge`. Replicator was available as
+`omni.replicator.core`; the extension registered `IsaacAudioSensorFrameWriter`,
+wrote one payload and `audio_sensor_frames.jsonl`, flushed once, and stopped.
+The local Kit shape did not expose a supported simple Python annotator
+registration method, so the evidence records
+`AnnotatorRegistry has no supported register method` while the writer path and
+package JSON/JSONL path still pass. Headless viewport screenshot capture was
+unavailable because the active viewport had no `capture_to_file` method; the
+serialized overlay primitives remain in the JSON evidence.
 
 Practical Isaac Sim workflow:
 
