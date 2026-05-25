@@ -74,3 +74,8 @@
   path; annotator registration status is captured in config/live evidence.
 - Generated showcase artifacts are linked through the showcase site; they are
   not tracked source files in this repository.
+- The local live-evidence report and PDF are generated under ignored
+  `outputs/isaac_audio_sensors/` by `scripts/generate_live_evidence_report.py`.
+  They may contain machine-local absolute Python runtime paths from evidence
+  fields such as `python_executable`; those paths are evidence facts, not
+  portable install instructions or release-archive content.

@@ -66,6 +66,7 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "exts/isaac_audio_sensors.omni/config/extension.toml": "[package]\n",
             "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py": "\n",
             "scripts/audit_distribution.py": "print('audit')\n",
+            "scripts/generate_live_evidence_report.py": "print('report')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",
             "scripts/live_omniverse_extension_ux.py": "print('ux')\n",
             "src/isaac_audio_sensors/__init__.py": (
@@ -81,6 +82,9 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "src/isaac_audio_sensors/isaac/replicator.py": "\n",
             "tests/test_acoustic_fidelity.py": "def test_ladder():\n    assert True\n",
             "tests/test_isaac_audio_core.py": "def test_core():\n    assert True\n",
+            (
+                "tests/test_live_evidence_report.py"
+            ): "def test_report():\n    assert True\n",
             "tests/test_v1_scope_docs.py": "def test_scope():\n    assert True\n",
         },
     )
@@ -148,6 +152,7 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
             "exts/isaac_audio_sensors.omni/config/extension.toml": "[package]\n",
             "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py": "\n",
             "scripts/audit_distribution.py": "print('audit')\n",
+            "scripts/generate_live_evidence_report.py": "print('report')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",
             "scripts/live_omniverse_extension_ux.py": "print('ux')\n",
             "src/isaac_audio_sensors/__init__.py": (
@@ -163,6 +168,9 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
             "src/isaac_audio_sensors/isaac/replicator.py": "\n",
             "tests/test_acoustic_fidelity.py": "def test_ladder():\n    assert True\n",
             "tests/test_isaac_audio_core.py": "def test_core():\n    assert True\n",
+            (
+                "tests/test_live_evidence_report.py"
+            ): "def test_report():\n    assert True\n",
             "tests/test_v1_scope_docs.py": "def test_scope():\n    assert True\n",
             ".local-goals/private.md": "local notes\n",
             "docs/private.md": "/home/" + "pacquadr/Desktop/private\n",

@@ -22,6 +22,31 @@ public users.
 - [Showcase](showcase.md)
 - [Open Source Release Checklist](open_source_release_checklist.md)
 
+## Local Evidence Report
+
+Run `make live-evidence-report` to generate the current machine-local report
+source and PDF from the canonical ignored artifacts. The generator is
+`scripts/generate_live_evidence_report.py`; it writes:
+
+- `outputs/isaac_audio_sensors/live_validation_evidence.md`
+- `outputs/isaac_audio_sensors/live_validation_evidence.pdf`
+
+The report parses these current evidence inputs:
+
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.json`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
+- `outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.frames.jsonl`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.config.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.replicator/`
+
+The generated report includes exact local `python_executable` values, GPU and
+driver facts, pass/optional/blocker tables, artifact paths, and non-promises.
+Tracked public docs keep those machine-local absolute paths in the ignored
+report and source JSON rather than publishing them as package documentation.
+
 ## Isaac Sim Reference UX
 
 The source distribution includes `exts/isaac_audio_sensors.omni`, a reference

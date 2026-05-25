@@ -101,6 +101,7 @@ SCOPE_TOKEN_ALLOWLIST_ENTRIES = frozenset(
         "docs/v1_scope.md",
         "docs/validation.md",
         "scripts/audit_distribution.py",
+        "scripts/generate_live_evidence_report.py",
         "tests/test_distribution_audit.py",
         "tests/test_v1_scope_docs.py",
     }
@@ -159,6 +160,7 @@ REQUIRED_SDIST_ENTRIES = (
     "exts/isaac_audio_sensors.omni/config/extension.toml",
     "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py",
     "scripts/audit_distribution.py",
+    "scripts/generate_live_evidence_report.py",
     "scripts/live_omniverse_extension_ux.py",
     "scripts/live_isaac_sim_audio_smoke.py",
     "src/isaac_audio_sensors/__init__.py",
@@ -172,6 +174,7 @@ REQUIRED_SDIST_ENTRIES = (
     "src/isaac_audio_sensors/isaac/replicator.py",
     "tests/test_acoustic_fidelity.py",
     "tests/test_isaac_audio_core.py",
+    "tests/test_live_evidence_report.py",
     "tests/test_v1_scope_docs.py",
 )
 REQUIRED_WHEEL_ENTRIES = (

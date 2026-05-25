@@ -344,7 +344,11 @@ make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
 It wrote `outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json` with
 `status: "passed"` on Isaac Lab `0.54.2`, Isaac Sim `5.1.0`, Kit
 `107.3.3+production.229672.69cbf6ad.gl`, Torch `2.7.0+cu128`, and
-`NVIDIA GeForce RTX 4090`. The evidence records `classes_real: true`,
+`NVIDIA GeForce RTX 4090`. The same artifact records CUDA device `cuda:0`,
+the `nvidia-smi` device line, and the exact `python_executable` path used by
+the local Isaac Lab runtime. The generated local evidence report preserves that
+absolute runtime path under ignored `outputs/` rather than publishing it as a
+portable package path. The evidence records `classes_real: true`,
 `fallback_classes_used_in_lab: false`, `AudioArraySensorCfg` as a real
 `SensorBaseCfg` subclass, and `AudioArraySensor` as a real `SensorBase`
 subclass.
@@ -372,3 +376,15 @@ If a full Isaac Lab simulation context is unavailable, the smoke still records
 the exact blocker. The pure tests remain authoritative for tensor conversion,
 padding, selected `env_ids`, reset, import-order recovery, and cloned-env stage
 binding behavior.
+
+For a single machine-local summary across Isaac Sim, Isaac Lab, the Omniverse
+extension UX, and Replicator artifacts, run:
+
+```bash
+make live-evidence-report
+```
+
+It calls `scripts/generate_live_evidence_report.py` and writes:
+
+- `outputs/isaac_audio_sensors/live_validation_evidence.md`
+- `outputs/isaac_audio_sensors/live_validation_evidence.pdf`

@@ -267,6 +267,39 @@ Live Isaac Sim and Isaac Lab checks use user-managed NVIDIA runtimes, not PyPI
 dependencies. The GPU Isaac Lab target is expected to fail with a concrete CUDA
 blocker when no NVIDIA GPU is available to the Isaac Lab runtime.
 
+## Local Live Evidence Report
+
+The machine-local report source and PDF are generated from the canonical
+ignored artifacts, including exact `python_executable` runtime paths that are
+not repeated in tracked public docs:
+
+```bash
+make live-evidence-report
+```
+
+Inputs:
+
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.json`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
+- `outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.frames.jsonl`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.config.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.replicator/`
+
+Outputs:
+
+- `outputs/isaac_audio_sensors/live_validation_evidence.md`
+- `outputs/isaac_audio_sensors/live_validation_evidence.pdf`
+
+The generator is `scripts/generate_live_evidence_report.py`. It records Isaac
+Sim/Kit app and build fields, Isaac Lab version, exact Python executable paths,
+GPU/CUDA/NVIDIA driver facts, pass/optional/blocker status, artifact paths, and
+declared non-promises from the current JSON/JSONL artifacts. The PDF is written
+with ReportLab when that dependency is available; if no PDF backend is
+available, the Markdown source remains the reproducible report source.
+
 ## Known Limitations
 
 - `geometry_only` is a deterministic geometric bearing model, not acoustic

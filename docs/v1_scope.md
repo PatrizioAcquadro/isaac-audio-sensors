@@ -53,3 +53,8 @@ The Omniverse extension UX smoke is the release gate for the reference UX when
 Kit is available. Replicator validation is an optional extension-capability
 gate: a missing Replicator runtime must not block the core v1 package unless the
 release specifically claims Replicator is enabled for that environment.
+
+Machine-local live-evidence reports generated from
+`outputs/isaac_audio_sensors/` are release records for the current workstation.
+They may record exact Python runtime paths, GPU devices, driver versions, and
+Kit build fields, but they do not expand the v1 promise boundary above.

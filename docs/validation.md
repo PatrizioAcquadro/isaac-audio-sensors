@@ -51,6 +51,38 @@ make audit-dist
 make import-smoke
 ```
 
+## Local Evidence Report And PDF
+
+The current live-evidence report is generated from the ignored JSON/JSONL
+artifacts rather than from prose:
+
+```bash
+make live-evidence-report
+```
+
+This calls `scripts/generate_live_evidence_report.py`, which parses:
+
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.json`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`
+- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
+- `outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.frames.jsonl`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.config.json`
+- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.replicator/`
+
+It writes a machine-local Markdown source and PDF artifact:
+
+- `outputs/isaac_audio_sensors/live_validation_evidence.md`
+- `outputs/isaac_audio_sensors/live_validation_evidence.pdf`
+
+The report includes exact `python_executable` paths from the live artifacts,
+Isaac Sim/Kit app and build fields, Isaac Lab version, GPU/CUDA/NVIDIA driver
+facts, passed checks, optional items, blockers, artifact paths, and non-promises.
+Tracked public docs intentionally keep absolute local runtime paths in the
+ignored report/source artifacts instead of publishing machine-specific home
+paths in release archives.
+
 Expected behavior:
 
 - core import succeeds in a normal Python environment;
@@ -135,9 +167,11 @@ and frame traces in:
 - `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
 
 The 2026-05-24 local-time Task 6 live run (`2026-05-25T01:24Z` Kit log
-timestamp) passed on Isaac Sim 5.1.0 / Kit
-`107.3.3+production.229672.69cbf6ad.gl` with an NVIDIA GeForce RTX 4090,
-driver `570.211.01`, and Torch `2.7.0+cu128`. It emitted 6 valid
+timestamp) passed. The artifact's `isaacsim_version` and `kit_version` fields
+were `unavailable`, while `kit_app_version` recorded Isaac Sim app `5.1.0` and
+`kit_build_version` recorded `107.3.3+production.229672.69cbf6ad.gl`. CUDA saw
+one NVIDIA GeForce RTX 4090, `nvidia-smi` reported driver `570.211.01`, and
+Torch was `2.7.0+cu128`. It emitted 6 valid
 `AudioSensorFrame` v1 JSONL records: 3 `geometry_only` and 3
 `tdoa_synthetic`. Semantic discovery selected array `rig_front` at
 `/World/RobotBase/ArrayMount/AudioArray` and source `speaker_front` at
@@ -186,8 +220,10 @@ and stops cleanly. Evidence is written to:
 - `outputs/isaac_audio_sensors/omniverse_extension_live_ux.replicator/`
 
 The 2026-05-24 local-time extension UX run (`2026-05-25T02:03Z` Kit log
-timestamp) passed on the host-visible Isaac runtime. The evidence records Isaac
-Sim 5.1.0 / Kit `107.3.3+production.229672.69cbf6ad.gl`, Torch
+timestamp) passed on the host-visible Isaac runtime. The artifact's
+`isaacsim_version` and `kit_version` fields were `unavailable`, while
+`kit_app_version` recorded Isaac Sim app `5.1.0` and `kit_build_version`
+recorded `107.3.3+production.229672.69cbf6ad.gl`. It also records Torch
 `2.7.0+cu128`, CUDA visibility for `NVIDIA GeForce RTX 4090`, `nvidia-smi`
 driver `570.211.01`, extension-manager status `enabled`, enabled extension id
 `isaac_audio_sensors.omni-1.0.0-rc.1`, `omni_usd_context_stage`, three real

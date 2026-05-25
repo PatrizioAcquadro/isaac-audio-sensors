@@ -124,12 +124,14 @@ git diff --check
 make build
 make audit-dist
 make import-smoke
+make live-evidence-report
 ```
 
 These required local gates cover contract/schema/trace validation, L0/L1 tests,
 optional L2 behavior, JSON/JSONL export, package build, packaging audit, import
-smoke, lint, and distribution audit. `make validate-config` is a useful local
-usage smoke and may be run in addition, but it is not a downstream project gate.
+smoke, lint, distribution audit, and the machine-local live-evidence report
+source/PDF. `make validate-config` is a useful local usage smoke and may be run
+in addition, but it is not a downstream project gate.
 
 Run and record live sensor gates on a local Isaac runtime when refreshing live
 runtime evidence before publishing or tagging a release candidate:
@@ -154,6 +156,23 @@ specifically claims Replicator is enabled for that environment.
 If a live command cannot run because of sandboxing, EULA, GPU visibility, or
 runtime availability, record the exact command, exact error, and the closest
 validation that did run.
+
+When live evidence is refreshed, regenerate the local report from artifacts:
+
+```bash
+make live-evidence-report
+```
+
+The target calls `scripts/generate_live_evidence_report.py`, parses the
+canonical `outputs/isaac_audio_sensors/` JSON/JSONL artifacts, and writes:
+
+- `outputs/isaac_audio_sensors/live_validation_evidence.md`
+- `outputs/isaac_audio_sensors/live_validation_evidence.pdf`
+
+The generated report includes exact local `python_executable` values, GPU/CUDA
+and driver facts, passed/optional/blocker status, evidence artifact paths, and
+declared non-promises. Those generated report files remain under ignored
+`outputs/` and must not be included in release archives.
 
 Latest local Isaac Lab GPU evidence was refreshed on 2026-05-24 local time with
 `make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"`.

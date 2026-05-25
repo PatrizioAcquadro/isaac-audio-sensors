@@ -43,10 +43,13 @@ The smoke script:
 
 Latest local Task 6 validation was rerun on 2026-05-24 local time
 (`2026-05-25T01:24Z` Kit log timestamp) with the Isaac Python runtime selected
-by `ISAAC_SIM_COMMAND`. It passed in real Isaac Sim 5.1.0 with Kit build
-`107.3.3+production.229672.69cbf6ad.gl`, `pxr` and `omni` imported, headless
-`SimulationApp` bootstrap, Torch `2.7.0+cu128`, and an NVIDIA GeForce RTX 4090
-visible through CUDA and `nvidia-smi` driver `570.211.01`.
+by `ISAAC_SIM_COMMAND`. It passed with `pxr` and `omni` imported, headless
+`SimulationApp` bootstrap, `kit_app_version` `5.1.0`, Kit build
+`107.3.3+production.229672.69cbf6ad.gl`, Torch `2.7.0+cu128`, and an NVIDIA
+GeForce RTX 4090 visible through CUDA and `nvidia-smi` driver `570.211.01`.
+The artifact's `isaacsim_version` and `kit_version` fields were `unavailable`;
+the generated local evidence report preserves the exact `python_executable`
+path recorded by the smoke.
 
 The smoke authored a synthetic USD stage inside Isaac Sim and produced:
 
@@ -65,6 +68,15 @@ debug primitive kinds `microphone`, `source`, `bearing_ray`, and
 `mic:right`, `source:speaker_front`, bearing rays, and `sector:straight`.
 `room_acoustics` was skipped with an explicit evidence reason because
 `pyroomacoustics` was not installed in that Isaac runtime.
+
+The local report generator parses the Isaac Sim JSON/config/JSONL evidence and
+the other live gates, then writes:
+
+- `outputs/isaac_audio_sensors/live_validation_evidence.md`
+- `outputs/isaac_audio_sensors/live_validation_evidence.pdf`
+
+Run it with `make live-evidence-report`. The generator is
+`scripts/generate_live_evidence_report.py`.
 
 ## Reference Extension UX
 
@@ -135,10 +147,11 @@ Latest local extension UX validation was rerun on 2026-05-24 local time
 make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
 ```
 
-It passed in real Isaac Sim 5.1.0 / Kit
-`107.3.3+production.229672.69cbf6ad.gl` using the host-visible runtime, with
-an NVIDIA GeForce RTX 4090 visible through Torch CUDA and `nvidia-smi` driver
-`570.211.01`. The Kit extension manager enabled
+It passed using the host-visible runtime with `kit_app_version` `5.1.0`, Kit
+build `107.3.3+production.229672.69cbf6ad.gl`, an NVIDIA GeForce RTX 4090
+visible through Torch CUDA, and `nvidia-smi` driver `570.211.01`. The
+artifact's `isaacsim_version` and `kit_version` fields were `unavailable`.
+The Kit extension manager enabled
 `isaac_audio_sensors.omni-1.0.0-rc.1`, `omni.usd` provided the stage, and the
 selection API set `/World/Rig/AudioArray`, `/World/Sources/SpeakerA`, and
 `/World/Rig`. The workflow authored one array and one source, discovered
