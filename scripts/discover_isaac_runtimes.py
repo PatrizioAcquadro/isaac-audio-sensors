@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 
+from security_redaction import redact_value_for_key
+
 
 def main() -> int:
     print(json.dumps(discover(), indent=2, sort_keys=True))
@@ -73,7 +75,7 @@ def discover() -> dict[str, object]:
 
     return {
         "environment": {
-            key: os.environ[key]
+            key: redact_value_for_key(key, os.environ[key])
             for key in sorted(os.environ)
             if key.startswith(("ISAAC", "OMNI", "EXP_PATH", "CARB_APP_PATH"))
         },

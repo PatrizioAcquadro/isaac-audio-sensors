@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from security_redaction import redact_text, redact_value_for_key
+
 DEFAULT_OUT_DIR = Path("outputs/isaac_audio_sensors/showcase/diagnostics")
 MAX_TEXT_CHARS = 120_000
 
@@ -117,8 +119,8 @@ def _run_command(spec: CommandSpec) -> dict[str, Any]:
             "argv": list(spec.argv),
             "status": "timeout",
             "exit_code": None,
-            "stdout": _clip(exc.stdout or ""),
-            "stderr": _clip(exc.stderr or ""),
+            "stdout": _redact_and_clip(exc.stdout or ""),
+            "stderr": _redact_and_clip(exc.stderr or ""),
         }
     except OSError as exc:
         return {
@@ -126,14 +128,14 @@ def _run_command(spec: CommandSpec) -> dict[str, Any]:
             "status": "error",
             "exit_code": None,
             "stdout": "",
-            "stderr": f"{type(exc).__name__}: {exc}",
+            "stderr": _redact_and_clip(f"{type(exc).__name__}: {exc}"),
         }
     return {
         "argv": list(spec.argv),
         "status": "ran",
         "exit_code": completed.returncode,
-        "stdout": _clip(completed.stdout),
-        "stderr": _clip(completed.stderr),
+        "stdout": _redact_and_clip(completed.stdout),
+        "stderr": _redact_and_clip(completed.stderr),
     }
 
 
@@ -150,10 +152,10 @@ def _write_command_text(
                 f"exit_code: {result['exit_code']}",
                 "",
                 "stdout:",
-                str(result["stdout"]),
+                _redact_and_clip(result["stdout"]),
                 "",
                 "stderr:",
-                str(result["stderr"]),
+                _redact_and_clip(result["stderr"]),
                 "",
             )
         ),
@@ -174,7 +176,7 @@ def _collect_environment() -> dict[str, str | None]:
         "XDG_RUNTIME_DIR",
         "OMNI_KIT_ACCEPT_EULA",
     )
-    return {name: os.environ.get(name) for name in names}
+    return {name: redact_value_for_key(name, os.environ.get(name)) for name in names}
 
 
 def _collect_path_probes() -> dict[str, dict[str, Any]]:
@@ -231,9 +233,9 @@ def _probe_path(path: Path) -> dict[str, Any]:
 
 def _read_text(path: Path) -> str:
     try:
-        return _clip(path.read_text(encoding="utf-8", errors="replace"))
+        return _redact_and_clip(path.read_text(encoding="utf-8", errors="replace"))
     except OSError as exc:
-        return f"{type(exc).__name__}: {exc}"
+        return _redact_and_clip(f"{type(exc).__name__}: {exc}")
 
 
 def _summarize(report: dict[str, Any]) -> dict[str, Any]:
@@ -383,6 +385,10 @@ def _exit_ok(commands: dict[str, dict[str, Any]], key: str) -> bool:
 def _combined_output(commands: dict[str, dict[str, Any]], key: str) -> str:
     result = commands.get(key, {})
     return f"{result.get('stdout', '')}\n{result.get('stderr', '')}"
+
+
+def _redact_and_clip(value: Any) -> str:
+    return _clip(redact_text(value))
 
 
 def _clip(value: str | bytes) -> str:

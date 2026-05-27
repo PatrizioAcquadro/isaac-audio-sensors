@@ -251,6 +251,93 @@ def test_distribution_audit_rejects_missing_api_freeze_contract_lock(tmp_path):
     )
 
 
+def test_distribution_audit_rejects_sdist_traversal_member(tmp_path):
+    audit = _load_audit_module()
+    archive_path = tmp_path / f"isaac_audio_sensors-{RELEASE_VERSION}.tar.gz"
+    _write_sdist(
+        archive_path,
+        {
+            "README.md": "# isaac-audio-sensors\n",
+            "../outside_package.py": "print('poisoned')\n",
+        },
+    )
+
+    result = audit.audit_archive(archive_path)
+
+    assert any(
+        "unsafe sdist archive path included" in finding
+        and "outside_package.py" in finding
+        for finding in result.findings
+    )
+
+
+def test_distribution_audit_rejects_wheel_traversal_member(tmp_path):
+    audit = _load_audit_module()
+    archive_path = (
+        tmp_path / f"isaac_audio_sensors-{RELEASE_VERSION}-py3-none-any.whl"
+    )
+    _write_wheel(
+        archive_path,
+        {
+            "isaac_audio_sensors/__init__.py": "\n",
+            "../outside_wheel.py": "print('poisoned')\n",
+        },
+    )
+
+    result = audit.audit_archive(archive_path)
+
+    assert any(
+        "unsafe wheel archive path included" in finding
+        and "outside_wheel.py" in finding
+        for finding in result.findings
+    )
+
+
+def test_distribution_audit_rejects_sdist_links(tmp_path):
+    audit = _load_audit_module()
+    archive_path = tmp_path / f"isaac_audio_sensors-{RELEASE_VERSION}.tar.gz"
+    root = f"isaac_audio_sensors-{RELEASE_VERSION}"
+    with tarfile.open(archive_path, "w:gz") as archive:
+        _add_tar_text(archive, f"{root}/README.md", "# isaac-audio-sensors\n")
+        symlink = tarfile.TarInfo(f"{root}/linked_secret.py")
+        symlink.type = tarfile.SYMTYPE
+        symlink.linkname = "README.md"
+        archive.addfile(symlink)
+        hardlink = tarfile.TarInfo(f"{root}/hardlinked_secret.py")
+        hardlink.type = tarfile.LNKTYPE
+        hardlink.linkname = f"{root}/README.md"
+        archive.addfile(hardlink)
+
+    result = audit.audit_archive(archive_path)
+
+    assert any(
+        "unsafe sdist member type included" in finding
+        and "linked_secret.py" in finding
+        for finding in result.findings
+    )
+    assert any(
+        "unsafe sdist member type included" in finding
+        and "hardlinked_secret.py" in finding
+        for finding in result.findings
+    )
+
+
+def test_distribution_audit_rejects_duplicate_normalized_entries(tmp_path):
+    audit = _load_audit_module()
+    archive_path = tmp_path / f"isaac_audio_sensors-{RELEASE_VERSION}.tar.gz"
+    with tarfile.open(archive_path, "w:gz") as archive:
+        _add_tar_text(archive, "first-root/README.md", "first\n")
+        _add_tar_text(archive, "second-root/README.md", "second\n")
+
+    result = audit.audit_archive(archive_path)
+
+    assert any(
+        "duplicate normalized archive entry included" in finding
+        and "README.md" in finding
+        for finding in result.findings
+    )
+
+
 def _api_freeze_doc_text() -> str:
     return "\n".join(
         (
@@ -306,13 +393,17 @@ def _write_sdist(path: Path, files: dict[str, str]) -> None:
     root = f"isaac_audio_sensors-{RELEASE_VERSION}"
     with tarfile.open(path, "w:gz") as archive:
         for name, content in files.items():
-            payload = content.encode("utf-8")
-            info = tarfile.TarInfo(f"{root}/{name}")
-            info.size = len(payload)
-            archive.addfile(info, io.BytesIO(payload))
+            _add_tar_text(archive, f"{root}/{name}", content)
 
 
 def _write_wheel(path: Path, files: dict[str, str]) -> None:
     with zipfile.ZipFile(path, "w") as archive:
         for name, content in files.items():
             archive.writestr(name, content)
+
+
+def _add_tar_text(archive: tarfile.TarFile, name: str, content: str) -> None:
+    payload = content.encode("utf-8")
+    info = tarfile.TarInfo(name)
+    info.size = len(payload)
+    archive.addfile(info, io.BytesIO(payload))

@@ -260,6 +260,7 @@ def audit_archive(path: str | Path) -> ArchiveAudit:
     )
 
     findings: list[str] = []
+    findings.extend(_unsafe_archive_member_findings(archive_path, kind=kind))
     findings.extend(_archive_name_findings(archive_path, kind=kind))
     findings.extend(_forbidden_path_findings(entries, kind=kind))
     findings.extend(_required_entry_findings(entries, kind=kind))
@@ -298,9 +299,82 @@ def _archive_entries(path: Path, *, kind: str) -> tuple[str, ...]:
 def _normalize_entry(name: str, *, kind: str) -> str:
     normalized = name.replace("\\", "/").lstrip("./")
     parts = PurePosixPath(normalized).parts
-    if kind == "sdist" and len(parts) > 1:
+    if kind == "sdist":
         parts = parts[1:]
     return "/".join(parts)
+
+
+def _unsafe_archive_member_findings(path: Path, *, kind: str) -> tuple[str, ...]:
+    findings: list[str] = []
+    seen_entries: set[str] = set()
+
+    if kind == "sdist":
+        with tarfile.open(path, "r:gz") as archive:
+            for member in archive.getmembers():
+                findings.extend(_unsafe_archive_path_findings(member.name, kind=kind))
+                if not member.isfile() and not member.isdir():
+                    findings.append(
+                        f"{path.name}: unsafe {kind} member type included: "
+                        f"{member.name}"
+                    )
+                _check_duplicate_normalized_entry(
+                    path,
+                    kind=kind,
+                    raw_name=member.name,
+                    seen_entries=seen_entries,
+                    findings=findings,
+                )
+        return tuple(findings)
+
+    with zipfile.ZipFile(path) as archive:
+        for info in archive.infolist():
+            findings.extend(_unsafe_archive_path_findings(info.filename, kind=kind))
+            _check_duplicate_normalized_entry(
+                path,
+                kind=kind,
+                raw_name=info.filename,
+                seen_entries=seen_entries,
+                findings=findings,
+            )
+    return tuple(findings)
+
+
+def _unsafe_archive_path_findings(name: str, *, kind: str) -> tuple[str, ...]:
+    normalized = name.replace("\\", "/")
+    stripped = normalized.rstrip("/")
+    first_part = stripped.split("/", 1)[0]
+    if (
+        not stripped
+        or stripped.startswith("/")
+        or _has_windows_drive(first_part)
+        or any(part in {"", ".", ".."} for part in stripped.split("/"))
+    ):
+        return (f"unsafe {kind} archive path included: {name!r}",)
+    return ()
+
+
+def _has_windows_drive(part: str) -> bool:
+    return len(part) == 2 and part[1] == ":" and part[0].isalpha()
+
+
+def _check_duplicate_normalized_entry(
+    archive_path: Path,
+    *,
+    kind: str,
+    raw_name: str,
+    seen_entries: set[str],
+    findings: list[str],
+) -> None:
+    normalized = _normalize_entry(raw_name, kind=kind)
+    if not normalized:
+        return
+    if normalized in seen_entries:
+        findings.append(
+            f"{archive_path.name}: duplicate normalized archive entry included: "
+            f"{normalized}"
+        )
+        return
+    seen_entries.add(normalized)
 
 
 def _forbidden_path_findings(entries: tuple[str, ...], *, kind: str) -> tuple[str, ...]:
@@ -369,6 +443,8 @@ def _iter_text_members(path: Path, *, kind: str):
     if kind == "sdist":
         with tarfile.open(path, "r:gz") as archive:
             for member in archive.getmembers():
+                if not member.isfile():
+                    continue
                 entry = _normalize_entry(member.name, kind=kind)
                 if not _should_scan_text(entry, member.size):
                     continue
