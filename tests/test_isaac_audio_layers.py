@@ -392,6 +392,8 @@ def test_isaac_stage_authoring_helpers_work_with_duck_typed_stage():
         stage._prims[0],
         source_id="speaker_a",
         class_label="Speech",
+        position_world=(2.0, 0.0, 0.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
         audio_asset_path="generated://impulse",
         start_time_s=1.0,
         duration_s=0.5,
@@ -405,6 +407,8 @@ def test_isaac_stage_authoring_helpers_work_with_duck_typed_stage():
         sample_rate_hz=48_000,
         coordinate_convention="x_forward_y_right_z_up_clockwise_bearing",
         layout_name="quad_front",
+        position_world=(0.0, 0.0, 0.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
         microphone_relative_offsets_m=((0.08, 0.0, 0.0), (0.0, 0.08, 0.0)),
         microphone_ids=("front", "right"),
     )
@@ -422,11 +426,14 @@ def test_isaac_stage_authoring_helpers_work_with_duck_typed_stage():
     assert sound.attributes["gain"] == -3.0
     assert source_attrs["ias:audio_asset_path"] == "generated://impulse"
     assert stage._prims[0].attributes["ias:duration_s"] == 0.5
+    assert stage._prims[0].attributes["xformOp:translate"] == (2.0, 0.0, 0.0)
     assert listener.attributes["ias:array_id"] == "rig_front"
     assert attrs["ias:layout_name"] == "quad_front"
     assert attrs["ias:microphone_ids"] == ("front", "right")
+    assert array_prim.attributes["xformOp:translate"] == (0.0, 0.0, 0.0)
     assert mic_attrs["ias:relative_orientation_quat"] == (0.0, 0.0, 0.0, 1.0)
     assert mic_attrs["ias:self_noise_db"] == 24.0
+    assert mic_prim.attributes["xformOp:translate"] == (0.08, 0.0, 0.0)
 
 
 def test_isaac_stage_snapshot_and_sensor_capture_from_duck_typed_stage():

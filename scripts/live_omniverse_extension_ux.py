@@ -31,6 +31,61 @@ from isaac_audio_sensors.isaac.extension_ui import (
 from isaac_audio_sensors.isaac.viz.overlays import debug_primitives_to_dicts
 
 EXTENSION_ID = "isaac_audio_sensors.omni"
+EXPECTED_UI_SECTIONS = (
+    "Stage",
+    "Author Array",
+    "Author Source",
+    "Sensor",
+    "Replicator",
+    "Export",
+)
+EXPECTED_UI_BUTTONS = (
+    "Refresh",
+    "Use Array",
+    "Use Source",
+    "Use Base",
+    "Discover",
+    "Create/Attach Array",
+    "Create/Attach Source",
+    "Start",
+    "Stop",
+    "Update",
+    "Flush",
+    "Export Latest",
+    "Export Config",
+    "Load Config",
+)
+EXPECTED_STRING_FIELDS = (
+    "array_id",
+    "array_prim_path",
+    "audio_asset_path",
+    "config_export_path",
+    "config_import_path",
+    "discovery_roots_text",
+    "jsonl_trace_path",
+    "latest_frame_export_path",
+    "replicator_annotator_name",
+    "replicator_output_dir",
+    "replicator_writer_name",
+    "robot_base_prim_path",
+    "source_class_label",
+    "source_id",
+    "source_prim_path",
+)
+EXPECTED_FLOAT_FIELDS = (
+    "source_duration_s",
+    "source_gain_db",
+    "source_start_time_s",
+    "update_period_s",
+)
+EXPECTED_INT_FIELDS = ("max_events", "sample_rate_hz")
+EXPECTED_BOOL_FIELDS = (
+    "author_child_microphones",
+    "debug_overlay_enabled",
+    "replicator_enabled",
+    "trace_enabled",
+)
+EXPECTED_COMBO_FIELDS = ("ambiguity_policy", "backend", "layout_name")
 
 
 def main() -> int:
@@ -44,6 +99,7 @@ def main() -> int:
 
     frame_trace_path = args.out.with_suffix(".frames.jsonl")
     config_path = args.out.with_suffix(".config.json")
+    pre_frame_config_path = args.out.with_suffix(".pre_frame.config.json")
     latest_frame_path = args.out.with_suffix(".latest_frame.json")
     replicator_dir = args.out.with_suffix(".replicator")
     screenshot_path = args.out.with_suffix(".viewport.png")
@@ -51,6 +107,7 @@ def main() -> int:
         args.out,
         frame_trace_path,
         config_path,
+        pre_frame_config_path,
         latest_frame_path,
         screenshot_path,
     )
@@ -65,6 +122,7 @@ def main() -> int:
         "evidence_path": str(args.out),
         "frame_trace_path": str(frame_trace_path),
         "config_path": str(config_path),
+        "pre_frame_config_path": str(pre_frame_config_path),
         "latest_frame_path": str(latest_frame_path),
         "replicator_output_dir": str(replicator_dir),
         "screenshot_path": str(screenshot_path),
@@ -118,9 +176,29 @@ def main() -> int:
         controller.state.config_import_path = str(config_path)
         controller.state.replicator_enabled = True
         controller.state.replicator_output_dir = str(replicator_dir)
+        if getattr(controller, "_ui_window", None) is not None:
+            controller._ui_window.push_state_to_widgets()
 
         evidence["ui_available"] = extension.ui_available
+        evidence["ui_control_inventory"] = _inventory_ui_controls(controller)
+        evidence["ui_editable_model_probe"] = _probe_ui_editable_models(controller)
+        evidence["ui_invalid_numeric_probe"] = _probe_ui_invalid_numeric(controller)
+        evidence["export_latest_without_frame"] = _probe_export_latest_without_frame(
+            controller
+        )
         evidence["error_checks"] = _run_error_checks(stage)
+
+        controller.state.config_export_path = str(pre_frame_config_path)
+        if getattr(controller, "_ui_window", None) is not None:
+            controller._ui_window.push_state_to_widgets()
+        _step(
+            evidence,
+            "export_config_summary_before_frame",
+            controller.export_config_summary,
+        )
+        controller.state.config_export_path = str(config_path)
+        if getattr(controller, "_ui_window", None) is not None:
+            controller._ui_window.push_state_to_widgets()
 
         _step(
             evidence,
@@ -183,10 +261,15 @@ def main() -> int:
         _step(evidence, "stop_replicator", controller.stop_replicator)
         _step(evidence, "export_config_summary", controller.export_config_summary)
         import_probe = ExtensionController()
+        import_probe.build_ui_if_available()
         _step(
             evidence,
             "import_config_summary_probe",
             lambda: import_probe.import_config_summary(config_path),
+        )
+        evidence["config_roundtrip_probe"] = _probe_config_roundtrip(
+            import_probe,
+            config_path,
         )
 
         screenshot = _capture_viewport_screenshot(screenshot_path)
@@ -256,6 +339,265 @@ def _step(evidence: dict[str, Any], name: str, callback: Any) -> Any:
     if result is None:
         raise RuntimeError(f"Workflow step {name!r} returned None.")
     return result
+
+
+def _inventory_ui_controls(controller: ExtensionController) -> dict[str, Any]:
+    window = getattr(controller, "_ui_window", None)
+    if window is None:
+        return {"status": "failed", "reason": "ui_window_unavailable"}
+    sections = tuple(getattr(window, "_sections", ()))
+    buttons = tuple(getattr(window, "_buttons", ()))
+    inventory = {
+        "sections": list(sections),
+        "buttons": list(buttons),
+        "string_fields": sorted(window._string_fields),
+        "float_fields": sorted(window._float_fields),
+        "int_fields": sorted(window._int_fields),
+        "bool_fields": sorted(window._bool_fields),
+        "combo_fields": sorted(window._combo_fields),
+        "labels": sorted(window._labels),
+    }
+    missing = {
+        "sections": _missing(EXPECTED_UI_SECTIONS, sections),
+        "buttons": _missing(EXPECTED_UI_BUTTONS, buttons),
+        "string_fields": _missing(EXPECTED_STRING_FIELDS, window._string_fields),
+        "float_fields": _missing(EXPECTED_FLOAT_FIELDS, window._float_fields),
+        "int_fields": _missing(EXPECTED_INT_FIELDS, window._int_fields),
+        "bool_fields": _missing(EXPECTED_BOOL_FIELDS, window._bool_fields),
+        "combo_fields": _missing(EXPECTED_COMBO_FIELDS, window._combo_fields),
+    }
+    missing = {key: value for key, value in missing.items() if value}
+    return {
+        "status": "passed" if not missing else "failed",
+        "missing": missing,
+        **inventory,
+    }
+
+
+def _missing(expected: tuple[str, ...], actual: Any) -> list[str]:
+    actual_set = set(actual)
+    return [item for item in expected if item not in actual_set]
+
+
+def _probe_ui_editable_models(controller: ExtensionController) -> dict[str, Any]:
+    window = getattr(controller, "_ui_window", None)
+    if window is None:
+        return {"status": "skipped", "reason": "ui_window_unavailable"}
+    duration = window._float_fields.get("source_duration_s")
+    sample_rate = window._int_fields.get("sample_rate_hz")
+    source_id = window._string_fields.get("source_id")
+    if duration is None or sample_rate is None or source_id is None:
+        return {"status": "failed", "reason": "expected editable fields missing"}
+    duration.model.set_value("10.0")
+    sample_rate.model.set_value("44100")
+    source_id.model.set_value("speaker_a")
+    window.sync_state_from_widgets()
+    return {
+        "status": "passed",
+        "source_duration_s": controller.state.source_duration_s,
+        "sample_rate_hz": controller.state.sample_rate_hz,
+        "source_id": controller.state.source_id,
+        "duration_widget_kind": getattr(duration, "kind", type(duration).__name__),
+        "sample_rate_widget_kind": getattr(
+            sample_rate, "kind", type(sample_rate).__name__
+        ),
+        "source_id_widget_kind": getattr(source_id, "kind", type(source_id).__name__),
+    }
+
+
+def _probe_ui_invalid_numeric(controller: ExtensionController) -> dict[str, Any]:
+    window = getattr(controller, "_ui_window", None)
+    if window is None:
+        return {"status": "failed", "reason": "ui_window_unavailable"}
+    duration = window._float_fields.get("source_duration_s")
+    if duration is None:
+        return {"status": "failed", "reason": "source_duration_s field missing"}
+    previous = _model_string(duration.model)
+    called = {"value": False}
+
+    def _callback() -> str:
+        called["value"] = True
+        return "called"
+
+    duration.model.set_value("not-a-number")
+    window._action(_callback)()
+    error = controller.state.error_message
+    restore_error = None
+    try:
+        duration.model.set_value(previous or "10.0")
+        window.sync_state_from_widgets()
+        window.refresh_labels()
+    except Exception as exc:  # noqa: BLE001 - evidence should keep moving.
+        restore_error = f"{type(exc).__name__}: {exc}"
+    passed = (
+        called["value"] is False
+        and error is not None
+        and "UI input failed" in error
+        and restore_error is None
+    )
+    return {
+        "status": "passed" if passed else "failed",
+        "callback_called": called["value"],
+        "error_message": error,
+        "restore_error": restore_error,
+    }
+
+
+def _probe_export_latest_without_frame(
+    controller: ExtensionController,
+) -> dict[str, Any]:
+    result = controller.export_latest_frame()
+    error = controller.state.error_message
+    passed = result is None and error is not None and "No latest frame" in error
+    return {
+        "status": "passed" if passed else "failed",
+        "result": _result_summary(result),
+        "error_message": error,
+    }
+
+
+def _probe_config_roundtrip(
+    controller: ExtensionController,
+    config_path: Path,
+) -> dict[str, Any]:
+    payload = json.loads(config_path.read_text(encoding="utf-8"))
+    window = getattr(controller, "_ui_window", None)
+    if window is not None:
+        window.push_state_to_widgets()
+        window.sync_state_from_widgets()
+    expected = _expected_config_state(payload)
+    observed = _observed_config_state(controller)
+    mismatches = _state_mismatches(expected, observed)
+    combo_models = _combo_model_values(window) if window is not None else {}
+    combo_mismatches = {
+        name: value
+        for name, value in combo_models.items()
+        if value.get("state_value") != value.get("model_value")
+    }
+    return {
+        "status": (
+            "passed"
+            if window is not None and not mismatches and not combo_mismatches
+            else "failed"
+        ),
+        "config_path": str(config_path),
+        "ui_window_available": window is not None,
+        "expected": expected,
+        "observed": observed,
+        "mismatches": mismatches,
+        "combo_models": combo_models,
+        "combo_mismatches": combo_mismatches,
+    }
+
+
+def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
+    array = payload.get("array", {})
+    source = payload.get("source", {})
+    lifecycle = payload.get("lifecycle", {})
+    recording = payload.get("recording", {})
+    package_jsonl = recording.get("package_jsonl", {})
+    replicator = recording.get("replicator", {})
+    return {
+        "backend": payload.get("backend"),
+        "array_prim_path": array.get("prim_path"),
+        "source_prim_path": source.get("prim_path"),
+        "source_id": source.get("source_id"),
+        "source_duration_s": source.get("duration_s"),
+        "sample_rate_hz": array.get("sample_rate_hz"),
+        "jsonl_trace_path": package_jsonl.get("path"),
+        "trace_enabled": package_jsonl.get("enabled"),
+        "debug_overlay_enabled": lifecycle.get("debug_overlay_enabled"),
+        "replicator_enabled": replicator.get("enabled"),
+        "replicator_output_dir": replicator.get("output_dir"),
+        "replicator_writer_name": replicator.get("writer_name"),
+        "replicator_annotator_name": replicator.get("annotator_name"),
+    }
+
+
+def _observed_config_state(controller: ExtensionController) -> dict[str, Any]:
+    state = controller.state
+    return {
+        "backend": state.backend,
+        "array_prim_path": state.array_prim_path,
+        "source_prim_path": state.source_prim_path,
+        "source_id": state.source_id,
+        "source_duration_s": state.source_duration_s,
+        "sample_rate_hz": state.sample_rate_hz,
+        "jsonl_trace_path": state.jsonl_trace_path,
+        "trace_enabled": state.trace_enabled,
+        "debug_overlay_enabled": state.debug_overlay_enabled,
+        "replicator_enabled": state.replicator_enabled,
+        "replicator_output_dir": state.replicator_output_dir,
+        "replicator_writer_name": state.replicator_writer_name,
+        "replicator_annotator_name": state.replicator_annotator_name,
+    }
+
+
+def _state_mismatches(
+    expected: dict[str, Any],
+    observed: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    mismatches = {}
+    for key, expected_value in expected.items():
+        observed_value = observed.get(key)
+        if isinstance(expected_value, float):
+            try:
+                matched = abs(float(observed_value) - expected_value) <= 1e-9
+            except (TypeError, ValueError):
+                matched = False
+        else:
+            matched = observed_value == expected_value
+        if not matched:
+            mismatches[key] = {
+                "expected": expected_value,
+                "observed": observed_value,
+            }
+    return mismatches
+
+
+def _combo_model_values(window: Any) -> dict[str, dict[str, Any]]:
+    values = {}
+    for attr_name, (widget, choices) in window._combo_fields.items():
+        index = _combo_index(widget.model)
+        model_value = choices[index] if 0 <= index < len(choices) else None
+        values[attr_name] = {
+            "index": index,
+            "model_value": model_value,
+            "state_value": getattr(window.controller.state, attr_name),
+        }
+    return values
+
+
+def _model_string(model: Any) -> str:
+    if hasattr(model, "get_value_as_string"):
+        return str(model.get_value_as_string())
+    if hasattr(model, "as_string"):
+        return str(model.as_string)
+    return str(getattr(model, "value", ""))
+
+
+def _combo_index(model: Any) -> int:
+    if hasattr(model, "get_item_value_model"):
+        item_model = model.get_item_value_model()
+        try:
+            as_int = getattr(item_model, "as_int")
+        except (AttributeError, TypeError, ValueError):
+            pass
+        else:
+            return int(as_int)
+        get_value = getattr(item_model, "get_value_as_int", None)
+        if callable(get_value):
+            return int(get_value())
+    get_value = getattr(model, "get_value_as_int", None)
+    if callable(get_value):
+        return int(get_value())
+    try:
+        as_int = getattr(model, "as_int")
+    except (AttributeError, TypeError, ValueError):
+        pass
+    else:
+        return int(as_int)
+    return int(getattr(model, "value", 0) or 0)
 
 
 def _result_summary(result: Any) -> Any:
@@ -355,6 +697,8 @@ def _run_error_checks(stage: Any) -> dict[str, Any]:
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(None, ())
     )
+    controller.export_latest_frame()
+    checks["export_latest_without_frame"] = controller.state.error_message
     controller.refresh_stage_selection(selected_paths=())
     checks["no_stage"] = controller.state.error_message
     controller.use_selected_as_array(stage=stage, selected_paths=())
@@ -369,6 +713,9 @@ def _run_error_checks(stage: Any) -> dict[str, Any]:
     controller.state.replicator_output_dir = ""
     controller.start_replicator()
     checks["invalid_replicator_output"] = controller.state.error_message
+    controller.state.config_export_path = "."
+    controller.export_config_summary()
+    checks["bad_config_export_path"] = controller.state.error_message
     return checks
 
 
@@ -413,6 +760,24 @@ def _validate_live_extension_outputs(
         raise RuntimeError(f"JSONL trace export is missing: {frame_trace_path}")
     if not config_path.is_file():
         raise RuntimeError(f"Config export is missing: {config_path}")
+    for probe_name in (
+        "ui_control_inventory",
+        "ui_editable_model_probe",
+        "ui_invalid_numeric_probe",
+        "export_latest_without_frame",
+        "config_roundtrip_probe",
+    ):
+        probe = evidence.get(probe_name, {})
+        if probe.get("status") != "passed":
+            raise RuntimeError(f"{probe_name} failed: {probe}")
+    error_checks = evidence.get("error_checks", {})
+    missing_error_checks = [
+        name for name, message in sorted(error_checks.items()) if not message
+    ]
+    if missing_error_checks:
+        raise RuntimeError(
+            "Readable error checks did not record messages: " f"{missing_error_checks}"
+        )
     manager_status = evidence.get("kit_extension_manager", {})
     if manager_status.get("status") != "enabled":
         raise RuntimeError(
@@ -675,10 +1040,7 @@ def _compact_manager_value(value: Any) -> Any:
     if isinstance(value, dict):
         return _extension_entry_summary(value)
     if isinstance(value, tuple | list):
-        return [
-            _compact_manager_value(item)
-            for item in value[:50]
-        ]
+        return [_compact_manager_value(item) for item in value[:50]]
     return str(value)
 
 
@@ -716,9 +1078,7 @@ def _extension_entry_matches(
 ) -> bool:
     joined = json.dumps(entry, sort_keys=True)
     return (
-        extension_id in joined
-        or module_name in joined
-        or str(extension_path) in joined
+        extension_id in joined or module_name in joined or str(extension_path) in joined
     )
 
 

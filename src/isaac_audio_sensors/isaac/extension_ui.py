@@ -6,6 +6,7 @@ import importlib
 import json
 import math
 from collections.abc import Callable, Iterable, Mapping
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,11 @@ from isaac_audio_sensors.isaac.discovery import (
     discover_stage_audio,
 )
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
-from isaac_audio_sensors.isaac.pose_resolver import prim_path
+from isaac_audio_sensors.isaac.pose_resolver import (
+    prim_path,
+    quat_from_any,
+    vec3_from_any,
+)
 from isaac_audio_sensors.isaac.replicator import (
     DEFAULT_REPLICATOR_ANNOTATOR_NAME,
     DEFAULT_REPLICATOR_WRITER_NAME,
@@ -44,7 +49,8 @@ from isaac_audio_sensors.isaac.viz.overlays import (
 )
 
 BACKEND_CHOICES = tuple(
-    backend for backend in ("geometry_only", "tdoa_synthetic", "room_acoustics")
+    backend
+    for backend in ("geometry_only", "tdoa_synthetic", "room_acoustics")
     if backend in KNOWN_BACKENDS
 )
 AMBIGUITY_POLICY_CHOICES = tuple(sorted(TDOA_AMBIGUITY_POLICIES))
@@ -301,11 +307,13 @@ class ExtensionController:
                 sample_rate_hz=int(state.sample_rate_hz),
                 coordinate_convention=state.coordinate_convention,
                 layout_name=state.layout_name,
-                position_world=(
-                    None if _prim_has_pose(prim) else (0.0, 0.0, 0.0)
+                position_world=_author_position_arg(
+                    prim,
+                    default=(0.0, 0.0, 0.0),
                 ),
-                orientation_world_quat=(
-                    None if _prim_has_orientation(prim) else (0.0, 0.0, 0.0, 1.0)
+                orientation_world_quat=_author_orientation_arg(
+                    prim,
+                    default=(0.0, 0.0, 0.0, 1.0),
                 ),
                 microphone_relative_offsets_m=tuple(
                     microphone.relative_position_m for microphone in microphones
@@ -326,9 +334,7 @@ class ExtensionController:
                 attributes=_jsonable_mapping(attrs),
             )
             self._append_authored_record(record)
-            self._set_status(
-                f"Authored array {record.id} at {state.array_prim_path}."
-            )
+            self._set_status(f"Authored array {record.id} at {state.array_prim_path}.")
             return record
         except Exception as exc:
             self._record_error("Array authoring failed", exc)
@@ -370,11 +376,13 @@ class ExtensionController:
                 prim,
                 source_id=state.source_id.strip() or _path_name(state.source_prim_path),
                 class_label=state.source_class_label.strip() or "Sound",
-                position_world=(
-                    None if _prim_has_pose(prim) else (2.0, 0.0, 0.0)
+                position_world=_author_position_arg(
+                    prim,
+                    default=(2.0, 0.0, 0.0),
                 ),
-                orientation_world_quat=(
-                    None if _prim_has_orientation(prim) else (0.0, 0.0, 0.0, 1.0)
+                orientation_world_quat=_author_orientation_arg(
+                    prim,
+                    default=(0.0, 0.0, 0.0, 1.0),
                 ),
                 audio_asset_path=state.audio_asset_path,
                 start_time_s=state.source_start_time_s,
@@ -593,9 +601,7 @@ class ExtensionController:
 
         state = self.state
         primitives = (
-            ()
-            if self.sensor is None
-            else tuple(self.sensor.latest_debug_primitives)
+            () if self.sensor is None else tuple(self.sensor.latest_debug_primitives)
         )
         return _json_ready(
             {
@@ -731,10 +737,9 @@ class ExtensionController:
         state = self.state
         self._validate_runtime_state()
         writer_path = state.jsonl_trace_path if state.trace_enabled else None
-        explicit_array_available = (
-            bool(state.array_prim_path.strip())
-            and _stage_has_prim(stage, state.array_prim_path)
-        )
+        explicit_array_available = bool(
+            state.array_prim_path.strip()
+        ) and _stage_has_prim(stage, state.array_prim_path)
         if explicit_array_available:
             return IsaacAudioArraySensor.from_stage(
                 stage=stage,
@@ -907,9 +912,7 @@ class ExtensionController:
         )
         self.state.latest_sector = None if first is None else first.doa.bearing_sector
         primitives: tuple[DebugPrimitive, ...] = (
-            ()
-            if self.sensor is None
-            else tuple(self.sensor.latest_debug_primitives)
+            () if self.sensor is None else tuple(self.sensor.latest_debug_primitives)
         )
         self.state.latest_overlay_primitive_count = len(primitives)
         self.state.latest_overlay_labels = tuple(
@@ -935,8 +938,8 @@ class ExtensionController:
             getattr(drawer, "last_status", "serialized")
         )
         latest_error = getattr(drawer, "last_error", None)
-        self.state.latest_overlay_error = None if latest_error is None else str(
-            latest_error
+        self.state.latest_overlay_error = (
+            None if latest_error is None else str(latest_error)
         )
 
     def _write_replicator_frame(self, frame: Any) -> None:
@@ -1070,9 +1073,7 @@ class ExtensionController:
         self.state.source_gain_db = float(
             source.get("gain_db", self.state.source_gain_db)
         )
-        self.state.robot_base_prim_path = str(
-            binding.get("robot_base_prim_path") or ""
-        )
+        self.state.robot_base_prim_path = str(binding.get("robot_base_prim_path") or "")
         roots = binding.get("discovery_roots", self._discovery_roots())
         self.state.discovery_roots_text = ", ".join(str(root) for root in roots)
         self.state.selected_prim_paths = _normalize_paths(
@@ -1144,25 +1145,38 @@ class OmniReferenceWindow:
         self._bool_fields: dict[str, Any] = {}
         self._combo_fields: dict[str, tuple[Any, tuple[str, ...]]] = {}
         self._labels: dict[str, Any] = {}
+        self._model_change_subscriptions: list[Any] = []
+        self._sections: list[str] = []
+        self._buttons: list[str] = []
 
     def build(self) -> Any:
         """Build a compact task-oriented Kit window."""
 
         ui = self.ui
         self.window = ui.Window("Isaac Audio Sensors", width=620, height=760)
-        with self.window.frame, ui.VStack(spacing=6):
-            self._build_stage_section()
-            self._build_array_section()
-            self._build_source_section()
-            self._build_control_section()
-            self._build_replicator_section()
-            self._build_export_section()
-            self._labels["status"] = ui.Label(
-                self.controller.state.status_message,
-                word_wrap=True,
-            )
+        with self.window.frame:
+            scrolling_frame = getattr(ui, "ScrollingFrame", None)
+            if scrolling_frame is None:
+                with ui.VStack(spacing=6):
+                    self._build_body()
+            else:
+                with scrolling_frame():
+                    with ui.VStack(spacing=6, height=0):
+                        self._build_body()
         self.refresh_labels()
         return self.window
+
+    def _build_body(self) -> None:
+        self._build_stage_section()
+        self._build_array_section()
+        self._build_source_section()
+        self._build_control_section()
+        self._build_replicator_section()
+        self._build_export_section()
+        self._labels["status"] = self.ui.Label(
+            self.controller.state.status_message,
+            word_wrap=True,
+        )
 
     def refresh_labels(self) -> None:
         """Push current state summaries to visible labels."""
@@ -1221,42 +1235,46 @@ class OmniReferenceWindow:
         for attr_name, widget in self._string_fields.items():
             _set_model_value(widget.model, getattr(state, attr_name))
         for attr_name, widget in self._float_fields.items():
-            _set_model_value(widget.model, getattr(state, attr_name))
+            _set_model_value(
+                widget.model, _format_edit_value(getattr(state, attr_name))
+            )
         for attr_name, widget in self._int_fields.items():
-            _set_model_value(widget.model, getattr(state, attr_name))
+            _set_model_value(
+                widget.model, _format_edit_value(getattr(state, attr_name))
+            )
         for attr_name, widget in self._bool_fields.items():
             _set_model_value(widget.model, getattr(state, attr_name))
+        for attr_name, (widget, choices) in self._combo_fields.items():
+            current = getattr(state, attr_name)
+            if current in choices:
+                _set_combo_index(widget.model, choices.index(current))
 
     def _build_stage_section(self) -> None:
         ui = self.ui
         with self._section("Stage"):
             self._labels["stage"] = ui.Label("", word_wrap=True)
             with ui.HStack(spacing=4):
-                ui.Button(
+                self._button(
                     "Refresh",
-                    clicked_fn=self._action(
-                        self.controller.refresh_stage_selection
-                    ),
+                    self.controller.refresh_stage_selection,
                 )
-                ui.Button(
+                self._button(
                     "Use Array",
-                    clicked_fn=self._action(self.controller.use_selected_as_array),
+                    self.controller.use_selected_as_array,
                 )
-                ui.Button(
+                self._button(
                     "Use Source",
-                    clicked_fn=self._action(self.controller.use_selected_as_source),
+                    self.controller.use_selected_as_source,
                 )
-                ui.Button(
+                self._button(
                     "Use Base",
-                    clicked_fn=self._action(
-                        self.controller.use_selected_as_robot_base
-                    ),
+                    self.controller.use_selected_as_robot_base,
                 )
             self._string_row("Discovery Roots", "discovery_roots_text")
             self._string_row("Robot/Base", "robot_base_prim_path")
-            ui.Button(
+            self._button(
                 "Discover",
-                clicked_fn=self._action(self.controller.refresh_discovery),
+                self.controller.refresh_discovery,
             )
             self._labels["discovery"] = ui.Label("", word_wrap=True)
 
@@ -1269,9 +1287,9 @@ class OmniReferenceWindow:
             self._int_row("Sample Rate", "sample_rate_hz")
             ui.Label(f"Convention: {self.controller.state.coordinate_convention}")
             self._bool_row("Child Mics", "author_child_microphones")
-            ui.Button(
+            self._button(
                 "Create/Attach Array",
-                clicked_fn=self._action(self.controller.author_array),
+                self.controller.author_array,
             )
 
     def _build_source_section(self) -> None:
@@ -1284,9 +1302,9 @@ class OmniReferenceWindow:
             self._float_row("Start", "source_start_time_s")
             self._float_row("Duration", "source_duration_s")
             self._float_row("Gain dB", "source_gain_db")
-            ui.Button(
+            self._button(
                 "Create/Attach Source",
-                clicked_fn=self._action(self.controller.author_source),
+                self.controller.author_source,
             )
 
     def _build_control_section(self) -> None:
@@ -1300,14 +1318,14 @@ class OmniReferenceWindow:
             self._bool_row("JSONL", "trace_enabled")
             self._string_row("Writer Path", "jsonl_trace_path")
             with ui.HStack(spacing=4):
-                ui.Button(
+                self._button(
                     "Start",
-                    clicked_fn=self._action(self.controller.start_sensor),
+                    self.controller.start_sensor,
                 )
-                ui.Button("Stop", clicked_fn=self._action(self.controller.stop_sensor))
-                ui.Button(
+                self._button("Stop", self.controller.stop_sensor)
+                self._button(
                     "Update",
-                    clicked_fn=self._action(self.controller.update_sensor),
+                    self.controller.update_sensor,
                 )
             self._labels["latest"] = ui.Label("", word_wrap=True)
             self._labels["overlay"] = ui.Label("", word_wrap=True)
@@ -1320,17 +1338,17 @@ class OmniReferenceWindow:
             self._string_row("Writer", "replicator_writer_name")
             self._string_row("Annotator", "replicator_annotator_name")
             with ui.HStack(spacing=4):
-                ui.Button(
+                self._button(
                     "Start",
-                    clicked_fn=self._action(self.controller.start_replicator),
+                    self.controller.start_replicator,
                 )
-                ui.Button(
+                self._button(
                     "Flush",
-                    clicked_fn=self._action(self.controller.flush_replicator),
+                    self.controller.flush_replicator,
                 )
-                ui.Button(
+                self._button(
                     "Stop",
-                    clicked_fn=self._action(self.controller.stop_replicator),
+                    self.controller.stop_replicator,
                 )
             self._labels["replicator"] = ui.Label("", word_wrap=True)
 
@@ -1341,51 +1359,116 @@ class OmniReferenceWindow:
             self._string_row("Config JSON", "config_export_path")
             self._string_row("Load Config", "config_import_path")
             with ui.HStack(spacing=4):
-                ui.Button(
+                self._button(
                     "Export Latest",
-                    clicked_fn=self._action(self.controller.export_latest_frame),
+                    self.controller.export_latest_frame,
                 )
-                ui.Button(
+                self._button(
                     "Export Config",
-                    clicked_fn=self._action(self.controller.export_config_summary),
+                    self.controller.export_config_summary,
                 )
-                ui.Button(
+                self._button(
                     "Load Config",
-                    clicked_fn=self._action(self.controller.import_config_summary),
+                    self.controller.import_config_summary,
                 )
 
+    @contextmanager
     def _section(self, title: str) -> Any:
+        self._sections.append(title)
         frame_type = getattr(self.ui, "CollapsableFrame", None)
         if frame_type is None:
-            return self.ui.VStack(spacing=4)
-        return frame_type(title, collapsed=False, height=0)
+            with self.ui.VStack(spacing=4) as stack:
+                yield stack
+            return
+        frame = frame_type(title, collapsed=False, height=0)
+        with frame:
+            with self.ui.VStack(spacing=4, height=0) as stack:
+                yield stack
 
     def _string_row(self, label: str, attr_name: str) -> None:
         with self.ui.HStack(spacing=4):
             self.ui.Label(label, width=120)
-            widget = self.ui.StringField()
-            _set_model_value(widget.model, getattr(self.controller.state, attr_name))
+            model = _new_simple_model(
+                self.ui,
+                "string",
+                str(getattr(self.controller.state, attr_name)),
+            )
+            widget = self.ui.StringField(
+                model=model,
+                width=_ui_fraction(self.ui, 1),
+                height=0,
+                read_only=False,
+            )
+            self._bind_model_change(
+                widget.model,
+                lambda model, name=attr_name: setattr(
+                    self.controller.state,
+                    name,
+                    _model_string(model),
+                ),
+            )
             self._string_fields[attr_name] = widget
 
     def _float_row(self, label: str, attr_name: str) -> None:
         with self.ui.HStack(spacing=4):
             self.ui.Label(label, width=120)
-            widget = self.ui.FloatDrag()
-            _set_model_value(widget.model, getattr(self.controller.state, attr_name))
+            model = _new_simple_model(
+                self.ui,
+                "string",
+                _format_edit_value(getattr(self.controller.state, attr_name)),
+            )
+            widget = self.ui.StringField(
+                model=model,
+                width=_ui_fraction(self.ui, 1),
+                height=0,
+                read_only=False,
+            )
+            self._bind_model_change(
+                widget.model,
+                lambda model, name=attr_name: self._try_update_float_state(
+                    name,
+                    model,
+                ),
+            )
             self._float_fields[attr_name] = widget
 
     def _int_row(self, label: str, attr_name: str) -> None:
         with self.ui.HStack(spacing=4):
             self.ui.Label(label, width=120)
-            widget = self.ui.IntDrag()
-            _set_model_value(widget.model, getattr(self.controller.state, attr_name))
+            model = _new_simple_model(
+                self.ui,
+                "string",
+                _format_edit_value(getattr(self.controller.state, attr_name)),
+            )
+            widget = self.ui.StringField(
+                model=model,
+                width=_ui_fraction(self.ui, 1),
+                height=0,
+                read_only=False,
+            )
+            self._bind_model_change(
+                widget.model,
+                lambda model, name=attr_name: self._try_update_int_state(name, model),
+            )
             self._int_fields[attr_name] = widget
 
     def _bool_row(self, label: str, attr_name: str) -> None:
         with self.ui.HStack(spacing=4):
             self.ui.Label(label, width=120)
-            widget = self.ui.CheckBox()
-            _set_model_value(widget.model, getattr(self.controller.state, attr_name))
+            model = _new_simple_model(
+                self.ui,
+                "bool",
+                bool(getattr(self.controller.state, attr_name)),
+            )
+            widget = self.ui.CheckBox(model=model)
+            self._bind_model_change(
+                widget.model,
+                lambda model, name=attr_name: setattr(
+                    self.controller.state,
+                    name,
+                    _model_bool(model),
+                ),
+            )
             self._bool_fields[attr_name] = widget
 
     def _combo_row(
@@ -1407,16 +1490,55 @@ class OmniReferenceWindow:
                     setattr(self.controller.state, attr_name, choices[selected])
 
             if hasattr(widget.model, "add_item_changed_fn"):
-                widget.model.add_item_changed_fn(_on_changed)
+                self._model_change_subscriptions.append(
+                    widget.model.add_item_changed_fn(_on_changed)
+                )
+            if hasattr(widget.model, "add_value_changed_fn"):
+                self._model_change_subscriptions.append(
+                    widget.model.add_value_changed_fn(_on_changed)
+                )
+
+    def _button(self, label: str, callback: Callable[..., Any]) -> Any:
+        self._buttons.append(label)
+        return self.ui.Button(label, clicked_fn=self._action(callback))
 
     def _action(self, callback: Callable[..., Any]) -> Callable[[], None]:
         def _wrapped() -> None:
-            self.sync_state_from_widgets()
+            try:
+                self.sync_state_from_widgets()
+            except Exception as exc:
+                self.controller._record_error("UI input failed", exc)
+                self.refresh_labels()
+                return
             callback()
             self.push_state_to_widgets()
             self.refresh_labels()
 
         return _wrapped
+
+    def _bind_model_change(
+        self,
+        model: Any,
+        callback: Callable[[Any], None],
+    ) -> None:
+        if hasattr(model, "add_value_changed_fn"):
+            self._model_change_subscriptions.append(
+                model.add_value_changed_fn(callback)
+            )
+
+    def _try_update_float_state(self, attr_name: str, model: Any) -> None:
+        try:
+            value = _model_float(model)
+        except (TypeError, ValueError):
+            return
+        setattr(self.controller.state, attr_name, value)
+
+    def _try_update_int_state(self, attr_name: str, model: Any) -> None:
+        try:
+            value = _model_int(model)
+        except (TypeError, ValueError):
+            return
+        setattr(self.controller.state, attr_name, value)
 
     def _set_label(self, name: str, text: str) -> None:
         label = self._labels.get(name)
@@ -1473,6 +1595,48 @@ def _prim_has_pose(prim: Any) -> bool:
             "usd_world_position",
         )
     )
+
+
+def _author_position_arg(
+    prim: Any,
+    *,
+    default: tuple[float, float, float],
+) -> tuple[float, float, float] | None:
+    attrs = _prim_attrs(prim)
+    if _prim_has_xform_pose(prim):
+        return None
+    if "ias:position_world" in attrs:
+        try:
+            return vec3_from_any(attrs["ias:position_world"])
+        except (TypeError, ValueError):
+            pass
+    return default
+
+
+def _author_orientation_arg(
+    prim: Any,
+    *,
+    default: tuple[float, float, float, float],
+) -> tuple[float, float, float, float] | None:
+    attrs = _prim_attrs(prim)
+    if _prim_has_xform_orientation(prim):
+        return None
+    if "ias:orientation_world_quat" in attrs:
+        try:
+            return quat_from_any(attrs["ias:orientation_world_quat"])
+        except (TypeError, ValueError):
+            pass
+    return default
+
+
+def _prim_has_xform_pose(prim: Any) -> bool:
+    attrs = _prim_attrs(prim)
+    return any(key in attrs for key in ("xformOp:translate", "usd_world_position"))
+
+
+def _prim_has_xform_orientation(prim: Any) -> bool:
+    attrs = _prim_attrs(prim)
+    return any(key in attrs for key in ("xformOp:orient", "usd_world_orientation"))
 
 
 def _prim_has_orientation(prim: Any) -> bool:
@@ -1550,12 +1714,65 @@ def _optional_float_text(value: float | None) -> str:
     return "none" if value is None else f"{value:.2f}"
 
 
+def _new_simple_model(ui: Any, kind: str, value: Any) -> Any:
+    model_type_name = {
+        "bool": "SimpleBoolModel",
+        "float": "SimpleFloatModel",
+        "int": "SimpleIntModel",
+        "string": "SimpleStringModel",
+    }[kind]
+    model_type = getattr(ui, model_type_name, None)
+    if model_type is None:
+        return None
+    try:
+        return model_type(value)
+    except TypeError:
+        model = model_type()
+        _set_model_value(model, value)
+        return model
+
+
+def _ui_fraction(ui: Any, value: int) -> Any:
+    fraction = getattr(ui, "Fraction", None)
+    if fraction is None:
+        return value
+    try:
+        return fraction(value)
+    except Exception:
+        return value
+
+
+def _format_edit_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return f"{value:g}"
+    return str(value)
+
+
 def _set_model_value(model: Any, value: Any) -> None:
+    if model is None:
+        return
     if hasattr(model, "set_value"):
         model.set_value(value)
 
 
+def _set_combo_index(model: Any, index: int) -> None:
+    if model is None:
+        return
+    if hasattr(model, "get_item_value_model"):
+        item_model = model.get_item_value_model()
+        if item_model is not None:
+            _set_model_value(item_model, index)
+            return
+    _set_model_value(model, index)
+
+
 def _model_string(model: Any) -> str:
+    if model is None:
+        return ""
     if hasattr(model, "get_value_as_string"):
         return str(model.get_value_as_string())
     if hasattr(model, "as_string"):
@@ -1564,19 +1781,47 @@ def _model_string(model: Any) -> str:
 
 
 def _model_float(model: Any) -> float:
-    if hasattr(model, "get_value_as_float"):
-        return float(model.get_value_as_float())
-    if hasattr(model, "as_float"):
-        return float(model.as_float)
-    return float(getattr(model, "value", 0.0))
+    text = _model_string(model).strip()
+    if text != "":
+        return float(text)
+    get_value = getattr(model, "get_value_as_float", None)
+    if callable(get_value):
+        try:
+            return float(get_value())
+        except (TypeError, ValueError):
+            pass
+    try:
+        as_float = getattr(model, "as_float")
+    except (AttributeError, TypeError, ValueError):
+        pass
+    else:
+        try:
+            return float(as_float)
+        except (TypeError, ValueError):
+            pass
+    raise ValueError("empty numeric value")
 
 
 def _model_int(model: Any) -> int:
-    if hasattr(model, "get_value_as_int"):
-        return int(model.get_value_as_int())
-    if hasattr(model, "as_int"):
-        return int(model.as_int)
-    return int(getattr(model, "value", 0))
+    text = _model_string(model).strip()
+    if text != "":
+        return int(float(text))
+    get_value = getattr(model, "get_value_as_int", None)
+    if callable(get_value):
+        try:
+            return int(get_value())
+        except (TypeError, ValueError):
+            pass
+    try:
+        as_int = getattr(model, "as_int")
+    except (AttributeError, TypeError, ValueError):
+        pass
+    else:
+        try:
+            return int(as_int)
+        except (TypeError, ValueError):
+            pass
+    raise ValueError("empty integer value")
 
 
 def _model_bool(model: Any) -> bool:
@@ -1590,10 +1835,15 @@ def _model_bool(model: Any) -> bool:
 def _combo_index(model: Any) -> int:
     if hasattr(model, "get_item_value_model"):
         value_model = model.get_item_value_model()
-        if hasattr(value_model, "as_int"):
-            return int(value_model.as_int)
-        if hasattr(value_model, "get_value_as_int"):
-            return int(value_model.get_value_as_int())
+        try:
+            as_int = getattr(value_model, "as_int")
+        except (AttributeError, TypeError, ValueError):
+            pass
+        else:
+            return int(as_int)
+        get_value = getattr(value_model, "get_value_as_int", None)
+        if callable(get_value):
+            return int(get_value())
     return _model_int(model)
 
 

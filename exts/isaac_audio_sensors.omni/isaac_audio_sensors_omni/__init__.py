@@ -21,6 +21,7 @@ class Extension(_i_ext_base()):
     """Kit extension entrypoint backed by an import-safe controller."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.controller = ExtensionController()
 
     def on_startup(self, ext_id: str) -> None:

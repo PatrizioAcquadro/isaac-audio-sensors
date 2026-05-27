@@ -104,6 +104,11 @@ def attach_sound_source_attrs(
         attrs["ias:duration_s"] = float(duration_s)
     for name, value in attrs.items():
         _set_attr(prim, name, value)
+    _set_xform_pose(
+        prim,
+        position=position_world,
+        orientation=orientation_world_quat,
+    )
     return attrs
 
 
@@ -138,8 +143,7 @@ def attach_microphone_array_attrs(
     layout_name: str,
     position_world: tuple[float, float, float] | None = None,
     orientation_world_quat: tuple[float, float, float, float] | None = None,
-    microphone_relative_offsets_m: tuple[tuple[float, float, float], ...]
-    | None = None,
+    microphone_relative_offsets_m: tuple[tuple[float, float, float], ...] | None = None,
     microphone_ids: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     """Attach namespaced microphone-array metadata to an existing prim."""
@@ -163,6 +167,11 @@ def attach_microphone_array_attrs(
         attrs["ias:microphone_ids"] = tuple(str(mic_id) for mic_id in microphone_ids)
     for name, value in attrs.items():
         _set_attr(prim, name, value)
+    _set_xform_pose(
+        prim,
+        position=position_world,
+        orientation=orientation_world_quat,
+    )
     return attrs
 
 
@@ -188,6 +197,11 @@ def attach_microphone_attrs(
         attrs["ias:self_noise_db"] = float(self_noise_db)
     for name, value in attrs.items():
         _set_attr(prim, name, value)
+    _set_xform_pose(
+        prim,
+        position=relative_position_m,
+        orientation=relative_orientation_quat,
+    )
     return attrs
 
 
@@ -248,6 +262,68 @@ def _set_attr(prim: Any, name: str, value: object) -> None:
         prim.attributes[name] = value
         return
     setattr(prim, name.replace(":", "_"), value)
+
+
+def _set_xform_pose(
+    prim: Any,
+    *,
+    position: tuple[float, float, float] | None,
+    orientation: tuple[float, float, float, float] | None,
+) -> None:
+    if position is not None and not _set_usd_translate_op(prim, position):
+        _set_attr(prim, "xformOp:translate", position)
+    if orientation is not None and not _set_usd_orient_op(prim, orientation):
+        _set_attr(prim, "xformOp:orient", orientation)
+
+
+def _set_usd_translate_op(
+    prim: Any,
+    position: tuple[float, float, float],
+) -> bool:
+    try:
+        from pxr import Gf, UsdGeom  # type: ignore
+    except ImportError:
+        return False
+    if not hasattr(prim, "IsValid"):
+        return False
+    try:
+        value = Gf.Vec3d(*(float(component) for component in position))
+        api = UsdGeom.XformCommonAPI(prim)
+        if hasattr(api, "SetTranslate") and api.SetTranslate(value):
+            return True
+        xformable = UsdGeom.Xformable(prim)
+        for op in xformable.GetOrderedXformOps():
+            if hasattr(op, "GetOpName") and op.GetOpName() == "xformOp:translate":
+                op.Set(value)
+                return True
+        xformable.AddTranslateOp().Set(value)
+        return True
+    except Exception:
+        return False
+
+
+def _set_usd_orient_op(
+    prim: Any,
+    orientation: tuple[float, float, float, float],
+) -> bool:
+    try:
+        from pxr import Gf, UsdGeom  # type: ignore
+    except ImportError:
+        return False
+    if not hasattr(prim, "IsValid"):
+        return False
+    try:
+        x, y, z, w = (float(component) for component in orientation)
+        value = Gf.Quatf(w, Gf.Vec3f(x, y, z))
+        xformable = UsdGeom.Xformable(prim)
+        for op in xformable.GetOrderedXformOps():
+            if hasattr(op, "GetOpName") and op.GetOpName() == "xformOp:orient":
+                op.Set(value)
+                return True
+        xformable.AddOrientOp().Set(value)
+        return True
+    except Exception:
+        return False
 
 
 def _usd_value_type_name(value: object, *, attr_name: str) -> Any:
