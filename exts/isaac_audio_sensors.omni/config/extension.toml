@@ -4,12 +4,32 @@
 version = "1.0.0"
 title = "Isaac Audio Sensors"
 description = "Live audio array sensor workflow for Isaac Sim stages."
+authors = ["isaac-audio-sensors contributors"]
+repository = "https://github.com/PatrizioAcquadro/isaac-audio-sensors"
 category = "Simulation"
-keywords = ["audio", "microphone", "sensor", "robotics"]
+keywords = ["audio", "microphone", "sensor", "robotics", "isaac-sim", "tdoa"]
+readme = "docs/README.md"
+changelog = "docs/CHANGELOG.md"
+icon = "data/icon.svg"
+preview_image = "data/preview.png"
+trusted = false
+support_level = "Community"
 
 [dependencies]
+"omni.kit.actions.core" = {}
+"omni.kit.menu.utils" = {}
 "omni.ui" = {}
 "omni.usd" = {}
+"omni.kit.hotkeys.core" = { optional = true }
+
+[settings]
+exts."isaac_audio_sensors.omni".shortcut = "CTRL + ALT + A"
+
+[documentation]
+pages = [
+    "docs/README.md",
+    "docs/CHANGELOG.md",
+]
 
 [[python.module]]
 name = "isaac_audio_sensors_omni"

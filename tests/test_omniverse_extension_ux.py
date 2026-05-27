@@ -10,6 +10,11 @@ import textwrap
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback.
+    import tomli as tomllib
+
 from isaac_audio_sensors.isaac.extension_ui import (
     CurrentStageContext,
     ExtensionController,
@@ -104,7 +109,7 @@ class _FakeModel:
 
 
 class _FakeWidget:
-    _context_stack: list["_FakeWidget"] = []
+    _context_stack: list[_FakeWidget] = []
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         self.kind = str(kwargs.pop("_kind", "Widget"))
@@ -121,6 +126,7 @@ class _FakeWidget:
         self.frame = self
         self.text = args[0] if args and isinstance(args[0], str) else ""
         self.visible = True
+        self.visibility_changed_fn = None
         self.children: list[_FakeWidget] = []
         self.parent = (
             _FakeWidget._context_stack[-1] if _FakeWidget._context_stack else None
@@ -137,6 +143,9 @@ class _FakeWidget:
     def __exit__(self, *exc_info: object) -> bool:
         _FakeWidget._context_stack.pop()
         return False
+
+    def set_visibility_changed_fn(self, callback: object) -> None:
+        self.visibility_changed_fn = callback
 
 
 class _FakeUI(ModuleType):
@@ -167,6 +176,141 @@ class _FakeUI(ModuleType):
             return _FakeWidget(*args, _kind=kind, _ui=self, **kwargs)
 
         return _create
+
+
+class _FakeAction:
+    def __init__(self, extension_id: str, action_id: str, callback: object) -> None:
+        self.extension_id = extension_id
+        self.id = action_id
+        self.callback = callback
+
+    def execute(self, *args: object, **kwargs: object) -> object:
+        return self.callback(*args, **kwargs)
+
+
+class _FakeActionRegistry:
+    def __init__(self) -> None:
+        self.actions: dict[tuple[str, str], _FakeAction] = {}
+        self.deregistered: list[tuple[str, str]] = []
+
+    def register_action(
+        self,
+        extension_id: str,
+        action_id: str,
+        python_object: object,
+        **_kwargs: object,
+    ) -> _FakeAction:
+        action = _FakeAction(extension_id, action_id, python_object)
+        self.actions[(extension_id, action_id)] = action
+        return action
+
+    def deregister_action(self, *args: object) -> object:
+        if len(args) == 1 and isinstance(args[0], _FakeAction):
+            key = (args[0].extension_id, args[0].id)
+        elif len(args) >= 2:
+            key = (str(args[0]), str(args[1]))
+        else:
+            return None
+        self.deregistered.append(key)
+        return self.actions.pop(key, None)
+
+    def execute_action(
+        self,
+        extension_id: str,
+        action_id: str,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        return self.actions[(extension_id, action_id)].execute(*args, **kwargs)
+
+
+class _FakeMenuItemDescription:
+    def __init__(self, **kwargs: object) -> None:
+        self.__dict__.update(kwargs)
+
+
+class _FakeMenuUtils(ModuleType):
+    def __init__(self) -> None:
+        super().__init__("omni.kit.menu.utils")
+        self.MenuItemDescription = _FakeMenuItemDescription
+        self.added: list[tuple[str, list[object]]] = []
+        self.removed: list[tuple[str, list[object]]] = []
+        self.refreshed: list[str] = []
+
+    def add_menu_items(
+        self,
+        items: list[object],
+        name: str,
+        *_args: object,
+        **_kwargs: object,
+    ) -> None:
+        self.added.append((name, items))
+
+    def remove_menu_items(
+        self,
+        items: list[object],
+        name: str,
+        *_args: object,
+        **_kwargs: object,
+    ) -> None:
+        self.removed.append((name, items))
+
+    def refresh_menu_items(self, name: str) -> None:
+        self.refreshed.append(name)
+
+
+class _FakeHotkey:
+    def __init__(
+        self,
+        hotkey_ext_id: str,
+        key: str,
+        action_ext_id: str,
+        action_id: str,
+    ) -> None:
+        self.hotkey_ext_id = hotkey_ext_id
+        self.key = key
+        self.action_ext_id = action_ext_id
+        self.action_id = action_id
+
+
+class _FakeHotkeyRegistry:
+    def __init__(self) -> None:
+        self.hotkeys: list[_FakeHotkey] = []
+        self.last_error = "OK"
+
+    def register_hotkey(
+        self,
+        hotkey_ext_id: str,
+        key: str,
+        action_ext_id: str,
+        action_id: str,
+        filter: object = None,  # noqa: A002 - mirrors Kit API.
+    ) -> _FakeHotkey:
+        _ = filter
+        hotkey = _FakeHotkey(hotkey_ext_id, key, action_ext_id, action_id)
+        self.hotkeys.append(hotkey)
+        return hotkey
+
+    def deregister_hotkey(self, hotkey: _FakeHotkey) -> bool:
+        if hotkey in self.hotkeys:
+            self.hotkeys.remove(hotkey)
+            return True
+        return False
+
+    def deregister_hotkeys(self, hotkey_ext_id: str, key: str) -> None:
+        self.hotkeys = [
+            hotkey
+            for hotkey in self.hotkeys
+            if not (hotkey.hotkey_ext_id == hotkey_ext_id and hotkey.key == key)
+        ]
+
+
+class _FakeSettings:
+    def __init__(self, values: dict[str, object] | None = None) -> None:
+        self.values = values or {}
+
+    def get(self, path: str) -> object:
+        return self.values.get(path)
 
 
 class _FakeWriterRegistry:
@@ -206,6 +350,75 @@ def _install_fake_replicator(monkeypatch):
     return core
 
 
+def _install_fake_kit_integrations(
+    monkeypatch,
+    *,
+    install_hotkeys: bool = True,
+    shortcut: str | None = None,
+):
+    omni = sys.modules.get("omni") or ModuleType("omni")
+    omni.__path__ = []
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+
+    kit = ModuleType("omni.kit")
+    kit.__path__ = []
+    actions = ModuleType("omni.kit.actions")
+    actions.__path__ = []
+    actions_core = ModuleType("omni.kit.actions.core")
+    action_registry = _FakeActionRegistry()
+    actions_core.get_action_registry = lambda: action_registry
+    actions.core = actions_core
+
+    menu = ModuleType("omni.kit.menu")
+    menu.__path__ = []
+    menu_utils = _FakeMenuUtils()
+    menu.utils = menu_utils
+
+    kit.actions = actions
+    kit.menu = menu
+    omni.kit = kit
+
+    settings_values = {}
+    if shortcut is not None:
+        settings_values["/exts/isaac_audio_sensors.omni/shortcut"] = shortcut
+    fake_settings = _FakeSettings(settings_values)
+    carb = ModuleType("carb")
+    carb.__path__ = []
+    carb_settings = ModuleType("carb.settings")
+    carb_settings.get_settings = lambda: fake_settings
+    carb.settings = carb_settings
+
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    monkeypatch.setitem(sys.modules, "omni.kit", kit)
+    monkeypatch.setitem(sys.modules, "omni.kit.actions", actions)
+    monkeypatch.setitem(sys.modules, "omni.kit.actions.core", actions_core)
+    monkeypatch.setitem(sys.modules, "omni.kit.menu", menu)
+    monkeypatch.setitem(sys.modules, "omni.kit.menu.utils", menu_utils)
+    monkeypatch.setitem(sys.modules, "carb", carb)
+    monkeypatch.setitem(sys.modules, "carb.settings", carb_settings)
+
+    hotkey_registry = None
+    if install_hotkeys:
+        hotkeys = ModuleType("omni.kit.hotkeys")
+        hotkeys.__path__ = []
+        hotkeys_core = ModuleType("omni.kit.hotkeys.core")
+        hotkey_registry = _FakeHotkeyRegistry()
+        hotkeys_core.get_hotkey_registry = lambda: hotkey_registry
+        hotkeys.core = hotkeys_core
+        kit.hotkeys = hotkeys
+        monkeypatch.setitem(sys.modules, "omni.kit.hotkeys", hotkeys)
+        monkeypatch.setitem(sys.modules, "omni.kit.hotkeys.core", hotkeys_core)
+
+    return SimpleNamespace(
+        ui=omni_ui,
+        actions=action_registry,
+        menu=menu_utils,
+        hotkeys=hotkey_registry,
+    )
+
+
 def test_omni_extension_entrypoint_import_smoke_without_isaac_modules():
     repo = Path(__file__).resolve().parents[1]
     code = textwrap.dedent("""
@@ -240,6 +453,46 @@ def test_omni_extension_entrypoint_import_smoke_without_isaac_modules():
             env.get("PYTHONPATH", ""),
         )
     )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert json.loads(completed.stdout) == {"ui_available": False}
+
+
+def test_omni_extension_entrypoint_import_smoke_from_extension_path_only():
+    repo = Path(__file__).resolve().parents[1]
+    code = textwrap.dedent("""
+        import importlib
+        import importlib.abc
+        import json
+        import sys
+
+        blocked = ("omni", "pxr", "isaacsim")
+
+        class OptionalRuntimeBlocker(importlib.abc.MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                for module_name in blocked:
+                    if fullname == module_name or fullname.startswith(
+                        module_name + "."
+                    ):
+                        raise ImportError(f"blocked optional module {fullname}")
+                return None
+
+        sys.meta_path.insert(0, OptionalRuntimeBlocker())
+        module = importlib.import_module("isaac_audio_sensors_omni")
+        ext = module.Extension()
+        ext.on_startup("test.ext")
+        ext.on_shutdown()
+        print(json.dumps({"ui_available": ext.ui_available}))
+        """)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(repo / "exts" / "isaac_audio_sensors.omni")
 
     completed = subprocess.run(
         [sys.executable, "-c", code],
@@ -496,6 +749,132 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Export Config",
         "Load Config",
     } <= set(controller._ui_window._buttons)
+
+
+def test_extension_controller_registers_menu_action_hotkey_and_cleans_up(
+    monkeypatch,
+):
+    kit = _install_fake_kit_integrations(monkeypatch)
+    controller = ExtensionController()
+
+    controller.on_startup("isaac_audio_sensors.omni")
+
+    assert controller.window is not None
+    assert controller.window.visible is True
+    assert ("isaac_audio_sensors.omni", "toggle_window") in kit.actions.actions
+    assert kit.menu.added[0][0] == "Window"
+    menu_item = kit.menu.added[0][1][0]
+    assert menu_item.name == "Isaac Audio Sensors"
+    assert menu_item.onclick_action == ("isaac_audio_sensors.omni", "toggle_window")
+    assert menu_item.ticked_fn() is True
+    assert kit.hotkeys is not None
+    assert [(item.key, item.action_id) for item in kit.hotkeys.hotkeys] == [
+        ("CTRL + ALT + A", "toggle_window")
+    ]
+
+    kit.actions.execute_action("isaac_audio_sensors.omni", "toggle_window")
+    assert controller.window.visible is False
+    assert menu_item.ticked_fn() is False
+
+    kit.actions.execute_action("isaac_audio_sensors.omni", "toggle_window")
+    assert controller.window.visible is True
+
+    controller.on_shutdown()
+
+    assert kit.hotkeys.hotkeys == []
+    assert kit.menu.removed[0][0] == "Window"
+    assert ("isaac_audio_sensors.omni", "toggle_window") not in kit.actions.actions
+
+
+def test_extension_controller_reopens_window_after_close_x(monkeypatch):
+    kit = _install_fake_kit_integrations(monkeypatch)
+    controller = ExtensionController()
+    controller.on_startup("isaac_audio_sensors.omni")
+    window = controller.window
+    assert window is not None
+
+    window.visible = False
+    assert controller.is_window_visible() is False
+
+    reopened = kit.actions.execute_action("isaac_audio_sensors.omni", "toggle_window")
+
+    assert reopened is window
+    assert window.visible is True
+
+
+def test_extension_controller_keeps_menu_action_when_hotkeys_unavailable(monkeypatch):
+    kit = _install_fake_kit_integrations(monkeypatch, install_hotkeys=False)
+    controller = ExtensionController()
+
+    controller.on_startup("isaac_audio_sensors.omni")
+
+    assert ("isaac_audio_sensors.omni", "toggle_window") in kit.actions.actions
+    assert kit.menu.added
+    assert "hotkey unavailable" in controller.hotkey_status.lower()
+    assert "menu/action remain registered" in controller.hotkey_status
+
+
+def test_extension_controller_versioned_id_reads_base_shortcut_setting(monkeypatch):
+    kit = _install_fake_kit_integrations(monkeypatch, shortcut="SHIFT + A")
+    controller = ExtensionController()
+
+    controller.on_startup("isaac_audio_sensors.omni-1.0.0")
+
+    assert kit.hotkeys is not None
+    assert [(item.key, item.action_id) for item in kit.hotkeys.hotkeys] == [
+        ("SHIFT + A", "toggle_window")
+    ]
+    assert "SHIFT + A" in controller.hotkey_status
+
+
+def test_omniverse_extension_manifest_metadata_files_exist():
+    repo = Path(__file__).resolve().parents[1]
+    ext_root = repo / "exts" / "isaac_audio_sensors.omni"
+    manifest_path = ext_root / "config" / "extension.toml"
+    manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    package = manifest["package"]
+    python_modules = manifest["python"]["module"]
+
+    assert package["authors"] == ["isaac-audio-sensors contributors"]
+    assert package["trusted"] is False
+    assert package["category"].lower() == "simulation"
+    assert package["repository"] == (
+        "https://github.com/PatrizioAcquadro/isaac-audio-sensors"
+    )
+    assert {"audio", "microphone", "sensor", "robotics", "tdoa"} <= set(
+        package["keywords"]
+    )
+    for key in ("readme", "changelog", "icon", "preview_image"):
+        path = ext_root / package[key]
+        assert path.exists(), f"{key} does not exist: {path}"
+        assert path.stat().st_size > 0, f"{key} is empty: {path}"
+
+    readme = (ext_root / package["readme"]).read_text(encoding="utf-8")
+    assert "Window -> Isaac Audio Sensors" in readme
+    assert "Ctrl+Alt+A" in readme
+    assert "isaac_audio_sensors.omni::toggle_window" in readme
+    assert (ext_root / package["preview_image"]).read_bytes().startswith(b"\x89PNG")
+    assert python_modules == [{"name": "isaac_audio_sensors_omni"}]
+
+
+def test_omniverse_extension_manifest_is_third_party_by_kit_source_logic():
+    repo = Path(__file__).resolve().parents[1]
+    manifest_path = (
+        repo / "exts" / "isaac_audio_sensors.omni" / "config" / "extension.toml"
+    )
+    package = tomllib.loads(manifest_path.read_text(encoding="utf-8"))["package"]
+
+    if package.get("exchange", False):
+        author_group = "COMMUNITY_VERIFIED"
+    elif not package.get("trusted", True):
+        author_group = "COMMUNITY_UNVERIFIED"
+    else:
+        author_group = "NVIDIA"
+
+    ext_source = "NVIDIA" if author_group == "NVIDIA" else "THIRD PARTY"
+
+    assert author_group != "NVIDIA"
+    assert ext_source == "THIRD PARTY"
 
 
 def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatch):

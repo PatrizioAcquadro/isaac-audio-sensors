@@ -6,7 +6,7 @@ import importlib
 import json
 import math
 from collections.abc import Callable, Iterable, Mapping
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
 from typing import Any
@@ -56,6 +56,11 @@ BACKEND_CHOICES = tuple(
 AMBIGUITY_POLICY_CHOICES = tuple(sorted(TDOA_AMBIGUITY_POLICIES))
 LAYOUT_CHOICES = ("quad_front", "quad_cross", "stereo_y", "two_mic_y", "mono")
 DEFAULT_OUTPUT_ROOT = Path("outputs/isaac_audio_sensors")
+OMNI_WINDOW_TITLE = "Isaac Audio Sensors"
+OMNI_MENU_GROUP = "Window"
+OMNI_ACTION_TOGGLE_WINDOW = "toggle_window"
+OMNI_DEFAULT_HOTKEY = "CTRL + ALT + A"
+OMNI_DEFAULT_HOTKEY_DISPLAY = "Ctrl+Alt+A"
 
 
 class ExtensionActionError(RuntimeError):
@@ -174,6 +179,13 @@ class ExtensionController:
         self.window: Any | None = None
         self.ui_available = False
         self._ui_window: OmniReferenceWindow | None = None
+        self.action_status = "Kit action not registered."
+        self.menu_status = "Kit menu not registered."
+        self.hotkey_status = "Kit hotkey not registered."
+        self._registered_action: Any | None = None
+        self._registered_hotkey: Any | None = None
+        self._registered_hotkey_key: str | None = None
+        self._menu_items: list[Any] = []
 
     def on_startup(self, ext_id: str) -> None:
         """Initialize the import-safe controller and lazily build Kit UI."""
@@ -181,10 +193,12 @@ class ExtensionController:
         self.ext_id = ext_id
         self._set_status(f"Loaded {ext_id}.")
         self.build_ui_if_available()
+        self.register_kit_integrations()
 
     def on_shutdown(self) -> None:
         """Stop live work and release UI/debug resources."""
 
+        self.unregister_kit_integrations()
         self.stop_replicator()
         self.close_sensor()
         self._ui_window = None
@@ -196,6 +210,9 @@ class ExtensionController:
     def build_ui_if_available(self) -> Any | None:
         """Build the Omniverse UI only when ``omni.ui`` imports."""
 
+        if self.window is not None:
+            self.ui_available = True
+            return self.window
         try:
             ui = importlib.import_module("omni.ui")
         except ImportError:
@@ -210,6 +227,288 @@ class ExtensionController:
             self.ui_available = False
             self._record_error("UI build failed", exc)
             return None
+
+    def show_window(self) -> Any | None:
+        """Show or rebuild the Kit window from menu/action/hotkey entrypoints."""
+
+        window = self.build_ui_if_available()
+        if window is None:
+            self._set_status("Window unavailable: omni.ui could not be loaded.")
+            return None
+        if not _set_window_visible(window, True):
+            self._set_status("Window shown; this Kit build did not expose visibility.")
+            return window
+        _focus_window(window)
+        self._refresh_menu()
+        self._set_status("Window shown.")
+        return window
+
+    def hide_window(self) -> None:
+        """Hide the Kit window without destroying controller state."""
+
+        if self.window is None:
+            return
+        _set_window_visible(self.window, False)
+        self._refresh_menu()
+        self._set_status("Window hidden.")
+
+    def toggle_window(self) -> Any | None:
+        """Toggle the Kit window, rebuilding it if the user closed it with X."""
+
+        if self.is_window_visible():
+            self.hide_window()
+            return self.window
+        return self.show_window()
+
+    def is_window_visible(self) -> bool:
+        """Return whether the Kit window is currently visible."""
+
+        return _window_visible(self.window)
+
+    def register_kit_integrations(self) -> None:
+        """Register action, menu, and optional hotkey integrations when Kit exists."""
+
+        self._register_action()
+        self._register_menu()
+        self._register_hotkey()
+
+    def unregister_kit_integrations(self) -> None:
+        """Best-effort cleanup of Kit action/menu/hotkey registrations."""
+
+        self._unregister_hotkey()
+        self._unregister_menu()
+        self._unregister_action()
+
+    def _register_action(self) -> None:
+        if not self.ext_id:
+            self.action_status = "Kit action unavailable: extension id is unset."
+            return
+        try:
+            actions_core = importlib.import_module("omni.kit.actions.core")
+        except ImportError as exc:
+            self.action_status = (
+                f"Kit action unavailable: omni.kit.actions.core ({exc})."
+            )
+            return
+        get_registry = getattr(actions_core, "get_action_registry", None)
+        registry = get_registry() if callable(get_registry) else None
+        if registry is None or not hasattr(registry, "register_action"):
+            self.action_status = "Kit action unavailable: action registry missing."
+            return
+
+        if hasattr(registry, "deregister_action"):
+            with suppress(Exception):
+                registry.deregister_action(self.ext_id, OMNI_ACTION_TOGGLE_WINDOW)
+        try:
+            self._registered_action = registry.register_action(
+                self.ext_id,
+                OMNI_ACTION_TOGGLE_WINDOW,
+                self.toggle_window,
+                display_name="Toggle Isaac Audio Sensors Window",
+                description="Show or hide the Isaac Audio Sensors Kit window.",
+                tag="Isaac Audio Sensors",
+            )
+        except Exception as exc:
+            self.action_status = f"Kit action registration failed: {exc}"
+            return
+        self.action_status = (
+            f"Kit action registered: {self.ext_id}::{OMNI_ACTION_TOGGLE_WINDOW}."
+        )
+
+    def _unregister_action(self) -> None:
+        if not self.ext_id:
+            return
+        try:
+            actions_core = importlib.import_module("omni.kit.actions.core")
+        except ImportError:
+            self._registered_action = None
+            return
+        get_registry = getattr(actions_core, "get_action_registry", None)
+        registry = get_registry() if callable(get_registry) else None
+        if registry is None or not hasattr(registry, "deregister_action"):
+            self._registered_action = None
+            return
+        try:
+            if self._registered_action is not None:
+                registry.deregister_action(self._registered_action)
+            else:
+                registry.deregister_action(self.ext_id, OMNI_ACTION_TOGGLE_WINDOW)
+            self.action_status = "Kit action deregistered."
+        except Exception as exc:
+            self.action_status = f"Kit action cleanup failed: {exc}"
+        self._registered_action = None
+
+    def _register_menu(self) -> None:
+        if not self.ext_id:
+            self.menu_status = "Kit menu unavailable: extension id is unset."
+            return
+        try:
+            menu_utils = importlib.import_module("omni.kit.menu.utils")
+        except ImportError as exc:
+            self.menu_status = f"Kit menu unavailable: omni.kit.menu.utils ({exc})."
+            return
+        menu_item_type = getattr(menu_utils, "MenuItemDescription", None)
+        add_menu_items = getattr(menu_utils, "add_menu_items", None)
+        if menu_item_type is None or not callable(add_menu_items):
+            self.menu_status = "Kit menu unavailable: menu utils API missing."
+            return
+        try:
+            self._menu_items = [
+                menu_item_type(
+                    name=OMNI_WINDOW_TITLE,
+                    ticked=True,
+                    ticked_fn=lambda _value=False: self.is_window_visible(),
+                    onclick_action=(self.ext_id, OMNI_ACTION_TOGGLE_WINDOW),
+                )
+            ]
+            add_menu_items(self._menu_items, name=OMNI_MENU_GROUP)
+        except Exception as exc:
+            self.menu_status = f"Kit menu registration failed: {exc}"
+            self._menu_items = []
+            return
+        self.menu_status = (
+            f"Kit menu registered: {OMNI_MENU_GROUP} -> {OMNI_WINDOW_TITLE}."
+        )
+
+    def _unregister_menu(self) -> None:
+        if not self._menu_items:
+            return
+        try:
+            menu_utils = importlib.import_module("omni.kit.menu.utils")
+        except ImportError:
+            self._menu_items = []
+            return
+        remove_menu_items = getattr(menu_utils, "remove_menu_items", None)
+        if callable(remove_menu_items):
+            try:
+                remove_menu_items(self._menu_items, name=OMNI_MENU_GROUP)
+                self.menu_status = "Kit menu deregistered."
+            except Exception as exc:
+                self.menu_status = f"Kit menu cleanup failed: {exc}"
+        self._menu_items = []
+
+    def _register_hotkey(self) -> None:
+        if not self.ext_id:
+            self.hotkey_status = "Kit hotkey unavailable: extension id is unset."
+            return
+        hotkey = self._configured_hotkey()
+        if not hotkey:
+            self.hotkey_status = "Kit hotkey disabled by configuration."
+            return
+        try:
+            hotkeys_core = importlib.import_module("omni.kit.hotkeys.core")
+        except ImportError as exc:
+            self.hotkey_status = (
+                "Kit hotkey unavailable: omni.kit.hotkeys.core "
+                f"({exc}); menu/action remain registered."
+            )
+            return
+        get_registry = getattr(hotkeys_core, "get_hotkey_registry", None)
+        registry = get_registry() if callable(get_registry) else None
+        if registry is None or not hasattr(registry, "register_hotkey"):
+            self.hotkey_status = (
+                "Kit hotkey unavailable: hotkey registry missing; "
+                "menu/action remain registered."
+            )
+            return
+        if hasattr(registry, "deregister_hotkeys"):
+            with suppress(Exception):
+                registry.deregister_hotkeys(self.ext_id, hotkey)
+        try:
+            self._registered_hotkey = registry.register_hotkey(
+                self.ext_id,
+                hotkey,
+                self.ext_id,
+                OMNI_ACTION_TOGGLE_WINDOW,
+                filter=None,
+            )
+        except Exception as exc:
+            self.hotkey_status = (
+                f"Kit hotkey registration failed for {hotkey}: {exc}; "
+                "menu/action remain registered."
+            )
+            return
+        if self._registered_hotkey is None:
+            last_error = getattr(registry, "last_error", "unknown error")
+            self.hotkey_status = (
+                f"Kit hotkey unavailable for {hotkey}: {last_error}; "
+                "menu/action remain registered."
+            )
+            return
+        self._registered_hotkey_key = hotkey
+        self.hotkey_status = (
+            f"Kit hotkey registered: {OMNI_DEFAULT_HOTKEY_DISPLAY} "
+            f"({hotkey}) -> {self.ext_id}::{OMNI_ACTION_TOGGLE_WINDOW}."
+        )
+
+    def _unregister_hotkey(self) -> None:
+        if not self.ext_id or self._registered_hotkey_key is None:
+            self._registered_hotkey = None
+            return
+        try:
+            hotkeys_core = importlib.import_module("omni.kit.hotkeys.core")
+        except ImportError:
+            self._registered_hotkey = None
+            self._registered_hotkey_key = None
+            return
+        get_registry = getattr(hotkeys_core, "get_hotkey_registry", None)
+        registry = get_registry() if callable(get_registry) else None
+        if registry is None:
+            self._registered_hotkey = None
+            self._registered_hotkey_key = None
+            return
+        try:
+            if self._registered_hotkey is not None and hasattr(
+                registry, "deregister_hotkey"
+            ):
+                registry.deregister_hotkey(self._registered_hotkey)
+            elif hasattr(registry, "deregister_hotkeys"):
+                registry.deregister_hotkeys(self.ext_id, self._registered_hotkey_key)
+            self.hotkey_status = "Kit hotkey deregistered."
+        except Exception as exc:
+            self.hotkey_status = f"Kit hotkey cleanup failed: {exc}"
+        self._registered_hotkey = None
+        self._registered_hotkey_key = None
+
+    def _configured_hotkey(self) -> str:
+        try:
+            carb_settings = importlib.import_module("carb.settings")
+        except ImportError:
+            return OMNI_DEFAULT_HOTKEY
+        get_settings = getattr(carb_settings, "get_settings", None)
+        settings = get_settings() if callable(get_settings) else None
+        if settings is None or not hasattr(settings, "get"):
+            return OMNI_DEFAULT_HOTKEY
+        ext_ids = tuple(
+            dict.fromkeys(
+                (
+                    self.ext_id or "isaac_audio_sensors.omni",
+                    "isaac_audio_sensors.omni",
+                )
+            )
+        )
+        for ext_id in ext_ids:
+            for path in (
+                f"/persistent/exts/{ext_id}/shortcut",
+                f"/exts/{ext_id}/shortcut",
+            ):
+                value = settings.get(path)
+                if value is not None:
+                    return _normalize_hotkey_setting(str(value))
+        return OMNI_DEFAULT_HOTKEY
+
+    def _on_window_visibility_changed(self, _visible: bool) -> None:
+        self._refresh_menu()
+
+    def _refresh_menu(self) -> None:
+        try:
+            menu_utils = importlib.import_module("omni.kit.menu.utils")
+        except ImportError:
+            return
+        refresh_menu_items = getattr(menu_utils, "refresh_menu_items", None)
+        if callable(refresh_menu_items):
+            with suppress(Exception):
+                refresh_menu_items(OMNI_MENU_GROUP)
 
     def refresh_stage_selection(
         self,
@@ -1153,16 +1452,19 @@ class OmniReferenceWindow:
         """Build a compact task-oriented Kit window."""
 
         ui = self.ui
-        self.window = ui.Window("Isaac Audio Sensors", width=620, height=760)
+        self.window = ui.Window(OMNI_WINDOW_TITLE, width=620, height=760)
+        _set_window_visibility_changed_fn(
+            self.window,
+            self.controller._on_window_visibility_changed,
+        )
         with self.window.frame:
             scrolling_frame = getattr(ui, "ScrollingFrame", None)
             if scrolling_frame is None:
                 with ui.VStack(spacing=6):
                     self._build_body()
             else:
-                with scrolling_frame():
-                    with ui.VStack(spacing=6, height=0):
-                        self._build_body()
+                with scrolling_frame(), ui.VStack(spacing=6, height=0):
+                    self._build_body()
         self.refresh_labels()
         return self.window
 
@@ -1293,7 +1595,6 @@ class OmniReferenceWindow:
             )
 
     def _build_source_section(self) -> None:
-        ui = self.ui
         with self._section("Author Source"):
             self._string_row("Target Prim", "source_prim_path")
             self._string_row("Source ID", "source_id")
@@ -1381,9 +1682,8 @@ class OmniReferenceWindow:
                 yield stack
             return
         frame = frame_type(title, collapsed=False, height=0)
-        with frame:
-            with self.ui.VStack(spacing=4, height=0) as stack:
-                yield stack
+        with frame, self.ui.VStack(spacing=4, height=0) as stack:
+            yield stack
 
     def _string_row(self, label: str, attr_name: str) -> None:
         with self.ui.HStack(spacing=4):
@@ -1791,7 +2091,7 @@ def _model_float(model: Any) -> float:
         except (TypeError, ValueError):
             pass
     try:
-        as_float = getattr(model, "as_float")
+        as_float = model.as_float
     except (AttributeError, TypeError, ValueError):
         pass
     else:
@@ -1813,7 +2113,7 @@ def _model_int(model: Any) -> int:
         except (TypeError, ValueError):
             pass
     try:
-        as_int = getattr(model, "as_int")
+        as_int = model.as_int
     except (AttributeError, TypeError, ValueError):
         pass
     else:
@@ -1836,7 +2136,7 @@ def _combo_index(model: Any) -> int:
     if hasattr(model, "get_item_value_model"):
         value_model = model.get_item_value_model()
         try:
-            as_int = getattr(value_model, "as_int")
+            as_int = value_model.as_int
         except (AttributeError, TypeError, ValueError):
             pass
         else:
@@ -1845,6 +2145,59 @@ def _combo_index(model: Any) -> int:
         if callable(get_value):
             return int(get_value())
     return _model_int(model)
+
+
+def _window_visible(window: Any | None) -> bool:
+    if window is None:
+        return False
+    visible = getattr(window, "visible", None)
+    if visible is None:
+        return True
+    return bool(visible)
+
+
+def _set_window_visible(window: Any, visible: bool) -> bool:
+    try:
+        window.visible = visible
+        return True
+    except Exception:
+        pass
+    method_name = "show" if visible else "hide"
+    method = getattr(window, method_name, None)
+    if callable(method):
+        try:
+            method()
+            return True
+        except Exception:
+            return False
+    return False
+
+
+def _focus_window(window: Any) -> None:
+    for method_name in ("focus", "bring_to_front"):
+        method = getattr(window, method_name, None)
+        if callable(method):
+            with suppress(Exception):
+                method()
+            return
+
+
+def _set_window_visibility_changed_fn(
+    window: Any,
+    callback: Callable[[bool], None],
+) -> None:
+    setter = getattr(window, "set_visibility_changed_fn", None)
+    if not callable(setter):
+        return
+    with suppress(Exception):
+        setter(callback)
+
+
+def _normalize_hotkey_setting(value: str) -> str:
+    normalized = value.strip()
+    if normalized.lower() in {"", "none", "disabled", "off", "false"}:
+        return ""
+    return normalized
 
 
 __all__ = [

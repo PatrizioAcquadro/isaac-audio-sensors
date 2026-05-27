@@ -46,26 +46,68 @@ exts/isaac_audio_sensors.omni
 The Extension Manager search path must point to the parent `exts/` directory,
 not to the extension folder itself.
 
+## Install Once for Icon Launches
+
+The command-line `--ext-folder <repo>/exts` option is useful for one-off live
+validation, but it only applies to that Isaac Sim process. If you normally open
+Isaac Sim from its desktop icon, install the extension into Isaac's persistent
+user extension folder once:
+
+```bash
+python3 scripts/install_isaac_sim_extension.py \
+  --isaacsim-command <path-to-isaacsim>
+```
+
+The installer creates a symlink from Isaac Sim's built-in `extsUser` search
+folder to this checkout's `exts/isaac_audio_sensors.omni` directory. It also
+adds the versioned extension id to Kit's autoload list in
+`~/.local/share/ov/data/Kit/Isaac-Sim Full/5.1/user.config.json`, backing up the
+file first. After that, launching Isaac Sim from the icon should discover the
+extension without extra launch arguments, and the `Window -> Isaac Audio
+Sensors` menu plus `Ctrl+Alt+A` hotkey are available once the extension has
+loaded.
+
+Use `--dry-run` to preview the paths before writing, or `--no-autoload` if you
+only want the extension to appear in Extension Manager and prefer enabling it
+manually.
+
 ## Open the GUI
 
 1. Launch Isaac Sim.
 2. Open a stage. A new empty stage is enough for the first demo.
-3. In Isaac Sim, open `Window -> Extensions`.
-4. In the Extension Manager, add this repository's `exts/` directory as an
+3. If you used the one-time installer above, open `Window -> Isaac Audio
+   Sensors`.
+4. If you did not install it persistently, open `Window -> Extensions`.
+5. In the Extension Manager, add this repository's `exts/` directory as an
    extension search path.
-5. Search for `Isaac Audio Sensors`.
-6. Enable the extension named `Isaac Audio Sensors`.
-7. Look for a Kit window titled `Isaac Audio Sensors`.
+6. Search for `Isaac Audio Sensors`.
+7. Select the `THIRD PARTY` source tab if the extension is not visible under
+   the default source filter.
+8. Enable the extension named `Isaac Audio Sensors`.
+9. Open `Window -> Isaac Audio Sensors` if the Kit window is not already
+   visible.
 
 When the extension starts successfully, it builds a window named
 `Isaac Audio Sensors`. The window contains collapsible sections. You can
 collapse sections while working or while capturing section-specific screenshots.
+Closing the window with X only hides it; reopen it from
+`Window -> Isaac Audio Sensors`. The registered Kit action is
+`isaac_audio_sensors.omni::toggle_window`. When Kit hotkeys are available, the
+default shortcut is `Ctrl+Alt+A`; change
+`/exts/isaac_audio_sensors.omni/shortcut` to customize that binding.
+
+In Extension Manager, the extension Overview should show the package README,
+changelog, repository link, icon, preview image, `Simulation` category, and
+audio/robotics keywords. The extension is marked as third-party/community
+metadata so it appears under `THIRD PARTY`, not `NVIDIA`.
 
 If the window does not appear:
 
 - Confirm that the search path is `<repo>/exts`, not
   `<repo>/exts/isaac_audio_sensors.omni`.
 - Confirm that the extension entry is enabled in `Window -> Extensions`.
+- Try `Window -> Isaac Audio Sensors`.
+- Try `Ctrl+Alt+A` if hotkeys are enabled.
 - Disable and re-enable the extension.
 - Check the Isaac Sim console/log for extension load errors.
 - Confirm that the extension folder contains

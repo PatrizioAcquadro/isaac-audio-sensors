@@ -11,7 +11,7 @@ include pyproject.toml
 recursive-include configs *.toml
 recursive-include docs *.md *.json
 recursive-include examples *.md *.py *.json *.ndjson
-recursive-include exts *.toml *.py
+recursive-include exts *.toml *.py *.md *.svg
 recursive-include scripts *.py
 recursive-include tests *.py
 recursive-include .github *.yml
@@ -44,3 +44,4 @@ prune .mypy_cache
 prune .agents
 prune .codex
 prune src/*.egg-info
+include exts/isaac_audio_sensors.omni/data/preview.png

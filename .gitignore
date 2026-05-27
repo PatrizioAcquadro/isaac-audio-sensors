@@ -21,6 +21,9 @@ generated/
 *.jpg
 *.jpeg
 *.pdf
+!exts/isaac_audio_sensors.omni/data/
+!exts/isaac_audio_sensors.omni/data/icon.svg
+!exts/isaac_audio_sensors.omni/data/preview.png
 .DS_Store
 .env
 .env.*

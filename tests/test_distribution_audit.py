@@ -64,6 +64,12 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "examples/traces/minimal_frame.v1.json": "{}\n",
             "examples/traces/multi_detection_frame.v1.json": "{}\n",
             "exts/isaac_audio_sensors.omni/config/extension.toml": "[package]\n",
+            "exts/isaac_audio_sensors.omni/data/icon.svg": "<svg></svg>\n",
+            "exts/isaac_audio_sensors.omni/data/preview.png": "png\n",
+            (
+                "exts/isaac_audio_sensors.omni/docs/CHANGELOG.md"
+            ): "# Changelog\n",
+            "exts/isaac_audio_sensors.omni/docs/README.md": "# Overview\n",
             "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py": "\n",
             "scripts/audit_distribution.py": "print('audit')\n",
             "scripts/generate_live_evidence_report.py": "print('report')\n",
@@ -150,6 +156,12 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
             "examples/traces/minimal_frame.v1.json": "{}\n",
             "examples/traces/multi_detection_frame.v1.json": "{}\n",
             "exts/isaac_audio_sensors.omni/config/extension.toml": "[package]\n",
+            "exts/isaac_audio_sensors.omni/data/icon.svg": "<svg></svg>\n",
+            "exts/isaac_audio_sensors.omni/data/preview.png": "png\n",
+            (
+                "exts/isaac_audio_sensors.omni/docs/CHANGELOG.md"
+            ): "# Changelog\n",
+            "exts/isaac_audio_sensors.omni/docs/README.md": "# Overview\n",
             "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py": "\n",
             "scripts/audit_distribution.py": "print('audit')\n",
             "scripts/generate_live_evidence_report.py": "print('report')\n",

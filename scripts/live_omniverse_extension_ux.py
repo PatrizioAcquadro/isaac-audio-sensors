@@ -25,6 +25,10 @@ from live_isaac_sim_audio_smoke import (
 
 from isaac_audio_sensors.core.io.traces import frame_from_trace_dict
 from isaac_audio_sensors.isaac.extension_ui import (
+    OMNI_ACTION_TOGGLE_WINDOW,
+    OMNI_DEFAULT_HOTKEY,
+    OMNI_MENU_GROUP,
+    OMNI_WINDOW_TITLE,
     CurrentStageContext,
     ExtensionController,
 )
@@ -165,10 +169,12 @@ def main() -> int:
         _author_minimal_stage(stage)
         _update_kit_once(evidence)
 
+        startup_ext_id = _enabled_extension_id(evidence) or EXTENSION_ID
+        evidence["manual_extension_startup_id"] = startup_ext_id
         extension = Extension()
-        extension.on_startup(EXTENSION_ID)
+        extension.on_startup(startup_ext_id)
         controller = extension.controller
-        controller.ext_id = EXTENSION_ID
+        controller.ext_id = startup_ext_id
         controller.state.backend = "tdoa_synthetic"
         controller.state.jsonl_trace_path = str(frame_trace_path)
         controller.state.latest_frame_export_path = str(latest_frame_path)
@@ -181,6 +187,11 @@ def main() -> int:
 
         evidence["ui_available"] = extension.ui_available
         evidence["ui_control_inventory"] = _inventory_ui_controls(controller)
+        evidence["window_integration"] = _probe_window_integrations(controller)
+        evidence["extension_manager_metadata"] = _probe_extension_manager_metadata(
+            Path(evidence["extension_path"]),
+            extension_id=EXTENSION_ID,
+        )
         evidence["ui_editable_model_probe"] = _probe_ui_editable_models(controller)
         evidence["ui_invalid_numeric_probe"] = _probe_ui_invalid_numeric(controller)
         evidence["export_latest_without_frame"] = _probe_export_latest_without_frame(
@@ -377,6 +388,209 @@ def _inventory_ui_controls(controller: ExtensionController) -> dict[str, Any]:
 def _missing(expected: tuple[str, ...], actual: Any) -> list[str]:
     actual_set = set(actual)
     return [item for item in expected if item not in actual_set]
+
+
+def _probe_window_integrations(controller: ExtensionController) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "window_title": OMNI_WINDOW_TITLE,
+        "menu_path": f"{OMNI_MENU_GROUP} -> {OMNI_WINDOW_TITLE}",
+        "action_id": f"{controller.ext_id}::{OMNI_ACTION_TOGGLE_WINDOW}",
+        "default_hotkey": OMNI_DEFAULT_HOTKEY,
+        "action_status": controller.action_status,
+        "menu_status": controller.menu_status,
+        "hotkey_status": controller.hotkey_status,
+        "initial_visible": controller.is_window_visible(),
+    }
+    controller.hide_window()
+    record["visible_after_close_probe"] = controller.is_window_visible()
+    action_probe = _execute_toggle_window_action(controller)
+    record["action_probe"] = action_probe
+    record["visible_after_action_probe"] = controller.is_window_visible()
+    controller.show_window()
+    record["visible_after_restore"] = controller.is_window_visible()
+
+    passed = (
+        "registered" in controller.action_status.lower()
+        and "registered" in controller.menu_status.lower()
+        and record["visible_after_close_probe"] is False
+        and action_probe.get("status") == "passed"
+        and record["visible_after_action_probe"] is True
+        and record["visible_after_restore"] is True
+        and (
+            "registered" in controller.hotkey_status.lower()
+            or "unavailable" in controller.hotkey_status.lower()
+            or "disabled" in controller.hotkey_status.lower()
+        )
+    )
+    record["status"] = "passed" if passed else "failed"
+    return record
+
+
+def _execute_toggle_window_action(
+    controller: ExtensionController,
+) -> dict[str, Any]:
+    try:
+        import omni.kit.actions.core as actions_core  # type: ignore
+    except ImportError as exc:
+        return {"status": "failed", "reason": f"actions core unavailable: {exc}"}
+    registry = actions_core.get_action_registry()
+    if registry is None:
+        return {"status": "failed", "reason": "action registry unavailable"}
+    try:
+        result = registry.execute_action(controller.ext_id, OMNI_ACTION_TOGGLE_WINDOW)
+    except Exception as exc:  # noqa: BLE001 - evidence records exact runtime issue.
+        return {
+            "status": "failed",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+    return {
+        "status": "passed" if result is not None else "returned_none",
+        "result_summary": _result_summary(result),
+    }
+
+
+def _probe_extension_manager_metadata(
+    ext_path: Path,
+    *,
+    extension_id: str,
+) -> dict[str, Any]:
+    manifest_path = ext_path / "config" / "extension.toml"
+    try:
+        try:
+            import tomllib
+        except ModuleNotFoundError:  # pragma: no cover - Isaac 3.10 fallback.
+            import tomli as tomllib  # type: ignore
+
+        manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+        package = manifest.get("package", {})
+    except Exception as exc:  # noqa: BLE001 - evidence records exact runtime issue.
+        return {
+            "status": "failed",
+            "manifest_path": str(manifest_path),
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+
+    if package.get("exchange", False):
+        author_group = "COMMUNITY_VERIFIED"
+    elif not package.get("trusted", True):
+        author_group = "COMMUNITY_UNVERIFIED"
+    else:
+        author_group = "NVIDIA"
+    ext_source = "NVIDIA" if author_group == "NVIDIA" else "THIRD PARTY"
+
+    resources = {}
+    for key in ("readme", "changelog", "icon", "preview_image"):
+        relative_path = package.get(key, "")
+        path = ext_path / relative_path
+        resources[key] = {
+            "relative_path": relative_path,
+            "exists": path.exists(),
+            "size_bytes": path.stat().st_size if path.exists() else 0,
+        }
+
+    required_keywords = {"audio", "microphone", "sensor", "robotics", "tdoa"}
+    keywords = set(package.get("keywords", ()))
+    missing_keywords = sorted(required_keywords - keywords)
+    missing_resources = [
+        key
+        for key, value in resources.items()
+        if not value["exists"] or int(value["size_bytes"]) <= 0
+    ]
+    kit_common_info = _probe_kit_extension_common_info(
+        extension_id=extension_id,
+        ext_path=ext_path,
+        manifest_package=package,
+    )
+    kit_source_status = kit_common_info.get("status")
+    kit_source = kit_common_info.get("ext_source")
+    passed = (
+        ext_source == "THIRD PARTY"
+        and package.get("category", "").lower() == "simulation"
+        and bool(package.get("repository"))
+        and not missing_keywords
+        and not missing_resources
+        and (
+            kit_source_status == "unavailable"
+            or (
+                kit_source_status == "passed"
+                and kit_source == "THIRD PARTY"
+            )
+        )
+    )
+    return {
+        "status": "passed" if passed else "failed",
+        "manifest_path": str(manifest_path),
+        "ext_source": ext_source,
+        "author_group": author_group,
+        "category": package.get("category", ""),
+        "repository": package.get("repository", ""),
+        "keywords": sorted(keywords),
+        "missing_keywords": missing_keywords,
+        "resources": resources,
+        "missing_resources": missing_resources,
+        "kit_window_extensions_common": kit_common_info,
+    }
+
+
+def _probe_kit_extension_common_info(
+    *,
+    extension_id: str,
+    ext_path: Path,
+    manifest_package: dict[str, Any],
+) -> dict[str, Any]:
+    try:
+        from omni.kit.window.extensions.common import (  # type: ignore
+            ExtensionCommonInfo,
+        )
+    except Exception as exc:  # noqa: BLE001 - unavailable outside Kit.
+        return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
+
+    package = dict(manifest_package)
+    package.setdefault("name", extension_id)
+    package.setdefault("id", f"{extension_id}-{package.get('version', '0.0.0')}")
+    package.setdefault("packageId", package["id"])
+    ext_info = {
+        "package": package,
+        "path": str(ext_path),
+        "configPath": str(ext_path / "config" / "extension.toml"),
+        "isInCache": False,
+        "isUser": False,
+        "isKitFile": False,
+        "state": {
+            "enabled": True,
+            "reloadable": True,
+            "failed": False,
+        },
+    }
+    try:
+        common_info = ExtensionCommonInfo(package["id"], ext_info, is_local=True)
+    except Exception as exc:  # noqa: BLE001 - evidence should capture API drift.
+        return {"status": "failed", "reason": f"{type(exc).__name__}: {exc}"}
+
+    ext_source = getattr(common_info, "ext_source", None)
+    author_group = getattr(common_info, "author_group", None)
+    return {
+        "status": "passed",
+        "ext_source": _enum_ui_name(ext_source),
+        "author_group": _enum_ui_name(author_group),
+        "is_untrusted": getattr(common_info, "is_untrusted", None),
+        "category": getattr(common_info, "category", ""),
+        "repository": getattr(common_info, "repository", ""),
+        "icon_path": getattr(common_info, "icon_path", ""),
+        "preview_image_path": getattr(common_info, "preview_image_path", ""),
+    }
+
+
+def _enum_ui_name(value: Any) -> str:
+    get_ui_name = getattr(value, "get_ui_name", None)
+    if callable(get_ui_name):
+        return str(get_ui_name())
+    name = getattr(value, "name", None)
+    if name is not None:
+        return str(name)
+    return str(value)
 
 
 def _probe_ui_editable_models(controller: ExtensionController) -> dict[str, Any]:
@@ -580,7 +794,7 @@ def _combo_index(model: Any) -> int:
     if hasattr(model, "get_item_value_model"):
         item_model = model.get_item_value_model()
         try:
-            as_int = getattr(item_model, "as_int")
+            as_int = item_model.as_int
         except (AttributeError, TypeError, ValueError):
             pass
         else:
@@ -592,7 +806,7 @@ def _combo_index(model: Any) -> int:
     if callable(get_value):
         return int(get_value())
     try:
-        as_int = getattr(model, "as_int")
+        as_int = model.as_int
     except (AttributeError, TypeError, ValueError):
         pass
     else:
@@ -893,6 +1107,17 @@ def _try_enable_extension_manager(
         return result
     except Exception as exc:  # noqa: BLE001 - direct startup may still work.
         return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
+
+
+def _enabled_extension_id(evidence: dict[str, Any]) -> str | None:
+    value = (
+        evidence.get("kit_extension_manager", {})
+        .get("verification", {})
+        .get("enabled_extension_id")
+    )
+    if value:
+        return str(value)
+    return None
 
 
 def _extension_manager_methods(manager: Any) -> list[str]:

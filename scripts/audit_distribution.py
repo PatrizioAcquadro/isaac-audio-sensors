@@ -40,6 +40,13 @@ FORBIDDEN_SUFFIXES = (
     ".pyo",
     ".wav",
 )
+ALLOWED_EXTENSION_ASSET_ENTRIES = frozenset(
+    {
+        "exts/isaac_audio_sensors.omni/data",
+        "exts/isaac_audio_sensors.omni/data/icon.svg",
+        "exts/isaac_audio_sensors.omni/data/preview.png",
+    }
+)
 TEXT_SUFFIXES = (
     ".cfg",
     ".in",
@@ -160,6 +167,10 @@ REQUIRED_SDIST_ENTRIES = (
     "examples/traces/minimal_frame.v1.json",
     "examples/traces/multi_detection_frame.v1.json",
     "exts/isaac_audio_sensors.omni/config/extension.toml",
+    "exts/isaac_audio_sensors.omni/data/icon.svg",
+    "exts/isaac_audio_sensors.omni/data/preview.png",
+    "exts/isaac_audio_sensors.omni/docs/CHANGELOG.md",
+    "exts/isaac_audio_sensors.omni/docs/README.md",
     "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py",
     "scripts/audit_distribution.py",
     "scripts/generate_live_evidence_report.py",
@@ -295,6 +306,8 @@ def _normalize_entry(name: str, *, kind: str) -> str:
 def _forbidden_path_findings(entries: tuple[str, ...], *, kind: str) -> tuple[str, ...]:
     findings: list[str] = []
     for entry in entries:
+        if entry in ALLOWED_EXTENSION_ASSET_ENTRIES:
+            continue
         parts = PurePosixPath(entry).parts
         for part in parts:
             if part in FORBIDDEN_DIR_NAMES or (
@@ -304,7 +317,10 @@ def _forbidden_path_findings(entries: tuple[str, ...], *, kind: str) -> tuple[st
                 break
         else:
             lower_entry = entry.lower()
-            if lower_entry.endswith(FORBIDDEN_SUFFIXES):
+            if (
+                lower_entry.endswith(FORBIDDEN_SUFFIXES)
+                and entry not in ALLOWED_EXTENSION_ASSET_ENTRIES
+            ):
                 findings.append(f"forbidden generated/media file included: {entry}")
     return tuple(findings)
 

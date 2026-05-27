@@ -2,11 +2,24 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
-from isaac_audio_sensors.isaac.extension_ui import ExtensionController
+
+def _ensure_checkout_src_on_path() -> None:
+    extension_dir = Path(__file__).resolve().parents[1]
+    repo_src = extension_dir.parent.parent / "src"
+    if (repo_src / "isaac_audio_sensors").is_dir():
+        repo_src_text = str(repo_src)
+        if repo_src_text not in sys.path:
+            sys.path.insert(0, repo_src_text)
+
+
+_ensure_checkout_src_on_path()
+
+from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor  # noqa: E402
+from isaac_audio_sensors.isaac.extension_ui import ExtensionController  # noqa: E402
 
 
 def _i_ext_base() -> type:
