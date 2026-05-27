@@ -207,6 +207,11 @@ exports. The extension supports two recording paths:
   directory, with lazy `omni.replicator.core` registration and readable
   missing-runtime/write/flush errors.
 
+Beginner GUI walkthrough:
+[Isaac Audio Sensors GUI Guide for Isaac Sim](docs/isaac_sim_gui_guide.md)
+covers Extension Manager activation, every visible section/control, a first demo
+pipeline, expected outputs, and troubleshooting.
+
 Replicator is optional extension functionality only. The core package import,
 `AudioSensorFrame`, JSON/JSONL export, Isaac Sim base sensor, and Isaac Lab
 sensor do not depend on Replicator availability.
