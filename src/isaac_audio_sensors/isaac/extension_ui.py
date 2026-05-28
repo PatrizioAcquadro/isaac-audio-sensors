@@ -27,6 +27,7 @@ from isaac_audio_sensors.isaac.discovery import (
 )
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.pose_resolver import (
+    IsaacStagePoseResolver,
     prim_path,
     quat_from_any,
     vec3_from_any,
@@ -55,6 +56,12 @@ BACKEND_CHOICES = tuple(
 )
 AMBIGUITY_POLICY_CHOICES = tuple(sorted(TDOA_AMBIGUITY_POLICIES))
 LAYOUT_CHOICES = ("quad_front", "quad_cross", "stereo_y", "two_mic_y", "mono")
+SOURCE_POSITION_PRESETS: Mapping[str, tuple[float, float, float]] = {
+    "front": (2.0, 0.0, 0.0),
+    "right": (0.0, 2.0, 0.0),
+    "left": (0.0, -2.0, 0.0),
+    "behind": (-2.0, 0.0, 0.0),
+}
 DEFAULT_OUTPUT_ROOT = Path("outputs/isaac_audio_sensors")
 OMNI_WINDOW_TITLE = "Isaac Audio Sensors"
 OMNI_MENU_GROUP = "Window"
@@ -114,6 +121,9 @@ class ExtensionUiState:
     source_id: str = "speaker_a"
     source_class_label: str = "Speech"
     audio_asset_path: str = "generated://impulse"
+    source_position_x_m: float = 2.0
+    source_position_y_m: float = 0.0
+    source_position_z_m: float = 0.0
     source_start_time_s: float = 0.0
     source_duration_s: float = 1.0
     source_gain_db: float = 0.0
@@ -154,6 +164,8 @@ class ExtensionUiState:
     latest_frame_id: str | None = None
     latest_detection_count: int = 0
     latest_backend: str | None = None
+    latest_source_prim_path: str | None = None
+    latest_source_position_m: tuple[float, float, float] | None = None
     latest_bearing_deg: float | None = None
     latest_sector: str | None = None
     latest_overlay_primitive_count: int = 0
@@ -561,6 +573,40 @@ class ExtensionController:
         self._set_status(f"Source target set to {path}.")
         return path
 
+    def read_selected_source_transform(
+        self,
+        *,
+        stage: Any | None = None,
+        selected_paths: Iterable[str] | None = None,
+    ) -> tuple[float, float, float] | None:
+        """Read the selected source prim's current world position into UI state."""
+
+        try:
+            context = self._context(stage=stage, selected_paths=selected_paths)
+            if context.stage is None:
+                raise ExtensionActionError("No USD stage is open.")
+            self.state.selected_prim_paths = context.selected_prim_paths
+            selected_path = (
+                context.selected_prim_paths[0]
+                if context.selected_prim_paths
+                else self.state.source_prim_path
+            )
+            _validate_abs_path(selected_path, "source_prim_path")
+            pose = IsaacStagePoseResolver(context.stage).resolve_world_pose(
+                selected_path,
+                field_name="selected source",
+            )
+            self.state.source_prim_path = selected_path
+            self._set_source_position_state(pose.position_world)
+            self._set_status(
+                "Read source transform "
+                f"{_format_vec3(pose.position_world)} from {selected_path}."
+            )
+            return pose.position_world
+        except Exception as exc:
+            self._record_error("Source transform read failed", exc)
+            return None
+
     def use_selected_as_robot_base(
         self,
         *,
@@ -639,6 +685,56 @@ class ExtensionController:
             self._record_error("Array authoring failed", exc)
             return None
 
+    def apply_source_position(
+        self,
+        *,
+        stage: Any | None = None,
+    ) -> AuthoredMetadataSummary | None:
+        """Apply the current source XYZ fields to the target prim and metadata."""
+
+        try:
+            stage_obj = self._stage_or_error(stage)
+            authored = self._author_source_on_stage(
+                stage_obj,
+                position_world=self._source_position_from_state(),
+            )
+            self._set_status(
+                "Applied source position "
+                f"{_format_vec3(self._source_position_from_state())} "
+                f"to {self.state.source_prim_path}."
+            )
+            return authored
+        except Exception as exc:
+            self._record_error("Source position apply failed", exc)
+            return None
+
+    def apply_source_position_preset(
+        self,
+        preset: str,
+        *,
+        stage: Any | None = None,
+    ) -> AuthoredMetadataSummary | None:
+        """Apply a deterministic source placement preset."""
+
+        try:
+            key = preset.strip().lower()
+            if key not in SOURCE_POSITION_PRESETS:
+                raise ExtensionActionError(
+                    f"Unknown source position preset {preset!r}."
+                )
+            self._set_source_position_state(SOURCE_POSITION_PRESETS[key])
+            authored = self.apply_source_position(stage=stage)
+            if authored is not None:
+                self._set_status(
+                    f"Applied {key} source preset "
+                    f"{_format_vec3(SOURCE_POSITION_PRESETS[key])} "
+                    f"to {self.state.source_prim_path}."
+                )
+            return authored
+        except Exception as exc:
+            self._record_error("Source preset failed", exc)
+            return None
+
     def author_source(
         self,
         *,
@@ -648,61 +744,88 @@ class ExtensionController:
 
         try:
             stage_obj = self._stage_or_error(stage)
-            state = self.state
-            _validate_abs_path(state.source_prim_path, "source_prim_path")
-            if state.audio_asset_path.strip() == "":
-                raise ExtensionActionError("audio_asset_path must be non-empty.")
-            if state.source_duration_s <= 0.0:
-                raise ExtensionActionError("source_duration_s must be positive.")
-            if not math.isfinite(state.source_start_time_s):
-                raise ExtensionActionError("source_start_time_s must be finite.")
-
-            record = create_sound_prim(
+            authored = self._author_source_on_stage(
                 stage_obj,
-                prim_path=state.source_prim_path,
-                audio_asset_path=state.audio_asset_path,
-                spatial=True,
-                loop=False,
-                start_time_s=state.source_start_time_s,
-                gain_db=state.source_gain_db,
+                position_world=self._source_position_from_state(),
             )
-            prim = get_or_define_prim(
-                stage_obj,
-                prim_path=state.source_prim_path,
-                prim_type=record.prim_type,
-            )
-            attrs = attach_sound_source_attrs(
-                prim,
-                source_id=state.source_id.strip() or _path_name(state.source_prim_path),
-                class_label=state.source_class_label.strip() or "Sound",
-                position_world=_author_position_arg(
-                    prim,
-                    default=(2.0, 0.0, 0.0),
-                ),
-                orientation_world_quat=_author_orientation_arg(
-                    prim,
-                    default=(0.0, 0.0, 0.0, 1.0),
-                ),
-                audio_asset_path=state.audio_asset_path,
-                start_time_s=state.source_start_time_s,
-                duration_s=state.source_duration_s,
-                gain_db=state.source_gain_db,
-                directivity="omni",
-            )
-            authored = AuthoredMetadataSummary(
-                kind="source",
-                prim_path=state.source_prim_path,
-                id=str(attrs["ias:source_id"]),
-                attributes=_jsonable_mapping({**record.attributes, **attrs}),
-            )
-            self._append_authored_record(authored)
             self._set_status(
-                f"Authored source {authored.id} at {state.source_prim_path}."
+                f"Authored source {authored.id} at {self.state.source_prim_path}."
             )
             return authored
         except Exception as exc:
             self._record_error("Source authoring failed", exc)
             return None
+
+    def _author_source_on_stage(
+        self,
+        stage_obj: Any,
+        *,
+        position_world: tuple[float, float, float],
+    ) -> AuthoredMetadataSummary:
+        """Create/update the source prim with metadata and explicit position."""
+
+        state = self.state
+        _validate_abs_path(state.source_prim_path, "source_prim_path")
+        if state.audio_asset_path.strip() == "":
+            raise ExtensionActionError("audio_asset_path must be non-empty.")
+        if state.source_duration_s <= 0.0:
+            raise ExtensionActionError("source_duration_s must be positive.")
+        if not math.isfinite(state.source_start_time_s):
+            raise ExtensionActionError("source_start_time_s must be finite.")
+
+        record = create_sound_prim(
+            stage_obj,
+            prim_path=state.source_prim_path,
+            audio_asset_path=state.audio_asset_path,
+            spatial=True,
+            loop=False,
+            start_time_s=state.source_start_time_s,
+            gain_db=state.source_gain_db,
+        )
+        prim = get_or_define_prim(
+            stage_obj,
+            prim_path=state.source_prim_path,
+            prim_type=record.prim_type,
+        )
+        attrs = attach_sound_source_attrs(
+            prim,
+            source_id=state.source_id.strip() or _path_name(state.source_prim_path),
+            class_label=state.source_class_label.strip() or "Sound",
+            position_world=position_world,
+            orientation_world_quat=_author_orientation_arg(
+                prim,
+                default=(0.0, 0.0, 0.0, 1.0),
+            ),
+            audio_asset_path=state.audio_asset_path,
+            start_time_s=state.source_start_time_s,
+            duration_s=state.source_duration_s,
+            gain_db=state.source_gain_db,
+            directivity="omni",
+        )
+        authored = AuthoredMetadataSummary(
+            kind="source",
+            prim_path=state.source_prim_path,
+            id=str(attrs["ias:source_id"]),
+            attributes=_jsonable_mapping({**record.attributes, **attrs}),
+        )
+        self._append_authored_record(authored)
+        return authored
+
+    def _source_position_from_state(self) -> tuple[float, float, float]:
+        position = (
+            float(self.state.source_position_x_m),
+            float(self.state.source_position_y_m),
+            float(self.state.source_position_z_m),
+        )
+        if not all(math.isfinite(component) for component in position):
+            raise ExtensionActionError("source position values must be finite.")
+        return position
+
+    def _set_source_position_state(self, position: Iterable[float]) -> None:
+        x, y, z = vec3_from_any(position)
+        self.state.source_position_x_m = x
+        self.state.source_position_y_m = y
+        self.state.source_position_z_m = z
 
     def refresh_discovery(
         self,
@@ -918,6 +1041,7 @@ class ExtensionController:
                     "source_id": state.source_id,
                     "class_label": state.source_class_label,
                     "audio_asset_path": state.audio_asset_path,
+                    "position_world": self._source_position_from_state(),
                     "start_time_s": state.source_start_time_s,
                     "duration_s": state.source_duration_s,
                     "gain_db": state.source_gain_db,
@@ -956,6 +1080,8 @@ class ExtensionController:
                     "frame_id": state.latest_frame_id,
                     "backend": state.latest_backend,
                     "detection_count": state.latest_detection_count,
+                    "source_prim_path": state.latest_source_prim_path,
+                    "source_position_m": state.latest_source_position_m,
                     "bearing_deg": state.latest_bearing_deg,
                     "sector": state.latest_sector,
                 },
@@ -1206,6 +1332,12 @@ class ExtensionController:
         self.state.latest_frame_id = frame.frame_id
         self.state.latest_detection_count = len(detections)
         self.state.latest_backend = frame.backend_id
+        self.state.latest_source_prim_path = self._latest_source_prim_path(first)
+        self.state.latest_source_position_m = (
+            None
+            if first is None or first.source_pose is None
+            else vec3_from_any(first.source_pose.position_m)
+        )
         self.state.latest_bearing_deg = (
             None if first is None else first.doa.estimated_bearing_deg
         )
@@ -1222,6 +1354,18 @@ class ExtensionController:
             f"Updated {frame.frame_id}: {len(detections)} detection(s), "
             f"{len(primitives)} overlay primitive(s)."
         )
+
+    def _latest_source_prim_path(self, detection: Any | None) -> str | None:
+        if detection is None:
+            return None
+        scene = (
+            None if self.sensor is None else getattr(self.sensor, "_latest_scene", None)
+        )
+        if scene is not None and detection.source_id is not None:
+            for source in scene.sources:
+                if source.source_id == detection.source_id and source.prim_path:
+                    return source.prim_path
+        return self.state.source_prim_path or None
 
     def _record_overlay_status(self) -> None:
         if self.sensor is None or self.sensor.debug_drawer is None:
@@ -1265,6 +1409,8 @@ class ExtensionController:
                     "backend": self.state.backend,
                     "array_prim_path": self.state.array_prim_path,
                     "source_prim_path": self.state.source_prim_path,
+                    "source_position_m": self._source_position_from_state(),
+                    "latest_source_position_m": self.state.latest_source_position_m,
                     "robot_base_prim_path": self.state.robot_base_prim_path or None,
                     "discovery_roots": self._discovery_roots(),
                     "selected_prim_paths": self.state.selected_prim_paths,
@@ -1363,6 +1509,8 @@ class ExtensionController:
         self.state.audio_asset_path = str(
             source.get("audio_asset_path", self.state.audio_asset_path)
         )
+        if source.get("position_world") is not None:
+            self._set_source_position_state(source["position_world"])
         self.state.source_start_time_s = float(
             source.get("start_time_s", self.state.source_start_time_s)
         )
@@ -1496,6 +1644,8 @@ class OmniReferenceWindow:
             f"{state.latest_frame_id or 'none'} | "
             f"detections={state.latest_detection_count} | "
             f"backend={state.latest_backend or state.backend} | "
+            f"source={state.latest_source_prim_path or state.source_prim_path} | "
+            f"pos={_optional_vec3_text(state.latest_source_position_m)} | "
             f"bearing={_optional_float_text(state.latest_bearing_deg)} | "
             f"sector={state.latest_sector or 'none'}",
         )
@@ -1600,6 +1750,35 @@ class OmniReferenceWindow:
             self._string_row("Source ID", "source_id")
             self._string_row("Class", "source_class_label")
             self._string_row("Audio URI", "audio_asset_path")
+            self._float_row("Position X", "source_position_x_m")
+            self._float_row("Position Y", "source_position_y_m")
+            self._float_row("Position Z", "source_position_z_m")
+            with self.ui.HStack(spacing=4):
+                self._button(
+                    "Read Selected Transform",
+                    self.controller.read_selected_source_transform,
+                )
+                self._button(
+                    "Apply Position",
+                    self.controller.apply_source_position,
+                )
+            with self.ui.HStack(spacing=4):
+                self._button(
+                    "Front",
+                    lambda: self.controller.apply_source_position_preset("front"),
+                )
+                self._button(
+                    "Right",
+                    lambda: self.controller.apply_source_position_preset("right"),
+                )
+                self._button(
+                    "Left",
+                    lambda: self.controller.apply_source_position_preset("left"),
+                )
+                self._button(
+                    "Behind",
+                    lambda: self.controller.apply_source_position_preset("behind"),
+                )
             self._float_row("Start", "source_start_time_s")
             self._float_row("Duration", "source_duration_s")
             self._float_row("Gain dB", "source_gain_db")
@@ -2014,6 +2193,15 @@ def _optional_float_text(value: float | None) -> str:
     return "none" if value is None else f"{value:.2f}"
 
 
+def _optional_vec3_text(value: tuple[float, float, float] | None) -> str:
+    return "none" if value is None else _format_vec3(value)
+
+
+def _format_vec3(value: Iterable[float]) -> str:
+    x, y, z = vec3_from_any(value)
+    return f"({x:.2f}, {y:.2f}, {z:.2f})"
+
+
 def _new_simple_model(ui: Any, kind: str, value: Any) -> Any:
     model_type_name = {
         "bool": "SimpleBoolModel",
@@ -2204,6 +2392,7 @@ __all__ = [
     "AMBIGUITY_POLICY_CHOICES",
     "BACKEND_CHOICES",
     "LAYOUT_CHOICES",
+    "SOURCE_POSITION_PRESETS",
     "AuthoredMetadataSummary",
     "CurrentStageContext",
     "DiscoveredPrimSummary",

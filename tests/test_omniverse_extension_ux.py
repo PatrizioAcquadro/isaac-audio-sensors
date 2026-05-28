@@ -583,6 +583,9 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert stage.GetPrimAtPath("/World/Sources/SpeakerA").attributes[
         "xformOp:translate"
     ] == (2.0, 0.0, 0.0)
+    assert stage.GetPrimAtPath("/World/Sources/SpeakerA").attributes[
+        "ias:position_world"
+    ] == (2.0, 0.0, 0.0)
     assert {item.id for item in discovered} == {"rig_front", "speaker_a"}
     assert sensor is not None
     assert frame is not None
@@ -602,6 +605,9 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert summary["schema_version"] == "ias.omni_extension_binding.v1"
     assert summary["array"]["prim_path"] == "/World/Rig/AudioArray"
     assert summary["source"]["prim_path"] == "/World/Sources/SpeakerA"
+    assert summary["source"]["position_world"] == [2.0, 0.0, 0.0]
+    assert summary["latest_frame"]["source_prim_path"] == "/World/Sources/SpeakerA"
+    assert summary["latest_frame"]["source_position_m"] == [2.0, 0.0, 0.0]
     assert summary["lifecycle"]["writer_path"].endswith("frames.jsonl")
     assert summary["recording"]["package_jsonl"]["path"].endswith("frames.jsonl")
     assert summary["recording"]["replicator"]["enabled"] is False
@@ -611,7 +617,84 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert imported_path == config_path
     assert imported.state.array_prim_path == "/World/Rig/AudioArray"
     assert imported.state.source_prim_path == "/World/Sources/SpeakerA"
+    assert imported.state.source_position_x_m == 2.0
+    assert imported.state.source_position_y_m == 0.0
+    assert imported.state.source_position_z_m == 0.0
     assert imported.state.jsonl_trace_path.endswith("frames.jsonl")
+
+
+def test_extension_controller_source_position_read_apply_presets_and_drag_update(
+    tmp_path,
+):
+    source = _FakePrim(
+        "/World/Sources/SpeakerA",
+        "Sound",
+        {
+            "filePath": "generated://impulse",
+            "ias:source_id": "speaker_a",
+            "ias:class_label": "Speech",
+            "ias:duration_s": 10.0,
+            "xformOp:translate": (3.0, 1.0, 0.0),
+        },
+    )
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            source,
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
+
+    assert controller.author_array(stage=stage) is not None
+    read_position = controller.read_selected_source_transform(
+        stage=stage,
+        selected_paths=("/World/Sources/SpeakerA",),
+    )
+    assert read_position == (3.0, 1.0, 0.0)
+    assert controller.state.source_position_x_m == 3.0
+    assert controller.state.source_position_y_m == 1.0
+    assert controller.state.source_position_z_m == 0.0
+
+    controller.state.source_position_x_m = 4.0
+    controller.state.source_position_y_m = 0.0
+    controller.state.source_position_z_m = 0.0
+    applied = controller.apply_source_position(stage=stage)
+    assert applied is not None
+    assert source.attributes["ias:position_world"] == (4.0, 0.0, 0.0)
+    assert source.attributes["xformOp:translate"] == (4.0, 0.0, 0.0)
+
+    assert controller.apply_source_position_preset("front", stage=stage) is not None
+    assert source.attributes["xformOp:translate"] == (2.0, 0.0, 0.0)
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    front_frame = controller.update_sensor()
+    assert front_frame is not None
+    front_detection = front_frame.detections[0]
+    assert front_detection.source_pose.position_m == (2.0, 0.0, 0.0)
+    assert abs(front_detection.doa.estimated_bearing_deg) <= 1e-6
+    assert front_detection.doa.bearing_sector == "straight"
+
+    assert controller.apply_source_position_preset("right", stage=stage) is not None
+    right_frame = controller.update_sensor()
+    assert right_frame is not None
+    right_detection = right_frame.detections[0]
+    assert right_detection.source_pose.position_m == (0.0, 2.0, 0.0)
+    assert abs(right_detection.doa.estimated_bearing_deg - 90.0) <= 1e-6
+    assert right_detection.doa.bearing_sector == "right"
+
+    source.attributes["xformOp:translate"] = (0.0, -2.0, 0.0)
+    moved_frame = controller.update_sensor()
+    assert moved_frame is not None
+    moved_detection = moved_frame.detections[0]
+    assert moved_detection.source_pose.position_m == (0.0, -2.0, 0.0)
+    assert moved_detection.doa.estimated_bearing_deg != (
+        right_detection.doa.estimated_bearing_deg
+    )
+    assert moved_detection.doa.bearing_sector == "left"
+    assert controller.state.latest_source_position_m == (0.0, -2.0, 0.0)
 
 
 def test_extension_controller_reads_fake_omni_usd_selection(monkeypatch):
@@ -665,6 +748,9 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "sample_rate_hz",
     }
     assert set(controller._ui_window._float_fields) == {
+        "source_position_x_m",
+        "source_position_y_m",
+        "source_position_z_m",
         "source_duration_s",
         "source_gain_db",
         "source_start_time_s",
@@ -724,6 +810,12 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Use Base",
         "Discover",
         "Create/Attach Array",
+        "Read Selected Transform",
+        "Apply Position",
+        "Front",
+        "Right",
+        "Left",
+        "Behind",
         "Create/Attach Source",
         "Start",
         "Stop",
@@ -740,6 +832,12 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Use Base",
         "Discover",
         "Create/Attach Array",
+        "Read Selected Transform",
+        "Apply Position",
+        "Front",
+        "Right",
+        "Left",
+        "Behind",
         "Create/Attach Source",
         "Start",
         "Stop",
@@ -868,8 +966,7 @@ def test_omniverse_extension_manifest_metadata_files_exist():
     assert dependencies["omni.replicator.core"]["optional"] is True
     for forbidden_dependency in ("isaaclab", "cuda", "torch", "pyroomacoustics"):
         assert not any(
-            forbidden_dependency in dependency.lower()
-            for dependency in dependencies
+            forbidden_dependency in dependency.lower() for dependency in dependencies
         )
     for key in ("readme", "changelog", "icon", "preview_image"):
         path = ext_root / package[key]
@@ -962,6 +1059,9 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
         str(tmp_path / "replicator")
     )
     window._float_fields["source_duration_s"].model.set_value("60.0")
+    window._float_fields["source_position_x_m"].model.set_value("0.0")
+    window._float_fields["source_position_y_m"].model.set_value("2.0")
+    window._float_fields["source_position_z_m"].model.set_value("0.5")
     window._int_fields["sample_rate_hz"].model.set_value("44100")
     backend_widget, backend_choices = window._combo_fields["backend"]
     backend_widget.model.set_value(backend_choices.index("geometry_only"))
@@ -976,6 +1076,7 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
 
     assert controller.state.source_id == "edited_source"
     assert controller.state.source_duration_s == 60.0
+    assert controller.state.source_position_y_m == 2.0
     assert controller.state.sample_rate_hz == 44100
     assert controller.state.backend == "geometry_only"
     assert controller.state.layout_name == "mono"
@@ -990,6 +1091,7 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     assert summary["source"]["source_id"] == "edited_source"
     assert summary["source"]["prim_path"] == "/World/EditedSource"
     assert summary["source"]["duration_s"] == 60.0
+    assert summary["source"]["position_world"] == [0.0, 2.0, 0.5]
     assert summary["backend"] == "geometry_only"
     assert summary["lifecycle"]["debug_overlay_enabled"] is False
     assert summary["recording"]["package_jsonl"]["enabled"] is True
@@ -1007,6 +1109,9 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     assert imported.state.layout_name == "mono"
     assert imported.state.source_id == "edited_source"
     assert imported.state.source_duration_s == 60.0
+    assert imported.state.source_position_x_m == 0.0
+    assert imported.state.source_position_y_m == 2.0
+    assert imported.state.source_position_z_m == 0.5
     assert imported.state.sample_rate_hz == 44100
     assert imported.state.array_prim_path == "/World/EditedArray"
     assert imported.state.source_prim_path == "/World/EditedSource"

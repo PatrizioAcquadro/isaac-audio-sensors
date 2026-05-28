@@ -64,6 +64,9 @@ class IsaacStagePoseResolver:
                         f"{field!r} world pose could not be computed from USD APIs: "
                         f"{exc}"
                     ) from exc
+        stack_pose = self._fallback_xform_stack_pose(prim)
+        if stack_pose is not None:
+            return stack_pose
         if has_world_attr:
             return StagePose(
                 prim_path=path,
@@ -80,9 +83,6 @@ class IsaacStagePoseResolver:
                 provenance="ias:position_world",
                 time_code=self.time_code,
             )
-        stack_pose = self._fallback_xform_stack_pose(prim)
-        if stack_pose is not None:
-            return stack_pose
         raise ValueError(
             f"{field!r} is missing a computable transform. Expected a USD "
             "Xformable transform stack, ias:position_world, or xformOp:translate."

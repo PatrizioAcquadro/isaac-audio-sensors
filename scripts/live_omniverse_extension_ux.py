@@ -50,6 +50,12 @@ EXPECTED_UI_BUTTONS = (
     "Use Base",
     "Discover",
     "Create/Attach Array",
+    "Read Selected Transform",
+    "Apply Position",
+    "Front",
+    "Right",
+    "Left",
+    "Behind",
     "Create/Attach Source",
     "Start",
     "Stop",
@@ -79,6 +85,9 @@ EXPECTED_STRING_FIELDS = (
 EXPECTED_FLOAT_FIELDS = (
     "source_duration_s",
     "source_gain_db",
+    "source_position_x_m",
+    "source_position_y_m",
+    "source_position_z_m",
     "source_start_time_s",
     "update_period_s",
 )
@@ -238,6 +247,23 @@ def main() -> int:
                 selected_paths=("/World/Sources/SpeakerA",),
             ),
         )
+        _step(
+            evidence,
+            "read_selected_source_transform",
+            lambda: controller.read_selected_source_transform(
+                stage=stage,
+                selected_paths=("/World/Sources/SpeakerA",),
+            ),
+        )
+        evidence["source_position_after_read"] = _source_position_state(controller)
+        _step(
+            evidence,
+            "apply_source_front_preset",
+            lambda: controller.apply_source_position_preset("front", stage=stage),
+        )
+        evidence["source_position_after_front_preset"] = _source_position_state(
+            controller
+        )
         _step(evidence, "author_source", lambda: controller.author_source(stage=stage))
         _set_context_selection(("/World/Rig",), evidence)
         _step(
@@ -266,6 +292,27 @@ def main() -> int:
         if frame is None:
             message = controller.state.error_message or "Update returned None."
             raise RuntimeError(message)
+        evidence["source_frame_before_move"] = _frame_source_summary(frame)
+        source_prim = stage.GetPrimAtPath("/World/Sources/SpeakerA")
+        _set_translate(source_prim, (0.0, 2.0, 0.0))
+        evidence["source_transform_move_command"] = {
+            "prim_path": "/World/Sources/SpeakerA",
+            "position_world": [0.0, 2.0, 0.0],
+        }
+        _update_kit_once(evidence)
+        moved_frame = _step(
+            evidence,
+            "update_sensor_after_source_move",
+            controller.update_sensor,
+        )
+        if moved_frame is None:
+            message = controller.state.error_message or "Moved update returned None."
+            raise RuntimeError(message)
+        evidence["source_frame_after_move"] = _frame_source_summary(moved_frame)
+        evidence["source_move_changed_frame"] = _source_frame_changed(
+            frame,
+            moved_frame,
+        )
         _step(evidence, "export_latest_frame", controller.export_latest_frame)
         _step(evidence, "flush_replicator", controller.flush_replicator)
         _step(evidence, "stop_sensor", lambda: (controller.stop_sensor() or "stopped"))
@@ -513,10 +560,7 @@ def _probe_extension_manager_metadata(
         and not missing_resources
         and (
             kit_source_status == "unavailable"
-            or (
-                kit_source_status == "passed"
-                and kit_source == "THIRD PARTY"
-            )
+            or (kit_source_status == "passed" and kit_source == "THIRD PARTY")
         )
     )
     return {
@@ -598,17 +642,35 @@ def _probe_ui_editable_models(controller: ExtensionController) -> dict[str, Any]
     if window is None:
         return {"status": "skipped", "reason": "ui_window_unavailable"}
     duration = window._float_fields.get("source_duration_s")
+    position_x = window._float_fields.get("source_position_x_m")
+    position_y = window._float_fields.get("source_position_y_m")
+    position_z = window._float_fields.get("source_position_z_m")
     sample_rate = window._int_fields.get("sample_rate_hz")
     source_id = window._string_fields.get("source_id")
-    if duration is None or sample_rate is None or source_id is None:
+    if (
+        duration is None
+        or position_x is None
+        or position_y is None
+        or position_z is None
+        or sample_rate is None
+        or source_id is None
+    ):
         return {"status": "failed", "reason": "expected editable fields missing"}
     duration.model.set_value("10.0")
+    position_x.model.set_value("2.0")
+    position_y.model.set_value("0.0")
+    position_z.model.set_value("0.0")
     sample_rate.model.set_value("44100")
     source_id.model.set_value("speaker_a")
     window.sync_state_from_widgets()
     return {
         "status": "passed",
         "source_duration_s": controller.state.source_duration_s,
+        "source_position_world": [
+            controller.state.source_position_x_m,
+            controller.state.source_position_y_m,
+            controller.state.source_position_z_m,
+        ],
         "sample_rate_hz": controller.state.sample_rate_hz,
         "source_id": controller.state.source_id,
         "duration_widget_kind": getattr(duration, "kind", type(duration).__name__),
@@ -670,6 +732,52 @@ def _probe_export_latest_without_frame(
     }
 
 
+def _source_position_state(controller: ExtensionController) -> dict[str, Any]:
+    state = controller.state
+    return {
+        "source_prim_path": state.source_prim_path,
+        "position_world": [
+            state.source_position_x_m,
+            state.source_position_y_m,
+            state.source_position_z_m,
+        ],
+    }
+
+
+def _frame_source_summary(frame: Any) -> dict[str, Any]:
+    detections = tuple(getattr(frame, "detections", ()))
+    detection = detections[0] if detections else None
+    source_pose = None if detection is None else detection.source_pose
+    return {
+        "frame_id": getattr(frame, "frame_id", None),
+        "frame_index": getattr(frame, "frame_index", None),
+        "detection_count": len(detections),
+        "source_id": None if detection is None else detection.source_id,
+        "source_position_m": (
+            None if source_pose is None else list(source_pose.position_m)
+        ),
+        "bearing_deg": (
+            None if detection is None else detection.doa.estimated_bearing_deg
+        ),
+        "sector": None if detection is None else detection.doa.bearing_sector,
+    }
+
+
+def _source_frame_changed(before: Any, after: Any) -> dict[str, Any]:
+    before_summary = _frame_source_summary(before)
+    after_summary = _frame_source_summary(after)
+    return {
+        "status": (
+            "passed"
+            if before_summary["source_position_m"] != after_summary["source_position_m"]
+            and before_summary["bearing_deg"] != after_summary["bearing_deg"]
+            else "failed"
+        ),
+        "before": before_summary,
+        "after": after_summary,
+    }
+
+
 def _probe_config_roundtrip(
     controller: ExtensionController,
     config_path: Path,
@@ -716,6 +824,7 @@ def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
         "array_prim_path": array.get("prim_path"),
         "source_prim_path": source.get("prim_path"),
         "source_id": source.get("source_id"),
+        "source_position_world": source.get("position_world"),
         "source_duration_s": source.get("duration_s"),
         "sample_rate_hz": array.get("sample_rate_hz"),
         "jsonl_trace_path": package_jsonl.get("path"),
@@ -735,6 +844,11 @@ def _observed_config_state(controller: ExtensionController) -> dict[str, Any]:
         "array_prim_path": state.array_prim_path,
         "source_prim_path": state.source_prim_path,
         "source_id": state.source_id,
+        "source_position_world": [
+            state.source_position_x_m,
+            state.source_position_y_m,
+            state.source_position_z_m,
+        ],
         "source_duration_s": state.source_duration_s,
         "sample_rate_hz": state.sample_rate_hz,
         "jsonl_trace_path": state.jsonl_trace_path,
@@ -864,9 +978,14 @@ def _set_translate(prim: Any, position: tuple[float, float, float]) -> None:
     try:
         from pxr import Gf, UsdGeom  # type: ignore
 
+        value = Gf.Vec3d(*position)
         xform = UsdGeom.Xformable(prim)
+        for op in xform.GetOrderedXformOps():
+            if hasattr(op, "GetOpName") and op.GetOpName() == "xformOp:translate":
+                op.Set(value)
+                return
         op = xform.AddTranslateOp()
-        op.Set(Gf.Vec3d(*position))
+        op.Set(value)
     except Exception:
         if hasattr(prim, "attributes"):
             prim.attributes["xformOp:translate"] = position
@@ -1002,6 +1121,11 @@ def _validate_live_extension_outputs(
     if not trace_lines:
         raise RuntimeError("JSONL trace has no AudioSensorFrame records.")
     frames = [frame_from_trace_dict(json.loads(line)) for line in trace_lines]
+    if len(frames) < 2:
+        raise RuntimeError("JSONL trace must include pre- and post-move frames.")
+    source_move = evidence.get("source_move_changed_frame", {})
+    if source_move.get("status") != "passed":
+        raise RuntimeError(f"Source move did not change the next frame: {source_move}")
     config = json.loads(config_path.read_text(encoding="utf-8"))
     primitives = (
         ()

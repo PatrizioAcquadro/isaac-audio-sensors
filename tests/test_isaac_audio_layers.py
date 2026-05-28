@@ -598,6 +598,68 @@ def test_live_isaac_sensor_updates_moving_stage_windows_writer_and_debug(tmp_pat
         sensor.update(force=True)
 
 
+def test_live_isaac_sensor_update_prefers_moved_source_xform_over_stale_metadata():
+    source_prim = _FakePrim(
+        "/World/Sources/SpeakerA",
+        "Sound",
+        {
+            "filePath": "generated://impulse",
+            "ias:source_id": "speaker_a",
+            "ias:class_label": "Speech",
+            "ias:position_world": (5.0, 0.0, 0.0),
+            "ias:duration_s": 1.0,
+            "xformOp:translate": (5.0, 0.0, 0.0),
+        },
+    )
+    stage = _FakeStage(
+        (
+            source_prim,
+            _FakePrim(
+                "/World/Rig/AudioArray",
+                "Xform",
+                {
+                    "ias:array_id": "rig_front",
+                    "ias:sample_rate_hz": 48000,
+                    "ias:position_world": (0.0, 0.0, 0.0),
+                    "ias:orientation_world_quat": (0.0, 0.0, 0.0, 1.0),
+                },
+            ),
+            _FakePrim(
+                "/World/Rig/AudioArray/front",
+                "Xform",
+                {
+                    "ias:microphone_id": "front",
+                    "ias:relative_position_m": (0.08, 0.0, 0.0),
+                },
+            ),
+            _FakePrim(
+                "/World/Rig/AudioArray/right",
+                "Xform",
+                {
+                    "ias:microphone_id": "right",
+                    "ias:relative_position_m": (0.0, 0.08, 0.0),
+                },
+            ),
+        )
+    )
+    sensor = IsaacAudioArraySensor.from_stage(
+        stage=stage,
+        array_prim_path="/World/Rig/AudioArray",
+        backend="geometry_only",
+        update_period_s=0.01,
+        max_events=1,
+    ).start()
+
+    first = sensor.update(sim_time_s=0.0)
+    source_prim.attributes["xformOp:translate"] = (0.0, 5.0, 0.0)
+    second = sensor.update(sim_time_s=0.1)
+
+    assert first.detections[0].source_pose.position_m == pytest.approx((5.0, 0.0, 0.0))
+    assert second.detections[0].source_pose.position_m == pytest.approx((0.0, 5.0, 0.0))
+    assert second.detections[0].doa.estimated_bearing_deg == pytest.approx(90.0)
+    assert second.detections[0].doa.bearing_sector == "right"
+
+
 def test_isaac_stage_snapshot_resolves_nested_robot_array_source_and_mics():
     stage = _FakeStage(
         (

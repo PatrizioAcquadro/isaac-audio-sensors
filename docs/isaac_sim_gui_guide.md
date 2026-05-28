@@ -9,6 +9,10 @@ sensor, inspect the latest frame and overlay status, and export JSON/JSONL
 records. For the deeper Isaac Sim runtime contract and live evidence, see the
 [Isaac Sim documentation](isaac_sim.md).
 
+The current GUI authors metadata and source transforms for sensor frames. It
+does not play audible audio, attach sources to objects automatically, assign
+object sound profiles, or integrate downstream ontology labels.
+
 The control inventory below is derived from
 `src/isaac_audio_sensors/isaac/extension_ui.py` and
 `scripts/live_omniverse_extension_ux.py`. The visible sections are:
@@ -340,6 +344,30 @@ generated://impulse
 The first demo can use the default. For a real project, point this to the sound
 asset you want the source to represent.
 
+`Position X`, `Position Y`, and `Position Z` are the source prim position in
+meters. The default source placement is:
+
+```text
+2.0, 0.0, 0.0
+```
+
+`Read Selected Transform` copies the currently selected source prim's live USD
+world position into the position fields. Use it after selecting an existing
+source in the viewport or Stage tree.
+
+`Apply Position` writes the position fields to the target source prim transform
+and to the `ias:position_world` metadata.
+
+`Front`, `Right`, `Left`, and `Behind` are deterministic placement presets for
+the default demo frame:
+
+```text
+Front:  2.0,  0.0, 0.0
+Right:  0.0,  2.0, 0.0
+Left:   0.0, -2.0, 0.0
+Behind: -2.0, 0.0, 0.0
+```
+
 `Start` is the source start time in seconds. The default is:
 
 ```text
@@ -358,8 +386,8 @@ asset you want the source to represent.
 0.0
 ```
 
-`Create/Attach Source` authors the source metadata and native sound attributes
-used by the extension.
+`Create/Attach Source` authors the source metadata, native sound attributes,
+and current position fields used by the extension.
 
 ### Expected Output
 
@@ -371,6 +399,11 @@ Authored source speaker_a at /World/Sources/SpeakerA.
 
 The source should then be discoverable from the `Stage` section if the
 discovery roots include its path.
+
+After the sensor is started, you can move the same source prim with Isaac Sim's
+normal transform gizmo. Click `Update` again; the next frame rereads the live USD
+transform and the latest-frame label shows the source path, source position,
+bearing, and sector used for that frame.
 
 ## Sensor Section
 
@@ -674,19 +707,23 @@ trace, config export, and optional Replicator output.
     Source ID: speaker_a
     Class: Speech
     Audio URI: generated://impulse
+    Position X: 2.0
+    Position Y: 0.0
+    Position Z: 0.0
     Start: 0.0
     Duration: 1.0
     Gain dB: 0.0
     ```
 
-15. Click `Create/Attach Source`.
-16. Optionally select a robot or rig base prim, such as `/World/Rig`, and click
+15. Click `Apply Position` or one of the source placement presets.
+16. Click `Create/Attach Source`.
+17. Optionally select a robot or rig base prim, such as `/World/Rig`, and click
     `Use Base`. Leave `Robot/Base` empty if there is no base prim.
-17. In `Stage`, leave `Discovery Roots` as `/World` for the default demo.
-18. Click `Discover`.
-19. Confirm the discovery label lists one array and one source, such as
+18. In `Stage`, leave `Discovery Roots` as `/World` for the default demo.
+19. Click `Discover`.
+20. Confirm the discovery label lists one array and one source, such as
     `rig_front` and `speaker_a`.
-20. In `Sensor`, set:
+21. In `Sensor`, set:
 
     ```text
     Backend: tdoa_synthetic
@@ -698,14 +735,16 @@ trace, config export, and optional Replicator output.
     Writer Path: outputs/isaac_audio_sensors/extension_trace.frames.jsonl
     ```
 
-21. Click `Start`.
-22. Click `Update`.
-23. Inspect the latest-frame label. It should show a frame id, detection count,
-    backend, bearing, and sector.
-24. Inspect the overlay label. It should show an overlay primitive count and
+22. Click `Start`.
+23. Click `Update`.
+24. Inspect the latest-frame label. It should show a frame id, detection count,
+    backend, source path, source position, bearing, and sector.
+25. Move `/World/Sources/SpeakerA` with Isaac Sim's transform gizmo, then click
+    `Update` again. The source position, bearing, and sector should change.
+26. Inspect the overlay label. It should show an overlay primitive count and
     labels. If the live debug drawer is unavailable, serialized overlay status
     can still be reported.
-25. In `Export`, keep:
+27. In `Export`, keep:
 
     ```text
     Latest JSON: outputs/isaac_audio_sensors/extension_latest_frame.json
@@ -713,16 +752,16 @@ trace, config export, and optional Replicator output.
     Load Config: outputs/isaac_audio_sensors/extension_binding.json
     ```
 
-26. Click `Export Latest`.
-27. Click `Export Config`.
-28. Optionally use Replicator:
+28. Click `Export Latest`.
+29. Click `Export Config`.
+30. Optionally use Replicator:
     - In `Replicator`, enable `Enable`.
     - Keep `Output Dir` as `outputs/isaac_audio_sensors/replicator`.
     - Click the Replicator `Start` button.
     - Return to `Sensor` and click `Update` again.
     - Return to `Replicator` and click `Flush`.
-29. In `Sensor`, click `Stop`.
-30. If Replicator was started, click the Replicator `Stop` button.
+31. In `Sensor`, click `Stop`.
+32. If Replicator was started, click the Replicator `Stop` button.
 
 The main expected files are:
 
