@@ -833,28 +833,86 @@ def test_omniverse_extension_manifest_metadata_files_exist():
     manifest_path = ext_root / "config" / "extension.toml"
     manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
     package = manifest["package"]
+    dependencies = manifest["dependencies"]
     python_modules = manifest["python"]["module"]
 
-    assert package["authors"] == ["isaac-audio-sensors contributors"]
+    assert package["authors"] == ["Patrizio Acquadro"]
+    assert package["author"] == "Patrizio Acquadro"
     assert package["trusted"] is False
+    assert package["support_level"].lower() == "community"
     assert package["category"].lower() == "simulation"
     assert package["repository"] == (
         "https://github.com/PatrizioAcquadro/isaac-audio-sensors"
     )
-    assert {"audio", "microphone", "sensor", "robotics", "tdoa"} <= set(
-        package["keywords"]
-    )
+    assert {
+        "audio",
+        "microphone",
+        "microphone-array",
+        "sensor",
+        "robotics",
+        "isaac-sim",
+        "omniverse",
+        "usd",
+        "tdoa",
+        "simulation",
+    } <= set(package["keywords"])
+    assert set(dependencies) == {
+        "omni.kit.actions.core",
+        "omni.kit.menu.utils",
+        "omni.ui",
+        "omni.usd",
+        "omni.kit.hotkeys.core",
+        "omni.replicator.core",
+    }
+    assert dependencies["omni.kit.hotkeys.core"]["optional"] is True
+    assert dependencies["omni.replicator.core"]["optional"] is True
+    for forbidden_dependency in ("isaaclab", "cuda", "torch", "pyroomacoustics"):
+        assert not any(
+            forbidden_dependency in dependency.lower()
+            for dependency in dependencies
+        )
     for key in ("readme", "changelog", "icon", "preview_image"):
         path = ext_root / package[key]
         assert path.exists(), f"{key} does not exist: {path}"
         assert path.stat().st_size > 0, f"{key} is empty: {path}"
 
     readme = (ext_root / package["readme"]).read_text(encoding="utf-8")
-    assert "Window -> Isaac Audio Sensors" in readme
-    assert "Ctrl+Alt+A" in readme
-    assert "isaac_audio_sensors.omni::toggle_window" in readme
-    assert (ext_root / package["preview_image"]).read_bytes().startswith(b"\x89PNG")
+    for expected in (
+        "Window -> Isaac Audio Sensors",
+        "Ctrl+Alt+A",
+        "isaac_audio_sensors.omni::toggle_window",
+        "selected USD prim",
+        "author `ias:*` microphone-array and sound-source metadata",
+        "discover authored arrays and sources",
+        "start, update, and stop the live `IsaacAudioArraySensor`",
+        "export the latest frame as JSON and stream frames as JSONL",
+        "export and import reusable extension/stage-binding config JSON",
+        "optional `omni.replicator.core`",
+        "one extension Python module",
+        "This extension does not register OmniGraph nodes.",
+    ):
+        assert expected in readme
+    preview_bytes = (ext_root / package["preview_image"]).read_bytes()
+    assert preview_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+    assert int.from_bytes(preview_bytes[16:20], "big") == 1600
+    assert int.from_bytes(preview_bytes[20:24], "big") == 900
     assert python_modules == [{"name": "isaac_audio_sensors_omni"}]
+
+
+def test_omniverse_extension_does_not_advertise_unsupported_packages_or_nodes():
+    repo = Path(__file__).resolve().parents[1]
+    ext_root = repo / "exts" / "isaac_audio_sensors.omni"
+    manifest_path = ext_root / "config" / "extension.toml"
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    manifest = tomllib.loads(manifest_text)
+
+    assert manifest["python"]["module"] == [{"name": "isaac_audio_sensors_omni"}]
+    assert not list(ext_root.rglob("*.ogn"))
+    assert "[[ogn" not in manifest_text.lower()
+    assert "omni.graph" not in manifest_text.lower()
+
+    for path in (ext_root / "isaac_audio_sensors_omni").rglob("*.py"):
+        assert "omni.graph" not in path.read_text(encoding="utf-8").lower()
 
 
 def test_omniverse_extension_manifest_is_third_party_by_kit_source_logic():
