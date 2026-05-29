@@ -8,7 +8,7 @@ import math
 import os
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import contextmanager, suppress
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
 from typing import Any
 
@@ -235,6 +235,7 @@ class ExtensionUiState:
     latest_source_position_m: tuple[float, float, float] | None = None
     latest_bearing_deg: float | None = None
     latest_sector: str | None = None
+    latest_aggregate_rms: dict[str, float] = field(default_factory=dict)
     latest_overlay_primitive_count: int = 0
     latest_overlay_labels: tuple[str, ...] = ()
     latest_overlay_status: str = "none"
@@ -264,6 +265,7 @@ class ExtensionController:
         self._registered_action: Any | None = None
         self._registered_hotkey: Any | None = None
         self._registered_hotkey_key: str | None = None
+        self._controller_update_subscription: Any | None = None
         self._menu_items: list[Any] = []
 
     def on_startup(self, ext_id: str) -> None:
@@ -1234,12 +1236,12 @@ class ExtensionController:
             if self.sensor is None and self.configure_sensor(stage=stage) is None:
                 return None
             assert self.sensor is not None
+            self._stop_controller_update_subscription()
+            self.sensor.start(subscribe_to_update_stream=False)
             try:
-                self.sensor.start(
-                    subscribe_to_update_stream=subscribe_to_update_stream,
-                )
+                if subscribe_to_update_stream:
+                    self._start_controller_update_subscription()
             except IsaacIntegrationUnavailable as exc:
-                self.sensor.start(subscribe_to_update_stream=False)
                 self._set_status(
                     "Started without Kit update subscription: " + str(exc),
                     error=False,
@@ -1256,6 +1258,7 @@ class ExtensionController:
         """Stop the live sensor without dropping the latest frame."""
 
         try:
+            self._stop_controller_update_subscription()
             if self.sensor is not None:
                 self.sensor.stop()
             self.state.sensor_running = False
@@ -1269,6 +1272,7 @@ class ExtensionController:
         try:
             if self.sensor is None:
                 raise ExtensionActionError("Sensor is not configured.")
+            previous_frame = self.sensor.latest_frame
             self._validate_attached_object_available(self.sensor.stage)
             self.sensor.source_prim_path = (
                 self.state.source_prim_path
@@ -1278,7 +1282,9 @@ class ExtensionController:
             )
             frame = self.sensor.update(force=force)
             self._record_latest_frame(frame)
-            if self.state.replicator_enabled:
+            if self.state.replicator_enabled and (
+                force or _frame_is_new(previous_frame, frame)
+            ):
                 self._write_replicator_frame(frame)
             return frame
         except Exception as exc:
@@ -1502,10 +1508,48 @@ class ExtensionController:
     def close_sensor(self) -> None:
         """Close the live sensor and writer/debug handles."""
 
+        self._stop_controller_update_subscription()
         if self.sensor is not None:
             self.sensor.close()
         self.sensor = None
         self.state.sensor_running = False
+
+    def _start_controller_update_subscription(self) -> None:
+        try:
+            import omni.kit.app  # type: ignore
+        except ImportError as exc:
+            raise IsaacIntegrationUnavailable(
+                "Isaac update-stream subscription requires omni.kit.app inside "
+                "an Isaac Sim Python environment."
+            ) from exc
+        app = omni.kit.app.get_app()
+        get_stream = getattr(app, "get_update_event_stream", None)
+        if not callable(get_stream):
+            raise IsaacIntegrationUnavailable(
+                "Isaac update-stream subscription requires get_update_event_stream."
+            )
+        stream = get_stream()
+        subscribe = getattr(stream, "create_subscription_to_pop", None)
+        if not callable(subscribe):
+            raise IsaacIntegrationUnavailable(
+                "Isaac update-stream subscription requires "
+                "create_subscription_to_pop."
+            )
+
+        def _on_update(_event: Any) -> None:
+            if self.sensor is None or not self.state.sensor_running:
+                return
+            frame = self.update_sensor(force=False)
+            if frame is not None and self._ui_window is not None:
+                self._ui_window.refresh_labels()
+
+        self._controller_update_subscription = subscribe(
+            _on_update,
+            name="isaac_audio_sensors.extension_ui.update",
+        )
+
+    def _stop_controller_update_subscription(self) -> None:
+        self._controller_update_subscription = None
 
     def _build_sensor(self, stage: Any) -> IsaacAudioArraySensor:
         state = self.state
@@ -1737,6 +1781,7 @@ class ExtensionController:
             None if first is None else first.doa.estimated_bearing_deg
         )
         self.state.latest_sector = None if first is None else first.doa.bearing_sector
+        self.state.latest_aggregate_rms = _aggregate_rms_from_frame(frame)
         primitives: tuple[DebugPrimitive, ...] = (
             () if self.sensor is None else tuple(self.sensor.latest_debug_primitives)
         )
@@ -2107,7 +2152,8 @@ class OmniReferenceWindow:
             f"source={state.latest_source_prim_path or state.source_prim_path} | "
             f"pos={_optional_vec3_text(state.latest_source_position_m)} | "
             f"bearing={_optional_float_text(state.latest_bearing_deg)} | "
-            f"sector={state.latest_sector or 'none'}",
+            f"sector={state.latest_sector or 'none'} | "
+            f"rms={_format_rms_summary(state.latest_aggregate_rms)}",
         )
         self._set_label(
             "overlay",
@@ -2865,12 +2911,51 @@ def _summary_ids(items: tuple[DiscoveredPrimSummary, ...]) -> str:
     return ", ".join(f"{item.id}@{item.prim_path}" for item in items) or "none"
 
 
+def _frame_is_new(previous_frame: Any | None, frame: Any) -> bool:
+    if previous_frame is None:
+        return True
+    previous_id = getattr(previous_frame, "frame_id", None)
+    current_id = getattr(frame, "frame_id", None)
+    if previous_id is None or current_id is None:
+        return frame is not previous_frame
+    return current_id != previous_id
+
+
+def _aggregate_rms_from_frame(frame: Any) -> dict[str, float]:
+    raw = getattr(frame, "aggregate_per_mic_rms", {}) or {}
+    rms: dict[str, float] = {}
+    for mic_id, value in dict(raw).items():
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(numeric):
+            rms[str(mic_id)] = numeric
+    return rms
+
+
 def _optional_float_text(value: float | None) -> str:
     return "none" if value is None else f"{value:.2f}"
 
 
 def _optional_vec3_text(value: tuple[float, float, float] | None) -> str:
     return "none" if value is None else _format_vec3(value)
+
+
+def _format_rms_summary(values: Mapping[str, float]) -> str:
+    if not values:
+        return "none"
+    order = {"front": 0, "right": 1, "rear": 2, "left": 3}
+    items = sorted(values.items(), key=lambda item: (order.get(item[0], 99), item[0]))
+    return ", ".join(
+        f"{mic_id}:{_format_rms_value(value)}" for mic_id, value in items
+    )
+
+
+def _format_rms_value(value: float) -> str:
+    if value != 0.0 and abs(value) < 0.01:
+        return f"{value:.2e}"
+    return f"{value:.2f}"
 
 
 def _format_vec3(value: Iterable[float]) -> str:

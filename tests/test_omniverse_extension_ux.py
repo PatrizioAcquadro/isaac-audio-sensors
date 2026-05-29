@@ -684,6 +684,51 @@ def _install_fake_replicator(monkeypatch):
     return core
 
 
+class _FakeUpdateStream:
+    def __init__(self) -> None:
+        self.callbacks: list[object] = []
+
+    def create_subscription_to_pop(self, callback: object, **_kwargs: object) -> object:
+        self.callbacks.append(callback)
+        return SimpleNamespace(callback=callback)
+
+    def trigger(self) -> None:
+        for callback in tuple(self.callbacks):
+            callback(SimpleNamespace())
+
+
+def _install_fake_kit_update_stream(
+    monkeypatch,
+    *,
+    timeline_time_s: float | None = None,
+) -> _FakeUpdateStream:
+    omni = sys.modules.get("omni") or ModuleType("omni")
+    omni.__path__ = []
+    kit = getattr(omni, "kit", ModuleType("omni.kit"))
+    kit.__path__ = []
+    stream = _FakeUpdateStream()
+    app_module = ModuleType("omni.kit.app")
+    app_module.get_app = lambda: SimpleNamespace(
+        get_update_event_stream=lambda: stream
+    )
+    kit.app = app_module
+    omni.kit = kit
+
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.kit", kit)
+    monkeypatch.setitem(sys.modules, "omni.kit.app", app_module)
+
+    if timeline_time_s is not None:
+        timeline = ModuleType("omni.timeline")
+        timeline.get_timeline_interface = lambda: SimpleNamespace(
+            get_current_time=lambda: timeline_time_s
+        )
+        omni.timeline = timeline
+        monkeypatch.setitem(sys.modules, "omni.timeline", timeline)
+
+    return stream
+
+
 def _install_fake_kit_integrations(
     monkeypatch,
     *,
@@ -1158,8 +1203,10 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
     assert moved_detection.source_pose.position_m == (0.0, 2.0, 0.0)
     assert moved_detection.doa.estimated_bearing_deg == 90.0
     assert moved_detection.doa.bearing_sector == "right"
+    assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
     assert controller.state.latest_source_prim_path == "/World/Oven/SpeakerA"
     assert controller.state.latest_source_position_m == (0.0, 2.0, 0.0)
+    assert controller.state.latest_aggregate_rms == moved_frame.aggregate_per_mic_rms
 
     detached = controller.detach_source_from_object(stage=stage)
     assert detached is not None
@@ -1178,6 +1225,104 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
         2.0,
         0.0,
     )
+
+
+def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
+    monkeypatch,
+    tmp_path,
+):
+    omni = ModuleType("omni")
+    omni.__path__ = []
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    stream = _install_fake_kit_update_stream(monkeypatch)
+    oven = _FakePrim(
+        "/World/Oven",
+        "Xform",
+        {"xformOp:translate": (2.0, 0.0, 0.0)},
+    )
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            oven,
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "tdoa_synthetic"
+    controller.state.update_period_s = 0.01
+    controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
+    assert controller.build_ui_if_available() is not None
+    window = controller._ui_window
+    assert window is not None
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.use_selected_as_object(
+        stage=stage,
+        selected_paths=("/World/Oven",),
+    )
+    assert controller.attach_source_to_object(stage=stage) is not None
+    assert controller.start_sensor(stage=stage) is not None
+    window._float_fields["source_position_x_m"].model.set_value("typing")
+
+    stream.trigger()
+    first_position = controller.state.latest_source_position_m
+    first_bearing = controller.state.latest_bearing_deg
+    first_sector = controller.state.latest_sector
+    first_rms = dict(controller.state.latest_aggregate_rms)
+
+    oven.attributes["xformOp:translate"] = (0.0, 2.0, 0.0)
+    stream.trigger()
+
+    assert first_position == (2.0, 0.0, 0.0)
+    assert first_sector == "straight"
+    assert controller.state.latest_source_position_m == (0.0, 2.0, 0.0)
+    assert controller.state.latest_bearing_deg != first_bearing
+    assert controller.state.latest_sector == "right"
+    assert controller.state.latest_aggregate_rms != first_rms
+    assert window._float_fields["source_position_x_m"].model.value == "typing"
+    assert "rms=" in window._labels["latest"].text
+
+
+def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
+    monkeypatch,
+    tmp_path,
+):
+    _install_fake_replicator(monkeypatch)
+    stream = _install_fake_kit_update_stream(monkeypatch, timeline_time_s=0.0)
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "tdoa_synthetic"
+    controller.state.update_period_s = 10.0
+    controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
+    controller.state.replicator_enabled = True
+    controller.state.replicator_output_dir = str(tmp_path / "replicator")
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.author_source(stage=stage) is not None
+    assert controller.start_sensor(stage=stage) is not None
+    assert controller.start_replicator() is not None
+
+    stream.trigger()
+    stream.trigger()
+
+    assert controller.state.replicator_write_count == 1
+
+    source = stage.GetPrimAtPath("/World/Sources/SpeakerA")
+    assert source is not None
+    source.attributes["xformOp:translate"] = (0.0, 2.0, 0.0)
+    forced = controller.update_sensor()
+
+    assert forced is not None
+    assert controller.state.latest_sector == "right"
+    assert controller.state.replicator_write_count == 2
 
 
 def test_extension_controller_create_demo_object_authors_visible_cube():
@@ -1513,6 +1658,36 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Export Config",
         "Load Config",
     } <= set(controller._ui_window._buttons)
+
+
+def test_extension_ui_latest_label_shows_compact_rms(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    controller = ExtensionController()
+    controller.state.latest_frame_id = "frame_001"
+    controller.state.latest_detection_count = 1
+    controller.state.latest_backend = "tdoa_synthetic"
+    controller.state.latest_source_prim_path = "/World/Sources/SpeakerA"
+    controller.state.latest_source_position_m = (1.0, 2.0, 0.0)
+    controller.state.latest_bearing_deg = 90.0
+    controller.state.latest_sector = "right"
+    controller.state.latest_aggregate_rms = {
+        "left": 0.2,
+        "front": 0.24,
+        "rear": 0.18,
+        "right": 0.22,
+    }
+
+    assert controller.build_ui_if_available() is not None
+    window = controller._ui_window
+    assert window is not None
+    window.refresh_labels()
+
+    latest = window._labels["latest"].text
+    assert "rms=front:0.24, right:0.22, rear:0.18, left:0.20" in latest
 
 
 def test_extension_controller_registers_menu_action_hotkey_and_cleans_up(
