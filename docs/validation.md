@@ -284,8 +284,9 @@ registration/write/flush/stop, and readable error messages for no stage, no
 selection, invalid prim path, invalid backend, and invalid Replicator output.
 The Replicator writer passed with `omni.replicator.core`; annotator registration
 was recorded as unavailable because that Kit shape has no supported simple
-Python annotator registration API. Headless screenshot capture was recorded as
-unavailable because the active viewport has no `capture_to_file` method.
+Python annotator registration API. Viewport screenshot capture records either a
+captured PNG path/dimensions/method or the exact blocker; the strict screenshot
+gate is `make live-omniverse-extension-ux-screenshots`.
 
 The GPU target fails if CUDA is unavailable or if any audio tensor, timestamp
 tensor, or outdated-mask tensor is allocated on CPU. It records `torch.cuda`

@@ -9,9 +9,9 @@ sensor, inspect the latest frame and overlay status, and export JSON/JSONL
 records. For the deeper Isaac Sim runtime contract and live evidence, see the
 [Isaac Sim documentation](isaac_sim.md).
 
-The current GUI authors metadata and source transforms for sensor frames. It
-does not play audible audio, attach sources to objects automatically, assign
-object sound profiles, or integrate downstream ontology labels.
+The current GUI authors metadata, source transforms, and object attachments for
+sensor frames. It does not play audible audio, assign object sound profiles, or
+integrate downstream ontology labels.
 
 The control inventory below is derived from
 `src/isaac_audio_sensors/isaac/extension_ui.py` and
@@ -177,6 +177,10 @@ microphone array.
 prim field. Use this after selecting the prim that should represent the sound
 source.
 
+`Use Object` copies the first selected scene-object prim path into the object
+attachment target. Use this after clicking an object such as an oven, sink,
+cabinet, tool, prop, or procedural demo object in the viewport or Stage tree.
+
 `Use Base` copies the first selected prim path into `Robot/Base`. Use this when
 the array is mounted under a robot, rig, or moving base prim and you want the
 sensor binding to treat that prim as the base frame.
@@ -198,24 +202,33 @@ Separate multiple roots with commas or semicolons, for example:
 simple static demo. Set it to a path such as `/World/Rig` when the array is
 mounted under that base.
 
+`Object` is the selected scene object used by the source attachment workflow.
+It is editable, but the normal path is to select the object in Isaac Sim and
+click `Use Object`.
+
+`Create Demo Object` authors a minimal procedural object prim at `/World/Oven`
+when the current stage does not already have a convenient object. This is only a
+test/demonstration object; it is not a kitchen asset or sound profile.
+
 `Discover` scans the configured discovery roots for audio arrays and sources.
-It uses authored `ias:*` metadata and supported stage conventions. On success,
-the status line reports how many arrays and sources were found, and the
-discovery label lists their ids.
+It uses authored `ias:*` metadata and supported stage conventions. It also
+lists simple non-audio scene objects that can be used for attachment. On
+success, the status line reports how many arrays, sources, and objects were
+found, and the discovery label lists their ids.
 
 ### Expected Output
 
 After `Refresh`, the stage label should say the stage is ready and should list
 the selected prim or `none`.
 
-After `Use Array`, `Use Source`, or `Use Base`, the target field in the matching
-section should update.
+After `Use Array`, `Use Source`, `Use Object`, or `Use Base`, the target field
+in the matching section should update.
 
 After `Discover`, the discovery label should show array and source ids. For the
 default first demo, expect ids like:
 
 ```text
-Arrays: rig_front | Sources: speaker_a
+Arrays: rig_front | Sources: speaker_a | Objects: Oven
 ```
 
 ## Author Array Section
@@ -344,8 +357,8 @@ generated://impulse
 The first demo can use the default. For a real project, point this to the sound
 asset you want the source to represent.
 
-`Position X`, `Position Y`, and `Position Z` are the source prim position in
-meters. The default source placement is:
+`Position X`, `Position Y`, and `Position Z` are the standalone source prim
+position in meters. The default source placement is:
 
 ```text
 2.0, 0.0, 0.0
@@ -357,6 +370,12 @@ source in the viewport or Stage tree.
 
 `Apply Position` writes the position fields to the target source prim transform
 and to the `ias:position_world` metadata.
+
+`Local Offset X`, `Local Offset Y`, and `Local Offset Z` are the source offset
+in meters when the source is attached under a scene object. For example, an
+offset of `0.0, 0.5, 0.0` places the source half a meter to the object's local
+right. When the object moves, the source world pose used by the next sensor
+frame changes with the object.
 
 `Front`, `Right`, `Left`, and `Behind` are deterministic placement presets for
 the default demo frame:
@@ -389,6 +408,15 @@ Behind: -2.0, 0.0, 0.0
 `Create/Attach Source` authors the source metadata, native sound attributes,
 and current position fields used by the extension.
 
+`Attach Source To Object` moves or creates the current source under the selected
+object path and writes object-binding metadata plus the local offset. This
+creates a real parent/child transform relationship in the USD hierarchy, so
+moving the object with Isaac Sim's normal transform gizmo changes the source
+world pose read by the sensor on the next `Update`.
+
+`Detach Source` moves the source back to a standalone `/World/Sources/...` path
+at its current world pose and clears the object-binding metadata.
+
 ### Expected Output
 
 On success, the status line reports:
@@ -404,6 +432,20 @@ After the sensor is started, you can move the same source prim with Isaac Sim's
 normal transform gizmo. Click `Update` again; the next frame rereads the live USD
 transform and the latest-frame label shows the source path, source position,
 bearing, and sector used for that frame.
+
+For the object attachment workflow:
+
+1. Select or create the object prim, such as `/World/Oven`.
+2. Click `Use Object`.
+3. Set `Local Offset X/Y/Z`.
+4. Click `Attach Source To Object`.
+5. Move the object with Isaac Sim's normal transform gizmo.
+6. Click `Update`.
+
+The latest-frame label should show the attached source path under the object,
+the changed world source position, and the changed bearing/sector. If the object
+is deleted or missing when a loaded config expects it, the status line reports a
+readable missing-object message instead of silently succeeding.
 
 ## Sensor Section
 

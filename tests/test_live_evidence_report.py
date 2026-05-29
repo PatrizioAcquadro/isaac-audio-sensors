@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -74,6 +75,41 @@ def test_live_evidence_docs_reference_artifacts_and_avoid_overclaims():
         "complete l4 runtime validated",
     ):
         assert unsupported_claim not in lowered
+
+
+def test_gui_guide_referenced_screenshot_assets_exist_and_are_valid_pngs():
+    root = Path(__file__).resolve().parents[1]
+    guide = root / "docs" / "isaac_sim_gui_guide.md"
+    refs = sorted(
+        set(
+            re.findall(
+                r"assets/isaac_sim_gui/[^)\s]+\.png",
+                guide.read_text(encoding="utf-8"),
+            )
+        )
+    )
+
+    assert refs == [
+        "assets/isaac_sim_gui/author_array.png",
+        "assets/isaac_sim_gui/author_source.png",
+        "assets/isaac_sim_gui/export.png",
+        "assets/isaac_sim_gui/replicator.png",
+        "assets/isaac_sim_gui/sensor.png",
+        "assets/isaac_sim_gui/stage.png",
+    ]
+    for ref in refs:
+        path = guide.parent / ref
+        data = path.read_bytes()
+        assert data[:8] == b"\x89PNG\r\n\x1a\n"
+        assert data[12:16] == b"IHDR"
+        assert int.from_bytes(data[16:20], "big") > 0
+        assert int.from_bytes(data[20:24], "big") > 0
+        assert path.stat().st_size > 0
+
+    missing_manifest = (
+        root / "docs" / "assets" / "isaac_sim_gui" / "MISSING_SCREENSHOTS.md"
+    )
+    assert not missing_manifest.exists()
 
 
 def _write_minimal_evidence(root: Path) -> None:

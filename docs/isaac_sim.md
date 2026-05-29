@@ -166,9 +166,10 @@ wrote one payload and `audio_sensor_frames.jsonl`, flushed once, and stopped.
 The local Kit shape did not expose a supported simple Python annotator
 registration method, so the evidence records
 `AnnotatorRegistry has no supported register method` while the writer path and
-package JSON/JSONL path still pass. Headless viewport screenshot capture was
-unavailable because the active viewport had no `capture_to_file` method; the
-serialized overlay primitives remain in the JSON evidence.
+package JSON/JSONL path still pass. Viewport screenshot capture now attempts
+Kit viewport utility capture, legacy viewport capture, and renderer swapchain
+capture in order; the JSON evidence records the captured PNG path/dimensions
+or the exact method/error that blocked rendering.
 
 Practical Isaac Sim workflow:
 

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import inspect
 import json
 import platform
+import struct
 import sys
 import traceback
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -32,9 +36,25 @@ from isaac_audio_sensors.isaac.extension_ui import (
     CurrentStageContext,
     ExtensionController,
 )
-from isaac_audio_sensors.isaac.viz.overlays import debug_primitives_to_dicts
+from isaac_audio_sensors.isaac.pose_resolver import IsaacStagePoseResolver
 
 EXTENSION_ID = "isaac_audio_sensors.omni"
+MOLMO_FLOORPLAN1_USD = Path(
+    "/home/pacquadr/Desktop/Alex-robot/assets/usd/scenes/ithor/"
+    "FloorPlan1_physics/scene.usda"
+)
+MOLMO_KITCHEN_OBJECT_CANDIDATES = (
+    "/FloorPlan1_physics/Geometry/refrigerator_"
+    "5a1cb9d35791f7f9acfa7d661c12908e_1_0_0",
+    "/FloorPlan1_physics/Geometry/oven_588514d9b7194ff8509ced4f3f34adb0_1_0_0",
+    "/FloorPlan1_physics/Geometry/sink_6963746c1cac2341702c2d7d922de618_1_0_0",
+    "/FloorPlan1_physics/Geometry/standardislandheight_"
+    "7cc63329b1f0a38cd8c2450298404ab3_1_0_0",
+    "/FloorPlan1_physics/Geometry/standardcounterheightwidth_"
+    "63e81a44be2e417bdef7ec44364879f9_1_0_0",
+    "/FloorPlan1_physics/Geometry/microwaveoven_"
+    "37bc68a024364106033dc6f1f16a5c8d_1_0_0",
+)
 EXPECTED_UI_SECTIONS = (
     "Stage",
     "Author Array",
@@ -47,7 +67,9 @@ EXPECTED_UI_BUTTONS = (
     "Refresh",
     "Use Array",
     "Use Source",
+    "Use Object",
     "Use Base",
+    "Create Demo Object",
     "Discover",
     "Create/Attach Array",
     "Read Selected Transform",
@@ -57,6 +79,8 @@ EXPECTED_UI_BUTTONS = (
     "Left",
     "Behind",
     "Create/Attach Source",
+    "Attach Source To Object",
+    "Detach Source",
     "Start",
     "Stop",
     "Update",
@@ -74,6 +98,7 @@ EXPECTED_STRING_FIELDS = (
     "discovery_roots_text",
     "jsonl_trace_path",
     "latest_frame_export_path",
+    "object_prim_path",
     "replicator_annotator_name",
     "replicator_output_dir",
     "replicator_writer_name",
@@ -83,6 +108,9 @@ EXPECTED_STRING_FIELDS = (
     "source_prim_path",
 )
 EXPECTED_FLOAT_FIELDS = (
+    "source_local_offset_x_m",
+    "source_local_offset_y_m",
+    "source_local_offset_z_m",
     "source_duration_s",
     "source_gain_db",
     "source_position_x_m",
@@ -108,6 +136,11 @@ def main() -> int:
         type=Path,
         default=Path("outputs/isaac_audio_sensors/omniverse_extension_live_ux.json"),
     )
+    parser.add_argument(
+        "--require-screenshot",
+        action="store_true",
+        help="Fail the live gate if any required viewport screenshot is unavailable.",
+    )
     args = parser.parse_args()
 
     frame_trace_path = args.out.with_suffix(".frames.jsonl")
@@ -116,6 +149,14 @@ def main() -> int:
     latest_frame_path = args.out.with_suffix(".latest_frame.json")
     replicator_dir = args.out.with_suffix(".replicator")
     screenshot_path = args.out.with_suffix(".viewport.png")
+    generic_artifacts = {
+        "frame_trace_path": frame_trace_path,
+        "config_path": config_path,
+        "latest_frame_path": latest_frame_path,
+        "replicator_dir": replicator_dir,
+        "screenshot_path": screenshot_path,
+    }
+    molmo_artifacts = _scenario_artifacts(args.out, "molmo_floorplan1")
     _remove_existing_artifacts(
         args.out,
         frame_trace_path,
@@ -123,8 +164,13 @@ def main() -> int:
         pre_frame_config_path,
         latest_frame_path,
         screenshot_path,
+        molmo_artifacts["frame_trace_path"],
+        molmo_artifacts["config_path"],
+        molmo_artifacts["latest_frame_path"],
+        molmo_artifacts["screenshot_path"],
     )
     _prepare_output_dir(replicator_dir)
+    _prepare_output_dir(molmo_artifacts["replicator_dir"])
 
     evidence: dict[str, Any] = {
         "argv": sys.argv,
@@ -139,13 +185,16 @@ def main() -> int:
         "latest_frame_path": str(latest_frame_path),
         "replicator_output_dir": str(replicator_dir),
         "screenshot_path": str(screenshot_path),
+        "molmo_floorplan1_artifacts": _stringify_artifacts(molmo_artifacts),
         "extension_id": EXTENSION_ID,
         "extension_path": str(
             Path(__file__).resolve().parents[1] / "exts" / EXTENSION_ID
         ),
         "headless": True,
         "viewport_mode": "headless_or_existing_viewport",
+        "require_screenshot": args.require_screenshot,
         "workflow_steps": [],
+        "object_attach_live_qa": {},
     }
     simulation_app = None
     extension: Extension | None = None
@@ -155,6 +204,7 @@ def main() -> int:
         _record_isaacsim_preflight(evidence)
         _record_gpu_preflight(evidence)
         _record_nvidia_smi(evidence)
+        evidence["alex_molmo_fixture"] = _probe_alex_molmo_fixture()
         simulation_app = _ensure_isaac_runtime(evidence)
 
         import omni  # type: ignore
@@ -220,127 +270,59 @@ def main() -> int:
         if getattr(controller, "_ui_window", None) is not None:
             controller._ui_window.push_state_to_widgets()
 
-        _step(
+        generic_result = _step(
             evidence,
-            "refresh_stage_selection_array",
-            lambda: controller.refresh_stage_selection(
+            "generic_scene_object_attach_workflow",
+            lambda: _run_object_attach_scenario(
+                evidence=evidence,
+                controller=controller,
                 stage=stage,
-                selected_paths=("/World/Rig/AudioArray",),
+                fixture_kind="generic_scene",
+                artifacts=generic_artifacts,
+                object_path="/World/Oven",
+                source_prim_path="/World/Sources/SpeakerA",
+                source_id="speaker_a",
+                parent_position_before=(2.0, 0.0, 0.0),
+                parent_position_after=(0.0, 2.0, 0.0),
+                local_offset_before=(0.0, 0.0, 0.0),
+                local_offset_after=(0.5, 0.0, 0.25),
+                discovery_roots_text="/World/Oven",
+                stage_setup=_author_minimal_stage,
+                require_screenshot=args.require_screenshot,
             ),
         )
-        _set_context_selection(("/World/Rig/AudioArray",), evidence)
-        _step(
-            evidence,
-            "use_selected_as_array",
-            lambda: controller.use_selected_as_array(
-                stage=stage,
-                selected_paths=("/World/Rig/AudioArray",),
-            ),
-        )
-        _step(evidence, "author_array", lambda: controller.author_array(stage=stage))
-        _set_context_selection(("/World/Sources/SpeakerA",), evidence)
-        _step(
-            evidence,
-            "use_selected_as_source",
-            lambda: controller.use_selected_as_source(
-                stage=stage,
-                selected_paths=("/World/Sources/SpeakerA",),
-            ),
-        )
-        _step(
-            evidence,
-            "read_selected_source_transform",
-            lambda: controller.read_selected_source_transform(
-                stage=stage,
-                selected_paths=("/World/Sources/SpeakerA",),
-            ),
-        )
-        evidence["source_position_after_read"] = _source_position_state(controller)
-        _step(
-            evidence,
-            "apply_source_front_preset",
-            lambda: controller.apply_source_position_preset("front", stage=stage),
-        )
-        evidence["source_position_after_front_preset"] = _source_position_state(
-            controller
-        )
-        _step(evidence, "author_source", lambda: controller.author_source(stage=stage))
-        _set_context_selection(("/World/Rig",), evidence)
-        _step(
-            evidence,
-            "use_selected_as_robot_base",
-            lambda: controller.use_selected_as_robot_base(
-                stage=stage,
-                selected_paths=("/World/Rig",),
-            ),
-        )
-        _step(
-            evidence,
-            "refresh_discovery",
-            lambda: controller.refresh_discovery(stage=stage),
-        )
-        _step(
-            evidence,
-            "start_sensor",
-            lambda: controller.start_sensor(
-                stage=stage,
-                subscribe_to_update_stream=False,
-            ),
-        )
-        _step(evidence, "start_replicator", controller.start_replicator)
-        frame = _step(evidence, "update_sensor", controller.update_sensor)
-        if frame is None:
-            message = controller.state.error_message or "Update returned None."
-            raise RuntimeError(message)
-        evidence["source_frame_before_move"] = _frame_source_summary(frame)
-        source_prim = stage.GetPrimAtPath("/World/Sources/SpeakerA")
-        _set_translate(source_prim, (0.0, 2.0, 0.0))
-        evidence["source_transform_move_command"] = {
-            "prim_path": "/World/Sources/SpeakerA",
-            "position_world": [0.0, 2.0, 0.0],
-        }
-        _update_kit_once(evidence)
-        moved_frame = _step(
-            evidence,
-            "update_sensor_after_source_move",
-            controller.update_sensor,
-        )
-        if moved_frame is None:
-            message = controller.state.error_message or "Moved update returned None."
-            raise RuntimeError(message)
-        evidence["source_frame_after_move"] = _frame_source_summary(moved_frame)
-        evidence["source_move_changed_frame"] = _source_frame_changed(
-            frame,
-            moved_frame,
-        )
-        _step(evidence, "export_latest_frame", controller.export_latest_frame)
-        _step(evidence, "flush_replicator", controller.flush_replicator)
-        _step(evidence, "stop_sensor", lambda: (controller.stop_sensor() or "stopped"))
-        _step(evidence, "stop_replicator", controller.stop_replicator)
-        _step(evidence, "export_config_summary", controller.export_config_summary)
-        import_probe = ExtensionController()
-        import_probe.build_ui_if_available()
-        _step(
-            evidence,
-            "import_config_summary_probe",
-            lambda: import_probe.import_config_summary(config_path),
-        )
-        evidence["config_roundtrip_probe"] = _probe_config_roundtrip(
-            import_probe,
-            config_path,
-        )
+        evidence["object_attach_live_qa"]["generic_scene"] = generic_result
+        _promote_legacy_generic_evidence(evidence, generic_result)
 
-        screenshot = _capture_viewport_screenshot(screenshot_path)
-        evidence["screenshot"] = screenshot
-
-        _validate_live_extension_outputs(
-            evidence=evidence,
-            controller=controller,
-            latest_frame_path=latest_frame_path,
-            frame_trace_path=frame_trace_path,
-            config_path=config_path,
-            replicator_dir=replicator_dir,
+        molmo_stage, molmo_open = _open_molmo_floorplan1_stage(evidence)
+        evidence["molmo_floorplan1_open"] = molmo_open
+        molmo_object_path = _select_molmo_kitchen_object(molmo_stage)
+        molmo_result = _step(
+            evidence,
+            "molmo_floorplan1_object_attach_workflow",
+            lambda: _run_object_attach_scenario(
+                evidence=evidence,
+                controller=controller,
+                stage=molmo_stage,
+                fixture_kind="molmo_floorplan1",
+                artifacts=molmo_artifacts,
+                object_path=molmo_object_path,
+                source_prim_path="/World/Sources/MolmoSpeakerA",
+                source_id="molmo_speaker_a",
+                parent_position_before=(2.0, 0.0, 0.0),
+                parent_position_after=(0.0, 2.0, 0.0),
+                local_offset_before=(0.0, 0.0, 0.0),
+                local_offset_after=(0.5, 0.0, 0.25),
+                discovery_roots_text=molmo_object_path,
+                stage_setup=None,
+                usd_path=MOLMO_FLOORPLAN1_USD,
+                stage_open=molmo_open,
+                require_screenshot=args.require_screenshot,
+            ),
         )
+        evidence["object_attach_live_qa"]["molmo_floorplan1"] = molmo_result
+
+        _validate_live_extension_outputs(evidence=evidence)
         evidence["status"] = "passed"
     except BaseException as exc:  # noqa: BLE001 - smoke evidence records exact error.
         if isinstance(exc, KeyboardInterrupt):
@@ -397,6 +379,597 @@ def _step(evidence: dict[str, Any], name: str, callback: Any) -> Any:
     if result is None:
         raise RuntimeError(f"Workflow step {name!r} returned None.")
     return result
+
+
+def _scenario_artifacts(out: Path, name: str) -> dict[str, Path]:
+    return {
+        "frame_trace_path": out.with_suffix(f".{name}.frames.jsonl"),
+        "config_path": out.with_suffix(f".{name}.config.json"),
+        "latest_frame_path": out.with_suffix(f".{name}.latest_frame.json"),
+        "replicator_dir": out.with_suffix(f".{name}.replicator"),
+        "screenshot_path": out.with_suffix(f".{name}.viewport.png"),
+    }
+
+
+def _stringify_artifacts(artifacts: dict[str, Path]) -> dict[str, str]:
+    return {key: str(value) for key, value in sorted(artifacts.items())}
+
+
+def _run_object_attach_scenario(
+    *,
+    evidence: dict[str, Any],
+    controller: ExtensionController,
+    stage: Any,
+    fixture_kind: str,
+    artifacts: dict[str, Path],
+    object_path: str,
+    source_prim_path: str,
+    source_id: str,
+    parent_position_before: tuple[float, float, float],
+    parent_position_after: tuple[float, float, float],
+    local_offset_before: tuple[float, float, float],
+    local_offset_after: tuple[float, float, float],
+    discovery_roots_text: str,
+    stage_setup: Any | None,
+    usd_path: Path | None = None,
+    stage_open: dict[str, Any] | None = None,
+    require_screenshot: bool = False,
+) -> dict[str, Any]:
+    label = fixture_kind
+    if stage_setup is not None:
+        stage_setup(stage)
+    _ensure_audio_seed_prims(stage, source_prim_path=source_prim_path)
+    object_prim = _require_stage_prim(stage, object_path)
+    _set_translate(object_prim, parent_position_before)
+    _update_kit_once(evidence)
+
+    controller.close_sensor()
+    controller.state.backend = "tdoa_synthetic"
+    controller.state.trace_enabled = True
+    controller.state.jsonl_trace_path = str(artifacts["frame_trace_path"])
+    controller.state.latest_frame_export_path = str(artifacts["latest_frame_path"])
+    controller.state.config_export_path = str(artifacts["config_path"])
+    controller.state.config_import_path = str(artifacts["config_path"])
+    controller.state.replicator_enabled = True
+    controller.state.replicator_output_dir = str(artifacts["replicator_dir"])
+    controller.state.array_prim_path = "/World/Rig/AudioArray"
+    controller.state.source_prim_path = source_prim_path
+    controller.state.source_id = source_id
+    controller.state.source_class_label = "Speech"
+    controller.state.audio_asset_path = "generated://impulse"
+    controller.state.source_position_x_m = 2.0
+    controller.state.source_position_y_m = 0.0
+    controller.state.source_position_z_m = 0.0
+    controller.state.object_prim_path = object_path
+    controller.state.object_label = _path_name(object_path)
+    controller.state.source_attached_to_object = False
+    controller.state.attached_object_prim_path = ""
+    controller.state.source_local_offset_x_m = local_offset_before[0]
+    controller.state.source_local_offset_y_m = local_offset_before[1]
+    controller.state.source_local_offset_z_m = local_offset_before[2]
+    controller.state.robot_base_prim_path = ""
+    controller.state.discovery_roots_text = discovery_roots_text
+    if getattr(controller, "_ui_window", None) is not None:
+        controller._ui_window.push_state_to_widgets()
+
+    result: dict[str, Any] = {
+        "status": "started",
+        "fixture_kind": fixture_kind,
+        "usd_path": str(usd_path) if usd_path is not None else None,
+        "artifacts": _stringify_artifacts(artifacts),
+        "stage_open": stage_open,
+        "stage_summary": _stage_summary(stage),
+        "selected_object_path": object_path,
+        "selected_object_label": _path_name(object_path),
+        "selected_object_type": _prim_type_name(object_prim),
+        "selection_method": "controller.use_selected_as_object",
+        "source_seed_path": source_prim_path,
+        "local_offset_before": list(local_offset_before),
+        "local_offset_after": list(local_offset_after),
+    }
+
+    _set_context_selection(("/World/Rig/AudioArray",), evidence)
+    _step(
+        evidence,
+        f"{label}_refresh_stage_selection_array",
+        lambda: controller.refresh_stage_selection(
+            stage=stage,
+            selected_paths=("/World/Rig/AudioArray",),
+        ),
+    )
+    _step(
+        evidence,
+        f"{label}_use_selected_as_array",
+        lambda: controller.use_selected_as_array(
+            stage=stage,
+            selected_paths=("/World/Rig/AudioArray",),
+        ),
+    )
+    _step(
+        evidence,
+        f"{label}_author_array",
+        lambda: controller.author_array(stage=stage),
+    )
+    _set_context_selection((source_prim_path,), evidence)
+    _step(
+        evidence,
+        f"{label}_use_selected_as_source",
+        lambda: controller.use_selected_as_source(
+            stage=stage,
+            selected_paths=(source_prim_path,),
+        ),
+    )
+    _step(
+        evidence,
+        f"{label}_read_selected_source_transform",
+        lambda: controller.read_selected_source_transform(
+            stage=stage,
+            selected_paths=(source_prim_path,),
+        ),
+    )
+    result["source_position_after_read"] = _source_position_state(controller)
+    _step(
+        evidence,
+        f"{label}_apply_source_front_preset",
+        lambda: controller.apply_source_position_preset("front", stage=stage),
+    )
+    result["source_position_after_front_preset"] = _source_position_state(controller)
+    _step(
+        evidence,
+        f"{label}_author_source",
+        lambda: controller.author_source(stage=stage),
+    )
+    _set_context_selection((object_path,), evidence)
+    _step(
+        evidence,
+        f"{label}_use_selected_as_object",
+        lambda: controller.use_selected_as_object(
+            stage=stage,
+            selected_paths=(object_path,),
+        ),
+    )
+    discovery = _step(
+        evidence,
+        f"{label}_refresh_discovery",
+        lambda: controller.refresh_discovery(stage=stage),
+    )
+    result["discovery"] = {
+        "count": len(discovery),
+        "selected_object_found": any(
+            getattr(item, "prim_path", "") == object_path for item in discovery
+        ),
+        "sample": [
+            {
+                "id": getattr(item, "id", ""),
+                "prim_path": getattr(item, "prim_path", ""),
+                "reasons": list(getattr(item, "reasons", ())),
+            }
+            for item in tuple(discovery)[:8]
+        ],
+    }
+    _step(
+        evidence,
+        f"{label}_attach_source_to_object",
+        lambda: controller.attach_source_to_object(stage=stage),
+    )
+    result["source_object_attachment"] = _source_object_state(controller)
+    attached_source_path = controller.state.source_prim_path
+    result["source_path"] = attached_source_path
+    result["parent_transform_before"] = _pose_summary(stage, object_path)
+    result["source_transform_before"] = _pose_summary(stage, attached_source_path)
+
+    _step(
+        evidence,
+        f"{label}_start_sensor",
+        lambda: controller.start_sensor(
+            stage=stage,
+            subscribe_to_update_stream=False,
+        ),
+    )
+    _step(evidence, f"{label}_start_replicator", controller.start_replicator)
+    before_frame = _step(
+        evidence,
+        f"{label}_update_sensor_before_parent_move",
+        controller.update_sensor,
+    )
+    result["frame_before_parent_move"] = _frame_source_summary(before_frame)
+
+    _set_translate(object_prim, parent_position_after)
+    result["parent_transform_move_command"] = {
+        "prim_path": object_path,
+        "position_world": list(parent_position_after),
+        "attached_source_prim_path": attached_source_path,
+        "method": "live USD Xform edit equivalent to normal Isaac transform",
+    }
+    _update_kit_once(evidence)
+    after_move_frame = _step(
+        evidence,
+        f"{label}_update_sensor_after_parent_move",
+        controller.update_sensor,
+    )
+    result["parent_transform_after"] = _pose_summary(stage, object_path)
+    result["source_transform_after_parent_move"] = _pose_summary(
+        stage,
+        attached_source_path,
+    )
+    result["frame_after_parent_move"] = _frame_source_summary(after_move_frame)
+    result["object_move_changed_frame"] = _source_frame_changed(
+        before_frame,
+        after_move_frame,
+    )
+
+    result["source_transform_before_local_offset_change"] = _pose_summary(
+        stage,
+        attached_source_path,
+    )
+    controller.state.source_local_offset_x_m = local_offset_after[0]
+    controller.state.source_local_offset_y_m = local_offset_after[1]
+    controller.state.source_local_offset_z_m = local_offset_after[2]
+    if getattr(controller, "_ui_window", None) is not None:
+        controller._ui_window.push_state_to_widgets()
+    _step(
+        evidence,
+        f"{label}_apply_changed_local_offset",
+        lambda: controller.attach_source_to_object(stage=stage),
+    )
+    _update_kit_once(evidence)
+    after_offset_frame = _step(
+        evidence,
+        f"{label}_update_sensor_after_local_offset_change",
+        controller.update_sensor,
+    )
+    result["source_transform_after_local_offset_change"] = _pose_summary(
+        stage,
+        attached_source_path,
+    )
+    result["frame_after_local_offset_change"] = _frame_source_summary(
+        after_offset_frame
+    )
+    result["local_offset_changed_frame"] = _source_frame_changed(
+        after_move_frame,
+        after_offset_frame,
+    )
+
+    _step(evidence, f"{label}_export_latest_frame", controller.export_latest_frame)
+    _step(evidence, f"{label}_flush_replicator", controller.flush_replicator)
+    _step(evidence, f"{label}_export_config_summary", controller.export_config_summary)
+    result["config_export_path"] = str(artifacts["config_path"])
+    result["config_export"] = _config_binding_summary(artifacts["config_path"])
+
+    result["config_import_result"] = _probe_import_update_after_config(
+        stage=stage,
+        config_path=artifacts["config_path"],
+    )
+    result["screenshot"] = _capture_viewport_screenshot(
+        artifacts["screenshot_path"],
+        framed_paths=(object_path, attached_source_path),
+    )
+    if require_screenshot and result["screenshot"].get("status") != "captured":
+        result["status"] = "failed"
+        evidence.setdefault("object_attach_live_qa", {})[fixture_kind] = result
+        _enforce_required_screenshot(result["screenshot"], fixture_kind)
+
+    result["missing_object_probe"] = _probe_missing_object_status(
+        controller=controller,
+        stage=stage,
+        object_path=object_path,
+    )
+    _step(
+        evidence,
+        f"{label}_stop_sensor",
+        lambda: (controller.stop_sensor() or "stopped"),
+    )
+    _step(evidence, f"{label}_stop_replicator", controller.stop_replicator)
+    result["replicator_status"] = controller._replicator_status_dict()
+    result["replicator_artifacts"] = _replicator_artifacts(artifacts["replicator_dir"])
+    result["status"] = "passed"
+    return result
+
+
+def _ensure_audio_seed_prims(stage: Any, *, source_prim_path: str) -> None:
+    for path, prim_type in (
+        ("/World", "Xform"),
+        ("/World/Rig", "Xform"),
+        ("/World/Rig/AudioArray", "Xform"),
+        ("/World/Sources", "Xform"),
+        (source_prim_path, "Sound"),
+    ):
+        if not _stage_has_prim(stage, path):
+            stage.DefinePrim(path, prim_type)
+    source = _require_stage_prim(stage, source_prim_path)
+    _set_translate(source, (2.0, 0.0, 0.0))
+
+
+def _require_stage_prim(stage: Any, path: str) -> Any:
+    prim = _stage_get_prim_at_path(stage, path)
+    if prim is None or (hasattr(prim, "IsValid") and not prim.IsValid()):
+        raise RuntimeError(f"Required prim is missing from live stage: {path}")
+    return prim
+
+
+def _stage_summary(stage: Any) -> dict[str, Any]:
+    default_prim = None
+    with_default = getattr(stage, "GetDefaultPrim", None)
+    if callable(with_default):
+        prim = with_default()
+        if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
+            default_prim = _prim_path(prim)
+    root_layer = getattr(stage, "GetRootLayer", lambda: None)()
+    return {
+        "default_prim": default_prim,
+        "prim_count": _stage_prim_count(stage),
+        "root_layer_identifier": str(getattr(root_layer, "identifier", "")),
+        "root_layer_real_path": str(getattr(root_layer, "realPath", "")),
+    }
+
+
+def _stage_prim_count(stage: Any) -> int:
+    if not hasattr(stage, "Traverse"):
+        return 0
+    return sum(1 for _ in stage.Traverse())
+
+
+def _pose_summary(stage: Any, prim_path_value: str) -> dict[str, Any]:
+    pose = IsaacStagePoseResolver(stage).resolve_world_pose(
+        prim_path_value,
+        field_name=prim_path_value,
+    )
+    return {
+        "prim_path": prim_path_value,
+        "position_world": list(pose.position_world),
+        "orientation_world_quat": (
+            None
+            if pose.orientation_world_quat is None
+            else list(pose.orientation_world_quat)
+        ),
+        "provenance": pose.provenance,
+    }
+
+
+def _config_binding_summary(config_path: Path) -> dict[str, Any]:
+    payload = json.loads(config_path.read_text(encoding="utf-8"))
+    return {
+        "path": str(config_path),
+        "schema_version": payload.get("schema_version"),
+        "source": payload.get("source", {}),
+        "object_binding": payload.get("object_binding", {}),
+        "recording": payload.get("recording", {}),
+    }
+
+
+def _probe_import_update_after_config(
+    *,
+    stage: Any,
+    config_path: Path,
+) -> dict[str, Any]:
+    imported = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    imported.build_ui_if_available()
+    import_result = imported.import_config_summary(config_path)
+    roundtrip = _probe_config_roundtrip(imported, config_path)
+    imported.state.replicator_enabled = False
+    imported.state.trace_enabled = False
+    imported.close_sensor()
+    sensor = imported.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    frame = imported.update_sensor() if sensor is not None else None
+    imported.stop_sensor()
+    return {
+        "status": (
+            "passed"
+            if import_result is not None
+            and frame is not None
+            and imported.state.source_attached_to_object
+            else "failed"
+        ),
+        "import_result": str(import_result) if import_result is not None else None,
+        "roundtrip_probe": roundtrip,
+        "object_prim_path": imported.state.object_prim_path,
+        "attached_object_prim_path": imported.state.attached_object_prim_path,
+        "source_prim_path": imported.state.source_prim_path,
+        "source_local_offset_m": [
+            imported.state.source_local_offset_x_m,
+            imported.state.source_local_offset_y_m,
+            imported.state.source_local_offset_z_m,
+        ],
+        "frame_after_import_update": (
+            None if frame is None else _frame_source_summary(frame)
+        ),
+        "status_message": imported.state.status_message,
+        "error_message": imported.state.error_message,
+    }
+
+
+def _probe_missing_object_status(
+    *,
+    controller: ExtensionController,
+    stage: Any,
+    object_path: str,
+) -> dict[str, Any]:
+    remove_result = _remove_stage_prim(stage, object_path)
+    invalidated_path = None
+    invalidation_reason = None
+    if not remove_result.get("removed") or remove_result.get("exists_after") is True:
+        invalidated_path = f"{object_path}/__missing_for_live_qa__"
+        controller.state.attached_object_prim_path = invalidated_path
+        invalidation_reason = (
+            "remove_failed"
+            if not remove_result.get("removed")
+            else "removed_prim_still_resolves_in_composed_stage"
+        )
+    frame = controller.update_sensor()
+    message = controller.state.error_message
+    expected_path = invalidated_path or object_path
+    return {
+        "status": (
+            "passed"
+            if frame is None and message and expected_path in message
+            else "failed"
+        ),
+        "remove_result": remove_result,
+        "invalidated_path": invalidated_path,
+        "invalidation_reason": invalidation_reason,
+        "update_result": _result_summary(frame),
+        "status_message": controller.state.status_message,
+        "error_message": message,
+    }
+
+
+def _remove_stage_prim(stage: Any, path: str) -> dict[str, Any]:
+    if not hasattr(stage, "RemovePrim"):
+        return {"removed": False, "reason": "stage has no RemovePrim"}
+    try:
+        from pxr import Sdf  # type: ignore
+
+        result = stage.RemovePrim(Sdf.Path(path))
+    except Exception as exc:
+        try:
+            result = stage.RemovePrim(path)
+        except Exception as fallback_exc:
+            return {
+                "removed": False,
+                "error_type": type(fallback_exc).__name__,
+                "error": str(fallback_exc),
+                "first_error": f"{type(exc).__name__}: {exc}",
+            }
+    return {
+        "removed": bool(result),
+        "path": path,
+        "exists_after": _stage_has_prim(stage, path),
+    }
+
+
+def _replicator_artifacts(replicator_dir: Path) -> list[str]:
+    if not replicator_dir.is_dir():
+        return []
+    return [str(path) for path in sorted(replicator_dir.iterdir()) if path.is_file()]
+
+
+def _promote_legacy_generic_evidence(
+    evidence: dict[str, Any],
+    generic_result: dict[str, Any],
+) -> None:
+    evidence["source_position_after_read"] = generic_result.get(
+        "source_position_after_read"
+    )
+    evidence["source_position_after_front_preset"] = generic_result.get(
+        "source_position_after_front_preset"
+    )
+    evidence["source_object_attachment"] = generic_result.get(
+        "source_object_attachment"
+    )
+    evidence["object_source_frame_before_move"] = generic_result.get(
+        "frame_before_parent_move"
+    )
+    evidence["object_source_frame_after_move"] = generic_result.get(
+        "frame_after_parent_move"
+    )
+    evidence["object_transform_move_command"] = generic_result.get(
+        "parent_transform_move_command"
+    )
+    evidence["object_move_changed_frame"] = generic_result.get(
+        "object_move_changed_frame"
+    )
+    evidence["source_move_changed_frame"] = generic_result.get(
+        "object_move_changed_frame"
+    )
+    evidence["config_roundtrip_probe"] = generic_result.get(
+        "config_import_result", {}
+    ).get("roundtrip_probe")
+    evidence["screenshot"] = generic_result.get("screenshot")
+
+
+def _open_molmo_floorplan1_stage(
+    evidence: dict[str, Any],
+) -> tuple[Any, dict[str, Any]]:
+    command = f"omni.usd.get_context().open_stage({str(MOLMO_FLOORPLAN1_USD)!r})"
+    record: dict[str, Any] = {
+        "command": command,
+        "scene_path": str(MOLMO_FLOORPLAN1_USD),
+        "scene_exists": MOLMO_FLOORPLAN1_USD.is_file(),
+        "fixture_kind": "molmo_floorplan1",
+    }
+    if not MOLMO_FLOORPLAN1_USD.is_file():
+        raise RuntimeError(
+            "Molmo FloorPlan1 USD is missing: " f"{MOLMO_FLOORPLAN1_USD}"
+        )
+    try:
+        import omni.usd  # type: ignore
+
+        context = omni.usd.get_context()
+        open_stage = getattr(context, "open_stage", None)
+        if not callable(open_stage):
+            raise RuntimeError("omni.usd context has no open_stage method")
+        open_result = open_stage(str(MOLMO_FLOORPLAN1_USD))
+        record["open_stage_result"] = str(open_result)
+        for _ in range(12):
+            _update_kit_once(evidence)
+        stage = context.get_stage() if hasattr(context, "get_stage") else None
+        if stage is None:
+            raise RuntimeError("omni.usd context returned no stage after open_stage")
+        record.update({"status": "opened", **_stage_summary(stage)})
+        return stage, record
+    except Exception as exc:
+        record.update(
+            {
+                "status": "failed",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            }
+        )
+        evidence["molmo_floorplan1_open"] = record
+        raise RuntimeError(
+            f"Molmo FloorPlan1 USD open failed via {command}: "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
+
+
+def _select_molmo_kitchen_object(stage: Any) -> str:
+    for path in MOLMO_KITCHEN_OBJECT_CANDIDATES:
+        if _stage_has_prim(stage, path):
+            return path
+    keywords = (
+        "refrigerator",
+        "fridge",
+        "oven",
+        "sink",
+        "cabinet",
+        "counter",
+        "island",
+        "microwave",
+    )
+    if hasattr(stage, "Traverse"):
+        for prim in stage.Traverse():
+            path = _prim_path(prim)
+            lowered = path.lower()
+            if (
+                "/geometry/" in lowered
+                and not lowered.endswith("/geometry")
+                and not any(token in lowered for token in ("collision", "visual"))
+                and any(keyword in lowered for keyword in keywords)
+                and _prim_type_name(prim) in {"Xform", "Mesh"}
+            ):
+                return path
+    raise RuntimeError(
+        "No meaningful kitchen object prim was found in Molmo FloorPlan1. "
+        f"Tried {list(MOLMO_KITCHEN_OBJECT_CANDIDATES)}."
+    )
+
+
+def _path_name(path: str) -> str:
+    return path.rstrip("/").rsplit("/", 1)[-1] or "prim"
+
+
+def _prim_path(prim: Any) -> str:
+    if hasattr(prim, "GetPath"):
+        return str(prim.GetPath())
+    return str(getattr(prim, "path", ""))
+
+
+def _prim_type_name(prim: Any) -> str:
+    if hasattr(prim, "GetTypeName"):
+        return str(prim.GetTypeName())
+    return str(getattr(prim, "type_name", ""))
 
 
 def _inventory_ui_controls(controller: ExtensionController) -> dict[str, Any]:
@@ -645,23 +1218,35 @@ def _probe_ui_editable_models(controller: ExtensionController) -> dict[str, Any]
     position_x = window._float_fields.get("source_position_x_m")
     position_y = window._float_fields.get("source_position_y_m")
     position_z = window._float_fields.get("source_position_z_m")
+    local_offset_x = window._float_fields.get("source_local_offset_x_m")
+    local_offset_y = window._float_fields.get("source_local_offset_y_m")
+    local_offset_z = window._float_fields.get("source_local_offset_z_m")
     sample_rate = window._int_fields.get("sample_rate_hz")
     source_id = window._string_fields.get("source_id")
+    object_path = window._string_fields.get("object_prim_path")
     if (
         duration is None
         or position_x is None
         or position_y is None
         or position_z is None
+        or local_offset_x is None
+        or local_offset_y is None
+        or local_offset_z is None
         or sample_rate is None
         or source_id is None
+        or object_path is None
     ):
         return {"status": "failed", "reason": "expected editable fields missing"}
     duration.model.set_value("10.0")
     position_x.model.set_value("2.0")
     position_y.model.set_value("0.0")
     position_z.model.set_value("0.0")
+    local_offset_x.model.set_value("0.0")
+    local_offset_y.model.set_value("0.0")
+    local_offset_z.model.set_value("0.0")
     sample_rate.model.set_value("44100")
     source_id.model.set_value("speaker_a")
+    object_path.model.set_value("/World/Oven")
     window.sync_state_from_widgets()
     return {
         "status": "passed",
@@ -671,6 +1256,12 @@ def _probe_ui_editable_models(controller: ExtensionController) -> dict[str, Any]
             controller.state.source_position_y_m,
             controller.state.source_position_z_m,
         ],
+        "source_local_offset_m": [
+            controller.state.source_local_offset_x_m,
+            controller.state.source_local_offset_y_m,
+            controller.state.source_local_offset_z_m,
+        ],
+        "object_prim_path": controller.state.object_prim_path,
         "sample_rate_hz": controller.state.sample_rate_hz,
         "source_id": controller.state.source_id,
         "duration_widget_kind": getattr(duration, "kind", type(duration).__name__),
@@ -740,6 +1331,22 @@ def _source_position_state(controller: ExtensionController) -> dict[str, Any]:
             state.source_position_x_m,
             state.source_position_y_m,
             state.source_position_z_m,
+        ],
+    }
+
+
+def _source_object_state(controller: ExtensionController) -> dict[str, Any]:
+    state = controller.state
+    return {
+        "source_prim_path": state.source_prim_path,
+        "object_prim_path": state.object_prim_path,
+        "object_label": state.object_label,
+        "source_attached_to_object": state.source_attached_to_object,
+        "attached_object_prim_path": state.attached_object_prim_path,
+        "source_local_offset_m": [
+            state.source_local_offset_x_m,
+            state.source_local_offset_y_m,
+            state.source_local_offset_z_m,
         ],
     }
 
@@ -815,6 +1422,7 @@ def _probe_config_roundtrip(
 def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
     array = payload.get("array", {})
     source = payload.get("source", {})
+    object_binding = payload.get("object_binding", {})
     lifecycle = payload.get("lifecycle", {})
     recording = payload.get("recording", {})
     package_jsonl = recording.get("package_jsonl", {})
@@ -825,6 +1433,10 @@ def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
         "source_prim_path": source.get("prim_path"),
         "source_id": source.get("source_id"),
         "source_position_world": source.get("position_world"),
+        "source_local_offset_m": object_binding.get("source_local_offset_m"),
+        "object_prim_path": object_binding.get("selected_object_prim_path"),
+        "source_attached_to_object": object_binding.get("attached"),
+        "attached_object_prim_path": object_binding.get("attached_object_prim_path"),
         "source_duration_s": source.get("duration_s"),
         "sample_rate_hz": array.get("sample_rate_hz"),
         "jsonl_trace_path": package_jsonl.get("path"),
@@ -849,6 +1461,14 @@ def _observed_config_state(controller: ExtensionController) -> dict[str, Any]:
             state.source_position_y_m,
             state.source_position_z_m,
         ],
+        "source_local_offset_m": [
+            state.source_local_offset_x_m,
+            state.source_local_offset_y_m,
+            state.source_local_offset_z_m,
+        ],
+        "object_prim_path": state.object_prim_path or None,
+        "source_attached_to_object": state.source_attached_to_object,
+        "attached_object_prim_path": state.attached_object_prim_path or None,
         "source_duration_s": state.source_duration_s,
         "sample_rate_hz": state.sample_rate_hz,
         "jsonl_trace_path": state.jsonl_trace_path,
@@ -868,19 +1488,33 @@ def _state_mismatches(
     mismatches = {}
     for key, expected_value in expected.items():
         observed_value = observed.get(key)
-        if isinstance(expected_value, float):
-            try:
-                matched = abs(float(observed_value) - expected_value) <= 1e-9
-            except (TypeError, ValueError):
-                matched = False
-        else:
-            matched = observed_value == expected_value
+        matched = _state_values_match(expected_value, observed_value)
         if not matched:
             mismatches[key] = {
                 "expected": expected_value,
                 "observed": observed_value,
             }
     return mismatches
+
+
+def _state_values_match(expected_value: Any, observed_value: Any) -> bool:
+    if isinstance(expected_value, (int, float)) and isinstance(
+        observed_value,
+        (int, float),
+    ):
+        return abs(float(observed_value) - float(expected_value)) <= 1e-9
+    if isinstance(expected_value, list) and isinstance(observed_value, list):
+        if len(expected_value) != len(observed_value):
+            return False
+        return all(
+            _state_values_match(expected_item, observed_item)
+            for expected_item, observed_item in zip(
+                expected_value,
+                observed_value,
+                strict=True,
+            )
+        )
+    return observed_value == expected_value
 
 
 def _combo_model_values(window: Any) -> dict[str, dict[str, Any]]:
@@ -961,20 +1595,65 @@ def _create_stage(evidence: dict[str, Any]) -> tuple[Any | None, str]:
 
 
 def _author_minimal_stage(stage: Any) -> None:
-    for path in (
-        "/World",
-        "/World/Rig",
-        "/World/Rig/AudioArray",
-        "/World/Sources",
-        "/World/Sources/SpeakerA",
+    for path, prim_type in (
+        ("/World", "Xform"),
+        ("/World/Rig", "Xform"),
+        ("/World/Rig/AudioArray", "Xform"),
+        ("/World/Sources", "Xform"),
+        ("/World/Sources/SpeakerA", "Xform"),
+        ("/World/Oven", "Cube"),
+        ("/World/KeyLight", "DistantLight"),
     ):
         if not _stage_has_prim(stage, path):
-            stage.DefinePrim(path, "Xform")
-    source = stage.GetPrimAtPath("/World/Sources/SpeakerA")
+            stage.DefinePrim(path, prim_type)
+    source = _stage_get_prim_at_path(stage, "/World/Sources/SpeakerA")
     _set_translate(source, (2.0, 1.0, 0.0))
+    oven = _stage_get_prim_at_path(stage, "/World/Oven")
+    _set_translate(oven, (2.0, 0.0, 0.0))
+    _style_generic_visual_fixture(stage)
+
+
+def _style_generic_visual_fixture(stage: Any) -> None:
+    try:
+        from pxr import Gf, UsdGeom, UsdLux  # type: ignore
+
+        oven = _stage_get_prim_at_path(stage, "/World/Oven")
+        cube = UsdGeom.Cube(oven)
+        cube.CreateSizeAttr(0.9)
+        gprim = UsdGeom.Gprim(oven)
+        gprim.CreateDisplayColorAttr([Gf.Vec3f(0.95, 0.48, 0.08)])
+        gprim.CreateDisplayOpacityAttr([1.0])
+        gprim.CreateDoubleSidedAttr(True)
+
+        light_prim = _stage_get_prim_at_path(stage, "/World/KeyLight")
+        light = UsdLux.DistantLight(light_prim)
+        light.CreateIntensityAttr(750.0)
+        light.CreateAngleAttr(0.35)
+        _set_translate(light_prim, (0.0, -3.0, 5.0))
+        dome_prim = _stage_get_prim_at_path(stage, "/World/DemoObjectDomeLight")
+        if dome_prim is None or (
+            hasattr(dome_prim, "IsValid") and not dome_prim.IsValid()
+        ):
+            dome_prim = stage.DefinePrim("/World/DemoObjectDomeLight", "DomeLight")
+        dome = UsdLux.DomeLight(dome_prim)
+        dome.CreateIntensityAttr(450.0)
+        dome.CreateColorAttr(Gf.Vec3f(1.0, 0.92, 0.82))
+        fill_prim = _stage_get_prim_at_path(stage, "/World/DemoObjectFillLight")
+        if fill_prim is None or (
+            hasattr(fill_prim, "IsValid") and not fill_prim.IsValid()
+        ):
+            fill_prim = stage.DefinePrim("/World/DemoObjectFillLight", "SphereLight")
+        fill = UsdLux.SphereLight(fill_prim)
+        fill.CreateIntensityAttr(1800.0)
+        fill.CreateRadiusAttr(3.0)
+        _set_translate(fill_prim, (-3.0, -4.0, 3.0))
+    except Exception:
+        return
 
 
 def _set_translate(prim: Any, position: tuple[float, float, float]) -> None:
+    if prim is None or (hasattr(prim, "IsValid") and not prim.IsValid()):
+        raise RuntimeError(f"Cannot set transform on missing prim: {prim}")
     try:
         from pxr import Gf, UsdGeom  # type: ignore
 
@@ -992,11 +1671,34 @@ def _set_translate(prim: Any, position: tuple[float, float, float]) -> None:
 
 
 def _stage_has_prim(stage: Any, path: str) -> bool:
-    if hasattr(stage, "GetPrimAtPath"):
-        prim = stage.GetPrimAtPath(path)
-        if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
-            return True
+    prim = _stage_get_prim_at_path(stage, path)
+    if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
+        return True
+    if hasattr(stage, "Traverse"):
+        return any(_prim_path(prim) == path for prim in stage.Traverse())
     return False
+
+
+def _stage_get_prim_at_path(stage: Any, path: str) -> Any | None:
+    if not hasattr(stage, "GetPrimAtPath"):
+        return None
+    for candidate_path in (_usd_path(path), path):
+        try:
+            return stage.GetPrimAtPath(candidate_path)
+        except TypeError:
+            continue
+    return None
+
+
+def _usd_path(path: str) -> Any:
+    try:
+        from pxr import Sdf  # type: ignore
+    except ImportError:
+        return path
+    try:
+        return Sdf.Path(path)
+    except Exception:
+        return path
 
 
 def _set_context_selection(paths: tuple[str, ...], evidence: dict[str, Any]) -> None:
@@ -1052,47 +1754,393 @@ def _run_error_checks(stage: Any) -> dict[str, Any]:
     return checks
 
 
-def _capture_viewport_screenshot(path: Path) -> dict[str, Any]:
+def _capture_viewport_screenshot(
+    path: Path,
+    *,
+    framed_paths: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    attempts: list[dict[str, Any]] = []
+    framed = tuple(path for path in framed_paths if path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with suppress(FileNotFoundError):
+        path.unlink()
+
     try:
         import omni.kit.viewport.utility as viewport_utility  # type: ignore
 
         viewport = viewport_utility.get_active_viewport()
         if viewport is None:
-            return {"status": "unavailable", "reason": "no active viewport"}
-        capture = getattr(viewport, "capture_to_file", None)
+            return _screenshot_unavailable(
+                path,
+                reason="no active viewport",
+                attempts=attempts,
+                framed_paths=framed,
+            )
+        viewport_info = _viewport_info(viewport)
+        _frame_viewport_paths(
+            viewport_utility=viewport_utility,
+            viewport=viewport,
+            framed_paths=framed,
+            attempts=attempts,
+        )
+        utility_capture = getattr(viewport_utility, "capture_viewport_to_file", None)
+        if callable(utility_capture):
+            attempts.append(
+                _attempt_viewport_utility_capture(
+                    utility_capture=utility_capture,
+                    viewport=viewport,
+                    path=path,
+                )
+            )
+            record = _captured_screenshot_record(
+                path=path,
+                method="viewport_utility.capture_viewport_to_file",
+                attempts=attempts,
+                framed_paths=framed,
+                viewport_info=viewport_info,
+            )
+            if record is not None:
+                return record
+        else:
+            attempts.append(
+                {
+                    "method": "viewport_utility.capture_viewport_to_file",
+                    "status": "unavailable",
+                    "reason": "capture_viewport_to_file is not callable",
+                }
+            )
+
+        legacy_capture = getattr(viewport, "capture_to_file", None)
+        if callable(legacy_capture):
+            attempts.append(
+                _attempt_legacy_viewport_capture(
+                    legacy_capture=legacy_capture,
+                    path=path,
+                )
+            )
+            record = _captured_screenshot_record(
+                path=path,
+                method="viewport.capture_to_file",
+                attempts=attempts,
+                framed_paths=framed,
+                viewport_info=viewport_info,
+            )
+            if record is not None:
+                return record
+        else:
+            attempts.append(
+                {
+                    "method": "viewport.capture_to_file",
+                    "status": "unavailable",
+                    "reason": "active viewport has no capture_to_file method",
+                }
+            )
+
+        attempts.append(_attempt_renderer_swapchain_capture(path))
+        record = _captured_screenshot_record(
+            path=path,
+            method="renderer_capture.capture_next_frame_swapchain",
+            attempts=attempts,
+            framed_paths=framed,
+            viewport_info=viewport_info,
+        )
+        if record is not None:
+            return record
+        return _screenshot_unavailable(
+            path,
+            reason=_last_attempt_reason(attempts),
+            attempts=attempts,
+            framed_paths=framed,
+            viewport_info=viewport_info,
+        )
+    except Exception as exc:  # noqa: BLE001 - screenshot is optional evidence.
+        attempts.append(
+            {
+                "method": "capture_viewport_screenshot",
+                "status": "failed",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            }
+        )
+        return _screenshot_unavailable(
+            path,
+            reason=f"{type(exc).__name__}: {exc}",
+            attempts=attempts,
+            framed_paths=framed,
+        )
+
+
+def _frame_viewport_paths(
+    *,
+    viewport_utility: Any,
+    viewport: Any,
+    framed_paths: tuple[str, ...],
+    attempts: list[dict[str, Any]],
+) -> None:
+    if not framed_paths:
+        return
+    frame = getattr(viewport_utility, "frame_viewport_prims", None)
+    if not callable(frame):
+        attempts.append(
+            {
+                "method": "viewport_utility.frame_viewport_prims",
+                "status": "unavailable",
+                "reason": "frame_viewport_prims is not callable",
+                "framed_paths": list(framed_paths),
+            }
+        )
+        return
+    try:
+        framed = frame(viewport, prims=list(framed_paths))
+        attempts.append(
+            {
+                "method": "viewport_utility.frame_viewport_prims",
+                "status": "passed" if framed else "returned_false",
+                "framed_paths": list(framed_paths),
+            }
+        )
+    except Exception as exc:  # noqa: BLE001 - framing failure is diagnostic only.
+        attempts.append(
+            {
+                "method": "viewport_utility.frame_viewport_prims",
+                "status": "failed",
+                "framed_paths": list(framed_paths),
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            }
+        )
+
+
+def _attempt_viewport_utility_capture(
+    *,
+    utility_capture: Any,
+    viewport: Any,
+    path: Path,
+) -> dict[str, Any]:
+    try:
+        result = utility_capture(viewport, file_path=str(path))
+        wait_result = _wait_for_capture_result(result)
+        return {
+            "method": "viewport_utility.capture_viewport_to_file",
+            "status": "called",
+            "result": str(result),
+            "wait_result": _result_summary(wait_result),
+            "file_wait": _wait_for_screenshot_file(path),
+        }
+    except Exception as exc:  # noqa: BLE001 - fall back to the next API.
+        return {
+            "method": "viewport_utility.capture_viewport_to_file",
+            "status": "failed",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+
+
+def _attempt_legacy_viewport_capture(
+    *,
+    legacy_capture: Any,
+    path: Path,
+) -> dict[str, Any]:
+    try:
+        result = legacy_capture(str(path))
+        wait_result = _wait_for_capture_result(result)
+        return {
+            "method": "viewport.capture_to_file",
+            "status": "called",
+            "result": str(result),
+            "wait_result": _result_summary(wait_result),
+            "file_wait": _wait_for_screenshot_file(path),
+        }
+    except Exception as exc:  # noqa: BLE001 - fall back to renderer capture.
+        return {
+            "method": "viewport.capture_to_file",
+            "status": "failed",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+
+
+def _attempt_renderer_swapchain_capture(path: Path) -> dict[str, Any]:
+    try:
+        import omni.renderer_capture  # type: ignore
+
+        renderer = omni.renderer_capture.acquire_renderer_capture_interface()
+        capture = getattr(renderer, "capture_next_frame_swapchain", None)
         if not callable(capture):
             return {
+                "method": "renderer_capture.capture_next_frame_swapchain",
                 "status": "unavailable",
-                "reason": "active viewport has no capture_to_file method",
+                "reason": "capture_next_frame_swapchain is not callable",
             }
         result = capture(str(path))
-        wait = getattr(result, "wait", None)
-        if callable(wait):
-            wait()
+        wait_async = getattr(renderer, "wait_async_capture", None)
+        wait_result = _wait_for_capture_result(
+            wait_async() if callable(wait_async) else None
+        )
         return {
-            "status": "captured" if path.exists() else "capture_called_no_file",
-            "path": str(path),
+            "method": "renderer_capture.capture_next_frame_swapchain",
+            "status": "called",
             "result": str(result),
+            "wait_result": _result_summary(wait_result),
+            "file_wait": _wait_for_screenshot_file(path),
         }
-    except Exception as exc:  # noqa: BLE001 - screenshot is optional evidence.
-        return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
+    except Exception as exc:  # noqa: BLE001 - report the exact renderer error.
+        return {
+            "method": "renderer_capture.capture_next_frame_swapchain",
+            "status": "failed",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+
+
+def _wait_for_capture_result(result: Any) -> Any:
+    if result is None:
+        return None
+    for method_name in ("wait", "wait_for_result"):
+        method = getattr(result, method_name, None)
+        if callable(method):
+            value = method()
+            if inspect.isawaitable(value):
+                return _run_capture_awaitable(value)
+            return value
+    if inspect.isawaitable(result):
+        return _run_capture_awaitable(result)
+    return None
+
+
+def _run_capture_awaitable(awaitable: Any) -> Any:
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    if loop.is_running():
+        close = getattr(awaitable, "close", None)
+        if callable(close):
+            close()
+        return "event_loop_running_wait_skipped"
+    return loop.run_until_complete(awaitable)
+
+
+def _wait_for_screenshot_file(path: Path, *, max_updates: int = 120) -> dict[str, Any]:
+    if _png_info(path) is not None:
+        return {"status": "ready", "updates": 0}
+    try:
+        import omni.kit.app  # type: ignore
+
+        app = omni.kit.app.get_app()
+        update = getattr(app, "update", None) if app is not None else None
+        if not callable(update):
+            return {
+                "status": "unavailable",
+                "reason": "omni.kit.app.get_app().update is not callable",
+                "updates": 0,
+            }
+        for index in range(max_updates):
+            update()
+            if _png_info(path) is not None:
+                return {"status": "ready", "updates": index + 1}
+        return {"status": "not_ready", "updates": max_updates}
+    except Exception as exc:  # noqa: BLE001 - screenshot waiting is diagnostic.
+        return {
+            "status": "failed",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+
+
+def _captured_screenshot_record(
+    *,
+    path: Path,
+    method: str,
+    attempts: list[dict[str, Any]],
+    framed_paths: tuple[str, ...],
+    viewport_info: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    png = _png_info(path)
+    if png is None:
+        return None
+    return {
+        "status": "captured",
+        "path": str(path),
+        "method": method,
+        "file_size_bytes": path.stat().st_size,
+        "width": png["width"],
+        "height": png["height"],
+        "viewport_api_type": (viewport_info or {}).get("viewport_api_type"),
+        "camera_path": (viewport_info or {}).get("camera_path"),
+        "framed_paths": list(framed_paths),
+        "attempts": attempts,
+    }
+
+
+def _screenshot_unavailable(
+    path: Path,
+    *,
+    reason: str,
+    attempts: list[dict[str, Any]],
+    framed_paths: tuple[str, ...],
+    viewport_info: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    png = _png_info(path)
+    return {
+        "status": "unavailable",
+        "path": str(path),
+        "reason": reason,
+        "file_size_bytes": path.stat().st_size if path.exists() else 0,
+        "width": None if png is None else png["width"],
+        "height": None if png is None else png["height"],
+        "viewport_api_type": (viewport_info or {}).get("viewport_api_type"),
+        "camera_path": (viewport_info or {}).get("camera_path"),
+        "framed_paths": list(framed_paths),
+        "attempts": attempts,
+    }
+
+
+def _viewport_info(viewport: Any) -> dict[str, Any]:
+    camera = getattr(viewport, "camera_path", None)
+    return {
+        "viewport_api_type": type(viewport).__name__,
+        "camera_path": str(getattr(camera, "pathString", camera or "")) or None,
+    }
+
+
+def _png_info(path: Path) -> dict[str, int] | None:
+    if not path.is_file() or path.stat().st_size < 24:
+        return None
+    header = path.read_bytes()[:24]
+    if header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        return None
+    width, height = struct.unpack(">II", header[16:24])
+    if width <= 0 or height <= 0:
+        return None
+    return {"width": width, "height": height}
+
+
+def _last_attempt_reason(attempts: list[dict[str, Any]]) -> str:
+    for attempt in reversed(attempts):
+        if attempt.get("error"):
+            return f"{attempt.get('method')}: {attempt.get('error')}"
+        if attempt.get("reason"):
+            return f"{attempt.get('method')}: {attempt.get('reason')}"
+        if attempt.get("status") == "called":
+            return f"{attempt.get('method')} did not create a readable PNG"
+    return "no screenshot capture attempts were available"
+
+
+def _enforce_required_screenshot(record: dict[str, Any], fixture_kind: str) -> None:
+    if record.get("status") == "captured":
+        return
+    raise RuntimeError(
+        "Viewport screenshot capture is required for "
+        f"{fixture_kind} but failed: {json.dumps(record, sort_keys=True)}"
+    )
 
 
 def _validate_live_extension_outputs(
     *,
     evidence: dict[str, Any],
-    controller: ExtensionController,
-    latest_frame_path: Path,
-    frame_trace_path: Path,
-    config_path: Path,
-    replicator_dir: Path,
 ) -> None:
-    if not latest_frame_path.is_file():
-        raise RuntimeError(f"Latest frame export is missing: {latest_frame_path}")
-    if not frame_trace_path.is_file():
-        raise RuntimeError(f"JSONL trace export is missing: {frame_trace_path}")
-    if not config_path.is_file():
-        raise RuntimeError(f"Config export is missing: {config_path}")
     for probe_name in (
         "ui_control_inventory",
         "ui_editable_model_probe",
@@ -1117,61 +2165,114 @@ def _validate_live_extension_outputs(
             "Kit extension manager did not prove extension enabled: "
             f"{manager_status}"
         )
+    scenarios = evidence.get("object_attach_live_qa", {})
+    for required in ("generic_scene", "molmo_floorplan1"):
+        if required not in scenarios:
+            raise RuntimeError(f"Missing object-attach scenario evidence: {required}")
+        _validate_attach_scenario(required, scenarios[required])
+    molmo_open = evidence.get("molmo_floorplan1_open", {})
+    if molmo_open.get("status") != "opened":
+        raise RuntimeError(f"Molmo FloorPlan1 did not open in Kit: {molmo_open}")
+    if int(molmo_open.get("prim_count", 0)) <= 0:
+        raise RuntimeError(f"Molmo FloorPlan1 open has no prims: {molmo_open}")
+
+
+def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
+    if result.get("status") != "passed":
+        raise RuntimeError(f"{name} scenario did not pass: {result}")
+    artifacts = result.get("artifacts", {})
+    latest_frame_path = Path(str(artifacts.get("latest_frame_path", "")))
+    frame_trace_path = Path(str(artifacts.get("frame_trace_path", "")))
+    config_path = Path(str(artifacts.get("config_path", "")))
+    replicator_dir = Path(str(artifacts.get("replicator_dir", "")))
+    for required_path in (latest_frame_path, frame_trace_path, config_path):
+        if not required_path.is_file():
+            raise RuntimeError(f"{name} evidence artifact is missing: {required_path}")
     trace_lines = frame_trace_path.read_text(encoding="utf-8").splitlines()
-    if not trace_lines:
-        raise RuntimeError("JSONL trace has no AudioSensorFrame records.")
     frames = [frame_from_trace_dict(json.loads(line)) for line in trace_lines]
-    if len(frames) < 2:
-        raise RuntimeError("JSONL trace must include pre- and post-move frames.")
-    source_move = evidence.get("source_move_changed_frame", {})
-    if source_move.get("status") != "passed":
-        raise RuntimeError(f"Source move did not change the next frame: {source_move}")
+    if len(frames) < 3:
+        raise RuntimeError(f"{name} JSONL trace must include at least three frames.")
+    selected_object = str(result.get("selected_object_path", ""))
+    if not selected_object or selected_object in {"/World", "/FloorPlan1_physics"}:
+        raise RuntimeError(f"{name} selected object is not a real object path.")
+    if name == "molmo_floorplan1":
+        if result.get("usd_path") != str(MOLMO_FLOORPLAN1_USD):
+            raise RuntimeError(f"Molmo scenario used the wrong USD: {result}")
+        lowered = selected_object.lower()
+        if not any(
+            word in lowered
+            for word in (
+                "refrigerator",
+                "fridge",
+                "oven",
+                "sink",
+                "cabinet",
+                "counter",
+                "island",
+                "microwave",
+            )
+        ):
+            raise RuntimeError(
+                "Molmo selected object is not a meaningful kitchen object: "
+                f"{selected_object}"
+            )
+    discovery = result.get("discovery", {})
+    if discovery.get("selected_object_found") is not True:
+        raise RuntimeError(f"{name} discovery did not include selected object.")
+    attachment = result.get("source_object_attachment", {})
+    if attachment.get("source_attached_to_object") is not True:
+        raise RuntimeError(f"{name} did not attach source to object: {attachment}")
+    if attachment.get("attached_object_prim_path") != selected_object:
+        raise RuntimeError(f"{name} attached wrong object: {attachment}")
+    object_move = result.get("object_move_changed_frame", {})
+    if object_move.get("status") != "passed":
+        raise RuntimeError(f"{name} parent move did not change frame: {object_move}")
+    before = result.get("frame_before_parent_move", {})
+    after = result.get("frame_after_parent_move", {})
+    if before.get("sector") == after.get("sector"):
+        raise RuntimeError(f"{name} parent move did not change bearing sector.")
+    if before.get("bearing_deg") == after.get("bearing_deg"):
+        raise RuntimeError(f"{name} parent move did not change bearing.")
+    if before.get("source_position_m") == after.get("source_position_m"):
+        raise RuntimeError(f"{name} parent move did not change source pose.")
+    offset_before = result.get("source_transform_before_local_offset_change", {})
+    offset_after = result.get("source_transform_after_local_offset_change", {})
+    if offset_before.get("position_world") == offset_after.get("position_world"):
+        raise RuntimeError(f"{name} local offset did not change source world pose.")
     config = json.loads(config_path.read_text(encoding="utf-8"))
-    primitives = (
-        ()
-        if controller.sensor is None
-        else tuple(controller.sensor.latest_debug_primitives)
+    object_binding = config.get("object_binding", {})
+    if object_binding.get("attached") is not True:
+        raise RuntimeError(f"{name} config did not preserve object attachment.")
+    if object_binding.get("attached_object_prim_path") != selected_object:
+        raise RuntimeError(f"{name} config preserved wrong object binding.")
+    if object_binding.get("source_local_offset_m") != result.get("local_offset_after"):
+        raise RuntimeError(f"{name} config preserved wrong local offset.")
+    import_result = result.get("config_import_result", {})
+    if import_result.get("status") != "passed":
+        raise RuntimeError(f"{name} config import/update failed: {import_result}")
+    if import_result.get("attached_object_prim_path") != selected_object:
+        raise RuntimeError(f"{name} import did not preserve object path.")
+    if import_result.get("source_local_offset_m") != result.get("local_offset_after"):
+        raise RuntimeError(f"{name} import did not preserve local offset.")
+    missing = result.get("missing_object_probe", {})
+    if missing.get("status") != "passed":
+        raise RuntimeError(f"{name} missing-object status failed: {missing}")
+    replicator_status = result.get("config_export", {}).get("recording", {}).get(
+        "replicator",
+        {},
     )
-    primitive_kinds = sorted({primitive.kind for primitive in primitives})
-    for required_kind in ("microphone", "source", "bearing_ray", "sector_wedge"):
-        if required_kind not in primitive_kinds:
-            raise RuntimeError(f"Overlay primitive kind missing: {required_kind}")
-    replicator_status = config.get("recording", {}).get("replicator", {})
     if int(replicator_status.get("write_count", 0)) < 1:
-        raise RuntimeError("Replicator did not record a frame.")
-    replicator_files = sorted(
-        path for path in replicator_dir.iterdir() if path.is_file()
-    )
+        raise RuntimeError(f"{name} Replicator did not record a frame.")
     payload_files = [
-        path for path in replicator_files if path.name.startswith("audio_sensor_frame_")
+        path
+        for path in sorted(replicator_dir.iterdir())
+        if path.is_file() and path.name.startswith("audio_sensor_frame_")
     ]
     if not payload_files:
-        raise RuntimeError("Replicator output has no frame payload artifact.")
+        raise RuntimeError(f"{name} has no Replicator frame payload artifact.")
     payload = json.loads(payload_files[0].read_text(encoding="utf-8"))
     if payload.get("frame", {}).get("schema_version") != frames[-1].schema_version:
-        raise RuntimeError("Replicator payload does not carry AudioSensorFrame v1.")
-
-    evidence.update(
-        {
-            "exported_latest_frame_path": str(latest_frame_path),
-            "exported_jsonl_path": str(frame_trace_path),
-            "exported_config_path": str(config_path),
-            "jsonl_frame_count": len(frames),
-            "jsonl_backend_ids": sorted({frame.backend_id for frame in frames}),
-            "latest_frame_id": frames[-1].frame_id,
-            "overlay_primitive_count": len(primitives),
-            "overlay_primitive_kinds": primitive_kinds,
-            "overlay_primitives": debug_primitives_to_dicts(primitives),
-            "replicator_status": replicator_status,
-            "replicator_artifacts": [str(path) for path in replicator_files],
-            "replicator_payload_schema": payload.get("schema_version"),
-            "replicator_payload_frame_schema": payload.get("frame", {}).get(
-                "schema_version"
-            ),
-            "controller_status_message": controller.state.status_message,
-            "controller_error_message": controller.state.error_message,
-        }
-    )
+        raise RuntimeError(f"{name} Replicator payload frame schema mismatch.")
 
 
 def _try_enable_extension_manager(
@@ -1436,6 +2537,46 @@ def _prepare_output_dir(path: Path) -> None:
     for item in path.iterdir():
         if item.is_file():
             item.unlink()
+
+
+def _probe_alex_molmo_fixture() -> dict[str, Any]:
+    alex_root = Path("/home/pacquadr/Desktop/Alex-robot")
+    usd_path = (
+        alex_root
+        / "assets"
+        / "usd"
+        / "scenes"
+        / "ithor"
+        / "FloorPlan1_physics"
+        / "scene.usda"
+    )
+    branch = None
+    branch_error = None
+    try:
+        import subprocess
+
+        completed = subprocess.run(
+            ["git", "-C", str(alex_root), "rev-parse", "--abbrev-ref", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        branch = completed.stdout.strip()
+    except Exception as exc:  # noqa: BLE001 - fixture is optional evidence.
+        branch_error = f"{type(exc).__name__}: {exc}"
+    return {
+        "status": "available" if usd_path.is_file() else "missing_usd",
+        "alex_root": str(alex_root),
+        "branch": branch,
+        "branch_error": branch_error,
+        "required_usd_path": str(usd_path),
+        "required_usd_exists": usd_path.is_file(),
+        "documented_download_command": (
+            "ms-download --type usd --install-dir assets/usd --scenes ithor"
+        ),
+        "fixture_used": usd_path.is_file(),
+        "procedural_fallback": None if usd_path.is_file() else "/World/Oven",
+    }
 
 
 if __name__ == "__main__":
