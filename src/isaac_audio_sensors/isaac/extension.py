@@ -42,6 +42,7 @@ class IsaacAudioArraySensor:
     stage: Any | None = None
     room: RoomAcousticsSpec | None = None
     array_prim_path: str | None = None
+    source_prim_path: str | None = None
     robot_base_prim_path: str | None = None
     scene_binding_cfg: IsaacAudioSceneBindingCfg | None = None
     usd_time_code_scale: float | None = None
@@ -88,6 +89,7 @@ class IsaacAudioArraySensor:
         *,
         stage: Any,
         array_prim_path: str,
+        source_prim_path: str | None = None,
         backend: str = "tdoa_synthetic",
         timestamp_ms: int = 0,
         robot_base_prim_path: str | None = None,
@@ -107,6 +109,7 @@ class IsaacAudioArraySensor:
             stage,
             timestamp_ms=timestamp_ms,
             array_prim_path=array_prim_path,
+            source_prim_path=source_prim_path,
             robot_base_prim_path=robot_base_prim_path,
         )
         if len(snapshot.arrays) != 1:
@@ -121,6 +124,7 @@ class IsaacAudioArraySensor:
             stage=stage,
             room=room,
             array_prim_path=array_prim_path,
+            source_prim_path=source_prim_path,
             robot_base_prim_path=robot_base_prim_path,
             usd_time_code_scale=usd_time_code_scale,
             usd_time_code_offset=usd_time_code_offset,
@@ -392,6 +396,7 @@ class IsaacAudioArraySensor:
         source_prim_path: str | None,
         usd_time_code: Any | None,
     ) -> AudioSceneSnapshot:
+        effective_source_prim_path = source_prim_path or self.source_prim_path
         if self.stage is not None:
             if self.scene_binding_cfg is not None:
                 binding = self.scene_binding_cfg
@@ -400,7 +405,7 @@ class IsaacAudioArraySensor:
                     self.stage,
                     timestamp_ms=timestamp_ms,
                     robot_base_prim_path=binding.robot_base_prim_path,
-                    source_prim_path=source_prim_path,
+                    source_prim_path=effective_source_prim_path,
                     usd_time_code=usd_time_code,
                     discovery_cfg=binding.to_discovery_cfg(),
                     preferred_array=binding.preferred_array,
@@ -417,7 +422,7 @@ class IsaacAudioArraySensor:
                     timestamp_ms=timestamp_ms,
                     array_prim_path=self.array_prim_path,
                     robot_base_prim_path=self.robot_base_prim_path,
-                    source_prim_path=source_prim_path,
+                    source_prim_path=effective_source_prim_path,
                     usd_time_code=usd_time_code,
                     diagnostics_out=diagnostics,
                 )
@@ -440,13 +445,15 @@ class IsaacAudioArraySensor:
         if self.room is not None:
             scene = replace(scene, room=self.room)
 
-        if source_prim_path is None:
+        if effective_source_prim_path is None:
             return scene
         sources = tuple(
-            source for source in scene.sources if source.prim_path == source_prim_path
+            source
+            for source in scene.sources
+            if source.prim_path == effective_source_prim_path
         )
         if not sources:
-            raise ValueError(f"No source prim found at {source_prim_path!r}.")
+            raise ValueError(f"No source prim found at {effective_source_prim_path!r}.")
         return AudioSceneSnapshot(
             stage_id=scene.stage_id,
             timestamp_ms=scene.timestamp_ms,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
@@ -112,6 +113,92 @@ def attach_sound_source_attrs(
     return attrs
 
 
+def attach_source_object_binding_attrs(
+    prim: Any,
+    *,
+    object_prim_path: str,
+    local_offset_m: tuple[float, float, float],
+) -> dict[str, object]:
+    """Attach object-binding metadata and a local source offset to a source prim."""
+
+    if object_prim_path.strip() == "":
+        raise ValueError("object_prim_path must be non-empty.")
+    offset = tuple(float(component) for component in local_offset_m)
+    attrs: dict[str, object] = {
+        "ias:attached_object_prim_path": object_prim_path,
+        "ias:source_local_offset_m": offset,
+    }
+    for name, value in attrs.items():
+        _set_attr(prim, name, value)
+    _set_xform_pose(prim, position=offset, orientation=None)
+    return attrs
+
+
+def clear_source_object_binding_attrs(prim: Any) -> None:
+    """Remove object-binding metadata from a source prim when it is detached."""
+
+    clear_prim_attrs(
+        prim,
+        (
+            "ias:attached_object_prim_path",
+            "ias:source_local_offset_m",
+        ),
+    )
+
+
+def clear_prim_attrs(prim: Any, names: tuple[str, ...]) -> None:
+    """Best-effort removal of authored attributes on fake or real USD prims."""
+
+    if hasattr(prim, "attributes"):
+        for name in names:
+            prim.attributes.pop(name, None)
+        return
+    for name in names:
+        if hasattr(prim, "RemoveProperty"):
+            with suppress(Exception):
+                prim.RemoveProperty(name)
+
+
+def set_prim_xform_pose(
+    prim: Any,
+    *,
+    position: tuple[float, float, float] | None = None,
+    orientation: tuple[float, float, float, float] | None = None,
+) -> None:
+    """Set a prim-local transform on fake or USD prims."""
+
+    _set_xform_pose(prim, position=position, orientation=orientation)
+
+
+def move_prim_to_path(
+    stage: Any,
+    *,
+    source_path: str,
+    dest_path: str,
+    prim_type: str = "Xform",
+) -> Any:
+    """Move a simple prim to a new path, preserving authored attributes.
+
+    The helper copies attributes and then removes the old prim when the stage API
+    exposes a removal path. It intentionally does not copy child prims.
+    """
+
+    _require_stage(stage)
+    if source_path == dest_path:
+        return get_or_define_prim(stage, prim_path=dest_path, prim_type=prim_type)
+    source = _existing_prim(stage, source_path)
+    effective_type = _prim_type_name(source) if source is not None else prim_type
+    dest = get_or_define_prim(
+        stage,
+        prim_path=dest_path,
+        prim_type=effective_type or prim_type,
+    )
+    if source is not None:
+        _copy_prim_attrs(source, dest)
+        _remove_prim(stage, source_path)
+    return dest
+
+
 def create_listener_prim(
     stage: Any,
     *,
@@ -217,6 +304,66 @@ def get_or_define_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any:
     return stage.DefinePrim(prim_path, prim_type)
 
 
+def _prim_type_name(prim: Any | None) -> str:
+    if prim is None:
+        return ""
+    if hasattr(prim, "GetTypeName"):
+        return str(prim.GetTypeName())
+    return str(getattr(prim, "type_name", ""))
+
+
+def _copy_prim_attrs(source: Any, dest: Any) -> None:
+    if hasattr(source, "attributes") and hasattr(dest, "attributes"):
+        dest.attributes.update(dict(source.attributes))
+        return
+    if not hasattr(source, "GetAttributes") or not hasattr(dest, "CreateAttribute"):
+        return
+    for attr in source.GetAttributes():
+        try:
+            name = attr.GetName()
+            value = attr.Get()
+            type_name = attr.GetTypeName() if hasattr(attr, "GetTypeName") else None
+            custom = attr.IsCustom() if hasattr(attr, "IsCustom") else True
+            dest_attr = dest.CreateAttribute(name, type_name, custom=custom)
+            if hasattr(dest_attr, "Set"):
+                dest_attr.Set(value)
+        except Exception:
+            continue
+
+
+def _remove_prim(stage: Any, prim_path: str) -> None:
+    if hasattr(stage, "RemovePrim"):
+        try:
+            stage.RemovePrim(_usd_path(prim_path))
+            return
+        except Exception:
+            try:
+                stage.RemovePrim(prim_path)
+                return
+            except Exception:
+                pass
+    prims = getattr(stage, "_prims", None)
+    if isinstance(prims, list):
+        stage._prims = [prim for prim in prims if _prim_path(prim) != prim_path]
+
+
+def _usd_path(path: str) -> Any:
+    try:
+        from pxr import Sdf  # type: ignore
+    except ImportError:
+        return path
+    try:
+        return Sdf.Path(path)
+    except Exception:
+        return path
+
+
+def _prim_path(prim: Any) -> str:
+    if hasattr(prim, "GetPath"):
+        return str(prim.GetPath())
+    return str(getattr(prim, "path", ""))
+
+
 def _require_stage(stage: Any) -> None:
     if stage is None or not hasattr(stage, "DefinePrim"):
         raise ValueError("stage must provide a DefinePrim method.")
@@ -224,9 +371,13 @@ def _require_stage(stage: Any) -> None:
 
 def _existing_prim(stage: Any, prim_path: str) -> Any | None:
     if hasattr(stage, "GetPrimAtPath"):
-        prim = stage.GetPrimAtPath(prim_path)
-        if _prim_is_valid(prim):
-            return prim
+        for candidate_path in (_usd_path(prim_path), prim_path):
+            try:
+                prim = stage.GetPrimAtPath(candidate_path)
+            except TypeError:
+                continue
+            if _prim_is_valid(prim):
+                return prim
     if hasattr(stage, "Traverse"):
         for prim in stage.Traverse():
             path = getattr(prim, "path", None)

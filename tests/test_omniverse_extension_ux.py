@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -10,17 +11,263 @@ import textwrap
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
+import pytest
+
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback.
     import tomli as tomllib
 
 from isaac_audio_sensors.isaac.extension_ui import (
+    OUTPUT_ROOT_ENV_VAR,
     CurrentStageContext,
     ExtensionController,
+    _gui_output_root,
+    _resolve_gui_output_path,
+    _stage_has_prim,
     current_omni_stage_context,
 )
 from isaac_audio_sensors.isaac.replicator import PAYLOAD_SCHEMA_VERSION
+
+
+def _write_test_png(path: Path, *, width: int = 13, height: int = 17) -> None:
+    path.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        + b"\x00\x00\x00\r"
+        + b"IHDR"
+        + width.to_bytes(4, "big")
+        + height.to_bytes(4, "big")
+        + b"\x08\x02\x00\x00\x00"
+        + b"\x00\x00\x00\x00"
+    )
+
+
+def _load_live_ux_script(monkeypatch):
+    repo = Path(__file__).resolve().parents[1]
+    monkeypatch.syspath_prepend(str(repo / "scripts"))
+    monkeypatch.syspath_prepend(str(repo / "exts" / "isaac_audio_sensors.omni"))
+    script_path = repo / "scripts" / "live_omniverse_extension_ux.py"
+    spec = importlib.util.spec_from_file_location(
+        "live_omniverse_extension_ux_for_tests",
+        script_path,
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _install_viewport_modules(
+    monkeypatch,
+    *,
+    viewport: object | None,
+    utility_capture: object | None = None,
+    renderer: object | None = None,
+    app: object | None = None,
+) -> SimpleNamespace:
+    omni = ModuleType("omni")
+    omni.__path__ = []
+    kit = ModuleType("omni.kit")
+    kit.__path__ = []
+    omni_ext = ModuleType("omni.ext")
+    viewport_pkg = ModuleType("omni.kit.viewport")
+    viewport_pkg.__path__ = []
+    utility = ModuleType("omni.kit.viewport.utility")
+    framed: list[tuple[str, ...]] = []
+
+    class IExt:
+        pass
+
+    omni_ext.IExt = IExt
+    utility.get_active_viewport = lambda: viewport
+
+    def frame_viewport_prims(_viewport: object, *, prims: list[str]) -> bool:
+        framed.append(tuple(prims))
+        return True
+
+    utility.frame_viewport_prims = frame_viewport_prims
+    if utility_capture is not None:
+        utility.capture_viewport_to_file = utility_capture
+    viewport_pkg.utility = utility
+    kit.viewport = viewport_pkg
+    omni.kit = kit
+    omni.ext = omni_ext
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ext", omni_ext)
+    monkeypatch.setitem(sys.modules, "omni.kit", kit)
+    monkeypatch.setitem(sys.modules, "omni.kit.viewport", viewport_pkg)
+    monkeypatch.setitem(sys.modules, "omni.kit.viewport.utility", utility)
+
+    if renderer is not None:
+        renderer_module = ModuleType("omni.renderer_capture")
+        renderer_module.acquire_renderer_capture_interface = lambda: renderer
+        omni.renderer_capture = renderer_module
+        monkeypatch.setitem(sys.modules, "omni.renderer_capture", renderer_module)
+
+    if app is not None:
+        app_module = ModuleType("omni.kit.app")
+        app_module.get_app = lambda: app
+        kit.app = app_module
+        monkeypatch.setitem(sys.modules, "omni.kit.app", app_module)
+
+    return SimpleNamespace(framed=framed)
+
+
+def test_live_ux_screenshot_uses_viewport_utility_capture(monkeypatch, tmp_path):
+    path = tmp_path / "utility.viewport.png"
+    viewport = SimpleNamespace(camera_path=SimpleNamespace(pathString="/World/Camera"))
+
+    def capture_viewport_to_file(_viewport: object, *, file_path: str) -> object:
+        _write_test_png(Path(file_path), width=31, height=19)
+        return SimpleNamespace(wait_for_result=lambda: "done")
+
+    env = _install_viewport_modules(
+        monkeypatch,
+        viewport=viewport,
+        utility_capture=capture_viewport_to_file,
+    )
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(
+        path,
+        framed_paths=("/World/Oven", "/World/Oven/SpeakerA"),
+    )
+
+    assert record["status"] == "captured"
+    assert record["path"] == str(path)
+    assert record["method"] == "viewport_utility.capture_viewport_to_file"
+    assert record["width"] == 31
+    assert record["height"] == 19
+    assert record["file_size_bytes"] > 0
+    assert record["viewport_api_type"] == "SimpleNamespace"
+    assert record["camera_path"] == "/World/Camera"
+    assert record["framed_paths"] == ["/World/Oven", "/World/Oven/SpeakerA"]
+    assert env.framed == [("/World/Oven", "/World/Oven/SpeakerA")]
+    assert record["attempts"][0]["method"] == "viewport_utility.frame_viewport_prims"
+    assert record["attempts"][1]["method"] == (
+        "viewport_utility.capture_viewport_to_file"
+    )
+
+
+def test_live_ux_screenshot_falls_back_to_legacy_capture(monkeypatch, tmp_path):
+    path = tmp_path / "legacy.viewport.png"
+
+    class LegacyViewport:
+        camera_path = SimpleNamespace(pathString="/World/LegacyCamera")
+
+        def capture_to_file(self, file_path: str) -> object:
+            _write_test_png(Path(file_path), width=23, height=29)
+            return SimpleNamespace(wait=lambda: "done")
+
+    _install_viewport_modules(monkeypatch, viewport=LegacyViewport())
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(path)
+
+    assert record["status"] == "captured"
+    assert record["method"] == "viewport.capture_to_file"
+    assert record["width"] == 23
+    assert record["height"] == 29
+    methods = [attempt["method"] for attempt in record["attempts"]]
+    assert methods == [
+        "viewport_utility.capture_viewport_to_file",
+        "viewport.capture_to_file",
+    ]
+
+
+def test_live_ux_screenshot_waits_for_scheduled_kit_capture(monkeypatch, tmp_path):
+    path = tmp_path / "scheduled.viewport.png"
+    viewport = SimpleNamespace(camera_path=SimpleNamespace(pathString="/World/Camera"))
+
+    class App:
+        updates = 0
+
+        def update(self) -> None:
+            self.updates += 1
+            if self.updates == 3:
+                _write_test_png(path, width=37, height=39)
+
+    def capture_viewport_to_file(_viewport: object, *, file_path: str) -> object:
+        assert file_path == str(path)
+        return SimpleNamespace(wait_for_result=lambda: None)
+
+    app = App()
+    _install_viewport_modules(
+        monkeypatch,
+        viewport=viewport,
+        utility_capture=capture_viewport_to_file,
+        app=app,
+    )
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(path)
+
+    assert record["status"] == "captured"
+    assert record["method"] == "viewport_utility.capture_viewport_to_file"
+    assert record["width"] == 37
+    assert record["height"] == 39
+    assert record["attempts"][0]["file_wait"] == {"status": "ready", "updates": 3}
+
+
+def test_live_ux_screenshot_falls_back_to_renderer_capture(monkeypatch, tmp_path):
+    path = tmp_path / "renderer.viewport.png"
+    viewport = SimpleNamespace(camera_path=SimpleNamespace(pathString="/World/Camera"))
+
+    class RendererCapture:
+        def capture_next_frame_swapchain(self, file_path: str) -> object:
+            _write_test_png(Path(file_path), width=41, height=43)
+            return "scheduled"
+
+        def wait_async_capture(self) -> object:
+            return "done"
+
+    _install_viewport_modules(
+        monkeypatch,
+        viewport=viewport,
+        renderer=RendererCapture(),
+    )
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(path)
+
+    assert record["status"] == "captured"
+    assert record["method"] == "renderer_capture.capture_next_frame_swapchain"
+    assert record["width"] == 41
+    assert record["height"] == 43
+    methods = [attempt["method"] for attempt in record["attempts"]]
+    assert methods == [
+        "viewport_utility.capture_viewport_to_file",
+        "viewport.capture_to_file",
+        "renderer_capture.capture_next_frame_swapchain",
+    ]
+
+
+def test_live_ux_screenshot_records_no_active_viewport(monkeypatch, tmp_path):
+    path = tmp_path / "missing.viewport.png"
+    _install_viewport_modules(monkeypatch, viewport=None)
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(path)
+
+    assert record["status"] == "unavailable"
+    assert record["path"] == str(path)
+    assert record["reason"] == "no active viewport"
+    assert record["file_size_bytes"] == 0
+    assert record["width"] is None
+    assert record["height"] is None
+    assert record["attempts"] == []
+
+
+def test_live_ux_required_screenshot_raises_for_unavailable(monkeypatch):
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    with pytest.raises(RuntimeError, match="Viewport screenshot capture is required"):
+        live_ux._enforce_required_screenshot(
+            {"status": "unavailable", "reason": "no active viewport"},
+            "generic_scene",
+        )
 
 
 class _FakePrim:
@@ -56,6 +303,93 @@ class _FakeStage:
             if prim.path == path:
                 return prim
         return None
+
+    def RemovePrim(self, path: object) -> bool:
+        path_string = str(path)
+        before = len(self._prims)
+        self._prims = [
+            prim
+            for prim in self._prims
+            if prim.path != path_string and not prim.path.startswith(f"{path_string}/")
+        ]
+        return len(self._prims) != before
+
+
+def test_extension_ui_stage_has_prim_uses_sdf_path_for_strict_isaac_stage(
+    monkeypatch,
+):
+    pxr = ModuleType("pxr")
+    sdf = ModuleType("pxr.Sdf")
+
+    class SdfPath:
+        def __init__(self, value: str) -> None:
+            self.value = value
+
+        def __str__(self) -> str:
+            return self.value
+
+    sdf.Path = SdfPath
+    pxr.Sdf = sdf
+    monkeypatch.setitem(sys.modules, "pxr", pxr)
+    monkeypatch.setitem(sys.modules, "pxr.Sdf", sdf)
+
+    class StrictStage(_FakeStage):
+        def __init__(self, prims: tuple[_FakePrim, ...]) -> None:
+            super().__init__(prims)
+            self.calls: list[str] = []
+
+        def GetPrimAtPath(self, path: object) -> _FakePrim | None:
+            self.calls.append(type(path).__name__)
+            if isinstance(path, str):
+                raise TypeError("expected Sdf.Path")
+            return super().GetPrimAtPath(str(path))
+
+    stage = StrictStage((_FakePrim("/FloorPlan1_physics/Geometry/fridge", "Xform"),))
+
+    assert _stage_has_prim(stage, "/FloorPlan1_physics/Geometry/fridge") is True
+    assert stage.calls == ["SdfPath"]
+
+
+def test_extension_ui_stage_has_prim_falls_back_to_traverse_after_type_error():
+    class RejectingStage(_FakeStage):
+        def GetPrimAtPath(self, path: object) -> _FakePrim | None:
+            raise TypeError(f"unsupported path type: {type(path).__name__}")
+
+    stage = RejectingStage((_FakePrim("/World/Oven", "Xform"),))
+
+    assert _stage_has_prim(stage, "/World/Oven") is True
+
+
+def test_live_ux_stage_helpers_use_sdf_path_for_strict_isaac_stage(
+    monkeypatch,
+):
+    live_ux = _load_live_ux_script(monkeypatch)
+    pxr = ModuleType("pxr")
+    sdf = ModuleType("pxr.Sdf")
+
+    class SdfPath:
+        def __init__(self, value: str) -> None:
+            self.value = value
+
+        def __str__(self) -> str:
+            return self.value
+
+    sdf.Path = SdfPath
+    pxr.Sdf = sdf
+    monkeypatch.setitem(sys.modules, "pxr", pxr)
+    monkeypatch.setitem(sys.modules, "pxr.Sdf", sdf)
+
+    class StrictStage(_FakeStage):
+        def GetPrimAtPath(self, path: object) -> _FakePrim | None:
+            if isinstance(path, str):
+                raise TypeError("expected Sdf.Path")
+            return super().GetPrimAtPath(str(path))
+
+    prim = _FakePrim("/World/Oven", "Xform")
+    stage = StrictStage((prim,))
+
+    assert live_ux._stage_get_prim_at_path(stage, "/World/Oven") is prim
+    assert live_ux._stage_has_prim(stage, "/World/Oven") is True
 
 
 class _FakeModel:
@@ -556,6 +890,77 @@ def test_omni_extension_entrypoint_initializes_kit_iext_base():
     }
 
 
+def test_extension_ui_resolves_relative_outputs_against_repo(monkeypatch):
+    monkeypatch.delenv(OUTPUT_ROOT_ENV_VAR, raising=False)
+    repo = Path(__file__).resolve().parents[1]
+    root = (repo / "outputs" / "isaac_audio_sensors").resolve()
+
+    assert _gui_output_root() == root
+    assert _resolve_gui_output_path("gui_manual_binding.json") == (
+        root / "gui_manual_binding.json"
+    )
+    assert _resolve_gui_output_path("manual/binding.json") == (
+        root / "manual" / "binding.json"
+    )
+    assert _resolve_gui_output_path(
+        "outputs/isaac_audio_sensors/gui_manual_binding.json"
+    ) == (root / "gui_manual_binding.json")
+
+
+def test_extension_controller_config_paths_use_output_root_env(
+    monkeypatch,
+    tmp_path,
+):
+    output_root = tmp_path / "ias_outputs"
+    monkeypatch.setenv(OUTPUT_ROOT_ENV_VAR, str(output_root))
+    controller = ExtensionController()
+    controller.state.source_prim_path = "/World/Oven/SpeakerA"
+    controller.state.object_prim_path = "/World/Oven"
+    controller.state.object_label = "Oven"
+    controller.state.source_attached_to_object = True
+    controller.state.attached_object_prim_path = "/World/Oven"
+    controller.state.source_local_offset_x_m = 0.25
+    controller.state.source_local_offset_y_m = 0.5
+    controller.state.source_local_offset_z_m = 0.75
+
+    controller.state.config_export_path = "gui_manual_binding.json"
+    path = controller.export_config_summary()
+
+    assert path == output_root / "gui_manual_binding.json"
+    summary = json.loads(path.read_text(encoding="utf-8"))
+    assert summary["source"]["prim_path"] == "/World/Oven/SpeakerA"
+    assert summary["object_binding"] == {
+        "attached": True,
+        "attached_object_prim_path": "/World/Oven",
+        "selected_object_label": "Oven",
+        "selected_object_prim_path": "/World/Oven",
+        "source_local_offset_m": [0.25, 0.5, 0.75],
+    }
+    assert summary["lifecycle"]["writer_path"] == str(
+        output_root / "extension_trace.frames.jsonl"
+    )
+
+    imported = ExtensionController()
+    imported.state.config_import_path = "gui_manual_binding.json"
+    assert imported.import_config_summary() == path
+    assert imported.state.config_import_path == "gui_manual_binding.json"
+    assert imported.state.array_prim_path == "/World/Rig/AudioArray"
+    assert imported.state.source_prim_path == "/World/Oven/SpeakerA"
+    assert imported.state.object_prim_path == "/World/Oven"
+    assert imported.state.source_attached_to_object is True
+    assert imported.state.attached_object_prim_path == "/World/Oven"
+    assert imported.state.source_local_offset_x_m == 0.25
+    assert imported.state.source_local_offset_y_m == 0.5
+    assert imported.state.source_local_offset_z_m == 0.75
+
+    controller.state.config_export_path = "manual/binding.json"
+    assert controller.export_config_summary() == output_root / "manual" / "binding.json"
+
+    absolute_path = tmp_path / "absolute_binding.json"
+    controller.state.config_export_path = str(absolute_path)
+    assert controller.export_config_summary() == absolute_path
+
+
 def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     stage = _FakeStage(
         (_FakePrim("/World", "Xform", {"xformOp:translate": (0, 0, 0)}),)
@@ -697,6 +1102,255 @@ def test_extension_controller_source_position_read_apply_presets_and_drag_update
     assert controller.state.latest_source_position_m == (0.0, -2.0, 0.0)
 
 
+def test_extension_controller_attaches_source_to_object_and_motion_updates_frame(
+    tmp_path,
+):
+    oven = _FakePrim(
+        "/World/Oven",
+        "Xform",
+        {"xformOp:translate": (2.0, 0.0, 0.0)},
+    )
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            oven,
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
+
+    assert controller.author_array(stage=stage) is not None
+    assert (
+        controller.use_selected_as_object(
+            stage=stage,
+            selected_paths=("/World/Oven",),
+        )
+        == "/World/Oven"
+    )
+    attached = controller.attach_source_to_object(stage=stage)
+
+    assert attached is not None
+    assert attached.prim_path == "/World/Oven/SpeakerA"
+    source = stage.GetPrimAtPath("/World/Oven/SpeakerA")
+    assert source is not None
+    assert source.attributes["ias:source_id"] == "speaker_a"
+    assert source.attributes["ias:class_label"] == "Speech"
+    assert source.attributes["ias:audio_asset_path"] == "generated://impulse"
+    assert source.attributes["ias:attached_object_prim_path"] == "/World/Oven"
+    assert source.attributes["ias:source_local_offset_m"] == (0.0, 0.0, 0.0)
+    assert source.attributes["xformOp:translate"] == (0.0, 0.0, 0.0)
+    assert "ias:position_world" not in source.attributes
+
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    first_frame = controller.update_sensor()
+    oven.attributes["xformOp:translate"] = (0.0, 2.0, 0.0)
+    moved_frame = controller.update_sensor()
+
+    assert first_frame is not None
+    assert moved_frame is not None
+    first_detection = first_frame.detections[0]
+    moved_detection = moved_frame.detections[0]
+    assert first_detection.source_pose.position_m == (2.0, 0.0, 0.0)
+    assert first_detection.doa.bearing_sector == "straight"
+    assert moved_detection.source_pose.position_m == (0.0, 2.0, 0.0)
+    assert moved_detection.doa.estimated_bearing_deg == 90.0
+    assert moved_detection.doa.bearing_sector == "right"
+    assert controller.state.latest_source_prim_path == "/World/Oven/SpeakerA"
+    assert controller.state.latest_source_position_m == (0.0, 2.0, 0.0)
+
+    detached = controller.detach_source_from_object(stage=stage)
+    assert detached is not None
+    detached_source = stage.GetPrimAtPath("/World/Sources/SpeakerA")
+    assert detached_source is not None
+    assert stage.GetPrimAtPath("/World/Oven/SpeakerA") is None
+    assert "ias:attached_object_prim_path" not in detached_source.attributes
+    assert detached_source.attributes["ias:position_world"] == (0.0, 2.0, 0.0)
+    assert detached_source.attributes["xformOp:translate"] == (0.0, 2.0, 0.0)
+
+    oven.attributes["xformOp:translate"] = (5.0, 0.0, 0.0)
+    after_detach_frame = controller.update_sensor()
+    assert after_detach_frame is not None
+    assert after_detach_frame.detections[0].source_pose.position_m == (
+        0.0,
+        2.0,
+        0.0,
+    )
+
+
+def test_extension_controller_create_demo_object_authors_visible_cube():
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+
+    assert controller.create_demo_object(stage=stage) == "/World/Oven"
+
+    oven = stage.GetPrimAtPath("/World/Oven")
+    assert oven is not None
+    assert oven.type_name == "Cube"
+    assert oven.attributes["xformOp:translate"] == (2.0, 0.0, 0.0)
+    assert oven.attributes["size"] == 0.9
+    assert oven.attributes["displayColor"] == (0.95, 0.48, 0.08)
+    assert oven.attributes["displayOpacity"] == 1.0
+    assert oven.attributes["doubleSided"] is True
+    assert controller.state.object_prim_path == "/World/Oven"
+    assert controller.state.object_label == "Oven"
+    assert stage.GetPrimAtPath("/World/KeyLight") is not None
+    assert stage.GetPrimAtPath("/World/DemoObjectDomeLight") is not None
+    assert stage.GetPrimAtPath("/World/DemoObjectFillLight") is not None
+
+
+def test_extension_controller_attached_source_outside_world_is_captured(tmp_path):
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            _FakePrim(
+                "/Kitchen",
+                "Xform",
+                {"xformOp:translate": (0.0, 0.0, 0.0)},
+            ),
+            _FakePrim(
+                "/Kitchen/Refrigerator",
+                "Xform",
+                {"xformOp:translate": (2.0, 0.0, 0.0)},
+            ),
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.use_selected_as_object(
+        stage=stage,
+        selected_paths=("/Kitchen/Refrigerator",),
+    )
+    assert controller.attach_source_to_object(stage=stage) is not None
+    assert controller.state.source_prim_path == "/Kitchen/Refrigerator/SpeakerA"
+
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    frame = controller.update_sensor()
+
+    assert frame is not None
+    assert frame.detections[0].source_id == "speaker_a"
+    assert frame.detections[0].source_pose.position_m == (2.0, 0.0, 0.0)
+
+
+def test_extension_controller_object_local_offset_and_config_roundtrip(tmp_path):
+    oven = _FakePrim(
+        "/World/Oven",
+        "Xform",
+        {"xformOp:translate": (1.0, 0.0, 0.0)},
+    )
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            oven,
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.config_export_path = str(tmp_path / "binding.json")
+    controller.state.source_local_offset_x_m = 0.0
+    controller.state.source_local_offset_y_m = 1.0
+    controller.state.source_local_offset_z_m = 0.25
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.use_selected_as_object(
+        stage=stage,
+        selected_paths=("/World/Oven",),
+    )
+    assert controller.attach_source_to_object(stage=stage) is not None
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    frame = controller.update_sensor()
+    assert frame is not None
+    assert frame.detections[0].source_pose.position_m == (1.0, 1.0, 0.25)
+
+    path = controller.export_config_summary()
+    assert path == tmp_path / "binding.json"
+    summary = json.loads(path.read_text(encoding="utf-8"))
+    assert summary["object_binding"] == {
+        "attached": True,
+        "attached_object_prim_path": "/World/Oven",
+        "selected_object_label": "Oven",
+        "selected_object_prim_path": "/World/Oven",
+        "source_local_offset_m": [0.0, 1.0, 0.25],
+    }
+    assert summary["source"]["prim_path"] == "/World/Oven/SpeakerA"
+    assert summary["source"]["local_offset_m"] == [0.0, 1.0, 0.25]
+    assert any(
+        item["prim_path"] == "/World/Oven/SpeakerA"
+        for item in summary["authored_metadata"]
+    )
+
+    imported = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    assert imported.import_config_summary(path) == path
+    assert imported.state.object_prim_path == "/World/Oven"
+    assert imported.state.object_label == "Oven"
+    assert imported.state.source_attached_to_object is True
+    assert imported.state.attached_object_prim_path == "/World/Oven"
+    assert imported.state.source_prim_path == "/World/Oven/SpeakerA"
+    assert imported.state.source_local_offset_x_m == 0.0
+    assert imported.state.source_local_offset_y_m == 1.0
+    assert imported.state.source_local_offset_z_m == 0.25
+    assert imported.state.error_message is None
+
+
+def test_extension_controller_missing_attached_object_is_readable(tmp_path):
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            _FakePrim(
+                "/World/Oven",
+                "Xform",
+                {"xformOp:translate": (2.0, 0.0, 0.0)},
+            ),
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.config_export_path = str(tmp_path / "binding.json")
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.use_selected_as_object(
+        stage=stage,
+        selected_paths=("/World/Oven",),
+    )
+    assert controller.attach_source_to_object(stage=stage) is not None
+    path = controller.export_config_summary()
+
+    missing_stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    imported = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(missing_stage, ())
+    )
+    assert imported.import_config_summary(path) == path
+    assert "attached object is missing" in str(imported.state.error_message)
+    assert "/World/Oven" in str(imported.state.error_message)
+
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    assert controller.update_sensor() is not None
+    stage.RemovePrim("/World/Oven")
+    assert controller.update_sensor() is None
+    assert "Attached object no longer exists: /World/Oven" in str(
+        controller.state.error_message
+    )
+
+
 def test_extension_controller_reads_fake_omni_usd_selection(monkeypatch):
     stage = _FakeStage()
     selection = SimpleNamespace(
@@ -748,6 +1402,9 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "sample_rate_hz",
     }
     assert set(controller._ui_window._float_fields) == {
+        "source_local_offset_x_m",
+        "source_local_offset_y_m",
+        "source_local_offset_z_m",
         "source_position_x_m",
         "source_position_y_m",
         "source_position_z_m",
@@ -766,6 +1423,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
     assert "replicator_output_dir" in controller._ui_window._string_fields
     assert "array_prim_path" in controller._ui_window._string_fields
     assert "source_prim_path" in controller._ui_window._string_fields
+    assert "object_prim_path" in controller._ui_window._string_fields
     assert "latest_frame_export_path" in controller._ui_window._string_fields
     assert {widget.kind for widget in controller._ui_window._float_fields.values()} == {
         "StringField"
@@ -807,7 +1465,9 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Refresh",
         "Use Array",
         "Use Source",
+        "Use Object",
         "Use Base",
+        "Create Demo Object",
         "Discover",
         "Create/Attach Array",
         "Read Selected Transform",
@@ -817,6 +1477,8 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Left",
         "Behind",
         "Create/Attach Source",
+        "Attach Source To Object",
+        "Detach Source",
         "Start",
         "Stop",
         "Update",
@@ -829,7 +1491,9 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Refresh",
         "Use Array",
         "Use Source",
+        "Use Object",
         "Use Base",
+        "Create Demo Object",
         "Discover",
         "Create/Attach Array",
         "Read Selected Transform",
@@ -839,6 +1503,8 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Left",
         "Behind",
         "Create/Attach Source",
+        "Attach Source To Object",
+        "Detach Source",
         "Start",
         "Stop",
         "Update",
@@ -1052,6 +1718,7 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     window._string_fields["source_id"].model.set_value("edited_source")
     window._string_fields["array_prim_path"].model.set_value("/World/EditedArray")
     window._string_fields["source_prim_path"].model.set_value("/World/EditedSource")
+    window._string_fields["object_prim_path"].model.set_value("/World/EditedObject")
     window._string_fields["jsonl_trace_path"].model.set_value(
         str(tmp_path / "edited.frames.jsonl")
     )
@@ -1062,6 +1729,9 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     window._float_fields["source_position_x_m"].model.set_value("0.0")
     window._float_fields["source_position_y_m"].model.set_value("2.0")
     window._float_fields["source_position_z_m"].model.set_value("0.5")
+    window._float_fields["source_local_offset_x_m"].model.set_value("0.25")
+    window._float_fields["source_local_offset_y_m"].model.set_value("0.5")
+    window._float_fields["source_local_offset_z_m"].model.set_value("0.75")
     window._int_fields["sample_rate_hz"].model.set_value("44100")
     backend_widget, backend_choices = window._combo_fields["backend"]
     backend_widget.model.set_value(backend_choices.index("geometry_only"))
@@ -1077,6 +1747,8 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     assert controller.state.source_id == "edited_source"
     assert controller.state.source_duration_s == 60.0
     assert controller.state.source_position_y_m == 2.0
+    assert controller.state.source_local_offset_z_m == 0.75
+    assert controller.state.object_prim_path == "/World/EditedObject"
     assert controller.state.sample_rate_hz == 44100
     assert controller.state.backend == "geometry_only"
     assert controller.state.layout_name == "mono"
@@ -1092,6 +1764,11 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     assert summary["source"]["prim_path"] == "/World/EditedSource"
     assert summary["source"]["duration_s"] == 60.0
     assert summary["source"]["position_world"] == [0.0, 2.0, 0.5]
+    assert summary["source"]["local_offset_m"] == [0.25, 0.5, 0.75]
+    assert summary["object_binding"]["selected_object_prim_path"] == (
+        "/World/EditedObject"
+    )
+    assert summary["object_binding"]["source_local_offset_m"] == [0.25, 0.5, 0.75]
     assert summary["backend"] == "geometry_only"
     assert summary["lifecycle"]["debug_overlay_enabled"] is False
     assert summary["recording"]["package_jsonl"]["enabled"] is True
@@ -1112,9 +1789,13 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     assert imported.state.source_position_x_m == 0.0
     assert imported.state.source_position_y_m == 2.0
     assert imported.state.source_position_z_m == 0.5
+    assert imported.state.source_local_offset_x_m == 0.25
+    assert imported.state.source_local_offset_y_m == 0.5
+    assert imported.state.source_local_offset_z_m == 0.75
     assert imported.state.sample_rate_hz == 44100
     assert imported.state.array_prim_path == "/World/EditedArray"
     assert imported.state.source_prim_path == "/World/EditedSource"
+    assert imported.state.object_prim_path == "/World/EditedObject"
     assert imported.state.debug_overlay_enabled is False
     assert imported.state.trace_enabled is True
     assert imported.state.replicator_enabled is True
@@ -1200,6 +1881,38 @@ def test_extension_controller_replicator_lifecycle_and_payload(
     assert payload["summary"]["detection_count"] == 1
     assert payload["metadata"]["extension_id"] == "test.ext"
     assert (tmp_path / "replicator" / "audio_sensor_frames.jsonl").exists()
+
+
+def test_extension_controller_writer_and_replicator_paths_use_output_root_env(
+    monkeypatch,
+    tmp_path,
+):
+    output_root = tmp_path / "ias_outputs"
+    monkeypatch.setenv(OUTPUT_ROOT_ENV_VAR, str(output_root))
+    _install_fake_replicator(monkeypatch)
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0, 0, 0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.jsonl_trace_path = "manual/frames.jsonl"
+    controller.state.replicator_output_dir = "manual/replicator"
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.author_source(stage=stage) is not None
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    status = controller.start_replicator()
+    frame = controller.update_sensor()
+
+    assert status is not None
+    assert status["output_dir"] == str(output_root / "manual" / "replicator")
+    assert frame is not None
+    assert (output_root / "manual" / "frames.jsonl").exists()
+    assert (
+        output_root / "manual" / "replicator" / "audio_sensor_frames.jsonl"
+    ).exists()
 
 
 def test_extension_controller_replicator_missing_runtime_is_readable(tmp_path):

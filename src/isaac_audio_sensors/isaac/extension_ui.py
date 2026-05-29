@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import math
+import os
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import contextmanager, suppress
 from dataclasses import asdict, dataclass, is_dataclass
@@ -41,8 +42,13 @@ from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
     attach_microphone_attrs,
     attach_sound_source_attrs,
+    attach_source_object_binding_attrs,
+    clear_prim_attrs,
+    clear_source_object_binding_attrs,
     create_sound_prim,
     get_or_define_prim,
+    move_prim_to_path,
+    set_prim_xform_pose,
 )
 from isaac_audio_sensors.isaac.viz.overlays import (
     DebugPrimitive,
@@ -62,12 +68,66 @@ SOURCE_POSITION_PRESETS: Mapping[str, tuple[float, float, float]] = {
     "left": (0.0, -2.0, 0.0),
     "behind": (-2.0, 0.0, 0.0),
 }
+OUTPUT_ROOT_ENV_VAR = "ISAAC_AUDIO_SENSORS_OUTPUT_ROOT"
+PROJECT_NAME = "isaac-audio-sensors"
 DEFAULT_OUTPUT_ROOT = Path("outputs/isaac_audio_sensors")
+DEFAULT_TRACE_FILENAME = "extension_trace.frames.jsonl"
+DEFAULT_LATEST_FRAME_FILENAME = "extension_latest_frame.json"
+DEFAULT_CONFIG_FILENAME = "extension_binding.json"
+DEFAULT_REPLICATOR_DIRNAME = "replicator"
 OMNI_WINDOW_TITLE = "Isaac Audio Sensors"
 OMNI_MENU_GROUP = "Window"
 OMNI_ACTION_TOGGLE_WINDOW = "toggle_window"
 OMNI_DEFAULT_HOTKEY = "CTRL + ALT + A"
 OMNI_DEFAULT_HOTKEY_DISPLAY = "Ctrl+Alt+A"
+
+
+def _gui_output_root() -> Path:
+    """Return the absolute output root used by GUI file fields."""
+
+    override = os.environ.get(OUTPUT_ROOT_ENV_VAR, "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    repo_root = _find_project_root_from_module()
+    if repo_root is not None:
+        return (repo_root / DEFAULT_OUTPUT_ROOT).resolve()
+    return (Path.cwd() / DEFAULT_OUTPUT_ROOT).resolve()
+
+
+def _resolve_gui_output_path(path: str | Path) -> Path:
+    """Resolve a GUI file field relative to the package output root."""
+
+    raw = os.fspath(path).strip()
+    if not raw:
+        raise ExtensionActionError("Output path is empty.")
+    candidate = Path(raw).expanduser()
+    if candidate.is_absolute():
+        return candidate
+    return _gui_output_root() / _strip_legacy_output_prefix(candidate)
+
+
+def _find_project_root_from_module() -> Path | None:
+    for parent in Path(__file__).resolve().parents:
+        pyproject = parent / "pyproject.toml"
+        if not pyproject.is_file():
+            continue
+        with suppress(OSError, UnicodeDecodeError):
+            text = pyproject.read_text(encoding="utf-8")
+            if (
+                f'name = "{PROJECT_NAME}"' in text
+                or f"name = '{PROJECT_NAME}'" in text
+            ):
+                return parent
+    return None
+
+
+def _strip_legacy_output_prefix(path: Path) -> Path:
+    parts = path.parts
+    prefix = DEFAULT_OUTPUT_ROOT.parts
+    if len(parts) >= len(prefix) and parts[: len(prefix)] == prefix:
+        stripped = parts[len(prefix) :]
+        return Path(*stripped) if stripped else Path(".")
+    return path
 
 
 class ExtensionActionError(RuntimeError):
@@ -128,6 +188,14 @@ class ExtensionUiState:
     source_duration_s: float = 1.0
     source_gain_db: float = 0.0
 
+    object_prim_path: str = ""
+    object_label: str = "none"
+    source_attached_to_object: bool = False
+    attached_object_prim_path: str = ""
+    source_local_offset_x_m: float = 0.0
+    source_local_offset_y_m: float = 0.0
+    source_local_offset_z_m: float = 0.0
+
     robot_base_prim_path: str = ""
     discovery_roots_text: str = "/World"
     backend: str = "tdoa_synthetic"
@@ -136,15 +204,13 @@ class ExtensionUiState:
     max_events: int = 8
     debug_overlay_enabled: bool = True
     trace_enabled: bool = True
-    jsonl_trace_path: str = str(DEFAULT_OUTPUT_ROOT / "extension_trace.frames.jsonl")
-    latest_frame_export_path: str = str(
-        DEFAULT_OUTPUT_ROOT / "extension_latest_frame.json"
-    )
-    config_export_path: str = str(DEFAULT_OUTPUT_ROOT / "extension_binding.json")
-    config_import_path: str = str(DEFAULT_OUTPUT_ROOT / "extension_binding.json")
+    jsonl_trace_path: str = DEFAULT_TRACE_FILENAME
+    latest_frame_export_path: str = DEFAULT_LATEST_FRAME_FILENAME
+    config_export_path: str = DEFAULT_CONFIG_FILENAME
+    config_import_path: str = DEFAULT_CONFIG_FILENAME
 
     replicator_enabled: bool = False
-    replicator_output_dir: str = str(DEFAULT_OUTPUT_ROOT / "replicator")
+    replicator_output_dir: str = DEFAULT_REPLICATOR_DIRNAME
     replicator_writer_name: str = DEFAULT_REPLICATOR_WRITER_NAME
     replicator_annotator_name: str = DEFAULT_REPLICATOR_ANNOTATOR_NAME
     replicator_recording: bool = False
@@ -158,6 +224,7 @@ class ExtensionUiState:
 
     discovered_arrays: tuple[DiscoveredPrimSummary, ...] = ()
     discovered_sources: tuple[DiscoveredPrimSummary, ...] = ()
+    discovered_objects: tuple[DiscoveredPrimSummary, ...] = ()
     authored_metadata: tuple[AuthoredMetadataSummary, ...] = ()
 
     sensor_running: bool = False
@@ -573,6 +640,64 @@ class ExtensionController:
         self._set_status(f"Source target set to {path}.")
         return path
 
+    def use_selected_as_object(
+        self,
+        *,
+        stage: Any | None = None,
+        selected_paths: Iterable[str] | None = None,
+    ) -> str | None:
+        """Bind the first selected prim path as the scene object target."""
+
+        try:
+            context = self._context(stage=stage, selected_paths=selected_paths)
+            if context.stage is None:
+                raise ExtensionActionError("No USD stage is open.")
+            self.state.selected_prim_paths = context.selected_prim_paths
+            if not context.selected_prim_paths:
+                raise ExtensionActionError("No prim is selected.")
+            path = context.selected_prim_paths[0]
+            _validate_abs_path(path, "object_prim_path")
+            if not _stage_has_prim(context.stage, path):
+                raise ExtensionActionError(f"Selected object does not exist: {path}.")
+            if path == self.state.source_prim_path:
+                raise ExtensionActionError("Cannot attach a source to itself.")
+            self.state.object_prim_path = path
+            self.state.object_label = _path_name(path)
+            self._set_status(f"Object target set to {_path_name(path)} at {path}.")
+            return path
+        except Exception as exc:
+            self._record_error("Object selection failed", exc)
+            return None
+
+    def create_demo_object(
+        self,
+        *,
+        stage: Any | None = None,
+        prim_path: str = "/World/Oven",
+        position_world: tuple[float, float, float] = (2.0, 0.0, 0.0),
+    ) -> str | None:
+        """Create a minimal procedural object prim for attach workflow demos."""
+
+        try:
+            stage_obj = self._stage_or_error(stage)
+            _validate_abs_path(prim_path, "object_prim_path")
+            parent = prim_path.rstrip("/").rsplit("/", 1)[0]
+            if parent and parent != prim_path:
+                get_or_define_prim(stage_obj, prim_path=parent, prim_type="Xform")
+            prim = _get_or_define_demo_object_prim(stage_obj, prim_path)
+            if not _prim_has_xform_pose(prim):
+                set_prim_xform_pose(prim, position=position_world)
+            _style_demo_object_prim(stage_obj, prim=prim, position_world=position_world)
+            self.state.object_prim_path = prim_path
+            self.state.object_label = _path_name(prim_path)
+            self._set_status(
+                f"Created demo object {_path_name(prim_path)} at {prim_path}."
+            )
+            return prim_path
+        except Exception as exc:
+            self._record_error("Demo object creation failed", exc)
+            return None
+
     def read_selected_source_transform(
         self,
         *,
@@ -756,6 +881,173 @@ class ExtensionController:
             self._record_error("Source authoring failed", exc)
             return None
 
+    def attach_source_to_object(
+        self,
+        *,
+        stage: Any | None = None,
+    ) -> AuthoredMetadataSummary | None:
+        """Attach the current source under the selected object with local offset."""
+
+        try:
+            stage_obj = self._stage_or_error(stage)
+            state = self.state
+            object_path = state.object_prim_path or state.attached_object_prim_path
+            _validate_abs_path(object_path, "object_prim_path")
+            _validate_abs_path(state.source_prim_path, "source_prim_path")
+            if not _stage_has_prim(stage_obj, object_path):
+                raise ExtensionActionError(
+                    f"Selected object no longer exists: {object_path}."
+                )
+            source_name = _path_name(state.source_prim_path)
+            attached_path = f"{object_path.rstrip('/')}/{source_name}"
+            offset = self._source_local_offset_from_state()
+            move_prim_to_path(
+                stage_obj,
+                source_path=state.source_prim_path,
+                dest_path=attached_path,
+                prim_type="Sound",
+            )
+            state.source_prim_path = attached_path
+            record = create_sound_prim(
+                stage_obj,
+                prim_path=attached_path,
+                audio_asset_path=state.audio_asset_path,
+                spatial=True,
+                loop=False,
+                start_time_s=state.source_start_time_s,
+                gain_db=state.source_gain_db,
+            )
+            prim = get_or_define_prim(
+                stage_obj,
+                prim_path=attached_path,
+                prim_type=record.prim_type,
+            )
+            clear_prim_attrs(
+                prim,
+                (
+                    "ias:position_world",
+                    "ias:orientation_world_quat",
+                ),
+            )
+            attrs = attach_sound_source_attrs(
+                prim,
+                source_id=state.source_id.strip() or _path_name(attached_path),
+                class_label=state.source_class_label.strip() or "Sound",
+                position_world=None,
+                orientation_world_quat=None,
+                audio_asset_path=state.audio_asset_path,
+                start_time_s=state.source_start_time_s,
+                duration_s=state.source_duration_s,
+                gain_db=state.source_gain_db,
+                directivity="omni",
+            )
+            binding_attrs = attach_source_object_binding_attrs(
+                prim,
+                object_prim_path=object_path,
+                local_offset_m=offset,
+            )
+            state.source_attached_to_object = True
+            state.attached_object_prim_path = object_path
+            state.object_prim_path = object_path
+            state.object_label = _path_name(object_path)
+            with suppress(Exception):
+                pose = IsaacStagePoseResolver(stage_obj).resolve_world_pose(
+                    attached_path,
+                    field_name="attached source",
+                )
+                self._set_source_position_state(pose.position_world)
+            authored = AuthoredMetadataSummary(
+                kind="source_object_attachment",
+                prim_path=attached_path,
+                id=str(attrs["ias:source_id"]),
+                attributes=_jsonable_mapping(
+                    {**record.attributes, **attrs, **binding_attrs}
+                ),
+            )
+            self._append_authored_record(authored)
+            self._set_status(
+                "Attached source "
+                f"{authored.id} to {_path_name(object_path)} at {object_path} "
+                f"with local offset {_format_vec3(offset)}."
+            )
+            return authored
+        except Exception as exc:
+            self._record_error("Source attach failed", exc)
+            return None
+
+    def detach_source_from_object(
+        self,
+        *,
+        stage: Any | None = None,
+    ) -> AuthoredMetadataSummary | None:
+        """Detach the current source to a standalone source path."""
+
+        try:
+            stage_obj = self._stage_or_error(stage)
+            state = self.state
+            _validate_abs_path(state.source_prim_path, "source_prim_path")
+            source_path = state.source_prim_path
+            pose = IsaacStagePoseResolver(stage_obj).resolve_world_pose(
+                source_path,
+                field_name="attached source",
+            )
+            standalone_path = f"/World/Sources/{_path_name(source_path)}"
+            get_or_define_prim(stage_obj, prim_path="/World/Sources", prim_type="Xform")
+            prim = move_prim_to_path(
+                stage_obj,
+                source_path=source_path,
+                dest_path=standalone_path,
+                prim_type="Sound",
+            )
+            state.source_prim_path = standalone_path
+            record = create_sound_prim(
+                stage_obj,
+                prim_path=standalone_path,
+                audio_asset_path=state.audio_asset_path,
+                spatial=True,
+                loop=False,
+                start_time_s=state.source_start_time_s,
+                gain_db=state.source_gain_db,
+            )
+            prim = get_or_define_prim(
+                stage_obj,
+                prim_path=standalone_path,
+                prim_type=record.prim_type,
+            )
+            clear_source_object_binding_attrs(prim)
+            attrs = attach_sound_source_attrs(
+                prim,
+                source_id=state.source_id.strip() or _path_name(standalone_path),
+                class_label=state.source_class_label.strip() or "Sound",
+                position_world=pose.position_world,
+                orientation_world_quat=pose.orientation_world_quat
+                or (0.0, 0.0, 0.0, 1.0),
+                audio_asset_path=state.audio_asset_path,
+                start_time_s=state.source_start_time_s,
+                duration_s=state.source_duration_s,
+                gain_db=state.source_gain_db,
+                directivity="omni",
+            )
+            state.source_attached_to_object = False
+            state.attached_object_prim_path = ""
+            self._set_source_position_state(pose.position_world)
+            authored = AuthoredMetadataSummary(
+                kind="source_object_detach",
+                prim_path=standalone_path,
+                id=str(attrs["ias:source_id"]),
+                attributes=_jsonable_mapping({**record.attributes, **attrs}),
+            )
+            self._append_authored_record(authored)
+            self._set_status(
+                "Detached source "
+                f"{authored.id} to {standalone_path} at "
+                f"{_format_vec3(pose.position_world)}."
+            )
+            return authored
+        except Exception as exc:
+            self._record_error("Source detach failed", exc)
+            return None
+
     def _author_source_on_stage(
         self,
         stage_obj: Any,
@@ -821,6 +1113,16 @@ class ExtensionController:
             raise ExtensionActionError("source position values must be finite.")
         return position
 
+    def _source_local_offset_from_state(self) -> tuple[float, float, float]:
+        offset = (
+            float(self.state.source_local_offset_x_m),
+            float(self.state.source_local_offset_y_m),
+            float(self.state.source_local_offset_z_m),
+        )
+        if not all(math.isfinite(component) for component in offset):
+            raise ExtensionActionError("source local offset values must be finite.")
+        return offset
+
     def _set_source_position_state(self, position: Iterable[float]) -> None:
         x, y, z = vec3_from_any(position)
         self.state.source_position_x_m = x
@@ -856,11 +1158,25 @@ class ExtensionController:
                 )
                 for source in result.sources
             )
+            self.state.discovered_objects = _discover_scene_objects(
+                stage_obj,
+                roots=self._discovery_roots(),
+                excluded_paths=(
+                    self.state.array_prim_path,
+                    self.state.source_prim_path,
+                    self.state.robot_base_prim_path,
+                ),
+            )
             self._set_status(
                 "Discovery found "
-                f"{len(result.arrays)} array(s), {len(result.sources)} source(s)."
+                f"{len(result.arrays)} array(s), {len(result.sources)} source(s), "
+                f"{len(self.state.discovered_objects)} object(s)."
             )
-            return (*self.state.discovered_arrays, *self.state.discovered_sources)
+            return (
+                *self.state.discovered_arrays,
+                *self.state.discovered_sources,
+                *self.state.discovered_objects,
+            )
         except Exception as exc:
             self._record_error("Discovery failed", exc)
             return ()
@@ -953,6 +1269,13 @@ class ExtensionController:
         try:
             if self.sensor is None:
                 raise ExtensionActionError("Sensor is not configured.")
+            self._validate_attached_object_available(self.sensor.stage)
+            self.sensor.source_prim_path = (
+                self.state.source_prim_path
+                if self.state.source_attached_to_object
+                and self.state.source_prim_path.strip()
+                else None
+            )
             frame = self.sensor.update(force=force)
             self._record_latest_frame(frame)
             if self.state.replicator_enabled:
@@ -968,9 +1291,12 @@ class ExtensionController:
         try:
             if self.sensor is None or self.sensor.latest_frame is None:
                 raise ExtensionActionError("No latest frame is available to export.")
+            output_path = _resolve_gui_output_path(
+                path or self.state.latest_frame_export_path
+            )
             output = write_frame_trace(
                 self.sensor.latest_frame,
-                path or self.state.latest_frame_export_path,
+                output_path,
             )
             self._set_status(f"Exported latest frame to {output}.")
             return output
@@ -982,7 +1308,7 @@ class ExtensionController:
         """Write a reusable stage-binding/config summary."""
 
         try:
-            output = Path(path or self.state.config_export_path)
+            output = _resolve_gui_output_path(path or self.state.config_export_path)
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_text(
                 json.dumps(
@@ -1003,7 +1329,8 @@ class ExtensionController:
         """Load a deterministic extension config summary into UI state."""
 
         try:
-            input_path = Path(path or self.state.config_import_path)
+            requested_path = path or self.state.config_import_path
+            input_path = _resolve_gui_output_path(requested_path)
             payload = json.loads(input_path.read_text(encoding="utf-8"))
             if payload.get("schema_version") != "ias.omni_extension_binding.v1":
                 raise ExtensionActionError(
@@ -1011,8 +1338,16 @@ class ExtensionController:
                     "'ias.omni_extension_binding.v1'."
                 )
             self._apply_config_summary(payload)
-            self.state.config_import_path = str(input_path)
-            self._set_status(f"Imported config summary from {input_path}.")
+            self.state.config_import_path = str(requested_path)
+            missing_attachment = self._attachment_status_for_current_stage()
+            if missing_attachment:
+                self._set_status(
+                    f"Imported config summary from {input_path}; "
+                    f"{missing_attachment}",
+                    error=True,
+                )
+            else:
+                self._set_status(f"Imported config summary from {input_path}.")
             return input_path
         except Exception as exc:
             self._record_error("Config import failed", exc)
@@ -1024,6 +1359,11 @@ class ExtensionController:
         state = self.state
         primitives = (
             () if self.sensor is None else tuple(self.sensor.latest_debug_primitives)
+        )
+        writer_path = (
+            str(_resolve_gui_output_path(state.jsonl_trace_path))
+            if state.trace_enabled
+            else None
         )
         return _json_ready(
             {
@@ -1042,9 +1382,18 @@ class ExtensionController:
                     "class_label": state.source_class_label,
                     "audio_asset_path": state.audio_asset_path,
                     "position_world": self._source_position_from_state(),
+                    "local_offset_m": self._source_local_offset_from_state(),
                     "start_time_s": state.source_start_time_s,
                     "duration_s": state.source_duration_s,
                     "gain_db": state.source_gain_db,
+                },
+                "object_binding": {
+                    "selected_object_prim_path": state.object_prim_path or None,
+                    "selected_object_label": state.object_label,
+                    "attached": state.source_attached_to_object,
+                    "attached_object_prim_path": state.attached_object_prim_path
+                    or None,
+                    "source_local_offset_m": self._source_local_offset_from_state(),
                 },
                 "stage_binding": {
                     "robot_base_prim_path": state.robot_base_prim_path or None,
@@ -1053,6 +1402,7 @@ class ExtensionController:
                     "selected_prim_paths": state.selected_prim_paths,
                     "discovered_arrays": state.discovered_arrays,
                     "discovered_sources": state.discovered_sources,
+                    "discovered_objects": state.discovered_objects,
                 },
                 "lifecycle": {
                     "update_period_s": state.update_period_s,
@@ -1060,9 +1410,7 @@ class ExtensionController:
                     "ambiguity_policy": state.ambiguity_policy,
                     "debug_overlay_enabled": state.debug_overlay_enabled,
                     "writer_enabled": state.trace_enabled,
-                    "writer_path": (
-                        state.jsonl_trace_path if state.trace_enabled else None
-                    ),
+                    "writer_path": writer_path,
                     "runtime_options": {
                         "subscribe_to_update_stream_default": True,
                         "import_safe_outside_isaac": True,
@@ -1071,7 +1419,7 @@ class ExtensionController:
                 "recording": {
                     "package_jsonl": {
                         "enabled": state.trace_enabled,
-                        "path": state.jsonl_trace_path,
+                        "path": writer_path,
                     },
                     "replicator": self._replicator_status_dict(),
                 },
@@ -1102,8 +1450,9 @@ class ExtensionController:
             self.state.replicator_enabled = True
             if self.replicator_recorder is not None:
                 self.replicator_recorder.stop()
+            output_dir = _resolve_gui_output_path(self.state.replicator_output_dir)
             recorder = AudioSensorReplicatorRecorder(
-                output_dir=self.state.replicator_output_dir,
+                output_dir=output_dir,
                 writer_name=self.state.replicator_writer_name,
                 annotator_name=self.state.replicator_annotator_name,
             )
@@ -1112,7 +1461,7 @@ class ExtensionController:
             self._apply_replicator_status(status.to_dict())
             self._set_status(
                 "Replicator recording started at "
-                f"{self.state.replicator_output_dir}."
+                f"{output_dir}."
             )
             return self._replicator_status_dict()
         except Exception as exc:
@@ -1161,14 +1510,24 @@ class ExtensionController:
     def _build_sensor(self, stage: Any) -> IsaacAudioArraySensor:
         state = self.state
         self._validate_runtime_state()
-        writer_path = state.jsonl_trace_path if state.trace_enabled else None
+        writer_path = (
+            _resolve_gui_output_path(state.jsonl_trace_path)
+            if state.trace_enabled
+            else None
+        )
         explicit_array_available = bool(
             state.array_prim_path.strip()
         ) and _stage_has_prim(stage, state.array_prim_path)
         if explicit_array_available:
+            explicit_source = (
+                state.source_prim_path
+                if state.source_attached_to_object and state.source_prim_path.strip()
+                else None
+            )
             return IsaacAudioArraySensor.from_stage(
                 stage=stage,
                 array_prim_path=state.array_prim_path,
+                source_prim_path=explicit_source,
                 robot_base_prim_path=state.robot_base_prim_path or None,
                 backend=state.backend,
                 update_period_s=state.update_period_s,
@@ -1284,6 +1643,42 @@ class ExtensionController:
             raise ExtensionActionError("No USD stage is open.")
         self.state.selected_prim_paths = context.selected_prim_paths
         return context.stage
+
+    def _validate_attached_object_available(self, stage: Any | None) -> None:
+        if not self.state.source_attached_to_object:
+            return
+        object_path = (
+            self.state.attached_object_prim_path or self.state.object_prim_path
+        )
+        if not object_path:
+            raise ExtensionActionError(
+                "Source is marked attached but no object path is configured."
+            )
+        if stage is None:
+            return
+        if not _stage_has_prim(stage, object_path):
+            raise ExtensionActionError(
+                f"Attached object no longer exists: {object_path}. "
+                "Select another object or detach the source."
+            )
+
+    def _attachment_status_for_current_stage(self) -> str | None:
+        if not self.state.source_attached_to_object:
+            return None
+        object_path = (
+            self.state.attached_object_prim_path or self.state.object_prim_path
+        )
+        if not object_path:
+            return "attached object path is missing"
+        try:
+            stage = self._context().stage
+        except Exception:
+            return None
+        if stage is None:
+            return None
+        if not _stage_has_prim(stage, object_path):
+            return f"attached object is missing from the current stage: {object_path}"
+        return None
 
     def _context(
         self,
@@ -1402,6 +1797,11 @@ class ExtensionController:
         )
 
     def _replicator_frame_metadata(self, frame: Any) -> dict[str, Any]:
+        writer_path = (
+            str(_resolve_gui_output_path(self.state.jsonl_trace_path))
+            if self.state.trace_enabled
+            else None
+        )
         return _json_ready(
             {
                 "extension_id": self.ext_id,
@@ -1410,6 +1810,10 @@ class ExtensionController:
                     "array_prim_path": self.state.array_prim_path,
                     "source_prim_path": self.state.source_prim_path,
                     "source_position_m": self._source_position_from_state(),
+                    "source_attached_to_object": self.state.source_attached_to_object,
+                    "attached_object_prim_path": self.state.attached_object_prim_path
+                    or None,
+                    "source_local_offset_m": self._source_local_offset_from_state(),
                     "latest_source_position_m": self.state.latest_source_position_m,
                     "robot_base_prim_path": self.state.robot_base_prim_path or None,
                     "discovery_roots": self._discovery_roots(),
@@ -1421,9 +1825,13 @@ class ExtensionController:
                 },
                 "package_recording": {
                     "jsonl_enabled": self.state.trace_enabled,
-                    "jsonl_trace_path": self.state.jsonl_trace_path,
-                    "latest_frame_export_path": self.state.latest_frame_export_path,
-                    "config_export_path": self.state.config_export_path,
+                    "jsonl_trace_path": writer_path,
+                    "latest_frame_export_path": str(
+                        _resolve_gui_output_path(self.state.latest_frame_export_path)
+                    ),
+                    "config_export_path": str(
+                        _resolve_gui_output_path(self.state.config_export_path)
+                    ),
                 },
                 "overlay": {
                     "primitive_count": self.state.latest_overlay_primitive_count,
@@ -1463,11 +1871,15 @@ class ExtensionController:
             status = self.replicator_recorder.status.to_dict()
             status["enabled"] = state.replicator_enabled
             return status
+        output_dir = state.replicator_output_dir
+        if output_dir.strip():
+            with suppress(Exception):
+                output_dir = str(_resolve_gui_output_path(output_dir))
         return {
             "enabled": state.replicator_enabled,
             "writer_name": state.replicator_writer_name,
             "annotator_name": state.replicator_annotator_name,
-            "output_dir": state.replicator_output_dir,
+            "output_dir": output_dir,
             "started": state.replicator_recording,
             "write_count": state.replicator_write_count,
             "flush_count": state.replicator_flush_count,
@@ -1481,6 +1893,7 @@ class ExtensionController:
     def _apply_config_summary(self, payload: Mapping[str, Any]) -> None:
         array = dict(payload.get("array", {}))
         source = dict(payload.get("source", {}))
+        object_binding = dict(payload.get("object_binding", {}))
         binding = dict(payload.get("stage_binding", {}))
         lifecycle = dict(payload.get("lifecycle", {}))
         recording = dict(payload.get("recording", {}))
@@ -1511,6 +1924,16 @@ class ExtensionController:
         )
         if source.get("position_world") is not None:
             self._set_source_position_state(source["position_world"])
+        local_offset = object_binding.get(
+            "source_local_offset_m",
+            source.get("local_offset_m"),
+        )
+        if local_offset is not None:
+            (
+                self.state.source_local_offset_x_m,
+                self.state.source_local_offset_y_m,
+                self.state.source_local_offset_z_m,
+            ) = vec3_from_any(local_offset)
         self.state.source_start_time_s = float(
             source.get("start_time_s", self.state.source_start_time_s)
         )
@@ -1521,10 +1944,38 @@ class ExtensionController:
             source.get("gain_db", self.state.source_gain_db)
         )
         self.state.robot_base_prim_path = str(binding.get("robot_base_prim_path") or "")
+        self.state.object_prim_path = str(
+            object_binding.get("selected_object_prim_path")
+            or self.state.object_prim_path
+            or ""
+        )
+        self.state.object_label = str(
+            object_binding.get("selected_object_label")
+            or (
+                _path_name(self.state.object_prim_path)
+                if self.state.object_prim_path
+                else "none"
+            )
+        )
+        self.state.source_attached_to_object = bool(
+            object_binding.get("attached", self.state.source_attached_to_object)
+        )
+        self.state.attached_object_prim_path = str(
+            object_binding.get("attached_object_prim_path")
+            or (
+                self.state.object_prim_path
+                if self.state.source_attached_to_object
+                else ""
+            )
+        )
         roots = binding.get("discovery_roots", self._discovery_roots())
         self.state.discovery_roots_text = ", ".join(str(root) for root in roots)
         self.state.selected_prim_paths = _normalize_paths(
             binding.get("selected_prim_paths", ())
+        )
+        self.state.discovered_objects = tuple(
+            _discovered_summary_from_dict(item)
+            for item in binding.get("discovered_objects", ())
         )
         self.state.update_period_s = float(
             lifecycle.get("update_period_s", self.state.update_period_s)
@@ -1636,7 +2087,16 @@ class OmniReferenceWindow:
         self._set_label(
             "discovery",
             f"Arrays: {_summary_ids(state.discovered_arrays)} | "
-            f"Sources: {_summary_ids(state.discovered_sources)}",
+            f"Sources: {_summary_ids(state.discovered_sources)} | "
+            f"Objects: {_summary_ids(state.discovered_objects)}",
+        )
+        self._set_label(
+            "object",
+            "Object: "
+            f"{state.object_label or 'none'} | "
+            f"path={state.object_prim_path or 'none'} | "
+            f"attached={state.source_attached_to_object} | "
+            f"offset={_format_vec3(self.controller._source_local_offset_from_state())}",
         )
         self._set_label(
             "latest",
@@ -1719,11 +2179,22 @@ class OmniReferenceWindow:
                     self.controller.use_selected_as_source,
                 )
                 self._button(
+                    "Use Object",
+                    self.controller.use_selected_as_object,
+                )
+                self._button(
                     "Use Base",
                     self.controller.use_selected_as_robot_base,
                 )
             self._string_row("Discovery Roots", "discovery_roots_text")
             self._string_row("Robot/Base", "robot_base_prim_path")
+            self._string_row("Object", "object_prim_path")
+            with self.ui.HStack(spacing=4):
+                self._button(
+                    "Create Demo Object",
+                    self.controller.create_demo_object,
+                )
+            self._labels["object"] = ui.Label("", word_wrap=True)
             self._button(
                 "Discover",
                 self.controller.refresh_discovery,
@@ -1753,6 +2224,9 @@ class OmniReferenceWindow:
             self._float_row("Position X", "source_position_x_m")
             self._float_row("Position Y", "source_position_y_m")
             self._float_row("Position Z", "source_position_z_m")
+            self._float_row("Local Offset X", "source_local_offset_x_m")
+            self._float_row("Local Offset Y", "source_local_offset_y_m")
+            self._float_row("Local Offset Z", "source_local_offset_z_m")
             with self.ui.HStack(spacing=4):
                 self._button(
                     "Read Selected Transform",
@@ -1786,6 +2260,15 @@ class OmniReferenceWindow:
                 "Create/Attach Source",
                 self.controller.author_source,
             )
+            with self.ui.HStack(spacing=4):
+                self._button(
+                    "Attach Source To Object",
+                    self.controller.attach_source_to_object,
+                )
+                self._button(
+                    "Detach Source",
+                    self.controller.detach_source_from_object,
+                )
 
     def _build_control_section(self) -> None:
         ui = self.ui
@@ -2056,12 +2539,27 @@ def _stage_has_prim(stage: Any, path: str) -> bool:
     if not path:
         return False
     if hasattr(stage, "GetPrimAtPath"):
-        prim = stage.GetPrimAtPath(path)
-        if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
-            return True
+        for candidate_path in (_usd_path(path), path):
+            try:
+                prim = stage.GetPrimAtPath(candidate_path)
+            except TypeError:
+                continue
+            if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
+                return True
     if hasattr(stage, "Traverse"):
         return any(prim_path(prim) == path for prim in stage.Traverse())
     return False
+
+
+def _usd_path(path: str) -> Any:
+    try:
+        from pxr import Sdf  # type: ignore
+    except ImportError:
+        return path
+    try:
+        return Sdf.Path(path)
+    except Exception:
+        return path
 
 
 def _prim_has_pose(prim: Any) -> bool:
@@ -2183,6 +2681,184 @@ def _authored_metadata_from_dict(value: Any) -> AuthoredMetadataSummary:
         id=str(value.get("id", "")),
         attributes=_jsonable_mapping(dict(value.get("attributes", {}))),
     )
+
+
+def _discovered_summary_from_dict(value: Any) -> DiscoveredPrimSummary:
+    if not isinstance(value, Mapping):
+        raise ExtensionActionError("discovered object entries must be objects.")
+    return DiscoveredPrimSummary(
+        id=str(value.get("id", "")),
+        prim_path=str(value.get("prim_path", "")),
+        reasons=tuple(str(reason) for reason in value.get("reasons", ())),
+    )
+
+
+def _discover_scene_objects(
+    stage: Any,
+    *,
+    roots: tuple[str, ...],
+    excluded_paths: tuple[str, ...],
+) -> tuple[DiscoveredPrimSummary, ...]:
+    if not hasattr(stage, "Traverse"):
+        return ()
+    normalized_roots = tuple(root.rstrip("/") for root in roots if root.strip())
+    excluded = tuple(path.rstrip("/") for path in excluded_paths if path.strip())
+    objects: list[DiscoveredPrimSummary] = []
+    for prim in sorted(stage.Traverse(), key=prim_path):
+        path = prim_path(prim)
+        if not path or path == "/World":
+            continue
+        if normalized_roots and not any(
+            path == root or path.startswith(f"{root}/") for root in normalized_roots
+        ):
+            continue
+        if any(path == item or path.startswith(f"{item}/") for item in excluded):
+            continue
+        attrs = _prim_attrs(prim)
+        type_name = _prim_type_name(prim)
+        if _is_audio_metadata_prim(type_name, attrs):
+            continue
+        if not _looks_like_scene_object(path, type_name, attrs):
+            continue
+        objects.append(
+            DiscoveredPrimSummary(
+                id=_path_name(path),
+                prim_path=path,
+                reasons=(f"type:{type_name or 'unknown'}",),
+            )
+        )
+    return tuple(objects)
+
+
+def _get_or_define_demo_object_prim(stage: Any, prim_path: str) -> Any:
+    prim = get_or_define_prim(stage, prim_path=prim_path, prim_type="Cube")
+    if hasattr(prim, "type_name"):
+        prim.type_name = "Cube"
+        return prim
+    set_type_name = getattr(prim, "SetTypeName", None)
+    if callable(set_type_name):
+        with suppress(Exception):
+            set_type_name("Cube")
+    return prim
+
+
+def _style_demo_object_prim(
+    stage: Any,
+    *,
+    prim: Any,
+    position_world: tuple[float, float, float],
+) -> None:
+    if hasattr(prim, "attributes"):
+        prim.attributes.setdefault("xformOp:translate", position_world)
+        prim.attributes["size"] = 0.9
+        prim.attributes["displayColor"] = (0.95, 0.48, 0.08)
+        prim.attributes["displayOpacity"] = 1.0
+        prim.attributes["doubleSided"] = True
+        light = get_or_define_prim(
+            stage,
+            prim_path="/World/KeyLight",
+            prim_type="DistantLight",
+        )
+        if hasattr(light, "attributes"):
+            light.attributes["inputs:intensity"] = 750.0
+            light.attributes["inputs:angle"] = 0.35
+        dome = get_or_define_prim(
+            stage,
+            prim_path="/World/DemoObjectDomeLight",
+            prim_type="DomeLight",
+        )
+        if hasattr(dome, "attributes"):
+            dome.attributes["inputs:intensity"] = 450.0
+            dome.attributes["inputs:color"] = (1.0, 0.92, 0.82)
+        fill = get_or_define_prim(
+            stage,
+            prim_path="/World/DemoObjectFillLight",
+            prim_type="SphereLight",
+        )
+        if hasattr(fill, "attributes"):
+            fill.attributes["inputs:intensity"] = 1800.0
+            fill.attributes["inputs:radius"] = 3.0
+            fill.attributes["xformOp:translate"] = (-3.0, -4.0, 3.0)
+        return
+    try:
+        from pxr import Gf, UsdGeom, UsdLux  # type: ignore
+
+        cube = UsdGeom.Cube(prim)
+        cube.CreateSizeAttr(0.9)
+        gprim = UsdGeom.Gprim(prim)
+        gprim.CreateDisplayColorAttr([Gf.Vec3f(0.95, 0.48, 0.08)])
+        gprim.CreateDisplayOpacityAttr([1.0])
+        gprim.CreateDoubleSidedAttr(True)
+        light_prim = get_or_define_prim(
+            stage,
+            prim_path="/World/KeyLight",
+            prim_type="DistantLight",
+        )
+        light = UsdLux.DistantLight(light_prim)
+        light.CreateIntensityAttr(750.0)
+        light.CreateAngleAttr(0.35)
+        set_prim_xform_pose(light_prim, position=(0.0, -3.0, 5.0))
+        dome_prim = get_or_define_prim(
+            stage,
+            prim_path="/World/DemoObjectDomeLight",
+            prim_type="DomeLight",
+        )
+        dome = UsdLux.DomeLight(dome_prim)
+        dome.CreateIntensityAttr(450.0)
+        dome.CreateColorAttr(Gf.Vec3f(1.0, 0.92, 0.82))
+        fill_prim = get_or_define_prim(
+            stage,
+            prim_path="/World/DemoObjectFillLight",
+            prim_type="SphereLight",
+        )
+        fill = UsdLux.SphereLight(fill_prim)
+        fill.CreateIntensityAttr(1800.0)
+        fill.CreateRadiusAttr(3.0)
+        set_prim_xform_pose(fill_prim, position=(-3.0, -4.0, 3.0))
+    except Exception:
+        return
+
+
+def _is_audio_metadata_prim(type_name: str, attrs: Mapping[str, Any]) -> bool:
+    if type_name in {
+        "Sound",
+        "AudioSource",
+        "OmniAudioSource",
+        "Microphone",
+        "Listener",
+    }:
+        return True
+    return any(
+        key in attrs
+        for key in (
+            "ias:source_id",
+            "ias:class_label",
+            "ias:array_id",
+            "ias:microphone_id",
+            "filePath",
+            "inputs:file",
+            "inputs:audio",
+        )
+    )
+
+
+def _looks_like_scene_object(
+    path: str,
+    type_name: str,
+    attrs: Mapping[str, Any],
+) -> bool:
+    name = _path_name(path)
+    if name in {"World", "Rig", "Sources"}:
+        return False
+    if type_name in {"Xform", "Mesh", "Cube", "Sphere", "Cylinder", "Capsule"}:
+        return True
+    return any(key.startswith("xformOp:") for key in attrs)
+
+
+def _prim_type_name(prim: Any) -> str:
+    if hasattr(prim, "GetTypeName"):
+        return str(prim.GetTypeName())
+    return str(getattr(prim, "type_name", ""))
 
 
 def _summary_ids(items: tuple[DiscoveredPrimSummary, ...]) -> str:

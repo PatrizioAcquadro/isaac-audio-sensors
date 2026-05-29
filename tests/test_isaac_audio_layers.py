@@ -42,8 +42,11 @@ from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
     attach_microphone_attrs,
     attach_sound_source_attrs,
+    attach_source_object_binding_attrs,
+    clear_source_object_binding_attrs,
     create_listener_prim,
     create_sound_prim,
+    move_prim_to_path,
     require_isaac_usd,
 )
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
@@ -94,6 +97,22 @@ class _FakeStage:
         prim = _FakePrim(path, type_name, {})
         self._prims.append(prim)
         return prim
+
+    def GetPrimAtPath(self, path: str) -> _FakePrim | None:
+        for prim in self._prims:
+            if prim.path == path:
+                return prim
+        return None
+
+    def RemovePrim(self, path: object) -> bool:
+        path_string = str(path)
+        before = len(self._prims)
+        self._prims = [
+            prim
+            for prim in self._prims
+            if prim.path != path_string and not prim.path.startswith(f"{path_string}/")
+        ]
+        return len(self._prims) != before
 
 
 class _FakeTimeSampledValue:
@@ -434,6 +453,93 @@ def test_isaac_stage_authoring_helpers_work_with_duck_typed_stage():
     assert mic_attrs["ias:relative_orientation_quat"] == (0.0, 0.0, 0.0, 1.0)
     assert mic_attrs["ias:self_noise_db"] == 24.0
     assert mic_prim.attributes["xformOp:translate"] == (0.08, 0.0, 0.0)
+
+
+def test_isaac_stage_audio_object_binding_helpers_work_with_duck_typed_stage():
+    stage = _FakeStage(
+        (
+            _FakePrim(
+                "/World/Sources/SpeakerA",
+                "Sound",
+                {
+                    "filePath": "generated://impulse",
+                    "ias:source_id": "speaker_a",
+                    "ias:class_label": "Speech",
+                    "xformOp:translate": (2.0, 0.0, 0.0),
+                },
+            ),
+        )
+    )
+
+    moved = move_prim_to_path(
+        stage,
+        source_path="/World/Sources/SpeakerA",
+        dest_path="/World/Oven/SpeakerA",
+        prim_type="Sound",
+    )
+    binding_attrs = attach_source_object_binding_attrs(
+        moved,
+        object_prim_path="/World/Oven",
+        local_offset_m=(0.0, 0.5, 0.25),
+    )
+
+    assert stage.GetPrimAtPath("/World/Sources/SpeakerA") is None
+    assert stage.GetPrimAtPath("/World/Oven/SpeakerA") is moved
+    assert moved.attributes["ias:source_id"] == "speaker_a"
+    assert moved.attributes["ias:attached_object_prim_path"] == "/World/Oven"
+    assert binding_attrs["ias:source_local_offset_m"] == (0.0, 0.5, 0.25)
+    assert moved.attributes["xformOp:translate"] == (0.0, 0.5, 0.25)
+
+    clear_source_object_binding_attrs(moved)
+
+    assert "ias:attached_object_prim_path" not in moved.attributes
+    assert "ias:source_local_offset_m" not in moved.attributes
+
+
+def test_isaac_stage_audio_move_prim_uses_sdf_path_for_strict_isaac_stage(
+    monkeypatch,
+):
+    pxr = ModuleType("pxr")
+    sdf = ModuleType("pxr.Sdf")
+
+    class SdfPath:
+        def __init__(self, value: str) -> None:
+            self.value = value
+
+        def __str__(self) -> str:
+            return self.value
+
+    sdf.Path = SdfPath
+    pxr.Sdf = sdf
+    monkeypatch.setitem(sys.modules, "pxr", pxr)
+    monkeypatch.setitem(sys.modules, "pxr.Sdf", sdf)
+
+    class StrictStage(_FakeStage):
+        def GetPrimAtPath(self, path: object) -> _FakePrim | None:
+            if isinstance(path, str):
+                raise TypeError("expected Sdf.Path")
+            return super().GetPrimAtPath(str(path))
+
+    stage = StrictStage(
+        (
+            _FakePrim(
+                "/World/Sources/SpeakerA",
+                "Sound",
+                {"ias:source_id": "speaker_a"},
+            ),
+        )
+    )
+
+    moved = move_prim_to_path(
+        stage,
+        source_path="/World/Sources/SpeakerA",
+        dest_path="/World/Oven/SpeakerA",
+        prim_type="Sound",
+    )
+
+    assert moved.path == "/World/Oven/SpeakerA"
+    assert moved.attributes["ias:source_id"] == "speaker_a"
+    assert not any(prim.path == "/World/Sources/SpeakerA" for prim in stage.Traverse())
 
 
 def test_isaac_stage_snapshot_and_sensor_capture_from_duck_typed_stage():
