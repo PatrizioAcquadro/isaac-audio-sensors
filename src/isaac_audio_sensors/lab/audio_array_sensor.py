@@ -9,6 +9,7 @@ from typing import Any
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.constants import SECTOR_ORDER
 from isaac_audio_sensors.core.exceptions import IsaacLabUnavailable
+from isaac_audio_sensors.core.io.waveforms import FrameWaveformWriter
 from isaac_audio_sensors.core.microphone_array import microphone_layout
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
@@ -101,6 +102,7 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
         self._frame_indices: list[int] = []
         self._pending_timestamp_ms: dict[int, int] = {}
         self._last_legacy_sim_time_s: float | None = None
+        self._waveform_sinks: dict[int, Any] = {}
         self._manual_num_envs = int(num_envs) if num_envs is not None else None
         self._manual_device = cfg.device or "cpu"
         self._is_visualizing = False
@@ -486,9 +488,13 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
 
         scene_snapshot = scene_snapshot or self._resolve_scene_snapshot(env_id)
         sensor = sensor or self._resolve_sensor(env_id)
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if self.cfg.backend in {"tdoa_synthetic", "room_acoustics"}:
             kwargs = {"ambiguity_policy": self.cfg.ambiguity_policy}
+        if self.cfg.backend == "room_acoustics":
+            sink = self._resolve_waveform_sink(env_id)
+            if sink is not None:
+                kwargs["waveform_writer"] = sink
         backend = get_backend(self.cfg.backend, **kwargs)
         return backend.simulate(
             scene_snapshot,
@@ -764,6 +770,22 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
                 f"No AudioSceneSnapshot is bound for env {env_id}. Use bind_envs() "
                 "or bind_provider() before reading data."
             ) from exc
+
+    def _resolve_waveform_sink(self, env_id: int) -> FrameWaveformWriter | None:
+        """Build the per-env waveform writer when waveform export is enabled.
+
+        Per-env subdirectories keep deterministic frame file names from
+        colliding across vectorized environments.
+        """
+
+        if not getattr(self.cfg, "write_waveforms", False):
+            return None
+        if env_id not in self._waveform_sinks:
+            base_dir = self.cfg.waveform_dir or "outputs/audio_waveforms"
+            self._waveform_sinks[env_id] = FrameWaveformWriter(
+                f"{base_dir}/env_{env_id}"
+            )
+        return self._waveform_sinks[env_id]
 
     def _resolve_sensor(self, env_id: int) -> MicrophoneArraySpec:
         try:
