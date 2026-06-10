@@ -35,9 +35,13 @@
   ambiguity instead of hiding it.
 - Four or more non-collinear microphones are recommended for robust DOA demos.
 - L1 `noise_std_s`, `clock_jitter_s`, and `gain_mismatch_db` are deterministic
-  stress knobs, not calibrated hardware noise. They perturb delay/RMS and
+  stress knobs (seeded Gaussian draws, repeatable per seed/frame/microphone),
+  not calibrated hardware noise. They perturb delay/RMS and
   confidence diagnostics but do not model stochastic sensor drift, electronics
   noise spectra, clipping, automatic gain control, or hardware clock recovery.
+- L1 `air_absorption_db_per_m` is a single broadband coefficient, not a
+  frequency-dependent atmospheric absorption model. `self_noise_db` and source
+  `directivity` are modeled first-order at L0/L1 and are metadata-only at L2.
 - Isaac Sim and Isaac Lab integrations require a user-managed NVIDIA runtime.
 - Isaac Sim stage extraction supports live per-step USD world-pose reads,
   nested transform stacks, robot/base-mounted arrays, moving sources and

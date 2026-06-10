@@ -1,7 +1,7 @@
 {
   "aggregate_per_mic_rms": {
-    "left": 0.04,
-    "right": 0.04
+    "left": 0.19997440491415167,
+    "right": 0.19997440491415167
   },
   "array_id": "stereo_rig",
   "array_pose": {
@@ -25,15 +25,36 @@
     {
       "audio_asset_path": "generated://impulse",
       "class_label": "Tone",
-      "detection_id": "tdoa_synthetic_two_mic_ambiguity_stereo_rig_0_0_tone_00",
+      "detection_id": "tdoa_synthetic_two_mic_ambiguity_stereo_rig_0_0_tone_front_00",
       "detection_mode": "scheduled_known_source",
       "diagnostics": {
+        "air_absorption_db_per_m": 0.0,
         "array_geometry_rank_xy": 1,
         "backend": "tdoa_synthetic",
+        "clock_jitter_s": 0.0,
+        "directivity": "omni",
+        "directivity_applied": "omni",
+        "gain_mismatch_db": 0.0,
+        "noise_seed": null,
+        "noise_std_s": 0.0,
+        "oracle_bearing_error_deg": null,
+        "per_mic_distance_m": {
+          "left": 5.000639959045242,
+          "right": 5.000639959045242
+        },
+        "per_mic_gain_offset_db": {
+          "left": 0.0,
+          "right": 0.0
+        },
         "physical_waveform": false,
+        "source_gain_db": 0.0,
+        "speed_of_sound_mps": 343.0,
+        "stress_controls_deterministic": true,
         "tdoa_matrix_s": {
+          "left->left": 0.0,
           "left->right": 0.0,
-          "right->left": 0.0
+          "right->left": 0.0,
+          "right->right": 0.0
         }
       },
       "doa": {
@@ -49,12 +70,12 @@
       },
       "ground_truth_bearing_deg": 0.0,
       "per_mic_delay_s": {
-        "left": 0.014577259475218658,
-        "right": 0.014577259475218658
+        "left": 0.01457912524502986,
+        "right": 0.01457912524502986
       },
       "per_mic_rms": {
-        "left": 0.04,
-        "right": 0.04
+        "left": 0.19997440491415167,
+        "right": 0.19997440491415167
       },
       "source_distance_m": 5.0,
       "source_id": "tone_front",
@@ -73,9 +94,15 @@
   ],
   "diagnostics": {
     "active_source_count": 1,
+    "air_absorption_db_per_m": 0.0,
     "ambiguity_policy": "none",
     "array_geometry_rank_xy": 1,
-    "backend": "tdoa_synthetic"
+    "backend": "tdoa_synthetic",
+    "clock_jitter_s": 0.0,
+    "gain_mismatch_db": 0.0,
+    "noise_seed": null,
+    "noise_std_s": 0.0,
+    "stress_controls_deterministic": true
   },
   "end_time_s": 0.1,
   "frame_id": "tdoa_synthetic_two_mic_ambiguity_stereo_rig_0_0",

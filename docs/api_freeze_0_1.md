@@ -7,7 +7,7 @@ downstream research project, and the pure Python core must remain importable
 without Isaac Sim, Isaac Lab, Omniverse, `pyroomacoustics`, `scipy`,
 `soundfile`, protobuf, ROS 2, CUDA, or torch installed.
 
-The distribution version is currently final `1.0.0`. The frame schema version
+The distribution version is currently `1.1.0`. The frame schema version
 is independent and remains `ias.audio_sensor_frame.v1` for all compatible v1
 releases.
 
@@ -18,7 +18,7 @@ calibration, real hardware benchmarks, complete L3/L4 fidelity, or realistic
 material/occlusion acoustics into v1 release gates.
 
 The file name is retained for existing documentation links; the active release
-target is `1.0.0`.
+target is `1.1.0`.
 
 ## Stable For V1-Compatible Releases
 
@@ -65,6 +65,43 @@ Corrected bearing-sector behavior is the stable v1 contract. The recent sector
 consistency fix is treated as a bug correction because it aligned the emitted
 sector labels with the documented clockwise convention; it does not reopen the
 contract for reshaping.
+
+## V1 Frame Schema Evolution Policy
+
+This section defines exactly what a compatible v1 release may add to an
+`AudioSensorFrame` v1 record without a new schema version. Downstream readers
+must tolerate these additions; producers must not rely on anything beyond
+them.
+
+A compatible v1 release **may add**:
+
+- new optional top-level frame fields;
+- new optional detection, `doa`, and pose fields;
+- new keys inside any `diagnostics` dictionary (frame-level or
+  detection-level), including new top-level diagnostics namespaces;
+- new values for enum-like string fields that are documented as open-ended
+  (for example `class_label`, diagnostics strings, and `detection_mode`
+  values beyond the documented ones);
+- new optional keyword-only constructor parameters with backward-compatible
+  defaults on public backends and sensors.
+
+A compatible v1 release **must not**:
+
+- remove, rename, or repurpose any documented v1 field or diagnostics key
+  used for provenance identification;
+- change the units, required-ness, or documented semantics of existing
+  fields;
+- change `schema_version` away from `ias.audio_sensor_frame.v1`;
+- make a previously optional field required, or start emitting frames that
+  existing v1 readers cannot parse;
+- add new required constructor parameters to stable public APIs.
+
+New optional fields must be absent-tolerant: a v1 reader that ignores them
+must still interpret the frame correctly. New diagnostics keys are evidence,
+not contract: producers may add them in any compatible release, and readers
+must not require them. Schema additions that need validation guarantees must
+be regenerated into `docs/schemas/audio_sensor_frame.v1.schema.json` with
+`make export-schema` as forward-compatible optional fields.
 
 Package import and version:
 

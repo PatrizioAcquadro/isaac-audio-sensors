@@ -23,6 +23,28 @@ when known, explicit units, time-window fields, and provenance. `max_events` is
 read from `AudioTimeWindow.max_events`; active sources are selected in a stable
 order and truncated before detections are emitted.
 
+## Shared Amplitude Conventions
+
+Since `1.1.0` the synthetic L0/L1 RMS values and the L2 waveform pipeline share
+one pressure-like reference convention:
+
+- `AudioSourceSpec.gain_db` is the source level re 1 m: an omnidirectional
+  source emits an RMS amplitude of `10 ** (gain_db / 20)` at one meter.
+- RMS falls off as `1 / distance` (pressure), with distance clamped at 0.1 m.
+  At L2 the same convention is inherited from the pyroomacoustics image-source
+  attenuation.
+- `aggregate_per_mic_rms` is an incoherent power sum over scheduled sources:
+  `sqrt(sum(rms ** 2))` per microphone in all three backends.
+- `MicrophoneSpec.self_noise_db` adds a per-microphone noise-floor power
+  `(10 ** (self_noise_db / 20)) ** 2` to the aggregate at L0/L1. Per-detection
+  `per_mic_rms` stays signal-only.
+- `AudioSourceSpec.directivity` is modeled at L0/L1 with a first-order factor:
+  `omni` is unity and `cardioid` applies `(1 + cos(theta)) / 2` toward each
+  microphone using the source's world orientation. Unknown directivity values,
+  and `cardioid` sources without `orientation_world_quat`, behave as `omni`;
+  the detection diagnostic `directivity_applied` records what was modeled.
+  Both `self_noise_db` and source directivity remain metadata-only at L2.
+
 ## geometry_only
 
 `GeometryBackend` computes direct geometric bearing, source distance, and an
@@ -65,13 +87,29 @@ Four or more non-collinear microphones are recommended for direction-of-arrival
 examples. The built-in `quad_front` and `quad_cross` aliases use the same
 front/right/rear/left cross layout.
 
+Bearing confidence derives only from observable quantities: the least-squares
+residual, the array geometry, and the configured stress settings. The
+ground-truth bearing never feeds confidence; the comparison against ground
+truth is reported separately as the detection diagnostic
+`oracle_bearing_error_deg`.
+
 `noise_std_s`, `clock_jitter_s`, and `gain_mismatch_db` are deterministic
 stress controls for L1 tests and examples, not calibrated hardware noise.
-`noise_std_s` and `clock_jitter_s` add a repeatable per-mic delay offset and
-reduce confidence. `gain_mismatch_db` applies a repeatable per-mic RMS offset
-and reduces confidence. This deterministic stress layer does not model
-stochastic sensor drift, frequency response, clipping, automatic gain control,
-correlated electronics noise, or hardware clock recovery.
+`noise_std_s` and `clock_jitter_s` are standard deviations of seeded Gaussian
+per-mic delay draws, deterministic per `(seed, frame_id, mic_id)`, and reduce
+confidence. `gain_mismatch_db` is the standard deviation of a static seeded
+Gaussian per-mic RMS gain offset, deterministic per `(seed, mic_id)`, and
+reduces confidence. The optional `seed` constructor argument selects the noise
+stream; the default seed is fixed, so replays of the same scene, window, and
+settings stay bit-identical, and zero-noise settings draw nothing. This
+deterministic stress layer does not model stochastic sensor drift, frequency
+response, clipping, automatic gain control, correlated electronics noise, or
+hardware clock recovery.
+
+`air_absorption_db_per_m` (default `0.0`) optionally applies a broadband
+air-absorption factor `10 ** (-air_absorption_db_per_m * distance / 20)` to
+the L1 RMS. It is a single broadband coefficient, not a frequency-dependent
+atmospheric model.
 
 ## room_acoustics
 
@@ -108,3 +146,6 @@ diagnostic keys for `room_config`, `pyroomacoustics_version`,
 Use it for approximate shoebox-room experiments, not as a calibrated acoustic
 twin. It does not provide realistic occlusion, material behavior, directivity,
 calibrated microphone response, production beamforming, or sim-real transfer.
+`MicrophoneSpec.self_noise_db` and `AudioSourceSpec.directivity` are
+metadata-only at L2: they pass through frames unchanged but are not applied to
+the simulated waveforms.

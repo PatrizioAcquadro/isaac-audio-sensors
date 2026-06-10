@@ -1,9 +1,9 @@
 {
   "aggregate_per_mic_rms": {
-    "front": 0.13046039090984038,
-    "left": 0.12902849936601404,
-    "rear": 0.12347361421491562,
-    "right": 0.1249452610430181
+    "front": 0.301896820233322,
+    "left": 0.29867637977958433,
+    "rear": 0.2933312000416706,
+    "right": 0.2965786690079123
   },
   "array_id": "rig_front",
   "array_pose": {
@@ -31,10 +31,13 @@
       "detection_mode": "scheduled_known_source",
       "diagnostics": {
         "backend": "geometry_only",
+        "directivity": "omni",
+        "directivity_applied": "omni",
         "forward_component_m": 4.0,
         "horizontal_distance_m": 4.47213595499958,
         "physical_waveform": false,
         "right_component_m": 2.0,
+        "source_gain_db": 0.0,
         "up_component_m": 0.0
       },
       "doa": {
@@ -50,10 +53,10 @@
       "ground_truth_bearing_deg": 26.56505117707799,
       "per_mic_delay_s": {},
       "per_mic_rms": {
-        "front": 0.051635822868473236,
-        "left": 0.04919710327455919,
-        "rear": 0.04843459392436454,
-        "right": 0.05079648894668401
+        "front": 0.227235170843937,
+        "left": 0.22180420030864878,
+        "rear": 0.22007860851151467,
+        "right": 0.22538076436706841
       },
       "source_distance_m": 4.47213595499958,
       "source_id": "speaker_front_right",
@@ -76,10 +79,13 @@
       "detection_mode": "scheduled_known_source",
       "diagnostics": {
         "backend": "geometry_only",
+        "directivity": "omni",
+        "directivity_applied": "omni",
         "forward_component_m": 2.0,
         "horizontal_distance_m": 3.605551275463989,
         "physical_waveform": false,
         "right_component_m": -3.0,
+        "source_gain_db": -3.0,
         "up_component_m": 0.0
       },
       "doa": {
@@ -95,10 +101,10 @@
       "ground_truth_bearing_deg": 303.69006752597977,
       "per_mic_delay_s": {},
       "per_mic_rms": {
-        "front": 0.07882456804136714,
-        "left": 0.07983139609145486,
-        "rear": 0.07503902029055108,
-        "right": 0.0741487720963341
+        "front": 0.1987608291352134,
+        "left": 0.200026189694448,
+        "rear": 0.1939293659906154,
+        "right": 0.19277556371029178
       },
       "source_distance_m": 3.605551275463989,
       "source_id": "speaker_left",

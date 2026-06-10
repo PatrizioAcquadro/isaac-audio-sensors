@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import math
 
+from isaac_audio_sensors.core.backends.amplitude import (
+    aggregate_rms_power_sum,
+    resolve_directivity,
+    source_amplitude_at,
+)
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
 from isaac_audio_sensors.core.math_utils import (
     bearing_from_components,
@@ -22,6 +27,7 @@ from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSceneSnapshot,
     AudioSensorFrame,
+    AudioSourceSpec,
     AudioTimeWindow,
     DoaEstimate,
     MicrophoneArraySpec,
@@ -53,7 +59,9 @@ class GeometryBackend:
             frame_index=time_window.frame_index,
         )
         detections: list[AudioDetection] = []
-        aggregate_rms = {microphone.mic_id: 0.0 for microphone in sensor.microphones}
+        aggregate_rms_power = {
+            microphone.mic_id: 0.0 for microphone in sensor.microphones
+        }
 
         active = active_sources(scene, time_window)
         for index, source in enumerate(active):
@@ -70,9 +78,9 @@ class GeometryBackend:
                 else horizontal_distance / distance
             )
             sector = None if bearing is None else bearing_deg_to_sector_name(bearing)
-            per_mic_rms = _rms_proxy_for_source(source.position_world, sensor)
+            per_mic_rms = _rms_proxy_for_source(source, sensor)
             for mic_id, rms in per_mic_rms.items():
-                aggregate_rms[mic_id] += rms
+                aggregate_rms_power[mic_id] += rms * rms
 
             detections.append(
                 AudioDetection(
@@ -106,6 +114,9 @@ class GeometryBackend:
                         "right_component_m": right_component,
                         "up_component_m": up_component,
                         "horizontal_distance_m": horizontal_distance,
+                        "source_gain_db": source.gain_db,
+                        "directivity": source.directivity,
+                        "directivity_applied": resolve_directivity(source),
                     },
                 )
             )
@@ -131,7 +142,10 @@ class GeometryBackend:
             provenance="synthetic/core",
             max_events=time_window.max_events,
             detections=tuple(detections),
-            aggregate_per_mic_rms=aggregate_rms,
+            aggregate_per_mic_rms=aggregate_rms_power_sum(
+                aggregate_rms_power,
+                sensor.microphones,
+            ),
             waveform_paths=(),
             diagnostics={
                 "backend": self.backend_id,
@@ -143,11 +157,10 @@ class GeometryBackend:
 
 
 def _rms_proxy_for_source(
-    source_position_world: tuple[float, float, float],
+    source: AudioSourceSpec,
     sensor: MicrophoneArraySpec,
 ) -> dict[str, float]:
     per_mic: dict[str, float] = {}
     for mic_id, mic_position in microphone_world_positions(sensor).items():
-        distance = max(norm(subtract(source_position_world, mic_position)), 0.1)
-        per_mic[mic_id] = 1.0 / (distance * distance)
+        per_mic[mic_id] = source_amplitude_at(source, mic_position)
     return per_mic

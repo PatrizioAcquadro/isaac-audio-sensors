@@ -19,6 +19,7 @@ from isaac_audio_sensors.core.doa.gcc_phat import (
 )
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.math_utils import (
+    angular_error_deg,
     bearing_from_components,
     dot,
     norm,
@@ -100,7 +101,9 @@ class RoomAcousticsBackend:
         )
 
         detections: list[AudioDetection] = []
-        aggregate_rms = {microphone.mic_id: 0.0 for microphone in sensor.microphones}
+        aggregate_rms_power = {
+            microphone.mic_id: 0.0 for microphone in sensor.microphones
+        }
         active = active_sources(scene, time_window)
         room_config = _room_config_summary(scene.room)
         mic_world = microphone_world_positions(sensor)
@@ -142,10 +145,17 @@ class RoomAcousticsBackend:
                 per_mic_delay_s=result.per_mic_delay_s,
                 speed_of_sound_mps=self.speed_of_sound_mps,
                 ambiguity_policy=self.ambiguity_policy,
-                ground_truth_bearing_deg=ground_truth_bearing,
+            )
+            oracle_bearing_error = (
+                None
+                if doa.estimated_bearing_deg is None or ground_truth_bearing is None
+                else angular_error_deg(
+                    doa.estimated_bearing_deg,
+                    ground_truth_bearing,
+                )
             )
             for mic_id, rms in result.per_mic_rms.items():
-                aggregate_rms[mic_id] += rms
+                aggregate_rms_power[mic_id] += rms * rms
 
             detections.append(
                 AudioDetection(
@@ -187,6 +197,7 @@ class RoomAcousticsBackend:
                         "gcc_phat_peaks": result.gcc_phat_peak,
                         "gcc_phat_peak": result.gcc_phat_peak,
                         "direct_path_delay_s": result.direct_path_delay_s,
+                        "oracle_bearing_error_deg": oracle_bearing_error,
                         "per_mic_rms": result.per_mic_rms,
                         "rir_length_samples": result.rir_length_samples,
                         "rir_peak_delay_s": result.rir_peak_delay_s,
@@ -229,7 +240,10 @@ class RoomAcousticsBackend:
             provenance="room_acoustics",
             max_events=time_window.max_events,
             detections=tuple(detections),
-            aggregate_per_mic_rms=aggregate_rms,
+            aggregate_per_mic_rms={
+                mic_id: math.sqrt(power)
+                for mic_id, power in aggregate_rms_power.items()
+            },
             waveform_paths=(),
             diagnostics={
                 "backend": self.backend_id,

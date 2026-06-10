@@ -1,5 +1,58 @@
 # Changelog
 
+## 1.1.0 - 2026-06-10
+
+Physics coherence release for the v1 line. Every shared quantity now means
+the same thing at L0, L1, and L2, and no observable output leaks ground
+truth. The frame schema version is unchanged at `ias.audio_sensor_frame.v1`;
+all value changes are documented physics bug fixes plus additive optional
+APIs and diagnostics.
+
+Documented physics corrections (bug fixes preserving the v1 frame shape):
+
+- L0/L1 synthetic RMS now follows the pressure law `1/distance` instead of
+  `1/distance^2`. The reference convention is documented: `gain_db` is the
+  source level re 1 m, so RMS at 1 m equals `10 ** (gain_db / 20)`.
+- `AudioSourceSpec.gain_db` is now applied at L0 and L1, matching the
+  existing L2 behavior.
+- `aggregate_per_mic_rms` is now an incoherent power sum `sqrt(sum(rms^2))`
+  across sources in all three backends instead of a linear sum.
+- Bearing confidence no longer uses the ground-truth bearing: it derives only
+  from the least-squares residual, array geometry, and stress settings. The
+  ground-truth comparison moved to the additive detection diagnostic
+  `oracle_bearing_error_deg`, and confidence is invariant to ground-truth
+  changes by test. `estimate_doa_from_delays` keeps its
+  `ground_truth_bearing_deg` parameter for compatibility but ignores it.
+- The L1 stress controls replace the alternating-sign bias with real Gaussian
+  draws: delay noise and clock jitter are deterministic per
+  `(seed, frame_id, mic_id)`, and gain mismatch is a static per-mic draw per
+  `(seed, mic_id)`. Zero-noise outputs are bit-identical to before.
+
+Additive APIs, diagnostics, and tooling:
+
+- `TdoaSyntheticBackend(seed=...)` selects the deterministic noise stream;
+  the default (`seed=None`) remains fully deterministic.
+- `TdoaSyntheticBackend(air_absorption_db_per_m=...)` adds optional broadband
+  air-absorption attenuation to L1 RMS (default 0.0 is a no-op).
+- `MicrophoneSpec.self_noise_db` is now modeled at L0/L1 as a per-mic noise
+  floor in `aggregate_per_mic_rms`; `AudioSourceSpec.directivity` is now
+  modeled at L0/L1 with a first-order omni/cardioid factor. Unknown
+  directivity values and cardioid sources without orientation behave as omni
+  and are reported via the `directivity_applied` diagnostic. Both remain
+  metadata-only at L2.
+- New detection diagnostics: `source_gain_db`, `directivity`,
+  `directivity_applied`, `oracle_bearing_error_deg`, `noise_seed`,
+  `air_absorption_db_per_m`.
+- The live Kit update-stream subscription now respects `update_period_s`
+  instead of forcing a capture every tick.
+- GCC-PHAT pairwise estimation caches per-channel rFFTs and mirrors the
+  symmetric half of the pair matrix; outputs are unchanged.
+- New `make regenerate-traces` target and
+  `scripts/regenerate_example_traces.py` regenerate the backend-generated
+  JSON example traces, which are refreshed for the corrected physics.
+- `docs/api_freeze_0_1.md` gains an explicit "V1 Frame Schema Evolution
+  Policy" section defining what compatible v1 releases may add to a frame.
+
 ## 1.0.0 - 2026-05-24
 
 This is the final v1 package release promoted from `1.0.0rc1`.
