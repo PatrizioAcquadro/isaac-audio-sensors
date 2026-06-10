@@ -132,9 +132,13 @@ is used only when a real file-backed `audio_asset_path` is loaded; generated
 waveforms do not require it.
 
 Active sources use the shared half-open scheduling window and deterministic
-`max_events` truncation. For v1, multiple active sources are simulated
-independently and emitted as one detection per scheduled source. This is not
-mixed-source separation.
+`max_events` truncation. All scheduled sources share one room per frame, so
+microphone signals are true mixtures with sample-accurate start offsets;
+per-source diagnostics come from the simulation premix, and each scheduled
+source is emitted as one detection. This is not mixed-source separation of
+unknown signals. With a configured waveform sink the backend also writes the
+mixture and populates `waveform_paths` (see
+[Room Acoustics](room_acoustics.md#waveform-export)).
 
 Frames from this backend use provenance `room_acoustics` and include stable L2
 diagnostic keys for `room_config`, `pyroomacoustics_version`,

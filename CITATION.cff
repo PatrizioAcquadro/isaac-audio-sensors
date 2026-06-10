@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 title: "isaac-audio-sensors"
-version: "1.1.0"
-date-released: "2026-05-24"
+version: "1.2.0"
+date-released: "2026-06-10"
 message: "If you use isaac-audio-sensors in research or demos, please cite this software package."
 authors:
   - name: "isaac-audio-sensors contributors"

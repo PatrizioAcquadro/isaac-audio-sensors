@@ -12,13 +12,19 @@
   deterministic stress controls; it does not model occlusion, multipath, or
   microphone frequency response.
 - `room_acoustics` is an optional approximate shoebox simulation and depends on
-  `pyroomacoustics`. It generates RIRs and microphone waveforms, then derives
-  TDOA through GCC-PHAT, but it does not provide realistic occlusion, material
-  behavior, source directivity, calibrated microphone response, production
-  beamforming, mixed-source separation, or sim-real transfer.
+  `pyroomacoustics`. It generates RIRs and true microphone mixtures, then
+  derives TDOA through GCC-PHAT, but it does not provide realistic occlusion,
+  material behavior, source directivity, calibrated microphone response,
+  production beamforming, mixed-source separation of unknown signals, or
+  sim-real transfer.
 - `room_acoustics` file-backed `audio_asset_path` loading is intentionally
-  narrow: paths must be relative public files under the checkout and sample
-  rates must match the frame sample rate.
+  narrow: paths must be relative public files under the checkout. Mismatched
+  sample rates are resampled with `scipy.signal.resample_poly`.
+- Doppler from per-tick source motion is not modeled by the continuous
+  session renderer; it is deferred to the Block 8 roadmap item together with
+  source velocity tracking.
+- The continuous session WAV is the concatenation of captured windows;
+  sim-time gaps between throttled update ticks are not rendered as silence.
 - The 2026-05-24 local-time final `1.0.0` live Isaac Sim validation
   (`2026-05-25T03:34Z` Kit log timestamp) skipped `room_acoustics` because
   `pyroomacoustics` was absent from the Isaac runtime. The live proof covered

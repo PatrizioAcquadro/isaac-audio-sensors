@@ -35,15 +35,54 @@ sample rate to `pyroomacoustics` where the installed version supports those
 arguments. Source waveforms are deterministic for generated `generated://...`
 sources. File-backed `audio_asset_path` loading is limited to relative files
 inside the checkout; mono files are loaded directly, multichannel files are
-downmixed, and sample rates must already match the frame sample rate. The
-`soundfile` dependency is used only for file-backed assets, not generated
-waveforms.
+downmixed, and mismatched sample rates are resampled to the frame sample rate
+with `scipy.signal.resample_poly`. The `soundfile` dependency is used for
+file-backed assets and waveform export, not generated waveforms. See
+[Audio Assets](audio_assets.md) for asset rules and external-corpus usage.
 
 Multiple active sources are scheduled with the shared half-open
 `AudioTimeWindow` behavior. Sources are ordered deterministically and truncated
-by `max_events`. In v1, each scheduled source is simulated independently and
-gets one deterministic detection. The backend does not claim mixed-source
-separation.
+by `max_events`. All scheduled sources share one `pyroomacoustics` room per
+frame, so microphone signals are true mixtures; per-source diagnostics
+(GCC-PHAT TDOA, per-mic RMS, RIR lengths and peak delays) come from the
+per-source simulation premix, and each scheduled source still gets one
+deterministic detection. The backend does not claim mixed-source separation of
+unknown signals; per-source diagnostics are available because the simulator
+knows each source's contribution.
+
+Scheduling is sample-accurate: a source starting mid-window is zero-padded to
+its exact start offset, a source that started before the window resumes from
+its elapsed offset, and content is truncated at whichever comes first of the
+source end and the window end. Generated sources emit a deterministic,
+phase-continuous two-tone signal (a seeded fundamental plus a golden-ratio
+overtone that keeps GCC-PHAT correlation aperiodic) over their whole active
+interval, so consecutive windows concatenate without discontinuities.
+
+## Waveform export
+
+`RoomAcousticsBackend(waveform_writer=...)` accepts a waveform sink from
+`isaac_audio_sensors.core.io.waveforms`. When configured, every frame's
+microphone mixture is written and `AudioSensorFrame.waveform_paths` is
+populated; without a sink, `waveform_paths` stays empty exactly as before.
+
+- `FrameWaveformWriter(output_dir)` writes one deterministic multichannel WAV
+  per frame named `{frame_id}.wav`.
+- `ContinuousWaveformWriter(path)` appends window-exact chunks to one growing
+  session WAV across ticks, overlap-adding reverb tails carried past each
+  window; frames reference their half-open `[start_sample, end_sample)` slice
+  through the `waveform` diagnostics namespace, and `close()` flushes the
+  final tail.
+
+WAVs use the `FLOAT` subtype with raw, non-normalized simulation values, and
+channels follow the `MicrophoneArraySpec.microphones` order (recorded in the
+`waveform.channel_mic_ids` diagnostic). Frames with no active source still
+write a window-length silent mixture so session streams stay gapless.
+`IsaacAudioArraySensor` exposes this through `waveform_dir` and
+`waveform_mode` (`"per_frame"` or `"session"`); the Isaac Lab sensor through
+`write_waveforms`/`waveform_dir` (per-frame mode with per-env subdirectories);
+TOML configs through `audio.write_waveforms` and `audio.waveform_dir`.
+Doppler from per-tick source motion is not modeled yet and is deferred to the
+Block 8 roadmap item.
 
 Supported optional v1 diagnostics include these stable names.
 
@@ -61,8 +100,10 @@ Frame diagnostics:
 - `scheduled_source_ids`;
 - `max_events`;
 - `time_window_s`;
+- `window_sample_count`;
 - `per_source_rir_summary`;
-- `per_source_rir_length_samples`.
+- `per_source_rir_length_samples`;
+- `waveform` (only when a waveform sink is configured).
 
 Detection diagnostics:
 
@@ -82,6 +123,8 @@ Detection diagnostics:
 - `rir_peak_delay_s`;
 - `waveform_sample_count`;
 - `source_waveform_mode`;
+- `scheduled_start_offset_samples`;
+- `scheduled_content_sample_count`;
 - `room_source_position_m`;
 - `room_microphone_positions_m`.
 

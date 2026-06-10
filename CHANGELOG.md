@@ -1,5 +1,71 @@
 # Changelog
 
+## 1.2.0 - 2026-06-10
+
+Audio output release: the room backend now renders true microphone mixtures
+and exports them as multichannel WAVs. The frame schema version is unchanged
+at `ias.audio_sensor_frame.v1`; the previously empty `waveform_paths` field
+is now populated when waveform export is enabled, and all diagnostic value
+changes below are documented physics improvements.
+
+Mixtures and sample-accurate scheduling (documented value changes at L2):
+
+- All active sources share one `pyroomacoustics` room per frame
+  (`simulate(return_premix=True)`) instead of one room per source.
+  Per-source diagnostics (`estimated_tdoa_matrix_s`, `gcc_phat_peaks`,
+  `per_mic_rms`, `rir_length_samples`, `rir_peak_delay_s`) now derive from
+  the per-source simulation premix, so their values shift relative to 1.1.
+- `aggregate_per_mic_rms` at L2 is now the RMS of the true mixture instead
+  of an incoherent per-source power sum; coherent interference between
+  sources is now physical.
+- Source scheduling is sample-accurate: a source starting mid-window gets
+  leading zero-padding, a source that started before the window resumes from
+  its elapsed offset (file assets play through across frames instead of
+  restarting), and content truncates at min(source end, window end).
+- Generated sources emit a deterministic, phase-continuous two-tone signal
+  over their whole active interval (seeded fundamental plus a golden-ratio
+  overtone that keeps GCC-PHAT correlation aperiodic), with fixed per-mode
+  scaling instead of per-window peak normalization.
+  `RoomAcousticsBackend(source_waveform_duration_s=...)` is retained for API
+  compatibility but no longer limits emission.
+- File-backed `audio_asset_path` assets with mismatched sample rates are now
+  resampled with `scipy.signal.resample_poly` instead of raising.
+
+Waveform export (additive):
+
+- New `core.io.waveforms` module: `write_multichannel_wav`,
+  `FrameWaveformWriter` (one deterministic `{frame_id}.wav` per frame),
+  `ContinuousWaveformWriter` (one growing session WAV with window-exact
+  chunks, overlap-added reverb tails, and `[start_sample, end_sample)` frame
+  slices), and the `WaveformSink` protocol. WAVs use the `FLOAT` subtype
+  with channels in microphone order.
+- `RoomAcousticsBackend(waveform_writer=...)` writes each frame's mixture
+  and populates `AudioSensorFrame.waveform_paths` plus a `waveform` frame
+  diagnostics namespace; frames with no active sources write window-length
+  silence so session streams stay gapless.
+- `IsaacAudioArraySensor` gains `waveform_dir` and `waveform_mode`
+  (`"per_frame"` or `"session"`); `reset()` starts a new session and
+  `close()` flushes the final reverb tail. The Isaac Lab sensor activates
+  the previously reserved `write_waveforms` with a new `waveform_dir`
+  (per-frame mode, one `env_{id}` subdirectory per environment). TOML
+  configs gain `audio.waveform_dir`.
+- New detection diagnostics `scheduled_start_offset_samples` and
+  `scheduled_content_sample_count`; new frame diagnostic
+  `window_sample_count`.
+- The live Isaac Sim smoke now requires WAV round-trip evidence for the
+  room backend: non-empty `waveform_paths`, an existing file, and a
+  `soundfile` read matching the frame's rate, mic count, and window length.
+- New [Audio Assets](docs/audio_assets.md) doc: asset path rules,
+  auto-resampling, the `data/` convention for external corpora
+  (ESC-50/FSD50K style), and the test-time fixture-generation pattern.
+
+Deferred:
+
+- Doppler from per-tick source motion is explicitly deferred to Block 8
+  together with source velocity tracking; the continuous session stream is
+  the concatenation of captured windows and does not render sim-time gaps
+  between throttled ticks as silence.
+
 ## 1.1.0 - 2026-06-10
 
 Physics coherence release for the v1 line. Every shared quantity now means
