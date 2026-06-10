@@ -48,10 +48,26 @@ change.
 - Release hygiene docs, versioning notes, archive audit script, build-time
   distribution audit, and final `1.0.0` promotion notes.
 
+## Completed In V1.2.0
+
+- Room-backend microphone mixtures from one shared room per frame, with
+  per-source diagnostics derived from the simulation premix and
+  sample-accurate source scheduling.
+- Multichannel waveform export through `core.io.waveforms`: per-frame WAVs
+  and a continuous session renderer with overlap-added reverb tails and
+  `[start_sample, end_sample)` frame slices; `waveform_paths` is populated
+  when export is enabled.
+- Automatic resampling of file-backed audio assets and a documented
+  external-corpus workflow (see [Audio Assets](audio_assets.md)).
+
 ## Future Work
 
 - Phases 9, 10, and 11 are planned after the `1.0.0` release and are not
   prerequisites for the final v1 package gate.
+- Block 8: Doppler from per-tick source motion in the continuous renderer,
+  together with source velocity tracking in the scene model (explicitly
+  deferred from the 1.2.0 audio-output work), plus rendering sim-time gaps
+  between throttled ticks.
 - Automated Isaac Sim and Isaac Lab smoke CI on capable GPU runners.
 - Optional USD geometry authoring for debug primitives.
 - Broader Replicator annotator compatibility and richer dataset capture beyond

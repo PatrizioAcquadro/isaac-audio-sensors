@@ -40,6 +40,7 @@ class AudioSensorConfig:
     sample_rate_hz: int
     speed_of_sound_mps: float
     write_waveforms: bool
+    waveform_dir: str | None
     tdoa_ambiguity_policy: str
     sources: tuple[AudioSourceSpec, ...]
     arrays: dict[str, MicrophoneArraySpec]
@@ -109,6 +110,11 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             sample_rate_hz=sample_rate_hz,
             speed_of_sound_mps=speed_of_sound,
             write_waveforms=bool(audio.get("write_waveforms", False)),
+            waveform_dir=(
+                None
+                if audio.get("waveform_dir") is None
+                else str(audio["waveform_dir"])
+            ),
             tdoa_ambiguity_policy=ambiguity_policy,
             sources=sources,
             arrays=arrays,

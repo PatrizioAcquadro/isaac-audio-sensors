@@ -180,23 +180,31 @@ When available, the backend builds a `pyroomacoustics.ShoeBox` from
 uses GCC-PHAT to estimate TDOA from those waveforms. The direct-path delay is
 diagnostic comparison data rather than the DOA input. Generated source
 waveforms are deterministic. File-backed `audio_asset_path` values must be
-relative files under the checkout, are downmixed when multichannel, and must
-match the frame sample rate. `soundfile` is used only for those file-backed
-assets.
+relative files under the checkout and are downmixed when multichannel;
+mismatched sample rates are resampled with `scipy.signal.resample_poly`.
+`soundfile` is used for those file-backed assets and for waveform export.
 
 The stable optional L2 diagnostic names are:
 
 - frame: `room_config`, `pyroomacoustics_version`, `speed_of_sound_mps`,
   `sample_rate_hz`, `active_source_count`, `scheduled_source_ids`,
-  `per_source_rir_summary`, and `per_source_rir_length_samples`;
+  `window_sample_count`, `per_source_rir_summary`,
+  `per_source_rir_length_samples`, and `waveform` (when a waveform sink is
+  configured);
 - detection: `estimated_tdoa_matrix_s`, `gcc_phat_peaks`,
   `direct_path_delay_s`, `per_mic_rms`, `rir_length_samples`,
   `rir_peak_delay_s`, `waveform_sample_count`, `source_waveform_mode`,
+  `scheduled_start_offset_samples`, `scheduled_content_sample_count`,
   `room_source_position_m`, and `room_microphone_positions_m`.
 
 Multiple active sources use deterministic half-open window scheduling and
-`max_events` truncation. In v1, scheduled sources are simulated independently;
-the backend does not provide mixed-source separation.
+`max_events` truncation. Scheduled sources share one room per frame, so
+microphone signals are true mixtures with sample-accurate start offsets and
+per-source diagnostics derived from the simulation premix; the backend does
+not provide mixed-source separation of unknown signals. With a waveform sink
+(`RoomAcousticsBackend(waveform_writer=...)` using
+`core.io.waveforms.FrameWaveformWriter` or `ContinuousWaveformWriter`) frames
+populate `waveform_paths` with exported multichannel WAVs.
 
 L2 is approximate shoebox acoustics. It does not promise realistic occlusion,
 material behavior, directivity, calibrated microphone response, production

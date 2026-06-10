@@ -12,13 +12,19 @@
   deterministic stress controls; it does not model occlusion, multipath, or
   microphone frequency response.
 - `room_acoustics` is an optional approximate shoebox simulation and depends on
-  `pyroomacoustics`. It generates RIRs and microphone waveforms, then derives
-  TDOA through GCC-PHAT, but it does not provide realistic occlusion, material
-  behavior, source directivity, calibrated microphone response, production
-  beamforming, mixed-source separation, or sim-real transfer.
+  `pyroomacoustics`. It generates RIRs and true microphone mixtures, then
+  derives TDOA through GCC-PHAT, but it does not provide realistic occlusion,
+  material behavior, source directivity, calibrated microphone response,
+  production beamforming, mixed-source separation of unknown signals, or
+  sim-real transfer.
 - `room_acoustics` file-backed `audio_asset_path` loading is intentionally
-  narrow: paths must be relative public files under the checkout and sample
-  rates must match the frame sample rate.
+  narrow: paths must be relative public files under the checkout. Mismatched
+  sample rates are resampled with `scipy.signal.resample_poly`.
+- Doppler from per-tick source motion is not modeled by the continuous
+  session renderer; it is deferred to the Block 8 roadmap item together with
+  source velocity tracking.
+- The continuous session WAV is the concatenation of captured windows;
+  sim-time gaps between throttled update ticks are not rendered as silence.
 - The 2026-05-24 local-time final `1.0.0` live Isaac Sim validation
   (`2026-05-25T03:34Z` Kit log timestamp) skipped `room_acoustics` because
   `pyroomacoustics` was absent from the Isaac runtime. The live proof covered
@@ -35,9 +41,13 @@
   ambiguity instead of hiding it.
 - Four or more non-collinear microphones are recommended for robust DOA demos.
 - L1 `noise_std_s`, `clock_jitter_s`, and `gain_mismatch_db` are deterministic
-  stress knobs, not calibrated hardware noise. They perturb delay/RMS and
+  stress knobs (seeded Gaussian draws, repeatable per seed/frame/microphone),
+  not calibrated hardware noise. They perturb delay/RMS and
   confidence diagnostics but do not model stochastic sensor drift, electronics
   noise spectra, clipping, automatic gain control, or hardware clock recovery.
+- L1 `air_absorption_db_per_m` is a single broadband coefficient, not a
+  frequency-dependent atmospheric absorption model. `self_noise_db` and source
+  `directivity` are modeled first-order at L0/L1 and are metadata-only at L2.
 - Isaac Sim and Isaac Lab integrations require a user-managed NVIDIA runtime.
 - Isaac Sim stage extraction supports live per-step USD world-pose reads,
   nested transform stacks, robot/base-mounted arrays, moving sources and

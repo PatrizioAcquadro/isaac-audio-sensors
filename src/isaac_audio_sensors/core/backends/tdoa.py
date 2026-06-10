@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
+import random
 
+from isaac_audio_sensors.core.backends.amplitude import (
+    aggregate_rms_power_sum,
+    resolve_directivity,
+    source_amplitude_at,
+)
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS, EPSILON
 from isaac_audio_sensors.core.doa.ambiguity import (
     choose_front_hemisphere_candidate,
@@ -34,6 +41,7 @@ from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSceneSnapshot,
     AudioSensorFrame,
+    AudioSourceSpec,
     AudioTimeWindow,
     DoaEstimate,
     MicrophoneArraySpec,
@@ -54,6 +62,8 @@ class TdoaSyntheticBackend:
         clock_jitter_s: float = 0.0,
         gain_mismatch_db: float = 0.0,
         ambiguity_policy: str = "none",
+        seed: int | None = None,
+        air_absorption_db_per_m: float = 0.0,
     ) -> None:
         if speed_of_sound_mps <= 0.0 or not math.isfinite(speed_of_sound_mps):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
@@ -65,11 +75,15 @@ class TdoaSyntheticBackend:
             raise ValueError("gain_mismatch_db must be finite.")
         if ambiguity_policy not in {"none", "front_hemisphere"}:
             raise ValueError("ambiguity_policy must be 'none' or 'front_hemisphere'.")
+        if air_absorption_db_per_m < 0.0 or not math.isfinite(air_absorption_db_per_m):
+            raise ValueError("air_absorption_db_per_m must be non-negative and finite.")
         self.speed_of_sound_mps = float(speed_of_sound_mps)
         self.noise_std_s = float(noise_std_s)
         self.clock_jitter_s = float(clock_jitter_s)
         self.gain_mismatch_db = float(gain_mismatch_db)
         self.ambiguity_policy = ambiguity_policy
+        self.seed = None if seed is None else int(seed)
+        self.air_absorption_db_per_m = float(air_absorption_db_per_m)
 
     def simulate(
         self,
@@ -86,19 +100,32 @@ class TdoaSyntheticBackend:
             frame_index=time_window.frame_index,
         )
         detections: list[AudioDetection] = []
-        aggregate_rms = {microphone.mic_id: 0.0 for microphone in sensor.microphones}
+        aggregate_rms_power = {
+            microphone.mic_id: 0.0 for microphone in sensor.microphones
+        }
 
         active = active_sources(scene, time_window)
         for index, source in enumerate(active):
-            delay_result = self._per_mic_delays_and_rms(source.position_world, sensor)
+            delay_result = self._per_mic_delays_and_rms(
+                source,
+                sensor,
+                frame_id=frame_id,
+            )
             ground_truth_bearing = _ground_truth_bearing(source.position_world, sensor)
             doa = self._estimate_doa(
                 sensor=sensor,
                 per_mic_delay_s=delay_result.per_mic_delay_s,
-                ground_truth_bearing_deg=ground_truth_bearing,
+            )
+            oracle_bearing_error = (
+                None
+                if doa.estimated_bearing_deg is None or ground_truth_bearing is None
+                else angular_error_deg(
+                    doa.estimated_bearing_deg,
+                    ground_truth_bearing,
+                )
             )
             for mic_id, rms in delay_result.per_mic_rms.items():
-                aggregate_rms[mic_id] += rms
+                aggregate_rms_power[mic_id] += rms * rms
 
             detections.append(
                 AudioDetection(
@@ -128,6 +155,12 @@ class TdoaSyntheticBackend:
                         "noise_std_s": self.noise_std_s,
                         "clock_jitter_s": self.clock_jitter_s,
                         "gain_mismatch_db": self.gain_mismatch_db,
+                        "noise_seed": self.seed,
+                        "air_absorption_db_per_m": self.air_absorption_db_per_m,
+                        "source_gain_db": source.gain_db,
+                        "directivity": source.directivity,
+                        "directivity_applied": resolve_directivity(source),
+                        "oracle_bearing_error_deg": oracle_bearing_error,
                         "per_mic_gain_offset_db": (
                             delay_result.per_mic_gain_offset_db
                         ),
@@ -157,7 +190,10 @@ class TdoaSyntheticBackend:
             provenance="synthetic/core",
             max_events=time_window.max_events,
             detections=tuple(detections),
-            aggregate_per_mic_rms=aggregate_rms,
+            aggregate_per_mic_rms=aggregate_rms_power_sum(
+                aggregate_rms_power,
+                sensor.microphones,
+            ),
             waveform_paths=(),
             diagnostics={
                 "backend": self.backend_id,
@@ -166,6 +202,8 @@ class TdoaSyntheticBackend:
                 "noise_std_s": self.noise_std_s,
                 "clock_jitter_s": self.clock_jitter_s,
                 "gain_mismatch_db": self.gain_mismatch_db,
+                "noise_seed": self.seed,
+                "air_absorption_db_per_m": self.air_absorption_db_per_m,
                 "array_geometry_rank_xy": layout_rank_xy(sensor),
                 "stress_controls_deterministic": True,
             },
@@ -173,27 +211,36 @@ class TdoaSyntheticBackend:
 
     def _per_mic_delays_and_rms(
         self,
-        source_position_world: tuple[float, float, float],
+        source: AudioSourceSpec,
         sensor: MicrophoneArraySpec,
+        *,
+        frame_id: str,
     ) -> _DelayResult:
         positions = microphone_world_positions(sensor)
         distances: dict[str, float] = {}
         delays: dict[str, float] = {}
         rms: dict[str, float] = {}
         gain_offsets: dict[str, float] = {}
-        for index, microphone in enumerate(sensor.microphones):
+        for microphone in sensor.microphones:
             mic_position = positions[microphone.mic_id]
-            distance = norm(subtract(source_position_world, mic_position))
-            deterministic_noise = self._deterministic_delay_noise(index)
-            delay = distance / self.speed_of_sound_mps + deterministic_noise
-            gain_offset_db = self._deterministic_gain_offset_db(index)
-            gain_scale = 10.0 ** ((microphone.gain_db + gain_offset_db) / 20.0)
-            amplitude = gain_scale / max(distance, 0.1) ** 2
+            distance = norm(subtract(source.position_world, mic_position))
+            delay_noise = self._delay_noise_s(
+                frame_id=frame_id,
+                mic_id=microphone.mic_id,
+            )
+            delay = distance / self.speed_of_sound_mps + delay_noise
+            gain_offset_db = self._gain_offset_db(microphone.mic_id)
+            amplitude = source_amplitude_at(
+                source,
+                mic_position,
+                extra_gain_db=microphone.gain_db + gain_offset_db,
+                air_absorption_db_per_m=self.air_absorption_db_per_m,
+            )
             distances[microphone.mic_id] = distance
             delays[microphone.mic_id] = delay
             rms[microphone.mic_id] = amplitude
             gain_offsets[microphone.mic_id] = gain_offset_db
-        source_distance = norm(subtract(source_position_world, sensor.position_world))
+        source_distance = norm(subtract(source.position_world, sensor.position_world))
         return _DelayResult(
             per_mic_distance_m=distances,
             per_mic_delay_s=delays,
@@ -202,33 +249,50 @@ class TdoaSyntheticBackend:
             source_distance_m=source_distance,
         )
 
-    def _deterministic_delay_noise(self, mic_index: int) -> float:
-        if self.noise_std_s == 0.0 and self.clock_jitter_s == 0.0:
-            return 0.0
-        sign = -1.0 if mic_index % 2 == 0 else 1.0
-        taper = 1.0 + mic_index * 0.1
-        return sign * (self.noise_std_s + self.clock_jitter_s) * taper
+    def _delay_noise_s(self, *, frame_id: str, mic_id: str) -> float:
+        noise = 0.0
+        if self.noise_std_s > 0.0:
+            noise += self._seeded_gauss(
+                "delay_noise",
+                frame_id,
+                mic_id,
+                std=self.noise_std_s,
+            )
+        if self.clock_jitter_s > 0.0:
+            noise += self._seeded_gauss(
+                "clock_jitter",
+                frame_id,
+                mic_id,
+                std=self.clock_jitter_s,
+            )
+        return noise
 
-    def _deterministic_gain_offset_db(self, mic_index: int) -> float:
+    def _gain_offset_db(self, mic_id: str) -> float:
         magnitude = abs(self.gain_mismatch_db)
         if magnitude == 0.0:
             return 0.0
-        sign = -1.0 if mic_index % 2 == 0 else 1.0
-        return sign * magnitude / 2.0
+        return self._seeded_gauss("gain_mismatch", mic_id, std=magnitude)
+
+    def _seeded_gauss(self, *parts: str, std: float) -> float:
+        """Deterministic Gaussian draw keyed by seed and the given parts."""
+
+        seed = 0 if self.seed is None else self.seed
+        key = ":".join((str(seed), *parts))
+        digest = hashlib.sha256(key.encode("utf-8")).digest()
+        rng = random.Random(int.from_bytes(digest[:8], "big"))
+        return rng.gauss(0.0, std)
 
     def _estimate_doa(
         self,
         *,
         sensor: MicrophoneArraySpec,
         per_mic_delay_s: dict[str, float],
-        ground_truth_bearing_deg: float | None,
     ) -> DoaEstimate:
         if len(sensor.microphones) == 2:
             return self._estimate_two_mic(sensor, per_mic_delay_s)
         return self._estimate_multi_mic(
             sensor=sensor,
             per_mic_delay_s=per_mic_delay_s,
-            ground_truth_bearing_deg=ground_truth_bearing_deg,
         )
 
     def _estimate_two_mic(
@@ -293,7 +357,6 @@ class TdoaSyntheticBackend:
         *,
         sensor: MicrophoneArraySpec,
         per_mic_delay_s: dict[str, float],
-        ground_truth_bearing_deg: float | None,
     ) -> DoaEstimate:
         result = _least_squares_direction(
             sensor, per_mic_delay_s, self.speed_of_sound_mps
@@ -315,14 +378,8 @@ class TdoaSyntheticBackend:
                 ambiguity_class="degenerate_solution",
                 ambiguity_reason="Least-squares direction has zero horizontal norm.",
             )
-        error = (
-            0.0
-            if ground_truth_bearing_deg is None
-            else angular_error_deg(bearing, ground_truth_bearing_deg)
-        )
         residual_penalty = 1.0 / (1.0 + residual * 40.0)
         confidence = 0.95 * self._stress_penalty(0.001) * residual_penalty
-        confidence *= max(0.0, 1.0 - min(error, 90.0) / 180.0)
         return DoaEstimate(
             estimated_bearing_deg=bearing,
             candidate_bearing_deg=deduplicate_candidate_bearings((bearing,)),
@@ -356,15 +413,21 @@ def estimate_doa_from_delays(
     ambiguity_policy: str = "none",
     ground_truth_bearing_deg: float | None = None,
 ) -> DoaEstimate:
-    """Estimate DOA from externally measured per-microphone delays."""
+    """Estimate DOA from externally measured per-microphone delays.
 
+    ``ground_truth_bearing_deg`` is deprecated and ignored: confidence derives
+    only from observable quantities (residual, geometry, stress settings).
+    Compare against ground truth via ``oracle_bearing_error_deg`` in
+    detection diagnostics instead.
+    """
+
+    del ground_truth_bearing_deg
     return TdoaSyntheticBackend(
         speed_of_sound_mps=speed_of_sound_mps,
         ambiguity_policy=ambiguity_policy,
     )._estimate_doa(
         sensor=sensor,
         per_mic_delay_s=per_mic_delay_s,
-        ground_truth_bearing_deg=ground_truth_bearing_deg,
     )
 
 

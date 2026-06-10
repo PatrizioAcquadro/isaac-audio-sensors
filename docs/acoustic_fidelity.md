@@ -41,7 +41,10 @@ AudioSensorFrame v1 compatibility is part of the ladder contract.
 ## L0 `geometry_only`
 
 L0 is the stable deterministic geometry baseline. It computes source bearing,
-source distance, and sector labels from known scene and array poses.
+source distance, and sector labels from known scene and array poses. Its
+per-microphone RMS proxy follows the shared pressure convention (`gain_db`
+re 1 m, `1/distance` falloff, first-order directivity, power-sum aggregate
+with per-mic self-noise floors) documented in [Backends](backends.md).
 
 It does not model acoustic propagation, per-microphone time delay as a physical
 measurement, waveforms, reverberation, occlusion, diffraction, scattering,
@@ -53,9 +56,14 @@ and ground-truth-style supervision records.
 ## L1 `tdoa_synthetic`
 
 L1 is the stable direct-path synthetic TDOA backend. It computes
-per-microphone delay and RMS diagnostics from source and microphone geometry.
-Two-microphone front/back ambiguity is represented explicitly through DOA
-candidate bearings and ambiguity fields.
+per-microphone delay and RMS diagnostics from source and microphone geometry
+using the same shared pressure convention as L0, and adds seeded Gaussian
+stress noise (`noise_std_s`, `clock_jitter_s`, `gain_mismatch_db` with an
+optional `seed`), an optional broadband `air_absorption_db_per_m` toggle, and
+observable-only bearing confidence with the ground-truth comparison reported
+as the `oracle_bearing_error_deg` diagnostic. Two-microphone front/back
+ambiguity is represented explicitly through DOA candidate bearings and
+ambiguity fields.
 
 It does not model a reverberant room, hardware microphone response, calibrated
 noise, speech recognition, learned sound-event detection, or production
@@ -82,6 +90,9 @@ separation.
 It is not a calibrated acoustic twin. It does not claim full material
 realism, occlusion realism, directivity realism, calibrated hardware
 microphone response, production beamforming, or sim-real transfer.
+`MicrophoneSpec.self_noise_db` and `AudioSourceSpec.directivity` are
+metadata-only at L2: frames carry them, but the simulated waveforms do not
+apply them.
 
 The pure package import and L0/L1 usage must not require L2 dependencies. If
 the optional dependency is missing, L2 fails lazily when the backend is used.

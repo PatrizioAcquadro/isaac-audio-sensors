@@ -39,21 +39,27 @@ from isaac_audio_sensors.isaac.extension_ui import (
 from isaac_audio_sensors.isaac.pose_resolver import IsaacStagePoseResolver
 
 EXTENSION_ID = "isaac_audio_sensors.omni"
-MOLMO_FLOORPLAN1_USD = Path(
-    "/home/pacquadr/Desktop/Alex-robot/assets/usd/scenes/ithor/"
-    "FloorPlan1_physics/scene.usda"
+MOLMO_FIXTURE_ROOT = Path.home() / "Desktop" / "Alex-robot"
+MOLMO_FLOORPLAN1_USD = (
+    MOLMO_FIXTURE_ROOT
+    / "assets"
+    / "usd"
+    / "scenes"
+    / "ithor"
+    / "FloorPlan1_physics"
+    / "scene.usda"
 )
 MOLMO_KITCHEN_OBJECT_CANDIDATES = (
-    "/FloorPlan1_physics/Geometry/refrigerator_"
-    "5a1cb9d35791f7f9acfa7d661c12908e_1_0_0",
     "/FloorPlan1_physics/Geometry/oven_588514d9b7194ff8509ced4f3f34adb0_1_0_0",
     "/FloorPlan1_physics/Geometry/sink_6963746c1cac2341702c2d7d922de618_1_0_0",
+    "/FloorPlan1_physics/Geometry/microwaveoven_"
+    "37bc68a024364106033dc6f1f16a5c8d_1_0_0",
+    "/FloorPlan1_physics/Geometry/refrigerator_"
+    "5a1cb9d35791f7f9acfa7d661c12908e_1_0_0",
     "/FloorPlan1_physics/Geometry/standardislandheight_"
     "7cc63329b1f0a38cd8c2450298404ab3_1_0_0",
     "/FloorPlan1_physics/Geometry/standardcounterheightwidth_"
     "63e81a44be2e417bdef7ec44364879f9_1_0_0",
-    "/FloorPlan1_physics/Geometry/microwaveoven_"
-    "37bc68a024364106033dc6f1f16a5c8d_1_0_0",
 )
 EXPECTED_UI_SECTIONS = (
     "Stage",
@@ -72,8 +78,17 @@ EXPECTED_UI_BUTTONS = (
     "Create Demo Object",
     "Discover",
     "Create/Attach Array",
+    "Select Rig Profile",
+    "Apply Rig Profile",
+    "Read Array Transform",
+    "Apply Array Pose",
+    "Attach Array To Object",
+    "Detach Array",
     "Read Selected Transform",
     "Apply Position",
+    "Select Profile",
+    "Auto From Object",
+    "Apply Profile",
     "Front",
     "Right",
     "Left",
@@ -104,10 +119,25 @@ EXPECTED_STRING_FIELDS = (
     "replicator_writer_name",
     "robot_base_prim_path",
     "source_class_label",
+    "source_directivity",
     "source_id",
     "source_prim_path",
+    "selected_profile_id",
+    "selected_rig_profile_id",
 )
 EXPECTED_FLOAT_FIELDS = (
+    "array_local_offset_x_m",
+    "array_local_offset_y_m",
+    "array_local_offset_z_m",
+    "array_local_yaw_deg",
+    "array_local_pitch_deg",
+    "array_local_roll_deg",
+    "array_position_x_m",
+    "array_position_y_m",
+    "array_position_z_m",
+    "array_yaw_deg",
+    "array_pitch_deg",
+    "array_roll_deg",
     "source_local_offset_x_m",
     "source_local_offset_y_m",
     "source_local_offset_z_m",
@@ -127,6 +157,11 @@ EXPECTED_BOOL_FIELDS = (
     "trace_enabled",
 )
 EXPECTED_COMBO_FIELDS = ("ambiguity_policy", "backend", "layout_name")
+ARRAY_RIG_PROFILE_ID = "alex_head_quad"
+ARRAY_MOUNT_PRIM_PATH = "/World/Rig/RobotMount"
+ARRAY_MOUNT_POSITION_BEFORE = (0.0, -1.0, 0.0)
+ARRAY_MOUNT_POSITION_AFTER = (1.5, -2.0, 0.5)
+ARRAY_MOUNT_LOCAL_OFFSET = (0.0, 0.0, 0.1)
 
 
 def main() -> int:
@@ -449,6 +484,22 @@ def _run_object_attach_scenario(
     controller.state.source_local_offset_z_m = local_offset_before[2]
     controller.state.robot_base_prim_path = ""
     controller.state.discovery_roots_text = discovery_roots_text
+    controller.state.array_attached_to_object = False
+    controller.state.attached_array_object_prim_path = ""
+    controller.state.array_position_x_m = 0.0
+    controller.state.array_position_y_m = 0.0
+    controller.state.array_position_z_m = 0.0
+    controller.state.array_yaw_deg = 0.0
+    controller.state.array_pitch_deg = 0.0
+    controller.state.array_roll_deg = 0.0
+    controller.state.array_local_offset_x_m = 0.0
+    controller.state.array_local_offset_y_m = 0.0
+    controller.state.array_local_offset_z_m = 0.0
+    controller.state.array_local_yaw_deg = 0.0
+    controller.state.array_local_pitch_deg = 0.0
+    controller.state.array_local_roll_deg = 0.0
+    controller.state.selected_rig_profile_id = ARRAY_RIG_PROFILE_ID
+    controller.state.applied_array_rig_profile = {}
     if getattr(controller, "_ui_window", None) is not None:
         controller._ui_window.push_state_to_widgets()
 
@@ -552,6 +603,24 @@ def _run_object_attach_scenario(
         f"{label}_attach_source_to_object",
         lambda: controller.attach_source_to_object(stage=stage),
     )
+    selected_profile = _step(
+        evidence,
+        f"{label}_auto_select_sound_profile",
+        lambda: controller.auto_select_profile_from_object(
+            stage=stage,
+            selected_paths=(object_path,),
+        ),
+    )
+    result["sound_profile_selection"] = _sound_profile_state(
+        controller,
+        selected_profile,
+    )
+    _step(
+        evidence,
+        f"{label}_apply_sound_profile",
+        lambda: controller.apply_selected_profile(stage=stage),
+    )
+    result["sound_profile_application"] = _source_profile_state(controller, stage)
     result["source_object_attachment"] = _source_object_state(controller)
     attached_source_path = controller.state.source_prim_path
     result["source_path"] = attached_source_path
@@ -630,6 +699,125 @@ def _run_object_attach_scenario(
         after_offset_frame,
     )
 
+    mount_prim = _require_stage_prim(stage, ARRAY_MOUNT_PRIM_PATH)
+    _set_translate(mount_prim, ARRAY_MOUNT_POSITION_BEFORE)
+    _set_context_selection((controller.state.array_prim_path,), evidence)
+    _step(
+        evidence,
+        f"{label}_read_selected_array_transform",
+        lambda: controller.read_selected_array_transform(
+            stage=stage,
+            selected_paths=(controller.state.array_prim_path,),
+        ),
+    )
+    result["array_pose_after_read"] = _array_pose_state(controller)
+    _step(
+        evidence,
+        f"{label}_select_rig_profile",
+        lambda: controller.select_rig_profile(ARRAY_RIG_PROFILE_ID),
+    )
+    _step(
+        evidence,
+        f"{label}_apply_rig_profile",
+        lambda: controller.apply_selected_rig_profile(stage=stage),
+    )
+    result["rig_profile_application"] = _rig_profile_state(controller, stage)
+    before_rotation_frame = _step(
+        evidence,
+        f"{label}_update_sensor_before_array_rotation",
+        controller.update_sensor,
+    )
+    result["frame_before_array_rotation"] = _frame_array_summary(
+        controller,
+        before_rotation_frame,
+    )
+    controller.state.array_yaw_deg = 90.0
+    if getattr(controller, "_ui_window", None) is not None:
+        controller._ui_window.push_state_to_widgets()
+    _step(
+        evidence,
+        f"{label}_apply_array_pose_yaw",
+        lambda: controller.apply_array_pose(stage=stage),
+    )
+    _update_kit_once(evidence)
+    after_rotation_frame = _step(
+        evidence,
+        f"{label}_update_sensor_after_array_rotation",
+        controller.update_sensor,
+    )
+    result["frame_after_array_rotation"] = _frame_array_summary(
+        controller,
+        after_rotation_frame,
+    )
+    result["array_rotation_changed_frame"] = _array_rotation_changed(
+        result["frame_before_array_rotation"],
+        result["frame_after_array_rotation"],
+    )
+
+    result["array_transform_before_mount"] = _pose_summary(
+        stage,
+        controller.state.array_prim_path,
+    )
+    saved_object_path = controller.state.object_prim_path
+    saved_object_label = controller.state.object_label
+    controller.state.object_prim_path = ARRAY_MOUNT_PRIM_PATH
+    controller.state.array_local_offset_x_m = ARRAY_MOUNT_LOCAL_OFFSET[0]
+    controller.state.array_local_offset_y_m = ARRAY_MOUNT_LOCAL_OFFSET[1]
+    controller.state.array_local_offset_z_m = ARRAY_MOUNT_LOCAL_OFFSET[2]
+    controller.state.array_local_yaw_deg = 0.0
+    controller.state.array_local_pitch_deg = 0.0
+    controller.state.array_local_roll_deg = 0.0
+    if getattr(controller, "_ui_window", None) is not None:
+        controller._ui_window.push_state_to_widgets()
+    _step(
+        evidence,
+        f"{label}_attach_array_to_object",
+        lambda: controller.attach_array_to_object(stage=stage),
+    )
+    controller.state.object_prim_path = saved_object_path
+    controller.state.object_label = saved_object_label
+    if getattr(controller, "_ui_window", None) is not None:
+        controller._ui_window.push_state_to_widgets()
+    result["array_object_attachment"] = _array_object_state(controller)
+    attached_array_path = controller.state.array_prim_path
+    result["array_path"] = attached_array_path
+    result["mount_transform_before"] = _pose_summary(stage, ARRAY_MOUNT_PRIM_PATH)
+    before_mount_frame = _step(
+        evidence,
+        f"{label}_update_sensor_before_mount_move",
+        controller.update_sensor,
+    )
+    result["frame_before_array_mount_move"] = _frame_array_summary(
+        controller,
+        before_mount_frame,
+    )
+    _set_translate(mount_prim, ARRAY_MOUNT_POSITION_AFTER)
+    result["mount_transform_move_command"] = {
+        "prim_path": ARRAY_MOUNT_PRIM_PATH,
+        "position_world": list(ARRAY_MOUNT_POSITION_AFTER),
+        "attached_array_prim_path": attached_array_path,
+        "method": "live USD Xform edit equivalent to normal Isaac transform",
+    }
+    _update_kit_once(evidence)
+    after_mount_frame = _step(
+        evidence,
+        f"{label}_update_sensor_after_mount_move",
+        controller.update_sensor,
+    )
+    result["mount_transform_after"] = _pose_summary(stage, ARRAY_MOUNT_PRIM_PATH)
+    result["array_transform_after_mount_move"] = _pose_summary(
+        stage,
+        attached_array_path,
+    )
+    result["frame_after_array_mount_move"] = _frame_array_summary(
+        controller,
+        after_mount_frame,
+    )
+    result["array_move_changed_frame"] = _array_move_changed(
+        result["frame_before_array_mount_move"],
+        result["frame_after_array_mount_move"],
+    )
+
     _step(evidence, f"{label}_export_latest_frame", controller.export_latest_frame)
     _step(evidence, f"{label}_flush_replicator", controller.flush_replicator)
     _step(evidence, f"{label}_export_config_summary", controller.export_config_summary)
@@ -642,7 +830,12 @@ def _run_object_attach_scenario(
     )
     result["screenshot"] = _capture_viewport_screenshot(
         artifacts["screenshot_path"],
-        framed_paths=(object_path, attached_source_path),
+        framed_paths=(
+            object_path,
+            attached_source_path,
+            ARRAY_MOUNT_PRIM_PATH,
+            attached_array_path,
+        ),
     )
     if require_screenshot and result["screenshot"].get("status") != "captured":
         result["status"] = "failed"
@@ -671,6 +864,7 @@ def _ensure_audio_seed_prims(stage: Any, *, source_prim_path: str) -> None:
         ("/World", "Xform"),
         ("/World/Rig", "Xform"),
         ("/World/Rig/AudioArray", "Xform"),
+        (ARRAY_MOUNT_PRIM_PATH, "Xform"),
         ("/World/Sources", "Xform"),
         (source_prim_path, "Sound"),
     ):
@@ -678,6 +872,8 @@ def _ensure_audio_seed_prims(stage: Any, *, source_prim_path: str) -> None:
             stage.DefinePrim(path, prim_type)
     source = _require_stage_prim(stage, source_prim_path)
     _set_translate(source, (2.0, 0.0, 0.0))
+    mount = _require_stage_prim(stage, ARRAY_MOUNT_PRIM_PATH)
+    _set_translate(mount, ARRAY_MOUNT_POSITION_BEFORE)
 
 
 def _require_stage_prim(stage: Any, path: str) -> Any:
@@ -732,6 +928,7 @@ def _config_binding_summary(config_path: Path) -> dict[str, Any]:
         "path": str(config_path),
         "schema_version": payload.get("schema_version"),
         "source": payload.get("source", {}),
+        "sound_profiles": payload.get("sound_profiles", {}),
         "object_binding": payload.get("object_binding", {}),
         "recording": payload.get("recording", {}),
     }
@@ -767,6 +964,8 @@ def _probe_import_update_after_config(
         "object_prim_path": imported.state.object_prim_path,
         "attached_object_prim_path": imported.state.attached_object_prim_path,
         "source_prim_path": imported.state.source_prim_path,
+        "selected_profile_id": imported.state.selected_profile_id,
+        "applied_source_profile": imported.state.applied_source_profile,
         "source_local_offset_m": [
             imported.state.source_local_offset_x_m,
             imported.state.source_local_offset_y_m,
@@ -1351,6 +1550,66 @@ def _source_object_state(controller: ExtensionController) -> dict[str, Any]:
     }
 
 
+def _sound_profile_state(
+    controller: ExtensionController,
+    profile: Any | None,
+) -> dict[str, Any]:
+    state = controller.state
+    return {
+        "selected_profile_id": state.selected_profile_id,
+        "selected_profile_label": (
+            None if profile is None else getattr(profile, "display_label", None)
+        ),
+        "profile_library_ids": [
+            getattr(item, "profile_id", "") for item in state.profile_library
+        ],
+        "object_profile_mappings": dict(sorted(state.object_profile_mappings.items())),
+        "status_message": state.status_message,
+        "error_message": state.error_message,
+    }
+
+
+def _source_profile_state(
+    controller: ExtensionController,
+    stage: Any,
+) -> dict[str, Any]:
+    state = controller.state
+    prim = _stage_get_prim_at_path(stage, state.source_prim_path)
+    attrs = {} if prim is None else _prim_attrs(prim)
+    return {
+        "selected_profile_id": state.selected_profile_id,
+        "applied_source_profile": state.applied_source_profile,
+        "source_prim_path": state.source_prim_path,
+        "source_id": state.source_id,
+        "class_label": state.source_class_label,
+        "audio_asset_path": state.audio_asset_path,
+        "start_time_s": state.source_start_time_s,
+        "duration_s": state.source_duration_s,
+        "gain_db": state.source_gain_db,
+        "directivity": state.source_directivity,
+        "source_attached_to_object": state.source_attached_to_object,
+        "authored_attrs": {
+            key: _jsonable_value(attrs.get(key))
+            for key in (
+                "filePath",
+                "ias:source_id",
+                "ias:class_label",
+                "ias:audio_asset_path",
+                "ias:start_time_s",
+                "ias:duration_s",
+                "ias:gain_db",
+                "ias:directivity",
+                "ias:sound_profile_id",
+                "ias:attached_object_prim_path",
+                "ias:source_local_offset_m",
+            )
+            if key in attrs
+        },
+        "status_message": state.status_message,
+        "error_message": state.error_message,
+    }
+
+
 def _frame_source_summary(frame: Any) -> dict[str, Any]:
     detections = tuple(getattr(frame, "detections", ()))
     detection = detections[0] if detections else None
@@ -1360,6 +1619,8 @@ def _frame_source_summary(frame: Any) -> dict[str, Any]:
         "frame_index": getattr(frame, "frame_index", None),
         "detection_count": len(detections),
         "source_id": None if detection is None else detection.source_id,
+        "class_label": None if detection is None else detection.class_label,
+        "audio_asset_path": None if detection is None else detection.audio_asset_path,
         "source_position_m": (
             None if source_pose is None else list(source_pose.position_m)
         ),
@@ -1382,6 +1643,158 @@ def _source_frame_changed(before: Any, after: Any) -> dict[str, Any]:
         ),
         "before": before_summary,
         "after": after_summary,
+    }
+
+
+def _array_pose_state(controller: ExtensionController) -> dict[str, Any]:
+    state = controller.state
+    return {
+        "array_prim_path": state.array_prim_path,
+        "position_m": [
+            state.array_position_x_m,
+            state.array_position_y_m,
+            state.array_position_z_m,
+        ],
+        "euler_deg": [
+            state.array_roll_deg,
+            state.array_pitch_deg,
+            state.array_yaw_deg,
+        ],
+        "error_message": state.error_message,
+    }
+
+
+def _array_object_state(controller: ExtensionController) -> dict[str, Any]:
+    state = controller.state
+    return {
+        "array_attached_to_object": state.array_attached_to_object,
+        "attached_object_prim_path": state.attached_array_object_prim_path or None,
+        "array_prim_path": state.array_prim_path,
+        "array_local_offset_m": [
+            state.array_local_offset_x_m,
+            state.array_local_offset_y_m,
+            state.array_local_offset_z_m,
+        ],
+        "error_message": state.error_message,
+    }
+
+
+def _rig_profile_state(
+    controller: ExtensionController,
+    stage: Any,
+) -> dict[str, Any]:
+    state = controller.state
+    prim = _stage_get_prim_at_path(stage, state.array_prim_path)
+    attrs = {} if prim is None else _prim_attrs(prim)
+    return {
+        "selected_rig_profile_id": state.selected_rig_profile_id or None,
+        "applied_array_rig_profile": dict(state.applied_array_rig_profile),
+        "authored_attrs": {
+            name: _jsonable_value(value)
+            for name, value in sorted(attrs.items())
+            if name.startswith("ias:")
+        },
+        "error_message": state.error_message,
+    }
+
+
+def _frame_array_summary(
+    controller: ExtensionController,
+    frame: Any,
+) -> dict[str, Any]:
+    summary = _frame_source_summary(frame)
+    array_pose = getattr(frame, "array_pose", None)
+    summary["array_position_m"] = (
+        None
+        if array_pose is None
+        else [float(value) for value in array_pose.position_m]
+    )
+    orientation = (
+        None if array_pose is None else getattr(array_pose, "orientation_xyzw", None)
+    )
+    summary["array_orientation_xyzw"] = (
+        None if orientation is None else [float(value) for value in orientation]
+    )
+    summary["mic_world_positions"] = {
+        mic_id: [float(value) for value in position]
+        for mic_id, position in sorted(
+            controller.state.latest_mic_world_positions.items()
+        )
+    }
+    summary["aggregate_per_mic_rms"] = {
+        mic_id: float(value)
+        for mic_id, value in sorted(
+            dict(getattr(frame, "aggregate_per_mic_rms", {}) or {}).items()
+        )
+    }
+    return summary
+
+
+def _array_rotation_changed(
+    before: dict[str, Any],
+    after: dict[str, Any],
+) -> dict[str, Any]:
+    checks = {
+        "orientation_changed": (
+            before.get("array_orientation_xyzw") != after.get("array_orientation_xyzw")
+        ),
+        "mic_world_positions_changed": (
+            before.get("mic_world_positions") != after.get("mic_world_positions")
+        ),
+        "bearing_changed": before.get("bearing_deg") != after.get("bearing_deg"),
+        "sector_changed": before.get("sector") != after.get("sector"),
+        "rms_changed": (
+            before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
+        ),
+        "source_position_unchanged": (
+            before.get("source_position_m") == after.get("source_position_m")
+        ),
+    }
+    passed = (
+        checks["orientation_changed"]
+        and checks["mic_world_positions_changed"]
+        and checks["bearing_changed"]
+        and checks["source_position_unchanged"]
+    )
+    return {
+        "status": "passed" if passed else "failed",
+        "checks": checks,
+        "before": before,
+        "after": after,
+    }
+
+
+def _array_move_changed(
+    before: dict[str, Any],
+    after: dict[str, Any],
+) -> dict[str, Any]:
+    checks = {
+        "array_position_changed": (
+            before.get("array_position_m") != after.get("array_position_m")
+        ),
+        "mic_world_positions_changed": (
+            before.get("mic_world_positions") != after.get("mic_world_positions")
+        ),
+        "bearing_changed": before.get("bearing_deg") != after.get("bearing_deg"),
+        "sector_changed": before.get("sector") != after.get("sector"),
+        "rms_changed": (
+            before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
+        ),
+    }
+    passed = (
+        checks["array_position_changed"]
+        and checks["mic_world_positions_changed"]
+        and (
+            checks["bearing_changed"]
+            or checks["sector_changed"]
+            or checks["rms_changed"]
+        )
+    )
+    return {
+        "status": "passed" if passed else "failed",
+        "checks": checks,
+        "before": before,
+        "after": after,
     }
 
 
@@ -1422,7 +1835,10 @@ def _probe_config_roundtrip(
 def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
     array = payload.get("array", {})
     source = payload.get("source", {})
+    sound_profiles = payload.get("sound_profiles", {})
+    rig_profiles = payload.get("microphone_rig_profiles", {})
     object_binding = payload.get("object_binding", {})
+    array_binding = payload.get("array_binding", {})
     lifecycle = payload.get("lifecycle", {})
     recording = payload.get("recording", {})
     package_jsonl = recording.get("package_jsonl", {})
@@ -1430,8 +1846,18 @@ def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
     return {
         "backend": payload.get("backend"),
         "array_prim_path": array.get("prim_path"),
+        "array_position_world": array.get("position_world"),
+        "array_orientation_world_quat": array.get("orientation_world_quat"),
+        "array_attached_to_object": array_binding.get("attached"),
+        "attached_array_object_prim_path": array_binding.get(
+            "attached_object_prim_path"
+        ),
+        "array_local_offset_m": array_binding.get("array_local_offset_m"),
+        "selected_rig_profile_id": rig_profiles.get("selected_rig_profile_id"),
+        "applied_array_rig_profile": rig_profiles.get("applied_array_rig_profile"),
         "source_prim_path": source.get("prim_path"),
         "source_id": source.get("source_id"),
+        "source_directivity": source.get("directivity"),
         "source_position_world": source.get("position_world"),
         "source_local_offset_m": object_binding.get("source_local_offset_m"),
         "object_prim_path": object_binding.get("selected_object_prim_path"),
@@ -1446,6 +1872,9 @@ def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
         "replicator_output_dir": replicator.get("output_dir"),
         "replicator_writer_name": replicator.get("writer_name"),
         "replicator_annotator_name": replicator.get("annotator_name"),
+        "selected_profile_id": sound_profiles.get("selected_profile_id"),
+        "object_profile_mappings": sound_profiles.get("object_profile_mappings"),
+        "applied_source_profile": sound_profiles.get("applied_source_profile"),
     }
 
 
@@ -1454,8 +1883,28 @@ def _observed_config_state(controller: ExtensionController) -> dict[str, Any]:
     return {
         "backend": state.backend,
         "array_prim_path": state.array_prim_path,
+        "array_position_world": [
+            state.array_position_x_m,
+            state.array_position_y_m,
+            state.array_position_z_m,
+        ],
+        "array_orientation_world_quat": list(
+            controller._array_orientation_from_state()
+        ),
+        "array_attached_to_object": state.array_attached_to_object,
+        "attached_array_object_prim_path": (
+            state.attached_array_object_prim_path or None
+        ),
+        "array_local_offset_m": [
+            state.array_local_offset_x_m,
+            state.array_local_offset_y_m,
+            state.array_local_offset_z_m,
+        ],
+        "selected_rig_profile_id": state.selected_rig_profile_id or None,
+        "applied_array_rig_profile": state.applied_array_rig_profile or None,
         "source_prim_path": state.source_prim_path,
         "source_id": state.source_id,
+        "source_directivity": state.source_directivity,
         "source_position_world": [
             state.source_position_x_m,
             state.source_position_y_m,
@@ -1478,6 +1927,9 @@ def _observed_config_state(controller: ExtensionController) -> dict[str, Any]:
         "replicator_output_dir": state.replicator_output_dir,
         "replicator_writer_name": state.replicator_writer_name,
         "replicator_annotator_name": state.replicator_annotator_name,
+        "selected_profile_id": state.selected_profile_id or None,
+        "object_profile_mappings": dict(sorted(state.object_profile_mappings.items())),
+        "applied_source_profile": state.applied_source_profile or None,
     }
 
 
@@ -1513,6 +1965,13 @@ def _state_values_match(expected_value: Any, observed_value: Any) -> bool:
                 observed_value,
                 strict=True,
             )
+        )
+    if isinstance(expected_value, dict) and isinstance(observed_value, dict):
+        if set(expected_value) != set(observed_value):
+            return False
+        return all(
+            _state_values_match(expected_value[key], observed_value[key])
+            for key in expected_value
         )
     return observed_value == expected_value
 
@@ -1688,6 +2147,34 @@ def _stage_get_prim_at_path(stage: Any, path: str) -> Any | None:
         except TypeError:
             continue
     return None
+
+
+def _prim_attrs(prim: Any) -> dict[str, Any]:
+    if hasattr(prim, "attributes"):
+        return dict(prim.attributes)
+    attrs: dict[str, Any] = {}
+    if hasattr(prim, "GetAttributes"):
+        for attr in prim.GetAttributes():
+            if hasattr(attr, "GetName") and hasattr(attr, "Get"):
+                with suppress(Exception):
+                    attrs[str(attr.GetName())] = attr.Get()
+    return attrs
+
+
+def _jsonable_value(value: Any) -> Any:
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, tuple | list):
+        return [_jsonable_value(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _jsonable_value(item) for key, item in sorted(value.items())}
+    for attr_name in ("path", "pathString", "resolvedPath"):
+        attr_value = getattr(value, attr_name, None)
+        if attr_value:
+            return str(attr_value)
+    return str(value)
 
 
 def _usd_path(path: str) -> Any:
@@ -2190,8 +2677,10 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
             raise RuntimeError(f"{name} evidence artifact is missing: {required_path}")
     trace_lines = frame_trace_path.read_text(encoding="utf-8").splitlines()
     frames = [frame_from_trace_dict(json.loads(line)) for line in trace_lines]
-    if len(frames) < 3:
-        raise RuntimeError(f"{name} JSONL trace must include at least three frames.")
+    if len(frames) < 7:
+        raise RuntimeError(
+            f"{name} JSONL trace must include source and array move/rotation frames."
+        )
     selected_object = str(result.get("selected_object_path", ""))
     if not selected_object or selected_object in {"/World", "/FloorPlan1_physics"}:
         raise RuntimeError(f"{name} selected object is not a real object path.")
@@ -2224,11 +2713,45 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
         raise RuntimeError(f"{name} did not attach source to object: {attachment}")
     if attachment.get("attached_object_prim_path") != selected_object:
         raise RuntimeError(f"{name} attached wrong object: {attachment}")
+    profile_selection = result.get("sound_profile_selection", {})
+    if not profile_selection.get("selected_profile_id"):
+        raise RuntimeError(f"{name} did not select a sound profile.")
+    if profile_selection.get("error_message"):
+        raise RuntimeError(f"{name} profile auto-match reported an error.")
+    profile_application = result.get("sound_profile_application", {})
+    applied_profile = profile_application.get("applied_source_profile", {})
+    if applied_profile.get("profile_id") != profile_selection.get(
+        "selected_profile_id"
+    ):
+        raise RuntimeError(
+            f"{name} applied profile does not match selection: "
+            f"{profile_application}"
+        )
+    authored_attrs = profile_application.get("authored_attrs", {})
+    for attr_name in (
+        "filePath",
+        "ias:source_id",
+        "ias:class_label",
+        "ias:audio_asset_path",
+        "ias:start_time_s",
+        "ias:duration_s",
+        "ias:gain_db",
+        "ias:directivity",
+    ):
+        if attr_name not in authored_attrs:
+            raise RuntimeError(
+                f"{name} profile apply did not author {attr_name}: "
+                f"{profile_application}"
+            )
     object_move = result.get("object_move_changed_frame", {})
     if object_move.get("status") != "passed":
         raise RuntimeError(f"{name} parent move did not change frame: {object_move}")
     before = result.get("frame_before_parent_move", {})
     after = result.get("frame_after_parent_move", {})
+    if before.get("class_label") != profile_application.get("class_label"):
+        raise RuntimeError(f"{name} frame class label did not use profile metadata.")
+    if before.get("audio_asset_path") != profile_application.get("audio_asset_path"):
+        raise RuntimeError(f"{name} frame audio asset did not use profile metadata.")
     if before.get("sector") == after.get("sector"):
         raise RuntimeError(f"{name} parent move did not change bearing sector.")
     if before.get("bearing_deg") == after.get("bearing_deg"):
@@ -2239,7 +2762,56 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
     offset_after = result.get("source_transform_after_local_offset_change", {})
     if offset_before.get("position_world") == offset_after.get("position_world"):
         raise RuntimeError(f"{name} local offset did not change source world pose.")
+    array_rotation = result.get("array_rotation_changed_frame", {})
+    if array_rotation.get("status") != "passed":
+        raise RuntimeError(
+            f"{name} array rotation did not change frame outputs: {array_rotation}"
+        )
+    array_move = result.get("array_move_changed_frame", {})
+    if array_move.get("status") != "passed":
+        raise RuntimeError(
+            f"{name} array mount move did not change frame outputs: {array_move}"
+        )
+    array_attachment = result.get("array_object_attachment", {})
+    if array_attachment.get("array_attached_to_object") is not True:
+        raise RuntimeError(
+            f"{name} did not attach array to mount: {array_attachment}"
+        )
+    if array_attachment.get("attached_object_prim_path") != ARRAY_MOUNT_PRIM_PATH:
+        raise RuntimeError(
+            f"{name} attached array to wrong mount: {array_attachment}"
+        )
+    rig_application = result.get("rig_profile_application", {})
+    rig_attrs = rig_application.get("authored_attrs", {})
+    if rig_attrs.get("ias:rig_profile_id") != ARRAY_RIG_PROFILE_ID:
+        raise RuntimeError(
+            f"{name} rig profile was not authored on the array: {rig_application}"
+        )
     config = json.loads(config_path.read_text(encoding="utf-8"))
+    array_binding_config = config.get("array_binding", {})
+    if array_binding_config.get("attached") is not True:
+        raise RuntimeError(f"{name} config did not preserve array attachment.")
+    if (
+        array_binding_config.get("attached_object_prim_path")
+        != ARRAY_MOUNT_PRIM_PATH
+    ):
+        raise RuntimeError(f"{name} config preserved wrong array mount binding.")
+    if array_binding_config.get("array_local_offset_m") != list(
+        ARRAY_MOUNT_LOCAL_OFFSET
+    ):
+        raise RuntimeError(f"{name} config preserved wrong array local offset.")
+    rig_config = config.get("microphone_rig_profiles", {})
+    if rig_config.get("selected_rig_profile_id") != ARRAY_RIG_PROFILE_ID:
+        raise RuntimeError(
+            f"{name} config did not preserve selected rig profile id."
+        )
+    if not rig_config.get("rig_library"):
+        raise RuntimeError(f"{name} config did not export rig library.")
+    applied_rig_config = rig_config.get("applied_array_rig_profile") or {}
+    if applied_rig_config.get("profile_id") != ARRAY_RIG_PROFILE_ID:
+        raise RuntimeError(
+            f"{name} config did not preserve applied rig profile snapshot."
+        )
     object_binding = config.get("object_binding", {})
     if object_binding.get("attached") is not True:
         raise RuntimeError(f"{name} config did not preserve object attachment.")
@@ -2247,6 +2819,18 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
         raise RuntimeError(f"{name} config preserved wrong object binding.")
     if object_binding.get("source_local_offset_m") != result.get("local_offset_after"):
         raise RuntimeError(f"{name} config preserved wrong local offset.")
+    sound_profiles = config.get("sound_profiles", {})
+    if sound_profiles.get("selected_profile_id") != profile_selection.get(
+        "selected_profile_id"
+    ):
+        raise RuntimeError(f"{name} config did not preserve selected profile id.")
+    if not sound_profiles.get("profile_library"):
+        raise RuntimeError(f"{name} config did not export profile library.")
+    if not sound_profiles.get("object_profile_mappings"):
+        raise RuntimeError(f"{name} config did not export object-profile mappings.")
+    applied_config = sound_profiles.get("applied_source_profile") or {}
+    if applied_config.get("profile_id") != profile_selection.get("selected_profile_id"):
+        raise RuntimeError(f"{name} config did not preserve applied profile snapshot.")
     import_result = result.get("config_import_result", {})
     if import_result.get("status") != "passed":
         raise RuntimeError(f"{name} config import/update failed: {import_result}")
@@ -2257,9 +2841,13 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
     missing = result.get("missing_object_probe", {})
     if missing.get("status") != "passed":
         raise RuntimeError(f"{name} missing-object status failed: {missing}")
-    replicator_status = result.get("config_export", {}).get("recording", {}).get(
-        "replicator",
-        {},
+    replicator_status = (
+        result.get("config_export", {})
+        .get("recording", {})
+        .get(
+            "replicator",
+            {},
+        )
     )
     if int(replicator_status.get("write_count", 0)) < 1:
         raise RuntimeError(f"{name} Replicator did not record a frame.")
@@ -2540,7 +3128,7 @@ def _prepare_output_dir(path: Path) -> None:
 
 
 def _probe_alex_molmo_fixture() -> dict[str, Any]:
-    alex_root = Path("/home/pacquadr/Desktop/Alex-robot")
+    alex_root = MOLMO_FIXTURE_ROOT
     usd_path = (
         alex_root
         / "assets"

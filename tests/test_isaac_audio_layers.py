@@ -39,10 +39,12 @@ from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.listener_registry import discover_listeners
 from isaac_audio_sensors.isaac.source_registry import discover_sound_sources
 from isaac_audio_sensors.isaac.stage_audio import (
+    attach_array_object_binding_attrs,
     attach_microphone_array_attrs,
     attach_microphone_attrs,
     attach_sound_source_attrs,
     attach_source_object_binding_attrs,
+    clear_array_object_binding_attrs,
     clear_source_object_binding_attrs,
     create_listener_prim,
     create_sound_prim,
@@ -494,6 +496,103 @@ def test_isaac_stage_audio_object_binding_helpers_work_with_duck_typed_stage():
 
     assert "ias:attached_object_prim_path" not in moved.attributes
     assert "ias:source_local_offset_m" not in moved.attributes
+
+
+def test_isaac_stage_audio_array_binding_helpers_work_with_duck_typed_stage():
+    yaw_quat = quaternion_from_yaw_deg(90.0)
+    stage = _FakeStage(
+        (
+            _FakePrim(
+                "/World/Rig/AudioArray",
+                "Xform",
+                {
+                    "ias:array_id": "rig_front",
+                    "ias:position_world": (1.0, 0.0, 0.0),
+                    "xformOp:translate": (1.0, 0.0, 0.0),
+                },
+            ),
+            _FakePrim(
+                "/World/Rig/AudioArray/front",
+                "Microphone",
+                {
+                    "ias:microphone_id": "front",
+                    "ias:gain_db": -1.5,
+                    "xformOp:translate": (0.08, 0.0, 0.0),
+                },
+            ),
+            _FakePrim(
+                "/World/Rig/AudioArray/left",
+                "Microphone",
+                {
+                    "ias:microphone_id": "left",
+                    "ias:gain_db": 0.5,
+                    "xformOp:translate": (0.0, -0.08, 0.0),
+                },
+            ),
+        )
+    )
+
+    moved = move_prim_to_path(
+        stage,
+        source_path="/World/Rig/AudioArray",
+        dest_path="/World/Robot/head_link/AudioArray",
+        prim_type="Xform",
+        include_children=True,
+    )
+    binding_attrs = attach_array_object_binding_attrs(
+        moved,
+        object_prim_path="/World/Robot/head_link",
+        local_offset_m=(0.0, 0.0, 0.12),
+        local_orientation_quat=yaw_quat,
+    )
+
+    assert stage.GetPrimAtPath("/World/Rig/AudioArray") is None
+    assert stage.GetPrimAtPath("/World/Rig/AudioArray/front") is None
+    assert stage.GetPrimAtPath("/World/Robot/head_link/AudioArray") is moved
+    moved_front = stage.GetPrimAtPath("/World/Robot/head_link/AudioArray/front")
+    moved_left = stage.GetPrimAtPath("/World/Robot/head_link/AudioArray/left")
+    assert moved_front is not None
+    assert moved_left is not None
+    assert moved_front.attributes["ias:gain_db"] == -1.5
+    assert moved_front.attributes["xformOp:translate"] == (0.08, 0.0, 0.0)
+    assert moved_left.attributes["ias:gain_db"] == 0.5
+    assert moved.attributes["ias:array_id"] == "rig_front"
+    assert moved.attributes["ias:attached_object_prim_path"] == (
+        "/World/Robot/head_link"
+    )
+    assert binding_attrs["ias:array_local_offset_m"] == (0.0, 0.0, 0.12)
+    assert moved.attributes["ias:array_local_orientation_quat"] == yaw_quat
+    assert moved.attributes["xformOp:translate"] == (0.0, 0.0, 0.12)
+    assert moved.attributes["xformOp:orient"] == yaw_quat
+
+    clear_array_object_binding_attrs(moved)
+
+    assert "ias:attached_object_prim_path" not in moved.attributes
+    assert "ias:array_local_offset_m" not in moved.attributes
+    assert "ias:array_local_orientation_quat" not in moved.attributes
+
+
+def test_isaac_stage_audio_move_prim_default_still_leaves_children_behind():
+    stage = _FakeStage(
+        (
+            _FakePrim("/World/Rig/AudioArray", "Xform", {"ias:array_id": "rig"}),
+            _FakePrim(
+                "/World/Rig/AudioArray/front",
+                "Microphone",
+                {"ias:microphone_id": "front"},
+            ),
+        )
+    )
+
+    moved = move_prim_to_path(
+        stage,
+        source_path="/World/Rig/AudioArray",
+        dest_path="/World/Elsewhere/AudioArray",
+        prim_type="Xform",
+    )
+
+    assert moved.path == "/World/Elsewhere/AudioArray"
+    assert stage.GetPrimAtPath("/World/Elsewhere/AudioArray/front") is None
 
 
 def test_isaac_stage_audio_move_prim_uses_sdf_path_for_strict_isaac_stage(

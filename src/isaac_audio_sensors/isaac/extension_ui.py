@@ -20,13 +20,26 @@ from isaac_audio_sensors.core.constants import (
 )
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 from isaac_audio_sensors.core.io.traces import write_frame_trace
-from isaac_audio_sensors.core.microphone_array import microphone_layout
+from isaac_audio_sensors.core.math_utils import (
+    euler_deg_from_quaternion,
+    quaternion_from_euler_deg,
+)
+from isaac_audio_sensors.core.microphone_array import (
+    microphone_layout,
+    microphone_world_positions,
+)
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioDiscoveryCfg,
     IsaacAudioSceneBindingCfg,
     discover_stage_audio,
 )
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+from isaac_audio_sensors.isaac.microphone_rig_profiles import (
+    MicrophoneRigProfile,
+    default_microphone_rig_profiles,
+    microphone_rig_profile_from_mapping,
+    validate_microphone_rig_profile_library,
+)
 from isaac_audio_sensors.isaac.pose_resolver import (
     IsaacStagePoseResolver,
     prim_path,
@@ -38,16 +51,28 @@ from isaac_audio_sensors.isaac.replicator import (
     DEFAULT_REPLICATOR_WRITER_NAME,
     AudioSensorReplicatorRecorder,
 )
+from isaac_audio_sensors.isaac.sound_profiles import (
+    SoundProfile,
+    default_object_profile_mappings,
+    default_sound_profiles,
+    match_sound_profile_id,
+    normalize_object_label,
+    sound_profile_from_mapping,
+    validate_sound_profile_library,
+)
 from isaac_audio_sensors.isaac.stage_audio import (
+    attach_array_object_binding_attrs,
     attach_microphone_array_attrs,
     attach_microphone_attrs,
     attach_sound_source_attrs,
     attach_source_object_binding_attrs,
+    clear_array_object_binding_attrs,
     clear_prim_attrs,
     clear_source_object_binding_attrs,
     create_sound_prim,
     get_or_define_prim,
     move_prim_to_path,
+    remove_prim,
     set_prim_xform_pose,
 )
 from isaac_audio_sensors.isaac.viz.overlays import (
@@ -113,10 +138,7 @@ def _find_project_root_from_module() -> Path | None:
             continue
         with suppress(OSError, UnicodeDecodeError):
             text = pyproject.read_text(encoding="utf-8")
-            if (
-                f'name = "{PROJECT_NAME}"' in text
-                or f"name = '{PROJECT_NAME}'" in text
-            ):
+            if f'name = "{PROJECT_NAME}"' in text or f"name = '{PROJECT_NAME}'" in text:
                 return parent
     return None
 
@@ -176,6 +198,26 @@ class ExtensionUiState:
     sample_rate_hz: int = DEFAULT_SAMPLE_RATE_HZ
     coordinate_convention: str = COORDINATE_CONVENTION
     author_child_microphones: bool = True
+    array_position_x_m: float = 0.0
+    array_position_y_m: float = 0.0
+    array_position_z_m: float = 0.0
+    array_yaw_deg: float = 0.0
+    array_pitch_deg: float = 0.0
+    array_roll_deg: float = 0.0
+    array_attached_to_object: bool = False
+    attached_array_object_prim_path: str = ""
+    array_local_offset_x_m: float = 0.0
+    array_local_offset_y_m: float = 0.0
+    array_local_offset_z_m: float = 0.0
+    array_local_yaw_deg: float = 0.0
+    array_local_pitch_deg: float = 0.0
+    array_local_roll_deg: float = 0.0
+
+    rig_profile_library: tuple[MicrophoneRigProfile, ...] = field(
+        default_factory=default_microphone_rig_profiles
+    )
+    selected_rig_profile_id: str = "alex_head_quad"
+    applied_array_rig_profile: dict[str, Any] = field(default_factory=dict)
 
     source_prim_path: str = "/World/Sources/SpeakerA"
     source_id: str = "speaker_a"
@@ -187,6 +229,16 @@ class ExtensionUiState:
     source_start_time_s: float = 0.0
     source_duration_s: float = 1.0
     source_gain_db: float = 0.0
+    source_directivity: str = "omni"
+
+    profile_library: tuple[SoundProfile, ...] = field(
+        default_factory=default_sound_profiles
+    )
+    selected_profile_id: str = "speech_generic"
+    object_profile_mappings: dict[str, str] = field(
+        default_factory=default_object_profile_mappings
+    )
+    applied_source_profile: dict[str, Any] = field(default_factory=dict)
 
     object_prim_path: str = ""
     object_label: str = "none"
@@ -235,6 +287,12 @@ class ExtensionUiState:
     latest_source_position_m: tuple[float, float, float] | None = None
     latest_bearing_deg: float | None = None
     latest_sector: str | None = None
+    latest_array_prim_path: str | None = None
+    latest_array_position_m: tuple[float, float, float] | None = None
+    latest_array_orientation_xyzw: tuple[float, float, float, float] | None = None
+    latest_mic_world_positions: dict[str, tuple[float, float, float]] = field(
+        default_factory=dict
+    )
     latest_aggregate_rms: dict[str, float] = field(default_factory=dict)
     latest_overlay_primitive_count: int = 0
     latest_overlay_labels: tuple[str, ...] = ()
@@ -734,6 +792,44 @@ class ExtensionController:
             self._record_error("Source transform read failed", exc)
             return None
 
+    def read_selected_array_transform(
+        self,
+        *,
+        stage: Any | None = None,
+        selected_paths: Iterable[str] | None = None,
+    ) -> tuple[float, float, float] | None:
+        """Read the selected array prim's current world pose into UI state."""
+
+        try:
+            context = self._context(stage=stage, selected_paths=selected_paths)
+            if context.stage is None:
+                raise ExtensionActionError("No USD stage is open.")
+            self.state.selected_prim_paths = context.selected_prim_paths
+            selected_path = (
+                context.selected_prim_paths[0]
+                if context.selected_prim_paths
+                else self.state.array_prim_path
+            )
+            _validate_abs_path(selected_path, "array_prim_path")
+            pose = IsaacStagePoseResolver(context.stage).resolve_world_pose(
+                selected_path,
+                field_name="selected array",
+            )
+            self.state.array_prim_path = selected_path
+            self._set_array_pose_state(
+                pose.position_world,
+                pose.orientation_world_quat or (0.0, 0.0, 0.0, 1.0),
+            )
+            self._set_status(
+                "Read array transform "
+                f"{_format_vec3(pose.position_world)} / "
+                f"yaw={self.state.array_yaw_deg:.1f} deg from {selected_path}."
+            )
+            return pose.position_world
+        except Exception as exc:
+            self._record_error("Array transform read failed", exc)
+            return None
+
     def use_selected_as_robot_base(
         self,
         *,
@@ -760,25 +856,13 @@ class ExtensionController:
             stage_obj = self._stage_or_error(stage)
             state = self.state
             _validate_abs_path(state.array_prim_path, "array_prim_path")
-            if state.layout_name not in LAYOUT_CHOICES:
-                raise ExtensionActionError(
-                    f"Unknown array layout {state.layout_name!r}."
-                )
-            if int(state.sample_rate_hz) <= 0:
-                raise ExtensionActionError("sample_rate_hz must be positive.")
-
             prim = get_or_define_prim(
                 stage_obj,
                 prim_path=state.array_prim_path,
                 prim_type="Xform",
             )
-            microphones = microphone_layout(state.layout_name)
-            attrs = attach_microphone_array_attrs(
-                prim,
-                array_id=state.array_id.strip() or _path_name(state.array_prim_path),
-                sample_rate_hz=int(state.sample_rate_hz),
-                coordinate_convention=state.coordinate_convention,
-                layout_name=state.layout_name,
+            record = self._author_array_on_stage(
+                stage_obj,
                 position_world=_author_position_arg(
                     prim,
                     default=(0.0, 0.0, 0.0),
@@ -787,23 +871,6 @@ class ExtensionController:
                     prim,
                     default=(0.0, 0.0, 0.0, 1.0),
                 ),
-                microphone_relative_offsets_m=tuple(
-                    microphone.relative_position_m for microphone in microphones
-                ),
-                microphone_ids=tuple(microphone.mic_id for microphone in microphones),
-            )
-            if state.author_child_microphones:
-                self._author_child_microphones(
-                    stage_obj,
-                    array_path=state.array_prim_path,
-                    microphones=microphones,
-                )
-
-            record = AuthoredMetadataSummary(
-                kind="array",
-                prim_path=state.array_prim_path,
-                id=str(attrs["ias:array_id"]),
-                attributes=_jsonable_mapping(attrs),
             )
             self._append_authored_record(record)
             self._set_status(f"Authored array {record.id} at {state.array_prim_path}.")
@@ -811,6 +878,104 @@ class ExtensionController:
         except Exception as exc:
             self._record_error("Array authoring failed", exc)
             return None
+
+    def apply_array_pose(
+        self,
+        *,
+        stage: Any | None = None,
+    ) -> AuthoredMetadataSummary | None:
+        """Apply the current array pose fields to the target prim and metadata."""
+
+        try:
+            stage_obj = self._stage_or_error(stage)
+            if self.state.array_attached_to_object:
+                raise ExtensionActionError(
+                    "Array is attached to an object; edit the local offset "
+                    "or detach the array first."
+                )
+            position = self._array_position_from_state()
+            orientation = self._array_orientation_from_state()
+            record = self._author_array_on_stage(
+                stage_obj,
+                position_world=position,
+                orientation_world_quat=orientation,
+                kind="array_pose",
+            )
+            self._append_authored_record(record)
+            self._set_status(
+                "Applied array pose "
+                f"{_format_vec3(position)} / yaw={self.state.array_yaw_deg:g} deg "
+                f"to {self.state.array_prim_path}."
+            )
+            return record
+        except Exception as exc:
+            self._record_error("Array pose apply failed", exc)
+            return None
+
+    def _author_array_on_stage(
+        self,
+        stage_obj: Any,
+        *,
+        position_world: tuple[float, float, float] | None,
+        orientation_world_quat: tuple[float, float, float, float] | None,
+        microphones: tuple[Any, ...] | None = None,
+        kind: str = "array",
+        extra_attrs: Mapping[str, Any] | None = None,
+    ) -> AuthoredMetadataSummary:
+        """Create/update the array prim with metadata and an explicit pose."""
+
+        state = self.state
+        _validate_abs_path(state.array_prim_path, "array_prim_path")
+        if state.layout_name not in LAYOUT_CHOICES:
+            raise ExtensionActionError(f"Unknown array layout {state.layout_name!r}.")
+        if int(state.sample_rate_hz) <= 0:
+            raise ExtensionActionError("sample_rate_hz must be positive.")
+
+        prim = get_or_define_prim(
+            stage_obj,
+            prim_path=state.array_prim_path,
+            prim_type="Xform",
+        )
+        mics = (
+            tuple(microphones)
+            if microphones is not None
+            else microphone_layout(state.layout_name)
+        )
+        attrs: dict[str, Any] = dict(
+            attach_microphone_array_attrs(
+                prim,
+                array_id=state.array_id.strip() or _path_name(state.array_prim_path),
+                sample_rate_hz=int(state.sample_rate_hz),
+                coordinate_convention=state.coordinate_convention,
+                layout_name=state.layout_name,
+                position_world=position_world,
+                orientation_world_quat=orientation_world_quat,
+                microphone_relative_offsets_m=tuple(
+                    microphone.relative_position_m for microphone in mics
+                ),
+                microphone_ids=tuple(microphone.mic_id for microphone in mics),
+            )
+        )
+        for name, value in dict(extra_attrs or {}).items():
+            _set_prim_attr(prim, name, value)
+            attrs[name] = value
+        if state.author_child_microphones:
+            self._remove_stale_child_microphones(
+                stage_obj,
+                array_path=state.array_prim_path,
+                keep_mic_ids=tuple(microphone.mic_id for microphone in mics),
+            )
+            self._author_child_microphones(
+                stage_obj,
+                array_path=state.array_prim_path,
+                microphones=mics,
+            )
+        return AuthoredMetadataSummary(
+            kind=kind,
+            prim_path=state.array_prim_path,
+            id=str(attrs["ias:array_id"]),
+            attributes=_jsonable_mapping(attrs),
+        )
 
     def apply_source_position(
         self,
@@ -862,6 +1027,137 @@ class ExtensionController:
             self._record_error("Source preset failed", exc)
             return None
 
+    def select_sound_profile(
+        self, profile_id: str | None = None
+    ) -> SoundProfile | None:
+        """Select a profile manually by id without authoring source metadata."""
+
+        try:
+            profile = self._sound_profile_by_id(
+                profile_id or self.state.selected_profile_id
+            )
+            self.state.selected_profile_id = profile.profile_id
+            self._set_status(
+                f"Selected sound profile {profile.display_label} "
+                f"({profile.profile_id})."
+            )
+            return profile
+        except Exception as exc:
+            self._record_error("Sound profile selection failed", exc)
+            return None
+
+    def auto_select_profile_from_object(
+        self,
+        *,
+        stage: Any | None = None,
+        selected_paths: Iterable[str] | None = None,
+    ) -> SoundProfile | None:
+        """Select the best profile from selected or attached object labels."""
+
+        try:
+            labels = self._object_label_candidates(
+                stage=stage,
+                selected_paths=selected_paths,
+            )
+            if not labels:
+                raise ExtensionActionError(
+                    "No selected or attached object label is available."
+                )
+            selected_object_path = self._selected_object_candidate_path(
+                stage=stage,
+                selected_paths=selected_paths,
+            )
+            if selected_object_path is not None:
+                self.state.object_prim_path = selected_object_path
+                self.state.object_label = labels[0]
+            library = self._validated_sound_profiles()
+            profile_id = match_sound_profile_id(
+                labels=labels,
+                profiles=library,
+                object_profile_mappings=self.state.object_profile_mappings,
+            )
+            if profile_id is None:
+                raise ExtensionActionError(
+                    "No sound profile matches object labels: " + ", ".join(labels) + "."
+                )
+            profile = self._sound_profile_by_id(profile_id)
+            self.state.selected_profile_id = profile.profile_id
+            self._set_status(
+                f"Auto-selected {profile.display_label} from object labels: "
+                f"{', '.join(labels)}."
+            )
+            return profile
+        except Exception as exc:
+            self._record_error("Sound profile auto-match failed", exc)
+            return None
+
+    def apply_selected_profile(
+        self,
+        *,
+        stage: Any | None = None,
+    ) -> AuthoredMetadataSummary | None:
+        """Apply the selected profile to the current source prim metadata."""
+
+        try:
+            stage_obj = self._stage_or_error(stage)
+            profile = self._sound_profile_by_id(self.state.selected_profile_id)
+            authored = self._author_profile_on_current_source(stage_obj, profile)
+            self._set_status(
+                f"Applied sound profile {profile.display_label} "
+                f"to {self.state.source_prim_path}."
+            )
+            return authored
+        except Exception as exc:
+            self._record_error("Sound profile apply failed", exc)
+            return None
+
+    def select_rig_profile(
+        self, profile_id: str | None = None
+    ) -> MicrophoneRigProfile | None:
+        """Select a microphone rig profile by id without authoring metadata."""
+
+        try:
+            profile = self._rig_profile_by_id(
+                profile_id or self.state.selected_rig_profile_id
+            )
+            self.state.selected_rig_profile_id = profile.profile_id
+            self._set_status(
+                f"Selected rig profile {profile.display_label} "
+                f"({profile.profile_id})."
+            )
+            return profile
+        except Exception as exc:
+            self._record_error("Rig profile selection failed", exc)
+            return None
+
+    def apply_selected_rig_profile(
+        self,
+        *,
+        stage: Any | None = None,
+    ) -> AuthoredMetadataSummary | None:
+        """Apply the selected rig profile to the current array prim."""
+
+        try:
+            stage_obj = self._stage_or_error(stage)
+            profile = self._rig_profile_by_id(self.state.selected_rig_profile_id)
+            authored = self._author_rig_on_current_array(stage_obj, profile)
+            hint = ""
+            mount_path = profile.recommended_mount_prim_path
+            if (
+                mount_path
+                and not self.state.array_attached_to_object
+                and _stage_has_prim(stage_obj, mount_path)
+            ):
+                hint = f" Recommended mount available: {mount_path}."
+            self._set_status(
+                f"Applied rig profile {profile.display_label} "
+                f"to {self.state.array_prim_path}.{hint}"
+            )
+            return authored
+        except Exception as exc:
+            self._record_error("Rig profile apply failed", exc)
+            return None
+
     def author_source(
         self,
         *,
@@ -896,6 +1192,7 @@ class ExtensionController:
             object_path = state.object_prim_path or state.attached_object_prim_path
             _validate_abs_path(object_path, "object_prim_path")
             _validate_abs_path(state.source_prim_path, "source_prim_path")
+            self._validate_source_metadata_state()
             if not _stage_has_prim(stage_obj, object_path):
                 raise ExtensionActionError(
                     f"Selected object no longer exists: {object_path}."
@@ -941,11 +1238,17 @@ class ExtensionController:
                 start_time_s=state.source_start_time_s,
                 duration_s=state.source_duration_s,
                 gain_db=state.source_gain_db,
-                directivity="omni",
+                directivity=state.source_directivity,
             )
             binding_attrs = attach_source_object_binding_attrs(
                 prim,
                 object_prim_path=object_path,
+                local_offset_m=offset,
+            )
+            profile_attrs = _refresh_applied_profile_binding_snapshot(
+                prim,
+                state,
+                object_path=object_path,
                 local_offset_m=offset,
             )
             state.source_attached_to_object = True
@@ -963,7 +1266,7 @@ class ExtensionController:
                 prim_path=attached_path,
                 id=str(attrs["ias:source_id"]),
                 attributes=_jsonable_mapping(
-                    {**record.attributes, **attrs, **binding_attrs}
+                    {**record.attributes, **attrs, **binding_attrs, **profile_attrs}
                 ),
             )
             self._append_authored_record(authored)
@@ -988,6 +1291,7 @@ class ExtensionController:
             stage_obj = self._stage_or_error(stage)
             state = self.state
             _validate_abs_path(state.source_prim_path, "source_prim_path")
+            self._validate_source_metadata_state()
             source_path = state.source_prim_path
             pose = IsaacStagePoseResolver(stage_obj).resolve_world_pose(
                 source_path,
@@ -1028,7 +1332,7 @@ class ExtensionController:
                 start_time_s=state.source_start_time_s,
                 duration_s=state.source_duration_s,
                 gain_db=state.source_gain_db,
-                directivity="omni",
+                directivity=state.source_directivity,
             )
             state.source_attached_to_object = False
             state.attached_object_prim_path = ""
@@ -1050,6 +1354,150 @@ class ExtensionController:
             self._record_error("Source detach failed", exc)
             return None
 
+    def attach_array_to_object(
+        self,
+        *,
+        stage: Any | None = None,
+    ) -> AuthoredMetadataSummary | None:
+        """Mount the current array under the selected object/robot prim."""
+
+        try:
+            stage_obj = self._stage_or_error(stage)
+            state = self.state
+            object_path = (
+                state.object_prim_path
+                or state.attached_array_object_prim_path
+                or state.robot_base_prim_path
+            )
+            _validate_abs_path(object_path, "object_prim_path")
+            _validate_abs_path(state.array_prim_path, "array_prim_path")
+            if object_path == state.array_prim_path:
+                raise ExtensionActionError("Cannot attach an array to itself.")
+            if not _stage_has_prim(stage_obj, object_path):
+                raise ExtensionActionError(
+                    f"Selected mount prim no longer exists: {object_path}."
+                )
+            array_name = _path_name(state.array_prim_path)
+            attached_path = f"{object_path.rstrip('/')}/{array_name}"
+            offset = self._array_local_offset_from_state()
+            local_orientation = self._array_local_orientation_from_state()
+            move_prim_to_path(
+                stage_obj,
+                source_path=state.array_prim_path,
+                dest_path=attached_path,
+                prim_type="Xform",
+                include_children=True,
+            )
+            state.array_prim_path = attached_path
+            prim = get_or_define_prim(
+                stage_obj,
+                prim_path=attached_path,
+                prim_type="Xform",
+            )
+            clear_prim_attrs(
+                prim,
+                (
+                    "ias:position_world",
+                    "ias:orientation_world_quat",
+                ),
+            )
+            binding_attrs = attach_array_object_binding_attrs(
+                prim,
+                object_prim_path=object_path,
+                local_offset_m=offset,
+                local_orientation_quat=local_orientation,
+            )
+            state.array_attached_to_object = True
+            state.attached_array_object_prim_path = object_path
+            state.object_prim_path = object_path
+            state.object_label = _path_name(object_path)
+            with suppress(Exception):
+                pose = IsaacStagePoseResolver(stage_obj).resolve_world_pose(
+                    attached_path,
+                    field_name="attached array",
+                )
+                self._set_array_pose_state(
+                    pose.position_world,
+                    pose.orientation_world_quat,
+                )
+            authored = AuthoredMetadataSummary(
+                kind="array_object_attachment",
+                prim_path=attached_path,
+                id=state.array_id.strip() or array_name,
+                attributes=_jsonable_mapping(binding_attrs),
+            )
+            self._append_authored_record(authored)
+            self._set_status(
+                "Attached array "
+                f"{authored.id} to {_path_name(object_path)} at {object_path} "
+                f"with local offset {_format_vec3(offset)}."
+            )
+            return authored
+        except Exception as exc:
+            self._record_error("Array attach failed", exc)
+            return None
+
+    def detach_array_from_object(
+        self,
+        *,
+        stage: Any | None = None,
+    ) -> AuthoredMetadataSummary | None:
+        """Detach the current array to a standalone path, keeping its world pose."""
+
+        try:
+            stage_obj = self._stage_or_error(stage)
+            state = self.state
+            _validate_abs_path(state.array_prim_path, "array_prim_path")
+            array_path = state.array_prim_path
+            pose = IsaacStagePoseResolver(stage_obj).resolve_world_pose(
+                array_path,
+                field_name="attached array",
+            )
+            standalone_path = f"/World/AudioArrays/{_path_name(array_path)}"
+            get_or_define_prim(
+                stage_obj,
+                prim_path="/World/AudioArrays",
+                prim_type="Xform",
+            )
+            prim = move_prim_to_path(
+                stage_obj,
+                source_path=array_path,
+                dest_path=standalone_path,
+                prim_type="Xform",
+                include_children=True,
+            )
+            state.array_prim_path = standalone_path
+            clear_array_object_binding_attrs(prim)
+            orientation = pose.orientation_world_quat or (0.0, 0.0, 0.0, 1.0)
+            attrs = attach_microphone_array_attrs(
+                prim,
+                array_id=state.array_id.strip() or _path_name(standalone_path),
+                sample_rate_hz=int(state.sample_rate_hz),
+                coordinate_convention=state.coordinate_convention,
+                layout_name=state.layout_name,
+                position_world=pose.position_world,
+                orientation_world_quat=orientation,
+            )
+            state.array_attached_to_object = False
+            state.attached_array_object_prim_path = ""
+            self._set_array_pose_state(pose.position_world, orientation)
+            authored = AuthoredMetadataSummary(
+                kind="array_object_detach",
+                prim_path=standalone_path,
+                id=str(attrs["ias:array_id"]),
+                attributes=_jsonable_mapping(attrs),
+            )
+            self._append_authored_record(authored)
+            self._set_status(
+                "Detached array "
+                f"{authored.id} to {standalone_path} at "
+                f"{_format_vec3(pose.position_world)}."
+            )
+            return authored
+        except Exception as exc:
+            self._record_error("Array detach failed", exc)
+            return None
+
     def _author_source_on_stage(
         self,
         stage_obj: Any,
@@ -1060,12 +1508,7 @@ class ExtensionController:
 
         state = self.state
         _validate_abs_path(state.source_prim_path, "source_prim_path")
-        if state.audio_asset_path.strip() == "":
-            raise ExtensionActionError("audio_asset_path must be non-empty.")
-        if state.source_duration_s <= 0.0:
-            raise ExtensionActionError("source_duration_s must be positive.")
-        if not math.isfinite(state.source_start_time_s):
-            raise ExtensionActionError("source_start_time_s must be finite.")
+        self._validate_source_metadata_state()
 
         record = create_sound_prim(
             stage_obj,
@@ -1094,7 +1537,7 @@ class ExtensionController:
             start_time_s=state.source_start_time_s,
             duration_s=state.source_duration_s,
             gain_db=state.source_gain_db,
-            directivity="omni",
+            directivity=state.source_directivity,
         )
         authored = AuthoredMetadataSummary(
             kind="source",
@@ -1104,6 +1547,294 @@ class ExtensionController:
         )
         self._append_authored_record(authored)
         return authored
+
+    def _author_profile_on_current_source(
+        self,
+        stage_obj: Any,
+        profile: SoundProfile,
+    ) -> AuthoredMetadataSummary:
+        state = self.state
+        _validate_abs_path(state.source_prim_path, "source_prim_path")
+        attached = state.source_attached_to_object
+        object_path = state.attached_object_prim_path or state.object_prim_path
+        object_label = self._profile_object_label(stage_obj)
+        if attached:
+            _validate_abs_path(object_path, "object_prim_path")
+            self._validate_attached_object_available(stage_obj)
+            position_world = None
+        else:
+            position_world = self._current_source_world_position(stage_obj)
+            self._set_source_position_state(position_world)
+
+        state.source_id = profile.source_id_for(
+            object_label=object_label,
+            current_source_id=state.source_id.strip()
+            or _path_name(state.source_prim_path),
+            source_prim_path=state.source_prim_path,
+        )
+        state.source_class_label = profile.class_label
+        state.audio_asset_path = profile.audio_asset_path
+        state.source_start_time_s = float(profile.start_time_s)
+        state.source_duration_s = float(profile.duration_s)
+        state.source_gain_db = float(profile.gain_db)
+        state.source_directivity = profile.directivity
+        self._validate_source_metadata_state()
+
+        record = create_sound_prim(
+            stage_obj,
+            prim_path=state.source_prim_path,
+            audio_asset_path=state.audio_asset_path,
+            spatial=True,
+            loop=False,
+            start_time_s=state.source_start_time_s,
+            gain_db=state.source_gain_db,
+        )
+        prim = get_or_define_prim(
+            stage_obj,
+            prim_path=state.source_prim_path,
+            prim_type=record.prim_type,
+        )
+        _set_prim_attr(prim, "ias:sound_profile_id", profile.profile_id)
+        _set_prim_attr(prim, "ias:sound_profile_label", profile.display_label)
+
+        binding_attrs: Mapping[str, object] = {}
+        if attached:
+            clear_prim_attrs(
+                prim,
+                (
+                    "ias:position_world",
+                    "ias:orientation_world_quat",
+                ),
+            )
+            attrs = attach_sound_source_attrs(
+                prim,
+                source_id=state.source_id,
+                class_label=state.source_class_label,
+                position_world=None,
+                orientation_world_quat=None,
+                audio_asset_path=state.audio_asset_path,
+                start_time_s=state.source_start_time_s,
+                duration_s=state.source_duration_s,
+                gain_db=state.source_gain_db,
+                directivity=state.source_directivity,
+            )
+            binding_attrs = attach_source_object_binding_attrs(
+                prim,
+                object_prim_path=object_path,
+                local_offset_m=self._source_local_offset_from_state(),
+            )
+        else:
+            attrs = attach_sound_source_attrs(
+                prim,
+                source_id=state.source_id,
+                class_label=state.source_class_label,
+                position_world=position_world,
+                orientation_world_quat=_author_orientation_arg(
+                    prim,
+                    default=(0.0, 0.0, 0.0, 1.0),
+                ),
+                audio_asset_path=state.audio_asset_path,
+                start_time_s=state.source_start_time_s,
+                duration_s=state.source_duration_s,
+                gain_db=state.source_gain_db,
+                directivity=state.source_directivity,
+            )
+
+        snapshot = self._applied_profile_snapshot(
+            profile,
+            source_position_world=position_world,
+        )
+        state.applied_source_profile = snapshot
+        authored = AuthoredMetadataSummary(
+            kind="source_profile",
+            prim_path=state.source_prim_path,
+            id=state.source_id,
+            attributes=_jsonable_mapping(
+                {
+                    **record.attributes,
+                    **attrs,
+                    **binding_attrs,
+                    "ias:sound_profile_id": profile.profile_id,
+                    "ias:sound_profile_label": profile.display_label,
+                    "applied_source_profile": snapshot,
+                }
+            ),
+        )
+        self._append_authored_record(authored)
+        return authored
+
+    def _current_source_world_position(
+        self,
+        stage_obj: Any,
+    ) -> tuple[float, float, float]:
+        if self.state.source_prim_path.strip() and _stage_has_prim(
+            stage_obj,
+            self.state.source_prim_path,
+        ):
+            with suppress(Exception):
+                pose = IsaacStagePoseResolver(stage_obj).resolve_world_pose(
+                    self.state.source_prim_path,
+                    field_name="source",
+                )
+                return pose.position_world
+        return self._source_position_from_state()
+
+    def _applied_profile_snapshot(
+        self,
+        profile: SoundProfile,
+        *,
+        source_position_world: tuple[float, float, float] | None,
+    ) -> dict[str, Any]:
+        state = self.state
+        return _json_ready(
+            {
+                "profile_id": profile.profile_id,
+                "display_label": profile.display_label,
+                "source_prim_path": state.source_prim_path,
+                "source_id": state.source_id,
+                "class_label": state.source_class_label,
+                "audio_asset_path": state.audio_asset_path,
+                "start_time_s": state.source_start_time_s,
+                "duration_s": state.source_duration_s,
+                "gain_db": state.source_gain_db,
+                "directivity": state.source_directivity,
+                "source_attached_to_object": state.source_attached_to_object,
+                "object_prim_path": state.object_prim_path or None,
+                "object_label": state.object_label,
+                "attached_object_prim_path": state.attached_object_prim_path or None,
+                "source_local_offset_m": self._source_local_offset_from_state(),
+                "source_position_world": source_position_world,
+            }
+        )
+
+    def _author_rig_on_current_array(
+        self,
+        stage_obj: Any,
+        profile: MicrophoneRigProfile,
+    ) -> AuthoredMetadataSummary:
+        state = self.state
+        _validate_abs_path(state.array_prim_path, "array_prim_path")
+        attached = state.array_attached_to_object
+        object_path = state.attached_array_object_prim_path or state.object_prim_path
+        if attached:
+            _validate_abs_path(object_path, "object_prim_path")
+            self._validate_attached_array_available(stage_obj)
+
+        state.layout_name = profile.layout_name
+        state.sample_rate_hz = int(profile.sample_rate_hz)
+        (
+            state.array_local_offset_x_m,
+            state.array_local_offset_y_m,
+            state.array_local_offset_z_m,
+        ) = profile.mount_local_offset_m
+        (
+            state.array_local_roll_deg,
+            state.array_local_pitch_deg,
+            state.array_local_yaw_deg,
+        ) = euler_deg_from_quaternion(profile.mount_local_orientation_quat)
+
+        prim = get_or_define_prim(
+            stage_obj,
+            prim_path=state.array_prim_path,
+            prim_type="Xform",
+        )
+        if attached:
+            position_world = None
+            orientation_world = None
+        else:
+            position_world = _author_position_arg(
+                prim,
+                default=self._array_position_from_state(),
+            )
+            orientation_world = _author_orientation_arg(
+                prim,
+                default=self._array_orientation_from_state(),
+            )
+        record = self._author_array_on_stage(
+            stage_obj,
+            position_world=position_world,
+            orientation_world_quat=orientation_world,
+            microphones=profile.microphones(),
+            kind="array_rig_profile",
+            extra_attrs={
+                "ias:rig_profile_id": profile.profile_id,
+                "ias:rig_profile_label": profile.display_label,
+            },
+        )
+        binding_attrs: Mapping[str, object] = {}
+        if attached:
+            clear_prim_attrs(
+                prim,
+                (
+                    "ias:position_world",
+                    "ias:orientation_world_quat",
+                ),
+            )
+            binding_attrs = attach_array_object_binding_attrs(
+                prim,
+                object_prim_path=object_path,
+                local_offset_m=profile.mount_local_offset_m,
+                local_orientation_quat=profile.mount_local_orientation_quat,
+            )
+        snapshot = self._applied_rig_profile_snapshot(profile)
+        state.applied_array_rig_profile = snapshot
+        authored = AuthoredMetadataSummary(
+            kind="array_rig_profile",
+            prim_path=state.array_prim_path,
+            id=record.id,
+            attributes=_jsonable_mapping(
+                {
+                    **dict(record.attributes),
+                    **binding_attrs,
+                    "applied_array_rig_profile": snapshot,
+                }
+            ),
+        )
+        self._append_authored_record(authored)
+        return authored
+
+    def _applied_rig_profile_snapshot(
+        self,
+        profile: MicrophoneRigProfile,
+    ) -> dict[str, Any]:
+        state = self.state
+        return _json_ready(
+            {
+                "profile_id": profile.profile_id,
+                "display_label": profile.display_label,
+                "array_prim_path": state.array_prim_path,
+                "array_id": state.array_id,
+                "layout_name": state.layout_name,
+                "sample_rate_hz": state.sample_rate_hz,
+                "microphone_ids": profile.microphone_ids,
+                "microphone_relative_offsets_m": (
+                    profile.microphone_relative_offsets_m
+                ),
+                "microphone_gains_db": profile.microphone_gains_db,
+                "mount_local_offset_m": profile.mount_local_offset_m,
+                "mount_local_orientation_quat": profile.mount_local_orientation_quat,
+                "recommended_mount_prim_path": profile.recommended_mount_prim_path,
+                "array_attached_to_object": state.array_attached_to_object,
+                "attached_object_prim_path": state.attached_array_object_prim_path
+                or None,
+            }
+        )
+
+    def _validate_source_metadata_state(self) -> None:
+        state = self.state
+        if state.audio_asset_path.strip() == "":
+            raise ExtensionActionError("audio_asset_path must be non-empty.")
+        if state.source_directivity.strip() == "":
+            raise ExtensionActionError("source_directivity must be non-empty.")
+        for field_name, value in (
+            ("source_start_time_s", state.source_start_time_s),
+            ("source_duration_s", state.source_duration_s),
+            ("source_gain_db", state.source_gain_db),
+        ):
+            if not math.isfinite(float(value)):
+                raise ExtensionActionError(f"{field_name} must be finite.")
+        if state.source_duration_s <= 0.0:
+            raise ExtensionActionError("source_duration_s must be positive.")
 
     def _source_position_from_state(self) -> tuple[float, float, float]:
         position = (
@@ -1130,6 +1861,74 @@ class ExtensionController:
         self.state.source_position_x_m = x
         self.state.source_position_y_m = y
         self.state.source_position_z_m = z
+
+    def _array_position_from_state(self) -> tuple[float, float, float]:
+        position = (
+            float(self.state.array_position_x_m),
+            float(self.state.array_position_y_m),
+            float(self.state.array_position_z_m),
+        )
+        if not all(math.isfinite(component) for component in position):
+            raise ExtensionActionError("array position values must be finite.")
+        return position
+
+    def _array_orientation_from_state(self) -> tuple[float, float, float, float]:
+        angles = (
+            float(self.state.array_roll_deg),
+            float(self.state.array_pitch_deg),
+            float(self.state.array_yaw_deg),
+        )
+        if not all(math.isfinite(angle) for angle in angles):
+            raise ExtensionActionError("array orientation angles must be finite.")
+        return quaternion_from_euler_deg(
+            roll_deg=angles[0],
+            pitch_deg=angles[1],
+            yaw_deg=angles[2],
+        )
+
+    def _array_local_offset_from_state(self) -> tuple[float, float, float]:
+        offset = (
+            float(self.state.array_local_offset_x_m),
+            float(self.state.array_local_offset_y_m),
+            float(self.state.array_local_offset_z_m),
+        )
+        if not all(math.isfinite(component) for component in offset):
+            raise ExtensionActionError("array local offset values must be finite.")
+        return offset
+
+    def _array_local_orientation_from_state(
+        self,
+    ) -> tuple[float, float, float, float]:
+        angles = (
+            float(self.state.array_local_roll_deg),
+            float(self.state.array_local_pitch_deg),
+            float(self.state.array_local_yaw_deg),
+        )
+        if not all(math.isfinite(angle) for angle in angles):
+            raise ExtensionActionError(
+                "array local orientation angles must be finite."
+            )
+        return quaternion_from_euler_deg(
+            roll_deg=angles[0],
+            pitch_deg=angles[1],
+            yaw_deg=angles[2],
+        )
+
+    def _set_array_pose_state(
+        self,
+        position: Iterable[float],
+        orientation_quat: Iterable[float] | None = None,
+    ) -> None:
+        x, y, z = vec3_from_any(position)
+        self.state.array_position_x_m = x
+        self.state.array_position_y_m = y
+        self.state.array_position_z_m = z
+        if orientation_quat is not None:
+            (
+                self.state.array_roll_deg,
+                self.state.array_pitch_deg,
+                self.state.array_yaw_deg,
+            ) = euler_deg_from_quaternion(quat_from_any(orientation_quat))
 
     def refresh_discovery(
         self,
@@ -1274,6 +2073,9 @@ class ExtensionController:
                 raise ExtensionActionError("Sensor is not configured.")
             previous_frame = self.sensor.latest_frame
             self._validate_attached_object_available(self.sensor.stage)
+            self._validate_attached_array_available(self.sensor.stage)
+            if self.state.array_prim_path.strip():
+                self.sensor.array_prim_path = self.state.array_prim_path
             self.sensor.source_prim_path = (
                 self.state.source_prim_path
                 if self.state.source_attached_to_object
@@ -1381,6 +2183,13 @@ class ExtensionController:
                     "layout_name": state.layout_name,
                     "sample_rate_hz": state.sample_rate_hz,
                     "coordinate_convention": state.coordinate_convention,
+                    "position_world": self._array_position_from_state(),
+                    "orientation_world_quat": self._array_orientation_from_state(),
+                    "orientation_euler_deg": (
+                        state.array_roll_deg,
+                        state.array_pitch_deg,
+                        state.array_yaw_deg,
+                    ),
                 },
                 "source": {
                     "prim_path": state.source_prim_path,
@@ -1392,6 +2201,17 @@ class ExtensionController:
                     "start_time_s": state.source_start_time_s,
                     "duration_s": state.source_duration_s,
                     "gain_db": state.source_gain_db,
+                    "directivity": state.source_directivity,
+                },
+                "sound_profiles": {
+                    "profile_library": [
+                        profile.to_dict() for profile in state.profile_library
+                    ],
+                    "selected_profile_id": state.selected_profile_id or None,
+                    "object_profile_mappings": dict(
+                        sorted(state.object_profile_mappings.items())
+                    ),
+                    "applied_source_profile": state.applied_source_profile or None,
                 },
                 "object_binding": {
                     "selected_object_prim_path": state.object_prim_path or None,
@@ -1400,6 +2220,30 @@ class ExtensionController:
                     "attached_object_prim_path": state.attached_object_prim_path
                     or None,
                     "source_local_offset_m": self._source_local_offset_from_state(),
+                },
+                "array_binding": {
+                    "attached": state.array_attached_to_object,
+                    "attached_object_prim_path": (
+                        state.attached_array_object_prim_path or None
+                    ),
+                    "array_local_offset_m": self._array_local_offset_from_state(),
+                    "array_local_orientation_quat": (
+                        self._array_local_orientation_from_state()
+                    ),
+                    "array_local_euler_deg": (
+                        state.array_local_roll_deg,
+                        state.array_local_pitch_deg,
+                        state.array_local_yaw_deg,
+                    ),
+                },
+                "microphone_rig_profiles": {
+                    "rig_library": [
+                        profile.to_dict() for profile in state.rig_profile_library
+                    ],
+                    "selected_rig_profile_id": state.selected_rig_profile_id or None,
+                    "applied_array_rig_profile": (
+                        state.applied_array_rig_profile or None
+                    ),
                 },
                 "stage_binding": {
                     "robot_base_prim_path": state.robot_base_prim_path or None,
@@ -1438,6 +2282,12 @@ class ExtensionController:
                     "source_position_m": state.latest_source_position_m,
                     "bearing_deg": state.latest_bearing_deg,
                     "sector": state.latest_sector,
+                    "array_prim_path": state.latest_array_prim_path,
+                    "array_position_m": state.latest_array_position_m,
+                    "array_orientation_xyzw": state.latest_array_orientation_xyzw,
+                    "mic_world_positions": dict(
+                        sorted(state.latest_mic_world_positions.items())
+                    ),
                 },
                 "overlay": {
                     "primitive_count": state.latest_overlay_primitive_count,
@@ -1465,10 +2315,7 @@ class ExtensionController:
             self.replicator_recorder = recorder
             status = recorder.start()
             self._apply_replicator_status(status.to_dict())
-            self._set_status(
-                "Replicator recording started at "
-                f"{output_dir}."
-            )
+            self._set_status("Replicator recording started at " f"{output_dir}.")
             return self._replicator_status_dict()
         except Exception as exc:
             self.replicator_recorder = None
@@ -1648,6 +2495,31 @@ class ExtensionController:
                 self_noise_db=microphone.self_noise_db,
             )
 
+    def _remove_stale_child_microphones(
+        self,
+        stage: Any,
+        *,
+        array_path: str,
+        keep_mic_ids: tuple[str, ...],
+    ) -> None:
+        if not hasattr(stage, "Traverse"):
+            return
+        prefix = array_path.rstrip("/") + "/"
+        keep = set(keep_mic_ids)
+        for prim in tuple(stage.Traverse()):
+            path = prim_path(prim)
+            if not path.startswith(prefix) or "/" in path[len(prefix) :]:
+                continue
+            attrs = _prim_attrs(prim)
+            is_microphone = (
+                _prim_type_name(prim) == "Microphone" or "ias:microphone_id" in attrs
+            )
+            if not is_microphone:
+                continue
+            mic_id = str(attrs.get("ias:microphone_id", _path_name(path)))
+            if mic_id not in keep:
+                remove_prim(stage, path)
+
     def _discovery_cfg(
         self,
         *,
@@ -1681,6 +2553,112 @@ class ExtensionController:
                 return self.state.array_id
         return None
 
+    def _validated_sound_profiles(self) -> tuple[SoundProfile, ...]:
+        profiles = validate_sound_profile_library(self.state.profile_library)
+        self.state.profile_library = profiles
+        profile_ids = {profile.profile_id for profile in profiles}
+        bad_mappings = {
+            label: profile_id
+            for label, profile_id in self.state.object_profile_mappings.items()
+            if profile_id not in profile_ids
+        }
+        if bad_mappings:
+            label, profile_id = next(iter(sorted(bad_mappings.items())))
+            raise ExtensionActionError(
+                "Object profile mapping "
+                f"{label!r} references unknown profile {profile_id!r}."
+            )
+        return profiles
+
+    def _sound_profile_by_id(self, profile_id: str) -> SoundProfile:
+        requested = profile_id.strip()
+        if not requested:
+            raise ExtensionActionError("selected_profile_id must be non-empty.")
+        for profile in self._validated_sound_profiles():
+            if profile.profile_id == requested:
+                return profile
+        raise ExtensionActionError(f"Unknown sound profile id {requested!r}.")
+
+    def _validated_rig_profiles(self) -> tuple[MicrophoneRigProfile, ...]:
+        profiles = validate_microphone_rig_profile_library(
+            self.state.rig_profile_library
+        )
+        self.state.rig_profile_library = profiles
+        return profiles
+
+    def _rig_profile_by_id(self, profile_id: str) -> MicrophoneRigProfile:
+        requested = profile_id.strip()
+        if not requested:
+            raise ExtensionActionError("selected_rig_profile_id must be non-empty.")
+        for profile in self._validated_rig_profiles():
+            if profile.profile_id == requested:
+                return profile
+        raise ExtensionActionError(f"Unknown rig profile id {requested!r}.")
+
+    def _profile_object_label(self, stage_obj: Any | None) -> str:
+        labels = self._object_label_candidates(stage=stage_obj, selected_paths=None)
+        return labels[0] if labels else _path_name(self.state.source_prim_path)
+
+    def _object_label_candidates(
+        self,
+        *,
+        stage: Any | None,
+        selected_paths: Iterable[str] | None,
+    ) -> tuple[str, ...]:
+        candidates: list[str] = []
+        context_stage = stage
+        if selected_paths is not None:
+            context = self._context(stage=stage, selected_paths=selected_paths)
+            context_stage = context.stage or stage
+            for path in context.selected_prim_paths:
+                candidates.extend(
+                    _object_label_candidates_for_path(context_stage, path)
+                )
+        for label in (self.state.object_label,):
+            if label and label != "none":
+                candidates.append(label)
+        for path in (
+            self.state.object_prim_path,
+            self.state.attached_object_prim_path,
+        ):
+            if path:
+                candidates.extend(
+                    _object_label_candidates_for_path(context_stage, path)
+                )
+        if self.state.source_attached_to_object and self.state.source_prim_path:
+            parent_path = self.state.source_prim_path.rstrip("/").rsplit("/", 1)[0]
+            candidates.extend(
+                _object_label_candidates_for_path(context_stage, parent_path)
+            )
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            text = str(candidate).strip()
+            if not text or text.lower() == "none":
+                continue
+            key = normalize_object_label(text)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            normalized.append(text)
+        return tuple(normalized)
+
+    def _selected_object_candidate_path(
+        self,
+        *,
+        stage: Any | None,
+        selected_paths: Iterable[str] | None,
+    ) -> str | None:
+        if selected_paths is None:
+            return None
+        context = self._context(stage=stage, selected_paths=selected_paths)
+        for path in context.selected_prim_paths:
+            if path in {self.state.array_prim_path, self.state.source_prim_path}:
+                continue
+            if context.stage is None or _stage_has_prim(context.stage, path):
+                return path
+        return None
+
     def _stage_or_error(self, stage: Any | None) -> Any:
         context = self._context(stage=stage)
         if context.stage is None:
@@ -1704,6 +2682,24 @@ class ExtensionController:
             raise ExtensionActionError(
                 f"Attached object no longer exists: {object_path}. "
                 "Select another object or detach the source."
+            )
+
+    def _validate_attached_array_available(self, stage: Any | None) -> None:
+        if not self.state.array_attached_to_object:
+            return
+        object_path = (
+            self.state.attached_array_object_prim_path or self.state.object_prim_path
+        )
+        if not object_path:
+            raise ExtensionActionError(
+                "Array is marked attached but no mount path is configured."
+            )
+        if stage is None:
+            return
+        if not _stage_has_prim(stage, object_path):
+            raise ExtensionActionError(
+                f"Attached array mount no longer exists: {object_path}. "
+                "Select another mount or detach the array."
             )
 
     def _attachment_status_for_current_stage(self) -> str | None:
@@ -1781,6 +2777,24 @@ class ExtensionController:
             None if first is None else first.doa.estimated_bearing_deg
         )
         self.state.latest_sector = None if first is None else first.doa.bearing_sector
+        array_pose = getattr(frame, "array_pose", None)
+        self.state.latest_array_prim_path = (
+            None
+            if self.sensor is None
+            else getattr(self.sensor, "array_prim_path", None)
+        ) or (self.state.array_prim_path or None)
+        self.state.latest_array_position_m = (
+            None if array_pose is None else vec3_from_any(array_pose.position_m)
+        )
+        array_orientation = (
+            None
+            if array_pose is None
+            else getattr(array_pose, "orientation_xyzw", None)
+        )
+        self.state.latest_array_orientation_xyzw = (
+            None if array_orientation is None else quat_from_any(array_orientation)
+        )
+        self.state.latest_mic_world_positions = self._latest_mic_world_positions()
         self.state.latest_aggregate_rms = _aggregate_rms_from_frame(frame)
         primitives: tuple[DebugPrimitive, ...] = (
             () if self.sensor is None else tuple(self.sensor.latest_debug_primitives)
@@ -1794,6 +2808,17 @@ class ExtensionController:
             f"Updated {frame.frame_id}: {len(detections)} detection(s), "
             f"{len(primitives)} overlay primitive(s)."
         )
+
+    def _latest_mic_world_positions(self) -> dict[str, tuple[float, float, float]]:
+        if self.sensor is None:
+            return {}
+        sensor_spec = getattr(self.sensor, "_latest_sensor", None)
+        if sensor_spec is None:
+            return {}
+        try:
+            return dict(microphone_world_positions(sensor_spec))
+        except Exception:
+            return {}
 
     def _latest_source_prim_path(self, detection: Any | None) -> str | None:
         if detection is None:
@@ -1855,11 +2880,22 @@ class ExtensionController:
                     "array_prim_path": self.state.array_prim_path,
                     "source_prim_path": self.state.source_prim_path,
                     "source_position_m": self._source_position_from_state(),
+                    "selected_profile_id": self.state.selected_profile_id or None,
+                    "applied_source_profile": self.state.applied_source_profile or None,
                     "source_attached_to_object": self.state.source_attached_to_object,
                     "attached_object_prim_path": self.state.attached_object_prim_path
                     or None,
                     "source_local_offset_m": self._source_local_offset_from_state(),
                     "latest_source_position_m": self.state.latest_source_position_m,
+                    "array_position_m": self._array_position_from_state(),
+                    "array_attached_to_object": self.state.array_attached_to_object,
+                    "attached_array_object_prim_path": (
+                        self.state.attached_array_object_prim_path or None
+                    ),
+                    "array_local_offset_m": self._array_local_offset_from_state(),
+                    "selected_rig_profile_id": (
+                        self.state.selected_rig_profile_id or None
+                    ),
                     "robot_base_prim_path": self.state.robot_base_prim_path or None,
                     "discovery_roots": self._discovery_roots(),
                     "selected_prim_paths": self.state.selected_prim_paths,
@@ -1938,7 +2974,10 @@ class ExtensionController:
     def _apply_config_summary(self, payload: Mapping[str, Any]) -> None:
         array = dict(payload.get("array", {}))
         source = dict(payload.get("source", {}))
+        sound_profiles = payload.get("sound_profiles")
+        rig_profiles = payload.get("microphone_rig_profiles")
         object_binding = dict(payload.get("object_binding", {}))
+        array_binding = dict(payload.get("array_binding", {}))
         binding = dict(payload.get("stage_binding", {}))
         lifecycle = dict(payload.get("lifecycle", {}))
         recording = dict(payload.get("recording", {}))
@@ -1957,6 +2996,40 @@ class ExtensionController:
         self.state.coordinate_convention = str(
             array.get("coordinate_convention", self.state.coordinate_convention)
         )
+        if array.get("position_world") is not None:
+            self._set_array_pose_state(array["position_world"], None)
+        if array.get("orientation_world_quat") is not None:
+            (
+                self.state.array_roll_deg,
+                self.state.array_pitch_deg,
+                self.state.array_yaw_deg,
+            ) = euler_deg_from_quaternion(
+                quat_from_any(array["orientation_world_quat"])
+            )
+        self.state.array_attached_to_object = bool(
+            array_binding.get("attached", self.state.array_attached_to_object)
+        )
+        attached_array_path = array_binding.get("attached_object_prim_path")
+        if attached_array_path is not None:
+            self.state.attached_array_object_prim_path = str(attached_array_path)
+        elif not self.state.array_attached_to_object:
+            self.state.attached_array_object_prim_path = ""
+        array_local_offset = array_binding.get("array_local_offset_m")
+        if array_local_offset is not None:
+            (
+                self.state.array_local_offset_x_m,
+                self.state.array_local_offset_y_m,
+                self.state.array_local_offset_z_m,
+            ) = vec3_from_any(array_local_offset)
+        array_local_quat = array_binding.get("array_local_orientation_quat")
+        if array_local_quat is not None:
+            (
+                self.state.array_local_roll_deg,
+                self.state.array_local_pitch_deg,
+                self.state.array_local_yaw_deg,
+            ) = euler_deg_from_quaternion(quat_from_any(array_local_quat))
+        if rig_profiles is not None:
+            self._apply_rig_profile_config(rig_profiles)
         self.state.source_prim_path = str(
             source.get("prim_path", self.state.source_prim_path)
         )
@@ -1988,6 +3061,11 @@ class ExtensionController:
         self.state.source_gain_db = float(
             source.get("gain_db", self.state.source_gain_db)
         )
+        self.state.source_directivity = str(
+            source.get("directivity", self.state.source_directivity)
+        )
+        if sound_profiles is not None:
+            self._apply_profile_config(sound_profiles)
         self.state.robot_base_prim_path = str(binding.get("robot_base_prim_path") or "")
         self.state.object_prim_path = str(
             object_binding.get("selected_object_prim_path")
@@ -2063,6 +3141,100 @@ class ExtensionController:
         self.state.authored_metadata = tuple(
             _authored_metadata_from_dict(item)
             for item in payload.get("authored_metadata", ())
+        )
+
+    def _apply_profile_config(self, payload: Any) -> None:
+        if not isinstance(payload, Mapping):
+            raise ExtensionActionError("sound_profiles config must be an object.")
+        raw_library = payload.get("profile_library")
+        if raw_library is None:
+            raise ExtensionActionError(
+                "sound_profiles.profile_library is required when profiles are present."
+            )
+        raw_mappings = payload.get("object_profile_mappings")
+        if raw_mappings is None:
+            raise ExtensionActionError(
+                "sound_profiles.object_profile_mappings is required when "
+                "profiles are present."
+            )
+        if not isinstance(raw_mappings, Mapping):
+            raise ExtensionActionError(
+                "sound_profiles.object_profile_mappings must be an object."
+            )
+        if not isinstance(raw_library, list | tuple):
+            raise ExtensionActionError(
+                "sound_profiles.profile_library must be a list of profile objects."
+            )
+        profiles = validate_sound_profile_library(
+            sound_profile_from_mapping(item) for item in raw_library
+        )
+        profile_ids = {profile.profile_id for profile in profiles}
+        mappings = {
+            normalize_object_label(str(label)): str(profile_id).strip()
+            for label, profile_id in raw_mappings.items()
+            if normalize_object_label(str(label))
+        }
+        if not mappings:
+            raise ExtensionActionError(
+                "sound_profiles.object_profile_mappings must not be empty."
+            )
+        for label, profile_id in sorted(mappings.items()):
+            if profile_id not in profile_ids:
+                raise ExtensionActionError(
+                    "sound_profiles.object_profile_mappings "
+                    f"{label!r} references unknown profile {profile_id!r}."
+                )
+        selected_profile_id = payload.get("selected_profile_id")
+        selected_profile_id = (
+            "" if selected_profile_id is None else str(selected_profile_id).strip()
+        )
+        if selected_profile_id and selected_profile_id not in profile_ids:
+            raise ExtensionActionError(
+                f"Unknown selected sound profile id {selected_profile_id!r}."
+            )
+        self.state.profile_library = profiles
+        self.state.object_profile_mappings = dict(sorted(mappings.items()))
+        if selected_profile_id:
+            self.state.selected_profile_id = selected_profile_id
+        applied = payload.get("applied_source_profile")
+        self.state.applied_source_profile = (
+            dict(applied) if isinstance(applied, Mapping) else {}
+        )
+
+    def _apply_rig_profile_config(self, payload: Any) -> None:
+        if not isinstance(payload, Mapping):
+            raise ExtensionActionError(
+                "microphone_rig_profiles config must be an object."
+            )
+        raw_library = payload.get("rig_library")
+        if raw_library is None:
+            raise ExtensionActionError(
+                "microphone_rig_profiles.rig_library is required when rig "
+                "profiles are present."
+            )
+        if not isinstance(raw_library, list | tuple):
+            raise ExtensionActionError(
+                "microphone_rig_profiles.rig_library must be a list of "
+                "profile objects."
+            )
+        profiles = validate_microphone_rig_profile_library(
+            microphone_rig_profile_from_mapping(item) for item in raw_library
+        )
+        profile_ids = {profile.profile_id for profile in profiles}
+        selected_rig_id = payload.get("selected_rig_profile_id")
+        selected_rig_id = (
+            "" if selected_rig_id is None else str(selected_rig_id).strip()
+        )
+        if selected_rig_id and selected_rig_id not in profile_ids:
+            raise ExtensionActionError(
+                f"Unknown selected rig profile id {selected_rig_id!r}."
+            )
+        self.state.rig_profile_library = profiles
+        if selected_rig_id:
+            self.state.selected_rig_profile_id = selected_rig_id
+        applied = payload.get("applied_array_rig_profile")
+        self.state.applied_array_rig_profile = (
+            dict(applied) if isinstance(applied, Mapping) else {}
         )
 
     def _set_status(self, message: str, *, error: bool = False) -> None:
@@ -2142,6 +3314,17 @@ class OmniReferenceWindow:
             f"path={state.object_prim_path or 'none'} | "
             f"attached={state.source_attached_to_object} | "
             f"offset={_format_vec3(self.controller._source_local_offset_from_state())}",
+        )
+        self._set_label("profile", _profile_summary_text(state))
+        self._set_label("rig_profile", _rig_profile_summary_text(state))
+        self._set_label(
+            "array_latest",
+            "Array: "
+            f"{state.latest_array_prim_path or state.array_prim_path} | "
+            f"pos={_optional_vec3_text(state.latest_array_position_m)} | "
+            f"quat={_optional_quat_text(state.latest_array_orientation_xyzw)} | "
+            f"attached={state.array_attached_to_object} | "
+            f"mics={_format_mic_positions_summary(state.latest_mic_world_positions)}",
         )
         self._set_label(
             "latest",
@@ -2260,6 +3443,48 @@ class OmniReferenceWindow:
                 "Create/Attach Array",
                 self.controller.author_array,
             )
+            self._string_row("Rig Profile ID", "selected_rig_profile_id")
+            self._labels["rig_profile"] = ui.Label("", word_wrap=True)
+            with ui.HStack(spacing=4):
+                self._button(
+                    "Select Rig Profile",
+                    self.controller.select_rig_profile,
+                )
+                self._button(
+                    "Apply Rig Profile",
+                    self.controller.apply_selected_rig_profile,
+                )
+            self._float_row("Array Pos X", "array_position_x_m")
+            self._float_row("Array Pos Y", "array_position_y_m")
+            self._float_row("Array Pos Z", "array_position_z_m")
+            self._float_row("Array Yaw", "array_yaw_deg")
+            self._float_row("Array Pitch", "array_pitch_deg")
+            self._float_row("Array Roll", "array_roll_deg")
+            with ui.HStack(spacing=4):
+                self._button(
+                    "Read Array Transform",
+                    self.controller.read_selected_array_transform,
+                )
+                self._button(
+                    "Apply Array Pose",
+                    self.controller.apply_array_pose,
+                )
+            self._float_row("Array Offset X", "array_local_offset_x_m")
+            self._float_row("Array Offset Y", "array_local_offset_y_m")
+            self._float_row("Array Offset Z", "array_local_offset_z_m")
+            self._float_row("Array Local Yaw", "array_local_yaw_deg")
+            self._float_row("Array Local Pitch", "array_local_pitch_deg")
+            self._float_row("Array Local Roll", "array_local_roll_deg")
+            with ui.HStack(spacing=4):
+                self._button(
+                    "Attach Array To Object",
+                    self.controller.attach_array_to_object,
+                )
+                self._button(
+                    "Detach Array",
+                    self.controller.detach_array_from_object,
+                )
+            self._labels["array_latest"] = ui.Label("", word_wrap=True)
 
     def _build_source_section(self) -> None:
         with self._section("Author Source"):
@@ -2267,6 +3492,22 @@ class OmniReferenceWindow:
             self._string_row("Source ID", "source_id")
             self._string_row("Class", "source_class_label")
             self._string_row("Audio URI", "audio_asset_path")
+            self._string_row("Directivity", "source_directivity")
+            self._string_row("Profile ID", "selected_profile_id")
+            self._labels["profile"] = self.ui.Label("", word_wrap=True)
+            with self.ui.HStack(spacing=4):
+                self._button(
+                    "Select Profile",
+                    self.controller.select_sound_profile,
+                )
+                self._button(
+                    "Auto From Object",
+                    self.controller.auto_select_profile_from_object,
+                )
+                self._button(
+                    "Apply Profile",
+                    self.controller.apply_selected_profile,
+                )
             self._float_row("Position X", "source_position_x_m")
             self._float_row("Position Y", "source_position_y_m")
             self._float_row("Position Z", "source_position_z_m")
@@ -2597,6 +3838,24 @@ def _stage_has_prim(stage: Any, path: str) -> bool:
     return False
 
 
+def _stage_prim_at_path(stage: Any | None, path: str) -> Any | None:
+    if stage is None or not path:
+        return None
+    if hasattr(stage, "GetPrimAtPath"):
+        for candidate_path in (_usd_path(path), path):
+            try:
+                prim = stage.GetPrimAtPath(candidate_path)
+            except TypeError:
+                continue
+            if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
+                return prim
+    if hasattr(stage, "Traverse"):
+        for prim in stage.Traverse():
+            if prim_path(prim) == path:
+                return prim
+    return None
+
+
 def _usd_path(path: str) -> Any:
     try:
         from pxr import Sdf  # type: ignore
@@ -2683,6 +3942,91 @@ def _prim_attrs(prim: Any) -> dict[str, Any]:
             if hasattr(attr, "GetName") and hasattr(attr, "Get"):
                 attrs[str(attr.GetName())] = attr.Get()
     return attrs
+
+
+def _set_prim_attr(prim: Any, name: str, value: Any) -> None:
+    if hasattr(prim, "attributes"):
+        prim.attributes[name] = value
+        return
+    if not hasattr(prim, "CreateAttribute"):
+        return
+    try:
+        from pxr import Sdf  # type: ignore
+    except ImportError:
+        return
+    value_type = getattr(Sdf.ValueTypeNames, "String", None)
+    if isinstance(value, bool):
+        value_type = getattr(Sdf.ValueTypeNames, "Bool", value_type)
+    elif isinstance(value, float):
+        value_type = getattr(Sdf.ValueTypeNames, "Double", value_type)
+    try:
+        attr = prim.CreateAttribute(name, value_type)
+        if hasattr(attr, "Set"):
+            attr.Set(value)
+    except Exception:
+        return
+
+
+def _refresh_applied_profile_binding_snapshot(
+    prim: Any,
+    state: ExtensionUiState,
+    *,
+    object_path: str,
+    local_offset_m: tuple[float, float, float],
+) -> dict[str, object]:
+    if not state.applied_source_profile:
+        return {}
+    profile_id = str(state.applied_source_profile.get("profile_id") or "")
+    display_label = str(state.applied_source_profile.get("display_label") or "")
+    attrs: dict[str, object] = {}
+    if profile_id:
+        _set_prim_attr(prim, "ias:sound_profile_id", profile_id)
+        attrs["ias:sound_profile_id"] = profile_id
+    if display_label:
+        _set_prim_attr(prim, "ias:sound_profile_label", display_label)
+        attrs["ias:sound_profile_label"] = display_label
+    state.applied_source_profile = _json_ready(
+        {
+            **state.applied_source_profile,
+            "source_prim_path": state.source_prim_path,
+            "source_id": state.source_id,
+            "class_label": state.source_class_label,
+            "audio_asset_path": state.audio_asset_path,
+            "start_time_s": state.source_start_time_s,
+            "duration_s": state.source_duration_s,
+            "gain_db": state.source_gain_db,
+            "directivity": state.source_directivity,
+            "source_attached_to_object": True,
+            "object_prim_path": object_path,
+            "object_label": state.object_label,
+            "attached_object_prim_path": object_path,
+            "source_local_offset_m": local_offset_m,
+        }
+    )
+    attrs["applied_source_profile"] = state.applied_source_profile
+    return attrs
+
+
+def _object_label_candidates_for_path(stage: Any | None, path: str) -> tuple[str, ...]:
+    if not path:
+        return ()
+    labels: list[str] = []
+    prim = _stage_prim_at_path(stage, path)
+    attrs = {} if prim is None else _prim_attrs(prim)
+    for attr_name in (
+        "ias:object_label",
+        "semantic:class",
+        "semantics:class",
+        "semantics:semanticType",
+        "primvars:displayName",
+        "displayName",
+        "label",
+    ):
+        value = attrs.get(attr_name)
+        if value is not None:
+            labels.append(str(value))
+    labels.append(_path_name(path))
+    return tuple(labels)
 
 
 def _normalize_paths(paths: Iterable[Any]) -> tuple[str, ...]:
@@ -2911,6 +4255,76 @@ def _summary_ids(items: tuple[DiscoveredPrimSummary, ...]) -> str:
     return ", ".join(f"{item.id}@{item.prim_path}" for item in items) or "none"
 
 
+def _profile_summary_text(state: ExtensionUiState) -> str:
+    selected = next(
+        (
+            profile
+            for profile in state.profile_library
+            if profile.profile_id == state.selected_profile_id
+        ),
+        None,
+    )
+    selected_text = (
+        "none"
+        if selected is None
+        else (
+            f"{selected.display_label} | class={selected.class_label} | "
+            f"asset={selected.audio_asset_path}"
+        )
+    )
+    library_ids = ", ".join(profile.profile_id for profile in state.profile_library)
+    applied = state.applied_source_profile.get("profile_id") or "none"
+    return (
+        f"Profile: {selected_text} | selected={state.selected_profile_id or 'none'} | "
+        f"applied={applied} | library={library_ids or 'none'}"
+    )
+
+
+def _rig_profile_summary_text(state: ExtensionUiState) -> str:
+    selected = next(
+        (
+            profile
+            for profile in state.rig_profile_library
+            if profile.profile_id == state.selected_rig_profile_id
+        ),
+        None,
+    )
+    selected_text = (
+        "none"
+        if selected is None
+        else (
+            f"{selected.display_label} | mics={len(selected.microphone_ids)} | "
+            f"mount={selected.recommended_mount_prim_path or 'none'}"
+        )
+    )
+    library_ids = ", ".join(
+        profile.profile_id for profile in state.rig_profile_library
+    )
+    applied = state.applied_array_rig_profile.get("profile_id") or "none"
+    return (
+        f"Rig: {selected_text} | "
+        f"selected={state.selected_rig_profile_id or 'none'} | "
+        f"applied={applied} | library={library_ids or 'none'}"
+    )
+
+
+def _optional_quat_text(value: Iterable[float] | None) -> str:
+    if value is None:
+        return "none"
+    x, y, z, w = quat_from_any(value)
+    return f"({x:.2f}, {y:.2f}, {z:.2f}, {w:.2f})"
+
+
+def _format_mic_positions_summary(
+    values: Mapping[str, tuple[float, float, float]],
+) -> str:
+    if not values:
+        return "none"
+    order = {"front": 0, "right": 1, "rear": 2, "left": 3}
+    items = sorted(values.items(), key=lambda item: (order.get(item[0], 99), item[0]))
+    return "; ".join(f"{mic_id}:{_format_vec3(value)}" for mic_id, value in items)
+
+
 def _frame_is_new(previous_frame: Any | None, frame: Any) -> bool:
     if previous_frame is None:
         return True
@@ -2947,9 +4361,7 @@ def _format_rms_summary(values: Mapping[str, float]) -> str:
         return "none"
     order = {"front": 0, "right": 1, "rear": 2, "left": 3}
     items = sorted(values.items(), key=lambda item: (order.get(item[0], 99), item[0]))
-    return ", ".join(
-        f"{mic_id}:{_format_rms_value(value)}" for mic_id, value in items
-    )
+    return ", ".join(f"{mic_id}:{_format_rms_value(value)}" for mic_id, value in items)
 
 
 def _format_rms_value(value: float) -> str:

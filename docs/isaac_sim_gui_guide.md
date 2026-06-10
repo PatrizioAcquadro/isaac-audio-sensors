@@ -9,9 +9,10 @@ sensor, inspect the latest frame and overlay status, and export JSON/JSONL
 records. For the deeper Isaac Sim runtime contract and live evidence, see the
 [Isaac Sim documentation](isaac_sim.md).
 
-The current GUI authors metadata, source transforms, and object attachments for
-sensor frames. It does not play audible audio, assign object sound profiles, or
-integrate downstream ontology labels.
+The current GUI authors metadata, source transforms, object attachments, and
+reusable object sound profiles for sensor frames. Profiles set source metadata
+used by frames and traces; they do not play audible audio, classify waveforms,
+or integrate downstream ontology labels.
 
 The control inventory below is derived from
 `src/isaac_audio_sensors/isaac/extension_ui.py` and
@@ -298,6 +299,74 @@ children under:
 `Create/Attach Array` authors the array metadata. It validates the target path,
 layout, and sample rate first.
 
+### Microphone Rig Profiles
+
+`Rig Profile ID` selects a reusable microphone rig preset. Rig profiles are
+listener hardware presets, not sound profiles: microphones do not emit sound. A
+rig profile defines the microphone ids, the relative microphone offsets in the
+array frame, per-microphone gains, the sample rate, a local mount offset and
+orientation for robot mounting, and an optional recommended mount prim path.
+The built-in rig profile ids are `alex_head_quad`, `alex_chest_stereo`,
+`unitree_head_stereo`, and `unitree_base_quad`.
+
+`Select Rig Profile` validates the typed rig profile id and updates the rig
+summary label.
+
+`Apply Rig Profile` writes the selected rig to the current array prim: layout,
+sample rate, microphone ids and relative offsets, per-microphone gains on the
+child microphone prims, and `ias:rig_profile_id` metadata. It also fills the
+`Array Offset` and `Array Local Yaw/Pitch/Roll` fields from the rig's mount
+pose. When the rig defines a recommended mount prim that exists on the stage,
+the status line mentions it; attaching remains an explicit user action. Keep
+`Child Mics` enabled so per-microphone gains survive discovery.
+
+The rig library, the selected rig profile id, and the applied rig snapshot are
+exported and restored through `Export Config` / `Load Config`, so a rig setup
+can be reused across stages and sessions.
+
+### Array Pose Controls
+
+`Array Pos X`, `Array Pos Y`, and `Array Pos Z` are the array's world position
+in meters. `Array Yaw`, `Array Pitch`, and `Array Roll` are the array's world
+orientation in degrees. Orientation matters more for the array than for
+sources: the array frame defines what `straight`, `left`, and `right` mean for
+bearing and sector outputs. A yaw of `90` turns the array's forward axis from
+`+X` to `+Y`, so a source that was `straight` becomes `left`.
+
+`Read Array Transform` copies the currently selected array prim's live USD
+world position and orientation into the pose fields. Use it after selecting an
+existing array in the viewport or Stage tree.
+
+`Apply Array Pose` writes the pose fields to the target array prim transform
+and to the `ias:position_world` / `ias:orientation_world_quat` metadata.
+
+You can also move or rotate the array prim directly with Isaac Sim's normal
+transform gizmo. Click `Update` in the `Sensor` section afterwards; the next
+frame rereads the live USD transform and recomputes the bearing, the sector,
+the microphone world positions, and the per-microphone RMS from the new array
+pose.
+
+### Mount The Array On A Robot Or Object
+
+`Array Offset X`, `Array Offset Y`, and `Array Offset Z` are the array's local
+position offset in meters relative to its mount prim. `Array Local Yaw`,
+`Array Local Pitch`, and `Array Local Roll` are the local orientation offset in
+degrees. For example, an offset of `0.0, 0.0, 0.1` mounts the array ten
+centimeters above a robot head link.
+
+`Attach Array To Object` moves the current array (including its child
+microphone prims) under the selected object or robot prim and writes
+array-binding metadata plus the local mount pose. Select the mount prim first
+with `Use Object` (or `Use Base` for a robot base link); typical mounts are
+robot links such as an Alex head/base link or a Unitree body link. The
+attachment is a real parent/child transform relationship in the USD hierarchy,
+so moving or rotating the robot with Isaac Sim's normal transform gizmo changes
+the array world pose read by the sensor on the next `Update`.
+
+`Detach Array` moves the array (with its child microphones) back to a
+standalone `/World/AudioArrays/...` path at its current world pose and clears
+the array-binding metadata.
+
 ### Expected Output
 
 On success, the status line reports:
@@ -308,6 +377,26 @@ Authored array rig_front at /World/Rig/AudioArray.
 
 The array should then be discoverable from the `Stage` section if the discovery
 roots include its path.
+
+After applying an array pose, the status line reports the position and yaw that
+were written. With the sensor started, rotating the array by 90 degrees of yaw
+while a source sits straight ahead changes the next frame's sector from
+`straight` to `left` and shifts every microphone world position and RMS value.
+
+For the robot/object mount workflow:
+
+1. Select the robot or object prim, such as an Alex head link.
+2. Click `Use Object`.
+3. Set `Array Offset X/Y/Z` and `Array Local Yaw/Pitch/Roll`.
+4. Click `Attach Array To Object`.
+5. Move or rotate the robot with Isaac Sim's normal transform gizmo.
+6. Click `Update`.
+
+The array status label should show the attached array path under the mount, the
+changed world array position and orientation, and the changed microphone world
+positions. The latest-frame label shows the changed bearing and sector. If the
+mount prim is deleted while the array is attached, the status line reports a
+readable missing-mount message instead of silently succeeding.
 
 ## Author Source Section
 
@@ -356,6 +445,26 @@ generated://impulse
 
 The first demo can use the default. For a real project, point this to the sound
 asset you want the source to represent.
+
+`Directivity` is the source directivity metadata label. It is diagnostic in the
+current v1 backends.
+
+`Profile ID` selects a reusable sound profile. The built-in profile ids include
+`speech_generic`, `oven_stove`, `sink_water`, `door_knock`, and
+`footsteps_movement`.
+
+`Select Profile` validates the typed profile id and updates the profile summary.
+
+`Auto From Object` matches the selected or attached object label against the
+profile alias library. For example, object labels such as `Oven`,
+`microwaveoven`, `Sink`, `Door`, or `footsteps` select matching metadata
+presets without requiring a specific demo scene.
+
+`Apply Profile` writes the selected profile's metadata to the current source
+prim: native `filePath`, `ias:source_id`, `ias:class_label`,
+`ias:audio_asset_path`, timing, gain, and directivity. Applying a profile keeps
+the current source position when it is standalone and keeps the source attached
+under its object when it is object-attached.
 
 `Position X`, `Position Y`, and `Position Z` are the standalone source prim
 position in meters. The default source placement is:
@@ -427,6 +536,10 @@ Authored source speaker_a at /World/Sources/SpeakerA.
 
 The source should then be discoverable from the `Stage` section if the
 discovery roots include its path.
+
+After applying a profile and running `Update`, the emitted frame detections use
+the profile's `source_id`, `class_label`, and `audio_asset_path`. This is
+metadata for sensors and traces only; the GUI does not preview or render audio.
 
 After the sensor is started, you can move the same source prim with Isaac Sim's
 normal transform gizmo. Click `Update` again; the next frame rereads the live USD
@@ -667,9 +780,10 @@ outputs/isaac_audio_sensors/extension_binding.json
 with a readable error if no frame has been produced yet.
 
 `Export Config` writes a JSON summary of the current backend, array/source
-paths, source settings, discovery roots, robot/base binding, lifecycle settings,
-writer settings, Replicator settings, latest-frame summary, and overlay
-summary.
+paths, source settings, sound-profile library, selected profile id,
+object-label/profile mappings, applied source-profile snapshot, discovery
+roots, robot/base binding, lifecycle settings, writer settings, Replicator
+settings, latest-frame summary, and overlay summary.
 
 `Load Config` reads a config summary with schema version:
 
@@ -678,6 +792,11 @@ ias.omni_extension_binding.v1
 ```
 
 and pushes the saved settings back into the GUI fields.
+
+Older configs that do not contain the optional `sound_profiles` block still
+load. New profile configs report readable import errors if a selected profile id
+or object-label mapping references a profile that is not in the exported
+library.
 
 ### Expected Output
 
@@ -749,6 +868,8 @@ trace, config export, and optional Replicator output.
     Source ID: speaker_a
     Class: Speech
     Audio URI: generated://impulse
+    Directivity: omni
+    Profile ID: speech_generic
     Position X: 2.0
     Position Y: 0.0
     Position Z: 0.0
@@ -759,13 +880,15 @@ trace, config export, and optional Replicator output.
 
 15. Click `Apply Position` or one of the source placement presets.
 16. Click `Create/Attach Source`.
-17. Optionally select a robot or rig base prim, such as `/World/Rig`, and click
+17. To use object metadata, select or create an object such as `/World/Oven`,
+    click `Use Object`, click `Auto From Object`, then click `Apply Profile`.
+18. Optionally select a robot or rig base prim, such as `/World/Rig`, and click
     `Use Base`. Leave `Robot/Base` empty if there is no base prim.
-18. In `Stage`, leave `Discovery Roots` as `/World` for the default demo.
-19. Click `Discover`.
-20. Confirm the discovery label lists one array and one source, such as
+19. In `Stage`, leave `Discovery Roots` as `/World` for the default demo.
+20. Click `Discover`.
+21. Confirm the discovery label lists one array and one source, such as
     `rig_front` and `speaker_a`.
-21. In `Sensor`, set:
+22. In `Sensor`, set:
 
     ```text
     Backend: tdoa_synthetic
@@ -783,6 +906,14 @@ trace, config export, and optional Replicator output.
     backend, source path, source position, bearing, and sector.
 25. Move `/World/Sources/SpeakerA` with Isaac Sim's transform gizmo, then click
     `Update` again. The source position, bearing, and sector should change.
+26. Move or rotate `/World/Rig/AudioArray` with Isaac Sim's transform gizmo (or
+    set `Array Yaw` to `90` and click `Apply Array Pose`), then click `Update`
+    again. The bearing, sector, microphone world positions, and per-microphone
+    RMS should change while the source position stays the same.
+27. Optionally mount the array: select a robot link or object prim, click
+    `Use Object`, set `Array Offset X/Y/Z`, click `Attach Array To Object`,
+    move the mount prim with the gizmo, then click `Update`. The array world
+    pose and the listener-dependent frame outputs should follow the mount.
 26. Inspect the overlay label. It should show an overlay primitive count and
     labels. If the live debug drawer is unavailable, serialized overlay status
     can still be reported.
@@ -881,6 +1012,17 @@ Fix:
 - Confirm the target prim paths are under the discovery roots.
 - Try the default root `/World`.
 - Check that you are working in the stage you expect.
+
+### Array Move Does Not Change The Frame
+
+Symptom: the array was moved or rotated, but the latest frame still shows the
+old bearing and sector.
+
+Fix: click `Update` after moving the array; each update rereads the live USD
+transform. If the array is attached to a mount, move the mount prim (the array
+prim itself only holds the local offset). If the mount prim was deleted, the
+status line reports a readable missing-mount message; select another mount or
+click `Detach Array`.
 
 ### Start Or Update Fails
 

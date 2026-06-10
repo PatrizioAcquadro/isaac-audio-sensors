@@ -63,7 +63,11 @@ ACOUSTIC_FIDELITY_LADDER = (
         backend_family="tdoa_synthetic",
         models=(
             "direct-path per-microphone delay",
-            "synthetic RMS diagnostics",
+            "synthetic 1/distance RMS diagnostics with source gain",
+            "first-order omni/cardioid source directivity",
+            "per-microphone self-noise floors in aggregate RMS",
+            "seeded Gaussian delay-noise, clock-jitter, and gain-mismatch stress",
+            "optional broadband air-absorption attenuation",
             "two-microphone ambiguity metadata",
         ),
         does_not_model=(
@@ -90,6 +94,7 @@ ACOUSTIC_FIDELITY_LADDER = (
         does_not_model=(
             "calibrated acoustic twins",
             "full material, occlusion, and directivity realism",
+            "source directivity and microphone self-noise (metadata-only at L2)",
             "calibrated microphone response",
             "production beamforming",
         ),

@@ -12,6 +12,12 @@ from isaac_audio_sensors.core.config import AudioSensorConfig, build_scene_snaps
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 from isaac_audio_sensors.core.io.traces import AudioFrameJsonlWriter
+from isaac_audio_sensors.core.io.waveforms import (
+    ContinuousWaveformWriter,
+    FrameWaveformWriter,
+    WaveformSink,
+    waveform_safe_filename,
+)
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSensorFrame,
@@ -52,9 +58,12 @@ class IsaacAudioArraySensor:
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     ambiguity_policy: str = "none"
     writer: AudioFrameJsonlWriter | None = None
+    waveform_dir: str | Path | None = None
+    waveform_mode: str = "per_frame"
     debug_draw_enabled: bool = False
     debug_drawer: IsaacDebugDrawer | None = None
     latest_frame: AudioSensorFrame | None = field(default=None, init=False)
+    _waveform_sink: WaveformSink | None = field(default=None, init=False)
     latest_debug_primitives: tuple[DebugPrimitive, ...] = field(
         default_factory=tuple,
         init=False,
@@ -82,6 +91,8 @@ class IsaacAudioArraySensor:
             raise ValueError("usd_time_code_scale must be finite.")
         if not math.isfinite(float(self.usd_time_code_offset)):
             raise ValueError("usd_time_code_offset must be finite.")
+        if self.waveform_mode not in {"per_frame", "session"}:
+            raise ValueError("waveform_mode must be 'per_frame' or 'session'.")
 
     @classmethod
     def from_stage(
@@ -102,6 +113,8 @@ class IsaacAudioArraySensor:
         room: RoomAcousticsSpec | None = None,
         debug_draw: bool = False,
         writer_path: str | Path | None = None,
+        waveform_dir: str | Path | None = None,
+        waveform_mode: str = "per_frame",
     ) -> IsaacAudioArraySensor:
         """Create a live sensor from a real or duck-typed Isaac stage."""
 
@@ -136,6 +149,8 @@ class IsaacAudioArraySensor:
             writer=(
                 None if writer_path is None else AudioFrameJsonlWriter(writer_path)
             ),
+            waveform_dir=waveform_dir,
+            waveform_mode=waveform_mode,
         )
 
     @classmethod
@@ -156,6 +171,8 @@ class IsaacAudioArraySensor:
         room: RoomAcousticsSpec | None = None,
         debug_draw: bool = False,
         writer_path: str | Path | None = None,
+        waveform_dir: str | Path | None = None,
+        waveform_mode: str = "per_frame",
     ) -> IsaacAudioArraySensor:
         """Create a live sensor by discovering arrays and sources on a stage."""
 
@@ -201,6 +218,8 @@ class IsaacAudioArraySensor:
             writer=(
                 None if writer_path is None else AudioFrameJsonlWriter(writer_path)
             ),
+            waveform_dir=waveform_dir,
+            waveform_mode=waveform_mode,
         )
 
     @classmethod
@@ -225,6 +244,11 @@ class IsaacAudioArraySensor:
             max_events=max_events,
             speed_of_sound_mps=config.speed_of_sound_mps,
             ambiguity_policy=config.tdoa_ambiguity_policy,
+            waveform_dir=(
+                (config.waveform_dir or "outputs/audio_waveforms")
+                if config.write_waveforms
+                else None
+            ),
         )
 
     def start(
@@ -247,11 +271,14 @@ class IsaacAudioArraySensor:
         self._update_subscription = None
 
     def reset(self) -> None:
-        """Reset frame counters and buffered output."""
+        """Reset frame counters and buffered output, starting a new session."""
 
         self._raise_if_closed()
         self._frame_index = 0
         self._last_update_time_s = None
+        if self._waveform_sink is not None:
+            self._waveform_sink.close()
+            self._waveform_sink = None
         self.latest_frame = None
         self.latest_debug_primitives = ()
         self._latest_scene = None
@@ -264,6 +291,9 @@ class IsaacAudioArraySensor:
         if self.writer is not None:
             self.writer.close()
             self.writer = None
+        if self._waveform_sink is not None:
+            self._waveform_sink.close()
+            self._waveform_sink = None
         if self.debug_drawer is not None:
             self.debug_drawer.close()
             self.debug_drawer = None
@@ -368,12 +398,16 @@ class IsaacAudioArraySensor:
             frame_index=frame_index,
             max_events=self.max_events if max_events is None else max_events,
         )
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if self.backend in {"tdoa_synthetic", "room_acoustics"}:
             kwargs = {
                 "speed_of_sound_mps": self.speed_of_sound_mps,
                 "ambiguity_policy": self.ambiguity_policy,
             }
+        if self.backend == "room_acoustics":
+            sink = self._resolve_waveform_sink()
+            if sink is not None:
+                kwargs["waveform_writer"] = sink
         backend = get_backend(self.backend, **kwargs)
         frame = backend.simulate(scene, sensor, time_window)
         if self.stage is not None:
@@ -388,6 +422,21 @@ class IsaacAudioArraySensor:
         self._latest_scene = scene
         self._latest_sensor = sensor
         return frame
+
+    def _resolve_waveform_sink(self) -> WaveformSink | None:
+        """Build the waveform sink on first use when waveform_dir is set."""
+
+        if self.waveform_dir is None:
+            return None
+        if self._waveform_sink is None:
+            if self.waveform_mode == "session":
+                session_name = waveform_safe_filename(self.array_id)
+                self._waveform_sink = ContinuousWaveformWriter(
+                    Path(self.waveform_dir) / f"{session_name}_session.wav"
+                )
+            else:
+                self._waveform_sink = FrameWaveformWriter(self.waveform_dir)
+        return self._waveform_sink
 
     def _scene_for_capture(
         self,
@@ -539,7 +588,7 @@ class IsaacAudioArraySensor:
 
         def _on_update(_event: Any) -> None:
             if self._running:
-                self.update(force=True)
+                self.update(force=False)
 
         return stream.create_subscription_to_pop(
             _on_update,

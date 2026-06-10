@@ -30,20 +30,28 @@ front/right/rear/left demonstrations.
 
 ## Deterministic Stress Controls
 
-The L1 `tdoa_synthetic` backend accepts three deterministic stress controls:
+The L1 `tdoa_synthetic` backend accepts three deterministic stress controls
+plus an optional `seed`:
 
-- `noise_std_s` adds a repeatable signed delay offset to each microphone.
-- `clock_jitter_s` adds another repeatable signed delay offset to each
-  microphone.
-- `gain_mismatch_db` applies a repeatable per-microphone RMS gain offset.
+- `noise_std_s` is the standard deviation of a seeded Gaussian delay draw per
+  microphone, deterministic per `(seed, frame_id, mic_id)`.
+- `clock_jitter_s` is the standard deviation of a second independent seeded
+  Gaussian delay draw per microphone.
+- `gain_mismatch_db` is the standard deviation of a static seeded Gaussian
+  per-microphone RMS gain offset, deterministic per `(seed, mic_id)` and
+  constant across frames.
 
 These controls are useful for verifying that downstream code handles imperfect
 delay/RMS/confidence values, but they are not calibrated hardware noise.
 `noise_std_s` and `clock_jitter_s` affect per-mic delays and confidence.
-`gain_mismatch_db` affects per-mic RMS and confidence. None of these knobs
+`gain_mismatch_db` affects per-mic RMS and confidence. Replays with the same
+scene, window, settings, and seed are bit-identical (deterministic stress),
+and zero-valued settings draw nothing. Bearing confidence never reads the
+ground-truth bearing; the comparison against ground truth is reported only as
+the `oracle_bearing_error_deg` detection diagnostic. None of these knobs
 models stochastic sensor drift, reverberation, occlusion, microphone frequency
 response, clipping, automatic gain control, or estimator failure modes beyond
-the deterministic perturbation reported in frame diagnostics.
+the seeded perturbations reported in frame diagnostics.
 
 ## GCC-PHAT Helpers
 

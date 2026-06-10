@@ -12,6 +12,7 @@ public users.
 - [Acoustic Fidelity Ladder](acoustic_fidelity.md)
 - [Backends](backends.md)
 - [Room Acoustics](room_acoustics.md)
+- [Audio Assets](audio_assets.md)
 - [TDOA And DOA](tdoa_doa.md)
 - [API Freeze](api_freeze_0_1.md)
 - [AudioSensorFrame Schema](schemas/audio_sensor_frame.v1.schema.json)

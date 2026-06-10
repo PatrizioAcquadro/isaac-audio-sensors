@@ -67,6 +67,7 @@ if _LAB_TYPES is not None:
         ambiguity_policy: str = "none"
         write_waveforms: bool = False
         writer_path: str | None = None
+        waveform_dir: str | None = None
 
         def __post_init__(self) -> None:
             if self.class_type is None:
@@ -97,6 +98,7 @@ else:
         ambiguity_policy: str = "none"
         write_waveforms: bool = False
         writer_path: str | None = None
+        waveform_dir: str | None = None
         class_type: type | None = None
 
         def __post_init__(self) -> None:

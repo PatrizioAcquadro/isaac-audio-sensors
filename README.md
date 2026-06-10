@@ -14,7 +14,7 @@ Showcase site: <https://isaac-audio-showcase-site.vercel.app>
 
 Source repository: <https://github.com/PatrizioAcquadro/isaac-audio-sensors>
 
-Current package release: `1.0.0`. The frame schema version remains separate at
+Current package release: `1.2.0`. The frame schema version remains separate at
 `ias.audio_sensor_frame.v1`.
 
 ## Features
@@ -27,8 +27,11 @@ Current package release: `1.0.0`. The frame schema version remains separate at
 - `tdoa_synthetic` backend for per-microphone delay and RMS diagnostics.
 - Explicit two-microphone front/back ambiguity reporting.
 - Optional `room_acoustics` backend using `pyroomacoustics` for shoebox RIRs,
-  generated microphone waveforms, and waveform-derived GCC-PHAT TDOA when
-  installed.
+  true multi-source microphone mixtures with sample-accurate scheduling, and
+  waveform-derived GCC-PHAT TDOA when installed.
+- Multichannel audio export for the room backend: per-frame WAVs or one
+  continuous session stream with overlap-added reverb tails, populating
+  `AudioSensorFrame.waveform_paths`.
 - Public acoustic fidelity ladder documenting stable L0/L1, supported optional
   L2, provisional L3, and experimental/tooling L4 compatibility boundaries.
 - Lazy Isaac Sim helpers for USD sound/listener/microphone-array metadata,
@@ -81,7 +84,7 @@ Alex/SquadBot validation before releasing the sensor package.
 For the local final wheel after `make build`:
 
 ```bash
-python -m pip install dist/isaac_audio_sensors-1.0.0-py3-none-any.whl
+python -m pip install dist/isaac_audio_sensors-1.2.0-py3-none-any.whl
 python -m isaac_audio_sensors --version
 ```
 
@@ -178,8 +181,8 @@ and `tdoa_synthetic`, verifies changed frame output, records an inactive sound
 window, and writes GPU, discovery, transform-provenance, config JSON, evidence
 JSON, and JSONL frame traces under ignored `outputs/`.
 
-Latest local final `1.0.0` live validation, rerun on 2026-05-24 local time
-(`2026-05-25T03:34Z` Kit log timestamp) with the Isaac Python runtime selected
+Latest local `1.1.0` live validation, rerun on 2026-06-10 local time with the
+Isaac Python runtime selected
 by `ISAAC_SIM_COMMAND`, passed on real Isaac Sim 5.1.0 / Kit
 `107.3.3+production.229672.69cbf6ad.gl` with an NVIDIA GeForce RTX 4090,
 driver `570.211.01`, and Torch `2.7.0+cu128`. It produced 6

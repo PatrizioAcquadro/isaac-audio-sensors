@@ -58,7 +58,12 @@ settings:
   Isaac Lab simulation, `SensorBase` initialization uses the simulation device.
 - `ambiguity_policy`: currently `none` or `front_hemisphere` for TDOA-style
   backends.
-- `writer_path` and `write_waveforms`: reserved export options.
+- `writer_path`: reserved JSONL trace export option.
+- `write_waveforms` and `waveform_dir`: enable per-frame multichannel WAV
+  export for the `room_acoustics` backend. Frames are written under
+  `waveform_dir` (default `outputs/audio_waveforms`) with one `env_{id}`
+  subdirectory per environment, and `AudioSensorFrame.waveform_paths` is
+  populated.
 
 ## Tensor Buffers
 

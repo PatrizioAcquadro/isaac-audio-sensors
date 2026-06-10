@@ -4,9 +4,9 @@ ISAAC_SIM_COMMAND ?= $(PYTHON)
 ISAAC_LAB_PYTHON ?= $(PYTHON)
 ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
-EXPECTED_VERSION ?= 1.0.0
+EXPECTED_VERSION ?= 1.2.0
 
-.PHONY: test lint format build audit-dist import-smoke validate-config export-schema live-evidence-report live-isaac-sim-audio live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac
+.PHONY: test lint format build audit-dist import-smoke validate-config export-schema regenerate-traces live-evidence-report live-isaac-sim-audio live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac
 
 test:
 	$(PYTHON) -m pytest
@@ -33,6 +33,9 @@ validate-config:
 
 export-schema:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors.cli export-schema --out docs/schemas/audio_sensor_frame.v1.schema.json
+
+regenerate-traces:
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/regenerate_example_traces.py
 
 live-evidence-report:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/generate_live_evidence_report.py

@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.backends.tdoa import (
+    TdoaSyntheticBackend,
+    estimate_doa_from_delays,
+)
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     FRAME_SCHEMA_VERSION,
@@ -20,11 +24,15 @@ from isaac_audio_sensors.core.doa.sector_mapping import (
 )
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
+    dot,
+    norm,
     quaternion_from_yaw_deg,
+    subtract,
 )
 from isaac_audio_sensors.core.microphone_array import (
     arbitrary_microphone_array,
     create_microphone_array,
+    microphone_world_positions,
 )
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
@@ -312,10 +320,21 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
     assert stressed.diagnostics["noise_std_s"] == pytest.approx(1e-5)
     assert stressed.diagnostics["clock_jitter_s"] == pytest.approx(2e-5)
     assert stressed.diagnostics["gain_mismatch_db"] == pytest.approx(6.0)
-    assert stressed_detection.diagnostics["per_mic_gain_offset_db"] == {
-        "left": -3.0,
-        "right": 3.0,
-    }
+    gain_offsets = stressed_detection.diagnostics["per_mic_gain_offset_db"]
+    assert set(gain_offsets) == {"left", "right"}
+    assert gain_offsets["left"] != gain_offsets["right"]
+
+    reseeded = TdoaSyntheticBackend(
+        noise_std_s=1e-5,
+        clock_jitter_s=2e-5,
+        gain_mismatch_db=6.0,
+        ambiguity_policy="none",
+        seed=99,
+    ).simulate(scene, array, _window(array))
+    reseeded_offsets = reseeded.detections[0].diagnostics["per_mic_gain_offset_db"]
+    assert reseeded_offsets != gain_offsets
+    assert reseeded.diagnostics["noise_seed"] == 99
+    assert stressed.diagnostics["noise_seed"] is None
 
 
 def test_l1_noise_jitter_gain_mismatch_controls_are_documented() -> None:
@@ -338,6 +357,251 @@ def test_l1_noise_jitter_gain_mismatch_controls_are_documented() -> None:
         "stochastic sensor drift",
     ):
         assert phrase in docs
+
+
+def test_l0_l1_per_mic_rms_follows_pressure_law_with_source_gain() -> None:
+    array = _array("quad_front")
+    source = _source("speaker", (4.0, 3.0, 0.0), gain_db=-6.0)
+    scene = _scene(source, array=array)
+    expected = {
+        mic_id: 10.0 ** (-6.0 / 20.0)
+        / norm(subtract(source.position_world, position))
+        for mic_id, position in microphone_world_positions(array).items()
+    }
+
+    for backend in (GeometryBackend(), TdoaSyntheticBackend()):
+        detection = backend.simulate(scene, array, _window(array)).detections[0]
+        assert detection.per_mic_rms == pytest.approx(expected)
+
+
+def test_l0_l1_aggregate_rms_is_power_sum_of_detections() -> None:
+    array = _array("quad_front")
+    scene = _scene(
+        _source("near", (2.0, 1.0, 0.0)),
+        _source("far", (-5.0, 3.0, 0.0), gain_db=6.0),
+        array=array,
+    )
+
+    for backend in (GeometryBackend(), TdoaSyntheticBackend()):
+        frame = backend.simulate(scene, array, _window(array))
+        for microphone in array.microphones:
+            power = sum(
+                detection.per_mic_rms[microphone.mic_id] ** 2
+                for detection in frame.detections
+            )
+            assert frame.aggregate_per_mic_rms[microphone.mic_id] == pytest.approx(
+                math.sqrt(power)
+            )
+
+
+def test_l0_l1_mic_self_noise_floor_contributes_to_aggregate_rms() -> None:
+    base = _array("quad_front")
+    array = replace(
+        base,
+        microphones=tuple(
+            replace(mic, self_noise_db=-20.0) if mic.mic_id == "front" else mic
+            for mic in base.microphones
+        ),
+    )
+    scene = _scene(_source("speaker", (3.0, 0.0, 0.0)), array=array)
+    silent_scene = _scene(array=array)
+
+    for backend in (GeometryBackend(), TdoaSyntheticBackend()):
+        frame = backend.simulate(scene, array, _window(array))
+        signal_rms = frame.detections[0].per_mic_rms["front"]
+        assert frame.aggregate_per_mic_rms["front"] == pytest.approx(
+            math.sqrt(signal_rms**2 + 0.1**2)
+        )
+
+        silent = backend.simulate(silent_scene, array, _window(array))
+        assert silent.aggregate_per_mic_rms["front"] == pytest.approx(0.1)
+        assert silent.aggregate_per_mic_rms["rear"] == 0.0
+
+
+def test_l0_l1_cardioid_directivity_attenuates_off_axis() -> None:
+    array = _array("quad_front")
+    position = (5.0, 0.0, 0.0)
+    facing = _source(
+        "facing",
+        position,
+        directivity="cardioid",
+        orientation_world_quat=quaternion_from_yaw_deg(180.0),
+    )
+    away = _source(
+        "away",
+        position,
+        directivity="cardioid",
+        orientation_world_quat=quaternion_from_yaw_deg(0.0),
+    )
+    positions = microphone_world_positions(array)
+
+    def _expected_rms(yaw_deg: float, mic_id: str) -> float:
+        forward = (
+            math.cos(math.radians(yaw_deg)),
+            math.sin(math.radians(yaw_deg)),
+            0.0,
+        )
+        to_mic = subtract(positions[mic_id], position)
+        distance = norm(to_mic)
+        cos_theta = dot(forward, to_mic) / distance
+        return ((1.0 + cos_theta) / 2.0) / distance
+
+    for backend in (GeometryBackend(), TdoaSyntheticBackend()):
+        facing_detection = backend.simulate(
+            _scene(facing, array=array), array, _window(array)
+        ).detections[0]
+        away_detection = backend.simulate(
+            _scene(away, array=array), array, _window(array)
+        ).detections[0]
+
+        assert facing_detection.diagnostics["directivity_applied"] == "cardioid"
+        for mic_id in positions:
+            assert facing_detection.per_mic_rms[mic_id] == pytest.approx(
+                _expected_rms(180.0, mic_id)
+            )
+            assert away_detection.per_mic_rms[mic_id] == pytest.approx(
+                _expected_rms(0.0, mic_id)
+            )
+            assert (
+                away_detection.per_mic_rms[mic_id]
+                < facing_detection.per_mic_rms[mic_id]
+            )
+
+
+def test_l0_l1_unmodeled_directivity_falls_back_to_omni() -> None:
+    array = _array("quad_front")
+    position = (4.0, 1.0, 0.0)
+    omni = _source("omni", position)
+    unmodeled = _source(
+        "unmodeled",
+        position,
+        directivity="hypercardioid",
+        orientation_world_quat=quaternion_from_yaw_deg(90.0),
+    )
+    unoriented = _source("unoriented", position, directivity="cardioid")
+
+    for backend in (GeometryBackend(), TdoaSyntheticBackend()):
+        base = backend.simulate(
+            _scene(omni, array=array), array, _window(array)
+        ).detections[0]
+        for source in (unmodeled, unoriented):
+            detection = backend.simulate(
+                _scene(source, array=array), array, _window(array)
+            ).detections[0]
+            assert detection.per_mic_rms == pytest.approx(base.per_mic_rms)
+            assert detection.diagnostics["directivity"] == source.directivity
+            assert detection.diagnostics["directivity_applied"] == "omni"
+
+
+def test_l1_air_absorption_toggle_attenuates_rms_with_distance() -> None:
+    array = _array("quad_front")
+    source = _source("speaker", (8.0, 0.0, 0.0))
+    scene = _scene(source, array=array)
+    base = TdoaSyntheticBackend().simulate(scene, array, _window(array)).detections[0]
+    damped = (
+        TdoaSyntheticBackend(air_absorption_db_per_m=0.25)
+        .simulate(scene, array, _window(array))
+        .detections[0]
+    )
+    positions = microphone_world_positions(array)
+
+    assert damped.per_mic_delay_s == base.per_mic_delay_s
+    for mic_id, rms in damped.per_mic_rms.items():
+        distance = norm(subtract(source.position_world, positions[mic_id]))
+        assert rms == pytest.approx(
+            base.per_mic_rms[mic_id] * 10.0 ** (-0.25 * distance / 20.0)
+        )
+        assert rms < base.per_mic_rms[mic_id]
+
+
+def test_multi_mic_confidence_is_invariant_to_ground_truth_bearing() -> None:
+    array = _array("quad_front")
+    frame = TdoaSyntheticBackend().simulate(
+        _scene(_source("speaker", (4.0, 2.0, 0.0)), array=array),
+        array,
+        _window(array),
+    )
+    detection = frame.detections[0]
+
+    estimates = tuple(
+        estimate_doa_from_delays(
+            sensor=array,
+            per_mic_delay_s=detection.per_mic_delay_s,
+            ground_truth_bearing_deg=ground_truth,
+        )
+        for ground_truth in (None, 0.0, 90.0, 180.0, 271.5)
+    )
+
+    assert estimates[0].bearing_confidence > 0.0
+    assert len({estimate.bearing_confidence for estimate in estimates}) == 1
+    assert len({estimate.estimated_bearing_deg for estimate in estimates}) == 1
+    assert detection.diagnostics["oracle_bearing_error_deg"] == pytest.approx(
+        0.0,
+        abs=1.0,
+    )
+
+
+def test_seeded_noise_is_deterministic_per_seed_frame_and_mic() -> None:
+    array = _array("quad_front")
+    scene = _scene(_source("speaker", (5.0, 2.0, 0.0)), array=array)
+
+    def _window_at(timestamp_ms: int) -> AudioTimeWindow:
+        return AudioTimeWindow(
+            start_time_s=0.0,
+            end_time_s=1.0,
+            timestamp_ms=timestamp_ms,
+            sample_rate_hz=array.sample_rate_hz,
+            frame_index=0,
+        )
+
+    backend = TdoaSyntheticBackend(
+        noise_std_s=1e-5,
+        clock_jitter_s=2e-5,
+        gain_mismatch_db=3.0,
+        seed=7,
+    )
+    first = backend.simulate(scene, array, _window_at(1_000))
+    assert backend.simulate(scene, array, _window_at(1_000)) == first
+
+    other_frame = backend.simulate(scene, array, _window_at(2_000))
+    assert (
+        other_frame.detections[0].per_mic_delay_s
+        != first.detections[0].per_mic_delay_s
+    )
+    assert (
+        other_frame.detections[0].diagnostics["per_mic_gain_offset_db"]
+        == first.detections[0].diagnostics["per_mic_gain_offset_db"]
+    )
+
+    other_seed = TdoaSyntheticBackend(
+        noise_std_s=1e-5,
+        clock_jitter_s=2e-5,
+        gain_mismatch_db=3.0,
+        seed=8,
+    ).simulate(scene, array, _window_at(1_000))
+    assert (
+        other_seed.detections[0].per_mic_delay_s
+        != first.detections[0].per_mic_delay_s
+    )
+
+
+def test_zero_noise_seeded_backend_matches_default_bit_exactly() -> None:
+    array = _array("quad_front")
+    scene = _scene(_source("speaker", (5.0, 2.0, 0.0)), array=array)
+    default_frame = TdoaSyntheticBackend().simulate(scene, array, _window(array))
+    seeded_frame = TdoaSyntheticBackend(seed=12_345).simulate(
+        scene,
+        array,
+        _window(array),
+    )
+
+    default_detection = default_frame.detections[0]
+    seeded_detection = seeded_frame.detections[0]
+    assert default_detection.per_mic_delay_s == seeded_detection.per_mic_delay_s
+    assert default_detection.per_mic_rms == seeded_detection.per_mic_rms
+    assert default_frame.aggregate_per_mic_rms == seeded_frame.aggregate_per_mic_rms
+    assert default_frame.diagnostics["noise_seed"] is None
+    assert seeded_frame.diagnostics["noise_seed"] == 12_345
 
 
 def _array(layout_name: str) -> MicrophoneArraySpec:
@@ -363,6 +627,10 @@ def _scene(
 def _source(
     source_id: str,
     position: tuple[float, float, float],
+    *,
+    gain_db: float = 0.0,
+    directivity: str = "omni",
+    orientation_world_quat: tuple[float, float, float, float] | None = None,
 ) -> AudioSourceSpec:
     return AudioSourceSpec(
         source_id=source_id,
@@ -370,10 +638,11 @@ def _source(
         class_label="Speech",
         audio_asset_path="generated://impulse",
         position_world=position,
-        orientation_world_quat=None,
+        orientation_world_quat=orientation_world_quat,
         start_time_s=0.0,
         duration_s=1.0,
-        gain_db=0.0,
+        gain_db=gain_db,
+        directivity=directivity,
     )
 
 

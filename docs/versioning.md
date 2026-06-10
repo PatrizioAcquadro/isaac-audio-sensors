@@ -7,10 +7,27 @@ separate schema-version policy for frame traces.
 
 - distribution: `isaac-audio-sensors`
 - import package: `isaac_audio_sensors`
-- package version: `1.0.0`
-- Kit extension manifest version: `1.0.0`
+- package version: `1.2.0`
+- Kit extension manifest version: `1.2.0`
 - frame schema version: `ias.audio_sensor_frame.v1`
 - pure Python support: Python 3.10 or newer
+
+`1.2.0` is a compatible v1 minor release: the `room_acoustics` backend now
+simulates all scheduled sources in one shared room per frame (true microphone
+mixtures with sample-accurate start offsets), exports per-frame or
+session-continuous multichannel WAVs through the new `core.io.waveforms`
+module (populating the previously empty `waveform_paths` frame field), and
+resamples mismatched file assets instead of raising. All L2 diagnostic value
+changes are documented physics improvements plus additive optional APIs; the
+frame schema version is unchanged.
+
+`1.1.0` is a compatible v1 minor release: it makes the L0/L1/L2 synthetic
+physics coherent (1/distance pressure attenuation, source gain at every
+level, power-sum aggregate RMS, observable-only confidence), adds seeded
+Gaussian stress noise, first-order source directivity, microphone self-noise
+floors, and an optional L1 air-absorption toggle. All changes are documented
+physics bug fixes plus additive optional APIs and diagnostics; the frame
+schema version is unchanged.
 
 `1.0.0` is the first final v1 package release. It makes the frozen frame
 contract, stable L0/L1, supported optional L2, Isaac Sim path, Isaac Lab path,
@@ -24,8 +41,8 @@ feedback window was reviewed, and final `1.0.0` was promoted early on
 downstream adapters are not final v1 package release gates, and phases 9, 10,
 and 11 remain planned post-v1 work rather than prerequisites for this tag.
 
-The Kit extension manifest uses SemVer spelling. For final `1.0.0`, the Kit
-extension manifest and Python package version both use `1.0.0`.
+The Kit extension manifest uses SemVer spelling. The Kit extension manifest
+and Python package version both use `1.2.0`.
 
 The package's v1 promise boundary is frozen in [V1 Public Scope](v1_scope.md).
 Versioning changes must not expand v1 into downstream release gates, sim-real

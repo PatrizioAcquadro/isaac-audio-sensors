@@ -59,7 +59,7 @@ TEXT_SUFFIXES = (
     ".yaml",
 )
 MAX_TEXT_SCAN_BYTES = 1_000_000
-PACKAGE_VERSION = "1.0.0"
+PACKAGE_VERSION = "1.2.0"
 EXPECTED_SDIST_NAME = f"isaac_audio_sensors-{PACKAGE_VERSION}.tar.gz"
 EXPECTED_WHEEL_NAME = f"isaac_audio_sensors-{PACKAGE_VERSION}-py3-none-any.whl"
 
@@ -184,7 +184,9 @@ REQUIRED_SDIST_ENTRIES = (
     "src/isaac_audio_sensors/core/types.py",
     "src/isaac_audio_sensors/core/io/traces.py",
     "src/isaac_audio_sensors/isaac/extension_ui.py",
+    "src/isaac_audio_sensors/isaac/microphone_rig_profiles.py",
     "src/isaac_audio_sensors/isaac/replicator.py",
+    "src/isaac_audio_sensors/isaac/sound_profiles.py",
     "tests/test_acoustic_fidelity.py",
     "tests/test_isaac_audio_core.py",
     "tests/test_live_evidence_report.py",
@@ -199,7 +201,9 @@ REQUIRED_WHEEL_ENTRIES = (
     "isaac_audio_sensors/core/io/traces.py",
     "isaac_audio_sensors/isaac/extension.py",
     "isaac_audio_sensors/isaac/extension_ui.py",
+    "isaac_audio_sensors/isaac/microphone_rig_profiles.py",
     "isaac_audio_sensors/isaac/replicator.py",
+    "isaac_audio_sensors/isaac/sound_profiles.py",
     "isaac_audio_sensors/lab/audio_array_sensor.py",
 )
 REQUIRED_WHEEL_SUFFIXES = (

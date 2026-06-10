@@ -58,6 +58,44 @@ def quaternion_from_yaw_deg(yaw_deg: float) -> Quaternion:
     return (0.0, 0.0, math.sin(half), math.cos(half))
 
 
+def quaternion_from_euler_deg(
+    *,
+    roll_deg: float = 0.0,
+    pitch_deg: float = 0.0,
+    yaw_deg: float = 0.0,
+) -> Quaternion:
+    """Build a ``(x, y, z, w)`` quaternion from intrinsic ZYX euler degrees."""
+
+    half_roll = math.radians(float(roll_deg)) / 2.0
+    half_pitch = math.radians(float(pitch_deg)) / 2.0
+    half_yaw = math.radians(float(yaw_deg)) / 2.0
+    sin_r, cos_r = math.sin(half_roll), math.cos(half_roll)
+    sin_p, cos_p = math.sin(half_pitch), math.cos(half_pitch)
+    sin_y, cos_y = math.sin(half_yaw), math.cos(half_yaw)
+    return normalize_quaternion(
+        (
+            sin_r * cos_p * cos_y - cos_r * sin_p * sin_y,
+            cos_r * sin_p * cos_y + sin_r * cos_p * sin_y,
+            cos_r * cos_p * sin_y - sin_r * sin_p * cos_y,
+            cos_r * cos_p * cos_y + sin_r * sin_p * sin_y,
+        )
+    )
+
+
+def euler_deg_from_quaternion(quat: Quaternion) -> tuple[float, float, float]:
+    """Return intrinsic ZYX ``(roll, pitch, yaw)`` degrees from an xyzw quaternion."""
+
+    x, y, z, w = normalize_quaternion(quat)
+    roll_rad = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
+    pitch_rad = math.asin(clamp(2.0 * (w * y - z * x), -1.0, 1.0))
+    yaw_rad = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+    return (
+        math.degrees(roll_rad),
+        math.degrees(pitch_rad),
+        math.degrees(yaw_rad),
+    )
+
+
 def quaternion_multiply(left: Quaternion, right: Quaternion) -> Quaternion:
     """Multiply two ``(x, y, z, w)`` quaternions."""
 

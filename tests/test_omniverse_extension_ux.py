@@ -18,6 +18,9 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback.
     import tomli as tomllib
 
+from isaac_audio_sensors.core.config import load_audio_config
+from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
+from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.extension_ui import (
     OUTPUT_ROOT_ENV_VAR,
     CurrentStageContext,
@@ -27,7 +30,15 @@ from isaac_audio_sensors.isaac.extension_ui import (
     _stage_has_prim,
     current_omni_stage_context,
 )
+from isaac_audio_sensors.isaac.microphone_rig_profiles import (
+    default_microphone_rig_profiles,
+)
 from isaac_audio_sensors.isaac.replicator import PAYLOAD_SCHEMA_VERSION
+from isaac_audio_sensors.isaac.sound_profiles import (
+    SoundProfile,
+    default_object_profile_mappings,
+    default_sound_profiles,
+)
 
 
 def _write_test_png(path: Path, *, width: int = 13, height: int = 17) -> None:
@@ -708,9 +719,7 @@ def _install_fake_kit_update_stream(
     kit.__path__ = []
     stream = _FakeUpdateStream()
     app_module = ModuleType("omni.kit.app")
-    app_module.get_app = lambda: SimpleNamespace(
-        get_update_event_stream=lambda: stream
-    )
+    app_module.get_app = lambda: SimpleNamespace(get_update_event_stream=lambda: stream)
     kit.app = app_module
     omni.kit = kit
 
@@ -719,12 +728,14 @@ def _install_fake_kit_update_stream(
     monkeypatch.setitem(sys.modules, "omni.kit.app", app_module)
 
     if timeline_time_s is not None:
+        clock = SimpleNamespace(time_s=float(timeline_time_s))
         timeline = ModuleType("omni.timeline")
         timeline.get_timeline_interface = lambda: SimpleNamespace(
-            get_current_time=lambda: timeline_time_s
+            get_current_time=lambda: clock.time_s
         )
         omni.timeline = timeline
         monkeypatch.setitem(sys.modules, "omni.timeline", timeline)
+        stream.timeline_clock = clock
 
     return stream
 
@@ -1006,6 +1017,277 @@ def test_extension_controller_config_paths_use_output_root_env(
     assert controller.export_config_summary() == absolute_path
 
 
+def test_sound_profiles_validate_default_library_and_safe_assets():
+    profiles = default_sound_profiles()
+    profile_ids = tuple(profile.profile_id for profile in profiles)
+
+    assert profile_ids == (
+        "speech_generic",
+        "oven_stove",
+        "sink_water",
+        "door_knock",
+        "footsteps_movement",
+    )
+    assert len(set(profile_ids)) == len(profile_ids)
+    assert {profile.audio_asset_path for profile in profiles} <= {
+        "generated://impulse",
+        "generated://pulse",
+    }
+    assert default_object_profile_mappings(profiles)["oven"] == "oven_stove"
+    assert default_object_profile_mappings(profiles)["sink"] == "sink_water"
+
+    with pytest.raises(ValueError, match="audio_asset_path"):
+        SoundProfile(
+            profile_id="unsafe",
+            display_label="Unsafe",
+            object_label_aliases=("unsafe",),
+            source_id_template="{object_slug}_source",
+            class_label="Unsafe",
+            audio_asset_path="/tmp/private.wav",
+            start_time_s=0.0,
+            duration_s=1.0,
+            gain_db=0.0,
+        )
+
+    with pytest.raises(ValueError, match="duration_s"):
+        SoundProfile(
+            profile_id="bad_duration",
+            display_label="Bad Duration",
+            object_label_aliases=("bad",),
+            source_id_template="{object_slug}_source",
+            class_label="Bad",
+            audio_asset_path="generated://impulse",
+            start_time_s=0.0,
+            duration_s=0.0,
+            gain_db=0.0,
+        )
+
+
+def test_extension_controller_manual_profile_apply_authors_source_metadata():
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0, 0, 0)}),
+            _FakePrim("/World/Sink", "Xform", {"xformOp:translate": (1, 0, 0)}),
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.source_prim_path = "/World/Sources/SinkSpeaker"
+    controller.state.source_position_x_m = 1.5
+    controller.state.source_position_y_m = 0.25
+    controller.state.source_position_z_m = 0.0
+    controller.state.object_prim_path = "/World/Sink"
+    controller.state.object_label = "Sink"
+    controller.state.selected_profile_id = "sink_water"
+
+    authored = controller.apply_selected_profile(stage=stage)
+
+    assert authored is not None
+    assert authored.kind == "source_profile"
+    assert controller.state.source_prim_path == "/World/Sources/SinkSpeaker"
+    assert controller.state.source_attached_to_object is False
+    assert controller.state.source_id == "sink_source"
+    assert controller.state.source_class_label == "Water"
+    assert controller.state.audio_asset_path == "generated://pulse"
+    assert controller.state.source_gain_db == -2.0
+    source = stage.GetPrimAtPath("/World/Sources/SinkSpeaker")
+    assert source is not None
+    assert source.attributes["filePath"] == "generated://pulse"
+    assert source.attributes["ias:source_id"] == "sink_source"
+    assert source.attributes["ias:class_label"] == "Water"
+    assert source.attributes["ias:audio_asset_path"] == "generated://pulse"
+    assert source.attributes["ias:start_time_s"] == 0.0
+    assert source.attributes["ias:duration_s"] == 1.2
+    assert source.attributes["ias:gain_db"] == -2.0
+    assert source.attributes["ias:directivity"] == "omni"
+    assert source.attributes["ias:sound_profile_id"] == "sink_water"
+    assert source.attributes["xformOp:translate"] == (1.5, 0.25, 0.0)
+    assert controller.state.applied_source_profile["profile_id"] == "sink_water"
+
+
+def test_extension_controller_auto_profile_match_uses_object_labels_and_aliases():
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0, 0, 0)}),
+            _FakePrim(
+                "/World/Kitchen/FixtureA",
+                "Mesh",
+                {
+                    "xformOp:translate": (0, 0, 0),
+                    "semantic:class": "Sink",
+                },
+            ),
+            _FakePrim(
+                "/World/Kitchen/Countertop",
+                "Mesh",
+                {"xformOp:translate": (0, 1, 0)},
+            ),
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+
+    matched = controller.auto_select_profile_from_object(
+        stage=stage,
+        selected_paths=("/World/Kitchen/FixtureA",),
+    )
+    assert matched is not None
+    assert matched.profile_id == "sink_water"
+    assert controller.state.selected_profile_id == "sink_water"
+    assert "Auto-selected" in controller.state.status_message
+
+    controller.state.object_prim_path = ""
+    controller.state.object_label = "none"
+    controller.state.attached_object_prim_path = ""
+    no_match = controller.auto_select_profile_from_object(
+        stage=stage,
+        selected_paths=("/World/Kitchen/Countertop",),
+    )
+    assert no_match is None
+    assert controller.state.error_message is not None
+    assert "No sound profile matches object labels" in controller.state.error_message
+
+
+def test_extension_controller_profile_apply_preserves_attachment_and_frame_metadata(
+    tmp_path,
+):
+    oven = _FakePrim(
+        "/World/Oven",
+        "Xform",
+        {"xformOp:translate": (2.0, 0.0, 0.0)},
+    )
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            oven,
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
+
+    assert controller.author_array(stage=stage) is not None
+    assert (
+        controller.use_selected_as_object(
+            stage=stage,
+            selected_paths=("/World/Oven",),
+        )
+        == "/World/Oven"
+    )
+    assert controller.attach_source_to_object(stage=stage) is not None
+    controller.state.selected_profile_id = "oven_stove"
+    applied = controller.apply_selected_profile(stage=stage)
+
+    assert applied is not None
+    assert controller.state.source_prim_path == "/World/Oven/SpeakerA"
+    assert controller.state.source_attached_to_object is True
+    assert controller.state.attached_object_prim_path == "/World/Oven"
+    assert controller.state.source_id == "oven_source"
+    source = stage.GetPrimAtPath("/World/Oven/SpeakerA")
+    assert source is not None
+    assert source.attributes["filePath"] == "generated://pulse"
+    assert source.attributes["ias:source_id"] == "oven_source"
+    assert source.attributes["ias:class_label"] == "Appliance"
+    assert source.attributes["ias:audio_asset_path"] == "generated://pulse"
+    assert source.attributes["ias:attached_object_prim_path"] == "/World/Oven"
+    assert source.attributes["ias:source_local_offset_m"] == (0.0, 0.0, 0.0)
+    assert source.attributes["xformOp:translate"] == (0.0, 0.0, 0.0)
+    assert "ias:position_world" not in source.attributes
+
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    first_frame = controller.update_sensor()
+    oven.attributes["xformOp:translate"] = (0.0, 2.0, 0.0)
+    moved_frame = controller.update_sensor()
+
+    assert first_frame is not None
+    assert moved_frame is not None
+    first_detection = first_frame.detections[0]
+    moved_detection = moved_frame.detections[0]
+    assert first_detection.source_id == "oven_source"
+    assert first_detection.class_label == "Appliance"
+    assert first_detection.audio_asset_path == "generated://pulse"
+    assert first_detection.source_pose.position_m == (2.0, 0.0, 0.0)
+    assert moved_detection.source_pose.position_m == (0.0, 2.0, 0.0)
+    assert controller.state.latest_source_prim_path == "/World/Oven/SpeakerA"
+
+
+def test_extension_controller_profile_config_roundtrip_legacy_and_errors(tmp_path):
+    controller = ExtensionController()
+    controller.state.config_export_path = str(tmp_path / "profiles_config.json")
+    controller.state.object_prim_path = "/World/Oven"
+    controller.state.object_label = "Oven"
+    controller.state.source_prim_path = "/World/Oven/SpeakerA"
+    controller.state.source_attached_to_object = True
+    controller.state.attached_object_prim_path = "/World/Oven"
+    controller.state.selected_profile_id = "oven_stove"
+    controller.state.applied_source_profile = {
+        "profile_id": "oven_stove",
+        "source_id": "oven_source",
+        "class_label": "Appliance",
+        "audio_asset_path": "generated://pulse",
+    }
+
+    config_path = controller.export_config_summary()
+    assert config_path == tmp_path / "profiles_config.json"
+    summary = json.loads(config_path.read_text(encoding="utf-8"))
+    assert summary["source"]["directivity"] == "omni"
+    assert summary["sound_profiles"]["selected_profile_id"] == "oven_stove"
+    assert summary["sound_profiles"]["object_profile_mappings"]["oven"] == (
+        "oven_stove"
+    )
+    assert summary["sound_profiles"]["applied_source_profile"]["profile_id"] == (
+        "oven_stove"
+    )
+
+    imported = ExtensionController()
+    assert imported.import_config_summary(config_path) == config_path
+    assert imported.state.selected_profile_id == "oven_stove"
+    assert tuple(profile.profile_id for profile in imported.state.profile_library) == (
+        "door_knock",
+        "footsteps_movement",
+        "oven_stove",
+        "sink_water",
+        "speech_generic",
+    )
+    assert imported.state.object_profile_mappings["oven"] == "oven_stove"
+    assert imported.state.applied_source_profile["source_id"] == "oven_source"
+
+    legacy = dict(summary)
+    legacy.pop("sound_profiles")
+    legacy_path = tmp_path / "legacy_config.json"
+    legacy_path.write_text(json.dumps(legacy), encoding="utf-8")
+    legacy_imported = ExtensionController()
+    assert legacy_imported.import_config_summary(legacy_path) == legacy_path
+    assert legacy_imported.state.selected_profile_id == "speech_generic"
+
+    unknown = dict(summary)
+    unknown["sound_profiles"] = dict(summary["sound_profiles"])
+    unknown["sound_profiles"]["selected_profile_id"] = "missing_profile"
+    unknown_path = tmp_path / "unknown_profile.json"
+    unknown_path.write_text(json.dumps(unknown), encoding="utf-8")
+    unknown_imported = ExtensionController()
+    assert unknown_imported.import_config_summary(unknown_path) is None
+    assert unknown_imported.state.error_message is not None
+    assert "Unknown selected sound profile id" in unknown_imported.state.error_message
+
+    missing_mapping = dict(summary)
+    missing_mapping["sound_profiles"] = dict(summary["sound_profiles"])
+    missing_mapping["sound_profiles"].pop("object_profile_mappings")
+    missing_mapping_path = tmp_path / "missing_mapping.json"
+    missing_mapping_path.write_text(json.dumps(missing_mapping), encoding="utf-8")
+    missing_mapping_imported = ExtensionController()
+    assert missing_mapping_imported.import_config_summary(missing_mapping_path) is None
+    assert missing_mapping_imported.state.error_message is not None
+    assert "object_profile_mappings is required" in (
+        missing_mapping_imported.state.error_message
+    )
+
+
 def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     stage = _FakeStage(
         (_FakePrim("/World", "Xform", {"xformOp:translate": (0, 0, 0)}),)
@@ -1227,6 +1509,320 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
     )
 
 
+def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
+    source = _FakePrim(
+        "/World/Sources/SpeakerA",
+        "Sound",
+        {
+            "filePath": "generated://impulse",
+            "ias:source_id": "speaker_a",
+            "ias:class_label": "Speech",
+            "ias:duration_s": 10.0,
+            "xformOp:translate": (2.0, 0.0, 0.0),
+        },
+    )
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            source,
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    front_frame = controller.update_sensor()
+    assert front_frame is not None
+    front_detection = front_frame.detections[0]
+    assert abs(front_detection.doa.estimated_bearing_deg) <= 1e-6
+    assert front_detection.doa.bearing_sector == "straight"
+    assert controller.state.latest_array_position_m == (0.0, 0.0, 0.0)
+    front_mics = dict(controller.state.latest_mic_world_positions)
+    assert front_mics["front"] == pytest.approx((0.08, 0.0, 0.0))
+
+    controller.state.array_yaw_deg = 90.0
+    assert controller.apply_array_pose(stage=stage) is not None
+    array_prim = stage.GetPrimAtPath("/World/Rig/AudioArray")
+    assert array_prim is not None
+    expected_quat = quaternion_from_yaw_deg(90.0)
+    assert array_prim.attributes["ias:orientation_world_quat"] == pytest.approx(
+        expected_quat
+    )
+    assert array_prim.attributes["xformOp:orient"] == pytest.approx(expected_quat)
+
+    rotated_frame = controller.update_sensor()
+    assert rotated_frame is not None
+    rotated_detection = rotated_frame.detections[0]
+    assert rotated_detection.doa.estimated_bearing_deg == pytest.approx(270.0)
+    assert rotated_detection.doa.bearing_sector == "left"
+    assert rotated_frame.aggregate_per_mic_rms != front_frame.aggregate_per_mic_rms
+    assert rotated_frame.array_pose is not None
+    assert rotated_frame.array_pose.orientation_xyzw == pytest.approx(expected_quat)
+    assert controller.state.latest_array_orientation_xyzw == pytest.approx(
+        expected_quat
+    )
+    assert controller.state.latest_mic_world_positions != front_mics
+    assert controller.state.latest_mic_world_positions["front"] == pytest.approx(
+        (0.0, 0.08, 0.0),
+        abs=1e-9,
+    )
+
+    array_prim.attributes["xformOp:translate"] = (1.0, 1.0, 0.0)
+    array_prim.attributes["xformOp:orient"] = (0.0, 0.0, 0.0, 1.0)
+    dragged_frame = controller.update_sensor()
+    assert dragged_frame is not None
+    assert dragged_frame.array_pose is not None
+    assert dragged_frame.array_pose.position_m == (1.0, 1.0, 0.0)
+    dragged_detection = dragged_frame.detections[0]
+    assert dragged_detection.doa.estimated_bearing_deg == pytest.approx(315.0)
+    assert dragged_detection.doa.bearing_sector == "straight_left"
+    assert array_prim.attributes["ias:position_world"] == (0.0, 0.0, 0.0)
+    assert controller.state.latest_array_position_m == (1.0, 1.0, 0.0)
+    assert controller.state.latest_mic_world_positions["front"] == pytest.approx(
+        (1.08, 1.0, 0.0)
+    )
+
+    read_position = controller.read_selected_array_transform(
+        stage=stage,
+        selected_paths=("/World/Rig/AudioArray",),
+    )
+    assert read_position == (1.0, 1.0, 0.0)
+    assert controller.state.array_position_x_m == 1.0
+    assert controller.state.array_position_y_m == 1.0
+    assert controller.state.array_yaw_deg == pytest.approx(0.0)
+
+
+def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
+    tmp_path,
+):
+    head_link = _FakePrim(
+        "/World/Alex/head_link",
+        "Xform",
+        {"xformOp:translate": (0.0, 0.0, 1.0)},
+    )
+    source = _FakePrim(
+        "/World/Sources/SpeakerA",
+        "Sound",
+        {
+            "filePath": "generated://impulse",
+            "ias:source_id": "speaker_a",
+            "ias:class_label": "Speech",
+            "ias:duration_s": 10.0,
+            "xformOp:translate": (2.0, 0.0, 0.0),
+        },
+    )
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            head_link,
+            source,
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
+
+    assert controller.author_array(stage=stage) is not None
+    assert (
+        controller.use_selected_as_object(
+            stage=stage,
+            selected_paths=("/World/Alex/head_link",),
+        )
+        == "/World/Alex/head_link"
+    )
+    controller.state.array_local_offset_z_m = 0.1
+    attached = controller.attach_array_to_object(stage=stage)
+
+    assert attached is not None
+    assert attached.prim_path == "/World/Alex/head_link/AudioArray"
+    assert controller.state.array_prim_path == "/World/Alex/head_link/AudioArray"
+    assert controller.state.array_attached_to_object is True
+    array_prim = stage.GetPrimAtPath("/World/Alex/head_link/AudioArray")
+    assert array_prim is not None
+    assert stage.GetPrimAtPath("/World/Rig/AudioArray") is None
+    assert stage.GetPrimAtPath("/World/Rig/AudioArray/front") is None
+    moved_mic = stage.GetPrimAtPath("/World/Alex/head_link/AudioArray/front")
+    assert moved_mic is not None
+    assert moved_mic.attributes["ias:microphone_id"] == "front"
+    assert array_prim.attributes["ias:attached_object_prim_path"] == (
+        "/World/Alex/head_link"
+    )
+    assert array_prim.attributes["ias:array_local_offset_m"] == (0.0, 0.0, 0.1)
+    assert array_prim.attributes["xformOp:translate"] == (0.0, 0.0, 0.1)
+    assert "ias:position_world" not in array_prim.attributes
+
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    first_frame = controller.update_sensor()
+    assert first_frame is not None
+    assert first_frame.array_pose is not None
+    assert first_frame.array_pose.position_m == pytest.approx((0.0, 0.0, 1.1))
+    first_detection = first_frame.detections[0]
+    assert first_detection.doa.bearing_sector == "straight"
+    first_mics = dict(controller.state.latest_mic_world_positions)
+    assert first_mics["front"] == pytest.approx((0.08, 0.0, 1.1))
+
+    head_link.attributes["xformOp:translate"] = (0.0, 2.0, 1.0)
+    moved_frame = controller.update_sensor()
+    assert moved_frame is not None
+    assert moved_frame.array_pose is not None
+    assert moved_frame.array_pose.position_m == pytest.approx((0.0, 2.0, 1.1))
+    moved_detection = moved_frame.detections[0]
+    assert moved_detection.doa.estimated_bearing_deg == pytest.approx(315.0)
+    assert moved_detection.doa.bearing_sector == "straight_left"
+    assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
+    assert controller.state.latest_array_position_m == pytest.approx((0.0, 2.0, 1.1))
+    assert controller.state.latest_mic_world_positions != first_mics
+    assert controller.state.latest_mic_world_positions["front"] == pytest.approx(
+        (0.08, 2.0, 1.1)
+    )
+
+    head_link.attributes["xformOp:orient"] = quaternion_from_yaw_deg(90.0)
+    rotated_frame = controller.update_sensor()
+    assert rotated_frame is not None
+    assert rotated_frame.array_pose is not None
+    assert rotated_frame.array_pose.orientation_xyzw == pytest.approx(
+        quaternion_from_yaw_deg(90.0)
+    )
+    rotated_detection = rotated_frame.detections[0]
+    assert rotated_detection.doa.estimated_bearing_deg == pytest.approx(225.0)
+    assert rotated_detection.doa.bearing_sector == "behind_left"
+
+    detached = controller.detach_array_from_object(stage=stage)
+    assert detached is not None
+    detached_prim = stage.GetPrimAtPath("/World/AudioArrays/AudioArray")
+    assert detached_prim is not None
+    assert stage.GetPrimAtPath("/World/Alex/head_link/AudioArray") is None
+    assert stage.GetPrimAtPath("/World/AudioArrays/AudioArray/front") is not None
+    assert "ias:attached_object_prim_path" not in detached_prim.attributes
+    assert detached_prim.attributes["ias:position_world"] == pytest.approx(
+        (0.0, 2.0, 1.1)
+    )
+    assert detached_prim.attributes["xformOp:orient"] == pytest.approx(
+        quaternion_from_yaw_deg(90.0)
+    )
+    assert controller.state.array_attached_to_object is False
+    assert controller.state.array_prim_path == "/World/AudioArrays/AudioArray"
+
+    head_link.attributes["xformOp:translate"] = (5.0, 0.0, 1.0)
+    after_detach_frame = controller.update_sensor()
+    assert after_detach_frame is not None
+    assert after_detach_frame.array_pose is not None
+    assert after_detach_frame.array_pose.position_m == pytest.approx(
+        (0.0, 2.0, 1.1)
+    )
+
+
+def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
+    tmp_path,
+):
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "geometry_only"
+    controller.state.config_export_path = str(tmp_path / "binding.json")
+
+    assert controller.author_array(stage=stage) is not None
+    profile = controller.select_rig_profile("alex_head_quad")
+    assert profile is not None
+    assert controller.apply_selected_rig_profile(stage=stage) is not None
+    array_prim = stage.GetPrimAtPath("/World/Rig/AudioArray")
+    assert array_prim is not None
+    assert array_prim.attributes["ias:rig_profile_id"] == "alex_head_quad"
+    assert array_prim.attributes["ias:layout_name"] == "quad_cross"
+    assert array_prim.attributes["ias:sample_rate_hz"] == 48_000
+    assert array_prim.attributes["ias:microphone_ids"] == (
+        "front",
+        "right",
+        "rear",
+        "left",
+    )
+    assert array_prim.attributes["ias:microphone_relative_offsets_m"][0] == (
+        0.06,
+        0.0,
+        0.0,
+    )
+    front_mic = stage.GetPrimAtPath("/World/Rig/AudioArray/front")
+    assert front_mic is not None
+    assert front_mic.attributes["ias:gain_db"] == 0.0
+    assert front_mic.attributes["ias:relative_position_m"] == (0.06, 0.0, 0.0)
+    assert controller.state.applied_array_rig_profile["profile_id"] == (
+        "alex_head_quad"
+    )
+    assert controller.state.array_local_offset_z_m == pytest.approx(0.12)
+    assert controller.state.layout_name == "quad_cross"
+
+    assert controller.select_rig_profile("unitree_head_stereo") is not None
+    assert controller.apply_selected_rig_profile(stage=stage) is not None
+    assert stage.GetPrimAtPath("/World/Rig/AudioArray/front") is None
+    assert stage.GetPrimAtPath("/World/Rig/AudioArray/rear") is None
+    left_mic = stage.GetPrimAtPath("/World/Rig/AudioArray/left")
+    assert left_mic is not None
+    assert left_mic.attributes["ias:relative_position_m"] == (0.0, -0.04, 0.0)
+    assert controller.state.array_local_offset_x_m == pytest.approx(0.25)
+
+    controller.state.array_position_x_m = 1.0
+    controller.state.array_position_y_m = 2.0
+    controller.state.array_yaw_deg = 90.0
+    path = controller.export_config_summary()
+    assert path is not None
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    assert payload["array"]["position_world"] == [1.0, 2.0, 0.0]
+    rig_section = payload["microphone_rig_profiles"]
+    assert rig_section["selected_rig_profile_id"] == "unitree_head_stereo"
+    assert len(rig_section["rig_library"]) == 4
+    assert payload["array_binding"]["attached"] is False
+    assert payload["array_binding"]["array_local_offset_m"] == [0.25, 0.0, 0.05]
+
+    imported = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    assert imported.import_config_summary(path) == path
+    assert imported.state.selected_rig_profile_id == "unitree_head_stereo"
+    assert {
+        item.profile_id for item in imported.state.rig_profile_library
+    } == {
+        "alex_head_quad",
+        "alex_chest_stereo",
+        "unitree_head_stereo",
+        "unitree_base_quad",
+    }
+    assert imported.state.array_position_x_m == pytest.approx(1.0)
+    assert imported.state.array_position_y_m == pytest.approx(2.0)
+    assert imported.state.array_yaw_deg == pytest.approx(90.0)
+    assert imported.state.array_local_offset_x_m == pytest.approx(0.25)
+    assert imported.state.applied_array_rig_profile["profile_id"] == (
+        "unitree_head_stereo"
+    )
+
+    legacy_payload = {
+        "schema_version": "ias.omni_extension_binding.v1",
+        "backend": "geometry_only",
+        "array": {"prim_path": "/World/Rig/AudioArray", "array_id": "legacy_rig"},
+        "source": {"prim_path": "/World/Sources/SpeakerA"},
+    }
+    legacy_path = tmp_path / "legacy.json"
+    legacy_path.write_text(json.dumps(legacy_payload), encoding="utf-8")
+    legacy = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    assert legacy.import_config_summary(legacy_path) == legacy_path
+    assert legacy.state.error_message is None
+    assert legacy.state.array_id == "legacy_rig"
+    assert legacy.state.array_attached_to_object is False
+    assert [item.profile_id for item in legacy.state.rig_profile_library] == [
+        item.profile_id for item in default_microphone_rig_profiles()
+    ]
+
+
 def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     monkeypatch,
     tmp_path,
@@ -1323,6 +1919,35 @@ def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
     assert forced is not None
     assert controller.state.latest_sector == "right"
     assert controller.state.replicator_write_count == 2
+
+
+def test_sensor_update_stream_subscription_respects_update_period(monkeypatch):
+    stream = _install_fake_kit_update_stream(monkeypatch, timeline_time_s=0.0)
+    config = load_audio_config("configs/isaac_audio_sensors_demo.toml")
+    sensor = IsaacAudioArraySensor.from_config(
+        config=config,
+        array_id=next(iter(config.arrays)),
+        update_period_s=0.05,
+    )
+    sensor.start(subscribe_to_update_stream=True)
+
+    stream.trigger()
+    first_frame = sensor.latest_frame
+    assert first_frame is not None
+    assert first_frame.frame_index == 0
+
+    for time_s in (0.01, 0.02, 0.03):
+        stream.timeline_clock.time_s = time_s
+        stream.trigger()
+
+    assert sensor.latest_frame is first_frame
+
+    stream.timeline_clock.time_s = 0.06
+    stream.trigger()
+
+    assert sensor.latest_frame is not first_frame
+    assert sensor.latest_frame.frame_index == 1
+    sensor.close()
 
 
 def test_extension_controller_create_demo_object_authors_visible_cube():
@@ -1547,6 +2172,18 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "sample_rate_hz",
     }
     assert set(controller._ui_window._float_fields) == {
+        "array_position_x_m",
+        "array_position_y_m",
+        "array_position_z_m",
+        "array_yaw_deg",
+        "array_pitch_deg",
+        "array_roll_deg",
+        "array_local_offset_x_m",
+        "array_local_offset_y_m",
+        "array_local_offset_z_m",
+        "array_local_yaw_deg",
+        "array_local_pitch_deg",
+        "array_local_roll_deg",
         "source_local_offset_x_m",
         "source_local_offset_y_m",
         "source_local_offset_z_m",
@@ -1568,6 +2205,9 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
     assert "replicator_output_dir" in controller._ui_window._string_fields
     assert "array_prim_path" in controller._ui_window._string_fields
     assert "source_prim_path" in controller._ui_window._string_fields
+    assert "source_directivity" in controller._ui_window._string_fields
+    assert "selected_profile_id" in controller._ui_window._string_fields
+    assert "selected_rig_profile_id" in controller._ui_window._string_fields
     assert "object_prim_path" in controller._ui_window._string_fields
     assert "latest_frame_export_path" in controller._ui_window._string_fields
     assert {widget.kind for widget in controller._ui_window._float_fields.values()} == {
@@ -1615,8 +2255,17 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Create Demo Object",
         "Discover",
         "Create/Attach Array",
+        "Select Rig Profile",
+        "Apply Rig Profile",
+        "Read Array Transform",
+        "Apply Array Pose",
+        "Attach Array To Object",
+        "Detach Array",
         "Read Selected Transform",
         "Apply Position",
+        "Select Profile",
+        "Auto From Object",
+        "Apply Profile",
         "Front",
         "Right",
         "Left",
@@ -1641,8 +2290,17 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Create Demo Object",
         "Discover",
         "Create/Attach Array",
+        "Select Rig Profile",
+        "Apply Rig Profile",
+        "Read Array Transform",
+        "Apply Array Pose",
+        "Attach Array To Object",
+        "Detach Array",
         "Read Selected Transform",
         "Apply Position",
+        "Select Profile",
+        "Auto From Object",
+        "Apply Profile",
         "Front",
         "Right",
         "Left",

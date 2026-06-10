@@ -41,6 +41,7 @@ SMOKE_PHASES = (
     ("moved", 0.1),
     ("inactive", 0.5),
 )
+WAVEFORM_EVIDENCE_DIR = Path("outputs/isaac_audio_sensors/live_waveforms")
 
 
 def main() -> int:
@@ -278,6 +279,9 @@ def _run_backend_smoke(
         max_events=1,
         room=room_spec,
         debug_draw=True,
+        waveform_dir=(
+            WAVEFORM_EVIDENCE_DIR if backend_id == "room_acoustics" else None
+        ),
     )
     sensor.start()
     frames: dict[str, AudioSensorFrame] = {}
@@ -484,7 +488,68 @@ def _summarize_backend(
         result["waveform_sample_count"] = moved_detection.diagnostics.get(
             "waveform_sample_count"
         )
+    if backend_id == "room_acoustics":
+        result["waveform_roundtrip"] = _waveform_roundtrip_evidence(frames)
     return result
+
+
+def _waveform_roundtrip_evidence(
+    frames: dict[str, AudioSensorFrame],
+) -> dict[str, Any]:
+    """Prove each room frame wrote a WAV that round-trips through soundfile."""
+
+    try:
+        import numpy as np
+        import soundfile as sf  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError(
+            "room_acoustics live smoke requires soundfile for waveform "
+            "round-trip evidence; install the 'room' extra in the Isaac "
+            "Python environment."
+        ) from exc
+    evidence: dict[str, Any] = {}
+    for phase, frame in frames.items():
+        if not frame.waveform_paths:
+            raise RuntimeError(
+                f"room_acoustics frame for phase {phase!r} has empty "
+                "waveform_paths."
+            )
+        path = Path(frame.waveform_paths[0])
+        if not path.is_file():
+            raise RuntimeError(
+                f"room_acoustics waveform file {str(path)!r} is missing for "
+                f"phase {phase!r}."
+            )
+        data, rate = sf.read(path, always_2d=True)
+        mic_count = len(frame.aggregate_per_mic_rms)
+        window_sample_count = int(frame.diagnostics.get("window_sample_count", 0))
+        if int(rate) != int(frame.sample_rate_hz or 0):
+            raise RuntimeError(
+                f"waveform sample rate {rate} does not match frame rate "
+                f"{frame.sample_rate_hz} for phase {phase!r}."
+            )
+        if data.shape[1] != mic_count:
+            raise RuntimeError(
+                f"waveform channel count {data.shape[1]} does not match "
+                f"{mic_count} microphones for phase {phase!r}."
+            )
+        if data.shape[0] < window_sample_count:
+            raise RuntimeError(
+                f"waveform sample count {data.shape[0]} is shorter than the "
+                f"window ({window_sample_count}) for phase {phase!r}."
+            )
+        if not np.all(np.isfinite(data)):
+            raise RuntimeError(
+                f"waveform for phase {phase!r} contains non-finite samples."
+            )
+        evidence[phase] = {
+            "path": str(path),
+            "sample_rate_hz": int(rate),
+            "channels": int(data.shape[1]),
+            "sample_count": int(data.shape[0]),
+            "window_sample_count": window_sample_count,
+        }
+    return evidence
 
 
 def _validate_backend_result(result: dict[str, Any]) -> None:
@@ -537,6 +602,10 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         and result.get("room_frame_diagnostics_present")
     ):
         raise RuntimeError("room_acoustics did not expose room/RIR diagnostics.")
+    if backend_id == "room_acoustics" and not result.get("waveform_roundtrip"):
+        raise RuntimeError(
+            "room_acoustics did not produce waveform round-trip evidence."
+        )
 
 
 def _validate_jsonl_frames(path: Path) -> dict[str, Any]:

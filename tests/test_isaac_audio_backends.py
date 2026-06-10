@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import sys
 import types
 
@@ -12,6 +13,7 @@ from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.doa.gcc_phat import (
+    estimate_tdoa_diagnostics,
     estimate_tdoa_matrix,
     gcc_phat_delay,
     relative_delays_from_tdoa_matrix,
@@ -260,6 +262,69 @@ def test_gcc_phat_delay_sign_and_relative_tdoa_matrix():
     ) == pytest.approx({"ref": 0.0, "late": 5.0 / sample_rate_hz})
 
 
+def test_pairwise_gcc_phat_matches_per_pair_reference():
+    sample_rate_hz = 8_000
+    rng = np.random.default_rng(1234)
+    waveforms = {
+        "front": rng.standard_normal(512),
+        "left": np.roll(rng.standard_normal(512), 3),
+        "rear": rng.standard_normal(480),
+        "right": rng.standard_normal(640),
+    }
+
+    delays, peaks = estimate_tdoa_diagnostics(
+        waveforms,
+        sample_rate_hz=sample_rate_hz,
+        max_delay_s=0.01,
+        interp=8,
+    )
+    matrix = estimate_tdoa_matrix(
+        waveforms,
+        sample_rate_hz=sample_rate_hz,
+        max_delay_s=0.01,
+        interp=8,
+    )
+
+    mic_ids = tuple(waveforms)
+    expected_keys = {f"{left}->{right}" for left in mic_ids for right in mic_ids}
+    assert set(delays) == expected_keys
+    assert set(peaks) == expected_keys
+    assert matrix == delays
+
+    for left in mic_ids:
+        for right in mic_ids:
+            key = f"{left}->{right}"
+            if left == right:
+                assert delays[key] == 0.0
+                assert peaks[key] == 1.0
+                continue
+            reference = gcc_phat_delay(
+                waveforms[left],
+                waveforms[right],
+                sample_rate_hz=sample_rate_hz,
+                max_delay_s=0.01,
+                interp=8,
+            )
+            assert delays[key] == pytest.approx(reference.delay_s, abs=1e-12)
+            assert peaks[key] == pytest.approx(reference.peak_value, abs=1e-12)
+
+
+def test_pairwise_gcc_phat_mirrors_zero_delay_without_negative_zero():
+    rng = np.random.default_rng(7)
+    shared = rng.standard_normal(256)
+    matrix = estimate_tdoa_matrix(
+        {"a": shared, "b": shared.copy()},
+        sample_rate_hz=8_000,
+        max_delay_s=0.01,
+        interp=1,
+    )
+
+    assert matrix["a->b"] == 0.0
+    assert matrix["b->a"] == 0.0
+    assert math.copysign(1.0, matrix["a->b"]) > 0.0
+    assert math.copysign(1.0, matrix["b->a"]) > 0.0
+
+
 def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch):
     _install_fake_pyroom(monkeypatch)
 
@@ -486,29 +551,45 @@ class _FakeShoeBox:
     def compute_rir(self):
         if self.mic_array is None:
             raise RuntimeError("microphone array was not added")
-        source_position, _ = self.sources[0]
         self.rir = []
         for mic_position in self.mic_array.R.T:
-            distance = float(np.linalg.norm(source_position - mic_position))
-            delay_samples = max(0, int(round(distance / self.c * self.fs)))
-            rir = np.zeros(delay_samples + 24)
-            rir[delay_samples] = 1.0 / max(distance, 0.1)
-            if self.max_order > 0 and delay_samples + 12 < len(rir):
-                rir[delay_samples + 12] = 0.1 / max(distance, 0.1)
-            self.rir.append([rir])
+            per_source = []
+            for source_position, _ in self.sources:
+                distance = float(np.linalg.norm(source_position - mic_position))
+                delay_samples = max(0, int(round(distance / self.c * self.fs)))
+                rir = np.zeros(delay_samples + 24)
+                rir[delay_samples] = 1.0 / max(distance, 0.1)
+                if self.max_order > 0 and delay_samples + 12 < len(rir):
+                    rir[delay_samples + 12] = 0.1 / max(distance, 0.1)
+                per_source.append(rir)
+            self.rir.append(per_source)
 
-    def simulate(self):
+    def simulate(self, return_premix=False):
         if self.mic_array is None:
             raise RuntimeError("microphone array was not added")
-        _, source_signal = self.sources[0]
-        signals = [np.convolve(source_signal, mic_rir[0]) for mic_rir in self.rir]
-        max_len = max(len(signal) for signal in signals)
-        padded = np.zeros((len(signals), max_len))
-        for index, signal in enumerate(signals):
-            padded[index, : len(signal)] = signal
-        self.mic_array.signals = padded
+        convolved = [
+            [
+                np.convolve(signal, self.rir[mic_index][source_index])
+                for mic_index in range(self.mic_array.R.shape[1])
+            ]
+            for source_index, (_, signal) in enumerate(self.sources)
+        ]
+        max_len = max(
+            len(signal) for per_source in convolved for signal in per_source
+        )
+        premix = np.zeros((len(self.sources), self.mic_array.R.shape[1], max_len))
+        for source_index, per_source in enumerate(convolved):
+            for mic_index, signal in enumerate(per_source):
+                premix[source_index, mic_index, : len(signal)] = signal
+        self.mic_array.signals = premix.sum(axis=0)
+        if return_premix:
+            return premix
+        return None
 
 
 class _MalformedSignalShoeBox(_FakeShoeBox):
-    def simulate(self):
+    def simulate(self, return_premix=False):
         self.mic_array.signals = np.zeros((1, 16))
+        if return_premix:
+            return np.zeros((1, 16))
+        return None
