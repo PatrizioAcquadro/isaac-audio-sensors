@@ -23,6 +23,8 @@ from isaac_audio_sensors.core.io.traces import (
 )
 from isaac_audio_sensors.core.math_utils import (
     basis_from_quaternion,
+    euler_deg_from_quaternion,
+    quaternion_from_euler_deg,
     quaternion_from_yaw_deg,
 )
 from isaac_audio_sensors.core.microphone_array import (
@@ -164,6 +166,26 @@ def test_coordinate_quaternion_and_time_conventions():
             timestamp_ms=1000,
             sample_rate_hz=48_000,
         )
+
+
+def test_euler_quaternion_helpers_round_trip_and_match_yaw_helper():
+    assert quaternion_from_euler_deg(yaw_deg=90.0) == pytest.approx(
+        quaternion_from_yaw_deg(90.0),
+        abs=1e-12,
+    )
+    assert euler_deg_from_quaternion(quaternion_from_yaw_deg(90.0)) == pytest.approx(
+        (0.0, 0.0, 90.0),
+        abs=1e-9,
+    )
+
+    quat = quaternion_from_euler_deg(roll_deg=10.0, pitch_deg=-20.0, yaw_deg=135.0)
+    assert euler_deg_from_quaternion(quat) == pytest.approx(
+        (10.0, -20.0, 135.0),
+        abs=1e-9,
+    )
+
+    forward, _, _ = basis_from_quaternion(quaternion_from_euler_deg(yaw_deg=180.0))
+    assert forward == pytest.approx((-1.0, 0.0, 0.0), abs=1e-9)
 
 
 def test_microphone_layouts_cover_one_two_four_and_arbitrary_n():

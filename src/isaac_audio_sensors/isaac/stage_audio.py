@@ -146,6 +146,45 @@ def clear_source_object_binding_attrs(prim: Any) -> None:
     )
 
 
+def attach_array_object_binding_attrs(
+    prim: Any,
+    *,
+    object_prim_path: str,
+    local_offset_m: tuple[float, float, float],
+    local_orientation_quat: tuple[float, float, float, float] | None = None,
+) -> dict[str, object]:
+    """Attach object-binding metadata and a local mount pose to an array prim."""
+
+    if object_prim_path.strip() == "":
+        raise ValueError("object_prim_path must be non-empty.")
+    offset = tuple(float(component) for component in local_offset_m)
+    attrs: dict[str, object] = {
+        "ias:attached_object_prim_path": object_prim_path,
+        "ias:array_local_offset_m": offset,
+    }
+    orientation: tuple[float, float, float, float] | None = None
+    if local_orientation_quat is not None:
+        orientation = tuple(float(component) for component in local_orientation_quat)
+        attrs["ias:array_local_orientation_quat"] = orientation
+    for name, value in attrs.items():
+        _set_attr(prim, name, value)
+    _set_xform_pose(prim, position=offset, orientation=orientation)
+    return attrs
+
+
+def clear_array_object_binding_attrs(prim: Any) -> None:
+    """Remove object-binding metadata from an array prim when it is detached."""
+
+    clear_prim_attrs(
+        prim,
+        (
+            "ias:attached_object_prim_path",
+            "ias:array_local_offset_m",
+            "ias:array_local_orientation_quat",
+        ),
+    )
+
+
 def clear_prim_attrs(prim: Any, names: tuple[str, ...]) -> None:
     """Best-effort removal of authored attributes on fake or real USD prims."""
 
@@ -176,11 +215,13 @@ def move_prim_to_path(
     source_path: str,
     dest_path: str,
     prim_type: str = "Xform",
+    include_children: bool = False,
 ) -> Any:
     """Move a simple prim to a new path, preserving authored attributes.
 
     The helper copies attributes and then removes the old prim when the stage API
-    exposes a removal path. It intentionally does not copy child prims.
+    exposes a removal path. Descendant prims are only carried along when
+    ``include_children`` is set; the default keeps the single-prim behavior.
     """
 
     _require_stage(stage)
@@ -195,8 +236,39 @@ def move_prim_to_path(
     )
     if source is not None:
         _copy_prim_attrs(source, dest)
+        if include_children:
+            _move_descendant_prims(
+                stage,
+                source_path=source_path,
+                dest_path=dest_path,
+            )
         _remove_prim(stage, source_path)
     return dest
+
+
+def _move_descendant_prims(stage: Any, *, source_path: str, dest_path: str) -> None:
+    if not hasattr(stage, "Traverse"):
+        return
+    prefix = source_path.rstrip("/") + "/"
+    descendants = sorted(
+        (
+            (path, prim)
+            for prim in stage.Traverse()
+            for path in (_prim_path(prim),)
+            if path.startswith(prefix)
+        ),
+        key=lambda item: item[0],
+    )
+    for path, prim in descendants:
+        new_path = f"{dest_path.rstrip('/')}/{path[len(prefix):]}"
+        moved = get_or_define_prim(
+            stage,
+            prim_path=new_path,
+            prim_type=_prim_type_name(prim) or "Xform",
+        )
+        _copy_prim_attrs(prim, moved)
+    for path, _prim in reversed(descendants):
+        _remove_prim(stage, path)
 
 
 def create_listener_prim(
@@ -290,6 +362,12 @@ def attach_microphone_attrs(
         orientation=relative_orientation_quat,
     )
     return attrs
+
+
+def remove_prim(stage: Any, prim_path: str) -> None:
+    """Best-effort prim removal on fake or USD stages."""
+
+    _remove_prim(stage, prim_path)
 
 
 def get_or_define_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any:
