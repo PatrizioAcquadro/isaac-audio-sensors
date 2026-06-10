@@ -27,6 +27,7 @@ from isaac_audio_sensors.core.io.traces import (
     frame_to_trace_dict,
 )
 from isaac_audio_sensors.core.io.waveforms import (
+    ContinuousWaveformWriter,
     FrameWaveformWriter,
     WaveformWriteResult,
     waveform_safe_filename,
@@ -501,6 +502,7 @@ def test_isaac_sensor_writes_waveforms_when_configured(monkeypatch, tmp_path):
 
 def test_lab_sensor_writes_waveforms_per_env(monkeypatch, tmp_path):
     pytest.importorskip("soundfile")
+    pytest.importorskip("torch")
     _install_fake_pyroom(monkeypatch)
     from isaac_audio_sensors.lab.audio_array_sensor import AudioArraySensor
     from isaac_audio_sensors.lab.audio_array_sensor_cfg import AudioArraySensorCfg
@@ -528,6 +530,178 @@ def test_lab_sensor_writes_waveforms_per_env(monkeypatch, tmp_path):
     written = Path(frame.waveform_paths[0])
     assert written.is_file()
     assert written.parent == tmp_path / "lab_waves" / "env_0"
+
+
+def _session_write(writer, mixture, *, window: int, frame_id: str = "frame"):
+    return writer.write_frame_mixture(
+        frame_id=frame_id,
+        mixture=mixture,
+        sample_rate_hz=SAMPLE_RATE_HZ,
+        mic_ids=("front", "rear"),
+        window_sample_count=window,
+    )
+
+
+def test_continuous_writer_overlap_adds_tails(tmp_path):
+    soundfile = pytest.importorskip("soundfile")
+    rng = np.random.default_rng(3)
+    window = 4
+    first = rng.standard_normal((2, 6))
+    second = rng.standard_normal((2, 7))
+    writer = ContinuousWaveformWriter(tmp_path / "session.wav")
+
+    result_one = _session_write(writer, first, window=window)
+    result_two = _session_write(writer, second, window=window)
+    writer.close()
+
+    assert result_one.diagnostics["start_sample"] == 0
+    assert result_one.diagnostics["end_sample"] == window
+    assert result_two.diagnostics["start_sample"] == window
+    assert result_two.diagnostics["end_sample"] == 2 * window
+    assert result_one.paths == result_two.paths == (str(tmp_path / "session.wav"),)
+
+    expected = np.zeros((2, 11))
+    expected[:, :6] += first
+    expected[:, 4:11] += second
+    data, rate = soundfile.read(tmp_path / "session.wav", always_2d=True)
+    assert rate == SAMPLE_RATE_HZ
+    np.testing.assert_allclose(data.T, expected, atol=1e-6)
+
+
+def test_continuous_writer_carries_tails_across_multiple_windows(tmp_path):
+    soundfile = pytest.importorskip("soundfile")
+    rng = np.random.default_rng(5)
+    window = 4
+    long_mixture = rng.standard_normal((2, 14))
+    silence = np.zeros((2, window))
+    writer = ContinuousWaveformWriter(tmp_path / "session.wav")
+
+    _session_write(writer, long_mixture, window=window)
+    _session_write(writer, silence, window=window)
+    _session_write(writer, silence, window=window)
+    writer.close()
+
+    expected = np.zeros((2, 14))
+    expected[:, :14] = long_mixture
+    data, _ = soundfile.read(tmp_path / "session.wav", always_2d=True)
+    np.testing.assert_allclose(data.T, expected, atol=1e-6)
+
+
+def test_continuous_writer_stream_matches_overlap_add_reference(tmp_path):
+    soundfile = pytest.importorskip("soundfile")
+    rng = np.random.default_rng(9)
+    window = 32
+    mixtures = [rng.standard_normal((2, 32 + extra)) for extra in (0, 11, 5, 40)]
+    writer = ContinuousWaveformWriter(tmp_path / "session.wav")
+
+    for index, mixture in enumerate(mixtures):
+        result = _session_write(
+            writer, mixture, window=window, frame_id=f"frame_{index}"
+        )
+        assert result.diagnostics["start_sample"] == index * window
+        assert result.diagnostics["end_sample"] == (index + 1) * window
+    writer.close()
+
+    total = len(mixtures) * window + max(
+        mixture.shape[1] - window for mixture in mixtures
+    )
+    reference = np.zeros((2, max(total, len(mixtures) * window)))
+    for index, mixture in enumerate(mixtures):
+        start = index * window
+        reference[:, start : start + mixture.shape[1]] += mixture
+    data, _ = soundfile.read(tmp_path / "session.wav", always_2d=True)
+    assert data.shape[0] >= len(mixtures) * window
+    np.testing.assert_allclose(data.T, reference[:, : data.shape[0]], atol=1e-6)
+
+
+def test_continuous_writer_rejects_session_parameter_changes(tmp_path):
+    pytest.importorskip("soundfile")
+    writer = ContinuousWaveformWriter(tmp_path / "session.wav")
+    _session_write(writer, np.zeros((2, 4)), window=4)
+
+    with pytest.raises(ValueError, match="session parameters"):
+        writer.write_frame_mixture(
+            frame_id="frame",
+            mixture=np.zeros((3, 4)),
+            sample_rate_hz=SAMPLE_RATE_HZ,
+            mic_ids=("front", "rear", "left"),
+            window_sample_count=4,
+        )
+    writer.close()
+    with pytest.raises(RuntimeError, match="closed"):
+        _session_write(writer, np.zeros((2, 4)), window=4)
+
+
+def test_isaac_sensor_session_mode_streams_across_ticks(monkeypatch, tmp_path):
+    soundfile = pytest.importorskip("soundfile")
+    _install_fake_pyroom(monkeypatch)
+    from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+
+    array = _quad_array()
+    scene = _room_scene_with_sources(
+        _tone_source("tone_low", (3.0, 0.0, 0.0), duration_s=None),
+        array=array,
+    )
+    sensor = IsaacAudioArraySensor(
+        array_id="rig",
+        backend="room_acoustics",
+        stage_snapshot=scene,
+        waveform_dir=tmp_path / "session",
+        waveform_mode="session",
+        update_period_s=0.05,
+    ).start()
+
+    window_samples = int(round(0.05 * SAMPLE_RATE_HZ))
+    frames = [
+        sensor.update(sim_time_s=0.00),
+        sensor.update(sim_time_s=0.05),
+        sensor.update(sim_time_s=0.10),
+    ]
+    throttled = sensor.update(sim_time_s=0.11)
+    assert throttled is frames[-1]
+
+    session_path = Path(frames[0].waveform_paths[0])
+    for index, frame in enumerate(frames):
+        waveform = frame.diagnostics["waveform"]
+        assert waveform["mode"] == "session"
+        assert Path(frame.waveform_paths[0]) == session_path
+        assert waveform["start_sample"] == index * window_samples
+        assert waveform["end_sample"] == (index + 1) * window_samples
+
+    sensor.close()
+    data, rate = soundfile.read(session_path, always_2d=True)
+    assert rate == SAMPLE_RATE_HZ
+    assert data.shape[1] == 4
+    assert data.shape[0] >= 3 * window_samples
+    assert np.any(data)
+
+
+def test_isaac_sensor_reset_starts_new_waveform_session(monkeypatch, tmp_path):
+    pytest.importorskip("soundfile")
+    _install_fake_pyroom(monkeypatch)
+    from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+
+    array = _quad_array()
+    scene = _room_scene_with_sources(
+        _tone_source("tone_low", (3.0, 0.0, 0.0), duration_s=None),
+        array=array,
+    )
+    sensor = IsaacAudioArraySensor(
+        array_id="rig",
+        backend="room_acoustics",
+        stage_snapshot=scene,
+        waveform_dir=tmp_path / "session",
+        waveform_mode="session",
+    ).start()
+
+    sensor.update(sim_time_s=0.0)
+    assert sensor._waveform_sink is not None
+    sensor.reset()
+    assert sensor._waveform_sink is None
+
+    frame = sensor.update(sim_time_s=0.0)
+    assert frame.diagnostics["waveform"]["start_sample"] == 0
+    sensor.close()
 
 
 def test_audio_config_parses_waveform_export_options():

@@ -120,6 +120,132 @@ class FrameWaveformWriter:
         self._closed = True
 
 
+class ContinuousWaveformWriter:
+    """Append window-exact chunks to one growing session WAV.
+
+    Each frame contributes exactly ``window_sample_count`` samples to the
+    stream; the convolution/reverb tail past the window is carried and
+    overlap-added into subsequent chunks, so concatenated windows stay
+    gapless and energy-conserving. ``close()`` flushes the remaining tail.
+
+    Doppler from per-tick source motion is deliberately not modelled here;
+    it lands in Block 8 together with source velocity tracking.
+    """
+
+    def __init__(self, path: str | Path) -> None:
+        self._soundfile = _import_soundfile()
+        self.path = Path(path)
+        self._file: Any | None = None
+        self._carry: np.ndarray | None = None
+        self._cursor = 0
+        self._sample_rate_hz: int | None = None
+        self._mic_ids: tuple[str, ...] | None = None
+        self._closed = False
+
+    def write_frame_mixture(
+        self,
+        *,
+        frame_id: str,
+        mixture: np.ndarray,
+        sample_rate_hz: int,
+        mic_ids: tuple[str, ...],
+        window_sample_count: int,
+    ) -> WaveformWriteResult:
+        """Append one frame's window to the session stream.
+
+        Returns the session path plus the frame's half-open
+        ``[start_sample, end_sample)`` slice of the stream.
+        """
+
+        del frame_id
+        if self._closed:
+            raise RuntimeError("ContinuousWaveformWriter is closed.")
+        data = _validated_mixture(mixture, mic_ids=mic_ids)
+        window = int(window_sample_count)
+        if window <= 0:
+            raise ValueError("window_sample_count must be positive.")
+        self._ensure_session(
+            sample_rate_hz=int(sample_rate_hz),
+            mic_ids=tuple(mic_ids),
+        )
+
+        chunk = np.zeros((len(mic_ids), window), dtype=float)
+        head = data[:, :window]
+        chunk[:, : head.shape[1]] = head
+        carry = (
+            self._carry
+            if self._carry is not None
+            else np.zeros((len(mic_ids), 0), dtype=float)
+        )
+        overlap = min(carry.shape[1], window)
+        chunk[:, :overlap] += carry[:, :overlap]
+        leftover = carry[:, overlap:]
+        tail = data[:, window:]
+        new_carry = np.zeros(
+            (len(mic_ids), max(leftover.shape[1], tail.shape[1])),
+            dtype=float,
+        )
+        new_carry[:, : leftover.shape[1]] += leftover
+        new_carry[:, : tail.shape[1]] += tail
+        self._carry = new_carry
+
+        assert self._file is not None
+        self._file.write(chunk.T)
+        start_sample = self._cursor
+        self._cursor += window
+        return WaveformWriteResult(
+            paths=(str(self.path),),
+            diagnostics={
+                "mode": "session",
+                "path": str(self.path),
+                "start_sample": start_sample,
+                "end_sample": self._cursor,
+                "channel_mic_ids": list(mic_ids),
+                "sample_rate_hz": int(sample_rate_hz),
+                "window_sample_count": window,
+                "subtype": WAVEFORM_WAV_SUBTYPE,
+            },
+        )
+
+    def close(self) -> None:
+        """Flush the carried tail and close the session file."""
+
+        if self._closed:
+            return
+        self._closed = True
+        if self._file is not None:
+            if self._carry is not None and self._carry.shape[1] > 0:
+                self._file.write(self._carry.T)
+                self._cursor += self._carry.shape[1]
+            self._carry = None
+            self._file.close()
+            self._file = None
+
+    def _ensure_session(
+        self,
+        *,
+        sample_rate_hz: int,
+        mic_ids: tuple[str, ...],
+    ) -> None:
+        if self._file is None:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._file = self._soundfile.SoundFile(
+                self.path,
+                mode="w",
+                samplerate=sample_rate_hz,
+                channels=len(mic_ids),
+                subtype=WAVEFORM_WAV_SUBTYPE,
+            )
+            self._sample_rate_hz = sample_rate_hz
+            self._mic_ids = mic_ids
+            return
+        if sample_rate_hz != self._sample_rate_hz or mic_ids != self._mic_ids:
+            raise ValueError(
+                "ContinuousWaveformWriter session parameters changed "
+                "between frames."
+            )
+
+
 def waveform_safe_filename(name: str) -> str:
     """Collapse characters that are unsafe in waveform file names."""
 

@@ -12,6 +12,7 @@ from isaac_audio_sensors.core.io.traces import (
 )
 from isaac_audio_sensors.core.io.wav_assets import generated_impulse_metadata
 from isaac_audio_sensors.core.io.waveforms import (
+    ContinuousWaveformWriter,
     FrameWaveformWriter,
     WaveformSink,
     WaveformWriteResult,
@@ -21,6 +22,7 @@ from isaac_audio_sensors.core.io.waveforms import (
 
 __all__ = [
     "AudioFrameJsonlWriter",
+    "ContinuousWaveformWriter",
     "FrameWaveformWriter",
     "WaveformSink",
     "WaveformWriteResult",
