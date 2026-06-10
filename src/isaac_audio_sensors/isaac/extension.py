@@ -539,7 +539,7 @@ class IsaacAudioArraySensor:
 
         def _on_update(_event: Any) -> None:
             if self._running:
-                self.update(force=True)
+                self.update(force=False)
 
         return stream.create_subscription_to_pop(
             _on_update,

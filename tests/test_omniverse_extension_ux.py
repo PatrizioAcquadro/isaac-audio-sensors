@@ -18,7 +18,9 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback.
     import tomli as tomllib
 
+from isaac_audio_sensors.core.config import load_audio_config
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
+from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.extension_ui import (
     OUTPUT_ROOT_ENV_VAR,
     CurrentStageContext,
@@ -726,12 +728,14 @@ def _install_fake_kit_update_stream(
     monkeypatch.setitem(sys.modules, "omni.kit.app", app_module)
 
     if timeline_time_s is not None:
+        clock = SimpleNamespace(time_s=float(timeline_time_s))
         timeline = ModuleType("omni.timeline")
         timeline.get_timeline_interface = lambda: SimpleNamespace(
-            get_current_time=lambda: timeline_time_s
+            get_current_time=lambda: clock.time_s
         )
         omni.timeline = timeline
         monkeypatch.setitem(sys.modules, "omni.timeline", timeline)
+        stream.timeline_clock = clock
 
     return stream
 
@@ -1915,6 +1919,35 @@ def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
     assert forced is not None
     assert controller.state.latest_sector == "right"
     assert controller.state.replicator_write_count == 2
+
+
+def test_sensor_update_stream_subscription_respects_update_period(monkeypatch):
+    stream = _install_fake_kit_update_stream(monkeypatch, timeline_time_s=0.0)
+    config = load_audio_config("configs/isaac_audio_sensors_demo.toml")
+    sensor = IsaacAudioArraySensor.from_config(
+        config=config,
+        array_id=next(iter(config.arrays)),
+        update_period_s=0.05,
+    )
+    sensor.start(subscribe_to_update_stream=True)
+
+    stream.trigger()
+    first_frame = sensor.latest_frame
+    assert first_frame is not None
+    assert first_frame.frame_index == 0
+
+    for time_s in (0.01, 0.02, 0.03):
+        stream.timeline_clock.time_s = time_s
+        stream.trigger()
+
+    assert sensor.latest_frame is first_frame
+
+    stream.timeline_clock.time_s = 0.06
+    stream.trigger()
+
+    assert sensor.latest_frame is not first_frame
+    assert sensor.latest_frame.frame_index == 1
+    sensor.close()
 
 
 def test_extension_controller_create_demo_object_authors_visible_cube():
