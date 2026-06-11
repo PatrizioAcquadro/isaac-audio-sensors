@@ -15,18 +15,21 @@ used by frames and traces; they do not play audible audio, classify waveforms,
 or integrate downstream ontology labels.
 
 The control inventory below is derived from
-`src/isaac_audio_sensors/isaac/extension_ui.py` and
+`src/isaac_audio_sensors/isaac/extension_ui/` and
 `scripts/live_omniverse_extension_ux.py`. The visible sections are:
 
 - `Stage`
 - `Author Array`
 - `Author Source`
 - `Sensor`
+- `Instruments`
 - `Replicator`
 - `Export`
 
 The screenshots in this guide are real captures of the `Isaac Audio Sensors`
-window with one section expanded at a time.
+window with one section expanded at a time. The `Instruments` image is the
+compass+meter panel raster captured by the live UX gate (the same pixels the
+compass widget displays).
 
 ## Before You Start
 
@@ -668,6 +671,58 @@ If `JSONL` is enabled, the trace should be written to:
 ```text
 outputs/isaac_audio_sensors/extension_trace.frames.jsonl
 ```
+
+## Instruments Section
+
+![Compass and per-mic RMS meter panel rendered from live sensor data.](assets/isaac_sim_gui/instruments.png)
+
+### What It Is For
+
+`Instruments` turns the latest frame into live visuals instead of raw text:
+
+- A polar bearing **compass**: the array's forward direction points up, bearings
+  increase clockwise (the v1 coordinate convention), the needle shows the
+  estimated bearing of the first detection, and a translucent wedge marks the
+  bearing sector. The needle is green when the source is clear and red when
+  Isaac raycast occlusion marks it occluded. Thin dim needles mark unresolved
+  candidate bearings when the backend reports ambiguity.
+- **Per-mic RMS meters**: one bar per microphone (front, right, rear, left,
+  then any extra mics alphabetically). The fill maps the linear frame RMS to a
+  dB scale with a -60 dB floor; the row label shows the exact dB value.
+- A **detection timeline**: the most recent detections, newest first, each row
+  showing the detection time, class or source ID, bearing, sector, and whether
+  the bearing ray was occluded.
+
+### When To Use It
+
+Watch the instruments while the sensor is running (after `Start` in the
+`Sensor` section, or after manual `Update` clicks). They answer "where is the
+sound coming from, how loud is it per mic, and what happened recently" at a
+glance, without parsing the status labels.
+
+### Controls
+
+The section is read-only; it refreshes on every sensor update. The text line
+under the compass mirrors the drawing for copy/paste and headless use:
+
+```text
+bearing 104.2 deg | sector right | confidence 0.93 | clear
+```
+
+When no detection is available the compass reports `no bearing`, the meters
+stay empty, and the timeline keeps the last recorded events (up to 50 are
+retained per session).
+
+### Expected Output
+
+With the first-demo scene (source at `(2.0, 0.0, 0.0)`, i.e. straight ahead),
+expect the needle near `0 deg`, sector `straight`, and four meter rows with
+similar dB values. Moving the source to the right swings the needle to ~90 deg
+and the `right` mic meter rises first. The live UX gate records the same data
+under `instruments` in
+`outputs/isaac_audio_sensors/omniverse_extension_live_ux.json` and writes the
+compass+meter panel to
+`outputs/isaac_audio_sensors/omniverse_extension_live_ux.instruments.png`.
 
 ## Replicator Section
 

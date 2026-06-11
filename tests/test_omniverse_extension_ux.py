@@ -493,6 +493,16 @@ class _FakeWidget:
         self.visibility_changed_fn = callback
 
 
+class _FakeByteImageProvider:
+    def __init__(self) -> None:
+        self.data: list[int] | None = None
+        self.size: list[int] | None = None
+
+    def set_bytes_data(self, data: object, size: object) -> None:
+        self.data = list(data)
+        self.size = list(size)
+
+
 class _FakeUI(ModuleType):
     def __init__(self) -> None:
         super().__init__("omni.ui")
@@ -510,6 +520,9 @@ class _FakeUI(ModuleType):
         self.CheckBox = self._widget_factory("CheckBox")
         self.ComboBox = self._widget_factory("ComboBox")
         self.Button = self._widget_factory("Button")
+        self.ProgressBar = self._widget_factory("ProgressBar")
+        self.ImageWithProvider = self._widget_factory("ImageWithProvider")
+        self.ByteImageProvider = _FakeByteImageProvider
         self.SimpleStringModel = _FakeModel
         self.SimpleFloatModel = _FakeModel
         self.SimpleIntModel = _FakeModel
@@ -1880,7 +1893,17 @@ def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     assert controller.state.latest_sector == "right"
     assert controller.state.latest_aggregate_rms != first_rms
     assert window._float_fields["source_position_x_m"].model.value == "typing"
-    assert "rms=" in window._labels["latest"].text
+    assert "Frame: " in window._labels["latest"].text
+    visible_meters = [
+        row for row in window._instruments["meters"] if row["row"].visible
+    ]
+    assert visible_meters
+    assert all(
+        "dB" in row["label"].text or "silent" in row["label"].text
+        for row in visible_meters
+    )
+    assert controller.state.detection_history
+    assert any(label.visible for label in window._instruments["timeline"])
 
 
 def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
@@ -2222,6 +2245,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Author Array",
         "Author Source",
         "Sensor",
+        "Instruments",
         "Replicator",
         "Export",
     ]
@@ -2229,7 +2253,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
     scrolling_frames = [
         widget for widget in omni_ui.created if widget.kind == "ScrollingFrame"
     ]
-    assert len(scrolling_frames) == 1
+    assert len(scrolling_frames) == 2
     collapsable_frames = [
         widget for widget in omni_ui.created if widget.kind == "CollapsableFrame"
     ]
@@ -2238,6 +2262,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Author Array",
         "Author Source",
         "Sensor",
+        "Instruments",
         "Replicator",
         "Export",
     ]
@@ -2319,7 +2344,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
     } <= set(controller._ui_window._buttons)
 
 
-def test_extension_ui_latest_label_shows_compact_rms(monkeypatch):
+def test_extension_ui_instruments_show_compass_meters_and_timeline(monkeypatch):
     omni = ModuleType("omni")
     omni_ui = _FakeUI()
     omni.ui = omni_ui
@@ -2333,12 +2358,25 @@ def test_extension_ui_latest_label_shows_compact_rms(monkeypatch):
     controller.state.latest_source_position_m = (1.0, 2.0, 0.0)
     controller.state.latest_bearing_deg = 90.0
     controller.state.latest_sector = "right"
+    controller.state.latest_bearing_confidence = 0.8
+    controller.state.latest_occluded = False
     controller.state.latest_aggregate_rms = {
         "left": 0.2,
         "front": 0.24,
         "rear": 0.18,
         "right": 0.22,
     }
+    controller.state.detection_history = [
+        {
+            "frame_id": "frame_001",
+            "timestamp_ms": 1500,
+            "source_id": "speaker_a",
+            "class_label": "speech_generic",
+            "bearing_deg": 90.0,
+            "sector": "right",
+            "occluded": False,
+        }
+    ]
 
     assert controller.build_ui_if_available() is not None
     window = controller._ui_window
@@ -2346,7 +2384,42 @@ def test_extension_ui_latest_label_shows_compact_rms(monkeypatch):
     window.refresh_labels()
 
     latest = window._labels["latest"].text
-    assert "rms=front:0.24, right:0.22, rear:0.18, left:0.20" in latest
+    assert "Frame: frame_001" in latest
+    assert "detections=1" in latest
+
+    compass = window._labels["compass"].text
+    assert "bearing 90.0 deg" in compass
+    assert "sector right" in compass
+    assert "confidence 0.80" in compass
+    assert "clear" in compass
+    provider = window._instruments["compass_provider"]
+    assert provider.size == [192, 192]
+    assert len(provider.data) == 192 * 192 * 4
+
+    visible_meters = [
+        row for row in window._instruments["meters"] if row["row"].visible
+    ]
+    assert [row["label"].text.split(":")[0] for row in visible_meters] == [
+        "front",
+        "right",
+        "rear",
+        "left",
+    ]
+    fractions = [row["bar"].model.value for row in visible_meters]
+    assert all(0.0 < fraction <= 1.0 for fraction in fractions)
+    assert fractions[0] == max(fractions)
+    hidden_meters = [
+        row for row in window._instruments["meters"] if not row["row"].visible
+    ]
+    assert hidden_meters
+
+    timeline = [
+        label.text for label in window._instruments["timeline"] if label.visible
+    ]
+    assert len(timeline) == 1
+    assert "speech_generic" in timeline[0]
+    assert "90.0 deg" in timeline[0]
+    assert "clear" in timeline[0]
 
 
 def test_extension_controller_registers_menu_action_hotkey_and_cleans_up(

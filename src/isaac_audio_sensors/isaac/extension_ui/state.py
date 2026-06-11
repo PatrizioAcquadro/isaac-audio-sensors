@@ -169,6 +169,10 @@ class ExtensionUiState:
     latest_source_position_m: tuple[float, float, float] | None = None
     latest_bearing_deg: float | None = None
     latest_sector: str | None = None
+    latest_bearing_confidence: float | None = None
+    latest_candidate_bearings: tuple[float, ...] = ()
+    latest_occluded: bool | None = None
+    latest_timestamp_ms: int | None = None
     latest_array_prim_path: str | None = None
     latest_array_position_m: tuple[float, float, float] | None = None
     latest_array_orientation_xyzw: tuple[float, float, float, float] | None = None
@@ -176,6 +180,7 @@ class ExtensionUiState:
         default_factory=dict
     )
     latest_aggregate_rms: dict[str, float] = field(default_factory=dict)
+    detection_history: list[dict[str, Any]] = field(default_factory=list)
     latest_overlay_primitive_count: int = 0
     latest_overlay_labels: tuple[str, ...] = ()
     latest_overlay_status: str = "none"

@@ -77,6 +77,7 @@ from .constants import (
     SOURCE_POSITION_PRESETS,
 )
 from .formatting import _aggregate_rms_from_frame, _format_vec3, _frame_is_new
+from .instruments import append_detection_history
 from .paths import _resolve_gui_output_path
 from .stage_context import (
     _author_orientation_arg,
@@ -2594,6 +2595,17 @@ class ExtensionController:
             None if first is None else first.doa.estimated_bearing_deg
         )
         self.state.latest_sector = None if first is None else first.doa.bearing_sector
+        self.state.latest_bearing_confidence = (
+            None if first is None else first.doa.bearing_confidence
+        )
+        self.state.latest_candidate_bearings = (
+            () if first is None else tuple(first.doa.candidate_bearing_deg)
+        )
+        self.state.latest_occluded = (
+            None if first is None else bool(getattr(first, "occluded", False))
+        )
+        self.state.latest_timestamp_ms = getattr(frame, "timestamp_ms", None)
+        append_detection_history(self.state.detection_history, frame)
         array_pose = getattr(frame, "array_pose", None)
         self.state.latest_array_prim_path = (
             None

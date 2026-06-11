@@ -36,6 +36,13 @@ from isaac_audio_sensors.isaac.extension_ui import (
     CurrentStageContext,
     ExtensionController,
 )
+from isaac_audio_sensors.isaac.extension_ui.instruments import (
+    compass_view_model,
+    meter_view_models,
+    render_instruments_panel_rgba,
+    timeline_rows,
+    write_rgba_png,
+)
 from isaac_audio_sensors.isaac.pose_resolver import IsaacStagePoseResolver
 
 EXTENSION_ID = "isaac_audio_sensors.omni"
@@ -66,8 +73,15 @@ EXPECTED_UI_SECTIONS = (
     "Author Array",
     "Author Source",
     "Sensor",
+    "Instruments",
     "Replicator",
     "Export",
+)
+EXPECTED_INSTRUMENT_KEYS = (
+    "compass",
+    "compass_provider",
+    "meters",
+    "timeline",
 )
 EXPECTED_UI_BUTTONS = (
     "Refresh",
@@ -328,6 +342,15 @@ def main() -> int:
         )
         evidence["object_attach_live_qa"]["generic_scene"] = generic_result
         _promote_legacy_generic_evidence(evidence, generic_result)
+
+        evidence["instruments"] = _step(
+            evidence,
+            "instruments_live_qa",
+            lambda: _collect_instruments_evidence(
+                controller,
+                screenshot_path=args.out.with_suffix(".instruments.png"),
+            ),
+        )
 
         molmo_stage, molmo_open = _open_molmo_floorplan1_stage(evidence)
         evidence["molmo_floorplan1_open"] = molmo_open
@@ -1177,6 +1200,7 @@ def _inventory_ui_controls(controller: ExtensionController) -> dict[str, Any]:
         return {"status": "failed", "reason": "ui_window_unavailable"}
     sections = tuple(getattr(window, "_sections", ()))
     buttons = tuple(getattr(window, "_buttons", ()))
+    instruments = getattr(window, "_instruments", {}) or {}
     inventory = {
         "sections": list(sections),
         "buttons": list(buttons),
@@ -1186,6 +1210,9 @@ def _inventory_ui_controls(controller: ExtensionController) -> dict[str, Any]:
         "bool_fields": sorted(window._bool_fields),
         "combo_fields": sorted(window._combo_fields),
         "labels": sorted(window._labels),
+        "instruments": sorted(instruments),
+        "instrument_meter_rows": len(instruments.get("meters") or ()),
+        "instrument_timeline_rows": len(instruments.get("timeline") or ()),
     }
     missing = {
         "sections": _missing(EXPECTED_UI_SECTIONS, sections),
@@ -1195,6 +1222,7 @@ def _inventory_ui_controls(controller: ExtensionController) -> dict[str, Any]:
         "int_fields": _missing(EXPECTED_INT_FIELDS, window._int_fields),
         "bool_fields": _missing(EXPECTED_BOOL_FIELDS, window._bool_fields),
         "combo_fields": _missing(EXPECTED_COMBO_FIELDS, window._combo_fields),
+        "instruments": _missing(EXPECTED_INSTRUMENT_KEYS, instruments),
     }
     missing = {key: value for key, value in missing.items() if value}
     return {
@@ -2241,6 +2269,142 @@ def _run_error_checks(stage: Any) -> dict[str, Any]:
     return checks
 
 
+def _collect_instruments_evidence(
+    controller: ExtensionController,
+    *,
+    screenshot_path: Path,
+) -> dict[str, Any]:
+    """Record compass/meter/timeline values and widget visibility evidence."""
+
+    state = controller.state
+    window = getattr(controller, "_ui_window", None)
+    view_model = compass_view_model(
+        bearing_deg=state.latest_bearing_deg,
+        candidate_bearings=state.latest_candidate_bearings,
+        sector=state.latest_sector,
+        confidence=state.latest_bearing_confidence,
+        occluded=state.latest_occluded,
+    )
+    meters = meter_view_models(state.latest_aggregate_rms)
+    rows = timeline_rows(state.detection_history)
+    record: dict[str, Any] = {
+        "frame_id": state.latest_frame_id,
+        "detection_count": state.latest_detection_count,
+        "history_count": len(state.detection_history),
+        "compass": {
+            "bearing_deg": state.latest_bearing_deg,
+            "sector": state.latest_sector,
+            "confidence": state.latest_bearing_confidence,
+            "occluded": state.latest_occluded,
+            "needle_count": len(view_model.needles),
+            "needle_unit_xy": (
+                list(view_model.needles[0].unit_xy) if view_model.needles else None
+            ),
+            "summary": view_model.summary,
+        },
+        "meters": [
+            {"mic_id": meter.mic_id, "db": meter.db, "fraction": meter.fraction}
+            for meter in meters
+        ],
+        "timeline_row_count": len(rows),
+    }
+    widget_record: dict[str, Any] = {"available": False}
+    if window is not None:
+        instruments = getattr(window, "_instruments", {}) or {}
+        meter_rows = instruments.get("meters") or []
+        timeline_labels = instruments.get("timeline") or []
+        compass_label = window._labels.get("compass")
+        widget_record = {
+            "available": True,
+            "compass_image": instruments.get("compass") is not None,
+            "compass_label_text": getattr(compass_label, "text", None),
+            "visible_meter_rows": sum(
+                1
+                for row in meter_rows
+                if getattr(row.get("row"), "visible", False)
+            ),
+            "visible_timeline_rows": sum(
+                1 for label in timeline_labels if getattr(label, "visible", False)
+            ),
+        }
+    record["widgets"] = widget_record
+    record["panel"] = _write_instruments_panel(
+        screenshot_path,
+        view_model=view_model,
+        meters=meters,
+    )
+    record["app_screenshot"] = _capture_app_screenshot(
+        screenshot_path.with_suffix(".app.png")
+    )
+    passed = (
+        bool(view_model.needles)
+        and bool(record["meters"])
+        and record["timeline_row_count"] > 0
+        and widget_record.get("available") is True
+        and widget_record.get("compass_image") is True
+        and int(widget_record.get("visible_meter_rows", 0)) > 0
+        and int(widget_record.get("visible_timeline_rows", 0)) > 0
+        and record["panel"].get("status") == "captured"
+    )
+    record["status"] = "passed" if passed else "failed"
+    return record
+
+
+def _write_instruments_panel(
+    path: Path,
+    *,
+    view_model: Any,
+    meters: Any,
+) -> dict[str, Any]:
+    """Write the compass + meter raster (the compass widget's exact pixels)."""
+
+    try:
+        panel = render_instruments_panel_rgba(view_model, meters)
+        write_rgba_png(path, panel)
+    except Exception as exc:  # noqa: BLE001 - report the exact render error.
+        return {
+            "status": "failed",
+            "path": str(path),
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+    png = _png_info(path)
+    if png is None:
+        return {"status": "failed", "path": str(path), "error": "invalid png"}
+    return {
+        "status": "captured",
+        "path": str(path),
+        "method": "render_instruments_panel_rgba",
+        "file_size_bytes": path.stat().st_size,
+        "width": png["width"],
+        "height": png["height"],
+    }
+
+
+def _capture_app_screenshot(path: Path) -> dict[str, Any]:
+    """Capture the whole app swapchain (viewport plus Kit UI windows)."""
+
+    attempts: list[dict[str, Any]] = []
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with suppress(FileNotFoundError):
+        path.unlink()
+    attempts.append(_attempt_renderer_swapchain_capture(path))
+    record = _captured_screenshot_record(
+        path=path,
+        method="renderer_capture.capture_next_frame_swapchain",
+        attempts=attempts,
+        framed_paths=(),
+    )
+    if record is not None:
+        return record
+    return _screenshot_unavailable(
+        path,
+        reason=_last_attempt_reason(attempts),
+        attempts=attempts,
+        framed_paths=(),
+    )
+
+
 def _capture_viewport_screenshot(
     path: Path,
     *,
@@ -2634,6 +2798,7 @@ def _validate_live_extension_outputs(
         "ui_invalid_numeric_probe",
         "export_latest_without_frame",
         "config_roundtrip_probe",
+        "instruments",
     ):
         probe = evidence.get(probe_name, {})
         if probe.get("status") != "passed":

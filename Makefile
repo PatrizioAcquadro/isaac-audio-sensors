@@ -54,7 +54,7 @@ live-omniverse-extension-ux:
 
 live-omniverse-extension-ux-screenshots:
 	PYTHONPATH=$(CURDIR)/src:$(CURDIR)/exts/isaac_audio_sensors.omni:$(CURDIR)/scripts:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_omniverse_extension_ux.py --require-screenshot
-	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/omniverse_extension_live_ux.json').read_text()); scenarios=data.get('object_attach_live_qa', {}); required=('generic_scene','molmo_floorplan1'); ok=data.get('status') == 'passed' and all(scenarios.get(name, {}).get('screenshot', {}).get('status') == 'captured' and pathlib.Path(scenarios[name]['screenshot']['path']).is_file() for name in required); sys.exit(0 if ok else 1)"
+	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/omniverse_extension_live_ux.json').read_text()); scenarios=data.get('object_attach_live_qa', {}); required=('generic_scene','molmo_floorplan1'); instruments=data.get('instruments', {}); ok=data.get('status') == 'passed' and instruments.get('status') == 'passed' and instruments.get('compass', {}).get('needle_count', 0) > 0 and instruments.get('meters') and instruments.get('panel', {}).get('status') == 'captured' and pathlib.Path(instruments.get('panel', {}).get('path', '')).is_file() and all(scenarios.get(name, {}).get('screenshot', {}).get('status') == 'captured' and pathlib.Path(scenarios[name]['screenshot']['path']).is_file() for name in required); sys.exit(0 if ok else 1)"
 
 live-isaac-lab-audio:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) scripts/live_isaac_lab_audio_smoke.py

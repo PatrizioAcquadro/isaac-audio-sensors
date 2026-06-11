@@ -45,6 +45,18 @@ def _format_edit_value(value: Any) -> str:
     return str(value)
 
 
+def _set_widget_text(widget: Any, text: str) -> None:
+    """Set a label-like widget's text via attribute or model."""
+
+    if widget is None:
+        return
+    if hasattr(widget, "text"):
+        widget.text = text
+        return
+    if hasattr(widget, "model"):
+        _set_model_value(widget.model, text)
+
+
 def _set_model_value(model: Any, value: Any) -> None:
     if model is None:
         return

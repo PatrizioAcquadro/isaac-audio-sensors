@@ -93,6 +93,7 @@ def test_gui_guide_referenced_screenshot_assets_exist_and_are_valid_pngs():
         "assets/isaac_sim_gui/author_array.png",
         "assets/isaac_sim_gui/author_source.png",
         "assets/isaac_sim_gui/export.png",
+        "assets/isaac_sim_gui/instruments.png",
         "assets/isaac_sim_gui/replicator.png",
         "assets/isaac_sim_gui/sensor.png",
         "assets/isaac_sim_gui/stage.png",

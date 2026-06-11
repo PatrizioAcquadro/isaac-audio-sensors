@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .constants import AMBIGUITY_POLICY_CHOICES, BACKEND_CHOICES, LAYOUT_CHOICES
+from .instruments import COMPASS_IMAGE_SIZE, METER_MAX_ROWS, TIMELINE_MAX_ROWS
 
 if TYPE_CHECKING:
     from .window import OmniReferenceWindow
@@ -247,3 +248,56 @@ def build_export_section(window: OmniReferenceWindow) -> None:
                 "Load Config",
                 window.controller.import_config_summary,
             )
+
+
+def build_instruments_section(window: OmniReferenceWindow) -> None:
+    """Build the compass, per-mic RMS meters, and detection timeline."""
+
+    ui = window.ui
+    with window._section("Instruments"):
+        with ui.HStack(spacing=8, height=0):
+            with ui.VStack(spacing=4, width=0):
+                provider = None
+                compass_image = None
+                provider_cls = getattr(ui, "ByteImageProvider", None)
+                image_cls = getattr(ui, "ImageWithProvider", None)
+                if provider_cls is not None and image_cls is not None:
+                    provider = provider_cls()
+                    compass_image = image_cls(
+                        provider,
+                        width=COMPASS_IMAGE_SIZE,
+                        height=COMPASS_IMAGE_SIZE,
+                    )
+                window._labels["compass"] = ui.Label("no bearing", word_wrap=True)
+            with ui.VStack(spacing=2, height=0):
+                ui.Label("Per-mic RMS")
+                progress_cls = getattr(ui, "ProgressBar", None)
+                meter_rows: list[dict[str, object]] = []
+                for _ in range(METER_MAX_ROWS):
+                    with ui.HStack(spacing=4, height=0) as meter_row:
+                        label = ui.Label("", width=150)
+                        bar = progress_cls() if progress_cls is not None else None
+                    meter_row.visible = False
+                    meter_rows.append({"row": meter_row, "label": label, "bar": bar})
+        ui.Label("Detection timeline (newest first)")
+        timeline_labels: list[object] = []
+
+        def _build_timeline_rows() -> None:
+            for _ in range(TIMELINE_MAX_ROWS):
+                row_label = ui.Label("")
+                row_label.visible = False
+                timeline_labels.append(row_label)
+
+        scrolling_cls = getattr(ui, "ScrollingFrame", None)
+        if scrolling_cls is None:
+            with ui.VStack(spacing=1, height=0):
+                _build_timeline_rows()
+        else:
+            with scrolling_cls(height=140), ui.VStack(spacing=1, height=0):
+                _build_timeline_rows()
+    window._instruments = {
+        "compass": compass_image,
+        "compass_provider": provider,
+        "meters": meter_rows,
+        "timeline": timeline_labels,
+    }

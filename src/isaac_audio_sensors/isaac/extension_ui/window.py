@@ -3,25 +3,32 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
 from .constants import OMNI_WINDOW_TITLE
 from .formatting import (
     _format_mic_positions_summary,
-    _format_rms_summary,
     _format_vec3,
-    _optional_float_text,
     _optional_quat_text,
     _optional_vec3_text,
     _profile_summary_text,
     _rig_profile_summary_text,
     _summary_ids,
 )
+from .instruments import (
+    COMPASS_IMAGE_SIZE,
+    TIMELINE_MAX_ROWS,
+    compass_view_model,
+    meter_view_models,
+    render_compass_rgba,
+    timeline_rows,
+)
 from .sections import (
     build_array_section,
     build_control_section,
     build_export_section,
+    build_instruments_section,
     build_replicator_section,
     build_source_section,
     build_stage_section,
@@ -36,6 +43,7 @@ from .ui_models import (
     _new_simple_model,
     _set_combo_index,
     _set_model_value,
+    _set_widget_text,
     _set_window_visibility_changed_fn,
     _ui_fraction,
 )
@@ -60,6 +68,7 @@ class OmniReferenceWindow:
         self._model_change_subscriptions: list[Any] = []
         self._sections: list[str] = []
         self._buttons: list[str] = []
+        self._instruments: dict[str, Any] = {}
 
     def build(self) -> Any:
         """Build a compact task-oriented Kit window."""
@@ -86,6 +95,7 @@ class OmniReferenceWindow:
         build_array_section(self)
         build_source_section(self)
         build_control_section(self)
+        build_instruments_section(self)
         build_replicator_section(self)
         build_export_section(self)
         self._labels["status"] = self.ui.Label(
@@ -130,11 +140,9 @@ class OmniReferenceWindow:
             f"detections={state.latest_detection_count} | "
             f"backend={state.latest_backend or state.backend} | "
             f"source={state.latest_source_prim_path or state.source_prim_path} | "
-            f"pos={_optional_vec3_text(state.latest_source_position_m)} | "
-            f"bearing={_optional_float_text(state.latest_bearing_deg)} | "
-            f"sector={state.latest_sector or 'none'} | "
-            f"rms={_format_rms_summary(state.latest_aggregate_rms)}",
+            f"pos={_optional_vec3_text(state.latest_source_position_m)}",
         )
+        self.refresh_instruments()
         self._set_label(
             "overlay",
             "Overlay: "
@@ -148,6 +156,47 @@ class OmniReferenceWindow:
             f"latest={state.replicator_latest_write_path or 'none'}",
         )
         self._set_label("status", state.status_message)
+
+    def refresh_instruments(self) -> None:
+        """Push the latest frame snapshot into the instrument widgets."""
+
+        if not self._instruments:
+            return
+        state = self.controller.state
+        view_model = compass_view_model(
+            bearing_deg=state.latest_bearing_deg,
+            candidate_bearings=state.latest_candidate_bearings,
+            sector=state.latest_sector,
+            confidence=state.latest_bearing_confidence,
+            occluded=state.latest_occluded,
+        )
+        self._set_label("compass", view_model.summary)
+        provider = self._instruments.get("compass_provider")
+        if provider is not None and hasattr(provider, "set_bytes_data"):
+            image = render_compass_rgba(view_model, size=COMPASS_IMAGE_SIZE)
+            with suppress(Exception):
+                provider.set_bytes_data(
+                    image.flatten().tolist(),
+                    [image.shape[1], image.shape[0]],
+                )
+        meters = meter_view_models(state.latest_aggregate_rms)
+        for index, row in enumerate(self._instruments.get("meters", ())):
+            visible = index < len(meters)
+            if row.get("row") is not None:
+                row["row"].visible = visible
+            if not visible:
+                _set_widget_text(row.get("label"), "")
+                continue
+            meter = meters[index]
+            _set_widget_text(row.get("label"), meter.text)
+            bar = row.get("bar")
+            if bar is not None:
+                _set_model_value(bar.model, meter.fraction)
+        rows = timeline_rows(state.detection_history, max_rows=TIMELINE_MAX_ROWS)
+        for index, label in enumerate(self._instruments.get("timeline", ())):
+            visible = index < len(rows)
+            label.visible = visible
+            _set_widget_text(label, rows[index].text if visible else "")
 
     def sync_state_from_widgets(self) -> None:
         """Read widget models into the pure state before actions."""
@@ -355,11 +404,4 @@ class OmniReferenceWindow:
         setattr(self.controller.state, attr_name, value)
 
     def _set_label(self, name: str, text: str) -> None:
-        label = self._labels.get(name)
-        if label is None:
-            return
-        if hasattr(label, "text"):
-            label.text = text
-            return
-        if hasattr(label, "model"):
-            _set_model_value(label.model, text)
+        _set_widget_text(self._labels.get(name), text)
