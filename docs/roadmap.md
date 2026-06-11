@@ -60,6 +60,19 @@ change.
 - Automatic resampling of file-backed audio assets and a documented
   external-corpus workflow (see [Audio Assets](audio_assets.md)).
 
+## Completed In V1.4.0
+
+- `rediscover_each_update` consumed by the live discovery cache (default
+  `False` keeps the cached path; `True` forces full discovery per capture),
+  with the active policy in `discovery_cache` diagnostics.
+- Cache invalidation on discovery-relevant info-only USD property changes,
+  so newly audio-tagged existing prims are discovered without a manual
+  `rediscover()`.
+- Material-aware, frequency-dependent ray/transmission occlusion: multi-hit
+  per-microphone transmission loss from USD attributes, octave-band material
+  presets, or the flat default; consumed per microphone at L0/L1 and as
+  premix-stage band filtering at L2.
+
 ## Future Work
 
 - Phases 9, 10, and 11 are planned after the `1.0.0` release and are not
@@ -74,9 +87,10 @@ change.
   the current extension writer path, including richer annotator integration
   where public APIs permit it.
 - L3 advanced realism implementation for richer wave/RIR, material,
-  directivity, noise, and estimator realism. Raycast occlusion attenuation
-  shipped in 1.3.0 as the first L3 capability; frequency-dependent
-  transmission, materials, and diffraction remain open.
+  directivity, noise, and estimator realism. Raycast occlusion shipped in
+  1.3.0 and became material-aware, frequency-dependent ray/transmission
+  occlusion in 1.4.0; diffraction, edge effects, and thickness-dependent
+  transmission remain open.
 - L4 sim-real calibration tooling for measured array pose, gain, time-offset,
   noise, validation artifacts, and sim-vs-real comparisons.
 - GCC-PHAT and SRP-PHAT estimation paths as documented public backends.

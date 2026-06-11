@@ -11,7 +11,7 @@
 - `tdoa_synthetic` models direct-path delay from known geometry and optional
   deterministic stress controls; it does not model multipath or microphone
   frequency response, and applies occlusion only as producer-supplied
-  first-order raycast attenuation.
+  per-microphone broadband raycast/transmission attenuation.
 - `room_acoustics` is an optional approximate shoebox simulation and depends on
   `pyroomacoustics`. It generates RIRs and true microphone mixtures, then
   derives TDOA through GCC-PHAT, but it does not provide realistic occlusion,
@@ -33,10 +33,14 @@
   only when the optional dependency is installed and the smoke reports that
   backend as passed.
 - L3 advanced realism is a provisional API direction; its first shipped
-  capability is opt-in Isaac raycast occlusion attenuation (broadband and
-  first-order, no materials or diffraction). Richer wave/RIR, material,
-  directivity, noise, and estimator realism remain future work, and L3 still
-  is not a complete v1 runtime backend.
+  capability is opt-in Isaac raycast occlusion, since `1.4.0` a
+  material-aware, frequency-dependent ray/transmission model (multi-hit,
+  per-microphone, octave-band presets and USD attribute overrides). It is
+  not a wave-acoustic propagation solver: diffraction, edge effects, and
+  thickness-dependent transmission are not modeled, and the preset
+  transmission-loss table is illustrative, not measured truth. Richer
+  wave/RIR, directivity, noise, and estimator realism remain future work,
+  and L3 still is not a complete v1 runtime backend.
 - L4 sim-real calibration is experimental/tooling direction for future
   calibration artifacts and sim-vs-real comparisons; it is not a stable v1
   runtime backend or automatic hardware calibration pipeline.

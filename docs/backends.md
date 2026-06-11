@@ -49,18 +49,25 @@ one pressure-like reference convention:
 
 Since `1.3.0` backends consume optional producer-computed occlusion (the
 Isaac layer's raycast occlusion, the first shipped L3 capability) without
-computing any occlusion themselves. When `AudioSceneSnapshot.occlusion`
-carries a `SourceOcclusion` record for a source/array pair:
+computing any occlusion themselves. Since `1.4.0` consumption is
+per-microphone and band-aware. When `AudioSceneSnapshot.occlusion` carries a
+`SourceOcclusion` record for a source/array pair:
 
-- `geometry_only` and `tdoa_synthetic` apply the per-source `attenuation_db`
-  as extra gain on the synthetic RMS; per-microphone delays and DOA estimates
-  are unchanged.
-- `room_acoustics` scales the source input signal before room simulation, so
-  the mixture, per-source premix RMS, and exported waveforms stay mutually
-  consistent.
+- `geometry_only` and `tdoa_synthetic` apply `per_mic_attenuation_db` as
+  extra gain per microphone (falling back to the uniform `attenuation_db`
+  when the per-mic map is absent), so blocked microphones lose level
+  independently; per-microphone delays and DOA estimates are unchanged.
+- `room_acoustics` attenuates the per-source/per-microphone simulation
+  premix before summing - zero-phase per-band rFFT filtering when
+  `per_mic_band_attenuation_db` is present, a broadband scale otherwise - so
+  the mixture, per-source premix RMS, aggregate RMS, GCC-PHAT diagnostics,
+  and exported waveforms stay mutually consistent. For uniform records this
+  is mathematically identical to scaling the source input signal.
 - Affected detections set the optional `occluded` flag (occlusion factor at
   or above 0.5) and an `occlusion` diagnostics namespace with the factor,
-  applied attenuation, per-microphone blocked map, and hit prim paths.
+  applied attenuation, per-microphone blocked map and attenuation, band data
+  when present, hit prim paths, resolved hit materials, and the
+  `occlusion_model` label.
 
 Without occlusion records, behavior is byte-for-byte unchanged.
 

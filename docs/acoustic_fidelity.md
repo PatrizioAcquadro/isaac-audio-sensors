@@ -123,19 +123,29 @@ opt-in Isaac-layer feature, not a runtime backend: when
 layer casts one PhysX scene-query ray from each active source toward each
 microphone and attaches per-source `SourceOcclusion` records to the optional,
 additive `AudioSceneSnapshot.occlusion` field. The pure core only consumes
-the records: L0/L1 apply the producer-supplied `attenuation_db` as extra
-per-source gain (delays and DOA estimates are unchanged), L2 scales the
-source input signal so the mixture, per-source premix RMS, and exported
-waveforms stay consistent, and affected detections carry the optional
-`occluded` flag plus an `occlusion` diagnostics namespace. Bearing-ray
-overlays turn amber (partially blocked) or red (occluded).
+the records, affected detections carry the optional `occluded` flag plus an
+`occlusion` diagnostics namespace, and bearing-ray overlays turn amber
+(partially blocked) or red (occluded).
 
-The model is deliberately first-order: a blocked direct path applies one
-configurable broadband attenuation (`occlusion_max_attenuation_db`, default
-20 dB) scaled by the fraction of blocked source-to-microphone rays.
-Frequency-dependent transmission, material properties, diffraction, and edge
-effects remain future L3 work, so realistic occlusion/material acoustics stay
-outside the v1 promise, and L3 itself remains provisional.
+Since 1.4.0 the model is material-aware, frequency-dependent ray/transmission
+occlusion. Each ray walks past every blocking surface (one thick collider
+counts as one partition), accumulating per-microphone transmission loss
+(capped, default 60 dB). Loss per blocking prim resolves through explicit
+`ias:transmission_loss_db` / `ias:transmission_loss_db_bands` USD attributes,
+then an octave-band preset table (`125 Hz` to `4 kHz`,
+`OCCLUSION_BAND_CENTERS_HZ`) matched against bound-material or prim-path
+tokens, then the flat `occlusion_max_attenuation_db` default (20 dB). L0/L1
+apply the per-microphone broadband attenuation independently (delays and DOA
+estimates are unchanged); L2 applies per-source/per-microphone attenuation to
+the simulation premix before summing - zero-phase per-band filtering when
+band data exists - so the mixture, per-source premix RMS, aggregate RMS,
+GCC-PHAT diagnostics, and exported waveforms stay mutually consistent.
+
+This is a ray/transmission model, not a wave-acoustic propagation solver:
+diffraction, edge effects, and thickness-dependent transmission are not
+modeled, the preset transmission-loss table is illustrative rather than
+measured truth, realistic occlusion/material acoustics stay outside the v1
+promise, and L3 itself remains provisional.
 
 ## L4 `sim_real_calibration`
 

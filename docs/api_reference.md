@@ -226,19 +226,31 @@ details, and a `discovery_cache` summary.
 Since `1.3.0` the live path is cached: the first capture runs full semantic
 discovery (one `stage.Traverse()`), and steady-state ticks re-resolve only
 poses and attributes for the cached audio prim paths. The cache invalidates
-itself on `Usd.Notice.ObjectsChanged` resyncs (real USD stages), on missing
-cached prims, and on parameter changes; `sensor.rediscover()` forces full
-re-discovery on the next capture.
+itself on `Usd.Notice.ObjectsChanged` resyncs (real USD stages), on
+info-only changes to discovery-relevant properties (the `ias:` marker
+attributes plus the `filePath`/`inputs:file`/`inputs:audio`/`startTime`/
+`duration`/`gain` aliases discovery reads - so newly audio-tagged existing
+prims are picked up automatically), on missing cached prims, and on
+parameter changes. Pose-only property changes (`xformOp:*`) never
+invalidate. `sensor.rediscover()` forces full re-discovery on the next
+capture and remains the guaranteed fallback for duck-typed stages without
+USD notices. Setting `IsaacAudioSceneBindingCfg.rediscover_each_update=True`
+(default `False`) instead forces full discovery on every capture; the active
+policy is reported as `discovery_cache["policy"]`.
 
 With `occlusion_enabled=True` (off by default), each live capture also runs
 PhysX scene-query raycasts from every active source to every microphone and
 attaches `SourceOcclusion` records to the snapshot. Backends consume them as
-extra attenuation, detections gain the optional `occluded` flag plus an
-`occlusion` diagnostics namespace, and bearing-ray overlays are colored by
-occlusion state. `occlusion_max_attenuation_db` (default 20.0) sets the
-fully-occluded attenuation, and `occlusion_raycaster` accepts an injectable
-raycaster for tests. Outside Isaac Sim, occlusion degrades gracefully and
-records an `occlusion` status in the stage diagnostics.
+per-microphone extra attenuation, detections gain the optional `occluded`
+flag plus an `occlusion` diagnostics namespace, and bearing-ray overlays are
+colored by occlusion state. `occlusion_max_attenuation_db` (default 20.0)
+sets the default per-hit transmission loss, `occlusion_attenuation_cap_db`
+(default 60.0) caps accumulated multi-hit loss, `occlusion_raycaster` and
+`occlusion_transmission_resolver` accept injectable implementations for
+tests, and material loss resolves through `UsdTransmissionLossResolver`
+(explicit `ias:transmission_loss_db[_bands]` attributes, then material/path
+preset tokens, then the flat default). Outside Isaac Sim, occlusion degrades
+gracefully and records an `occlusion` status in the stage diagnostics.
 
 Stage binding entry points:
 
@@ -266,7 +278,9 @@ Semantic discovery APIs:
   patterns, class-label overrides, default microphone layout, default active
   windows, required array/source flags, and metadata precedence diagnostics.
 - `IsaacAudioSceneBindingCfg`: Isaac Sim-facing binding config with
-  `preferred_array`, `preferred_source`, and `rediscover_each_update`.
+  `preferred_array`, `preferred_source`, and `rediscover_each_update`
+  (default `False`: cache until invalidated; `True` forces full discovery on
+  every capture).
 - `discover_stage_audio(stage, cfg=...)`: returns discovered array/source
   records, selected entities, and diagnostics.
 - `IsaacAudioArraySensor.from_discovered_stage(stage, binding_cfg=...)`:

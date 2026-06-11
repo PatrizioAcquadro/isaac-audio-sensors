@@ -14,7 +14,7 @@ Showcase site: <https://isaac-audio-showcase-site.vercel.app>
 
 Source repository: <https://github.com/PatrizioAcquadro/isaac-audio-sensors>
 
-Current package release: `1.2.0`. The frame schema version remains separate at
+Current package release: `1.4.0`. The frame schema version remains separate at
 `ias.audio_sensor_frame.v1`.
 
 ## Features
@@ -91,7 +91,7 @@ Alex/SquadBot validation before releasing the sensor package.
 For the local final wheel after `make build`:
 
 ```bash
-python -m pip install dist/isaac_audio_sensors-1.2.0-py3-none-any.whl
+python -m pip install dist/isaac_audio_sensors-1.4.0-py3-none-any.whl
 python -m isaac_audio_sensors --version
 ```
 

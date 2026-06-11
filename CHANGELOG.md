@@ -1,5 +1,79 @@
 # Changelog
 
+## 1.4.0 - 2026-06-11
+
+Occlusion realism and cache-semantics release: discovery caching becomes
+semantically explicit, and occlusion upgrades from a uniform per-source
+attenuation to a material-aware, frequency-dependent ray/transmission model
+that is per-microphone and multi-hit. It is not a wave-acoustic propagation
+solver: diffraction, edge effects, and thickness-dependent transmission stay
+deferred. The frame schema version is unchanged at
+`ias.audio_sensor_frame.v1`; pre-existing v1 traces remain valid and all new
+`SourceOcclusion` fields and diagnostics are additive.
+
+Cache semantics:
+
+- `IsaacAudioSceneBindingCfg.rediscover_each_update` is now consumed. The
+  default flips from the never-read `True` to `False`, which documents the
+  actual shipped 1.3.0 behavior (cache until invalidated) without changing
+  runtime behavior; setting `True` now really forces full discovery (one
+  `stage.Traverse()`) on every capture. The active policy is reported as
+  `diagnostics["stage_snapshot"]["discovery_cache"]["policy"]`.
+- The USD notice handler now also inspects `GetChangedInfoOnlyPaths()`:
+  info-only changes to discovery-relevant properties (the `ias:` marker
+  attributes plus the `filePath`/`inputs:file`/`inputs:audio`/`startTime`/
+  `duration`/`gain` aliases discovery reads) invalidate the cache, so newly
+  audio-tagged existing prims are discovered without a manual
+  `rediscover()`. Pose-only (`xformOp:*`) and unrelated property changes
+  keep the cached path; `rediscover()` remains the guaranteed fallback for
+  duck-typed stages without notices.
+
+Occlusion physics (documented value changes where multi-hit, partial
+blockage, or materials are in play; fully-blocked and clear default
+single-wall numbers are unchanged from 1.3.0):
+
+- Ray traversal walks past every blocking surface, deduplicated per prim
+  (one thick collider counts as one partition), accumulating per-microphone
+  transmission loss capped at `occlusion_attenuation_cap_db` (default
+  60 dB).
+- Per-hit loss resolves through the new `UsdTransmissionLossResolver`:
+  explicit `ias:transmission_loss_db` / `ias:transmission_loss_db_bands`
+  attributes on the hit prim, then an illustrative octave-band preset table
+  (`OCCLUSION_BAND_CENTERS_HZ`, 125 Hz - 4 kHz: concrete, brick, metal,
+  drywall, plaster, glass, wood, fabric, curtain) matched against
+  bound-material or prim-path tokens, then the flat
+  `occlusion_max_attenuation_db` default. Resolvers are injectable via
+  `occlusion_transmission_resolver`.
+- `SourceOcclusion` gains additive optional fields:
+  `per_mic_attenuation_db`, `per_mic_band_attenuation_db`,
+  `band_centers_hz`, `per_mic_hit_prim_paths`, `hit_materials`, and
+  `occlusion_model` (`"raycast_transmission_v1"`); the per-source
+  `attenuation_db` is now the mean of the per-microphone values (equal to
+  the legacy `occlusion_factor * max` for single-hit defaults).
+- L0/L1 consume `per_mic_attenuation_db` so blocked microphones lose level
+  independently while delays and DOA stay geometric; backends fall back to
+  the uniform `attenuation_db` for records without per-mic data.
+- L2 applies per-source/per-microphone attenuation to the simulation premix
+  before summing (identical to input scaling for uniform records by
+  linearity), with zero-phase per-band rFFT filtering when band data is
+  present, so the mixture, per-source premix RMS, aggregate RMS, GCC-PHAT
+  diagnostics, and exported WAVs stay mutually consistent. A spectral test
+  proves a material wall attenuates a high overtone far more than the low
+  fundamental in the exported waveform.
+- The detection `occlusion` diagnostics namespace additively gains the
+  per-mic attenuation and band maps, per-mic hit paths, resolved hit
+  materials, and the occlusion model label.
+- The `make live-isaac-occlusion` gate adds a material-wall phase (an
+  authored 12 dB `ias:transmission_loss_db` measured within 0.5 dB through
+  real PhysX raycasts) and a `rediscover_each_update=True` policy phase
+  (one full discovery per update, asserted by counter).
+
+Deferred:
+
+- Diffraction and edge effects.
+- Thickness-dependent transmission (per-prim loss only).
+- An Isaac Lab `occluded` observation buffer.
+
 ## 1.3.0 - 2026-06-10
 
 Isaac-native occlusion and live-path caching release. The Isaac layer now
