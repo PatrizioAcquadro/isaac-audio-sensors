@@ -33,12 +33,18 @@ class StagePose:
 class IsaacStagePoseResolver:
     """Resolve live world poses from real USD APIs or duck-typed test stages."""
 
-    def __init__(self, stage: Any, *, time_code: Any | None = None) -> None:
+    def __init__(
+        self,
+        stage: Any,
+        *,
+        time_code: Any | None = None,
+        prims: tuple[Any, ...] | None = None,
+    ) -> None:
         if stage is None or not hasattr(stage, "Traverse"):
             raise ValueError("stage must provide a Traverse method.")
         self.stage = stage
         self.time_code = time_code
-        self.prims = tuple(stage.Traverse())
+        self.prims = tuple(stage.Traverse()) if prims is None else tuple(prims)
         self.prims_by_path = {_prim_path(prim): prim for prim in self.prims}
 
     def resolve_world_pose(

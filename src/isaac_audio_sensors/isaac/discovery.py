@@ -296,15 +296,24 @@ def discover_stage_audio(
     preferred_array: str | None = None,
     preferred_source: str | None = None,
     diagnostics_out: dict[str, Any] | None = None,
+    prims: tuple[Any, ...] | None = None,
 ) -> IsaacAudioDiscoveryResult:
-    """Discover arrays and sources from semantic USD metadata and names."""
+    """Discover arrays and sources from semantic USD metadata and names.
+
+    When ``prims`` is provided, the stage is not re-traversed; the supplied
+    prim tuple backs the pose resolver instead.
+    """
 
     discovery_cfg = cfg or IsaacAudioDiscoveryCfg()
     resolved_time_code = _resolve_time_code(
         usd_time_code=usd_time_code,
         time_code=time_code,
     )
-    resolver = IsaacStagePoseResolver(stage, time_code=resolved_time_code)
+    resolver = IsaacStagePoseResolver(
+        stage,
+        time_code=resolved_time_code,
+        prims=prims,
+    )
     resolved_stage_id = stage_id or resolve_stage_id(stage)
     diagnostics = _base_diagnostics(
         stage_id=resolved_stage_id,

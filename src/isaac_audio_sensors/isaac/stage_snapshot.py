@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from isaac_audio_sensors.core.config import AudioSensorConfig, build_scene_snapshot
@@ -28,6 +29,7 @@ from isaac_audio_sensors.core.types import (
 )
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioDiscoveryCfg,
+    IsaacAudioDiscoveryResult,
     discover_stage_audio,
 )
 from isaac_audio_sensors.isaac.pose_resolver import (
@@ -74,41 +76,13 @@ def build_stage_snapshot(
     and simple ``xformOp:translate``/``xformOp:orient`` parent stacks.
     """
 
-    cfg = discovery_cfg or IsaacAudioDiscoveryCfg(
-        discovery_roots=("/World",),
+    cfg = effective_discovery_cfg(
+        discovery_cfg=discovery_cfg,
+        array_prim_path=array_prim_path,
         robot_base_prim_path=robot_base_prim_path,
-        required_arrays=array_prim_path is not None,
-        required_sources=source_prim_path is not None,
+        source_prim_path=source_prim_path,
         default_class_label=default_class_label,
-        strict_candidate_errors=True,
     )
-    if discovery_cfg is not None and robot_base_prim_path is not None:
-        cfg = IsaacAudioDiscoveryCfg(
-            discovery_roots=cfg.discovery_roots,
-            robot_base_prim_path=robot_base_prim_path,
-            array_roots=cfg.array_roots,
-            source_roots=cfg.source_roots,
-            restrict_arrays_to_robot=cfg.restrict_arrays_to_robot,
-            include_globs=cfg.include_globs,
-            exclude_globs=cfg.exclude_globs,
-            include_regexes=cfg.include_regexes,
-            exclude_regexes=cfg.exclude_regexes,
-            array_name_patterns=cfg.array_name_patterns,
-            array_type_name_patterns=cfg.array_type_name_patterns,
-            source_name_patterns=cfg.source_name_patterns,
-            source_type_names=cfg.source_type_names,
-            default_class_label=cfg.default_class_label,
-            source_class_label_overrides=cfg.source_class_label_overrides,
-            default_microphone_layout=cfg.default_microphone_layout,
-            default_sample_rate_hz=cfg.default_sample_rate_hz,
-            coordinate_convention=cfg.coordinate_convention,
-            required_arrays=cfg.required_arrays or array_prim_path is not None,
-            required_sources=cfg.required_sources or source_prim_path is not None,
-            default_source_start_time_s=cfg.default_source_start_time_s,
-            default_source_duration_s=cfg.default_source_duration_s,
-            metadata_precedence=cfg.metadata_precedence,
-            strict_candidate_errors=cfg.strict_candidate_errors,
-        )
     result = discover_stage_audio(
         stage,
         cfg=cfg,
@@ -125,6 +99,49 @@ def build_stage_snapshot(
     if diagnostics_out is not None:
         diagnostics_out.clear()
         diagnostics_out.update(diagnostics)
+
+    return snapshot_from_discovery(
+        result,
+        timestamp_ms=timestamp_ms,
+        preferred_source=preferred_source,
+    )
+
+
+def effective_discovery_cfg(
+    *,
+    discovery_cfg: IsaacAudioDiscoveryCfg | None,
+    array_prim_path: str | None,
+    robot_base_prim_path: str | None,
+    source_prim_path: str | None,
+    default_class_label: str = "Sound",
+) -> IsaacAudioDiscoveryCfg:
+    """Resolve the discovery config used for one live stage snapshot."""
+
+    cfg = discovery_cfg or IsaacAudioDiscoveryCfg(
+        discovery_roots=("/World",),
+        robot_base_prim_path=robot_base_prim_path,
+        required_arrays=array_prim_path is not None,
+        required_sources=source_prim_path is not None,
+        default_class_label=default_class_label,
+        strict_candidate_errors=True,
+    )
+    if discovery_cfg is not None and robot_base_prim_path is not None:
+        cfg = replace(
+            cfg,
+            robot_base_prim_path=robot_base_prim_path,
+            required_arrays=cfg.required_arrays or array_prim_path is not None,
+            required_sources=cfg.required_sources or source_prim_path is not None,
+        )
+    return cfg
+
+
+def snapshot_from_discovery(
+    result: IsaacAudioDiscoveryResult,
+    *,
+    timestamp_ms: int,
+    preferred_source: str | None,
+) -> AudioSceneSnapshot:
+    """Assemble the core snapshot from one discovery result."""
 
     return AudioSceneSnapshot(
         stage_id=result.stage_id,

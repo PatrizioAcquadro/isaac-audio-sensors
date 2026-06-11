@@ -29,6 +29,7 @@ from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioSceneBindingCfg,
     discover_stage_audio,
 )
+from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 from isaac_audio_sensors.isaac.viz.debug_draw import IsaacDebugDrawer
 from isaac_audio_sensors.isaac.viz.overlays import (
@@ -79,6 +80,7 @@ class IsaacAudioArraySensor:
         init=False,
     )
     _update_subscription: Any | None = field(default=None, init=False)
+    _stage_cache: StageAudioCache | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         if self.update_period_s <= 0.0:
@@ -297,6 +299,9 @@ class IsaacAudioArraySensor:
         if self.debug_drawer is not None:
             self.debug_drawer.close()
             self.debug_drawer = None
+        if self._stage_cache is not None:
+            self._stage_cache.close()
+            self._stage_cache = None
         self.latest_debug_primitives = ()
         self._closed = True
 
@@ -423,6 +428,17 @@ class IsaacAudioArraySensor:
         self._latest_sensor = sensor
         return frame
 
+    def rediscover(self) -> None:
+        """Force full stage re-discovery (one Traverse) on the next capture."""
+
+        if self._stage_cache is not None:
+            self._stage_cache.rediscover()
+
+    def _ensure_stage_cache(self) -> StageAudioCache:
+        if self._stage_cache is None:
+            self._stage_cache = StageAudioCache(self.stage)
+        return self._stage_cache
+
     def _resolve_waveform_sink(self) -> WaveformSink | None:
         """Build the waveform sink on first use when waveform_dir is set."""
 
@@ -447,11 +463,11 @@ class IsaacAudioArraySensor:
     ) -> AudioSceneSnapshot:
         effective_source_prim_path = source_prim_path or self.source_prim_path
         if self.stage is not None:
+            cache = self._ensure_stage_cache()
             if self.scene_binding_cfg is not None:
                 binding = self.scene_binding_cfg
                 diagnostics: dict[str, Any] = {}
-                scene = build_stage_snapshot(
-                    self.stage,
+                scene = cache.snapshot(
                     timestamp_ms=timestamp_ms,
                     robot_base_prim_path=binding.robot_base_prim_path,
                     source_prim_path=effective_source_prim_path,
@@ -466,8 +482,7 @@ class IsaacAudioArraySensor:
                 raise RuntimeError("Live Isaac stage sensor has no array prim path.")
             else:
                 diagnostics = {}
-                scene = build_stage_snapshot(
-                    self.stage,
+                scene = cache.snapshot(
                     timestamp_ms=timestamp_ms,
                     array_prim_path=self.array_prim_path,
                     robot_base_prim_path=self.robot_base_prim_path,
