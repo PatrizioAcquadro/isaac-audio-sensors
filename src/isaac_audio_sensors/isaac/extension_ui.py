@@ -255,6 +255,7 @@ class ExtensionUiState:
     update_period_s: float = 0.05
     max_events: int = 8
     debug_overlay_enabled: bool = True
+    occlusion_enabled: bool = False
     trace_enabled: bool = True
     jsonl_trace_path: str = DEFAULT_TRACE_FILENAME
     latest_frame_export_path: str = DEFAULT_LATEST_FRAME_FILENAME
@@ -1991,6 +1992,7 @@ class ExtensionController:
         update_period_s: float | None = None,
         max_events: int | None = None,
         debug_draw: bool | None = None,
+        occlusion: bool | None = None,
         writer_path: str | Path | None = None,
     ) -> IsaacAudioArraySensor | None:
         """Create or replace the live sensor from the current UI state."""
@@ -2006,6 +2008,8 @@ class ExtensionController:
                 self.state.max_events = int(max_events)
             if debug_draw is not None:
                 self.state.debug_overlay_enabled = bool(debug_draw)
+            if occlusion is not None:
+                self.state.occlusion_enabled = bool(occlusion)
             if writer_path is not None:
                 self.state.trace_enabled = True
                 self.state.jsonl_trace_path = str(writer_path)
@@ -2259,6 +2263,7 @@ class ExtensionController:
                     "max_events": state.max_events,
                     "ambiguity_policy": state.ambiguity_policy,
                     "debug_overlay_enabled": state.debug_overlay_enabled,
+                    "occlusion_enabled": state.occlusion_enabled,
                     "writer_enabled": state.trace_enabled,
                     "writer_path": writer_path,
                     "runtime_options": {
@@ -2425,6 +2430,7 @@ class ExtensionController:
                 max_events=state.max_events,
                 ambiguity_policy=state.ambiguity_policy,
                 debug_draw=state.debug_overlay_enabled,
+                occlusion_enabled=state.occlusion_enabled,
                 writer_path=writer_path,
             )
 
@@ -2444,6 +2450,7 @@ class ExtensionController:
             max_events=state.max_events,
             ambiguity_policy=state.ambiguity_policy,
             debug_draw=state.debug_overlay_enabled,
+            occlusion_enabled=state.occlusion_enabled,
             writer_path=writer_path,
         )
         if sensor.stage_snapshot is not None:
@@ -2903,6 +2910,7 @@ class ExtensionController:
                     "max_events": self.state.max_events,
                     "ambiguity_policy": self.state.ambiguity_policy,
                     "debug_overlay_enabled": self.state.debug_overlay_enabled,
+                    "occlusion_enabled": self.state.occlusion_enabled,
                 },
                 "package_recording": {
                     "jsonl_enabled": self.state.trace_enabled,
@@ -3111,6 +3119,12 @@ class ExtensionController:
             lifecycle.get(
                 "debug_overlay_enabled",
                 self.state.debug_overlay_enabled,
+            )
+        )
+        self.state.occlusion_enabled = bool(
+            lifecycle.get(
+                "occlusion_enabled",
+                self.state.occlusion_enabled,
             )
         )
         self.state.trace_enabled = bool(
@@ -3565,6 +3579,7 @@ class OmniReferenceWindow:
             self._float_row("Period s", "update_period_s")
             self._int_row("Max Events", "max_events")
             self._bool_row("Overlay", "debug_overlay_enabled")
+            self._bool_row("Occlusion", "occlusion_enabled")
             self._bool_row("JSONL", "trace_enabled")
             self._string_row("Writer Path", "jsonl_trace_path")
             with ui.HStack(spacing=4):

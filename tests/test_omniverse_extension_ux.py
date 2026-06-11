@@ -2198,6 +2198,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
     assert set(controller._ui_window._bool_fields) == {
         "author_child_microphones",
         "debug_overlay_enabled",
+        "occlusion_enabled",
         "replicator_enabled",
         "trace_enabled",
     }
@@ -2573,6 +2574,7 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     ambiguity_widget, ambiguity_choices = window._combo_fields["ambiguity_policy"]
     ambiguity_widget.model.set_value(len(ambiguity_choices) - 1)
     window._bool_fields["debug_overlay_enabled"].model.set_value(False)
+    window._bool_fields["occlusion_enabled"].model.set_value(True)
     window._bool_fields["trace_enabled"].model.set_value(True)
     window._bool_fields["replicator_enabled"].model.set_value(True)
     window.sync_state_from_widgets()
@@ -2586,6 +2588,7 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     assert controller.state.backend == "geometry_only"
     assert controller.state.layout_name == "mono"
     assert controller.state.debug_overlay_enabled is False
+    assert controller.state.occlusion_enabled is True
     assert controller.state.replicator_enabled is True
 
     path = controller.export_config_summary()
@@ -2604,6 +2607,7 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     assert summary["object_binding"]["source_local_offset_m"] == [0.25, 0.5, 0.75]
     assert summary["backend"] == "geometry_only"
     assert summary["lifecycle"]["debug_overlay_enabled"] is False
+    assert summary["lifecycle"]["occlusion_enabled"] is True
     assert summary["recording"]["package_jsonl"]["enabled"] is True
     assert summary["recording"]["replicator"]["enabled"] is True
 
@@ -2630,6 +2634,7 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     assert imported.state.source_prim_path == "/World/EditedSource"
     assert imported.state.object_prim_path == "/World/EditedObject"
     assert imported.state.debug_overlay_enabled is False
+    assert imported.state.occlusion_enabled is True
     assert imported.state.trace_enabled is True
     assert imported.state.replicator_enabled is True
     imported_backend_widget, _ = imported_window._combo_fields["backend"]
