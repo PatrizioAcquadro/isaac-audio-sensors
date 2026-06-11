@@ -139,6 +139,9 @@ class ExtensionUiState:
     occlusion_enabled: bool = False
     trace_enabled: bool = True
     jsonl_trace_path: str = DEFAULT_TRACE_FILENAME
+    waveform_enabled: bool = False
+    waveform_dir: str = "live_waveforms"
+    waveform_mode: str = "per_frame"
     latest_frame_export_path: str = DEFAULT_LATEST_FRAME_FILENAME
     config_export_path: str = DEFAULT_CONFIG_FILENAME
     config_import_path: str = DEFAULT_CONFIG_FILENAME
@@ -181,6 +184,8 @@ class ExtensionUiState:
     )
     latest_aggregate_rms: dict[str, float] = field(default_factory=dict)
     detection_history: list[dict[str, Any]] = field(default_factory=list)
+    latest_waveform_paths: tuple[str, ...] = ()
+    audition_status: str = "Audition idle."
     latest_overlay_primitive_count: int = 0
     latest_overlay_labels: tuple[str, ...] = ()
     latest_overlay_status: str = "none"

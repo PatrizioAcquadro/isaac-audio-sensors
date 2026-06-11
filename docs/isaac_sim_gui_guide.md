@@ -724,6 +724,62 @@ under `instruments` in
 compass+meter panel to
 `outputs/isaac_audio_sensors/omniverse_extension_live_ux.instruments.png`.
 
+## Audio Output Section
+
+![Waveform and spectrogram previews rendered by the panel's preview pipeline from an exported demo WAV.](assets/isaac_sim_gui/audio_output.png)
+
+### What It Is For
+
+`Audio Output` connects the GUI to the package's multichannel WAV export
+(`core.io.waveforms`) and previews the result: a min/max waveform envelope, a
+numpy-STFT spectrogram (low frequencies at the bottom, -80 dB floor), and
+best-effort audition of the latest exported file.
+
+### When To Use It
+
+Use it with the `room_acoustics` backend - that is the only v1 backend that
+synthesizes waveforms, and it requires the optional `room` extra
+(`pyroomacoustics`, `soundfile`) inside the Isaac python environment. With
+`geometry_only` or `tdoa_synthetic` the panel keeps reporting
+`No waveform yet`.
+
+### Controls
+
+`WAV Export` toggles waveform export for the next `Start`. The setting is
+applied when the sensor is (re)configured, so toggle it before starting.
+
+`WAV Dir` is the output directory, resolved against the package output root.
+The default writes to:
+
+```text
+outputs/isaac_audio_sensors/live_waveforms
+```
+
+`WAV Mode` selects the writer:
+
+- `per_frame` - one deterministic `<frame-id>.wav` per update.
+- `session` - one growing session WAV with overlap-added reverb tails.
+
+`Play` auditions the most recent WAV via `omni.audioplayer` when that Kit
+extension is available, falling back to the system audio player. `Stop Audio`
+stops playback. `Open WAV Folder` opens the resolved output directory. The
+status line under the buttons reports exactly which path played (or why
+nothing could).
+
+### Expected Output
+
+After an update on the `room_acoustics` backend, the label shows the latest
+file with its shape, for example:
+
+```text
+Latest WAV: outputs/isaac_audio_sensors/live_waveforms/frame_000003.wav | 4 ch | 16000 Hz | 1.00 s
+```
+
+and the waveform/spectrogram images refresh for that file. The live UX gate
+exercises this end to end on the room backend and records the result under
+`audio_output` in `outputs/isaac_audio_sensors/omniverse_extension_live_ux.json`
+(status `skipped` with a reason when the Isaac python lacks the room extra).
+
 ## Replicator Section
 
 ![Replicator section of the Isaac Audio Sensors window.](assets/isaac_sim_gui/replicator.png)

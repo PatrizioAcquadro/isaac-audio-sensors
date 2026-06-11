@@ -65,9 +65,14 @@ from isaac_audio_sensors.isaac.viz.overlays import (
     debug_primitives_to_dicts,
 )
 
+from .audition import AuditionPlayer
 from .constants import (
     AMBIGUITY_POLICY_CHOICES,
     BACKEND_CHOICES,
+    DEFAULT_ROOM_ABSORPTION,
+    DEFAULT_ROOM_DIMENSIONS_M,
+    DEFAULT_ROOM_ID,
+    DEFAULT_ROOM_MAX_ORDER,
     LAYOUT_CHOICES,
     OMNI_ACTION_TOGGLE_WINDOW,
     OMNI_DEFAULT_HOTKEY,
@@ -142,6 +147,7 @@ class ExtensionController:
         self._registered_hotkey_key: str | None = None
         self._controller_update_subscription: Any | None = None
         self._menu_items: list[Any] = []
+        self._audition_player = AuditionPlayer()
 
     def on_startup(self, ext_id: str) -> None:
         """Initialize the import-safe controller and lazily build Kit UI."""
@@ -1882,6 +1888,70 @@ class ExtensionController:
         except Exception as exc:
             self._record_error("Sensor stop failed", exc)
 
+    def play_latest_waveform(self) -> str | None:
+        """Audition the most recently exported WAV through Kit or the OS."""
+
+        try:
+            paths = self.state.latest_waveform_paths
+            if not paths:
+                raise ExtensionActionError(
+                    "No exported waveform yet. Enable WAV Export and run the "
+                    "room_acoustics backend, then Update."
+                )
+            status = self._audition_player.play(paths[-1])
+            self.state.audition_status = status
+            self._set_status(status)
+            return status
+        except Exception as exc:
+            self._record_error("Audition failed", exc)
+            return None
+
+    def stop_audition(self) -> str:
+        """Stop whatever audition playback is active."""
+
+        status = self._audition_player.stop()
+        self.state.audition_status = status
+        self._set_status(status)
+        return status
+
+    def open_waveform_folder(self) -> Path | None:
+        """Open the resolved waveform output folder with the system browser."""
+
+        try:
+            import webbrowser
+
+            folder = _resolve_gui_output_path(self.state.waveform_dir)
+            folder.mkdir(parents=True, exist_ok=True)
+            opened = webbrowser.open(folder.as_uri())
+            self._set_status(
+                f"Opened waveform folder {folder}."
+                if opened
+                else f"Waveform folder is {folder} (no system opener available)."
+            )
+            return folder
+        except Exception as exc:
+            self._record_error("Open waveform folder failed", exc)
+            return None
+
+    def _waveform_dir_or_none(self) -> Path | None:
+        if not self.state.waveform_enabled:
+            return None
+        return _resolve_gui_output_path(self.state.waveform_dir)
+
+    def _room_spec_or_none(self) -> Any | None:
+        """Default shoebox for room_acoustics; stage scenes carry no room."""
+
+        if self.state.backend != "room_acoustics":
+            return None
+        from isaac_audio_sensors.core.types import RoomAcousticsSpec
+
+        return RoomAcousticsSpec(
+            room_id=DEFAULT_ROOM_ID,
+            dimensions_m=DEFAULT_ROOM_DIMENSIONS_M,
+            absorption=DEFAULT_ROOM_ABSORPTION,
+            max_order=DEFAULT_ROOM_MAX_ORDER,
+        )
+
     def update_sensor(self, *, force: bool = True) -> Any | None:
         """Force one frame and update UI/export state."""
 
@@ -2078,6 +2148,9 @@ class ExtensionController:
                     "occlusion_enabled": state.occlusion_enabled,
                     "writer_enabled": state.trace_enabled,
                     "writer_path": writer_path,
+                    "waveform_enabled": state.waveform_enabled,
+                    "waveform_dir": state.waveform_dir,
+                    "waveform_mode": state.waveform_mode,
                     "runtime_options": {
                         "subscribe_to_update_stream_default": True,
                         "import_safe_outside_isaac": True,
@@ -2243,6 +2316,9 @@ class ExtensionController:
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 writer_path=writer_path,
+                waveform_dir=self._waveform_dir_or_none(),
+                waveform_mode=state.waveform_mode,
+                room=self._room_spec_or_none(),
             )
 
         binding_cfg = IsaacAudioSceneBindingCfg(
@@ -2263,6 +2339,9 @@ class ExtensionController:
             debug_draw=state.debug_overlay_enabled,
             occlusion_enabled=state.occlusion_enabled,
             writer_path=writer_path,
+            waveform_dir=self._waveform_dir_or_none(),
+            waveform_mode=state.waveform_mode,
+            room=self._room_spec_or_none(),
         )
         if sensor.stage_snapshot is not None:
             selected = sensor.stage_snapshot.array_by_id(sensor.array_id)
@@ -2605,6 +2684,9 @@ class ExtensionController:
             None if first is None else bool(getattr(first, "occluded", False))
         )
         self.state.latest_timestamp_ms = getattr(frame, "timestamp_ms", None)
+        self.state.latest_waveform_paths = tuple(
+            str(path) for path in (getattr(frame, "waveform_paths", ()) or ())
+        )
         append_detection_history(self.state.detection_history, frame)
         array_pose = getattr(frame, "array_pose", None)
         self.state.latest_array_prim_path = (
@@ -2949,6 +3031,18 @@ class ExtensionController:
                 self.state.occlusion_enabled,
             )
         )
+        self.state.waveform_enabled = bool(
+            lifecycle.get("waveform_enabled", self.state.waveform_enabled)
+        )
+        self.state.waveform_dir = str(
+            lifecycle.get("waveform_dir", self.state.waveform_dir)
+            or self.state.waveform_dir
+        )
+        waveform_mode = str(
+            lifecycle.get("waveform_mode", self.state.waveform_mode)
+        )
+        if waveform_mode in {"per_frame", "session"}:
+            self.state.waveform_mode = waveform_mode
         self.state.trace_enabled = bool(
             package_recording.get(
                 "enabled",

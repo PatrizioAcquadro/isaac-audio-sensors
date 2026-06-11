@@ -2189,6 +2189,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "ambiguity_policy",
         "backend",
         "layout_name",
+        "waveform_mode",
     }
     assert set(controller._ui_window._int_fields) == {
         "max_events",
@@ -2224,6 +2225,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "occlusion_enabled",
         "replicator_enabled",
         "trace_enabled",
+        "waveform_enabled",
     }
     assert "replicator_enabled" in controller._ui_window._bool_fields
     assert "replicator_output_dir" in controller._ui_window._string_fields
@@ -2246,6 +2248,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Author Source",
         "Sensor",
         "Instruments",
+        "Audio Output",
         "Replicator",
         "Export",
     ]
@@ -2263,6 +2266,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Author Source",
         "Sensor",
         "Instruments",
+        "Audio Output",
         "Replicator",
         "Export",
     ]
@@ -2420,6 +2424,124 @@ def test_extension_ui_instruments_show_compass_meters_and_timeline(monkeypatch):
     assert "speech_generic" in timeline[0]
     assert "90.0 deg" in timeline[0]
     assert "clear" in timeline[0]
+
+
+def _float32_wav_bytes(frames: int = 512, sample_rate: int = 8000) -> bytes:
+    import math
+    import struct
+
+    data = b"".join(
+        struct.pack("<f", 0.25 * math.sin(2 * math.pi * 440 * i / sample_rate))
+        for i in range(frames)
+    )
+    fmt = struct.pack("<HHIIHH", 3, 1, sample_rate, sample_rate * 4, 4, 32)
+    body = (
+        b"WAVE"
+        + b"fmt "
+        + struct.pack("<I", len(fmt))
+        + fmt
+        + b"data"
+        + struct.pack("<I", len(data))
+        + data
+    )
+    return b"RIFF" + struct.pack("<I", len(body)) + body
+
+
+def test_extension_controller_waveform_settings_flow_to_sensor_and_config(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv(OUTPUT_ROOT_ENV_VAR, str(tmp_path))
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "tdoa_synthetic"
+    controller.state.waveform_enabled = True
+    controller.state.waveform_dir = "wavs"
+    controller.state.waveform_mode = "session"
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.start_sensor(stage=stage) is not None
+    sensor = controller.sensor
+    assert sensor is not None
+    assert str(sensor.waveform_dir) == str(tmp_path / "wavs")
+    assert sensor.waveform_mode == "session"
+
+    assert sensor.room is None  # default shoebox only applies to room_acoustics
+
+    controller.state.config_export_path = str(tmp_path / "config.json")
+    assert controller.export_config_summary() is not None
+
+    restored = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    restored.state.config_import_path = str(tmp_path / "config.json")
+    assert restored.import_config_summary() is not None
+    assert restored.state.waveform_enabled is True
+    assert restored.state.waveform_dir == "wavs"
+    assert restored.state.waveform_mode == "session"
+
+
+def test_extension_controller_room_backend_gets_default_shoebox(tmp_path):
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "room_acoustics"
+    assert controller.author_array(stage=stage) is not None
+    assert controller.configure_sensor(stage=stage) is not None
+    room = controller.sensor.room
+    assert room is not None
+    assert room.room_id == "ias_gui_default_room"
+    assert room.dimensions_m == (6.0, 6.0, 3.0)
+
+
+def test_extension_ui_audio_panel_renders_waveform_preview(monkeypatch, tmp_path):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    controller = ExtensionController()
+    wav_path = tmp_path / "frame_000001.wav"
+    wav_path.write_bytes(_float32_wav_bytes())
+    controller.state.latest_waveform_paths = (str(wav_path),)
+
+    assert controller.build_ui_if_available() is not None
+    window = controller._ui_window
+    assert window is not None
+    window.refresh_labels()
+
+    label = window._labels["waveform"].text
+    assert "frame_000001.wav" in label
+    assert "1 ch" in label
+    assert "8000 Hz" in label
+    panel = window._audio_panel
+    assert panel["rendered_path"] == str(wav_path)
+    assert panel["waveform_provider"].size == [420, 96]
+    assert panel["spectrogram_provider"].size == [420, 128]
+    assert window._labels["audition"].text == "Audition idle."
+
+
+def test_extension_ui_audio_panel_reports_missing_waveform(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    controller = ExtensionController()
+
+    assert controller.build_ui_if_available() is not None
+    window = controller._ui_window
+    assert window is not None
+    window.refresh_labels()
+
+    assert "No waveform yet" in window._labels["waveform"].text
 
 
 def test_extension_controller_registers_menu_action_hotkey_and_cleans_up(

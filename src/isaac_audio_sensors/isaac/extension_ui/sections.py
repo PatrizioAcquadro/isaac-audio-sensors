@@ -4,8 +4,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .constants import AMBIGUITY_POLICY_CHOICES, BACKEND_CHOICES, LAYOUT_CHOICES
+from .constants import (
+    AMBIGUITY_POLICY_CHOICES,
+    BACKEND_CHOICES,
+    LAYOUT_CHOICES,
+    WAVEFORM_MODE_CHOICES,
+)
 from .instruments import COMPASS_IMAGE_SIZE, METER_MAX_ROWS, TIMELINE_MAX_ROWS
+from .spectro import (
+    SPECTROGRAM_IMAGE_HEIGHT,
+    SPECTROGRAM_IMAGE_WIDTH,
+    WAVEFORM_IMAGE_HEIGHT,
+    WAVEFORM_IMAGE_WIDTH,
+)
 
 if TYPE_CHECKING:
     from .window import OmniReferenceWindow
@@ -300,4 +311,42 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
         "compass_provider": provider,
         "meters": meter_rows,
         "timeline": timeline_labels,
+    }
+
+
+def build_audio_output_section(window: OmniReferenceWindow) -> None:
+    """Build the waveform/spectrogram preview and audition controls."""
+
+    ui = window.ui
+    with window._section("Audio Output"):
+        window._bool_row("WAV Export", "waveform_enabled")
+        window._string_row("WAV Dir", "waveform_dir")
+        window._combo_row("WAV Mode", "waveform_mode", WAVEFORM_MODE_CHOICES)
+        window._labels["waveform"] = ui.Label("", word_wrap=True)
+        waveform_provider = None
+        spectrogram_provider = None
+        provider_cls = getattr(ui, "ByteImageProvider", None)
+        image_cls = getattr(ui, "ImageWithProvider", None)
+        if provider_cls is not None and image_cls is not None:
+            waveform_provider = provider_cls()
+            image_cls(
+                waveform_provider,
+                width=WAVEFORM_IMAGE_WIDTH,
+                height=WAVEFORM_IMAGE_HEIGHT,
+            )
+            spectrogram_provider = provider_cls()
+            image_cls(
+                spectrogram_provider,
+                width=SPECTROGRAM_IMAGE_WIDTH,
+                height=SPECTROGRAM_IMAGE_HEIGHT,
+            )
+        with ui.HStack(spacing=4):
+            window._button("Play", window.controller.play_latest_waveform)
+            window._button("Stop Audio", window.controller.stop_audition)
+            window._button("Open WAV Folder", window.controller.open_waveform_folder)
+        window._labels["audition"] = ui.Label("", word_wrap=True)
+    window._audio_panel = {
+        "waveform_provider": waveform_provider,
+        "spectrogram_provider": spectrogram_provider,
+        "rendered_path": None,
     }

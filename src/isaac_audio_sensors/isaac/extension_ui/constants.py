@@ -14,6 +14,13 @@ BACKEND_CHOICES = tuple(
 )
 AMBIGUITY_POLICY_CHOICES = tuple(sorted(TDOA_AMBIGUITY_POLICIES))
 LAYOUT_CHOICES = ("quad_front", "quad_cross", "stereo_y", "two_mic_y", "mono")
+WAVEFORM_MODE_CHOICES = ("per_frame", "session")
+# Default shoebox used when the room_acoustics backend runs on a live stage
+# (stage discovery does not author rooms in v1). Matches the live smoke gate.
+DEFAULT_ROOM_ID = "ias_gui_default_room"
+DEFAULT_ROOM_DIMENSIONS_M = (6.0, 6.0, 3.0)
+DEFAULT_ROOM_ABSORPTION = 0.35
+DEFAULT_ROOM_MAX_ORDER = 0
 SOURCE_POSITION_PRESETS: Mapping[str, tuple[float, float, float]] = {
     "front": (2.0, 0.0, 0.0),
     "right": (0.0, 2.0, 0.0),

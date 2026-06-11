@@ -74,6 +74,7 @@ EXPECTED_UI_SECTIONS = (
     "Author Source",
     "Sensor",
     "Instruments",
+    "Audio Output",
     "Replicator",
     "Export",
 )
@@ -113,6 +114,9 @@ EXPECTED_UI_BUTTONS = (
     "Start",
     "Stop",
     "Update",
+    "Play",
+    "Stop Audio",
+    "Open WAV Folder",
     "Flush",
     "Export Latest",
     "Export Config",
@@ -138,6 +142,7 @@ EXPECTED_STRING_FIELDS = (
     "source_prim_path",
     "selected_profile_id",
     "selected_rig_profile_id",
+    "waveform_dir",
 )
 EXPECTED_FLOAT_FIELDS = (
     "array_local_offset_x_m",
@@ -169,8 +174,14 @@ EXPECTED_BOOL_FIELDS = (
     "debug_overlay_enabled",
     "replicator_enabled",
     "trace_enabled",
+    "waveform_enabled",
 )
-EXPECTED_COMBO_FIELDS = ("ambiguity_policy", "backend", "layout_name")
+EXPECTED_COMBO_FIELDS = (
+    "ambiguity_policy",
+    "backend",
+    "layout_name",
+    "waveform_mode",
+)
 ARRAY_RIG_PROFILE_ID = "alex_head_quad"
 ARRAY_MOUNT_PRIM_PATH = "/World/Rig/RobotMount"
 ARRAY_MOUNT_POSITION_BEFORE = (0.0, -1.0, 0.0)
@@ -350,6 +361,11 @@ def main() -> int:
                 controller,
                 screenshot_path=args.out.with_suffix(".instruments.png"),
             ),
+        )
+        evidence["audio_output"] = _step(
+            evidence,
+            "audio_output_live_qa",
+            lambda: _collect_audio_output_evidence(controller, stage=stage),
         )
 
         molmo_stage, molmo_open = _open_molmo_floorplan1_stage(evidence)
@@ -2381,6 +2397,86 @@ def _write_instruments_panel(
     }
 
 
+def _collect_audio_output_evidence(
+    controller: ExtensionController,
+    *,
+    stage: Any,
+) -> dict[str, Any]:
+    """Exercise WAV export + panel preview on the room backend when available."""
+
+    record: dict[str, Any] = {"requested_backend": "room_acoustics"}
+    try:
+        import pyroomacoustics  # type: ignore # noqa: F401
+        import soundfile  # type: ignore # noqa: F401
+    except ImportError as exc:
+        record["status"] = "skipped"
+        record["reason"] = f"room extra unavailable: {exc}"
+        return record
+    previous_backend = controller.state.backend
+    try:
+        controller.stop_sensor()
+        if controller.state.source_attached_to_object:
+            # The attach scenario's object may be gone; unbind for this leg.
+            with suppress(Exception):
+                controller.detach_source_from_object(stage=stage)
+            controller.state.source_attached_to_object = False
+            controller.state.attached_object_prim_path = ""
+        controller.state.backend = "room_acoustics"
+        controller.state.replicator_enabled = False
+        controller.state.waveform_enabled = True
+        controller.state.waveform_dir = "live_waveforms_gui"
+        controller.state.waveform_mode = "per_frame"
+        if controller.configure_sensor(stage=stage) is None:
+            raise RuntimeError(
+                controller.state.error_message or "room sensor configure failed"
+            )
+        if controller.start_sensor(stage=stage) is None:
+            raise RuntimeError(
+                controller.state.error_message or "room sensor start failed"
+            )
+        if controller.update_sensor(force=True) is None:
+            raise RuntimeError(
+                controller.state.error_message or "room sensor update failed"
+            )
+        paths = controller.state.latest_waveform_paths
+        record["waveform_paths"] = list(paths)
+        if not paths:
+            raise RuntimeError("room_acoustics update produced no waveform_paths")
+        from isaac_audio_sensors.core.io.wave_read import read_wav
+
+        data = read_wav(paths[-1])
+        record["waveform"] = {
+            "channels": data.channel_count,
+            "sample_rate_hz": data.sample_rate_hz,
+            "frames": data.frame_count,
+            "duration_s": data.duration_s,
+        }
+        window = getattr(controller, "_ui_window", None)
+        if window is not None:
+            record["panel_label"] = getattr(
+                window._labels.get("waveform"), "text", None
+            )
+            panel = getattr(window, "_audio_panel", {}) or {}
+            record["panel_rendered_path"] = panel.get("rendered_path")
+        record["audition_status"] = (
+            controller.play_latest_waveform() or controller.state.error_message
+        )
+        record["audition_stop_status"] = controller.stop_audition()
+        record["status"] = "passed"
+    except Exception as exc:  # noqa: BLE001 - evidence records the exact error.
+        record["status"] = "failed"
+        record["error_type"] = type(exc).__name__
+        record["error"] = str(exc)
+    finally:
+        with suppress(Exception):
+            controller.stop_sensor()
+        with suppress(Exception):
+            controller.close_sensor()
+        controller.state.backend = previous_backend
+        controller.state.waveform_enabled = False
+    return record
+
+
 def _capture_app_screenshot(path: Path) -> dict[str, Any]:
     """Capture the whole app swapchain (viewport plus Kit UI windows)."""
 
@@ -2803,6 +2899,9 @@ def _validate_live_extension_outputs(
         probe = evidence.get(probe_name, {})
         if probe.get("status") != "passed":
             raise RuntimeError(f"{probe_name} failed: {probe}")
+    audio_output = evidence.get("audio_output", {})
+    if audio_output.get("status") not in {"passed", "skipped"}:
+        raise RuntimeError(f"audio_output evidence failed: {audio_output}")
     error_checks = evidence.get("error_checks", {})
     missing_error_checks = [
         name for name, message in sorted(error_checks.items()) if not message

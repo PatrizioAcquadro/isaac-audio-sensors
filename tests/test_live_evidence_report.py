@@ -90,6 +90,7 @@ def test_gui_guide_referenced_screenshot_assets_exist_and_are_valid_pngs():
     )
 
     assert refs == [
+        "assets/isaac_sim_gui/audio_output.png",
         "assets/isaac_sim_gui/author_array.png",
         "assets/isaac_sim_gui/author_source.png",
         "assets/isaac_sim_gui/export.png",

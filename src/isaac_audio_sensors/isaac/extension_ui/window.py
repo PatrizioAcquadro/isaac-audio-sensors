@@ -26,6 +26,7 @@ from .instruments import (
 )
 from .sections import (
     build_array_section,
+    build_audio_output_section,
     build_control_section,
     build_export_section,
     build_instruments_section,
@@ -33,6 +34,7 @@ from .sections import (
     build_source_section,
     build_stage_section,
 )
+from .spectro import render_spectrogram_rgba, render_waveform_rgba
 from .ui_models import (
     _combo_index,
     _format_edit_value,
@@ -69,6 +71,7 @@ class OmniReferenceWindow:
         self._sections: list[str] = []
         self._buttons: list[str] = []
         self._instruments: dict[str, Any] = {}
+        self._audio_panel: dict[str, Any] = {}
 
     def build(self) -> Any:
         """Build a compact task-oriented Kit window."""
@@ -96,6 +99,7 @@ class OmniReferenceWindow:
         build_source_section(self)
         build_control_section(self)
         build_instruments_section(self)
+        build_audio_output_section(self)
         build_replicator_section(self)
         build_export_section(self)
         self._labels["status"] = self.ui.Label(
@@ -143,6 +147,8 @@ class OmniReferenceWindow:
             f"pos={_optional_vec3_text(state.latest_source_position_m)}",
         )
         self.refresh_instruments()
+        self.refresh_audio_panel()
+        self._set_label("audition", state.audition_status)
         self._set_label(
             "overlay",
             "Overlay: "
@@ -197,6 +203,61 @@ class OmniReferenceWindow:
             visible = index < len(rows)
             label.visible = visible
             _set_widget_text(label, rows[index].text if visible else "")
+
+    def refresh_audio_panel(self) -> None:
+        """Refresh the waveform/spectrogram preview for the latest WAV."""
+
+        panel = self._audio_panel
+        if not panel:
+            return
+        state = self.controller.state
+        paths = state.latest_waveform_paths
+        if not paths:
+            self._set_label(
+                "waveform",
+                "No waveform yet. Enable WAV Export and use the "
+                "room_acoustics backend.",
+            )
+            return
+        latest = paths[-1]
+        if panel.get("rendered_path") == latest:
+            return
+        waveform_provider = panel.get("waveform_provider")
+        spectrogram_provider = panel.get("spectrogram_provider")
+        try:
+            from isaac_audio_sensors.core.io.wave_read import read_wav
+
+            data = read_wav(latest)
+        except Exception as exc:
+            self._set_label(
+                "waveform",
+                f"Latest WAV: {latest} | preview failed: {exc}",
+            )
+            return
+        self._set_label(
+            "waveform",
+            f"Latest WAV: {latest} | {data.channel_count} ch | "
+            f"{data.sample_rate_hz} Hz | {data.duration_s:.2f} s",
+        )
+        if waveform_provider is not None and hasattr(
+            waveform_provider, "set_bytes_data"
+        ):
+            image = render_waveform_rgba(data.samples)
+            with suppress(Exception):
+                waveform_provider.set_bytes_data(
+                    image.flatten().tolist(),
+                    [image.shape[1], image.shape[0]],
+                )
+        if spectrogram_provider is not None and hasattr(
+            spectrogram_provider, "set_bytes_data"
+        ):
+            image = render_spectrogram_rgba(data.samples)
+            with suppress(Exception):
+                spectrogram_provider.set_bytes_data(
+                    image.flatten().tolist(),
+                    [image.shape[1], image.shape[0]],
+                )
+        panel["rendered_path"] = latest
 
     def sync_state_from_widgets(self) -> None:
         """Read widget models into the pure state before actions."""
