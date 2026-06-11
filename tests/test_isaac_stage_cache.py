@@ -6,8 +6,12 @@ from types import SimpleNamespace
 
 import pytest
 
+from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
-from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
+from isaac_audio_sensors.isaac.stage_cache import (
+    StageAudioCache,
+    _discovery_relevant_property,
+)
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 
 
@@ -280,6 +284,125 @@ def test_discovered_stage_sensor_caches_semantic_discovery():
     assert stage.traverse_count == warm_count
     assert frame.detections[0].source_pose.position_m == (0.0, 6.0, 0.0)
     sensor.close()
+
+
+def test_rediscover_each_update_forces_full_discovery_every_capture():
+    stage, _source = _counting_stage()
+    sensor = IsaacAudioArraySensor.from_discovered_stage(
+        stage=stage,
+        binding_cfg=IsaacAudioSceneBindingCfg(rediscover_each_update=True),
+        backend="geometry_only",
+        update_period_s=0.1,
+    ).start()
+    construction_count = stage.traverse_count
+
+    frames = [sensor.update(sim_time_s=tick * 0.2) for tick in range(3)]
+
+    assert stage.traverse_count == construction_count + 3
+    for frame in frames:
+        cache_diag = frame.diagnostics["stage_snapshot"]["discovery_cache"]
+        assert cache_diag["hit"] is False
+        assert cache_diag["policy"] == "rediscover_each_update"
+    assert sensor._stage_cache.full_discovery_count == 3
+    sensor.close()
+
+
+def test_default_policy_keeps_cache_and_reports_policy():
+    stage, _source = _counting_stage()
+    sensor = _live_sensor(stage)
+    sensor.update(sim_time_s=0.0)
+    warm_count = stage.traverse_count
+
+    frame = sensor.update(sim_time_s=0.2)
+
+    assert stage.traverse_count == warm_count
+    cache_diag = frame.diagnostics["stage_snapshot"]["discovery_cache"]
+    assert cache_diag["hit"] is True
+    assert cache_diag["policy"] == "cache_until_invalidated"
+    sensor.close()
+
+
+def test_info_only_discovery_attr_change_invalidates_cache():
+    stage, _source = _counting_stage()
+    sensor = _live_sensor(stage)
+    sensor.update(sim_time_s=0.0)
+    warm_count = stage.traverse_count
+    cache = sensor._stage_cache
+
+    new_source = stage.DefinePrim("/World/Sources/SpeakerB", "Sound")
+    new_source.attributes.update(
+        {
+            "filePath": "generated://impulse",
+            "ias:source_id": "speaker_b",
+            "ias:position_world": (0.0, 3.0, 0.0),
+            "ias:start_time_s": 0.0,
+        }
+    )
+    cache._on_objects_changed(
+        SimpleNamespace(
+            GetResyncedPaths=lambda: (),
+            GetChangedInfoOnlyPaths=lambda: (
+                "/World/Sources/SpeakerB.ias:source_id",
+            ),
+        ),
+        None,
+    )
+
+    refreshed = sensor.update(sim_time_s=0.2)
+    assert stage.traverse_count == warm_count + 1
+    assert len(refreshed.detections) == 2
+    assert "usd_info_only_discovery_attr" in cache.invalidation_reasons
+    sensor.close()
+
+
+def test_info_only_pose_and_unrelated_changes_keep_cache():
+    stage, _source = _counting_stage()
+    sensor = _live_sensor(stage)
+    sensor.update(sim_time_s=0.0)
+    warm_count = stage.traverse_count
+    cache = sensor._stage_cache
+
+    cache._on_objects_changed(
+        SimpleNamespace(
+            GetResyncedPaths=lambda: (),
+            GetChangedInfoOnlyPaths=lambda: (
+                "/World/Sources/SpeakerA.xformOp:translate",
+                "/World/Sources/SpeakerA.visibility",
+            ),
+        ),
+        None,
+    )
+
+    sensor.update(sim_time_s=0.2)
+    assert stage.traverse_count == warm_count
+    assert "usd_info_only_discovery_attr" not in cache.invalidation_reasons
+    sensor.close()
+
+
+def test_discovery_relevant_property_predicate():
+    assert _discovery_relevant_property("/World/X.ias:source_id") is True
+    assert _discovery_relevant_property("/World/X.ias:gain_db") is True
+    assert _discovery_relevant_property("/World/X.filePath") is True
+    assert _discovery_relevant_property("/World/X.startTime") is True
+    assert _discovery_relevant_property("/World/X.xformOp:translate") is False
+    assert _discovery_relevant_property("/World/X.visibility") is False
+    assert _discovery_relevant_property("/World/X") is False
+    assert _discovery_relevant_property(SimpleNamespace(name="ias:array_id")) is True
+    assert (
+        _discovery_relevant_property(SimpleNamespace(name="xformOp:orient")) is False
+    )
+
+
+def test_stage_cache_policy_unit_counts_full_discoveries():
+    stage, _source = _counting_stage()
+    cache = StageAudioCache(stage, rediscover_each_update=True)
+
+    cache.snapshot(timestamp_ms=0, array_prim_path="/World/Rig/AudioArray")
+    cache.snapshot(timestamp_ms=100, array_prim_path="/World/Rig/AudioArray")
+
+    assert cache.full_discovery_count == 2
+    assert cache.cached_tick_count == 0
+    assert "rediscover_each_update_policy" in cache.invalidation_reasons
 
 
 def test_cache_close_revokes_listener_and_requires_traverse_method():

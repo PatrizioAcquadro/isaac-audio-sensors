@@ -5,8 +5,13 @@ The first snapshot (and any snapshot after invalidation) runs the full
 snapshots reuse the cached prim tuple and the cached discovery decisions, and
 only re-resolve poses and prim attributes at the new time code. Structural
 stage edits invalidate the cache through ``Usd.Notice.ObjectsChanged`` resyncs
-on real USD stages; cheap per-tick path validation and an explicit
-``rediscover()`` cover duck-typed test stages.
+on real USD stages, and discovery-relevant info-only property changes (the
+``ias:`` marker attributes plus the audio alias attributes discovery reads)
+invalidate it as well, so newly audio-tagged existing prims are picked up
+without a manual ``rediscover()``. Pose-only property changes never
+invalidate. Cheap per-tick path validation and an explicit ``rediscover()``
+cover duck-typed test stages, and ``rediscover_each_update=True`` forces full
+discovery on every snapshot.
 """
 
 from __future__ import annotations
@@ -46,13 +51,28 @@ class _CachedDiscovery:
     preferred_source: str | None
 
 
+# Non-"ias:" attribute names discovery reads as audio metadata aliases
+# (see discovery.py); info-only changes to them can alter the candidate set.
+_DISCOVERY_ALIAS_PROPERTY_NAMES = frozenset(
+    {
+        "filePath",
+        "inputs:file",
+        "inputs:audio",
+        "startTime",
+        "duration",
+        "gain",
+    }
+)
+
+
 class StageAudioCache:
     """Per-sensor cache of discovered audio prim paths on one stage."""
 
-    def __init__(self, stage: Any) -> None:
+    def __init__(self, stage: Any, *, rediscover_each_update: bool = False) -> None:
         if stage is None or not hasattr(stage, "Traverse"):
             raise ValueError("stage must provide a Traverse method.")
         self.stage = stage
+        self.rediscover_each_update = bool(rediscover_each_update)
         self.full_discovery_count = 0
         self.cached_tick_count = 0
         self.invalidation_reasons: list[str] = []
@@ -99,6 +119,8 @@ class StageAudioCache:
     ) -> AudioSceneSnapshot:
         """Build a live snapshot, traversing the stage only when required."""
 
+        if self.rediscover_each_update:
+            self.invalidate("rediscover_each_update_policy")
         cfg = effective_discovery_cfg(
             discovery_cfg=discovery_cfg,
             array_prim_path=array_prim_path,
@@ -360,6 +382,11 @@ class StageAudioCache:
     def _cache_diagnostics(self, *, hit: bool) -> dict[str, Any]:
         return {
             "hit": hit,
+            "policy": (
+                "rediscover_each_update"
+                if self.rediscover_each_update
+                else "cache_until_invalidated"
+            ),
             "full_discovery_count": self.full_discovery_count,
             "cached_tick_count": self.cached_tick_count,
             "invalidation_reasons": tuple(self.invalidation_reasons),
@@ -390,3 +417,27 @@ class StageAudioCache:
             resynced = ("unknown",)
         if resynced:
             self.invalidate("usd_objects_changed_resync")
+            return
+        try:
+            info_only = tuple(notice.GetChangedInfoOnlyPaths())
+        except Exception:  # noqa: BLE001 - notice variants without the API.
+            info_only = ()
+        if any(_discovery_relevant_property(path) for path in info_only):
+            self.invalidate("usd_info_only_discovery_attr")
+
+
+def _discovery_relevant_property(path: Any) -> bool:
+    """Whether an info-only changed path can alter the discovery candidates.
+
+    Pose updates (``xformOp:*``) and other unrelated properties must keep the
+    cached path, while ``ias:`` marker attributes and the audio alias
+    attributes discovery reads must invalidate it.
+    """
+
+    name = getattr(path, "name", None)
+    if not isinstance(name, str) or not name:
+        text = str(path)
+        _, _, name = text.rpartition(".")
+    if not name:
+        return False
+    return name.startswith("ias:") or name in _DISCOVERY_ALIAS_PROPERTY_NAMES

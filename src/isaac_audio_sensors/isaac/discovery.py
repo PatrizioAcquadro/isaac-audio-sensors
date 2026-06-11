@@ -198,7 +198,11 @@ class IsaacAudioSceneBindingCfg:
     metadata_precedence: tuple[str, ...] = ("ias", "usd", "defaults")
     preferred_array: str | None = None
     preferred_source: str | None = None
-    rediscover_each_update: bool = True
+    # False (default) keeps the cached live path: full discovery runs once
+    # and steady-state ticks re-resolve only poses until something
+    # invalidates the cache. True forces full discovery (one Traverse) on
+    # every capture/update.
+    rediscover_each_update: bool = False
     strict_candidate_errors: bool = False
 
     def __post_init__(self) -> None:

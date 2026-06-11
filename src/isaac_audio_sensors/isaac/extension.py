@@ -463,7 +463,14 @@ class IsaacAudioArraySensor:
 
     def _ensure_stage_cache(self) -> StageAudioCache:
         if self._stage_cache is None:
-            self._stage_cache = StageAudioCache(self.stage)
+            rediscover_each_update = (
+                self.scene_binding_cfg is not None
+                and self.scene_binding_cfg.rediscover_each_update
+            )
+            self._stage_cache = StageAudioCache(
+                self.stage,
+                rediscover_each_update=rediscover_each_update,
+            )
         return self._stage_cache
 
     def _resolve_waveform_sink(self) -> WaveformSink | None:
