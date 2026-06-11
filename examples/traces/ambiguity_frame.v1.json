@@ -69,6 +69,7 @@
         "estimated_bearing_deg": null
       },
       "ground_truth_bearing_deg": 0.0,
+      "occluded": false,
       "per_mic_delay_s": {
         "left": 0.01457912524502986,
         "right": 0.01457912524502986

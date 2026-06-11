@@ -14,6 +14,7 @@ from isaac_audio_sensors.core.constants import (
     FRAME_SCHEMA_VERSION,
     FRAME_TOP_LEVEL_FIELDS,
     FRAME_UNITS,
+    OPTIONAL_DETECTION_FIELDS,
     POSE3D_FIELDS,
 )
 
@@ -63,8 +64,7 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": (
-            "https://isaac-audio-sensors.dev/schemas/"
-            "audio_sensor_frame.v1.schema.json"
+            "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v1.schema.json"
         ),
         "title": "Isaac Audio Sensors AudioSensorFrame v1",
         "description": (
@@ -158,7 +158,11 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                 "items": {
                     "type": "object",
                     "additionalProperties": True,
-                    "required": list(DETECTION_FIELDS),
+                    "required": [
+                        name
+                        for name in DETECTION_FIELDS
+                        if name not in OPTIONAL_DETECTION_FIELDS
+                    ],
                     "properties": {
                         "detection_id": {"type": "string", "minLength": 1},
                         "source_id": {"type": ["string", "null"]},
@@ -223,6 +227,15 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                             "additionalProperties": {"type": "number"},
                         },
                         "audio_asset_path": {"type": ["string", "null"]},
+                        "occluded": {
+                            "type": "boolean",
+                            "description": (
+                                "Optional additive v1 field: true when the "
+                                "producer determined the direct source-to-"
+                                "array path is occluded (e.g. Isaac raycast "
+                                "occlusion). Absent in older v1 traces."
+                            ),
+                        },
                         "diagnostics": {"type": "object"},
                     },
                 },

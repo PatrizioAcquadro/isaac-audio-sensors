@@ -169,6 +169,10 @@
               "null"
             ]
           },
+          "occluded": {
+            "description": "Optional additive v1 field: true when the producer determined the direct source-to-array path is occluded (e.g. Isaac raycast occlusion). Absent in older v1 traces.",
+            "type": "boolean"
+          },
           "per_mic_delay_s": {
             "additionalProperties": {
               "type": "number"

@@ -410,8 +410,11 @@ def test_audio_sensor_frame_v1_schema_required_keys_match_trace_contract():
     assert set(schema["required"]) == expected_top_level
     assert set(payload) == expected_top_level
     detection_schema = schema["properties"]["detections"]["items"]
+    expected_optional_detection = {"occluded"}
     assert set(detection_schema["required"]) == expected_detection
-    assert set(payload["detections"][0]) == expected_detection
+    assert set(payload["detections"][0]) == (
+        expected_detection | expected_optional_detection
+    )
     assert set(detection_schema["properties"]["doa"]["required"]) == expected_doa
     assert set(payload["detections"][0]["doa"]) == expected_doa
     assert set(payload["array_pose"]) == expected_pose

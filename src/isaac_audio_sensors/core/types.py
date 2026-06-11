@@ -329,6 +329,7 @@ class AudioDetection:
     per_mic_delay_s: dict[str, float] = field(default_factory=dict)
     per_mic_rms: dict[str, float] = field(default_factory=dict)
     audio_asset_path: str | None = None
+    occluded: bool = False
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -373,6 +374,7 @@ class AudioDetection:
                 non_negative=True,
             ),
         )
+        object.__setattr__(self, "occluded", bool(self.occluded))
         object.__setattr__(self, "diagnostics", dict(self.diagnostics))
 
 
@@ -416,8 +418,7 @@ class AudioSensorFrame:
         _require_non_empty(self.provenance, "AudioSensorFrame.provenance")
         if self.schema_version != FRAME_SCHEMA_VERSION:
             raise ValueError(
-                "AudioSensorFrame.schema_version must be "
-                f"{FRAME_SCHEMA_VERSION!r}."
+                f"AudioSensorFrame.schema_version must be {FRAME_SCHEMA_VERSION!r}."
             )
         if self.provenance not in FRAME_PROVENANCE_VALUES:
             raise ValueError(
@@ -463,8 +464,7 @@ class AudioSensorFrame:
         }
         if changed_units:
             raise ValueError(
-                "AudioSensorFrame.units changed stable unit values "
-                f"{changed_units!r}."
+                f"AudioSensorFrame.units changed stable unit values {changed_units!r}."
             )
         object.__setattr__(self, "units", units)
         detections = tuple(self.detections)
@@ -485,6 +485,49 @@ class AudioSensorFrame:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class SourceOcclusion:
+    """Per-source occlusion of the direct source-to-array paths.
+
+    Computed outside the pure core (e.g. by Isaac-layer raycasts); backends
+    only consume it. ``occlusion_factor`` is the fraction of blocked
+    source-to-microphone rays in ``[0, 1]`` and ``attenuation_db`` is the
+    non-negative extra attenuation the producer derived from that factor.
+    """
+
+    array_id: str
+    source_id: str
+    per_mic_blocked: dict[str, bool] = field(default_factory=dict)
+    occlusion_factor: float = 0.0
+    attenuation_db: float = 0.0
+    hit_prim_paths: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        _require_non_empty(self.array_id, "SourceOcclusion.array_id")
+        _require_non_empty(self.source_id, "SourceOcclusion.source_id")
+        object.__setattr__(
+            self,
+            "per_mic_blocked",
+            {
+                str(mic_id): bool(blocked)
+                for mic_id, blocked in dict(self.per_mic_blocked).items()
+            },
+        )
+        _require_finite(self.occlusion_factor, "SourceOcclusion.occlusion_factor")
+        if not 0.0 <= float(self.occlusion_factor) <= 1.0:
+            raise ValueError("SourceOcclusion.occlusion_factor must be in [0, 1].")
+        _require_finite(self.attenuation_db, "SourceOcclusion.attenuation_db")
+        if float(self.attenuation_db) < 0.0:
+            raise ValueError("SourceOcclusion.attenuation_db must be non-negative.")
+        object.__setattr__(self, "occlusion_factor", float(self.occlusion_factor))
+        object.__setattr__(self, "attenuation_db", float(self.attenuation_db))
+        object.__setattr__(
+            self,
+            "hit_prim_paths",
+            tuple(str(path) for path in self.hit_prim_paths),
+        )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class AudioSceneSnapshot:
     """Static scene state consumed by simulation backends."""
 
@@ -493,6 +536,7 @@ class AudioSceneSnapshot:
     sources: tuple[AudioSourceSpec, ...]
     arrays: tuple[MicrophoneArraySpec, ...]
     room: RoomAcousticsSpec | None = None
+    occlusion: tuple[SourceOcclusion, ...] | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty(self.stage_id, "AudioSceneSnapshot.stage_id")
@@ -503,6 +547,13 @@ class AudioSceneSnapshot:
         _require_unique_ids([array.array_id for array in arrays], "array id")
         object.__setattr__(self, "sources", sources)
         object.__setattr__(self, "arrays", arrays)
+        if self.occlusion is not None:
+            occlusion = tuple(self.occlusion)
+            _require_unique_ids(
+                [f"{record.array_id}:{record.source_id}" for record in occlusion],
+                "occlusion record id",
+            )
+            object.__setattr__(self, "occlusion", occlusion)
 
     def array_by_id(self, array_id: str) -> MicrophoneArraySpec:
         """Return an array by id or raise a clear error."""
@@ -511,6 +562,20 @@ class AudioSceneSnapshot:
             if array.array_id == array_id:
                 return array
         raise KeyError(f"AudioSceneSnapshot has no array {array_id!r}.")
+
+    def occlusion_for(
+        self,
+        array_id: str,
+        source_id: str,
+    ) -> SourceOcclusion | None:
+        """Return the occlusion record for one array/source pair, if any."""
+
+        if self.occlusion is None:
+            return None
+        for record in self.occlusion:
+            if record.array_id == array_id and record.source_id == source_id:
+                return record
+        return None
 
 
 def _require_non_empty(value: str, field_name: str) -> None:

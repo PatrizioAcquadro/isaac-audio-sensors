@@ -23,6 +23,7 @@ from isaac_audio_sensors.core.constants import (
     FRAME_TOP_LEVEL_FIELDS,
     FRAME_UNITS,
     KNOWN_BACKENDS,
+    OPTIONAL_DETECTION_FIELDS,
     POSE3D_FIELDS,
     STABLE_DIAGNOSTIC_NAMESPACES,
 )
@@ -78,8 +79,10 @@ CANONICAL_DETECTION_FIELDS = (
     "per_mic_delay_s",
     "per_mic_rms",
     "audio_asset_path",
+    "occluded",
     "diagnostics",
 )
+CANONICAL_OPTIONAL_DETECTION_FIELDS = ("occluded",)
 CANONICAL_DOA_FIELDS = (
     "estimated_bearing_deg",
     "candidate_bearing_deg",
@@ -142,6 +145,8 @@ def test_v1_contract_snapshots_guard_public_names_and_semantics():
     assert COORDINATE_CONVENTION == CANONICAL_COORDINATE_CONVENTION
     assert FRAME_TOP_LEVEL_FIELDS == CANONICAL_FRAME_TOP_LEVEL_FIELDS
     assert DETECTION_FIELDS == CANONICAL_DETECTION_FIELDS
+    assert OPTIONAL_DETECTION_FIELDS == CANONICAL_OPTIONAL_DETECTION_FIELDS
+    assert set(OPTIONAL_DETECTION_FIELDS) < set(DETECTION_FIELDS)
     assert DOA_FIELDS == CANONICAL_DOA_FIELDS
     assert POSE3D_FIELDS == CANONICAL_POSE3D_FIELDS
     assert FRAME_UNITS == CANONICAL_FRAME_UNITS
@@ -188,7 +193,10 @@ def test_schema_required_keys_match_dataclasses_and_trace_serialization():
     doa_schema = detection_schema["properties"]["doa"]
 
     assert schema["required"] == list(FRAME_TOP_LEVEL_FIELDS)
-    assert detection_schema["required"] == list(DETECTION_FIELDS)
+    assert detection_schema["required"] == [
+        name for name in DETECTION_FIELDS if name not in OPTIONAL_DETECTION_FIELDS
+    ]
+    assert "occluded" in detection_schema["properties"]
     assert doa_schema["required"] == list(DOA_FIELDS)
     assert set(payload) == set(FRAME_TOP_LEVEL_FIELDS)
     assert set(payload["detections"][0]) == set(DETECTION_FIELDS)
@@ -225,11 +233,21 @@ def test_json_and_ndjson_trace_corpus_matches_v1_contract_and_round_trips():
     assert any(path.suffix == ".json" for path, _ in payloads)
     assert any(path.suffix == ".ndjson" for path, _ in payloads)
 
+    # Optional additive detection fields and the defaults a round-trip adds
+    # to traces written before the field existed.
+    optional_detection_defaults = {"occluded": False}
+    assert set(optional_detection_defaults) == set(OPTIONAL_DETECTION_FIELDS)
+
     for path, payload in payloads:
         _assert_payload_matches_contract(payload, schema, path=path)
         rebuilt_payload = frame_to_trace_dict(frame_from_trace_dict(payload))
+        expected_payload = dict(payload)
+        expected_payload["detections"] = [
+            {**optional_detection_defaults, **detection}
+            for detection in payload["detections"]
+        ]
         for field_name in schema["required"]:
-            assert rebuilt_payload[field_name] == payload[field_name], (
+            assert rebuilt_payload[field_name] == expected_payload[field_name], (
                 path,
                 field_name,
             )
@@ -500,7 +518,10 @@ def _assert_payload_matches_contract(
     _assert_pose_payload(payload["array_pose"], path=path)
 
     for detection in payload["detections"]:
-        assert set(DETECTION_FIELDS) <= set(detection), path
+        required_detection_fields = set(DETECTION_FIELDS) - set(
+            OPTIONAL_DETECTION_FIELDS
+        )
+        assert required_detection_fields <= set(detection), path
         assert detection["detection_mode"] in DETECTION_MODES
         assert isinstance(detection["timestamp_ms"], int), path
         if detection["source_distance_m"] is not None:

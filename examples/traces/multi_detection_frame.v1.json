@@ -51,6 +51,7 @@
         "estimated_bearing_deg": 26.56505117707799
       },
       "ground_truth_bearing_deg": 26.56505117707799,
+      "occluded": false,
       "per_mic_delay_s": {},
       "per_mic_rms": {
         "front": 0.227235170843937,
@@ -99,6 +100,7 @@
         "estimated_bearing_deg": 303.69006752597977
       },
       "ground_truth_bearing_deg": 303.69006752597977,
+      "occluded": false,
       "per_mic_delay_s": {},
       "per_mic_rms": {
         "front": 0.1987608291352134,

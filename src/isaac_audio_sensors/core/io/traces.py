@@ -160,6 +160,7 @@ def _detection_from_dict(payload: dict[str, Any]) -> AudioDetection:
         per_mic_delay_s=dict(payload.get("per_mic_delay_s", {})),
         per_mic_rms=dict(payload.get("per_mic_rms", {})),
         audio_asset_path=payload.get("audio_asset_path"),
+        occluded=bool(payload.get("occluded", False)),
         diagnostics=dict(payload.get("diagnostics", {})),
     )
 

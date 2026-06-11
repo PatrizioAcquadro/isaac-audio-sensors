@@ -55,8 +55,13 @@ DETECTION_FIELDS = (
     "per_mic_delay_s",
     "per_mic_rms",
     "audio_asset_path",
+    "occluded",
     "diagnostics",
 )
+
+# Additive v1 detection fields: always serialized by current writers but kept
+# out of the JSON schema's required list so pre-existing v1 traces stay valid.
+OPTIONAL_DETECTION_FIELDS = ("occluded",)
 
 DOA_FIELDS = (
     "estimated_bearing_deg",

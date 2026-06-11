@@ -24,6 +24,7 @@ from isaac_audio_sensors.core.types import (
     MicrophoneSpec,
     Pose3D,
     RoomAcousticsSpec,
+    SourceOcclusion,
 )
 
 __version__ = "1.2.0"
@@ -46,6 +47,7 @@ __all__ = [
     "Pose3D",
     "RoomAcousticsBackend",
     "RoomAcousticsSpec",
+    "SourceOcclusion",
     "TdoaSyntheticBackend",
     "audio_sensor_frame_json_schema",
     "fidelity_level_for_backend",
