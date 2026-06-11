@@ -13,10 +13,19 @@ def require_debug_draw() -> Any:
 
     try:
         import omni.isaac.debug_draw as debug_draw  # type: ignore
+
+        return debug_draw
+    except ImportError:
+        pass
+    try:
+        # Isaac Sim 5.x moved the extension to isaacsim.util.debug_draw; load
+        # the _debug_draw submodule so the acquire path below can find it.
+        import isaacsim.util.debug_draw as debug_draw  # type: ignore
+        from isaacsim.util.debug_draw import _debug_draw  # type: ignore # noqa: F401
     except ImportError as exc:
         raise IsaacIntegrationUnavailable(
-            "Isaac debug visualization requires omni.isaac.debug_draw inside "
-            "an Isaac Sim Python environment."
+            "Isaac debug visualization requires omni.isaac.debug_draw or "
+            "isaacsim.util.debug_draw inside an Isaac Sim Python environment."
         ) from exc
     return debug_draw
 
@@ -98,6 +107,17 @@ class IsaacDebugDrawer:
         self.interface = None
 
 
+# The Isaac debug-draw interface takes point sizes and line widths in
+# pixels, while DebugPrimitive.radius_m carries meters for serialization.
+DEBUG_DRAW_PIXELS_PER_METER = 120.0
+MIN_POINT_SIZE_PX = 6.0
+MIN_LINE_WIDTH_PX = 2.0
+
+
+def _pixel_size(radius_m: float, minimum_px: float) -> float:
+    return max(minimum_px, float(radius_m) * DEBUG_DRAW_PIXELS_PER_METER)
+
+
 def _draw_points(interface: Any, primitives: tuple[DebugPrimitive, ...]) -> None:
     points = []
     colors = []
@@ -105,9 +125,10 @@ def _draw_points(interface: Any, primitives: tuple[DebugPrimitive, ...]) -> None
     for primitive in primitives:
         if primitive.kind not in {"microphone", "source"}:
             continue
+        size_px = _pixel_size(primitive.radius_m or 0.035, MIN_POINT_SIZE_PX)
         points.extend(primitive.points_world)
         colors.extend([primitive.color_rgba] * len(primitive.points_world))
-        sizes.extend([float(primitive.radius_m or 0.035)] * len(primitive.points_world))
+        sizes.extend([size_px] * len(primitive.points_world))
     if points and hasattr(interface, "draw_points"):
         interface.draw_points(points, colors, sizes)
 
@@ -122,7 +143,7 @@ def _draw_lines(interface: Any, primitives: tuple[DebugPrimitive, ...]) -> None:
             starts.append(primitive.points_world[0])
             ends.append(primitive.points_world[1])
             colors.append(primitive.color_rgba)
-            widths.append(float(primitive.radius_m or 0.015))
+            widths.append(_pixel_size(primitive.radius_m or 0.015, MIN_LINE_WIDTH_PX))
         elif primitive.kind == "sector_wedge" and len(primitive.points_world) == 3:
             center, left, right = primitive.points_world
             segments = ((center, left), (center, right), (left, right))
@@ -130,6 +151,8 @@ def _draw_lines(interface: Any, primitives: tuple[DebugPrimitive, ...]) -> None:
                 starts.append(line_start)
                 ends.append(line_end)
                 colors.append(primitive.color_rgba)
-                widths.append(float(primitive.radius_m or 0.01))
+                widths.append(
+                    _pixel_size(primitive.radius_m or 0.01, MIN_LINE_WIDTH_PX)
+                )
     if starts and hasattr(interface, "draw_lines"):
         interface.draw_lines(starts, ends, colors, widths)
