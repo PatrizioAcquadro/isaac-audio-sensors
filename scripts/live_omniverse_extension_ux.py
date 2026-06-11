@@ -117,6 +117,7 @@ EXPECTED_UI_BUTTONS = (
     "Play",
     "Stop Audio",
     "Open WAV Folder",
+    "Clear Debug Geometry",
     "Flush",
     "Export Latest",
     "Export Config",
@@ -142,6 +143,7 @@ EXPECTED_STRING_FIELDS = (
     "source_prim_path",
     "selected_profile_id",
     "selected_rig_profile_id",
+    "usd_debug_root",
     "waveform_dir",
 )
 EXPECTED_FLOAT_FIELDS = (
@@ -177,6 +179,7 @@ EXPECTED_BOOL_FIELDS = (
     "live_sync_source_pose",
     "replicator_enabled",
     "trace_enabled",
+    "usd_debug_enabled",
     "waveform_enabled",
 )
 EXPECTED_COMBO_FIELDS = (
@@ -304,6 +307,7 @@ def main() -> int:
         controller.state.config_import_path = str(config_path)
         controller.state.replicator_enabled = True
         controller.state.replicator_output_dir = str(replicator_dir)
+        controller.state.usd_debug_enabled = True
         if getattr(controller, "_ui_window", None) is not None:
             controller._ui_window.push_state_to_widgets()
 
@@ -364,6 +368,11 @@ def main() -> int:
                 controller,
                 screenshot_path=args.out.with_suffix(".instruments.png"),
             ),
+        )
+        evidence["usd_debug"] = _step(
+            evidence,
+            "usd_debug_live_qa",
+            lambda: _collect_usd_debug_evidence(controller, stage=stage),
         )
         evidence["audio_output"] = _step(
             evidence,
@@ -2400,6 +2409,27 @@ def _write_instruments_panel(
     }
 
 
+def _collect_usd_debug_evidence(
+    controller: ExtensionController,
+    *,
+    stage: Any,
+) -> dict[str, Any]:
+    """Prove the debug subtree is authored as real prims on the live stage."""
+
+    paths = list(controller.state.latest_usd_debug_prim_paths)
+    exists = {path: bool(_stage_has_prim(stage, path)) for path in paths}
+    record: dict[str, Any] = {
+        "root": controller.state.usd_debug_root,
+        "enabled": controller.state.usd_debug_enabled,
+        "prim_paths": paths,
+        "prims_exist": exists,
+        "root_exists": bool(_stage_has_prim(stage, controller.state.usd_debug_root)),
+    }
+    passed = bool(paths) and all(exists.values()) and record["root_exists"]
+    record["status"] = "passed" if passed else "failed"
+    return record
+
+
 def _collect_audio_output_evidence(
     controller: ExtensionController,
     *,
@@ -2898,6 +2928,7 @@ def _validate_live_extension_outputs(
         "export_latest_without_frame",
         "config_roundtrip_probe",
         "instruments",
+        "usd_debug",
     ):
         probe = evidence.get(probe_name, {})
         if probe.get("status") != "passed":

@@ -204,6 +204,8 @@ def build_control_section(window: OmniReferenceWindow) -> None:
         window._int_row("Max Events", "max_events")
         window._bool_row("Overlay", "debug_overlay_enabled")
         window._bool_row("Occlusion", "occlusion_enabled")
+        window._bool_row("USD Debug", "usd_debug_enabled")
+        window._string_row("Debug Root", "usd_debug_root")
         window._bool_row("JSONL", "trace_enabled")
         window._string_row("Writer Path", "jsonl_trace_path")
         with ui.HStack(spacing=4):
@@ -216,8 +218,14 @@ def build_control_section(window: OmniReferenceWindow) -> None:
                 "Update",
                 window.controller.update_sensor,
             )
+        with ui.HStack(spacing=4):
+            window._button(
+                "Clear Debug Geometry",
+                window.controller.clear_usd_debug_geometry,
+            )
         window._labels["latest"] = ui.Label("", word_wrap=True)
         window._labels["overlay"] = ui.Label("", word_wrap=True)
+        window._labels["usd_debug"] = ui.Label("", word_wrap=True)
 
 
 def build_replicator_section(window: OmniReferenceWindow) -> None:

@@ -2228,6 +2228,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "occlusion_enabled",
         "replicator_enabled",
         "trace_enabled",
+        "usd_debug_enabled",
         "waveform_enabled",
     }
     assert "replicator_enabled" in controller._ui_window._bool_fields
@@ -2586,6 +2587,36 @@ def test_extension_controller_live_sync_pose_follows_prim_moves(monkeypatch):
     source_prim.attributes["xformOp:translate"] = (9.0, 9.0, 9.0)
     controller._viewport_follow_tick()
     assert controller.state.source_position_x_m == 3.5
+
+
+def test_extension_controller_authors_persistent_usd_debug_geometry(tmp_path):
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "tdoa_synthetic"
+    controller.state.usd_debug_enabled = True
+    controller.state.trace_enabled = False
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.author_source(stage=stage) is not None
+    assert controller.start_sensor(stage=stage) is not None
+    assert controller.update_sensor(force=True) is not None
+
+    paths = controller.state.latest_usd_debug_prim_paths
+    assert paths
+    assert all(path.startswith("/World/IasAudioDebug/") for path in paths)
+    kinds = {stage.GetPrimAtPath(path).type_name for path in paths}
+    assert "Sphere" in kinds
+    assert "BasisCurves" in kinds
+    assert stage.GetPrimAtPath("/World/IasAudioDebug") is not None
+
+    controller.state.usd_debug_enabled = False
+    assert controller.update_sensor(force=True) is not None
+    assert controller.state.latest_usd_debug_prim_paths == ()
+    assert stage.GetPrimAtPath("/World/IasAudioDebug") is None
 
 
 def _float32_wav_bytes(frames: int = 512, sample_rate: int = 8000) -> bytes:

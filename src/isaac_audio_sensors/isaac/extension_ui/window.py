@@ -157,6 +157,13 @@ class OmniReferenceWindow:
             f"{state.latest_overlay_status}",
         )
         self._set_label(
+            "usd_debug",
+            "USD debug: "
+            f"{len(state.latest_usd_debug_prim_paths)} prim(s) | "
+            f"root={state.usd_debug_root} | "
+            f"{'enabled' if state.usd_debug_enabled else 'disabled'}",
+        )
+        self._set_label(
             "replicator",
             f"{state.replicator_status_message} | "
             f"latest={state.replicator_latest_write_path or 'none'}",

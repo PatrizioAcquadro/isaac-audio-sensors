@@ -64,6 +64,7 @@ from isaac_audio_sensors.isaac.viz.overlays import (
     DebugPrimitive,
     debug_primitives_to_dicts,
 )
+from isaac_audio_sensors.isaac.viz.usd_debug import UsdDebugGeometryAuthor
 
 from .audition import AuditionPlayer
 from .constants import (
@@ -155,6 +156,7 @@ class ExtensionController:
         self._audition_player = AuditionPlayer()
         self._stage_event_subscription: Any | None = None
         self._last_followed_selection: tuple[str, ...] | None = None
+        self._usd_debug_author: UsdDebugGeometryAuthor | None = None
 
     def on_startup(self, ext_id: str) -> None:
         """Initialize the import-safe controller and lazily build Kit UI."""
@@ -1947,6 +1949,48 @@ class ExtensionController:
             return None
         return _resolve_gui_output_path(self.state.waveform_dir)
 
+    def clear_usd_debug_geometry(self) -> tuple[str, ...] | None:
+        """Remove the authored debug subtree from the current stage."""
+
+        try:
+            context = self._context()
+            if context.stage is None:
+                raise ExtensionActionError("No USD stage is open.")
+            if self._usd_debug_author is not None:
+                self._usd_debug_author.clear(context.stage)
+            self.state.latest_usd_debug_prim_paths = ()
+            self._set_status(
+                f"Cleared USD debug geometry under {self.state.usd_debug_root}."
+            )
+            return ()
+        except Exception as exc:
+            self._record_error("USD debug clear failed", exc)
+            return None
+
+    def _update_usd_debug_geometry(self, primitives: tuple[Any, ...]) -> None:
+        if not self.state.usd_debug_enabled:
+            if self.state.latest_usd_debug_prim_paths:
+                self.clear_usd_debug_geometry()
+            return
+        try:
+            context = self._context()
+            if context.stage is None:
+                return
+            author = self._usd_debug_author
+            if author is None or author.root != self.state.usd_debug_root:
+                if author is not None:
+                    with suppress(Exception):
+                        author.clear(context.stage)
+                author = UsdDebugGeometryAuthor(root=self.state.usd_debug_root)
+                self._usd_debug_author = author
+            self.state.latest_usd_debug_prim_paths = author.author(
+                context.stage,
+                primitives,
+            )
+        except Exception as exc:
+            self.state.latest_usd_debug_prim_paths = ()
+            self._record_error("USD debug authoring failed", exc)
+
     def _room_spec_or_none(self) -> Any | None:
         """Default shoebox for room_acoustics; stage scenes carry no room."""
 
@@ -2163,6 +2207,8 @@ class ExtensionController:
                     "follow_viewport_selection": state.follow_viewport_selection,
                     "live_sync_array_pose": state.live_sync_array_pose,
                     "live_sync_source_pose": state.live_sync_source_pose,
+                    "usd_debug_enabled": state.usd_debug_enabled,
+                    "usd_debug_root": state.usd_debug_root,
                     "runtime_options": {
                         "subscribe_to_update_stream_default": True,
                         "import_safe_outside_isaac": True,
@@ -2851,6 +2897,7 @@ class ExtensionController:
             primitive.label for primitive in primitives
         )
         self._record_overlay_status()
+        self._update_usd_debug_geometry(primitives)
         self._set_status(
             f"Updated {frame.frame_id}: {len(detections)} detection(s), "
             f"{len(primitives)} overlay primitive(s)."
@@ -3190,6 +3237,13 @@ class ExtensionController:
         )
         self.state.live_sync_source_pose = bool(
             lifecycle.get("live_sync_source_pose", self.state.live_sync_source_pose)
+        )
+        self.state.usd_debug_enabled = bool(
+            lifecycle.get("usd_debug_enabled", self.state.usd_debug_enabled)
+        )
+        self.state.usd_debug_root = str(
+            lifecycle.get("usd_debug_root", self.state.usd_debug_root)
+            or self.state.usd_debug_root
         )
         self.state.trace_enabled = bool(
             package_recording.get(

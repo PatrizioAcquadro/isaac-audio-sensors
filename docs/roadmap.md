@@ -82,7 +82,9 @@ change.
   deferred from the 1.2.0 audio-output work), plus rendering sim-time gaps
   between throttled ticks.
 - Automated Isaac Sim and Isaac Lab smoke CI on capable GPU runners.
-- Optional USD geometry authoring for debug primitives.
+- Optional USD geometry authoring for debug primitives: shipped in 1.5.0 as
+  the `USD Debug` toggle (session-layer Spheres/BasisCurves under
+  `/World/IasAudioDebug` via `viz.usd_debug.UsdDebugGeometryAuthor`).
 - Broader Replicator annotator compatibility and richer dataset capture beyond
   the current extension writer path, including richer annotator integration
   where public APIs permit it.

@@ -145,6 +145,8 @@ class ExtensionUiState:
     follow_viewport_selection: bool = False
     live_sync_array_pose: bool = False
     live_sync_source_pose: bool = False
+    usd_debug_enabled: bool = False
+    usd_debug_root: str = "/World/IasAudioDebug"
     latest_frame_export_path: str = DEFAULT_LATEST_FRAME_FILENAME
     config_export_path: str = DEFAULT_CONFIG_FILENAME
     config_import_path: str = DEFAULT_CONFIG_FILENAME
@@ -189,6 +191,7 @@ class ExtensionUiState:
     detection_history: list[dict[str, Any]] = field(default_factory=list)
     latest_waveform_paths: tuple[str, ...] = ()
     audition_status: str = "Audition idle."
+    latest_usd_debug_prim_paths: tuple[str, ...] = ()
     latest_overlay_primitive_count: int = 0
     latest_overlay_labels: tuple[str, ...] = ()
     latest_overlay_status: str = "none"

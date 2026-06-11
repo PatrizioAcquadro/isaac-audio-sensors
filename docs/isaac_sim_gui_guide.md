@@ -618,6 +618,18 @@ updates record microphone, source, bearing-ray, and sector-wedge primitives.
 If Isaac debug draw is unavailable, the extension can still report serialized
 overlay primitives.
 
+`USD Debug` authors the same primitives as persistent USD geometry: Sphere
+prims for microphones and sources, BasisCurves for bearing rays and sector
+wedges, colored like the overlay (green clear / red occluded). Unlike the
+transient overlay, the geometry survives pause, camera moves, and screenshots,
+and is visible to anything that reads the stage. Prims are written to the
+session layer under `Debug Root` (default `/World/IasAudioDebug`), so your
+stage file stays clean; they update in place on every sensor update and
+stale prims are pruned. The geometry intentionally persists after `Stop` so
+you can inspect the last frame - press `Clear Debug Geometry` to remove the
+subtree. The status line below the overlay label reports the authored prim
+count and root.
+
 `JSONL` toggles the package-native JSONL trace writer.
 
 `Writer Path` is the JSONL output path. The default is:
