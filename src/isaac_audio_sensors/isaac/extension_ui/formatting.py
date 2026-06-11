@@ -131,3 +131,20 @@ def _format_rms_value(value: float) -> str:
 def _format_vec3(value: Iterable[float]) -> str:
     x, y, z = vec3_from_any(value)
     return f"({x:.2f}, {y:.2f}, {z:.2f})"
+
+
+def _vec_close(
+    left: Iterable[float],
+    right: Iterable[float],
+    *,
+    tolerance: float = 1e-6,
+) -> bool:
+    """Component-wise closeness for position/quaternion change detection."""
+
+    left_values = tuple(float(value) for value in left)
+    right_values = tuple(float(value) for value in right)
+    if len(left_values) != len(right_values):
+        return False
+    return all(
+        abs(a - b) <= tolerance for a, b in zip(left_values, right_values, strict=True)
+    )

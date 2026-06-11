@@ -935,6 +935,39 @@ If Replicator is enabled and started, expect additional files under:
 outputs/isaac_audio_sensors/replicator/
 ```
 
+## Work From the Viewport
+
+The viewport is the primary way to place things; the numeric fields remain the
+precision alternative.
+
+### Follow Selection
+
+Enable `Follow Selection` in the `Stage` section and run `Discover` once.
+Clicking a prim in the viewport then routes it automatically:
+
+- a discovered microphone array fills `Author Array -> Target Prim`,
+- a discovered sound source fills `Author Source -> Target Prim`,
+- anything else becomes the `Object` target (with its label resolved), exactly
+  as if you had pressed `Use Object`.
+
+The status line reports each adoption, for example
+`Viewport selection adopted as array: /World/Rig/AudioArray`. Selection
+following uses Kit stage events when available and falls back to polling on
+the sensor update tick otherwise.
+
+### Manipulator-Driven Placement
+
+Enable `Live Sync Pose` in the `Author Array` or `Author Source` section, then
+move the prim with the standard viewport move/rotate gizmo. The numeric
+position (and, for arrays, orientation) fields mirror the manipulated prim on
+every update tick, and the running sensor already re-resolves prim poses on
+each capture - so dragging a source across the scene swings the compass and
+meters live without touching any field.
+
+While `Live Sync Pose` is enabled the fields are owned by the prim: manual
+edits are overwritten on the next tick. Disable the toggle to type precise
+values, then press `Apply Array Pose` / `Apply Position` as before.
+
 ## First Demo Pipeline
 
 This pipeline starts from a simple stage and produces a latest frame, JSONL

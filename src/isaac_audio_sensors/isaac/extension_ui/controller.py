@@ -81,7 +81,12 @@ from .constants import (
     OMNI_WINDOW_TITLE,
     SOURCE_POSITION_PRESETS,
 )
-from .formatting import _aggregate_rms_from_frame, _format_vec3, _frame_is_new
+from .formatting import (
+    _aggregate_rms_from_frame,
+    _format_vec3,
+    _frame_is_new,
+    _vec_close,
+)
 from .instruments import append_detection_history
 from .paths import _resolve_gui_output_path
 from .stage_context import (
@@ -148,6 +153,8 @@ class ExtensionController:
         self._controller_update_subscription: Any | None = None
         self._menu_items: list[Any] = []
         self._audition_player = AuditionPlayer()
+        self._stage_event_subscription: Any | None = None
+        self._last_followed_selection: tuple[str, ...] | None = None
 
     def on_startup(self, ext_id: str) -> None:
         """Initialize the import-safe controller and lazily build Kit UI."""
@@ -233,10 +240,12 @@ class ExtensionController:
         self._register_action()
         self._register_menu()
         self._register_hotkey()
+        self._register_stage_event_subscription()
 
     def unregister_kit_integrations(self) -> None:
         """Best-effort cleanup of Kit action/menu/hotkey registrations."""
 
+        self._unregister_stage_event_subscription()
         self._unregister_hotkey()
         self._unregister_menu()
         self._unregister_action()
@@ -2151,6 +2160,9 @@ class ExtensionController:
                     "waveform_enabled": state.waveform_enabled,
                     "waveform_dir": state.waveform_dir,
                     "waveform_mode": state.waveform_mode,
+                    "follow_viewport_selection": state.follow_viewport_selection,
+                    "live_sync_array_pose": state.live_sync_array_pose,
+                    "live_sync_source_pose": state.live_sync_source_pose,
                     "runtime_options": {
                         "subscribe_to_update_stream_default": True,
                         "import_safe_outside_isaac": True,
@@ -2273,6 +2285,7 @@ class ExtensionController:
             )
 
         def _on_update(_event: Any) -> None:
+            self._viewport_follow_tick()
             if self.sensor is None or not self.state.sensor_running:
                 return
             frame = self.update_sensor(force=False)
@@ -2286,6 +2299,129 @@ class ExtensionController:
 
     def _stop_controller_update_subscription(self) -> None:
         self._controller_update_subscription = None
+
+    def _register_stage_event_subscription(self) -> None:
+        """Follow viewport selection through omni.usd stage events when present."""
+
+        try:
+            import omni.usd  # type: ignore
+        except ImportError:
+            self._stage_event_subscription = None
+            return
+        try:
+            context = omni.usd.get_context()
+            stream = context.get_stage_event_stream()
+            selection_changed = int(omni.usd.StageEventType.SELECTION_CHANGED)
+
+            def _on_stage_event(event: Any) -> None:
+                if int(getattr(event, "type", -1)) != selection_changed:
+                    return
+                self._handle_viewport_selection_changed()
+
+            self._stage_event_subscription = stream.create_subscription_to_pop(
+                _on_stage_event,
+                name="isaac_audio_sensors.extension_ui.stage_events",
+            )
+        except Exception:
+            self._stage_event_subscription = None
+
+    def _unregister_stage_event_subscription(self) -> None:
+        self._stage_event_subscription = None
+
+    def _viewport_follow_tick(self) -> None:
+        """Per-tick fallback when stage events are unavailable, plus pose sync."""
+
+        if (
+            self._stage_event_subscription is None
+            and self.state.follow_viewport_selection
+        ):
+            self._handle_viewport_selection_changed()
+        self._live_sync_pose_tick()
+
+    def _handle_viewport_selection_changed(self) -> None:
+        try:
+            context = self._context()
+        except Exception:
+            return
+        selection = tuple(context.selected_prim_paths)
+        if selection == self._last_followed_selection:
+            return
+        self._last_followed_selection = selection
+        self.state.selected_prim_paths = selection
+        if not self.state.follow_viewport_selection or not selection:
+            return
+        self._adopt_viewport_selection(selection[0], stage=context.stage)
+        if self._ui_window is not None:
+            self._ui_window.push_state_to_widgets()
+            self._ui_window.refresh_labels()
+
+    def _adopt_viewport_selection(self, path: str, *, stage: Any | None) -> None:
+        """Route a selected prim to the matching target field via discovery."""
+
+        if any(item.prim_path == path for item in self.state.discovered_arrays):
+            self.state.array_prim_path = path
+            self._set_status(f"Viewport selection adopted as array: {path}")
+            return
+        if any(item.prim_path == path for item in self.state.discovered_sources):
+            self.state.source_prim_path = path
+            self._set_status(f"Viewport selection adopted as source: {path}")
+            return
+        self.use_selected_as_object(stage=stage, selected_paths=(path,))
+
+    def _live_sync_pose_tick(self) -> None:
+        """Mirror manipulator-driven prim poses into the numeric fields."""
+
+        state = self.state
+        if not (state.live_sync_array_pose or state.live_sync_source_pose):
+            return
+        try:
+            context = self._context()
+        except Exception:
+            return
+        if context.stage is None:
+            return
+        changed = False
+        if state.live_sync_source_pose and state.source_prim_path.strip():
+            changed = self._sync_source_pose_from_prim(context.stage) or changed
+        if state.live_sync_array_pose and state.array_prim_path.strip():
+            changed = self._sync_array_pose_from_prim(context.stage) or changed
+        if changed and self._ui_window is not None:
+            self._ui_window.push_state_to_widgets()
+            self._ui_window.refresh_labels()
+
+    def _sync_source_pose_from_prim(self, stage: Any) -> bool:
+        try:
+            pose = IsaacStagePoseResolver(stage).resolve_world_pose(
+                self.state.source_prim_path,
+                field_name="live source",
+            )
+        except Exception:
+            return False
+        position = tuple(float(value) for value in pose.position_world)
+        if _vec_close(self._source_position_from_state(), position):
+            return False
+        self._set_source_position_state(position)
+        return True
+
+    def _sync_array_pose_from_prim(self, stage: Any) -> bool:
+        try:
+            pose = IsaacStagePoseResolver(stage).resolve_world_pose(
+                self.state.array_prim_path,
+                field_name="live array",
+            )
+        except Exception:
+            return False
+        position = tuple(float(value) for value in pose.position_world)
+        orientation = tuple(
+            float(value)
+            for value in (pose.orientation_world_quat or (0.0, 0.0, 0.0, 1.0))
+        )
+        if _vec_close(self._array_position_from_state(), position) and _vec_close(
+            self._array_orientation_from_state(), orientation
+        ):
+            return False
+        self._set_array_pose_state(position, orientation)
+        return True
 
     def _build_sensor(self, stage: Any) -> IsaacAudioArraySensor:
         state = self.state
@@ -3043,6 +3179,18 @@ class ExtensionController:
         )
         if waveform_mode in {"per_frame", "session"}:
             self.state.waveform_mode = waveform_mode
+        self.state.follow_viewport_selection = bool(
+            lifecycle.get(
+                "follow_viewport_selection",
+                self.state.follow_viewport_selection,
+            )
+        )
+        self.state.live_sync_array_pose = bool(
+            lifecycle.get("live_sync_array_pose", self.state.live_sync_array_pose)
+        )
+        self.state.live_sync_source_pose = bool(
+            lifecycle.get("live_sync_source_pose", self.state.live_sync_source_pose)
+        )
         self.state.trace_enabled = bool(
             package_recording.get(
                 "enabled",

@@ -2222,6 +2222,9 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
     assert set(controller._ui_window._bool_fields) == {
         "author_child_microphones",
         "debug_overlay_enabled",
+        "follow_viewport_selection",
+        "live_sync_array_pose",
+        "live_sync_source_pose",
         "occlusion_enabled",
         "replicator_enabled",
         "trace_enabled",
@@ -2424,6 +2427,165 @@ def test_extension_ui_instruments_show_compass_meters_and_timeline(monkeypatch):
     assert "speech_generic" in timeline[0]
     assert "90.0 deg" in timeline[0]
     assert "clear" in timeline[0]
+
+
+class _FakeStageEventStream:
+    SELECTION_CHANGED = 2
+    OPENED = 1
+
+    def __init__(self) -> None:
+        self.callbacks: list[object] = []
+
+    def create_subscription_to_pop(self, callback, name=None):
+        self.callbacks.append(callback)
+        return SimpleNamespace(name=name)
+
+    def trigger(self, event_type: int) -> None:
+        for callback in list(self.callbacks):
+            callback(SimpleNamespace(type=int(event_type)))
+
+
+def _install_fake_stage_events(monkeypatch):
+    omni = sys.modules.get("omni") or ModuleType("omni")
+    omni.__path__ = []
+    stream = _FakeStageEventStream()
+    omni_usd = ModuleType("omni.usd")
+    omni_usd.StageEventType = SimpleNamespace(
+        SELECTION_CHANGED=_FakeStageEventStream.SELECTION_CHANGED,
+        OPENED=_FakeStageEventStream.OPENED,
+    )
+    omni_usd.get_context = lambda: SimpleNamespace(
+        get_stage_event_stream=lambda: stream
+    )
+    omni.usd = omni_usd
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.usd", omni_usd)
+    return stream
+
+
+def test_extension_controller_follows_viewport_selection_via_stage_events(
+    monkeypatch,
+):
+    from isaac_audio_sensors.isaac.extension_ui import DiscoveredPrimSummary
+
+    _install_fake_kit_integrations(monkeypatch)
+    stream = _install_fake_stage_events(monkeypatch)
+    array_prim = _FakePrim(
+        "/World/Rig/AudioArray",
+        "Xform",
+        {"xformOp:translate": (0.0, 0.0, 0.0)},
+    )
+    oven = _FakePrim("/World/Oven", "Xform", {"xformOp:translate": (1.0, 0.0, 0.0)})
+    stage = _FakeStage((array_prim, oven))
+    selection: list[str] = []
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, tuple(selection))
+    )
+    controller.state.follow_viewport_selection = True
+    controller.state.discovered_arrays = (
+        DiscoveredPrimSummary(
+            id="rig_front",
+            prim_path="/World/Rig/AudioArray",
+            reasons=("name",),
+        ),
+    )
+    controller.on_startup("isaac_audio_sensors.omni")
+    assert controller._stage_event_subscription is not None
+
+    selection[:] = ["/World/Rig/AudioArray"]
+    stream.trigger(_FakeStageEventStream.SELECTION_CHANGED)
+    assert controller.state.array_prim_path == "/World/Rig/AudioArray"
+    assert "adopted as array" in controller.state.status_message
+
+    selection[:] = ["/World/Oven"]
+    stream.trigger(_FakeStageEventStream.SELECTION_CHANGED)
+    assert controller.state.object_prim_path == "/World/Oven"
+
+    # Non-selection events and disabled follow do not adopt anything.
+    selection[:] = ["/World/Rig/AudioArray"]
+    stream.trigger(_FakeStageEventStream.OPENED)
+    assert controller.state.object_prim_path == "/World/Oven"
+    controller.state.follow_viewport_selection = False
+    stream.trigger(_FakeStageEventStream.SELECTION_CHANGED)
+    assert controller.state.object_prim_path == "/World/Oven"
+    controller.on_shutdown()
+    assert controller._stage_event_subscription is None
+
+
+def test_extension_controller_polling_fallback_follows_selection():
+    from isaac_audio_sensors.isaac.extension_ui import DiscoveredPrimSummary
+
+    source_prim = _FakePrim(
+        "/World/Sources/SpeakerA",
+        "Xform",
+        {"xformOp:translate": (2.0, 0.0, 0.0)},
+    )
+    stage = _FakeStage((source_prim,))
+    selection: list[str] = []
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, tuple(selection))
+    )
+    controller.state.follow_viewport_selection = True
+    controller.state.discovered_sources = (
+        DiscoveredPrimSummary(
+            id="speaker_a",
+            prim_path="/World/Sources/SpeakerA",
+            reasons=("name",),
+        ),
+    )
+    assert controller._stage_event_subscription is None
+
+    selection[:] = ["/World/Sources/SpeakerA"]
+    controller._viewport_follow_tick()
+    assert controller.state.source_prim_path == "/World/Sources/SpeakerA"
+    assert "adopted as source" in controller.state.status_message
+
+
+def test_extension_controller_live_sync_pose_follows_prim_moves(monkeypatch):
+    omni = ModuleType("omni")
+    omni.__path__ = []
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    source_prim = _FakePrim(
+        "/World/Sources/SpeakerA",
+        "Xform",
+        {"xformOp:translate": (2.0, 0.0, 0.0)},
+    )
+    array_prim = _FakePrim(
+        "/World/Rig/AudioArray",
+        "Xform",
+        {"xformOp:translate": (0.0, 0.0, 1.0)},
+    )
+    stage = _FakeStage((source_prim, array_prim))
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.source_prim_path = "/World/Sources/SpeakerA"
+    controller.state.array_prim_path = "/World/Rig/AudioArray"
+    controller.state.live_sync_source_pose = True
+    controller.state.live_sync_array_pose = True
+    assert controller.build_ui_if_available() is not None
+    window = controller._ui_window
+
+    controller._viewport_follow_tick()
+    assert controller.state.source_position_x_m == 2.0
+    assert controller.state.array_position_z_m == 1.0
+
+    source_prim.attributes["xformOp:translate"] = (3.5, -1.0, 0.5)
+    array_prim.attributes["xformOp:translate"] = (0.0, 2.0, 1.5)
+    controller._viewport_follow_tick()
+    assert controller.state.source_position_x_m == 3.5
+    assert controller.state.source_position_y_m == -1.0
+    assert controller.state.array_position_y_m == 2.0
+    assert window._float_fields["source_position_x_m"].model.value == "3.5"
+
+    # Disabled sync stops mirroring.
+    controller.state.live_sync_source_pose = False
+    source_prim.attributes["xformOp:translate"] = (9.0, 9.0, 9.0)
+    controller._viewport_follow_tick()
+    assert controller.state.source_position_x_m == 3.5
 
 
 def _float32_wav_bytes(frames: int = 512, sample_rate: int = 8000) -> bytes:

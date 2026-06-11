@@ -47,6 +47,7 @@ def build_stage_section(window: OmniReferenceWindow) -> None:
                 "Use Base",
                 window.controller.use_selected_as_robot_base,
             )
+        window._bool_row("Follow Selection", "follow_viewport_selection")
         window._string_row("Discovery Roots", "discovery_roots_text")
         window._string_row("Robot/Base", "robot_base_prim_path")
         window._string_row("Object", "object_prim_path")
@@ -93,6 +94,7 @@ def build_array_section(window: OmniReferenceWindow) -> None:
         window._float_row("Array Yaw", "array_yaw_deg")
         window._float_row("Array Pitch", "array_pitch_deg")
         window._float_row("Array Roll", "array_roll_deg")
+        window._bool_row("Live Sync Pose", "live_sync_array_pose")
         with ui.HStack(spacing=4):
             window._button(
                 "Read Array Transform",
@@ -148,6 +150,7 @@ def build_source_section(window: OmniReferenceWindow) -> None:
         window._float_row("Local Offset X", "source_local_offset_x_m")
         window._float_row("Local Offset Y", "source_local_offset_y_m")
         window._float_row("Local Offset Z", "source_local_offset_z_m")
+        window._bool_row("Live Sync Pose", "live_sync_source_pose")
         with window.ui.HStack(spacing=4):
             window._button(
                 "Read Selected Transform",

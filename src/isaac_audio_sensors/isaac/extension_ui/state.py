@@ -142,6 +142,9 @@ class ExtensionUiState:
     waveform_enabled: bool = False
     waveform_dir: str = "live_waveforms"
     waveform_mode: str = "per_frame"
+    follow_viewport_selection: bool = False
+    live_sync_array_pose: bool = False
+    live_sync_source_pose: bool = False
     latest_frame_export_path: str = DEFAULT_LATEST_FRAME_FILENAME
     config_export_path: str = DEFAULT_CONFIG_FILENAME
     config_import_path: str = DEFAULT_CONFIG_FILENAME

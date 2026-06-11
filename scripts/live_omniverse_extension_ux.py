@@ -172,6 +172,9 @@ EXPECTED_INT_FIELDS = ("max_events", "sample_rate_hz")
 EXPECTED_BOOL_FIELDS = (
     "author_child_microphones",
     "debug_overlay_enabled",
+    "follow_viewport_selection",
+    "live_sync_array_pose",
+    "live_sync_source_pose",
     "replicator_enabled",
     "trace_enabled",
     "waveform_enabled",
