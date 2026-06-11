@@ -115,6 +115,28 @@ Future L3 work should be additive:
 L3 must not require new `AudioSensorFrame` v1 fields. If richer realism needs a
 breaking trace shape, it should introduce a future schema version instead.
 
+### First shipped L3 capability: Isaac raycast occlusion
+
+Since 1.3.0, raycast occlusion is the first shipped L3 capability. It is an
+opt-in Isaac-layer feature, not a runtime backend: when
+`IsaacAudioArraySensor` is created with `occlusion_enabled=True`, the Isaac
+layer casts one PhysX scene-query ray from each active source toward each
+microphone and attaches per-source `SourceOcclusion` records to the optional,
+additive `AudioSceneSnapshot.occlusion` field. The pure core only consumes
+the records: L0/L1 apply the producer-supplied `attenuation_db` as extra
+per-source gain (delays and DOA estimates are unchanged), L2 scales the
+source input signal so the mixture, per-source premix RMS, and exported
+waveforms stay consistent, and affected detections carry the optional
+`occluded` flag plus an `occlusion` diagnostics namespace. Bearing-ray
+overlays turn amber (partially blocked) or red (occluded).
+
+The model is deliberately first-order: a blocked direct path applies one
+configurable broadband attenuation (`occlusion_max_attenuation_db`, default
+20 dB) scaled by the fraction of blocked source-to-microphone rays.
+Frequency-dependent transmission, material properties, diffraction, and edge
+effects remain future L3 work, so realistic occlusion/material acoustics stay
+outside the v1 promise, and L3 itself remains provisional.
+
 ## L4 `sim_real_calibration`
 
 L4 is experimental/tooling in v1. It names the future direction for measured

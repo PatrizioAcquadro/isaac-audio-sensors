@@ -74,7 +74,9 @@ change.
   the current extension writer path, including richer annotator integration
   where public APIs permit it.
 - L3 advanced realism implementation for richer wave/RIR, material,
-  occlusion, directivity, noise, and estimator realism.
+  directivity, noise, and estimator realism. Raycast occlusion attenuation
+  shipped in 1.3.0 as the first L3 capability; frequency-dependent
+  transmission, materials, and diffraction remain open.
 - L4 sim-real calibration tooling for measured array pose, gain, time-offset,
   noise, validation artifacts, and sim-vs-real comparisons.
 - GCC-PHAT and SRP-PHAT estimation paths as documented public backends.

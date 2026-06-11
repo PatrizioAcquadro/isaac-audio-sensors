@@ -1,5 +1,71 @@
 # Changelog
 
+## 1.3.0 - 2026-06-10
+
+Isaac-native occlusion and live-path caching release. The Isaac layer now
+raycasts each active source against each microphone through the PhysX scene
+query interface and emits per-source occlusion into the scene snapshot;
+pure-core backends only consume it. Steady-state live sensor ticks no longer
+re-traverse the USD stage. The frame schema version is unchanged at
+`ias.audio_sensor_frame.v1`; pre-existing v1 traces remain valid.
+
+Occlusion (additive, first shipped L3 capability):
+
+- New `isaac.occlusion` module: `IsaacPhysxRaycaster` lazily acquires the
+  PhysX scene-query interface, and `compute_scene_occlusion` casts one ray
+  per source/microphone pair with endpoint epsilons and bounded re-casts
+  past hits on the source or array prims themselves.
+- New core `SourceOcclusion` record and optional, additive
+  `AudioSceneSnapshot.occlusion` field plus `occlusion_for(...)` lookup; the
+  occlusion factor is the fraction of blocked rays and the attenuation is
+  baked in by the producer (`occlusion_max_attenuation_db`, default 20 dB).
+- `AudioDetection` gains the optional `occluded: bool = False` field. It is
+  always serialized by current writers, parsed with a `False` default, and
+  listed in the new `OPTIONAL_DETECTION_FIELDS` so the JSON schema does not
+  require it; detections also carry an `occlusion` diagnostics namespace.
+- All backends consume occlusion uniformly per source: L0/L1 apply
+  `attenuation_db` through `extra_gain_db` (delays and DOA unchanged), L2
+  scales the source input signal so mixture, premix RMS, and exported
+  waveforms agree.
+- `IsaacAudioArraySensor` gains `occlusion_enabled` (off by default),
+  `occlusion_max_attenuation_db`, and an injectable `occlusion_raycaster`;
+  outside Isaac the feature degrades gracefully with an `occlusion` status
+  in the stage diagnostics. The Kit extension GUI gains an Occlusion toggle.
+- Overlay bearing rays are colored by occlusion state (green/amber/red).
+- New `make live-isaac-occlusion` gate: a collider wall between source and
+  array must attenuate per-mic RMS by the configured 20 dB via real PhysX
+  raycasts, set the occluded flag, keep the discovery cache warm, and
+  capture a viewport screenshot of the red occluded bearing ray.
+
+Live-path caching:
+
+- New `isaac.stage_cache.StageAudioCache`: the first capture runs full
+  semantic discovery (one `stage.Traverse()`); steady-state ticks rebuild
+  specs only for the cached audio prim paths at the new time code. Cached
+  snapshots are asserted equal to fresh full-discovery snapshots.
+- Invalidation via `Usd.Notice.ObjectsChanged` resyncs on real USD stages
+  (info-only changes never invalidate; poses are re-read every tick), cheap
+  per-tick path validation with transparent full-rediscovery fallback, and
+  an explicit `sensor.rediscover()`.
+- `IsaacStagePoseResolver` and `discover_stage_audio` accept a pre-traversed
+  `prims` tuple; `frame.diagnostics["stage_snapshot"]` gains a
+  `discovery_cache` summary.
+
+Isaac Sim 5.x visualization fixes:
+
+- The debug-draw shim also resolves `isaacsim.util.debug_draw` (the 5.x
+  module name), so overlays render live again instead of falling back to
+  serialized primitives.
+- Point sizes and line widths are converted from meters to the pixel units
+  the debug-draw interface expects; they were sub-pixel before.
+
+Deferred:
+
+- Frequency-dependent or material-based occlusion transmission.
+- Diffraction and edge effects.
+- Per-microphone (instead of per-source) occlusion attenuation.
+- An Isaac Lab `occluded` observation buffer.
+
 ## 1.2.0 - 2026-06-10
 
 Audio output release: the room backend now renders true microphone mixtures

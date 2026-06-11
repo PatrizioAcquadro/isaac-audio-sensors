@@ -7,12 +7,19 @@ separate schema-version policy for frame traces.
 
 - distribution: `isaac-audio-sensors`
 - import package: `isaac_audio_sensors`
-- package version: `1.2.0`
-- Kit extension manifest version: `1.2.0`
+- package version: `1.3.0`
+- Kit extension manifest version: `1.3.0`
 - frame schema version: `ias.audio_sensor_frame.v1`
 - pure Python support: Python 3.10 or newer
 
-`1.2.0` is a compatible v1 minor release: the `room_acoustics` backend now
+`1.3.0` is a compatible v1 minor release: the Isaac layer adds opt-in PhysX
+raycast occlusion (the first shipped L3 capability) consumed by all backends
+as per-source attenuation plus an optional `occluded` detection field that is
+serialized by current writers but not schema-required, and steady-state live
+sensor ticks reuse cached stage discovery instead of re-traversing the USD
+stage. The frame schema version is unchanged.
+
+`1.2.0` was a compatible v1 minor release: the `room_acoustics` backend now
 simulates all scheduled sources in one shared room per frame (true microphone
 mixtures with sample-accurate start offsets), exports per-frame or
 session-continuous multichannel WAVs through the new `core.io.waveforms`
@@ -42,7 +49,7 @@ downstream adapters are not final v1 package release gates, and phases 9, 10,
 and 11 remain planned post-v1 work rather than prerequisites for this tag.
 
 The Kit extension manifest uses SemVer spelling. The Kit extension manifest
-and Python package version both use `1.2.0`.
+and Python package version both use `1.3.0`.
 
 The package's v1 promise boundary is frozen in [V1 Public Scope](v1_scope.md).
 Versioning changes must not expand v1 into downstream release gates, sim-real

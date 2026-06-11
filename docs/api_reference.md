@@ -220,8 +220,25 @@ Each `update()` rebuilds a stage snapshot, follows moved USD transforms,
 applies active sound windows, respects `max_events`, stores the latest frame,
 and can append JSONL frames through `AudioFrameJsonlWriter`. Live-stage frames
 use provenance `isaac_live` and include
-`frame.diagnostics["stage_snapshot"]` with transform provenance and time-code
-details.
+`frame.diagnostics["stage_snapshot"]` with transform provenance, time-code
+details, and a `discovery_cache` summary.
+
+Since `1.3.0` the live path is cached: the first capture runs full semantic
+discovery (one `stage.Traverse()`), and steady-state ticks re-resolve only
+poses and attributes for the cached audio prim paths. The cache invalidates
+itself on `Usd.Notice.ObjectsChanged` resyncs (real USD stages), on missing
+cached prims, and on parameter changes; `sensor.rediscover()` forces full
+re-discovery on the next capture.
+
+With `occlusion_enabled=True` (off by default), each live capture also runs
+PhysX scene-query raycasts from every active source to every microphone and
+attaches `SourceOcclusion` records to the snapshot. Backends consume them as
+extra attenuation, detections gain the optional `occluded` flag plus an
+`occlusion` diagnostics namespace, and bearing-ray overlays are colored by
+occlusion state. `occlusion_max_attenuation_db` (default 20.0) sets the
+fully-occluded attenuation, and `occlusion_raycaster` accepts an injectable
+raycaster for tests. Outside Isaac Sim, occlusion degrades gracefully and
+records an `occlusion` status in the stage diagnostics.
 
 Stage binding entry points:
 
@@ -270,8 +287,10 @@ source ids, class labels, audio asset paths, active windows, gain, and
 directivity.
 
 Debug visualization uses structured primitives that are available without
-Isaac. When `omni.isaac.debug_draw` is available, `IsaacDebugDrawer` draws
-microphones, sources, bearing rays, and sector wedges.
+Isaac. When `omni.isaac.debug_draw` (or Isaac Sim 5.x's
+`isaacsim.util.debug_draw`) is available, `IsaacDebugDrawer` draws
+microphones, sources, bearing rays, and sector wedges; bearing rays are
+green, amber, or red by occlusion state.
 
 The reference Kit extension under `exts/isaac_audio_sensors.omni` uses the same
 public Isaac helpers. Its controller can author array/source `ias:*` metadata,

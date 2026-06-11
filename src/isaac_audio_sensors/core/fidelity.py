@@ -112,11 +112,14 @@ ACOUSTIC_FIDELITY_LADDER = (
         backend_ids=(),
         backend_family="advanced_realism",
         models=(
+            "opt-in Isaac-layer raycast occlusion attenuation "
+            "(first shipped L3 capability)",
             "future richer wave and RIR diagnostics",
-            "future occlusion, material, directivity, noise, and estimator realism",
+            "future material, directivity, noise, and estimator realism",
         ),
         does_not_model=(
             "a complete v1 runtime backend",
+            "frequency-dependent or material-based occlusion and diffraction",
             "calibrated sim-real acoustic behavior",
             "production perception or speech recognition",
         ),

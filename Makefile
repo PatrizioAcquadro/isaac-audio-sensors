@@ -4,7 +4,7 @@ ISAAC_SIM_COMMAND ?= $(PYTHON)
 ISAAC_LAB_PYTHON ?= $(PYTHON)
 ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
-EXPECTED_VERSION ?= 1.2.0
+EXPECTED_VERSION ?= 1.3.0
 
 .PHONY: test lint format build audit-dist import-smoke validate-config export-schema regenerate-traces live-evidence-report live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac
 

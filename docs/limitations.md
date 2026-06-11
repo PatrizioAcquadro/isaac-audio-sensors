@@ -9,8 +9,9 @@
   package.
 - `geometry_only` is deterministic geometry, not acoustic propagation.
 - `tdoa_synthetic` models direct-path delay from known geometry and optional
-  deterministic stress controls; it does not model occlusion, multipath, or
-  microphone frequency response.
+  deterministic stress controls; it does not model multipath or microphone
+  frequency response, and applies occlusion only as producer-supplied
+  first-order raycast attenuation.
 - `room_acoustics` is an optional approximate shoebox simulation and depends on
   `pyroomacoustics`. It generates RIRs and true microphone mixtures, then
   derives TDOA through GCC-PHAT, but it does not provide realistic occlusion,
@@ -31,8 +32,10 @@
   `geometry_only` and `tdoa_synthetic`; room/RIR diagnostics are live-validated
   only when the optional dependency is installed and the smoke reports that
   backend as passed.
-- L3 advanced realism is a provisional API direction for future richer
-  wave/RIR, material, occlusion, directivity, noise, and estimator realism; it
+- L3 advanced realism is a provisional API direction; its first shipped
+  capability is opt-in Isaac raycast occlusion attenuation (broadband and
+  first-order, no materials or diffraction). Richer wave/RIR, material,
+  directivity, noise, and estimator realism remain future work, and L3 still
   is not a complete v1 runtime backend.
 - L4 sim-real calibration is experimental/tooling direction for future
   calibration artifacts and sim-vs-real comparisons; it is not a stable v1

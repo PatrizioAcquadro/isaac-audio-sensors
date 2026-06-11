@@ -34,6 +34,13 @@ Current package release: `1.2.0`. The frame schema version remains separate at
   `AudioSensorFrame.waveform_paths`.
 - Public acoustic fidelity ladder documenting stable L0/L1, supported optional
   L2, provisional L3, and experimental/tooling L4 compatibility boundaries.
+- Opt-in Isaac-native occlusion (the first shipped L3 capability): PhysX
+  raycasts from each source to each microphone attenuate detections behind
+  colliders, set an optional `occluded` flag, and color overlay bearing rays
+  by occlusion state.
+- Cached live-path discovery: steady-state sensor ticks re-resolve only poses
+  instead of re-traversing the USD stage, with `Usd.Notice` invalidation and
+  an explicit `rediscover()` escape hatch.
 - Lazy Isaac Sim helpers for USD sound/listener/microphone-array metadata,
   live update-loop capture, USD-native world-pose reads, nested transform
   stacks, robot/base-mounted arrays, moving sources/arrays/microphone children,
@@ -312,7 +319,8 @@ available, the Markdown source remains the reproducible report source.
 - `geometry_only` is a deterministic geometric bearing model, not acoustic
   propagation.
 - `tdoa_synthetic` computes direct-path synthetic delays and does not model
-  reverberation or occlusion.
+  reverberation; occlusion is applied only as the opt-in first-order Isaac
+  raycast attenuation.
 - `room_acoustics` is optional and depends on the `room` extra; it should be
   treated as an approximate shoebox-room simulation, not realistic occlusion,
   material behavior, directivity, microphone calibration, production

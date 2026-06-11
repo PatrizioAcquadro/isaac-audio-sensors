@@ -45,6 +45,25 @@ one pressure-like reference convention:
   the detection diagnostic `directivity_applied` records what was modeled.
   Both `self_noise_db` and source directivity remain metadata-only at L2.
 
+## Shared Occlusion Consumption
+
+Since `1.3.0` backends consume optional producer-computed occlusion (the
+Isaac layer's raycast occlusion, the first shipped L3 capability) without
+computing any occlusion themselves. When `AudioSceneSnapshot.occlusion`
+carries a `SourceOcclusion` record for a source/array pair:
+
+- `geometry_only` and `tdoa_synthetic` apply the per-source `attenuation_db`
+  as extra gain on the synthetic RMS; per-microphone delays and DOA estimates
+  are unchanged.
+- `room_acoustics` scales the source input signal before room simulation, so
+  the mixture, per-source premix RMS, and exported waveforms stay mutually
+  consistent.
+- Affected detections set the optional `occluded` flag (occlusion factor at
+  or above 0.5) and an `occlusion` diagnostics namespace with the factor,
+  applied attenuation, per-microphone blocked map, and hit prim paths.
+
+Without occlusion records, behavior is byte-for-byte unchanged.
+
 ## geometry_only
 
 `GeometryBackend` computes direct geometric bearing, source distance, and an
@@ -66,8 +85,9 @@ wraparound `straight` sector covers `337.5 <= bearing < 360.0` and
 `right`, and `337.5` belongs to `straight`. This was a compatibility-preserving
 bug fix to align code and docs, not an opening to change sector meanings.
 
-It does not simulate propagation, waveforms, reverberation, occlusion, or
-physical microphone response.
+It does not simulate propagation, waveforms, reverberation, or physical
+microphone response, and computes no occlusion itself; it only applies
+producer-supplied occlusion attenuation as described above.
 
 ## tdoa_synthetic
 
