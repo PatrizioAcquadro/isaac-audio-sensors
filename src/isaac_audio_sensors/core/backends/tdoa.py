@@ -37,8 +37,8 @@ from isaac_audio_sensors.core.scene import (
     deterministic_frame_id,
     deterministic_frame_name,
     occlusion_detection_diagnostics,
-    occlusion_extra_gain_db,
     occlusion_flag,
+    occlusion_per_mic_extra_gain_db,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -114,7 +114,10 @@ class TdoaSyntheticBackend:
                 source,
                 sensor,
                 frame_id=frame_id,
-                extra_gain_db=occlusion_extra_gain_db(occlusion),
+                per_mic_extra_gain_db=occlusion_per_mic_extra_gain_db(
+                    occlusion,
+                    tuple(microphone.mic_id for microphone in sensor.microphones),
+                ),
             )
             ground_truth_bearing = _ground_truth_bearing(source.position_world, sensor)
             doa = self._estimate_doa(
@@ -222,9 +225,10 @@ class TdoaSyntheticBackend:
         sensor: MicrophoneArraySpec,
         *,
         frame_id: str,
-        extra_gain_db: float = 0.0,
+        per_mic_extra_gain_db: dict[str, float] | None = None,
     ) -> _DelayResult:
         positions = microphone_world_positions(sensor)
+        extra_gains = per_mic_extra_gain_db or {}
         distances: dict[str, float] = {}
         delays: dict[str, float] = {}
         rms: dict[str, float] = {}
@@ -241,7 +245,11 @@ class TdoaSyntheticBackend:
             amplitude = source_amplitude_at(
                 source,
                 mic_position,
-                extra_gain_db=microphone.gain_db + gain_offset_db + extra_gain_db,
+                extra_gain_db=(
+                    microphone.gain_db
+                    + gain_offset_db
+                    + extra_gains.get(microphone.mic_id, 0.0)
+                ),
                 air_absorption_db_per_m=self.air_absorption_db_per_m,
             )
             distances[microphone.mic_id] = distance

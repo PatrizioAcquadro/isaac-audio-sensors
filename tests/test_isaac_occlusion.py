@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 
+import numpy as np
 import pytest
 
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 from isaac_audio_sensors.core.io.traces import (
     frame_from_trace_dict,
     frame_to_trace_dict,
 )
+from isaac_audio_sensors.core.io.waveforms import WaveformWriteResult
 from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSceneSnapshot,
@@ -27,8 +31,10 @@ from isaac_audio_sensors.core.types import (
 )
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.occlusion import (
+    DEFAULT_MATERIAL_TRANSMISSION_DB,
     IsaacPhysxRaycaster,
     OcclusionHit,
+    UsdTransmissionLossResolver,
     compute_scene_occlusion,
 )
 from isaac_audio_sensors.isaac.viz.overlays import (
@@ -208,13 +214,14 @@ def test_compute_scene_occlusion_skips_source_and_array_hits_with_recast():
 def test_compute_scene_occlusion_degenerate_short_ray_is_clear():
     # The source sits within two endpoint epsilons of the front microphone:
     # that ray is degenerate and never cast, while the right-microphone ray
-    # is still evaluated normally.
+    # is still evaluated normally (one blocking hit plus the continuation
+    # cast that finds no further surface).
     raycaster = FakeRaycaster(walls=((WALL_PRIM_PATH, 0.04, None),))
     scene = _scene(sources=(_source(position=(0.085, 0.0, 0.0)),))
     records = compute_scene_occlusion(scene, raycaster)
 
     assert records[0].per_mic_blocked == {"front": False, "right": True}
-    assert len(raycaster.casts) == 1
+    assert len(raycaster.casts) == 2
 
 
 def test_source_occlusion_and_snapshot_validation():
@@ -542,3 +549,391 @@ def test_isaac_physx_raycaster_unavailable_path_is_lazy_and_clear():
         assert "omni.physx" in str(exc)
         return
     pytest.skip("omni.physx is installed; unavailable path is not active.")
+
+
+def test_compute_scene_occlusion_accumulates_multi_hit_transmission():
+    walls = ((WALL_PRIM_PATH, 2.0, None), ("/World/Wall2", 3.0, None))
+    records = compute_scene_occlusion(_scene(), FakeRaycaster(walls=walls))
+
+    record = records[0]
+    assert record.per_mic_blocked == {"front": True, "right": True}
+    assert record.per_mic_attenuation_db == {"front": 40.0, "right": 40.0}
+    assert record.attenuation_db == 40.0
+    assert record.occlusion_model == "raycast_transmission_v1"
+    assert record.per_mic_hit_prim_paths["front"] == (
+        "/World/Wall2",
+        WALL_PRIM_PATH,
+    )
+    assert set(record.hit_prim_paths) == {WALL_PRIM_PATH, "/World/Wall2"}
+    assert record.per_mic_band_attenuation_db == {}
+
+
+def test_compute_scene_occlusion_caps_accumulated_loss():
+    walls = ((WALL_PRIM_PATH, 2.0, None), ("/World/Wall2", 3.0, None))
+    records = compute_scene_occlusion(
+        _scene(),
+        FakeRaycaster(walls=walls),
+        attenuation_cap_db=25.0,
+    )
+
+    assert records[0].per_mic_attenuation_db["front"] == 25.0
+    assert records[0].attenuation_db == 25.0
+
+
+def test_compute_scene_occlusion_single_hit_matches_legacy_values():
+    records = compute_scene_occlusion(
+        _scene(),
+        FakeRaycaster(walls=((WALL_PRIM_PATH, 2.0, None),)),
+    )
+
+    record = records[0]
+    assert record.occlusion_factor == 1.0
+    assert record.attenuation_db == 20.0
+    assert record.per_mic_attenuation_db == {"front": 20.0, "right": 20.0}
+
+
+class _FakeMaterialPrim:
+    def __init__(self, attributes: dict[str, object]) -> None:
+        self.attributes = attributes
+
+
+class _FakeMaterialStage:
+    def __init__(self, prims: dict[str, _FakeMaterialPrim]) -> None:
+        self._prims = prims
+
+    def GetPrimAtPath(self, path: str) -> _FakeMaterialPrim | None:
+        return self._prims.get(path)
+
+
+def test_transmission_resolver_precedence_attr_then_preset_then_default():
+    stage = _FakeMaterialStage(
+        {
+            "/World/TaggedWall": _FakeMaterialPrim(
+                {"ias:transmission_loss_db": 12.0}
+            ),
+            "/World/ConcreteWall": _FakeMaterialPrim({}),
+        }
+    )
+    resolver = UsdTransmissionLossResolver(stage, default_db=20.0)
+
+    tagged = resolver.loss_for("/World/TaggedWall")
+    assert tagged.broadband_db == 12.0
+    assert tagged.band_db is None
+    assert tagged.material == "usd_attribute"
+
+    preset = resolver.loss_for("/World/ConcreteWall")
+    assert preset.material == "concrete"
+    assert preset.band_db == DEFAULT_MATERIAL_TRANSMISSION_DB["concrete"]
+
+    default = resolver.loss_for("/World/UnknownWall")
+    assert default.broadband_db == 20.0
+    assert default.band_db is None
+    assert default.material is None
+
+
+def test_transmission_resolver_reads_band_attribute():
+    bands = (5.0, 10.0, 15.0, 20.0, 25.0, 30.0)
+    stage = _FakeMaterialStage(
+        {
+            "/World/BandWall": _FakeMaterialPrim(
+                {"ias:transmission_loss_db_bands": bands}
+            ),
+        }
+    )
+    resolver = UsdTransmissionLossResolver(stage)
+
+    loss = resolver.loss_for("/World/BandWall")
+    assert loss.band_db == bands
+    assert loss.broadband_db == pytest.approx(sum(bands) / len(bands))
+
+
+def test_compute_scene_occlusion_resolves_material_bands_from_path():
+    walls = (("/World/ConcreteWall", 2.0, None),)
+    records = compute_scene_occlusion(
+        _scene(),
+        FakeRaycaster(walls=walls),
+        transmission_resolver=UsdTransmissionLossResolver(None),
+    )
+
+    record = records[0]
+    assert record.band_centers_hz == OCCLUSION_BAND_CENTERS_HZ
+    assert record.per_mic_band_attenuation_db["front"] == (
+        DEFAULT_MATERIAL_TRANSMISSION_DB["concrete"]
+    )
+    assert record.hit_materials == {"/World/ConcreteWall": "concrete"}
+    assert record.attenuation_db == pytest.approx(
+        sum(DEFAULT_MATERIAL_TRANSMISSION_DB["concrete"])
+        / len(DEFAULT_MATERIAL_TRANSMISSION_DB["concrete"])
+    )
+
+
+def _per_mic_record(
+    *,
+    source_id: str = "speaker_a",
+    front_db: float = 20.0,
+    right_db: float = 0.0,
+    band_rows: dict[str, tuple[float, ...]] | None = None,
+) -> SourceOcclusion:
+    return SourceOcclusion(
+        array_id="rig_front",
+        source_id=source_id,
+        per_mic_blocked={"front": front_db > 0.0, "right": right_db > 0.0},
+        occlusion_factor=0.5,
+        attenuation_db=(front_db + right_db) / 2.0,
+        per_mic_attenuation_db={"front": front_db, "right": right_db},
+        per_mic_band_attenuation_db=band_rows or {},
+        band_centers_hz=OCCLUSION_BAND_CENTERS_HZ if band_rows else (),
+        occlusion_model="raycast_transmission_v1",
+    )
+
+
+def test_geometry_backend_applies_per_mic_attenuation_independently():
+    baseline = GeometryBackend().simulate(_scene(), _array(), _window())
+    occluded = GeometryBackend().simulate(
+        _scene(occlusion=(_per_mic_record(),)),
+        _array(),
+        _window(),
+    )
+
+    base_rms = baseline.detections[0].per_mic_rms
+    occluded_rms = occluded.detections[0].per_mic_rms
+    assert occluded_rms["front"] == pytest.approx(0.1 * base_rms["front"])
+    assert occluded_rms["right"] == pytest.approx(base_rms["right"])
+    diagnostics = occluded.detections[0].diagnostics["occlusion"]
+    assert diagnostics["per_mic_attenuation_db"] == {"front": 20.0, "right": 0.0}
+    assert diagnostics["occlusion_model"] == "raycast_transmission_v1"
+
+
+def test_tdoa_backend_applies_per_mic_attenuation_and_keeps_delays():
+    backend = TdoaSyntheticBackend(ambiguity_policy="front_hemisphere")
+    baseline = backend.simulate(_scene(), _array(), _window())
+    occluded = backend.simulate(
+        _scene(occlusion=(_per_mic_record(),)),
+        _array(),
+        _window(),
+    )
+
+    base = baseline.detections[0]
+    occ = occluded.detections[0]
+    assert occ.per_mic_rms["front"] == pytest.approx(0.1 * base.per_mic_rms["front"])
+    assert occ.per_mic_rms["right"] == pytest.approx(base.per_mic_rms["right"])
+    assert occ.per_mic_delay_s == base.per_mic_delay_s
+    assert occ.doa.estimated_bearing_deg == base.doa.estimated_bearing_deg
+
+
+def _tone_room_scene(occlusion=None) -> AudioSceneSnapshot:
+    tone_source = AudioSourceSpec(
+        source_id="tone_high",
+        prim_path="/World/Sources/ToneHigh",
+        class_label="Speech",
+        audio_asset_path=None,
+        position_world=(3.0, 0.0, 0.0),
+        orientation_world_quat=None,
+        start_time_s=0.0,
+        duration_s=1.0,
+        gain_db=0.0,
+    )
+    return _scene(
+        sources=(tone_source,),
+        room=RoomAcousticsSpec(
+            room_id="occlusion_band_room",
+            dimensions_m=(8.0, 6.0, 3.0),
+            absorption=0.35,
+            max_order=1,
+        ),
+        occlusion=occlusion,
+    )
+
+
+def _band_record(rows: tuple[float, ...]) -> SourceOcclusion:
+    return SourceOcclusion(
+        array_id="rig_front",
+        source_id="tone_high",
+        per_mic_blocked={"front": True, "right": True},
+        occlusion_factor=1.0,
+        attenuation_db=sum(rows) / len(rows),
+        per_mic_attenuation_db={"front": sum(rows) / len(rows)} | {
+            "right": sum(rows) / len(rows)
+        },
+        per_mic_band_attenuation_db={"front": rows, "right": rows},
+        band_centers_hz=OCCLUSION_BAND_CENTERS_HZ,
+        occlusion_model="raycast_transmission_v1",
+    )
+
+
+class _CaptureSink:
+    def __init__(self) -> None:
+        self.mixtures: list[np.ndarray] = []
+
+    def write_frame_mixture(
+        self,
+        *,
+        frame_id,
+        mixture,
+        sample_rate_hz,
+        mic_ids,
+        window_sample_count,
+    ):
+        self.mixtures.append(np.array(mixture))
+        return WaveformWriteResult(
+            paths=(f"stub://{frame_id}.wav",),
+            diagnostics={"mode": "stub"},
+        )
+
+    def close(self) -> None:
+        return None
+
+
+def _tone_levels_db(channel: np.ndarray) -> tuple[float, float]:
+    seed = int(hashlib.sha256(b"tone_high").hexdigest()[:8], 16)
+    fundamental_hz = 550.0 + float(seed % 700)
+    overtone_hz = fundamental_hz * 1.618033988749895
+    spectrum = np.abs(np.fft.rfft(channel[:48_000]))
+
+    def _peak_db(frequency_hz: float) -> float:
+        center = int(round(frequency_hz))
+        return 20.0 * np.log10(
+            max(float(np.max(spectrum[center - 2 : center + 3])), 1e-12)
+        )
+
+    return _peak_db(fundamental_hz), _peak_db(overtone_hz)
+
+
+def test_room_backend_band_attenuation_shapes_mixture_spectrum(monkeypatch):
+    from test_isaac_audio_backends import _install_fake_pyroom
+
+    from isaac_audio_sensors.core.backends.room_acoustics import (
+        RoomAcousticsBackend,
+    )
+
+    _install_fake_pyroom(monkeypatch)
+    rows = (0.0, 0.0, 0.0, 40.0, 40.0, 40.0)
+
+    clear_sink = _CaptureSink()
+    RoomAcousticsBackend(waveform_writer=clear_sink).simulate(
+        _tone_room_scene(), _array(), _window()
+    )
+    occluded_sink = _CaptureSink()
+    occluded_frame = RoomAcousticsBackend(waveform_writer=occluded_sink).simulate(
+        _tone_room_scene(occlusion=(_band_record(rows),)),
+        _array(),
+        _window(),
+    )
+
+    clear_fund, clear_over = _tone_levels_db(clear_sink.mixtures[0][0])
+    occ_fund, occ_over = _tone_levels_db(occluded_sink.mixtures[0][0])
+    overtone_drop = clear_over - occ_over
+    fundamental_drop = clear_fund - occ_fund
+    # The material wall attenuates the high overtone much more than the
+    # low fundamental.
+    assert overtone_drop - fundamental_drop >= 15.0
+    assert overtone_drop >= 30.0
+
+    diagnostics = occluded_frame.detections[0].diagnostics["occlusion"]
+    assert diagnostics["band_centers_hz"] == list(OCCLUSION_BAND_CENTERS_HZ)
+    assert diagnostics["per_mic_band_attenuation_db"]["front"] == list(rows)
+    # Aggregate RMS derives from the same attenuated mixture.
+    for mic_id, rms in occluded_frame.aggregate_per_mic_rms.items():
+        channel = occluded_sink.mixtures[0][
+            0 if mic_id == "front" else 1
+        ]
+        assert rms == pytest.approx(
+            float(np.sqrt(np.mean(channel**2))),
+            rel=1e-9,
+        )
+
+
+def test_room_backend_band_attenuation_shows_in_exported_wav(
+    monkeypatch, tmp_path
+):
+    soundfile = pytest.importorskip("soundfile")
+    from test_isaac_audio_backends import _install_fake_pyroom
+
+    from isaac_audio_sensors.core.backends.room_acoustics import (
+        RoomAcousticsBackend,
+    )
+    from isaac_audio_sensors.core.io.waveforms import FrameWaveformWriter
+
+    _install_fake_pyroom(monkeypatch)
+    rows = (0.0, 0.0, 0.0, 40.0, 40.0, 40.0)
+
+    clear_frame = RoomAcousticsBackend(
+        waveform_writer=FrameWaveformWriter(tmp_path / "clear")
+    ).simulate(_tone_room_scene(), _array(), _window())
+    occluded_frame = RoomAcousticsBackend(
+        waveform_writer=FrameWaveformWriter(tmp_path / "occluded")
+    ).simulate(
+        _tone_room_scene(occlusion=(_band_record(rows),)),
+        _array(),
+        _window(),
+    )
+
+    clear_data, _ = soundfile.read(clear_frame.waveform_paths[0], always_2d=True)
+    occ_data, _ = soundfile.read(occluded_frame.waveform_paths[0], always_2d=True)
+    clear_fund, clear_over = _tone_levels_db(clear_data[:, 0])
+    occ_fund, occ_over = _tone_levels_db(occ_data[:, 0])
+    assert (clear_over - occ_over) - (clear_fund - occ_fund) >= 15.0
+
+
+def test_occlusion_diagnostics_round_trip_new_fields():
+    record = _per_mic_record(
+        band_rows={
+            "front": (1.0, 2.0, 3.0, 4.0, 5.0, 6.0),
+            "right": (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+        },
+    )
+    frame = GeometryBackend().simulate(
+        _scene(occlusion=(record,)), _array(), _window()
+    )
+
+    restored = frame_from_trace_dict(frame_to_trace_dict(frame))
+    diagnostics = restored.detections[0].diagnostics["occlusion"]
+    assert diagnostics["per_mic_attenuation_db"] == {"front": 20.0, "right": 0.0}
+    assert diagnostics["per_mic_band_attenuation_db"]["front"] == [
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+    ]
+    assert diagnostics["band_centers_hz"] == list(OCCLUSION_BAND_CENTERS_HZ)
+    assert diagnostics["occlusion_model"] == "raycast_transmission_v1"
+
+
+def test_source_occlusion_validates_band_rows():
+    with pytest.raises(ValueError, match="band_centers_hz length"):
+        SourceOcclusion(
+            array_id="a",
+            source_id="s",
+            per_mic_band_attenuation_db={"front": (1.0, 2.0)},
+            band_centers_hz=OCCLUSION_BAND_CENTERS_HZ,
+        )
+    with pytest.raises(ValueError, match="non-negative"):
+        SourceOcclusion(
+            array_id="a",
+            source_id="s",
+            per_mic_attenuation_db={"front": -1.0},
+        )
+
+
+class _RepeatingHitRaycaster:
+    """Simulates a thick collider re-hit on every continuation cast."""
+
+    def __init__(self, hit_count: int = 3) -> None:
+        self.remaining_hits = hit_count
+
+    def raycast_closest(self, origin, direction, max_distance_m):
+        if self.remaining_hits <= 0:
+            return None
+        self.remaining_hits -= 1
+        return OcclusionHit(prim_path=WALL_PRIM_PATH, distance_m=0.05)
+
+
+def test_compute_scene_occlusion_counts_one_thick_wall_once():
+    records = compute_scene_occlusion(_scene(), _RepeatingHitRaycaster())
+
+    record = records[0]
+    assert record.per_mic_blocked["front"] is True
+    assert record.per_mic_attenuation_db["front"] == 20.0
+    assert record.per_mic_hit_prim_paths["front"] == (WALL_PRIM_PATH,)

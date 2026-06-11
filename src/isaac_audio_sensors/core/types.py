@@ -492,6 +492,12 @@ class SourceOcclusion:
     only consume it. ``occlusion_factor`` is the fraction of blocked
     source-to-microphone rays in ``[0, 1]`` and ``attenuation_db`` is the
     non-negative extra attenuation the producer derived from that factor.
+
+    The optional per-microphone fields are additive (1.4.0): when present,
+    ``per_mic_attenuation_db`` carries broadband transmission loss per
+    microphone and ``per_mic_band_attenuation_db`` carries per-band losses
+    aligned with ``band_centers_hz``. Backends fall back to the uniform
+    ``attenuation_db`` for microphones missing from those maps.
     """
 
     array_id: str
@@ -500,6 +506,14 @@ class SourceOcclusion:
     occlusion_factor: float = 0.0
     attenuation_db: float = 0.0
     hit_prim_paths: tuple[str, ...] = ()
+    per_mic_attenuation_db: dict[str, float] = field(default_factory=dict)
+    per_mic_band_attenuation_db: dict[str, tuple[float, ...]] = field(
+        default_factory=dict
+    )
+    band_centers_hz: tuple[float, ...] = ()
+    per_mic_hit_prim_paths: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    hit_materials: dict[str, str] = field(default_factory=dict)
+    occlusion_model: str | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty(self.array_id, "SourceOcclusion.array_id")
@@ -525,6 +539,64 @@ class SourceOcclusion:
             "hit_prim_paths",
             tuple(str(path) for path in self.hit_prim_paths),
         )
+        object.__setattr__(
+            self,
+            "per_mic_attenuation_db",
+            _coerce_float_dict(
+                self.per_mic_attenuation_db,
+                "SourceOcclusion.per_mic_attenuation_db",
+                non_negative=True,
+            ),
+        )
+        band_centers = tuple(
+            float(center) for center in self.band_centers_hz
+        )
+        for center in band_centers:
+            _require_finite(center, "SourceOcclusion.band_centers_hz value")
+            if center <= 0.0:
+                raise ValueError(
+                    "SourceOcclusion.band_centers_hz values must be positive."
+                )
+        object.__setattr__(self, "band_centers_hz", band_centers)
+        per_mic_bands: dict[str, tuple[float, ...]] = {}
+        for mic_id, bands in dict(self.per_mic_band_attenuation_db).items():
+            values = tuple(float(value) for value in bands)
+            if len(values) != len(band_centers):
+                raise ValueError(
+                    "SourceOcclusion.per_mic_band_attenuation_db rows must "
+                    "match band_centers_hz length."
+                )
+            for value in values:
+                _require_finite(
+                    value, "SourceOcclusion.per_mic_band_attenuation_db value"
+                )
+                if value < 0.0:
+                    raise ValueError(
+                        "SourceOcclusion.per_mic_band_attenuation_db values "
+                        "must be non-negative."
+                    )
+            per_mic_bands[str(mic_id)] = values
+        object.__setattr__(self, "per_mic_band_attenuation_db", per_mic_bands)
+        object.__setattr__(
+            self,
+            "per_mic_hit_prim_paths",
+            {
+                str(mic_id): tuple(str(path) for path in paths)
+                for mic_id, paths in dict(self.per_mic_hit_prim_paths).items()
+            },
+        )
+        object.__setattr__(
+            self,
+            "hit_materials",
+            {
+                str(path): str(material)
+                for path, material in dict(self.hit_materials).items()
+            },
+        )
+        if self.occlusion_model is not None:
+            _require_non_empty(
+                self.occlusion_model, "SourceOcclusion.occlusion_model"
+            )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

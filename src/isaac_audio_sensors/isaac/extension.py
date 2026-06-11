@@ -30,8 +30,11 @@ from isaac_audio_sensors.isaac.discovery import (
     discover_stage_audio,
 )
 from isaac_audio_sensors.isaac.occlusion import (
+    DEFAULT_OCCLUSION_ATTENUATION_CAP_DB,
     DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
+    OCCLUSION_MODEL_RAYCAST_TRANSMISSION,
     IsaacPhysxRaycaster,
+    UsdTransmissionLossResolver,
     compute_scene_occlusion,
 )
 from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
@@ -70,7 +73,9 @@ class IsaacAudioArraySensor:
     debug_drawer: IsaacDebugDrawer | None = None
     occlusion_enabled: bool = False
     occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB
+    occlusion_attenuation_cap_db: float = DEFAULT_OCCLUSION_ATTENUATION_CAP_DB
     occlusion_raycaster: Any | None = None
+    occlusion_transmission_resolver: Any | None = None
     latest_frame: AudioSensorFrame | None = field(default=None, init=False)
     _waveform_sink: WaveformSink | None = field(default=None, init=False)
     latest_debug_primitives: tuple[DebugPrimitive, ...] = field(
@@ -564,10 +569,17 @@ class IsaacAudioArraySensor:
         try:
             if self.occlusion_raycaster is None:
                 self.occlusion_raycaster = IsaacPhysxRaycaster()
+            if self.occlusion_transmission_resolver is None:
+                self.occlusion_transmission_resolver = UsdTransmissionLossResolver(
+                    self.stage,
+                    default_db=self.occlusion_max_attenuation_db,
+                )
             records = compute_scene_occlusion(
                 scene,
                 self.occlusion_raycaster,
                 max_attenuation_db=self.occlusion_max_attenuation_db,
+                transmission_resolver=self.occlusion_transmission_resolver,
+                attenuation_cap_db=self.occlusion_attenuation_cap_db,
             )
         except IsaacIntegrationUnavailable as exc:
             self._note_occlusion_diagnostics(
@@ -579,6 +591,8 @@ class IsaacAudioArraySensor:
                 "status": "computed",
                 "record_count": len(records),
                 "max_attenuation_db": float(self.occlusion_max_attenuation_db),
+                "attenuation_cap_db": float(self.occlusion_attenuation_cap_db),
+                "occlusion_model": OCCLUSION_MODEL_RAYCAST_TRANSMISSION,
             }
         )
         return replace(scene, occlusion=records)

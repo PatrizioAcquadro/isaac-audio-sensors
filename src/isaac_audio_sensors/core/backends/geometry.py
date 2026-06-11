@@ -23,8 +23,8 @@ from isaac_audio_sensors.core.scene import (
     deterministic_frame_id,
     deterministic_frame_name,
     occlusion_detection_diagnostics,
-    occlusion_extra_gain_db,
     occlusion_flag,
+    occlusion_per_mic_extra_gain_db,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -85,7 +85,10 @@ class GeometryBackend:
             per_mic_rms = _rms_proxy_for_source(
                 source,
                 sensor,
-                extra_gain_db=occlusion_extra_gain_db(occlusion),
+                per_mic_extra_gain_db=occlusion_per_mic_extra_gain_db(
+                    occlusion,
+                    tuple(microphone.mic_id for microphone in sensor.microphones),
+                ),
             )
             for mic_id, rms in per_mic_rms.items():
                 aggregate_rms_power[mic_id] += rms * rms
@@ -170,13 +173,14 @@ def _rms_proxy_for_source(
     source: AudioSourceSpec,
     sensor: MicrophoneArraySpec,
     *,
-    extra_gain_db: float = 0.0,
+    per_mic_extra_gain_db: dict[str, float] | None = None,
 ) -> dict[str, float]:
     per_mic: dict[str, float] = {}
+    extra_gains = per_mic_extra_gain_db or {}
     for mic_id, mic_position in microphone_world_positions(sensor).items():
         per_mic[mic_id] = source_amplitude_at(
             source,
             mic_position,
-            extra_gain_db=extra_gain_db,
+            extra_gain_db=extra_gains.get(mic_id, 0.0),
         )
     return per_mic

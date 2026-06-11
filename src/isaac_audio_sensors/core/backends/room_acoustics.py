@@ -37,9 +37,10 @@ from isaac_audio_sensors.core.scene import (
     deterministic_detection_id,
     deterministic_frame_id,
     deterministic_frame_name,
-    occlusion_amplitude_scale,
+    occlusion_band_attenuation_db,
     occlusion_detection_diagnostics,
     occlusion_flag,
+    occlusion_per_mic_extra_gain_db,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -169,19 +170,9 @@ class RoomAcousticsBackend:
             for source in active:
                 signal = _scheduled_window_signal(source, time_window=time_window)
                 scheduled.append(signal)
-                # Occlusion attenuates the source input signal so the
-                # mixture, per-source premix RMS, and exported waveforms
-                # all stay mutually consistent.
-                transmission = occlusion_amplitude_scale(
-                    scene.occlusion_for(sensor.array_id, source.source_id)
-                )
                 room.add_source(
                     source_room_positions[source.source_id],
-                    signal=(
-                        signal.signal
-                        if transmission == 1.0
-                        else signal.signal * transmission
-                    ),
+                    signal=signal.signal,
                 )
             mic_matrix = np.asarray(
                 [mic_room[mic_id] for mic_id in mic_ids], dtype=float
@@ -195,6 +186,31 @@ class RoomAcousticsBackend:
                 source_count=len(active),
                 mic_count=len(mic_ids),
             )
+            # Occlusion attenuates the per-source/per-mic premix before
+            # summing, so the mixture, per-source premix RMS, aggregate RMS,
+            # GCC-PHAT diagnostics, and exported waveforms all stay mutually
+            # consistent (uniform records are equivalent to scaling the
+            # source input signal by linearity).
+            for index, source in enumerate(active):
+                occlusion = scene.occlusion_for(sensor.array_id, source.source_id)
+                if occlusion is None:
+                    continue
+                per_mic_gain_db = occlusion_per_mic_extra_gain_db(
+                    occlusion, mic_ids
+                )
+                for mic_index, mic_id in enumerate(mic_ids):
+                    band = occlusion_band_attenuation_db(occlusion, mic_id)
+                    if band is not None:
+                        premix[index, mic_index] = _apply_band_attenuation(
+                            premix[index, mic_index],
+                            sample_rate_hz=sample_rate_hz,
+                            band_centers_hz=band[0],
+                            band_attenuation_db=band[1],
+                        )
+                    elif per_mic_gain_db[mic_id] != 0.0:
+                        premix[index, mic_index] *= 10.0 ** (
+                            per_mic_gain_db[mic_id] / 20.0
+                        )
             summed = np.sum(premix, axis=0)
             if summed.shape[1] >= window_sample_count:
                 mixture = summed
@@ -636,6 +652,34 @@ def _add_microphone_array(
         room.add_microphone_array(pra.MicrophoneArray(mic_matrix, fs=sample_rate_hz))
     else:
         room.add_microphone_array(mic_matrix)
+
+
+def _apply_band_attenuation(
+    waveform: np.ndarray,
+    *,
+    sample_rate_hz: int,
+    band_centers_hz: tuple[float, ...],
+    band_attenuation_db: tuple[float, ...],
+) -> np.ndarray:
+    """Apply per-band attenuation with a zero-phase rFFT gain curve.
+
+    The per-bin gain interpolates the band gains over log2 frequency with
+    flat extrapolation beyond the outermost band centers. Zero-phase
+    filtering preserves GCC-PHAT delay estimates.
+    """
+
+    sample_count = int(waveform.size)
+    if sample_count == 0 or not band_centers_hz:
+        return waveform
+    centers = np.asarray(band_centers_hz, dtype=float)
+    gains_db = -np.asarray(band_attenuation_db, dtype=float)
+    frequencies = np.fft.rfftfreq(sample_count, d=1.0 / float(sample_rate_hz))
+    log_frequencies = np.log2(np.maximum(frequencies, centers[0] / 4.0))
+    gain_curve = 10.0 ** (
+        np.interp(log_frequencies, np.log2(centers), gains_db) / 20.0
+    )
+    spectrum = np.fft.rfft(waveform) * gain_curve
+    return np.fft.irfft(spectrum, n=sample_count)
 
 
 def _simulate_premix(

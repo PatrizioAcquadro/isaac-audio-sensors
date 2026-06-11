@@ -4,9 +4,11 @@ Authors a real USD stage in the omni.usd context with a microphone array, a
 sound source, and a collider wall. With the wall aside, the sensor sees a
 clear direct path; with the wall between source and array, PhysX raycast
 occlusion must attenuate per-mic RMS by the configured attenuation and set
-the detection ``occluded`` flag. The gate also records live-path cache
-counters and captures a viewport screenshot with the occlusion-colored
-bearing-ray overlay.
+the detection ``occluded`` flag. Authoring ``ias:transmission_loss_db`` on
+the wall must change the measured attenuation to the material value, and a
+sensor bound with ``rediscover_each_update=True`` must run full discovery on
+every update. The gate also records live-path cache counters and captures a
+viewport screenshot with the occlusion-colored bearing-ray overlay.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
@@ -40,8 +43,10 @@ WALL_BLOCKING_POSITION = (2.0, 0.0, 1.0)
 WALL_CLEAR_POSITION = (2.0, 10.0, 1.0)
 WALL_SCALE = (0.2, 4.0, 3.0)
 OCCLUSION_MAX_ATTENUATION_DB = 20.0
+MATERIAL_WALL_TRANSMISSION_DB = 12.0
 ATTENUATION_TOLERANCE_DB = 0.5
 SETTLE_UPDATE_COUNT = 12
+POLICY_UPDATE_COUNT = 3
 
 
 def main() -> int:
@@ -165,6 +170,9 @@ def main() -> int:
             "full_discovery_count": cache.full_discovery_count,
             "cached_tick_count": cache.cached_tick_count,
             "invalidation_reasons": list(cache.invalidation_reasons),
+            "policy": "rediscover_each_update"
+            if cache.rediscover_each_update
+            else "cache_until_invalidated",
         }
         evidence["stage_cache"] = cache_evidence
         # Three sensor updates ran; steady-state ticks must come from the
@@ -177,6 +185,73 @@ def main() -> int:
             cache.full_discovery_count < 3,
             f"every live tick re-ran full discovery: {cache_evidence!r}",
         )
+
+        # Material phase: authoring an explicit transmission loss on the wall
+        # must change the measured attenuation from the default to the
+        # material value through the live transmission resolver.
+        _author_wall_transmission_loss(stage, MATERIAL_WALL_TRANSMISSION_DB)
+        _update_app(SETTLE_UPDATE_COUNT)
+        material_frame = sensor.update(sim_time_s=0.5, force=True)
+        evidence["material_phase"] = _phase_evidence(material_frame)
+        material_detection = material_frame.detections[0]
+        material_occlusion = material_detection.diagnostics["occlusion"]
+        _require(
+            material_occlusion.get("occlusion_model") == "raycast_transmission_v1",
+            "material phase did not report the transmission occlusion model: "
+            f"{material_occlusion!r}",
+        )
+        _require(
+            material_occlusion.get("hit_materials", {}).get(WALL_PRIM_PATH)
+            == "usd_attribute",
+            "material phase did not resolve the authored USD attribute: "
+            f"{material_occlusion.get('hit_materials')!r}",
+        )
+        measured_material = _measured_attenuation_db(
+            clear_detection, material_detection
+        )
+        evidence["measured_material_attenuation_db"] = measured_material
+        for mic_id, attenuation_db in measured_material.items():
+            _require(
+                abs(attenuation_db - MATERIAL_WALL_TRANSMISSION_DB)
+                <= ATTENUATION_TOLERANCE_DB,
+                f"mic {mic_id!r} attenuated by {attenuation_db:.3f} dB with the "
+                f"material wall, expected {MATERIAL_WALL_TRANSMISSION_DB} +/- "
+                f"{ATTENUATION_TOLERANCE_DB} dB",
+            )
+
+        # Cache-policy phase: a sensor bound with rediscover_each_update=True
+        # must run one full discovery per update.
+        policy_sensor = IsaacAudioArraySensor.from_discovered_stage(
+            stage=stage,
+            binding_cfg=IsaacAudioSceneBindingCfg(
+                rediscover_each_update=True,
+                preferred_array="rig_front",
+            ),
+            backend="geometry_only",
+            update_period_s=0.05,
+        ).start()
+        policy_frames = [
+            policy_sensor.update(sim_time_s=tick * 0.2, force=True)
+            for tick in range(POLICY_UPDATE_COUNT)
+        ]
+        policy_cache = policy_sensor._stage_cache  # noqa: SLF001 - evidence.
+        policy_evidence = {
+            "full_discovery_count": policy_cache.full_discovery_count,
+            "cached_tick_count": policy_cache.cached_tick_count,
+            "policy": policy_frames[-1]
+            .diagnostics["stage_snapshot"]["discovery_cache"]["policy"],
+        }
+        evidence["cache_policy"] = policy_evidence
+        _require(
+            policy_cache.full_discovery_count == POLICY_UPDATE_COUNT,
+            "rediscover_each_update did not force full discovery per update: "
+            f"{policy_evidence!r}",
+        )
+        _require(
+            policy_evidence["policy"] == "rediscover_each_update",
+            f"policy diagnostics missing: {policy_evidence!r}",
+        )
+        policy_sensor.close()
 
         # Redraw the occlusion-colored overlay immediately before capture.
         sensor.update(sim_time_s=0.6, force=True)
@@ -308,6 +383,21 @@ def _author_stage(stage: Any) -> Any:
     return wall_translate_op
 
 
+def _author_wall_transmission_loss(stage: Any, loss_db: float) -> None:
+    """Author an explicit transmission-loss attribute on the wall prim."""
+
+    from pxr import Sdf  # type: ignore
+
+    from isaac_audio_sensors.isaac.occlusion import TRANSMISSION_LOSS_ATTR
+
+    wall_prim = stage.GetPrimAtPath(WALL_PRIM_PATH)
+    attribute = wall_prim.CreateAttribute(
+        TRANSMISSION_LOSS_ATTR,
+        Sdf.ValueTypeNames.Double,
+    )
+    attribute.Set(float(loss_db))
+
+
 def _update_app(count: int) -> None:
     import omni.kit.app  # type: ignore
 
@@ -435,6 +525,8 @@ def _write_config_snapshot(config_path: Path) -> None:
         "occlusion": {
             "enabled": True,
             "max_attenuation_db": OCCLUSION_MAX_ATTENUATION_DB,
+            "material_wall_transmission_db": MATERIAL_WALL_TRANSMISSION_DB,
+            "occlusion_model": "raycast_transmission_v1",
         },
     }
     config_path.parent.mkdir(parents=True, exist_ok=True)
