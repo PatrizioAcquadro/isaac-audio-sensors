@@ -36,6 +36,9 @@ from isaac_audio_sensors.core.scene import (
     deterministic_detection_id,
     deterministic_frame_id,
     deterministic_frame_name,
+    occlusion_detection_diagnostics,
+    occlusion_extra_gain_db,
+    occlusion_flag,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -106,10 +109,12 @@ class TdoaSyntheticBackend:
 
         active = active_sources(scene, time_window)
         for index, source in enumerate(active):
+            occlusion = scene.occlusion_for(sensor.array_id, source.source_id)
             delay_result = self._per_mic_delays_and_rms(
                 source,
                 sensor,
                 frame_id=frame_id,
+                extra_gain_db=occlusion_extra_gain_db(occlusion),
             )
             ground_truth_bearing = _ground_truth_bearing(source.position_world, sensor)
             doa = self._estimate_doa(
@@ -145,6 +150,7 @@ class TdoaSyntheticBackend:
                     per_mic_delay_s=delay_result.per_mic_delay_s,
                     per_mic_rms=delay_result.per_mic_rms,
                     audio_asset_path=source.audio_asset_path,
+                    occluded=occlusion_flag(occlusion),
                     diagnostics={
                         "backend": self.backend_id,
                         "physical_waveform": False,
@@ -165,6 +171,7 @@ class TdoaSyntheticBackend:
                             delay_result.per_mic_gain_offset_db
                         ),
                         "stress_controls_deterministic": True,
+                        **occlusion_detection_diagnostics(occlusion),
                     },
                 )
             )
@@ -215,6 +222,7 @@ class TdoaSyntheticBackend:
         sensor: MicrophoneArraySpec,
         *,
         frame_id: str,
+        extra_gain_db: float = 0.0,
     ) -> _DelayResult:
         positions = microphone_world_positions(sensor)
         distances: dict[str, float] = {}
@@ -233,7 +241,7 @@ class TdoaSyntheticBackend:
             amplitude = source_amplitude_at(
                 source,
                 mic_position,
-                extra_gain_db=microphone.gain_db + gain_offset_db,
+                extra_gain_db=microphone.gain_db + gain_offset_db + extra_gain_db,
                 air_absorption_db_per_m=self.air_absorption_db_per_m,
             )
             distances[microphone.mic_id] = distance

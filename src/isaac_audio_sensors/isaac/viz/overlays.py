@@ -9,10 +9,15 @@ from typing import Any
 from isaac_audio_sensors.core.math_utils import add, scale
 from isaac_audio_sensors.core.microphone_array import microphone_world_positions
 from isaac_audio_sensors.core.types import (
+    AudioDetection,
     AudioSceneSnapshot,
     AudioSensorFrame,
     MicrophoneArraySpec,
 )
+
+CLEAR_BEARING_RAY_COLOR = (0.05, 0.9, 0.35, 1.0)
+PARTIAL_OCCLUSION_BEARING_RAY_COLOR = (1.0, 0.65, 0.05, 1.0)
+OCCLUDED_BEARING_RAY_COLOR = (0.95, 0.15, 0.1, 1.0)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -90,12 +95,14 @@ def build_debug_primitives(
                 kind="bearing_ray",
                 label=f"bearing:{detection.detection_id}",
                 points_world=(ray_start, ray_end),
-                color_rgba=(0.05, 0.9, 0.35, 1.0),
+                color_rgba=bearing_ray_color(detection),
                 radius_m=0.015,
                 metadata={
                     "bearing_deg": bearing,
                     "confidence": detection.doa.bearing_confidence,
                     "sector": detection.doa.bearing_sector,
+                    "occluded": detection.occluded,
+                    "occlusion_factor": _occlusion_factor(detection),
                 },
             )
         )
@@ -135,6 +142,27 @@ def debug_primitives_to_dicts(
         }
         for primitive in primitives
     ]
+
+
+def bearing_ray_color(
+    detection: AudioDetection,
+) -> tuple[float, float, float, float]:
+    """Bearing-ray color by occlusion state: green, amber, or red."""
+
+    if detection.occluded:
+        return OCCLUDED_BEARING_RAY_COLOR
+    factor = _occlusion_factor(detection)
+    if factor is not None and factor > 0.0:
+        return PARTIAL_OCCLUSION_BEARING_RAY_COLOR
+    return CLEAR_BEARING_RAY_COLOR
+
+
+def _occlusion_factor(detection: AudioDetection) -> float | None:
+    occlusion = detection.diagnostics.get("occlusion")
+    if not isinstance(occlusion, dict):
+        return None
+    factor = occlusion.get("occlusion_factor")
+    return None if factor is None else float(factor)
 
 
 def _bearing_endpoint(

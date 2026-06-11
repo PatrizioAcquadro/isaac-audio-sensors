@@ -22,6 +22,9 @@ from isaac_audio_sensors.core.scene import (
     deterministic_detection_id,
     deterministic_frame_id,
     deterministic_frame_name,
+    occlusion_detection_diagnostics,
+    occlusion_extra_gain_db,
+    occlusion_flag,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -78,7 +81,12 @@ class GeometryBackend:
                 else horizontal_distance / distance
             )
             sector = None if bearing is None else bearing_deg_to_sector_name(bearing)
-            per_mic_rms = _rms_proxy_for_source(source, sensor)
+            occlusion = scene.occlusion_for(sensor.array_id, source.source_id)
+            per_mic_rms = _rms_proxy_for_source(
+                source,
+                sensor,
+                extra_gain_db=occlusion_extra_gain_db(occlusion),
+            )
             for mic_id, rms in per_mic_rms.items():
                 aggregate_rms_power[mic_id] += rms * rms
 
@@ -107,6 +115,7 @@ class GeometryBackend:
                     per_mic_delay_s={},
                     per_mic_rms=per_mic_rms,
                     audio_asset_path=source.audio_asset_path,
+                    occluded=occlusion_flag(occlusion),
                     diagnostics={
                         "backend": self.backend_id,
                         "physical_waveform": False,
@@ -117,6 +126,7 @@ class GeometryBackend:
                         "source_gain_db": source.gain_db,
                         "directivity": source.directivity,
                         "directivity_applied": resolve_directivity(source),
+                        **occlusion_detection_diagnostics(occlusion),
                     },
                 )
             )
@@ -159,8 +169,14 @@ class GeometryBackend:
 def _rms_proxy_for_source(
     source: AudioSourceSpec,
     sensor: MicrophoneArraySpec,
+    *,
+    extra_gain_db: float = 0.0,
 ) -> dict[str, float]:
     per_mic: dict[str, float] = {}
     for mic_id, mic_position in microphone_world_positions(sensor).items():
-        per_mic[mic_id] = source_amplitude_at(source, mic_position)
+        per_mic[mic_id] = source_amplitude_at(
+            source,
+            mic_position,
+            extra_gain_db=extra_gain_db,
+        )
     return per_mic

@@ -37,6 +37,9 @@ from isaac_audio_sensors.core.scene import (
     deterministic_detection_id,
     deterministic_frame_id,
     deterministic_frame_name,
+    occlusion_amplitude_scale,
+    occlusion_detection_diagnostics,
+    occlusion_flag,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -166,9 +169,19 @@ class RoomAcousticsBackend:
             for source in active:
                 signal = _scheduled_window_signal(source, time_window=time_window)
                 scheduled.append(signal)
+                # Occlusion attenuates the source input signal so the
+                # mixture, per-source premix RMS, and exported waveforms
+                # all stay mutually consistent.
+                transmission = occlusion_amplitude_scale(
+                    scene.occlusion_for(sensor.array_id, source.source_id)
+                )
                 room.add_source(
                     source_room_positions[source.source_id],
-                    signal=signal.signal,
+                    signal=(
+                        signal.signal
+                        if transmission == 1.0
+                        else signal.signal * transmission
+                    ),
                 )
             mic_matrix = np.asarray(
                 [mic_room[mic_id] for mic_id in mic_ids], dtype=float
@@ -252,6 +265,10 @@ class RoomAcousticsBackend:
                         ground_truth_bearing,
                     )
                 )
+                occlusion = scene.occlusion_for(
+                    sensor.array_id,
+                    source.source_id,
+                )
                 detections.append(
                     AudioDetection(
                         detection_id=deterministic_detection_id(
@@ -272,6 +289,7 @@ class RoomAcousticsBackend:
                         per_mic_delay_s=per_mic_delay_s,
                         per_mic_rms=per_mic_rms,
                         audio_asset_path=source.audio_asset_path,
+                        occluded=occlusion_flag(occlusion),
                         diagnostics={
                             "backend": self.backend_id,
                             "physical_waveform": True,
@@ -306,6 +324,7 @@ class RoomAcousticsBackend:
                             ),
                             "room_source_position_m": source_room,
                             "room_microphone_positions_m": mic_room,
+                            **occlusion_detection_diagnostics(occlusion),
                         },
                     )
                 )

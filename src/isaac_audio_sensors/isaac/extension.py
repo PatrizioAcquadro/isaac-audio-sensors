@@ -29,6 +29,11 @@ from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioSceneBindingCfg,
     discover_stage_audio,
 )
+from isaac_audio_sensors.isaac.occlusion import (
+    DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
+    IsaacPhysxRaycaster,
+    compute_scene_occlusion,
+)
 from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 from isaac_audio_sensors.isaac.viz.debug_draw import IsaacDebugDrawer
@@ -63,6 +68,9 @@ class IsaacAudioArraySensor:
     waveform_mode: str = "per_frame"
     debug_draw_enabled: bool = False
     debug_drawer: IsaacDebugDrawer | None = None
+    occlusion_enabled: bool = False
+    occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB
+    occlusion_raycaster: Any | None = None
     latest_frame: AudioSensorFrame | None = field(default=None, init=False)
     _waveform_sink: WaveformSink | None = field(default=None, init=False)
     latest_debug_primitives: tuple[DebugPrimitive, ...] = field(
@@ -95,6 +103,13 @@ class IsaacAudioArraySensor:
             raise ValueError("usd_time_code_offset must be finite.")
         if self.waveform_mode not in {"per_frame", "session"}:
             raise ValueError("waveform_mode must be 'per_frame' or 'session'.")
+        if (
+            not math.isfinite(float(self.occlusion_max_attenuation_db))
+            or float(self.occlusion_max_attenuation_db) < 0.0
+        ):
+            raise ValueError(
+                "occlusion_max_attenuation_db must be finite and non-negative."
+            )
 
     @classmethod
     def from_stage(
@@ -114,6 +129,9 @@ class IsaacAudioArraySensor:
         ambiguity_policy: str = "none",
         room: RoomAcousticsSpec | None = None,
         debug_draw: bool = False,
+        occlusion_enabled: bool = False,
+        occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
+        occlusion_raycaster: Any | None = None,
         writer_path: str | Path | None = None,
         waveform_dir: str | Path | None = None,
         waveform_mode: str = "per_frame",
@@ -148,6 +166,9 @@ class IsaacAudioArraySensor:
             speed_of_sound_mps=speed_of_sound_mps,
             ambiguity_policy=ambiguity_policy,
             debug_draw_enabled=debug_draw,
+            occlusion_enabled=occlusion_enabled,
+            occlusion_max_attenuation_db=occlusion_max_attenuation_db,
+            occlusion_raycaster=occlusion_raycaster,
             writer=(
                 None if writer_path is None else AudioFrameJsonlWriter(writer_path)
             ),
@@ -172,6 +193,9 @@ class IsaacAudioArraySensor:
         ambiguity_policy: str = "none",
         room: RoomAcousticsSpec | None = None,
         debug_draw: bool = False,
+        occlusion_enabled: bool = False,
+        occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
+        occlusion_raycaster: Any | None = None,
         writer_path: str | Path | None = None,
         waveform_dir: str | Path | None = None,
         waveform_mode: str = "per_frame",
@@ -217,6 +241,9 @@ class IsaacAudioArraySensor:
             speed_of_sound_mps=speed_of_sound_mps,
             ambiguity_policy=ambiguity_policy,
             debug_draw_enabled=debug_draw,
+            occlusion_enabled=occlusion_enabled,
+            occlusion_max_attenuation_db=occlusion_max_attenuation_db,
+            occlusion_raycaster=occlusion_raycaster,
             writer=(
                 None if writer_path is None else AudioFrameJsonlWriter(writer_path)
             ),
@@ -509,22 +536,50 @@ class IsaacAudioArraySensor:
         if self.room is not None:
             scene = replace(scene, room=self.room)
 
-        if effective_source_prim_path is None:
+        if effective_source_prim_path is not None:
+            sources = tuple(
+                source
+                for source in scene.sources
+                if source.prim_path == effective_source_prim_path
+            )
+            if not sources:
+                raise ValueError(
+                    f"No source prim found at {effective_source_prim_path!r}."
+                )
+            scene = replace(scene, sources=sources)
+        return self._apply_occlusion(scene)
+
+    def _apply_occlusion(self, scene: AudioSceneSnapshot) -> AudioSceneSnapshot:
+        """Attach Isaac-raycast occlusion records to a live snapshot."""
+
+        if not self.occlusion_enabled or self.stage is None:
             return scene
-        sources = tuple(
-            source
-            for source in scene.sources
-            if source.prim_path == effective_source_prim_path
+        try:
+            if self.occlusion_raycaster is None:
+                self.occlusion_raycaster = IsaacPhysxRaycaster()
+            records = compute_scene_occlusion(
+                scene,
+                self.occlusion_raycaster,
+                max_attenuation_db=self.occlusion_max_attenuation_db,
+            )
+        except IsaacIntegrationUnavailable as exc:
+            self._note_occlusion_diagnostics(
+                {"status": "unavailable", "error": str(exc)}
+            )
+            return scene
+        self._note_occlusion_diagnostics(
+            {
+                "status": "computed",
+                "record_count": len(records),
+                "max_attenuation_db": float(self.occlusion_max_attenuation_db),
+            }
         )
-        if not sources:
-            raise ValueError(f"No source prim found at {effective_source_prim_path!r}.")
-        return AudioSceneSnapshot(
-            stage_id=scene.stage_id,
-            timestamp_ms=scene.timestamp_ms,
-            sources=sources,
-            arrays=scene.arrays,
-            room=scene.room,
-        )
+        return replace(scene, occlusion=records)
+
+    def _note_occlusion_diagnostics(self, info: dict[str, Any]) -> None:
+        if self._latest_stage_diagnostics is None:
+            self._latest_stage_diagnostics = {}
+        self._latest_stage_diagnostics["occlusion"] = info
 
     def _resolve_update_time(
         self,
