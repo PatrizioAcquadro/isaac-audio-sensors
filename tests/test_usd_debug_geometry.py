@@ -101,6 +101,36 @@ def test_author_creates_spheres_and_curves_with_stable_paths():
     assert stage.removed == []
 
 
+def test_author_writes_room_outline_as_basis_curves_polyline():
+    from isaac_audio_sensors.isaac.viz.overlays import room_outline_points
+
+    stage = _FakeStage()
+    author = UsdDebugGeometryAuthor()
+    points = room_outline_points(
+        origin_m=(2.0, 1.0, 0.0),
+        dimensions_m=(6.0, 4.0, 3.0),
+    )
+
+    paths = author.author(
+        stage,
+        (
+            DebugPrimitive(
+                kind="room_outline",
+                label="room:anchored_room",
+                points_world=points,
+                color_rgba=(0.95, 0.85, 0.1, 1.0),
+                radius_m=0.02,
+            ),
+        ),
+    )
+
+    outline = stage.prims[paths[0]]
+    assert outline.type_name == "BasisCurves"
+    assert outline.attributes["curveVertexCounts"] == [16]
+    assert outline.attributes["points"] == list(points)
+    assert outline.attributes["ias:debug:kind"] == "room_outline"
+
+
 def test_author_prunes_stale_prims_when_primitives_shrink():
     stage = _FakeStage()
     author = UsdDebugGeometryAuthor()

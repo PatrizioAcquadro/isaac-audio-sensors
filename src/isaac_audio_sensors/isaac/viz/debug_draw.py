@@ -154,5 +154,16 @@ def _draw_lines(interface: Any, primitives: tuple[DebugPrimitive, ...]) -> None:
                 widths.append(
                     _pixel_size(primitive.radius_m or 0.01, MIN_LINE_WIDTH_PX)
                 )
+        elif primitive.kind == "room_outline" and len(primitive.points_world) >= 2:
+            width_px = _pixel_size(primitive.radius_m or 0.02, MIN_LINE_WIDTH_PX)
+            for line_start, line_end in zip(
+                primitive.points_world,
+                primitive.points_world[1:],
+                strict=False,
+            ):
+                starts.append(line_start)
+                ends.append(line_end)
+                colors.append(primitive.color_rgba)
+                widths.append(width_px)
     if starts and hasattr(interface, "draw_lines"):
         interface.draw_lines(starts, ends, colors, widths)

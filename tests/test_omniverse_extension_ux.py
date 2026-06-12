@@ -2189,6 +2189,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "ambiguity_policy",
         "backend",
         "layout_name",
+        "room_out_of_bounds",
         "waveform_mode",
     }
     assert set(controller._ui_window._int_fields) == {
@@ -2251,6 +2252,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Author Array",
         "Author Source",
         "Sensor",
+        "Room",
         "Instruments",
         "Audio Output",
         "Replicator",
@@ -2269,6 +2271,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
         "Author Array",
         "Author Source",
         "Sensor",
+        "Room",
         "Instruments",
         "Audio Output",
         "Replicator",
@@ -2692,6 +2695,67 @@ def test_extension_controller_room_backend_gets_default_shoebox(tmp_path):
     assert room is not None
     assert room.room_id == "ias_gui_default_room"
     assert room.dimensions_m == (6.0, 6.0, 3.0)
+    # Without an anchor prim, the default room is explicitly centered on the
+    # array (authored at the origin) instead of refitting per frame.
+    assert room.origin_m == (-3.0, -3.0, -1.5)
+    assert room.anchor_prim_path is None
+    summary = controller.state.latest_room_summary
+    assert summary is not None
+    assert summary["origin_m"] == (-3.0, -3.0, -1.5)
+    assert summary["absorption_provenance"] == "config"
+
+
+def test_extension_controller_room_anchors_to_designated_prim():
+    stage = _FakeStage(
+        (
+            _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
+            _FakePrim(
+                "/World/Room",
+                "Xform",
+                {
+                    "ias:room_min_world": (-2.0, -3.0, 0.0),
+                    "ias:room_max_world": (6.0, 3.0, 3.0),
+                    "ias:material": "carpet",
+                },
+            ),
+        )
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "room_acoustics"
+    controller.state.room_anchor_prim_path = "/World/Room"
+    controller.state.room_out_of_bounds = "clamp"
+    assert controller.author_array(stage=stage) is not None
+    assert controller.configure_sensor(stage=stage) is not None
+    room = controller.sensor.room
+    assert room is not None
+    assert room.dimensions_m == (8.0, 6.0, 3.0)
+    assert room.origin_m == (-2.0, -3.0, 0.0)
+    assert room.anchor_prim_path == "/World/Room"
+    assert room.absorption == 0.30  # carpet via the default semantic table
+    assert room.out_of_bounds == "clamp"
+    summary = controller.state.latest_room_summary
+    assert summary is not None
+    assert summary["absorption_provenance"] == "semantic:carpet"
+
+
+def test_extension_controller_room_anchor_missing_prim_records_error():
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "room_acoustics"
+    controller.state.room_anchor_prim_path = "/World/MissingRoom"
+    assert controller.author_array(stage=stage) is not None
+
+    assert controller.configure_sensor(stage=stage) is None
+
+    assert controller.sensor is None
+    assert controller.state.error_message is not None
+    assert "/World/MissingRoom" in controller.state.error_message
 
 
 def test_extension_ui_audio_panel_renders_waveform_preview(monkeypatch, tmp_path):

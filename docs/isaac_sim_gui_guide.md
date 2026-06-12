@@ -22,7 +22,9 @@ The control inventory below is derived from
 - `Author Array`
 - `Author Source`
 - `Sensor`
+- `Room`
 - `Instruments`
+- `Audio Output`
 - `Replicator`
 - `Export`
 
@@ -683,6 +685,45 @@ If `JSONL` is enabled, the trace should be written to:
 ```text
 outputs/isaac_audio_sensors/extension_trace.frames.jsonl
 ```
+
+## Room Section
+
+### What It Is For
+
+Configures the L2 `room_acoustics` shoebox room. The room is anchored in
+world space: either derived from a designated stage prim's world-aligned
+bounding box, or — when no anchor is set — the default room
+(6 m x 6 m x 3 m) explicitly centered on the array at configure time. Rooms
+no longer refit themselves to the scene every frame, so mic-to-wall
+distances always match the stage.
+
+### When To Use It
+
+Before `Start`/`Update` with the `room_acoustics` backend selected in the
+`Sensor` section. The section is ignored by the other backends.
+
+### Controls
+
+- `Anchor Prim`: absolute prim path (for example `/World/Room`). The room's
+  dimensions and placement come from that prim's world bounding box, and the
+  wall absorption from its tags (`ias:absorption` attribute first, then an
+  `ias:material`/semantics label such as `concrete` or `carpet`, then the
+  default 0.35). Leave empty for the centered default room.
+- `Out Of Bounds`: `error` (default) fails configuration-time captures that
+  place a source or microphone outside the room, naming the offending prim;
+  `clamp` pulls it just inside the nearest wall and reports it in frame
+  diagnostics.
+
+### Expected Output
+
+The readout line summarizes the active room, for example:
+
+```text
+Room: ias_gui_default_room | dims=(6.00, 6.00, 3.00) | origin=(-3.00, -3.00, -1.50) | absorption=0.35 (config) | anchor=centered on array
+```
+
+When the debug overlay or USD debug geometry is enabled, the room is drawn as
+a yellow wireframe box (`room_outline` primitive) around the scene.
 
 ## Instruments Section
 

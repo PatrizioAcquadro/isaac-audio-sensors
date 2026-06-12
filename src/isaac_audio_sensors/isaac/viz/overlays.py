@@ -18,6 +18,7 @@ from isaac_audio_sensors.core.types import (
 CLEAR_BEARING_RAY_COLOR = (0.05, 0.9, 0.35, 1.0)
 PARTIAL_OCCLUSION_BEARING_RAY_COLOR = (1.0, 0.65, 0.05, 1.0)
 OCCLUDED_BEARING_RAY_COLOR = (0.95, 0.15, 0.1, 1.0)
+ROOM_OUTLINE_COLOR = (0.95, 0.85, 0.1, 1.0)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -53,6 +54,25 @@ def build_debug_primitives(
     """Build deterministic debug primitives for a frame without Isaac imports."""
 
     primitives: list[DebugPrimitive] = []
+    if scene.room is not None:
+        primitives.append(
+            DebugPrimitive(
+                kind="room_outline",
+                label=f"room:{scene.room.room_id}",
+                points_world=room_outline_points(
+                    origin_m=scene.room.origin_m,
+                    dimensions_m=scene.room.dimensions_m,
+                ),
+                color_rgba=ROOM_OUTLINE_COLOR,
+                radius_m=0.02,
+                metadata={
+                    "room_id": scene.room.room_id,
+                    "dimensions_m": scene.room.dimensions_m,
+                    "origin_m": scene.room.origin_m,
+                    "anchor_prim_path": scene.room.anchor_prim_path,
+                },
+            )
+        )
     for mic_id, position in microphone_world_positions(sensor).items():
         primitives.append(
             DebugPrimitive(
@@ -124,6 +144,39 @@ def build_debug_primitives(
             )
         )
     return tuple(primitives)
+
+
+def room_outline_points(
+    *,
+    origin_m: tuple[float, float, float],
+    dimensions_m: tuple[float, float, float],
+) -> tuple[tuple[float, float, float], ...]:
+    """Trace all 12 edges of the room box as one connected polyline.
+
+    A box has eight odd-degree corners, so a single stroke must retrace
+    three edges; retraced segments overdraw invisibly.
+    """
+
+    def corner(x_max: bool, y_max: bool, z_max: bool) -> tuple[float, float, float]:
+        return (
+            origin_m[0] + (dimensions_m[0] if x_max else 0.0),
+            origin_m[1] + (dimensions_m[1] if y_max else 0.0),
+            origin_m[2] + (dimensions_m[2] if z_max else 0.0),
+        )
+
+    a = corner(False, False, False)
+    b = corner(True, False, False)
+    c = corner(True, True, False)
+    d = corner(False, True, False)
+    a_top = corner(False, False, True)
+    b_top = corner(True, False, True)
+    c_top = corner(True, True, True)
+    d_top = corner(False, True, True)
+    return (
+        a, b, c, d, a,
+        a_top, b_top, c_top, d_top, a_top,
+        b_top, b, c, c_top, d_top, d,
+    )
 
 
 def debug_primitives_to_dicts(

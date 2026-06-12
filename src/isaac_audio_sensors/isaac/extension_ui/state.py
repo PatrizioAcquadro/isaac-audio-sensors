@@ -147,6 +147,9 @@ class ExtensionUiState:
     live_sync_source_pose: bool = False
     usd_debug_enabled: bool = False
     usd_debug_root: str = "/World/IasAudioDebug"
+    room_anchor_prim_path: str = ""
+    room_out_of_bounds: str = "error"
+    latest_room_summary: dict[str, Any] | None = None
     latest_frame_export_path: str = DEFAULT_LATEST_FRAME_FILENAME
     config_export_path: str = DEFAULT_CONFIG_FILENAME
     config_import_path: str = DEFAULT_CONFIG_FILENAME

@@ -31,6 +31,7 @@ from .sections import (
     build_export_section,
     build_instruments_section,
     build_replicator_section,
+    build_room_section,
     build_source_section,
     build_stage_section,
 )
@@ -98,6 +99,7 @@ class OmniReferenceWindow:
         build_array_section(self)
         build_source_section(self)
         build_control_section(self)
+        build_room_section(self)
         build_instruments_section(self)
         build_audio_output_section(self)
         build_replicator_section(self)
@@ -146,6 +148,25 @@ class OmniReferenceWindow:
             f"source={state.latest_source_prim_path or state.source_prim_path} | "
             f"pos={_optional_vec3_text(state.latest_source_position_m)}",
         )
+        room = state.latest_room_summary
+        if room:
+            self._set_label(
+                "room",
+                "Room: "
+                f"{room.get('room_id', 'unknown')} | "
+                f"dims={_optional_vec3_text(room.get('dimensions_m'))} | "
+                f"origin={_optional_vec3_text(room.get('origin_m'))} | "
+                f"absorption={room.get('absorption')} "
+                f"({room.get('absorption_provenance', 'config')}) | "
+                f"anchor={room.get('anchor_prim_path') or 'centered on array'}",
+            )
+        else:
+            self._set_label(
+                "room",
+                "Room: inactive | "
+                f"anchor={state.room_anchor_prim_path or 'centered on array'} | "
+                "used by the room_acoustics backend",
+            )
         self.refresh_instruments()
         self.refresh_audio_panel()
         self._set_label("audition", state.audition_status)
