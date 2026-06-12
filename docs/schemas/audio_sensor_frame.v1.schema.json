@@ -72,7 +72,7 @@
       ]
     },
     "backend_id": {
-      "description": "Public backend identifier such as geometry_only, tdoa_synthetic, or room_acoustics.",
+      "description": "Public backend identifier such as geometry_only, tdoa_synthetic, room_acoustics, or room_acoustics_srp.",
       "minLength": 1,
       "type": "string"
     },

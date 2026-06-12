@@ -9,11 +9,23 @@ from isaac_audio_sensors.core.constants import KNOWN_BACKENDS, TDOA_AMBIGUITY_PO
 
 BACKEND_CHOICES = tuple(
     backend
-    for backend in ("geometry_only", "tdoa_synthetic", "room_acoustics")
+    for backend in (
+        "geometry_only",
+        "tdoa_synthetic",
+        "room_acoustics",
+        "room_acoustics_srp",
+    )
     if backend in KNOWN_BACKENDS
 )
 AMBIGUITY_POLICY_CHOICES = tuple(sorted(TDOA_AMBIGUITY_POLICIES))
-LAYOUT_CHOICES = ("quad_front", "quad_cross", "stereo_y", "two_mic_y", "mono")
+LAYOUT_CHOICES = (
+    "quad_front",
+    "quad_cross",
+    "tetrahedral",
+    "stereo_y",
+    "two_mic_y",
+    "mono",
+)
 WAVEFORM_MODE_CHOICES = ("per_frame", "session")
 ROOM_OUT_OF_BOUNDS_CHOICES = ("error", "clamp")
 # Default shoebox used by the room_acoustics backend when no anchor prim is

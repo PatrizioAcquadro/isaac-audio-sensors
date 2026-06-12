@@ -11,7 +11,10 @@ import pytest
 
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.room_acoustics import (
+    RoomAcousticsBackend,
+    RoomAcousticsSrpBackend,
+)
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
@@ -140,7 +143,9 @@ CANONICAL_STABLE_DIAGNOSTIC_NAMESPACES = (
     "stage_binding",
     "entity_binding",
 )
-CANONICAL_BACKEND_IDS = frozenset({"geometry_only", "tdoa_synthetic", "room_acoustics"})
+CANONICAL_BACKEND_IDS = frozenset(
+    {"geometry_only", "tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}
+)
 
 
 def test_generated_schema_matches_checked_in_schema_exactly():
@@ -175,11 +180,13 @@ def test_backend_identifiers_are_stable_public_v1_ids():
     assert GeometryBackend.backend_id == "geometry_only"
     assert TdoaSyntheticBackend.backend_id == "tdoa_synthetic"
     assert RoomAcousticsBackend.backend_id == "room_acoustics"
+    assert RoomAcousticsSrpBackend.backend_id == "room_acoustics_srp"
 
     for backend_id, backend_cls in (
         ("geometry_only", GeometryBackend),
         ("tdoa_synthetic", TdoaSyntheticBackend),
         ("room_acoustics", RoomAcousticsBackend),
+        ("room_acoustics_srp", RoomAcousticsSrpBackend),
     ):
         assert isinstance(get_backend(backend_id), backend_cls)
 
@@ -193,7 +200,9 @@ def test_schema_documents_v1_contract_lock_semantics():
     assert "separate from the Python package version" in schema["description"]
     assert "bearing-sector semantics" in schema["description"]
     assert "stable backend identifiers" in schema["description"]
-    assert schema["properties"]["backend_id"]["description"].endswith("room_acoustics.")
+    assert schema["properties"]["backend_id"]["description"].endswith(
+        "room_acoustics_srp."
+    )
     assert "half-open v1 sector semantics" in (
         schema["properties"]["detections"]["items"]["properties"]["doa"]["properties"][
             "bearing_sector"

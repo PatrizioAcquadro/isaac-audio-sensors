@@ -119,7 +119,7 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                 "type": "string",
                 "description": (
                     "Public backend identifier such as geometry_only, "
-                    "tdoa_synthetic, or room_acoustics."
+                    "tdoa_synthetic, room_acoustics, or room_acoustics_srp."
                 ),
                 "minLength": 1,
             },

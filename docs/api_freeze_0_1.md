@@ -54,7 +54,9 @@ The active audit guardrails require these exact policy statements:
 `geometry_only`, `tdoa_synthetic`, and `room_acoustics` are stable backend
 identifiers. They are public values in frames, configs, trace examples, docs,
 the acoustic fidelity ladder, and backend selection. They must not be renamed
-within the v1 line.
+within the v1 line. `room_acoustics_srp` joined them in 1.7.0 as an additive
+L2 backend identifier (the room-acoustics pipeline with SRP-PHAT as the DOA
+estimator) and follows the same stability rules.
 
 Additive optional fields and additive diagnostics namespaces are compatible
 when existing readers can ignore them. A documented bug fix is compatible only

@@ -43,4 +43,10 @@ def get_backend(backend_id: str, **kwargs: object) -> AudioSimulationBackend:
         )
 
         return RoomAcousticsBackend(**kwargs)
+    if backend_id == "room_acoustics_srp":
+        from isaac_audio_sensors.core.backends.room_acoustics import (
+            RoomAcousticsSrpBackend,
+        )
+
+        return RoomAcousticsSrpBackend(**kwargs)
     raise ValueError(f"Unknown audio simulation backend {backend_id!r}.")

@@ -21,6 +21,10 @@ from isaac_audio_sensors.core.doa.gcc_phat import (
     relative_delays_from_tdoa_matrix,
     rms_by_channel,
 )
+from isaac_audio_sensors.core.doa.srp_phat import (
+    srp_phat_confidence,
+    srp_phat_direction,
+)
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
 from isaac_audio_sensors.core.math_utils import (
@@ -52,6 +56,7 @@ from isaac_audio_sensors.core.types import (
     AudioSensorFrame,
     AudioSourceSpec,
     AudioTimeWindow,
+    DoaEstimate,
     MicrophoneArraySpec,
     Pose3D,
     RoomAcousticsSpec,
@@ -63,6 +68,11 @@ _TWO_TONE_PEAK = 1.0 + _SECONDARY_TONE_GAIN
 _EDGE_RAMP_S = 0.004
 _IMPULSE_SPIKES_S = ((0.004, 1.0),)
 _PULSE_SPIKES_S = ((0.004, 1.0), (0.010, -0.65), (0.017, 0.4))
+
+
+# Waveform-domain DOA estimator ids accepted by the room backend; future
+# estimators (e.g. MUSIC) register here and dispatch in _estimate_source_doa.
+DOA_ESTIMATOR_IDS = ("tdoa_least_squares", "srp_phat")
 
 
 class RoomAcousticsBackend:
@@ -82,6 +92,7 @@ class RoomAcousticsBackend:
         source_waveform_duration_s: float = 0.08,
         gcc_phat_interp: int = 8,
         waveform_writer: WaveformSink | None = None,
+        doa_estimator: str = "tdoa_least_squares",
     ) -> None:
         if speed_of_sound_mps <= 0.0 or not math.isfinite(speed_of_sound_mps):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
@@ -89,6 +100,10 @@ class RoomAcousticsBackend:
             raise ValueError("ambiguity_policy must be 'none' or 'front_hemisphere'.")
         if source_waveform_duration_s <= 0.0:
             raise ValueError("source_waveform_duration_s must be positive.")
+        if doa_estimator not in DOA_ESTIMATOR_IDS:
+            raise ValueError(
+                f"doa_estimator must be one of {sorted(DOA_ESTIMATOR_IDS)}."
+            )
         self.speed_of_sound_mps = float(speed_of_sound_mps)
         self.ambiguity_policy = ambiguity_policy
         # Retained for API compatibility: generated sources now emit
@@ -97,6 +112,7 @@ class RoomAcousticsBackend:
         self.source_waveform_duration_s = float(source_waveform_duration_s)
         self.gcc_phat_interp = int(gcc_phat_interp)
         self.waveform_writer = waveform_writer
+        self.doa_estimator = doa_estimator
 
     @staticmethod
     def is_available() -> bool:
@@ -107,6 +123,71 @@ class RoomAcousticsBackend:
         except ImportError:
             return False
         return True
+
+    def _estimate_source_doa(
+        self,
+        *,
+        sensor: MicrophoneArraySpec,
+        source_waveforms: dict[str, np.ndarray],
+        per_mic_delay_s: dict[str, float],
+        sample_rate_hz: int,
+        max_delay_s: float,
+        signals_active: bool,
+    ) -> tuple[DoaEstimate, dict[str, Any]]:
+        """Dispatch the configured waveform-domain DOA estimator.
+
+        Silent windows fall back to the delay-based estimator because steered
+        response power is undefined on all-zero signals.
+        """
+
+        if self.doa_estimator == "srp_phat" and signals_active:
+            mic_positions = {
+                microphone.mic_id: microphone.relative_position_m
+                for microphone in sensor.microphones
+            }
+            result = srp_phat_direction(
+                source_waveforms,
+                mic_positions_m=mic_positions,
+                sample_rate_hz=sample_rate_hz,
+                speed_of_sound_mps=self.speed_of_sound_mps,
+                max_delay_s=max_delay_s,
+                interp=self.gcc_phat_interp,
+            )
+            elevation = result.elevation_deg
+            doa = DoaEstimate(
+                estimated_bearing_deg=result.bearing_deg,
+                candidate_bearing_deg=(result.bearing_deg,),
+                bearing_confidence=srp_phat_confidence(result),
+                ambiguity_class=None,
+                ambiguity_reason=None,
+                estimated_elevation_deg=elevation,
+                candidate_elevation_deg=(
+                    () if elevation is None else (elevation,)
+                ),
+            )
+            return doa, {
+                "doa_estimator": "srp_phat",
+                "srp_phat": {
+                    "azimuth_step_deg": result.azimuth_step_deg,
+                    "elevation_step_deg": result.elevation_step_deg,
+                    "grid_point_count": result.grid_point_count,
+                    "pair_count": result.pair_count,
+                    "peak_power": result.peak_power,
+                    "mean_power": result.mean_power,
+                },
+            }
+        diagnostics: dict[str, Any] = {"doa_estimator": "tdoa_least_squares"}
+        if self.doa_estimator != "tdoa_least_squares":
+            diagnostics["doa_estimator_requested"] = self.doa_estimator
+        return (
+            estimate_doa_from_delays(
+                sensor=sensor,
+                per_mic_delay_s=per_mic_delay_s,
+                speed_of_sound_mps=self.speed_of_sound_mps,
+                ambiguity_policy=self.ambiguity_policy,
+            ),
+            diagnostics,
+        )
 
     def simulate(
         self,
@@ -230,7 +311,10 @@ class RoomAcousticsBackend:
                     mic_id: premix[index, mic_index]
                     for mic_index, mic_id in enumerate(mic_ids)
                 }
-                if all(np.any(waveform) for waveform in source_waveforms.values()):
+                signals_active = all(
+                    np.any(waveform) for waveform in source_waveforms.values()
+                )
+                if signals_active:
                     tdoa_matrix, gcc_peaks = estimate_tdoa_diagnostics(
                         source_waveforms,
                         sample_rate_hz=sample_rate_hz,
@@ -274,11 +358,13 @@ class RoomAcousticsBackend:
                 ground_truth_elevation = _ground_truth_elevation(
                     source.position_world, sensor
                 )
-                doa = estimate_doa_from_delays(
+                doa, doa_estimator_diagnostics = self._estimate_source_doa(
                     sensor=sensor,
+                    source_waveforms=source_waveforms,
                     per_mic_delay_s=per_mic_delay_s,
-                    speed_of_sound_mps=self.speed_of_sound_mps,
-                    ambiguity_policy=self.ambiguity_policy,
+                    sample_rate_hz=sample_rate_hz,
+                    max_delay_s=max_delay,
+                    signals_active=signals_active,
                 )
                 oracle_bearing_error = (
                     None
@@ -344,6 +430,7 @@ class RoomAcousticsBackend:
                             "direct_path_delay_s": direct_path_delay_s,
                             "oracle_bearing_error_deg": oracle_bearing_error,
                             "oracle_elevation_error_deg": oracle_elevation_error,
+                            **doa_estimator_diagnostics,
                             "per_mic_rms": per_mic_rms,
                             "rir_length_samples": rir_length_samples,
                             "rir_peak_delay_s": rir_peak_delay_s,
@@ -393,6 +480,7 @@ class RoomAcousticsBackend:
                 time_window.end_time_s,
             ),
             "window_sample_count": window_sample_count,
+            "doa_estimator": self.doa_estimator,
             "room_clamped_position_ids": clamped_position_ids,
             "per_source_rir_summary": per_source_rir_summary,
             "per_source_rir_length_samples": {
@@ -437,6 +525,23 @@ class RoomAcousticsBackend:
             waveform_paths=waveform_paths,
             diagnostics=frame_diagnostics,
         )
+
+
+class RoomAcousticsSrpBackend(RoomAcousticsBackend):
+    """Room-acoustics backend variant with SRP-PHAT as the DOA estimator.
+
+    Emits the same L2 frames as ``room_acoustics`` (shared room, premix
+    diagnostics, waveform export) with the direction estimate steered over
+    the SRP-PHAT grid instead of the GCC-PHAT least-squares path.
+    """
+
+    backend_id = "room_acoustics_srp"
+
+    def __init__(self, **kwargs: Any) -> None:
+        estimator = kwargs.setdefault("doa_estimator", "srp_phat")
+        if estimator != "srp_phat":
+            raise ValueError("room_acoustics_srp pins doa_estimator='srp_phat'.")
+        super().__init__(**kwargs)
 
 
 @dataclass(frozen=True, slots=True)

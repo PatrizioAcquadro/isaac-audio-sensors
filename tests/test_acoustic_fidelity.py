@@ -50,7 +50,10 @@ def test_implemented_l0_l1_l2_map_to_stable_backend_ids():
 
     assert by_level[AcousticFidelityLevel.L0].backend_ids == ("geometry_only",)
     assert by_level[AcousticFidelityLevel.L1].backend_ids == ("tdoa_synthetic",)
-    assert by_level[AcousticFidelityLevel.L2].backend_ids == ("room_acoustics",)
+    assert by_level[AcousticFidelityLevel.L2].backend_ids == (
+        "room_acoustics",
+        "room_acoustics_srp",
+    )
     assert by_level[AcousticFidelityLevel.L2].optional_dependencies == (
         "room",
         "pyroomacoustics",
@@ -59,11 +62,11 @@ def test_implemented_l0_l1_l2_map_to_stable_backend_ids():
     )
 
     assert frozenset(
-        {"geometry_only", "tdoa_synthetic", "room_acoustics"}
+        {"geometry_only", "tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}
     ) == KNOWN_BACKENDS
     for backend_id in KNOWN_BACKENDS:
         metadata = fidelity_level_for_backend(backend_id)
-        assert metadata.backend_ids == (backend_id,)
+        assert backend_id in metadata.backend_ids
         assert metadata.runtime_selectable_v1 is True
         assert "AudioSensorFrame v1" in metadata.frame_contract
 
