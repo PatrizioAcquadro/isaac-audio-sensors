@@ -12,7 +12,10 @@ from typing import Any
 import numpy as np
 
 from isaac_audio_sensors.core.backends.tdoa import estimate_doa_from_delays
-from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
+from isaac_audio_sensors.core.constants import (
+    DEFAULT_SPEED_OF_SOUND_MPS,
+    ROOM_CLAMP_MARGIN_M,
+)
 from isaac_audio_sensors.core.doa.gcc_phat import (
     estimate_tdoa_diagnostics,
     relative_delays_from_tdoa_matrix,
@@ -139,6 +142,7 @@ class RoomAcousticsBackend:
         mic_world = microphone_world_positions(sensor)
         per_source_rir_summary: dict[str, dict[str, object]] = {}
         mixture = np.zeros((len(mic_ids), window_sample_count), dtype=float)
+        clamped_position_ids: tuple[str, ...] = ()
 
         if active:
             source_positions = {
@@ -148,7 +152,7 @@ class RoomAcousticsBackend:
             microphone_positions = {
                 f"mic:{mic_id}": position for mic_id, position in mic_world.items()
             }
-            room_positions = _fit_world_positions_to_room(
+            room_positions, clamped_position_ids = _world_to_room_positions(
                 room_spec=scene.room,
                 positions={**source_positions, **microphone_positions},
             )
@@ -376,6 +380,7 @@ class RoomAcousticsBackend:
                 time_window.end_time_s,
             ),
             "window_sample_count": window_sample_count,
+            "room_clamped_position_ids": clamped_position_ids,
             "per_source_rir_summary": per_source_rir_summary,
             "per_source_rir_length_samples": {
                 source_id: summary["rir_length_samples"]
@@ -769,6 +774,9 @@ def _room_config_summary(room_spec: RoomAcousticsSpec) -> dict[str, object]:
         "max_order": room_spec.max_order,
         "air_absorption": room_spec.air_absorption,
         "ray_tracing": room_spec.ray_tracing,
+        "origin_m": room_spec.origin_m,
+        "out_of_bounds": room_spec.out_of_bounds,
+        "anchor_prim_path": room_spec.anchor_prim_path,
     }
 
 
@@ -780,34 +788,63 @@ def _absorption_summary(
     return float(absorption)
 
 
-def _fit_world_positions_to_room(
+def _world_to_room_positions(
     *,
     room_spec: RoomAcousticsSpec,
     positions: dict[str, tuple[float, float, float]],
-) -> dict[str, tuple[float, float, float]]:
+) -> tuple[dict[str, tuple[float, float, float]], tuple[str, ...]]:
+    """Translate world positions into the room's corner-origin frame.
+
+    The room is anchored in world space at ``room_spec.origin_m``; positions
+    outside ``[origin, origin + dimensions]`` follow the spec's out-of-bounds
+    policy: ``"error"`` raises naming the offending entity, ``"clamp"`` pulls
+    it just inside the nearest wall and reports it.
+    """
+
     dimensions = room_spec.dimensions_m
-    margin = 0.25
-    axes = tuple(zip(*positions.values(), strict=True))
-    offsets: list[float] = []
-    for axis_index, axis_values in enumerate(axes):
-        min_value = min(axis_values)
-        max_value = max(axis_values)
-        span = max_value - min_value
-        max_span = dimensions[axis_index] - 2.0 * margin
-        if span > max_span:
-            raise ValueError(
-                "room_acoustics positions do not fit inside room dimensions "
-                f"on axis {axis_index}: span={span:.3f}m, capacity={max_span:.3f}m."
-            )
-        offsets.append(margin - min_value)
+    origin = room_spec.origin_m
     room_positions: dict[str, tuple[float, float, float]] = {}
+    clamped_ids: list[str] = []
     for key, position in positions.items():
-        room_positions[key] = (
-            float(position[0] + offsets[0]),
-            float(position[1] + offsets[1]),
-            float(position[2] + offsets[2]),
+        room_position = [
+            float(position[axis] - origin[axis]) for axis in range(3)
+        ]
+        out_of_bounds = any(
+            room_position[axis] < 0.0 or room_position[axis] > dimensions[axis]
+            for axis in range(3)
         )
-    return room_positions
+        if out_of_bounds:
+            if room_spec.out_of_bounds == "clamp":
+                room_position = [
+                    min(
+                        max(room_position[axis], ROOM_CLAMP_MARGIN_M),
+                        dimensions[axis] - ROOM_CLAMP_MARGIN_M,
+                    )
+                    for axis in range(3)
+                ]
+                clamped_ids.append(key)
+            else:
+                anchor = (
+                    f" (room anchored to {room_spec.anchor_prim_path!r})"
+                    if room_spec.anchor_prim_path is not None
+                    else ""
+                )
+                max_corner = tuple(
+                    origin[axis] + dimensions[axis] for axis in range(3)
+                )
+                raise ValueError(
+                    f"room_acoustics position {key!r} at world "
+                    f"{tuple(float(value) for value in position)} is outside "
+                    f"room {room_spec.room_id!r} world bounds "
+                    f"[{room_spec.origin_m}, {max_corner}]{anchor}. Move the "
+                    "prim inside the room or set out_of_bounds='clamp'."
+                )
+        room_positions[key] = (
+            room_position[0],
+            room_position[1],
+            room_position[2],
+        )
+    return room_positions, tuple(clamped_ids)
 
 
 def _max_microphone_spacing(

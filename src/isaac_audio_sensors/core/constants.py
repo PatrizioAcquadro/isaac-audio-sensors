@@ -109,6 +109,13 @@ DETECTION_MODES = frozenset(
 
 KNOWN_BACKENDS = frozenset({"geometry_only", "tdoa_synthetic", "room_acoustics"})
 
+ROOM_OUT_OF_BOUNDS_POLICIES = frozenset({"error", "clamp"})
+# Clamped positions are pulled this far inside the walls so pyroomacoustics
+# never receives a degenerate on-wall source/microphone.
+ROOM_CLAMP_MARGIN_M = 0.05
+# Anchored rooms thinner than this on any axis are authoring mistakes.
+MIN_ROOM_EXTENT_M = 0.05
+
 TDOA_AMBIGUITY_POLICIES = frozenset({"none", "front_hemisphere"})
 
 COMPUTE_PATHS = frozenset({"auto", "scalar", "batched"})
