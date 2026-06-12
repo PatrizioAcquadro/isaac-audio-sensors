@@ -14,7 +14,7 @@ Showcase site: <https://isaac-audio-showcase-site.vercel.app>
 
 Source repository: <https://github.com/PatrizioAcquadro/isaac-audio-sensors>
 
-Current package release: `1.4.0`. The frame schema version remains separate at
+Current package release: `1.5.0`. The frame schema version remains separate at
 `ias.audio_sensor_frame.v1`.
 
 ## Features

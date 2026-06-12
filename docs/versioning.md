@@ -7,10 +7,20 @@ separate schema-version policy for frame traces.
 
 - distribution: `isaac-audio-sensors`
 - import package: `isaac_audio_sensors`
-- package version: `1.4.0`
-- Kit extension manifest version: `1.4.0`
+- package version: `1.5.0`
+- Kit extension manifest version: `1.5.0`
 - frame schema version: `ias.audio_sensor_frame.v1`
 - pure Python support: Python 3.10 or newer
+
+`1.5.0` is a compatible v1 minor release: the Omniverse extension GUI gains
+visual instruments (bearing compass, per-mic RMS meters, detection timeline),
+a waveform/spectrogram preview with audition of exported WAVs,
+viewport-first interaction (selection follow and manipulator-driven pose
+sync), persistent USD debug geometry, and a runtime OmniGraph node exposing
+the latest frame. The backing `extension_ui` module became a package with
+the same import path, and the extension config schema stays
+`ias.omni_extension_binding.v1` with additive lifecycle keys only; the frame
+schema version is unchanged.
 
 `1.4.0` is a compatible v1 minor release: occlusion upgrades to a
 material-aware, frequency-dependent ray/transmission model (multi-hit,
@@ -59,7 +69,7 @@ downstream adapters are not final v1 package release gates, and phases 9, 10,
 and 11 remain planned post-v1 work rather than prerequisites for this tag.
 
 The Kit extension manifest uses SemVer spelling. The Kit extension manifest
-and Python package version both use `1.4.0`.
+and Python package version both use `1.5.0`.
 
 The package's v1 promise boundary is frozen in [V1 Public Scope](v1_scope.md).
 Versioning changes must not expand v1 into downstream release gates, sim-real

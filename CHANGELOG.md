@@ -1,5 +1,89 @@
 # Changelog
 
+## 1.5.0 - 2026-06-11
+
+GUI instruments release: the Omniverse extension window becomes maintainable
+(monolith split into a package) and visual (compass, meters, timeline,
+waveform/spectrogram), the viewport becomes the primary interaction surface,
+debug geometry becomes persistent USD, and the latest frame wires into Action
+Graphs through a runtime OmniGraph node. The frame schema version is
+unchanged at `ias.audio_sensor_frame.v1`; the extension config schema stays
+`ias.omni_extension_binding.v1` with additive lifecycle keys only.
+
+Refactor (zero behavior change):
+
+- `isaac/extension_ui.py` (4,592 lines) became the `isaac/extension_ui/`
+  package with the same import path: `state`, `controller`, `window`,
+  `sections` (one builder function per window section), plus
+  `constants`/`paths`/`stage_context`/`formatting`/`ui_models` helpers. All
+  public and test-consumed names re-export from the package `__init__`.
+
+Instruments (new `Instruments` section, read-only, refreshed per update):
+
+- Polar bearing compass rasterized through `ui.ByteImageProvider`
+  (forward = up, clockwise bearings per the v1 convention) with
+  occlusion-colored needle, candidate-bearing needles, and sector wedge.
+- Per-mic RMS meters (`ui.ProgressBar`, -60 dB floor) and a newest-first
+  detection timeline backed by a bounded (50-event) history in UI state.
+- The pipe-separated `latest` label keeps frame/backend/source facts;
+  bearing, sector, and RMS moved into the instruments.
+
+Audio output (new `Audio Output` section, consumes the 1.2.0 WAV export):
+
+- `WAV Export` toggle plus dir/mode fields flow into the sensor's
+  `waveform_dir`/`waveform_mode`; the latest `waveform_paths` render as a
+  min/max envelope strip and a numpy-STFT spectrogram (no scipy needed).
+- New `core.io.wave_read` decodes FLOAT32/PCM16 WAVs with a stdlib RIFF
+  parser so previews work without the optional `room` extra.
+- Play/Stop audition via `omni.audioplayer` with a system-player fallback;
+  `Open WAV Folder` as the dependable escape hatch.
+- Selecting `room_acoustics` now synthesizes a default 6x6x3 m shoebox
+  (stage discovery authors no rooms), fixing live room sensors that
+  previously failed at simulate time with "requires scene.room".
+
+Viewport-first interaction:
+
+- `Follow Selection` routes clicked prims by discovery class (array/source/
+  object) via `omni.usd` SELECTION_CHANGED stage events with a polling
+  fallback on the update tick.
+- `Live Sync Pose` mirrors manipulator-driven array/source transforms into
+  the numeric fields each tick; fields stay the precision path when off.
+
+Persistent USD debug geometry (roadmap item shipped):
+
+- `viz.usd_debug.UsdDebugGeometryAuthor` authors overlay primitives as
+  session-layer Spheres/BasisCurves under `/World/IasAudioDebug`
+  (configurable), updated in place and pruned per frame; survives pause and
+  Stop, removed by `Clear Debug Geometry`.
+
+OmniGraph:
+
+- Runtime-registered Python node `isaac_audio_sensors.omni.
+  IsaacAudioSensorFrame` (no `.ogn` codegen; `omni.graph.core` is an
+  optional dependency) exposing `frameId`, `timestampMs`, `detectionCount`,
+  `bearingDeg`, `sector`, `micIds`, `micRms`, `occluded`, and `frameJson`,
+  fed by the new import-safe `isaac.frame_registry` the controller publishes
+  on every recorded frame. Registration status is reported verbatim in the
+  GUI and gate evidence; `frame_registry.get_latest_frame()` is the Script
+  Node alternative.
+
+Verification:
+
+- `make live-omniverse-extension-ux-screenshots` now also requires the
+  instruments evidence (compass values, meter fractions, captured
+  compass+meter panel PNG), validates persistent USD debug prims on the live
+  stage, exercises a real room-acoustics WAV export/preview/audition round
+  trip, and records the OmniGraph registration outcome.
+- `docs/isaac_sim_gui_guide.md` gained Instruments, Audio Output, Work From
+  the Viewport, and Use Audio In Action Graphs chapters plus the persistent
+  debug geometry subsection.
+
+Deferred:
+
+- Editable room-spec fields in the GUI (the default shoebox is constant).
+- Spectrogram color-map options and audition scrubbing.
+- OmniGraph exec-pin semantics and per-detection array outputs.
+
 ## 1.4.0 - 2026-06-11
 
 Occlusion realism and cache-semantics release: discovery caching becomes

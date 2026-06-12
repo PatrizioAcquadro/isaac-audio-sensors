@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.5.0 - 2026-06-11
+
+- GUI instruments release: the window gains an `Instruments` section (polar
+  bearing compass, per-mic RMS meters, detection timeline) and an
+  `Audio Output` section (waveform/spectrogram preview and audition of
+  exported WAVs).
+- Viewport-first interaction: `Follow Selection` routes clicked prims by
+  discovery class; `Live Sync Pose` mirrors manipulator-driven array/source
+  transforms into the numeric fields.
+- Persistent USD debug geometry: the `USD Debug` toggle authors overlay
+  primitives as session-layer Spheres/BasisCurves under a configurable root.
+- OmniGraph: registers the runtime node
+  `isaac_audio_sensors.omni.IsaacAudioSensorFrame` when `omni.graph.core`
+  is present, exposing the latest frame to Action Graphs.
+- The backing `extension_ui` module became a package with the same import
+  path; the extension config schema stays `ias.omni_extension_binding.v1`
+  with additive keys.
+
 ## 1.0.0 - 2026-05-24
 
 - Final v1 package release promoted from `1.0.0rc1`.
