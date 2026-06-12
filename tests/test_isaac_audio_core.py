@@ -39,6 +39,7 @@ from isaac_audio_sensors.core.microphone_array import (
 from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSensorFrame,
+    AudioSourceSpec,
     AudioTimeWindow,
     DoaEstimate,
     Pose3D,
@@ -87,6 +88,103 @@ def test_config_validation_accepts_demo_config():
     assert config.default_backend == "tdoa_synthetic"
     assert sorted(config.arrays) == ["rig_front", "rig_stereo"]
     assert scene.stage_id == "demo_audio_lab_single_source"
+
+
+def test_specs_accept_optional_world_velocity():
+    source = AudioSourceSpec(
+        source_id="mover",
+        prim_path="/World/Mover",
+        class_label="Vehicle",
+        audio_asset_path=None,
+        position_world=(5.0, 0.0, 0.0),
+        orientation_world_quat=None,
+        start_time_s=0.0,
+        duration_s=None,
+        gain_db=0.0,
+        velocity_world_mps=(-10.0, 0.0, 0.0),
+    )
+    assert source.velocity_world_mps == (-10.0, 0.0, 0.0)
+
+    static_source = AudioSourceSpec(
+        source_id="static",
+        prim_path="/World/Static",
+        class_label="Speech",
+        audio_asset_path=None,
+        position_world=(1.0, 0.0, 0.0),
+        orientation_world_quat=None,
+        start_time_s=0.0,
+        duration_s=None,
+        gain_db=0.0,
+    )
+    assert static_source.velocity_world_mps is None
+
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig",
+        layout_name="quad_front",
+    )
+    assert array.velocity_world_mps is None
+
+    with pytest.raises(ValueError, match="velocity_world_mps"):
+        AudioSourceSpec(
+            source_id="bad",
+            prim_path="/World/Bad",
+            class_label="Speech",
+            audio_asset_path=None,
+            position_world=(1.0, 0.0, 0.0),
+            orientation_world_quat=None,
+            start_time_s=0.0,
+            duration_s=None,
+            gain_db=0.0,
+            velocity_world_mps=(1.0, 0.0),
+        )
+    with pytest.raises(ValueError, match="velocity_world_mps"):
+        AudioSourceSpec(
+            source_id="bad",
+            prim_path="/World/Bad",
+            class_label="Speech",
+            audio_asset_path=None,
+            position_world=(1.0, 0.0, 0.0),
+            orientation_world_quat=None,
+            start_time_s=0.0,
+            duration_s=None,
+            gain_db=0.0,
+            velocity_world_mps=(float("nan"), 0.0, 0.0),
+        )
+
+
+def test_config_parses_optional_source_velocity():
+    raw = {
+        "scene": {"scene_id": "vel", "stage_units": "meters", "up_axis": "z"},
+        "audio": {"default_backend": "geometry_only"},
+        "sources": [
+            {
+                "source_id": "mover",
+                "prim_path": "/World/Mover",
+                "class_label": "Vehicle",
+                "velocity_world_mps": [-10.0, 0.0, 0.0],
+            },
+            {
+                "source_id": "static",
+                "prim_path": "/World/Static",
+                "class_label": "Speech",
+            },
+        ],
+        "arrays": {
+            "rig": {
+                "prim_path": "/World/Rig/AudioArray",
+                "microphones": [
+                    {"mic_id": "left", "relative_position_m": [0.0, -0.08, 0.0]},
+                    {"mic_id": "right", "relative_position_m": [0.0, 0.08, 0.0]},
+                ],
+            }
+        },
+    }
+
+    config = validate_audio_config(raw)
+    by_id = {source.source_id: source for source in config.sources}
+    assert by_id["mover"].velocity_world_mps == (-10.0, 0.0, 0.0)
+    assert by_id["static"].velocity_world_mps is None
 
 
 def test_config_validation_rejects_duplicate_microphone_ids():

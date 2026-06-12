@@ -90,6 +90,7 @@ class AudioSourceSpec:
     duration_s: float | None
     gain_db: float
     directivity: str = "omni"
+    velocity_world_mps: Vector3 | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty(self.source_id, "AudioSourceSpec.source_id")
@@ -101,6 +102,15 @@ class AudioSourceSpec:
             "position_world",
             as_vector3(self.position_world, "AudioSourceSpec.position_world"),
         )
+        if self.velocity_world_mps is not None:
+            object.__setattr__(
+                self,
+                "velocity_world_mps",
+                as_vector3(
+                    self.velocity_world_mps,
+                    "AudioSourceSpec.velocity_world_mps",
+                ),
+            )
         if self.orientation_world_quat is not None:
             object.__setattr__(
                 self,
@@ -174,6 +184,7 @@ class MicrophoneArraySpec:
     microphones: tuple[MicrophoneSpec, ...]
     sample_rate_hz: int = DEFAULT_SAMPLE_RATE_HZ
     coordinate_convention: str = COORDINATE_CONVENTION
+    velocity_world_mps: Vector3 | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty(self.array_id, "MicrophoneArraySpec.array_id")
@@ -201,6 +212,15 @@ class MicrophoneArraySpec:
                 field_name,
                 as_vector3(
                     getattr(self, field_name), f"MicrophoneArraySpec.{field_name}"
+                ),
+            )
+        if self.velocity_world_mps is not None:
+            object.__setattr__(
+                self,
+                "velocity_world_mps",
+                as_vector3(
+                    self.velocity_world_mps,
+                    "MicrophoneArraySpec.velocity_world_mps",
                 ),
             )
         microphones = tuple(self.microphones)
