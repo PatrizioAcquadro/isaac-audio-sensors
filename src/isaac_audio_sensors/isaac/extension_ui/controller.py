@@ -108,6 +108,7 @@ from .stage_context import (
     _refresh_applied_profile_binding_snapshot,
     _set_prim_attr,
     _stage_has_prim,
+    _stage_prim_at_path,
     _style_demo_object_prim,
     _validate_abs_path,
     current_omni_stage_context,
@@ -1995,19 +1996,79 @@ class ExtensionController:
             self.state.latest_usd_debug_prim_paths = ()
             self._record_error("USD debug authoring failed", exc)
 
-    def _room_spec_or_none(self) -> Any | None:
-        """Default shoebox for room_acoustics; stage scenes carry no room."""
+    def _room_spec_or_none(self, stage: Any) -> Any | None:
+        """Scene-anchored or explicitly placed shoebox for room_acoustics."""
 
-        if self.state.backend != "room_acoustics":
+        state = self.state
+        state.latest_room_summary = None
+        if state.backend != "room_acoustics":
             return None
+        from isaac_audio_sensors.core.room_anchor import room_spec_from_bounds
         from isaac_audio_sensors.core.types import RoomAcousticsSpec
-
-        return RoomAcousticsSpec(
-            room_id=DEFAULT_ROOM_ID,
-            dimensions_m=DEFAULT_ROOM_DIMENSIONS_M,
-            absorption=DEFAULT_ROOM_ABSORPTION,
-            max_order=DEFAULT_ROOM_MAX_ORDER,
+        from isaac_audio_sensors.usd_bounds import (
+            DEFAULT_SEMANTIC_ABSORPTION,
+            resolve_room_absorption,
+            world_aligned_bbox,
         )
+
+        anchor_path = state.room_anchor_prim_path.strip()
+        if anchor_path:
+            prim = _stage_prim_at_path(stage, anchor_path)
+            if prim is None:
+                raise ExtensionActionError(
+                    f"Room anchor prim not found at {anchor_path!r}."
+                )
+            minimum, maximum = world_aligned_bbox(prim, prim_path=anchor_path)
+            absorption, absorption_provenance = resolve_room_absorption(
+                prim,
+                semantic_absorption=dict(DEFAULT_SEMANTIC_ABSORPTION),
+                default=DEFAULT_ROOM_ABSORPTION,
+            )
+            room = room_spec_from_bounds(
+                min_world=minimum,
+                max_world=maximum,
+                room_id=DEFAULT_ROOM_ID,
+                absorption=absorption,
+                max_order=DEFAULT_ROOM_MAX_ORDER,
+                out_of_bounds=state.room_out_of_bounds,
+                anchor_prim_path=anchor_path,
+            )
+        else:
+            # No anchor designated: place the default shoebox explicitly,
+            # centered on the array (rooms no longer refit per frame).
+            array_position = self._array_position_from_state()
+            with suppress(Exception):
+                pose = IsaacStagePoseResolver(stage).resolve_world_pose(
+                    state.array_prim_path,
+                    field_name="room placement array",
+                )
+                array_position = tuple(
+                    float(value) for value in pose.position_world
+                )
+            dimensions = DEFAULT_ROOM_DIMENSIONS_M
+            room = RoomAcousticsSpec(
+                room_id=DEFAULT_ROOM_ID,
+                dimensions_m=dimensions,
+                absorption=DEFAULT_ROOM_ABSORPTION,
+                max_order=DEFAULT_ROOM_MAX_ORDER,
+                origin_m=tuple(
+                    array_position[axis] - dimensions[axis] / 2.0
+                    for axis in range(3)
+                ),
+                out_of_bounds=state.room_out_of_bounds,
+            )
+            absorption_provenance = "config"
+        state.latest_room_summary = {
+            "room_id": room.room_id,
+            "dimensions_m": room.dimensions_m,
+            "origin_m": room.origin_m,
+            "absorption": room.absorption,
+            "absorption_provenance": absorption_provenance,
+            "max_order": room.max_order,
+            "out_of_bounds": room.out_of_bounds,
+            "anchor_prim_path": room.anchor_prim_path,
+        }
+        return room
 
     def update_sensor(self, *, force: bool = True) -> Any | None:
         """Force one frame and update UI/export state."""
@@ -2213,6 +2274,9 @@ class ExtensionController:
                     "live_sync_source_pose": state.live_sync_source_pose,
                     "usd_debug_enabled": state.usd_debug_enabled,
                     "usd_debug_root": state.usd_debug_root,
+                    "room_anchor_prim_path": state.room_anchor_prim_path,
+                    "room_out_of_bounds": state.room_out_of_bounds,
+                    "room_summary": state.latest_room_summary,
                     "runtime_options": {
                         "subscribe_to_update_stream_default": True,
                         "import_safe_outside_isaac": True,
@@ -2505,7 +2569,7 @@ class ExtensionController:
                 writer_path=writer_path,
                 waveform_dir=self._waveform_dir_or_none(),
                 waveform_mode=state.waveform_mode,
-                room=self._room_spec_or_none(),
+                room=self._room_spec_or_none(stage),
             )
 
         binding_cfg = IsaacAudioSceneBindingCfg(
@@ -2528,7 +2592,7 @@ class ExtensionController:
             writer_path=writer_path,
             waveform_dir=self._waveform_dir_or_none(),
             waveform_mode=state.waveform_mode,
-            room=self._room_spec_or_none(),
+            room=self._room_spec_or_none(stage),
         )
         if sensor.stage_snapshot is not None:
             selected = sensor.stage_snapshot.array_by_id(sensor.array_id)
@@ -3253,6 +3317,16 @@ class ExtensionController:
         self.state.usd_debug_root = str(
             lifecycle.get("usd_debug_root", self.state.usd_debug_root)
             or self.state.usd_debug_root
+        )
+        self.state.room_anchor_prim_path = str(
+            lifecycle.get(
+                "room_anchor_prim_path",
+                self.state.room_anchor_prim_path,
+            )
+        )
+        self.state.room_out_of_bounds = str(
+            lifecycle.get("room_out_of_bounds", self.state.room_out_of_bounds)
+            or self.state.room_out_of_bounds
         )
         self.state.trace_enabled = bool(
             package_recording.get(

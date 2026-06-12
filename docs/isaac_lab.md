@@ -183,6 +183,44 @@ attributes, source-like USD type names, or source-like prim names. Diagnostics
 record the per-env selected array, candidate reasons, source discovery reasons,
 and transform provenance under `frame.diagnostics["stage_binding"]`.
 
+### Scene-anchored rooms
+
+For the `room_acoustics` backend, a designated room prim's world-aligned
+bounding box can set the shoebox dimensions **and** placement per cloned env:
+
+```python
+binding_cfg = LabAudioStageBindingCfg(
+    num_envs=2,
+    env_namespace_pattern="/World/envs/env_{env_id}",
+    array_prim_path="Robot/audio_array",
+    source_prim_paths=("Sources/speaker",),
+    microphone_layout="quad_front",
+    room_prim_path="Room",  # resolved per env like other relative paths
+    room_max_order=1,
+)
+```
+
+- `room_prim_path` (default `None`, disabled) resolves per env like source
+  paths. A missing prim raises an error naming the resolved path. Real USD
+  prims use `UsdGeom.BBoxCache`; duck-typed stages provide
+  `ias:room_min_world`/`ias:room_max_world` or `ias:room_size_m`.
+- The derived `RoomAcousticsSpec` gets `origin_m` = the box's minimum corner,
+  per-env `room_id` (`{room_id}_env_{env_id}`), and
+  `anchor_prim_path` = the resolved prim path.
+- `room_absorption_from_tags` (default `True`) reads `ias:absorption` from the
+  prim, else an `ias:material`/USD-semantics label looked up in
+  `room_semantic_absorption` (defaults to `DEFAULT_SEMANTIC_ABSORPTION`), else
+  `room_absorption`.
+- `room_out_of_bounds` (`"error"`, default, or `"clamp"`) controls what
+  happens when a mic/source leaves the room: errors name the offending
+  `source:<id>`/`mic:<id>` and the anchor prim; clamps are reported through
+  the `room_clamped_position_ids` frame diagnostic.
+
+Per-env derivation results (dimensions, origin, absorption provenance) are
+recorded under `frame.diagnostics["stage_binding"]["room"]`. Entity-tensor
+bindings have no stage to anchor to; `LabAudioEntityBindingCfg.room` accepts
+an explicit `RoomAcousticsSpec` (use `origin_m` to place it in world space).
+
 Scene and environment wrappers can be bound without manually extracting the raw
 stage:
 

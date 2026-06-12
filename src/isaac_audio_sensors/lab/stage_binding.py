@@ -11,6 +11,7 @@ from typing import Any
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     DEFAULT_SAMPLE_RATE_HZ,
+    ROOM_OUT_OF_BOUNDS_POLICIES,
 )
 from isaac_audio_sensors.core.math_utils import (
     Quaternion,
@@ -24,11 +25,18 @@ from isaac_audio_sensors.core.math_utils import (
     rotate_vector_by_quaternion,
 )
 from isaac_audio_sensors.core.microphone_array import microphone_layout
+from isaac_audio_sensors.core.room_anchor import room_spec_from_bounds
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
     MicrophoneArraySpec,
     MicrophoneSpec,
+    RoomAcousticsSpec,
+)
+from isaac_audio_sensors.usd_bounds import (
+    DEFAULT_SEMANTIC_ABSORPTION,
+    resolve_room_absorption,
+    world_aligned_bbox,
 )
 
 StageProviderResult = Mapping[int, tuple[AudioSceneSnapshot, MicrophoneArraySpec]]
@@ -104,6 +112,15 @@ class LabAudioStageBindingCfg:
     time_code: Any | None = None
     usd_time_code_scale: float | None = None
     usd_time_code_offset: float = 0.0
+    room_prim_path: str | None = None
+    room_id: str = "stage_room"
+    room_absorption: float | dict[str, float] = 0.35
+    room_absorption_from_tags: bool = True
+    room_semantic_absorption: tuple[tuple[str, float], ...] = (
+        DEFAULT_SEMANTIC_ABSORPTION
+    )
+    room_max_order: int = 0
+    room_out_of_bounds: str = "error"
 
     def __post_init__(self) -> None:
         if self.num_envs is not None and int(self.num_envs) <= 0:
@@ -156,6 +173,17 @@ class LabAudioStageBindingCfg:
             raise ValueError("usd_time_code_scale must be finite.")
         if not math.isfinite(float(self.usd_time_code_offset)):
             raise ValueError("usd_time_code_offset must be finite.")
+        if self.room_prim_path is not None:
+            _require_path(self.room_prim_path, "room_prim_path")
+        if not str(self.room_id).strip():
+            raise ValueError("room_id must be non-empty.")
+        if int(self.room_max_order) < 0:
+            raise ValueError("room_max_order must be non-negative.")
+        if self.room_out_of_bounds not in ROOM_OUT_OF_BOUNDS_POLICIES:
+            raise ValueError(
+                "room_out_of_bounds must be one of "
+                f"{sorted(ROOM_OUT_OF_BOUNDS_POLICIES)}."
+            )
 
 
 class LabAudioStageProvider:
@@ -312,13 +340,20 @@ class LabAudioStageProvider:
                 **_transform_diagnostics(source_transform),
                 "discovery_reasons": source_discovery.get(resolved_path, ()),
             }
+        room, room_diagnostics = _room_for_env(
+            binding_cfg=self.cfg,
+            prims_by_path=prims_by_path,
+            env_namespace=env_ns,
+            env_id=env_id,
+            time_code=time_code,
+        )
         timestamp_ms = int(round(self._sim_time_s_by_env.get(env_id, 0.0) * 1000.0))
         snapshot = AudioSceneSnapshot(
             stage_id=f"{_stage_id(self.stage)}:env_{env_id}",
             timestamp_ms=timestamp_ms,
             sources=tuple(sources),
             arrays=(array,),
-            room=None,
+            room=room,
         )
         diagnostics = {
             "env_id": env_id,
@@ -332,6 +367,8 @@ class LabAudioStageProvider:
             "source_transforms": source_diagnostics,
             "source_count": len(sources),
         }
+        if room_diagnostics is not None:
+            diagnostics["room"] = room_diagnostics
         return (snapshot, array), diagnostics
 
     def _time_code_for_env(self, env_id: int) -> Any | None:
@@ -914,6 +951,61 @@ def _required_prim(
     if prim is None:
         raise ValueError(f"No {description} prim found at {path!r}.")
     return prim
+
+
+def _room_for_env(
+    *,
+    binding_cfg: LabAudioStageBindingCfg,
+    prims_by_path: Mapping[str, Any],
+    env_namespace: str,
+    env_id: int,
+    time_code: Any | None,
+) -> tuple[RoomAcousticsSpec | None, dict[str, Any] | None]:
+    """Anchor a shoebox room to the configured prim's world-aligned bbox."""
+
+    if binding_cfg.room_prim_path is None:
+        return None, None
+    resolved_path = _resolve_env_path(
+        binding_cfg.room_prim_path,
+        env_namespace=env_namespace,
+        env_id=env_id,
+    )
+    prim = _required_prim(prims_by_path, resolved_path, "room")
+    minimum, maximum = world_aligned_bbox(
+        prim,
+        prim_path=resolved_path,
+        time_code=time_code,
+    )
+    if binding_cfg.room_absorption_from_tags:
+        absorption, absorption_provenance = resolve_room_absorption(
+            prim,
+            semantic_absorption=dict(binding_cfg.room_semantic_absorption),
+            default=binding_cfg.room_absorption,
+            time_code=time_code,
+        )
+    else:
+        absorption = binding_cfg.room_absorption
+        absorption_provenance = "config"
+    room = room_spec_from_bounds(
+        min_world=minimum,
+        max_world=maximum,
+        room_id=f"{binding_cfg.room_id}_env_{env_id}",
+        absorption=absorption,
+        max_order=binding_cfg.room_max_order,
+        out_of_bounds=binding_cfg.room_out_of_bounds,
+        anchor_prim_path=resolved_path,
+    )
+    diagnostics = {
+        "prim_path": resolved_path,
+        "room_id": room.room_id,
+        "dimensions_m": room.dimensions_m,
+        "origin_m": room.origin_m,
+        "absorption": room.absorption,
+        "absorption_provenance": absorption_provenance,
+        "max_order": room.max_order,
+        "out_of_bounds": room.out_of_bounds,
+    }
+    return room, diagnostics
 
 
 def _traverse(stage: Any) -> tuple[Any, ...]:

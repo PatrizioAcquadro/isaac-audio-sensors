@@ -24,6 +24,7 @@ from isaac_audio_sensors.core.types import (
     AudioSourceSpec,
     MicrophoneArraySpec,
     MicrophoneSpec,
+    RoomAcousticsSpec,
 )
 
 _ROOT_POSE_FIELDS = (
@@ -114,6 +115,9 @@ class LabAudioEntityBindingCfg:
     stage_id: str = "isaac_lab_entity_scene"
     allow_scene_num_envs: bool = True
     diagnostics: bool = True
+    # Entity scenes carry no USD stage to anchor a room to; an explicit spec
+    # (with origin_m placing it in world space) enables room_acoustics here.
+    room: RoomAcousticsSpec | None = None
 
     def __post_init__(self) -> None:
         if self.num_envs is not None and int(self.num_envs) <= 0:
@@ -358,7 +362,7 @@ class LabAudioEntityProvider:
                 timestamp_ms=timestamp_ms,
                 sources=sources,
                 arrays=(array,),
-                room=None,
+                room=self.cfg.room,
             )
             result[env_id] = (snapshot, array)
             if self.cfg.diagnostics:

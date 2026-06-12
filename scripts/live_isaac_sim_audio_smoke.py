@@ -254,6 +254,9 @@ def _room_spec() -> RoomAcousticsSpec:
         max_order=0,
         air_absorption=False,
         ray_tracing=False,
+        # Explicit placement: the robot moves to x=1 and the source between
+        # (4,0,0) and (0,4,0); the room must contain both endpoints.
+        origin_m=(-1.0, -1.0, -1.5),
     )
 
 

@@ -13,6 +13,7 @@ from isaac_audio_sensors.core.constants import (
     FRAME_PROVENANCE_VALUES,
     FRAME_SCHEMA_VERSION,
     FRAME_UNITS,
+    ROOM_OUT_OF_BOUNDS_POLICIES,
 )
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
 from isaac_audio_sensors.core.math_utils import (
@@ -216,7 +217,12 @@ class MicrophoneArraySpec:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class RoomAcousticsSpec:
-    """Optional shoebox room-acoustics configuration."""
+    """Optional shoebox room-acoustics configuration.
+
+    The room occupies the world-frame box ``[origin_m, origin_m +
+    dimensions_m]``; ``origin_m`` is the room's minimum corner, so scene
+    positions map into room coordinates by subtracting it.
+    """
 
     room_id: str
     dimensions_m: Vector3
@@ -224,6 +230,9 @@ class RoomAcousticsSpec:
     max_order: int
     air_absorption: bool = False
     ray_tracing: bool = False
+    origin_m: Vector3 = (0.0, 0.0, 0.0)
+    out_of_bounds: str = "error"
+    anchor_prim_path: str | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty(self.room_id, "RoomAcousticsSpec.room_id")
@@ -243,6 +252,20 @@ class RoomAcousticsSpec:
         if int(self.max_order) < 0:
             raise ValueError("RoomAcousticsSpec.max_order must be non-negative.")
         object.__setattr__(self, "max_order", int(self.max_order))
+        object.__setattr__(
+            self,
+            "origin_m",
+            as_vector3(self.origin_m, "RoomAcousticsSpec.origin_m"),
+        )
+        if self.out_of_bounds not in ROOM_OUT_OF_BOUNDS_POLICIES:
+            raise ValueError(
+                "RoomAcousticsSpec.out_of_bounds must be one of "
+                f"{sorted(ROOM_OUT_OF_BOUNDS_POLICIES)}."
+            )
+        if self.anchor_prim_path is not None:
+            _require_non_empty(
+                self.anchor_prim_path, "RoomAcousticsSpec.anchor_prim_path"
+            )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

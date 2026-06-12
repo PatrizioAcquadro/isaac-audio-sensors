@@ -309,6 +309,9 @@ def test_room_backend_scales_source_signal_and_flags_detection():
         dimensions_m=(6.0, 5.0, 3.0),
         absorption=0.35,
         max_order=1,
+        # Explicit placement around the origin-mounted array and the source
+        # at x=4 (rooms no longer auto-refit to the scene).
+        origin_m=(-1.0, -2.5, -1.5),
     )
     backend = RoomAcousticsBackend()
     window = _window(end_time_s=0.1)
@@ -740,6 +743,7 @@ def _tone_room_scene(occlusion=None) -> AudioSceneSnapshot:
             dimensions_m=(8.0, 6.0, 3.0),
             absorption=0.35,
             max_order=1,
+            origin_m=(-2.0, -3.0, -1.5),
         ),
         occlusion=occlusion,
     )

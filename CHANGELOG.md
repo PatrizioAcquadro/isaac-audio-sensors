@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.6.0 - 2026-06-12
+
+Scene-anchored rooms release: `room_acoustics` rooms now occupy an explicit
+world-space box (`origin_m` + `dimensions_m`) instead of being refit around the
+current sources and microphones every frame. The frame schema version is
+unchanged at `ias.audio_sensor_frame.v1`; diagnostics gain additive room
+placement details.
+
+Breaking change:
+
+- `RoomAcousticsBackend` no longer translates source and microphone positions
+  into the shoebox with an automatic margin. Existing room-acoustics configs
+  whose world positions are outside `[origin_m, origin_m + dimensions_m]` must
+  now set `room.origin_m`, move prims inside the room, or choose
+  `out_of_bounds="clamp"`. The default policy is `out_of_bounds="error"` so
+  authoring mistakes fail with the offending source/mic and room bounds.
+
+Room placement and discovery:
+
+- `RoomAcousticsSpec` adds `origin_m`, `out_of_bounds`, and
+  `anchor_prim_path`.
+- New helpers derive room specs from world-aligned bounds and resolve room
+  absorption from explicit `ias:absorption` attributes, `ias:material` labels,
+  or USD semantic labels.
+- Isaac Lab stage bindings can set `room_prim_path` to derive one room per
+  env from a stage prim's world bounding box, with diagnostics recording
+  dimensions, origin, absorption provenance, and the anchor prim.
+- Entity bindings can pass an explicit `RoomAcousticsSpec` for room-acoustics
+  runs that have no stage anchor.
+
+GUI and visualization:
+
+- The Omniverse extension gains a `Room` section with anchor-prim and
+  out-of-bounds controls.
+- Debug overlays and persistent USD debug geometry include a yellow
+  `room_outline` wireframe box when the scene has a room.
+- Live Isaac Lab GPU evidence now records a room-anchoring phase; the
+  pre-merge run passed on RTX 4090 with the batched path under budget.
+
 ## 1.5.0 - 2026-06-11
 
 GUI instruments release: the Omniverse extension window becomes maintainable

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.0 - 2026-06-12
+
+- Added the `Room` section for the `room_acoustics` backend: anchor the room to
+  a stage prim's world bounding box or leave it centered on the array, and
+  choose `error` or `clamp` for out-of-bounds sources/microphones.
+- The active room readout reports dimensions, origin, absorption provenance,
+  and anchor path.
+- Debug overlays and USD debug geometry now draw room outlines.
+- Breaking behavior inherited from core: room-acoustics scenes no longer
+  auto-refit the shoebox around every frame's source/microphone positions.
+
 ## 1.5.0 - 2026-06-11
 
 - GUI instruments release: the window gains an `Instruments` section (polar

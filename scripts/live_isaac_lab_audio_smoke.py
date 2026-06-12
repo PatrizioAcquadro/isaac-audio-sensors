@@ -276,6 +276,14 @@ def main() -> int:
         if args.require_gpu:
             _assert_cuda_buffers(stage_devices)
 
+        evidence["room_anchoring"] = _room_anchoring_evidence(
+            sensor_class=AudioArraySensor,
+            cfg_class=AudioArraySensorCfg,
+            stage=stage,
+            stage_kind=stage_kind,
+            device=device,
+        )
+
         entity_scene_info = _create_entity_scene_with_blocker_evidence(device)
         entity_scene = entity_scene_info.scene
         entity_binding_cfg = LabAudioEntityBindingCfg(
@@ -517,6 +525,30 @@ _TENSOR_FIELDS = (
     "last_update_time_s",
 )
 _BOOKKEEPING_FIELDS = ("_timestamp", "_timestamp_last_update", "_is_outdated")
+
+# Per-env room prim geometry: local center/half-extents chosen so the array,
+# both source positions, and the moved source (0, -4, 0) stay in bounds.
+_ROOM_CENTER_LOCAL = (2.0, 0.0, 1.25)
+_ROOM_HALF_EXTENTS = (3.5, 4.5, 1.5)
+_ROOM_MATERIAL_TAG = "concrete"
+_ROOM_EXPECTED_ABSORPTION = 0.05
+
+
+def _room_bounds_for_env(
+    env_id: int,
+    *,
+    env_spacing_x: float,
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    """World room bounds; the fake stage authors all envs at the origin."""
+
+    center = (
+        float(env_id) * env_spacing_x + _ROOM_CENTER_LOCAL[0],
+        _ROOM_CENTER_LOCAL[1],
+        _ROOM_CENTER_LOCAL[2],
+    )
+    minimum = tuple(center[axis] - _ROOM_HALF_EXTENTS[axis] for axis in range(3))
+    maximum = tuple(center[axis] + _ROOM_HALF_EXTENTS[axis] for axis in range(3))
+    return minimum, maximum
 
 
 def _runtime_evidence() -> dict[str, object]:
@@ -1031,6 +1063,18 @@ def _create_audio_stage(*, require_pxr_stage: bool = False) -> tuple[object, str
             _set_usd_attr(source, "ias:class_label", "Speech")
             _set_usd_attr(source, "ias:start_time_s", 0.0)
             _set_usd_attr(source, "ias:duration_s", 1.0)
+            room = UsdGeom.Cube.Define(stage, f"{env_ns}/Room").GetPrim()
+            _set_usd_translate(
+                room,
+                (
+                    _ROOM_CENTER_LOCAL[0],
+                    _ROOM_CENTER_LOCAL[1],
+                    _ROOM_CENTER_LOCAL[2],
+                ),
+            )
+            # Cube size defaults to 2, so the scale equals the half-extents.
+            _set_usd_scale(room, _ROOM_HALF_EXTENTS)
+            _set_usd_attr(room, "ias:material", _ROOM_MATERIAL_TAG)
         return stage, "pxr.Usd.Stage"
     except Exception as exc:
         if require_pxr_stage:
@@ -1074,7 +1118,194 @@ def _create_fake_audio_stage() -> _FakeStage:
                 },
             )
         )
+        room_min, room_max = _room_bounds_for_env(env_id, env_spacing_x=0.0)
+        prims.append(
+            _FakePrim(
+                f"{env_ns}/Room",
+                "Xform",
+                {
+                    "ias:room_min_world": room_min,
+                    "ias:room_max_world": room_max,
+                    "ias:material": _ROOM_MATERIAL_TAG,
+                },
+            )
+        )
     return _FakeStage(tuple(prims))
+
+
+def _assert_room_vec_close(
+    actual: object,
+    expected: tuple[float, float, float],
+    *,
+    label: str,
+    tolerance: float = 1e-4,
+) -> None:
+    values = tuple(float(value) for value in actual)  # type: ignore[arg-type]
+    if any(abs(values[axis] - expected[axis]) > tolerance for axis in range(3)):
+        raise RuntimeError(
+            f"Room anchoring check failed for {label}: got {values}, "
+            f"expected {expected}."
+        )
+
+
+def _room_anchoring_evidence(
+    *,
+    sensor_class: type,
+    cfg_class: type,
+    stage: object,
+    stage_kind: str,
+    device: str,
+) -> dict[str, object]:
+    """Bind a room-anchored stage sensor and prove stage-true room geometry."""
+
+    from isaac_audio_sensors.lab import LabAudioStageBindingCfg
+
+    env_spacing_x = 10.0 if stage_kind == "pxr.Usd.Stage" else 0.0
+    binding_cfg = LabAudioStageBindingCfg(
+        num_envs=2,
+        env_namespace_pattern="/World/envs/env_{env_id}",
+        discover_arrays=True,
+        array_discovery_root_path="Robot",
+        preferred_array="audio_array",
+        discover_sources=True,
+        source_discovery_root_path="Sources",
+        microphone_layout="quad_front",
+        room_prim_path="Room",
+        room_max_order=1,
+    )
+
+    def _bind(backend: str) -> object:
+        return sensor_class(
+            cfg=cfg_class(
+                prim_path="/World/envs/env_.*/Robot/audio_array",
+                update_period=0.05,
+                backend=backend,
+                microphone_layout="quad_front",
+                max_events=2,
+                device=device,
+            )
+        ).bind_lab_stage(stage=stage, binding_cfg=binding_cfg)
+
+    record: dict[str, object] = {
+        "stage_kind": stage_kind,
+        "room_prim_path": "Room",
+        "material_tag": _ROOM_MATERIAL_TAG,
+    }
+    wrapper = _bind("tdoa_synthetic")
+    wrapper.update(dt=0.05, force_recompute=True)
+    derived_rooms: dict[str, object] = {}
+    for env_id in (0, 1):
+        frame = wrapper.data.latest_frames[env_id]
+        room_diag = frame.diagnostics["stage_binding"]["room"]
+        expected_min, expected_max = _room_bounds_for_env(
+            env_id,
+            env_spacing_x=env_spacing_x,
+        )
+        expected_dims = tuple(
+            expected_max[axis] - expected_min[axis] for axis in range(3)
+        )
+        _assert_room_vec_close(
+            room_diag["dimensions_m"],
+            expected_dims,
+            label=f"env_{env_id} dimensions",
+        )
+        _assert_room_vec_close(
+            room_diag["origin_m"],
+            expected_min,
+            label=f"env_{env_id} origin",
+        )
+        if room_diag["prim_path"] != f"/World/envs/env_{env_id}/Room":
+            raise RuntimeError(
+                f"Unexpected room anchor prim: {room_diag['prim_path']!r}."
+            )
+        if abs(float(room_diag["absorption"]) - _ROOM_EXPECTED_ABSORPTION) > 1e-9:
+            raise RuntimeError(
+                "Room absorption was not derived from the material tag: "
+                f"{room_diag['absorption']!r}."
+            )
+        if room_diag["absorption_provenance"] != f"semantic:{_ROOM_MATERIAL_TAG}":
+            raise RuntimeError(
+                "Unexpected room absorption provenance: "
+                f"{room_diag['absorption_provenance']!r}."
+            )
+        derived_rooms[f"env_{env_id}"] = {
+            "diagnostics": room_diag,
+            "expected_dimensions_m": list(expected_dims),
+            "expected_origin_m": list(expected_min),
+        }
+    record["derived_rooms"] = derived_rooms
+
+    try:
+        import pyroomacoustics  # type: ignore # noqa: F401
+    except Exception as exc:  # noqa: BLE001 - evidence records the skip reason.
+        record["room_acoustics_run"] = {
+            "status": "skipped",
+            "reason": f"pyroomacoustics unavailable: {type(exc).__name__}: {exc}",
+        }
+        return record
+
+    room_wrapper = _bind("room_acoustics")
+    room_wrapper.update(dt=0.05, force_recompute=True)
+    mic_offsets = {
+        "front": (0.08, 0.0, 0.0),
+        "right": (0.0, 0.08, 0.0),
+        "rear": (-0.08, 0.0, 0.0),
+        "left": (0.0, -0.08, 0.0),
+    }
+    envs: dict[str, object] = {}
+    for env_id in (0, 1):
+        frame = room_wrapper.data.latest_frames[env_id]
+        room_config = frame.diagnostics["room_config"]
+        expected_min, expected_max = _room_bounds_for_env(
+            env_id,
+            env_spacing_x=env_spacing_x,
+        )
+        expected_dims = tuple(
+            expected_max[axis] - expected_min[axis] for axis in range(3)
+        )
+        _assert_room_vec_close(
+            room_config["dimensions_m"],
+            expected_dims,
+            label=f"env_{env_id} room_config dimensions",
+        )
+        _assert_room_vec_close(
+            room_config["origin_m"],
+            expected_min,
+            label=f"env_{env_id} room_config origin",
+        )
+        detection = frame.detections[0]
+        mic_room = detection.diagnostics["room_microphone_positions_m"]
+        array_world = (float(env_id) * env_spacing_x, 0.0, 0.0)
+        mic_wall_distances: dict[str, object] = {}
+        for mic_id, offset in mic_offsets.items():
+            mic_world = tuple(
+                array_world[axis] + offset[axis] for axis in range(3)
+            )
+            expected_room = tuple(
+                mic_world[axis] - expected_min[axis] for axis in range(3)
+            )
+            # Mic-to-wall distances must match the stage-authored geometry.
+            _assert_room_vec_close(
+                mic_room[mic_id],
+                expected_room,
+                label=f"env_{env_id} mic {mic_id} room position",
+            )
+            mic_wall_distances[mic_id] = {
+                "distance_to_min_walls_m": list(expected_room),
+                "distance_to_max_walls_m": [
+                    expected_dims[axis] - expected_room[axis]
+                    for axis in range(3)
+                ],
+            }
+        envs[f"env_{env_id}"] = {
+            "room_config": room_config,
+            "mic_wall_distances": mic_wall_distances,
+            "room_clamped_position_ids": frame.diagnostics[
+                "room_clamped_position_ids"
+            ],
+        }
+    record["room_acoustics_run"] = {"status": "passed", "envs": envs}
+    return record
 
 
 def _create_entity_scene_with_blocker_evidence(device: str) -> SimpleNamespace:
@@ -1566,6 +1797,16 @@ def _set_usd_translate(prim: object, value: tuple[float, float, float]) -> None:
         from pxr import UsdGeom  # type: ignore
 
         attr = UsdGeom.Xformable(prim).AddTranslateOp()
+    attr.Set(_usd_vec3(value))
+
+
+def _set_usd_scale(prim: object, value: tuple[float, float, float]) -> None:
+    attr = prim.GetAttribute("xformOp:scale")
+    if not attr:
+        from pxr import UsdGeom  # type: ignore
+
+        # Double precision so the shared Gf.Vec3d setter below type-checks.
+        attr = UsdGeom.Xformable(prim).AddScaleOp(UsdGeom.XformOp.PrecisionDouble)
     attr.Set(_usd_vec3(value))
 
 

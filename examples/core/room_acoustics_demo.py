@@ -39,6 +39,9 @@ scene = AudioSceneSnapshot(
         dimensions_m=(5.0, 4.0, 2.7),
         absorption=0.35,
         max_order=2,
+        # World placement of the room's minimum corner: the array sits at the
+        # origin and the speaker at (3, 2, 1), both inside the room.
+        origin_m=(-1.0, -1.0, -0.5),
     ),
 )
 try:

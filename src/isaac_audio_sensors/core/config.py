@@ -260,6 +260,8 @@ def _parse_room(raw_room: Any) -> RoomAcousticsSpec | None:
         max_order=int(raw_room.get("max_order", 0)),
         air_absorption=bool(raw_room.get("air_absorption", False)),
         ray_tracing=bool(raw_room.get("ray_tracing", False)),
+        origin_m=tuple(raw_room.get("origin_m", (0.0, 0.0, 0.0))),
+        out_of_bounds=str(raw_room.get("out_of_bounds", "error")),
     )
 
 

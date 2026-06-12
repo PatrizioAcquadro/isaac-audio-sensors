@@ -64,6 +64,48 @@ def _sensor(device: str = "cpu") -> AudioArraySensor:
     )
 
 
+def test_lab_entity_binding_passes_explicit_room_to_snapshots():
+    torch = pytest.importorskip("torch")
+    from isaac_audio_sensors.core.types import RoomAcousticsSpec
+
+    robot = _entity(
+        root_pos_w=torch.zeros((1, 3)),
+        root_quat_w=torch.tensor([_wxyz((0.0, 0.0, 0.0, 1.0))]),
+    )
+    speaker = _entity(
+        root_pos_w=torch.tensor([[3.0, 0.0, 0.0]]),
+        root_quat_w=torch.tensor([_wxyz((0.0, 0.0, 0.0, 1.0))]),
+    )
+    scene = _DictScene({"robot": robot, "speaker": speaker}, num_envs=1)
+    room = RoomAcousticsSpec(
+        room_id="entity_room",
+        dimensions_m=(8.0, 6.0, 3.0),
+        absorption=0.35,
+        max_order=1,
+        origin_m=(-2.0, -3.0, -1.5),
+    )
+    cfg = LabAudioEntityBindingCfg(
+        num_envs=1,
+        robot_entity_name="robot",
+        microphone_layout="quad_front",
+        source_entities=(
+            LabAudioSourceEntityCfg(
+                entity_name="speaker",
+                source_id="speaker",
+                class_label="Speech",
+            ),
+        ),
+        room=room,
+    )
+
+    from isaac_audio_sensors.lab.entity_binding import build_lab_entity_provider
+
+    provider = build_lab_entity_provider(scene=scene, binding_cfg=cfg)
+    snapshot, _array_spec = provider([0])[0]
+
+    assert snapshot.room == room
+
+
 def test_lab_entity_lookup_supports_dict_attr_and_containers():
     torch = pytest.importorskip("torch")
     robot = _entity(

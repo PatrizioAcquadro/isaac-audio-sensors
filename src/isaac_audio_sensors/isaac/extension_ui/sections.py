@@ -8,6 +8,7 @@ from .constants import (
     AMBIGUITY_POLICY_CHOICES,
     BACKEND_CHOICES,
     LAYOUT_CHOICES,
+    ROOM_OUT_OF_BOUNDS_CHOICES,
     WAVEFORM_MODE_CHOICES,
 )
 from .instruments import COMPASS_IMAGE_SIZE, METER_MAX_ROWS, TIMELINE_MAX_ROWS
@@ -227,6 +228,23 @@ def build_control_section(window: OmniReferenceWindow) -> None:
         window._labels["overlay"] = ui.Label("", word_wrap=True)
         window._labels["usd_debug"] = ui.Label("", word_wrap=True)
         window._labels["omnigraph"] = ui.Label("", word_wrap=True)
+
+
+def build_room_section(window: OmniReferenceWindow) -> None:
+    ui = window.ui
+    with window._section("Room"):
+        window._string_row("Anchor Prim", "room_anchor_prim_path")
+        window._combo_row(
+            "Out Of Bounds",
+            "room_out_of_bounds",
+            ROOM_OUT_OF_BOUNDS_CHOICES,
+        )
+        ui.Label(
+            "Anchor derives the room from the prim's world bounding box; "
+            "leave empty to center the default room on the array.",
+            word_wrap=True,
+        )
+        window._labels["room"] = ui.Label("", word_wrap=True)
 
 
 def build_replicator_section(window: OmniReferenceWindow) -> None:

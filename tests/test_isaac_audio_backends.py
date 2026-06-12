@@ -69,6 +69,9 @@ def _room_scene_with_sources(*sources: AudioSourceSpec, array):
             dimensions_m=(6.0, 5.0, 3.0),
             absorption=0.35,
             max_order=1,
+            # Explicit world placement: sources sit at x/y <= 3 around an
+            # array at the origin, so the room must straddle the origin.
+            origin_m=(-1.5, -1.0, -1.5),
         ),
     )
 
@@ -351,7 +354,11 @@ def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch):
         "max_order": 1,
         "air_absorption": False,
         "ray_tracing": False,
+        "origin_m": (-1.5, -1.0, -1.5),
+        "out_of_bounds": "error",
+        "anchor_prim_path": None,
     }
+    assert frame.diagnostics["room_clamped_position_ids"] == ()
     assert frame.diagnostics["per_source_rir_summary"]["speaker"][
         "rir_length_samples"
     ]
