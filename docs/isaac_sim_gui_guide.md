@@ -980,6 +980,43 @@ While `Live Sync Pose` is enabled the fields are owned by the prim: manual
 edits are overwritten on the next tick. Disable the toggle to type precise
 values, then press `Apply Array Pose` / `Apply Position` as before.
 
+## Use Audio In Action Graphs
+
+When `omni.graph.core` is available, the extension registers a runtime
+OmniGraph node so audio wires into Action Graphs the way cameras and lidars
+do:
+
+```text
+isaac_audio_sensors.omni.IsaacAudioSensorFrame
+```
+
+The `Sensor` section shows the registration status (registered, unavailable,
+or the exact failure reason). Add the node to an Action Graph and read its
+outputs - they refresh from the newest frame the sensor recorded:
+
+- `frameId` (token), `timestampMs` (int64), `detectionCount` (int)
+- `bearingDeg` (double, NaN when no detection), `sector` (token),
+  `occluded` (bool) - first detection of the frame
+- `micIds` (token[]) and `micRms` (double[]) - aggregate per-mic RMS, aligned
+- `frameJson` (token) - the full frame serialized with the v1 trace schema
+
+`inputs:arrayKey` filters by array prim path; leave it empty for the most
+recently updated array.
+
+If the node type is not available in your Kit build, the same data is one
+import away in a Script Node:
+
+```python
+from isaac_audio_sensors.isaac.frame_registry import get_latest_frame
+
+frame = get_latest_frame()  # newest AudioSensorFrame, or None
+if frame is not None and frame.detections:
+    bearing = frame.detections[0].doa.estimated_bearing_deg
+```
+
+The registry is published on every sensor update and cleared when the sensor
+closes.
+
 ## First Demo Pipeline
 
 This pipeline starts from a simple stage and produces a latest frame, JSONL

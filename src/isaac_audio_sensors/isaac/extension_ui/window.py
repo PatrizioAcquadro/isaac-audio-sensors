@@ -163,6 +163,7 @@ class OmniReferenceWindow:
             f"root={state.usd_debug_root} | "
             f"{'enabled' if state.usd_debug_enabled else 'disabled'}",
         )
+        self._set_label("omnigraph", state.omnigraph_status)
         self._set_label(
             "replicator",
             f"{state.replicator_status_message} | "

@@ -226,6 +226,7 @@ def build_control_section(window: OmniReferenceWindow) -> None:
         window._labels["latest"] = ui.Label("", word_wrap=True)
         window._labels["overlay"] = ui.Label("", word_wrap=True)
         window._labels["usd_debug"] = ui.Label("", word_wrap=True)
+        window._labels["omnigraph"] = ui.Label("", word_wrap=True)
 
 
 def build_replicator_section(window: OmniReferenceWindow) -> None:

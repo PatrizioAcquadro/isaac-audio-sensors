@@ -52,10 +52,17 @@ is distributed separately from `src/isaac_audio_sensors`.
 
 ## OmniGraph
 
-This extension does not register OmniGraph nodes. There are no shipped `.ogn`
-node definition files and no `omni.graph` registration code in the extension
-entrypoint. Use the Kit window, Python entrypoint, and JSON/JSONL export paths
-for the supported v1 workflow.
+The extension registers one runtime Python OmniGraph node when
+`omni.graph.core` is available: `isaac_audio_sensors.omni.IsaacAudioSensorFrame`.
+It reads the newest published frame (optionally filtered by the
+`inputs:arrayKey` token, an array prim path) and exposes `frameId`,
+`timestampMs`, `detectionCount`, `bearingDeg`, `sector`, `micIds`, `micRms`,
+`occluded`, and a `frameJson` token so audio wires into Action Graphs like
+cameras and lidars. Registration uses `og.register_node_type` (no `.ogn`
+codegen); when OmniGraph is unavailable or registration fails, the extension
+keeps working and reports the exact status in the Sensor section and the live
+gate evidence. The same data is reachable from Script Nodes through
+`isaac_audio_sensors.isaac.frame_registry.get_latest_frame()`.
 
 Source repository:
 https://github.com/PatrizioAcquadro/isaac-audio-sensors

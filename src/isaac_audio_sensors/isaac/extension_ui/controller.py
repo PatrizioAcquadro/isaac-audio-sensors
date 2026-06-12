@@ -26,6 +26,10 @@ from isaac_audio_sensors.isaac.discovery import (
     discover_stage_audio,
 )
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+from isaac_audio_sensors.isaac.frame_registry import (
+    clear_latest_frames,
+    publish_latest_frame,
+)
 from isaac_audio_sensors.isaac.microphone_rig_profiles import (
     MicrophoneRigProfile,
     microphone_rig_profile_from_mapping,
@@ -2308,6 +2312,7 @@ class ExtensionController:
             self.sensor.close()
         self.sensor = None
         self.state.sensor_running = False
+        clear_latest_frames()
 
     def _start_controller_update_subscription(self) -> None:
         try:
@@ -2898,6 +2903,10 @@ class ExtensionController:
         )
         self._record_overlay_status()
         self._update_usd_debug_geometry(primitives)
+        publish_latest_frame(
+            self.state.latest_array_prim_path or frame.array_id,
+            frame,
+        )
         self._set_status(
             f"Updated {frame.frame_id}: {len(detections)} detection(s), "
             f"{len(primitives)} overlay primitive(s)."

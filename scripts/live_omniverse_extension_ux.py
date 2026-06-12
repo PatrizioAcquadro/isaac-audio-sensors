@@ -313,6 +313,7 @@ def main() -> int:
 
         evidence["ui_available"] = extension.ui_available
         evidence["ui_control_inventory"] = _inventory_ui_controls(controller)
+        evidence["omnigraph"] = _collect_omnigraph_evidence(controller)
         evidence["window_integration"] = _probe_window_integrations(controller)
         evidence["extension_manager_metadata"] = _probe_extension_manager_metadata(
             Path(evidence["extension_path"]),
@@ -2409,6 +2410,35 @@ def _write_instruments_panel(
     }
 
 
+def _collect_omnigraph_evidence(controller: ExtensionController) -> dict[str, Any]:
+    """Record the OmniGraph node registration outcome honestly."""
+
+    message = str(controller.state.omnigraph_status)
+    record: dict[str, Any] = {"status_message": message}
+    try:
+        from isaac_audio_sensors_omni.graph_node import NODE_TYPE_NAME
+
+        record["node_type_name"] = NODE_TYPE_NAME
+    except Exception:  # noqa: BLE001 - name lookup is diagnostic only.
+        record["node_type_name"] = None
+    try:
+        import omni.graph.core as og  # type: ignore
+
+        get_node_type = getattr(og, "get_node_type", None)
+        if callable(get_node_type) and record["node_type_name"]:
+            node_type = get_node_type(record["node_type_name"])
+            record["registry_lookup"] = bool(node_type)
+    except Exception as exc:  # noqa: BLE001 - lookup is diagnostic only.
+        record["registry_lookup_error"] = str(exc)
+    if "registered:" in message or message.startswith("OmniGraph node registered"):
+        record["status"] = "passed"
+    elif "unavailable" in message:
+        record["status"] = "skipped"
+    else:
+        record["status"] = "failed"
+    return record
+
+
 def _collect_usd_debug_evidence(
     controller: ExtensionController,
     *,
@@ -2936,6 +2966,9 @@ def _validate_live_extension_outputs(
     audio_output = evidence.get("audio_output", {})
     if audio_output.get("status") not in {"passed", "skipped"}:
         raise RuntimeError(f"audio_output evidence failed: {audio_output}")
+    omnigraph = evidence.get("omnigraph", {})
+    if omnigraph.get("status") not in {"passed", "skipped"}:
+        raise RuntimeError(f"omnigraph evidence failed: {omnigraph}")
     error_checks = evidence.get("error_checks", {})
     missing_error_checks = [
         name for name, message in sorted(error_checks.items()) if not message

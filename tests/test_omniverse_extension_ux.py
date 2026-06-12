@@ -2849,9 +2849,11 @@ def test_omniverse_extension_manifest_metadata_files_exist():
         "omni.usd",
         "omni.kit.hotkeys.core",
         "omni.replicator.core",
+        "omni.graph.core",
     }
     assert dependencies["omni.kit.hotkeys.core"]["optional"] is True
     assert dependencies["omni.replicator.core"]["optional"] is True
+    assert dependencies["omni.graph.core"]["optional"] is True
     for forbidden_dependency in ("isaaclab", "cuda", "torch", "pyroomacoustics"):
         assert not any(
             forbidden_dependency in dependency.lower() for dependency in dependencies
@@ -2874,7 +2876,7 @@ def test_omniverse_extension_manifest_metadata_files_exist():
         "export and import reusable extension/stage-binding config JSON",
         "optional `omni.replicator.core`",
         "one extension Python module",
-        "This extension does not register OmniGraph nodes.",
+        "isaac_audio_sensors.omni.IsaacAudioSensorFrame",
     ):
         assert expected in readme
     preview_bytes = (ext_root / package["preview_image"]).read_bytes()
@@ -2884,7 +2886,7 @@ def test_omniverse_extension_manifest_metadata_files_exist():
     assert python_modules == [{"name": "isaac_audio_sensors_omni"}]
 
 
-def test_omniverse_extension_does_not_advertise_unsupported_packages_or_nodes():
+def test_omniverse_extension_advertises_runtime_omnigraph_node_only():
     repo = Path(__file__).resolve().parents[1]
     ext_root = repo / "exts" / "isaac_audio_sensors.omni"
     manifest_path = ext_root / "config" / "extension.toml"
@@ -2892,12 +2894,16 @@ def test_omniverse_extension_does_not_advertise_unsupported_packages_or_nodes():
     manifest = tomllib.loads(manifest_text)
 
     assert manifest["python"]["module"] == [{"name": "isaac_audio_sensors_omni"}]
+    # The node is runtime-registered: no .ogn codegen files, optional dep only.
     assert not list(ext_root.rglob("*.ogn"))
     assert "[[ogn" not in manifest_text.lower()
-    assert "omni.graph" not in manifest_text.lower()
-
-    for path in (ext_root / "isaac_audio_sensors_omni").rglob("*.py"):
-        assert "omni.graph" not in path.read_text(encoding="utf-8").lower()
+    assert manifest["dependencies"]["omni.graph.core"] == {"optional": True}
+    graph_node_text = (
+        ext_root / "isaac_audio_sensors_omni" / "graph_node.py"
+    ).read_text(encoding="utf-8")
+    assert "register_node_type" in graph_node_text
+    readme_text = (ext_root / "docs" / "README.md").read_text(encoding="utf-8")
+    assert "IsaacAudioSensorFrame" in readme_text
 
 
 def test_omniverse_extension_manifest_is_third_party_by_kit_source_logic():

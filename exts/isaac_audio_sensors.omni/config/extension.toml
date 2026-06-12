@@ -24,6 +24,8 @@ support_level = "Community"
 "omni.kit.hotkeys.core" = { optional = true }
 # Optional extension-only recording path. Core package imports do not depend on it.
 "omni.replicator.core" = { optional = true }
+# Optional Action Graph integration; the node registers only when present.
+"omni.graph.core" = { optional = true }
 
 [settings]
 exts."isaac_audio_sensors.omni".shortcut = "CTRL + ALT + A"

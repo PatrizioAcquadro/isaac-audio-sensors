@@ -191,6 +191,7 @@ class ExtensionUiState:
     detection_history: list[dict[str, Any]] = field(default_factory=list)
     latest_waveform_paths: tuple[str, ...] = ()
     audition_status: str = "Audition idle."
+    omnigraph_status: str = "OmniGraph node not registered."
     latest_usd_debug_prim_paths: tuple[str, ...] = ()
     latest_overlay_primitive_count: int = 0
     latest_overlay_labels: tuple[str, ...] = ()

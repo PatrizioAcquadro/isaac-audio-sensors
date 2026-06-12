@@ -41,10 +41,19 @@ class Extension(_i_ext_base()):
         """Kit startup hook."""
 
         self.controller.on_startup(ext_id)
+        from .graph_node import register_omnigraph_node
+
+        self.controller.state.omnigraph_status = register_omnigraph_node()
+        window = getattr(self.controller, "_ui_window", None)
+        if window is not None:
+            window.refresh_labels()
 
     def on_shutdown(self) -> None:
         """Kit shutdown hook."""
 
+        from .graph_node import deregister_omnigraph_node
+
+        self.controller.state.omnigraph_status = deregister_omnigraph_node()
         self.controller.on_shutdown()
 
     def configure_sensor(
