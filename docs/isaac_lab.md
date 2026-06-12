@@ -58,6 +58,9 @@ settings:
   Isaac Lab simulation, `SensorBase` initialization uses the simulation device.
 - `ambiguity_policy`: currently `none` or `front_hemisphere` for TDOA-style
   backends.
+- `compute_path`: `auto` (default), `scalar`, or `batched`. Selects between
+  the per-env scalar reference pipeline and the batched tensor fast path for
+  entity bindings. See "Batched Compute Path" below.
 - `writer_path`: reserved JSONL trace export option.
 - `write_waveforms` and `waveform_dir`: enable per-frame multichannel WAV
   export for the `room_acoustics` backend. Frames are written under
@@ -267,6 +270,66 @@ core dataclasses at the backend boundary. Generated frames include
 provenance, array relative pose, array world pose, source entity/body
 provenance, env-origin mode, tensor device, and per-env read counts.
 
+## Batched Compute Path
+
+Entity bindings expose pose state as torch tensors, so the L0/L1 math
+(bearings, per-microphone delays, RMS) can run as batched tensor ops over
+`[num_envs, num_sources, num_mics]` instead of the per-env Python loop. The
+fast path reads poses through `LabAudioEntityProvider.pose_tensor_batch()`,
+keeps everything on the sensor device with no `.item()` syncs or per-env
+dataclass construction, and writes all selected rows in one
+`AudioArraySensorData.write_batch()` call. The scalar pipeline remains the
+reference implementation; parity tests pin the batched path to it.
+
+`AudioArraySensorCfg.compute_path` selects the path:
+
+- `scalar`: always run the per-env reference pipeline.
+- `batched`: require the fast path; raises `ValueError` naming the failed
+  prerequisite when it is unavailable.
+- `auto` (default): use the fast path when every prerequisite holds,
+  otherwise fall back to scalar.
+
+Prerequisites for the batched path:
+
+| Condition | `auto` | `batched` |
+| --- | --- | --- |
+| Entity binding provider (`pose_tensor_batch`) | required | required |
+| `backend` is `geometry_only` or `tdoa_synthetic` | required | required |
+| `write_waveforms=False` | required | required |
+| `tdoa_synthetic`: >= 3 microphones, rank-2 local XY layout | required | required |
+| Binding `diagnostics=False` | required | not required |
+
+The `diagnostics=False` gate keeps `auto` from silently changing the
+metadata surface: the batched path produces tensor observations only and
+leaves `latest_frames`, `frame_ids`, `frame_names`, per-event
+`source_ids`/`class_labels`, `waveform_paths`, and provider diagnostics as
+`None`/empty for the rows it writes. Static source ids and class labels are
+still available from the binding config. Setting `compute_path="batched"`
+opts into that reduced surface explicitly, even with diagnostics enabled.
+
+Numerical notes:
+
+- The batched path computes in float32 (the entity tensor dtype). End-to-end
+  bearings match the scalar path within 0.05 degrees (typically much
+  closer), confidence within 5e-4, and per-mic RMS within 1e-4 relative.
+- `sector_onehot` can differ from the scalar path for bearings within ~1e-3
+  degrees of an exact 22.5 + 45k sector boundary.
+- TDOA stress controls (delay noise, clock jitter, gain mismatch, air
+  absorption) are zero in Lab sensor usage and are not modeled by the
+  batched path.
+
+Indicative scale: at 4096 environments (two sources, quad array,
+`tdoa_synthetic`) the batched path measured ~5.6 ms/step on one CUDA GPU
+where the scalar loop took ~48 s/step — the per-env Python loop, not the
+math, dominates at RL scale.
+
+Parity and dispatch coverage lives in `tests/test_lab_batched_backend.py`.
+The GPU live gate (`make live-isaac-lab-audio-gpu`) additionally runs a
+batched-vs-scalar parity check on the live runtime and a perf-budget phase:
+4096 environments must update under `ISAAC_LAB_PERF_BUDGET_MS` (default
+20 ms/step mean; override via the make variable or the smoke script's
+`--perf-budget-ms`/`--perf-envs`/`--perf-steps`/`--skip-perf` flags).
+
 ## Update And Reset
 
 `AudioArraySensor.update(dt, force_recompute=False)` follows Isaac Lab
@@ -339,6 +402,11 @@ make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
 The GPU target additionally records `torch.cuda` and `nvidia-smi` evidence and
 fails if any audio tensor, timestamp tensor, or outdated-mask tensor is on CPU
 or split across devices.
+It also records a `batched_parity` block (max bearing/confidence/RMS deltas
+between the scalar and batched compute paths on the live runtime) and a `perf`
+block (`num_envs`, `steps`, `ms_per_step_mean`, `ms_per_step_p95`, `budget_ms`,
+`compute_path`) for the batched perf-budget phase, and fails when parity or the
+budget is violated.
 
 The 2026-05-24 local-time live Lab GPU run used:
 

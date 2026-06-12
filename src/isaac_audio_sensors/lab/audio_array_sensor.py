@@ -7,7 +7,7 @@ from dataclasses import replace
 from typing import Any
 
 from isaac_audio_sensors.core.backends.base import get_backend
-from isaac_audio_sensors.core.constants import SECTOR_ORDER
+from isaac_audio_sensors.core.constants import EPSILON, SECTOR_ORDER
 from isaac_audio_sensors.core.exceptions import IsaacLabUnavailable
 from isaac_audio_sensors.core.io.waveforms import FrameWaveformWriter
 from isaac_audio_sensors.core.microphone_array import microphone_layout
@@ -23,7 +23,15 @@ from isaac_audio_sensors.lab._isaac_lab import (
 )
 from isaac_audio_sensors.lab.audio_array_sensor_cfg import AudioArraySensorCfg
 from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
+from isaac_audio_sensors.lab.batched_backend import (
+    batched_geometry_observations,
+    batched_tdoa_observations,
+    compact_active_events,
+    precompute_lstsq_operator,
+)
 from isaac_audio_sensors.lab.entity_binding import (
+    EntityPoseTensorBatch,
+    EntityStaticBatchMeta,
     LabAudioEntityBindingCfg,
     build_lab_entity_provider,
     resolve_lab_entity_num_envs,
@@ -96,6 +104,9 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
                 "AppLauncher."
             )
         self._data = AudioArraySensorData.empty()
+        self._compute_path_decision: tuple[int, str] | None = None
+        self._last_compute_path: str = "scalar"
+        self._lstsq_cache: tuple[int, Any, Any] | None = None
         self._scene_provider = scene_provider
         self._bound_scene_snapshots: dict[int, AudioSceneSnapshot] = {}
         self._bound_sensors: dict[int, MicrophoneArraySpec] = {}
@@ -521,6 +532,10 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
         if not ids:
             return
         self._ensure_runtime_buffers(num_envs=max(self._known_num_envs(), max(ids) + 1))
+        if self._resolve_compute_path() == "batched":
+            self._update_buffers_batched(ids)
+            return
+        self._last_compute_path = "scalar"
         bindings = self._resolve_bindings(
             ids,
             sim_time_s_by_env={env_id: self._timestamp_value(env_id) for env_id in ids},
@@ -555,6 +570,127 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
                 timestamp_s=timestamp_s,
             )
             self._frame_indices[env_id] += 1
+
+    def _update_buffers_batched(self, ids: Sequence[int]) -> None:
+        torch = _require_torch()
+        batch = self._pose_batch_on_device(
+            self._scene_provider.pose_tensor_batch(ids)
+        )
+        static = batch.static
+        ids_t = torch.tensor(ids, dtype=torch.long, device=self._device)
+        start_time_s = self._timestamp[ids_t]
+        window_s = max(float(self.cfg.update_period), 1e-3)
+        end_time_s = start_time_s + window_s
+        active = (
+            static.source_start_s.unsqueeze(0) < end_time_s.unsqueeze(1)
+        ) & (static.source_end_s.unsqueeze(0) > start_time_s.unsqueeze(1))
+        if self.cfg.backend == "geometry_only":
+            observations = batched_geometry_observations(batch)
+        else:
+            solve_op, baseline = self._lstsq_operator(static)
+            observations = batched_tdoa_observations(
+                batch,
+                solve_op=solve_op,
+                baseline_matrix=baseline,
+            )
+        events = compact_active_events(
+            observations,
+            active_mask=active,
+            max_events=int(self.cfg.max_events),
+        )
+        self._data.write_batch(
+            env_ids=ids_t,
+            last_update_time_s=start_time_s,
+            microphone_ids=static.mic_ids,
+            **events,
+        )
+        self._last_compute_path = "batched"
+        for env_id in ids:
+            self._frame_indices[int(env_id)] += 1
+        if self._pending_timestamp_ms:
+            for env_id in ids:
+                self._pending_timestamp_ms.pop(int(env_id), None)
+
+    def _pose_batch_on_device(
+        self,
+        batch: EntityPoseTensorBatch,
+    ) -> EntityPoseTensorBatch:
+        if str(batch.array_positions.device) == str(self._device):
+            return batch
+        return EntityPoseTensorBatch(
+            env_ids=batch.env_ids.to(self._device),
+            array_positions=batch.array_positions.to(self._device),
+            array_quats_xyzw=batch.array_quats_xyzw.to(self._device),
+            source_positions=batch.source_positions.to(self._device),
+            source_quats_xyzw=batch.source_quats_xyzw.to(self._device),
+            static=self._scene_provider.static_batch_meta(device=self._device),
+        )
+
+    def _lstsq_operator(self, static: EntityStaticBatchMeta) -> tuple[Any, Any]:
+        cached = self._lstsq_cache
+        if cached is not None and cached[0] == id(static):
+            return cached[1], cached[2]
+        solve_op, baseline, det = precompute_lstsq_operator(
+            static.mic_offsets_local
+        )
+        if abs(det) <= EPSILON:
+            raise ValueError(
+                "Microphone layout is degenerate for batched TDOA "
+                "least-squares; use the scalar compute path."
+            )
+        self._lstsq_cache = (id(static), solve_op, baseline)
+        return solve_op, baseline
+
+    def _resolve_compute_path(self) -> str:
+        requested = str(getattr(self.cfg, "compute_path", "auto"))
+        if requested == "scalar":
+            return "scalar"
+        key = id(self._scene_provider)
+        cached = self._compute_path_decision
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        failure = self._batched_prerequisite_failure()
+        if failure is None:
+            provider_cfg = getattr(self._scene_provider, "cfg", None)
+            opted_out_of_diagnostics = (
+                getattr(provider_cfg, "diagnostics", True) is False
+            )
+            decision = (
+                "batched"
+                if requested == "batched" or opted_out_of_diagnostics
+                else "scalar"
+            )
+        elif requested == "batched":
+            raise ValueError(f"compute_path='batched' is unavailable: {failure}")
+        else:
+            decision = "scalar"
+        self._compute_path_decision = (key, decision)
+        return decision
+
+    def _batched_prerequisite_failure(self) -> str | None:
+        provider = self._scene_provider
+        if not callable(getattr(provider, "pose_tensor_batch", None)):
+            return (
+                "the scene provider does not expose pose tensors "
+                "(entity binding is required)"
+            )
+        if self.cfg.backend not in {"geometry_only", "tdoa_synthetic"}:
+            return f"backend {self.cfg.backend!r} has no batched implementation"
+        if getattr(self.cfg, "write_waveforms", False):
+            return "write_waveforms requires the scalar frame pipeline"
+        if self.cfg.backend == "tdoa_synthetic":
+            if self._known_num_mics() < 3:
+                return (
+                    "batched tdoa_synthetic requires at least 3 microphones "
+                    "(2-mic ambiguity handling is scalar-only)"
+                )
+            static = provider.static_batch_meta(device=self._device)
+            _solve_op, _baseline, det = precompute_lstsq_operator(
+                static.mic_offsets_local
+            )
+            if abs(det) <= EPSILON:
+                return "microphone layout is rank-deficient in local XY"
+        return None
 
     def _set_debug_vis_impl(self, debug_vis: bool) -> None:
         self._is_visualizing = bool(debug_vis)

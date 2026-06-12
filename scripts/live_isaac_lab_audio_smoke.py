@@ -6,8 +6,10 @@ import argparse
 import importlib.util
 import json
 import math
+import os
 import subprocess
 import sys
+import time
 import traceback
 from pathlib import Path
 from types import SimpleNamespace
@@ -31,6 +33,29 @@ def main() -> int:
         "--require-gpu",
         action="store_true",
         help="Fail unless CUDA is visible and all audio buffers are on CUDA.",
+    )
+    parser.add_argument(
+        "--perf-budget-ms",
+        type=float,
+        default=float(os.environ.get("ISAAC_AUDIO_LAB_PERF_BUDGET_MS", "20.0")),
+        help="Maximum mean ms/step for the batched perf phase (GPU only).",
+    )
+    parser.add_argument(
+        "--perf-envs",
+        type=int,
+        default=4096,
+        help="Environment count for the batched perf phase.",
+    )
+    parser.add_argument(
+        "--perf-steps",
+        type=int,
+        default=50,
+        help="Timed update steps for the batched perf phase.",
+    )
+    parser.add_argument(
+        "--skip-perf",
+        action="store_true",
+        help="Skip the batched perf-budget phase.",
     )
     args, unknown_args = parser.parse_known_args()
     evidence: dict[str, object] = {
@@ -335,6 +360,24 @@ def main() -> int:
         entity_buffer_summary = _buffer_summary(entity_wrapper, entity_data)
         if args.require_gpu:
             _assert_cuda_buffers(entity_devices)
+
+        if args.require_gpu and not args.skip_perf:
+            evidence["batched_parity"] = _batched_parity_evidence(
+                sensor_class=AudioArraySensor,
+                cfg_class=AudioArraySensorCfg,
+                device=device,
+            )
+            evidence["perf"] = _batched_perf_evidence(
+                sensor_class=AudioArraySensor,
+                cfg_class=AudioArraySensorCfg,
+                device=device,
+                num_envs=int(args.perf_envs),
+                steps=int(args.perf_steps),
+                budget_ms=float(args.perf_budget_ms),
+            )
+        else:
+            evidence["perf"] = {"status": "skipped"}
+            evidence["batched_parity"] = {"status": "skipped"}
 
         selected_env_checks = {
             "explicit_env_binding": {
@@ -1172,6 +1215,226 @@ def _set_real_lab_rigid_object_positions(
     root_state[:, :3] = scene.env_origins + local
     entity.write_root_pose_to_sim(root_state[:, :7])
     entity.write_root_velocity_to_sim(root_state[:, 7:])
+
+
+def _create_perf_entity_scene(
+    device: str,
+    num_envs: int,
+    *,
+    seed: int = 2026,
+) -> SimpleNamespace:
+    """Randomized duck-typed entity tensor scene for the batched perf phase."""
+
+    import torch  # type: ignore
+
+    generator = torch.Generator().manual_seed(seed)
+
+    def positions() -> object:
+        return (
+            (torch.rand((num_envs, 3), generator=generator) - 0.5) * 20.0
+        ).to(device)
+
+    def quats_wxyz() -> object:
+        quats = torch.randn((num_envs, 4), generator=generator)
+        quats = quats / torch.linalg.norm(quats, dim=-1, keepdim=True)
+        return quats.to(device)
+
+    def entity() -> SimpleNamespace:
+        return SimpleNamespace(
+            data=SimpleNamespace(root_pos_w=positions(), root_quat_w=quats_wxyz())
+        )
+
+    return SimpleNamespace(
+        num_envs=num_envs,
+        articulations={"robot": entity()},
+        rigid_objects={"omni_speaker": entity(), "cardioid_speaker": entity()},
+    )
+
+
+def _perf_binding_cfg(device: str, num_envs: int) -> object:
+    from isaac_audio_sensors.lab import (
+        LabAudioEntityBindingCfg,
+        LabAudioSourceEntityCfg,
+    )
+
+    return LabAudioEntityBindingCfg(
+        num_envs=num_envs,
+        robot_entity_name="robot",
+        microphone_layout="quad_front",
+        source_entities=(
+            LabAudioSourceEntityCfg(
+                entity_name="omni_speaker",
+                source_id="perf_omni",
+                class_label="Speech",
+                duration_s=None,
+            ),
+            LabAudioSourceEntityCfg(
+                entity_name="cardioid_speaker",
+                source_id="perf_cardioid",
+                class_label="Alarm",
+                duration_s=None,
+                directivity="cardioid",
+                gain_db=3.0,
+            ),
+        ),
+        device=device,
+        diagnostics=False,
+    )
+
+
+def _perf_sensor(
+    *,
+    sensor_class: type,
+    cfg_class: type,
+    device: str,
+    num_envs: int,
+    compute_path: str,
+) -> object:
+    return sensor_class(
+        cfg=cfg_class(
+            prim_path="{ENV_REGEX_NS}/Robot/audio_array",
+            update_period=0.0,
+            backend="tdoa_synthetic",
+            microphone_layout="quad_front",
+            max_events=4,
+            device=device,
+            compute_path=compute_path,
+        )
+    ).bind_lab_entities(
+        scene=_create_perf_entity_scene(device, num_envs),
+        binding_cfg=_perf_binding_cfg(device, num_envs),
+    )
+
+
+def _batched_perf_evidence(
+    *,
+    sensor_class: type,
+    cfg_class: type,
+    device: str,
+    num_envs: int,
+    steps: int,
+    budget_ms: float,
+) -> dict[str, object]:
+    """Time the batched path at scale and fail the gate when over budget."""
+
+    import torch  # type: ignore
+
+    sensor = _perf_sensor(
+        sensor_class=sensor_class,
+        cfg_class=cfg_class,
+        device=device,
+        num_envs=num_envs,
+        compute_path="auto",
+    )
+    for _ in range(10):
+        sensor.update(dt=0.02, force_recompute=True)
+    if sensor._last_compute_path != "batched":
+        raise RuntimeError(
+            "Perf phase expected the batched compute path but got "
+            f"{sensor._last_compute_path!r}."
+        )
+    torch.cuda.synchronize()
+    step_durations_ms: list[float] = []
+    for _ in range(steps):
+        started = time.perf_counter()
+        sensor.update(dt=0.02, force_recompute=True)
+        torch.cuda.synchronize()
+        step_durations_ms.append((time.perf_counter() - started) * 1000.0)
+    ordered = sorted(step_durations_ms)
+    mean_ms = sum(step_durations_ms) / len(step_durations_ms)
+    p95_ms = ordered[min(len(ordered) - 1, int(round(0.95 * len(ordered))) - 1)]
+    evidence = {
+        "status": "passed" if mean_ms < budget_ms else "failed",
+        "num_envs": num_envs,
+        "steps": steps,
+        "ms_per_step_mean": mean_ms,
+        "ms_per_step_p95": p95_ms,
+        "budget_ms": budget_ms,
+        "compute_path": sensor._last_compute_path,
+        "backend": "tdoa_synthetic",
+        "device": device,
+    }
+    if mean_ms >= budget_ms:
+        raise RuntimeError(
+            f"Batched perf budget exceeded: {mean_ms:.3f} ms/step mean for "
+            f"{num_envs} envs (budget {budget_ms} ms). Evidence: {evidence}"
+        )
+    return evidence
+
+
+def _batched_parity_evidence(
+    *,
+    sensor_class: type,
+    cfg_class: type,
+    device: str,
+    num_envs: int = 64,
+) -> dict[str, object]:
+    """Compare batched vs scalar observations on the live GPU runtime."""
+
+    import torch  # type: ignore
+
+    sensors = {
+        compute_path: _perf_sensor(
+            sensor_class=sensor_class,
+            cfg_class=cfg_class,
+            device=device,
+            num_envs=num_envs,
+            compute_path=compute_path,
+        )
+        for compute_path in ("scalar", "batched")
+    }
+    for sensor in sensors.values():
+        for _ in range(3):
+            sensor.update(dt=0.03, force_recompute=True)
+    scalar_data = sensors["scalar"].data
+    batched_data = sensors["batched"].data
+    presence_equal = bool(
+        torch.equal(scalar_data.event_presence, batched_data.event_presence)
+    )
+    scalar_nan = torch.isnan(scalar_data.bearing_deg)
+    nan_mask_equal = bool(
+        torch.equal(scalar_nan, torch.isnan(batched_data.bearing_deg))
+    )
+    valid = ~scalar_nan
+    if bool(valid.any()):
+        delta = (
+            scalar_data.bearing_deg[valid]
+            - batched_data.bearing_deg[valid]
+            + 180.0
+        ) % 360.0 - 180.0
+        max_bearing_delta_deg = float(delta.abs().max())
+    else:
+        max_bearing_delta_deg = 0.0
+    rms_delta = (scalar_data.per_mic_rms - batched_data.per_mic_rms).abs()
+    rms_scale = scalar_data.per_mic_rms.abs().clamp(min=1e-12)
+    max_rms_rel_delta = float((rms_delta / rms_scale).max())
+    max_confidence_delta = float(
+        (scalar_data.confidence - batched_data.confidence).abs().max()
+    )
+    evidence = {
+        "num_envs": num_envs,
+        "event_presence_equal": presence_equal,
+        "bearing_nan_mask_equal": nan_mask_equal,
+        "max_bearing_delta_deg": max_bearing_delta_deg,
+        "max_confidence_delta": max_confidence_delta,
+        "max_per_mic_rms_rel_delta": max_rms_rel_delta,
+        "tolerances": {
+            "bearing_deg": 0.05,
+            "confidence": 5e-4,
+            "per_mic_rms_rel": 1e-4,
+        },
+    }
+    passed = (
+        presence_equal
+        and nan_mask_equal
+        and max_bearing_delta_deg < 0.05
+        and max_confidence_delta < 5e-4
+        and max_rms_rel_delta < 1e-4
+    )
+    evidence["status"] = "passed" if passed else "failed"
+    if not passed:
+        raise RuntimeError(f"Batched/scalar parity failed on GPU: {evidence}")
+    return evidence
 
 
 def _create_entity_scene(device: str) -> SimpleNamespace:

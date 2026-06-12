@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from isaac_audio_sensors.core.constants import (
+    COMPUTE_PATHS,
     DEFAULT_SAMPLE_RATE_HZ,
     KNOWN_BACKENDS,
     TDOA_AMBIGUITY_POLICIES,
@@ -42,6 +43,11 @@ def _validate_cfg(cfg: Any) -> None:
         raise ValueError("AudioArraySensorCfg.device must be non-empty when set.")
     if str(cfg.ambiguity_policy) not in TDOA_AMBIGUITY_POLICIES:
         raise ValueError("AudioArraySensorCfg.ambiguity_policy is unknown.")
+    if str(cfg.compute_path) not in COMPUTE_PATHS:
+        raise ValueError(
+            "AudioArraySensorCfg.compute_path must be 'auto', 'scalar', or "
+            "'batched'."
+        )
 
 
 _LAB_TYPES = load_isaac_lab_types()
@@ -65,6 +71,7 @@ if _LAB_TYPES is not None:
         num_mics: int | None = None
         device: str | None = None
         ambiguity_policy: str = "none"
+        compute_path: str = "auto"
         write_waveforms: bool = False
         writer_path: str | None = None
         waveform_dir: str | None = None
@@ -96,6 +103,7 @@ else:
         num_mics: int | None = None
         device: str | None = None
         ambiguity_policy: str = "none"
+        compute_path: str = "auto"
         write_waveforms: bool = False
         writer_path: str | None = None
         waveform_dir: str | None = None

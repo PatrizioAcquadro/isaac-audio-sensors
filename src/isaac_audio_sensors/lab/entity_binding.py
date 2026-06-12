@@ -185,6 +185,40 @@ class _PoseBatch:
     env_origin_applied: bool
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EntityStaticBatchMeta:
+    """Per-binding constants for the batched compute path.
+
+    The source axis is pre-sorted with the same key ``active_sources`` uses
+    (``start_time_s, source_id, prim_path``) so batched event slots match the
+    scalar path without per-frame sorting.
+    """
+
+    mic_ids: tuple[str, ...]
+    mic_offsets_local: Any
+    mic_gains_db: Any
+    source_ids: tuple[str, ...]
+    class_labels: tuple[str, ...]
+    source_start_s: Any
+    source_end_s: Any
+    source_gain_scale: Any
+    source_is_cardioid: Any
+    sort_permutation: tuple[int, ...]
+    tensor_device: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EntityPoseTensorBatch:
+    """Selected-env pose tensors for the batched compute path."""
+
+    env_ids: Any
+    array_positions: Any
+    array_quats_xyzw: Any
+    source_positions: Any
+    source_quats_xyzw: Any
+    static: EntityStaticBatchMeta
+
+
 class LabAudioEntityProvider:
     """Callable provider that reads selected Lab entity tensor rows."""
 
@@ -211,6 +245,8 @@ class LabAudioEntityProvider:
             env_id: 0 for env_id in range(self.num_envs)
         }
         self._sim_time_s_by_env: dict[int, float] = {}
+        self._static_batch_meta: EntityStaticBatchMeta | None = None
+        self._sorted_source_cfgs: tuple[LabAudioSourceEntityCfg, ...] | None = None
 
     @property
     def num_mics(self) -> int:
@@ -339,6 +375,168 @@ class LabAudioEntityProvider:
                 )
         self.last_diagnostics = diagnostics
         return result
+
+    def static_batch_meta(self, *, device: str) -> EntityStaticBatchMeta:
+        """Return cached per-binding constants on the requested device."""
+
+        cached = self._static_batch_meta
+        if cached is not None and cached.tensor_device == str(device):
+            return cached
+        torch = _require_torch()
+        microphones = _microphones(self.cfg)
+        permutation = self._source_sort_permutation()
+        sorted_cfgs = self._source_cfgs_sorted()
+        source_ids = tuple(
+            _resolved_source_id(source_cfg) for source_cfg in sorted_cfgs
+        )
+        start_s = [float(source_cfg.start_time_s) for source_cfg in sorted_cfgs]
+        end_s = [
+            math.inf
+            if source_cfg.duration_s is None
+            else float(source_cfg.start_time_s) + float(source_cfg.duration_s)
+            for source_cfg in sorted_cfgs
+        ]
+        meta = EntityStaticBatchMeta(
+            mic_ids=tuple(microphone.mic_id for microphone in microphones),
+            mic_offsets_local=torch.tensor(
+                [microphone.relative_position_m for microphone in microphones],
+                dtype=torch.float32,
+                device=device,
+            ),
+            mic_gains_db=torch.tensor(
+                [float(microphone.gain_db) for microphone in microphones],
+                dtype=torch.float32,
+                device=device,
+            ),
+            source_ids=source_ids,
+            class_labels=tuple(
+                source_cfg.class_label for source_cfg in sorted_cfgs
+            ),
+            source_start_s=torch.tensor(
+                start_s,
+                dtype=torch.float32,
+                device=device,
+            ),
+            source_end_s=torch.tensor(
+                end_s,
+                dtype=torch.float32,
+                device=device,
+            ),
+            source_gain_scale=torch.tensor(
+                [
+                    10.0 ** (float(source_cfg.gain_db) / 20.0)
+                    for source_cfg in sorted_cfgs
+                ],
+                dtype=torch.float32,
+                device=device,
+            ),
+            source_is_cardioid=torch.tensor(
+                [source_cfg.directivity == "cardioid" for source_cfg in sorted_cfgs],
+                dtype=torch.bool,
+                device=device,
+            ),
+            sort_permutation=permutation,
+            tensor_device=str(device),
+        )
+        self._static_batch_meta = meta
+        return meta
+
+    def pose_tensor_batch(self, env_ids: Sequence[int]) -> EntityPoseTensorBatch:
+        """Read selected-env poses as tensors without snapshot construction.
+
+        This is the batched-compute counterpart of ``__call__``: identical pose
+        math (`_resolve_entity_pose_batch` + `_compose_relative_pose_batch`),
+        but the tensors never leave the device and no per-env dataclasses or
+        diagnostics are built.
+        """
+
+        torch = _require_torch()
+        ids = tuple(int(env_id) for env_id in env_ids)
+        for env_id in ids:
+            if env_id < 0 or env_id >= self.num_envs:
+                raise ValueError(
+                    f"env_id {env_id} is outside configured entity range "
+                    f"[0, {self.num_envs - 1}]."
+                )
+            self.read_counts[env_id] = self.read_counts.get(env_id, 0) + 1
+
+        robot = resolve_scene_entity(self.scene, self.cfg.robot_entity_name)
+        robot_pose = _resolve_entity_pose_batch(
+            scene=self.scene,
+            entity=robot,
+            entity_name=self.cfg.robot_entity_name,
+            body_name=self.cfg.array_mount_body_name,
+            env_ids=ids,
+            binding_cfg=self.cfg,
+            required_for="array",
+        )
+        array_pose = _compose_relative_pose_batch(
+            base_pose=robot_pose,
+            relative_position_m=self.cfg.array_relative_position_m,
+            relative_orientation_quat=self.cfg.array_relative_orientation_quat,
+        )
+        source_positions = []
+        source_quats = []
+        for source_cfg in self._source_cfgs_sorted():
+            source_entity = resolve_scene_entity(self.scene, source_cfg.entity_name)
+            source_pose = _resolve_entity_pose_batch(
+                scene=self.scene,
+                entity=source_entity,
+                entity_name=source_cfg.entity_name,
+                body_name=source_cfg.body_name,
+                env_ids=ids,
+                binding_cfg=self.cfg,
+                required_for=f"source {source_cfg.entity_name}",
+            )
+            world_pose = _compose_relative_pose_batch(
+                base_pose=source_pose,
+                relative_position_m=source_cfg.relative_position_m,
+                relative_orientation_quat=source_cfg.relative_orientation_quat,
+            )
+            source_positions.append(world_pose.positions_world)
+            source_quats.append(world_pose.orientations_world_xyzw)
+        device = str(array_pose.positions_world.device)
+        return EntityPoseTensorBatch(
+            env_ids=torch.tensor(ids, dtype=torch.long, device=device),
+            array_positions=array_pose.positions_world,
+            array_quats_xyzw=array_pose.orientations_world_xyzw,
+            source_positions=torch.stack(source_positions, dim=1),
+            source_quats_xyzw=torch.stack(source_quats, dim=1),
+            static=self.static_batch_meta(device=device),
+        )
+
+    def _source_cfgs_sorted(self) -> tuple[LabAudioSourceEntityCfg, ...]:
+        if self._sorted_source_cfgs is None:
+            permutation = self._source_sort_permutation()
+            self._sorted_source_cfgs = tuple(
+                self.cfg.source_entities[index] for index in permutation
+            )
+        return self._sorted_source_cfgs
+
+    def _source_sort_permutation(self) -> tuple[int, ...]:
+        # Mirror active_sources ordering. Unique source ids make
+        # (start_time_s, source_id) a total order; the env-0 prim path
+        # tie-break is unreachable but kept for key-shape parity.
+        return tuple(
+            sorted(
+                range(len(self.cfg.source_entities)),
+                key=lambda index: (
+                    float(self.cfg.source_entities[index].start_time_s),
+                    _resolved_source_id(self.cfg.source_entities[index]),
+                    _source_prim_path(
+                        self.cfg.source_entities[index],
+                        self.cfg,
+                        0,
+                    ),
+                ),
+            )
+        )
+
+
+def _resolved_source_id(source_cfg: LabAudioSourceEntityCfg) -> str:
+    if source_cfg.source_id is not None:
+        return source_cfg.source_id
+    return f"{source_cfg.entity_name}_{source_cfg.body_name or 'root'}"
 
 
 def build_lab_entity_provider(
@@ -690,9 +888,7 @@ def _source_for_env(
     source_index: int,
     binding_cfg: LabAudioEntityBindingCfg,
 ) -> AudioSourceSpec:
-    source_id = source_cfg.source_id
-    if source_id is None:
-        source_id = f"{source_cfg.entity_name}_{source_cfg.body_name or 'root'}"
+    source_id = _resolved_source_id(source_cfg)
     return AudioSourceSpec(
         source_id=source_id,
         prim_path=_source_prim_path(source_cfg, binding_cfg, env_id),

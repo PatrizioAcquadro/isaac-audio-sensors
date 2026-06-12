@@ -278,6 +278,70 @@ class AudioArraySensorData:
         self.latest_frames = tuple(latest_frames)
         self.waveform_paths = tuple(waveform_paths)
 
+    def write_batch(
+        self,
+        *,
+        env_ids: Any,
+        event_presence: Any,
+        bearing_deg: Any,
+        confidence: Any,
+        sector_onehot: Any,
+        per_mic_rms: Any,
+        ambiguity_mask: Any,
+        last_update_time_s: Any,
+        microphone_ids: tuple[str, ...],
+    ) -> None:
+        """Write selected-env rows from batched tensors.
+
+        The batched compute path produces no per-env frames, so the Python
+        metadata for those rows is cleared (``None``/empty) in one pass
+        instead of being rebuilt per environment.
+        """
+
+        self.event_presence[env_ids] = event_presence
+        self.bearing_deg[env_ids] = bearing_deg
+        self.confidence[env_ids] = confidence
+        self.sector_onehot[env_ids] = sector_onehot
+        self.per_mic_rms[env_ids] = per_mic_rms
+        self.ambiguity_mask[env_ids] = ambiguity_mask
+        self.last_update_time_s[env_ids] = last_update_time_s
+        self.microphone_ids = microphone_ids
+
+        ids = {
+            int(env_id)
+            for env_id in (
+                env_ids.detach().cpu().tolist()
+                if hasattr(env_ids, "detach")
+                else env_ids
+            )
+        }
+        max_events = int(self.event_presence.shape[1])
+        none_row = tuple(None for _ in range(max_events))
+        self.frame_ids = tuple(
+            None if env_id in ids else value
+            for env_id, value in enumerate(self.frame_ids)
+        )
+        self.frame_names = tuple(
+            None if env_id in ids else value
+            for env_id, value in enumerate(self.frame_names)
+        )
+        self.source_ids = tuple(
+            none_row if env_id in ids else row
+            for env_id, row in enumerate(self.source_ids)
+        )
+        self.class_labels = tuple(
+            none_row if env_id in ids else row
+            for env_id, row in enumerate(self.class_labels)
+        )
+        self.latest_frames = tuple(
+            None if env_id in ids else value
+            for env_id, value in enumerate(self.latest_frames)
+        )
+        self.waveform_paths = tuple(
+            () if env_id in ids else row
+            for env_id, row in enumerate(self.waveform_paths)
+        )
+
 
 def _require_torch() -> Any:
     try:

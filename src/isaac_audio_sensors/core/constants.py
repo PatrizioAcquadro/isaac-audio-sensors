@@ -111,6 +111,8 @@ KNOWN_BACKENDS = frozenset({"geometry_only", "tdoa_synthetic", "room_acoustics"}
 
 TDOA_AMBIGUITY_POLICIES = frozenset({"none", "front_hemisphere"})
 
+COMPUTE_PATHS = frozenset({"auto", "scalar", "batched"})
+
 SECTOR_ORDER = (
     "straight",
     "straight_right",

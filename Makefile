@@ -2,6 +2,7 @@ VENV_PYTHON := .venv/bin/python
 PYTHON ?= $(if $(wildcard $(VENV_PYTHON)),$(VENV_PYTHON),python3)
 ISAAC_SIM_COMMAND ?= $(PYTHON)
 ISAAC_LAB_PYTHON ?= $(PYTHON)
+ISAAC_LAB_PERF_BUDGET_MS ?= 20
 ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
 EXPECTED_VERSION ?= 1.5.0
@@ -61,7 +62,7 @@ live-isaac-lab-audio:
 	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/isaac_lab_live_smoke.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
 
 live-isaac-lab-audio-gpu:
-	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) scripts/live_isaac_lab_audio_smoke.py --require-gpu --out outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) scripts/live_isaac_lab_audio_smoke.py --require-gpu --perf-budget-ms $(ISAAC_LAB_PERF_BUDGET_MS) --out outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json
 	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
 
 diagnose-isaac:
