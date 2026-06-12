@@ -375,6 +375,19 @@ clockwise from array forward.
 - `ambiguity_class`
 - `ambiguity_reason`
 
+Additive optional v1 DOA fields (absent in traces written before 1.7.0; a
+v1 reader that ignores them must still interpret the frame correctly):
+
+- `estimated_elevation_deg`: elevation in degrees up from the array's
+  forward/right plane in `[-90, +90]`, positive toward array up; `null`
+  unless the producer can resolve elevation (rank-3 microphone layouts).
+- `candidate_elevation_deg`: candidate elevations in the same convention.
+
+Detection objects gained the matching additive optional field
+`ground_truth_elevation_deg` (oracle source elevation, same convention,
+`null` in older traces). `bearing_confidence` covers the full estimated
+direction, including elevation when present.
+
 Bearing sectors are frozen as canonical 8-way labels in the
 `x_forward_y_right_z_up_clockwise_bearing` convention. Bearings are normalized
 into `[0, 360)`, measured clockwise from array forward, and assigned to
@@ -407,6 +420,11 @@ sector, so `22.5` maps to `straight_right`, `67.5` maps to `right`, and
 - `sample_rate`: `Hz`
 - `rms`: `linear`
 - `gain`: `dB`
+
+Additive optional unit keys are emitted by current writers but may be absent
+in older v1 traces:
+
+- `elevation`: `deg_up_from_array_horizontal`
 
 `timestamp_ms` is an integer timestamp in milliseconds. `start_time_s` and
 `end_time_s` are seconds. `frame_index` is non-negative when present.

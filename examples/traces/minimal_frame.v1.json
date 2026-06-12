@@ -43,6 +43,7 @@
   "units": {
     "bearing": "deg_clockwise_from_array_forward",
     "distance": "m",
+    "elevation": "deg_up_from_array_horizontal",
     "gain": "dB",
     "orientation": "quaternion_xyzw",
     "position": "m",

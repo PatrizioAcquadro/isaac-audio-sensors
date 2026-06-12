@@ -15,6 +15,7 @@ from isaac_audio_sensors.core.constants import (
     FRAME_TOP_LEVEL_FIELDS,
     FRAME_UNITS,
     OPTIONAL_DETECTION_FIELDS,
+    OPTIONAL_DOA_FIELDS,
     POSE3D_FIELDS,
 )
 
@@ -170,6 +171,17 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                         "detection_mode": {"type": "string", "minLength": 1},
                         "timestamp_ms": {"type": "integer"},
                         "ground_truth_bearing_deg": {"type": ["number", "null"]},
+                        "ground_truth_elevation_deg": {
+                            "type": ["number", "null"],
+                            "minimum": -90.0,
+                            "maximum": 90.0,
+                            "description": (
+                                "Optional additive v1 field: oracle source "
+                                "elevation in degrees up from the array's "
+                                "forward/right plane. Absent in older v1 "
+                                "traces."
+                            ),
+                        },
                         "source_distance_m": {"type": ["number", "null"]},
                         "doa": {
                             "type": "object",
@@ -178,7 +190,11 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                                 "candidate and ambiguity representation."
                             ),
                             "additionalProperties": True,
-                            "required": list(DOA_FIELDS),
+                            "required": [
+                                name
+                                for name in DOA_FIELDS
+                                if name not in OPTIONAL_DOA_FIELDS
+                            ],
                             "properties": {
                                 "estimated_bearing_deg": {"type": ["number", "null"]},
                                 "candidate_bearing_deg": {
@@ -213,6 +229,32 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                                     "description": (
                                         "Human-readable explanation for "
                                         "ambiguity_class."
+                                    ),
+                                },
+                                "estimated_elevation_deg": {
+                                    "type": ["number", "null"],
+                                    "minimum": -90.0,
+                                    "maximum": 90.0,
+                                    "description": (
+                                        "Optional additive v1 field: elevation "
+                                        "in degrees up from the array's "
+                                        "forward/right plane when the producer "
+                                        "can resolve it (rank-3 layouts). "
+                                        "Absent in older v1 traces."
+                                    ),
+                                },
+                                "candidate_elevation_deg": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "number",
+                                        "minimum": -90.0,
+                                        "maximum": 90.0,
+                                    },
+                                    "description": (
+                                        "Optional additive v1 field: candidate "
+                                        "elevations in degrees up from the "
+                                        "array's forward/right plane. Absent "
+                                        "in older v1 traces."
                                     ),
                                 },
                             },

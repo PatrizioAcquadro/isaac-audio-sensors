@@ -146,7 +146,25 @@
                 },
                 "type": "array"
               },
+              "candidate_elevation_deg": {
+                "description": "Optional additive v1 field: candidate elevations in degrees up from the array's forward/right plane. Absent in older v1 traces.",
+                "items": {
+                  "maximum": 90.0,
+                  "minimum": -90.0,
+                  "type": "number"
+                },
+                "type": "array"
+              },
               "estimated_bearing_deg": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "estimated_elevation_deg": {
+                "description": "Optional additive v1 field: elevation in degrees up from the array's forward/right plane when the producer can resolve it (rank-3 layouts). Absent in older v1 traces.",
+                "maximum": 90.0,
+                "minimum": -90.0,
                 "type": [
                   "number",
                   "null"
@@ -164,6 +182,15 @@
             "type": "object"
           },
           "ground_truth_bearing_deg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ground_truth_elevation_deg": {
+            "description": "Optional additive v1 field: oracle source elevation in degrees up from the array's forward/right plane. Absent in older v1 traces.",
+            "maximum": 90.0,
+            "minimum": -90.0,
             "type": [
               "number",
               "null"
@@ -358,6 +385,10 @@
           "const": "m",
           "type": "string"
         },
+        "elevation": {
+          "const": "deg_up_from_array_horizontal",
+          "type": "string"
+        },
         "gain": {
           "const": "dB",
           "type": "string"
@@ -390,6 +421,7 @@
       "required": [
         "bearing",
         "distance",
+        "elevation",
         "gain",
         "orientation",
         "position",

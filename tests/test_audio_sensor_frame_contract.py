@@ -24,6 +24,8 @@ from isaac_audio_sensors.core.constants import (
     FRAME_UNITS,
     KNOWN_BACKENDS,
     OPTIONAL_DETECTION_FIELDS,
+    OPTIONAL_DOA_FIELDS,
+    OPTIONAL_FRAME_UNIT_KEYS,
     POSE3D_FIELDS,
     STABLE_DIAGNOSTIC_NAMESPACES,
 )
@@ -75,6 +77,7 @@ CANONICAL_DETECTION_FIELDS = (
     "ground_truth_bearing_deg",
     "source_distance_m",
     "doa",
+    "ground_truth_elevation_deg",
     "source_pose",
     "per_mic_delay_s",
     "per_mic_rms",
@@ -82,7 +85,7 @@ CANONICAL_DETECTION_FIELDS = (
     "occluded",
     "diagnostics",
 )
-CANONICAL_OPTIONAL_DETECTION_FIELDS = ("occluded",)
+CANONICAL_OPTIONAL_DETECTION_FIELDS = ("occluded", "ground_truth_elevation_deg")
 CANONICAL_DOA_FIELDS = (
     "estimated_bearing_deg",
     "candidate_bearing_deg",
@@ -90,6 +93,12 @@ CANONICAL_DOA_FIELDS = (
     "bearing_confidence",
     "ambiguity_class",
     "ambiguity_reason",
+    "estimated_elevation_deg",
+    "candidate_elevation_deg",
+)
+CANONICAL_OPTIONAL_DOA_FIELDS = (
+    "estimated_elevation_deg",
+    "candidate_elevation_deg",
 )
 CANONICAL_POSE3D_FIELDS = (
     "position_m",
@@ -101,6 +110,7 @@ CANONICAL_FRAME_UNITS = {
     "position": "m",
     "orientation": "quaternion_xyzw",
     "bearing": "deg_clockwise_from_array_forward",
+    "elevation": "deg_up_from_array_horizontal",
     "distance": "m",
     "time": "s",
     "timestamp": "ms",
@@ -108,6 +118,7 @@ CANONICAL_FRAME_UNITS = {
     "rms": "linear",
     "gain": "dB",
 }
+CANONICAL_OPTIONAL_FRAME_UNIT_KEYS = ("elevation",)
 CANONICAL_PROVENANCE_VALUES = frozenset(
     {
         "synthetic/core",
@@ -148,8 +159,12 @@ def test_v1_contract_snapshots_guard_public_names_and_semantics():
     assert OPTIONAL_DETECTION_FIELDS == CANONICAL_OPTIONAL_DETECTION_FIELDS
     assert set(OPTIONAL_DETECTION_FIELDS) < set(DETECTION_FIELDS)
     assert DOA_FIELDS == CANONICAL_DOA_FIELDS
+    assert OPTIONAL_DOA_FIELDS == CANONICAL_OPTIONAL_DOA_FIELDS
+    assert set(OPTIONAL_DOA_FIELDS) < set(DOA_FIELDS)
     assert POSE3D_FIELDS == CANONICAL_POSE3D_FIELDS
     assert FRAME_UNITS == CANONICAL_FRAME_UNITS
+    assert OPTIONAL_FRAME_UNIT_KEYS == CANONICAL_OPTIONAL_FRAME_UNIT_KEYS
+    assert set(OPTIONAL_FRAME_UNIT_KEYS) < set(FRAME_UNITS)
     assert FRAME_PROVENANCE_VALUES == CANONICAL_PROVENANCE_VALUES
     assert DETECTION_MODES == CANONICAL_DETECTION_MODES
     assert STABLE_DIAGNOSTIC_NAMESPACES == CANONICAL_STABLE_DIAGNOSTIC_NAMESPACES
@@ -197,7 +212,11 @@ def test_schema_required_keys_match_dataclasses_and_trace_serialization():
         name for name in DETECTION_FIELDS if name not in OPTIONAL_DETECTION_FIELDS
     ]
     assert "occluded" in detection_schema["properties"]
-    assert doa_schema["required"] == list(DOA_FIELDS)
+    assert doa_schema["required"] == [
+        name for name in DOA_FIELDS if name not in OPTIONAL_DOA_FIELDS
+    ]
+    assert "estimated_elevation_deg" in doa_schema["properties"]
+    assert "candidate_elevation_deg" in doa_schema["properties"]
     assert set(payload) == set(FRAME_TOP_LEVEL_FIELDS)
     assert set(payload["detections"][0]) == set(DETECTION_FIELDS)
     assert set(payload["detections"][0]["doa"]) == set(DOA_FIELDS)
@@ -233,17 +252,29 @@ def test_json_and_ndjson_trace_corpus_matches_v1_contract_and_round_trips():
     assert any(path.suffix == ".json" for path, _ in payloads)
     assert any(path.suffix == ".ndjson" for path, _ in payloads)
 
-    # Optional additive detection fields and the defaults a round-trip adds
-    # to traces written before the field existed.
-    optional_detection_defaults = {"occluded": False}
+    # Optional additive detection/DOA fields and the defaults a round-trip
+    # adds to traces written before the fields existed.
+    optional_detection_defaults = {
+        "occluded": False,
+        "ground_truth_elevation_deg": None,
+    }
     assert set(optional_detection_defaults) == set(OPTIONAL_DETECTION_FIELDS)
+    optional_doa_defaults = {
+        "estimated_elevation_deg": None,
+        "candidate_elevation_deg": [],
+    }
+    assert set(optional_doa_defaults) == set(OPTIONAL_DOA_FIELDS)
 
     for path, payload in payloads:
         _assert_payload_matches_contract(payload, schema, path=path)
         rebuilt_payload = frame_to_trace_dict(frame_from_trace_dict(payload))
         expected_payload = dict(payload)
         expected_payload["detections"] = [
-            {**optional_detection_defaults, **detection}
+            {
+                **optional_detection_defaults,
+                **detection,
+                "doa": {**optional_doa_defaults, **detection["doa"]},
+            }
             for detection in payload["detections"]
         ]
         for field_name in schema["required"]:
@@ -500,8 +531,10 @@ def _assert_payload_matches_contract(
     assert set(schema["required"]) <= set(payload), path
     assert payload["schema_version"] == FRAME_SCHEMA_VERSION
     assert payload["coordinate_convention"] == COORDINATE_CONVENTION
-    assert payload["units"] | FRAME_UNITS == payload["units"]
     for key, value in FRAME_UNITS.items():
+        if key in OPTIONAL_FRAME_UNIT_KEYS and key not in payload["units"]:
+            # Additive unit keys may be absent in older v1 traces.
+            continue
         assert payload["units"][key] == value, (path, key)
     assert payload["provenance"] in FRAME_PROVENANCE_VALUES
     assert isinstance(payload["timestamp_ms"], int), path
@@ -532,7 +565,7 @@ def _assert_payload_matches_contract(
         _assert_pose_payload(detection["source_pose"], path=path)
 
         doa = detection["doa"]
-        assert set(DOA_FIELDS) <= set(doa), path
+        assert set(DOA_FIELDS) - set(OPTIONAL_DOA_FIELDS) <= set(doa), path
         assert 0.0 <= doa["bearing_confidence"] <= 1.0, path
         assert isinstance(doa["candidate_bearing_deg"], list), path
         if doa["ambiguity_class"] is not None:

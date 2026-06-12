@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -30,6 +31,8 @@ from isaac_audio_sensors.core.math_utils import (
 from isaac_audio_sensors.core.microphone_array import (
     arbitrary_microphone_array,
     create_microphone_array,
+    layout_rank_xy,
+    layout_rank_xyz,
     microphone_layout,
     microphone_world_positions,
 )
@@ -209,6 +212,126 @@ def test_microphone_layouts_cover_one_two_four_and_arbitrary_n():
 
     with pytest.raises(ValueError, match="Unknown microphone layout"):
         microphone_layout("missing")
+
+
+def test_tetrahedral_layout_is_rank_three_with_edge_length_spacing():
+    spacing = 0.2
+    microphones = microphone_layout("tetrahedral", spacing_m=spacing)
+    assert len(microphones) == 4
+    assert {microphone.mic_id for microphone in microphones} == {
+        "front_right_up",
+        "front_left_down",
+        "rear_right_down",
+        "rear_left_up",
+    }
+    positions = [microphone.relative_position_m for microphone in microphones]
+    for index, left in enumerate(positions):
+        for right in positions[index + 1 :]:
+            edge = math.dist(left, right)
+            assert edge == pytest.approx(spacing, abs=1e-12)
+
+    array = arbitrary_microphone_array(
+        array_id="tetra",
+        prim_path="/World/Tetra",
+        relative_positions_m=tuple(
+            (microphone.mic_id, microphone.relative_position_m)
+            for microphone in microphones
+        ),
+    )
+    assert layout_rank_xyz(array) == 3
+    assert layout_rank_xy(array) == 2
+
+
+@pytest.mark.parametrize(
+    ("positions", "expected_rank"),
+    [
+        ((("a", (0.0, 0.0, 0.0)),), 0),
+        ((("a", (0.0, 0.0, 0.0)), ("b", (0.0, 0.0, 0.0))), 0),
+        ((("a", (0.0, 0.0, 0.0)), ("b", (0.0, 0.0, 0.2))), 1),
+        (
+            (
+                ("a", (0.0, 0.0, 0.0)),
+                ("b", (0.2, 0.0, 0.0)),
+                ("c", (0.0, 0.0, 0.2)),
+            ),
+            2,
+        ),
+        (
+            (
+                ("a", (0.0, 0.0, 0.0)),
+                ("b", (0.2, 0.0, 0.0)),
+                ("c", (0.0, 0.2, 0.0)),
+                ("d", (0.0, 0.0, 0.2)),
+            ),
+            3,
+        ),
+    ],
+)
+def test_layout_rank_xyz_detects_point_line_plane_and_volume(
+    positions, expected_rank
+):
+    array = arbitrary_microphone_array(
+        array_id="rank",
+        prim_path="/World/Rank",
+        relative_positions_m=positions,
+    )
+    assert layout_rank_xyz(array) == expected_rank
+
+
+def test_doa_estimate_validates_optional_elevation_fields():
+    doa = DoaEstimate(
+        estimated_bearing_deg=90.0,
+        bearing_confidence=0.5,
+        estimated_elevation_deg=30.0,
+        candidate_elevation_deg=(30.0,),
+    )
+    assert doa.estimated_elevation_deg == pytest.approx(30.0)
+    assert doa.candidate_elevation_deg == pytest.approx((30.0,))
+
+    default = DoaEstimate(estimated_bearing_deg=None, bearing_confidence=0.0)
+    assert default.estimated_elevation_deg is None
+    assert default.candidate_elevation_deg == ()
+
+    with pytest.raises(ValueError, match="estimated_elevation_deg"):
+        DoaEstimate(
+            estimated_bearing_deg=0.0,
+            bearing_confidence=0.0,
+            estimated_elevation_deg=120.0,
+        )
+    with pytest.raises(ValueError, match="candidate_elevation_deg"):
+        DoaEstimate(
+            estimated_bearing_deg=0.0,
+            bearing_confidence=0.0,
+            candidate_elevation_deg=(-95.0,),
+        )
+
+
+def test_audio_detection_validates_optional_ground_truth_elevation():
+    detection = AudioDetection(
+        detection_id="det_el",
+        source_id="src",
+        class_label="Speech",
+        detection_mode="scheduled_known_source",
+        timestamp_ms=0,
+        ground_truth_bearing_deg=0.0,
+        ground_truth_elevation_deg=-45.0,
+        source_distance_m=1.0,
+        doa=DoaEstimate(estimated_bearing_deg=None, bearing_confidence=0.0),
+    )
+    assert detection.ground_truth_elevation_deg == pytest.approx(-45.0)
+
+    with pytest.raises(ValueError, match="ground_truth_elevation_deg"):
+        AudioDetection(
+            detection_id="det_bad",
+            source_id="src",
+            class_label="Speech",
+            detection_mode="scheduled_known_source",
+            timestamp_ms=0,
+            ground_truth_bearing_deg=0.0,
+            ground_truth_elevation_deg=91.0,
+            source_distance_m=1.0,
+            doa=DoaEstimate(estimated_bearing_deg=None, bearing_confidence=0.0),
+        )
 
 
 def test_microphone_array_world_positions_respect_yaw():
@@ -400,6 +523,7 @@ def test_audio_sensor_frame_v1_schema_required_keys_match_trace_contract():
         "ambiguity_class",
         "ambiguity_reason",
     }
+    expected_optional_doa = {"estimated_elevation_deg", "candidate_elevation_deg"}
     expected_pose = {
         "position_m",
         "orientation_xyzw",
@@ -410,13 +534,15 @@ def test_audio_sensor_frame_v1_schema_required_keys_match_trace_contract():
     assert set(schema["required"]) == expected_top_level
     assert set(payload) == expected_top_level
     detection_schema = schema["properties"]["detections"]["items"]
-    expected_optional_detection = {"occluded"}
+    expected_optional_detection = {"occluded", "ground_truth_elevation_deg"}
     assert set(detection_schema["required"]) == expected_detection
     assert set(payload["detections"][0]) == (
         expected_detection | expected_optional_detection
     )
     assert set(detection_schema["properties"]["doa"]["required"]) == expected_doa
-    assert set(payload["detections"][0]["doa"]) == expected_doa
+    assert set(payload["detections"][0]["doa"]) == (
+        expected_doa | expected_optional_doa
+    )
     assert set(payload["array_pose"]) == expected_pose
     assert set(payload["detections"][0]["source_pose"]) == expected_pose
 

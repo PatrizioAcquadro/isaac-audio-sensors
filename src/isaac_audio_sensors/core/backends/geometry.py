@@ -75,6 +75,13 @@ class GeometryBackend:
             up_component = dot(delta, sensor.up_vec_world)
             horizontal_distance = math.hypot(forward_component, right_component)
             bearing = bearing_from_components(forward_component, right_component)
+            elevation = (
+                None
+                if distance <= 0.0
+                else math.degrees(
+                    math.asin(max(-1.0, min(1.0, up_component / distance)))
+                )
+            )
             confidence = (
                 0.0
                 if bearing is None or distance <= 0.0
@@ -105,6 +112,7 @@ class GeometryBackend:
                     detection_mode="scheduled_known_source",
                     timestamp_ms=time_window.timestamp_ms,
                     ground_truth_bearing_deg=bearing,
+                    ground_truth_elevation_deg=elevation,
                     source_distance_m=distance,
                     doa=DoaEstimate(
                         estimated_bearing_deg=bearing,
@@ -113,6 +121,10 @@ class GeometryBackend:
                         bearing_confidence=confidence,
                         ambiguity_class=None,
                         ambiguity_reason=None,
+                        estimated_elevation_deg=elevation,
+                        candidate_elevation_deg=(
+                            () if elevation is None else (elevation,)
+                        ),
                     ),
                     source_pose=Pose3D.from_source(source),
                     per_mic_delay_s={},

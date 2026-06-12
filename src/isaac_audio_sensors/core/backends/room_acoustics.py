@@ -32,6 +32,7 @@ from isaac_audio_sensors.core.math_utils import (
 )
 from isaac_audio_sensors.core.microphone_array import (
     layout_rank_xy,
+    layout_rank_xyz,
     microphone_world_positions,
     validate_tdoa_array,
 )
@@ -270,6 +271,9 @@ class RoomAcousticsBackend:
                 ground_truth_bearing = _ground_truth_bearing(
                     source.position_world, sensor
                 )
+                ground_truth_elevation = _ground_truth_elevation(
+                    source.position_world, sensor
+                )
                 doa = estimate_doa_from_delays(
                     sensor=sensor,
                     per_mic_delay_s=per_mic_delay_s,
@@ -284,6 +288,12 @@ class RoomAcousticsBackend:
                         doa.estimated_bearing_deg,
                         ground_truth_bearing,
                     )
+                )
+                oracle_elevation_error = (
+                    None
+                    if doa.estimated_elevation_deg is None
+                    or ground_truth_elevation is None
+                    else abs(doa.estimated_elevation_deg - ground_truth_elevation)
                 )
                 occlusion = scene.occlusion_for(
                     sensor.array_id,
@@ -301,6 +311,7 @@ class RoomAcousticsBackend:
                         detection_mode="scheduled_known_source",
                         timestamp_ms=time_window.timestamp_ms,
                         ground_truth_bearing_deg=ground_truth_bearing,
+                        ground_truth_elevation_deg=ground_truth_elevation,
                         source_distance_m=norm(
                             subtract(source.position_world, sensor.position_world)
                         ),
@@ -326,11 +337,13 @@ class RoomAcousticsBackend:
                             "speed_of_sound_mps": self.speed_of_sound_mps,
                             "sample_rate_hz": sample_rate_hz,
                             "array_geometry_rank_xy": layout_rank_xy(sensor),
+                            "array_geometry_rank_xyz": layout_rank_xyz(sensor),
                             "estimated_tdoa_matrix_s": tdoa_matrix,
                             "gcc_phat_peaks": gcc_peaks,
                             "gcc_phat_peak": gcc_peaks,
                             "direct_path_delay_s": direct_path_delay_s,
                             "oracle_bearing_error_deg": oracle_bearing_error,
+                            "oracle_elevation_error_deg": oracle_elevation_error,
                             "per_mic_rms": per_mic_rms,
                             "rir_length_samples": rir_length_samples,
                             "rir_peak_delay_s": rir_peak_delay_s,
@@ -910,3 +923,15 @@ def _ground_truth_bearing(
     if bearing is None:
         return None
     return bearing
+
+
+def _ground_truth_elevation(
+    source_position_world: tuple[float, float, float],
+    sensor: MicrophoneArraySpec,
+) -> float | None:
+    delta = subtract(source_position_world, sensor.position_world)
+    distance = norm(delta)
+    if distance <= 1e-9:
+        return None
+    ratio = dot(delta, sensor.up_vec_world) / distance
+    return math.degrees(math.asin(max(-1.0, min(1.0, ratio))))
