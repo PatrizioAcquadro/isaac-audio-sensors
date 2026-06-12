@@ -43,13 +43,13 @@ from isaac_audio_sensors.core.types import (
 
 
 def test_core_package_imports_and_exposes_version():
-    assert isaac_audio_sensors.__version__ == "1.5.0"
+    assert isaac_audio_sensors.__version__ == "1.6.0"
 
 
 def test_version_surfaces_match_final_release():
     root = Path(__file__).resolve().parents[1]
-    expected = "1.5.0"
-    kit_manifest_expected = "1.5.0"
+    expected = "1.6.0"
+    kit_manifest_expected = "1.6.0"
     assert f'version = "{expected}"' in (root / "pyproject.toml").read_text()
     extension_manifest = (
         root / "exts/isaac_audio_sensors.omni/config/extension.toml"
@@ -64,7 +64,7 @@ def test_version_surfaces_match_final_release():
     assert f"Kit extension manifest version: `{kit_manifest_expected}`" in (
         root / "docs/versioning.md"
     ).read_text()
-    assert f"## {expected} - 2026-06-11" in (root / "CHANGELOG.md").read_text()
+    assert f"## {expected} - 2026-06-12" in (root / "CHANGELOG.md").read_text()
 
 
 def test_package_module_version_entrypoint_reports_final_release():
@@ -74,7 +74,7 @@ def test_package_module_version_entrypoint_reports_final_release():
         capture_output=True,
         text=True,
     )
-    assert result.stdout.strip() == "1.5.0"
+    assert result.stdout.strip() == "1.6.0"
 
 
 def test_config_validation_accepts_demo_config():
