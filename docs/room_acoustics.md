@@ -123,8 +123,16 @@ write a window-length silent mixture so session streams stay gapless.
 `waveform_mode` (`"per_frame"` or `"session"`); the Isaac Lab sensor through
 `write_waveforms`/`waveform_dir` (per-frame mode with per-env subdirectories);
 TOML configs through `audio.write_waveforms` and `audio.waveform_dir`.
-Doppler from per-tick source motion is not modeled yet and is deferred to the
-Block 8 roadmap item.
+Doppler is rendered since `1.7.0` when a source or array declares the
+optional `velocity_world_mps` spec field: each source's window signal is
+resampled by the observed/emitted frequency ratio computed at the array
+center before room simulation, so mixtures, GCC-PHAT/SRP-PHAT estimates, and
+exported per-frame and session waveforms all carry the shift. One factor
+applies per source per window (an approximation of continuous motion), the
+`doppler_factor` and `doppler_waveform_rendered` detection diagnostics record
+what was applied, and velocity-less scenes render byte-identically to
+previous releases. Automatic velocity tracking from Isaac per-tick poses
+remains future work.
 
 Supported optional v1 diagnostics include these stable names.
 

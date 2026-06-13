@@ -21,9 +21,13 @@
 - `room_acoustics` file-backed `audio_asset_path` loading is intentionally
   narrow: paths must be relative public files under the checkout. Mismatched
   sample rates are resampled with `scipy.signal.resample_poly`.
-- Doppler from per-tick source motion is not modeled by the continuous
-  session renderer; it is deferred to the Block 8 roadmap item together with
-  source velocity tracking.
+- Doppler is modeled since `1.7.0` only from the optional
+  `velocity_world_mps` fields on source and array specs: L1 emits
+  frequency-ratio metadata, and L2 resamples each source's window signal by
+  one factor per window computed at the array center. Intra-window motion,
+  per-microphone waveform shifts, and automatic velocity tracking from Isaac
+  per-tick poses are not modeled; factors are clamped to `[1/8, 8]` near
+  sonic radial velocities.
 - The continuous session WAV is the concatenation of captured windows;
   sim-time gaps between throttled update ticks are not rendered as silence.
 - The 2026-05-24 local-time final `1.0.0` live Isaac Sim validation

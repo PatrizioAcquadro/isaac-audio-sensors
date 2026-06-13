@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.0 - 2026-06-12
+
+- The backend selector adds `room_acoustics_srp` (the L2 room pipeline with
+  SRP-PHAT as the DOA estimator).
+- The array layout selector adds the rank-3 `tetrahedral` preset, enabling
+  elevation estimation in core frames.
+- Inherited from core: additive optional elevation fields on DOA estimates,
+  optional `velocity_world_mps` source/array velocities, and Doppler-shifted
+  L2 waveforms when velocities are set.
+
 ## 1.6.0 - 2026-06-12
 
 - Added the `Room` section for the `room_acoustics` backend: anchor the room to

@@ -73,14 +73,28 @@ change.
   presets, or the flat default; consumed per microphone at L0/L1 and as
   premix-stage band filtering at L2.
 
+## Completed In V1.7.0
+
+- 3D DOA: additive optional elevation fields on `DoaEstimate` and
+  detections, a full-3D least-squares TDOA solver gated on
+  `layout_rank_xyz`, the `tetrahedral` rank-3 layout preset, and elevation
+  accuracy tests against ground truth in 3D scenes. Planar arrays keep the
+  azimuth-only v1 behavior.
+- SRP-PHAT as a documented public estimation path: the
+  `core.doa.srp_phat` module plus the `room_acoustics_srp` L2 backend id,
+  selectable in configs and the extension GUI and placed in the acoustic
+  fidelity ladder, with estimator-id dispatch leaving room for MUSIC.
+- Doppler from the new optional `velocity_world_mps` source/array spec
+  fields: frequency-ratio metadata at L1 and per-window resampled source
+  waveforms at L2 flowing into frame mixtures and exported session audio.
+
 ## Future Work
 
 - Phases 9, 10, and 11 are planned after the `1.0.0` release and are not
   prerequisites for the final v1 package gate.
-- Block 8: Doppler from per-tick source motion in the continuous renderer,
-  together with source velocity tracking in the scene model (explicitly
-  deferred from the 1.2.0 audio-output work), plus rendering sim-time gaps
-  between throttled ticks.
+- Automatic source/array velocity tracking from per-tick Isaac pose deltas
+  (today velocities are authored explicitly on the specs), per-microphone
+  Doppler rendering, and rendering sim-time gaps between throttled ticks.
 - Automated Isaac Sim and Isaac Lab smoke CI on capable GPU runners.
 - Optional USD geometry authoring for debug primitives: shipped in 1.5.0 as
   the `USD Debug` toggle (session-layer Spheres/BasisCurves under
@@ -95,7 +109,8 @@ change.
   transmission remain open.
 - L4 sim-real calibration tooling for measured array pose, gain, time-offset,
   noise, validation artifacts, and sim-vs-real comparisons.
-- GCC-PHAT and SRP-PHAT estimation paths as documented public backends.
+- Additional waveform-domain estimators (e.g. MUSIC) behind the
+  `doa_estimator` dispatch shipped with `room_acoustics_srp` in 1.7.0.
 - ROS 2 adapter as an optional downstream/project layer.
 - Broader tested adapters for custom Isaac Lab task asset APIs beyond the
   common tensor/entity patterns documented for the v1 release.

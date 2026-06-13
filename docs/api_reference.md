@@ -210,6 +210,25 @@ L2 is approximate shoebox acoustics. It does not promise realistic occlusion,
 material behavior, directivity, calibrated microphone response, production
 beamforming, or sim-real transfer.
 
+Since `1.7.0`:
+
+- the constructor accepts `doa_estimator` (`"tdoa_least_squares"` default or
+  `"srp_phat"`), and `RoomAcousticsSrpBackend` (backend id
+  `room_acoustics_srp`) pins SRP-PHAT over the same room pipeline; SRP runs
+  add the `doa_estimator` and `srp_phat` detection diagnostics. The public
+  estimator lives in `isaac_audio_sensors.core.doa.srp_phat`
+  (`srp_phat_direction`, `srp_phat_confidence`, `SrpPhatResult`);
+- rank-3 microphone layouts (e.g. the `tetrahedral` preset from
+  `microphone_layout`) yield the additive optional `estimated_elevation_deg`
+  and `candidate_elevation_deg` DOA fields and the
+  `ground_truth_elevation_deg` detection field, with `layout_rank_xyz`
+  reporting the gating rank;
+- optional `velocity_world_mps` on `AudioSourceSpec`/`MicrophoneArraySpec`
+  drives Doppler: metadata-only frequency ratios at L1
+  (`doppler_factor`, `per_mic_doppler_factor`) and per-window resampled
+  source signals at L2 (`isaac_audio_sensors.core.doppler` holds the shared
+  factor helpers).
+
 ## Live Isaac Sensor
 
 `IsaacAudioArraySensor.from_stage(...)` binds a stage and array prim path. The
