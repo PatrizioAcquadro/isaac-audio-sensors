@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +25,7 @@ from isaac_audio_sensors.core.doa.srp_phat import (
     srp_phat_confidence,
     srp_phat_direction,
 )
+from isaac_audio_sensors.core.doppler import source_doppler_factor
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
 from isaac_audio_sensors.core.math_utils import (
@@ -253,8 +254,23 @@ class RoomAcousticsBackend:
                 speed_of_sound_mps=self.speed_of_sound_mps,
             )
             scheduled: list[_ScheduledSignal] = []
+            doppler_factors: dict[str, float] = {}
             for source in active:
                 signal = _scheduled_window_signal(source, time_window=time_window)
+                factor = source_doppler_factor(
+                    source,
+                    sensor,
+                    speed_of_sound_mps=self.speed_of_sound_mps,
+                )
+                if factor is not None:
+                    doppler_factors[source.source_id] = factor
+                    if abs(factor - 1.0) > 1e-9:
+                        signal = replace(
+                            signal,
+                            signal=_doppler_resampled_signal(
+                                signal.signal, factor=factor
+                            ),
+                        )
                 scheduled.append(signal)
                 room.add_source(
                     source_room_positions[source.source_id],
@@ -441,6 +457,19 @@ class RoomAcousticsBackend:
                             ),
                             "scheduled_content_sample_count": (
                                 scheduled[index].content_sample_count
+                            ),
+                            **(
+                                {
+                                    "doppler_factor": doppler_factors[
+                                        source.source_id
+                                    ],
+                                    "doppler_waveform_rendered": abs(
+                                        doppler_factors[source.source_id] - 1.0
+                                    )
+                                    > 1e-9,
+                                }
+                                if source.source_id in doppler_factors
+                                else {}
                             ),
                             "room_source_position_m": source_room,
                             "room_microphone_positions_m": mic_room,
@@ -880,6 +909,36 @@ def _resample_waveform(
     divisor = math.gcd(from_hz, to_hz)
     return np.asarray(
         resample_poly(waveform, to_hz // divisor, from_hz // divisor),
+        dtype=float,
+    )
+
+
+def _doppler_resampled_signal(
+    waveform: np.ndarray,
+    *,
+    factor: float,
+) -> np.ndarray:
+    """Time-compress a window signal by the Doppler factor.
+
+    The output plays the same content over ``len(waveform) / factor`` samples
+    at the unchanged frame sample rate, scaling all frequencies by ``factor``.
+    One factor applies to the whole window (computed at the array center at
+    the snapshot pose), so intra-window motion and the compression of leading
+    scheduling silence are deliberate approximations of a continuously moving
+    source.
+    """
+
+    try:
+        from fractions import Fraction
+
+        from scipy.signal import resample_poly  # type: ignore
+    except ImportError as exc:
+        raise OptionalDependencyUnavailable(
+            "Doppler waveform resampling requires scipy from the 'room' extra."
+        ) from exc
+    ratio = Fraction(factor).limit_denominator(10_000)
+    return np.asarray(
+        resample_poly(waveform, ratio.denominator, ratio.numerator),
         dtype=float,
     )
 

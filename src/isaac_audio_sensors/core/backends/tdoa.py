@@ -18,6 +18,7 @@ from isaac_audio_sensors.core.doa.ambiguity import (
     two_mic_candidate_bearings,
 )
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
+from isaac_audio_sensors.core.doppler import doppler_factor, source_doppler_factor
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
     bearing_from_components,
@@ -145,6 +146,11 @@ class TdoaSyntheticBackend:
             for mic_id, rms in delay_result.per_mic_rms.items():
                 aggregate_rms_power[mic_id] += rms * rms
 
+            doppler_diagnostics = _doppler_diagnostics(
+                source,
+                sensor,
+                speed_of_sound_mps=self.speed_of_sound_mps,
+            )
             detections.append(
                 AudioDetection(
                     detection_id=deterministic_detection_id(
@@ -187,6 +193,7 @@ class TdoaSyntheticBackend:
                             delay_result.per_mic_gain_offset_db
                         ),
                         "stress_controls_deterministic": True,
+                        **doppler_diagnostics,
                         **occlusion_detection_diagnostics(occlusion),
                     },
                 )
@@ -494,6 +501,42 @@ def _ground_truth_bearing(
         dot(delta, sensor.forward_vec_world),
         dot(delta, sensor.right_vec_world),
     )
+
+
+def _doppler_diagnostics(
+    source: AudioSourceSpec,
+    sensor: MicrophoneArraySpec,
+    *,
+    speed_of_sound_mps: float,
+) -> dict[str, object]:
+    """Doppler metadata for L1: frequency-shift ratios only, no rendering.
+
+    Emitted only when the source or array declares a velocity so static
+    scenes keep byte-identical diagnostics.
+    """
+
+    factor = source_doppler_factor(
+        source,
+        sensor,
+        speed_of_sound_mps=speed_of_sound_mps,
+    )
+    if factor is None:
+        return {}
+    per_mic = {
+        mic_id: doppler_factor(
+            source_position=source.position_world,
+            listener_position=mic_position,
+            source_velocity=source.velocity_world_mps,
+            listener_velocity=sensor.velocity_world_mps,
+            speed_of_sound_mps=speed_of_sound_mps,
+        )
+        for mic_id, mic_position in microphone_world_positions(sensor).items()
+    }
+    return {
+        "doppler_factor": factor,
+        "per_mic_doppler_factor": per_mic,
+        "doppler_waveform_rendered": False,
+    }
 
 
 def _ground_truth_elevation(

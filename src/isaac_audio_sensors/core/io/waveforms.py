@@ -128,8 +128,10 @@ class ContinuousWaveformWriter:
     overlap-added into subsequent chunks, so concatenated windows stay
     gapless and energy-conserving. ``close()`` flushes the remaining tail.
 
-    Doppler from per-tick source motion is deliberately not modelled here;
-    it lands in Block 8 together with source velocity tracking.
+    Doppler is not applied here: the room backend resamples each source's
+    window signal by its per-window Doppler factor (from the optional
+    ``velocity_world_mps`` spec fields) before simulation, so the frame
+    mixtures this writer consumes already carry the frequency shift.
     """
 
     def __init__(self, path: str | Path) -> None:
