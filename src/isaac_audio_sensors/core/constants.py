@@ -16,6 +16,7 @@ FRAME_UNITS = {
     "position": "m",
     "orientation": "quaternion_xyzw",
     "bearing": "deg_clockwise_from_array_forward",
+    "elevation": "deg_up_from_array_horizontal",
     "distance": "m",
     "time": "s",
     "timestamp": "ms",
@@ -23,6 +24,10 @@ FRAME_UNITS = {
     "rms": "linear",
     "gain": "dB",
 }
+
+# Additive v1 unit keys: emitted by current writers but tolerated as absent
+# when reading frames or traces written before the key existed.
+OPTIONAL_FRAME_UNIT_KEYS = ("elevation",)
 
 FRAME_TOP_LEVEL_FIELDS = (
     "schema_version",
@@ -55,6 +60,7 @@ DETECTION_FIELDS = (
     "ground_truth_bearing_deg",
     "source_distance_m",
     "doa",
+    "ground_truth_elevation_deg",
     "source_pose",
     "per_mic_delay_s",
     "per_mic_rms",
@@ -65,7 +71,7 @@ DETECTION_FIELDS = (
 
 # Additive v1 detection fields: always serialized by current writers but kept
 # out of the JSON schema's required list so pre-existing v1 traces stay valid.
-OPTIONAL_DETECTION_FIELDS = ("occluded",)
+OPTIONAL_DETECTION_FIELDS = ("occluded", "ground_truth_elevation_deg")
 
 DOA_FIELDS = (
     "estimated_bearing_deg",
@@ -74,7 +80,13 @@ DOA_FIELDS = (
     "bearing_confidence",
     "ambiguity_class",
     "ambiguity_reason",
+    "estimated_elevation_deg",
+    "candidate_elevation_deg",
 )
+
+# Additive v1 DOA fields: serialized by current writers but kept out of the
+# JSON schema's required list so pre-existing v1 traces stay valid.
+OPTIONAL_DOA_FIELDS = ("estimated_elevation_deg", "candidate_elevation_deg")
 
 POSE3D_FIELDS = (
     "position_m",
@@ -107,7 +119,9 @@ DETECTION_MODES = frozenset(
     }
 )
 
-KNOWN_BACKENDS = frozenset({"geometry_only", "tdoa_synthetic", "room_acoustics"})
+KNOWN_BACKENDS = frozenset(
+    {"geometry_only", "tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}
+)
 
 ROOM_OUT_OF_BOUNDS_POLICIES = frozenset({"error", "clamp"})
 # Clamped positions are pulled this far inside the walls so pyroomacoustics

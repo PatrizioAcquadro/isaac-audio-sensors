@@ -10,7 +10,10 @@ import numpy as np
 import pytest
 
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.room_acoustics import (
+    RoomAcousticsBackend,
+    RoomAcousticsSrpBackend,
+)
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.doa.gcc_phat import (
     estimate_tdoa_diagnostics,
@@ -160,6 +163,111 @@ def test_tdoa_four_mic_clean_azimuth_cases(position, expected_bearing):
     )
     assert set(detection.per_mic_delay_s) == {"front", "right", "rear", "left"}
     assert detection.doa.bearing_confidence > 0.7
+
+
+def _position_from_bearing_elevation(
+    bearing_deg: float,
+    elevation_deg: float,
+    *,
+    distance_m: float = 5.0,
+) -> tuple[float, float, float]:
+    bearing = math.radians(bearing_deg)
+    elevation = math.radians(elevation_deg)
+    return (
+        distance_m * math.cos(elevation) * math.cos(bearing),
+        distance_m * math.cos(elevation) * math.sin(bearing),
+        distance_m * math.sin(elevation),
+    )
+
+
+@pytest.mark.parametrize(
+    ("bearing_deg", "elevation_deg"),
+    [
+        (0.0, 0.0),
+        (0.0, 45.0),
+        (90.0, -30.0),
+        (210.0, 20.0),
+        (315.0, -45.0),
+    ],
+)
+def test_tdoa_tetrahedral_clean_elevation_matches_ground_truth(
+    bearing_deg, elevation_deg
+):
+    array = create_microphone_array(
+        array_id="tetra",
+        prim_path="/World/Rig/TetraArray",
+        layout_name="tetrahedral",
+    )
+    position = _position_from_bearing_elevation(bearing_deg, elevation_deg)
+    frame = TdoaSyntheticBackend().simulate(
+        _scene_with_sources(_source("speaker", position), array=array),
+        array,
+        _window(),
+    )
+
+    detection = frame.detections[0]
+    assert detection.ground_truth_elevation_deg == pytest.approx(
+        elevation_deg, abs=1e-6
+    )
+    assert detection.doa.estimated_bearing_deg == pytest.approx(
+        bearing_deg, abs=2.0
+    )
+    assert detection.doa.estimated_elevation_deg == pytest.approx(
+        elevation_deg, abs=2.0
+    )
+    assert detection.doa.candidate_elevation_deg == pytest.approx(
+        (detection.doa.estimated_elevation_deg,)
+    )
+    assert detection.diagnostics["array_geometry_rank_xyz"] == 3
+    assert detection.diagnostics["oracle_elevation_error_deg"] < 2.0
+    assert detection.doa.bearing_confidence > 0.7
+
+
+def test_tdoa_planar_array_keeps_elevation_none_for_elevated_source():
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    position = _position_from_bearing_elevation(90.0, 35.0)
+    frame = TdoaSyntheticBackend().simulate(
+        _scene_with_sources(_source("speaker", position), array=array),
+        array,
+        _window(),
+    )
+
+    detection = frame.detections[0]
+    assert detection.doa.estimated_elevation_deg is None
+    assert detection.doa.candidate_elevation_deg == ()
+    assert detection.doa.estimated_bearing_deg == pytest.approx(90.0, abs=2.0)
+    assert detection.ground_truth_elevation_deg == pytest.approx(35.0, abs=1e-6)
+    assert detection.diagnostics["array_geometry_rank_xyz"] == 2
+    assert detection.diagnostics["oracle_elevation_error_deg"] is None
+
+
+def test_geometry_backend_emits_exact_elevation():
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    frame = GeometryBackend().simulate(
+        _scene_with_sources(_source("speaker", (3.0, 0.0, 4.0)), array=array),
+        array,
+        _window(),
+    )
+
+    detection = frame.detections[0]
+    expected_elevation = math.degrees(math.asin(4.0 / 5.0))
+    assert detection.doa.estimated_elevation_deg == pytest.approx(
+        expected_elevation, abs=1e-9
+    )
+    assert detection.ground_truth_elevation_deg == pytest.approx(
+        expected_elevation, abs=1e-9
+    )
+    assert detection.doa.candidate_elevation_deg == pytest.approx(
+        (expected_elevation,)
+    )
 
 
 def test_tdoa_two_mic_front_back_ambiguity_is_explicit():
@@ -442,6 +550,117 @@ def test_room_acoustics_fake_pyroom_schedules_multiple_sources(monkeypatch):
         first.detections[0].diagnostics["room_microphone_positions_m"]
         == first.detections[1].diagnostics["room_microphone_positions_m"]
     )
+
+
+def test_room_acoustics_rejects_unknown_doa_estimator():
+    with pytest.raises(ValueError, match="doa_estimator"):
+        RoomAcousticsBackend(doa_estimator="music")
+
+
+def test_room_acoustics_srp_backend_pins_srp_phat_estimator():
+    backend = RoomAcousticsSrpBackend()
+    assert backend.backend_id == "room_acoustics_srp"
+    assert backend.doa_estimator == "srp_phat"
+    with pytest.raises(ValueError, match="pins doa_estimator"):
+        RoomAcousticsSrpBackend(doa_estimator="tdoa_least_squares")
+
+
+def test_room_acoustics_srp_fake_pyroom_emits_srp_frames(monkeypatch):
+    _install_fake_pyroom(monkeypatch)
+
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    scene = _room_scene_with_sources(
+        _source("speaker", (3.0, 0.0, 0.0)),
+        array=array,
+    )
+    backend = RoomAcousticsSrpBackend()
+    frame = backend.simulate(scene, array, _window())
+
+    detection = frame.detections[0]
+    assert frame.backend_id == "room_acoustics_srp"
+    assert frame.provenance == "room_acoustics"
+    assert frame.diagnostics["doa_estimator"] == "srp_phat"
+    assert detection.diagnostics["doa_estimator"] == "srp_phat"
+    srp_diagnostics = detection.diagnostics["srp_phat"]
+    assert srp_diagnostics["pair_count"] == 6
+    assert srp_diagnostics["grid_point_count"] == 180
+    assert srp_diagnostics["elevation_step_deg"] is None
+    assert srp_diagnostics["peak_power"] > srp_diagnostics["mean_power"]
+    assert detection.doa.estimated_bearing_deg == pytest.approx(0.0, abs=15.0)
+    assert detection.doa.estimated_elevation_deg is None
+    # GCC-PHAT delay diagnostics stay emitted alongside the SRP estimate.
+    assert detection.diagnostics["estimated_tdoa_matrix_s"]["rear->front"] > 0.0
+    assert frame == backend.simulate(scene, array, _window())
+
+
+def _near_anechoic_scene(*sources: AudioSourceSpec, array):
+    return AudioSceneSnapshot(
+        stage_id="room_srp_accuracy_test",
+        timestamp_ms=0,
+        sources=sources,
+        arrays=(array,),
+        room=RoomAcousticsSpec(
+            room_id="anechoic_room",
+            dimensions_m=(6.0, 5.0, 3.0),
+            absorption=0.9,
+            max_order=0,
+            origin_m=(-1.5, -1.0, -1.5),
+        ),
+    )
+
+
+@pytest.mark.skipif(
+    not RoomAcousticsBackend.is_available(),
+    reason="pyroomacoustics is not installed in this environment.",
+)
+def test_room_acoustics_srp_real_pyroom_bearing_accuracy():
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+        spacing_m=0.3,
+    )
+    scene = _near_anechoic_scene(_source("speaker", (0.0, 2.5, 0.0)), array=array)
+    frame = RoomAcousticsSrpBackend().simulate(scene, array, _window())
+
+    detection = frame.detections[0]
+    assert detection.diagnostics["doa_estimator"] == "srp_phat"
+    assert detection.doa.estimated_bearing_deg == pytest.approx(90.0, abs=6.0)
+    assert detection.doa.estimated_elevation_deg is None
+
+
+@pytest.mark.skipif(
+    not RoomAcousticsBackend.is_available(),
+    reason="pyroomacoustics is not installed in this environment.",
+)
+def test_room_acoustics_srp_real_pyroom_elevation_accuracy():
+    array = create_microphone_array(
+        array_id="tetra",
+        prim_path="/World/Rig/TetraArray",
+        layout_name="tetrahedral",
+        spacing_m=0.3,
+    )
+    source_position = (2.0, 0.0, 1.2)
+    scene = _near_anechoic_scene(_source("speaker", source_position), array=array)
+    frame = RoomAcousticsSrpBackend().simulate(scene, array, _window())
+
+    detection = frame.detections[0]
+    expected_elevation = math.degrees(
+        math.asin(1.2 / math.sqrt(2.0**2 + 1.2**2))
+    )
+    assert detection.ground_truth_elevation_deg == pytest.approx(
+        expected_elevation, abs=1e-6
+    )
+    assert detection.doa.estimated_bearing_deg == pytest.approx(0.0, abs=6.0)
+    assert detection.doa.estimated_elevation_deg == pytest.approx(
+        expected_elevation, abs=8.0
+    )
+    assert detection.diagnostics["srp_phat"]["elevation_step_deg"] == 5.0
+    assert detection.diagnostics["oracle_elevation_error_deg"] < 8.0
 
 
 def test_room_acoustics_rejects_non_public_file_asset_paths(monkeypatch, tmp_path):

@@ -7,13 +7,17 @@ from isaac_audio_sensors.core.backends.base import (
     get_backend,
 )
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.room_acoustics import (
+    RoomAcousticsBackend,
+    RoomAcousticsSrpBackend,
+)
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 
 __all__ = [
     "AudioSimulationBackend",
     "GeometryBackend",
     "RoomAcousticsBackend",
+    "RoomAcousticsSrpBackend",
     "TdoaSyntheticBackend",
     "get_backend",
 ]

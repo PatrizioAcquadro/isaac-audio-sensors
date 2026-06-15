@@ -48,9 +48,14 @@
         "candidate_bearing_deg": [
           26.56505117707799
         ],
-        "estimated_bearing_deg": 26.56505117707799
+        "candidate_elevation_deg": [
+          0.0
+        ],
+        "estimated_bearing_deg": 26.56505117707799,
+        "estimated_elevation_deg": 0.0
       },
       "ground_truth_bearing_deg": 26.56505117707799,
+      "ground_truth_elevation_deg": 0.0,
       "occluded": false,
       "per_mic_delay_s": {},
       "per_mic_rms": {
@@ -97,9 +102,14 @@
         "candidate_bearing_deg": [
           303.69006752597977
         ],
-        "estimated_bearing_deg": 303.69006752597977
+        "candidate_elevation_deg": [
+          0.0
+        ],
+        "estimated_bearing_deg": 303.69006752597977,
+        "estimated_elevation_deg": 0.0
       },
       "ground_truth_bearing_deg": 303.69006752597977,
+      "ground_truth_elevation_deg": 0.0,
       "occluded": false,
       "per_mic_delay_s": {},
       "per_mic_rms": {
@@ -142,6 +152,7 @@
   "units": {
     "bearing": "deg_clockwise_from_array_forward",
     "distance": "m",
+    "elevation": "deg_up_from_array_horizontal",
     "gain": "dB",
     "orientation": "quaternion_xyzw",
     "position": "m",

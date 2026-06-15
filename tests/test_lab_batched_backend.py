@@ -412,12 +412,15 @@ def test_batched_lstsq_matches_scalar_solver():
         if expected is None:
             assert length <= 1e-9
             continue
+        expected_ux, expected_uy, expected_uz, expected_residual = expected
+        # quad_front is planar, so the scalar solver stays on the XY path.
+        assert expected_uz is None
         unit = direction / length
         predicted = baseline.matmul(unit)
         residual = float(torch.sqrt(((predicted - b) ** 2).mean()))
-        assert float(unit[0]) == pytest.approx(expected[0], abs=1e-4)
-        assert float(unit[1]) == pytest.approx(expected[1], abs=1e-4)
-        assert residual == pytest.approx(expected[2], abs=1e-5)
+        assert float(unit[0]) == pytest.approx(expected_ux, abs=1e-4)
+        assert float(unit[1]) == pytest.approx(expected_uy, abs=1e-4)
+        assert residual == pytest.approx(expected_residual, abs=1e-5)
 
 
 # ---------------------------------------------------------------------------

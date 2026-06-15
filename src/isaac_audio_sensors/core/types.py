@@ -13,6 +13,7 @@ from isaac_audio_sensors.core.constants import (
     FRAME_PROVENANCE_VALUES,
     FRAME_SCHEMA_VERSION,
     FRAME_UNITS,
+    OPTIONAL_FRAME_UNIT_KEYS,
     ROOM_OUT_OF_BOUNDS_POLICIES,
 )
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
@@ -89,6 +90,7 @@ class AudioSourceSpec:
     duration_s: float | None
     gain_db: float
     directivity: str = "omni"
+    velocity_world_mps: Vector3 | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty(self.source_id, "AudioSourceSpec.source_id")
@@ -100,6 +102,15 @@ class AudioSourceSpec:
             "position_world",
             as_vector3(self.position_world, "AudioSourceSpec.position_world"),
         )
+        if self.velocity_world_mps is not None:
+            object.__setattr__(
+                self,
+                "velocity_world_mps",
+                as_vector3(
+                    self.velocity_world_mps,
+                    "AudioSourceSpec.velocity_world_mps",
+                ),
+            )
         if self.orientation_world_quat is not None:
             object.__setattr__(
                 self,
@@ -173,6 +184,7 @@ class MicrophoneArraySpec:
     microphones: tuple[MicrophoneSpec, ...]
     sample_rate_hz: int = DEFAULT_SAMPLE_RATE_HZ
     coordinate_convention: str = COORDINATE_CONVENTION
+    velocity_world_mps: Vector3 | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty(self.array_id, "MicrophoneArraySpec.array_id")
@@ -200,6 +212,15 @@ class MicrophoneArraySpec:
                 field_name,
                 as_vector3(
                     getattr(self, field_name), f"MicrophoneArraySpec.{field_name}"
+                ),
+            )
+        if self.velocity_world_mps is not None:
+            object.__setattr__(
+                self,
+                "velocity_world_mps",
+                as_vector3(
+                    self.velocity_world_mps,
+                    "MicrophoneArraySpec.velocity_world_mps",
                 ),
             )
         microphones = tuple(self.microphones)
@@ -299,7 +320,15 @@ class AudioTimeWindow:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class DoaEstimate:
-    """Direction-of-arrival estimate with explicit ambiguity representation."""
+    """Direction-of-arrival estimate with explicit ambiguity representation.
+
+    Elevation fields are additive optional v1 fields measured in degrees up
+    from the array's forward/right plane (positive toward ``up_vec_world``),
+    in ``[-90.0, +90.0]``. They stay ``None``/empty unless the producer can
+    resolve elevation (e.g. a rank-3 microphone layout); planar arrays keep
+    the azimuth-only behavior. ``bearing_confidence`` covers the full
+    estimated direction, including elevation when present.
+    """
 
     estimated_bearing_deg: float | None
     candidate_bearing_deg: tuple[float, ...] = field(default_factory=tuple)
@@ -307,6 +336,8 @@ class DoaEstimate:
     bearing_confidence: float = 0.0
     ambiguity_class: str | None = None
     ambiguity_reason: str | None = None
+    estimated_elevation_deg: float | None = None
+    candidate_elevation_deg: tuple[float, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         estimated = self.estimated_bearing_deg
@@ -328,6 +359,22 @@ class DoaEstimate:
             self.bearing_confidence,
             "DoaEstimate.bearing_confidence",
         )
+        if self.estimated_elevation_deg is not None:
+            _require_elevation_deg(
+                self.estimated_elevation_deg,
+                "DoaEstimate.estimated_elevation_deg",
+            )
+            object.__setattr__(
+                self,
+                "estimated_elevation_deg",
+                float(self.estimated_elevation_deg),
+            )
+        elevation_candidates = tuple(
+            float(value) for value in self.candidate_elevation_deg
+        )
+        for value in elevation_candidates:
+            _require_elevation_deg(value, "DoaEstimate.candidate_elevation_deg")
+        object.__setattr__(self, "candidate_elevation_deg", elevation_candidates)
         if self.bearing_sector is not None:
             _require_non_empty(self.bearing_sector, "DoaEstimate.bearing_sector")
         if self.ambiguity_class is not None:
@@ -348,6 +395,7 @@ class AudioDetection:
     ground_truth_bearing_deg: float | None
     source_distance_m: float | None
     doa: DoaEstimate
+    ground_truth_elevation_deg: float | None = None
     source_pose: Pose3D | None = None
     per_mic_delay_s: dict[str, float] = field(default_factory=dict)
     per_mic_rms: dict[str, float] = field(default_factory=dict)
@@ -376,6 +424,16 @@ class AudioDetection:
                 self,
                 "ground_truth_bearing_deg",
                 normalize_bearing_deg(self.ground_truth_bearing_deg),
+            )
+        if self.ground_truth_elevation_deg is not None:
+            _require_elevation_deg(
+                self.ground_truth_elevation_deg,
+                "AudioDetection.ground_truth_elevation_deg",
+            )
+            object.__setattr__(
+                self,
+                "ground_truth_elevation_deg",
+                float(self.ground_truth_elevation_deg),
             )
         if self.source_distance_m is not None:
             _require_finite(self.source_distance_m, "AudioDetection.source_distance_m")
@@ -474,7 +532,9 @@ class AudioSensorFrame:
                 raise ValueError("AudioSensorFrame.max_events must be non-negative.")
             object.__setattr__(self, "max_events", max_events)
         units = {str(key): str(value) for key, value in self.units.items()}
-        missing_units = set(FRAME_UNITS) - set(units)
+        missing_units = (
+            set(FRAME_UNITS) - set(units) - set(OPTIONAL_FRAME_UNIT_KEYS)
+        )
         if missing_units:
             raise ValueError(
                 "AudioSensorFrame.units is missing required keys "
@@ -483,7 +543,7 @@ class AudioSensorFrame:
         changed_units = {
             key: units[key]
             for key, expected_value in FRAME_UNITS.items()
-            if units[key] != expected_value
+            if key in units and units[key] != expected_value
         }
         if changed_units:
             raise ValueError(
@@ -693,6 +753,12 @@ def _require_probability(value: float, field_name: str) -> None:
     _require_finite(value, field_name)
     if not 0.0 <= float(value) <= 1.0:
         raise ValueError(f"{field_name} must be between 0.0 and 1.0.")
+
+
+def _require_elevation_deg(value: float, field_name: str) -> None:
+    _require_finite(value, field_name)
+    if not -90.0 <= float(value) <= 90.0:
+        raise ValueError(f"{field_name} must be between -90.0 and 90.0.")
 
 
 def _require_unique_ids(values: list[str], label: str) -> None:

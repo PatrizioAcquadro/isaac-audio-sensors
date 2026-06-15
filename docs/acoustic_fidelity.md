@@ -21,7 +21,8 @@ L0 `geometry_only`, L1 `tdoa_synthetic`, and L2 `room_acoustics` are stable
 public backend identifiers. Their names appear in configs, trace
 `backend_id`, docs, tests, and the ladder metadata. Compatible v1 releases may
 add new backend ids, but must not rename these ids or reuse them with changed
-meaning.
+meaning. `room_acoustics_srp` was added in `1.7.0` as a second L2 backend id
+(the room pipeline with SRP-PHAT as the DOA estimator) under the same rules.
 
 All levels emit, or future implementations must emit, records compatible with
 `AudioSensorFrame` v1 until a future schema version is introduced. New
@@ -34,7 +35,7 @@ AudioSensorFrame v1 compatibility is part of the ladder contract.
 | --- | --- | --- | --- | --- | --- |
 | L0 | `geometry_only` | Stable v1 | backend id `geometry_only` | None | Emits v1 frames |
 | L1 | `tdoa_synthetic` | Stable v1 | backend id `tdoa_synthetic` | None | Emits v1 frames |
-| L2 | `room_acoustics` | Supported optional v1 | backend id `room_acoustics` | `room` extra with `pyroomacoustics`, `scipy`, and `soundfile` | Emits v1 frames when installed |
+| L2 | `room_acoustics` | Supported optional v1 | backend ids `room_acoustics` and `room_acoustics_srp` | `room` extra with `pyroomacoustics`, `scipy`, and `soundfile` | Emits v1 frames when installed |
 | L3 | `advanced_realism` | Provisional v1 direction | future backend family, no selectable v1 backend id | Future advanced-acoustics extras | Must remain v1-compatible until a new schema exists |
 | L4 | `sim_real_calibration` | Experimental/tooling v1 direction | future tooling family, no stable v1 runtime backend id | Future calibration-tooling extras | Artifacts and diagnostics must stay optional for v1 readers |
 
@@ -80,7 +81,11 @@ shoebox-room response, generate per-microphone waveforms, and estimate delays
 with GCC-PHAT diagnostics from those waveforms. RIR length, RIR peak delay,
 waveform sample count, per-mic RMS, room config, speed of sound,
 `pyroomacoustics` version, source/microphone room positions, and direct-path
-delay comparison data are recorded in additive diagnostics.
+delay comparison data are recorded in additive diagnostics. Since `1.7.0` the
+level carries two backend ids: `room_acoustics` (GCC-PHAT delays into the
+shared least-squares solver) and `room_acoustics_srp` (SRP-PHAT
+steered-response DOA over the same L2 waveforms); see
+[Backends](backends.md).
 
 Multiple active sources use the same half-open window and `max_events`
 scheduling policy as L0/L1. In v1, L2 simulates scheduled sources

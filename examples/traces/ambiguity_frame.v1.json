@@ -30,6 +30,7 @@
       "diagnostics": {
         "air_absorption_db_per_m": 0.0,
         "array_geometry_rank_xy": 1,
+        "array_geometry_rank_xyz": 1,
         "backend": "tdoa_synthetic",
         "clock_jitter_s": 0.0,
         "directivity": "omni",
@@ -38,6 +39,7 @@
         "noise_seed": null,
         "noise_std_s": 0.0,
         "oracle_bearing_error_deg": null,
+        "oracle_elevation_error_deg": null,
         "per_mic_distance_m": {
           "left": 5.000639959045242,
           "right": 5.000639959045242
@@ -66,9 +68,12 @@
           0.0,
           180.0
         ],
-        "estimated_bearing_deg": null
+        "candidate_elevation_deg": [],
+        "estimated_bearing_deg": null,
+        "estimated_elevation_deg": null
       },
       "ground_truth_bearing_deg": 0.0,
+      "ground_truth_elevation_deg": 0.0,
       "occluded": false,
       "per_mic_delay_s": {
         "left": 0.01457912524502986,
@@ -98,6 +103,7 @@
     "air_absorption_db_per_m": 0.0,
     "ambiguity_policy": "none",
     "array_geometry_rank_xy": 1,
+    "array_geometry_rank_xyz": 1,
     "backend": "tdoa_synthetic",
     "clock_jitter_s": 0.0,
     "gain_mismatch_db": 0.0,
@@ -118,6 +124,7 @@
   "units": {
     "bearing": "deg_clockwise_from_array_forward",
     "distance": "m",
+    "elevation": "deg_up_from_array_horizontal",
     "gain": "dB",
     "orientation": "quaternion_xyzw",
     "position": "m",

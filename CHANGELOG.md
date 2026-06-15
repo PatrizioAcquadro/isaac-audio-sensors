@@ -1,5 +1,63 @@
 # Changelog
 
+## 1.7.0 - 2026-06-12
+
+3D DOA, SRP-PHAT, and Doppler release. The frame schema version is unchanged
+at `ias.audio_sensor_frame.v1`; all new frame, DOA, and unit fields are
+additive optional per the v1 evolution policy, and pre-1.7.0 traces still
+load with defaults.
+
+3D DOA and elevation:
+
+- `DoaEstimate` gains additive optional `estimated_elevation_deg` and
+  `candidate_elevation_deg` (degrees up from the array's forward/right
+  plane, `[-90, +90]`); detections gain `ground_truth_elevation_deg` and the
+  `oracle_elevation_error_deg` diagnostic; `units` gains the additive
+  `elevation` key.
+- The multi-microphone least-squares solver works in full 3D when
+  `layout_rank_xyz` reports rank 3; planar arrays keep the exact azimuth-only
+  behavior (elevation stays `None` instead of guessing the cone-ambiguous
+  sign). `array_geometry_rank_xyz` is recorded in diagnostics.
+- New `tetrahedral` layout preset: a centered regular tetrahedron with edge
+  length `spacing_m`, the built-in rank-3 layout. Elevation accuracy is
+  gated against ground truth in 3D scenes at L1 (clean within 2 degrees) and
+  at L2 with real pyroomacoustics.
+- `geometry_only` (L0) emits exact geometric elevation.
+
+SRP-PHAT estimation path:
+
+- New public module `isaac_audio_sensors.core.doa.srp_phat`: PHAT-weighted
+  steered-response power over a deterministic azimuth grid (2 degrees), plus
+  an elevation grid (5 degrees) for rank-3 layouts.
+- `RoomAcousticsBackend` accepts `doa_estimator`
+  (`"tdoa_least_squares"` default or `"srp_phat"`), and the new
+  `room_acoustics_srp` backend id pins SRP-PHAT over the same L2 room
+  pipeline. It is selectable through `audio.default_backend`, `get_backend`,
+  and the extension GUI, and is placed in the fidelity ladder as a second L2
+  backend id. Estimator-id dispatch leaves room for MUSIC later.
+- Diagnostics gain `doa_estimator` (frame and detection) and the `srp_phat`
+  detection namespace (grid steps, grid point count, pair count, peak and
+  mean power); GCC-PHAT TDOA diagnostics stay emitted in both modes.
+
+Doppler:
+
+- `AudioSourceSpec` and `MicrophoneArraySpec` gain additive optional
+  `velocity_world_mps`; TOML sources accept the matching key. Velocity-less
+  scenes stay byte-identical.
+- L1 `tdoa_synthetic` emits metadata-only `doppler_factor` and
+  `per_mic_doppler_factor` detection diagnostics when a velocity is set.
+- L2 `room_acoustics` resamples each source's window signal by the
+  observed/emitted frequency ratio at the array center before simulation, so
+  mixtures, GCC/SRP estimates, and exported per-frame and session waveforms
+  carry the shift; `doppler_factor` and `doppler_waveform_rendered`
+  diagnostics record what was applied. Factors clamp to `[1/8, 8]`.
+
+Deferred:
+
+- Automatic velocity tracking from per-tick Isaac pose deltas (velocities
+  are authored on the specs in 1.7.0), per-microphone Doppler rendering,
+  rendering sim-time gaps between throttled ticks, and MUSIC.
+
 ## 1.6.0 - 2026-06-12
 
 Scene-anchored rooms release: `room_acoustics` rooms now occupy an explicit

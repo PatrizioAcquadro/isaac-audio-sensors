@@ -143,6 +143,9 @@ def _detection_from_dict(payload: dict[str, Any]) -> AudioDetection:
         ground_truth_bearing_deg=_optional_float(
             payload.get("ground_truth_bearing_deg")
         ),
+        ground_truth_elevation_deg=_optional_float(
+            payload.get("ground_truth_elevation_deg")
+        ),
         source_distance_m=_optional_float(payload.get("source_distance_m")),
         doa=DoaEstimate(
             estimated_bearing_deg=_optional_float(
@@ -155,6 +158,13 @@ def _detection_from_dict(payload: dict[str, Any]) -> AudioDetection:
             bearing_confidence=float(doa_payload.get("bearing_confidence", 0.0)),
             ambiguity_class=doa_payload.get("ambiguity_class"),
             ambiguity_reason=doa_payload.get("ambiguity_reason"),
+            estimated_elevation_deg=_optional_float(
+                doa_payload.get("estimated_elevation_deg")
+            ),
+            candidate_elevation_deg=tuple(
+                float(value)
+                for value in doa_payload.get("candidate_elevation_deg", ())
+            ),
         ),
         source_pose=_pose_from_dict(payload.get("source_pose")),
         per_mic_delay_s=dict(payload.get("per_mic_delay_s", {})),

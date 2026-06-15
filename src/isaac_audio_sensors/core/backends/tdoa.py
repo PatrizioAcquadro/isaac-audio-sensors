@@ -18,6 +18,7 @@ from isaac_audio_sensors.core.doa.ambiguity import (
     two_mic_candidate_bearings,
 )
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
+from isaac_audio_sensors.core.doppler import doppler_factor, source_doppler_factor
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
     bearing_from_components,
@@ -28,6 +29,7 @@ from isaac_audio_sensors.core.math_utils import (
 )
 from isaac_audio_sensors.core.microphone_array import (
     layout_rank_xy,
+    layout_rank_xyz,
     microphone_world_positions,
     validate_tdoa_array,
 )
@@ -120,6 +122,9 @@ class TdoaSyntheticBackend:
                 ),
             )
             ground_truth_bearing = _ground_truth_bearing(source.position_world, sensor)
+            ground_truth_elevation = _ground_truth_elevation(
+                source.position_world, sensor
+            )
             doa = self._estimate_doa(
                 sensor=sensor,
                 per_mic_delay_s=delay_result.per_mic_delay_s,
@@ -132,9 +137,20 @@ class TdoaSyntheticBackend:
                     ground_truth_bearing,
                 )
             )
+            oracle_elevation_error = (
+                None
+                if doa.estimated_elevation_deg is None
+                or ground_truth_elevation is None
+                else abs(doa.estimated_elevation_deg - ground_truth_elevation)
+            )
             for mic_id, rms in delay_result.per_mic_rms.items():
                 aggregate_rms_power[mic_id] += rms * rms
 
+            doppler_diagnostics = _doppler_diagnostics(
+                source,
+                sensor,
+                speed_of_sound_mps=self.speed_of_sound_mps,
+            )
             detections.append(
                 AudioDetection(
                     detection_id=deterministic_detection_id(
@@ -147,6 +163,7 @@ class TdoaSyntheticBackend:
                     detection_mode="scheduled_known_source",
                     timestamp_ms=time_window.timestamp_ms,
                     ground_truth_bearing_deg=ground_truth_bearing,
+                    ground_truth_elevation_deg=ground_truth_elevation,
                     source_distance_m=delay_result.source_distance_m,
                     doa=doa,
                     source_pose=Pose3D.from_source(source),
@@ -159,6 +176,7 @@ class TdoaSyntheticBackend:
                         "physical_waveform": False,
                         "speed_of_sound_mps": self.speed_of_sound_mps,
                         "array_geometry_rank_xy": layout_rank_xy(sensor),
+                        "array_geometry_rank_xyz": layout_rank_xyz(sensor),
                         "per_mic_distance_m": delay_result.per_mic_distance_m,
                         "tdoa_matrix_s": _tdoa_matrix(delay_result.per_mic_delay_s),
                         "noise_std_s": self.noise_std_s,
@@ -170,10 +188,12 @@ class TdoaSyntheticBackend:
                         "directivity": source.directivity,
                         "directivity_applied": resolve_directivity(source),
                         "oracle_bearing_error_deg": oracle_bearing_error,
+                        "oracle_elevation_error_deg": oracle_elevation_error,
                         "per_mic_gain_offset_db": (
                             delay_result.per_mic_gain_offset_db
                         ),
                         "stress_controls_deterministic": True,
+                        **doppler_diagnostics,
                         **occlusion_detection_diagnostics(occlusion),
                     },
                 )
@@ -215,6 +235,7 @@ class TdoaSyntheticBackend:
                 "noise_seed": self.seed,
                 "air_absorption_db_per_m": self.air_absorption_db_per_m,
                 "array_geometry_rank_xy": layout_rank_xy(sensor),
+                "array_geometry_rank_xyz": layout_rank_xyz(sensor),
                 "stress_controls_deterministic": True,
             },
         )
@@ -385,7 +406,7 @@ class TdoaSyntheticBackend:
                 ambiguity_reason="Microphone layout cannot solve a 2D direction.",
             )
 
-        ux, uy, residual = result
+        ux, uy, uz, residual = result
         bearing = bearing_from_components(ux, uy)
         if bearing is None:
             return DoaEstimate(
@@ -394,6 +415,11 @@ class TdoaSyntheticBackend:
                 ambiguity_class="degenerate_solution",
                 ambiguity_reason="Least-squares direction has zero horizontal norm.",
             )
+        elevation = (
+            None
+            if uz is None
+            else math.degrees(math.asin(clamp(uz, -1.0, 1.0)))
+        )
         residual_penalty = 1.0 / (1.0 + residual * 40.0)
         confidence = 0.95 * self._stress_penalty(0.001) * residual_penalty
         return DoaEstimate(
@@ -403,6 +429,8 @@ class TdoaSyntheticBackend:
             bearing_confidence=clamp(confidence, 0.0, 1.0),
             ambiguity_class=None,
             ambiguity_reason=None,
+            estimated_elevation_deg=elevation,
+            candidate_elevation_deg=(() if elevation is None else (elevation,)),
         )
 
     def _stress_penalty(self, reference_delay_s: float) -> float:
@@ -475,11 +503,70 @@ def _ground_truth_bearing(
     )
 
 
+def _doppler_diagnostics(
+    source: AudioSourceSpec,
+    sensor: MicrophoneArraySpec,
+    *,
+    speed_of_sound_mps: float,
+) -> dict[str, object]:
+    """Doppler metadata for L1: frequency-shift ratios only, no rendering.
+
+    Emitted only when the source or array declares a velocity so static
+    scenes keep byte-identical diagnostics.
+    """
+
+    factor = source_doppler_factor(
+        source,
+        sensor,
+        speed_of_sound_mps=speed_of_sound_mps,
+    )
+    if factor is None:
+        return {}
+    per_mic = {
+        mic_id: doppler_factor(
+            source_position=source.position_world,
+            listener_position=mic_position,
+            source_velocity=source.velocity_world_mps,
+            listener_velocity=sensor.velocity_world_mps,
+            speed_of_sound_mps=speed_of_sound_mps,
+        )
+        for mic_id, mic_position in microphone_world_positions(sensor).items()
+    }
+    return {
+        "doppler_factor": factor,
+        "per_mic_doppler_factor": per_mic,
+        "doppler_waveform_rendered": False,
+    }
+
+
+def _ground_truth_elevation(
+    source_position_world: tuple[float, float, float],
+    sensor: MicrophoneArraySpec,
+) -> float | None:
+    delta = subtract(source_position_world, sensor.position_world)
+    distance = norm(delta)
+    if distance <= EPSILON:
+        return None
+    up_component = dot(delta, sensor.up_vec_world)
+    return math.degrees(math.asin(clamp(up_component / distance, -1.0, 1.0)))
+
+
 def _least_squares_direction(
     sensor: MicrophoneArraySpec,
     per_mic_delay_s: dict[str, float],
     speed_of_sound_mps: float,
-) -> tuple[float, float, float] | None:
+) -> tuple[float, float, float | None, float] | None:
+    """Solve the far-field direction in local coordinates.
+
+    Returns ``(ux, uy, uz, residual)`` with a unit 3D direction when the
+    layout has full 3D rank, or ``(ux, uy, None, residual)`` from the planar
+    XY solve otherwise (unchanged legacy behavior for planar arrays).
+    """
+
+    if layout_rank_xyz(sensor) >= 3:
+        return _least_squares_direction_3d(
+            sensor, per_mic_delay_s, speed_of_sound_mps
+        )
     microphones = sensor.microphones
     ref = microphones[0]
     ref_pos = ref.relative_position_m
@@ -511,7 +598,70 @@ def _least_squares_direction(
     for ax, ay, b in rows:
         residual += (ax * ux + ay * uy - b) ** 2
     residual = math.sqrt(residual / max(len(rows), 1))
-    return ux, uy, residual
+    return ux, uy, None, residual
+
+
+def _least_squares_direction_3d(
+    sensor: MicrophoneArraySpec,
+    per_mic_delay_s: dict[str, float],
+    speed_of_sound_mps: float,
+) -> tuple[float, float, float | None, float] | None:
+    microphones = sensor.microphones
+    ref = microphones[0]
+    ref_pos = ref.relative_position_m
+    ref_delay = per_mic_delay_s[ref.mic_id]
+    m_xx = m_xy = m_xz = m_yy = m_yz = m_zz = 0.0
+    v_x = v_y = v_z = 0.0
+    rows: list[tuple[float, float, float, float]] = []
+    for microphone in microphones[1:]:
+        pos = microphone.relative_position_m
+        ax = pos[0] - ref_pos[0]
+        ay = pos[1] - ref_pos[1]
+        az = pos[2] - ref_pos[2]
+        b = -speed_of_sound_mps * (per_mic_delay_s[microphone.mic_id] - ref_delay)
+        rows.append((ax, ay, az, b))
+        m_xx += ax * ax
+        m_xy += ax * ay
+        m_xz += ax * az
+        m_yy += ay * ay
+        m_yz += ay * az
+        m_zz += az * az
+        v_x += ax * b
+        v_y += ay * b
+        v_z += az * b
+    det = (
+        m_xx * (m_yy * m_zz - m_yz * m_yz)
+        - m_xy * (m_xy * m_zz - m_yz * m_xz)
+        + m_xz * (m_xy * m_yz - m_yy * m_xz)
+    )
+    if abs(det) <= EPSILON:
+        return None
+    ux = (
+        v_x * (m_yy * m_zz - m_yz * m_yz)
+        - m_xy * (v_y * m_zz - m_yz * v_z)
+        + m_xz * (v_y * m_yz - m_yy * v_z)
+    ) / det
+    uy = (
+        m_xx * (v_y * m_zz - v_z * m_yz)
+        - v_x * (m_xy * m_zz - m_yz * m_xz)
+        + m_xz * (m_xy * v_z - v_y * m_xz)
+    ) / det
+    uz = (
+        m_xx * (m_yy * v_z - m_yz * v_y)
+        - m_xy * (m_xy * v_z - v_y * m_xz)
+        + v_x * (m_xy * m_yz - m_yy * m_xz)
+    ) / det
+    length = math.sqrt(ux * ux + uy * uy + uz * uz)
+    if length <= EPSILON:
+        return None
+    ux /= length
+    uy /= length
+    uz /= length
+    residual = 0.0
+    for ax, ay, az, b in rows:
+        residual += (ax * ux + ay * uy + az * uz - b) ** 2
+    residual = math.sqrt(residual / max(len(rows), 1))
+    return ux, uy, uz, residual
 
 
 def _tdoa_matrix(per_mic_delay_s: dict[str, float]) -> dict[str, float]:

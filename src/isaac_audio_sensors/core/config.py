@@ -177,6 +177,11 @@ def _parse_sources(raw_sources: Any) -> tuple[AudioSourceSpec, ...]:
                 ),
                 gain_db=float(raw_source.get("gain_db", 0.0)),
                 directivity=str(raw_source.get("directivity", "omni")),
+                velocity_world_mps=(
+                    None
+                    if raw_source.get("velocity_world_mps") is None
+                    else tuple(raw_source["velocity_world_mps"])
+                ),
             )
         )
     return tuple(sources)

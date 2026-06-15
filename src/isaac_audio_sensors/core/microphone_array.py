@@ -12,6 +12,7 @@ from isaac_audio_sensors.core.math_utils import (
     add,
     as_quaternion_xyzw,
     basis_from_quaternion,
+    cross,
     dot,
     norm,
     scale,
@@ -75,6 +76,28 @@ def microphone_layout(
             MicrophoneSpec(mic_id="right", relative_position_m=(0.0, half, 0.0)),
             MicrophoneSpec(mic_id="rear", relative_position_m=(-half, 0.0, 0.0)),
             MicrophoneSpec(mic_id="left", relative_position_m=(0.0, -half, 0.0)),
+        )
+    if layout_name == "tetrahedral":
+        # Centered regular tetrahedron with edge length spacing_m; the only
+        # built-in rank-3 layout, enabling elevation estimation.
+        reach = spacing_m / (2.0 * math.sqrt(2.0))
+        return (
+            MicrophoneSpec(
+                mic_id="front_right_up",
+                relative_position_m=(reach, reach, reach),
+            ),
+            MicrophoneSpec(
+                mic_id="front_left_down",
+                relative_position_m=(reach, -reach, -reach),
+            ),
+            MicrophoneSpec(
+                mic_id="rear_right_down",
+                relative_position_m=(-reach, reach, -reach),
+            ),
+            MicrophoneSpec(
+                mic_id="rear_left_up",
+                relative_position_m=(-reach, -reach, reach),
+            ),
         )
     raise ValueError(f"Unknown microphone layout {layout_name!r}.")
 
@@ -144,6 +167,49 @@ def layout_rank_xy(array: MicrophoneArraySpec) -> int:
     """Return a simple local-XY layout rank used in diagnostics."""
 
     return _layout_rank_xy(array)
+
+
+def layout_rank_xyz(array: MicrophoneArraySpec) -> int:
+    """Return the full local-3D layout rank (0-3) used for elevation gating."""
+
+    return microphone_positions_rank_xyz(
+        [microphone.relative_position_m for microphone in array.microphones]
+    )
+
+
+def microphone_positions_rank_xyz(positions: list[Vector3]) -> int:
+    """Return the affine rank (0-3) of microphone positions in 3D."""
+
+    if len(positions) <= 1:
+        return 0
+
+    origin = positions[0]
+    vectors = [
+        (
+            position[0] - origin[0],
+            position[1] - origin[1],
+            position[2] - origin[2],
+        )
+        for position in positions[1:]
+    ]
+    vectors = [vector for vector in vectors if norm(vector) > 1e-9]
+    if not vectors:
+        return 0
+
+    first = vectors[0]
+    second = None
+    for vector in vectors[1:]:
+        if norm(cross(first, vector)) > 1e-9:
+            second = vector
+            break
+    if second is None:
+        return 1
+
+    plane_normal = cross(first, second)
+    for vector in vectors:
+        if abs(dot(plane_normal, vector)) > 1e-9:
+            return 3
+    return 2
 
 
 def _layout_rank_xy(array: MicrophoneArraySpec) -> int:

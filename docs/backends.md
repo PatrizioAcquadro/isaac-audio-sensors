@@ -9,10 +9,12 @@ The backend ids below are tied to the public
 v1. L3 advanced realism and L4 sim-real calibration are documented future
 directions, not selectable v1 runtime backends.
 
-The implemented backend ids `geometry_only`, `tdoa_synthetic`, and
-`room_acoustics` are public v1 identifiers. Renaming them would break config,
-trace, docs, and ladder compatibility; new backend families must be added under
-new ids instead.
+The implemented backend ids `geometry_only`, `tdoa_synthetic`,
+`room_acoustics`, and `room_acoustics_srp` are public v1 identifiers.
+Renaming them would break config, trace, docs, and ladder compatibility; new
+backend families must be added under new ids instead. `room_acoustics_srp`
+(added in `1.7.0`) shares the L2 room pipeline and differs only in the DOA
+estimator.
 
 The canonical promise boundary is [V1 Public Scope](v1_scope.md). Backends do
 not make sim-real calibration, real hardware benchmarks, complete L3/L4, or
@@ -180,3 +182,26 @@ calibrated microphone response, production beamforming, or sim-real transfer.
 `MicrophoneSpec.self_noise_db` and `AudioSourceSpec.directivity` are
 metadata-only at L2: they pass through frames unchanged but are not applied to
 the simulated waveforms.
+
+Since `1.7.0` the constructor accepts `doa_estimator` (default
+`"tdoa_least_squares"`, the GCC-PHAT-to-least-squares path above, or
+`"srp_phat"`); the active estimator is recorded in the `doa_estimator` frame
+and detection diagnostic. When a source or array declares
+`velocity_world_mps`, the backend resamples that source's window signal by
+the per-window Doppler factor before simulation (see
+[Room Acoustics](room_acoustics.md)).
+
+## room_acoustics_srp
+
+`RoomAcousticsSrpBackend` (backend id `room_acoustics_srp`, added in `1.7.0`)
+is the same L2 room pipeline with SRP-PHAT pinned as the DOA estimator: the
+PHAT-weighted pair correlations of each source's premix waveforms are steered
+over a deterministic azimuth grid (2 degrees), plus an elevation grid
+(5 degrees) for rank-3 layouts such as `tetrahedral`, and the grid peak
+becomes the estimate. Bearing confidence is the normalized peak prominence of
+the steered-response grid. Detections additionally carry an `srp_phat`
+diagnostic namespace (grid steps, grid point count, pair count, peak and mean
+power), while GCC-PHAT TDOA diagnostics stay emitted for comparison. Frames
+keep provenance `room_acoustics` and the same optional dependencies; the
+estimator-id dispatch leaves room for future waveform-domain estimators such
+as MUSIC under new ids.

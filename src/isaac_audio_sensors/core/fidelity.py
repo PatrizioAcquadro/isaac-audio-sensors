@@ -84,12 +84,13 @@ ACOUSTIC_FIDELITY_LADDER = (
         level=AcousticFidelityLevel.L2,
         public_name="room_acoustics",
         lifecycle_status="supported_optional_v1",
-        backend_ids=("room_acoustics",),
+        backend_ids=("room_acoustics", "room_acoustics_srp"),
         backend_family="room_acoustics",
         models=(
             "approximate shoebox room response",
             "generated per-microphone waveforms",
             "GCC-PHAT delay diagnostics",
+            "SRP-PHAT steered-response DOA over the L2 waveforms",
         ),
         does_not_model=(
             "calibrated acoustic twins",
