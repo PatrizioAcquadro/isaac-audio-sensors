@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import os
@@ -37,6 +38,24 @@ def default_sdk_root() -> Path:
     if configured:
         return Path(configured).expanduser()
     return Path.home() / "Desktop" / "ihmc-alex-sdk"
+
+
+def installed_runtime_version(
+    distribution: str,
+    environment_name: str,
+    default_root: Path,
+) -> str:
+    """Return the active distribution version, with a source-tree fallback."""
+
+    try:
+        return importlib.metadata.version(distribution)
+    except importlib.metadata.PackageNotFoundError:
+        root = Path(os.environ.get(environment_name, default_root)).expanduser()
+        try:
+            value = (root / "VERSION").read_text(encoding="utf-8").strip()
+        except OSError:
+            return "unknown"
+        return value or "unknown"
 
 
 def default_scene_usd() -> Path:
@@ -239,6 +258,13 @@ def resolve_model_asset(
             "Alex V2 bridge returned unresolved URDF mesh references: "
             + ", ".join(unresolved_meshes)
         )
+    expected_urdf_sha256 = str(manifest.get("urdf_sha256", ""))
+    actual_urdf_sha256 = sha256_file(urdf_path)
+    if not expected_urdf_sha256 or actual_urdf_sha256 != expected_urdf_sha256:
+        raise RuntimeError(
+            "Alex V2 bridge URDF hash does not match its manifest: "
+            f"{actual_urdf_sha256} != {expected_urdf_sha256 or '<missing>'}"
+        )
     return AlexModelAsset(
         model="v2",
         profile=ALEX_V2_PROFILE,
@@ -410,6 +436,9 @@ def strict_v2_evidence_errors(
         errors.append("model_asset manifest is missing")
     if not str(asset.get("manifest_path", "")).strip():
         errors.append("model_asset manifest path is missing")
+    manifest = asset.get("manifest", {})
+    actual_runtime = evidence.get("isaac_runtime", {})
+    errors.extend(v2_runtime_compatibility_errors(manifest, actual_runtime))
 
     conversion = evidence.get("alex_usd_conversion")
     if not isinstance(conversion, Mapping):
@@ -461,6 +490,48 @@ def strict_v2_evidence_errors(
     if check_files:
         errors.extend(_strict_v2_file_errors(evidence, asset, conversion, robot))
     return tuple(errors)
+
+
+def v2_runtime_compatibility_errors(
+    manifest: Mapping[str, Any] | Any,
+    runtime: Mapping[str, Any] | Any,
+) -> tuple[str, ...]:
+    """Reject a runtime whose active versions differ from the V2 manifest."""
+
+    errors: list[str] = []
+    manifest_runtime = (
+        manifest.get("runtime_versions", {})
+        if isinstance(manifest, Mapping)
+        else {}
+    )
+    if not isinstance(manifest_runtime, Mapping) or not manifest_runtime:
+        errors.append("V2 manifest runtime provenance is missing")
+    if not isinstance(runtime, Mapping) or not runtime:
+        errors.append("active Isaac runtime provenance is missing")
+        return tuple(errors)
+    if not isinstance(manifest_runtime, Mapping):
+        return tuple(errors)
+    for field in ("isaac_sim", "isaac_lab"):
+        expected = str(manifest_runtime.get(field, "")).strip()
+        actual = str(runtime.get(field, "")).strip()
+        if not expected or expected == "unknown":
+            errors.append(f"V2 manifest {field} version is missing")
+        elif not actual or actual == "unknown":
+            errors.append(f"active {field} version is missing")
+        elif actual != expected:
+            errors.append(
+                f"active {field} version {actual!r} does not match "
+                f"V2 manifest {expected!r}"
+            )
+    return tuple(errors)
+
+
+def require_v2_runtime_compatibility(
+    manifest: Mapping[str, Any], runtime: Mapping[str, Any]
+) -> None:
+    errors = v2_runtime_compatibility_errors(manifest, runtime)
+    if errors:
+        raise RuntimeError("Alex V2 runtime rejected: " + "; ".join(errors))
 
 
 def require_strict_v2_evidence(
@@ -515,6 +586,14 @@ def _strict_v2_file_errors(
         unresolved = unresolved_urdf_mesh_references(urdf_path)
         if unresolved:
             errors.append("V2 URDF has unresolved mesh references")
+        manifest_value = asset.get("manifest", {})
+        expected_sha = (
+            str(manifest_value.get("urdf_sha256", ""))
+            if isinstance(manifest_value, Mapping)
+            else ""
+        )
+        if not expected_sha or sha256_file(urdf_path) != expected_sha:
+            errors.append("V2 URDF hash does not match the model manifest")
 
     manifest_path = Path(str(asset.get("manifest_path", ""))).expanduser()
     if not manifest_path.is_file():

@@ -58,6 +58,32 @@ def test_cli_rejects_strict_v2_mode_with_v1():
     assert exc_info.value.code == 2
 
 
+def test_runtime_version_prefers_active_distribution_and_falls_back(
+    tmp_path, monkeypatch
+):
+    assets = _load_assets_module()
+    root = tmp_path / "runtime"
+    root.mkdir()
+    (root / "VERSION").write_text("6.0.1-rc.7\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        assets.importlib.metadata, "version", lambda _name: "5.1.0.0"
+    )
+    assert (
+        assets.installed_runtime_version("isaacsim", "UNSET_RUNTIME_ROOT", root)
+        == "5.1.0.0"
+    )
+
+    def missing(_name):
+        raise assets.importlib.metadata.PackageNotFoundError
+
+    monkeypatch.setattr(assets.importlib.metadata, "version", missing)
+    assert (
+        assets.installed_runtime_version("isaacsim", "UNSET_RUNTIME_ROOT", root)
+        == "6.0.1-rc.7"
+    )
+
+
 def test_v1_asset_resolution_is_deterministic_and_preserved(tmp_path):
     assets = _load_assets_module()
     urdf = tmp_path / "alex_v1.urdf"
@@ -81,6 +107,7 @@ def test_v2_asset_resolution_uses_shared_bridge_contract(tmp_path):
     bridge = tmp_path / "builder.py"
     bridge.write_text(
         """
+import hashlib
 import json
 from types import SimpleNamespace
 
@@ -91,7 +118,11 @@ def build_alex_v2_asset(sdk_root=None, cache_root=None, strict_revision=True):
     output.mkdir(parents=True, exist_ok=True)
     urdf = output / "alex_v2.urdf"
     urdf.write_text("<robot name='AlexV2'/>", encoding="utf-8")
-    manifest = {"profile": PROFILE, "sdk_sha": "0789e4d"}
+    manifest = {
+        "profile": PROFILE,
+        "sdk_sha": "0789e4d",
+        "urdf_sha256": hashlib.sha256(urdf.read_bytes()).hexdigest(),
+    }
     manifest_path = output / "manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     return SimpleNamespace(
@@ -188,7 +219,17 @@ def test_strict_v2_evidence_accepts_only_real_provenanced_hierarchy():
             "profile": assets.ALEX_V2_PROFILE,
             "fingerprint": fingerprint,
             "manifest_path": "/cache/manifest.json",
-            "manifest": {"profile": assets.ALEX_V2_PROFILE},
+            "manifest": {
+                "profile": assets.ALEX_V2_PROFILE,
+                "runtime_versions": {
+                    "isaac_sim": "6.0.1-rc.7",
+                    "isaac_lab": "3.0.0",
+                },
+            },
+        },
+        "isaac_runtime": {
+            "isaac_sim": "6.0.1-rc.7",
+            "isaac_lab": "3.0.0",
         },
         "alex_usd_conversion": {
             "model": "v2",
@@ -239,6 +280,16 @@ def test_strict_v2_evidence_accepts_only_real_provenanced_hierarchy():
         assets.strict_v2_evidence_errors(missing_manifest)
     )
 
+    wrong_runtime = {**evidence, "isaac_runtime": {**evidence["isaac_runtime"]}}
+    wrong_runtime["isaac_runtime"]["isaac_sim"] = "5.1.0.0"
+    assert "does not match V2 manifest" in " ".join(
+        assets.strict_v2_evidence_errors(wrong_runtime)
+    )
+    with pytest.raises(RuntimeError, match="runtime rejected"):
+        assets.require_v2_runtime_compatibility(
+            evidence["model_asset"]["manifest"], wrong_runtime["isaac_runtime"]
+        )
+
 
 def test_strict_v2_file_gate_rechecks_manifest_cache_scene_and_meshes(tmp_path):
     assets = _load_assets_module()
@@ -254,6 +305,10 @@ def test_strict_v2_file_gate_rechecks_manifest_cache_scene_and_meshes(tmp_path):
     manifest = {
         "profile": assets.ALEX_V2_PROFILE,
         "urdf_sha256": assets.sha256_file(urdf),
+        "runtime_versions": {
+            "isaac_sim": "6.0.1-rc.7",
+            "isaac_lab": "3.0.0",
+        },
     }
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
@@ -285,6 +340,10 @@ def test_strict_v2_file_gate_rechecks_manifest_cache_scene_and_meshes(tmp_path):
     evidence = {
         "scene_usd": str(scene),
         "scene_provenance": "alex_robot_ithor_floorplan1",
+        "isaac_runtime": {
+            "isaac_sim": "6.0.1-rc.7",
+            "isaac_lab": "3.0.0",
+        },
         "model_asset": {
             "model": "v2",
             "profile": assets.ALEX_V2_PROFILE,
@@ -322,6 +381,13 @@ def test_strict_v2_file_gate_rechecks_manifest_cache_scene_and_meshes(tmp_path):
     }
 
     assets.require_strict_v2_evidence(evidence, check_files=True)
+
+    original_urdf = urdf.read_text(encoding="utf-8")
+    urdf.write_text(original_urdf + "\n<!-- tampered -->\n", encoding="utf-8")
+    assert "V2 URDF hash does not match the model manifest" in (
+        assets.strict_v2_evidence_errors(evidence, check_files=True)
+    )
+    urdf.write_text(original_urdf, encoding="utf-8")
 
     mesh.unlink()
     assert "V2 URDF has unresolved mesh references" in (

@@ -41,9 +41,11 @@ from alex_showcase_assets import (
     build_cache_descriptor,
     cache_directory,
     importer_settings_for_model,
+    installed_runtime_version,
     load_cached_usd,
     parse_arguments,
     require_strict_v2_evidence,
+    require_v2_runtime_compatibility,
     resolve_model_asset,
     write_cache_record,
 )
@@ -548,17 +550,15 @@ def isaac_runtime_identity() -> dict[str, str]:
     """Return stable runtime fields that participate in the USD cache key."""
 
     versions: dict[str, str] = {"python": platform.python_version()}
-    sim_version = _runtime_version_file("ISAAC_SIM_ROOT", Path.home() / "isaacsim")
-    lab_version = _runtime_version_file("ISAAC_LAB_ROOT", Path.home() / "IsaacLab")
-    if sim_version is None:
-        try:
-            from isaaclab.utils.version import get_isaac_sim_version  # type: ignore
-
-            sim_version = str(get_isaac_sim_version())
-        except Exception:  # noqa: BLE001 - evidence fallback only.
-            sim_version = "unknown"
-    versions["isaac_sim"] = sim_version
-    versions["isaac_lab"] = lab_version or "unknown"
+    versions["isaac_sim"] = installed_runtime_version(
+        "isaacsim", "ISAAC_SIM_ROOT", Path.home() / "isaacsim"
+    )
+    # ``isaaclab`` is also an unrelated PyPI distribution, so the checked-out
+    # NVIDIA Isaac Lab VERSION file is the authoritative identity here.
+    versions["isaac_lab"] = (
+        _runtime_version_file("ISAAC_LAB_ROOT", Path.home() / "IsaacLab")
+        or "unknown"
+    )
     try:
         import omni.kit.app  # type: ignore
 
@@ -897,6 +897,8 @@ def main() -> int:
         simulation_app = ensure_isaac_runtime(evidence)
         runtime = isaac_runtime_identity()
         evidence["isaac_runtime"] = runtime
+        if args.require_real_alex_v2:
+            require_v2_runtime_compatibility(model_asset.manifest, runtime)
 
         import omni.usd  # type: ignore
 
@@ -1676,9 +1678,6 @@ def main() -> int:
             json.dumps(evidence, indent=2, sort_keys=True, default=str) + "\n",
             encoding="utf-8",
         )
-        if simulation_app is not None:
-            with suppress(Exception):
-                simulation_app.close()
         summary = {
             key: evidence.get(key)
             for key in ("status", "error", "scene_provenance", "out_dir")
@@ -1688,6 +1687,18 @@ def main() -> int:
         )
         print(json.dumps(summary, indent=2, sort_keys=True))
         sys.stdout.flush()
+        if simulation_app is not None:
+            close_parameters = inspect.signature(simulation_app.close).parameters
+            if exit_code and "exit_code" not in close_parameters:
+                # Older Kit fast-shutdown paths replace a pending Python exit
+                # status with zero.  Evidence is already durable and flushed.
+                os._exit(exit_code)
+            close_kwargs = (
+                {"exit_code": exit_code}
+                if "exit_code" in close_parameters
+                else {}
+            )
+            simulation_app.close(**close_kwargs)
 
     return exit_code
 
