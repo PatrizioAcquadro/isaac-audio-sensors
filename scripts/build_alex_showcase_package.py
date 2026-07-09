@@ -11,7 +11,7 @@ evidence JSON written by ``scripts/live_alex_audio_showcase.py`` and builds:
   4-channel array session WAV.
 - ``manifest.json`` — every artifact with dimensions/durations, poses,
   bearings, yaw errors, and real-capture vs fallback provenance.
-- ``README.md`` — what to show a professor and what each artifact proves.
+- ``README.md`` — what to show a reviewer and what each artifact proves.
 
 Runs on the host Python (no Isaac required); only needs ``ffmpeg``/``ffprobe``.
 """
@@ -268,10 +268,7 @@ def build_manifest(package: Path, evidence: dict[str, Any]) -> dict[str, Any]:
             "scripts/live_alex_audio_showcase.py (Isaac Sim python)",
             "scripts/build_alex_showcase_package.py (host python + ffmpeg)",
         ],
-        "isaac_command": (
-            "make alex-audio-showcase "
-            "ISAAC_SIM_COMMAND=/home/pacquadr/isaacsim/python.sh"
-        ),
+        "isaac_command": "make alex-audio-showcase",
         "status": evidence.get("status"),
         "provenance": {
             "scene": evidence.get("scene_provenance"),
@@ -382,11 +379,12 @@ emitted (schema v1). |
 ## Regenerate
 
 ```bash
-make alex-audio-showcase ISAAC_SIM_COMMAND=/home/pacquadr/isaacsim/python.sh
+make alex-audio-showcase
 ```
 
-(Live capture step needs this machine's Isaac Sim + the Alex-robot checkout;
-the packaging step reruns standalone as
+(Live capture step needs Isaac Sim + the Alex-robot checkout; the Makefile
+auto-detects the standard local Isaac Sim launcher. The packaging step reruns
+standalone as
 `python scripts/build_alex_showcase_package.py`.)
 """
 
@@ -458,16 +456,11 @@ def main() -> int:
     commands.write_text(
         "# Reproduce this package\n\n"
         "```bash\n"
-        "# 1. Live Isaac capture (writes media/frames, compass, audio, evidence)\n"
-        "PYTHONPATH=$PWD/src:$PYTHONPATH \\\n"
-        "  /home/pacquadr/isaacsim/python.sh scripts/live_alex_audio_showcase.py"
-        f" \\\n  --out-dir {package.as_posix()}\n\n"
-        "# 2. Package videos + manifest + README (host python)\n"
+        "# Canonical full rebuild: live Isaac capture, then package artifacts.\n"
+        "make alex-audio-showcase\n\n"
+        "# Repackage this retained package only (does not rerun live Isaac capture).\n"
         f"python scripts/build_alex_showcase_package.py --package-dir "
         f"{package.as_posix()}\n\n"
-        "# Or both via make:\n"
-        "make alex-audio-showcase "
-        "ISAAC_SIM_COMMAND=/home/pacquadr/isaacsim/python.sh\n"
         "```\n",
         encoding="utf-8",
     )
