@@ -21,19 +21,32 @@ into the final videos, manifest, and README.
 
 from __future__ import annotations
 
-import argparse
+import importlib.util
+import inspect
 import json
 import math
+import os
 import platform
 import shutil
 import sys
 import traceback
 from contextlib import suppress
-from datetime import date
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+from alex_showcase_assets import (
+    CACHE_PROVENANCE_FILENAME,
+    AlexModelAsset,
+    build_cache_descriptor,
+    cache_directory,
+    importer_settings_for_model,
+    load_cached_usd,
+    parse_arguments,
+    require_strict_v2_evidence,
+    resolve_model_asset,
+    write_cache_record,
+)
 
 from isaac_audio_sensors.core.room_anchor import room_spec_from_bounds
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
@@ -51,15 +64,6 @@ from isaac_audio_sensors.isaac.stage_audio import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-ALEX_ROOT = Path.home() / "Desktop" / "Alex-robot"
-SCENE_USD = (
-    ALEX_ROOT / "assets" / "usd" / "scenes" / "ithor"
-    / "FloorPlan1_physics" / "scene.usda"
-)
-ALEX_URDF = (
-    ALEX_ROOT / "alex_models" / "alex_V1_description" / "rl_urdf"
-    / "alex_v1.rlModel_fullBody_robotAccurate_fullCollisions.urdf"
-)
 OVEN_PRIM_HINT = "oven_"
 ISLAND_PRIM_HINT = "standardislandheight_"
 GEOMETRY_ROOT = "/FloorPlan1_physics/Geometry"
@@ -73,6 +77,8 @@ MIC_OFFSETS_M = (
     (-0.06, 0.0, 0.0),
     (0.0, -0.06, 0.0),
 )
+MIC_MOUNT_LOCAL_OFFSET_M = (0.0, 0.0, 0.12)
+MIC_MOUNT_LOCAL_ORIENTATION_XYZW = (0.0, 0.0, 0.0, 1.0)
 SAMPLE_RATE_HZ = 48_000
 COORDINATE_CONVENTION = "x_forward_y_right_z_up_clockwise_bearing"
 
@@ -512,7 +518,12 @@ class ViewportCapture:
         wait_for_result = getattr(capture, "wait_for_result", None)
         if callable(wait_for_result):
             with suppress(Exception):
-                wait_for_result()
+                wait_result = wait_for_result()
+                # Isaac Sim 6 returns an awaitable here.  This synchronous
+                # capture loop already polls the output file while updating
+                # Kit, so close the coroutine instead of leaking it.
+                if inspect.isawaitable(wait_result):
+                    wait_result.close()
         for _ in range(max_wait_updates):
             if path.is_file() and path.stat().st_size > 0:
                 return {
@@ -533,20 +544,84 @@ class ViewportCapture:
 ALEX_USD_CACHE = Path("outputs/isaac_audio_sensors/showcase/_assets/alex_urdf_usd")
 
 
-def convert_alex_urdf_to_usd(evidence: dict[str, Any]) -> Path | None:
+def isaac_runtime_identity() -> dict[str, str]:
+    """Return stable runtime fields that participate in the USD cache key."""
+
+    versions: dict[str, str] = {"python": platform.python_version()}
+    sim_version = _runtime_version_file("ISAAC_SIM_ROOT", Path.home() / "isaacsim")
+    lab_version = _runtime_version_file("ISAAC_LAB_ROOT", Path.home() / "IsaacLab")
+    if sim_version is None:
+        try:
+            from isaaclab.utils.version import get_isaac_sim_version  # type: ignore
+
+            sim_version = str(get_isaac_sim_version())
+        except Exception:  # noqa: BLE001 - evidence fallback only.
+            sim_version = "unknown"
+    versions["isaac_sim"] = sim_version
+    versions["isaac_lab"] = lab_version or "unknown"
+    try:
+        import omni.kit.app  # type: ignore
+
+        get_build_version = getattr(omni.kit.app.get_app(), "get_build_version", None)
+        if callable(get_build_version):
+            versions["kit_build"] = str(get_build_version())
+    except Exception:  # noqa: BLE001 - optional cache discriminator only.
+        pass
+    return versions
+
+
+def _runtime_version_file(environment_name: str, default_root: Path) -> str | None:
+    root = Path(os.environ.get(environment_name, default_root)).expanduser()
+    version_file = root / "VERSION"
+    try:
+        value = version_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return value or None
+
+
+def convert_alex_urdf_to_usd(
+    evidence: dict[str, Any],
+    asset: AlexModelAsset,
+    *,
+    runtime: dict[str, str],
+    require_real_alex_v2: bool,
+) -> Path | None:
     """Convert the Alex URDF to a USD file (cached across runs).
 
     Must run before the showcase scene is opened: the Isaac Sim 6 URDF
     importer opens its own working stage during conversion.
     """
 
-    cached = sorted(ALEX_USD_CACHE.rglob("*.usd*"))
-    if cached:
+    importer_settings = importer_settings_for_model(asset.model)
+    descriptor = build_cache_descriptor(
+        asset,
+        importer_settings=importer_settings,
+        runtime=runtime,
+    )
+    target_dir = cache_directory(ALEX_USD_CACHE, descriptor)
+    cached = load_cached_usd(
+        ALEX_USD_CACHE,
+        descriptor,
+        require_real_alex_v2=require_real_alex_v2,
+    )
+    if cached is not None:
+        cached_usd, _ = cached
         evidence["alex_usd_conversion"] = {
             "status": "cache_hit",
-            "usd_path": str(cached[0]),
+            "model": asset.model,
+            "profile": asset.profile,
+            "model_fingerprint": asset.fingerprint,
+            "urdf_path": str(asset.urdf_path),
+            "usd_path": str(cached_usd),
+            "cache_key": descriptor["cache_key"],
+            "cache_provenance_path": str(
+                target_dir / CACHE_PROVENANCE_FILENAME
+            ),
+            "importer_settings": importer_settings,
+            "runtime": runtime,
         }
-        return cached[0]
+        return cached_usd
     try:
         import omni.kit.app  # type: ignore
 
@@ -560,30 +635,52 @@ def convert_alex_urdf_to_usd(evidence: dict[str, Any]) -> Path | None:
             URDFImporterConfig,
         )
 
-        ALEX_USD_CACHE.mkdir(parents=True, exist_ok=True)
+        target_dir.mkdir(parents=True, exist_ok=True)
         config = URDFImporterConfig(
-            urdf_path=str(ALEX_URDF),
-            usd_path=str(ALEX_USD_CACHE),
-            merge_fixed_joints=False,
-            merge_mesh=False,
+            urdf_path=str(asset.urdf_path),
+            usd_path=str(target_dir),
+            merge_fixed_joints=bool(importer_settings["merge_fixed_joints"]),
+            merge_mesh=bool(importer_settings["merge_mesh"]),
         )
         with suppress(Exception):
-            config.run_asset_transformer = False
+            config.run_asset_transformer = bool(
+                importer_settings["run_asset_transformer"]
+            )
         final_path = Path(URDFImporter(config).import_urdf())
         if not final_path.is_file():
             raise RuntimeError(f"Importer returned missing file {final_path}.")
+        provenance_path = write_cache_record(
+            ALEX_USD_CACHE,
+            descriptor,
+            final_path,
+        )
         evidence["alex_usd_conversion"] = {
             "status": "converted",
-            "urdf_path": str(ALEX_URDF),
+            "model": asset.model,
+            "profile": asset.profile,
+            "model_fingerprint": asset.fingerprint,
+            "urdf_path": str(asset.urdf_path),
             "usd_path": str(final_path),
+            "cache_key": descriptor["cache_key"],
+            "cache_provenance_path": str(provenance_path),
+            "importer_settings": importer_settings,
+            "runtime": runtime,
         }
         return final_path
     except Exception as exc:  # noqa: BLE001 - proxy fallback records blocker.
         evidence["alex_usd_conversion"] = {
             "status": "failed",
-            "urdf_path": str(ALEX_URDF),
+            "model": asset.model,
+            "profile": asset.profile,
+            "model_fingerprint": asset.fingerprint,
+            "urdf_path": str(asset.urdf_path),
+            "cache_key": descriptor["cache_key"],
+            "importer_settings": importer_settings,
+            "runtime": runtime,
             "error": f"{type(exc).__name__}: {exc}",
         }
+        if require_real_alex_v2:
+            raise
         return None
 
 
@@ -591,6 +688,9 @@ def import_alex_robot(
     stage: Any,
     evidence: dict[str, Any],
     alex_usd: Path | None,
+    asset: AlexModelAsset,
+    *,
+    require_real_alex_v2: bool,
 ) -> tuple[str, str, str]:
     """Reference the converted Alex USD; fall back to a labeled proxy figure.
 
@@ -612,10 +712,16 @@ def import_alex_robot(
             raise RuntimeError(
                 f"Referencing {alex_usd} produced no child prims."
             )
-        head_path = _find_head_prim(robot_prim)
+        head_path = _find_head_prim(
+            robot_prim,
+            require_exact_head_link=require_real_alex_v2,
+        )
         evidence["robot_import"] = {
             "provenance": "real_urdf_import",
-            "urdf_path": str(ALEX_URDF),
+            "model": asset.model,
+            "profile": asset.profile,
+            "model_fingerprint": asset.fingerprint,
+            "urdf_path": str(asset.urdf_path),
             "referenced_usd": str(alex_usd),
             "robot_prim_path": robot_path,
             "head_prim_path": head_path,
@@ -624,20 +730,73 @@ def import_alex_robot(
     except Exception as exc:  # noqa: BLE001 - fall back to a labeled proxy.
         evidence["robot_import"] = {
             "provenance": "fallback_proxy",
-            "urdf_path": str(ALEX_URDF),
+            "model": asset.model,
+            "profile": asset.profile,
+            "model_fingerprint": asset.fingerprint,
+            "urdf_path": str(asset.urdf_path),
             "error": f"{type(exc).__name__}: {exc}",
         }
+        if require_real_alex_v2:
+            raise
         return _author_proxy_robot(stage)
 
 
-def _find_head_prim(robot_prim: Any) -> str:
+def recreate_v2_sensor_frames(
+    stage: Any,
+    evidence: dict[str, Any],
+    robot_path: str,
+    asset: AlexModelAsset,
+) -> None:
+    """Use the shared bridge to restore fixed camera/IMU mount Xforms."""
+
+    if asset.model != "v2":
+        return
+    if asset.bridge_root is None:
+        raise RuntimeError("Alex V2 asset has no shared bridge provenance")
+    helper_path = asset.bridge_root / "sensor_frames.py"
+    if not helper_path.is_file():
+        raise FileNotFoundError(f"Alex V2 sensor-frame helper not found: {helper_path}")
+    module_name = "_isaac_audio_alex_v2_sensor_frames"
+    spec = importlib.util.spec_from_file_location(module_name, helper_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load Alex V2 sensor frames from {helper_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    author = getattr(module, "author_sensor_mount_xforms", None)
+    if not callable(author):
+        raise RuntimeError(
+            "Alex V2 helper has no author_sensor_mount_xforms(): "
+            f"{helper_path}"
+        )
+    frames = author(stage, robot_path, asset.manifest)
+    evidence["recreated_sensor_frames"] = {
+        "helper_path": str(helper_path),
+        "non_physics_xforms": True,
+        "frames": dict(frames),
+    }
+
+
+def _find_head_prim(
+    robot_prim: Any,
+    *,
+    require_exact_head_link: bool,
+) -> str:
     from pxr import Usd  # type: ignore
 
+    exact: list[str] = []
     candidates: list[str] = []
     for prim in Usd.PrimRange(robot_prim):
+        if prim.GetName() == "HEAD_LINK":
+            exact.append(str(prim.GetPath()))
         name = prim.GetName().lower()
         if "head" in name and "link" in name:
             candidates.append(str(prim.GetPath()))
+    if exact:
+        exact.sort(key=len)
+        return exact[0]
+    if require_exact_head_link:
+        raise RuntimeError("Imported Alex V2 hierarchy has no exact HEAD_LINK prim.")
     if candidates:
         candidates.sort(key=len)
         return candidates[0]
@@ -684,15 +843,9 @@ def _author_proxy_robot(stage: Any) -> tuple[str, str, str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--out-dir",
-        type=Path,
-        default=Path("outputs/isaac_audio_sensors/showcase")
-        / f"alex_audio_detection_{date.today().isoformat()}",
-    )
-    args = parser.parse_args()
+    args = parse_arguments()
     out_dir: Path = args.out_dir
+    scene_usd: Path = args.scene_usd
     media = out_dir / "media"
     dirs = {
         "images": media / "images",
@@ -716,7 +869,10 @@ def main() -> int:
         "headless": True,
         "capture_kind": "real_isaac_sim_viewport_capture",
         "out_dir": str(out_dir),
-        "scene_usd": str(SCENE_USD),
+        "alex_model": args.alex_model,
+        "alex_sdk_root": str(args.alex_sdk_root),
+        "require_real_alex_v2": args.require_real_alex_v2,
+        "scene_usd": str(scene_usd),
         "step_s": STEP_S,
         "timeline": {
             "oven_start_s": T_OVEN_START,
@@ -733,7 +889,14 @@ def main() -> int:
     sensor = None
 
     try:
+        model_asset = resolve_model_asset(
+            args.alex_model,
+            sdk_root=args.alex_sdk_root,
+        )
+        evidence["model_asset"] = model_asset.evidence()
         simulation_app = ensure_isaac_runtime(evidence)
+        runtime = isaac_runtime_identity()
+        evidence["isaac_runtime"] = runtime
 
         import omni.usd  # type: ignore
 
@@ -741,20 +904,33 @@ def main() -> int:
 
         # URDF -> USD conversion must precede opening the showcase scene:
         # the importer works in its own stage.
-        alex_usd = convert_alex_urdf_to_usd(evidence)
+        alex_usd = convert_alex_urdf_to_usd(
+            evidence,
+            model_asset,
+            runtime=runtime,
+            require_real_alex_v2=args.require_real_alex_v2,
+        )
 
         # --- Scene -------------------------------------------------------
         scene_provenance = "authored_fallback_room"
-        if SCENE_USD.is_file():
-            opened = usd_context.open_stage(str(SCENE_USD))
+        if scene_usd.is_file():
+            opened = usd_context.open_stage(str(scene_usd))
             if opened:
                 scene_provenance = "alex_robot_ithor_floorplan1"
+        evidence["scene_provenance"] = scene_provenance
+        if (
+            args.require_real_alex_v2
+            and scene_provenance == "authored_fallback_room"
+        ):
+            raise RuntimeError(
+                "Strict Alex V2 mode requires an openable real iTHOR scene: "
+                f"{scene_usd}"
+            )
         stage = usd_context.get_stage()
         if stage is None or scene_provenance == "authored_fallback_room":
             usd_context.new_stage()
             stage = usd_context.get_stage()
             _author_fallback_room(stage)
-        evidence["scene_provenance"] = scene_provenance
         update_app(SETTLE_UPDATES)
 
         from pxr import Gf, UsdGeom, UsdLux  # type: ignore
@@ -876,9 +1052,14 @@ def main() -> int:
             evidence["phone_placement"] = {"kind": "perpendicular_fallback"}
 
         # --- Robot -------------------------------------------------------
-        robot_root, head_path, robot_provenance = import_alex_robot(
-            stage, evidence, alex_usd
+        robot_root, head_path, _robot_provenance = import_alex_robot(
+            stage,
+            evidence,
+            alex_usd,
+            model_asset,
+            require_real_alex_v2=args.require_real_alex_v2,
         )
+        recreate_v2_sensor_frames(stage, evidence, robot_root, model_asset)
         robot_prim = stage.GetPrimAtPath(robot_root)
         set_prim_pose(robot_prim, robot_pos, initial_yaw_deg)
         update_app(2)
@@ -898,7 +1079,7 @@ def main() -> int:
         array_prim = stage.DefinePrim(array_path, "Xform")
         array_xf = UsdGeom.Xformable(array_prim)
         array_xf.ClearXformOpOrder()
-        array_xf.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 0.12))
+        array_xf.AddTranslateOp().Set(Gf.Vec3d(*MIC_MOUNT_LOCAL_OFFSET_M))
         attach_microphone_array_attrs(
             array_prim,
             array_id=ARRAY_ID,
@@ -917,6 +1098,17 @@ def main() -> int:
                 0.016,
                 (0.08, 0.85, 0.95),
             )
+        evidence["microphone_mount"] = {
+            "array_prim_path": array_path,
+            "parent_prim_path": head_path,
+            "local_translation_m": list(MIC_MOUNT_LOCAL_OFFSET_M),
+            "local_orientation_xyzw": list(MIC_MOUNT_LOCAL_ORIENTATION_XYZW),
+            "microphone_ids": list(MIC_IDS),
+            "microphone_relative_offsets_m": [list(value) for value in MIC_OFFSETS_M],
+        }
+        if args.require_real_alex_v2:
+            require_strict_v2_evidence(evidence, check_files=True)
+            evidence["strict_v2_validation"] = {"post_mount": "passed"}
 
         # --- Sound sources ------------------------------------------------
         oven_wav = dirs["audio"] / "source_sound.wav"
@@ -1457,6 +1649,9 @@ def main() -> int:
 
         sensor.close()
         sensor = None
+        if args.require_real_alex_v2:
+            require_strict_v2_evidence(evidence, check_files=True)
+            evidence["strict_v2_validation"]["final_evidence"] = "passed"
         evidence["status"] = "passed"
     except BaseException as exc:  # noqa: BLE001 - evidence records the error.
         if isinstance(exc, KeyboardInterrupt):
