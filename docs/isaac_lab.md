@@ -433,9 +433,16 @@ supported tensor-scene path active.
 It writes JSON evidence under `outputs/isaac_audio_sensors/`.
 
 ```bash
-make live-isaac-lab-audio ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
-make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
+make live-isaac-lab-audio
+make live-isaac-lab-audio-gpu
 ```
+
+Both gates default to the official Isaac Lab launcher
+(`~/IsaacLab/isaaclab.sh -p`); override with
+`ISAAC_LAB_PYTHON="$HOME/IsaacLab/isaaclab.sh -p"` style values for a
+non-default install. For a GUI run of the smoke, append `--viz kit` when
+invoking the script directly (headless is the Isaac Lab 3.x default when
+`--viz` is omitted).
 
 The GPU target additionally records `torch.cuda` and `nvidia-smi` evidence and
 fails if any audio tensor, timestamp tensor, or outdated-mask tensor is on CPU

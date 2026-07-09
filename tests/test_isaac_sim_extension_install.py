@@ -127,3 +127,29 @@ def test_install_refuses_existing_non_symlink_path(tmp_path):
         assert "is not a symlink" in str(exc)
     else:  # pragma: no cover - assertion branch
         raise AssertionError("expected FileExistsError")
+
+
+def test_default_user_config_picks_highest_installed_kit_version(
+    tmp_path, monkeypatch
+):
+    installer = _load_install_module()
+    kit_data_dir = tmp_path / "Kit" / "Isaac-Sim Full"
+    for version in ("5.1", "6.0", "10.0"):
+        config_dir = kit_data_dir / version
+        config_dir.mkdir(parents=True)
+        (config_dir / "user.config.json").write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(installer, "KIT_DATA_DIR", kit_data_dir)
+
+    assert installer._default_user_config() == (
+        kit_data_dir / "10.0" / "user.config.json"
+    )
+
+
+def test_default_user_config_falls_back_when_no_kit_data(tmp_path, monkeypatch):
+    installer = _load_install_module()
+    kit_data_dir = tmp_path / "Kit" / "Isaac-Sim Full"
+    monkeypatch.setattr(installer, "KIT_DATA_DIR", kit_data_dir)
+
+    assert installer._default_user_config() == (
+        kit_data_dir / "6.0" / "user.config.json"
+    )

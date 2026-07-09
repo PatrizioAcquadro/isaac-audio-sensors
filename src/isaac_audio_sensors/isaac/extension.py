@@ -436,12 +436,12 @@ class IsaacAudioArraySensor:
             max_events=self.max_events if max_events is None else max_events,
         )
         kwargs: dict[str, Any] = {}
-        if self.backend in {"tdoa_synthetic", "room_acoustics"}:
+        if self.backend in {"tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}:
             kwargs = {
                 "speed_of_sound_mps": self.speed_of_sound_mps,
                 "ambiguity_policy": self.ambiguity_policy,
             }
-        if self.backend == "room_acoustics":
+        if self.backend in {"room_acoustics", "room_acoustics_srp"}:
             sink = self._resolve_waveform_sink()
             if sink is not None:
                 kwargs["waveform_writer"] = sink

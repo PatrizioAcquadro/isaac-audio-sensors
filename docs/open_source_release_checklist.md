@@ -163,15 +163,19 @@ Run and record live sensor gates on a local Isaac runtime when refreshing live
 runtime evidence before publishing or tagging a release:
 
 ```bash
-make live-isaac-sim-audio ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
-make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
+make live-isaac-sim-audio
+make live-isaac-lab-audio-gpu
 ```
+
+These gates auto-detect the official installs at `~/isaacsim` and
+`~/IsaacLab` when present. For non-default installs, override
+`ISAAC_SIM_COMMAND` or `ISAAC_LAB_PYTHON`.
 
 Run the extension UX smoke when Kit is available and the reference UX evidence
 is being refreshed:
 
 ```bash
-make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
+make live-omniverse-extension-ux
 ```
 
 Replicator validation is an optional extension-capability gate. A missing

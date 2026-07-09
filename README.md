@@ -110,9 +110,12 @@ Room-acoustics support is optional:
 python -m pip install -e ".[room]"
 ```
 
-Isaac Sim, Isaac Lab, and Omniverse packages are not PyPI dependencies. Use the
-Python interpreter that comes with your Isaac installation for live smoke tests.
-The pure core supports Python 3.10 or newer.
+Isaac Sim, Isaac Lab, and Omniverse packages are not PyPI dependencies. Live
+smoke tests run through the official launchers — `~/isaacsim/python.sh` for
+Isaac Sim and `~/IsaacLab/isaaclab.sh -p` for Isaac Lab — which the Makefile
+auto-detects; see [Isaac Runtime Policy](docs/installation.md#isaac-runtime-policy)
+for overrides and GUI/headless conventions. The pure core supports Python 3.10
+or newer.
 
 ## Quickstart
 
@@ -177,7 +180,7 @@ non-promise boundary is documented in [V1 Public Scope](docs/v1_scope.md).
 ## Isaac Sim Example
 
 ```bash
-PYTHONPATH=src "$ISAAC_SIM_PYTHON" scripts/live_isaac_sim_audio_smoke.py
+PYTHONPATH=src ~/isaacsim/python.sh scripts/live_isaac_sim_audio_smoke.py
 ```
 
 The script creates an in-memory USD stage, semantically discovers sources and a
@@ -229,8 +232,11 @@ sensor do not depend on Replicator availability.
 The live reference UX smoke is:
 
 ```bash
-make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
+make live-omniverse-extension-ux
 ```
+
+The gate defaults to `~/isaacsim/python.sh`; override with
+`ISAAC_SIM_COMMAND=<isaac-python>` for a non-default install.
 
 It records real Kit version/runtime facts, selected-prim workflow status,
 overlay primitive evidence, JSON/JSONL exports, config import/export,
@@ -240,8 +246,11 @@ Replicator registration/write/flush/stop status, and screenshot status under
 ## Isaac Lab Example
 
 ```bash
-PYTHONPATH=src "$ISAAC_LAB_PYTHON" scripts/live_isaac_lab_audio_smoke.py
+PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p scripts/live_isaac_lab_audio_smoke.py
 ```
+
+Append `--viz kit` for a GUI run; headless is the default (Isaac Lab 3.x runs
+headless when `--viz` is omitted).
 
 The script launches Isaac Lab first, imports the sensor layer, verifies real
 `SensorBaseCfg`/`SensorBase` inheritance through
@@ -258,8 +267,12 @@ Lab observations expose `event_presence`, `bearing_deg`, `confidence`,
 GPU-required validation fails instead of passing on CPU:
 
 ```bash
-make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
+make live-isaac-lab-audio-gpu
 ```
+
+The gate defaults to `~/IsaacLab/isaaclab.sh -p`; override with
+`ISAAC_LAB_PYTHON="$HOME/IsaacLab/isaaclab.sh -p"` style values for a
+non-default install.
 
 ## Validation Status
 

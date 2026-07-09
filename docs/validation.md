@@ -185,11 +185,18 @@ Expected behavior:
 Optional live checks:
 
 ```bash
-make live-isaac-sim-audio ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
-make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
-make live-isaac-lab-audio ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
-make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
+make live-isaac-sim-audio
+make live-omniverse-extension-ux
+make live-isaac-lab-audio
+make live-isaac-lab-audio-gpu
 ```
+
+The gates default to the official installs (`~/isaacsim/python.sh` and
+`~/IsaacLab/isaaclab.sh -p`) when present; for non-default installs override
+with `ISAAC_SIM_COMMAND=<isaac-python>` or
+`ISAAC_LAB_PYTHON="$HOME/IsaacLab/isaaclab.sh -p"` style values. Run them from
+a shell without an activated venv/conda environment (see
+[Isaac Runtime Policy](installation.md#isaac-runtime-policy)).
 
 The Isaac Lab smoke launches AppLauncher before importing
 `isaac_audio_sensors.lab`, resolves classes through
@@ -252,7 +259,7 @@ and missing-runtime errors.
 The live extension UX smoke is:
 
 ```bash
-make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
+make live-omniverse-extension-ux
 ```
 
 It starts or attaches to real Kit, records Isaac/Kit/GPU/runtime facts, enables
@@ -315,8 +322,11 @@ illegal-memory errors and the CPU SimulationContext path hung during Kit
 shutdown.
 
 Use `scripts/discover_isaac_runtimes.py` to print likely local runtime
-candidates. The discovery script is a convenience probe; users should still set
-their own `ISAAC_SIM_PYTHON` or `ISAAC_LAB_PYTHON` explicitly.
+candidates. Official installs (`~/isaacsim`, `~/IsaacLab`) are listed first and
+are what the Makefile gates auto-detect; legacy custom setups appear last. The
+discovery script is a convenience probe; for non-default installs set
+`ISAAC_SIM_COMMAND`/`ISAAC_LAB_PYTHON` (make overrides) or
+`ISAAC_SIM_PYTHON`/`ISAAC_LAB_PYTHON` (discovery hints) explicitly.
 
 Before a public release, inspect the package contents:
 

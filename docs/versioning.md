@@ -166,9 +166,13 @@ Also attempt live runtime validation on an installed Isaac Sim/Lab environment
 when refreshing live evidence:
 
 ```bash
-make live-isaac-sim-audio ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
-make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
+make live-isaac-sim-audio
+make live-isaac-lab-audio-gpu
 ```
+
+These live gates auto-detect the official `~/isaacsim` and `~/IsaacLab`
+installs when present; use `ISAAC_SIM_COMMAND` or `ISAAC_LAB_PYTHON` only for
+non-default runtimes.
 
 Do not publish to PyPI or create a git tag until the release checklist,
 changelog, archive audit, install smoke, and live-runtime evidence or blockers

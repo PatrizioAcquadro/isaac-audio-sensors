@@ -18,9 +18,27 @@ except ModuleNotFoundError:  # pragma: no cover - py310 fallback
 
 
 EXTENSION_NAME = "isaac_audio_sensors.omni"
-DEFAULT_USER_CONFIG = (
-    Path.home() / ".local/share/ov/data/Kit/Isaac-Sim Full/5.1/user.config.json"
-)
+KIT_DATA_DIR = Path.home() / ".local/share/ov/data/Kit/Isaac-Sim Full"
+
+
+def _version_key(name: str) -> list[tuple[int, str]]:
+    return [
+        (int(part), "") if part.isdigit() else (-1, part) for part in name.split(".")
+    ]
+
+
+def _default_user_config() -> Path:
+    """Pick the highest installed Isaac Sim Kit user.config.json."""
+    candidates = sorted(
+        KIT_DATA_DIR.glob("*/user.config.json"),
+        key=lambda path: _version_key(path.parent.name),
+    )
+    if candidates:
+        return candidates[-1]
+    return KIT_DATA_DIR / "6.0" / "user.config.json"
+
+
+DEFAULT_USER_CONFIG = _default_user_config()
 
 
 @dataclass(frozen=True, slots=True)

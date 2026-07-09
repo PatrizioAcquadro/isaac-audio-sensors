@@ -2430,7 +2430,17 @@ def _collect_omnigraph_evidence(controller: ExtensionController) -> dict[str, An
             record["registry_lookup"] = bool(node_type)
     except Exception as exc:  # noqa: BLE001 - lookup is diagnostic only.
         record["registry_lookup_error"] = str(exc)
-    if "registered:" in message or message.startswith("OmniGraph node registered"):
+    duplicate_registered = (
+        "Attempted to register Python node type" in message
+        and "twice" in message
+        and bool(record.get("registry_lookup"))
+    )
+    if (
+        "registered:" in message
+        or message.startswith("OmniGraph node registered")
+        or message.startswith("OmniGraph node already registered")
+        or duplicate_registered
+    ):
         record["status"] = "passed"
     elif "unavailable" in message:
         record["status"] = "skipped"

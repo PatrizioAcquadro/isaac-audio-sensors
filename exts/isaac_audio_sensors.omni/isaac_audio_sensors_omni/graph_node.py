@@ -126,12 +126,31 @@ def register_omnigraph_node() -> str:
         import omni.graph.core as og  # type: ignore
     except ImportError as exc:
         return f"OmniGraph unavailable: {exc}"
+    get_node_type = getattr(og, "get_node_type", None)
+    if callable(get_node_type):
+        try:
+            if get_node_type(NODE_TYPE_NAME):
+                return (
+                    f"OmniGraph node already registered: "
+                    f"{NODE_TYPE_NAME} v{NODE_TYPE_VERSION}."
+                )
+        except Exception:
+            pass
     register = getattr(og, "register_node_type", None)
     if not callable(register):
         return "OmniGraph registration failed: og.register_node_type is missing."
     try:
         register(OgnIsaacAudioSensorFrame, NODE_TYPE_VERSION)
     except Exception as exc:  # noqa: BLE001 - status string is the contract.
+        if callable(get_node_type):
+            try:
+                if get_node_type(NODE_TYPE_NAME):
+                    return (
+                        f"OmniGraph node already registered: "
+                        f"{NODE_TYPE_NAME} v{NODE_TYPE_VERSION}."
+                    )
+            except Exception:
+                pass
         return f"OmniGraph registration failed: {type(exc).__name__}: {exc}"
     return f"OmniGraph node registered: {NODE_TYPE_NAME} v{NODE_TYPE_VERSION}."
 
