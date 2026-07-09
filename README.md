@@ -238,6 +238,29 @@ make live-omniverse-extension-ux
 The gate defaults to `~/isaacsim/python.sh`; override with
 `ISAAC_SIM_COMMAND=<isaac-python>` for a non-default install.
 
+### Alex V2 audio showcase
+
+Alex showcase runs now default to the pinned official IHMC V2 model while the
+iTHOR scene remains sourced independently from the preserved `Alex-robot`
+checkout. A strict headless run on the validated Isaac Sim/Lab installation is:
+
+```bash
+PYTHONPATH="$PWD/src" \
+IHMC_ALEX_SDK_ROOT="$HOME/Desktop/ihmc-alex-sdk" \
+"$HOME/IsaacLab/isaaclab.sh" -p scripts/live_alex_audio_showcase.py \
+  --alex-model v2 \
+  --alex-sdk-root "$HOME/Desktop/ihmc-alex-sdk" \
+  --scene-usd "$HOME/Desktop/Alex-robot/assets/usd/scenes/ithor/FloorPlan1_physics/scene.usda" \
+  --require-real-alex-v2
+```
+
+Strict mode rejects a mismatched Isaac runtime, proxy robot, fallback room,
+stale or tampered USD cache, unresolved mesh, missing exact `HEAD_LINK`, or
+missing model provenance. It records the complete asset manifest, microphone
+mount, and recreated camera/IMU frames in the evidence JSON. Legacy V1
+reproduction remains available explicitly with `--alex-model v1` and without
+`--require-real-alex-v2`.
+
 It records real Kit version/runtime facts, selected-prim workflow status,
 overlay primitive evidence, JSON/JSONL exports, config import/export,
 Replicator registration/write/flush/stop status, and screenshot status under
