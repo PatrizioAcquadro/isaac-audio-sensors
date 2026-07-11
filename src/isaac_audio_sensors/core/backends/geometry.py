@@ -85,7 +85,7 @@ class GeometryBackend:
             confidence = (
                 0.0
                 if bearing is None or distance <= 0.0
-                else horizontal_distance / distance
+                else min(1.0, horizontal_distance / distance)
             )
             sector = None if bearing is None else bearing_deg_to_sector_name(bearing)
             occlusion = scene.occlusion_for(sensor.array_id, source.source_id)

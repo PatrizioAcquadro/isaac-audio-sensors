@@ -18,6 +18,7 @@ from isaac_audio_sensors.core.constants import (
     FRAME_SCHEMA_VERSION,
     SECTOR_ORDER,
 )
+from isaac_audio_sensors.core.doa import two_mic_candidate_bearings
 from isaac_audio_sensors.core.doa.sector_mapping import (
     bearing_deg_to_sector_name,
     sector_bounds_deg,
@@ -140,6 +141,21 @@ def test_geometry_backend_zero_horizontal_vectors_have_no_fake_bearing() -> None
         assert detection.doa.candidate_bearing_deg == ()
 
 
+def test_geometry_backend_clamps_coplanar_confidence() -> None:
+    array = _array("stereo_y")
+    frame = GeometryBackend().simulate(
+        _scene(_source("speaker", (3.0, 2.2, 0.0)), array=array),
+        array,
+        _window(array),
+    )
+    doa = frame.detections[0].doa
+
+    assert doa.estimated_bearing_deg == pytest.approx(36.25383773744479)
+    assert doa.bearing_sector == "straight_right"
+    assert doa.bearing_confidence == 1.0
+    assert doa.candidate_bearing_deg == pytest.approx((doa.estimated_bearing_deg,))
+
+
 def test_geometry_backend_respects_rotated_array_forward_right_basis() -> None:
     array = create_microphone_array(
         array_id="rotated",
@@ -212,6 +228,125 @@ def test_tdoa_two_mic_layouts_expose_front_back_ambiguity(
     assert set(detection.per_mic_delay_s) == {"left", "right"}
     assert set(detection.per_mic_rms) == {"left", "right"}
     assert detection.diagnostics["array_geometry_rank_xy"] == 1
+
+
+@pytest.mark.parametrize(
+    ("baseline_unit_xy", "projection", "expected_bearing"),
+    (
+        ((0.0, 1.0), 1.0 - 4 * math.ulp(1.0), 90.0),
+        ((0.0, 1.0), -(1.0 - 4 * math.ulp(1.0)), 270.0),
+        ((0.0, 1.0), 1.0 - 8 * math.ulp(1.0), 90.0),
+        ((3.0, 4.0), 1.0 - 4 * math.ulp(1.0), 53.13010235415598),
+        ((3.0, 4.0), -(1.0 - 4 * math.ulp(1.0)), 233.13010235415598),
+    ),
+)
+def test_tdoa_two_mic_projection_endpoint_collapses_to_one_candidate(
+    baseline_unit_xy: tuple[float, float],
+    projection: float,
+    expected_bearing: float,
+) -> None:
+    candidates = two_mic_candidate_bearings(
+        baseline_unit_xy=baseline_unit_xy,
+        projection=projection,
+    )
+
+    assert candidates == pytest.approx((expected_bearing,))
+
+
+def test_tdoa_two_mic_projection_outside_endpoint_tolerance_stays_ambiguous(
+) -> None:
+    candidates = two_mic_candidate_bearings(
+        baseline_unit_xy=(0.0, 1.0),
+        projection=1.0 - 9 * math.ulp(1.0),
+    )
+
+    assert len(candidates) == 2
+    assert candidates[0] < 90.0 < candidates[1]
+
+
+@pytest.mark.parametrize(
+    ("position", "expected_bearing", "expected_sector"),
+    (
+        ((0.0, 3.0, 0.0), 90.0, "right"),
+        ((0.0, -3.0, 0.0), 270.0, "left"),
+    ),
+)
+@pytest.mark.parametrize("ambiguity_policy", ("none", "front_hemisphere"))
+def test_tdoa_two_mic_baseline_axis_is_unambiguous(
+    position: tuple[float, float, float],
+    expected_bearing: float,
+    expected_sector: str,
+    ambiguity_policy: str,
+) -> None:
+    array = _array("stereo_y")
+    detection = TdoaSyntheticBackend(ambiguity_policy=ambiguity_policy).simulate(
+        _scene(_source("speaker", position), array=array),
+        array,
+        _window(array),
+    ).detections[0]
+    doa = detection.doa
+    direct_estimate = estimate_doa_from_delays(
+        sensor=array,
+        per_mic_delay_s=detection.per_mic_delay_s,
+        ambiguity_policy=ambiguity_policy,
+    )
+
+    assert doa.estimated_bearing_deg == pytest.approx(expected_bearing, abs=1e-5)
+    assert doa.bearing_sector == expected_sector
+    assert doa.candidate_bearing_deg == pytest.approx((expected_bearing,), abs=1e-5)
+    assert doa.bearing_confidence == 0.9
+    assert doa.ambiguity_class is None
+    assert doa.ambiguity_reason is None
+    assert direct_estimate == doa
+
+
+@pytest.mark.parametrize(
+    "position",
+    (
+        (3.0, 0.0, 0.0),
+        (-3.0, 0.0, 0.0),
+        (3.0, 2.2, 0.0),
+        (
+            3.0 * math.cos(math.radians(89.99975)),
+            3.0 * math.sin(math.radians(89.99975)),
+            0.0,
+        ),
+        (
+            3.0 * math.cos(math.radians(89.999)),
+            3.0 * math.sin(math.radians(89.999)),
+            0.0,
+        ),
+    ),
+)
+def test_tdoa_two_mic_non_axis_sources_remain_front_back_ambiguous(
+    position: tuple[float, float, float],
+) -> None:
+    array = _array("stereo_y")
+    doa = TdoaSyntheticBackend(ambiguity_policy="none").simulate(
+        _scene(_source("speaker", position), array=array),
+        array,
+        _window(array),
+    ).detections[0].doa
+
+    assert doa.estimated_bearing_deg is None
+    assert doa.bearing_sector is None
+    assert len(doa.candidate_bearing_deg) == 2
+    assert doa.ambiguity_class == "ambiguous_front_back"
+
+
+def test_tdoa_two_mic_front_prior_preserves_behind_limitation() -> None:
+    array = _array("stereo_y")
+    doa = TdoaSyntheticBackend(ambiguity_policy="front_hemisphere").simulate(
+        _scene(_source("behind", (-3.0, 0.0, 0.0)), array=array),
+        array,
+        _window(array),
+    ).detections[0].doa
+
+    assert doa.estimated_bearing_deg == pytest.approx(0.0)
+    assert doa.bearing_sector == "straight"
+    assert doa.candidate_bearing_deg == pytest.approx((0.0, 180.0))
+    assert doa.bearing_confidence == 0.65
+    assert doa.ambiguity_class == "front_hemisphere_prior"
 
 
 def test_tdoa_two_mic_front_prior_stays_lower_than_clean_four_mic() -> None:
