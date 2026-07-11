@@ -264,6 +264,83 @@ def test_tdoa_two_mic_projection_outside_endpoint_tolerance_stays_ambiguous(
     assert candidates[0] < 90.0 < candidates[1]
 
 
+@pytest.mark.parametrize("ambiguity_policy", ("none", "front_hemisphere"))
+@pytest.mark.parametrize("sign", (-1.0, 1.0))
+def test_tdoa_two_mic_ulp_scale_projection_overflow_is_tolerated(
+    ambiguity_policy: str,
+    sign: float,
+) -> None:
+    array = _array("stereo_y")
+    spacing_m = 0.16
+    projection = sign * (1.0 + 8 * math.ulp(1.0))
+    delta_s = -projection * spacing_m / 343.0
+
+    doa = estimate_doa_from_delays(
+        sensor=array,
+        per_mic_delay_s={"left": 0.0, "right": delta_s},
+        ambiguity_policy=ambiguity_policy,
+    )
+
+    expected_bearing = 90.0 if sign > 0.0 else 270.0
+    assert doa.estimated_bearing_deg == pytest.approx(expected_bearing)
+    assert doa.candidate_bearing_deg == pytest.approx((expected_bearing,))
+    assert doa.bearing_confidence == 0.9
+    assert doa.ambiguity_class is None
+
+
+@pytest.mark.parametrize("ambiguity_policy", ("none", "front_hemisphere"))
+@pytest.mark.parametrize("sign", (-1.0, 1.0))
+@pytest.mark.parametrize(
+    "magnitude",
+    (1.0 + 9 * math.ulp(1.0), 1.01, 2.0),
+    ids=("first_float_outside_tolerance", "one_percent_impossible", "twice_impossible"),
+)
+def test_tdoa_two_mic_physically_impossible_delay_fails_closed(
+    ambiguity_policy: str,
+    sign: float,
+    magnitude: float,
+) -> None:
+    array = _array("stereo_y")
+    spacing_m = 0.16
+    delta_s = -(sign * magnitude) * spacing_m / 343.0
+
+    doa = estimate_doa_from_delays(
+        sensor=array,
+        per_mic_delay_s={"left": 0.0, "right": delta_s},
+        ambiguity_policy=ambiguity_policy,
+    )
+
+    assert doa.estimated_bearing_deg is None
+    assert doa.candidate_bearing_deg == ()
+    assert doa.bearing_sector is None
+    assert doa.bearing_confidence == 0.0
+    assert doa.ambiguity_class == "invalid_tdoa_delay"
+    assert "physical two-microphone aperture" in (doa.ambiguity_reason or "")
+
+
+@pytest.mark.parametrize("ambiguity_policy", ("none", "front_hemisphere"))
+@pytest.mark.parametrize("position", ((0.0, 3.0, 0.0), (0.0, -3.0, 0.0)))
+def test_tdoa_two_mic_noisy_endpoint_fails_closed(
+    ambiguity_policy: str,
+    position: tuple[float, float, float],
+) -> None:
+    array = _array("stereo_y")
+    doa = TdoaSyntheticBackend(
+        ambiguity_policy=ambiguity_policy,
+        noise_std_s=1e-3,
+        seed=1,
+    ).simulate(
+        _scene(_source("speaker", position), array=array),
+        array,
+        _window(array),
+    ).detections[0].doa
+
+    assert doa.estimated_bearing_deg is None
+    assert doa.candidate_bearing_deg == ()
+    assert doa.bearing_confidence == 0.0
+    assert doa.ambiguity_class == "invalid_tdoa_delay"
+
+
 @pytest.mark.parametrize(
     ("position", "expected_bearing", "expected_sector"),
     (
