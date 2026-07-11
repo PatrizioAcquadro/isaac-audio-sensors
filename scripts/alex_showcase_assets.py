@@ -1,9 +1,8 @@
 """Pure Alex model, cache, and provenance policy for the live showcase.
 
 This module deliberately has no Isaac Sim imports.  The live script uses it to
-select either the preserved Alex V1 asset or the shared IHMC Alex V2 bridge,
-and unit tests can exercise the selection and strict-evidence rules without
-starting Kit.
+resolve the static Alex V2 asset folder (URDF + OBJ meshes), and unit tests
+can exercise the resolution and strict-evidence rules without starting Kit.
 """
 
 from __future__ import annotations
@@ -11,10 +10,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.metadata
-import importlib.util
 import json
+import math
 import os
-import sys
 import xml.etree.ElementTree as ET
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -24,20 +22,23 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 ALEX_V2_PROFILE = "alex_v2_fullbody_standard_no_external_hands"
-V1_PROFILE = "alex_v1_fullbody_robot_accurate_full_collisions"
 CACHE_SCHEMA_VERSION = 1
 CACHE_PROVENANCE_FILENAME = "cache_provenance.json"
+DEFAULT_MANIFEST_DIR = Path(
+    "outputs/isaac_audio_sensors/showcase/_assets/alex_v2_manifests"
+)
+HEAD_SENSOR_FRAMES = {
+    "HEAD_ZED_X_MINI_LINK": "HEAD_ZED_X_MINI_FRAME",
+    "HEAD_IMU_LINK": "HEAD_IMU_FRAME",
+}
 
 
 def default_alex_root() -> Path:
-    return Path.home() / "Desktop" / "Alex-robot"
+    return Path.home() / "Desktop" / "Alex"
 
 
-def default_sdk_root() -> Path:
-    configured = os.environ.get("IHMC_ALEX_SDK_ROOT")
-    if configured:
-        return Path(configured).expanduser()
-    return Path.home() / "Desktop" / "ihmc-alex-sdk"
+def default_v2_urdf(alex_root: Path | None = None) -> Path:
+    return (alex_root or default_alex_root()) / "urdf" / "alex_v2.urdf"
 
 
 def installed_runtime_version(
@@ -60,23 +61,11 @@ def installed_runtime_version(
 
 def default_scene_usd() -> Path:
     return (
-        default_alex_root()
-        / "assets"
-        / "usd"
-        / "scenes"
-        / "ithor"
-        / "FloorPlan1_physics"
+        Path.home()
+        / "Desktop"
+        / "CombinedScene"
+        / "FloorPlan1_updated_physics"
         / "scene.usda"
-    )
-
-
-def default_v1_urdf() -> Path:
-    return (
-        default_alex_root()
-        / "alex_models"
-        / "alex_V1_description"
-        / "rl_urdf"
-        / "alex_v1.rlModel_fullBody_robotAccurate_fullCollisions.urdf"
     )
 
 
@@ -87,24 +76,18 @@ class AlexModelAsset:
     model: str
     profile: str
     urdf_path: Path
-    manifest_path: Path | None
+    manifest_path: Path
     manifest: Mapping[str, Any]
     fingerprint: str
-    bridge_root: Path | None = None
 
     def evidence(self) -> dict[str, Any]:
         return {
             "model": self.model,
             "profile": self.profile,
             "urdf_path": str(self.urdf_path),
-            "manifest_path": (
-                None if self.manifest_path is None else str(self.manifest_path)
-            ),
+            "manifest_path": str(self.manifest_path),
             "manifest": dict(self.manifest),
             "fingerprint": self.fingerprint,
-            "bridge_root": (
-                None if self.bridge_root is None else str(self.bridge_root)
-            ),
         }
 
 
@@ -121,25 +104,16 @@ def build_argument_parser() -> argparse.ArgumentParser:
         / f"alex_audio_detection_{date.today().isoformat()}",
     )
     parser.add_argument(
-        "--alex-model",
-        choices=("v1", "v2"),
-        default="v2",
-        help=(
-            "Alex generation to import (default: validated V2; use V1 to "
-            "reproduce legacy runs)."
-        ),
-    )
-    parser.add_argument(
-        "--alex-sdk-root",
+        "--alex-root",
         type=Path,
-        default=default_sdk_root(),
-        help="Full IHMC Alex SDK checkout used by the V2 asset bridge.",
+        default=default_alex_root(),
+        help="Static Alex V2 asset folder (urdf/alex_v2.urdf + meshes/*.obj).",
     )
     parser.add_argument(
         "--scene-usd",
         type=Path,
         default=default_scene_usd(),
-        help="iTHOR scene USD, independent of the selected robot model.",
+        help="iTHOR scene USD, independent of the robot asset.",
     )
     parser.add_argument(
         "--require-real-alex-v2",
@@ -155,131 +129,138 @@ def build_argument_parser() -> argparse.ArgumentParser:
 def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = build_argument_parser()
     args = parser.parse_args(argv)
-    try:
-        validate_request(args.alex_model, args.require_real_alex_v2)
-    except ValueError as exc:
-        parser.error(str(exc))
-    args.alex_sdk_root = args.alex_sdk_root.expanduser()
+    args.alex_root = args.alex_root.expanduser()
     args.scene_usd = args.scene_usd.expanduser()
     return args
 
 
-def validate_request(alex_model: str, require_real_alex_v2: bool) -> None:
-    if alex_model not in {"v1", "v2"}:
-        raise ValueError(f"unsupported Alex model {alex_model!r}")
-    if require_real_alex_v2 and alex_model != "v2":
-        raise ValueError("--require-real-alex-v2 requires --alex-model v2")
+def mesh_inventory(urdf_path: Path) -> dict[str, str]:
+    """Hash every URDF mesh reference; only local .obj meshes are allowed."""
+
+    root = ET.parse(urdf_path).getroot()
+    inventory: dict[str, str] = {}
+    for mesh in root.findall(".//mesh"):
+        reference = str(mesh.attrib.get("filename", "")).strip()
+        candidate = Path(reference)
+        if not candidate.is_absolute():
+            candidate = urdf_path.parent / candidate
+        if candidate.suffix.lower() != ".obj":
+            raise RuntimeError(
+                f"Alex V2 URDF references a non-OBJ mesh: {reference} "
+                "(the convex-collision URDF variants are not supported)"
+            )
+        inventory[reference] = sha256_file(candidate)
+    return dict(sorted(inventory.items()))
 
 
-def resolve_model_asset(
-    model: str,
-    *,
-    sdk_root: Path | None = None,
-    v1_urdf: Path | None = None,
-    bridge_path: Path | None = None,
-    strict_revision: bool = True,
-) -> AlexModelAsset:
-    """Resolve the selected Alex asset without importing Isaac Sim."""
+def parse_head_sensor_frames(urdf_path: Path) -> dict[str, dict[str, Any]]:
+    """Read the fixed head sensor joint origins from the static URDF."""
 
-    validate_request(model, False)
-    if model == "v1":
-        urdf_path = (v1_urdf or default_v1_urdf()).expanduser().resolve()
-        if not urdf_path.is_file():
-            raise FileNotFoundError(f"Alex V1 URDF not found: {urdf_path}")
-        manifest = {
-            "schema_version": 1,
-            "model": "v1",
-            "profile": V1_PROFILE,
-            "source": "preserved_alex_robot_checkout",
-            "urdf_sha256": sha256_file(urdf_path),
+    root = ET.parse(urdf_path).getroot()
+    frames: dict[str, dict[str, Any]] = {}
+    for joint in root.findall(".//joint"):
+        if joint.attrib.get("type") != "fixed":
+            continue
+        parent = joint.find("parent")
+        child = joint.find("child")
+        if parent is None or child is None:
+            continue
+        parent_link = str(parent.attrib.get("link", ""))
+        child_link = str(child.attrib.get("link", ""))
+        frame_name = HEAD_SENSOR_FRAMES.get(child_link)
+        if frame_name is None or parent_link != "HEAD_LINK":
+            continue
+        origin = joint.find("origin")
+        xyz = [0.0, 0.0, 0.0]
+        rpy = [0.0, 0.0, 0.0]
+        if origin is not None:
+            if origin.attrib.get("xyz"):
+                xyz = [float(value) for value in origin.attrib["xyz"].split()]
+            if origin.attrib.get("rpy"):
+                rpy = [float(value) for value in origin.attrib["rpy"].split()]
+        frames[frame_name] = {
+            "parent_link": parent_link,
+            "xyz": xyz,
+            "rpy": rpy,
         }
-        return AlexModelAsset(
-            model="v1",
-            profile=V1_PROFILE,
-            urdf_path=urdf_path,
-            manifest_path=None,
-            manifest=manifest,
-            fingerprint=fingerprint_mapping(manifest),
+    missing = sorted(set(HEAD_SENSOR_FRAMES.values()) - set(frames))
+    if missing:
+        raise RuntimeError(
+            "Alex V2 URDF is missing fixed head sensor joints for: "
+            + ", ".join(missing)
         )
+    return frames
 
-    selected_bridge = bridge_path or (
-        default_alex_root() / "alex_models" / "alex_V2_isaacsim" / "builder.py"
+
+def rpy_to_quaternion_wxyz(
+    rpy: Sequence[float],
+) -> tuple[float, float, float, float]:
+    """URDF fixed-axis RPY to a wxyz quaternion (q = qz(yaw)*qy(pitch)*qx(roll))."""
+
+    roll, pitch, yaw = (float(value) for value in rpy)
+    cr, sr = math.cos(roll / 2.0), math.sin(roll / 2.0)
+    cp, sp = math.cos(pitch / 2.0), math.sin(pitch / 2.0)
+    cy, sy = math.cos(yaw / 2.0), math.sin(yaw / 2.0)
+    return (
+        cy * cp * cr + sy * sp * sr,
+        cy * cp * sr - sy * sp * cr,
+        cy * sp * cr + sy * cp * sr,
+        sy * cp * cr - cy * sp * sr,
     )
-    selected_bridge = selected_bridge.expanduser().resolve()
-    if not selected_bridge.is_file():
-        raise FileNotFoundError(
-            "Alex V2 bridge not found: "
-            f"{selected_bridge}. Keep Alex-robot in place and add the shared bridge."
-        )
-    module_name = "_isaac_audio_alex_v2_builder"
-    spec = importlib.util.spec_from_file_location(module_name, selected_bridge)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Could not load Alex V2 bridge from {selected_bridge}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    build_asset = getattr(module, "build_alex_v2_asset", None)
-    if not callable(build_asset):
-        raise RuntimeError(
-            f"Alex V2 bridge {selected_bridge} has no build_alex_v2_asset()"
-        )
-    built = build_asset(
-        sdk_root=(sdk_root or default_sdk_root()).expanduser(),
-        cache_root=None,
-        strict_revision=strict_revision,
+
+
+def resolve_v2_asset(
+    *,
+    alex_root: Path | None = None,
+    urdf_path: Path | None = None,
+    manifest_dir: Path | None = None,
+) -> AlexModelAsset:
+    """Resolve the static Alex V2 asset without importing Isaac Sim."""
+
+    selected_urdf = (
+        urdf_path if urdf_path is not None else default_v2_urdf(alex_root)
     )
-    urdf_path = Path(built.urdf_path).expanduser().resolve()
-    manifest_path = Path(built.manifest_path).expanduser().resolve()
-    manifest = _json_mapping(built.manifest)
-    fingerprint = str(built.fingerprint).strip()
-    if not urdf_path.is_file():
-        raise RuntimeError(f"Alex V2 bridge returned missing URDF: {urdf_path}")
-    if not manifest_path.is_file():
-        raise RuntimeError(f"Alex V2 bridge returned missing manifest: {manifest_path}")
-    if not manifest:
-        raise RuntimeError("Alex V2 bridge returned an empty manifest")
-    if not fingerprint:
-        raise RuntimeError("Alex V2 bridge returned an empty fingerprint")
-    manifest_profile = str(manifest.get("profile", ALEX_V2_PROFILE))
-    if manifest_profile != ALEX_V2_PROFILE:
-        raise RuntimeError(
-            "Alex V2 bridge returned unexpected profile "
-            f"{manifest_profile!r}; expected {ALEX_V2_PROFILE!r}"
-        )
-    manifest_on_disk = _read_json_mapping(manifest_path)
-    if manifest_on_disk != manifest:
-        raise RuntimeError(
-            "Alex V2 bridge return value does not match its manifest on disk: "
-            f"{manifest_path}"
-        )
-    unresolved_meshes = unresolved_urdf_mesh_references(urdf_path)
+    selected_urdf = selected_urdf.expanduser().resolve()
+    if not selected_urdf.is_file():
+        raise FileNotFoundError(f"Alex V2 URDF not found: {selected_urdf}")
+    unresolved_meshes = unresolved_urdf_mesh_references(selected_urdf)
     if unresolved_meshes:
         raise RuntimeError(
-            "Alex V2 bridge returned unresolved URDF mesh references: "
+            "Alex V2 URDF has unresolved mesh references: "
             + ", ".join(unresolved_meshes)
         )
-    expected_urdf_sha256 = str(manifest.get("urdf_sha256", ""))
-    actual_urdf_sha256 = sha256_file(urdf_path)
-    if not expected_urdf_sha256 or actual_urdf_sha256 != expected_urdf_sha256:
-        raise RuntimeError(
-            "Alex V2 bridge URDF hash does not match its manifest: "
-            f"{actual_urdf_sha256} != {expected_urdf_sha256 or '<missing>'}"
-        )
+    manifest = {
+        "schema_version": 2,
+        "model": "v2",
+        "profile": ALEX_V2_PROFILE,
+        "source": "alex_v2_static_assets",
+        "urdf_path": str(selected_urdf),
+        "urdf_sha256": sha256_file(selected_urdf),
+        "meshes": mesh_inventory(selected_urdf),
+        "sensor_frames": parse_head_sensor_frames(selected_urdf),
+    }
+    manifest = _json_mapping(manifest)
+    fingerprint = fingerprint_mapping(manifest)
+    manifest_root = (manifest_dir or DEFAULT_MANIFEST_DIR).expanduser()
+    manifest_root.mkdir(parents=True, exist_ok=True)
+    manifest_path = (manifest_root / f"{fingerprint}.json").resolve()
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     return AlexModelAsset(
         model="v2",
         profile=ALEX_V2_PROFILE,
-        urdf_path=urdf_path,
+        urdf_path=selected_urdf,
         manifest_path=manifest_path,
         manifest=manifest,
         fingerprint=fingerprint,
-        bridge_root=selected_bridge.parent,
     )
 
 
-def importer_settings_for_model(model: str) -> dict[str, Any]:
-    validate_request(model, False)
+def importer_settings() -> dict[str, Any]:
     return {
-        "merge_fixed_joints": model == "v2",
+        "merge_fixed_joints": True,
         "merge_mesh": False,
         "run_asset_transformer": False,
     }
@@ -436,9 +417,13 @@ def strict_v2_evidence_errors(
         errors.append("model_asset manifest is missing")
     if not str(asset.get("manifest_path", "")).strip():
         errors.append("model_asset manifest path is missing")
-    manifest = asset.get("manifest", {})
     actual_runtime = evidence.get("isaac_runtime", {})
-    errors.extend(v2_runtime_compatibility_errors(manifest, actual_runtime))
+    if not isinstance(actual_runtime, Mapping) or not actual_runtime:
+        errors.append("active Isaac runtime provenance is missing")
+    else:
+        isaac_sim_version = str(actual_runtime.get("isaac_sim", "")).strip()
+        if not isaac_sim_version or isaac_sim_version == "unknown":
+            errors.append("active isaac_sim version is missing")
 
     conversion = evidence.get("alex_usd_conversion")
     if not isinstance(conversion, Mapping):
@@ -455,7 +440,7 @@ def strict_v2_evidence_errors(
 
     if evidence.get("scene_provenance") == "authored_fallback_room":
         errors.append("procedural fallback room is not allowed")
-    if evidence.get("scene_provenance") != "alex_robot_ithor_floorplan1":
+    if evidence.get("scene_provenance") != "ithor_floorplan1":
         errors.append("real iTHOR scene provenance is missing")
 
     robot = evidence.get("robot_import")
@@ -490,48 +475,6 @@ def strict_v2_evidence_errors(
     if check_files:
         errors.extend(_strict_v2_file_errors(evidence, asset, conversion, robot))
     return tuple(errors)
-
-
-def v2_runtime_compatibility_errors(
-    manifest: Mapping[str, Any] | Any,
-    runtime: Mapping[str, Any] | Any,
-) -> tuple[str, ...]:
-    """Reject a runtime whose active versions differ from the V2 manifest."""
-
-    errors: list[str] = []
-    manifest_runtime = (
-        manifest.get("runtime_versions", {})
-        if isinstance(manifest, Mapping)
-        else {}
-    )
-    if not isinstance(manifest_runtime, Mapping) or not manifest_runtime:
-        errors.append("V2 manifest runtime provenance is missing")
-    if not isinstance(runtime, Mapping) or not runtime:
-        errors.append("active Isaac runtime provenance is missing")
-        return tuple(errors)
-    if not isinstance(manifest_runtime, Mapping):
-        return tuple(errors)
-    for field in ("isaac_sim", "isaac_lab"):
-        expected = str(manifest_runtime.get(field, "")).strip()
-        actual = str(runtime.get(field, "")).strip()
-        if not expected or expected == "unknown":
-            errors.append(f"V2 manifest {field} version is missing")
-        elif not actual or actual == "unknown":
-            errors.append(f"active {field} version is missing")
-        elif actual != expected:
-            errors.append(
-                f"active {field} version {actual!r} does not match "
-                f"V2 manifest {expected!r}"
-            )
-    return tuple(errors)
-
-
-def require_v2_runtime_compatibility(
-    manifest: Mapping[str, Any], runtime: Mapping[str, Any]
-) -> None:
-    errors = v2_runtime_compatibility_errors(manifest, runtime)
-    if errors:
-        raise RuntimeError("Alex V2 runtime rejected: " + "; ".join(errors))
 
 
 def require_strict_v2_evidence(

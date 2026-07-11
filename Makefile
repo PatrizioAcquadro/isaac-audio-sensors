@@ -70,6 +70,9 @@ live-isaac-lab-audio-gpu:
 diagnose-isaac:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/diagnose_isaac_gpu_audio.py --out-dir $(ISAAC_DIAGNOSTICS_OUT_DIR)
 
+SHOWCASE_LIVE_FLAGS ?=
+SHOWCASE_PACKAGE_FLAGS ?=
+
 alex-audio-showcase:
-	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_alex_audio_showcase.py
-	$(PYTHON) scripts/build_alex_showcase_package.py
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_alex_audio_showcase.py --require-real-alex-v2 $(SHOWCASE_LIVE_FLAGS)
+	$(PYTHON) scripts/build_alex_showcase_package.py $(SHOWCASE_PACKAGE_FLAGS)

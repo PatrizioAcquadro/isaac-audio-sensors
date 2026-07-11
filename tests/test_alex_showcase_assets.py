@@ -1,9 +1,10 @@
-"""Pure tests for Alex V1/V2 showcase selection and provenance policy."""
+"""Pure tests for the static Alex V2 showcase asset and provenance policy."""
 
 from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -23,39 +24,80 @@ def _load_assets_module():
     return module
 
 
-def test_cli_defaults_to_validated_v2_and_decouples_scene(tmp_path):
+def _write_static_v2_asset(
+    root: Path,
+    *,
+    mesh_bytes: bytes = b"v 0 0 0\n",
+    mesh_name: str = "head.obj",
+    include_imu_joint: bool = True,
+) -> Path:
+    meshes = root / "meshes"
+    meshes.mkdir(parents=True, exist_ok=True)
+    (meshes / mesh_name).write_bytes(mesh_bytes)
+    urdf_dir = root / "urdf"
+    urdf_dir.mkdir(parents=True, exist_ok=True)
+    imu_joint = (
+        """
+        <joint name="HEAD_IMU_JOINT" type="fixed">
+          <parent link="HEAD_LINK"/>
+          <child link="HEAD_IMU_LINK"/>
+          <origin xyz="-0.024326 -0.0022529 0.074258" rpy="0.0 0.0 0.0"/>
+        </joint>
+        <link name="HEAD_IMU_LINK"/>
+        """
+        if include_imu_joint
+        else ""
+    )
+    urdf = urdf_dir / "alex_v2.urdf"
+    urdf.write_text(
+        f"""<robot name="AlexV2">
+        <link name="HEAD_LINK">
+          <visual><geometry>
+            <mesh filename="../meshes/{mesh_name}"/>
+          </geometry></visual>
+        </link>
+        <joint name="HEAD_ZED_X_MINI_JOINT" type="fixed">
+          <parent link="HEAD_LINK"/>
+          <child link="HEAD_ZED_X_MINI_LINK"/>
+          <origin xyz="0.11603 0.009965 -0.02983" rpy="0.0 0.3633 0.0"/>
+        </joint>
+        <link name="HEAD_ZED_X_MINI_LINK"/>
+        {imu_joint}
+        </robot>""",
+        encoding="utf-8",
+    )
+    return urdf
+
+
+def test_cli_defaults_to_static_v2_and_decouples_scene(tmp_path):
     assets = _load_assets_module()
 
     defaults = assets.parse_arguments([])
-    assert defaults.alex_model == "v2"
-    assert defaults.scene_usd.name == "scene.usda"
+    assert defaults.alex_root == Path.home() / "Desktop" / "Alex"
+    assert defaults.scene_usd == (
+        Path.home()
+        / "Desktop"
+        / "CombinedScene"
+        / "FloorPlan1_updated_physics"
+        / "scene.usda"
+    )
+    assert defaults.require_real_alex_v2 is False
 
-    sdk_root = tmp_path / "sdk"
+    alex_root = tmp_path / "Alex"
     scene_usd = tmp_path / "custom_scene.usda"
     args = assets.parse_arguments(
         [
-            "--alex-model",
-            "v2",
-            "--alex-sdk-root",
-            str(sdk_root),
+            "--alex-root",
+            str(alex_root),
             "--scene-usd",
             str(scene_usd),
             "--require-real-alex-v2",
         ]
     )
 
-    assert args.alex_sdk_root == sdk_root
+    assert args.alex_root == alex_root
     assert args.scene_usd == scene_usd
     assert args.require_real_alex_v2 is True
-
-
-def test_cli_rejects_strict_v2_mode_with_v1():
-    assets = _load_assets_module()
-
-    with pytest.raises(SystemExit) as exc_info:
-        assets.parse_arguments(["--alex-model", "v1", "--require-real-alex-v2"])
-
-    assert exc_info.value.code == 2
 
 
 def test_runtime_version_prefers_active_distribution_and_falls_back(
@@ -84,69 +126,95 @@ def test_runtime_version_prefers_active_distribution_and_falls_back(
     )
 
 
-def test_v1_asset_resolution_is_deterministic_and_preserved(tmp_path):
+def test_v2_static_asset_resolution_is_deterministic(tmp_path):
     assets = _load_assets_module()
-    urdf = tmp_path / "alex_v1.urdf"
-    urdf.write_text("<robot name='AlexV1'/>", encoding="utf-8")
+    root = tmp_path / "Alex"
+    urdf = _write_static_v2_asset(root)
+    manifest_dir = tmp_path / "manifests"
 
-    first = assets.resolve_model_asset("v1", v1_urdf=urdf)
-    second = assets.resolve_model_asset("v1", v1_urdf=urdf)
+    first = assets.resolve_v2_asset(alex_root=root, manifest_dir=manifest_dir)
+    second = assets.resolve_v2_asset(alex_root=root, manifest_dir=manifest_dir)
 
-    assert first.model == "v1"
-    assert first.urdf_path == urdf
+    assert first.model == "v2"
+    assert first.profile == assets.ALEX_V2_PROFILE
+    assert first.urdf_path == urdf.resolve()
     assert first.fingerprint == second.fingerprint
+    assert first.manifest_path.is_file()
+    on_disk = json.loads(first.manifest_path.read_text(encoding="utf-8"))
+    assert on_disk == dict(first.manifest)
+    assert first.manifest["source"] == "alex_v2_static_assets"
     assert first.manifest["urdf_sha256"] == assets.sha256_file(urdf)
-    assert assets.importer_settings_for_model("v1")["merge_fixed_joints"] is False
-    assert assets.importer_settings_for_model("v2")["merge_fixed_joints"] is True
+    assert first.manifest["meshes"]["../meshes/head.obj"] == assets.sha256_file(
+        root / "meshes" / "head.obj"
+    )
+    zed = first.manifest["sensor_frames"]["HEAD_ZED_X_MINI_FRAME"]
+    assert zed["parent_link"] == "HEAD_LINK"
+    assert zed["xyz"] == [0.11603, 0.009965, -0.02983]
+    assert zed["rpy"] == [0.0, 0.3633, 0.0]
+    assert "HEAD_IMU_FRAME" in first.manifest["sensor_frames"]
+
+    (root / "meshes" / "head.obj").write_bytes(b"different bytes")
+    changed = assets.resolve_v2_asset(alex_root=root, manifest_dir=manifest_dir)
+    assert changed.fingerprint != first.fingerprint
 
 
-def test_v2_asset_resolution_uses_shared_bridge_contract(tmp_path):
+def test_v2_static_resolution_rejects_bad_assets(tmp_path):
     assets = _load_assets_module()
-    sdk_root = tmp_path / "ihmc-alex-sdk"
-    sdk_root.mkdir()
-    bridge = tmp_path / "builder.py"
-    bridge.write_text(
-        """
-import hashlib
-import json
-from types import SimpleNamespace
+    manifest_dir = tmp_path / "manifests"
 
-PROFILE = "alex_v2_fullbody_standard_no_external_hands"
+    with pytest.raises(FileNotFoundError):
+        assets.resolve_v2_asset(
+            alex_root=tmp_path / "nowhere", manifest_dir=manifest_dir
+        )
 
-def build_alex_v2_asset(sdk_root=None, cache_root=None, strict_revision=True):
-    output = sdk_root / "generated"
-    output.mkdir(parents=True, exist_ok=True)
-    urdf = output / "alex_v2.urdf"
-    urdf.write_text("<robot name='AlexV2'/>", encoding="utf-8")
-    manifest = {
-        "profile": PROFILE,
-        "sdk_sha": "0789e4d",
-        "urdf_sha256": hashlib.sha256(urdf.read_bytes()).hexdigest(),
-    }
-    manifest_path = output / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    return SimpleNamespace(
-        urdf_path=urdf,
-        manifest_path=manifest_path,
-        manifest=manifest,
-        fingerprint="v2-fingerprint",
+    missing_mesh_root = tmp_path / "missing-mesh"
+    _write_static_v2_asset(missing_mesh_root)
+    (missing_mesh_root / "meshes" / "head.obj").unlink()
+    with pytest.raises(RuntimeError, match="unresolved mesh"):
+        assets.resolve_v2_asset(
+            alex_root=missing_mesh_root, manifest_dir=manifest_dir
+        )
+
+    no_imu_root = tmp_path / "no-imu"
+    _write_static_v2_asset(no_imu_root, include_imu_joint=False)
+    with pytest.raises(RuntimeError, match="HEAD_IMU_FRAME"):
+        assets.resolve_v2_asset(alex_root=no_imu_root, manifest_dir=manifest_dir)
+
+    convex_root = tmp_path / "convex"
+    _write_static_v2_asset(convex_root, mesh_name="head_convex.stl")
+    with pytest.raises(RuntimeError, match="non-OBJ"):
+        assets.resolve_v2_asset(alex_root=convex_root, manifest_dir=manifest_dir)
+
+
+def test_rpy_to_quaternion_wxyz():
+    assets = _load_assets_module()
+
+    assert assets.rpy_to_quaternion_wxyz([0.0, 0.0, 0.0]) == (1.0, 0.0, 0.0, 0.0)
+
+    w, x, y, z = assets.rpy_to_quaternion_wxyz([0.0, 0.3633, 0.0])
+    assert w == pytest.approx(math.cos(0.18165), abs=1e-9)
+    assert x == pytest.approx(0.0, abs=1e-12)
+    assert y == pytest.approx(math.sin(0.18165), abs=1e-9)
+    assert z == pytest.approx(0.0, abs=1e-12)
+
+    def qmul(a, b):
+        aw, ax, ay, az = a
+        bw, bx, by, bz = b
+        return (
+            aw * bw - ax * bx - ay * by - az * bz,
+            aw * bx + ax * bw + ay * bz - az * by,
+            aw * by - ax * bz + ay * bw + az * bx,
+            aw * bz + ax * by - ay * bx + az * bw,
+        )
+
+    roll, pitch, yaw = 0.1, 0.2, 0.3
+    qx = (math.cos(roll / 2), math.sin(roll / 2), 0.0, 0.0)
+    qy = (math.cos(pitch / 2), 0.0, math.sin(pitch / 2), 0.0)
+    qz = (math.cos(yaw / 2), 0.0, 0.0, math.sin(yaw / 2))
+    expected = qmul(qmul(qz, qy), qx)
+    assert assets.rpy_to_quaternion_wxyz([roll, pitch, yaw]) == pytest.approx(
+        expected, abs=1e-12
     )
-""",
-        encoding="utf-8",
-    )
-
-    resolved = assets.resolve_model_asset(
-        "v2",
-        sdk_root=sdk_root,
-        bridge_path=bridge,
-    )
-
-    assert resolved.model == "v2"
-    assert resolved.profile == assets.ALEX_V2_PROFILE
-    assert resolved.urdf_path.is_file()
-    assert resolved.manifest_path.is_file()
-    assert resolved.manifest["sdk_sha"] == "0789e4d"
-    assert resolved.fingerprint == "v2-fingerprint"
 
 
 def test_usd_cache_is_exactly_keyed_by_model_importer_and_runtime(tmp_path):
@@ -161,7 +229,8 @@ def test_usd_cache_is_exactly_keyed_by_model_importer_and_runtime(tmp_path):
         manifest={"profile": assets.ALEX_V2_PROFILE},
         fingerprint="model-fingerprint",
     )
-    settings = assets.importer_settings_for_model("v2")
+    settings = assets.importer_settings()
+    assert settings["merge_fixed_joints"] is True
     descriptor = assets.build_cache_descriptor(
         asset,
         importer_settings=settings,
@@ -221,10 +290,7 @@ def test_strict_v2_evidence_accepts_only_real_provenanced_hierarchy():
             "manifest_path": "/cache/manifest.json",
             "manifest": {
                 "profile": assets.ALEX_V2_PROFILE,
-                "runtime_versions": {
-                    "isaac_sim": "6.0.1-rc.7",
-                    "isaac_lab": "3.0.0",
-                },
+                "source": "alex_v2_static_assets",
             },
         },
         "isaac_runtime": {
@@ -237,7 +303,7 @@ def test_strict_v2_evidence_accepts_only_real_provenanced_hierarchy():
             "cache_key": "cache-key",
             "cache_provenance_path": "/cache/cache_provenance.json",
         },
-        "scene_provenance": "alex_robot_ithor_floorplan1",
+        "scene_provenance": "ithor_floorplan1",
         "robot_import": {
             "provenance": "real_urdf_import",
             "model": "v2",
@@ -280,21 +346,34 @@ def test_strict_v2_evidence_accepts_only_real_provenanced_hierarchy():
         assets.strict_v2_evidence_errors(missing_manifest)
     )
 
-    wrong_runtime = {**evidence, "isaac_runtime": {**evidence["isaac_runtime"]}}
-    wrong_runtime["isaac_runtime"]["isaac_sim"] = "5.1.0.0"
-    assert "does not match V2 manifest" in " ".join(
-        assets.strict_v2_evidence_errors(wrong_runtime)
+    no_runtime = {**evidence}
+    del no_runtime["isaac_runtime"]
+    assert "active Isaac runtime provenance is missing" in (
+        assets.strict_v2_evidence_errors(no_runtime)
     )
-    with pytest.raises(RuntimeError, match="runtime rejected"):
-        assets.require_v2_runtime_compatibility(
-            evidence["model_asset"]["manifest"], wrong_runtime["isaac_runtime"]
-        )
+
+    unknown_runtime = {**evidence, "isaac_runtime": {"isaac_sim": "unknown"}}
+    assert "active isaac_sim version is missing" in (
+        assets.strict_v2_evidence_errors(unknown_runtime)
+    )
+
+    no_imu_frame = {
+        **evidence,
+        "recreated_sensor_frames": {
+            "frames": {
+                "HEAD_ZED_X_MINI_FRAME": f"{head_path}/HEAD_ZED_X_MINI_FRAME",
+            }
+        },
+    }
+    assert "recreated HEAD_IMU_FRAME is missing" in (
+        assets.strict_v2_evidence_errors(no_imu_frame)
+    )
 
 
 def test_strict_v2_file_gate_rechecks_manifest_cache_scene_and_meshes(tmp_path):
     assets = _load_assets_module()
-    mesh = tmp_path / "head.stl"
-    mesh.write_bytes(b"solid head\nendsolid head\n")
+    mesh = tmp_path / "head.obj"
+    mesh.write_bytes(b"v 0 0 0\n")
     urdf = tmp_path / "alex_v2.urdf"
     urdf.write_text(
         f"<robot name='AlexV2'><link name='HEAD_LINK'><visual><geometry>"
@@ -304,18 +383,15 @@ def test_strict_v2_file_gate_rechecks_manifest_cache_scene_and_meshes(tmp_path):
     )
     manifest = {
         "profile": assets.ALEX_V2_PROFILE,
+        "source": "alex_v2_static_assets",
         "urdf_sha256": assets.sha256_file(urdf),
-        "runtime_versions": {
-            "isaac_sim": "6.0.1-rc.7",
-            "isaac_lab": "3.0.0",
-        },
     }
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     usd = tmp_path / "alex_v2.usda"
     usd.write_text("#usda 1.0", encoding="utf-8")
     fingerprint = "manifest-fingerprint"
-    importer_settings = assets.importer_settings_for_model("v2")
+    importer_settings = assets.importer_settings()
     runtime = {"isaac_sim": "6.0.1-rc.7", "isaac_lab": "3.0.0"}
     descriptor = assets.build_cache_descriptor(
         assets.AlexModelAsset(
@@ -339,7 +415,7 @@ def test_strict_v2_file_gate_rechecks_manifest_cache_scene_and_meshes(tmp_path):
     head_path = "/World/Alex/PELVIS_LINK/TORSO_LINK/NECK_Z_LINK/HEAD_LINK"
     evidence = {
         "scene_usd": str(scene),
-        "scene_provenance": "alex_robot_ithor_floorplan1",
+        "scene_provenance": "ithor_floorplan1",
         "isaac_runtime": {
             "isaac_sim": "6.0.1-rc.7",
             "isaac_lab": "3.0.0",

@@ -1,7 +1,8 @@
 """Live Isaac Sim showcase: Alex detects a sounding object and turns to it.
 
-Authors the Alex-robot iTHOR FloorPlan1 kitchen, imports the Alex robot from
-its URDF, mounts the ``alex_head_quad`` microphone rig on the head link, and
+Opens the iTHOR FloorPlan1 kitchen (static CombinedScene export), imports the
+Alex V2 robot from the static URDF in ``~/Desktop/Alex``, mounts the
+``alex_head_quad`` microphone rig on the head link, and
 drives the real ``room_acoustics_srp`` backend (SRP-PHAT direction estimation
 over simulated multichannel room audio) through a three-phase story:
 
@@ -21,7 +22,6 @@ into the final videos, manifest, and README.
 
 from __future__ import annotations
 
-import importlib.util
 import inspect
 import json
 import math
@@ -40,13 +40,13 @@ from alex_showcase_assets import (
     AlexModelAsset,
     build_cache_descriptor,
     cache_directory,
-    importer_settings_for_model,
+    importer_settings,
     installed_runtime_version,
     load_cached_usd,
     parse_arguments,
     require_strict_v2_evidence,
-    require_v2_runtime_compatibility,
-    resolve_model_asset,
+    resolve_v2_asset,
+    rpy_to_quaternion_wxyz,
     write_cache_record,
 )
 
@@ -593,10 +593,10 @@ def convert_alex_urdf_to_usd(
     importer opens its own working stage during conversion.
     """
 
-    importer_settings = importer_settings_for_model(asset.model)
+    settings = importer_settings()
     descriptor = build_cache_descriptor(
         asset,
-        importer_settings=importer_settings,
+        importer_settings=settings,
         runtime=runtime,
     )
     target_dir = cache_directory(ALEX_USD_CACHE, descriptor)
@@ -618,7 +618,7 @@ def convert_alex_urdf_to_usd(
             "cache_provenance_path": str(
                 target_dir / CACHE_PROVENANCE_FILENAME
             ),
-            "importer_settings": importer_settings,
+            "importer_settings": settings,
             "runtime": runtime,
         }
         return cached_usd
@@ -639,12 +639,12 @@ def convert_alex_urdf_to_usd(
         config = URDFImporterConfig(
             urdf_path=str(asset.urdf_path),
             usd_path=str(target_dir),
-            merge_fixed_joints=bool(importer_settings["merge_fixed_joints"]),
-            merge_mesh=bool(importer_settings["merge_mesh"]),
+            merge_fixed_joints=bool(settings["merge_fixed_joints"]),
+            merge_mesh=bool(settings["merge_mesh"]),
         )
         with suppress(Exception):
             config.run_asset_transformer = bool(
-                importer_settings["run_asset_transformer"]
+                settings["run_asset_transformer"]
             )
         final_path = Path(URDFImporter(config).import_urdf())
         if not final_path.is_file():
@@ -663,7 +663,7 @@ def convert_alex_urdf_to_usd(
             "usd_path": str(final_path),
             "cache_key": descriptor["cache_key"],
             "cache_provenance_path": str(provenance_path),
-            "importer_settings": importer_settings,
+            "importer_settings": settings,
             "runtime": runtime,
         }
         return final_path
@@ -675,7 +675,7 @@ def convert_alex_urdf_to_usd(
             "model_fingerprint": asset.fingerprint,
             "urdf_path": str(asset.urdf_path),
             "cache_key": descriptor["cache_key"],
-            "importer_settings": importer_settings,
+            "importer_settings": settings,
             "runtime": runtime,
             "error": f"{type(exc).__name__}: {exc}",
         }
@@ -741,39 +741,37 @@ def import_alex_robot(
         return _author_proxy_robot(stage)
 
 
-def recreate_v2_sensor_frames(
+def author_v2_sensor_frames(
     stage: Any,
     evidence: dict[str, Any],
-    robot_path: str,
+    head_path: str,
     asset: AlexModelAsset,
 ) -> None:
-    """Use the shared bridge to restore fixed camera/IMU mount Xforms."""
+    """Restore the fixed camera/IMU mount Xforms merged away at URDF import.
 
-    if asset.model != "v2":
-        return
-    if asset.bridge_root is None:
-        raise RuntimeError("Alex V2 asset has no shared bridge provenance")
-    helper_path = asset.bridge_root / "sensor_frames.py"
-    if not helper_path.is_file():
-        raise FileNotFoundError(f"Alex V2 sensor-frame helper not found: {helper_path}")
-    module_name = "_isaac_audio_alex_v2_sensor_frames"
-    spec = importlib.util.spec_from_file_location(module_name, helper_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Could not load Alex V2 sensor frames from {helper_path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    author = getattr(module, "author_sensor_mount_xforms", None)
-    if not callable(author):
-        raise RuntimeError(
-            "Alex V2 helper has no author_sensor_mount_xforms(): "
-            f"{helper_path}"
+    ``resolve_v2_asset`` parses the fixed head sensor joint origins from the
+    static URDF into ``manifest["sensor_frames"]``; this authors matching
+    non-physics Xforms under the imported head prim.
+    """
+
+    from pxr import Gf, UsdGeom  # type: ignore
+
+    frames: dict[str, str] = {}
+    for frame_name, spec in asset.manifest["sensor_frames"].items():
+        frame_path = f"{head_path}/{frame_name}"
+        xform = UsdGeom.Xform.Define(stage, frame_path)
+        xformable = UsdGeom.Xformable(xform.GetPrim())
+        xformable.ClearXformOpOrder()
+        xformable.AddTranslateOp().Set(Gf.Vec3d(*spec["xyz"]))
+        w, x, y, z = rpy_to_quaternion_wxyz(spec["rpy"])
+        xformable.AddOrientOp(UsdGeom.XformOp.PrecisionDouble).Set(
+            Gf.Quatd(w, Gf.Vec3d(x, y, z))
         )
-    frames = author(stage, robot_path, asset.manifest)
+        frames[frame_name] = frame_path
     evidence["recreated_sensor_frames"] = {
-        "helper_path": str(helper_path),
+        "source": "urdf_fixed_joint_origins",
         "non_physics_xforms": True,
-        "frames": dict(frames),
+        "frames": frames,
     }
 
 
@@ -869,8 +867,7 @@ def main() -> int:
         "headless": True,
         "capture_kind": "real_isaac_sim_viewport_capture",
         "out_dir": str(out_dir),
-        "alex_model": args.alex_model,
-        "alex_sdk_root": str(args.alex_sdk_root),
+        "alex_root": str(args.alex_root),
         "require_real_alex_v2": args.require_real_alex_v2,
         "scene_usd": str(scene_usd),
         "step_s": STEP_S,
@@ -889,16 +886,11 @@ def main() -> int:
     sensor = None
 
     try:
-        model_asset = resolve_model_asset(
-            args.alex_model,
-            sdk_root=args.alex_sdk_root,
-        )
+        model_asset = resolve_v2_asset(alex_root=args.alex_root)
         evidence["model_asset"] = model_asset.evidence()
         simulation_app = ensure_isaac_runtime(evidence)
         runtime = isaac_runtime_identity()
         evidence["isaac_runtime"] = runtime
-        if args.require_real_alex_v2:
-            require_v2_runtime_compatibility(model_asset.manifest, runtime)
 
         import omni.usd  # type: ignore
 
@@ -918,7 +910,7 @@ def main() -> int:
         if scene_usd.is_file():
             opened = usd_context.open_stage(str(scene_usd))
             if opened:
-                scene_provenance = "alex_robot_ithor_floorplan1"
+                scene_provenance = "ithor_floorplan1"
         evidence["scene_provenance"] = scene_provenance
         if (
             args.require_real_alex_v2
@@ -1061,7 +1053,7 @@ def main() -> int:
             model_asset,
             require_real_alex_v2=args.require_real_alex_v2,
         )
-        recreate_v2_sensor_frames(stage, evidence, robot_root, model_asset)
+        author_v2_sensor_frames(stage, evidence, head_path, model_asset)
         robot_prim = stage.GetPrimAtPath(robot_root)
         set_prim_pose(robot_prim, robot_pos, initial_yaw_deg)
         update_app(2)

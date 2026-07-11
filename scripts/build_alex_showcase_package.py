@@ -6,7 +6,8 @@ evidence JSON written by ``scripts/live_alex_audio_showcase.py`` and builds:
 - ``media/videos/alex_audio_detection_demo.mp4`` — the full story with the
   live compass panel overlaid and the array session audio mixed to stereo.
 - ``media/videos/alex_turn_to_sound_clip.mp4`` — the short "sound emitted ->
-  bearing detected -> Alex turns" cut (phase A only).
+  bearing detected -> Alex turns" cut (phase A only; skipped with
+  ``--videos full``).
 - ``media/audio/detected_or_processed_demo.wav`` — stereo mixdown of the
   4-channel array session WAV.
 - ``manifest.json`` — every artifact with dimensions/durations, poses,
@@ -103,7 +104,12 @@ def upscale_compass_pngs(compass_dir: Path, factor: int = 2) -> None:
         )
 
 
-def build_videos(package: Path, evidence: dict[str, Any]) -> dict[str, Any]:
+def build_videos(
+    package: Path,
+    evidence: dict[str, Any],
+    *,
+    videos_mode: str = "both",
+) -> dict[str, Any]:
     media = package / "media"
     frames = media / "frames"
     compass = media / "compass"
@@ -173,23 +179,25 @@ def build_videos(package: Path, evidence: dict[str, Any]) -> dict[str, Any]:
         ]
     )
 
-    clip_frames = int(phase_b * FPS)
-    short_clip = videos / "alex_turn_to_sound_clip.mp4"
-    run(
-        [
-            "ffmpeg", "-y", "-v", "error",
-            "-framerate", str(FPS), "-i", str(frames / "step_%04d.png"),
-            "-framerate", str(FPS), "-i", str(compass / "step_%04d.png"),
-            "-i", str(processed),
-            "-filter_complex",
-            "[0:v][1:v]overlay=W-w-24:H-h-24:format=auto[v]",
-            "-map", "[v]", "-map", "2:a",
-            "-frames:v", str(clip_frames), "-t", f"{phase_b}",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20",
-            "-c:a", "aac", "-b:a", "192k",
-            str(short_clip),
-        ]
-    )
+    short_clip: Path | None = None
+    if videos_mode == "both":
+        clip_frames = int(phase_b * FPS)
+        short_clip = videos / "alex_turn_to_sound_clip.mp4"
+        run(
+            [
+                "ffmpeg", "-y", "-v", "error",
+                "-framerate", str(FPS), "-i", str(frames / "step_%04d.png"),
+                "-framerate", str(FPS), "-i", str(compass / "step_%04d.png"),
+                "-i", str(processed),
+                "-filter_complex",
+                "[0:v][1:v]overlay=W-w-24:H-h-24:format=auto[v]",
+                "-map", "[v]", "-map", "2:a",
+                "-frames:v", str(clip_frames), "-t", f"{phase_b}",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20",
+                "-c:a", "aac", "-b:a", "192k",
+                str(short_clip),
+            ]
+        )
     return {
         "main_video": main_video,
         "short_clip": short_clip,
@@ -201,9 +209,7 @@ def build_videos(package: Path, evidence: dict[str, Any]) -> dict[str, Any]:
 def build_manifest(package: Path, evidence: dict[str, Any]) -> dict[str, Any]:
     story = evidence.get("story", {})
     robot_import = evidence.get("robot_import", {})
-    scene_real = (
-        evidence.get("scene_provenance") == "alex_robot_ithor_floorplan1"
-    )
+    scene_real = evidence.get("scene_provenance") == "ithor_floorplan1"
     robot_real = robot_import.get("provenance") == "real_urdf_import"
     capture_real = (
         evidence.get("capture_kind") == "real_isaac_sim_viewport_capture"
@@ -310,18 +316,12 @@ def build_manifest(package: Path, evidence: dict[str, Any]) -> dict[str, Any]:
 README_TEMPLATE = """# Alex Audio-Detection Showcase ({package})
 
 A self-contained demo package showing the **Isaac Audio Sensors** extension
-detecting a sounding object in the Alex-robot iTHOR FloorPlan1 kitchen and
-driving Alex to turn toward it.
+detecting a sounding object in the iTHOR FloorPlan1 kitchen and driving the
+Alex V2 robot to turn toward it.
 
 ## The 60-second pitch (what to show first)
 
-1. Play `media/videos/alex_turn_to_sound_clip.mp4` (~{phase_b:.0f}s):
-   the oven beeper starts, the compass overlay locks onto the bearing, and
-   Alex turns until the bearing error reads ~0 deg.
-2. Then `media/videos/alex_audio_detection_demo.mp4` (full story): a louder
-   phone rings on the other side -> the strongest-source selection switches
-   and Alex re-turns; finally a panel slides in and the detection is flagged
-   **occluded** on the compass.
+{pitch}
 
 ## What each artifact proves
 
@@ -382,9 +382,10 @@ emitted (schema v1). |
 make alex-audio-showcase
 ```
 
-(Live capture step needs Isaac Sim + the Alex-robot checkout; the Makefile
-auto-detects the standard local Isaac Sim launcher. The packaging step reruns
-standalone as
+(Live capture step needs Isaac Sim + the static Alex V2 assets
+(`~/Desktop/Alex`: `urdf/alex_v2.urdf` + `meshes/*.obj`) and the CombinedScene
+FloorPlan1 export; the Makefile auto-detects the standard local Isaac Sim
+launcher. The packaging step reruns standalone as
 `python scripts/build_alex_showcase_package.py`.)
 """
 
@@ -405,9 +406,29 @@ def write_readme(package: Path, evidence: dict[str, Any],
         return format(value, spec) if isinstance(value, (int, float)) else "n/a"
 
     capture_real = manifest["provenance"]["viewport_capture_is_real_isaac"]
+    phase_b = float(timeline.get("phase_b_phone_s", 9.0))
+    full_pitch = (
+        "`media/videos/alex_audio_detection_demo.mp4` (full story): the oven\n"
+        "   beeper starts, the compass overlay locks onto the bearing, and Alex\n"
+        "   turns until the bearing error reads ~0 deg; a louder phone rings on\n"
+        "   the other side -> the strongest-source selection switches and Alex\n"
+        "   re-turns; finally a panel slides in and the detection is flagged\n"
+        "   **occluded** on the compass."
+    )
+    clip_path = package / "media" / "videos" / "alex_turn_to_sound_clip.mp4"
+    if clip_path.is_file():
+        pitch = (
+            f"1. Play `media/videos/alex_turn_to_sound_clip.mp4` "
+            f"(~{phase_b:.0f}s):\n"
+            "   the oven beeper starts, the compass overlay locks onto the\n"
+            "   bearing, and Alex turns until the bearing error reads ~0 deg.\n"
+            f"2. Then {full_pitch}"
+        )
+    else:
+        pitch = f"1. Play {full_pitch}"
     readme = README_TEMPLATE.format(
         package=package.name,
-        phase_b=float(timeline.get("phase_b_phone_s", 9.0)),
+        pitch=pitch,
         source_dur=duration_of("source_sound.wav"),
         processed_dur=duration_of("detected_or_processed_demo.wav"),
         initial_yaw=float(story.get("robot_initial_yaw_deg", 0.0)),
@@ -438,6 +459,12 @@ def main() -> int:
         action="store_true",
         help="Keep the per-step frame/compass PNG directories after encoding.",
     )
+    parser.add_argument(
+        "--videos",
+        choices=("both", "full"),
+        default="both",
+        help="Encode both videos (default) or only the full demo video.",
+    )
     args = parser.parse_args()
     package = args.package_dir or latest_package_dir()
     evidence_path = package / "evidence" / "showcase_evidence.json"
@@ -445,7 +472,7 @@ def main() -> int:
         raise SystemExit(f"Missing {evidence_path}; run the live script first.")
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
 
-    build_videos(package, evidence)
+    build_videos(package, evidence, videos_mode=args.videos)
     manifest = build_manifest(package, evidence)
     (package / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
