@@ -12,7 +12,9 @@ from isaac_audio_sensors.core.math_utils import (
     normalize_bearing_deg,
 )
 
-_TWO_MIC_ENDPOINT_TOLERANCE = 8 * math.ulp(1.0)
+# Eight binary64 ULPs admit only arithmetic noise at the physical endpoint;
+# this is not a sensor-resolution band around the microphone baseline axis.
+TWO_MIC_ENDPOINT_TOLERANCE = 8 * math.ulp(1.0)
 
 
 def deduplicate_candidate_bearings(
@@ -58,7 +60,7 @@ def two_mic_candidate_bearings(
         abs(clipped_projection),
         1.0,
         rel_tol=0.0,
-        abs_tol=_TWO_MIC_ENDPOINT_TOLERANCE,
+        abs_tol=TWO_MIC_ENDPOINT_TOLERANCE,
     ):
         # Exact baseline-axis delays can land a few ULPs inside the endpoint.
         direction = math.copysign(1.0, clipped_projection)

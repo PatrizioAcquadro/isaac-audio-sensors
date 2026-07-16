@@ -13,6 +13,7 @@ from isaac_audio_sensors.core.backends.amplitude import (
 )
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS, EPSILON
 from isaac_audio_sensors.core.doa.ambiguity import (
+    TWO_MIC_ENDPOINT_TOLERANCE,
     choose_front_hemisphere_candidate,
     deduplicate_candidate_bearings,
     two_mic_candidate_bearings,
@@ -351,7 +352,19 @@ class TdoaSyntheticBackend:
             )
 
         dt = per_mic_delay_s[second.mic_id] - per_mic_delay_s[first.mic_id]
-        projection = clamp(-self.speed_of_sound_mps * dt / spacing, -1.0, 1.0)
+        raw_projection = -self.speed_of_sound_mps * dt / spacing
+        if abs(raw_projection) > 1.0 + TWO_MIC_ENDPOINT_TOLERANCE:
+            return DoaEstimate(
+                estimated_bearing_deg=None,
+                candidate_bearing_deg=(),
+                bearing_confidence=0.0,
+                ambiguity_class="invalid_tdoa_delay",
+                ambiguity_reason=(
+                    "Observed delay exceeds the physical two-microphone aperture "
+                    "beyond the eight-ULP endpoint tolerance."
+                ),
+            )
+        projection = clamp(raw_projection, -1.0, 1.0)
         candidates = two_mic_candidate_bearings(
             baseline_unit_xy=(baseline[0] / spacing, baseline[1] / spacing),
             projection=projection,
