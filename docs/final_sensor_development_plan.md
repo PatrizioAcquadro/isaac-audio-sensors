@@ -294,35 +294,12 @@ The Stage 2 sequence is:
 
 ## 6. Agent Execution Work Breakdown
 
+### 6.1 Summary
 The top-level implementation agent owns one complete `S` or `P` phase. It may
 delegate dependency-independent subphases, but it remains responsible for
 integration, repository-wide verification, evidence quality, and the phase
 closeout. Stage 2 is not assigned from this roadmap; it follows the downstream
 repository's own plans.
-
-### 6.1 Phase Orchestration Contract
-
-For every `S` or `P` phase, the orchestrator must:
-
-1. read this plan, predecessor phase closeouts, relevant code, tests, public
-   compatibility documents, and current worktree state;
-2. create a working dependency graph for all subphases in the assigned phase;
-3. restate phase inputs, outputs, non-goals, tests, and evidence before editing;
-4. delegate only dependency-safe work, with exactly one subphase per delegated
-   agent and no overlapping file ownership unless explicitly coordinated;
-5. require each subphase to add or update acceptance tests, implement its
-   smallest complete deliverable, run focused checks, and write a subphase
-   closeout;
-6. review every delegated change, resolve integration problems, and run all
-   available phase and repository gates from the integrated tree;
-7. write the phase closeout with revision, contracts, commands, results,
-   metrics, artifacts, limitations, blockers, and next-phase input;
-8. stop before the next phase.
-
-A phase is not complete merely because code exists. All subphase deliverables,
-tests, documentation, artifact validation, and the phase exit gate must pass.
-Unavailable external evidence is reported as `blocked` and never replaced by a
-mock or skipped check presented as live proof.
 
 ### 6.2 Execution Artifact Convention
 
@@ -579,62 +556,6 @@ This table exists only to prove that restructuring did not drop a requirement.
 | `M6` GUI | `S2`, `P3` | Operational guided workflow before SquadBot; production UX, migration, accessibility, and user study later. |
 | `M7` SquadBot/Alex readiness | `S5`, Stage 2 | All generic fixtures before Phase 7; actual downstream execution remains external. |
 | `M8` release and maintenance | `S6`, `P4`, `P5` | Internal research freeze before SquadBot; full hardening and publication after downstream validation. |
-
-### 6.18 Critical Path And Parallel Work
-
-The default critical path is:
-
-```text
-S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6
-   -> V7-8 -> V9-11 -> V12-13 -> V14-15
-   -> P0 -> (P1 || P2 || P3) -> P4 -> P5
-```
-
-Safe parallel work is limited to dependency-independent units:
-
-- after `S0.1`, the pure baseline and hardware inventory may proceed in
-  parallel; `S0.6` waits for all S0 evidence;
-- after `S1.1`, contract, plugin, and build work may proceed in coordinated
-  lanes; artifacts wait for all three;
-- S2 writer/replay work and shared validation-controller work may overlap, but
-  the Guided workflow waits for both;
-- S3 motion, channel/electronics, and directivity lanes may overlap after their
-  contracts exist; materials and closeout wait for their inputs;
-- S5 fixture families may run in parallel after S2-S4 close, but `S5.8` waits
-  for every fixture;
-- P1, P2, and P3 may proceed in parallel after `P0.4`, with one authoritative
-  owner for shared contracts and calibration/GUI controllers.
-
-Do not parallelize edits to the same public schema, calibration fitting and the
-sealed holdout evaluation, configuration migration and compatibility freeze, or
-candidate building and evidence indexing.
-
-### 6.19 Reusable Phase-Orchestrator Prompt
-
-```text
-Implement phase <S-or-P ID> from docs/final_sensor_development_plan.md.
-
-Act as the phase orchestrator. Read the complete phase, its dependencies,
-predecessor closeout, current code, tests, public compatibility documents, and
-worktree state before editing. Create a working plan for every subphase and
-respect the declared dependency order.
-
-You may delegate dependency-independent subphases. Assign exactly one subphase
-to each delegated agent, give it the relevant contracts and acceptance gate,
-and avoid overlapping file ownership. Review and integrate every delegated
-change yourself.
-
-For each subphase, add or update acceptance tests, implement the smallest
-complete deliverable, run focused checks, and write the required closeout.
-Then run all available phase and repository gates from the integrated tree and
-write the phase closeout.
-
-Preserve unrelated user changes. Do not modify squadbot-av-phase1. Do not begin
-the next phase. Do not weaken or silently skip a gate. If required GPU,
-simulator, display, hardware, Windows, or external evidence is unavailable,
-record the exact blocker and complete only the valid evidence allowed by this
-phase.
-```
 
 ## 7. Test And Acceptance Matrix
 
