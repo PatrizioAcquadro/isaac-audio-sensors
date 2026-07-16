@@ -28,6 +28,7 @@ SCOPE_LINKED_DOCS = (
     Path("README.md"),
     Path("docs/README.md"),
     Path("docs/api_freeze_0_1.md"),
+    Path("docs/final_sensor_development_plan.md"),
     Path("docs/validation.md"),
     Path("docs/versioning.md"),
     Path("docs/roadmap.md"),

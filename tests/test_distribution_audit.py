@@ -50,6 +50,10 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "docs/acoustic_fidelity.md": "# Acoustic Fidelity Ladder\n",
             "docs/api_freeze_0_1.md": _api_freeze_doc_text(),
             "docs/api_reference.md": "# API Reference\n",
+            "docs/final_sensor_development_plan.md": (
+                "# Final Sensor Development Plan\n\n"
+                "See [V1 Public Scope](v1_scope.md).\n"
+            ),
             "docs/installation.md": "# Installation\n",
             "docs/open_source_release_checklist.md": "# Checklist\n",
             "docs/quickstart.md": "# Quickstart\n",
@@ -150,6 +154,10 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
             "docs/acoustic_fidelity.md": "# Acoustic Fidelity Ladder\n",
             "docs/api_freeze_0_1.md": _api_freeze_doc_text(),
             "docs/api_reference.md": "# API Reference\n",
+            "docs/final_sensor_development_plan.md": (
+                "# Final Sensor Development Plan\n\n"
+                "See [V1 Public Scope](v1_scope.md).\n"
+            ),
             "docs/installation.md": "# Installation\n",
             "docs/open_source_release_checklist.md": "# Checklist\n",
             "docs/quickstart.md": "# Quickstart\n",
@@ -347,6 +355,21 @@ def test_distribution_audit_rejects_duplicate_normalized_entries(tmp_path):
         "duplicate normalized archive entry included" in finding
         and "README.md" in finding
         for finding in result.findings
+    )
+
+
+def test_distribution_audit_classifies_final_plan_as_scope_document():
+    audit = _load_audit_module()
+
+    assert audit._project_scope_token_findings(
+        "docs/final_sensor_development_plan.md",
+        "SquadBot readiness remains an external adapter concern.",
+    ) == ()
+    assert audit._project_scope_token_findings(
+        "docs/architecture.md",
+        "SquadBot implementation detail.",
+    ) == (
+        "docs/architecture.md: project token 'SquadBot' outside scope docs",
     )
 
 
