@@ -1,13 +1,15 @@
 VENV_PYTHON := .venv/bin/python
 PYTHON ?= $(if $(wildcard $(VENV_PYTHON)),$(VENV_PYTHON),python3)
-ISAAC_SIM_COMMAND ?= $(PYTHON)
-ISAAC_LAB_PYTHON ?= $(PYTHON)
+ISAAC_SIM_ROOT ?= $(HOME)/isaacsim
+ISAAC_LAB_ROOT ?= $(HOME)/IsaacLab
+ISAAC_SIM_COMMAND ?= $(if $(wildcard $(ISAAC_SIM_ROOT)/python.sh),$(ISAAC_SIM_ROOT)/python.sh,$(PYTHON))
+ISAAC_LAB_PYTHON ?= $(if $(wildcard $(ISAAC_LAB_ROOT)/isaaclab.sh),$(ISAAC_LAB_ROOT)/isaaclab.sh -p,$(PYTHON))
 ISAAC_LAB_PERF_BUDGET_MS ?= 20
 ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
 EXPECTED_VERSION ?= 1.7.0
 
-.PHONY: test lint format build audit-dist import-smoke validate-config export-schema regenerate-traces live-evidence-report live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac
+.PHONY: test lint format build audit-dist import-smoke validate-config export-schema regenerate-traces live-evidence-report live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -67,3 +69,10 @@ live-isaac-lab-audio-gpu:
 
 diagnose-isaac:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/diagnose_isaac_gpu_audio.py --out-dir $(ISAAC_DIAGNOSTICS_OUT_DIR)
+
+SHOWCASE_LIVE_FLAGS ?=
+SHOWCASE_PACKAGE_FLAGS ?=
+
+alex-audio-showcase:
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_alex_audio_showcase.py --require-real-alex-v2 $(SHOWCASE_LIVE_FLAGS)
+	$(PYTHON) scripts/build_alex_showcase_package.py $(SHOWCASE_PACKAGE_FLAGS)

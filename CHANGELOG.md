@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+Official Isaac 6.0.1 / Isaac Lab 3.0.0-beta2 launcher migration:
+
+- Makefile live gates now auto-detect the official installs at `~/isaacsim`
+  and `~/IsaacLab`, while keeping `ISAAC_SIM_COMMAND` and `ISAAC_LAB_PYTHON`
+  overrides for non-default or legacy runtimes.
+- Runtime discovery now lists official Isaac Sim and Isaac Lab launchers first
+  and keeps the old `isaac_suitcase` setup as legacy-last fallback.
+- The Isaac Lab live smoke forwards official `AppLauncher` flags such as
+  `--viz kit`; runs without extra flags keep the existing headless behavior.
+- The Isaac Sim extension installer now selects the highest installed Kit
+  `user.config.json` version for autoload instead of hardcoding Kit 5.1.
+- Docs now use literal official launcher commands and plain `make live-*`
+  examples instead of undefined `$ISAAC_*` placeholders.
+
 ## 1.7.0 - 2026-06-12
 
 3D DOA, SRP-PHAT, and Doppler release. The frame schema version is unchanged

@@ -38,6 +38,13 @@ def test_default_rig_library_contains_named_presets_with_valid_geometry():
     assert {profile.profile_id for profile in validated} == {
         profile.profile_id for profile in profiles
     }
+    by_id = {profile.profile_id: profile for profile in profiles}
+    assert by_id["alex_head_quad"].recommended_mount_prim_path == (
+        "/World/Alex/PELVIS_LINK/TORSO_LINK/NECK_Z_LINK/HEAD_LINK"
+    )
+    assert by_id["alex_chest_stereo"].recommended_mount_prim_path == (
+        "/World/Alex/PELVIS_LINK/TORSO_LINK"
+    )
 
 
 def test_rig_profile_to_dict_round_trips_through_mapping_loader():

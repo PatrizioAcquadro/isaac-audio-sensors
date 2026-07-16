@@ -233,8 +233,10 @@ def default_microphone_rig_profiles() -> tuple[MicrophoneRigProfile, ...]:
             microphone_gains_db=(0.0, 0.0, 0.0, 0.0),
             mount_local_offset_m=(0.0, 0.0, 0.12),
             sample_rate_hz=48_000,
-            recommended_mount_prim_path="/World/Alex/head_link",
-            description="Four-mic cross rig mounted above an Alex head link.",
+            recommended_mount_prim_path=(
+                "/World/Alex/PELVIS_LINK/TORSO_LINK/NECK_Z_LINK/HEAD_LINK"
+            ),
+            description="Four-mic cross rig mounted above the Alex V2 head link.",
         ),
         MicrophoneRigProfile(
             profile_id="alex_chest_stereo",
@@ -248,8 +250,8 @@ def default_microphone_rig_profiles() -> tuple[MicrophoneRigProfile, ...]:
             microphone_gains_db=(0.0, 0.0),
             mount_local_offset_m=(0.05, 0.0, 0.05),
             sample_rate_hz=48_000,
-            recommended_mount_prim_path="/World/Alex/base_link",
-            description="Wide stereo pair mounted forward of an Alex chest/base link.",
+            recommended_mount_prim_path="/World/Alex/PELVIS_LINK/TORSO_LINK",
+            description="Wide stereo pair mounted forward of the Alex V2 torso link.",
         ),
         MicrophoneRigProfile(
             profile_id="unitree_head_stereo",

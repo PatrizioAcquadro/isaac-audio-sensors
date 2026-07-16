@@ -195,6 +195,19 @@ def test_register_and_deregister_with_fake_omnigraph(monkeypatch):
     assert calls["deregistered"] == NODE_TYPE_NAME
 
 
+def test_register_is_idempotent_when_node_type_exists(monkeypatch):
+    calls = _install_fake_og(monkeypatch)
+    sys.modules["omni.graph.core"].get_node_type = (
+        lambda name: object() if name == NODE_TYPE_NAME else None
+    )
+
+    status = register_omnigraph_node()
+
+    assert "already registered" in status
+    assert NODE_TYPE_NAME in status
+    assert "registered" not in calls
+
+
 def test_register_reports_unavailable_without_omnigraph(monkeypatch):
     monkeypatch.setitem(sys.modules, "omni.graph.core", None)
     status = register_omnigraph_node()

@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 import traceback
+from contextlib import suppress
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -66,8 +67,10 @@ def main() -> int:
         "status": "started",
     }
     simulation_app = None
+    lab_simulation_context = None
+    lab_simulation_context_created = False
     try:
-        lab_module, simulation_app = _import_lab_runtime()
+        lab_module, simulation_app = _import_lab_runtime(list(unknown_args))
         evidence["lab_module"] = lab_module
         evidence["runtime"] = _runtime_evidence()
         from isaac_audio_sensors.lab import (
@@ -123,6 +126,12 @@ def main() -> int:
             if int(cuda_evidence["torch_cuda_device_count"]) <= 0:
                 raise RuntimeError("No CUDA devices are visible to torch.")
             device = "cuda:0"
+        (
+            lab_simulation_context,
+            lab_simulation_context_created,
+            simulation_context_evidence,
+        ) = _ensure_lab_simulation_context(device=device)
+        evidence["simulation_context"] = simulation_context_evidence
 
         array = create_microphone_array(
             array_id="rig_front",
@@ -506,11 +515,19 @@ def main() -> int:
         )
         _write_evidence(args.out, evidence)
         print(json.dumps(_json_safe(evidence), indent=2, sort_keys=True))
+        _close_lab_simulation_context(
+            lab_simulation_context,
+            created=lab_simulation_context_created,
+        )
         _close_simulation_app(simulation_app)
         return 2
 
     _write_evidence(args.out, evidence)
     print(json.dumps(_json_safe(evidence), indent=2, sort_keys=True))
+    _close_lab_simulation_context(
+        lab_simulation_context,
+        created=lab_simulation_context_created,
+    )
     _close_simulation_app(simulation_app)
     return 0
 
@@ -579,6 +596,41 @@ def _runtime_evidence() -> dict[str, object]:
     except Exception as exc:  # noqa: BLE001 - evidence only.
         evidence["kit_version_error"] = f"{type(exc).__name__}: {exc}"
     return evidence
+
+
+def _ensure_lab_simulation_context(
+    device: str,
+) -> tuple[object, bool, dict[str, object]]:
+    """Ensure Isaac Lab SensorBase has a SimulationContext before construction."""
+
+    import isaaclab.sim as sim_utils  # type: ignore
+    from isaaclab.sim import SimulationContext  # type: ignore
+
+    sim = SimulationContext.instance()
+    created = False
+    if sim is None:
+        sim = SimulationContext(sim_utils.SimulationCfg(device=device))
+        created = True
+    evidence: dict[str, object] = {
+        "created_by_smoke": created,
+        "device": str(getattr(sim, "device", "unavailable")),
+        "backend": str(getattr(sim, "backend", "unavailable")),
+    }
+    try:
+        evidence["physics_dt"] = float(sim.get_physics_dt())
+    except Exception as exc:  # noqa: BLE001 - evidence only.
+        evidence["physics_dt_error"] = f"{type(exc).__name__}: {exc}"
+    return sim, created, evidence
+
+
+def _close_lab_simulation_context(sim: object | None, *, created: bool) -> None:
+    if sim is None or not created:
+        return
+    for method_name in ("stop", "clear_instance"):
+        method = getattr(sim, method_name, None)
+        if callable(method):
+            with suppress(Exception):
+                method()
 
 
 def _module_available(module_name: str) -> bool:
@@ -897,11 +949,27 @@ def _snapshot(
     )
 
 
-def _import_lab_runtime() -> tuple[str, object]:
+def _launch_app_launcher(app_launcher_cls: Any, launcher_argv: list[str]) -> Any:
+    """Launch AppLauncher headless by default, or with official CLI flags.
+
+    Extra CLI args (e.g. ``--viz kit`` on Isaac Lab 3.x) are parsed with the
+    official ``add_app_launcher_args`` parser so GUI/device selection follows
+    the upstream launch rules. Without extra args the launcher stays headless,
+    which also preserves behavior on legacy runtimes that default to a GUI.
+    """
+    if not launcher_argv:
+        return app_launcher_cls(headless=True)
+    scratch = argparse.ArgumentParser()
+    app_launcher_cls.add_app_launcher_args(scratch)
+    launcher_args, _ = scratch.parse_known_args(launcher_argv)
+    return app_launcher_cls(launcher_args)
+
+
+def _import_lab_runtime(launcher_argv: list[str]) -> tuple[str, object]:
     try:
         from isaaclab.app import AppLauncher  # type: ignore
 
-        app_launcher = AppLauncher(headless=True)
+        app_launcher = _launch_app_launcher(AppLauncher, launcher_argv)
         import isaaclab  # type: ignore
 
         return f"isaaclab:{getattr(isaaclab, '__file__', 'built-in')}", app_launcher.app

@@ -46,15 +46,9 @@ from isaac_audio_sensors.isaac.extension_ui.instruments import (
 from isaac_audio_sensors.isaac.pose_resolver import IsaacStagePoseResolver
 
 EXTENSION_ID = "isaac_audio_sensors.omni"
-MOLMO_FIXTURE_ROOT = Path.home() / "Desktop" / "Alex-robot"
+MOLMO_FIXTURE_ROOT = Path.home() / "Desktop" / "CombinedScene"
 MOLMO_FLOORPLAN1_USD = (
-    MOLMO_FIXTURE_ROOT
-    / "assets"
-    / "usd"
-    / "scenes"
-    / "ithor"
-    / "FloorPlan1_physics"
-    / "scene.usda"
+    MOLMO_FIXTURE_ROOT / "FloorPlan1_updated_physics" / "scene.usda"
 )
 MOLMO_KITCHEN_OBJECT_CANDIDATES = (
     "/FloorPlan1_physics/Geometry/oven_588514d9b7194ff8509ced4f3f34adb0_1_0_0",
@@ -2430,7 +2424,17 @@ def _collect_omnigraph_evidence(controller: ExtensionController) -> dict[str, An
             record["registry_lookup"] = bool(node_type)
     except Exception as exc:  # noqa: BLE001 - lookup is diagnostic only.
         record["registry_lookup_error"] = str(exc)
-    if "registered:" in message or message.startswith("OmniGraph node registered"):
+    duplicate_registered = (
+        "Attempted to register Python node type" in message
+        and "twice" in message
+        and bool(record.get("registry_lookup"))
+    )
+    if (
+        "registered:" in message
+        or message.startswith("OmniGraph node registered")
+        or message.startswith("OmniGraph node already registered")
+        or duplicate_registered
+    ):
         record["status"] = "passed"
     elif "unavailable" in message:
         record["status"] = "skipped"
@@ -3459,39 +3463,16 @@ def _prepare_output_dir(path: Path) -> None:
 
 
 def _probe_alex_molmo_fixture() -> dict[str, Any]:
-    alex_root = MOLMO_FIXTURE_ROOT
-    usd_path = (
-        alex_root
-        / "assets"
-        / "usd"
-        / "scenes"
-        / "ithor"
-        / "FloorPlan1_physics"
-        / "scene.usda"
-    )
-    branch = None
-    branch_error = None
-    try:
-        import subprocess
-
-        completed = subprocess.run(
-            ["git", "-C", str(alex_root), "rev-parse", "--abbrev-ref", "HEAD"],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        branch = completed.stdout.strip()
-    except Exception as exc:  # noqa: BLE001 - fixture is optional evidence.
-        branch_error = f"{type(exc).__name__}: {exc}"
+    usd_path = MOLMO_FLOORPLAN1_USD
     return {
         "status": "available" if usd_path.is_file() else "missing_usd",
-        "alex_root": str(alex_root),
-        "branch": branch,
-        "branch_error": branch_error,
+        "fixture_root": str(MOLMO_FIXTURE_ROOT),
+        "fixture_kind": "static_scene_export",
         "required_usd_path": str(usd_path),
         "required_usd_exists": usd_path.is_file(),
         "documented_download_command": (
-            "ms-download --type usd --install-dir assets/usd --scenes ithor"
+            "static AI2-THOR FloorPlan1 USD export under ~/Desktop/CombinedScene; "
+            "no download step"
         ),
         "fixture_used": usd_path.is_file(),
         "procedural_fallback": None if usd_path.is_file() else "/World/Oven",

@@ -12,6 +12,8 @@ from isaac_audio_sensors.core.math_utils import (
     normalize_bearing_deg,
 )
 
+_TWO_MIC_ENDPOINT_TOLERANCE = 8 * math.ulp(1.0)
+
 
 def deduplicate_candidate_bearings(
     candidates: tuple[float, ...],
@@ -52,6 +54,17 @@ def two_mic_candidate_bearings(
 
     perpendicular = (by, -bx)
     clipped_projection = clamp(projection, -1.0, 1.0)
+    if math.isclose(
+        abs(clipped_projection),
+        1.0,
+        rel_tol=0.0,
+        abs_tol=_TWO_MIC_ENDPOINT_TOLERANCE,
+    ):
+        # Exact baseline-axis delays can land a few ULPs inside the endpoint.
+        direction = math.copysign(1.0, clipped_projection)
+        bearing = bearing_from_components(direction * bx, direction * by)
+        return () if bearing is None else (normalize_bearing_deg(bearing),)
+
     perpendicular_scale = math.sqrt(max(0.0, 1.0 - clipped_projection**2))
 
     candidates: list[float] = []

@@ -9,8 +9,9 @@ Replicator is only an optional extension capability.
 
 Supported compatibility target:
 
-- Isaac Sim 5.1: live smoke supported when the user's Isaac Python runtime is
-  available.
+- Official Isaac Sim installs (validated on 5.1; current default install is
+  6.0.x at `~/isaacsim`): live smoke supported through
+  `~/isaacsim/python.sh`.
 - Pure Python import: supported without Isaac installed.
 
 The helpers use lazy imports. Calling code can import the package normally in a
@@ -20,7 +21,7 @@ Isaac helper actually needs `pxr`, `omni`, or `isaacsim`.
 Live smoke:
 
 ```bash
-PYTHONPATH=src "$ISAAC_SIM_PYTHON" scripts/live_isaac_sim_audio_smoke.py
+PYTHONPATH=src ~/isaacsim/python.sh scripts/live_isaac_sim_audio_smoke.py
 ```
 
 The smoke script:

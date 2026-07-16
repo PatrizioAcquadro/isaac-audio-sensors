@@ -58,22 +58,29 @@ not to the extension folder itself.
 
 ## Install Once for Icon Launches
 
-The command-line `--ext-folder <repo>/exts` option is useful for one-off live
-validation, but it only applies to that Isaac Sim process. If you normally open
-Isaac Sim from its desktop icon, install the extension into Isaac's persistent
-user extension folder once:
+For one-off live validation, launch the official Isaac Sim app with this
+checkout's extension folder:
 
 ```bash
-python3 scripts/install_isaac_sim_extension.py \
-  --isaacsim-command <path-to-isaacsim>
+~/isaacsim/isaac-sim.sh --ext-folder <repo>/exts
+```
+
+The command-line `--ext-folder <repo>/exts` option only applies to that Isaac
+Sim process. If you normally open Isaac Sim from its desktop icon, install the
+extension into Isaac's persistent user extension folder once:
+
+```bash
+~/isaacsim/python.sh scripts/install_isaac_sim_extension.py \
+  --isaacsim-root ~/isaacsim
 ```
 
 The installer creates a symlink from Isaac Sim's built-in `extsUser` search
 folder to this checkout's `exts/isaac_audio_sensors.omni` directory. It also
 adds the versioned extension id to Kit's autoload list in
-`~/.local/share/ov/data/Kit/Isaac-Sim Full/5.1/user.config.json`, backing up the
-file first. After that, launching Isaac Sim from the icon should discover the
-extension without extra launch arguments, and the `Window -> Isaac Audio
+`~/.local/share/ov/data/Kit/Isaac-Sim Full/<version>/user.config.json`,
+picking the highest installed Kit version (for example `6.0`) and backing up
+the file first. After that, launching Isaac Sim from the icon should discover
+the extension without extra launch arguments, and the `Window -> Isaac Audio
 Sensors` menu plus `Ctrl+Alt+A` hotkey are available once the extension has
 loaded.
 

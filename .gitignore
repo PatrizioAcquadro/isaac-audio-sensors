@@ -31,4 +31,6 @@ generated/
 .env.*
 .agents/
 .codex/
+.claude/
 .local-goals/
+TODO.md

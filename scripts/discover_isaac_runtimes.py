@@ -1,4 +1,8 @@
-"""Discover likely Isaac Sim and Isaac Lab launch commands."""
+"""Discover likely Isaac Sim and Isaac Lab launch commands.
+
+Official installs (``~/isaacsim``, ``~/IsaacLab``) are listed first; legacy
+custom setups are probed last and are kept for backward compatibility only.
+"""
 
 from __future__ import annotations
 
@@ -21,12 +25,14 @@ def discover() -> dict[str, object]:
         "ISAACSIM_PYTHON",
     ) + _existing(
         [
-            home / "Desktop/isaac_suitcase/miniforge3/envs/env_isaaclab/bin/python",
             home / "isaacsim" / "python.sh",
             home / ".local/share/ov/pkg/isaac-sim-5.1.0/python.sh",
             home / ".local/share/ov/pkg/isaac-sim-5.0.0/python.sh",
             Path("/opt/nvidia/isaacsim/python.sh"),
             Path("/isaac-sim/python.sh"),
+            # Legacy custom setup (isaac_suitcase); superseded by the
+            # official installs above.
+            home / "Desktop/isaac_suitcase/miniforge3/envs/env_isaaclab/bin/python",
         ]
     )
     for env_name in ("ISAAC_SIM_PATH", "ISAACSIM_PATH"):
@@ -39,12 +45,14 @@ def discover() -> dict[str, object]:
         "ISAACSIM_COMMAND",
     ) + _existing(
         [
-            home / "Desktop/isaac_suitcase/miniforge3/envs/env_isaaclab/bin/isaacsim",
             home / "isaacsim/isaac-sim.sh",
             home / ".local/share/ov/pkg/isaac-sim-5.1.0/isaac-sim.sh",
             home / ".local/share/ov/pkg/isaac-sim-5.0.0/isaac-sim.sh",
             Path("/opt/nvidia/isaacsim/isaac-sim.sh"),
             Path("/isaac-sim/isaac-sim.sh"),
+            # Legacy custom setup (isaac_suitcase); superseded by the
+            # official installs above.
+            home / "Desktop/isaac_suitcase/miniforge3/envs/env_isaaclab/bin/isaacsim",
         ]
     )
 
@@ -53,12 +61,14 @@ def discover() -> dict[str, object]:
         "ISAACLAB_PYTHON",
     ) + _existing(
         [
-            home / "Desktop/isaac_suitcase/miniforge3/envs/env_isaaclab/bin/python",
-            home / "Desktop/isaac_suitcase/IsaacLab/isaaclab.sh -p",
             home / "IsaacLab/isaaclab.sh -p",
             home / "isaaclab/isaaclab.sh -p",
             home / "IsaacLab/_isaac_sim/python.sh",
             home / "isaaclab/_isaac_sim/python.sh",
+            # Legacy custom setup (isaac_suitcase); superseded by the
+            # official installs above.
+            home / "Desktop/isaac_suitcase/miniforge3/envs/env_isaaclab/bin/python",
+            home / "Desktop/isaac_suitcase/IsaacLab/isaaclab.sh -p",
         ]
     )
     for env_name in ("ISAAC_LAB_PATH", "ISAACLAB_PATH"):
