@@ -231,446 +231,409 @@ Padding uses the existing mask-driven policy: invalid continuous values use
 and non-applicable feature slots are zeroed. All tensors must share the sensor
 device and selected-environment reset/update behavior.
 
-## 5. Evidence-Gated Milestones
+## 5. Three-Stage Delivery Model
 
-Every milestone closeout must record:
+All work is evidence-gated rather than date-gated. Every phase closeout records:
 
-- entry revision and dependency versions;
-- exact commands and environment;
-- pass/fail/blocked status for every gate;
-- metrics with denominators and tolerances;
-- artifact paths and checksums;
-- known limitations and the next milestone's input contract.
+- entry revision, dependency versions, and predecessor closeouts;
+- exact commands, configuration, environment, and hardware/runtime facts;
+- pass, fail, or blocked status for every acceptance gate;
+- metrics with sample counts, tolerances, and aggregation rules;
+- artifact paths, checksums, and reproduction instructions;
+- known limitations and the next phase's input contract.
 
-### M0 - Baseline And Measurement Lock
+A skipped live, GPU, display, hardware, Windows, or cross-repository check is a
+blocker record, not passing evidence.
 
-**Objective:** turn the current repository state into a reproducible baseline
-before changing contracts or claims.
+### 5.1 Delivery Stages
 
-**Work:**
+| Stage | Purpose | Completion artifact | Publication status |
+| --- | --- | --- | --- |
+| **Stage 1 - SquadBot-Ready Sensor** | Complete the generic sensor capabilities needed to support SquadBot Phases 7-15 before downstream execution begins. | Immutable, checksummed Linux wheel and Kit archives plus the S6 evidence index. | Internal research release; not a public registry release. |
+| **Stage 2 - SquadBot Validation Interlude** | Consume the frozen sensor artifact through the existing downstream Phase 7-15 plans and return verified defects or limitations. | Downstream closeouts or accepted blocker reports, plus versioned sensor patch evidence when needed. | No new sensor feature program. |
+| **Stage 3 - Final Public Product** | Incorporate downstream findings, finish training scale, optional advanced realism, production UX, Windows, release hardening, and publication. | Audited final release artifacts and public evidence index. | PyPI, GitHub, and Kit Community Registry. |
 
-- run the pure test, lint, build, import-smoke, schema, distribution, Isaac Sim,
-  Isaac Lab GPU, extension UX, and optional L2 gates;
-- record the exact Isaac Sim 6.x and Isaac Lab 3.x pair used for the release
-  line;
-- preserve the 4,096-environment benchmark scenario and raw timing samples;
-- inventory the Raspberry Pi, audio interface, microphones, speaker, mounts,
-  room, measurement tools, and available 4+ microphone upgrade options;
-- create the benchmark and calibration protocol documents before choosing
-  claim thresholds.
+### 5.2 Stage 1 Phase Outcomes
 
-**Exit gate:** all software gates pass or have exact blocker records; the
-reference benchmark and hardware inventory are versioned; no current
-capability is represented as stronger than its evidence.
+| Phase | Outcome required before the next phase |
+| --- | --- |
+| `S0` | Current software, live runtime, performance, hardware, and acceptance baselines are explicit and reproducible. |
+| `S1` | A stable, self-contained Linux sensor artifact preserves public contracts and passes the external adapter boundary. |
+| `S2` | Recording, replay, validation, operational guided GUI, and headless equivalents are reliable enough for bench and robot work. |
+| `S3` | Dynamic acoustics required by the downstream scenarios are isolated, tested, and bounded honestly. |
+| `S4` | One measured reference rig has a replayable calibration profile and sealed sim-vs-real evaluation. |
+| `S5` | Installed artifacts pass fixtures representing every sensor-owned requirement through downstream Phases 7-15. |
+| `S6` | The complete SquadBot-readiness matrix passes and immutable research artifacts are frozen. |
 
-### M1 - Self-Contained Distribution
+### 5.3 Stage 2 Boundary
 
-**Objective:** install and run the base sensor without a repository checkout.
+Stage 2 is executed from `squadbot-av-phase1` using that repository's existing
+Phase 7-15 plans. This repository supplies released generic artifacts,
+calibration/config packages, replay fixtures, and sensor defect fixes only. It
+does not take ownership of protobuf transport, `AuditoryCue`, ontology, graph,
+vision, fusion, robot control, locomotion, or safety.
 
-**Work:**
+The Stage 2 sequence is:
 
-- build the Kit extension from the same source used by the Python wheel;
-- remove checkout-relative `sys.path` behavior from the distributed artifact;
-- include L0/L1, the GUI, schemas, presets, examples, and required pure-Python
-  code in the base archive;
-- package compiled L2/L3 dependencies as separately versioned,
-  platform-specific acoustic packs with clear capability discovery;
-- add Kit target metadata for the supported current runtime;
-- gate Linux workstation and headless install first, then Windows GUI install
-  for the cross-platform final release.
+1. `V7-8`: physical bench and sim-vs-real calibration validation;
+2. `V9-11`: Alex simulation, orientation-input, and visual-link validation;
+3. `V12-13`: mobile and scaled-scenario validation;
+4. `V14-15`: real torso/mobile validation or the downstream plans' accepted
+   blocker reports.
 
-**Exit gate:** on a clean machine, the archive is discovered, installed,
-enabled, and runs an L0/L1 example without a checkout or manual package
-installation. Missing acoustic packs disable only their capabilities and show
-an actionable message.
+### 5.4 Stage 3 Phase Outcomes
 
-### M2 - Contract And Plugin Freeze
-
-**Objective:** land the new extension points without breaking frame v1.
-
-**Work:** implement and document the dataset manifest, calibration profile,
-runtime profiles, plugin protocols, registry validation, and additive Isaac Lab
-buffers.
-
-**Exit gate:** checked-in JSON Schemas match generated schemas; valid fixtures
-round-trip; malformed versions, units, timestamps, channel orders, checksums,
-and plugin declarations fail clearly; older v1 frame fixtures remain valid.
-
-### M3 - Efficient Training And Dataset Pipeline
-
-**Objective:** support high-throughput observations and reliable large capture
-without conflating their performance envelopes.
-
-**Work:**
-
-- preserve vectorized feature computation for `training_features`;
-- build bounded-memory, atomic, resumable dataset shards for
-  `waveform_fidelity`;
-- add deterministic replay, validation, statistics, split construction, and
-  optional Parquet indexing;
-- record dropped/late frames and IO backpressure rather than hiding them;
-- expand Replicator export as an adapter to the canonical manifest.
-
-**Exit gate:**
-
-- 4,096 environments, four microphones, two events, and 50 measured steps pass
-  p95 `<= 20 ms` on the RTX 4090 reference host for the batched L1 path;
-- a representative long capture completes with bounded memory, zero manifest
-  violations, valid checksums, monotonic timestamps, and no split leakage;
-- interruption leaves no shard marked complete, and resume produces the same
-  canonical manifest as an uninterrupted seeded run.
-
-### M4 - L3 Advanced Realism
-
-**Objective:** model the effects needed for research datasets while keeping
-each approximation explicit.
-
-**Work, in dependency order:**
-
-1. automatic source/array velocity from timestamped Isaac poses;
-2. rendered sim-time gaps and intra-window motion policy;
-3. microphone frequency response, gain/delay mismatch, polarity, and
-   self-noise spectra;
-4. clipping, quantization, and optional AGC with recorded state;
-5. waveform-applied source/microphone directivity;
-6. measured material parameters, dynamic room/source/array behavior, and
-   multi-source stress cases;
-7. replaceable advanced propagation for diffraction or richer wave effects.
-
-**Exit gate:** every effect has an off-state that preserves the prior baseline,
-a focused physical or analytical fixture, additive diagnostics, performance
-measurements, and documented limitations. Ray/transmission occlusion is not
-described as diffraction or a complete wave solver.
-
-### M5 - L4 Reference-Rig Calibration
-
-**Objective:** support a defensible, repeatable research-grade calibrated claim
-for one documented rig and environment envelope.
-
-**Work:**
-
-- lock the BOM, exact measured geometry, channel identity, and acquisition
-  procedure before fitting parameters;
-- begin with the available two-microphone bench while preserving explicit
-  front/back ambiguity and a documented 4+ microphone upgrade path;
-- measure pose sweeps, per-channel level/delay, noise, frequency response,
-  reverberation, occlusion, clock behavior, and end-to-end latency;
-- separate fit and holdout measurements;
-- compare uncalibrated simulation, calibrated simulation, and real recordings;
-- freeze baseline-derived pass thresholds in a tracked benchmark specification
-  before using them as release gates.
-
-**Required reported metrics:** TDOA error, candidate-bearing coverage for the
-two-microphone rig, unambiguous DOA error where geometry supports it, level
-error in dB, reverberation error, latency distribution, failure rate, and
-confidence calibration. Every metric reports sample count, pose/distance
-coverage, median, p95, and worst case.
-
-**Exit gate:** the holdout comparison passes the pre-registered thresholds,
-calibration improves the declared metrics without corrupting unaffected
-contracts, the full run is replayable from checked artifacts, and unmodeled
-conditions are listed. No generic claim is inferred from one reference rig.
-
-### M6 - Guided GUI And Headless Parity
-
-**Objective:** make the common workflow understandable to a first-time Isaac
-user while preserving expert control.
-
-**Guided workflow:**
-
-1. **Setup**: select or create array, source, room, and runtime profile.
-2. **Validate**: show stage health, geometry rank, dependencies, paths, frames,
-   devices, and actionable fixes.
-3. **Run**: configure and control the sensor with safe defaults.
-4. **Inspect**: view compass, elevation/range, meters, waveform, spectrogram,
-   events, occlusion, and performance.
-5. **Record**: configure a validated dataset session and monitor progress.
-6. **Export**: write frame, config, manifest, calibration, and evidence
-   artifacts with a summary of what was produced.
-
-Advanced mode retains every expert field and supports lossless config
-round-trip. Long operations report progress and are cancellable. Invalid input
-is attached to its field, preserves the last valid state, and never leaves a
-half-started sensor or dataset.
-
-Every GUI operation must have a documented config/API/CLI equivalent suitable
-for headless use.
-
-**Exit gate:** at least four of five evaluators, unfamiliar with the package,
-install the extension, configure a valid scene, capture frames, and export a
-small valid dataset within ten minutes without source-code or terminal use.
-All expert config fields round-trip, cancellation/retry tests pass, and the
-headless equivalence suite produces semantically identical outputs.
-
-### M7 - SquadBot And Alex Readiness
-
-**Objective:** prove that released generic artifacts support the attached
-audio-visual robotics plan while keeping ownership boundaries intact.
-
-Cross-repository tests must install a built wheel or extension archive. They
-must not depend on a sibling checkout, source-path injection, or generated
-local evidence from this repository.
-
-| Downstream phase | Sensor-owned readiness evidence | External responsibility |
-| --- | --- | --- |
-| 7-8: bench and calibration | real recording import/replay, calibration profile, comparable sim/real metrics, stable timestamps/frames | physical assembly, transport messages, graph insertion, visual bench path |
-| 9: Alex bring-up | array discovery and mounting on the canonical head/base frame, finite moving transforms, trace/config export | robot asset validation, camera and control-interface bring-up |
-| 10: orientation | localized or explicitly ambiguous cues, latency and confidence, moving-array correctness | cue-to-orientation intent and safe yaw control |
-| 11: visual confirmation | stable frame ids, source metadata, poses, and adapter inputs | visual detection/ground truth, ontology, graph link |
-| 12-13: mobile and scaled scenes | motion, Doppler, occlusion, longer sessions, hallway/multi-area stress, deterministic scenario configs | locomotion, planning, stopping, visual search, scenario policy |
-| 14-15: real torso/mobile validation | portable configs/calibration, real/sim trace comparability, stable generic outputs | hardware safety, robot transport, actuation, IHMC execution and approval |
-
-**Exit gate:** released artifacts pass the complete generic-frame-to-protobuf-
-to-auditory-cue-to-graph fixture chain; every event preserves schema version,
-source/frame ids, timestamps, order, units, bearing ambiguity, and provenance;
-no downstream ontology or behavior field appears in the generic frame schema.
-
-Alex or IHMC availability is not a dependency of package publication. Missing
-access produces a downstream blocker report while replayable interface
-fixtures continue to gate compatibility.
-
-### M8 - Publication, Maintenance, And Evidence
-
-**Objective:** make releases reproducible, discoverable, supportable, and
-honest about their evidence.
-
-**Work:**
-
-- publish wheels and source distributions through PyPI and GitHub releases;
-- publish the Kit extension through the
-  [Kit Community Registry](https://docs.omniverse.nvidia.com/kit/docs/kit-registry-reference/latest/community/extensions.html);
-- use the required public repository topic, valid `extension.toml`, release
-  archives, target metadata, and platform naming current at release time;
-- add clean-install, archive, SBOM, license, security, compatibility, GUI,
-  benchmark, and calibration evidence;
-- define support windows, deprecation policy, migration notes, issue templates,
-  and a release evidence index;
-- recheck the
-  [Kit extension configuration reference](https://docs.omniverse.nvidia.com/kit/docs/kit-manual/latest/)
-  immediately before release because registry and compatibility rules can
-  change.
-
-The Community Registry is a community distribution channel. Listing there
-must not be represented as NVIDIA support, certification, or endorsement.
-
-**Exit gate:** a clean Linux install passes all claimed base and acoustic-pack
-capabilities; the final cross-platform release also passes the Windows
-install/GUI matrix; published artifacts match locally audited checksums; docs,
-metadata, schemas, versions, and support statements agree.
+| Phase | Outcome required before the next phase |
+| --- | --- |
+| `P0` | SquadBot findings are classified, sensor defects become regressions, and final public acceptance is frozen. |
+| `P1` | Isaac Lab training and dataset production meet the final scale, determinism, and performance gates. |
+| `P2` | Optional advanced propagation, public calibration tooling, and acoustic-pack limits are validated. |
+| `P3` | The production GUI passes usability, accessibility, migration, recovery, and headless-parity gates. |
+| `P4` | Windows, current-runtime CI, supply-chain, documentation, support, and registry-readiness gates pass. |
+| `P5` | Exact audited artifacts are published and post-release maintenance begins. |
 
 ## 6. Agent Execution Work Breakdown
 
-The milestone descriptions above define outcomes. This section divides those
-outcomes into reviewable implementation units small enough to assign to an
-agent. The agent should execute one numbered subphase at a time unless the
-parallelization rules below explicitly allow otherwise.
+The top-level implementation agent owns one complete `S` or `P` phase. It may
+delegate dependency-independent subphases, but it remains responsible for
+integration, repository-wide verification, evidence quality, and the phase
+closeout. Stage 2 is not assigned from this roadmap; it follows the downstream
+repository's own plans.
 
-### 6.1 Subphase Execution Contract
+### 6.1 Phase Orchestration Contract
 
-For every subphase, the implementing agent must:
+For every `S` or `P` phase, the orchestrator must:
 
-1. read this plan, the named predecessor closeout, and the relevant current
-   implementation before editing;
-2. restate the subphase boundary and its tests in the working plan;
-3. add or update the failing acceptance test before, or with, production code;
-4. implement only the named deliverable and necessary compatibility changes;
-5. run focused tests first, then all available milestone/repository gates;
-6. stop before the next subphase.
+1. read this plan, predecessor phase closeouts, relevant code, tests, public
+   compatibility documents, and current worktree state;
+2. create a working dependency graph for all subphases in the assigned phase;
+3. restate phase inputs, outputs, non-goals, tests, and evidence before editing;
+4. delegate only dependency-safe work, with exactly one subphase per delegated
+   agent and no overlapping file ownership unless explicitly coordinated;
+5. require each subphase to add or update acceptance tests, implement its
+   smallest complete deliverable, run focused checks, and write a subphase
+   closeout;
+6. review every delegated change, resolve integration problems, and run all
+   available phase and repository gates from the integrated tree;
+7. write the phase closeout with revision, contracts, commands, results,
+   metrics, artifacts, limitations, blockers, and next-phase input;
+8. stop before the next phase.
 
-A subphase is not complete merely because code exists. Its tests, documentation,
-artifact validation, and closeout must also pass. If a required runtime, GPU,
-display, operating system, device, or external repository is unavailable, the
-agent records `blocked` evidence and stops that subphase; it does not weaken the
-gate or substitute a mock as live proof.
+A phase is not complete merely because code exists. All subphase deliverables,
+tests, documentation, artifact validation, and the phase exit gate must pass.
+Unavailable external evidence is reported as `blocked` and never replaced by a
+mock or skipped check presented as live proof.
 
 ### 6.2 Execution Artifact Convention
 
-When implementation begins, use these locations consistently:
+Use these locations when implementation begins:
 
-- tracked design and benchmark specifications:
-  `docs/development/specs/<subphase>_<topic>.md`;
-- tracked closeouts:
-  `docs/development/closeouts/<subphase>_<topic>.md`;
+- phase design and benchmark specifications:
+  `docs/development/specs/<phase>_<topic>.md`;
+- subphase closeouts:
+  `docs/development/closeouts/<phase>/<subphase>_<topic>.md`;
+- phase closeout: `docs/development/closeouts/<phase>_closeout.md`;
 - public schemas: `docs/schemas/`;
-- small, redistributable contract fixtures: the relevant `examples/` fixture
-  directory;
+- small redistributable fixtures: the relevant `examples/` fixture directory;
 - machine-local live, performance, calibration, and media evidence:
-  `outputs/isaac_audio_sensors/<subphase>/`.
+  `outputs/isaac_audio_sensors/<phase>/<subphase>/`.
 
 Raw physical recordings remain outside git unless their license, consent, and
-size are explicitly suitable. Track their manifest, hashes, acquisition
-contract, and retrieval instructions instead. A closeout may cite ignored
-evidence, but public claims require the evidence package to be archived in the
-declared release location.
+size permit redistribution. Track their manifests, hashes, acquisition
+contracts, and retrieval instructions. A closeout may cite ignored local
+evidence, but a release claim needs an archived evidence package in its declared
+release location.
 
-### 6.3 M0 Subphases - Baseline And Measurement Lock
-
-| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
-| --- | --- | --- | --- |
-| `M0.1` | **Source-of-truth audit.** Map every current claim in Section 3 to code, tests, tracked docs, or a named machine-local artifact. Record discrepancies without changing behavior. | Each row is classified Verified/Partial/Target/External with an evidence link. Stop and correct this plan if code and docs disagree. | None |
-| `M0.2` | **Pure release baseline.** Run and record tests, lint, schema generation/parity, import smoke, build, and archive audit from a clean environment. | All available pure gates pass. Existing failures receive reproducible commands and must be resolved before feature work. | `M0.1` |
-| `M0.3` | **Live runtime baseline.** Run Isaac Sim lifecycle, Isaac Lab GPU, extension UX, screenshots, and optional L2 checks on the selected 6.x/3.x pair. | Each live gate has exact runtime/GPU facts and artifacts. Unavailable capability is `blocked`, never silently skipped. | `M0.2` |
-| `M0.4` | **Performance baseline.** Freeze the 4,096-env/four-mic/two-event L1 benchmark config and collect raw timings for at least three 50-step runs after warm-up. | Report mean, median, p95, worst step, GPU, driver, memory, and compute path. The worst run must meet the current `20 ms` p95 target before later optimization claims use this baseline. | `M0.3` |
-| `M0.5` | **Reference-rig inventory.** Record the Raspberry Pi, audio interface, microphone count/geometry, channel order, speaker, camera, mounts, room, clocks, and measurement tools; mark unknown values explicitly. | A reviewer can reconstruct the proposed bench or identify every missing item. No estimated geometry is labeled measured. | `M0.1` |
-| `M0.6` | **Acceptance-spec lock.** Write tracked performance, dataset, calibration, GUI-usability, and release evidence specifications using M0 facts. | Each later milestone has a measurable input/output contract and no threshold depends on unseen holdout data. | `M0.2`-`M0.5` |
-
-### 6.4 M1 Subphases - Self-Contained Distribution
+### 6.3 S0 - Baseline And Acceptance Lock
 
 | ID | Execution unit and deliverable | Verification and stop condition | Depends on |
 | --- | --- | --- | --- |
-| `M1.1` | **Packaging ADR.** Lock the single-source build design, extension id, archive contents, base/optional-pack boundary, supported Kit target, and version synchronization policy. | ADR demonstrates that wheel and extension cannot drift and identifies every compiled dependency/platform boundary. No packaging code starts before approval. | `M0.6` |
-| `M1.2` | **Extension build pipeline.** Assemble the Kit package from the canonical Python source/wheel into a staging directory without copying maintained source by hand. | A content manifest proves which package files were included and rejects stale/missing modules. Repeated builds from one revision have identical logical contents. | `M1.1` |
-| `M1.3` | **Runtime entrypoint cleanup.** Remove distributed checkout-relative import behavior and resolve package modules only from the extension artifact. Preserve editable-checkout development separately. | A test fails if the packaged entrypoint references repository `src/`; source-checkout and packaged startup both pass. | `M1.2` |
-| `M1.4` | **Base archive.** Package L0/L1, GUI, schemas, presets, examples, and pure runtime dependencies; add archive safety and metadata audits. | Archive contains no caches, outputs, private paths, sibling-project code, or undeclared dependencies. Extracted base imports without network access. | `M1.3` |
-| `M1.5` | **Linux clean-install gate.** Install the base archive into a clean Isaac Sim 6.x environment and run GUI plus headless L0/L1 workflows. | Discovery, enable, sample scene, frame capture, JSONL export, disable/re-enable, and uninstall/reinstall pass without checkout or manual package installation. | `M1.4` |
-| `M1.6` | **Optional acoustic packs.** Build version-matched platform artifacts for L2/L3 compiled dependencies and expose capability discovery in API/CLI/GUI. | Installing the pack enables its backends; removing it leaves the base healthy and produces an actionable unavailable-capability result. Version/platform mismatch is rejected. | `M1.4` |
-| `M1.7` | **Windows clean-install gate.** Reproduce the base and supported acoustic-pack workflows on the current Windows Isaac runtime. | The same install, GUI, capture, export, update, and removal contract passes; platform differences are documented rather than hidden. | `M1.5`, `M1.6` |
-| `M1.8` | **Registry-readiness dry run.** Validate `extension.toml`, target metadata, icons/docs, archive names, GitHub release layout, and current Community Registry discovery rules. | Dry-run/install-from-release artifacts pass and a checklist identifies only external publication actions. Recheck official rules during M8. | `M1.5`; `M1.7` for the final cross-platform artifact |
+| `S0.1` | **Source-of-truth audit.** Map every current claim in Section 3 to code, tests, tracked documents, or named machine-local evidence. | Every claim is Verified, Partial, Target, or External with evidence. Correct this plan before continuing if implementation and documentation disagree. | None |
+| `S0.2` | **Pure baseline.** Run tests, lint, schema parity, import smoke, build, and archive/distribution audits from a documented environment. | All available pure gates pass. Existing failures have reproducible commands and are resolved before feature work. | `S0.1` |
+| `S0.3` | **Live baseline.** Run Isaac Sim lifecycle, Isaac Lab GPU, extension GUI, screenshots, and supported optional-backend checks on the selected 6.x/3.x pair. | Every live gate records exact runtime, driver, GPU, and artifacts. Unavailable capability is `blocked`. | `S0.2` |
+| `S0.4` | **Performance observation.** Freeze the existing reference scenarios and collect raw timing/memory samples, including three warmed 50-step runs for the 4,096-environment L1 benchmark when the host supports it. | Report mean, median, p95, worst step, device, memory, and compute path. Results are an informational baseline; the final `20 ms` gate belongs to `P1`. | `S0.3` |
+| `S0.5` | **Reference-rig inventory.** Record the Raspberry Pi, audio interface, microphone count/geometry, channel order, speaker, camera, mounts, room, clocks, and measurement tools; mark unknown values explicitly. | A reviewer can reconstruct the proposed bench or identify every missing item. Estimated geometry is never labeled measured. | `S0.1` |
+| `S0.6` | **Dual acceptance lock.** Write separate tracked specifications for the SquadBot-readiness release and the final public release using S0 facts. | Every later phase has measurable inputs, outputs, evidence, and failure handling. Final publication-only gates are not placed on the Stage 1 critical path. | `S0.2`-`S0.5` |
 
-### 6.5 M2 Subphases - Contract And Plugin Freeze
+**S0 exit gate:** the repository and reference rig have reproducible baselines,
+all present failures are resolved or explicitly blocked, and both release
+definitions are frozen without overstating current evidence.
 
-| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
-| --- | --- | --- | --- |
-| `M2.1` | **Contract ADR and namespaces.** Lock schema ids, compatibility policy, directory/module ownership, time/coordinate conventions, and migration policy. | The design keeps frame v1 stable and proves why dataset/calibration data are separate contracts. | `M0.6` |
-| `M2.2` | **Dataset manifest model.** Implement types, JSON Schema, serialization, validation, and nominal/invalid fixtures for `ias.audio_dataset_manifest.v1`. | Generated and checked schema match; fixtures preserve ids, units, frames, channel order, timestamps, checksums, and completion state. | `M2.1` |
-| `M2.3` | **Calibration profile model.** Implement `ias.audio_calibration_profile.v1`, compatibility validation, serialization, and fixtures. | Wrong device/channel/sample-rate/coordinate profiles fail before any partial application; unknown optional fields round-trip under the version policy. | `M2.1` |
-| `M2.4` | **Runtime-profile configuration.** Add `training_features` and `waveform_fidelity` to config/API/CLI with strict validation and documented defaults. | Existing configs retain prior behavior through an explicit compatibility default; unknown profiles and impossible profile/backend combinations fail clearly. | `M2.1` |
-| `M2.5` | **Plugin protocols and registries.** Add `PropagationBackend`, `DoaEstimator`, and `AudioFeatureExtractor` capability declarations and registry rules. | Duplicate ids, missing dependencies, device/profile mismatch, invalid output shapes, and nondeterminism claims are tested. Existing backends register without semantic change. | `M2.1`, `M2.4` |
-| `M2.6` | **Isaac Lab additive buffers.** Add elevation, range, occlusion, and optional feature tensors with masks, allocation, reset, selected update, and observation export. | CPU/import-safe and live GPU tests confirm shapes, dtypes, device placement, padding, selected-row isolation, and backward-compatible keys. | `M2.4`, `M2.5` |
-| `M2.7` | **Compatibility freeze.** Regenerate public examples/docs and run old frame/config fixtures plus new schema/plugin consumers. | Pre-change v1 fixtures remain valid; all breaking changes are removed or moved behind a new version; closeout freezes public names. | `M2.2`-`M2.6` |
-
-### 6.6 M3 Subphases - Efficient Training And Dataset Pipeline
+### 6.4 S1 - Stable Installable Foundation
 
 | ID | Execution unit and deliverable | Verification and stop condition | Depends on |
 | --- | --- | --- | --- |
-| `M3.1` | **Fast-profile parity.** Route L0/L1 batched observation generation through `training_features` without waveform allocation. | Scalar/batched outputs match within declared tolerances; profiler proves no per-environment frame or waveform objects on the steady-state fast path. | `M2.4`, `M2.6` |
-| `M3.2` | **Dataset session and shard layout.** Define deterministic ids, relative paths, shard boundaries, asset naming, metadata/audio joins, and completion markers. | A tiny reference dataset is byte/logically reproducible for one seed and portable after moving its root directory. | `M2.2`, `M2.4` |
-| `M3.3` | **Atomic bounded-memory writers.** Implement streaming JSONL and WAV/FLAC writes, staging, fsync/finalization policy, checksums, cancellation, and resume. | Disk interruption, process termination, disk-full, partial line, and retry tests never expose an incomplete shard as complete; memory stays within the M0 spec. | `M3.2` |
-| `M3.4` | **Loader and deterministic replay.** Load episodes/shards incrementally and replay frames in original order with preserved types, units, and boundaries. | Tiny and multi-shard fixtures round-trip; corrupt assets, missing frames, checksum mismatch, and unknown versions fail with location context. | `M3.3` |
-| `M3.5` | **Validator and statistics.** Report counts, duration, missingness, channel/sample-rate consistency, timestamp quality, ranges, labels, modalities, and asset integrity. | Zero violations on valid fixtures; each planted corruption produces the intended finding; large validation is streaming/bounded. | `M3.4` |
-| `M3.6` | **Deterministic split builder.** Build train/validation/test manifests using scene/object/task/episode grouping selected by config. | Same seed produces the same hashes; no group crosses splits; impossible ratios or missing grouping metadata fail. | `M3.5` |
-| `M3.7` | **Replicator adapter.** Map Replicator capture into the canonical session/writer contracts without creating a second source of truth. | Replicator and direct recording of the same seeded frames are semantically equivalent after path normalization; absence of Replicator does not affect core capture. | `M3.3`-`M3.5` |
-| `M3.8` | **Performance and endurance closeout.** Run the 4,096-env benchmark and representative long dataset sessions with IO/resource telemetry. | L1 p95 target, bounded memory, zero valid-dataset violations, deterministic resume, and no unreported dropped frames pass. | `M3.1`, `M3.5`-`M3.7` |
+| `S1.1` | **Architecture lock.** Record packaging, supported runtime, compatibility, contract ownership, base/acoustic-pack boundary, version synchronization, and separate-repository responsibilities in one ADR. | The ADR proves wheel and extension sources cannot drift, identifies binary/platform boundaries, preserves generic sensor ownership, and is approved before implementation. | `S0.6` |
+| `S1.2` | **Stage 1 public contracts.** Implement types, JSON Schemas, serialization, validation, and fixtures for `ias.audio_dataset_manifest.v1` and `ias.audio_calibration_profile.v1`; add `training_features` and `waveform_fidelity` runtime profiles. | Generated and checked schemas match; valid fixtures round-trip; malformed ids, units, frames, timestamps, channel order, checksums, and incompatible profiles fail before partial use. Existing configurations retain documented behavior. | `S1.1` |
+| `S1.3` | **Plugin contracts.** Implement `PropagationBackend`, `DoaEstimator`, and `AudioFeatureExtractor` protocols, capability declarations, and registry validation. | Duplicate ids, missing dependencies, unsupported device/profile combinations, invalid shapes, and false determinism declarations fail. Existing backends register without semantic drift. | `S1.1`, `S1.2` |
+| `S1.4` | **Canonical extension build.** Build the Kit extension from the same maintained package source as the wheel and remove distributed checkout-relative import behavior. | Source-checkout development remains supported; packaged startup fails a test if it references repository `src/` or requires a manual package installation. | `S1.1` |
+| `S1.5` | **Linux artifacts.** Produce a self-contained L0/L1 base archive and version-matched Linux L2/L3 acoustic packs with audited contents and capability discovery. | Archives contain no caches, outputs, private paths, sibling-project code, or undeclared dependencies. Pack removal leaves the base healthy and missing capabilities actionable. | `S1.2`-`S1.4` |
+| `S1.6` | **Clean Linux install.** Install the exact wheel/archive artifacts into a clean Isaac Sim 6.x environment and run GUI and headless lifecycle, capture, export, update, and reinstall scenarios. | All scenarios pass without checkout-relative imports or a manual `pip` step. Import provenance points only to the installed artifacts. | `S1.5` |
+| `S1.7` | **Compatibility freeze.** Run old frame/config fixtures and new contract/plugin consumers; regenerate public examples and compatibility documentation. | `ias.audio_sensor_frame.v1` remains valid and unchanged in meaning. Breaking additions are removed or assigned a new version; the closeout freezes public names. | `S1.2`, `S1.3`, `S1.6` |
+| `S1.8` | **Installed-artifact consumer gate.** In an isolated environment, run the external adapter's nominal, empty, malformed, multi-source, ambiguity, and replay fixtures against the built artifact without modifying the consumer repository. | `AudioSensorFrame` to protobuf to `AuditoryCue` to graph output is deterministic; generic exports contain no downstream ontology or behavior fields. | `S1.6`, `S1.7` |
 
-### 6.7 M4 Subphases - L3 Advanced Realism
+**S1 exit gate:** immutable Linux artifacts install cleanly, supported base and
+acoustic capabilities are discoverable, frame v1 remains compatible, and the
+external adapter consumes installed artifacts without sibling source paths.
 
-Implement each physical effect as a separate review unit. Do not batch multiple
-effects into one opaque backend change.
-
-| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
-| --- | --- | --- | --- |
-| `M4.1` | **Pose-derived velocity.** Derive source/array linear velocity from timestamped Isaac poses with reset, first-sample, teleport, stale-time, and smoothing policy. | Constant-velocity analytical fixtures match tolerance; teleport/reset never emits an extreme Doppler spike; authored velocity precedence is explicit. | `M2.7` |
-| `M4.2` | **Time gaps and intra-window motion.** Preserve sim-time gaps in session audio and define piecewise motion within capture windows. | Known pause/throttle trajectories produce the expected silence/sample count and bounded interpolation error; non-monotonic time fails. | `M4.1`, `M3.3` |
-| `M4.3` | **Channel response and mismatch.** Apply calibrated frequency response, gain, delay, and polarity per microphone. | Impulse, tone, and broadband fixtures recover expected transfer functions; off-state remains compatible; channel mismatch is observable in diagnostics. | `M2.3`, `M2.5` |
-| `M4.4` | **Noise model.** Add configurable spectral self-noise, ambient noise sources, clock jitter/drift, and seeded stochastic policy. | PSD/RMS and delay statistics meet analytical tolerances over sufficient samples; fixed seeds replay; independent streams do not accidentally correlate. | `M4.3` |
-| `M4.5` | **Electronics path.** Add quantization, saturation/clipping, optional AGC, and recorded AGC state in the waveform path. | Boundary amplitudes, recovery timing, clipping counts, and quantization noise pass; disabled electronics preserve the prior waveform within tolerance. | `M4.3`, `M4.4` |
-| `M4.6` | **Waveform directivity.** Apply source and microphone polar/frequency response in L2/L3 rather than metadata only. | Cardinal-angle and frequency sweeps match configured patterns; zero/invalid patterns fail; DOA tests cover expected confidence degradation. | `M4.3` |
-| `M4.7` | **Materials and dynamic rooms.** Consume measured material parameters where available and define cache invalidation for moving geometry/room changes. | Controlled clear/blocked/material fixtures keep waveform, RMS, diagnostics, and export mutually consistent; cache never returns stale acoustics. | `M4.2`, `M4.6` |
-| `M4.8` | **Advanced propagation plugin.** Integrate diffraction or richer wave propagation only through `PropagationBackend`, with explicit supported geometry and performance limits. | Backend passes common contract fixtures, declares dependency/device limits, and is compared against analytical or trusted reference cases. It does not change L0-L2 ids. | `M2.5`; may develop alongside `M4.1`-`M4.7` |
-| `M4.9` | **Multi-source robustness and closeout.** Stress overlap, near/far imbalance, motion, occlusion, reverb, and unavailable effects across backends. | No source/detection identity corruption, NaNs, hidden ambiguity, stale cache, or unbounded resource growth; performance and failure envelopes are published. | `M4.1`-`M4.8` |
-
-### 6.8 M5 Subphases - L4 Reference-Rig Calibration
-
-Fit and holdout data must remain separated. Once holdout evaluation begins,
-failed results cannot be fixed by tuning against holdout measurements; a new
-calibration version and new sealed holdout are required.
+### 6.5 S2 - Recording, Replay, Diagnostics, And Operational GUI
 
 | ID | Execution unit and deliverable | Verification and stop condition | Depends on |
 | --- | --- | --- | --- |
-| `M5.1` | **BOM and frame lock.** Measure and version device/channel identity, microphone coordinates, array/source frames, speaker, room, clocks, temperature method, and uncertainty. | Independent review can reproduce coordinate transforms and channel order. Unknown/estimated measurements are not accepted as calibrated values. | `M0.5`, `M2.3` |
-| `M5.2` | **Acquisition tool and runbook.** Capture synchronized multichannel recordings plus poses, reference signals, timestamps, environment facts, and operator notes. | Dry runs detect missing channels, clipping, clock loss, stale pose, insufficient duration, and invalid metadata before accepting a take. | `M5.1`, `M3.3` |
-| `M5.3` | **Pilot sweep and quality gate.** Run a small pose/level/delay/noise/reverb sweep to validate the rig and acquisition protocol. | Repeat takes remain inside predeclared repeatability tolerances; otherwise fix the rig/protocol before collecting the main dataset. | `M5.2` |
-| `M5.4` | **Fit/holdout dataset freeze.** Collect the full sweep, assign groups before fitting, seal holdout assets/hashes, and record coverage. | No pose/source/room group leaks between fit and holdout; holdout contents are not inspected by fitting code. | `M5.3`, `M3.6` |
-| `M5.5` | **Calibration fitting.** Estimate geometry corrections, channel delay/gain/polarity, response/noise parameters, and uncertainty from fit data only. | Synthetic recovery tests and fit residuals pass; regularization/constraints are documented; parameters serialize into the profile schema. | `M5.4`, `M4.3`-`M4.6` |
-| `M5.6` | **Profile application.** Apply profiles to simulation and comparison tooling with strict identity/sample-rate/frame checks. | Uncalibrated mode is unchanged; compatible profile application is deterministic; swapped/stale/incompatible profiles fail closed. | `M5.5` |
-| `M5.7` | **Metric threshold freeze.** Using M0 targets, pilot evidence, and fit-data behavior only, preregister TDOA, bearing coverage/error, level, reverb, latency, failure, and confidence criteria. | Threshold document includes denominators, aggregation, exclusions, tolerances, and pass logic before holdout results are opened. | `M5.5`, `M5.6` |
-| `M5.8` | **Sealed holdout evaluation.** Compare real, uncalibrated sim, and calibrated sim without refitting. | All preregistered metrics and failure counts are reported. Any failed gate remains failed; no selective scenario removal is allowed. | `M5.7` |
-| `M5.9` | **Calibration closeout.** Package the profile, manifest, metrics, uncertainty, limitations, hashes, and reproduction commands. | A clean consumer can replay the comparison and obtain the declared results. Claims are restricted to the measured rig/environment envelope. | `M5.8` |
+| `S2.1` | **Session and shard layout.** Define deterministic episode/frame ids, relative paths, asset naming, shard boundaries, audio/metadata joins, seeds, provenance, and completion markers. | A small reference dataset is byte-identical where promised, logically deterministic otherwise, and portable after moving its root directory. | `S1.2` |
+| `S2.2` | **Atomic bounded-memory writers.** Implement streaming JSONL and lossless multichannel WAV/FLAC output with staging, checksums, cancellation, resume, and finalization policy. | Process interruption, disk-full, partial line, slow writer, and retry tests never expose an incomplete shard as complete; memory remains within the S0 specification. | `S2.1` |
+| `S2.3` | **Checked loader and replay.** Load sessions incrementally and replay frames in original order with preserved types, units, frames, timestamps, and episode boundaries. | Tiny and multi-shard fixtures round-trip. Missing assets, corruption, checksum mismatch, non-monotonic time, and unknown versions fail with location context. | `S2.2` |
+| `S2.4` | **Validator and statistics.** Report counts, duration, missingness, channel/sample-rate consistency, timestamps, ranges, labels, modalities, and asset integrity. | Valid fixtures have zero violations; every planted corruption produces the intended finding; large validation is streaming and bounded. | `S2.3` |
+| `S2.5` | **Deterministic grouped splits.** Build fit/holdout and train/validation/test manifests using configured scene, source, room, task, or episode grouping. | Repeated seeds produce the same hashes; no selected group crosses splits; impossible ratios or missing grouping metadata fail. | `S2.4` |
+| `S2.6` | **Shared validation controller.** Move stage, configuration, dependency, device, path, geometry, time, and calibration checks into import-safe services shared by GUI and headless interfaces. | Pure tests prove identical results without `omni.ui`; capability state refreshes after stage, dependency, or configuration changes. | `S1.2`, `S1.3` |
+| `S2.7` | **Operational guided GUI.** Deliver `Setup -> Validate -> Run -> Inspect -> Record -> Export` with safe presets, inline errors, lifecycle state, core instruments, recording progress, cancellation, and output inventory. | A user can configure a valid scene, capture frames, and export a validator-clean small dataset without source-code intervention. All planted invalid states map to actionable fields or recovery actions. | `S2.2`-`S2.6` |
+| `S2.8` | **Headless and config parity.** Provide config/API/CLI equivalents and lossless configuration round-trip for every Stage 1 GUI operation. | Guided and headless runs from the same configuration produce semantically equivalent stage metadata, frames, manifests, and calibration selection after path normalization. | `S2.7` |
+| `S2.9` | **Reliability closeout.** Run cancellation/restart, simulator replacement, dependency removal, disk failure, resume, and at least one 30-minute representative headless capture. | No stale frame, incomplete published shard, unreported drop, unbounded memory growth, or unrecoverable valid configuration occurs. Output passes the canonical validator. | `S2.4`, `S2.8` |
 
-### 6.9 M6 Subphases - Guided GUI And Headless Parity
+**S2 exit gate:** the same validated configuration can be operated through GUI
+or headless interfaces, recordings are atomic and replayable, and long-running
+SquadBot evidence capture has explicit resource and failure behavior.
 
-| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
-| --- | --- | --- | --- |
-| `M6.1` | **UX specification and state machine.** Define novice/expert personas, six-step workflow, navigation, persistent state, cancellation, error recovery, and wireframes before UI code. | Every current control is mapped to Guided, Advanced, removed, or headless-only; no capability is lost accidentally. | `M2.1`, `M2.4` |
-| `M6.2` | **Shared validation/capability model.** Move stage/config/dependency/device checks into import-safe controller services used by GUI and CLI. | Pure tests prove identical validation results without `omni.ui`; capability state updates after install/remove/stage changes. | `M2.5`, `M6.1` |
-| `M6.3` | **Setup workflow.** Implement selection, presets, array/source/room authoring, runtime profile, and saved setup summary. | A minimal valid scene can be created from an empty stage; invalid/degenerate geometry is caught before Run. | `M6.2` |
-| `M6.4` | **Validate workflow.** Present stage health, geometry rank, frames, time, dependencies, device, paths, calibration compatibility, and actionable repairs. | Every planted invalid state maps to the correct field/action and no warning is represented as a pass. | `M6.3`, `M2.3` |
-| `M6.5` | **Run and Inspect workflows.** Add lifecycle state, live instruments, performance, waveform/spectrogram, events, occlusion, and stale-frame indicators. | Start/stop/restart/update and simulator-stage replacement recover; UI update cost stays inside the M0 GUI budget; no stale frame appears current. | `M6.4`, `M3.1` |
-| `M6.6` | **Record and Export workflows.** Add dataset session validation, progress, backpressure, cancellation/resume, output inventory, and evidence export. | UI-created datasets pass the canonical validator; cancellation is atomic; export lists hashes and errors; disk failure is recoverable. | `M3.3`-`M3.5`, `M6.5` |
-| `M6.7` | **Advanced mode and migration.** Rehome all expert fields, preserve full config round-trip, and migrate old extension configs additively where possible. | Old fixtures import to semantically equivalent state; Guided edits remain visible in Advanced; unknown/removed fields get explicit migration findings. | `M6.3`-`M6.6`, `M2.7` |
-| `M6.8` | **Headless parity.** Add or align config/API/CLI operations for each Guided action and a semantic comparison harness. | Guided and headless runs from the same config produce equivalent stage metadata, frames, manifests, and calibration selection after path normalization. | `M6.7` |
-| `M6.9` | **Live QA and usability gate.** Run Kit UI automation/screenshots, accessibility/error review, cancellation/restart scenarios, and the five-person first-use study. | At least four of five users complete the ten-minute task; all blocking usability findings are fixed and rerun; live evidence records exact Kit/runtime facts. | `M6.8`, `M1.5`; Windows rerun after `M1.7` |
+### 6.6 S3 - Dynamic Acoustics Required By SquadBot
 
-### 6.10 M7 Subphases - SquadBot And Alex Readiness
+Implement each physical effect as an isolated review unit with a compatibility
+off-state and additive diagnostics.
 
 | ID | Execution unit and deliverable | Verification and stop condition | Depends on |
 | --- | --- | --- | --- |
-| `M7.1` | **Released-artifact consumer harness.** Create an isolated environment that installs the built wheel/archive and runs the external adapter fixtures without sibling source paths. | Import provenance points only to installed artifacts; frame-to-protobuf-to-cue-to-graph nominal, empty, multi-source, ambiguity, and replay cases pass. | `M1.5`, `M2.7` |
-| `M7.2` | **Phases 7-8 bench fixture.** Export/replay reference-rig recordings, calibration profiles, and comparable sim/real traces through the external adapter. | Timestamps, frames, source ids, ambiguity, provenance, and metric joins survive the boundary; physical transport/graph code remains external. | `M5.9`, `M7.1` |
-| `M7.3` | **Phase 9 Alex mounting fixture.** Package a generic example that discovers/mounts the array on the canonical robot link and records moving finite transforms. | Clean Isaac run proves mount identity, child microphones, coordinate convention, trace/config export, and no robot-specific frame-schema field. | `M4.1`, `M7.1` |
-| `M7.4` | **Phase 10 orientation input fixture.** Supply localized and explicitly ambiguous moving-array cue sequences with latency/confidence evidence. | External orientation adapter receives stable ordered cues; ambiguous/nonlocalized inputs never invent direction; sensor owns no actuation. | `M7.3`, `M4.9` |
-| `M7.5` | **Phase 11 visual-confirmation boundary.** Verify that sensor frame/source/pose metadata joins deterministically to external visual and graph fixtures. | Link inputs preserve ids/timestamps/provenance; visual classes and link state stay outside the generic frame. | `M7.4` |
-| `M7.6` | **Phases 12-13 scaled stress.** Run long moving, Doppler, occlusion, hallway/multi-area, outside-FOV, and overlap scenarios through capture and adapter replay. | No stale transforms, identity corruption, unbounded memory, silent frame loss, or contract drift; failures remain separately measurable. | `M4.9`, `M3.8`, `M7.5` |
-| `M7.7` | **Phases 14-15 handoff package.** Provide portable config/calibration, replay fixtures, expected generic outputs, metric definitions, and blocker template for real torso/mobile work. | Package contains no unsafe command assumptions or actuation code; it can validate interfaces when robot access is absent. | `M7.2`, `M7.6` |
-| `M7.8` | **Cross-repository contract closeout.** Run the full installed-artifact matrix and freeze compatibility evidence for the release candidate. | All supported fixtures pass from released artifacts; generic exports contain no downstream ontology/behavior leakage; external blockers are explicit. | `M7.1`-`M7.7` |
+| `S3.1` | **Pose-derived velocity.** Derive source and array velocity from timestamped poses with first-sample, reset, teleport, stale-time, and smoothing policies. | Analytical constant-velocity fixtures match tolerance; reset/teleport never creates an extreme Doppler spike; authored velocity precedence is explicit. | `S1.7` |
+| `S3.2` | **Time gaps and intra-window motion.** Preserve simulation-time gaps in session audio and define piecewise motion inside capture windows. | Known pause/throttle trajectories produce expected sample counts/silence and bounded interpolation error; non-monotonic time fails. | `S3.1`, `S2.2` |
+| `S3.3` | **Channel response and mismatch.** Apply per-microphone frequency response, gain, delay, and polarity. | Impulse, tone, and broadband fixtures recover expected transfer functions; disabled modeling preserves the prior waveform within tolerance. | `S1.2`, `S1.3` |
+| `S3.4` | **Seeded noise.** Add configurable spectral self-noise, ambient sources, clock jitter/drift, and deterministic stochastic-stream policy. | PSD, RMS, and delay statistics meet declared analytical tolerances; fixed seeds replay; independent streams do not accidentally correlate. | `S3.3` |
+| `S3.5` | **Electronics path.** Add quantization, saturation/clipping, optional AGC, and exported AGC/clipping diagnostics. | Boundary amplitudes, recovery timing, clipping counts, and quantization noise pass; disabled electronics retain the prior baseline. | `S3.3`, `S3.4` |
+| `S3.6` | **Waveform directivity.** Apply source and microphone polar/frequency response to L2/L3 waveforms rather than metadata only. | Cardinal-angle and frequency sweeps match configured patterns; invalid patterns fail; estimator tests show the expected confidence degradation. | `S3.3` |
+| `S3.7` | **Materials, dynamic rooms, and occlusion.** Consume measured material parameters where available and define invalidation for moving geometry, sources, arrays, and room changes. | Clear, blocked, partial, and material fixtures keep waveform, RMS, occlusion, diagnostics, and export mutually consistent; caches never return stale acoustics. | `S3.2`, `S3.6` |
+| `S3.8` | **Motion and multi-source stress.** Exercise Doppler, overlap, near/far imbalance, reverberation, occlusion, moving mounts, and source identity across supported backends. | No NaN, source identity corruption, hidden ambiguity, stale state, or unbounded resource growth occurs; unsupported combinations fail explicitly. | `S3.1`-`S3.7` |
+| `S3.9` | **Fidelity envelope.** Publish effect-specific validation, performance, supported geometry, dependency requirements, and limitations. | Every Stage 1 realism claim maps to a passing fixture and off-state. Ray/transmission occlusion is not described as diffraction or a complete wave solver. | `S3.8` |
 
-### 6.11 M8 Subphases - Publication And Maintenance
+**S3 exit gate:** all physical effects needed by the planned bench, moving
+robot, hallway, occlusion, and multi-source scenarios have measurable behavior
+and honest limits. Optional diffraction or richer propagation remains in `P2`.
+
+### 6.7 S4 - Reference-Rig Calibration
+
+The first entry gate is the available two-microphone Raspberry Pi bench. Its
+front/back ambiguity remains explicit, and all artifacts preserve a documented
+4+ microphone upgrade path.
 
 | ID | Execution unit and deliverable | Verification and stop condition | Depends on |
 | --- | --- | --- | --- |
-| `M8.1` | **Release CI matrix.** Encode pure, schema, build, archive, Linux clean install, live Sim/Lab/GUI, performance, optional-pack, and cross-repository gates with explicit hardware runners. | Required jobs cannot pass through blanket skips; artifact retention and blocker reporting are configured; repeated runs are stable. | Begin after `M1.5`; finalize after `M7.8` |
-| `M8.2` | **Supply-chain and archive hardening.** Generate SBOM, dependency/license inventory, checksums/signatures where supported, vulnerability review, and reproducible archive manifests. | Audits cover base and every acoustic pack; undeclared binary/dependency/private content fails the build. | `M1.6`, `M2.7` |
-| `M8.3` | **Documentation and support package.** Finalize installation, quickstart, Guided/Advanced GUI, API/contracts, calibration limits, examples, troubleshooting, security, support window, and deprecation/migration policy. | Fresh-user doc walkthrough succeeds; versions/claims/commands/links agree; known limitations match evidence. | `M6.9`, `M5.9` |
-| `M8.4` | **Release candidate rehearsal.** Build immutable candidate artifacts and run the complete matrix from those exact archives, not the worktree. | Every required gate passes or the candidate is rejected; evidence index maps claims to artifacts and hashes. | `M3.8`, `M4.9`, `M5.9`, `M6.9`, `M7.8`, `M8.1`-`M8.3` |
-| `M8.5` | **Linux public base publication.** Publish signed/hashed Python and Linux Kit artifacts with accurate base/optional capability statements. | Clean external install matches candidate checksums and smoke results; rollback/yank procedure is documented before announcement. | `M8.4` |
-| `M8.6` | **Windows final-platform validation.** Rebuild/reuse the candidate policy for Windows and rerun install, GUI, examples, update, and optional-pack gates. | Windows artifacts meet the same declared contracts; unsupported advanced-pack differences are explicit. | `M1.7`, `M8.4` |
-| `M8.7` | **Community Registry publication.** Recheck current official rules, publish correctly named platform archives/release metadata, and verify discovery from a clean registry client. | Listing installs the exact audited artifacts and is described as community-provided, not NVIDIA-supported. | `M8.5`, `M8.6` |
-| `M8.8` | **Post-release verification and maintenance start.** Rerun install/update telemetry-free smoke, archive evidence, triage release issues, and create the next compatibility review date/event. | No critical packaging/schema regression remains open; hotfixes follow the same candidate gates; evidence and changelog are finalized. | `M8.7` |
+| `S4.1` | **BOM and frame lock.** Measure and version device/channel identity, microphone coordinates, array/source frames, speaker, room, clocks, environmental method, and uncertainty. | Independent review can reproduce coordinate transforms and channel order. Unknown or estimated values are not accepted as calibrated measurements. | `S0.5`, `S1.2` |
+| `S4.2` | **Acquisition tool and runbook.** Capture synchronized multichannel recordings, poses, reference signals, timestamps, environment facts, and operator notes. | Dry runs detect missing/swapped channels, clipping, clock loss, stale pose, insufficient duration, and invalid metadata before accepting a take. | `S4.1`, `S2.2` |
+| `S4.3` | **Pilot repeatability.** Run a small pose, level, delay, noise, response, reverberation, occlusion, and latency sweep. | Repeat takes satisfy predeclared data-quality and repeatability tolerances; otherwise the rig or protocol is corrected before main collection. | `S4.2` |
+| `S4.4` | **Fit/holdout freeze.** Collect the full sweep, group it before fitting, seal holdout assets/hashes, and record coverage. | No pose, source, room, or acquisition group leaks between fit and holdout; fitting code cannot inspect holdout contents. | `S4.3`, `S2.5` |
+| `S4.5` | **Calibration fitting.** Estimate geometry corrections, channel delay/gain/polarity, response/noise parameters, and uncertainty from fit data only. | Synthetic recovery and fit residual tests pass; constraints are documented; results serialize into `ias.audio_calibration_profile.v1`. | `S4.4`, `S3.3`-`S3.6` |
+| `S4.6` | **Profile application.** Apply profiles to simulation and comparison tools with strict identity, channel, sample-rate, frame, and environment checks. | Uncalibrated mode is unchanged; compatible application is deterministic; swapped, stale, or incompatible profiles fail closed. | `S4.5` |
+| `S4.7` | **Threshold preregistration.** Freeze TDOA, candidate-bearing coverage, unambiguous DOA where supported, level, response, reverberation, latency, failure, and confidence criteria using S0, pilot, and fit evidence only. | The specification includes denominators, coverage, aggregation, exclusions, uncertainty, tolerances, and pass logic before holdout results are opened. | `S4.5`, `S4.6` |
+| `S4.8` | **Sealed holdout evaluation.** Compare real, uncalibrated simulation, and calibrated simulation without refitting or selective scenario removal. | All preregistered metrics, sample counts, median, p95, worst case, and failures are reported. Any failed criterion remains failed. | `S4.7` |
+| `S4.9` | **Calibration package.** Package the profile, manifest, metrics, uncertainty, limitations, hashes, and reproduction commands. | A clean consumer can replay the comparison and recover declared results. Claims remain inside the measured rig/environment envelope. | `S4.8` |
 
-### 6.12 Critical Path And Parallel Work
+**S4 exit gate:** the reference rig has a versioned, repeatable calibration
+workflow and sealed sim-vs-real evidence suitable for downstream bench work,
+without claiming universal physical transfer.
+
+### 6.8 S5 - SquadBot Phases 7-15 Readiness Matrix
+
+All S5 fixtures consume installed artifacts and test generic sensor outputs.
+Downstream ontology, graph decisions, vision, fusion, intent generation,
+actuation, locomotion, and safety remain outside this repository.
+
+| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
+| --- | --- | --- | --- |
+| `S5.1` | **Phases 7-8 bench readiness.** Export and replay reference-rig recordings, profiles, and comparable sim/real traces through the external adapter. | Timestamps, frames, source ids, ambiguity, provenance, and metric joins survive the boundary; physical transport and graph policy remain external. | `S4.9`, `S1.8` |
+| `S5.2` | **Phase 9 mounting readiness.** Provide a generic example that discovers or mounts an array on a selected robot link and records finite moving transforms. | A clean Isaac run proves mount identity, child microphones, coordinate convention, and trace/config export without robot-specific frame fields. | `S3.1`, `S1.8` |
+| `S5.3` | **Phase 10 orientation-input readiness.** Supply localized, explicitly ambiguous, silent, stale, and moving-array cue sequences with latency/confidence evidence. | The external orientation adapter receives stable ordered inputs; ambiguous/nonlocalized cases never invent direction; no actuation enters the sensor. | `S5.2`, `S3.8` |
+| `S5.4` | **Phase 11 visual-join readiness.** Prove that source/frame ids, poses, timestamps, labels, and provenance join deterministically to external visual/graph fixtures. | Join inputs are stable across replay; visual classes, confirmation state, and graph links remain external. | `S5.3` |
+| `S5.5` | **Phase 12 moving-robot readiness.** Run capture while the mounted array rotates and translates through valid, timeout, stop, and stale-transform scenarios. | Sensor continuity, timestamps, identity, latency, and resource use remain bounded; robot approach and stopping behavior are not implemented here. | `S3.8`, `S5.4` |
+| `S5.6` | **Phase 13 scaled readiness.** Run hallway/multi-area, outside-FOV, overlap, occlusion, reverberation, and long-session scenarios. | No stale transform, identity corruption, silent frame loss, unbounded memory, or contract drift occurs; each failure mode remains separately measurable. | `S2.9`, `S5.5` |
+| `S5.7` | **Phases 14-15 handoff readiness.** Package portable config/calibration artifacts, replay fixtures, expected generic outputs, latency metrics, and blocker templates for real torso/mobile tests. | The package contains no unsafe command assumption, transport requirement, or actuation code and can validate interfaces when robot access is unavailable. | `S5.1`, `S5.6` |
+| `S5.8` | **Installed-artifact matrix closeout.** Run nominal, empty, malformed, ambiguity, overlap, motion, calibration, and replay cases through `AudioSensorFrame -> protobuf -> AuditoryCue -> MiniSceneGraph`. | Every supported case passes from immutable installed artifacts; schema version, ids, timestamps, order, units, ambiguity, and provenance are preserved; generic exports contain no downstream leakage. | `S5.1`-`S5.7` |
+
+**S5 exit gate:** installed generic artifacts demonstrate every sensor-owned
+capability required by the downstream Phase 7-15 plans before those phases
+begin.
+
+### 6.9 S6 - SquadBot-Ready Release Gate
+
+| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
+| --- | --- | --- | --- |
+| `S6.1` | **Readiness CI matrix.** Encode pure, schema, build, archive, Linux clean install, Isaac Sim/Lab/GPU, operational GUI, calibration, endurance, and cross-repository gates with explicit runner requirements. | Required jobs cannot pass through blanket skips; blocker status and artifact retention are explicit; repeated runs are stable. | `S1.8`, `S2.9`, `S3.9`, `S4.9`, `S5.8` |
+| `S6.2` | **Immutable candidate.** Build checksummed wheel, base Kit archive, Linux acoustic packs, schemas, fixtures, and evidence manifest from one clean revision. | The complete S6 matrix runs against those exact artifacts rather than the worktree; artifact contents and hashes are reproducible and import provenance is installed-only. | `S6.1` |
+| `S6.3` | **Evidence and limitations index.** Map each Stage 1 claim to tests, live artifacts, calibration results, environment facts, and known limits. | No unsupported claim, unresolved critical defect, unclassified skip, or missing reproduction command remains. | `S6.2` |
+| `S6.4` | **SquadBot development freeze.** Declare the immutable artifact set and patch policy used during Stage 2. | Downstream installation instructions reference only the frozen artifacts; no public registry publication or final cross-platform claim is implied. | `S6.3` |
+
+**S6 exit gate:** a research-quality Linux sensor artifact is ready to support
+SquadBot Phases 7-15. Windows, advanced propagation, final training scale,
+production usability validation, and public publication remain explicitly
+deferred.
+
+### 6.10 Stage 2 - SquadBot Validation Interlude
+
+Stage 2 is owned and executed by `squadbot-av-phase1`. This roadmap records the
+sensor input and feedback contract; it does not authorize the sensor agent to
+modify that repository.
+
+| Checkpoint | Downstream execution | Frozen sensor input | Feedback accepted by this repository |
+| --- | --- | --- | --- |
+| `V7-8` | Physical bench, message/graph path, calibration hardening, and review evidence. | S6 artifacts, S4 calibration package, S5.1 fixtures. | Reproducible sensor defects, profile incompatibilities, measured limitations, and evidence gaps. |
+| `V9-11` | Alex bring-up, orientation behavior, visual confirmation, and graph linking in simulation. | Same S6 artifact or a versioned patch, S5.2-S5.4 fixtures. | Moving-transform, latency, ambiguity, metadata, or lifecycle defects in generic outputs. |
+| `V12-13` | Mobile simulation and hallway/multi-area scaling. | Same artifact line, S5.5-S5.6 scenarios. | Sensor continuity, Doppler, occlusion, identity, performance, or long-run defects. |
+| `V14-15` | Real torso/mobile validation, or accepted downstream blocker reports. | Portable S5.7 package and the latest verified S6-compatible artifact. | Real-device compatibility facts and generic sensor defects; robot safety, transport, control, and access blockers remain external. |
+
+#### Controlled Sensor Patch Policy
+
+During Stage 2:
+
+1. classify each finding as sensor defect, downstream defect, documented
+   limitation, or future public feature;
+2. patch only reproducible sensor-owned correctness, compatibility, reliability,
+   or performance defects;
+3. preserve `ias.audio_sensor_frame.v1` and the frozen generic/downstream
+   ownership boundary;
+4. add a regression fixture and focused test for every sensor patch;
+5. rebuild immutable artifacts and rerun the complete S6 matrix;
+6. version the replacement artifact and update downstream installation evidence;
+7. defer new optional features and publication polish to Stage 3.
+
+Stage 2 closes after `V14-15` completes under its downstream plan, including an
+accepted blocker report when robot access or safe execution is unavailable.
+
+### 6.11 P0 - SquadBot Findings Consolidation
+
+| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
+| --- | --- | --- | --- |
+| `P0.1` | **Evidence ingestion.** Collect Stage 2 closeouts, blocker reports, patch histories, metrics, and representative fixtures into a traceable findings inventory. | Every reported issue links to its originating artifact/version and reproduction evidence; unverifiable anecdotes remain labeled unverified. | Stage 2 closeout |
+| `P0.2` | **Ownership classification.** Classify every finding as sensor defect, downstream defect, limitation, or future feature. | Each classification cites the public boundary and has one owner; robot-specific behavior is not moved into the sensor. | `P0.1` |
+| `P0.3` | **Regression consolidation.** Fix remaining sensor defects and convert real integration failures into minimal permanent fixtures. | Focused and S6 regression suites pass; frame v1 meaning is unchanged; any new contract is additive or separately versioned. | `P0.2` |
+| `P0.4` | **Final acceptance freeze.** Reconcile Stage 2 evidence with the S0 public specification and lock final metrics, supported runtimes/platforms, product claims, and release gates. | Every P-phase output and final claim has a measurable gate; no threshold is chosen after seeing its final holdout evidence. | `P0.3` |
+
+### 6.12 P1 - Scalable Isaac Lab Training And Dataset Production
+
+| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
+| --- | --- | --- | --- |
+| `P1.1` | **Additive Lab observations.** Add elevation, range, occlusion, masks, and optional feature tensors with fixed shapes, device-aware allocation, reset, selected update, and observation export. | CPU/import-safe and live GPU tests verify shapes, dtypes, padding, device placement, reset, selected-row isolation, and backward-compatible existing keys. | `P0.4`, `S1.3` |
+| `P1.2` | **Fast-profile parity.** Route L0/L1 batched computation through `training_features` without waveform or per-environment frame allocation. | Scalar and batched outputs match declared tolerances; profiling proves the steady-state fast path avoids forbidden allocations. | `P1.1` |
+| `P1.3` | **Reference performance gate.** Optimize and measure 4,096 environments, four microphones, two events, and 50 post-warm-up steps on the RTX 4090 reference host. | At least three runs report raw samples, mean, median, p95, worst, memory, driver, and compute path; every run meets p95 `<= 20 ms`. | `P1.2` |
+| `P1.4` | **Replicator parity.** Map Replicator capture into the canonical session/writer contracts without creating a second dataset truth. | Direct and Replicator capture of seeded frames are semantically equivalent after path normalization; Replicator remains optional. | `S2.4` |
+| `P1.5` | **Large-corpus tools.** Add optional Parquet indexing, streaming queries, shard catalogs, and scalable split/validation operations. | JSONL plus lossless audio remains canonical; indexes can be regenerated; large operations stay inside the P0 memory/throughput specification. | `S2.5` |
+| `P1.6` | **Scale and endurance closeout.** Run GPU performance, large capture, interruption/resume, validation, split-leakage, and replay scenarios with resource telemetry. | Performance gate passes; manifests/checksums are valid; memory is bounded; no leakage or unreported dropped frame occurs; seeded resume is deterministic. | `P1.3`-`P1.5` |
+
+### 6.13 P2 - Final Realism And Extensibility
+
+| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
+| --- | --- | --- | --- |
+| `P2.1` | **Advanced propagation plugin.** Add diffraction or a richer wave model only through `PropagationBackend` with explicit geometry, dependency, device, and performance limits. | The backend passes common contracts and analytical or trusted-reference cases without changing L0-L3 identifiers or base availability. | `P0.4`, `S1.3` |
+| `P2.2` | **Expanded materials and rooms.** Extend measured material coverage, dynamic-room scenarios, and multi-backend comparison beyond the Stage 1 SquadBot envelope. | New material/room claims have isolated fixtures, uncertainty, cache-invalidation tests, and honest unsupported-region behavior. | `S3.9` |
+| `P2.3` | **Public calibration toolkit.** Generalize acquisition, fitting, validation, compatibility, and evidence generation into reusable APIs and wizard controllers while retaining the reference-rig regression. | A new compatible device can follow the documented workflow without project-specific code; incompatible profiles fail before application; reference results remain reproducible. | `S4.9` |
+| `P2.4` | **Platform acoustic packs.** Finalize versioned Linux and Windows L2/L3/advanced packs with capability discovery and mismatch rejection. | Install/remove/update, version mismatch, unsupported platform, and missing dependency scenarios pass independently of the base extension. | `P2.1`, `P2.2` |
+| `P2.5` | **Fidelity closeout.** Publish backend-specific effects, approximations, calibration envelope, accuracy, resource use, and unavailable-capability behavior. | Every advertised backend/effect maps to tests and evidence; advanced models do not inflate base or reference-rig claims. | `P2.1`-`P2.4` |
+
+### 6.14 P3 - Production GUI
+
+| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
+| --- | --- | --- | --- |
+| `P3.1` | **Final UX specification.** Use S2 and Stage 2 evidence to refine personas, navigation, progressive disclosure, persistent state, cancellation, recovery, and wireframes. | Every existing control maps to Guided, Advanced, removed, or headless-only; no valid capability is lost accidentally. | `P0.4`, `S2.9` |
+| `P3.2` | **Guided workflows and wizards.** Complete presets plus setup, stage validation, calibration, dataset, recording, and export wizards on the shared controllers. | First-time paths prevent invalid starts, preserve valid state, expose prerequisites, and emit validator-clean artifacts. | `P2.3`, `P3.1` |
+| `P3.3` | **Diagnostics and accessibility.** Complete instruments, performance/backpressure indicators, waveform/spectrogram/event inspection, accessible errors, keyboard/readability review, and recoverable actions. | Stale/error state is never shown as current/success; UI cost meets the P0 budget; planted failures have understandable recovery. | `P3.2` |
+| `P3.4` | **Advanced mode and migration.** Preserve every expert field, support lossless config round-trip, and migrate prior extension configurations additively where possible. | Old fixtures import to equivalent state; Guided and Advanced edits stay synchronized; unknown/removed fields produce explicit migration findings. | `P3.2` |
+| `P3.5` | **Final headless parity.** Rerun semantic comparison across config/API/CLI and all Guided workflows. | Equivalent inputs produce matching stage metadata, frames, manifests, calibration, and exports after documented normalization. | `P3.3`, `P3.4` |
+| `P3.6` | **Usability gate.** Run Kit UI automation/screenshots, cancellation/restart scenarios, accessibility review, and the five-person first-use study. | At least four of five unfamiliar evaluators install, configure, capture, and export a valid dataset within ten minutes without source code or terminal use; blocking findings are fixed and rerun. | `P3.5` |
+
+### 6.15 P4 - Cross-Platform Release Hardening
+
+| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
+| --- | --- | --- | --- |
+| `P4.1` | **Current-runtime CI.** Finalize pure, schema, build, Linux/Windows install, Sim/Lab/GPU, GUI, performance, acoustic-pack, calibration, dataset, and cross-repository jobs with explicit runners. | Required jobs cannot pass by blanket skip; repeated runs are stable; artifacts and blocker records are retained. | `P1.6`, `P2.5`, `P3.6` |
+| `P4.2` | **Windows clean install.** Install base and supported packs into the current Windows Isaac runtime and run lifecycle, GUI, examples, capture/export, update, and removal. | Windows satisfies the same declared contracts; platform-specific limitations are explicit and tested. | `P2.4`, `P4.1` |
+| `P4.3` | **Supply-chain hardening.** Generate SBOM, dependency/license inventory, checksums/signatures where supported, vulnerability review, and reproducible archive manifests. | Audits cover base and every pack; undeclared binary, dependency, private content, or unsafe archive path fails the build. | `P4.1` |
+| `P4.4` | **Documentation and support.** Finalize installation, quickstart, GUI, API/contracts, datasets, calibration limits, examples, troubleshooting, security, support window, and deprecation/migration policy. | Fresh-user walkthrough succeeds; claims, versions, commands, links, and known limitations agree with evidence. | `P4.2`, `P4.3` |
+| `P4.5` | **Registry-readiness dry run.** Recheck current Kit metadata/target rules and Community Registry discovery, naming, documentation, and archive requirements. | Install-from-release dry run passes from exact candidate-style artifacts; only explicit publication actions remain. | `P4.4` |
+
+### 6.16 P5 - Publication And Maintenance
+
+| ID | Execution unit and deliverable | Verification and stop condition | Depends on |
+| --- | --- | --- | --- |
+| `P5.1` | **Final candidate rehearsal.** Build immutable candidate artifacts and run the complete P4 matrix from those exact archives rather than the worktree. | Every advertised capability and platform passes; the evidence index maps claims to artifact hashes; any failed gate rejects the candidate. | `P4.5` |
+| `P5.2` | **Python and Kit artifact publication.** Publish audited Python artifacts through PyPI/GitHub and audited Linux/Windows Kit archives with accurate base/optional capability statements. | Clean external installs match candidate checksums and smoke results; rollback/yank procedures exist before announcement. | `P5.1` |
+| `P5.3` | **Community Registry publication.** Publish correctly named platform artifacts and metadata and verify discovery/install from a clean registry client. | The listing installs the exact audited artifacts and clearly states community support rather than NVIDIA product support. | `P5.2` |
+| `P5.4` | **Post-release maintenance start.** Rerun install/update smoke, archive evidence, triage release issues, finalize changelog, and schedule the next runtime compatibility review. | No critical packaging or contract regression remains open; hotfixes reuse the candidate gates; support and evidence indexes are active. | `P5.3` |
+
+### 6.17 Former-To-New Coverage
+
+The former `M` identifiers are retired and must not be used for new assignments.
+This table exists only to prove that restructuring did not drop a requirement.
+
+| Former area | New owner | Coverage |
+| --- | --- | --- |
+| `M0` baseline and measurement | `S0` | Pure/live/performance baselines, hardware inventory, and acceptance specifications. |
+| `M1` distribution | `S1`, `P2`, `P4`, `P5` | Stage 1 Linux artifacts first; platform packs, Windows, registry, and publication later. |
+| `M2` contracts and plugins | `S1`, `P1` | Dataset/calibration/runtime/plugin contracts before SquadBot; expanded Lab tensors during final scale work. |
+| `M3` training and datasets | `S2`, `P1` | Reliable recording/replay/splits before SquadBot; 4,096-env optimization, Replicator, and large-corpus tools later. |
+| `M4` L3 realism | `S3`, `P2` | Downstream-required motion/electronics/material effects first; optional advanced propagation and broader validation later. |
+| `M5` L4 calibration | `S4`, `P2` | Reference-rig calibration before SquadBot; reusable public tooling and wizard integration later. |
+| `M6` GUI | `S2`, `P3` | Operational guided workflow before SquadBot; production UX, migration, accessibility, and user study later. |
+| `M7` SquadBot/Alex readiness | `S5`, Stage 2 | All generic fixtures before Phase 7; actual downstream execution remains external. |
+| `M8` release and maintenance | `S6`, `P4`, `P5` | Internal research freeze before SquadBot; full hardening and publication after downstream validation. |
+
+### 6.18 Critical Path And Parallel Work
 
 The default critical path is:
 
 ```text
-M0 -> M1.1-M1.5 -> M2 -> M3 -> M4 -> M5 -> M7.8 -> M8.4-M8.8
+S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6
+   -> V7-8 -> V9-11 -> V12-13 -> V14-15
+   -> P0 -> (P1 || P2 || P3) -> P4 -> P5
 ```
 
-Safe parallel work is limited to these lanes:
+Safe parallel work is limited to dependency-independent units:
 
-- `M1.6` acoustic-pack work can proceed beside the late M2 contract work after
-  `M1.4`, but it must adopt the frozen plugin contract before closeout.
-- `M1.7` Windows validation can proceed after Linux base and acoustic artifacts
-  are stable.
-- `M4.8` advanced propagation can proceed beside `M4.1`-`M4.7` after the plugin
-  protocol freezes; `M4.9` waits for all effects.
-- `M6.1` UX design may begin after runtime-profile intent is locked. GUI
-  implementation waits for the shared M2/M3 contracts it exposes.
-- `M7.3`-`M7.5` simulator fixtures may proceed while physical calibration is
-  running; `M7.2`, `M7.7`, and the final closeout wait for M5 evidence.
-- `M8.1`-`M8.3` can grow continuously, but release rehearsal uses completed
-  milestone artifacts only.
+- after `S0.1`, the pure baseline and hardware inventory may proceed in
+  parallel; `S0.6` waits for all S0 evidence;
+- after `S1.1`, contract, plugin, and build work may proceed in coordinated
+  lanes; artifacts wait for all three;
+- S2 writer/replay work and shared validation-controller work may overlap, but
+  the Guided workflow waits for both;
+- S3 motion, channel/electronics, and directivity lanes may overlap after their
+  contracts exist; materials and closeout wait for their inputs;
+- S5 fixture families may run in parallel after S2-S4 close, but `S5.8` waits
+  for every fixture;
+- P1, P2, and P3 may proceed in parallel after `P0.4`, with one authoritative
+  owner for shared contracts and calibration/GUI controllers.
 
-Do not parallelize changes to the same public schema, the calibration fit and
-sealed holdout evaluation, or GUI state migration and config compatibility.
-Those boundaries need one authoritative implementation and review sequence.
+Do not parallelize edits to the same public schema, calibration fitting and the
+sealed holdout evaluation, configuration migration and compatibility freeze, or
+candidate building and evidence indexing.
 
-### 6.13 Reusable Agent Assignment Template
-
-Use this template when assigning a subphase to an implementation agent:
+### 6.19 Reusable Phase-Orchestrator Prompt
 
 ```text
-Implement subphase <ID> from docs/final_sensor_development_plan.md only.
+Implement phase <S-or-P ID> from docs/final_sensor_development_plan.md.
 
-Read the subphase, its dependencies, the predecessor closeout, current code,
-tests, and public compatibility docs before editing. Restate the exact input,
-output, non-goals, tests, and evidence in your working plan. Preserve unrelated
-user changes. Add or update acceptance tests, implement the smallest complete
-deliverable, run focused and available repository/live gates, and write the
-tracked closeout required by Section 6.2.
+Act as the phase orchestrator. Read the complete phase, its dependencies,
+predecessor closeout, current code, tests, public compatibility documents, and
+worktree state before editing. Create a working plan for every subphase and
+respect the declared dependency order.
 
-Do not begin a later subphase. Do not weaken or skip a gate to report success.
-If required external evidence is unavailable, record the exact blocker and
-complete only the valid offline evidence allowed by this subphase.
+You may delegate dependency-independent subphases. Assign exactly one subphase
+to each delegated agent, give it the relevant contracts and acceptance gate,
+and avoid overlapping file ownership. Review and integrate every delegated
+change yourself.
+
+For each subphase, add or update acceptance tests, implement the smallest
+complete deliverable, run focused checks, and write the required closeout.
+Then run all available phase and repository gates from the integrated tree and
+write the phase closeout.
+
+Preserve unrelated user changes. Do not modify squadbot-av-phase1. Do not begin
+the next phase. Do not weaken or silently skip a gate. If required GPU,
+simulator, display, hardware, Windows, or external evidence is unavailable,
+record the exact blocker and complete only the valid evidence allowed by this
+phase.
 ```
 
 ## 7. Test And Acceptance Matrix
@@ -688,25 +651,35 @@ Add focused modules as their contracts land:
 - `tests/test_kit_extension_package.py`
 - `tests/test_cross_repo_consumer.py`
 
-Use explicit `sim`, `gpu`, `hardware`, and `cross_repo` markers for checks that
-cannot run in the pure test environment. Each skip must include a concrete
-reason and the host-visible command that supplies the missing evidence.
+Use explicit `sim`, `gpu`, `hardware`, `windows`, and `cross_repo` markers for
+checks that cannot run in the pure test environment. Every skip records a
+specific reason and the host-visible command or external action that supplies
+the missing evidence.
 
 ### 7.2 Required Scenarios
 
 | Level | Minimum cases | Pass criteria |
 | --- | --- | --- |
-| Contract/unit | nominal, boundary, invalid, regression | schemas and validators preserve units, frames, shapes, ids, versions, and error semantics |
-| Determinism/property | repeated seed, shuffled input, transform round-trip, JSONL replay | stable ordering/hashes where promised; floating/GPU differences stay within documented tolerance |
-| Acoustic | silence/inactive source, noise, overlap, ambiguity, motion, Doppler, occlusion, reverberation, invalid geometry | no invented direction, no hidden ambiguity, finite bounded outputs, explicit failure/diagnostics |
-| Dataset | tiny round-trip, long stream, interruption, resume, corrupt asset, duplicate/non-monotonic timestamp, split leakage | zero violations for valid data; all corruptions detected; bounded memory; deterministic manifest |
-| Isaac Sim | stage open/close, rediscovery, moving mount, multiple sources, debug, recording, optional pack missing | lifecycle recovery, current poses, no stale frame, valid exports, readable errors |
-| Isaac Lab GPU | allocation, selected reset/update, device mismatch, 4,096-env benchmark, headless capture | all buffers on declared device, unaffected rows unchanged, performance gate met |
-| GUI | first-use path, advanced round-trip, invalid input, cancellation, restart, dependency blocker | user-study target met; no lost valid state; output matches headless path |
-| Hardware | fit/holdout sweeps, channel swap, stale profile, environmental variation | incompatible profiles rejected; declared calibration metrics and uncertainty reproduced |
-| Cross-repository | released artifact, empty frame, multi-source, ambiguous two-mic, trace replay, malformed event | deterministic adapter output; generic schema unchanged; failures explicit |
+| Contract/unit | nominal, boundary, invalid, and regression | schemas and validators preserve units, frames, shapes, ids, versions, compatibility, and error semantics |
+| Determinism/property | repeated seed, shuffled input, transform round-trip, JSONL replay | stable ordering and hashes where promised; floating/GPU differences remain inside documented tolerances |
+| Acoustic | silence, inactive source, noise, overlap, ambiguity, motion, Doppler, occlusion, reverberation, invalid geometry | no invented direction, hidden ambiguity, NaN, identity corruption, or silent fallback |
+| Dataset | tiny round-trip, long stream, interruption, resume, corrupt asset, duplicate/non-monotonic time, split leakage | valid data has zero violations; corruptions are detected; memory is bounded; manifests are deterministic |
+| Isaac Sim | stage open/close, rediscovery, moving mount, multiple sources, recording, optional pack missing | lifecycle recovers, poses stay current, frames are not stale, exports validate, and errors are actionable |
+| Isaac Lab GPU | allocation, selected reset/update, device mismatch, Stage 1 observation smoke, final 4,096-env gate | buffers use the declared device, unaffected rows remain unchanged, and the phase-specific performance gate passes |
+| GUI | Stage 1 operational path, final first-use study, Advanced round-trip, invalid input, cancellation, restart | outputs match headless semantics, valid state is preserved, and the P3 usability target passes |
+| Hardware | channel swap, pilot repeatability, fit/holdout sweeps, stale profile, environmental variation | incompatible profiles fail closed and declared metrics/uncertainty reproduce |
+| Cross-repository | installed artifact, empty/malformed frame, multi-source, two-mic ambiguity, motion, trace replay | adapter output is deterministic, generic schema remains unchanged, and failures are explicit |
+| Distribution | Linux research artifact, Windows final artifact, missing pack, update/removal, registry install | installed contents match audited hashes and capability statements |
 
-### 7.3 Canonical Verification Commands
+### 7.3 Stage Gates
+
+| Gate | Required evidence |
+| --- | --- |
+| **S6 SquadBot-ready** | Pure/live tests, Linux clean install, installed-artifact consumer chain, operational GUI/headless parity, dataset reliability, S3 fidelity envelope, S4 holdout report, S5 fixture matrix. |
+| **Stage 2 checkpoint** | Downstream closeout or accepted blocker report using the exact S6-compatible artifact; any sensor patch includes regression and rerun evidence. |
+| **P5 final public** | P1 performance/scale, P2 fidelity, P3 usability, Linux/Windows install, supply-chain/security/docs, candidate rehearsal, public install verification. |
+
+### 7.4 Canonical Verification Commands
 
 Existing gates remain:
 
@@ -721,83 +694,120 @@ make live-omniverse-extension-ux
 make live-evidence-report
 ```
 
-Future milestones should add stable make targets for dataset validation,
-performance benchmarking, Kit packaging/clean install, calibration replay, and
-the released-artifact cross-repository test. The closeout document for each
-milestone must name the actual targets once implemented; ad hoc shell history
-is not sufficient release evidence.
+As phases land, add stable make targets for schema validation, dataset
+validation, clean Kit install, calibration replay, installed-artifact
+cross-repository checks, Stage 1 readiness, final performance, Windows
+validation, and release rehearsal. Closeouts must cite maintained targets;
+ad hoc shell history is not sufficient release evidence.
 
 ## 8. Failure And Recovery Requirements
 
-The final product must handle these failures deliberately:
+The Stage 1 and final products must deliberately handle:
 
 - no stage, deleted/replaced prim, simulator restart, or stale discovery cache;
 - invalid/missing microphone geometry, degenerate array, frame mismatch, NaN,
   impossible sample rate, negative timestamp, or unknown schema/profile;
-- unavailable GPU, wrong tensor device, missing optional acoustic pack, or
-  unsupported platform/runtime;
+- unavailable GPU, wrong tensor device, missing acoustic pack, or unsupported
+  platform/runtime;
 - corrupt/partial audio, checksum mismatch, partial manifest line, disk-full,
   interrupted shard, slow writer, or non-monotonic time;
-- calibration channel/sample-rate/device mismatch or measurements outside the
-  declared validity envelope;
-- GUI cancellation, invalid field text, failed start, failed export, or stale
-  selection;
-- missing robot/hardware access in an otherwise valid offline compatibility
-  run.
+- calibration channel, sample-rate, device, frame, or environment mismatch;
+- GUI cancellation, invalid field text, failed start/export, stale selection,
+  or dependency removal;
+- missing physical rig, Alex, or IHMC access in an otherwise valid offline
+  compatibility run;
+- Stage 2 defect reports that cannot be reproduced from the claimed artifact.
 
-Failures must leave resources closable, preserve the last known valid config,
+Failures must leave resources closable, preserve the last valid configuration,
 avoid publishing incomplete artifacts, and return actionable messages. A
 fallback must be explicitly selected and recorded; it must not silently change
-provenance, device, fidelity, bearing, or calibration semantics.
+provenance, device, fidelity, bearing, ambiguity, or calibration semantics.
 
-## 9. Release Stages And Final Definition
+## 9. Release Gates And Final Definition
 
-### 9.1 Public Base Release
+### 9.1 SquadBot-Ready Research Release
 
-The package may publish an initial Community Registry release after M0-M3 and
-the core M6 guided path pass on Linux. That release must describe L0/L1 as the
-self-contained base, identify optional acoustic packs, and avoid calibrated
-physical-realism claims.
+Stage 1 closes only when:
 
-### 9.2 Research-Grade Final Release
+- the Linux base and supported acoustic packs install without a checkout;
+- current Isaac Sim 6.x and Isaac Lab 3.x live gates pass or have explicit
+  non-claim blockers;
+- frame v1 remains compatible and Stage 1 contracts are frozen;
+- recording, replay, validation, operational GUI, and headless parity pass;
+- downstream-required dynamic acoustics have focused validation;
+- the reference rig passes its preregistered holdout criteria;
+- installed artifacts pass every S5 downstream-readiness fixture;
+- S6 artifacts, checksums, evidence index, limitations, and patch policy exist.
 
-The final target described by this document is reached only when:
+This release is an internal research artifact. It is not listed in the
+Community Registry and makes no Windows, final training-scale, production
+usability, or universal calibration claim.
 
-- the base Kit extension is self-contained and clean-installable;
-- current Isaac Sim 6.x and Isaac Lab 3.x gates pass;
-- Linux/headless and Windows GUI installation evidence exists;
-- frame v1 remains compatible and the dataset/calibration schemas are frozen;
-- both runtime profiles and the 4,096-environment performance gate pass;
-- L3 effects have isolated validation and honest model boundaries;
-- the reference rig passes the pre-registered L4 holdout criteria;
-- the guided GUI and advanced/headless parity gates pass;
-- a released artifact passes the downstream adapter fixture chain;
-- build, archive, SBOM, license, security, docs, and release-evidence checks
-  pass;
-- support, deprecation, migration, and known-limitation policies are published.
+### 9.2 Validation Interlude And Patch Line
 
-Real Alex torso or IHMC mobile execution can add valuable downstream evidence,
-but it does not delay this package definition when the generic interfaces and
-replay fixtures are already proven.
+The frozen Stage 1 artifact is the default input for all downstream Phase 7-15
+work. A replacement is allowed only for a reproduced sensor defect. Every
+replacement preserves public contracts, adds regression coverage, receives a
+new versioned identity/checksum, and reruns S6.
+
+Downstream robot/hardware access can close with the blocker evidence allowed by
+its own phase plan. Such a blocker does not become passing real-robot evidence,
+but it does not prevent Stage 3 when the generic sensor fixture matrix remains
+valid.
+
+### 9.3 Final Public Release
+
+The final target is reached only when:
+
+- Stage 2 sensor findings are resolved or documented;
+- both runtime profiles and the 4,096-environment p95 `<= 20 ms` gate pass;
+- scalable dataset, Replicator, and optional indexing tools pass;
+- advanced backends and acoustic packs have honest platform/fidelity limits;
+- the reference calibration remains reproducible through public tooling;
+- production GUI, Advanced migration, accessibility, recovery, and headless
+  parity pass the five-user gate;
+- Linux/headless and Windows GUI clean-install evidence exists;
+- build, archive, SBOM, license, security, documentation, support, deprecation,
+  and release-evidence checks pass;
+- exact audited artifacts are published through PyPI, GitHub, and the
+  [Kit Community Registry](https://docs.omniverse.nvidia.com/kit/docs/kit-registry-reference/latest/community/extensions.html);
+- the listing is described as community-provided rather than an
+  NVIDIA-supported product.
+
+Recheck the current
+[Kit extension configuration and target rules](https://docs.omniverse.nvidia.com/kit/docs/kit-manual/latest/)
+and registry process immediately before P4/P5 release work.
 
 ## 10. Locked Decisions
 
-- Distribution: Kit Community Registry plus PyPI and GitHub releases.
+- Delivery order: SquadBot-ready sensor, downstream Phase 7-15 validation, then
+  final public product.
+- First gate: research-quality Linux baseline, not a minimal prototype or a
+  near-public beta.
+- Numbering: `S` phases for SquadBot readiness, `V` checkpoints for external
+  validation, and `P` phases for final productization; former `M` identifiers
+  are retired.
+- Repository ownership: sensor implementation remains here; downstream
+  execution and robot-specific changes remain in `squadbot-av-phase1`.
+- Distribution: immutable internal Stage 1 artifacts, then PyPI, GitHub, and
+  Kit Community Registry publication at P5.
 - Compatibility: current Isaac Sim 6.x and Isaac Lab 3.x; no older-major
   support promise.
-- Platforms: Linux/headless first, Windows required for the final
+- Platforms: Linux/headless first; Windows is mandatory for the final
   cross-platform claim.
-- Packaging: self-contained L0/L1 base plus optional platform acoustic packs.
-- Product boundary: sensor SDK and plugin hooks, not a bundled learned
-  classifier or robot behavior stack.
-- Runtime strategy: fast batched feature observations plus separate
+- Packaging: self-contained L0/L1 base plus optional versioned acoustic packs.
+- Contracts: preserve `ias.audio_sensor_frame.v1`; dataset, calibration,
+  runtime-profile, and plugin contracts land before SquadBot execution.
+- Product boundary: sensor SDK and plugin hooks, not learned classification,
+  ontology, graph policy, vision, robot behavior, locomotion, or safety.
+- Runtime strategy: fast batched feature observations and separate
   waveform-fidelity capture.
-- Dataset: JSONL manifest and lossless multichannel WAV/FLAC; Parquet is an
+- Dataset: JSONL manifest plus lossless multichannel WAV/FLAC; Parquet is an
   optional derived index.
-- Calibration: reusable tooling validated on one measured reference rig; the
-  exact BOM is locked at M0.
-- GUI: guided workflow with progressive Advanced controls and headless parity.
-- Downstream architecture: generic producer here, project adapter in the
-  consumer repository.
-- ROS 2: optional later integration.
-- Scheduling: dependency and evidence gates, not dates.
+- Calibration: reusable tooling validated first on one measured reference rig;
+  two-microphone ambiguity remains explicit.
+- GUI: operational guided workflow before SquadBot, production usability and
+  accessibility before public release, with headless parity throughout.
+- Advanced propagation: optional Stage 3 plugin, not a SquadBot-readiness gate.
+- ROS 2: optional later integration, not a core gate.
+- Scheduling: dependency and evidence gates rather than calendar dates.

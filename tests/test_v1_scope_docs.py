@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 PROMISE_PHRASES = (
@@ -50,6 +51,27 @@ FORBIDDEN_SCOPE_OVERCLAIMS = (
     "Replicator is a core dependency",
     "The package does not implement a Replicator annotator/writer registration",
 )
+FINAL_SENSOR_PHASE_SUBPHASE_COUNTS = {
+    "S0": 6,
+    "S1": 8,
+    "S2": 9,
+    "S3": 9,
+    "S4": 9,
+    "S5": 8,
+    "S6": 4,
+    "P0": 4,
+    "P1": 6,
+    "P2": 5,
+    "P3": 6,
+    "P4": 5,
+    "P5": 4,
+}
+FINAL_SENSOR_VALIDATION_CHECKPOINTS = {
+    "V7-8",
+    "V9-11",
+    "V12-13",
+    "V14-15",
+}
 
 
 def test_v1_scope_doc_lists_all_promises_and_non_promises() -> None:
@@ -140,6 +162,30 @@ def test_public_docs_do_not_overclaim_v1_scope() -> None:
         text = path.read_text(encoding="utf-8").lower()
         for phrase in FORBIDDEN_SCOPE_OVERCLAIMS:
             assert phrase.lower() not in text, (path, phrase)
+
+
+def test_final_sensor_plan_has_complete_squadbot_first_execution_structure() -> None:
+    text = Path("docs/final_sensor_development_plan.md").read_text(
+        encoding="utf-8"
+    )
+    expected_subphases = {
+        f"{phase}.{index}"
+        for phase, count in FINAL_SENSOR_PHASE_SUBPHASE_COUNTS.items()
+        for index in range(1, count + 1)
+    }
+    actual_subphases = set(re.findall(r"`([SP][0-6]\.\d+)`", text))
+
+    assert actual_subphases == expected_subphases
+    assert not re.findall(r"`M[0-8]\.\d+`", text)
+
+    for phase in FINAL_SENSOR_PHASE_SUBPHASE_COUNTS:
+        assert re.search(rf"^### \d+\.\d+ {phase} - ", text, flags=re.MULTILINE)
+
+    checkpoints = set(re.findall(r"`(V(?:7-8|9-11|12-13|14-15))`", text))
+    assert checkpoints == FINAL_SENSOR_VALIDATION_CHECKPOINTS
+
+    for former_phase in range(9):
+        assert f"| `M{former_phase}` " in text
 
 
 def _normalized(text: str) -> str:
