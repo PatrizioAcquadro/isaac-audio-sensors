@@ -21,6 +21,7 @@ public users.
 - [Versioning](versioning.md)
 - [Roadmap](roadmap.md)
 - [Final Sensor Development Plan](final_sensor_development_plan.md)
+- [Reference Rig Hardware And Environment](reference_rig_hardware_environment.md)
 - [Showcase](showcase.md)
 - [Open Source Release Checklist](open_source_release_checklist.md)
 

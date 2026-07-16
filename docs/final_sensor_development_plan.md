@@ -394,9 +394,11 @@ and honest limits. Optional diffraction or richer propagation remains in `P2`.
 
 ### 6.7 S4 - Reference-Rig Calibration
 
-The first entry gate is the available two-microphone Raspberry Pi bench. Its
-front/back ambiguity remains explicit, and all artifacts preserve a documented
-4+ microphone upgrade path.
+The first entry gate is the available four-microphone ReSpeaker XVF3800 and
+Raspberry Pi bench documented in
+[Reference Rig Hardware And Environment](reference_rig_hardware_environment.md).
+Exact geometry, channel order, and ambiguity behavior remain measurement gates;
+all artifacts preserve a documented path to other array geometries.
 
 | ID | Execution unit and deliverable | Verification and stop condition | Depends on |
 | --- | --- | --- | --- |
@@ -726,7 +728,7 @@ and registry process immediately before P4/P5 release work.
 - Dataset: JSONL manifest plus lossless multichannel WAV/FLAC; Parquet is an
   optional derived index.
 - Calibration: reusable tooling validated first on one measured reference rig;
-  two-microphone ambiguity remains explicit.
+  array-specific ambiguity and uncertainty remain explicit.
 - GUI: operational guided workflow before SquadBot, production usability and
   accessibility before public release, with headless parity throughout.
 - Advanced propagation: optional Stage 3 plugin, not a SquadBot-readiness gate.
