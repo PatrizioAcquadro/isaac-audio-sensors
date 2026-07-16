@@ -709,6 +709,7 @@ def test_public_files_use_neutral_demo_names():
         "README.md",
         "docs/README.md",
         "docs/api_freeze_0_1.md",
+        "docs/final_sensor_development_plan.md",
         "docs/isaac_lab.md",
         "docs/limitations.md",
         "docs/open_source_release_checklist.md",

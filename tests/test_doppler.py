@@ -168,6 +168,8 @@ def test_tdoa_backend_emits_doppler_metadata_only_with_velocity():
 
 
 def test_doppler_resampled_signal_scales_length_and_pitch():
+    pytest.importorskip("scipy.signal")
+
     sample_rate_hz = 48_000
     factor = 343.0 / (343.0 - 30.0)
     time_s = np.arange(sample_rate_hz, dtype=float) / sample_rate_hz
