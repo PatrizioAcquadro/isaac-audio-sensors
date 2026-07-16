@@ -475,9 +475,7 @@ For every subphase, the implementing agent must:
 3. add or update the failing acceptance test before, or with, production code;
 4. implement only the named deliverable and necessary compatibility changes;
 5. run focused tests first, then all available milestone/repository gates;
-6. write a closeout with revision, changed contracts, commands, results,
-   metrics, artifacts, limitations, and exact blockers;
-7. stop before the next subphase.
+6. stop before the next subphase.
 
 A subphase is not complete merely because code exists. Its tests, documentation,
 artifact validation, and closeout must also pass. If a required runtime, GPU,
