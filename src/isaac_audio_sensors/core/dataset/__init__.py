@@ -42,12 +42,18 @@ from isaac_audio_sensors.core.dataset.layout import (
     verify_shard_completion,
     verify_shard_tiling,
 )
+from isaac_audio_sensors.core.dataset.loader import LoadedFrame, SessionDataset
 from isaac_audio_sensors.core.dataset.recorder import (
     AppendFrameResult,
     SessionRecorder,
     SessionRecorderError,
     ShardPromotion,
     resume,
+)
+from isaac_audio_sensors.core.dataset.replay import (
+    ReplayEvent,
+    ReplayEventKind,
+    replay_session,
 )
 
 __all__ = [
@@ -62,9 +68,13 @@ __all__ = [
     "FilesystemSeam",
     "JsonlShardFile",
     "LayoutWarning",
+    "LoadedFrame",
+    "ReplayEvent",
+    "ReplayEventKind",
     "SessionLayoutResult",
     "SessionRecorder",
     "SessionRecorderError",
+    "SessionDataset",
     "ShardBoundary",
     "ShardPlanner",
     "ShardPromotion",
@@ -82,6 +92,7 @@ __all__ = [
     "plan_shards",
     "publish_file",
     "resume",
+    "replay_session",
     "serialize_dataset_frame_record",
     "serialize_shard_completion",
     "shard_id",
