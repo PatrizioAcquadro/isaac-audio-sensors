@@ -699,9 +699,7 @@ def _clone_observation_state(sensor: object, data: object) -> dict[str, object]:
         "metadata": {
             "frame_ids": tuple(getattr(data, "frame_ids", ())),
             "frame_names": tuple(getattr(data, "frame_names", ())),
-            "source_ids": tuple(
-                tuple(row) for row in getattr(data, "source_ids", ())
-            ),
+            "source_ids": tuple(tuple(row) for row in getattr(data, "source_ids", ())),
             "class_labels": tuple(
                 tuple(row) for row in getattr(data, "class_labels", ())
             ),
@@ -1346,9 +1344,7 @@ def _room_anchoring_evidence(
         array_world = (float(env_id) * env_spacing_x, 0.0, 0.0)
         mic_wall_distances: dict[str, object] = {}
         for mic_id, offset in mic_offsets.items():
-            mic_world = tuple(
-                array_world[axis] + offset[axis] for axis in range(3)
-            )
+            mic_world = tuple(array_world[axis] + offset[axis] for axis in range(3))
             expected_room = tuple(
                 mic_world[axis] - expected_min[axis] for axis in range(3)
             )
@@ -1361,16 +1357,13 @@ def _room_anchoring_evidence(
             mic_wall_distances[mic_id] = {
                 "distance_to_min_walls_m": list(expected_room),
                 "distance_to_max_walls_m": [
-                    expected_dims[axis] - expected_room[axis]
-                    for axis in range(3)
+                    expected_dims[axis] - expected_room[axis] for axis in range(3)
                 ],
             }
         envs[f"env_{env_id}"] = {
             "room_config": room_config,
             "mic_wall_distances": mic_wall_distances,
-            "room_clamped_position_ids": frame.diagnostics[
-                "room_clamped_position_ids"
-            ],
+            "room_clamped_position_ids": frame.diagnostics["room_clamped_position_ids"],
         }
     record["room_acoustics_run"] = {"status": "passed", "envs": envs}
     return record
@@ -1529,9 +1522,9 @@ def _create_perf_entity_scene(
     generator = torch.Generator().manual_seed(seed)
 
     def positions() -> object:
-        return (
-            (torch.rand((num_envs, 3), generator=generator) - 0.5) * 20.0
-        ).to(device)
+        return ((torch.rand((num_envs, 3), generator=generator) - 0.5) * 20.0).to(
+            device
+        )
 
     def quats_wxyz() -> object:
         quats = torch.randn((num_envs, 4), generator=generator)
@@ -1625,7 +1618,8 @@ def _batched_perf_evidence(
         num_envs=num_envs,
         compute_path="auto",
     )
-    for _ in range(10):
+    warmup_steps = 10
+    for _ in range(warmup_steps):
         sensor.update(dt=0.02, force_recompute=True)
     if sensor._last_compute_path != "batched":
         raise RuntimeError(
@@ -1633,26 +1627,60 @@ def _batched_perf_evidence(
             f"{sensor._last_compute_path!r}."
         )
     torch.cuda.synchronize()
+    memory_note = None
+    cuda_max_memory_allocated_bytes = None
+    cuda_max_memory_reserved_bytes = None
+    cuda_total_memory_bytes = None
+    try:
+        torch.cuda.reset_peak_memory_stats(device)
+    except Exception as exc:  # pragma: no cover - depends on the live CUDA runtime
+        memory_note = f"CUDA memory metrics unavailable: {type(exc).__name__}: {exc}"
     step_durations_ms: list[float] = []
     for _ in range(steps):
         started = time.perf_counter()
         sensor.update(dt=0.02, force_recompute=True)
         torch.cuda.synchronize()
         step_durations_ms.append((time.perf_counter() - started) * 1000.0)
+    if memory_note is None:
+        try:
+            cuda_max_memory_allocated_bytes = int(
+                torch.cuda.max_memory_allocated(device)
+            )
+            cuda_max_memory_reserved_bytes = int(torch.cuda.max_memory_reserved(device))
+            cuda_total_memory_bytes = int(
+                torch.cuda.get_device_properties(device).total_memory
+            )
+        except Exception as exc:  # pragma: no cover - depends on live CUDA runtime
+            cuda_max_memory_allocated_bytes = None
+            cuda_max_memory_reserved_bytes = None
+            cuda_total_memory_bytes = None
+            memory_note = (
+                f"CUDA memory metrics unavailable: {type(exc).__name__}: {exc}"
+            )
     ordered = sorted(step_durations_ms)
     mean_ms = sum(step_durations_ms) / len(step_durations_ms)
+    median_ms = (ordered[(len(ordered) - 1) // 2] + ordered[len(ordered) // 2]) / 2
     p95_ms = ordered[min(len(ordered) - 1, int(round(0.95 * len(ordered))) - 1)]
     evidence = {
         "status": "passed" if mean_ms < budget_ms else "failed",
         "num_envs": num_envs,
         "steps": steps,
+        "warmup_steps": warmup_steps,
+        "step_durations_ms": step_durations_ms,
         "ms_per_step_mean": mean_ms,
+        "ms_per_step_median": median_ms,
         "ms_per_step_p95": p95_ms,
+        "ms_per_step_worst": max(step_durations_ms),
         "budget_ms": budget_ms,
         "compute_path": sensor._last_compute_path,
         "backend": "tdoa_synthetic",
         "device": device,
+        "cuda_max_memory_allocated_bytes": cuda_max_memory_allocated_bytes,
+        "cuda_max_memory_reserved_bytes": cuda_max_memory_reserved_bytes,
+        "cuda_total_memory_bytes": cuda_total_memory_bytes,
     }
+    if memory_note is not None:
+        evidence["memory_note"] = memory_note
     if mean_ms >= budget_ms:
         raise RuntimeError(
             f"Batched perf budget exceeded: {mean_ms:.3f} ms/step mean for "
@@ -1697,9 +1725,7 @@ def _batched_parity_evidence(
     valid = ~scalar_nan
     if bool(valid.any()):
         delta = (
-            scalar_data.bearing_deg[valid]
-            - batched_data.bearing_deg[valid]
-            + 180.0
+            scalar_data.bearing_deg[valid] - batched_data.bearing_deg[valid] + 180.0
         ) % 360.0 - 180.0
         max_bearing_delta_deg = float(delta.abs().max())
     else:
