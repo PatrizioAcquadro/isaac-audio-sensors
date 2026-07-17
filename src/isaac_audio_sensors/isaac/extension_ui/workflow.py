@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, NamedTuple
 
 from isaac_audio_sensors.isaac.validation import (
     ValidationController,
@@ -231,6 +231,130 @@ class RecordingStatus:
 
 
 @dataclass(frozen=True, slots=True)
+class ExportStatus:
+    """Immutable guided export result and inventory totals."""
+
+    destination_dir: str | None = None
+    validation_status: str | None = None
+    split_status: str = "not_requested"
+    note: str | None = None
+    inventory_entries: int = 0
+    inventory_bytes: int = 0
+
+
+class InvalidStateCase(NamedTuple):
+    """One planted guided invalid state and its actionable UI mapping."""
+
+    state_id: str
+    plant: str
+    blocked_stage: GuidedStage
+    expected_finding: str
+    expected_field_or_recovery: str
+
+
+INVALID_STATE_MATRIX = (
+    InvalidStateCase(
+        "absent_stage",
+        "Remove the open USD stage before Setup/Validate.",
+        GuidedStage.SETUP,
+        "stage_present",
+        "stage",
+    ),
+    InvalidStateCase(
+        "invalid_backend",
+        "Set backend to an unknown backend before Validate.",
+        GuidedStage.VALIDATE,
+        "backend_supported",
+        "backend",
+    ),
+    InvalidStateCase(
+        "invalid_abs_path",
+        "Set source_prim_path to a relative path before Validate.",
+        GuidedStage.VALIDATE,
+        "source_prim_path_absolute",
+        "source_prim_path",
+    ),
+    InvalidStateCase(
+        "stale_capabilities",
+        "Invalidate a populated capability snapshot before Validate.",
+        GuidedStage.VALIDATE,
+        "capabilities_fresh",
+        "backend",
+    ),
+    InvalidStateCase(
+        "no_preset_applied",
+        "Attempt to complete Setup without applying a preset.",
+        GuidedStage.SETUP,
+        "setup_preset_applied",
+        "guided_preset_id",
+    ),
+    InvalidStateCase(
+        "sensor_not_running",
+        "Enter Run with a configured sensor that is not running.",
+        GuidedStage.RUN,
+        "guided_run_sensor_not_running",
+        "recovery:Start Guided Run",
+    ),
+    InvalidStateCase(
+        "sensor_stopped_mid_run",
+        "Stop the guided sensor after observing a Run frame.",
+        GuidedStage.RUN,
+        "guided_run_stopped",
+        "recovery:Start Guided Run",
+    ),
+    InvalidStateCase(
+        "inspect_not_accepted",
+        "Attempt to enter Record before Mark Inspected.",
+        GuidedStage.RECORD,
+        "guided_inspect_complete",
+        "recovery:Mark Inspected",
+    ),
+    InvalidStateCase(
+        "recording_cancelled",
+        "Cancel an active recording and finalize it incomplete.",
+        GuidedStage.RECORD,
+        "guided_recording_cancelled",
+        "recovery:Start new recording",
+    ),
+    InvalidStateCase(
+        "recording_validation_failed",
+        "Plant a checksum failure in finalized-session validation.",
+        GuidedStage.RECORD,
+        "dataset_checksum_mismatch",
+        "guided_session_dir",
+    ),
+    InvalidStateCase(
+        "export_destination_unwritable",
+        "Choose an export destination whose parent is not writable.",
+        GuidedStage.EXPORT,
+        "guided_export_destination_unwritable",
+        "guided_export_dir",
+    ),
+    InvalidStateCase(
+        "export_destination_inside_session",
+        "Choose an export destination inside the recorded session root.",
+        GuidedStage.EXPORT,
+        "guided_export_destination_inside_session",
+        "guided_export_dir",
+    ),
+    InvalidStateCase(
+        "export_before_record_complete",
+        "Attempt Export before Record has completed.",
+        GuidedStage.EXPORT,
+        "guided_record_complete",
+        "recovery:Finish Recording",
+    ),
+    InvalidStateCase(
+        "export_split_ratios_impossible",
+        "Request more positive TVT partitions than the exported group count.",
+        GuidedStage.EXPORT,
+        "guided_export_split_impossible",
+        "guided_split_ratios",
+    ),
+)
+
+
+@dataclass(frozen=True, slots=True)
 class _RecoveryRule:
     match_kind: str
     match_value: str
@@ -255,6 +379,42 @@ _RECOVERY_RULES = (
         "guided_recording_cancelled",
         "recording",
         "Start new recording",
+    ),
+    _RecoveryRule(
+        "check",
+        "guided_run_sensor_not_running",
+        "run",
+        "Start Guided Run",
+    ),
+    _RecoveryRule(
+        "check",
+        "guided_run_stopped",
+        "run",
+        "Start Guided Run",
+    ),
+    _RecoveryRule(
+        "check",
+        "guided_inspect_complete",
+        "inspect",
+        "Mark Inspected",
+    ),
+    _RecoveryRule(
+        "check",
+        "guided_record_complete",
+        "finish_recording",
+        "Finish Recording",
+    ),
+    _RecoveryRule(
+        "check_prefix",
+        "dataset_",
+        "recording",
+        "Retry Recording",
+    ),
+    _RecoveryRule(
+        "field",
+        "guided_split_ratios",
+        "focus",
+        "Adjust ratios",
     ),
     _RecoveryRule("default", "", "focus", "Focus field"),
 )
@@ -298,6 +458,7 @@ class GuidedWorkflow:
         self._findings = {stage: () for stage in GUIDED_STAGE_ORDER}
         self._run_status = RunStatus()
         self._recording_status = RecordingStatus()
+        self._export_status = ExportStatus()
         self.on_change = on_change
         self._recovery_handlers = dict(recovery_handlers or {})
         self.focused_field: str | None = None
@@ -330,6 +491,10 @@ class GuidedWorkflow:
     @property
     def recording_status(self) -> RecordingStatus:
         return self._recording_status
+
+    @property
+    def export_status(self) -> ExportStatus:
+        return self._export_status
 
     def stage_gate(
         self, stage: GuidedStage | str
@@ -553,7 +718,7 @@ class GuidedWorkflow:
             frame_count=previous.frame_count,
             last_timestamp_ms=previous.last_timestamp_ms,
         )
-        self._statuses[GuidedStage.RUN] = StageStatus.IN_PROGRESS
+        self._statuses[GuidedStage.RUN] = StageStatus.BLOCKED
         self._findings[GuidedStage.RUN] = (
             _finding(
                 "guided_run_stopped",
@@ -590,7 +755,7 @@ class GuidedWorkflow:
 
     def cancel_recording(self, status: RecordingStatus) -> RecordingStatus:
         self._recording_status = status
-        self._statuses[GuidedStage.RECORD] = StageStatus.IN_PROGRESS
+        self._statuses[GuidedStage.RECORD] = StageStatus.BLOCKED
         self._findings[GuidedStage.RECORD] = (
             _finding(
                 "guided_recording_cancelled",
@@ -623,6 +788,53 @@ class GuidedWorkflow:
         self._statuses[GuidedStage.RECORD] = StageStatus.BLOCKED
         self._findings[GuidedStage.RECORD] = (
             _finding(check_id, message, "guided_session_dir"),
+        )
+        self._emit_change()
+
+    def start_export(self, destination_dir: str) -> ExportStatus:
+        """Begin Export after the normal preceding-stage gate has opened."""
+
+        self._export_status = ExportStatus(destination_dir=destination_dir)
+        self._statuses[GuidedStage.EXPORT] = StageStatus.IN_PROGRESS
+        self._findings[GuidedStage.EXPORT] = ()
+        self._emit_change()
+        return self._export_status
+
+    def finish_export(self, status: ExportStatus) -> ExportStatus:
+        """Complete Export only for a canonical passed copy validation."""
+
+        self._export_status = status
+        passed = status.validation_status in {"passed", "passed_with_warnings"}
+        self._statuses[GuidedStage.EXPORT] = (
+            StageStatus.COMPLETE if passed else StageStatus.BLOCKED
+        )
+        self._findings[GuidedStage.EXPORT] = ()
+        self._emit_change()
+        return status
+
+    def fail_export(
+        self,
+        message: str,
+        *,
+        check_id: str,
+        field: str = "guided_export_dir",
+        note: str | None = None,
+    ) -> None:
+        """Block Export with one located, recoverable finding."""
+
+        self._export_status = ExportStatus(
+            destination_dir=self._export_status.destination_dir,
+            validation_status="failed",
+            split_status=(
+                "blocked"
+                if check_id == "guided_export_split_impossible"
+                else self._export_status.split_status
+            ),
+            note=note or message,
+        )
+        self._statuses[GuidedStage.EXPORT] = StageStatus.BLOCKED
+        self._findings[GuidedStage.EXPORT] = (
+            _finding(check_id, message, field),
         )
         self._emit_change()
 
@@ -666,6 +878,8 @@ class GuidedWorkflow:
             return finding.field == rule.match_value
         if rule.match_kind == "field_suffix":
             return bool(finding.field and finding.field.endswith(rule.match_value))
+        if rule.match_kind == "check_prefix":
+            return finding.check_id.startswith(rule.match_value)
         return rule.match_kind == "default"
 
     @staticmethod
@@ -685,12 +899,15 @@ class GuidedWorkflow:
 
 
 __all__ = [
+    "ExportStatus",
     "GUIDED_STAGE_ORDER",
+    "INVALID_STATE_MATRIX",
     "SAFE_PRESET_LIBRARY",
     "SAFE_PRESETS",
     "GuidedStage",
     "GuidedWorkflow",
     "InlineIssue",
+    "InvalidStateCase",
     "RecoveryAction",
     "RecordingStatus",
     "RunStatus",

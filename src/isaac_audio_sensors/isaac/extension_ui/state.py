@@ -79,6 +79,11 @@ class ExtensionUiState:
     guided_environment_id: str = "guided_environment"
     guided_split_group: str = "guided_scene"
     guided_session_seed: int = 0
+    guided_export_dir: str = "exported_guided_dataset"
+    guided_split_enabled: bool = True
+    guided_split_train_ratio: float = 0.8
+    guided_split_validation_ratio: float = 0.1
+    guided_split_test_ratio: float = 0.1
 
     selected_prim_paths: tuple[str, ...] = ()
     stage_status: str = "No stage checked."

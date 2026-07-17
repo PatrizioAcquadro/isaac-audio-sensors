@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 def build_guided_section(window: OmniReferenceWindow) -> None:
-    """Build the guided breadcrumb and operational Run B panels."""
+    """Build the complete guided Setup-through-Export workflow."""
 
     ui = window.ui
     workflow = window.controller.guided_workflow
@@ -133,8 +133,34 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                 )
             recording_progress = ui.Label("", word_wrap=True)
             recording_validation = ui.Label("", word_wrap=True)
-        with ui.VStack(spacing=4, height=0) as future_panel:
-            future_summary = ui.Label("", word_wrap=True)
+        with ui.VStack(spacing=4, height=0) as export_panel:
+            window._string_row("Export Dir", "guided_export_dir")
+            export_dir_field = window._string_fields.pop("guided_export_dir")
+            window._bool_row("Apply TVT Split", "guided_split_enabled")
+            split_enabled_field = window._bool_fields.pop("guided_split_enabled")
+            window._float_row("Train Ratio", "guided_split_train_ratio")
+            train_ratio_field = window._float_fields.pop(
+                "guided_split_train_ratio"
+            )
+            window._float_row("Validation Ratio", "guided_split_validation_ratio")
+            validation_ratio_field = window._float_fields.pop(
+                "guided_split_validation_ratio"
+            )
+            window._float_row("Test Ratio", "guided_split_test_ratio")
+            test_ratio_field = window._float_fields.pop(
+                "guided_split_test_ratio"
+            )
+            window._int_row("Split Seed", "guided_session_seed")
+            split_seed_field = window._int_fields.pop("guided_session_seed")
+            window._button(
+                "Export Guided Dataset",
+                lambda: window.controller.guided_export(
+                    window.controller.state.guided_export_dir
+                ),
+            )
+            export_summary = ui.Label("", word_wrap=True)
+            inventory_summary = ui.Label("", word_wrap=True)
+            inventory_totals = ui.Label("", word_wrap=True)
         with ui.HStack(spacing=4, height=0):
             window._button("Guided Back", window.controller.guided_back)
             window._button("Guided Next", window.controller.guided_advance)
@@ -165,8 +191,16 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
         "aligned_field": aligned_field,
         "recording_progress": recording_progress,
         "recording_validation": recording_validation,
-        "future_panel": future_panel,
-        "future_summary": future_summary,
+        "export_panel": export_panel,
+        "export_dir_field": export_dir_field,
+        "split_enabled_field": split_enabled_field,
+        "train_ratio_field": train_ratio_field,
+        "validation_ratio_field": validation_ratio_field,
+        "test_ratio_field": test_ratio_field,
+        "split_seed_field": split_seed_field,
+        "export_summary": export_summary,
+        "inventory_summary": inventory_summary,
+        "inventory_totals": inventory_totals,
     }
     window._guided_panel = panel
 
@@ -193,7 +227,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
         run_panel.visible = current is GuidedStage.RUN
         inspect_panel.visible = current is GuidedStage.INSPECT
         record_panel.visible = current is GuidedStage.RECORD
-        future_panel.visible = current is GuidedStage.EXPORT
+        export_panel.visible = current is GuidedStage.EXPORT
         chosen = window.controller.state.guided_preset_id
         preset = next((item for item in SAFE_PRESETS if item.preset_id == chosen), None)
         _set_widget_text(
@@ -301,9 +335,41 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             else f"Validation: {report.status} | "
             f"errors={report.error_count} | warnings={report.warning_count}",
         )
+        state = window.controller.state
+        _set_model_value(export_dir_field.model, state.guided_export_dir)
+        _set_model_value(split_enabled_field.model, state.guided_split_enabled)
+        _set_model_value(train_ratio_field.model, str(state.guided_split_train_ratio))
+        _set_model_value(
+            validation_ratio_field.model,
+            str(state.guided_split_validation_ratio),
+        )
+        _set_model_value(test_ratio_field.model, str(state.guided_split_test_ratio))
+        _set_model_value(split_seed_field.model, str(state.guided_session_seed))
+        export = window.controller.guided_export_status
         _set_widget_text(
-            future_summary,
-            "Export is delivered in Run C.",
+            export_summary,
+            "Export: not run"
+            if export.destination_dir is None
+            else f"Export: {export.validation_status or 'in progress'} | "
+            f"split={export.split_status} | destination={export.destination_dir}"
+            + (f" | {export.note}" if export.note else ""),
+        )
+        inventory = window.controller.guided_output_inventory()
+        _set_widget_text(
+            inventory_summary,
+            "Output inventory: none"
+            if not inventory
+            else "Output inventory:\n"
+            + "\n".join(
+                f"{item['path']} | {item['kind']} | {item['bytes']} bytes | "
+                f"sha256={item['sha256']}"
+                for item in inventory
+            ),
+        )
+        _set_widget_text(
+            inventory_totals,
+            f"Totals: {export.inventory_entries} files | "
+            f"{export.inventory_bytes} bytes",
         )
 
     window._refresh_guided_section = _refresh

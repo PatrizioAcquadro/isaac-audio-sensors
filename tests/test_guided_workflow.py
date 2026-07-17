@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import wave
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,6 +11,7 @@ import pytest
 
 import isaac_audio_sensors.isaac.extension_ui.controller as controller_module
 from isaac_audio_sensors.core.dataset.validate import Finding, validate_dataset
+from isaac_audio_sensors.core.io.manifests import read_dataset_manifest
 from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.isaac.extension_ui.controller import ExtensionController
 from isaac_audio_sensors.isaac.extension_ui.sections import build_guided_section
@@ -20,14 +22,17 @@ from isaac_audio_sensors.isaac.extension_ui.state import (
 from isaac_audio_sensors.isaac.extension_ui.window import OmniReferenceWindow
 from isaac_audio_sensors.isaac.extension_ui.workflow import (
     GUIDED_STAGE_ORDER,
+    INVALID_STATE_MATRIX,
     SAFE_PRESET_LIBRARY,
     SAFE_PRESETS,
     GuidedStage,
     GuidedWorkflow,
+    RecordingStatus,
     StageStatus,
 )
 from isaac_audio_sensors.isaac.validation import (
     ValidationController,
+    ValidationFinding,
     ValidationReport,
 )
 
@@ -383,6 +388,7 @@ def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
     assert "Start Recording" in buttons
     assert "Cancel Recording" in buttons
     assert "Stop and Finalize" in buttons
+    assert "Export Guided Dataset" in buttons
     assert len([widget for widget in ui.created if widget.kind == "ComboBox"]) == 1
 
     controller.guided_apply_preset("minimal_single_source")
@@ -418,7 +424,7 @@ def test_guided_run_observes_frame_then_stop_regresses(
     assert sensor.running is False
     assert controller.guided_run_status.stopped is True
     assert controller.guided_workflow.status(GuidedStage.RUN) is (
-        StageStatus.IN_PROGRESS
+        StageStatus.BLOCKED
     )
     assert controller.guided_workflow.findings_for_stage(GuidedStage.RUN)
 
@@ -545,7 +551,7 @@ def test_guided_recording_cancellation_finalizes_incomplete_and_recovers(
     assert status.cancelled is True
     assert status.active is False
     assert controller.guided_workflow.status(GuidedStage.RECORD) is (
-        StageStatus.IN_PROGRESS
+        StageStatus.BLOCKED
     )
     finding = controller.guided_workflow.findings_for_stage(GuidedStage.RECORD)[0]
     assert finding.message == "recording cancelled"
@@ -604,3 +610,325 @@ def test_failed_dataset_validation_blocks_record(
     mapped = controller.guided_workflow.findings_for_stage(GuidedStage.RECORD)
     assert mapped[0].check_id == "dataset_checksum_mismatch"
     assert mapped[0].field == "guided_session_dir"
+
+
+def _finalized_guided_controller(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    groups: tuple[str, ...] = ("scene_a",),
+) -> tuple[ExtensionController, Path]:
+    waveform_paths = [
+        _waveform(tmp_path / "export_waveforms" / f"frame_{index}.wav", index)
+        for index in range(1, len(groups) + 1)
+    ]
+    controller, _sensor = _run_ready_controller(
+        monkeypatch,
+        [
+            _frame(0),
+            *(
+                _frame(index, waveform_path=waveform_paths[index - 1])
+                for index in range(1, len(groups) + 1)
+            ),
+        ],
+    )
+    _enter_record_stage(controller)
+    session = tmp_path / "recorded_session"
+    recorder = controller.guided_start_recording(
+        session,
+        "export_test",
+        8,
+        len(groups) > 1,
+        scene_id=groups[0],
+        environment_id=f"environment_{groups[0]}",
+        split_group=groups[0],
+        session_seed=23,
+    )
+    assert recorder is not None
+    for index, group in enumerate(groups):
+        if index:
+            recorder.end_episode()
+            recorder.begin_episode(
+                group,
+                f"environment_{group}",
+                group,
+                seed=23 + index,
+            )
+        assert controller.update_sensor() is not None
+    assert controller.guided_stop_recording() is not None
+    assert validate_dataset(session).status in {"passed", "passed_with_warnings"}
+    return controller, session
+
+
+def test_guided_export_validates_relocated_copy_and_inventory_without_symlinks(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    controller, session = _finalized_guided_controller(monkeypatch, tmp_path)
+    destination = tmp_path / "portable" / "exported_session"
+
+    assert controller.guided_export(destination) == destination
+
+    assert session.is_dir()
+    assert validate_dataset(destination).status in {"passed", "passed_with_warnings"}
+    assert not any(path.is_symlink() for path in destination.rglob("*"))
+    status = controller.guided_export_status
+    assert status.validation_status in {"passed", "passed_with_warnings"}
+    assert status.split_status == "skipped_single_group"
+    assert status.note == "Split skipped: the session contains one group."
+    assert controller.guided_workflow.status(GuidedStage.EXPORT) is (
+        StageStatus.COMPLETE
+    )
+
+    manifest = read_dataset_manifest(destination / "manifest.json")
+    inventory = controller.guided_output_inventory()
+    expected = {
+        (asset.path, asset.kind, asset.sha256)
+        for shard in manifest.shards
+        for asset in shard.assets
+    }
+    assert {
+        (entry["path"], entry["kind"], entry["sha256"])
+        for entry in inventory
+    } == expected
+    for entry in inventory:
+        shard_id, filename = entry["path"].split("/")[1:]
+        marker = json.loads(
+            (
+                destination / "shards" / shard_id / "shard.complete.json"
+            ).read_text(encoding="utf-8")
+        )
+        marker_entry = next(
+            item for item in marker["files"] if item["path"] == filename
+        )
+        assert entry["bytes"] == marker_entry["bytes"]
+        assert entry["sha256"] == marker_entry["sha256"]
+    assert status.inventory_entries == len(inventory)
+    assert status.inventory_bytes == sum(entry["bytes"] for entry in inventory)
+
+    ui = _FakeUi()
+    window = OmniReferenceWindow(controller, ui)
+    build_guided_section(window)
+    assert window._guided_panel["export_panel"].visible is True
+    assert "Output inventory:" in window._guided_panel["inventory_summary"].text
+    assert f"Totals: {len(inventory)} files" in (
+        window._guided_panel["inventory_totals"].text
+    )
+
+
+def test_guided_export_rejects_destination_inside_session(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    controller, session = _finalized_guided_controller(monkeypatch, tmp_path)
+    destination = session / "nested_export"
+
+    assert controller.guided_export(destination) is None
+    assert not destination.exists()
+    finding = controller.guided_workflow.findings_for_stage(GuidedStage.EXPORT)[0]
+    assert finding.check_id == "guided_export_destination_inside_session"
+    assert finding.field == "guided_export_dir"
+
+
+def test_guided_export_rejects_unwritable_destination_parent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    controller, _session = _finalized_guided_controller(monkeypatch, tmp_path)
+    parent = tmp_path / "locked"
+    parent.mkdir()
+    parent.chmod(0o500)
+    destination = parent / "exported_session"
+    try:
+        assert controller.guided_export(destination) is None
+    finally:
+        parent.chmod(0o700)
+    assert not destination.exists()
+    finding = controller.guided_workflow.findings_for_stage(GuidedStage.EXPORT)[0]
+    assert finding.check_id == "guided_export_destination_unwritable"
+    assert finding.field == "guided_export_dir"
+
+
+def test_guided_export_applies_two_group_split_with_zero_test_ratio(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    controller, _session = _finalized_guided_controller(
+        monkeypatch,
+        tmp_path,
+        groups=("scene_a", "scene_b"),
+    )
+    controller.state.guided_split_train_ratio = 0.5
+    controller.state.guided_split_validation_ratio = 0.5
+    controller.state.guided_split_test_ratio = 0.0
+    destination = tmp_path / "two_group_export"
+
+    assert controller.guided_export(destination) == destination
+
+    manifest = read_dataset_manifest(destination / "manifest.json")
+    assert controller.guided_export_status.split_status == "applied"
+    assert {split.name for split in manifest.splits} == {"train", "validation"}
+    assert {group for split in manifest.splits for group in split.group_ids} == {
+        "scene_a",
+        "scene_b",
+    }
+    assert validate_dataset(destination).status in {"passed", "passed_with_warnings"}
+
+
+def test_guided_export_surfaces_impossible_default_ratios_for_two_groups(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    controller, _session = _finalized_guided_controller(
+        monkeypatch,
+        tmp_path,
+        groups=("scene_a", "scene_b"),
+    )
+    destination = tmp_path / "impossible_split_export"
+
+    assert controller.guided_export(destination) is None
+
+    assert not destination.exists()
+    finding = controller.guided_workflow.findings_for_stage(GuidedStage.EXPORT)[0]
+    assert finding.check_id == "guided_export_split_impossible"
+    assert finding.field == "guided_split_ratios"
+    assert "Adjust split ratios" in (controller.guided_export_status.note or "")
+    recovery = controller.guided_workflow.recovery_action(finding)
+    assert recovery.label == "Adjust ratios"
+    assert callable(recovery)
+
+
+def _complete_before(workflow: GuidedWorkflow, target: GuidedStage) -> None:
+    if target is GuidedStage.SETUP:
+        return
+    workflow.apply_preset(
+        SAFE_PRESETS[0].preset_id,
+        lambda _preset: None,
+        stage_present=True,
+    )
+    if target is GuidedStage.VALIDATE:
+        workflow.goto(GuidedStage.VALIDATE)
+        return
+    workflow.goto(GuidedStage.VALIDATE)
+    workflow.record_validation(ValidationReport(), capabilities_fresh=True)
+    workflow.goto(GuidedStage.RUN)
+    if target is GuidedStage.RUN:
+        return
+    workflow.mark_complete(GuidedStage.RUN)
+    workflow.goto(GuidedStage.INSPECT)
+    if target is GuidedStage.INSPECT:
+        return
+    workflow.mark_complete(GuidedStage.INSPECT)
+    workflow.goto(GuidedStage.RECORD)
+    if target is GuidedStage.RECORD:
+        return
+    workflow.mark_complete(GuidedStage.RECORD)
+    workflow.goto(GuidedStage.EXPORT)
+
+
+def _plant_matrix_case(case: Any) -> GuidedWorkflow:
+    workflow = GuidedWorkflow(ValidationController(), ExtensionUiState())
+    if case.state_id == "absent_stage":
+        workflow.apply_preset(
+            SAFE_PRESETS[0].preset_id,
+            lambda _preset: None,
+            stage_present=False,
+        )
+    elif case.state_id == "no_preset_applied":
+        workflow.mark_complete(GuidedStage.SETUP)
+    elif case.state_id in {
+        "invalid_backend",
+        "invalid_abs_path",
+        "stale_capabilities",
+    }:
+        _complete_before(workflow, GuidedStage.VALIDATE)
+        field = {
+            "invalid_backend": "backend",
+            "invalid_abs_path": "source_prim_path",
+            "stale_capabilities": "backend",
+        }[case.state_id]
+        report = ValidationReport(
+            ()
+            if case.state_id == "stale_capabilities"
+            else (
+                ValidationFinding(
+                    case.expected_finding,
+                    "error",
+                    case.plant,
+                    field,
+                ),
+            )
+        )
+        workflow.record_validation(
+            report,
+            capabilities_fresh=case.state_id != "stale_capabilities",
+        )
+    elif case.state_id == "sensor_not_running":
+        _complete_before(workflow, GuidedStage.RUN)
+        workflow.fail_run(case.plant, check_id=case.expected_finding)
+    elif case.state_id == "sensor_stopped_mid_run":
+        _complete_before(workflow, GuidedStage.RUN)
+        workflow.start_run(configured=True, running=True)
+        workflow.observe_run_frame(10)
+        workflow.stop_run()
+    elif case.state_id == "inspect_not_accepted":
+        _complete_before(workflow, GuidedStage.INSPECT)
+        workflow.goto(GuidedStage.RECORD)
+    elif case.state_id == "recording_cancelled":
+        _complete_before(workflow, GuidedStage.RECORD)
+        workflow.start_recording(RecordingStatus(active=True))
+        workflow.cancel_recording(RecordingStatus(cancelled=True))
+    elif case.state_id == "recording_validation_failed":
+        _complete_before(workflow, GuidedStage.RECORD)
+        workflow.finish_recording(
+            RecordingStatus(validation_status="failed"),
+            (
+                ValidationFinding(
+                    case.expected_finding,
+                    "error",
+                    case.plant,
+                    "guided_session_dir",
+                ),
+            ),
+        )
+    elif case.state_id == "export_before_record_complete":
+        _complete_before(workflow, GuidedStage.RECORD)
+        workflow.goto(GuidedStage.EXPORT)
+    else:
+        _complete_before(workflow, GuidedStage.EXPORT)
+        workflow.start_export("exported")
+        workflow.fail_export(
+            case.plant,
+            check_id=case.expected_finding,
+            field=(
+                "guided_split_ratios"
+                if case.state_id == "export_split_ratios_impossible"
+                else "guided_export_dir"
+            ),
+        )
+    return workflow
+
+
+@pytest.mark.parametrize(
+    "case",
+    INVALID_STATE_MATRIX,
+    ids=lambda case: case.state_id,
+)
+def test_invalid_state_matrix_is_actionable_and_blocks_declared_stage(
+    case: Any,
+) -> None:
+    workflow = _plant_matrix_case(case)
+
+    assert workflow.status(case.blocked_stage) is StageStatus.BLOCKED
+    finding = next(
+        item
+        for item in workflow.findings_for_stage(case.blocked_stage)
+        if item.check_id == case.expected_finding
+    )
+    recovery = workflow.recovery_action(finding)
+    assert callable(recovery)
+    if case.expected_field_or_recovery.startswith("recovery:"):
+        assert recovery.label == case.expected_field_or_recovery.split(":", 1)[1]
+    else:
+        recovery()
+        assert workflow.focused_field == case.expected_field_or_recovery

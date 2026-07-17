@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
+import shutil
+import stat
 import sys
+import tempfile
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import replace
@@ -14,12 +18,21 @@ from typing import Any
 from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.dataset import CancellationToken, SessionRecorder
 from isaac_audio_sensors.core.dataset.recorder import ShardPromotion
+from isaac_audio_sensors.core.dataset.splits import (
+    DatasetSplitError,
+    apply_split_plan,
+    build_split_plan,
+)
 from isaac_audio_sensors.core.dataset.validate import validate_dataset
 from isaac_audio_sensors.core.dataset_manifest import (
     CreationProvenance,
     DeviceProvenance,
 )
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
+from isaac_audio_sensors.core.io.manifests import (
+    read_dataset_manifest,
+    write_dataset_manifest,
+)
 from isaac_audio_sensors.core.io.traces import write_frame_trace
 from isaac_audio_sensors.core.math_utils import (
     euler_deg_from_quaternion,
@@ -143,6 +156,7 @@ from .ui_models import (
 from .window import OmniReferenceWindow
 from .workflow import (
     SAFE_PRESETS,
+    ExportStatus,
     GuidedStage,
     GuidedWorkflow,
     RecordingStatus,
@@ -188,6 +202,8 @@ class ExtensionController:
         self._guided_last_run_frame_id: str | None = None
         self._guided_last_recorded_frame_id: str | None = None
         self._guided_dataset_validation_report: Any | None = None
+        self._guided_export_validation_report: Any | None = None
+        self._guided_output_entries: tuple[dict[str, Any], ...] = ()
 
     @property
     def guided_workflow(self) -> GuidedWorkflow:
@@ -217,6 +233,11 @@ class ExtensionController:
                     "recording": lambda _finding: (
                         self._guided_restart_recording()
                     ),
+                    "finish_recording": lambda _finding: (
+                        self.guided_stop_recording()
+                    ),
+                    "run": lambda _finding: self.guided_start_run(),
+                    "inspect": lambda _finding: self.guided_mark_inspected(),
                     "focus": lambda finding: self._set_status(
                         f"Review {finding.field or 'the guided workflow'}."
                     ),
@@ -351,6 +372,14 @@ class ExtensionController:
     def guided_dataset_validation_report(self) -> Any | None:
         return self._guided_dataset_validation_report
 
+    @property
+    def guided_export_validation_report(self) -> Any | None:
+        return self._guided_export_validation_report
+
+    @property
+    def guided_export_status(self) -> ExportStatus:
+        return self.guided_workflow.export_status
+
     def guided_start_run(self) -> Any | None:
         """Configure and start the sensor through the existing lifecycle."""
 
@@ -372,8 +401,8 @@ class ExtensionController:
         started = self.start_sensor()
         if started is None:
             self.guided_workflow.fail_run(
-                "Sensor start failed.",
-                check_id="guided_run_start_failed",
+                "The configured sensor is not running; start Run again.",
+                check_id="guided_run_sensor_not_running",
             )
             return None
         self.guided_workflow.update_run_lifecycle(
@@ -583,6 +612,230 @@ class ExtensionController:
             self.guided_workflow.fail_recording(str(exc))
             self._record_error("Guided recording stop failed", exc)
             return None
+
+    def guided_export(self, destination_dir: str | Path) -> Path | None:
+        """Copy, optionally split, and validate one portable guided session."""
+
+        workflow = self.guided_workflow
+        if not workflow.goto(GuidedStage.EXPORT):
+            return None
+        destination = Path(destination_dir).expanduser()
+        self.state.guided_export_dir = str(destination)
+        workflow.start_export(str(destination))
+        self._guided_export_validation_report = None
+        self._guided_output_entries = ()
+        source_text = self.guided_recording_status.session_dir
+        if not source_text:
+            workflow.fail_export(
+                "No finalized guided session is available to export.",
+                check_id="guided_export_session_missing",
+                field="guided_session_dir",
+            )
+            return None
+        source = Path(source_text).expanduser()
+        source_resolved = source.resolve(strict=False)
+        destination_resolved = destination.resolve(strict=False)
+        if self._path_is_within(destination_resolved, source_resolved):
+            workflow.fail_export(
+                "Export destination must be outside the recorded session root.",
+                check_id="guided_export_destination_inside_session",
+            )
+            return None
+        if destination.exists():
+            workflow.fail_export(
+                "Export destination already exists; choose a new directory.",
+                check_id="guided_export_destination_exists",
+            )
+            return None
+        if not self._guided_destination_is_writable(destination):
+            workflow.fail_export(
+                "Export destination parent is not writable.",
+                check_id="guided_export_destination_unwritable",
+            )
+            return None
+
+        staging_container: Path | None = None
+        try:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            staging_container = Path(
+                tempfile.mkdtemp(
+                    prefix=f".{destination.name}.guided-export-",
+                    dir=destination.parent,
+                )
+            )
+            staged = staging_container / destination.name
+            shutil.copytree(source, staged, symlinks=False, copy_function=shutil.copy2)
+            report = validate_dataset(staged)
+            if report.status == "failed":
+                finding = next(iter(report.findings), None)
+                detail = (
+                    "Portable copy validation failed."
+                    if finding is None
+                    else f"{finding.location}: {finding.detail}"
+                )
+                workflow.fail_export(
+                    detail,
+                    check_id=(
+                        "guided_export_validation_failed"
+                        if finding is None
+                        else f"dataset_{finding.code}"
+                    ),
+                )
+                self._guided_export_validation_report = report
+                return None
+
+            split_status, note = self._guided_apply_export_split(staged)
+            report = validate_dataset(staged)
+            self._guided_export_validation_report = report
+            if report.status == "failed":
+                finding = next(iter(report.findings), None)
+                workflow.fail_export(
+                    "Exported copy failed validation after split application."
+                    if finding is None
+                    else f"{finding.location}: {finding.detail}",
+                    check_id=(
+                        "guided_export_validation_failed"
+                        if finding is None
+                        else f"dataset_{finding.code}"
+                    ),
+                )
+                return None
+            entries = self._guided_inventory_from_root(staged)
+            os.replace(staged, destination)
+            self._guided_output_entries = entries
+            workflow.finish_export(
+                ExportStatus(
+                    destination_dir=str(destination),
+                    validation_status=report.status,
+                    split_status=split_status,
+                    note=note,
+                    inventory_entries=len(entries),
+                    inventory_bytes=sum(int(item["bytes"]) for item in entries),
+                )
+            )
+            self._set_status(
+                f"Guided export validated at {destination}."
+                + (" " + note if note else "")
+            )
+            return destination
+        except DatasetSplitError as exc:
+            message = str(exc)
+            impossible = "impossible ratios" in message
+            workflow.fail_export(
+                message,
+                check_id=(
+                    "guided_export_split_impossible"
+                    if impossible
+                    else "guided_export_split_failed"
+                ),
+                field="guided_split_ratios",
+                note=(
+                    "Adjust split ratios so the number of positive partitions "
+                    "does not exceed the session group count."
+                    if impossible
+                    else message
+                ),
+            )
+            self._record_error("Guided export split failed", exc)
+            return None
+        except Exception as exc:
+            workflow.fail_export(
+                str(exc),
+                check_id="guided_export_failed",
+            )
+            self._record_error("Guided export failed", exc)
+            return None
+        finally:
+            if staging_container is not None and staging_container.exists():
+                shutil.rmtree(staging_container)
+
+    def guided_output_inventory(self) -> tuple[dict[str, Any], ...]:
+        """Return marker/manifest inventory entries without hashing files."""
+
+        return tuple(dict(entry) for entry in self._guided_output_entries)
+
+    def _guided_apply_export_split(self, root: Path) -> tuple[str, str | None]:
+        if not self.state.guided_split_enabled:
+            return "not_requested", "Split plan disabled."
+        manifest = read_dataset_manifest(root / "manifest.json")
+        grouping_key = manifest.split_grouping_key
+        groups = {
+            str(getattr(episode, grouping_key, episode.split_group))
+            for episode in manifest.episodes
+        }
+        if len(groups) < 2:
+            return (
+                "skipped_single_group",
+                "Split skipped: the session contains one group.",
+            )
+        ratios = {
+            name: float(value)
+            for name, value in (
+                ("train", self.state.guided_split_train_ratio),
+                ("validation", self.state.guided_split_validation_ratio),
+                ("test", self.state.guided_split_test_ratio),
+            )
+            if float(value) > 0.0
+        }
+        plan = build_split_plan(
+            manifest,
+            kind="train_validation_test",
+            ratios=ratios,
+            seed=int(self.state.guided_session_seed),
+        )
+        write_dataset_manifest(
+            apply_split_plan(manifest, plan),
+            root / "manifest.json",
+        )
+        return "applied", f"TVT split applied with seed {plan.seed}."
+
+    @staticmethod
+    def _guided_inventory_from_root(root: Path) -> tuple[dict[str, Any], ...]:
+        manifest = read_dataset_manifest(root / "manifest.json")
+        entries: list[dict[str, Any]] = []
+        for shard in manifest.shards:
+            marker_path = root / "shards" / shard.shard_id / "shard.complete.json"
+            marker = json.loads(marker_path.read_text(encoding="utf-8"))
+            marker_files = {
+                str(item["path"]): item for item in marker.get("files", ())
+            }
+            for asset in shard.assets:
+                marker_entry = marker_files[Path(asset.path).name]
+                entries.append(
+                    {
+                        "path": asset.path,
+                        "kind": asset.kind,
+                        "bytes": int(marker_entry["bytes"]),
+                        "sha256": str(asset.sha256),
+                    }
+                )
+        return tuple(sorted(entries, key=lambda item: str(item["path"])))
+
+    @staticmethod
+    def _path_is_within(candidate: Path, root: Path) -> bool:
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            return False
+        return True
+
+    @staticmethod
+    def _guided_destination_is_writable(destination: Path) -> bool:
+        parent = destination.parent
+        while not parent.exists() and parent != parent.parent:
+            parent = parent.parent
+        try:
+            mode = parent.stat().st_mode
+        except OSError:
+            return False
+        write_bits = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+        execute_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+        return (
+            parent.is_dir()
+            and bool(mode & write_bits)
+            and bool(mode & execute_bits)
+            and os.access(parent, os.W_OK | os.X_OK)
+        )
 
     def _guided_recorder_configuration(
         self,

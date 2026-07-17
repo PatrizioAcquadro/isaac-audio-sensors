@@ -12,7 +12,7 @@ WHEELHOUSE ?=
 CONSUMER_USER ?= pacquadr
 CONSUMER_REPO ?= /home/$(CONSUMER_USER)/Desktop/squadbot-av-phase1
 
-.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config dataset-validate-fixture export-schema regenerate-traces regenerate-manifests regenerate-reference-dataset measure-writer-memory live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config dataset-validate-fixture export-schema regenerate-traces regenerate-manifests regenerate-reference-dataset measure-writer-memory live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-guided-workflow live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -120,6 +120,10 @@ live-omniverse-extension-ux:
 live-omniverse-extension-ux-screenshots:
 	PYTHONPATH=$(CURDIR)/src:$(CURDIR)/exts/isaac_audio_sensors.omni:$(CURDIR)/scripts:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_omniverse_extension_ux.py --require-screenshot
 	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/omniverse_extension_live_ux.json').read_text()); scenarios=data.get('object_attach_live_qa', {}); required=('generic_scene','molmo_floorplan1'); instruments=data.get('instruments', {}); ok=data.get('status') == 'passed' and instruments.get('status') == 'passed' and instruments.get('compass', {}).get('needle_count', 0) > 0 and instruments.get('meters') and instruments.get('panel', {}).get('status') == 'captured' and pathlib.Path(instruments.get('panel', {}).get('path', '')).is_file() and all(scenarios.get(name, {}).get('screenshot', {}).get('status') == 'captured' and pathlib.Path(scenarios[name]['screenshot']['path']).is_file() for name in required); sys.exit(0 if ok else 1)"
+
+live-guided-workflow:
+	PYTHONPATH=$(CURDIR)/src:$(CURDIR)/exts/isaac_audio_sensors.omni:$(CURDIR)/scripts:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_guided_workflow_gate.py
+	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S2/S2.7/guided_workflow_gate.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
 
 live-isaac-lab-audio:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) scripts/live_isaac_lab_audio_smoke.py
