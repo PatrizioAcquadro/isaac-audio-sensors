@@ -7,28 +7,36 @@ execute during package import, install an acoustic pack, modify the maintained
 sensor implementation, or claim that a live Isaac Sim run passed. The
 orchestrator runs the scenarios on the frozen Isaac Sim 6.0.1 reference host.
 
-The release wheel and self-contained Kit extension zip are selected only from
-`dist/SHA256SUMS`. Both artifacts are rehashed before any host state is
-neutralized. The wheel is rehashed a second time immediately before its venv
-installation. A missing entry, duplicate expected filename, unsafe checksum
-path, missing file, or digest mismatch fails closed.
+The wheel, sdist, self-contained Kit zip, and acoustic pack are selected only
+from `dist/SHA256SUMS`; the mapping must contain exactly those four artifacts
+and be byte-identical to the canonical `S1/SHA256SUMS_final.txt`. All four are
+rehashed before host state is neutralized. Their canonical mapping produces a
+common artifact-set identifier recorded by every scenario. The wheel is
+rehashed again immediately before its venv installation.
 
 ## Scenario matrix
 
 | Scenario | Fresh boundary | Command and required proof |
 | --- | --- | --- |
-| `headless` | Recreated `clean_env/extsUser/` containing only the exact Kit zip | Kit base app with `--no-window --ext-folder ... --enable isaac_audio_sensors.omni --exec ...`; the probe must pass, and `isaac_audio_sensors.__file__` plus the extension-manager path must resolve below the staged extension and `_vendor`. |
+| `headless` | Recreated `clean_env/extsUser/` containing only the exact Kit zip | Kit's embedded `kit/python/bin/python3 -I -S` bootstraps `SimulationApp` with only verified Kit-owned paths and the staged extension; the probe and packaged origins must pass. |
 | `reinstall` | The complete `clean_env/` tree is removed and the exact zip is extracted again | The headless probe is repeated into `probe_reinstall.json`; the second extracted-tree inventory records update/reinstall identity. |
 | `gui` | The complete `clean_env/` tree is removed and the exact zip is extracted again | The same Kit probe runs without `--no-window`; `gui_screenshot.png` must exist and exceed 10 KiB. |
 | `wheel-venv` | A separate new `wheel_venv/` | The exact wheel is installed with `pip --no-cache-dir`; capabilities JSON, version `1.8.0`, `pip freeze`, disabled user site, in-venv package/NumPy origins, and explicit SciPy/SoundFile/pyroomacoustics absence are required. |
 
+The canonical verdict requires all four scenarios, in one invocation, against
+one artifact-set id. A partial diagnostic run writes a scenario-named partial
+record and never overwrites `clean_install_gate.json`.
+
 Every subprocess starts in the S1.6 output directory. The harness sets
 `PYTHONNOUSERSITE=1`, removes `PYTHONPATH`, `PYTHONHOME`, and every `PIP_*`
 variable, and records the exact variable names removed and values set. The Kit
-probe additionally records `site.ENABLE_USER_SITE`, `sys.path`, the effective
+probe additionally records `sys.executable`, `sys.prefix`,
+`site.ENABLE_USER_SITE`, `sys.path`, editable import hooks, the effective
 sanitization facts, and present-origin or explicit-absence records for the ADR
-module inventory. Scenario timeouts terminate the whole subprocess group and
-are recorded as failures.
+module inventory. Executable and prefix must be under the Isaac root. Every
+path must be under that root or the output-local clean tree; repository,
+virtualenv, discovered sibling Git checkout, and editable-hook contamination
+fails closed. Scenario timeouts terminate the whole subprocess group.
 
 ## Preflight and restore state machine
 

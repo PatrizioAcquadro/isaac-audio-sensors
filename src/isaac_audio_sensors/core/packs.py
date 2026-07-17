@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import importlib.metadata
 import json
@@ -219,6 +220,8 @@ def _validate_manifest_shape(root: Path, manifest: dict[str, object]) -> None:
         )
     wheel_names: set[str] = set()
     distribution_names: set[str] = set()
+    owned_imports: set[str] = set()
+    owned_files: set[str] = set()
     for index, distribution in enumerate(pack_distributions):
         if not isinstance(distribution, dict):
             raise PackValidationError(
@@ -240,6 +243,42 @@ def _validate_manifest_shape(root: Path, manifest: dict[str, object]) -> None:
             raise PackValidationError(f"unsafe wheel filename in manifest: {wheel!r}")
         if _SHA256_RE.fullmatch(str(distribution["sha256"])) is None:
             raise PackValidationError(f"invalid wheel sha256 in manifest: {wheel}")
+        imports = distribution.get("top_level_imports")
+        installed_files = distribution.get("installed_files")
+        if (
+            not isinstance(imports, list)
+            or imports != sorted(set(imports))
+            or not imports
+            or not all(
+                isinstance(module, str) and module.isidentifier()
+                for module in imports
+            )
+        ):
+            raise PackValidationError(
+                f"pack distribution {name} has invalid top_level_imports"
+            )
+        if not isinstance(installed_files, dict) or not installed_files:
+            raise PackValidationError(
+                f"pack distribution {name} has invalid installed_files"
+            )
+        duplicate_imports = owned_imports.intersection(imports)
+        duplicate_files = owned_files.intersection(installed_files)
+        if duplicate_imports or duplicate_files:
+            raise PackValidationError(
+                "pack distribution ownership overlaps: "
+                f"imports={sorted(duplicate_imports)}, files={sorted(duplicate_files)}"
+            )
+        owned_imports.update(imports)
+        owned_files.update(installed_files)
+        for relative, digest in installed_files.items():
+            if (
+                not isinstance(relative, str)
+                or not _safe_relative_path(relative)
+                or _SHA256_RE.fullmatch(str(digest)) is None
+            ):
+                raise PackValidationError(
+                    f"pack distribution {name} has invalid installed-file hash"
+                )
     if distribution_names != _PACK_DISTRIBUTION_NAMES:
         raise PackValidationError(
             "manifest pack_distributions names do not match the locked acoustic "
@@ -305,6 +344,16 @@ def _safe_path_component(value: str) -> bool:
     )
 
 
+def _safe_relative_path(value: str) -> bool:
+    path = Path(value)
+    return (
+        value not in {"", ".", ".."}
+        and not path.is_absolute()
+        and "\\" not in value
+        and all(part not in {"", ".", ".."} for part in path.parts)
+    )
+
+
 def _module_name(distribution_name: str) -> str:
     return distribution_name.lower().replace("-", "_")
 
@@ -325,6 +374,22 @@ def _module_origin(module: ModuleType) -> Path | None:
         return Path(origin).resolve()
     except OSError:
         return None
+
+
+def _module_origins(module: ModuleType) -> tuple[Path, ...]:
+    origin = _module_origin(module)
+    if origin is not None:
+        return (origin,)
+    locations = getattr(module, "__path__", None)
+    if locations is None:
+        return ()
+    resolved: list[Path] = []
+    for location in locations:
+        try:
+            resolved.append(Path(location).resolve())
+        except (OSError, TypeError):
+            return ()
+    return tuple(resolved)
 
 
 def _installed_distributions(root: Path) -> dict[str, str]:
@@ -368,18 +433,36 @@ def _validate_installed_distributions(
                 f"pack distribution {name}=={version} is missing or has version "
                 f"{installed.get(normalized)!r} under {root}; reinstall the pack"
             )
-        module_name = _module_name(name)
-        if not (root / module_name).exists() and not (
-            root / f"{module_name}.py"
-        ).is_file():
-            raise PackValidationError(
-                f"pack distribution {name} has no importable top-level module "
-                f"under {root}; reinstall the pack"
-            )
+        imports = distribution["top_level_imports"]
+        assert isinstance(imports, list)
+        for module_name in imports:
+            assert isinstance(module_name, str)
+            if not (root / module_name).exists() and not any(
+                root.glob(f"{module_name}.*")
+            ):
+                raise PackValidationError(
+                    f"pack distribution {name} has no importable top-level module "
+                    f"{module_name!r} under {root}; reinstall the pack"
+                )
     undeclared = sorted(set(installed) - set(expected))
     if undeclared:
         raise PackValidationError(
             f"undeclared distributions present under pack root: {undeclared}"
+        )
+
+    declared_imports = {
+        module
+        for distribution in pack_distributions
+        if isinstance(distribution, dict)
+        for module in distribution["top_level_imports"]
+        if isinstance(module, str)
+    }
+    actual_imports = _installed_top_level_imports(root)
+    if actual_imports != declared_imports:
+        raise PackValidationError(
+            "installed top-level import inventory mismatch: "
+            f"missing={sorted(actual_imports - declared_imports)}, "
+            f"stale={sorted(declared_imports - actual_imports)}; reinstall the pack"
         )
 
     host_requirements = manifest["host_requirements"]
@@ -397,6 +480,70 @@ def _validate_installed_distributions(
                 "remove this invalid pack because host dependencies must never be "
                 "installed or shadowed"
             )
+
+
+def _installed_top_level_imports(root: Path) -> set[str]:
+    imports: set[str] = set()
+    for path in root.iterdir():
+        name = path.name
+        if name.endswith((".dist-info", ".data")) or name == "__pycache__":
+            continue
+        if path.is_file():
+            if name.endswith(".py"):
+                candidate = name[:-3]
+            elif name.endswith((".so", ".pyd")):
+                candidate = name.split(".", 1)[0]
+            else:
+                continue
+            if candidate.isidentifier():
+                imports.add(candidate)
+            continue
+        if not path.is_dir() or not name.isidentifier():
+            continue
+        if any(
+            child.is_file()
+            and child.name.endswith((".py", ".so", ".pyd"))
+            for child in path.rglob("*")
+        ):
+            imports.add(name)
+    return imports
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _validate_installed_file_integrity(
+    root: Path, manifest: dict[str, object]
+) -> None:
+    rows = manifest["pack_distributions"]
+    assert isinstance(rows, list)
+    for row in rows:
+        assert isinstance(row, dict)
+        installed_files = row["installed_files"]
+        assert isinstance(installed_files, dict)
+        for relative, expected in installed_files.items():
+            assert isinstance(relative, str)
+            path = root / relative
+            if not path.is_file():
+                raise PackValidationError(
+                    f"installed pack file is missing: {relative}; reinstall the pack"
+                )
+            try:
+                actual = _sha256_file(path)
+            except OSError as exc:
+                raise PackValidationError(
+                    f"cannot verify installed pack file {relative}: {exc}"
+                ) from exc
+            if actual != expected:
+                raise PackValidationError(
+                    f"installed pack file integrity mismatch for {relative}: "
+                    f"{actual} != {expected}; reinstall the pack"
+                )
 
 
 def _validate_host_requirements(root: Path, manifest: dict[str, object]) -> None:
@@ -457,6 +604,7 @@ def validate_pack_install(path: str | Path) -> dict[str, object]:
                 "reference runtime"
             )
     _validate_installed_distributions(root, manifest)
+    _validate_installed_file_integrity(root, manifest)
     _validate_host_requirements(root, manifest)
     return manifest
 
@@ -465,7 +613,11 @@ def _pack_module_names(manifest: dict[str, object]) -> tuple[str, ...]:
     rows = manifest["pack_distributions"]
     assert isinstance(rows, list)
     return tuple(
-        _module_name(str(row["name"])) for row in rows if isinstance(row, dict)
+        module
+        for row in rows
+        if isinstance(row, dict)
+        for module in row["top_level_imports"]
+        if isinstance(module, str)
     )
 
 
@@ -483,22 +635,47 @@ def activate_pack(path: str | Path) -> dict[str, object]:
             f"once-per-process and cannot switch to {root}"
         )
     manifest = validate_pack_install(root)
-    for module_name in _pack_module_names(manifest):
-        module = sys.modules.get(module_name)
-        if module is None:
+    module_names = _pack_module_names(manifest)
+    owned_roots = set(module_names)
+    for loaded_name, module in tuple(sys.modules.items()):
+        if loaded_name.split(".", 1)[0] not in owned_roots or module is None:
             continue
-        origin = _module_origin(module)
-        if origin is None or not _is_under(origin, root):
+        origins = _module_origins(module)
+        if not origins or not all(_is_under(origin, root) for origin in origins):
             raise PackActivationError(
                 f"provenance conflict for preloaded pack-managed module "
-                f"{module_name!r} from {origin}; restart the process without the "
+                f"{loaded_name!r} from {origins}; restart the process without the "
                 "external/global/user-site module before activating this pack"
             )
     root_text = str(root)
-    sys.path.insert(0, root_text)
-    _ACTIVE_PACK_ROOT = root
-    _ACTIVE_PACK_MANIFEST = manifest
-    return manifest
+    original_path = list(sys.path)
+    original_modules = set(sys.modules)
+    try:
+        sys.path.insert(0, root_text)
+        for module_name in module_names:
+            module = importlib.import_module(module_name)
+            origins = _module_origins(module)
+            if not origins or not all(
+                _is_under(origin, root) for origin in origins
+            ):
+                raise PackActivationError(
+                    f"pack-managed module {module_name!r} imported from {origins}; "
+                    f"expected an origin under {root}"
+                )
+        _ACTIVE_PACK_ROOT = root
+        _ACTIVE_PACK_MANIFEST = manifest
+        return manifest
+    except Exception as exc:
+        sys.path[:] = original_path
+        for module_name in set(sys.modules) - original_modules:
+            sys.modules.pop(module_name, None)
+        _ACTIVE_PACK_ROOT = None
+        _ACTIVE_PACK_MANIFEST = None
+        if isinstance(exc, PackActivationError):
+            raise
+        raise PackActivationError(
+            f"pack activation failed and was rolled back: {exc}"
+        ) from exc
 
 
 def active_pack_root() -> Path | None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -49,6 +50,20 @@ class _NondeterministicExtractor:
         return np.asarray([next(self._counter)], dtype=np.float32), {}
 
 
+class _NondeterministicPropagation:
+    backend_id = "nondeterministic_propagation"
+    _counter = itertools.count()
+
+    def simulate(self, scene, sensor, time_window):
+        frame = GeometryBackend().simulate(scene, sensor, time_window)
+        counter = next(self._counter)
+        return replace(
+            frame,
+            backend_id=self.backend_id,
+            frame_id=f"{frame.frame_id}_{counter}",
+        )
+
+
 def _feature_declaration(
     plugin_id: str,
     *,
@@ -68,6 +83,21 @@ def _feature_declaration(
         deterministic=deterministic,
         output_contract={"shape": shape, "dtype": "float32"},
         description="Test-local mean feature extractor.",
+        provenance="tests.test_backend_plugins",
+    )
+
+
+def _propagation_declaration(plugin_id: str) -> PluginDeclaration:
+    return PluginDeclaration(
+        plugin_id=plugin_id,
+        kind="propagation_backend",
+        fidelity_level="L0",
+        required_dependencies=(),
+        supported_devices=("cpu",),
+        supported_profiles=("waveform_fidelity",),
+        deterministic=True,
+        output_contract={"shape": "AudioSensorFrame", "dtype": "AudioSensorFrame"},
+        description="Test-local propagation backend.",
         provenance="tests.test_backend_plugins",
     )
 
@@ -201,6 +231,16 @@ def test_registration_rejects_false_determinism_declaration():
         registry.register(
             _feature_declaration("random_feature", shape=(1,)),
             _NondeterministicExtractor,
+        )
+
+
+def test_registration_rejects_false_propagation_determinism_declaration():
+    registry = PluginRegistry()
+
+    with pytest.raises(ConfigValidationError, match="deterministic=True"):
+        registry.register(
+            _propagation_declaration("nondeterministic_propagation"),
+            _NondeterministicPropagation,
         )
 
 

@@ -82,3 +82,19 @@ were additionally proven against the real pack.
   S3/P2 scope).
 - Next subphase input (S1.6): exact SHA256SUMS artifacts, ADR Decision 10
   clean-install definition, S0.3 runtime facts.
+
+## Post-review remediation (2026-07-17)
+
+Wheel inspection now combines metadata with import-bearing contents,
+including native `_cffi_backend`, and verifies every wheel `RECORD` hash and
+size. Manifests carry sorted import ownership plus installed-file SHA-256
+values. The auditor, offline installer, discovery, and activation paths all
+reject incomplete inventories and tampering; activation also rejects
+externally preloaded owned modules and rolls back path, modules, and active
+state on failure.
+
+The final real offline install and activation passed with installed-file
+integrity verified and 8/8 declared imports originating under the private
+pack root. Evidence:
+`outputs/isaac_audio_sensors/S1/S1.5/post_review_pack_install.log` and
+`post_review_pack_activation.log`. Final hashes are in `SHA256SUMS.txt`.

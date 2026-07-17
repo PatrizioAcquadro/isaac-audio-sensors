@@ -31,7 +31,7 @@ closed for invalid values.
 | `required_dependencies` | Unique Python import names; missing optional imports are reportable capabilities, not registration failures |
 | `supported_devices` | Non-empty unique subset of `cpu`, `cuda` |
 | `supported_profiles` | Non-empty unique subset of `training_features`, `waveform_fidelity` |
-| `deterministic` | Strict boolean promise checked for fixture-capable signal plugins |
+| `deterministic` | Strict boolean promise checked for signal and propagation plugins |
 | `output_contract` | Mapping with `shape` and `dtype`; backends declare `AudioSensorFrame`, DOA declares scalar `DoaEstimate`, feature extractors declare a fixed tensor shape and NumPy dtype |
 | `description` | Non-empty human-readable capability summary |
 | `provenance` | Importable-style Python module path naming the implementation origin |
@@ -61,13 +61,18 @@ use `resolve` and fail before construction when dependencies or combinations
 are unavailable.
 
 `validate_declaration` constructs a test instance. Propagation factories are
-checked structurally and against their declared backend id. DOA estimators and
-feature extractors run on the same seeded, ordered waveform/geometry fixture;
+checked structurally, against their declared backend id and output contract,
+and, when deterministic, run as two fresh instances on one canonical
+room-valid scene, quad microphone array, generated impulse source, and fixed
+time window. Both results must be valid `AudioSensorFrame` objects with the
+declared backend id and complete recursive field equality. Execution errors,
+wrong result types, mismatched backend ids, or values that cannot be compared
+are unverifiable and reject the declaration. DOA estimators and feature
+extractors run on the same seeded, ordered waveform/geometry fixture;
 the result container, output shape/type, dtype, and diagnostics mapping are
 checked. A plugin declaring `deterministic=True` is built and run twice and
 must produce recursively identical results. Backend determinism remains
-covered by the existing seeded frame tests because a generic registry cannot
-invent a valid scene/configuration fixture for arbitrary propagation plugins.
+covered by both the registry fixture and the existing seeded backend tests.
 
 ## Rejection matrix
 

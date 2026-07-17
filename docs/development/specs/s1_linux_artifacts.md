@@ -17,7 +17,8 @@ sixth pack wheel.
 The installer verifies every wheel before invoking pip offline with
 `--target`, `--no-deps`, `--no-index`, `--require-hashes`, and a pack-local
 `--find-links`. It installs into a hidden staging directory beside the final
-root, performs imports with staging first on `sys.path`, rejects a staged
+root, verifies every manifest-owned installed file, performs every declared
+top-level import with staging first on `sys.path`, rejects a staged
 top-level module or distribution metadata for any host requirement, copies the
 manifest, and atomically renames staging to:
 
@@ -39,13 +40,21 @@ directories without a validated manifest are not selectable.
 | `python_version`, `abi`, `os`, `arch` | `3.12`, `cp312`, Linux, `x86_64` target |
 | `host_requirements` | Exact host-owned distributions, versions, and reasons |
 | `numpy_compatibility` | SciPy/host intersection `>=2.0,<2.8` |
-| `pack_distributions` | Name, version, wheel filename, and SHA-256 per wheel |
+| `pack_distributions` | Name, version, wheel filename/SHA-256, sorted complete top-level imports, and installed-file SHA-256 mapping per wheel |
 | `capabilities` | L2 backend ids and WAV/FLAC SoundFile export declarations |
 | `build_provenance` | Git revision and acoustic-pack build-tool version |
 
+The builder derives top-level imports from wheel metadata and contents, so
+native root modules such as `_cffi_backend` cannot be hidden behind a
+distribution-name heuristic. It validates each wheel `RECORD`, rejects
+missing, inconsistent, or unhashed entries other than `RECORD` itself, and
+stores hashes for every declared installed file. The archive auditor repeats
+that derivation from the embedded wheel bytes.
+
 `host_requirements` and `pack_distributions` are disjoint. Activation requires
-host modules to resolve outside the pack and pack distribution metadata and
-top-level modules to exist inside it. The required host entries are
+host modules to resolve outside the pack and pack distribution metadata,
+declared installed-file hashes, and the complete top-level import inventory to
+match inside it. The required host entries are
 `numpy==2.5.0` and `typing_extensions==4.12.2`; their versions are read from
 distribution metadata first, with a module `__version__` attribute used only
 when metadata is unavailable. This supports `typing_extensions`, whose module
@@ -55,15 +64,18 @@ does not need to expose `__version__`.
 
 ```text
 unselected
-  -> validate manifest, package/runtime identity, installed distributions
+  -> validate manifest, package/runtime identity, installed distributions/files
   -> validate exact host versions and external origins
-  -> reject conflicting preloaded pack-managed modules
+  -> reject any conflicting preloaded owned import, including native modules
   -> prepend the private root to sys.path
+  -> import and origin-check every declared top-level module
   -> active (same-root activation is a no-op; switching roots is forbidden)
 ```
 
-Every failure occurs before `sys.path` changes. Process restart is required to
-switch roots, which prevents mixed dependency provenance.
+Failures before activation leave `sys.path` unchanged. Failures during import
+restore the original path, remove newly imported modules, and clear active-pack
+state. Process restart is required to switch successful roots, which prevents
+mixed dependency provenance.
 
 ## Capability origins
 

@@ -53,6 +53,15 @@ unknown completion states; and a complete manifest containing an incomplete
 shard. An incomplete manifest remains representable but is never promoted by
 validation.
 
+`ManifestPose.orientation_xyzw` follows the same quaternion policy as the
+public frame types. It must be finite and have norm greater than the shared
+near-zero tolerance. Zero, near-zero, NaN, and infinite values are rejected.
+Every other non-unit quaternion is normalized to unit length during direct
+construction and JSON loading, so subsequent serialization emits the
+normalized `(x, y, z, w)` value. This semantic constraint is documented in the
+generated dataset-manifest schema even though JSON Schema alone cannot express
+the norm calculation.
+
 ## Calibration profile fields
 
 | Record | Required content |

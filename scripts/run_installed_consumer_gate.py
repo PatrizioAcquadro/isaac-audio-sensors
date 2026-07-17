@@ -21,6 +21,9 @@ from typing import Any
 
 PACKAGE_NAME = "isaac_audio_sensors"
 CONSUMER_TEST = "tests/test_squadbot_audio_contract_freeze.py"
+REQUIRED_MALFORMED_CONSUMER_CASE = (
+    "test_contract_chain_rejects_malformed_trace_without_partial_outputs"
+)
 CONSUMER_DEPENDENCIES = (
     "numpy",
     "protobuf>=3.20,<6",
@@ -492,6 +495,33 @@ def _pytest_case_summary(path: Path) -> list[dict[str, str]]:
     return cases
 
 
+def required_consumer_case_errors(
+    cases: list[dict[str, str]],
+) -> list[str]:
+    """Require the tracked malformed-input freeze case and a passing outcome."""
+
+    matches = [
+        case
+        for case in cases
+        if case.get("case") == REQUIRED_MALFORMED_CONSUMER_CASE
+    ]
+    if not matches:
+        return [
+            f"required consumer case {REQUIRED_MALFORMED_CONSUMER_CASE!r} is missing"
+        ]
+    if len(matches) != 1:
+        return [
+            f"required consumer case {REQUIRED_MALFORMED_CONSUMER_CASE!r} "
+            f"appeared {len(matches)} times"
+        ]
+    if matches[0].get("outcome") != "passed":
+        return [
+            f"required consumer case {REQUIRED_MALFORMED_CONSUMER_CASE!r} "
+            f"did not pass: {matches[0].get('outcome')!r}"
+        ]
+    return []
+
+
 def _safe_extract_pack(archive_path: Path, destination: Path) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive_path, "r:gz") as archive:
@@ -816,13 +846,19 @@ def run_gate(args: argparse.Namespace) -> dict[str, Any]:
         )
         pytest_output_path = scratch_dir / "consumer_pytest_output.txt"
         _write_command_log(pytest_output_path, pytest_result)
+        cases = _pytest_case_summary(junit_path)
+        required_case_errors = required_consumer_case_errors(cases)
         record["pytest"] = {
             "returncode": pytest_result.returncode,
             "output_path": str(pytest_output_path),
             "junit_path": str(junit_path),
-            "cases": _pytest_case_summary(junit_path),
+            "cases": cases,
+            "required_case": REQUIRED_MALFORMED_CONSUMER_CASE,
+            "required_case_errors": required_case_errors,
         }
         _require_success(pytest_result, "consumer fixture suite")
+        if required_case_errors:
+            raise ConsumerGateError("; ".join(required_case_errors))
         record["timings_s"]["consumer_pytest"] = time.monotonic() - stage_started
 
         stage_started = time.monotonic()

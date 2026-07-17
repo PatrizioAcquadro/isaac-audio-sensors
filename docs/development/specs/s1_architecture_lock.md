@@ -2,12 +2,12 @@
 
 ## Status
 
-**State:** Proposed — awaiting orchestrator/user approval recorded in the S1.1
-closeout.
+**State:** Accepted and implemented for Stage 1; post-review tightening is
+recorded in the S1 closeouts.
 
 **Scope:** Stage 1 internal research release.
 
-**Package release:** `1.8.0` after approval.
+**Package release:** `1.8.0`.
 
 **Governing gate:** `S1.1` - Architecture lock.
 
@@ -147,10 +147,11 @@ or behavior field entered a generic export.
 ## Decision 5: Separate-repository responsibilities
 
 Protobuf transport, `AuditoryCue`, ontology, `MiniSceneGraph`, and robot
-behavior remain owned by
-`/home/pacquadr/Desktop/squadbot-av-phase1`.  Sensor work never modifies that
-repository.  The only Stage 1 cross-repository activity is read-only
-consumption of immutable installed sensor artifacts and adapter fixtures.
+behavior remain owned by the external consumer repository. Stage 1 modifies
+only its tracked `tests/test_squadbot_audio_contract_freeze.py` to add the
+required malformed-input contract case; no consumer production code or other
+consumer file is changed. All gate execution remains read-only consumption of
+immutable installed sensor artifacts and adapter fixtures.
 
 This boundary lets sensor defects be distinguished from adapter or behavior
 defects and prevents sibling-source coupling.  S1.8 owns the installed-artifact
@@ -443,8 +444,9 @@ artifact hashes, and before/after restoration evidence.
   build.
 - Frame v1 and the new v1 schemas evolve independently of SemVer package
   releases, preserving old consumers while allowing additive contracts.
-- The sensor remains reusable and generic.  The downstream repository owns
-  protobuf, ontology, graph, and robot behavior and is consumed read-only.
+- The sensor remains reusable and generic. The downstream repository owns
+  protobuf, ontology, graph, and robot behavior; only its tracked malformed
+  contract-freeze test is amended, while gate execution is read-only.
 - Acoustic binary inputs are official, hash-locked PyPI wheels.  Replacing the
   pinned official `pyroomacoustics` wheel requires a separately approved ADR
   amendment.

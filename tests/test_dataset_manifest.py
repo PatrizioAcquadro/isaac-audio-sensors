@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from isaac_audio_sensors.core.constants import DATASET_MANIFEST_SCHEMA_VERSION
-from isaac_audio_sensors.core.dataset_manifest import AssetRecord
+from isaac_audio_sensors.core.dataset_manifest import AssetRecord, ManifestPose
 from isaac_audio_sensors.core.io.manifests import (
     manifest_from_dict,
     manifest_to_dict,
@@ -115,3 +116,53 @@ def test_completion_state_never_promotes_an_incomplete_shard():
     assert incomplete_manifest.completion_state == "incomplete"
     with pytest.raises(ValueError, match="incomplete shards"):
         replace(complete, shards=(incomplete_shard,))
+
+
+@pytest.mark.parametrize(
+    "orientation",
+    [
+        (0.0, 0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0, math.nan),
+        (0.0, 0.0, math.inf, 1.0),
+    ],
+)
+def test_manifest_pose_rejects_zero_and_nonfinite_quaternions(orientation):
+    with pytest.raises(ValueError, match="finite|non-zero"):
+        ManifestPose(
+            entity_id="array",
+            entity_kind="array",
+            timestamp_ms=0,
+            position_m=(0.0, 0.0, 0.0),
+            orientation_xyzw=orientation,
+            frame="world",
+        )
+
+
+def test_manifest_pose_normalizes_valid_non_unit_quaternion():
+    pose = ManifestPose(
+        entity_id="array",
+        entity_kind="array",
+        timestamp_ms=0,
+        position_m=(0.0, 0.0, 0.0),
+        orientation_xyzw=(0.0, 0.0, 0.0, 2.0),
+        frame="world",
+    )
+
+    assert pose.orientation_xyzw == (0.0, 0.0, 0.0, 1.0)
+
+
+def test_manifest_reader_normalizes_non_unit_quaternion_before_serialization():
+    payload = manifest_to_dict(
+        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v1.json")
+    )
+    payload["episodes"][0]["array_poses"][0]["orientation_xyzw"] = [0, 0, 0, 3]
+
+    manifest = manifest_from_dict(payload)
+    normalized = manifest_to_dict(manifest)
+
+    assert normalized["episodes"][0]["array_poses"][0]["orientation_xyzw"] == [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+    ]

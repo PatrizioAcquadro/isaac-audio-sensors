@@ -68,3 +68,14 @@ documented behavior (demo-config regression + default profile test).
   profile-fitting workflow (S4) exists yet.
 - Next subphase input (S1.3): approved ADR, these contracts and runtime
   profiles, plan Section 4.6.
+
+## Post-review remediation (2026-07-17)
+
+`ManifestPose.orientation_xyzw` now uses the shared quaternion validator:
+zero, near-zero, NaN, and infinite values reject, while finite non-unit
+quaternions normalize to unit length before serialization. Direct
+construction, JSON loading, normalized serialization, and valid-fixture
+parity are covered. Schema, trace, manifest, and calibration regeneration
+was repeated over 37 files with zero byte drift after the intended schema
+description update. The final pure battery passed 518 tests with 67
+documented optional-dependency skips.

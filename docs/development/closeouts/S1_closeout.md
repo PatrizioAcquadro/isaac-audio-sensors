@@ -86,3 +86,30 @@ S2.1 (session/shard layout) consumes: `ias.audio_dataset_manifest.v1`
 (S1.2), the plugin/capability layer (S1.3/S1.5), the immutable artifact
 set above, and the S1.7 freeze. The S2 evidence root is
 `outputs/isaac_audio_sensors/S2/`.
+
+## Post-review remediation (2026-07-17)
+
+This section preserves the original closeout above as historical evidence
+and supersedes its artifact hashes and gate counts for the final S1 verdict.
+No S2 work was started.
+
+Final artifact-set id:
+`4f58b62c3cd84c321a400ce42231a7854d33f47ad4dc64ac711624e44326a9f4`.
+
+| Artifact | Final sha256 |
+| --- | --- |
+| `isaac_audio_sensors-1.8.0-py3-none-any.whl` | `0d0706d33c1cae9b7da98936f49ed701be59f374491c122a0ee14db5ccae0d13` |
+| `isaac_audio_sensors-1.8.0.tar.gz` | `52373cecb5f93cc121557051f5a775e593ff63a99a4624f88812dd88dfa042b4` |
+| `kit/isaac_audio_sensors.omni-1.8.0.zip` | `1d594d58617888f0b4bbfd13904291b9a8d71544b270a121284d620231eba0c8` |
+| `packs/isaac_audio_sensors_acoustic_pack-l2l3-1.8.0-linux_x86_64-cp312.tar.gz` | `b27c3c702c9523ab2d0bcee17f9ab3efc0dcc95020c40ebbd0b3c5954d094de0` |
+
+Final results: 518 passed with 67 documented optional-dependency skips;
+ruff clean; version 1.8.0 synchronized; sdist/wheel/Kit/pack audits passed;
+real pack install and 8-import activation passed; all four S1.6 scenarios
+passed in one canonical run; S1.7 passed 6/6; the installed consumer passed
+8/8 including the required malformed-input case; regeneration of 37 files
+had zero drift; and `git diff --check` passed in both repositories.
+
+Canonical overall evidence:
+`outputs/isaac_audio_sensors/S1/post_review_final_gate_summary.json`.
+Verdict: **S1 is ready for S2**.

@@ -64,3 +64,14 @@ identical; existing backend suites pass unmodified.
   code keeps `get_backend` semantics.
 - Next subphase input (S1.4): approved ADR (Decisions 7, 8), S0.1 Partial
   distribution finding, shared package source.
+
+## Post-review remediation (2026-07-17)
+
+Propagation declarations marked deterministic are now executed twice using
+fresh backend instances and one canonical room-valid scene, microphone
+array, generated impulse source, and fixed time window. Registration
+requires valid `AudioSensorFrame` results, matching backend ids, and complete
+field-for-field equality; execution errors and incomparable results reject
+as unverifiable. The deliberately nondeterministic regression is rejected,
+all built-in registrations remain accepted, and the final focused suite
+passed 15/15. Evidence: `outputs/isaac_audio_sensors/S1/S1.3/post_review_propagation.log`.

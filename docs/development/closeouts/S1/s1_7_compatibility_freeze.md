@@ -91,3 +91,13 @@ cheap S1.6 headless scenario is re-run against the rebuilt artifacts.
   1.7.0 except the S1.4 loader).
 - Next subphase input (S1.8): post-S1.7 immutable artifacts, this freeze,
   the external adapter fixtures, the generic/external ownership boundary.
+
+## Post-review remediation (2026-07-17)
+
+The compatibility freeze was rerun after all semantic tightening: 6/6 tests
+passed. Package and schema identifiers remain `1.8.0`,
+`ias.audio_sensor_frame.v1`, and `ias.audio_dataset_manifest.v1`; the changes
+only enforce existing S1 validity rules. The final artifact hashes replace
+the earlier historical post-S1.7 set and are recorded in
+`SHA256SUMS_post_s1_7.txt`. Evidence:
+`outputs/isaac_audio_sensors/S1/S1.7/post_review_compatibility.log`.

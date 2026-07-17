@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -46,36 +47,64 @@ def _write_typing_extensions_host(root: Path) -> Path:
     return module
 
 
+def _install_typing_extensions_host(tmp_path, monkeypatch) -> None:
+    host_module = _write_typing_extensions_host(tmp_path / "host-runtime")
+    monkeypatch.syspath_prepend(str(host_module.parent))
+    synthetic_module = types.ModuleType("typing_extensions")
+    synthetic_module.__file__ = str(host_module)
+    monkeypatch.setitem(sys.modules, "typing_extensions", synthetic_module)
+
+
 def _synthetic_pack(root: Path) -> Path:
     pack_root = root / "acoustics-l2l3" / VERSION
     pack_root.mkdir(parents=True)
     distributions = []
     for name, version in PACK_DISTRIBUTIONS:
         module_name = name.replace("-", "_")
+        owned_paths: list[Path] = []
         if name == "soundfile":
-            (pack_root / "soundfile.py").write_text(
+            module_file = pack_root / "soundfile.py"
+            module_file.write_text(
                 f"__version__ = {version!r}\n", encoding="utf-8"
             )
+            owned_paths.append(module_file)
         else:
             module_dir = pack_root / module_name
             module_dir.mkdir()
-            (module_dir / "__init__.py").write_text(
+            module_file = module_dir / "__init__.py"
+            module_file.write_text(
                 f"__version__ = {version!r}\n", encoding="utf-8"
             )
+            owned_paths.append(module_file)
+        top_level_imports = [module_name]
+        if name == "cffi":
+            native = pack_root / "_cffi_backend.py"
+            native.write_text("BACKEND = 'synthetic'\n", encoding="utf-8")
+            owned_paths.append(native)
+            top_level_imports.insert(0, "_cffi_backend")
         dist_info = pack_root / f"{module_name}-{version}.dist-info"
         dist_info.mkdir()
-        (dist_info / "METADATA").write_text(
+        metadata = dist_info / "METADATA"
+        metadata.write_text(
             "Metadata-Version: 2.1\n"
             f"Name: {name}\n"
             f"Version: {version}\n",
             encoding="utf-8",
         )
+        owned_paths.append(metadata)
         distributions.append(
             {
                 "name": name,
                 "version": version,
                 "wheel": f"{name}-{version}-synthetic.whl",
                 "sha256": "a" * 64,
+                "top_level_imports": top_level_imports,
+                "installed_files": {
+                    path.relative_to(pack_root).as_posix(): hashlib.sha256(
+                        path.read_bytes()
+                    ).hexdigest()
+                    for path in sorted(owned_paths)
+                },
             }
         )
     capabilities = [
@@ -132,7 +161,7 @@ def _synthetic_pack(root: Path) -> Path:
         "capabilities": capabilities,
         "build_provenance": {
             "git_revision": "synthetic-test",
-            "build_tool_version": "1",
+            "build_tool_version": "2",
         },
     }
     (pack_root / "pack_manifest.json").write_text(
@@ -258,6 +287,70 @@ def test_conflicting_preloaded_pack_module_fails_closed(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "rejected"
+
+
+def test_conflicting_preloaded_native_module_fails_closed(tmp_path):
+    pack_root = _synthetic_pack(tmp_path / "packs")
+    host_module = _write_typing_extensions_host(tmp_path / "host-runtime")
+    external_dir = tmp_path / "external"
+    external_dir.mkdir()
+    (external_dir / "_cffi_backend.py").write_text(
+        "BACKEND = 'external'\n", encoding="utf-8"
+    )
+    result = _run_script(
+        """
+        import pathlib, sys
+        root = pathlib.Path(sys.argv[1]).resolve()
+        external = pathlib.Path(sys.argv[2]).resolve()
+        host = pathlib.Path(sys.argv[3]).resolve()
+        sys.path.insert(0, str(host))
+        sys.path.insert(0, str(external))
+        import _cffi_backend
+        from isaac_audio_sensors.core.packs import PackActivationError, activate_pack
+        try:
+            activate_pack(root)
+        except PackActivationError as exc:
+            assert "provenance conflict" in str(exc)
+            assert "_cffi_backend" in str(exc)
+            assert str(root) not in sys.path
+            print("rejected")
+        else:
+            raise AssertionError("activation unexpectedly succeeded")
+        """,
+        pack_root,
+        external_dir,
+        host_module.parent,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "rejected"
+
+
+def test_tampered_installed_file_is_not_discovered(tmp_path, monkeypatch):
+    _install_typing_extensions_host(tmp_path, monkeypatch)
+    root = tmp_path / "packs"
+    pack_root = _synthetic_pack(root)
+    assert discover_pack_installs(root) == (pack_root.resolve(),)
+    (pack_root / "_cffi_backend.py").write_text(
+        "BACKEND = 'tampered'\n", encoding="utf-8"
+    )
+
+    assert discover_pack_installs(root) == ()
+
+
+def test_incomplete_import_inventory_is_not_discovered(tmp_path, monkeypatch):
+    _install_typing_extensions_host(tmp_path, monkeypatch)
+    root = tmp_path / "packs"
+    pack_root = _synthetic_pack(root)
+    assert discover_pack_installs(root) == (pack_root.resolve(),)
+    manifest_path = pack_root / "pack_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    cffi = next(
+        item for item in manifest["pack_distributions"] if item["name"] == "cffi"
+    )
+    cffi["top_level_imports"].remove("_cffi_backend")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    assert discover_pack_installs(root) == ()
 
 
 def test_host_requirement_version_uses_metadata_without_module_attribute(

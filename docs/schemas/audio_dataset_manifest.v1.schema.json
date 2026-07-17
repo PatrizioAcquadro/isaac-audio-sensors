@@ -188,6 +188,7 @@
                   "type": "string"
                 },
                 "orientation_xyzw": {
+                  "description": "Optional finite, non-zero quaternion in (x, y, z, w) order. Valid non-unit inputs are normalized to unit length during manifest construction and serialization; zero, near-zero, NaN, and infinite values are rejected.",
                   "oneOf": [
                     {
                       "type": "null"
@@ -314,6 +315,7 @@
                       "type": "string"
                     },
                     "orientation_xyzw": {
+                      "description": "Optional finite, non-zero quaternion in (x, y, z, w) order. Valid non-unit inputs are normalized to unit length during manifest construction and serialization; zero, near-zero, NaN, and infinite values are rejected.",
                       "oneOf": [
                         {
                           "type": "null"

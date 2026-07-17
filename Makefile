@@ -81,7 +81,7 @@ live-evidence-report:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/generate_live_evidence_report.py
 
 live-clean-install:
-	$(PYTHON) scripts/live_clean_install_gate.py --isaac-root "$(ISAAC_SIM_ROOT)" --scenarios headless,reinstall,wheel-venv
+	$(PYTHON) scripts/live_clean_install_gate.py --isaac-root "$(ISAAC_SIM_ROOT)"
 	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S1/S1.6/clean_install_gate.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
 
 # A "blocked" consumer-gate status is a blocker record, not a passing gate.
@@ -90,7 +90,7 @@ consumer-gate:
 	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S1/S1.8/consumer_gate.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
 
 live-clean-install-gui:
-	$(PYTHON) scripts/live_clean_install_gate.py --isaac-root "$(ISAAC_SIM_ROOT)" --scenarios gui
+	$(PYTHON) scripts/live_clean_install_gate.py --isaac-root "$(ISAAC_SIM_ROOT)"
 	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S1/S1.6/clean_install_gate.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
 
 live-isaac-sim-audio:

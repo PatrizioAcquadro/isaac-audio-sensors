@@ -350,7 +350,13 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
             "timestamp_ms": {"type": "integer", "minimum": 0},
             "position_m": _fixed_number_array(3),
             "orientation_xyzw": {
-                "oneOf": [{"type": "null"}, _fixed_number_array(4)]
+                "description": (
+                    "Optional finite, non-zero quaternion in (x, y, z, w) order. "
+                    "Valid non-unit inputs are normalized to unit length during "
+                    "manifest construction and serialization; zero, near-zero, "
+                    "NaN, and infinite values are rejected."
+                ),
+                "oneOf": [{"type": "null"}, _fixed_number_array(4)],
             },
             "frame": stable_id,
         },

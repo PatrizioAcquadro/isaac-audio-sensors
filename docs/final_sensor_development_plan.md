@@ -78,7 +78,7 @@ The public package does not own:
 
 ## 3. Current-State Audit
 
-The current package release is `1.7.0`; the independent frame schema remains
+The current package release is `1.8.0`; the independent frame schema remains
 `ias.audio_sensor_frame.v1`.
 
 | Area | Status | Current evidence and boundary |
@@ -95,15 +95,15 @@ The current package release is `1.7.0`; the independent frame schema remains
 | Training performance | **Verified locally** | The machine-local GPU artifact reports 4,096 environments at p95 `13.09 ms` for the batched L1 path against a `20 ms` budget. This is a reference-host observation, not a portable performance promise. |
 | GUI | **Partial** | The extension supports authoring, discovery, live control, instruments, audio preview, debug geometry, recording, and export. The current section-heavy interface is not yet the final guided experience. |
 | Dataset recording | **Partial** | JSON/JSONL, WAV, continuous sessions, and an optional Replicator writer exist. A dataset-level manifest, atomic shards, validation, and split tooling do not. |
-| Distribution | **Partial** | The Python package has wheel/sdist auditing. The Kit entrypoint still finds `src/` from a checkout, so a registry archive is not yet self-contained. |
+| Distribution | **Verified for S1** | One rebuilt wheel, sdist, self-contained Kit zip, and Linux acoustic pack share a final checksum set. The canonical clean-install harness uses Kit's embedded isolated interpreter and rejects checkout, virtualenv, sibling-worktree, and editable-hook contamination. |
 | Alex demonstration | **Partial evidence** | A live showcase mounts an array on Alex and demonstrates DOA-driven turning and occlusion. It is a demonstrator, not the full downstream phase acceptance chain. |
 | SquadBot adapter | **External, verified consumer** | The sibling project converts released frame types into its protobuf, auditory cue, ontology candidate, and graph contracts. Those contracts remain outside this package. |
 
 ### 3.1 Highest-Priority Gaps
 
-1. Produce a self-contained Kit package and clean-install evidence.
-2. Freeze dataset, calibration, plugin, and runtime-profile contracts.
-3. Keep the fast Isaac Lab path while adding scalable dataset capture.
+1. Keep the fast Isaac Lab path while adding scalable dataset capture.
+2. Add bounded, atomic dataset recording, replay, validation, and splits.
+3. Preserve the frozen S1 contracts and artifact provenance through later work.
 4. Complete and validate the intended L3 physical effects.
 5. Build an L4 calibration workflow around a measured reference rig.
 6. Redesign the GUI around user tasks and progressive disclosure.
@@ -341,13 +341,13 @@ definitions are frozen without overstating current evidence.
 | ID | Execution unit and deliverable | Verification and stop condition | Depends on |
 | --- | --- | --- | --- |
 | `S1.1` | **Architecture lock.** Record packaging, supported runtime, compatibility, contract ownership, base/acoustic-pack boundary, version synchronization, and separate-repository responsibilities in one ADR. | The ADR proves wheel and extension sources cannot drift, identifies binary/platform boundaries, preserves generic sensor ownership, and is approved before implementation. | `S0.6` |
-| `S1.2` | **Stage 1 public contracts.** Implement types, JSON Schemas, serialization, validation, and fixtures for `ias.audio_dataset_manifest.v1` and `ias.audio_calibration_profile.v1`; add `training_features` and `waveform_fidelity` runtime profiles. | Generated and checked schemas match; valid fixtures round-trip; malformed ids, units, frames, timestamps, channel order, checksums, and incompatible profiles fail before partial use. Existing configurations retain documented behavior. | `S1.1` |
-| `S1.3` | **Plugin contracts.** Implement `PropagationBackend`, `DoaEstimator`, and `AudioFeatureExtractor` protocols, capability declarations, and registry validation. | Duplicate ids, missing dependencies, unsupported device/profile combinations, invalid shapes, and false determinism declarations fail. Existing backends register without semantic drift. | `S1.1`, `S1.2` |
+| `S1.2` | **Stage 1 public contracts.** Implement types, JSON Schemas, serialization, validation, and fixtures for `ias.audio_dataset_manifest.v1` and `ias.audio_calibration_profile.v1`; add `training_features` and `waveform_fidelity` runtime profiles. | Generated and checked schemas match; valid fixtures round-trip; malformed ids, units, frames, timestamps, channel order, checksums, quaternions, and incompatible profiles fail before partial use. Valid non-unit manifest quaternions normalize to unit length. | `S1.1` |
+| `S1.3` | **Plugin contracts.** Implement `PropagationBackend`, `DoaEstimator`, and `AudioFeatureExtractor` protocols, capability declarations, and registry validation. | Duplicate ids, missing dependencies, unsupported device/profile combinations, invalid shapes, and false or unverifiable determinism declarations fail. Propagation declarations run twice on a canonical room-valid fixture. | `S1.1`, `S1.2` |
 | `S1.4` | **Canonical extension build.** Build the Kit extension from the same maintained package source as the wheel and remove distributed checkout-relative import behavior. | Source-checkout development remains supported; packaged startup fails a test if it references repository `src/` or requires a manual package installation. | `S1.1` |
-| `S1.5` | **Linux artifacts.** Produce a self-contained L0/L1 base archive and version-matched Linux L2/L3 acoustic packs with audited contents and capability discovery. | Archives contain no caches, outputs, private paths, sibling-project code, or undeclared dependencies. Pack removal leaves the base healthy and missing capabilities actionable. | `S1.2`-`S1.4` |
-| `S1.6` | **Clean Linux install.** Install the exact wheel/archive artifacts into a clean Isaac Sim 6.x environment and run GUI and headless lifecycle, capture, export, update, and reinstall scenarios. | All scenarios pass without checkout-relative imports or a manual `pip` step. Import provenance points only to the installed artifacts. | `S1.5` |
+| `S1.5` | **Linux artifacts.** Produce a self-contained L0/L1 base archive and version-matched Linux L2/L3 acoustic packs with audited contents and capability discovery. | Every wheel's complete top-level import ownership, including native modules, and installed-file hashes are recorded and reverified. External preloads, tampering, incomplete inventories, and host/pack ownership overlap fail closed. | `S1.2`-`S1.4` |
+| `S1.6` | **Clean Linux install.** Run headless, reinstall, GUI, and wheel-venv scenarios in one invocation against one final four-artifact checksum set. | Kit scenarios launch through embedded `python3 -I -S`; executable, prefix, and every import path are Kit-owned or output-local, with repository, virtualenv, sibling checkout, and editable-hook contamination rejected. Partial runs cannot replace the canonical verdict. | `S1.5` |
 | `S1.7` | **Compatibility freeze.** Run old frame/config fixtures and new contract/plugin consumers; regenerate public examples and compatibility documentation. | `ias.audio_sensor_frame.v1` remains valid and unchanged in meaning. Breaking additions are removed or assigned a new version; the closeout freezes public names. | `S1.2`, `S1.3`, `S1.6` |
-| `S1.8` | **Installed-artifact consumer gate.** In an isolated environment, run the external adapter's nominal, empty, malformed, multi-source, ambiguity, and replay fixtures against the built artifact without modifying the consumer repository. | `AudioSensorFrame` to protobuf to `AuditoryCue` to graph output is deterministic; generic exports contain no downstream ontology or behavior fields. | `S1.6`, `S1.7` |
+| `S1.8` | **Installed-artifact consumer gate.** In an isolated environment, run the external adapter's nominal, empty, malformed, multi-source, ambiguity, and replay fixtures against the built artifact. | The named malformed-schema case must pass with explicit rejection, zero protobuf/cue/candidate outputs, and byte-identical graph state; the harness makes no other consumer change. | `S1.6`, `S1.7` |
 
 **S1 exit gate:** immutable Linux artifacts install cleanly, supported base and
 acoustic capabilities are discoverable, frame v1 remains compatible, and the

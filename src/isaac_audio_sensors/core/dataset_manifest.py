@@ -13,6 +13,7 @@ from isaac_audio_sensors.core.constants import (
     DATASET_MANIFEST_UNITS,
     RUNTIME_PROFILES,
 )
+from isaac_audio_sensors.core.math_utils import as_quaternion_xyzw
 
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -89,9 +90,8 @@ class ManifestPose:
             object.__setattr__(
                 self,
                 "orientation_xyzw",
-                _finite_tuple(
+                as_quaternion_xyzw(
                     self.orientation_xyzw,
-                    4,
                     "ManifestPose.orientation_xyzw",
                 ),
             )

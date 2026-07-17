@@ -83,3 +83,13 @@ modified.
   and this closeout do not claim any S1.2-S1.8 gate.
 - Next subphase input (S1.2): the approved ADR, the frame-v1 rules, plan
   Sections 4.2-4.5, and the S0.1 status audit.
+
+## Post-review remediation (2026-07-17)
+
+The locked base/pack ownership boundary is now enforced down to every
+import-bearing wheel file. Pack manifests record sorted top-level import
+ownership and installed-file hashes, activation fails closed on external
+preloads or integrity drift, and the isolated S1.6 launcher accepts only
+Kit-owned and output-local paths. The sole consumer-repository change is the
+tracked malformed-input freeze test authorized by the S1 review. No S2
+contract or implementation was introduced.

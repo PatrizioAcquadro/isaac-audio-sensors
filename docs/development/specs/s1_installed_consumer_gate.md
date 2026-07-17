@@ -11,6 +11,12 @@ The gate runs `tests/test_squadbot_audio_contract_freeze.py` from the external
 checkout. That suite covers multi-source geometry, empty detections, two-mic
 front/back ambiguity, a room-acoustics frame with a fake optional runtime,
 trace replay, deterministic event limiting, and the candidate-schema lock.
+The tracked suite must include exactly the named
+`test_contract_chain_rejects_malformed_trace_without_partial_outputs` case.
+It feeds an unsupported-schema trace into the chain, requires an explicit
+`ValueError`, and proves that no protobuf wrappers, cues, ontology candidates,
+or graph mutation were produced. S1.8 rejects a missing, skipped, failed, or
+duplicate JUnit case even if the rest of pytest exits successfully.
 
 ## Flow
 
@@ -29,7 +35,8 @@ trace replay, deterministic event limiting, and the candidate-schema lock.
 5. Run the frozen fixture file with the consumer as the working directory and
    only the consumer root on `PYTHONPATH`. Bytecode and pytest cache writes are
    disabled; `TMPDIR`, pytest `--basetemp`, JUnit output, and all logs point at
-   the scratch tree.
+   the scratch tree. Parse JUnit and require the exact malformed-input case to
+   have outcome `passed`.
 6. Execute a scratch-local driver twice. Each run reads the sensor checkout's
    `examples/traces/multi_detection_frame.v1.json` by path through the installed
    trace reader, follows the consumer's frame-to-protobuf-to-cue-to-graph

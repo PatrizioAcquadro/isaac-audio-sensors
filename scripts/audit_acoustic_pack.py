@@ -14,6 +14,7 @@ try:
     from scripts.build_acoustic_pack import (
         BUILD_TOOL_VERSION,
         MANIFEST_SCHEMA,
+        inspect_wheel_bytes,
         read_pack_declaration,
         read_project_version,
     )
@@ -21,6 +22,7 @@ except ModuleNotFoundError:  # pragma: no cover - direct script execution
     from build_acoustic_pack import (  # type: ignore[no-redef]
         BUILD_TOOL_VERSION,
         MANIFEST_SCHEMA,
+        inspect_wheel_bytes,
         read_pack_declaration,
         read_project_version,
     )
@@ -166,16 +168,16 @@ def _manifest_findings(
     if not isinstance(actual_distributions, list):
         findings.append("manifest pack_distributions must be a list")
     else:
-        expected_rows = [
-            {
-                "name": item["name"],
-                "version": item["version"],
-                "wheel": item["wheel"],
-                "sha256": item["sha256"],
-            }
+        expected_rows = {
+            item["wheel"]: item
             for item in expected_distributions  # type: ignore[union-attr]
-        ]
-        if actual_distributions != expected_rows:
+        }
+        actual_rows = {
+            item.get("wheel"): item
+            for item in actual_distributions
+            if isinstance(item, dict)
+        }
+        if set(actual_rows) != set(expected_rows):
             findings.append("manifest pack_distributions do not match locked set")
         for index, item in enumerate(actual_distributions):
             if not isinstance(item, dict) or SHA256_RE.fullmatch(
@@ -185,6 +187,44 @@ def _manifest_findings(
                     f"manifest pack_distributions[{index}] has invalid sha256"
                 )
                 continue
+            expected = expected_rows.get(item.get("wheel"))
+            if expected is None or any(
+                item.get(field) != expected.get(field)
+                for field in ("name", "version", "wheel", "sha256")
+            ):
+                findings.append(
+                    f"manifest pack_distributions[{index}] differs from locked row"
+                )
+            imports = item.get("top_level_imports")
+            if (
+                not isinstance(imports, list)
+                or imports != sorted(set(imports))
+                or not imports
+                or not all(
+                    isinstance(name, str) and name.isidentifier()
+                    for name in imports
+                )
+            ):
+                findings.append(
+                    f"manifest pack_distributions[{index}] has invalid import inventory"
+                )
+            installed_files = item.get("installed_files")
+            if not isinstance(installed_files, dict) or not installed_files:
+                findings.append(
+                    f"manifest pack_distributions[{index}] has invalid installed files"
+                )
+            else:
+                for filename, digest in installed_files.items():
+                    if (
+                        not isinstance(filename, str)
+                        or _unsafe_path(filename)
+                        or SHA256_RE.fullmatch(str(digest)) is None
+                    ):
+                        findings.append(
+                            f"manifest pack_distributions[{index}] has invalid "
+                            "installed-file hash"
+                        )
+                        break
             findings.extend(_wheel_tag_findings(item))
     provenance = manifest.get("build_provenance")
     if not isinstance(provenance, dict):
@@ -363,7 +403,8 @@ def audit_acoustic_pack(
                     assert stream is not None
                     import hashlib
 
-                    actual_sha256 = hashlib.sha256(stream.read()).hexdigest()
+                    wheel_payload = stream.read()
+                    actual_sha256 = hashlib.sha256(wheel_payload).hexdigest()
                     if actual_sha256 != expected_sha256:
                         findings.append(
                             f"wheel hash mismatch for {filename}: "
@@ -374,6 +415,31 @@ def audit_acoustic_pack(
                             f"manifest wheel hash mismatch for {filename}: "
                             f"{manifest_rows.get(filename)!r} != {expected_sha256}"
                         )
+                    try:
+                        inventory = inspect_wheel_bytes(wheel_payload, filename)
+                    except ValueError as exc:
+                        findings.append(
+                            f"invalid wheel inventory for {filename}: {exc}"
+                        )
+                    else:
+                        rows = manifest.get("pack_distributions", [])
+                        manifest_row = next(
+                            (
+                                item
+                                for item in rows
+                                if isinstance(item, dict)
+                                and item.get("wheel") == filename
+                            ),
+                            None,
+                        )
+                        if manifest_row is None or any(
+                            manifest_row.get(field) != inventory[field]
+                            for field in ("top_level_imports", "installed_files")
+                        ):
+                            findings.append(
+                                "manifest import/file inventory mismatch for "
+                                f"{filename}"
+                            )
     except (FileNotFoundError, tarfile.TarError, OSError) as exc:
         return AcousticPackAudit(
             archive_path, (), (f"cannot read acoustic-pack archive: {exc}",)

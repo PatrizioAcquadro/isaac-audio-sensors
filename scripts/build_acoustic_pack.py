@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import csv
 import gzip
 import hashlib
 import io
@@ -11,6 +13,7 @@ import re
 import subprocess
 import sys
 import tarfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -21,7 +24,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
 
 
 MANIFEST_SCHEMA = "ias.acoustic_pack_manifest.v1"
-BUILD_TOOL_VERSION = "1"
+BUILD_TOOL_VERSION = "2"
 FIXED_MTIME = 0
 LOCKED_TARGET = {
     "python_version": "3.12",
@@ -95,6 +98,177 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _installed_wheel_path(name: str) -> str:
+    parts = PurePosixPath(name).parts
+    if len(parts) >= 3 and parts[0].endswith(".data") and parts[1] in {
+        "purelib",
+        "platlib",
+    }:
+        return PurePosixPath(*parts[2:]).as_posix()
+    return PurePosixPath(*parts).as_posix()
+
+
+def _module_from_root_file(filename: str) -> str | None:
+    if filename.endswith(".py"):
+        candidate = filename[:-3]
+    elif filename.endswith((".so", ".pyd")):
+        candidate = filename.split(".", 1)[0]
+    else:
+        return None
+    return candidate if candidate.isidentifier() else None
+
+
+def _is_import_bearing_path(path: str) -> bool:
+    """Return whether a wheel member can contribute executable import code."""
+
+    name = PurePosixPath(path).name
+    return name.endswith((".py", ".so", ".pyd"))
+
+
+def _module_import_files(
+    module: str, installed_payloads: dict[str, bytes]
+) -> list[str]:
+    prefix = f"{module}/"
+    return [
+        path
+        for path in installed_payloads
+        if _is_import_bearing_path(path)
+        and (
+            path.startswith(prefix)
+            or _module_from_root_file(PurePosixPath(path).name) == module
+        )
+    ]
+
+
+def inspect_wheel_distribution(wheel_path: Path) -> dict[str, object]:
+    """Return verified top-level imports and installed-file hashes for a wheel."""
+
+    try:
+        payload = wheel_path.read_bytes()
+    except OSError as exc:
+        raise ValueError(f"cannot inspect wheel {wheel_path}: {exc}") from exc
+    return inspect_wheel_bytes(payload, wheel_path.name)
+
+
+def inspect_wheel_bytes(payload: bytes, wheel_name: str) -> dict[str, object]:
+    """Inspect one in-memory wheel using the same builder/auditor rules."""
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            names = [name for name in archive.namelist() if not name.endswith("/")]
+            if len(names) != len(set(names)):
+                raise ValueError(f"wheel contains duplicate members: {wheel_name}")
+            payloads = {name: archive.read(name) for name in names}
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise ValueError(f"cannot inspect wheel {wheel_name}: {exc}") from exc
+
+    record_names = [name for name in names if name.endswith(".dist-info/RECORD")]
+    if len(record_names) != 1:
+        raise ValueError(f"wheel {wheel_name} must contain exactly one RECORD")
+    record_name = record_names[0]
+    try:
+        rows = list(csv.reader(io.StringIO(payloads[record_name].decode("utf-8"))))
+    except (UnicodeDecodeError, csv.Error) as exc:
+        raise ValueError(f"wheel {wheel_name} has invalid RECORD: {exc}") from exc
+    record: dict[str, tuple[str, str]] = {}
+    for row in rows:
+        if len(row) != 3 or not row[0] or row[0] in record:
+            raise ValueError(f"wheel {wheel_name} has malformed RECORD rows")
+        record[row[0]] = (row[1], row[2])
+    if set(record) != set(names):
+        raise ValueError(
+            f"wheel {wheel_name} RECORD inventory mismatch: "
+            f"missing={sorted(set(names) - set(record))}, "
+            f"extra={sorted(set(record) - set(names))}"
+        )
+    for name, payload in payloads.items():
+        hash_field, size_field = record[name]
+        if name == record_name and not hash_field and not size_field:
+            continue
+        if not hash_field.startswith("sha256=") or not size_field.isdecimal():
+            raise ValueError(
+                f"wheel {wheel_name} RECORD entry {name!r} is unhashed"
+            )
+        encoded = base64.urlsafe_b64encode(hashlib.sha256(payload).digest()).decode()
+        expected = encoded.rstrip("=")
+        if hash_field[7:] != expected or int(size_field) != len(payload):
+            raise ValueError(
+                f"wheel {wheel_name} RECORD entry {name!r} is inconsistent"
+            )
+
+    installed_payloads: dict[str, bytes] = {}
+    for name, payload in payloads.items():
+        if name == record_name:
+            continue
+        installed = _installed_wheel_path(name)
+        if installed in installed_payloads:
+            raise ValueError(
+                f"wheel {wheel_name} maps multiple files to {installed!r}"
+            )
+        installed_payloads[installed] = payload
+
+    top_levels: set[str] = set()
+    top_level_files = [
+        payload
+        for name, payload in payloads.items()
+        if name.endswith(".dist-info/top_level.txt")
+    ]
+    for payload in top_level_files:
+        try:
+            candidates = payload.decode("utf-8").splitlines()
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                f"wheel {wheel_name} has invalid top_level.txt"
+            ) from exc
+        declared = {item.strip() for item in candidates if item.strip()}
+        invalid = sorted(name for name in declared if not name.isidentifier())
+        if invalid:
+            raise ValueError(
+                f"wheel {wheel_name} has invalid top-level imports: {invalid}"
+            )
+        top_levels.update(
+            name
+            for name in declared
+            if _module_import_files(name, installed_payloads)
+        )
+    for installed in installed_payloads:
+        parts = PurePosixPath(installed).parts
+        if not parts or parts[0].endswith((".dist-info", ".data")):
+            continue
+        if len(parts) == 1:
+            module = _module_from_root_file(parts[0])
+            if module is not None:
+                top_levels.add(module)
+        elif (
+            parts[0].isidentifier()
+            and not parts[0].endswith(".dist-info")
+            and _is_import_bearing_path(installed)
+        ):
+            top_levels.add(parts[0])
+    invalid = sorted(name for name in top_levels if not name.isidentifier())
+    if invalid or not top_levels:
+        raise ValueError(
+            f"wheel {wheel_name} has invalid top-level imports: {invalid}"
+        )
+    for module in top_levels:
+        import_files = _module_import_files(module, installed_payloads)
+        if not import_files:
+            raise ValueError(
+                f"wheel {wheel_name} declares import {module!r} without files"
+            )
+    return {
+        "top_level_imports": sorted(top_levels),
+        "installed_files": {
+            name: _sha256_bytes(payload)
+            for name, payload in sorted(installed_payloads.items())
+        },
+    }
 
 
 def resolve_git_revision(repo_root: Path) -> str:
@@ -212,7 +386,7 @@ def _validated_inputs(
 
 
 def _manifest(
-    repo_root: Path, declaration: dict[str, object]
+    repo_root: Path, declaration: dict[str, object], wheelhouse: Path
 ) -> dict[str, object]:
     pack = declaration["pack"]
     target = declaration["target"]
@@ -220,12 +394,14 @@ def _manifest(
     assert isinstance(target, dict)
     distributions = []
     for raw in declaration["pack_distributions"]:  # type: ignore[union-attr]
+        inventory = inspect_wheel_distribution(wheelhouse / str(raw["wheel"]))
         distributions.append(
             {
                 "name": raw["name"],
                 "version": raw["version"],
                 "wheel": raw["wheel"],
                 "sha256": raw["sha256"],
+                **inventory,
             }
         )
     capabilities = []
@@ -300,7 +476,7 @@ def build_acoustic_pack(
     declaration, _lock_entries = _validated_inputs(repo_root, wheelhouse)
     pack = declaration["pack"]
     assert isinstance(pack, dict)
-    manifest = _manifest(repo_root, declaration)
+    manifest = _manifest(repo_root, declaration, wheelhouse)
     lock_path = repo_root / "packs" / "acoustics" / str(pack["requirements_lock"])
     installer_path = repo_root / "scripts" / "install_pack.py"
     if not installer_path.is_file():

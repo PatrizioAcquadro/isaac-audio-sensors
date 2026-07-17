@@ -58,3 +58,18 @@ repository is not modified (before/after git evidence).
   future S5 flows.
 - Next input (S1 phase closeout / S2): the immutable post-S1.7 artifact
   set, all eight subphase closeouts, and the S1 exit-gate statement.
+
+## Post-review remediation (2026-07-17)
+
+The tracked consumer freeze suite now includes
+`test_contract_chain_rejects_malformed_trace_without_partial_outputs`.
+An unsupported-schema trace raises `ValueError` before producing any
+protobuf wrapper, cue, candidate, or graph mutation; the graph export remains
+byte-identical. The installed-consumer harness requires that exact JUnit case
+and a passing outcome.
+
+The final gate passed all 8 consumer cases, found the required malformed case
+with no errors, produced identical graph hashes
+`26de618c877a1e1319ede5eca7f6aba40744fdc7bb0fa9f576c3bc9802db9e11`,
+and confirmed the consumer checkout was unchanged during execution. Evidence:
+`outputs/isaac_audio_sensors/S1/S1.8/consumer_gate.json`.

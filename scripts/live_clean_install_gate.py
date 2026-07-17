@@ -13,7 +13,6 @@ import hashlib
 import json
 import math
 import os
-import shlex
 import shutil
 import signal
 import subprocess
@@ -27,7 +26,8 @@ from typing import Any
 EXTENSION_NAME = "isaac_audio_sensors.omni"
 PACKAGE_NAME = "isaac_audio_sensors"
 PACKAGE_VERSION = "1.8.0"
-DEFAULT_SCENARIOS = "headless,reinstall,wheel-venv"
+DEFAULT_SCENARIOS = "headless,reinstall,gui,wheel-venv"
+CANONICAL_SCENARIOS = ("headless", "reinstall", "gui", "wheel-venv")
 SCENARIO_NAMES = frozenset({"headless", "reinstall", "gui", "wheel-venv"})
 PROVENANCE_MODULES = (
     "isaac_audio_sensors",
@@ -35,6 +35,47 @@ PROVENANCE_MODULES = (
     "scipy",
     "soundfile",
     "pyroomacoustics",
+)
+KIT_PYTHON_RELATIVE_PATHS = (
+    "kit/python/lib/python3.12",
+    "kit/python/lib/python3.12/site-packages",
+    "python_packages",
+    "exts/isaacsim.simulation_app",
+    "kit/kernel/py",
+    "kit/plugins/bindings-python",
+    "exts/isaacsim.replicator.episode_recorder/pip_prebundle",
+    "exts/isaacsim.replicator.teleop/pip_prebundle",
+    "extsDeprecated/isaacsim.robot_motion.lula/pip_prebundle",
+    "exts/isaacsim.robot_motion.cumotion/pip_prebundle",
+    "exts/isaacsim.robot_motion.pink/pip_prebundle",
+    "exts/isaacsim.asset.exporter.urdf/pip_prebundle",
+    "extscache/omni.kit.pip_archive-0.0.0+f9bf0dda.lx64.cp312/pip_prebundle",
+    "exts/omni.isaac.core_archive/pip_prebundle",
+    "exts/omni.pip.compute/pip_prebundle",
+    "exts/omni.pip.cloud/pip_prebundle",
+)
+REQUIRED_KIT_PYTHON_RELATIVE_PATHS = (
+    "kit/python/lib/python3.12",
+    "kit/python/lib/python3.12/site-packages",
+    "python_packages",
+    "exts/isaacsim.simulation_app",
+    "kit/kernel/py",
+)
+KIT_LIBRARY_RELATIVE_PATHS = (
+    ".",
+    "exts/isaacsim.robot.schema/plugins/lib",
+    "extsDeprecated/isaacsim.robot_motion.lula/pip_prebundle",
+    "exts/isaacsim.robot_motion.cumotion/pip_prebundle",
+    "exts/isaacsim.robot_motion.pink/pip_prebundle",
+    "exts/isaacsim.asset.exporter.urdf/pip_prebundle",
+    "kit",
+    "kit/kernel/plugins",
+    "kit/libs/iray",
+    "kit/plugins",
+    "kit/plugins/bindings-python",
+    "kit/plugins/carb_gfx",
+    "kit/plugins/rtx",
+    "kit/plugins/gpu.foundation",
 )
 
 
@@ -98,14 +139,19 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def verify_release_artifacts(dist_dir: str | Path) -> dict[str, dict[str, Any]]:
-    """Verify and return the exact wheel and Kit zip named by SHA256SUMS."""
+def verify_release_artifacts(dist_dir: str | Path) -> dict[str, Any]:
+    """Verify the complete four-distribution artifact set named by SHA256SUMS."""
 
     root = Path(dist_dir).expanduser().resolve()
     checksums_path = root / "SHA256SUMS"
     checksums = parse_sha256sums(checksums_path)
     expected_wheel = f"{PACKAGE_NAME}-{PACKAGE_VERSION}-py3-none-any.whl"
+    expected_sdist = f"{PACKAGE_NAME}-{PACKAGE_VERSION}.tar.gz"
     expected_zip = f"{EXTENSION_NAME}-{PACKAGE_VERSION}.zip"
+    expected_pack = (
+        f"{PACKAGE_NAME}_acoustic_pack-l2l3-{PACKAGE_VERSION}-"
+        "linux_x86_64-cp312.tar.gz"
+    )
 
     def select(expected_name: str, kind: str) -> dict[str, Any]:
         matches = [
@@ -140,14 +186,34 @@ def verify_release_artifacts(dist_dir: str | Path) -> dict[str, dict[str, Any]]:
             "verified": True,
         }
 
+    expected_names = {
+        expected_wheel,
+        expected_sdist,
+        f"kit/{expected_zip}",
+        f"packs/{expected_pack}",
+    }
+    if set(checksums) != expected_names:
+        raise CleanInstallGateError(
+            "SHA256SUMS must contain exactly the final four-artifact set: "
+            f"missing={sorted(expected_names - set(checksums))}, "
+            f"extra={sorted(set(checksums) - expected_names)}"
+        )
+    canonical_mapping = "".join(
+        f"{checksums[name]}  {name}\n" for name in sorted(checksums)
+    )
+    artifact_set_id = hashlib.sha256(canonical_mapping.encode()).hexdigest()
     return {
         "checksums": {
             "path": str(checksums_path),
             "sha256": sha256_file(checksums_path),
             "entry_count": len(checksums),
+            "mapping": {name: checksums[name] for name in sorted(checksums)},
         },
+        "artifact_set_id": artifact_set_id,
         "kit_zip": select(expected_zip, "Kit extension archive"),
         "wheel": select(expected_wheel, "wheel"),
+        "sdist": select(expected_sdist, "source distribution"),
+        "acoustic_pack": select(expected_pack, "acoustic pack"),
     }
 
 
@@ -467,6 +533,48 @@ def build_sanitized_env(
     return clean, {"removed": removed, "set": changed}
 
 
+def verified_kit_python_paths(isaac_root: Path) -> tuple[Path, ...]:
+    """Resolve the explicit Kit-owned import path allowlist."""
+
+    root = isaac_root.resolve()
+    required = tuple(
+        (root / relative).resolve()
+        for relative in REQUIRED_KIT_PYTHON_RELATIVE_PATHS
+    )
+    invalid = [
+        path
+        for path in required
+        if not path.exists() or not _is_under(path, root)
+    ]
+    if invalid:
+        raise CleanInstallGateError(f"required Kit Python paths are missing: {invalid}")
+    return tuple(
+        path
+        for relative in KIT_PYTHON_RELATIVE_PATHS
+        if (path := (root / relative).resolve()).exists()
+        and _is_under(path, root)
+    )
+
+
+def kit_runtime_environment(isaac_root: Path) -> dict[str, str]:
+    """Return exact Kit-owned process settings without caller path inheritance."""
+
+    root = isaac_root.resolve()
+    library_paths = [
+        str(path)
+        for relative in KIT_LIBRARY_RELATIVE_PATHS
+        if (path := (root / relative).resolve()).exists()
+        and _is_under(path, root)
+    ]
+    return {
+        "CARB_APP_PATH": str(root / "kit"),
+        "ISAAC_PATH": str(root),
+        "EXP_PATH": str(root / "apps"),
+        "LD_LIBRARY_PATH": os.pathsep.join(library_paths),
+        "LD_PRELOAD": str(root / "kit" / "libcarb.so"),
+    }
+
+
 def _safe_remove_runtime_tree(path: Path, *, out_dir: Path) -> None:
     resolved_parent = path.parent.resolve()
     try:
@@ -630,14 +738,17 @@ def probe_isaac_python(
 ) -> dict[str, Any]:
     """Require isaac_audio_sensors to be absent from Isaac's base Python."""
 
-    env, delta = build_sanitized_env()
-    command = [
-        str(isaac_root / "python.sh"),
-        "-c",
-        """import json
+    kit_paths = verified_kit_python_paths(isaac_root)
+    env, delta = build_sanitized_env(
+        additions=kit_runtime_environment(isaac_root)
+    )
+    code = """import json
 import site
 import sys
 
+site.ENABLE_USER_SITE = False
+for path in json.loads(sys.argv[1]):
+    sys.path.append(path)
 try:
     import isaac_audio_sensors as module
 except Exception as exc:
@@ -653,7 +764,14 @@ print(json.dumps({
     "origin": getattr(module, "__file__", None),
     "site_ENABLE_USER_SITE": site.ENABLE_USER_SITE,
 }, sort_keys=True))
-""",
+"""
+    command = [
+        str(isaac_root / "kit" / "python" / "bin" / "python3"),
+        "-I",
+        "-S",
+        "-c",
+        code,
+        json.dumps([str(path) for path in kit_paths]),
     ]
     record = run_subprocess(
         command,
@@ -711,8 +829,89 @@ def _is_under(path: str | Path, root: str | Path) -> bool:
     return True
 
 
+def discover_sibling_git_checkouts(repo_root: Path) -> tuple[Path, ...]:
+    """Return sibling Git worktrees that must never enter the clean runtime."""
+
+    parent = repo_root.resolve().parent
+    siblings = []
+    for candidate in parent.iterdir():
+        if candidate == repo_root or not candidate.is_dir():
+            continue
+        if (candidate / ".git").exists():
+            siblings.append(candidate.resolve())
+    return tuple(sorted(siblings, key=lambda path: path.as_posix()))
+
+
+def _virtualenv_marker(path: Path) -> Path | None:
+    if any(part.lower() in {".venv", "venv", "virtualenv"} for part in path.parts):
+        return path
+    for candidate in (path, *path.parents):
+        if (candidate / "pyvenv.cfg").is_file():
+            return candidate
+    return None
+
+
+def runtime_boundary_errors(
+    probe: Mapping[str, Any],
+    *,
+    isaac_root: Path,
+    repo_root: Path,
+    clean_env: Path,
+    sibling_checkouts: Sequence[Path],
+) -> list[str]:
+    """Reject any runtime identity or import path outside Kit and clean output."""
+
+    errors: list[str] = []
+    isaac_root = isaac_root.resolve()
+    repo_root = repo_root.resolve()
+    clean_env = clean_env.resolve()
+    executable = probe.get("sys_executable")
+    prefix = probe.get("sys_prefix")
+    if not isinstance(executable, str) or not _is_under(executable, isaac_root):
+        errors.append(f"sys.executable is not Kit-owned: {executable}")
+    if not isinstance(prefix, str) or not _is_under(prefix, isaac_root):
+        errors.append(f"sys.prefix is not Kit-owned: {prefix}")
+    paths = probe.get("sys_path")
+    if not isinstance(paths, list):
+        return [*errors, "probe sys.path is not a list"]
+    sibling_roots = tuple(path.resolve() for path in sibling_checkouts)
+    for raw_path in paths:
+        if not isinstance(raw_path, str) or not raw_path:
+            errors.append(f"sys.path contains an invalid entry: {raw_path!r}")
+            continue
+        path = Path(raw_path).resolve()
+        marker = _virtualenv_marker(path)
+        if marker is not None:
+            errors.append(f"virtualenv contamination in sys.path: {path}")
+        if _is_under(path, repo_root) and not _is_under(path, clean_env):
+            errors.append(f"repository contamination in sys.path: {path}")
+        sibling = next(
+            (root for root in sibling_roots if _is_under(path, root)), None
+        )
+        if sibling is not None:
+            errors.append(
+                f"sibling checkout contamination in sys.path: {path} under {sibling}"
+            )
+        if not _is_under(path, isaac_root) and not _is_under(path, clean_env):
+            errors.append(f"non-Kit/non-staged sys.path entry: {path}")
+        if any(token in raw_path.lower() for token in ("editable", "__editable__")):
+            errors.append(f"editable-import path hook in sys.path: {raw_path}")
+    editable_hooks = probe.get("editable_import_hooks", [])
+    if not isinstance(editable_hooks, list):
+        errors.append("probe editable_import_hooks is not a list")
+    elif editable_hooks:
+        errors.append(f"editable-import hooks are active: {editable_hooks}")
+    return errors
+
+
 def validate_kit_probe(
-    *, probe_path: Path, clean_env: Path, require_screenshot: bool
+    *,
+    probe_path: Path,
+    clean_env: Path,
+    isaac_root: Path,
+    repo_root: Path,
+    sibling_checkouts: Sequence[Path],
+    require_screenshot: bool,
 ) -> dict[str, Any]:
     """Validate the Kit-side JSON and installed-artifact provenance."""
 
@@ -720,6 +919,15 @@ def validate_kit_probe(
     errors: list[str] = []
     if probe.get("status") != "passed":
         errors.append(f"probe status is {probe.get('status')!r}")
+    errors.extend(
+        runtime_boundary_errors(
+            probe,
+            isaac_root=isaac_root,
+            repo_root=repo_root,
+            clean_env=clean_env,
+            sibling_checkouts=sibling_checkouts,
+        )
+    )
     package_record = probe.get("imports", {}).get(PACKAGE_NAME, {})
     origin = package_record.get("origin")
     if package_record.get("status") != "present" or not origin:
@@ -766,26 +974,29 @@ def run_kit_scenario(
     additions = {
         "IAS_CLEAN_EXT_FOLDER": str(clean_env / "extsUser"),
         "IAS_CLEAN_INSTALL_GUI": "1" if gui else "0",
+        **kit_runtime_environment(isaac_root),
     }
     env, delta = build_sanitized_env(additions=additions)
-    command = [str(isaac_root / "kit" / "kit"), str(app_path)]
-    if not gui:
-        command.append("--no-window")
-    command.extend(
-        [
-            "--ext-folder",
-            str(clean_env / "extsUser"),
-            "--enable",
-            EXTENSION_NAME,
-            "--exec",
-            shlex.join(
-                [
-                    str(repo_root / "scripts" / "live_clean_install_probe.py"),
-                    str(probe_path),
-                ]
-            ),
-        ]
-    )
+    command = [
+        str(isaac_root / "kit" / "python" / "bin" / "python3"),
+        "-I",
+        "-S",
+        str(repo_root / "scripts" / "live_clean_install_launcher.py"),
+        "--isaac-root",
+        str(isaac_root),
+        "--app",
+        str(app_path),
+        "--ext-folder",
+        str(clean_env / "extsUser"),
+        "--probe",
+        str(repo_root / "scripts" / "live_clean_install_probe.py"),
+        "--output",
+        str(probe_path),
+    ]
+    for path in verified_kit_python_paths(isaac_root):
+        command.extend(("--kit-path", str(path)))
+    if gui:
+        command.append("--gui")
     process = run_subprocess(
         command,
         env=env,
@@ -798,6 +1009,9 @@ def run_kit_scenario(
         validation = validate_kit_probe(
             probe_path=probe_path,
             clean_env=clean_env,
+            isaac_root=isaac_root,
+            repo_root=repo_root,
+            sibling_checkouts=discover_sibling_git_checkouts(repo_root),
             require_screenshot=gui,
         )
     else:
@@ -1067,7 +1281,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     clean_env = out_dir / "clean_env"
     inventory_path = out_dir / "preflight_inventory.json"
-    verdict_path = out_dir / "clean_install_gate.json"
+    canonical_run = tuple(args.scenarios) == CANONICAL_SCENARIOS
+    verdict_path = (
+        out_dir / "clean_install_gate.json"
+        if canonical_run
+        else out_dir / f"partial_{'_'.join(args.scenarios)}_gate.json"
+    )
     evidence: dict[str, Any] = {
         "status": "started",
         "phase": "A",
@@ -1078,6 +1297,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "dist_dir": str(dist_dir),
         "out_dir": str(out_dir),
         "requested_scenarios": args.scenarios,
+        "canonical_scenarios": list(CANONICAL_SCENARIOS),
+        "canonical_run": canonical_run,
+        "canonical_verdict_path": str(out_dir / "clean_install_gate.json"),
         "timeout_s": args.timeout_s,
         "artifacts": {},
         "preflight": {},
@@ -1092,6 +1314,22 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         artifacts = verify_release_artifacts(dist_dir)
+        final_hash_path = (
+            repo_root / "outputs/isaac_audio_sensors/S1/SHA256SUMS_final.txt"
+        )
+        if not final_hash_path.is_file():
+            raise CleanInstallGateError(
+                f"canonical final checksum evidence is missing: {final_hash_path}"
+            )
+        if final_hash_path.read_bytes() != (dist_dir / "SHA256SUMS").read_bytes():
+            raise CleanInstallGateError(
+                "canonical SHA256SUMS_final.txt does not match dist/SHA256SUMS"
+            )
+        artifacts["final_checksums"] = {
+            "path": str(final_hash_path),
+            "sha256": sha256_file(final_hash_path),
+            "matches_dist": True,
+        }
         evidence["artifacts"] = artifacts
         artifacts_verified = True
 
@@ -1165,6 +1403,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     clean_env=clean_env,
                     timeout_s=args.timeout_s,
                 )
+            result["artifact_set_id"] = artifacts["artifact_set_id"]
+            result["artifact_hashes"] = artifacts["checksums"]["mapping"]
+            result["final_checksums_sha256"] = artifacts["final_checksums"]["sha256"]
             evidence["scenarios"][scenario] = result
             if result.get("status") != "passed":
                 raise CleanInstallGateError(f"scenario {scenario!r} failed")
@@ -1217,6 +1458,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             preflight_completed=preflight_completed,
             restore_completed=restore_completed,
         )
+        evidence["canonical_verdict"] = (
+            evidence["status"] if canonical_run else "not_run"
+        )
+        if canonical_run and evidence["status"] == "passed":
+            artifact_ids = {
+                record.get("artifact_set_id")
+                for record in evidence["scenarios"].values()
+            }
+            if artifact_ids != {evidence["artifacts"].get("artifact_set_id")}:
+                evidence["status"] = "failed"
+                evidence["canonical_verdict"] = "failed"
+                evidence["errors"].append(
+                    "scenarios did not use one common final artifact set"
+                )
         _write_json(verdict_path, evidence)
 
     return 0 if evidence["status"] == "passed" else 1

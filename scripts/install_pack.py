@@ -22,7 +22,6 @@ from pathlib import Path
 
 MANIFEST_SCHEMA = "ias.acoustic_pack_manifest.v1"
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
-PACK_IMPORTS = ("soundfile", "cffi", "pycparser", "scipy", "pyroomacoustics")
 
 
 class PackInstallError(RuntimeError):
@@ -135,6 +134,8 @@ def _validate_wheels(pack_dir: Path, manifest: dict[str, object]) -> None:
     distributions = manifest["pack_distributions"]
     assert isinstance(distributions, list)
     expected: dict[str, str] = {}
+    owned_imports: set[str] = set()
+    owned_files: set[str] = set()
     for index, item in enumerate(distributions):
         if not isinstance(item, dict):
             raise PackInstallError(
@@ -144,6 +145,41 @@ def _validate_wheels(pack_dir: Path, manifest: dict[str, object]) -> None:
             if not isinstance(item.get(field), str) or not item[field]:
                 raise PackInstallError(
                     f"pack_distributions[{index}].{field} must be a string"
+                )
+        imports = item.get("top_level_imports")
+        installed_files = item.get("installed_files")
+        if (
+            not isinstance(imports, list)
+            or imports != sorted(set(imports))
+            or not imports
+            or not all(
+                isinstance(name, str) and name.isidentifier() for name in imports
+            )
+        ):
+            raise PackInstallError(
+                f"pack_distributions[{index}].top_level_imports is invalid"
+            )
+        if not isinstance(installed_files, dict) or not installed_files:
+            raise PackInstallError(
+                f"pack_distributions[{index}].installed_files is invalid"
+            )
+        duplicate_imports = owned_imports.intersection(imports)
+        duplicate_files = owned_files.intersection(installed_files)
+        if duplicate_imports or duplicate_files:
+            raise PackInstallError(
+                "pack distribution ownership overlaps: "
+                f"imports={sorted(duplicate_imports)}, files={sorted(duplicate_files)}"
+            )
+        owned_imports.update(imports)
+        owned_files.update(installed_files)
+        for relative, digest in installed_files.items():
+            if (
+                not isinstance(relative, str)
+                or not _safe_relative_path(relative)
+                or SHA256_RE.fullmatch(str(digest)) is None
+            ):
+                raise PackInstallError(
+                    f"pack_distributions[{index}] has invalid installed-file hash"
                 )
         filename = item["wheel"]
         sha256 = item["sha256"]
@@ -174,6 +210,50 @@ def _validate_wheels(pack_dir: Path, manifest: dict[str, object]) -> None:
             )
 
 
+def _safe_relative_path(value: str) -> bool:
+    path = Path(value)
+    return (
+        value not in {"", ".", ".."}
+        and not path.is_absolute()
+        and "\\" not in value
+        and all(part not in {"", ".", ".."} for part in path.parts)
+    )
+
+
+def _owned_imports(manifest: dict[str, object]) -> tuple[str, ...]:
+    distributions = manifest["pack_distributions"]
+    assert isinstance(distributions, list)
+    return tuple(
+        module
+        for item in distributions
+        if isinstance(item, dict)
+        for module in item["top_level_imports"]
+        if isinstance(module, str)
+    )
+
+
+def _validate_installed_files(staging: Path, manifest: dict[str, object]) -> None:
+    distributions = manifest["pack_distributions"]
+    assert isinstance(distributions, list)
+    for item in distributions:
+        assert isinstance(item, dict)
+        installed_files = item["installed_files"]
+        assert isinstance(installed_files, dict)
+        for relative, expected in installed_files.items():
+            assert isinstance(relative, str)
+            path = staging / relative
+            if not path.is_file():
+                raise PackInstallError(
+                    f"installed file missing after pip install: {relative}"
+                )
+            actual = _sha256(path)
+            if actual != expected:
+                raise PackInstallError(
+                    f"installed file integrity mismatch for {relative}: "
+                    f"{actual} != {expected}"
+                )
+
+
 def _self_check_script(staging: Path, manifest: dict[str, object]) -> str:
     host_requirements = manifest["host_requirements"]
     assert isinstance(host_requirements, list)
@@ -182,18 +262,29 @@ def _self_check_script(staging: Path, manifest: dict[str, object]) -> str:
             "import importlib, importlib.metadata, json, pathlib, sys",
             f"root = pathlib.Path({str(staging)!r}).resolve()",
             "sys.path.insert(0, str(root))",
-            f"pack_imports = {PACK_IMPORTS!r}",
+            f"pack_imports = {_owned_imports(manifest)!r}",
             f"host_requirements = json.loads({json.dumps(host_requirements)!r})",
             "def inside(path):",
             "    try: return pathlib.Path(path).resolve().is_relative_to(root)",
             "    except (AttributeError, ValueError):",
             "        try: pathlib.Path(path).resolve().relative_to(root); return True",
             "        except ValueError: return False",
-            "for name in pack_imports:",
-            "    module = importlib.import_module(name)",
+            "def origins(module):",
             "    origin = getattr(module, '__file__', None)",
-            "    if not origin or not inside(origin):",
-            "        raise RuntimeError(f'{name} not from staging: {origin}')",
+            "    if origin: return (origin,)",
+            "    paths = getattr(module, '__path__', None)",
+            "    return tuple(paths) if paths is not None else ()",
+            "for name in pack_imports:",
+            "    loaded = sys.modules.get(name)",
+            "    loaded_origins = origins(loaded) if loaded else ()",
+            "    if loaded is not None and (not loaded_origins or",
+            "            not all(inside(origin) for origin in loaded_origins)):",
+            "        raise RuntimeError(f'externally preloaded owned import {name}')",
+            "    module = importlib.import_module(name)",
+            "    module_origins = origins(module)",
+            "    if not module_origins or not all(",
+            "            inside(origin) for origin in module_origins):",
+            "        raise RuntimeError(f'{name} not from staging: {module_origins}')",
             "for requirement in host_requirements:",
             "    name = requirement['name'].replace('-', '_')",
             "    module = importlib.import_module(name)",
@@ -294,6 +385,7 @@ def install_pack(
                 f"host_requirements violation: {staged_host} was installed into "
                 "staging"
             )
+        _validate_installed_files(staging, manifest)
         subprocess.run(
             [executable, "-c", _self_check_script(staging, manifest)],
             check=True,

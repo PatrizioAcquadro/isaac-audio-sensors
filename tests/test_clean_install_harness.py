@@ -37,10 +37,22 @@ def _write_release_artifacts(dist_dir: Path) -> tuple[Path, Path]:
     kit_dir = dist_dir / "kit"
     kit_dir.mkdir(parents=True)
     kit_zip = kit_dir / "isaac_audio_sensors.omni-1.8.0.zip"
+    sdist = dist_dir / "isaac_audio_sensors-1.8.0.tar.gz"
+    packs_dir = dist_dir / "packs"
+    packs_dir.mkdir()
+    pack = (
+        packs_dir
+        / "isaac_audio_sensors_acoustic_pack-l2l3-1.8.0-linux_x86_64-cp312.tar.gz"
+    )
     wheel.write_bytes(b"wheel bytes")
     kit_zip.write_bytes(b"kit bytes")
+    sdist.write_bytes(b"sdist bytes")
+    pack.write_bytes(b"pack bytes")
     (dist_dir / "SHA256SUMS").write_text(
-        f"{_sha256(wheel)}  {wheel.name}\n{_sha256(kit_zip)}  kit/{kit_zip.name}\n",
+        f"{_sha256(wheel)}  {wheel.name}\n"
+        f"{_sha256(sdist)}  {sdist.name}\n"
+        f"{_sha256(kit_zip)}  kit/{kit_zip.name}\n"
+        f"{_sha256(pack)}  packs/{pack.name}\n",
         encoding="utf-8",
     )
     return wheel, kit_zip
@@ -216,6 +228,75 @@ def test_scenario_environment_is_sanitized():
         "PYTHONPATH",
     ]
     compile(gate._wheel_provenance_code(), "<wheel-provenance>", "exec")
+
+
+@pytest.mark.parametrize(
+    ("contaminating_path", "expected"),
+    [
+        ("{repo}/src", "repository"),
+        ("{repo}/.venv/lib/python3.12/site-packages", "virtualenv"),
+        ("{sibling}/src", "sibling checkout"),
+    ],
+)
+def test_runtime_boundary_rejects_checkout_and_virtualenv_contamination(
+    tmp_path, contaminating_path, expected
+):
+    gate = _load_gate_module()
+    repo_root = tmp_path / "repo"
+    sibling = tmp_path / "sibling"
+    isaac_root = tmp_path / "isaacsim"
+    clean_env = tmp_path / "out" / "clean_env"
+    for checkout in (repo_root, sibling):
+        (checkout / ".git").mkdir(parents=True)
+    (repo_root / ".venv" / "lib" / "python3.12" / "site-packages").mkdir(
+        parents=True
+    )
+    (isaac_root / "kit" / "python" / "bin").mkdir(parents=True)
+    clean_env.mkdir(parents=True)
+    resolved_path = contaminating_path.format(repo=repo_root, sibling=sibling)
+    probe = {
+        "sys_executable": str(isaac_root / "kit" / "python" / "bin" / "python3"),
+        "sys_prefix": str(isaac_root / "kit" / "python"),
+        "sys_path": [
+            str(isaac_root / "kit" / "kernel" / "py"),
+            str(clean_env / "extsUser"),
+            resolved_path,
+        ],
+    }
+
+    errors = gate.runtime_boundary_errors(
+        probe,
+        isaac_root=isaac_root,
+        repo_root=repo_root,
+        clean_env=clean_env,
+        sibling_checkouts=(sibling,),
+    )
+
+    assert any(expected in error.lower() for error in errors)
+
+
+def test_runtime_boundary_accepts_only_kit_and_output_local_paths(tmp_path):
+    gate = _load_gate_module()
+    repo_root = tmp_path / "repo"
+    isaac_root = tmp_path / "isaacsim"
+    clean_env = tmp_path / "out" / "clean_env"
+    probe = {
+        "sys_executable": str(isaac_root / "kit" / "python" / "bin" / "python3"),
+        "sys_prefix": str(isaac_root / "kit" / "python"),
+        "sys_path": [
+            str(isaac_root / "kit" / "python" / "lib" / "python3.12"),
+            str(isaac_root / "kit" / "kernel" / "py"),
+            str(clean_env / "extsUser"),
+        ],
+    }
+
+    assert gate.runtime_boundary_errors(
+        probe,
+        isaac_root=isaac_root,
+        repo_root=repo_root,
+        clean_env=clean_env,
+        sibling_checkouts=(),
+    ) == []
 
 
 @pytest.mark.parametrize(

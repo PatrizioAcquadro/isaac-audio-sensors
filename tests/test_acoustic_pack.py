@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import csv
 import hashlib
 import io
@@ -68,6 +69,7 @@ def _write_wheel(
     path: Path, *, name: str, version: str, module_path: str
 ) -> None:
     dist_info = f"{name.replace('-', '_')}-{version}.dist-info"
+    top_level = module_path.split("/", 1)[0].removesuffix(".py")
     files = {
         module_path: f"__version__ = {version!r}\n",
         f"{dist_info}/METADATA": (
@@ -81,13 +83,24 @@ def _write_wheel(
             "Root-Is-Purelib: true\n"
             "Tag: cp312-cp312-manylinux_2_28_x86_64\n"
         ),
+        f"{dist_info}/top_level.txt": f"{top_level}\n",
     }
+    if name == "cffi":
+        files["_cffi_backend.py"] = "BACKEND = 'synthetic'\n"
+        files[f"{dist_info}/top_level.txt"] = "_cffi_backend\ncffi\n"
+    elif name == "soundfile":
+        files["licensing/license_notes.md"] = "data-only license notes\n"
+        files[f"{dist_info}/top_level.txt"] = "licensing\nsoundfile\n"
     record_name = f"{dist_info}/RECORD"
-    rows = [*files, record_name]
     record = io.StringIO()
     writer = csv.writer(record, lineterminator="\n")
-    for filename in rows:
-        writer.writerow((filename, "", ""))
+    for filename, content in sorted(files.items()):
+        payload = content.encode()
+        digest = base64.urlsafe_b64encode(hashlib.sha256(payload).digest())
+        writer.writerow(
+            (filename, f"sha256={digest.decode().rstrip('=')}", len(payload))
+        )
+    writer.writerow((record_name, "", ""))
     files[record_name] = record.getvalue()
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for filename, content in sorted(files.items()):
@@ -304,6 +317,18 @@ def test_builder_is_byte_deterministic_and_audit_accepts(tmp_path):
     assert first.archive_path.read_bytes() == second.archive_path.read_bytes()
     result = audit_acoustic_pack(first.archive_path, repo_root=repo)
     assert result.findings == ()
+    manifest = _tar_json(first.archive_path, "pack_manifest.json")
+    distributions = manifest["pack_distributions"]
+    assert isinstance(distributions, list)
+    cffi = next(item for item in distributions if item["name"] == "cffi")
+    assert cffi["top_level_imports"] == ["_cffi_backend", "cffi"]
+    assert "_cffi_backend.py" in cffi["installed_files"]
+    assert all(cffi["installed_files"].values())
+    soundfile = next(
+        item for item in distributions if item["name"] == "soundfile"
+    )
+    assert soundfile["top_level_imports"] == ["soundfile"]
+    assert "licensing/license_notes.md" in soundfile["installed_files"]
 
 
 @pytest.mark.parametrize("failure", ["extra", "private", "host", "wheel_hash"])

@@ -71,3 +71,20 @@ resolve only from installed artifacts (`_vendor` / venv site-packages).
   machine is in its pre-gate state.
 - Next subphase input (S1.7): S1.2/S1.3 contracts, these installed-artifact
   results, `docs/v1_scope.md`, `docs/versioning.md`.
+
+## Post-review remediation (2026-07-17)
+
+The canonical gate now runs headless, reinstall, GUI, and wheel-venv in one
+invocation. Kit is launched through embedded `kit/python/bin/python3 -I -S`;
+only verified Kit-owned paths and the staged output-local extension are
+admitted. Executable and prefixes must remain under the Isaac root, and the
+gate rejects repository, virtualenv, discovered sibling-checkout, and
+editable-hook contamination. Planted contamination regressions passed
+14/14.
+
+Final canonical result: all four scenarios passed against artifact-set id
+`4f58b62c3cd84c321a400ce42231a7854d33f47ad4dc64ac711624e44326a9f4`
+(headless 7.778 s, reinstall 7.495 s, GUI 7.571 s, wheel-venv 3.662 s).
+`SHA256SUMS_final.txt` matched `dist/SHA256SUMS`; user state restoration and
+output-local cleanup both passed. Canonical evidence:
+`outputs/isaac_audio_sensors/S1/S1.6/clean_install_gate.json`.

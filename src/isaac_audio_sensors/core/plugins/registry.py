@@ -11,6 +11,7 @@ import numpy as np
 
 from isaac_audio_sensors.core.constants import DEFAULT_RUNTIME_PROFILE
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
+from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.plugins.adapters import (
     GccPhatLeastSquaresEstimator,
     SrpPhatEstimator,
@@ -24,7 +25,14 @@ from isaac_audio_sensors.core.plugins.protocols import (
     DoaEstimator,
     PropagationBackend,
 )
-from isaac_audio_sensors.core.types import DoaEstimate
+from isaac_audio_sensors.core.types import (
+    AudioSceneSnapshot,
+    AudioSensorFrame,
+    AudioSourceSpec,
+    AudioTimeWindow,
+    DoaEstimate,
+    RoomAcousticsSpec,
+)
 
 PluginFactory = Callable[..., object]
 
@@ -244,6 +252,33 @@ def validate_declaration(
                 f"Plugin {declaration.plugin_id!r} factory produced backend id "
                 f"{instance.backend_id!r}."
             )
+        if declaration.output_contract != {
+            "shape": "AudioSensorFrame",
+            "dtype": "AudioSensorFrame",
+        }:
+            raise ConfigValidationError(
+                f"Plugin {declaration.plugin_id!r} has an invalid propagation "
+                "output_contract."
+            )
+        if declaration.deterministic:
+            fixture = _propagation_fixture()
+            first = _run_propagation_plugin(declaration, instance, fixture)
+            try:
+                second_instance = factory()
+            except Exception as exc:
+                raise ConfigValidationError(
+                    f"Determinism self-test for plugin {declaration.plugin_id!r} "
+                    f"failed: {exc}"
+                ) from exc
+            second = _run_propagation_plugin(
+                declaration, second_instance, fixture
+            )
+            if not _outputs_equal(first, second):
+                raise ConfigValidationError(
+                    f"Plugin {declaration.plugin_id!r} declares "
+                    "deterministic=True but returned different or "
+                    "unverifiable AudioSensorFrame results for identical inputs."
+                )
         return
 
     fixture = _signal_fixture()
@@ -291,6 +326,83 @@ def _run_signal_plugin(
         raise ConfigValidationError(
             f"Self-test execution for plugin {declaration.plugin_id!r} failed: {exc}"
         ) from exc
+
+
+def _run_propagation_plugin(
+    declaration: PluginDeclaration,
+    instance: object,
+    fixture: tuple[AudioSceneSnapshot, object, AudioTimeWindow],
+) -> AudioSensorFrame:
+    scene, sensor, time_window = fixture
+    if not isinstance(instance, PropagationBackend):
+        raise ConfigValidationError(
+            f"Plugin {declaration.plugin_id!r} does not satisfy PropagationBackend."
+        )
+    if instance.backend_id != declaration.plugin_id:
+        raise ConfigValidationError(
+            f"Plugin {declaration.plugin_id!r} factory produced backend id "
+            f"{instance.backend_id!r}."
+        )
+    try:
+        output = instance.simulate(scene, sensor, time_window)  # type: ignore[arg-type]
+    except Exception as exc:
+        raise ConfigValidationError(
+            f"Determinism self-test for plugin {declaration.plugin_id!r} "
+            f"could not execute: {exc}"
+        ) from exc
+    if not isinstance(output, AudioSensorFrame):
+        raise ConfigValidationError(
+            f"Plugin {declaration.plugin_id!r} returned {type(output).__name__}; "
+            "expected AudioSensorFrame."
+        )
+    if output.backend_id != declaration.plugin_id:
+        raise ConfigValidationError(
+            f"Plugin {declaration.plugin_id!r} returned frame backend id "
+            f"{output.backend_id!r}."
+        )
+    return output
+
+
+def _propagation_fixture() -> tuple[AudioSceneSnapshot, object, AudioTimeWindow]:
+    sensor = create_microphone_array(
+        array_id="plugin_validation_array",
+        prim_path="/World/PluginValidation/Array",
+        layout_name="quad_cross",
+        position_world=(2.0, 2.0, 1.0),
+        sample_rate_hz=8_000,
+    )
+    source = AudioSourceSpec(
+        source_id="plugin_validation_impulse",
+        prim_path="/World/PluginValidation/Source",
+        class_label="impulse",
+        audio_asset_path="generated://impulse",
+        position_world=(3.0, 2.0, 1.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
+        start_time_s=0.0,
+        duration_s=0.02,
+        gain_db=0.0,
+    )
+    scene = AudioSceneSnapshot(
+        stage_id="plugin_validation_scene",
+        timestamp_ms=0,
+        sources=(source,),
+        arrays=(sensor,),
+        room=RoomAcousticsSpec(
+            room_id="plugin_validation_room",
+            dimensions_m=(6.0, 5.0, 3.0),
+            absorption=0.3,
+            max_order=1,
+        ),
+    )
+    window = AudioTimeWindow(
+        start_time_s=0.0,
+        end_time_s=0.02,
+        timestamp_ms=0,
+        sample_rate_hz=sensor.sample_rate_hz,
+        frame_index=0,
+        max_events=1,
+    )
+    return scene, sensor, window
 
 
 def _validate_signal_output(

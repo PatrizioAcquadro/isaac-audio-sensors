@@ -234,3 +234,20 @@ def test_blocked_and_failed_classification_are_distinct(tmp_path: Path):
         gate.classify_exception(gate.ConsumerGateError("contract mismatch"))
         == "failed"
     )
+
+
+def test_required_malformed_consumer_case_must_be_present_and_passed():
+    gate = _load_gate_module()
+    passing = {
+        "case": gate.REQUIRED_MALFORMED_CONSUMER_CASE,
+        "classname": "tests.test_squadbot_audio_contract_freeze",
+        "outcome": "passed",
+        "time_s": "0.1",
+    }
+
+    assert gate.required_consumer_case_errors([passing]) == []
+    assert gate.required_consumer_case_errors([]) == [
+        f"required consumer case {gate.REQUIRED_MALFORMED_CONSUMER_CASE!r} is missing"
+    ]
+    failing = dict(passing, outcome="failed")
+    assert "did not pass" in gate.required_consumer_case_errors([failing])[0]

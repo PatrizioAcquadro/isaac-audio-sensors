@@ -336,20 +336,6 @@ def _lifecycle(manager: Any) -> dict[str, Any]:
     }
 
 
-def _request_kit_quit() -> None:
-    with suppress(Exception):
-        import omni.kit.app  # type: ignore
-
-        app = omni.kit.app.get_app()
-        post_quit = getattr(app, "post_quit", None) if app is not None else None
-        if callable(post_quit):
-            post_quit(0)
-            return
-        quit_app = getattr(app, "quit", None) if app is not None else None
-        if callable(quit_app):
-            quit_app()
-
-
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if not arguments:
@@ -360,7 +346,23 @@ def main(argv: list[str] | None = None) -> int:
         "status": "started",
         "argv": sys.argv,
         "sys_executable": sys.executable,
+        "sys_prefix": sys.prefix,
+        "sys_base_prefix": sys.base_prefix,
         "sys_path": list(sys.path),
+        "editable_import_hooks": sorted(
+            {
+                name
+                for name in sys.modules
+                if "editable" in name.lower()
+            }
+            | {
+                f"{type(hook).__module__}.{type(hook).__qualname__}"
+                for hook in sys.meta_path
+                if "editable" in (
+                    f"{type(hook).__module__}.{type(hook).__qualname__}"
+                ).lower()
+            }
+        ),
         "cwd": os.getcwd(),
         "gui_mode": gui_mode,
         "environment": {
@@ -510,7 +512,6 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         evidence["status"] = "failed" if evidence["errors"] else "passed"
         _write_json(output_path, evidence)
-        _request_kit_quit()
     return 0 if evidence["status"] == "passed" else 1
 
 

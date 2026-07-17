@@ -77,3 +77,11 @@ target must therefore sequence `build` before `build-kit`/`build-pack`.
 - Next subphase input (S1.5): S1.2-S1.4 outputs, audited wheel/sdist
   baseline, ADR base/pack boundary (Decision 6) and binary boundary
   (Decision 9), Kit Python cp312 facts.
+
+## Post-review remediation (2026-07-17)
+
+The canonical extension was rebuilt from the remediated maintained source
+and re-audited as a 98-file Kit archive. It is the exact Kit artifact used by
+all four final S1.6 scenarios; packaged imports resolved from its `_vendor`
+tree, not the repository or a virtual environment. This refresh changes no
+S2 surface.
