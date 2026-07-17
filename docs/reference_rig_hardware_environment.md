@@ -1,6 +1,6 @@
 # Reference Rig Hardware And Environment
 
-Status: **Partial inventory; calibration measurements pending**  
+Status: **Partial reference rig; sensor bring-up complete except audible ReSpeaker playback; calibration measurements pending**
 Last verified: **July 16, 2026**
 
 This document is the canonical record of the physical development rig for the
@@ -50,10 +50,10 @@ DHCP and Tailscale addresses are intentionally not tracked here.
 | Raspberry Pi | Verified | Raspberry Pi 5, 8 GB RAM; official black case; official 27 W USB-C supply; SanDisk Extreme 128 GB microSD available. Hostname and SSH alias: `elab-raspberrypi5`. |
 | Raspberry software | Verified | Debian GNU/Linux 13 (`trixie`), ARM64, kernel `6.18.34+rpt-rpi-2712`; key-only SSH configured; password authentication disabled. |
 | Microphone array | Verified | Seeed Studio ReSpeaker XVF3800 USB 4-Mic Array with case; four-microphone circular array; USB Audio device detected at USB 2 speed. |
-| ReSpeaker geometry | Nominal/unknown | Manufacturer-listed microphone spacing is 66 mm. Exact microphone coordinates, acoustic centers, array axes, channel order, polarity, delay, and gain are not yet measured. |
-| ReSpeaker firmware | Verified/target | Current live interface exposes two channels at 16 kHz using `S16_LE`. Target is the official six-channel USB firmware: two processed channels plus four raw microphone channels. The firmware version, binary hash, and post-flash ALSA format must be recorded. |
-| Camera | Verified | Stereolabs ZED 2i connected directly to the workstation at USB 3, 5 Gb/s. The existing cable is adequate. |
-| ZED software | Planned | ZED SDK was not installed at audit time. Install the current official Ubuntu 24/CUDA 12 build, record its hash/version, and avoid an unnecessary CUDA 13 migration. Update camera firmware only if the official ZED tool offers it. |
+| ReSpeaker geometry | Nominal/partially verified | Manufacturer-listed microphone spacing is 66 mm. The official control interface reports the configured microphone coordinates as `(0.033, -0.033, 0)`, `(0.033, 0.033, 0)`, `(-0.033, 0.033, 0)`, and `(-0.033, -0.033, 0)` m. Acoustic centers, array axes relative to the enclosure, polarity, delay, and gain are not yet physically measured. |
+| ReSpeaker firmware | Verified | ReSpeaker serial `114993701261100454`; official six-channel USB firmware `2.0.8`; native ALSA capture is six-channel, 16 kHz, `S16_LE`. Firmware binary SHA-256: `8dd27762ebd87a28f0b4546f1634ece5e7eae308375d66952f7a9e3fb948266a`. |
+| Camera | Verified | Stereolabs ZED 2i serial `39011785`, camera firmware `1523`, sensor firmware `777`; connected directly to a rear workstation USB 3 port at 5 Gb/s. An initially selected USB port produced protocol errors and resets; changing rear ports produced clean two- and ten-minute tests. |
+| ZED software | Verified | Full official ZED SDK `5.4.0` for Ubuntu 24/CUDA 12 installed at `/usr/local/zed`, including tools, samples, Python support, TensorRT 10.9, and neural depth models. NVIDIA driver `580.159.03` and CUDA toolkit `12.2` were preserved. Installer SHA-256: `bab3ae693865225b0e2cac2b09dadd0c520ce245a011a8e3785037ec46f1f811`. |
 | Temporary speaker | Verified/limited | The user's MacBook built-in speakers may be used for pilot acquisition only. Exact Mac model is not yet recorded. |
 | Reference speaker | Planned | Current-but-not-frozen purchase direction: one Genelec 8030C powered monitor driven through a Focusrite Scarlett Solo USB interface. This supersedes the previously documented Genelec 8010A direction. It is required before final calibrated sim-vs-real claims, not before initial software and pilot work. The purchase BOM is not frozen. |
 | Reference microphone | Planned | One serial-calibrated miniDSP UMIK-1 for level, response, noise, and room-response measurements. |
@@ -72,6 +72,81 @@ DHCP and Tailscale addresses are intentionally not tracked here.
 
 No Ethernet switch, USB Ethernet adapter, or replacement ZED cable is currently
 required.
+
+## Sensor Bring-Up Evidence
+
+The official standalone hardware bring-up was performed on July 16, 2026. It
+did not execute or change the status of roadmap phase S0. The dated report is
+[`evidence/2026-07-16_reference_rig_hardware_bringup.md`](evidence/2026-07-16_reference_rig_hardware_bringup.md),
+and the sanitized official ZED Diagnostic result is
+[`evidence/2026-07-16_zed_diagnostic_sanitized.json`](evidence/2026-07-16_zed_diagnostic_sanitized.json).
+
+### ReSpeaker XVF3800
+
+- Before upgrade, USB device `2886:001a`, serial
+  `114993701261100454`, exposed two native capture channels at 16 kHz
+  `S16_LE`; the official control interface returned firmware `2.0.6`.
+- The complete official repository was cloned from
+  `https://github.com/respeaker/reSpeaker_XVF3800_USB_4MIC_ARRAY` at commit
+  `e4c2073e1470180746580a6ba5468c9bf45026e1`. The selected binary was
+  `xmos_firmwares/usb/respeaker_xvf3800_usb_dfu_firmware_6chl_v2.0.8.bin`,
+  SHA-256
+  `8dd27762ebd87a28f0b4546f1634ece5e7eae308375d66952f7a9e3fb948266a`.
+- `dfu-util` 0.11 enumerated alternate 1 as `reSpeaker DFU Upgrade` and
+  alternate 0 as `reSpeaker DFU Factory`. Only alternate 1 was written using
+  the official command. The factory alternate was not touched.
+- After power cycling, the official control interface returned firmware
+  `2.0.8`, the geometry listed above, and a live DOA value. No algorithm
+  parameters were changed.
+- Native hardware probing on both the workstation and Raspberry Pi found six
+  capture channels at 16 kHz `S16_LE`. This differs from the manufacturer's
+  32-bit description; the USB descriptor reports a two-byte subslot and ALSA
+  rejects `S32_LE`, so `S16_LE` is recorded as the verified hardware format.
+- The official channel map is channel 0 Conference, channel 1 ASR, and channels
+  2 through 5 raw microphones 0 through 3. Ten-second six-channel captures on
+  both hosts were valid PCM WAV files. Every channel was non-silent; raw channel
+  pairs were not sample-identical. The workstation capture had one negative
+  full-scale sample on channel 0 but no sustained clipping; the Raspberry
+  capture had no full-scale samples.
+- Native playback streams opened and completed on both hosts. Audible output
+  through the ReSpeaker 3.5 mm connection was not physically confirmed, so the
+  playback portion of the ReSpeaker gates remains open.
+- Raspberry Pi disconnect/reconnect recovery passed, as did a two-second
+  post-reconnect capture and a bounded 30-minute six-channel stream to
+  `/dev/null`. No large audio artifact was added to the repository.
+
+### ZED 2i
+
+- The official interactive installer
+  `ZED_SDK_Ubuntu24_cuda12.8_tensorrt10.9_v5.4.0.zstd.run`, SHA-256
+  `bab3ae693865225b0e2cac2b09dadd0c520ce245a011a8e3785037ec46f1f811`,
+  installed the full SDK `5.4.0` at `/usr/local/zed`. The existing NVIDIA
+  driver and CUDA 12.2 toolkit were compatible and were not changed.
+- The official ZED Diagnostic command completed successfully. It verified ZED
+  SDK 5.4.0, CUDA operations on the RTX 4090, the ZED 2i, USB 3 bandwidth, and
+  the optimized neural depth models. Its OpenGL warning came from the
+  non-graphical command-line session; the official graphical tools subsequently
+  started and operated normally.
+- The SDK API verified serial `39011785`, camera firmware `1523`, sensor
+  firmware `777`, and left, right, neural-depth, and IMU data at HD720 and
+  60 FPS. The official SDK ships ZED 2i firmware `1523`, matching the camera;
+  no firmware update was required or performed.
+- The user visually confirmed that ZED Explorer, ZED Depth Viewer, and ZED
+  Sensor Viewer all start and work. Objective API testing separately confirmed
+  USB 3 operation, HD720 at 60 FPS, left/right/depth retrieval, and IMU reads.
+- The first ten-minute test on the original USB port failed: the kernel logged
+  repeated UVC protocol error `-71`, two physical disconnect/re-enumeration
+  events, and the SDK recovered twice. After reseating the cable and moving it
+  to a different direct rear USB 3 port, a 120.007-second precheck passed with
+  7,200 grabs and a clean 600.016-second acceptance test passed with 35,998
+  grabs, zero API failures, 600 left/right/depth checks, 600 successful sensor
+  reads, and no reset or recovery. The maximum image timestamp gap was
+  33.389 ms.
+- A 10.031-second H.264 SVO2 recording outside Git contains 302 HD720@30
+  frames. Its size is 17,209,314 bytes and its SHA-256 is
+  `e0030e9217dd17471e71726681c0fd2c00c3f043b7e48dc8ec90725625c4ed2d`.
+  No manual camera calibration was run because ZED Diagnostic did not require
+  it.
 
 ## Acoustic Environment
 
@@ -167,18 +242,19 @@ this repository, logs, datasets, or release artifacts.
 
 ## Remaining Gates
 
-1. Flash and hash the official ReSpeaker six-channel USB firmware; verify all
-   channels, formats, order, and playback.
-2. Move the ReSpeaker to the Raspberry Pi and run capture, playback, disconnect,
-   and long-run tests over the wired path.
-3. Install and validate the official ZED SDK on the workstation.
-4. Measure room dimensions, ReSpeaker geometry, ZED/ReSpeaker extrinsics, mount
+The ZED SDK installation and ZED 2i diagnostic, viewer, depth, IMU, stability,
+and SVO checks are closed. The following reference-rig gates remain open:
+
+1. Confirm audible ReSpeaker playback through its physical 3.5 mm output on the
+   workstation and Raspberry Pi. Native ALSA playback streaming has passed on
+   both hosts.
+2. Measure room dimensions, ReSpeaker geometry, ZED/ReSpeaker extrinsics, mount
    geometry, source poses, and uncertainty.
-5. Acquire and characterize the reference monitor, UMIK-1, stands, and
+3. Acquire and characterize the reference monitor, UMIK-1, stands, and
    measurement tools.
-6. Lock clock synchronization, acquisition metadata, and failure thresholds.
-7. Obtain Alex mounting/access approval and verify the live onboard software.
-8. Freeze serial numbers, firmware/software versions, calibrated profiles, and
+4. Lock clock synchronization, acquisition metadata, and failure thresholds.
+5. Obtain Alex mounting/access approval and verify the live onboard software.
+6. Freeze remaining serial numbers, calibrated profiles, and
    the final reference-rig BOM before S4 holdout collection.
 
 Until these gates pass, describe the setup as an available four-microphone

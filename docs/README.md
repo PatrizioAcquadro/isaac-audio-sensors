@@ -24,6 +24,7 @@ public users.
 - [Roadmap](roadmap.md)
 - [Final Sensor Development Plan](final_sensor_development_plan.md)
 - [Reference Rig Hardware And Environment](reference_rig_hardware_environment.md)
+- [ZED 2i And ReSpeaker Mount Pre-CAD Input Lock](zed_respeaker_mount_pre_cad.md)
 - [Showcase](showcase.md)
 - [Open Source Release Checklist](open_source_release_checklist.md)
 
