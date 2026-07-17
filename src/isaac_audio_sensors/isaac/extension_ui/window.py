@@ -29,6 +29,7 @@ from .sections import (
     build_audio_output_section,
     build_control_section,
     build_export_section,
+    build_guided_section,
     build_instruments_section,
     build_replicator_section,
     build_room_section,
@@ -95,6 +96,8 @@ class OmniReferenceWindow:
         return self.window
 
     def _build_body(self) -> None:
+        if self.controller.state.guided_mode_enabled:
+            build_guided_section(self)
         build_stage_section(self)
         build_array_section(self)
         build_source_section(self)
@@ -191,6 +194,9 @@ class OmniReferenceWindow:
             f"latest={state.replicator_latest_write_path or 'none'}",
         )
         self._set_label("status", state.status_message)
+        guided_refresh = getattr(self, "_refresh_guided_section", None)
+        if callable(guided_refresh):
+            guided_refresh()
 
     def refresh_instruments(self) -> None:
         """Push the latest frame snapshot into the instrument widgets."""

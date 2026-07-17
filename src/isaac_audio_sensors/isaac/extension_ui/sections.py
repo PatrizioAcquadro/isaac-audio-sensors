@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .constants import (
     AMBIGUITY_POLICY_CHOICES,
@@ -18,9 +18,142 @@ from .spectro import (
     WAVEFORM_IMAGE_HEIGHT,
     WAVEFORM_IMAGE_WIDTH,
 )
+from .ui_models import _combo_index, _set_widget_text
+from .workflow import GUIDED_STAGE_ORDER, SAFE_PRESETS, GuidedStage
 
 if TYPE_CHECKING:
     from .window import OmniReferenceWindow
+
+
+def build_guided_section(window: OmniReferenceWindow) -> None:
+    """Build the guided breadcrumb and the Setup/Validate stage panels."""
+
+    ui = window.ui
+    workflow = window.controller.guided_workflow
+    workflow.on_change = window.refresh_labels
+    preset_ids = tuple(preset.preset_id for preset in SAFE_PRESETS)
+    preset_labels = tuple(preset.label for preset in SAFE_PRESETS)
+    selected_id = window.controller.state.guided_preset_id
+    selected_index = preset_ids.index(selected_id) if selected_id in preset_ids else 0
+
+    with ui.VStack(spacing=4, height=0) as root:
+        ui.Label("Guided Workflow")
+        breadcrumb = ui.Label("", word_wrap=True)
+        stage_title = ui.Label("")
+        stage_status = ui.Label("", word_wrap=True)
+        with ui.VStack(spacing=4, height=0) as setup_panel:
+            ui.Label("Choose a safe scene preset")
+            preset_combo = ui.ComboBox(selected_index, *preset_labels, width=260)
+
+            def _preset_changed(model: Any, _item: Any = None) -> None:
+                index = _combo_index(model)
+                if 0 <= index < len(preset_ids):
+                    window.controller.state.guided_preset_id = preset_ids[index]
+
+            if hasattr(preset_combo.model, "add_item_changed_fn"):
+                window._model_change_subscriptions.append(
+                    preset_combo.model.add_item_changed_fn(_preset_changed)
+                )
+            if hasattr(preset_combo.model, "add_value_changed_fn"):
+                window._model_change_subscriptions.append(
+                    preset_combo.model.add_value_changed_fn(_preset_changed)
+                )
+            window._button(
+                "Apply Guided Preset",
+                lambda: window.controller.guided_apply_preset(
+                    window.controller.state.guided_preset_id or preset_ids[0]
+                ),
+            )
+            setup_summary = ui.Label("", word_wrap=True)
+        with ui.VStack(spacing=4, height=0) as validate_panel:
+            window._button("Validate now", window.controller.guided_validate)
+            findings_summary = ui.Label("", word_wrap=True)
+            finding_rows: list[dict[str, Any]] = []
+            for index in range(12):
+                with ui.HStack(spacing=4, height=0) as row:
+                    issue_label = ui.Label("", word_wrap=True)
+
+                    def _recover(row_index: int = index) -> None:
+                        findings = workflow.findings_for_stage(GuidedStage.VALIDATE)
+                        if row_index < len(findings):
+                            workflow.recovery_action(findings[row_index])()
+
+                    action_button = window._button("Recover", _recover)
+                row.visible = False
+                finding_rows.append(
+                    {"row": row, "label": issue_label, "button": action_button}
+                )
+        with ui.VStack(spacing=4, height=0) as future_panel:
+            future_summary = ui.Label("", word_wrap=True)
+        with ui.HStack(spacing=4, height=0):
+            window._button("Guided Back", window.controller.guided_back)
+            window._button("Guided Next", window.controller.guided_advance)
+
+    panel = {
+        "root": root,
+        "breadcrumb": breadcrumb,
+        "stage_title": stage_title,
+        "stage_status": stage_status,
+        "setup_panel": setup_panel,
+        "setup_summary": setup_summary,
+        "preset_combo": preset_combo,
+        "validate_panel": validate_panel,
+        "findings_summary": findings_summary,
+        "finding_rows": finding_rows,
+        "future_panel": future_panel,
+        "future_summary": future_summary,
+    }
+    window._guided_panel = panel
+
+    def _refresh() -> None:
+        current = workflow.current_stage
+        crumbs = " > ".join(
+            f"{stage.value.title()} [{workflow.status(stage).value}]"
+            for stage in GUIDED_STAGE_ORDER
+        )
+        _set_widget_text(breadcrumb, crumbs)
+        _set_widget_text(stage_title, f"Current stage: {current.value.title()}")
+        _set_widget_text(stage_status, f"Status: {workflow.current_status.value}")
+        setup_panel.visible = current is GuidedStage.SETUP
+        validate_panel.visible = current is GuidedStage.VALIDATE
+        future_panel.visible = current not in {GuidedStage.SETUP, GuidedStage.VALIDATE}
+        chosen = window.controller.state.guided_preset_id
+        preset = next((item for item in SAFE_PRESETS if item.preset_id == chosen), None)
+        _set_widget_text(
+            setup_summary,
+            "No preset applied."
+            if preset is None
+            else f"{preset.label}: {preset.summary}",
+        )
+        findings = workflow.findings_for_stage(GuidedStage.VALIDATE)
+        _set_widget_text(
+            findings_summary,
+            "Validation clean."
+            if not findings
+            and workflow.status(GuidedStage.VALIDATE).value == "complete"
+            else f"{len(findings)} validation issue(s).",
+        )
+        for index, row in enumerate(finding_rows):
+            visible = index < len(findings)
+            row["row"].visible = visible
+            if not visible:
+                _set_widget_text(row["label"], "")
+                continue
+            finding = findings[index]
+            field = finding.field or (
+                "stage" if finding.check_id == "stage_present" else "guided_stage"
+            )
+            _set_widget_text(row["label"], f"{field}: {finding.message}")
+            _set_widget_text(
+                row["button"], workflow.recovery_action(finding).label
+            )
+        _set_widget_text(
+            future_summary,
+            f"{current.value.title()} is delivered in Run B or Run C.",
+        )
+
+    window._refresh_guided_section = _refresh
+    _refresh()
 
 
 def build_stage_section(window: OmniReferenceWindow) -> None:

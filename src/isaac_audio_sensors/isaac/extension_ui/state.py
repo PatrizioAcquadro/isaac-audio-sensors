@@ -68,6 +68,10 @@ class AuthoredMetadataSummary:
 class ExtensionUiState:
     """Pure-Python state backing the reference extension UX."""
 
+    guided_mode_enabled: bool = True
+    guided_preset_id: str = ""
+    guided_stage: str = "setup"
+
     selected_prim_paths: tuple[str, ...] = ()
     stage_status: str = "No stage checked."
     status_message: str = "Ready."

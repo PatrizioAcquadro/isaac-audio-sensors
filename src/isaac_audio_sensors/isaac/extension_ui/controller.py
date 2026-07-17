@@ -63,7 +63,10 @@ from isaac_audio_sensors.isaac.stage_audio import (
     remove_prim,
     set_prim_xform_pose,
 )
-from isaac_audio_sensors.isaac.validation import ValidationController
+from isaac_audio_sensors.isaac.validation import (
+    ValidationController,
+    ValidationReport,
+)
 from isaac_audio_sensors.isaac.viz.overlays import (
     DebugPrimitive,
     debug_primitives_to_dicts,
@@ -127,6 +130,7 @@ from .ui_models import (
     _window_visible,
 )
 from .window import OmniReferenceWindow
+from .workflow import SAFE_PRESETS, GuidedWorkflow, SafePreset
 
 
 class ExtensionController:
@@ -159,6 +163,145 @@ class ExtensionController:
         self._stage_event_subscription: Any | None = None
         self._last_followed_selection: tuple[str, ...] | None = None
         self._usd_debug_author: UsdDebugGeometryAuthor | None = None
+
+    @property
+    def guided_workflow(self) -> GuidedWorkflow:
+        """Return the lazily constructed import-safe guided workflow."""
+
+        workflow = getattr(self, "_guided_workflow", None)
+        if workflow is None:
+            workflow = GuidedWorkflow(
+                self._validation,
+                self.state,
+                recovery_handlers={
+                    "stage": lambda _finding: self.refresh_stage_selection(),
+                    "preset": lambda _finding: (
+                        self.guided_apply_preset(
+                            self.state.guided_preset_id
+                            or SAFE_PRESETS[0].preset_id
+                        ),
+                        self._validation.refresh_capabilities(
+                            "guided preset recovery"
+                        ),
+                    ),
+                    "capabilities": lambda _finding: (
+                        self._validation.refresh_capabilities(
+                            "guided recovery action"
+                        )
+                    ),
+                    "focus": lambda finding: self._set_status(
+                        f"Review {finding.field or 'the guided workflow'}."
+                    ),
+                },
+            )
+            self._guided_workflow = workflow
+        return workflow
+
+    def guided_apply_preset(self, preset_id: str) -> SafePreset | None:
+        """Apply one safe preset through the existing config-summary path."""
+
+        try:
+            stage_present = self._context().stage is not None
+            preset = self.guided_workflow.apply_preset(
+                preset_id,
+                lambda item: self._apply_config_summary(item.config_summary()),
+                stage_present=stage_present,
+            )
+            self._set_status(f"Applied guided preset {preset.label}.")
+            return preset
+        except Exception as exc:
+            self._record_error("Guided preset apply failed", exc)
+            return None
+
+    def guided_validate(self) -> ValidationReport:
+        """Run the shared validation matrix and record the Validate gate."""
+
+        state = self.state
+        context = self._context()
+        stage = context.stage
+        capabilities_were_stale = (
+            getattr(self._validation, "_capability_state", None) is not None
+            and getattr(self._validation, "_capabilities_stale", False)
+        )
+        reports = [
+            self._validation.validate_stage_present(stage is not None),
+            self._validation.validate_runtime(state),
+            self._validation.validate_backend_available(state.backend),
+            self._validation.validate_abs_prim_path(
+                state.source_prim_path,
+                "source_prim_path",
+            ),
+            self._validation.validate_source_metadata(state),
+            self._validation.validate_source_geometry(state),
+            self._validation.validate_array_geometry(state),
+            self._validation.validate_layout(state),
+        ]
+        if state.room_anchor_prim_path:
+            reports.append(
+                self._validation.validate_room_anchor_exists(
+                    state.room_anchor_prim_path,
+                    stage is not None
+                    and _stage_has_prim(stage, state.room_anchor_prim_path),
+                )
+            )
+        reports.extend(
+            (
+                self._validation.validate_attached_source_target(
+                    state.source_attached_to_object,
+                    state.attached_object_prim_path or state.object_prim_path,
+                    None
+                    if not state.source_attached_to_object or stage is None
+                    else _stage_has_prim(
+                        stage,
+                        state.attached_object_prim_path or state.object_prim_path,
+                    ),
+                ),
+                self._validation.validate_attached_array_target(
+                    state.array_attached_to_object,
+                    state.attached_array_object_prim_path,
+                    None
+                    if not state.array_attached_to_object or stage is None
+                    else _stage_has_prim(
+                        stage,
+                        state.attached_array_object_prim_path,
+                    ),
+                ),
+            )
+        )
+        findings = tuple(
+            dict.fromkeys(
+                finding
+                for report in reports
+                for finding in report.findings
+            )
+        )
+        capabilities_fresh = (
+            getattr(self._validation, "_capability_state", None) is not None
+            and not getattr(self._validation, "_capabilities_stale", True)
+            and not capabilities_were_stale
+        )
+        report = self.guided_workflow.record_validation(
+            ValidationReport(findings),
+            capabilities_fresh=capabilities_fresh,
+        )
+        if report.ok:
+            self._set_status("Guided validation passed.")
+        else:
+            self._set_status(
+                f"Guided validation found {len(report.findings)} issue(s).",
+                error=True,
+            )
+        return report
+
+    def guided_advance(self) -> bool:
+        """Advance to the next guided stage when its gate is open."""
+
+        return self.guided_workflow.advance()
+
+    def guided_back(self) -> bool:
+        """Return to the preceding guided stage."""
+
+        return self.guided_workflow.back()
 
     def on_startup(self, ext_id: str) -> None:
         """Initialize the import-safe controller and lazily build Kit UI."""
