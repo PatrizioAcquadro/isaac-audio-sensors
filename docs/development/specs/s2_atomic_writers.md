@@ -32,9 +32,17 @@ only writer behavior. Implementation lands in
   `_staging/` has been removed. Finalize-as-incomplete follows the same
   sequence with `completion_state: "incomplete"` and only the truly
   published shards listed.
-- **Checksums.** Rolling SHA-256 is maintained while streaming; promotion
-  never re-reads staged payloads to hash them (bounded I/O), but marker
-  verification after promotion may.
+- **Checksums.** Rolling SHA-256 is maintained while streaming for
+  append-only artifacts (JSONL, markers, manifests), and promotion never
+  re-reads them. The WAV asset is the sole exception: because its RIFF/data
+  sizes are patched at finalize, a standard SHA-256 of the final bytes
+  cannot be derived from a rolling payload hash, so the writer performs
+  **exactly one bounded-memory sequential re-read of the staged WAV at
+  finalize** to compute the published checksum. No other promotion-time
+  re-read is permitted; marker verification after promotion may re-read
+  freely. (Amended 2026-07-17 before any S2.2 implementation or telemetry:
+  the original blanket no-re-read wording was internally impossible for a
+  size-patched container; the frozen §2 memory specification is unchanged.)
 - **Cancellation.** A cooperative cancellation token is checked at least
   once per frame; on cancellation the writer either promotes the open shard
   (if it can complete a consistent boundary) or abandons its staging, then
