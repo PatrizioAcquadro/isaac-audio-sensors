@@ -220,6 +220,8 @@ REQUIRED_SDIST_ENTRIES = (
     "scripts/check_version_sync.py",
     "scripts/regenerate_example_manifests.py",
     "scripts/generate_live_evidence_report.py",
+    "scripts/live_clean_install_gate.py",
+    "scripts/live_clean_install_probe.py",
     "scripts/live_omniverse_extension_ux.py",
     "scripts/live_isaac_sim_audio_smoke.py",
     "scripts/install_pack.py",
@@ -255,6 +257,7 @@ REQUIRED_SDIST_ENTRIES = (
     "tests/test_calibration_profile.py",
     "tests/test_runtime_profiles.py",
     "tests/test_live_evidence_report.py",
+    "tests/test_clean_install_harness.py",
     "tests/test_v1_scope_docs.py",
 )
 REQUIRED_WHEEL_ENTRIES = (

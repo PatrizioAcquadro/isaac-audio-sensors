@@ -170,6 +170,8 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "scripts/check_version_sync.py": "print('version sync')\n",
             "scripts/regenerate_example_manifests.py": "print('regenerate')\n",
             "scripts/generate_live_evidence_report.py": "print('report')\n",
+            "scripts/live_clean_install_gate.py": "print('clean gate')\n",
+            "scripts/live_clean_install_probe.py": "print('clean probe')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",
             "scripts/live_omniverse_extension_ux.py": "print('ux')\n",
             "scripts/install_pack.py": "print('pack install')\n",
@@ -213,6 +215,9 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             (
                 "tests/test_live_evidence_report.py"
             ): "def test_report():\n    assert True\n",
+            "tests/test_clean_install_harness.py": (
+                "def test_clean_install():\n    assert True\n"
+            ),
             "tests/test_v1_scope_docs.py": "def test_scope():\n    assert True\n",
         },
     )
@@ -306,6 +311,8 @@ def test_distribution_audit_reports_forbidden_paths_and_content(tmp_path):
             "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py": "\n",
             "scripts/audit_distribution.py": "print('audit')\n",
             "scripts/generate_live_evidence_report.py": "print('report')\n",
+            "scripts/live_clean_install_gate.py": "print('clean gate')\n",
+            "scripts/live_clean_install_probe.py": "print('clean probe')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",
             "scripts/live_omniverse_extension_ux.py": "print('ux')\n",
             "src/isaac_audio_sensors/__init__.py": (

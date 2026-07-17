@@ -41,6 +41,10 @@ Official Isaac 6.0.1 / Isaac Lab 3.0.0-beta2 launcher migration:
   L0/L1 healthy and reports the exact L2/L3 pack artifact to install.
 - Added `build-pack`, `audit-pack`, and ordered `artifacts` Make targets with a
   combined top-level checksum inventory for all four release artifact forms.
+- Added the S1.6 clean-install harness for hash-verified wheel and Kit archive
+  staging, backed-up preflight decontamination/restoration, sanitized Kit and
+  fresh-venv scenarios, installed-origin evidence, lifecycle/capture/export
+  probes, and optional GUI screenshot proof.
 
 - Makefile live gates now auto-detect the official installs at `~/isaacsim`
   and `~/IsaacLab`, while keeping `ISAAC_SIM_COMMAND` and `ISAAC_LAB_PYTHON`
