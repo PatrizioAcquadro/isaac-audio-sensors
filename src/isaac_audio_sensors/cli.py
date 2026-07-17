@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -11,7 +12,19 @@ from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.capabilities import discover_capabilities
 from isaac_audio_sensors.core.config import build_scene_snapshot, load_audio_config
-from isaac_audio_sensors.core.dataset import DatasetLayoutError, validate_dataset
+from isaac_audio_sensors.core.dataset import (
+    DatasetLayoutError,
+    DatasetSplitError,
+    apply_split_plan,
+    build_split_plan,
+    validate_dataset,
+    write_json_atomic,
+    write_split_plan,
+)
+from isaac_audio_sensors.core.io.manifests import (
+    manifest_to_dict,
+    read_dataset_manifest,
+)
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict, write_frame_trace
 from isaac_audio_sensors.core.schema import (
     write_audio_calibration_profile_json_schema,
@@ -76,6 +89,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     dataset_stats_parser.add_argument("session_root", type=Path)
     dataset_stats_parser.add_argument("--allow-incomplete", action="store_true")
     dataset_stats_parser.add_argument("--json", dest="json_path", default=None)
+
+    dataset_split_parser = dataset_subparsers.add_parser("split")
+    dataset_split_parser.add_argument("session_root", type=Path)
+    dataset_split_parser.add_argument(
+        "--kind", choices=("tvt", "fit-holdout"), required=True
+    )
+    dataset_split_parser.add_argument("--ratios", required=True)
+    dataset_split_parser.add_argument("--seed", type=int, required=True)
+    dataset_split_parser.add_argument("--grouping-key", default=None)
+    dataset_split_parser.add_argument("--out", type=Path, default=None)
+    dataset_split_parser.add_argument("--apply", action="store_true")
 
     args = parser.parse_args(argv)
     if args.command == "validate-config":
@@ -147,6 +171,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "dataset":
+        if args.dataset_command == "split":
+            try:
+                return _dataset_split(args)
+            except (DatasetLayoutError, DatasetSplitError, OSError, ValueError) as exc:
+                print(f"dataset split failed: {exc}", file=sys.stderr)
+                return 1
         try:
             report = validate_dataset(
                 args.session_root,
@@ -219,6 +249,69 @@ def _write_json_output(path: Path, payload: dict) -> None:
     path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+
+
+def _dataset_split(args: argparse.Namespace) -> int:
+    kind = {
+        "tvt": "train_validation_test",
+        "fit-holdout": "fit_holdout",
+    }[args.kind]
+    if args.apply and kind != "train_validation_test":
+        raise DatasetSplitError(
+            "--apply is available only for tvt; fit_holdout remains a plan-level "
+            "artifact."
+        )
+    ratios = _parse_split_ratios(args.ratios)
+    plan = build_split_plan(
+        args.session_root,
+        kind=kind,
+        ratios=ratios,
+        seed=args.seed,
+        grouping_key=args.grouping_key,
+    )
+    if args.out is not None:
+        if args.out.resolve() == (args.session_root / "manifest.json").resolve():
+            raise DatasetSplitError("--out must not overwrite the dataset manifest.")
+        write_split_plan(plan, args.out)
+    if args.apply:
+        manifest_path = args.session_root / "manifest.json"
+        manifest = read_dataset_manifest(manifest_path)
+        updated = apply_split_plan(manifest, plan)
+        write_json_atomic(manifest_path, manifest_to_dict(updated))
+        report = validate_dataset(args.session_root)
+        if report.status == "failed":
+            raise DatasetSplitError(
+                "updated manifest failed dataset validation: "
+                + "; ".join(
+                    f"{finding.code} at {finding.location}"
+                    for finding in report.findings
+                )
+            )
+    print(plan.plan_sha256)
+    return 0
+
+
+def _parse_split_ratios(text: str) -> dict[str, float]:
+    ratios: dict[str, float] = {}
+    for item in text.split(","):
+        if "=" not in item:
+            raise DatasetSplitError(
+                f"--ratios entry {item!r} must use partition=value syntax."
+            )
+        name, raw_value = (part.strip() for part in item.split("=", 1))
+        if not name or not raw_value:
+            raise DatasetSplitError(
+                f"--ratios entry {item!r} must use partition=value syntax."
+            )
+        if name in ratios:
+            raise DatasetSplitError(f"--ratios repeats partition {name!r}.")
+        try:
+            ratios[name] = float(raw_value)
+        except ValueError as exc:
+            raise DatasetSplitError(
+                f"--ratios value for {name!r} must be numeric."
+            ) from exc
+    return ratios
 
 
 if __name__ == "__main__":
