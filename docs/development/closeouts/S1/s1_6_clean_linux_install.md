@@ -92,9 +92,9 @@ output-local cleanup both passed. Canonical evidence:
 ## Final provenance-bound artifact run (2026-07-17)
 
 The previous artifact set is superseded by artifact-set id
-`6dbbab35db6b04f75ca06a5f0a34a2cc9e5cf4aec94df18d555c4bcc441408bd`,
+`6154119edfd3a40911618e90e5596d2d44924b398de95a40190bad1802119e06`,
 built from clean committed source revision
-`814da7a122741372254f883c477c210c7daa64ab`. Headless, reinstall, GUI, and
+`c7ead4dd017e3900f44d374ce30eb92d1a196df3`. Headless, reinstall, GUI, and
 wheel-venv scenarios all passed; `SHA256SUMS_final.txt` matched
 `dist/SHA256SUMS`, user state was restored, and the clean environment was
 removed. The canonical evidence path remains

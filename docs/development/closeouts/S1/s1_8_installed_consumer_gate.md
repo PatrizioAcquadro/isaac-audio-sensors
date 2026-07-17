@@ -77,9 +77,9 @@ and confirmed the consumer checkout was unchanged during execution. Evidence:
 ## Final provenance-bound artifact run (2026-07-17)
 
 The gate was rerun against wheel sha256
-`237dfbe417520265e7773ed5fd31715f3c35f0beba9fb27e093f95eb589428eb`,
+`fe8242271dce5d7f2175025b5d37996ed750e118017c553c357cb695e4781c70`,
 built from clean committed source revision
-`814da7a122741372254f883c477c210c7daa64ab`. All 8 cases passed, the two
+`c7ead4dd017e3900f44d374ce30eb92d1a196df3`. All 8 cases passed, the two
 canonical graph exports remained byte-identical, the boundary scan had zero
 hits, and the consumer repository remained clean at
 `afa6981eeb6554d4bab33c727a6a018f2f28ae49`.

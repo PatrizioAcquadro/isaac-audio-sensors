@@ -102,10 +102,10 @@ pack root. Evidence:
 ## Final provenance correction (2026-07-17)
 
 The final pack was built from clean committed revision
-`814da7a122741372254f883c477c210c7daa64ab`; its manifest records that full
+`c7ead4dd017e3900f44d374ce30eb92d1a196df3`; its manifest records that full
 revision and the auditor verifies the embedded installer and lock file against
 the recorded commit. The resulting pack sha256 is
-`98f1c5d307d012197ef7a0e786b42896e1243ef467146b3f2a1292e9953af201`.
+`349aad4c727359d9738c81ea12497e23dfe38ab897ba055fb43c095a51daf5c2`.
 Offline installation, installed-file integrity, and activation passed with all
 8 declared imports originating under the private pack root. Canonical evidence:
 `outputs/isaac_audio_sensors/S1/S1.5/final_provenance_pack_activation.json`.

@@ -119,19 +119,19 @@ Verdict: **S1 is ready for S2**.
 This section supersedes every earlier S1 artifact hash while preserving the
 earlier records as historical evidence. The canonical artifacts were rebuilt
 from clean committed source revision
-`814da7a122741372254f883c477c210c7daa64ab`; build entry points now reject
+`c7ead4dd017e3900f44d374ce30eb92d1a196df3`; build entry points now reject
 dirty tracked or untracked source, and archive audits compare embedded source
 and release scripts with the recorded commit.
 
 Final artifact-set id:
-`6dbbab35db6b04f75ca06a5f0a34a2cc9e5cf4aec94df18d555c4bcc441408bd`.
+`6154119edfd3a40911618e90e5596d2d44924b398de95a40190bad1802119e06`.
 
 | Artifact | Final clean-source sha256 |
 | --- | --- |
-| `isaac_audio_sensors-1.8.0-py3-none-any.whl` | `237dfbe417520265e7773ed5fd31715f3c35f0beba9fb27e093f95eb589428eb` |
-| `isaac_audio_sensors-1.8.0.tar.gz` | `e2a3e8f8c2dd30c8fc0aeaa9ca8a1b239b77af4f6e7424987e05727b587b5339` |
-| `kit/isaac_audio_sensors.omni-1.8.0.zip` | `ba4fe4ae7a906ba6b6456bb07a679e323a73d069b918bbf68ff8978b3a104f29` |
-| `packs/isaac_audio_sensors_acoustic_pack-l2l3-1.8.0-linux_x86_64-cp312.tar.gz` | `98f1c5d307d012197ef7a0e786b42896e1243ef467146b3f2a1292e9953af201` |
+| `isaac_audio_sensors-1.8.0-py3-none-any.whl` | `fe8242271dce5d7f2175025b5d37996ed750e118017c553c357cb695e4781c70` |
+| `isaac_audio_sensors-1.8.0.tar.gz` | `6a4ff93c9982c40c4fa9e4f39316367f622ca6e7ba748b2a03b3d31125e5f554` |
+| `kit/isaac_audio_sensors.omni-1.8.0.zip` | `4d6964e5e772e0338a5c140da80cd8a8a7c2f18ca3a81b388b671bb7eeffd531` |
+| `packs/isaac_audio_sensors_acoustic_pack-l2l3-1.8.0-linux_x86_64-cp312.tar.gz` | `349aad4c727359d9738c81ea12497e23dfe38ab897ba055fb43c095a51daf5c2` |
 
 The full main-checkout battery passed 522 tests with 67 documented
 optional-dependency skips; lint, version synchronization, distribution, Kit,
