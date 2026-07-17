@@ -155,8 +155,15 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
                 "exts/isaac_audio_sensors.omni/docs/CHANGELOG.md"
             ): "# Changelog\n",
             "exts/isaac_audio_sensors.omni/docs/README.md": "# Overview\n",
+            (
+                "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/"
+                "DEVELOPMENT_MODE.json"
+            ): '{"mode": "developer"}\n',
             "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py": "\n",
+            "scripts/audit_kit_archive.py": "print('kit audit')\n",
             "scripts/audit_distribution.py": "print('audit')\n",
+            "scripts/build_kit_extension.py": "print('kit build')\n",
+            "scripts/check_version_sync.py": "print('version sync')\n",
             "scripts/regenerate_example_manifests.py": "print('regenerate')\n",
             "scripts/generate_live_evidence_report.py": "print('report')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",

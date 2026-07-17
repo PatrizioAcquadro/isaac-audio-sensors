@@ -9,7 +9,7 @@ ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
 EXPECTED_VERSION ?= 1.8.0
 
-.PHONY: test lint format build audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test lint format build build-kit audit-kit check-version audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -20,10 +20,20 @@ lint:
 format:
 	$(PYTHON) -m ruff format .
 
-build:
+build: check-version
 	$(PYTHON) -c "import shutil; from pathlib import Path; shutil.rmtree('dist', ignore_errors=True); Path('dist').mkdir()"
 	$(PYTHON) -m build $(BUILD_FLAGS)
 	$(PYTHON) scripts/audit_distribution.py --dist-dir dist
+
+build-kit: check-version
+	$(PYTHON) scripts/build_kit_extension.py
+	$(PYTHON) scripts/audit_kit_archive.py dist/kit/isaac_audio_sensors.omni-$(EXPECTED_VERSION).zip
+
+audit-kit:
+	$(PYTHON) scripts/audit_kit_archive.py dist/kit/isaac_audio_sensors.omni-$(EXPECTED_VERSION).zip
+
+check-version:
+	$(PYTHON) scripts/check_version_sync.py
 
 audit-dist:
 	$(PYTHON) scripts/audit_distribution.py --dist-dir dist

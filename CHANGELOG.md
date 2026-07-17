@@ -25,6 +25,12 @@ Official Isaac 6.0.1 / Isaac Lab 3.0.0-beta2 launcher migration:
   extractor or learned model is claimed.
 - Added exact schema regeneration through the CLI and Makefile, deterministic
   valid-fixture regeneration, and distribution inventory coverage.
+- Added the canonical Kit extension builder and archive audit. Kit archives now
+  vendor the maintained wheel source byte-for-byte, record deterministic source
+  provenance and a tree hash, and fail closed on missing, corrupt, or ambiguous
+  packaged/developer mode metadata without borrowing an installed package.
+- Added a version synchronization build gate deriving every current-release
+  surface from `pyproject.toml` while leaving historical references unchanged.
 
 - Makefile live gates now auto-detect the official installs at `~/isaacsim`
   and `~/IsaacLab`, while keeping `ISAAC_SIM_COMMAND` and `ISAAC_LAB_PYTHON`

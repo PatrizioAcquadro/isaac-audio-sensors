@@ -205,8 +205,15 @@ REQUIRED_SDIST_ENTRIES = (
     "exts/isaac_audio_sensors.omni/data/preview.png",
     "exts/isaac_audio_sensors.omni/docs/CHANGELOG.md",
     "exts/isaac_audio_sensors.omni/docs/README.md",
+    (
+        "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/"
+        "DEVELOPMENT_MODE.json"
+    ),
     "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py",
+    "scripts/audit_kit_archive.py",
     "scripts/audit_distribution.py",
+    "scripts/build_kit_extension.py",
+    "scripts/check_version_sync.py",
     "scripts/regenerate_example_manifests.py",
     "scripts/generate_live_evidence_report.py",
     "scripts/live_omniverse_extension_ux.py",

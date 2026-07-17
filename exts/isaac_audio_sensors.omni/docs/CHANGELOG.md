@@ -4,6 +4,11 @@
 
 - Version aligned with package release `1.8.0` (Stage 1 stable installable
   foundation). Packaged self-contained extension build lands in this line.
+- Packaged archives import the canonical core package only from `_vendor`, with
+  version and provenance validation; source checkouts retain explicit tracked
+  developer mode and the existing `src/` fallback.
+- Added deterministic Kit archive build and audit gates, including tree-drift,
+  sentinel ambiguity, and conflicting-installed-package negative coverage.
 
 ## 1.7.0 - 2026-06-12
 

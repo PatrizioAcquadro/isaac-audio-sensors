@@ -18,7 +18,7 @@ recursive-exclude docs/evidence *
 recursive-include examples *.md *.py *.json *.ndjson
 recursive-include examples/manifests *.md *.json
 recursive-include examples/calibration *.md *.json
-recursive-include exts *.toml *.py *.md *.svg
+recursive-include exts *.toml *.py *.md *.svg *.json
 recursive-include scripts *.py
 recursive-include src/isaac_audio_sensors/core/plugins *.py
 recursive-include tests *.py
