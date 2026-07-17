@@ -2988,6 +2988,11 @@ class ExtensionController:
         primitives = (
             () if self.sensor is None else tuple(self.sensor.latest_debug_primitives)
         )
+        serialized_primitives = (
+            list(getattr(self, "_imported_overlay_primitives", ()))
+            if self.sensor is None
+            else debug_primitives_to_dicts(primitives)
+        )
         writer_path = (
             str(_resolve_gui_output_path(state.jsonl_trace_path))
             if state.trace_enabled
@@ -2997,6 +3002,25 @@ class ExtensionController:
             {
                 "schema_version": "ias.omni_extension_binding.v1",
                 "backend": state.backend,
+                "guided": {
+                    "mode_enabled": state.guided_mode_enabled,
+                    "preset_id": state.guided_preset_id or None,
+                    "recording": {
+                        "dataset_id": state.guided_dataset_id,
+                        "shard_max_frames": state.guided_shard_max_frames,
+                        "shard_episode_aligned": state.guided_record_aligned,
+                        "scene_id": state.guided_scene_id,
+                        "environment_id": state.guided_environment_id,
+                        "split_group": state.guided_split_group,
+                        "session_seed": state.guided_session_seed,
+                    },
+                    "export": {
+                        "split_enabled": state.guided_split_enabled,
+                        "train_ratio": state.guided_split_train_ratio,
+                        "validation_ratio": state.guided_split_validation_ratio,
+                        "test_ratio": state.guided_split_test_ratio,
+                    },
+                },
                 "array": {
                     "prim_path": state.array_prim_path,
                     "array_id": state.array_id,
@@ -3025,7 +3049,11 @@ class ExtensionController:
                 },
                 "sound_profiles": {
                     "profile_library": [
-                        profile.to_dict() for profile in state.profile_library
+                        profile.to_dict()
+                        for profile in sorted(
+                            state.profile_library,
+                            key=lambda item: item.profile_id,
+                        )
                     ],
                     "selected_profile_id": state.selected_profile_id or None,
                     "object_profile_mappings": dict(
@@ -3058,7 +3086,11 @@ class ExtensionController:
                 },
                 "microphone_rig_profiles": {
                     "rig_library": [
-                        profile.to_dict() for profile in state.rig_profile_library
+                        profile.to_dict()
+                        for profile in sorted(
+                            state.rig_profile_library,
+                            key=lambda item: item.profile_id,
+                        )
                     ],
                     "selected_rig_profile_id": state.selected_rig_profile_id or None,
                     "applied_array_rig_profile": (
@@ -3126,7 +3158,7 @@ class ExtensionController:
                     "labels": state.latest_overlay_labels,
                     "status": state.latest_overlay_status,
                     "error": state.latest_overlay_error,
-                    "primitives": debug_primitives_to_dicts(primitives),
+                    "primitives": serialized_primitives,
                 },
             }
         )
@@ -4005,6 +4037,72 @@ class ExtensionController:
         recording = dict(payload.get("recording", {}))
         package_recording = dict(recording.get("package_jsonl", {}))
         replicator = dict(recording.get("replicator", {}))
+        guided = dict(payload.get("guided", {}))
+        guided_recording = dict(guided.get("recording", {}))
+        guided_export = dict(guided.get("export", {}))
+
+        self.state.guided_mode_enabled = bool(
+            guided.get("mode_enabled", self.state.guided_mode_enabled)
+        )
+        preset_id = guided.get("preset_id")
+        self.state.guided_preset_id = "" if preset_id is None else str(preset_id)
+        self.state.guided_dataset_id = str(
+            guided_recording.get("dataset_id", self.state.guided_dataset_id)
+        )
+        self.state.guided_shard_max_frames = int(
+            guided_recording.get(
+                "shard_max_frames",
+                self.state.guided_shard_max_frames,
+            )
+        )
+        self.state.guided_record_aligned = bool(
+            guided_recording.get(
+                "shard_episode_aligned",
+                self.state.guided_record_aligned,
+            )
+        )
+        self.state.guided_scene_id = str(
+            guided_recording.get("scene_id", self.state.guided_scene_id)
+        )
+        self.state.guided_environment_id = str(
+            guided_recording.get(
+                "environment_id",
+                self.state.guided_environment_id,
+            )
+        )
+        self.state.guided_split_group = str(
+            guided_recording.get("split_group", self.state.guided_split_group)
+        )
+        self.state.guided_session_seed = int(
+            guided_recording.get(
+                "session_seed",
+                self.state.guided_session_seed,
+            )
+        )
+        self.state.guided_split_enabled = bool(
+            guided_export.get(
+                "split_enabled",
+                self.state.guided_split_enabled,
+            )
+        )
+        self.state.guided_split_train_ratio = float(
+            guided_export.get(
+                "train_ratio",
+                self.state.guided_split_train_ratio,
+            )
+        )
+        self.state.guided_split_validation_ratio = float(
+            guided_export.get(
+                "validation_ratio",
+                self.state.guided_split_validation_ratio,
+            )
+        )
+        self.state.guided_split_test_ratio = float(
+            guided_export.get(
+                "test_ratio",
+                self.state.guided_split_test_ratio,
+            )
+        )
 
         self.state.backend = str(payload.get("backend", self.state.backend))
         self.state.array_prim_path = str(
@@ -4028,6 +4126,12 @@ class ExtensionController:
             ) = euler_deg_from_quaternion(
                 quat_from_any(array["orientation_world_quat"])
             )
+        if array.get("orientation_euler_deg") is not None:
+            (
+                self.state.array_roll_deg,
+                self.state.array_pitch_deg,
+                self.state.array_yaw_deg,
+            ) = vec3_from_any(array["orientation_euler_deg"])
         self.state.array_attached_to_object = bool(
             array_binding.get("attached", self.state.array_attached_to_object)
         )
@@ -4050,6 +4154,12 @@ class ExtensionController:
                 self.state.array_local_pitch_deg,
                 self.state.array_local_yaw_deg,
             ) = euler_deg_from_quaternion(quat_from_any(array_local_quat))
+        if array_binding.get("array_local_euler_deg") is not None:
+            (
+                self.state.array_local_roll_deg,
+                self.state.array_local_pitch_deg,
+                self.state.array_local_yaw_deg,
+            ) = vec3_from_any(array_binding["array_local_euler_deg"])
         if rig_profiles is not None:
             self._apply_rig_profile_config(rig_profiles)
         self.state.source_prim_path = str(
@@ -4118,6 +4228,14 @@ class ExtensionController:
         self.state.selected_prim_paths = _normalize_paths(
             binding.get("selected_prim_paths", ())
         )
+        self.state.discovered_arrays = tuple(
+            _discovered_summary_from_dict(item)
+            for item in binding.get("discovered_arrays", ())
+        )
+        self.state.discovered_sources = tuple(
+            _discovered_summary_from_dict(item)
+            for item in binding.get("discovered_sources", ())
+        )
         self.state.discovered_objects = tuple(
             _discovered_summary_from_dict(item)
             for item in binding.get("discovered_objects", ())
@@ -4182,6 +4300,10 @@ class ExtensionController:
             lifecycle.get("room_out_of_bounds", self.state.room_out_of_bounds)
             or self.state.room_out_of_bounds
         )
+        room_summary = lifecycle.get("room_summary")
+        self.state.latest_room_summary = (
+            dict(room_summary) if isinstance(room_summary, Mapping) else None
+        )
         self.state.trace_enabled = bool(
             package_recording.get(
                 "enabled",
@@ -4207,9 +4329,79 @@ class ExtensionController:
         self.state.replicator_annotator_name = str(
             replicator.get("annotator_name", self.state.replicator_annotator_name)
         )
+        self.state.replicator_recording = bool(
+            replicator.get("started", self.state.replicator_recording)
+        )
+        self.state.replicator_write_count = int(
+            replicator.get("write_count", self.state.replicator_write_count)
+        )
+        self.state.replicator_flush_count = int(
+            replicator.get("flush_count", self.state.replicator_flush_count)
+        )
+        self.state.replicator_latest_write_path = replicator.get(
+            "latest_write_path",
+            self.state.replicator_latest_write_path,
+        )
+        self.state.replicator_latest_jsonl_path = replicator.get(
+            "latest_jsonl_path",
+            self.state.replicator_latest_jsonl_path,
+        )
+        self.state.replicator_latest_error = replicator.get(
+            "latest_error",
+            self.state.replicator_latest_error,
+        )
+        self.state.replicator_output_artifacts = tuple(
+            str(item) for item in replicator.get("output_artifacts", ())
+        )
+        self.state.replicator_status_message = str(
+            replicator.get(
+                "status_message",
+                self.state.replicator_status_message,
+            )
+        )
         self.state.authored_metadata = tuple(
             _authored_metadata_from_dict(item)
             for item in payload.get("authored_metadata", ())
+        )
+        latest_frame = dict(payload.get("latest_frame", {}))
+        self.state.latest_frame_id = latest_frame.get("frame_id")
+        self.state.latest_backend = latest_frame.get("backend")
+        self.state.latest_detection_count = int(
+            latest_frame.get("detection_count", 0)
+        )
+        self.state.latest_source_prim_path = latest_frame.get("source_prim_path")
+        source_position = latest_frame.get("source_position_m")
+        self.state.latest_source_position_m = (
+            None if source_position is None else vec3_from_any(source_position)
+        )
+        self.state.latest_bearing_deg = latest_frame.get("bearing_deg")
+        self.state.latest_sector = latest_frame.get("sector")
+        self.state.latest_array_prim_path = latest_frame.get("array_prim_path")
+        array_position = latest_frame.get("array_position_m")
+        self.state.latest_array_position_m = (
+            None if array_position is None else vec3_from_any(array_position)
+        )
+        array_orientation = latest_frame.get("array_orientation_xyzw")
+        self.state.latest_array_orientation_xyzw = (
+            None if array_orientation is None else quat_from_any(array_orientation)
+        )
+        self.state.latest_mic_world_positions = {
+            str(key): vec3_from_any(value)
+            for key, value in dict(
+                latest_frame.get("mic_world_positions", {})
+            ).items()
+        }
+        overlay = dict(payload.get("overlay", {}))
+        self.state.latest_overlay_primitive_count = int(
+            overlay.get("primitive_count", 0)
+        )
+        self.state.latest_overlay_labels = tuple(
+            str(item) for item in overlay.get("labels", ())
+        )
+        self.state.latest_overlay_status = str(overlay.get("status", "none"))
+        self.state.latest_overlay_error = overlay.get("error")
+        self._imported_overlay_primitives = tuple(
+            dict(item) for item in overlay.get("primitives", ())
         )
 
     def _apply_profile_config(self, payload: Any) -> None:
@@ -4261,8 +4453,7 @@ class ExtensionController:
         ).raise_first()
         self.state.profile_library = profiles
         self.state.object_profile_mappings = dict(sorted(mappings.items()))
-        if selected_profile_id:
-            self.state.selected_profile_id = selected_profile_id
+        self.state.selected_profile_id = selected_profile_id
         applied = payload.get("applied_source_profile")
         self.state.applied_source_profile = (
             dict(applied) if isinstance(applied, Mapping) else {}
@@ -4293,8 +4484,7 @@ class ExtensionController:
             config=True,
         ).raise_first()
         self.state.rig_profile_library = profiles
-        if selected_rig_id:
-            self.state.selected_rig_profile_id = selected_rig_id
+        self.state.selected_rig_profile_id = selected_rig_id
         applied = payload.get("applied_array_rig_profile")
         self.state.applied_array_rig_profile = (
             dict(applied) if isinstance(applied, Mapping) else {}

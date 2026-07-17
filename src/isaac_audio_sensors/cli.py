@@ -32,6 +32,10 @@ from isaac_audio_sensors.core.schema import (
     write_audio_sensor_frame_json_schema,
 )
 from isaac_audio_sensors.core.types import AudioTimeWindow
+from isaac_audio_sensors.isaac.headless_workflow import (
+    HeadlessGuidedSession,
+    HeadlessWorkflowError,
+)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -100,6 +104,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     dataset_split_parser.add_argument("--grouping-key", default=None)
     dataset_split_parser.add_argument("--out", type=Path, default=None)
     dataset_split_parser.add_argument("--apply", action="store_true")
+
+    guided_parser = subparsers.add_parser("guided")
+    guided_subparsers = guided_parser.add_subparsers(
+        dest="guided_command", required=True
+    )
+    guided_run_parser = guided_subparsers.add_parser("run-headless")
+    guided_run_parser.add_argument("config", type=Path)
+    guided_run_parser.add_argument("--session-dir", type=Path, required=True)
+    guided_run_parser.add_argument("--export-dir", type=Path, required=True)
+    guided_duration = guided_run_parser.add_mutually_exclusive_group()
+    guided_duration.add_argument("--frames", type=int, default=None)
+    guided_duration.add_argument("--seconds", type=float, default=None)
+    guided_run_parser.add_argument("--json", dest="json_path", default=None)
 
     args = parser.parse_args(argv)
     if args.command == "validate-config":
@@ -217,6 +234,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1 if report.status == "failed" else 0
         parser.error(f"Unhandled dataset command {args.dataset_command!r}.")
 
+    if args.command == "guided":
+        if args.guided_command == "run-headless":
+            return _guided_run_headless(args)
+        parser.error(f"Unhandled guided command {args.guided_command!r}.")
+
     parser.error(f"Unhandled command {args.command!r}.")
     return 2
 
@@ -249,6 +271,43 @@ def _write_json_output(path: Path, payload: dict) -> None:
     path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+
+
+def _guided_run_headless(args: argparse.Namespace) -> int:
+    try:
+        payload = HeadlessGuidedSession().run_from_config(
+            args.config,
+            session_dir=args.session_dir,
+            export_dir=args.export_dir,
+            frames=args.frames,
+            seconds=args.seconds,
+        )
+    except (HeadlessWorkflowError, OSError, ValueError) as exc:
+        payload = {
+            "status": "failed",
+            "config": str(args.config),
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+        if args.json_path == "-":
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            print(f"guided headless run failed: {exc}", file=sys.stderr)
+            if args.json_path is not None:
+                _write_json_output(Path(args.json_path), payload)
+        return 1
+
+    if args.json_path == "-":
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(
+            "guided headless run passed: "
+            f"frames={payload['recording_stats']['frames']} "
+            f"export={payload['export_path']}"
+        )
+        if args.json_path is not None:
+            _write_json_output(Path(args.json_path), payload)
+    return 0
 
 
 def _dataset_split(args: argparse.Namespace) -> int:
