@@ -142,6 +142,22 @@ def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]
     return ()
 
 
+def check_backend_available(
+    backend_id: str,
+    available_backend_ids: Iterable[str],
+    *,
+    actionable_message: str = "",
+) -> tuple[ValidationFinding, ...]:
+    """Check dependency-backed availability for an implemented backend."""
+
+    if backend_id in available_backend_ids:
+        return ()
+    message = f"Backend {backend_id!r} is unavailable in the current capability state."
+    if actionable_message:
+        message = f"{message} {actionable_message}"
+    return _error("backend_available", message, "backend")
+
+
 def check_source_metadata(state: ValidationState) -> tuple[ValidationFinding, ...]:
     """Check source metadata and timing in established fail-first order."""
 
@@ -717,6 +733,7 @@ def check_attached_array_target(
 __all__ = [
     "ValidationState",
     "check_abs_prim_path",
+    "check_backend_available",
     "check_array_pose_editable",
     "check_array_attach_target_exists",
     "check_array_geometry",

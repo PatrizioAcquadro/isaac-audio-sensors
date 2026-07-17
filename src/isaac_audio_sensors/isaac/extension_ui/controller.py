@@ -163,6 +163,7 @@ class ExtensionController:
     def on_startup(self, ext_id: str) -> None:
         """Initialize the import-safe controller and lazily build Kit UI."""
 
+        self._validation.invalidate("extension startup")
         self.ext_id = ext_id
         self._set_status(f"Loaded {ext_id}.")
         self.build_ui_if_available()
@@ -1090,6 +1091,7 @@ class ExtensionController:
                 ),
             )
             self._append_authored_record(authored)
+            self._validation.invalidate("source attached to stage object")
             self._set_status(
                 "Attached source "
                 f"{authored.id} to {_path_name(object_path)} at {object_path} "
@@ -1164,6 +1166,7 @@ class ExtensionController:
                 attributes=_jsonable_mapping({**record.attributes, **attrs}),
             )
             self._append_authored_record(authored)
+            self._validation.invalidate("source detached from stage object")
             self._set_status(
                 "Detached source "
                 f"{authored.id} to {standalone_path} at "
@@ -1250,6 +1253,7 @@ class ExtensionController:
                 attributes=_jsonable_mapping(binding_attrs),
             )
             self._append_authored_record(authored)
+            self._validation.invalidate("array attached to stage object")
             self._set_status(
                 "Attached array "
                 f"{authored.id} to {_path_name(object_path)} at {object_path} "
@@ -1311,6 +1315,7 @@ class ExtensionController:
                 attributes=_jsonable_mapping(attrs),
             )
             self._append_authored_record(authored)
+            self._validation.invalidate("array detached from stage object")
             self._set_status(
                 "Detached array "
                 f"{authored.id} to {standalone_path} at "
@@ -1815,6 +1820,7 @@ class ExtensionController:
                 self.state.trace_enabled = True
                 self.state.jsonl_trace_path = str(writer_path)
 
+            self._validation.invalidate("sensor configuration apply")
             stage_obj = self._stage_or_error(stage)
             sensor = self._build_sensor(stage_obj)
             self.close_sensor()
@@ -1839,6 +1845,7 @@ class ExtensionController:
         try:
             if self.sensor is None and self.configure_sensor(stage=stage) is None:
                 return None
+            self._validate_backend_available()
             assert self.sensor is not None
             self._stop_controller_update_subscription()
             self.sensor.start(subscribe_to_update_stream=False)
@@ -2391,9 +2398,20 @@ class ExtensionController:
             context = omni.usd.get_context()
             stream = context.get_stage_event_stream()
             selection_changed = int(omni.usd.StageEventType.SELECTION_CHANGED)
+            stage_change_types = {
+                int(event_type): name.lower()
+                for name in ("OPENING", "OPENED", "CLOSING", "CLOSED")
+                if (event_type := getattr(omni.usd.StageEventType, name, None))
+                is not None
+            }
 
             def _on_stage_event(event: Any) -> None:
-                if int(getattr(event, "type", -1)) != selection_changed:
+                event_type = int(getattr(event, "type", -1))
+                stage_change = stage_change_types.get(event_type)
+                if stage_change is not None:
+                    self._validation.invalidate(f"USD stage {stage_change}")
+                    return
+                if event_type != selection_changed:
                     return
                 self._handle_viewport_selection_changed()
 
@@ -2567,6 +2585,9 @@ class ExtensionController:
 
     def _validate_runtime_state(self) -> None:
         self._validation.validate_runtime(self.state).raise_first()
+
+    def _validate_backend_available(self) -> None:
+        self._validation.validate_backend_available(self.state.backend).raise_first()
 
     def _validate_layout_state(self) -> None:
         self._validation.validate_layout(self.state).raise_first()
@@ -3116,6 +3137,7 @@ class ExtensionController:
         }
 
     def _apply_config_summary(self, payload: Mapping[str, Any]) -> None:
+        self._validation.invalidate("configuration summary apply")
         array = dict(payload.get("array", {}))
         source = dict(payload.get("source", {}))
         sound_profiles = payload.get("sound_profiles")

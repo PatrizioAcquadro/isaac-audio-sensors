@@ -7,10 +7,12 @@ import subprocess
 import sys
 import textwrap
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
 
+from isaac_audio_sensors.core.capabilities import CapabilityReport, CapabilityStatus
 from isaac_audio_sensors.isaac.extension_ui import (
     CurrentStageContext,
     ExtensionActionError,
@@ -19,6 +21,7 @@ from isaac_audio_sensors.isaac.extension_ui import (
 )
 from isaac_audio_sensors.isaac.validation import ValidationController
 from isaac_audio_sensors.isaac.validation import checks as validation_checks
+from isaac_audio_sensors.isaac.validation import controller as validation_controller
 from isaac_audio_sensors.isaac.validation.results import ValidationReport
 
 
@@ -58,6 +61,66 @@ def _assert_parity(report: ValidationReport, controller_action: Any) -> None:
     direct_message = _raised_message(report.raise_first)
     controller_message = _raised_message(controller_action)
     assert direct_message == controller_message
+
+
+def _capability(
+    capability_id: str,
+    *,
+    kind: str,
+    fidelity_level: str,
+    available: bool,
+) -> CapabilityStatus:
+    return CapabilityStatus(
+        capability_id=capability_id,
+        kind=kind,
+        fidelity_level=fidelity_level,
+        status="available" if available else "unavailable",
+        origin="pack:test@1" if available else "absent",
+        missing_dependencies=() if available else ("pyroomacoustics",),
+        actionable_message=(
+            "" if available else "Activate the matching acoustic pack."
+        ),
+    )
+
+
+def _capability_report(*, pack_present: bool) -> CapabilityReport:
+    return CapabilityReport(
+        fidelity_levels=(
+            _capability(
+                "L0",
+                kind="fidelity_level",
+                fidelity_level="L0",
+                available=True,
+            ),
+            _capability(
+                "L1",
+                kind="fidelity_level",
+                fidelity_level="L1",
+                available=True,
+            ),
+            _capability(
+                "L2",
+                kind="fidelity_level",
+                fidelity_level="L2",
+                available=pack_present,
+            ),
+        ),
+        optional_features=(
+            _capability(
+                "room_acoustics",
+                kind="backend",
+                fidelity_level="L2",
+                available=pack_present,
+            ),
+            _capability(
+                "room_acoustics_srp",
+                kind="backend",
+                fidelity_level="L2",
+                available=pack_present,
+            ),
+        ),
+        active_pack="test@1" if pack_present else None,
+    )
 
 
 def test_validation_package_imports_without_isaac_runtime_dependencies():
@@ -104,6 +167,160 @@ def test_validation_package_imports_without_isaac_runtime_dependencies():
     )
 
     assert completed.stdout.strip() == "validation-import-ok"
+
+
+def test_capability_state_refreshes_once_after_invalidation(monkeypatch):
+    calls = 0
+
+    def _discover() -> CapabilityReport:
+        nonlocal calls
+        calls += 1
+        return _capability_report(pack_present=True)
+
+    monkeypatch.setattr(validation_controller, "discover_capabilities", _discover)
+    controller = ValidationController()
+
+    with pytest.raises(RuntimeError, match="has never been refreshed"):
+        _ = controller.capability_state
+
+    first = controller.refresh_capabilities("test setup")
+    assert calls == 1
+    assert first.captured_at_generation == 1
+    assert first.active_pack == "test@1"
+    assert first.available_backend_ids == (
+        "geometry_only",
+        "tdoa_synthetic",
+        "room_acoustics",
+        "room_acoustics_srp",
+    )
+    assert controller.capability_state is first
+    assert calls == 1
+
+    controller.invalidate("dependency changed")
+    assert calls == 1
+    second = controller.capability_state
+    assert calls == 2
+    assert second.captured_at_generation == 2
+    assert controller.capability_state is second
+    assert calls == 2
+
+
+def test_backend_validation_refreshes_stale_state_before_answering(monkeypatch):
+    reports = iter(
+        (
+            _capability_report(pack_present=True),
+            _capability_report(pack_present=False),
+        )
+    )
+    calls = 0
+
+    def _discover() -> CapabilityReport:
+        nonlocal calls
+        calls += 1
+        return next(reports)
+
+    monkeypatch.setattr(validation_controller, "discover_capabilities", _discover)
+    controller = ValidationController()
+    controller.refresh_capabilities("pack present")
+    controller.invalidate("pack deactivated")
+
+    report = controller.validate_backend_available("room_acoustics")
+
+    assert calls == 2
+    assert report.ok is False
+    assert report.findings[0].check_id == "backend_available"
+    assert "Activate the matching acoustic pack." in report.findings[0].message
+
+
+def test_dependency_change_flips_only_after_triggered_invalidation(monkeypatch):
+    pack_present = True
+    calls = 0
+
+    def _discover() -> CapabilityReport:
+        nonlocal calls
+        calls += 1
+        return _capability_report(pack_present=pack_present)
+
+    monkeypatch.setattr(validation_controller, "discover_capabilities", _discover)
+    controller = ValidationController()
+    controller.refresh_capabilities("pack activation")
+    assert controller.validate_backend_available("room_acoustics").ok
+    assert calls == 1
+
+    # Freshness follows the trigger contract; dependency changes are not magic.
+    pack_present = False
+    assert controller.validate_backend_available("room_acoustics").ok
+    assert calls == 1
+
+    controller.invalidate("pack deactivation")
+    assert not controller.validate_backend_available("room_acoustics").ok
+    assert calls == 2
+
+
+def test_backend_availability_messages_match_gui_and_headless(monkeypatch):
+    calls = 0
+
+    def _discover() -> CapabilityReport:
+        nonlocal calls
+        calls += 1
+        return _capability_report(pack_present=False)
+
+    monkeypatch.setattr(validation_controller, "discover_capabilities", _discover)
+    state = _state(backend="room_acoustics")
+    headless = ValidationController()
+    gui = ExtensionController(state=state)
+
+    report = headless.validate_backend_available(state.backend)
+    _assert_parity(report, gui._validate_backend_available)
+
+    assert calls == 2
+    assert report.findings[0].message == (
+        "Backend 'room_acoustics' is unavailable in the current capability state. "
+        "Activate the matching acoustic pack."
+    )
+
+
+def test_gui_invalidates_existing_startup_stage_and_config_paths(monkeypatch):
+    reasons: list[str] = []
+    controller = ExtensionController()
+    monkeypatch.setattr(controller._validation, "invalidate", reasons.append)
+    monkeypatch.setattr(controller, "build_ui_if_available", lambda: None)
+    monkeypatch.setattr(controller, "register_kit_integrations", lambda: None)
+
+    controller.on_startup("test.extension")
+
+    callbacks: list[Any] = []
+    stream = SimpleNamespace(
+        create_subscription_to_pop=lambda callback, name=None: (
+            callbacks.append(callback) or SimpleNamespace(name=name)
+        )
+    )
+    omni = ModuleType("omni")
+    omni.__path__ = []
+    omni_usd = ModuleType("omni.usd")
+    omni_usd.StageEventType = SimpleNamespace(
+        OPENED=1,
+        CLOSED=2,
+        SELECTION_CHANGED=3,
+    )
+    omni_usd.get_context = lambda: SimpleNamespace(
+        get_stage_event_stream=lambda: stream
+    )
+    omni.usd = omni_usd
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.usd", omni_usd)
+
+    controller._register_stage_event_subscription()
+    callbacks[0](SimpleNamespace(type=1))
+    controller._apply_config_summary({})
+
+    assert reasons == (
+        [
+            "extension startup",
+            "USD stage opened",
+            "configuration summary apply",
+        ]
+    )
 
 
 @pytest.mark.parametrize(

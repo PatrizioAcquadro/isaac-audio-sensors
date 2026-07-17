@@ -20,10 +20,11 @@ from .checks import (
     check_source_position_preset,
     check_stage_present,
 )
-from .controller import ValidationController
+from .controller import CapabilityState, ValidationController
 from .results import ValidationFinding, ValidationReport
 
 __all__ = [
+    "CapabilityState",
     "ValidationController",
     "ValidationFinding",
     "ValidationReport",

@@ -1,8 +1,23 @@
-"""Shared aggregation service for import-safe Isaac validation checks."""
+"""Shared aggregation service for import-safe Isaac validation checks.
+
+Capability discovery is intentionally cached because it imports and probes
+optional dependencies. Callers must invalidate the cache when a stage is
+opened, closed, or attached; when an acoustic pack is activated or deactivated;
+and when backend or pack-relevant configuration changes. Invalidation is cheap:
+it marks an existing snapshot stale, and the next capability-state access or
+backend-availability check performs exactly one lazy refresh.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
+
+from isaac_audio_sensors.core.capabilities import (
+    CapabilityReport,
+    discover_capabilities,
+)
+from isaac_audio_sensors.core.fidelity import ACOUSTIC_FIDELITY_LADDER
 
 from .checks import (
     ValidationState,
@@ -17,6 +32,7 @@ from .checks import (
     check_attach_target,
     check_attached_array_target,
     check_attached_source_target,
+    check_backend_available,
     check_config_schema_version,
     check_layout,
     check_object_profile_mapping_known,
@@ -49,13 +65,115 @@ from .checks import (
 from .results import ValidationReport
 
 
+@dataclass(frozen=True, slots=True)
+class CapabilityState:
+    """One immutable capability-discovery snapshot."""
+
+    capabilities: CapabilityReport
+    available_backend_ids: tuple[str, ...]
+    active_pack: str | None
+    captured_at_generation: int
+
+
+def _available_backend_ids(report: CapabilityReport) -> tuple[str, ...]:
+    available: list[str] = []
+    for metadata in ACOUSTIC_FIDELITY_LADDER:
+        try:
+            level = report.get(metadata.level.value)
+        except KeyError:
+            continue
+        if level.available:
+            available.extend(metadata.backend_ids)
+    available.extend(
+        capability.capability_id
+        for capability in report.capabilities
+        if capability.kind == "backend" and capability.available
+    )
+    return tuple(dict.fromkeys(available))
+
+
 class ValidationController:
     """Aggregate pure checks for GUI and headless workflows.
 
     Stage-shaped facts are supplied per call, so this service retains no live
-    USD handles. Capability-state refresh is intentionally left as the seam for
-    S2.6 Run B; this Run A service has no discovery state or constructor inputs.
+    USD handles. Capability snapshots are refreshed lazily after explicit
+    invalidation; a snapshot that has never been populated is an error when
+    accessed directly rather than an implicit empty result.
     """
+
+    def __init__(self) -> None:
+        self._capability_state: CapabilityState | None = None
+        self._capability_generation = 0
+        self._capabilities_stale = False
+        self._capability_invalidation_reason: str | None = None
+
+    @property
+    def capability_state(self) -> CapabilityState:
+        """Return the current snapshot, lazily refreshing an invalidated one.
+
+        Direct access before the first discovery raises clearly. Backend
+        validation performs that initial discovery because it cannot answer
+        availability safely without one.
+        """
+
+        if self._capability_state is None:
+            raise RuntimeError(
+                "Capability state has never been refreshed; call "
+                "refresh_capabilities(reason) first."
+            )
+        if self._capabilities_stale:
+            reason = self._capability_invalidation_reason or "unspecified change"
+            return self.refresh_capabilities(
+                f"lazy refresh after invalidation: {reason}"
+            )
+        return self._capability_state
+
+    def refresh_capabilities(self, reason: str) -> CapabilityState:
+        """Re-run dependency discovery and store a new generation snapshot."""
+
+        del reason  # The reason is required at call sites to document the trigger.
+        report = discover_capabilities()
+        generation = self._capability_generation + 1
+        snapshot = CapabilityState(
+            capabilities=report,
+            available_backend_ids=_available_backend_ids(report),
+            active_pack=report.active_pack,
+            captured_at_generation=generation,
+        )
+        self._capability_generation = generation
+        self._capability_state = snapshot
+        self._capabilities_stale = False
+        self._capability_invalidation_reason = None
+        return snapshot
+
+    def invalidate(self, reason: str) -> None:
+        """Mark capability state stale without performing dependency discovery."""
+
+        self._capabilities_stale = True
+        self._capability_invalidation_reason = reason
+
+    def validate_backend_available(self, backend_id: str) -> ValidationReport:
+        """Validate a backend against the current, never-stale snapshot."""
+
+        if self._capability_state is None:
+            state = self.refresh_capabilities(
+                f"initial backend availability validation: {backend_id}"
+            )
+        else:
+            state = self.capability_state
+        try:
+            capability = state.capabilities.get(backend_id)
+        except KeyError:
+            actionable_message = ""
+        else:
+            actionable_message = capability.actionable_message
+        return ValidationReport(
+            check_backend_available(
+                backend_id,
+                state.available_backend_ids,
+                actionable_message=actionable_message,
+            )
+        )
 
     def validate_runtime(self, state: ValidationState) -> ValidationReport:
         return ValidationReport(check_runtime_state(state))
@@ -296,4 +414,4 @@ class ValidationController:
         return ValidationReport(check_array_local_orientation_values(values))
 
 
-__all__ = ["ValidationController"]
+__all__ = ["CapabilityState", "ValidationController"]
