@@ -731,8 +731,11 @@ def test_public_files_use_neutral_demo_names():
         text = path.read_text(encoding="utf-8")
         path_posix = path.as_posix()
         assert not any(term in text for term in forbidden), path
-        # Internal docs/development execution artifacts are excluded from distribution.
-        if project_token in text and not path_posix.startswith("docs/development/"):
+        # Internal docs/development execution artifacts and docs/evidence
+        # machine-local records are excluded from distribution.
+        if project_token in text and not path_posix.startswith(
+            ("docs/development/", "docs/evidence/")
+        ):
             assert path_posix in project_token_allowed_paths, path
             if path_posix not in project_token_context_exempt_paths:
                 assert any(phrase in text for phrase in forbidden_project_context), path

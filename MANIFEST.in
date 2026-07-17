@@ -12,6 +12,7 @@ recursive-include configs *.toml
 recursive-include docs *.md *.json
 exclude docs/reference_rig_hardware_environment.md
 recursive-exclude docs/development *
+recursive-exclude docs/evidence *
 recursive-include examples *.md *.py *.json *.ndjson
 recursive-include exts *.toml *.py *.md *.svg
 recursive-include scripts *.py
