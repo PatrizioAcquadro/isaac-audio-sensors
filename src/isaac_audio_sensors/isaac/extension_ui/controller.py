@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib
 import json
-import math
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from pathlib import Path
@@ -64,6 +63,7 @@ from isaac_audio_sensors.isaac.stage_audio import (
     remove_prim,
     set_prim_xform_pose,
 )
+from isaac_audio_sensors.isaac.validation import ValidationController
 from isaac_audio_sensors.isaac.viz.overlays import (
     DebugPrimitive,
     debug_primitives_to_dicts,
@@ -72,13 +72,10 @@ from isaac_audio_sensors.isaac.viz.usd_debug import UsdDebugGeometryAuthor
 
 from .audition import AuditionPlayer
 from .constants import (
-    AMBIGUITY_POLICY_CHOICES,
-    BACKEND_CHOICES,
     DEFAULT_ROOM_ABSORPTION,
     DEFAULT_ROOM_DIMENSIONS_M,
     DEFAULT_ROOM_ID,
     DEFAULT_ROOM_MAX_ORDER,
-    LAYOUT_CHOICES,
     OMNI_ACTION_TOGGLE_WINDOW,
     OMNI_DEFAULT_HOTKEY,
     OMNI_DEFAULT_HOTKEY_DISPLAY,
@@ -110,7 +107,6 @@ from .stage_context import (
     _stage_has_prim,
     _stage_prim_at_path,
     _style_demo_object_prim,
-    _validate_abs_path,
     current_omni_stage_context,
 )
 from .state import (
@@ -143,6 +139,7 @@ class ExtensionController:
         stage_context_provider: Callable[[], CurrentStageContext] | None = None,
     ) -> None:
         self.state = state or ExtensionUiState()
+        self._validation = ValidationController()
         self.stage_context_provider = stage_context_provider
         self.sensor: IsaacAudioArraySensor | None = None
         self.replicator_recorder: AudioSensorReplicatorRecorder | None = None
@@ -498,8 +495,7 @@ class ExtensionController:
 
         try:
             context = self._context(stage=stage, selected_paths=selected_paths)
-            if context.stage is None:
-                raise ExtensionActionError("No USD stage is open.")
+            self._validate_stage_present(context.stage is not None)
             self.state.selected_prim_paths = context.selected_prim_paths
             selected = ", ".join(context.selected_prim_paths) or "none"
             self.state.stage_status = f"Stage ready. Selected: {selected}"
@@ -549,17 +545,18 @@ class ExtensionController:
 
         try:
             context = self._context(stage=stage, selected_paths=selected_paths)
-            if context.stage is None:
-                raise ExtensionActionError("No USD stage is open.")
+            self._validate_stage_present(context.stage is not None)
             self.state.selected_prim_paths = context.selected_prim_paths
-            if not context.selected_prim_paths:
-                raise ExtensionActionError("No prim is selected.")
-            path = context.selected_prim_paths[0]
-            _validate_abs_path(path, "object_prim_path")
-            if not _stage_has_prim(context.stage, path):
-                raise ExtensionActionError(f"Selected object does not exist: {path}.")
-            if path == self.state.source_prim_path:
-                raise ExtensionActionError("Cannot attach a source to itself.")
+            path = (
+                context.selected_prim_paths[0]
+                if context.selected_prim_paths
+                else None
+            )
+            self._validate_selection(path, exists=True)
+            assert path is not None
+            self._validate_abs_path(path, "object_prim_path")
+            self._validate_selection(path, exists=_stage_has_prim(context.stage, path))
+            self._validate_attach_target(self.state.source_prim_path, path)
             self.state.object_prim_path = path
             self.state.object_label = _path_name(path)
             self._set_status(f"Object target set to {_path_name(path)} at {path}.")
@@ -579,7 +576,7 @@ class ExtensionController:
 
         try:
             stage_obj = self._stage_or_error(stage)
-            _validate_abs_path(prim_path, "object_prim_path")
+            self._validate_abs_path(prim_path, "object_prim_path")
             parent = prim_path.rstrip("/").rsplit("/", 1)[0]
             if parent and parent != prim_path:
                 get_or_define_prim(stage_obj, prim_path=parent, prim_type="Xform")
@@ -607,15 +604,14 @@ class ExtensionController:
 
         try:
             context = self._context(stage=stage, selected_paths=selected_paths)
-            if context.stage is None:
-                raise ExtensionActionError("No USD stage is open.")
+            self._validate_stage_present(context.stage is not None)
             self.state.selected_prim_paths = context.selected_prim_paths
             selected_path = (
                 context.selected_prim_paths[0]
                 if context.selected_prim_paths
                 else self.state.source_prim_path
             )
-            _validate_abs_path(selected_path, "source_prim_path")
+            self._validate_abs_path(selected_path, "source_prim_path")
             pose = IsaacStagePoseResolver(context.stage).resolve_world_pose(
                 selected_path,
                 field_name="selected source",
@@ -641,15 +637,14 @@ class ExtensionController:
 
         try:
             context = self._context(stage=stage, selected_paths=selected_paths)
-            if context.stage is None:
-                raise ExtensionActionError("No USD stage is open.")
+            self._validate_stage_present(context.stage is not None)
             self.state.selected_prim_paths = context.selected_prim_paths
             selected_path = (
                 context.selected_prim_paths[0]
                 if context.selected_prim_paths
                 else self.state.array_prim_path
             )
-            _validate_abs_path(selected_path, "array_prim_path")
+            self._validate_abs_path(selected_path, "array_prim_path")
             pose = IsaacStagePoseResolver(context.stage).resolve_world_pose(
                 selected_path,
                 field_name="selected array",
@@ -694,7 +689,7 @@ class ExtensionController:
         try:
             stage_obj = self._stage_or_error(stage)
             state = self.state
-            _validate_abs_path(state.array_prim_path, "array_prim_path")
+            self._validate_abs_path(state.array_prim_path, "array_prim_path")
             prim = get_or_define_prim(
                 stage_obj,
                 prim_path=state.array_prim_path,
@@ -727,11 +722,9 @@ class ExtensionController:
 
         try:
             stage_obj = self._stage_or_error(stage)
-            if self.state.array_attached_to_object:
-                raise ExtensionActionError(
-                    "Array is attached to an object; edit the local offset "
-                    "or detach the array first."
-                )
+            self._validation.validate_array_pose_editable(
+                self.state.array_attached_to_object
+            ).raise_first()
             position = self._array_position_from_state()
             orientation = self._array_orientation_from_state()
             record = self._author_array_on_stage(
@@ -764,11 +757,8 @@ class ExtensionController:
         """Create/update the array prim with metadata and an explicit pose."""
 
         state = self.state
-        _validate_abs_path(state.array_prim_path, "array_prim_path")
-        if state.layout_name not in LAYOUT_CHOICES:
-            raise ExtensionActionError(f"Unknown array layout {state.layout_name!r}.")
-        if int(state.sample_rate_hz) <= 0:
-            raise ExtensionActionError("sample_rate_hz must be positive.")
+        self._validate_abs_path(state.array_prim_path, "array_prim_path")
+        self._validate_layout_state()
 
         prim = get_or_define_prim(
             stage_obj,
@@ -849,10 +839,7 @@ class ExtensionController:
 
         try:
             key = preset.strip().lower()
-            if key not in SOURCE_POSITION_PRESETS:
-                raise ExtensionActionError(
-                    f"Unknown source position preset {preset!r}."
-                )
+            self._validation.validate_source_position_preset(preset).raise_first()
             self._set_source_position_state(SOURCE_POSITION_PRESETS[key])
             authored = self.apply_source_position(stage=stage)
             if authored is not None:
@@ -898,10 +885,7 @@ class ExtensionController:
                 stage=stage,
                 selected_paths=selected_paths,
             )
-            if not labels:
-                raise ExtensionActionError(
-                    "No selected or attached object label is available."
-                )
+            self._validation.validate_profile_labels(labels).raise_first()
             selected_object_path = self._selected_object_candidate_path(
                 stage=stage,
                 selected_paths=selected_paths,
@@ -915,10 +899,8 @@ class ExtensionController:
                 profiles=library,
                 object_profile_mappings=self.state.object_profile_mappings,
             )
-            if profile_id is None:
-                raise ExtensionActionError(
-                    "No sound profile matches object labels: " + ", ".join(labels) + "."
-                )
+            self._validation.validate_profile_match(labels, profile_id).raise_first()
+            assert profile_id is not None
             profile = self._sound_profile_by_id(profile_id)
             self.state.selected_profile_id = profile.profile_id
             self._set_status(
@@ -1028,13 +1010,13 @@ class ExtensionController:
             stage_obj = self._stage_or_error(stage)
             state = self.state
             object_path = state.object_prim_path or state.attached_object_prim_path
-            _validate_abs_path(object_path, "object_prim_path")
-            _validate_abs_path(state.source_prim_path, "source_prim_path")
+            self._validate_abs_path(object_path, "object_prim_path")
+            self._validate_abs_path(state.source_prim_path, "source_prim_path")
             self._validate_source_metadata_state()
-            if not _stage_has_prim(stage_obj, object_path):
-                raise ExtensionActionError(
-                    f"Selected object no longer exists: {object_path}."
-                )
+            self._validation.validate_source_attach_target_exists(
+                object_path,
+                _stage_has_prim(stage_obj, object_path),
+            ).raise_first()
             source_name = _path_name(state.source_prim_path)
             attached_path = f"{object_path.rstrip('/')}/{source_name}"
             offset = self._source_local_offset_from_state()
@@ -1128,7 +1110,7 @@ class ExtensionController:
         try:
             stage_obj = self._stage_or_error(stage)
             state = self.state
-            _validate_abs_path(state.source_prim_path, "source_prim_path")
+            self._validate_abs_path(state.source_prim_path, "source_prim_path")
             self._validate_source_metadata_state()
             source_path = state.source_prim_path
             pose = IsaacStagePoseResolver(stage_obj).resolve_world_pose(
@@ -1207,14 +1189,17 @@ class ExtensionController:
                 or state.attached_array_object_prim_path
                 or state.robot_base_prim_path
             )
-            _validate_abs_path(object_path, "object_prim_path")
-            _validate_abs_path(state.array_prim_path, "array_prim_path")
-            if object_path == state.array_prim_path:
-                raise ExtensionActionError("Cannot attach an array to itself.")
-            if not _stage_has_prim(stage_obj, object_path):
-                raise ExtensionActionError(
-                    f"Selected mount prim no longer exists: {object_path}."
-                )
+            self._validate_abs_path(object_path, "object_prim_path")
+            self._validate_abs_path(state.array_prim_path, "array_prim_path")
+            self._validate_attach_target(
+                state.array_prim_path,
+                object_path,
+                kind="array",
+            )
+            self._validation.validate_array_attach_target_exists(
+                object_path,
+                _stage_has_prim(stage_obj, object_path),
+            ).raise_first()
             array_name = _path_name(state.array_prim_path)
             attached_path = f"{object_path.rstrip('/')}/{array_name}"
             offset = self._array_local_offset_from_state()
@@ -1285,7 +1270,7 @@ class ExtensionController:
         try:
             stage_obj = self._stage_or_error(stage)
             state = self.state
-            _validate_abs_path(state.array_prim_path, "array_prim_path")
+            self._validate_abs_path(state.array_prim_path, "array_prim_path")
             array_path = state.array_prim_path
             pose = IsaacStagePoseResolver(stage_obj).resolve_world_pose(
                 array_path,
@@ -1345,7 +1330,7 @@ class ExtensionController:
         """Create/update the source prim with metadata and explicit position."""
 
         state = self.state
-        _validate_abs_path(state.source_prim_path, "source_prim_path")
+        self._validate_abs_path(state.source_prim_path, "source_prim_path")
         self._validate_source_metadata_state()
 
         record = create_sound_prim(
@@ -1392,12 +1377,12 @@ class ExtensionController:
         profile: SoundProfile,
     ) -> AuthoredMetadataSummary:
         state = self.state
-        _validate_abs_path(state.source_prim_path, "source_prim_path")
+        self._validate_abs_path(state.source_prim_path, "source_prim_path")
         attached = state.source_attached_to_object
         object_path = state.attached_object_prim_path or state.object_prim_path
         object_label = self._profile_object_label(stage_obj)
         if attached:
-            _validate_abs_path(object_path, "object_prim_path")
+            self._validate_abs_path(object_path, "object_prim_path")
             self._validate_attached_object_available(stage_obj)
             position_world = None
         else:
@@ -1551,11 +1536,11 @@ class ExtensionController:
         profile: MicrophoneRigProfile,
     ) -> AuthoredMetadataSummary:
         state = self.state
-        _validate_abs_path(state.array_prim_path, "array_prim_path")
+        self._validate_abs_path(state.array_prim_path, "array_prim_path")
         attached = state.array_attached_to_object
         object_path = state.attached_array_object_prim_path or state.object_prim_path
         if attached:
-            _validate_abs_path(object_path, "object_prim_path")
+            self._validate_abs_path(object_path, "object_prim_path")
             self._validate_attached_array_available(stage_obj)
 
         state.layout_name = profile.layout_name
@@ -1659,20 +1644,7 @@ class ExtensionController:
         )
 
     def _validate_source_metadata_state(self) -> None:
-        state = self.state
-        if state.audio_asset_path.strip() == "":
-            raise ExtensionActionError("audio_asset_path must be non-empty.")
-        if state.source_directivity.strip() == "":
-            raise ExtensionActionError("source_directivity must be non-empty.")
-        for field_name, value in (
-            ("source_start_time_s", state.source_start_time_s),
-            ("source_duration_s", state.source_duration_s),
-            ("source_gain_db", state.source_gain_db),
-        ):
-            if not math.isfinite(float(value)):
-                raise ExtensionActionError(f"{field_name} must be finite.")
-        if state.source_duration_s <= 0.0:
-            raise ExtensionActionError("source_duration_s must be positive.")
+        self._validation.validate_source_metadata(self.state).raise_first()
 
     def _source_position_from_state(self) -> tuple[float, float, float]:
         position = (
@@ -1680,8 +1652,7 @@ class ExtensionController:
             float(self.state.source_position_y_m),
             float(self.state.source_position_z_m),
         )
-        if not all(math.isfinite(component) for component in position):
-            raise ExtensionActionError("source position values must be finite.")
+        self._validation.validate_source_position_values(position).raise_first()
         return position
 
     def _source_local_offset_from_state(self) -> tuple[float, float, float]:
@@ -1690,8 +1661,7 @@ class ExtensionController:
             float(self.state.source_local_offset_y_m),
             float(self.state.source_local_offset_z_m),
         )
-        if not all(math.isfinite(component) for component in offset):
-            raise ExtensionActionError("source local offset values must be finite.")
+        self._validation.validate_source_local_offset_values(offset).raise_first()
         return offset
 
     def _set_source_position_state(self, position: Iterable[float]) -> None:
@@ -1706,8 +1676,7 @@ class ExtensionController:
             float(self.state.array_position_y_m),
             float(self.state.array_position_z_m),
         )
-        if not all(math.isfinite(component) for component in position):
-            raise ExtensionActionError("array position values must be finite.")
+        self._validation.validate_array_position_values(position).raise_first()
         return position
 
     def _array_orientation_from_state(self) -> tuple[float, float, float, float]:
@@ -1716,8 +1685,7 @@ class ExtensionController:
             float(self.state.array_pitch_deg),
             float(self.state.array_yaw_deg),
         )
-        if not all(math.isfinite(angle) for angle in angles):
-            raise ExtensionActionError("array orientation angles must be finite.")
+        self._validation.validate_array_orientation_values(angles).raise_first()
         return quaternion_from_euler_deg(
             roll_deg=angles[0],
             pitch_deg=angles[1],
@@ -1730,8 +1698,7 @@ class ExtensionController:
             float(self.state.array_local_offset_y_m),
             float(self.state.array_local_offset_z_m),
         )
-        if not all(math.isfinite(component) for component in offset):
-            raise ExtensionActionError("array local offset values must be finite.")
+        self._validation.validate_array_local_offset_values(offset).raise_first()
         return offset
 
     def _array_local_orientation_from_state(
@@ -1742,8 +1709,7 @@ class ExtensionController:
             float(self.state.array_local_pitch_deg),
             float(self.state.array_local_yaw_deg),
         )
-        if not all(math.isfinite(angle) for angle in angles):
-            raise ExtensionActionError("array local orientation angles must be finite.")
+        self._validation.validate_array_local_orientation_values(angles).raise_first()
         return quaternion_from_euler_deg(
             roll_deg=angles[0],
             pitch_deg=angles[1],
@@ -1959,8 +1925,7 @@ class ExtensionController:
 
         try:
             context = self._context()
-            if context.stage is None:
-                raise ExtensionActionError("No USD stage is open.")
+            self._validate_stage_present(context.stage is not None)
             if self._usd_debug_author is not None:
                 self._usd_debug_author.clear(context.stage)
             self.state.latest_usd_debug_prim_paths = ()
@@ -2014,10 +1979,11 @@ class ExtensionController:
         anchor_path = state.room_anchor_prim_path.strip()
         if anchor_path:
             prim = _stage_prim_at_path(stage, anchor_path)
-            if prim is None:
-                raise ExtensionActionError(
-                    f"Room anchor prim not found at {anchor_path!r}."
-                )
+            self._validation.validate_room_anchor_exists(
+                anchor_path,
+                prim is not None,
+            ).raise_first()
+            assert prim is not None
             minimum, maximum = world_aligned_bbox(prim, prim_path=anchor_path)
             absorption, absorption_provenance = resolve_room_absorption(
                 prim,
@@ -2145,11 +2111,9 @@ class ExtensionController:
             requested_path = path or self.state.config_import_path
             input_path = _resolve_gui_output_path(requested_path)
             payload = json.loads(input_path.read_text(encoding="utf-8"))
-            if payload.get("schema_version") != "ias.omni_extension_binding.v1":
-                raise ExtensionActionError(
-                    "Config import requires schema_version "
-                    "'ias.omni_extension_binding.v1'."
-                )
+            self._validation.validate_config_schema_version(
+                payload.get("schema_version")
+            ).raise_first()
             self._apply_config_summary(payload)
             self.state.config_import_path = str(requested_path)
             missing_attachment = self._attachment_status_for_current_stage()
@@ -2602,23 +2566,10 @@ class ExtensionController:
         return sensor
 
     def _validate_runtime_state(self) -> None:
-        state = self.state
-        if state.backend not in BACKEND_CHOICES:
-            raise ExtensionActionError(
-                f"Backend {state.backend!r} is not an implemented v1 backend."
-            )
-        if state.ambiguity_policy not in AMBIGUITY_POLICY_CHOICES:
-            raise ExtensionActionError(
-                f"Ambiguity policy {state.ambiguity_policy!r} is not supported."
-            )
-        if state.update_period_s <= 0.0 or not math.isfinite(state.update_period_s):
-            raise ExtensionActionError("update_period_s must be positive and finite.")
-        if state.max_events < 0:
-            raise ExtensionActionError("max_events must be non-negative.")
-        if state.array_prim_path.strip():
-            _validate_abs_path(state.array_prim_path, "array_prim_path")
-        if state.robot_base_prim_path.strip():
-            _validate_abs_path(state.robot_base_prim_path, "robot_base_prim_path")
+        self._validation.validate_runtime(self.state).raise_first()
+
+    def _validate_layout_state(self) -> None:
+        self._validation.validate_layout(self.state).raise_first()
 
     def _author_child_microphones(
         self,
@@ -2712,20 +2663,24 @@ class ExtensionController:
         }
         if bad_mappings:
             label, profile_id = next(iter(sorted(bad_mappings.items())))
-            raise ExtensionActionError(
-                "Object profile mapping "
-                f"{label!r} references unknown profile {profile_id!r}."
-            )
+            self._validation.validate_object_profile_mapping_known(
+                label,
+                profile_id,
+                False,
+            ).raise_first()
         return profiles
 
     def _sound_profile_by_id(self, profile_id: str) -> SoundProfile:
         requested = profile_id.strip()
-        if not requested:
-            raise ExtensionActionError("selected_profile_id must be non-empty.")
+        self._validation.validate_sound_profile_id_present(requested).raise_first()
         for profile in self._validated_sound_profiles():
             if profile.profile_id == requested:
                 return profile
-        raise ExtensionActionError(f"Unknown sound profile id {requested!r}.")
+        self._validation.validate_sound_profile_id_known(
+            requested,
+            False,
+        ).raise_first()
+        raise AssertionError("unreachable sound profile validation")
 
     def _validated_rig_profiles(self) -> tuple[MicrophoneRigProfile, ...]:
         profiles = validate_microphone_rig_profile_library(
@@ -2736,12 +2691,15 @@ class ExtensionController:
 
     def _rig_profile_by_id(self, profile_id: str) -> MicrophoneRigProfile:
         requested = profile_id.strip()
-        if not requested:
-            raise ExtensionActionError("selected_rig_profile_id must be non-empty.")
+        self._validation.validate_rig_profile_id_present(requested).raise_first()
         for profile in self._validated_rig_profiles():
             if profile.profile_id == requested:
                 return profile
-        raise ExtensionActionError(f"Unknown rig profile id {requested!r}.")
+        self._validation.validate_rig_profile_id_known(
+            requested,
+            False,
+        ).raise_first()
+        raise AssertionError("unreachable rig profile validation")
 
     def _profile_object_label(self, stage_obj: Any | None) -> str:
         labels = self._object_label_candidates(stage=stage_obj, selected_paths=None)
@@ -2809,46 +2767,65 @@ class ExtensionController:
 
     def _stage_or_error(self, stage: Any | None) -> Any:
         context = self._context(stage=stage)
-        if context.stage is None:
-            raise ExtensionActionError("No USD stage is open.")
+        self._validate_stage_present(context.stage is not None)
         self.state.selected_prim_paths = context.selected_prim_paths
         return context.stage
 
+    def _validate_abs_path(self, path: str, field_name: str) -> None:
+        self._validation.validate_abs_prim_path(path, field_name).raise_first()
+
+    def _validate_stage_present(self, stage_is_open: bool) -> None:
+        self._validation.validate_stage_present(stage_is_open).raise_first()
+
+    def _validate_selection(self, path: str | None, *, exists: bool) -> None:
+        self._validation.validate_selection(path, exists).raise_first()
+
+    def _validate_attach_target(
+        self,
+        source_path: str,
+        target_path: str,
+        *,
+        kind: str = "source",
+    ) -> None:
+        self._validation.validate_attach_target(
+            source_path,
+            target_path,
+            kind=kind,
+        ).raise_first()
+
     def _validate_attached_object_available(self, stage: Any | None) -> None:
-        if not self.state.source_attached_to_object:
-            return
         object_path = (
             self.state.attached_object_prim_path or self.state.object_prim_path
         )
-        if not object_path:
-            raise ExtensionActionError(
-                "Source is marked attached but no object path is configured."
-            )
-        if stage is None:
-            return
-        if not _stage_has_prim(stage, object_path):
-            raise ExtensionActionError(
-                f"Attached object no longer exists: {object_path}. "
-                "Select another object or detach the source."
-            )
+        exists = (
+            None
+            if not self.state.source_attached_to_object
+            or stage is None
+            or not object_path
+            else _stage_has_prim(stage, object_path)
+        )
+        self._validation.validate_attached_source_target(
+            self.state.source_attached_to_object,
+            object_path,
+            exists,
+        ).raise_first()
 
     def _validate_attached_array_available(self, stage: Any | None) -> None:
-        if not self.state.array_attached_to_object:
-            return
         object_path = (
             self.state.attached_array_object_prim_path or self.state.object_prim_path
         )
-        if not object_path:
-            raise ExtensionActionError(
-                "Array is marked attached but no mount path is configured."
-            )
-        if stage is None:
-            return
-        if not _stage_has_prim(stage, object_path):
-            raise ExtensionActionError(
-                f"Attached array mount no longer exists: {object_path}. "
-                "Select another mount or detach the array."
-            )
+        exists = (
+            None
+            if not self.state.array_attached_to_object
+            or stage is None
+            or not object_path
+            else _stage_has_prim(stage, object_path)
+        )
+        self._validation.validate_attached_array_target(
+            self.state.array_attached_to_object,
+            object_path,
+            exists,
+        ).raise_first()
 
     def _attachment_status_for_current_stage(self) -> str | None:
         if not self.state.source_attached_to_object:
@@ -2899,8 +2876,7 @@ class ExtensionController:
                 stage=stage,
                 selected_paths=selected_paths,
             )
-            if not paths:
-                raise ExtensionActionError("No prim is selected.")
+            self._validate_selection(paths[0] if paths else None, exists=True)
             return paths[0]
         except Exception as exc:
             self._record_error("Selection binding failed", exc)
@@ -3359,27 +3335,23 @@ class ExtensionController:
         )
 
     def _apply_profile_config(self, payload: Any) -> None:
-        if not isinstance(payload, Mapping):
-            raise ExtensionActionError("sound_profiles config must be an object.")
+        self._validation.validate_sound_profile_config_container(
+            isinstance(payload, Mapping)
+        ).raise_first()
         raw_library = payload.get("profile_library")
-        if raw_library is None:
-            raise ExtensionActionError(
-                "sound_profiles.profile_library is required when profiles are present."
-            )
+        self._validation.validate_sound_profile_library_present(
+            raw_library is not None
+        ).raise_first()
         raw_mappings = payload.get("object_profile_mappings")
-        if raw_mappings is None:
-            raise ExtensionActionError(
-                "sound_profiles.object_profile_mappings is required when "
-                "profiles are present."
-            )
-        if not isinstance(raw_mappings, Mapping):
-            raise ExtensionActionError(
-                "sound_profiles.object_profile_mappings must be an object."
-            )
-        if not isinstance(raw_library, list | tuple):
-            raise ExtensionActionError(
-                "sound_profiles.profile_library must be a list of profile objects."
-            )
+        self._validation.validate_object_profile_mappings_present(
+            raw_mappings is not None
+        ).raise_first()
+        self._validation.validate_object_profile_mappings_mapping(
+            isinstance(raw_mappings, Mapping)
+        ).raise_first()
+        self._validation.validate_sound_profile_library_sequence(
+            isinstance(raw_library, list | tuple)
+        ).raise_first()
         profiles = validate_sound_profile_library(
             sound_profile_from_mapping(item) for item in raw_library
         )
@@ -3389,24 +3361,26 @@ class ExtensionController:
             for label, profile_id in raw_mappings.items()
             if normalize_object_label(str(label))
         }
-        if not mappings:
-            raise ExtensionActionError(
-                "sound_profiles.object_profile_mappings must not be empty."
-            )
+        self._validation.validate_object_profile_mappings_non_empty(
+            bool(mappings)
+        ).raise_first()
         for label, profile_id in sorted(mappings.items()):
             if profile_id not in profile_ids:
-                raise ExtensionActionError(
-                    "sound_profiles.object_profile_mappings "
-                    f"{label!r} references unknown profile {profile_id!r}."
-                )
+                self._validation.validate_object_profile_mapping_known(
+                    label,
+                    profile_id,
+                    False,
+                    config=True,
+                ).raise_first()
         selected_profile_id = payload.get("selected_profile_id")
         selected_profile_id = (
             "" if selected_profile_id is None else str(selected_profile_id).strip()
         )
-        if selected_profile_id and selected_profile_id not in profile_ids:
-            raise ExtensionActionError(
-                f"Unknown selected sound profile id {selected_profile_id!r}."
-            )
+        self._validation.validate_sound_profile_id_known(
+            selected_profile_id,
+            selected_profile_id in profile_ids,
+            config=True,
+        ).raise_first()
         self.state.profile_library = profiles
         self.state.object_profile_mappings = dict(sorted(mappings.items()))
         if selected_profile_id:
@@ -3417,20 +3391,16 @@ class ExtensionController:
         )
 
     def _apply_rig_profile_config(self, payload: Any) -> None:
-        if not isinstance(payload, Mapping):
-            raise ExtensionActionError(
-                "microphone_rig_profiles config must be an object."
-            )
+        self._validation.validate_rig_profile_config_container(
+            isinstance(payload, Mapping)
+        ).raise_first()
         raw_library = payload.get("rig_library")
-        if raw_library is None:
-            raise ExtensionActionError(
-                "microphone_rig_profiles.rig_library is required when rig "
-                "profiles are present."
-            )
-        if not isinstance(raw_library, list | tuple):
-            raise ExtensionActionError(
-                "microphone_rig_profiles.rig_library must be a list of profile objects."
-            )
+        self._validation.validate_rig_profile_library_present(
+            raw_library is not None
+        ).raise_first()
+        self._validation.validate_rig_profile_library_sequence(
+            isinstance(raw_library, list | tuple)
+        ).raise_first()
         profiles = validate_microphone_rig_profile_library(
             microphone_rig_profile_from_mapping(item) for item in raw_library
         )
@@ -3439,10 +3409,11 @@ class ExtensionController:
         selected_rig_id = (
             "" if selected_rig_id is None else str(selected_rig_id).strip()
         )
-        if selected_rig_id and selected_rig_id not in profile_ids:
-            raise ExtensionActionError(
-                f"Unknown selected rig profile id {selected_rig_id!r}."
-            )
+        self._validation.validate_rig_profile_id_known(
+            selected_rig_id,
+            selected_rig_id in profile_ids,
+            config=True,
+        ).raise_first()
         self.state.rig_profile_library = profiles
         if selected_rig_id:
             self.state.selected_rig_profile_id = selected_rig_id
