@@ -1,0 +1,194 @@
+{
+  "calibration_profile": null,
+  "channel_order": [
+    "front",
+    "right",
+    "back",
+    "left"
+  ],
+  "completion_state": "complete",
+  "configuration_sha256": "1f5171db24ebca1820f7ef7211eab918e2ee80b1fddce25569ea70c428d4f3fc",
+  "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+  "coordinate_frames": [
+    "world",
+    "xvf3800_reference"
+  ],
+  "creation": {
+    "backend_id": "tdoa_synthetic",
+    "estimator_id": "deterministic_reference",
+    "isaac_lab_version": null,
+    "isaac_sim_version": null,
+    "kit_version": null,
+    "tool_name": "ias_fixture_generator",
+    "tool_version": "1.8.0"
+  },
+  "creation_timestamp_ms": 1767225600000,
+  "dataset_id": "reference_session_v1",
+  "device": {
+    "compute_device": "cpu",
+    "device_id": "synthetic_reference_host",
+    "device_type": "synthetic",
+    "platform": "platform_independent"
+  },
+  "dtype": "float32",
+  "episodes": [
+    {
+      "array_poses": [],
+      "end_frame": 1,
+      "end_step": 1,
+      "environment_id": "environment_scene_a",
+      "episode_id": "episode_00000",
+      "labels": [
+        "synthetic_reference"
+      ],
+      "reset_markers": [
+        {
+          "frame_index": 0,
+          "step_index": 0,
+          "timestamp_ms": 0
+        }
+      ],
+      "scene_id": "scene_a",
+      "seed": 1069551235531636834,
+      "source_truth": [],
+      "split_group": "scene_a",
+      "start_frame": 0,
+      "start_step": 0,
+      "timestamps_ms": [
+        0,
+        5
+      ],
+      "visual_sync_asset_ids": []
+    },
+    {
+      "array_poses": [],
+      "end_frame": 3,
+      "end_step": 1,
+      "environment_id": "environment_scene_a",
+      "episode_id": "episode_00001",
+      "labels": [
+        "synthetic_reference"
+      ],
+      "reset_markers": [
+        {
+          "frame_index": 2,
+          "step_index": 0,
+          "timestamp_ms": 0
+        }
+      ],
+      "scene_id": "scene_a",
+      "seed": 3430078364821688530,
+      "source_truth": [],
+      "split_group": "scene_a",
+      "start_frame": 2,
+      "start_step": 0,
+      "timestamps_ms": [
+        0,
+        5
+      ],
+      "visual_sync_asset_ids": []
+    },
+    {
+      "array_poses": [],
+      "end_frame": 6,
+      "end_step": 2,
+      "environment_id": "environment_scene_b",
+      "episode_id": "episode_00002",
+      "labels": [
+        "synthetic_reference"
+      ],
+      "reset_markers": [
+        {
+          "frame_index": 4,
+          "step_index": 0,
+          "timestamp_ms": 0
+        }
+      ],
+      "scene_id": "scene_b",
+      "seed": 6410060826111544611,
+      "source_truth": [],
+      "split_group": "scene_b",
+      "start_frame": 4,
+      "start_step": 0,
+      "timestamps_ms": [
+        0,
+        5,
+        10
+      ],
+      "visual_sync_asset_ids": []
+    }
+  ],
+  "license": "CC0-1.0",
+  "runtime_profile": "waveform_fidelity",
+  "sample_rate_hz": 48000,
+  "schema_version": "ias.audio_dataset_manifest.v1",
+  "shards": [
+    {
+      "assets": [
+        {
+          "asset_id": "shard_00000.frames",
+          "kind": "frame_trace_jsonl",
+          "path": "shards/shard_00000/frames.jsonl",
+          "sha256": "d4181c17c3c3cc5abf653bb0416485649f6671e8304cf2cc2af553cb34293b7e"
+        },
+        {
+          "asset_id": "shard_00000.audio",
+          "kind": "audio_wav",
+          "path": "shards/shard_00000/audio.wav",
+          "sha256": "50981576d075891d5b9babb59856508c10bd58e09cd5f633cad6eec82ce4ae57"
+        }
+      ],
+      "completion_state": "complete",
+      "episode_ids": [
+        "episode_00000",
+        "episode_00001"
+      ],
+      "shard_id": "shard_00000"
+    },
+    {
+      "assets": [
+        {
+          "asset_id": "shard_00001.frames",
+          "kind": "frame_trace_jsonl",
+          "path": "shards/shard_00001/frames.jsonl",
+          "sha256": "223cfa2ad8e551b267a50eaf6f2ca60cd669ac6aeaba81eb108cefc071630eb8"
+        },
+        {
+          "asset_id": "shard_00001.audio",
+          "kind": "audio_wav",
+          "path": "shards/shard_00001/audio.wav",
+          "sha256": "dce914847f520ae157e237ce380a736ab436799610f641524a2afa95128165b2"
+        }
+      ],
+      "completion_state": "complete",
+      "episode_ids": [
+        "episode_00002"
+      ],
+      "shard_id": "shard_00001"
+    }
+  ],
+  "source": "Deterministic synthetic S2.1 reference fixture",
+  "split_grouping_key": "scene_id",
+  "splits": [
+    {
+      "group_ids": [
+        "scene_a"
+      ],
+      "name": "train"
+    },
+    {
+      "group_ids": [
+        "scene_b"
+      ],
+      "name": "test"
+    }
+  ],
+  "time_base": "simulation_time",
+  "units": {
+    "orientation": "quaternion_xyzw",
+    "position": "m",
+    "sample_rate": "Hz",
+    "time": "s",
+    "timestamp": "ms"
+  }
+}

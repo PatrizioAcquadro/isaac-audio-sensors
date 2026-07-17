@@ -1,0 +1,1 @@
+{"backend_id":"tdoa_synthetic","channel_order":["front","right","back","left"],"dataset_id":"reference_session_v1","dtype":"float32","episode_seed_policy":"derived","hop_sample_count":240,"runtime_profile":"waveform_fidelity","sample_rate_hz":48000,"session_seed":2026021,"shard_episode_aligned":true,"shard_max_frames":4,"split_grouping_key":"scene_id","window_sample_count":400}

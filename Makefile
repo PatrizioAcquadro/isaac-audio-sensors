@@ -12,7 +12,7 @@ WHEELHOUSE ?=
 CONSUMER_USER ?= pacquadr
 CONSUMER_REPO ?= /home/$(CONSUMER_USER)/Desktop/squadbot-av-phase1
 
-.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests regenerate-reference-dataset live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -79,6 +79,9 @@ regenerate-traces:
 
 regenerate-manifests:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/regenerate_example_manifests.py
+
+regenerate-reference-dataset:
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/regenerate_reference_dataset.py
 
 live-evidence-report:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/generate_live_evidence_report.py

@@ -34,3 +34,5 @@ generated/
 .claude/
 .local-goals/
 TODO.md
+!examples/datasets/
+!examples/datasets/**

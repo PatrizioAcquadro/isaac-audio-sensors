@@ -1,0 +1,37 @@
+{
+  "audio": {
+    "channels": 4,
+    "container": "wav",
+    "dtype": "float32",
+    "path": "audio.wav",
+    "sample_count": 1360,
+    "sample_rate_hz": 48000,
+    "subtype": "FLOAT"
+  },
+  "dropped_frames": {
+    "count": 0,
+    "producer_frame_ids": []
+  },
+  "episode_ids": [
+    "episode_00000",
+    "episode_00001"
+  ],
+  "files": [
+    {
+      "bytes": 3982,
+      "path": "frames.jsonl",
+      "sha256": "d4181c17c3c3cc5abf653bb0416485649f6671e8304cf2cc2af553cb34293b7e"
+    },
+    {
+      "bytes": 21804,
+      "path": "audio.wav",
+      "sha256": "50981576d075891d5b9babb59856508c10bd58e09cd5f633cad6eec82ce4ae57"
+    }
+  ],
+  "frame_count": 4,
+  "marker_version": "ias.shard_completion.v1",
+  "shard_id": "shard_00000",
+  "start_frame": 0,
+  "tail_samples": 80,
+  "writer_tool_version": "ias_fixture_generator/1.8.0"
+}
