@@ -16,7 +16,7 @@ from isaac_audio_sensors.core import packs
 from isaac_audio_sensors.core.capabilities import discover_capabilities
 from isaac_audio_sensors.core.packs import discover_pack_installs
 
-VERSION = "1.8.0"
+VERSION = "1.9.0"
 ARTIFACT = (
     "isaac_audio_sensors_acoustic_pack-l2l3-"
     f"{VERSION}-linux_x86_64-cp312.tar.gz"
@@ -246,10 +246,10 @@ def test_base_import_then_activation_keeps_numpy_host_owned(tmp_path):
     assert payload["before"] == payload["after"]
     assert payload["numpy_under_root"] is False
     assert payload["l0"] == "base"
-    assert payload["l2"] == "pack:acoustics-l2l3@1.8.0"
-    assert payload["room"] == "pack:acoustics-l2l3@1.8.0"
-    assert payload["wav"] == "pack:acoustics-l2l3@1.8.0"
-    assert payload["active_pack"] == "acoustics-l2l3@1.8.0"
+    assert payload["l2"] == "pack:acoustics-l2l3@1.9.0"
+    assert payload["room"] == "pack:acoustics-l2l3@1.9.0"
+    assert payload["wav"] == "pack:acoustics-l2l3@1.9.0"
+    assert payload["active_pack"] == "acoustics-l2l3@1.9.0"
 
 
 def test_conflicting_preloaded_pack_module_fails_closed(tmp_path):
@@ -384,7 +384,7 @@ def test_interrupted_partial_install_is_not_selectable(tmp_path):
     root = tmp_path / "packs"
     pack_dir = root / "acoustics-l2l3"
     (pack_dir / ".staging-999").mkdir(parents=True)
-    (pack_dir / "1.8.0").mkdir()
+    (pack_dir / "1.9.0").mkdir()
     broken = pack_dir / "hash-mismatch"
     broken.mkdir()
     (broken / "pack_manifest.json").write_text(

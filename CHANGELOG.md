@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.9.0 - Unreleased
+
+Stage 1 recording, replay, diagnostics, and operational GUI (phase S2 of the
+final sensor development plan), in progress.
+
+- Added the frozen S2.1 session/shard dataset layout: the import-safe
+  `isaac_audio_sensors.core.dataset` subpackage (`ias.dataset_frame_record.v1`
+  records, `ias.shard_completion.v1` completion markers, deterministic bounded
+  shard packing, episode-seed derivation, canonical configuration hashing,
+  trace-projection gate, lifecycle classification, and full session-layout
+  validation), the committed deterministic reference session fixture at
+  `examples/datasets/reference_session_v1/`, and its regeneration tooling.
+  `ias.audio_dataset_manifest.v1` and `ias.audio_sensor_frame.v1` are
+  unchanged.
+
 ## 1.8.0 - Unreleased
 
 Stage 1 stable installable foundation (phase S1 of the final sensor

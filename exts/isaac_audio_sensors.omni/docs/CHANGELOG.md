@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.0 - Unreleased
+
+- Version aligned with package release `1.9.0` (Stage 1 recording, replay,
+  diagnostics, and operational GUI line). No packaged extension behavior
+  change yet in this line.
+
 ## 1.8.0 - Unreleased
 
 - Version aligned with package release `1.8.0` (Stage 1 stable installable
