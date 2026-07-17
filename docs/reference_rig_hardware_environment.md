@@ -55,7 +55,7 @@ DHCP and Tailscale addresses are intentionally not tracked here.
 | Camera | Verified | Stereolabs ZED 2i connected directly to the workstation at USB 3, 5 Gb/s. The existing cable is adequate. |
 | ZED software | Planned | ZED SDK was not installed at audit time. Install the current official Ubuntu 24/CUDA 12 build, record its hash/version, and avoid an unnecessary CUDA 13 migration. Update camera firmware only if the official ZED tool offers it. |
 | Temporary speaker | Verified/limited | The user's MacBook built-in speakers may be used for pilot acquisition only. Exact Mac model is not yet recorded. |
-| Reference speaker | Planned | One Genelec 8010A powered monitor is the selected repeatable source. It is required before final calibrated sim-vs-real claims, not before initial software and pilot work. |
+| Reference speaker | Planned | Current-but-not-frozen purchase direction: one Genelec 8030C powered monitor driven through a Focusrite Scarlett Solo USB interface. This supersedes the previously documented Genelec 8010A direction. It is required before final calibrated sim-vs-real claims, not before initial software and pilot work. The purchase BOM is not frozen. |
 | Reference microphone | Planned | One serial-calibrated miniDSP UMIK-1 for level, response, noise, and room-response measurements. |
 | Alex | Available/documented | Physical Alex003 fixed-torso platform and pedestal are available. Live compute access and mounting authorization still require verification. |
 
@@ -117,7 +117,9 @@ turntable, or rigid ZED/ReSpeaker mount is currently available.
 Selected equipment before S4 calibration:
 
 - two K&M 201A/2 stands for the reference speaker and UMIK-1;
-- Hosa CYX-403M 3.5 mm TRS-to-dual-XLR cable for the powered monitor;
+- Hosa CYX-403M 3.5 mm TRS-to-dual-XLR cable, previously selected for the
+  Genelec 8010A setup; revalidate the cable choice against the current Genelec
+  8030C and Focusrite Scarlett Solo direction before purchase;
 - Bosch GLM165-25G laser distance meter;
 - Klein Tools 935DAG digital angle gauge/level;
 - iGaging 100-700-06 digital caliper;
