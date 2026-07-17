@@ -4,11 +4,21 @@ from __future__ import annotations
 
 import importlib
 import json
+import sys
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from isaac_audio_sensors import __version__
+from isaac_audio_sensors.core.dataset import CancellationToken, SessionRecorder
+from isaac_audio_sensors.core.dataset.recorder import ShardPromotion
+from isaac_audio_sensors.core.dataset.validate import validate_dataset
+from isaac_audio_sensors.core.dataset_manifest import (
+    CreationProvenance,
+    DeviceProvenance,
+)
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 from isaac_audio_sensors.core.io.traces import write_frame_trace
 from isaac_audio_sensors.core.math_utils import (
@@ -65,6 +75,7 @@ from isaac_audio_sensors.isaac.stage_audio import (
 )
 from isaac_audio_sensors.isaac.validation import (
     ValidationController,
+    ValidationFinding,
     ValidationReport,
 )
 from isaac_audio_sensors.isaac.viz.overlays import (
@@ -130,7 +141,14 @@ from .ui_models import (
     _window_visible,
 )
 from .window import OmniReferenceWindow
-from .workflow import SAFE_PRESETS, GuidedWorkflow, SafePreset
+from .workflow import (
+    SAFE_PRESETS,
+    GuidedStage,
+    GuidedWorkflow,
+    RecordingStatus,
+    RunStatus,
+    SafePreset,
+)
 
 
 class ExtensionController:
@@ -163,6 +181,13 @@ class ExtensionController:
         self._stage_event_subscription: Any | None = None
         self._last_followed_selection: tuple[str, ...] | None = None
         self._usd_debug_author: UsdDebugGeometryAuthor | None = None
+        self._guided_recorder: SessionRecorder | None = None
+        self._guided_cancellation_token: CancellationToken | None = None
+        self._guided_recording_request: dict[str, Any] | None = None
+        self._guided_promotions: list[ShardPromotion] = []
+        self._guided_last_run_frame_id: str | None = None
+        self._guided_last_recorded_frame_id: str | None = None
+        self._guided_dataset_validation_report: Any | None = None
 
     @property
     def guided_workflow(self) -> GuidedWorkflow:
@@ -188,6 +213,9 @@ class ExtensionController:
                         self._validation.refresh_capabilities(
                             "guided recovery action"
                         )
+                    ),
+                    "recording": lambda _finding: (
+                        self._guided_restart_recording()
                     ),
                     "focus": lambda finding: self._set_status(
                         f"Review {finding.field or 'the guided workflow'}."
@@ -302,6 +330,421 @@ class ExtensionController:
         """Return to the preceding guided stage."""
 
         return self.guided_workflow.back()
+
+    @property
+    def guided_run_status(self) -> RunStatus:
+        """Return the current immutable Run lifecycle snapshot."""
+
+        return self.guided_workflow.run_status
+
+    @property
+    def guided_recording_status(self) -> RecordingStatus:
+        """Return the current immutable recording progress snapshot."""
+
+        return self.guided_workflow.recording_status
+
+    @property
+    def guided_recording_promotions(self) -> tuple[ShardPromotion, ...]:
+        return tuple(self._guided_promotions)
+
+    @property
+    def guided_dataset_validation_report(self) -> Any | None:
+        return self._guided_dataset_validation_report
+
+    def guided_start_run(self) -> Any | None:
+        """Configure and start the sensor through the existing lifecycle."""
+
+        if not self.guided_workflow.goto(GuidedStage.RUN):
+            return None
+        self._guided_last_run_frame_id = None
+        self.guided_workflow.start_run(configured=False, running=False)
+        sensor = self.configure_sensor()
+        if sensor is None:
+            self.guided_workflow.fail_run(
+                "Sensor configuration failed.",
+                check_id="guided_run_configuration_failed",
+            )
+            return None
+        self.guided_workflow.update_run_lifecycle(
+            configured=True,
+            running=False,
+        )
+        started = self.start_sensor()
+        if started is None:
+            self.guided_workflow.fail_run(
+                "Sensor start failed.",
+                check_id="guided_run_start_failed",
+            )
+            return None
+        self.guided_workflow.update_run_lifecycle(
+            configured=True,
+            running=True,
+        )
+        return started
+
+    def guided_stop_run(self) -> None:
+        """Stop the sensor through the existing lifecycle action."""
+
+        self.stop_sensor()
+
+    def guided_inspect_summary(self) -> dict[str, Any]:
+        """Return compact live evidence for the human Inspect decision."""
+
+        capability = getattr(self._validation, "_capability_state", None)
+        return {
+            "latest_frame_id": self.state.latest_frame_id,
+            "latest_timestamp_ms": self.state.latest_timestamp_ms,
+            "detection_count": self.state.latest_detection_count,
+            "backend": self.state.latest_backend or self.state.backend,
+            "capability_generation": (
+                None
+                if capability is None
+                else capability.captured_at_generation
+            ),
+        }
+
+    def guided_mark_inspected(self) -> bool:
+        """Accept the current read-only instrument evidence."""
+
+        if not self.guided_workflow.goto(GuidedStage.INSPECT):
+            return False
+        return self.guided_workflow.mark_inspected()
+
+    def guided_start_recording(
+        self,
+        session_dir: str | Path,
+        dataset_id: str,
+        shard_max_frames: int,
+        aligned: bool,
+        *,
+        scene_id: str | None = None,
+        environment_id: str | None = None,
+        split_group: str | None = None,
+        session_seed: int | None = None,
+    ) -> SessionRecorder | None:
+        """Start one guided dataset session and its single v1 episode."""
+
+        try:
+            if not self.guided_workflow.goto(GuidedStage.RECORD):
+                return None
+            if self._guided_recorder is not None:
+                raise ExtensionActionError("A guided recording is already active.")
+            if not self.state.sensor_running or self.sensor is None:
+                raise ExtensionActionError(
+                    "The sensor must remain running to start recording."
+                )
+            root = Path(session_dir)
+            chosen_scene = scene_id or self.state.guided_scene_id
+            chosen_environment = (
+                environment_id or self.state.guided_environment_id
+            )
+            chosen_group = split_group or self.state.guided_split_group
+            chosen_seed = (
+                self.state.guided_session_seed
+                if session_seed is None
+                else int(session_seed)
+            )
+            self.state.guided_session_dir = str(root)
+            self.state.guided_dataset_id = str(dataset_id)
+            self.state.guided_shard_max_frames = int(shard_max_frames)
+            self.state.guided_record_aligned = bool(aligned)
+            self.state.guided_scene_id = str(chosen_scene)
+            self.state.guided_environment_id = str(chosen_environment)
+            self.state.guided_split_group = str(chosen_group)
+            self.state.guided_session_seed = int(chosen_seed)
+            request = {
+                "session_dir": str(root),
+                "dataset_id": str(dataset_id),
+                "shard_max_frames": int(shard_max_frames),
+                "aligned": bool(aligned),
+                "scene_id": str(chosen_scene),
+                "environment_id": str(chosen_environment),
+                "split_group": str(chosen_group),
+                "session_seed": int(chosen_seed),
+            }
+            configuration = self._guided_recorder_configuration(request)
+            token = CancellationToken()
+            self._guided_promotions = []
+            self._guided_last_recorded_frame_id = None
+            self._guided_dataset_validation_report = None
+            recorder = SessionRecorder(
+                root,
+                configuration,
+                creation=CreationProvenance(
+                    tool_name="isaac_audio_sensors_guided",
+                    tool_version=__version__,
+                    backend_id=self.state.backend,
+                    estimator_id=self.state.backend,
+                ),
+                device=DeviceProvenance(
+                    device_id="isaac_sim",
+                    device_type="simulator",
+                    platform=sys.platform,
+                    compute_device="cpu",
+                ),
+                license="CC0-1.0",
+                source="Isaac Audio Sensors guided extension",
+                coordinate_frames=("world", "array"),
+                time_base="simulation_time",
+                cancellation_token=token,
+                promotion_callback=self._guided_shard_promoted,
+            )
+            episode = recorder.begin_episode(
+                str(chosen_scene),
+                str(chosen_environment),
+                str(chosen_group),
+                seed=int(chosen_seed),
+            )
+            self._guided_recorder = recorder
+            self._guided_cancellation_token = token
+            self._guided_recording_request = request
+            self.guided_workflow.start_recording(
+                RecordingStatus(
+                    active=True,
+                    session_dir=str(root),
+                    dataset_id=str(dataset_id),
+                    bytes_written=self._guided_session_bytes(root),
+                    current_episode=episode,
+                )
+            )
+            self._set_status(f"Recording guided dataset {dataset_id}.")
+            return recorder
+        except Exception as exc:
+            self.guided_workflow.fail_recording(str(exc))
+            self._record_error("Guided recording start failed", exc)
+            return None
+
+    def guided_cancel_recording(self) -> Any | None:
+        """Cooperatively cancel and finalize an incomplete guided session."""
+
+        recorder = self._guided_recorder
+        token = self._guided_cancellation_token
+        if recorder is None or token is None:
+            return None
+        try:
+            token.cancel()
+            manifest = recorder.finalize_incomplete()
+            previous = self.guided_workflow.recording_status
+            status = replace(
+                previous,
+                active=False,
+                cancelled=True,
+                bytes_written=self._guided_session_bytes(recorder.session_root),
+                current_episode=None,
+            )
+            self._guided_recorder = None
+            self._guided_cancellation_token = None
+            self.guided_workflow.cancel_recording(status)
+            self._set_status("Guided recording cancelled and finalized incomplete.")
+            return manifest
+        except Exception as exc:
+            self.guided_workflow.fail_recording(str(exc))
+            self._record_error("Guided recording cancellation failed", exc)
+            return None
+
+    def guided_stop_recording(self) -> Any | None:
+        """Finalize, validate, and gate the guided recording."""
+
+        recorder = self._guided_recorder
+        if recorder is None:
+            return None
+        try:
+            recorder.end_episode()
+            manifest = recorder.finalize()
+            report = validate_dataset(recorder.session_root)
+            self._guided_dataset_validation_report = report
+            previous = self.guided_workflow.recording_status
+            status = replace(
+                previous,
+                active=False,
+                bytes_written=self._guided_session_bytes(recorder.session_root),
+                current_episode=None,
+                validation_status=report.status,
+            )
+            findings = ()
+            if report.status not in {"passed", "passed_with_warnings"}:
+                findings = tuple(
+                    self._dataset_finding(item) for item in report.findings
+                ) or (
+                    self._guided_validation_finding(
+                        "dataset_validation_failed",
+                        "Dataset validation failed without a located finding.",
+                    ),
+                )
+            self._guided_recorder = None
+            self._guided_cancellation_token = None
+            self.guided_workflow.finish_recording(status, findings)
+            self._set_status(
+                f"Guided dataset validation {report.status}.",
+                error=bool(findings),
+            )
+            return manifest
+        except Exception as exc:
+            self.guided_workflow.fail_recording(str(exc))
+            self._record_error("Guided recording stop failed", exc)
+            return None
+
+    def _guided_recorder_configuration(
+        self,
+        request: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        channel_order = [
+            microphone.mic_id
+            for microphone in microphone_layout(self.state.layout_name)
+        ]
+        window_samples = max(
+            1,
+            int(round(self.state.sample_rate_hz * self.state.update_period_s)),
+        )
+        latest = None if self.sensor is None else self.sensor.latest_frame
+        diagnostics = getattr(latest, "diagnostics", {}) if latest else {}
+        diagnostic_window = diagnostics.get("window_sample_count")
+        if (
+            isinstance(diagnostic_window, int)
+            and not isinstance(diagnostic_window, bool)
+            and diagnostic_window > 0
+        ):
+            window_samples = diagnostic_window
+        return {
+            "backend_id": self.state.backend,
+            "channel_order": channel_order,
+            "dataset_id": request["dataset_id"],
+            "dtype": "float32",
+            "hop_sample_count": window_samples,
+            "runtime_profile": "waveform_fidelity",
+            "sample_rate_hz": int(self.state.sample_rate_hz),
+            "session_seed": int(request["session_seed"]),
+            "shard_episode_aligned": bool(request["aligned"]),
+            "shard_max_frames": int(request["shard_max_frames"]),
+            "split_grouping_key": "scene_id",
+            "window_sample_count": window_samples,
+        }
+
+    def _guided_record_frame(self, frame: Any) -> None:
+        recorder = self._guided_recorder
+        if recorder is None or not self.guided_workflow.recording_status.active:
+            return
+        frame_id = str(frame.frame_id)
+        if frame_id == self._guided_last_recorded_frame_id:
+            return
+        try:
+            audio_block = self._guided_audio_block_for_frame(frame, recorder)
+            recording_frame = replace(frame, waveform_paths=())
+            result = recorder.append_frame(
+                recording_frame,
+                audio_block,
+                int(frame.timestamp_ms),
+                is_reset=False,
+            )
+            self._guided_last_recorded_frame_id = frame_id
+            previous = self.guided_workflow.recording_status
+            status = replace(
+                previous,
+                frames=previous.frames + int(result.accepted),
+                dropped_frames=(
+                    previous.dropped_frames + int(not result.accepted)
+                ),
+                shards_promoted=len(self._guided_promotions),
+                bytes_written=self._guided_session_bytes(recorder.session_root),
+            )
+            self.guided_workflow.update_recording(status)
+        except Exception as exc:
+            self.guided_workflow.fail_recording(str(exc))
+            self._record_error("Guided frame recording failed", exc)
+
+    @staticmethod
+    def _guided_audio_block_for_frame(
+        frame: Any,
+        recorder: SessionRecorder,
+    ) -> Any | None:
+        paths = tuple(str(path) for path in (frame.waveform_paths or ()))
+        if not paths:
+            return None
+        from isaac_audio_sensors.core.io.wave_read import read_wav
+
+        data = read_wav(paths[-1])
+        if data.sample_rate_hz != recorder.sample_rate_hz:
+            raise ValueError(
+                "waveform sample rate disagrees with guided recording config"
+            )
+        if data.channel_count != recorder.channels:
+            raise ValueError(
+                "waveform channel count disagrees with guided recording config"
+            )
+        samples = data.samples
+        if samples.shape[1] > recorder.window_sample_count:
+            samples = samples[:, -recorder.window_sample_count :]
+        return samples
+
+    def _guided_shard_promoted(self, event: ShardPromotion) -> None:
+        self._guided_promotions.append(event)
+        previous = self.guided_workflow.recording_status
+        root = previous.session_dir
+        self.guided_workflow.update_recording(
+            replace(
+                previous,
+                shards_promoted=len(self._guided_promotions),
+                bytes_written=(
+                    previous.bytes_written
+                    if root is None
+                    else self._guided_session_bytes(Path(root))
+                ),
+            )
+        )
+
+    @staticmethod
+    def _guided_session_bytes(root: Path) -> int:
+        if not root.exists():
+            return 0
+        total = 0
+        for path in root.rglob("*"):
+            with suppress(OSError):
+                if path.is_file():
+                    total += path.stat().st_size
+        return total
+
+    @staticmethod
+    def _guided_validation_finding(
+        check_id: str,
+        message: str,
+    ) -> ValidationFinding:
+        return ValidationFinding(
+            check_id,
+            "error",
+            message,
+            "guided_session_dir",
+        )
+
+    @staticmethod
+    def _dataset_finding(finding: Any) -> ValidationFinding:
+        return ValidationFinding(
+            f"dataset_{finding.code}",
+            finding.severity,
+            f"{finding.location}: {finding.detail}",
+            "guided_session_dir",
+        )
+
+    def _guided_restart_recording(self) -> SessionRecorder | None:
+        request = self._guided_recording_request
+        if request is None:
+            return None
+        base = Path(request["session_dir"])
+        candidate = base
+        suffix = 1
+        while candidate.exists():
+            candidate = base.with_name(f"{base.name}_retry_{suffix}")
+            suffix += 1
+        retry = {**request, "session_dir": str(candidate)}
+        return self.guided_start_recording(
+            retry["session_dir"],
+            retry["dataset_id"],
+            retry["shard_max_frames"],
+            retry["aligned"],
+            scene_id=retry["scene_id"],
+            environment_id=retry["environment_id"],
+            split_group=retry["split_group"],
+            session_seed=retry["session_seed"],
+        )
 
     def on_startup(self, ext_id: str) -> None:
         """Initialize the import-safe controller and lazily build Kit UI."""
@@ -2016,6 +2459,12 @@ class ExtensionController:
             if self.sensor is not None:
                 self.sensor.stop()
             self.state.sensor_running = False
+            workflow = getattr(self, "_guided_workflow", None)
+            if (
+                workflow is not None
+                and workflow.run_status.running
+            ):
+                workflow.stop_run()
             self._set_status("Sensor stopped.")
         except Exception as exc:
             self._record_error("Sensor stop failed", exc)
@@ -3111,6 +3560,17 @@ class ExtensionController:
             self.state.latest_array_prim_path or frame.array_id,
             frame,
         )
+        workflow = getattr(self, "_guided_workflow", None)
+        if workflow is not None:
+            run_status = workflow.run_status
+            if (
+                run_status.configured
+                and run_status.running
+                and frame.frame_id != self._guided_last_run_frame_id
+            ):
+                self._guided_last_run_frame_id = str(frame.frame_id)
+                workflow.observe_run_frame(getattr(frame, "timestamp_ms", None))
+            self._guided_record_frame(frame)
         self._set_status(
             f"Updated {frame.frame_id}: {len(detections)} detection(s), "
             f"{len(primitives)} overlay primitive(s)."

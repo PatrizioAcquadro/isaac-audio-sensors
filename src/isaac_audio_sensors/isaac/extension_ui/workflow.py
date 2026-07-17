@@ -1,4 +1,11 @@
-"""Import-safe guided workflow state for the reference extension."""
+"""Import-safe guided workflow state for the reference extension.
+
+Inspect completion is deliberately an explicit user action: the instrument
+readouts provide evidence, but deciding that the observation is acceptable is
+human judgment.  The current extension tick contract does not expose simulator
+reset boundaries, so Run B records frames with ``is_reset=False``; a future
+reset-aware tick contract can supply markers without changing the workflow.
+"""
 
 from __future__ import annotations
 
@@ -173,6 +180,57 @@ class InlineIssue:
 
 
 @dataclass(frozen=True, slots=True)
+class RunStatus:
+    """Immutable guided Run lifecycle snapshot."""
+
+    configured: bool = False
+    running: bool = False
+    stopped: bool = True
+    frame_count: int = 0
+    last_timestamp_ms: int | None = None
+
+    @property
+    def lifecycle(self) -> str:
+        if self.running:
+            return "running"
+        if self.configured and not self.stopped:
+            return "configured"
+        return "stopped"
+
+
+@dataclass(frozen=True, slots=True)
+class RecordingStatus:
+    """Immutable guided recording progress snapshot."""
+
+    active: bool = False
+    cancelled: bool = False
+    session_dir: str | None = None
+    dataset_id: str | None = None
+    frames: int = 0
+    dropped_frames: int = 0
+    shards_promoted: int = 0
+    bytes_written: int = 0
+    current_episode: str | None = None
+    validation_status: str | None = None
+
+    @property
+    def frame_count(self) -> int:
+        return self.frames
+
+    @property
+    def promoted_shard_count(self) -> int:
+        return self.shards_promoted
+
+    @property
+    def byte_count(self) -> int:
+        return self.bytes_written
+
+    @property
+    def current_episode_id(self) -> str | None:
+        return self.current_episode
+
+
+@dataclass(frozen=True, slots=True)
 class _RecoveryRule:
     match_kind: str
     match_value: str
@@ -192,6 +250,12 @@ _RECOVERY_RULES = (
     _RecoveryRule("field", "backend", "preset", "Use safe backend"),
     _RecoveryRule("field_suffix", "_path", "preset", "Fix path"),
     _RecoveryRule("field", "guided_preset_id", "preset", "Apply preset"),
+    _RecoveryRule(
+        "check",
+        "guided_recording_cancelled",
+        "recording",
+        "Start new recording",
+    ),
     _RecoveryRule("default", "", "focus", "Focus field"),
 )
 
@@ -232,6 +296,8 @@ class GuidedWorkflow:
             self._statuses[prior] = StageStatus.COMPLETE
         self._statuses[current] = StageStatus.IN_PROGRESS
         self._findings = {stage: () for stage in GUIDED_STAGE_ORDER}
+        self._run_status = RunStatus()
+        self._recording_status = RecordingStatus()
         self.on_change = on_change
         self._recovery_handlers = dict(recovery_handlers or {})
         self.focused_field: str | None = None
@@ -256,6 +322,14 @@ class GuidedWorkflow:
         self, stage: GuidedStage | str
     ) -> tuple[ValidationFinding, ...]:
         return self._findings[GuidedStage(stage)]
+
+    @property
+    def run_status(self) -> RunStatus:
+        return self._run_status
+
+    @property
+    def recording_status(self) -> RecordingStatus:
+        return self._recording_status
 
     def stage_gate(
         self, stage: GuidedStage | str
@@ -417,6 +491,141 @@ class GuidedWorkflow:
         self._emit_change()
         return recorded
 
+    def start_run(self, *, configured: bool, running: bool) -> RunStatus:
+        """Begin a fresh Run observation window."""
+
+        self._run_status = RunStatus(
+            configured=bool(configured),
+            running=bool(running),
+            stopped=not bool(configured or running),
+        )
+        self._statuses[GuidedStage.RUN] = StageStatus.IN_PROGRESS
+        self._findings[GuidedStage.RUN] = ()
+        self._emit_change()
+        return self._run_status
+
+    def update_run_lifecycle(
+        self,
+        *,
+        configured: bool,
+        running: bool,
+    ) -> RunStatus:
+        """Update configuration/running facts without losing observations."""
+
+        previous = self._run_status
+        self._run_status = RunStatus(
+            configured=bool(configured),
+            running=bool(running),
+            stopped=False,
+            frame_count=previous.frame_count,
+            last_timestamp_ms=previous.last_timestamp_ms,
+        )
+        self._emit_change()
+        return self._run_status
+
+    def observe_run_frame(self, timestamp_ms: int | None) -> RunStatus:
+        """Count one new live frame and complete Run when the sensor is live."""
+
+        previous = self._run_status
+        self._run_status = RunStatus(
+            configured=previous.configured,
+            running=previous.running,
+            stopped=previous.stopped,
+            frame_count=previous.frame_count + 1,
+            last_timestamp_ms=(
+                None if timestamp_ms is None else int(timestamp_ms)
+            ),
+        )
+        if self._run_status.running:
+            self._statuses[GuidedStage.RUN] = StageStatus.COMPLETE
+            self._findings[GuidedStage.RUN] = ()
+        self._emit_change()
+        return self._run_status
+
+    def stop_run(self) -> RunStatus:
+        """Regress Run after its guided sensor is stopped."""
+
+        previous = self._run_status
+        self._run_status = RunStatus(
+            configured=previous.configured,
+            running=False,
+            stopped=True,
+            frame_count=previous.frame_count,
+            last_timestamp_ms=previous.last_timestamp_ms,
+        )
+        self._statuses[GuidedStage.RUN] = StageStatus.IN_PROGRESS
+        self._findings[GuidedStage.RUN] = (
+            _finding(
+                "guided_run_stopped",
+                "Sensor stopped; start Run and observe another frame.",
+                "guided_stage",
+            ),
+        )
+        self._emit_change()
+        return self._run_status
+
+    def fail_run(self, message: str, *, check_id: str) -> None:
+        self._statuses[GuidedStage.RUN] = StageStatus.BLOCKED
+        self._findings[GuidedStage.RUN] = (
+            _finding(check_id, message, "guided_stage"),
+        )
+        self._emit_change()
+
+    def mark_inspected(self) -> bool:
+        """Record the operator's explicit acceptance of instrument evidence."""
+
+        return self.mark_complete(GuidedStage.INSPECT)
+
+    def start_recording(self, status: RecordingStatus) -> RecordingStatus:
+        self._recording_status = status
+        self._statuses[GuidedStage.RECORD] = StageStatus.IN_PROGRESS
+        self._findings[GuidedStage.RECORD] = ()
+        self._emit_change()
+        return status
+
+    def update_recording(self, status: RecordingStatus) -> RecordingStatus:
+        self._recording_status = status
+        self._emit_change()
+        return status
+
+    def cancel_recording(self, status: RecordingStatus) -> RecordingStatus:
+        self._recording_status = status
+        self._statuses[GuidedStage.RECORD] = StageStatus.IN_PROGRESS
+        self._findings[GuidedStage.RECORD] = (
+            _finding(
+                "guided_recording_cancelled",
+                "recording cancelled",
+                "guided_session_dir",
+            ),
+        )
+        self._emit_change()
+        return status
+
+    def finish_recording(
+        self,
+        status: RecordingStatus,
+        findings: tuple[ValidationFinding, ...] = (),
+    ) -> RecordingStatus:
+        self._recording_status = status
+        self._findings[GuidedStage.RECORD] = findings
+        self._statuses[GuidedStage.RECORD] = (
+            StageStatus.COMPLETE if not findings else StageStatus.BLOCKED
+        )
+        self._emit_change()
+        return status
+
+    def fail_recording(
+        self,
+        message: str,
+        *,
+        check_id: str = "guided_recording_failed",
+    ) -> None:
+        self._statuses[GuidedStage.RECORD] = StageStatus.BLOCKED
+        self._findings[GuidedStage.RECORD] = (
+            _finding(check_id, message, "guided_session_dir"),
+        )
+        self._emit_change()
+
     def issues_for_field(self, field: str) -> tuple[InlineIssue, ...]:
         """Return current-stage findings for one exact widget field hint."""
 
@@ -483,6 +692,8 @@ __all__ = [
     "GuidedWorkflow",
     "InlineIssue",
     "RecoveryAction",
+    "RecordingStatus",
+    "RunStatus",
     "SafePreset",
     "StageStatus",
 ]

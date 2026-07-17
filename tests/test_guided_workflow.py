@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import wave
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
+import numpy as np
 import pytest
 
+import isaac_audio_sensors.isaac.extension_ui.controller as controller_module
+from isaac_audio_sensors.core.dataset.validate import Finding, validate_dataset
+from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.isaac.extension_ui.controller import ExtensionController
 from isaac_audio_sensors.isaac.extension_ui.sections import build_guided_section
 from isaac_audio_sensors.isaac.extension_ui.state import (
@@ -89,6 +96,12 @@ class _FakeUi:
         self.Label = self._factory("Label")
         self.ComboBox = self._factory("ComboBox")
         self.Button = self._factory("Button")
+        self.StringField = self._factory("StringField")
+        self.CheckBox = self._factory("CheckBox")
+        self.SimpleStringModel = _FakeModel
+        self.SimpleBoolModel = _FakeModel
+        self.SimpleIntModel = _FakeModel
+        self.SimpleFloatModel = _FakeModel
 
     def _factory(self, kind: str) -> Any:
         def _create(*args: object, **kwargs: object) -> _FakeWidget:
@@ -103,6 +116,96 @@ def _controller(stage_box: dict[str, object | None]) -> ExtensionController:
     return ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage_box["stage"], ())
     )
+
+
+class _FakeSensor:
+    def __init__(self, frames: list[AudioSensorFrame]) -> None:
+        self.frames = list(frames)
+        self.latest_frame: AudioSensorFrame | None = None
+        self.latest_debug_primitives: tuple[object, ...] = ()
+        self.backend = "tdoa_synthetic"
+        self.array_id = "rig_front"
+        self.array_prim_path = "/World/Rig/AudioArray"
+        self.source_prim_path: str | None = None
+        self.stage = _FakeStage()
+        self._latest_sensor = None
+        self.debug_drawer = None
+        self.running = False
+
+    def start(self, *, subscribe_to_update_stream: bool = False) -> _FakeSensor:
+        del subscribe_to_update_stream
+        self.running = True
+        return self
+
+    def stop(self) -> None:
+        self.running = False
+
+    def close(self) -> None:
+        self.running = False
+
+    def update(self, *, force: bool = False) -> AudioSensorFrame:
+        del force
+        if not self.frames:
+            assert self.latest_frame is not None
+            return self.latest_frame
+        self.latest_frame = self.frames.pop(0)
+        return self.latest_frame
+
+
+def _frame(
+    index: int,
+    *,
+    waveform_path: Path | None = None,
+    sample_rate_hz: int = 8_000,
+) -> AudioSensorFrame:
+    return AudioSensorFrame(
+        frame_id=f"guided_frame_{index:03d}",
+        timestamp_ms=index * 10,
+        backend_id="tdoa_synthetic",
+        array_id="rig_front",
+        start_time_s=index / 100.0,
+        end_time_s=index / 100.0 + 0.001,
+        sample_rate_hz=sample_rate_hz,
+        frame_index=index,
+        aggregate_per_mic_rms={
+            "front": 0.1,
+            "right": 0.2,
+            "rear": 0.3,
+            "left": 0.4,
+        },
+        waveform_paths=(() if waveform_path is None else (str(waveform_path),)),
+        diagnostics={"window_sample_count": 8},
+    )
+
+
+def _waveform(path: Path, index: int) -> Path:
+    samples = np.arange(32, dtype=np.float32).reshape(4, 8)
+    samples = samples / np.float32(64.0) + np.float32(index / 128.0)
+    pcm = np.clip(np.rint(samples.T * 32767.0), -32768, 32767).astype("<i2")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(path), "wb") as stream:
+        stream.setnchannels(4)
+        stream.setsampwidth(2)
+        stream.setframerate(8_000)
+        stream.writeframes(pcm.tobytes())
+    return path
+
+
+def _run_ready_controller(
+    monkeypatch: pytest.MonkeyPatch,
+    frames: list[AudioSensorFrame],
+) -> tuple[ExtensionController, _FakeSensor]:
+    stage_box: dict[str, object | None] = {"stage": _FakeStage()}
+    controller = _controller(stage_box)
+    assert controller.guided_apply_preset("xvf3800_quad_demo") is not None
+    controller.state.sample_rate_hz = 8_000
+    controller.state.update_period_s = 0.001
+    assert controller.guided_advance()
+    assert controller.guided_validate().ok
+    sensor = _FakeSensor(frames)
+    monkeypatch.setattr(controller, "_build_sensor", lambda _stage: sensor)
+    assert controller.guided_start_run() is sensor
+    return controller, sensor
 
 
 def test_stage_machine_enforces_order_and_records_blocked_transitions() -> None:
@@ -275,6 +378,11 @@ def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
     assert any("Setup [in_progress]" in text for text in labels)
     assert "Apply Guided Preset" in buttons
     assert "Validate now" in buttons
+    assert "Start Guided Run" in buttons
+    assert "Mark Inspected" in buttons
+    assert "Start Recording" in buttons
+    assert "Cancel Recording" in buttons
+    assert "Stop and Finalize" in buttons
     assert len([widget for widget in ui.created if widget.kind == "ComboBox"]) == 1
 
     controller.guided_apply_preset("minimal_single_source")
@@ -283,3 +391,216 @@ def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
     assert window._guided_panel["setup_panel"].visible is False
     assert window._guided_panel["validate_panel"].visible is True
     assert "Validate [in_progress]" in window._guided_panel["breadcrumb"].text
+
+
+def test_guided_run_observes_frame_then_stop_regresses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    controller, sensor = _run_ready_controller(monkeypatch, [_frame(0)])
+
+    started = controller.guided_run_status
+    assert started.configured is True
+    assert started.running is True
+    assert started.frame_count == 0
+    assert controller.guided_workflow.status(GuidedStage.RUN) is (
+        StageStatus.IN_PROGRESS
+    )
+
+    assert controller.update_sensor() is not None
+
+    observed = controller.guided_run_status
+    assert observed.frame_count == 1
+    assert observed.last_timestamp_ms == 0
+    assert controller.guided_workflow.status(GuidedStage.RUN) is StageStatus.COMPLETE
+
+    controller.guided_stop_run()
+
+    assert sensor.running is False
+    assert controller.guided_run_status.stopped is True
+    assert controller.guided_workflow.status(GuidedStage.RUN) is (
+        StageStatus.IN_PROGRESS
+    )
+    assert controller.guided_workflow.findings_for_stage(GuidedStage.RUN)
+
+
+def test_guided_inspect_gates_summarizes_and_requires_user_mark(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stage_box: dict[str, object | None] = {"stage": _FakeStage()}
+    gated = _controller(stage_box)
+    assert gated.guided_mark_inspected() is False
+    assert gated.guided_workflow.status(GuidedStage.INSPECT) is StageStatus.BLOCKED
+
+    controller, _sensor = _run_ready_controller(monkeypatch, [_frame(0)])
+    controller.update_sensor()
+    assert controller.guided_advance()
+
+    summary = controller.guided_inspect_summary()
+
+    assert summary == {
+        "latest_frame_id": "guided_frame_000",
+        "latest_timestamp_ms": 0,
+        "detection_count": 0,
+        "backend": "tdoa_synthetic",
+        "capability_generation": 2,
+    }
+    assert controller.guided_workflow.status(GuidedStage.INSPECT) is (
+        StageStatus.IN_PROGRESS
+    )
+    assert controller.guided_mark_inspected()
+    assert controller.guided_workflow.status(GuidedStage.INSPECT) is (
+        StageStatus.COMPLETE
+    )
+
+
+def _enter_record_stage(controller: ExtensionController) -> None:
+    assert controller.update_sensor() is not None
+    assert controller.guided_workflow.status(GuidedStage.RUN) is StageStatus.COMPLETE
+    assert controller.guided_advance()
+    assert controller.guided_mark_inspected()
+    assert controller.guided_advance()
+    assert controller.guided_workflow.current_stage is GuidedStage.RECORD
+
+
+def test_guided_recording_end_to_end_validates_and_reports_progress(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    waveform_paths = [
+        _waveform(tmp_path / "waveforms" / f"frame_{index}.wav", index)
+        for index in range(1, 4)
+    ]
+    controller, _sensor = _run_ready_controller(
+        monkeypatch,
+        [
+            _frame(0),
+            *[
+                _frame(index, waveform_path=waveform_paths[index - 1])
+                for index in range(1, 4)
+            ],
+        ],
+    )
+    _enter_record_stage(controller)
+    session = tmp_path / "session"
+
+    assert controller.guided_start_recording(
+        session,
+        "guided_test",
+        2,
+        False,
+        scene_id="scene_a",
+        environment_id="environment_a",
+        split_group="scene_a",
+        session_seed=17,
+    ) is not None
+    for _ in range(3):
+        assert controller.update_sensor() is not None
+
+    active = controller.guided_recording_status
+    assert active.frames == 3
+    assert active.dropped_frames == 0
+    assert active.shards_promoted == 1
+    assert active.bytes_written > 0
+    assert active.current_episode == "episode_00000"
+    assert len(controller.guided_recording_promotions) == 1
+
+    assert controller.guided_stop_recording() is not None
+
+    report = validate_dataset(session)
+    final = controller.guided_recording_status
+    assert report.status in {"passed", "passed_with_warnings"}
+    assert final.frames == 3
+    assert final.shards_promoted == 2
+    assert final.validation_status == report.status
+    assert controller.guided_workflow.status(GuidedStage.RECORD) is (
+        StageStatus.COMPLETE
+    )
+
+
+def test_guided_recording_cancellation_finalizes_incomplete_and_recovers(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    controller, _sensor = _run_ready_controller(
+        monkeypatch,
+        [_frame(0), _frame(1), _frame(2)],
+    )
+    _enter_record_stage(controller)
+    session = tmp_path / "cancelled"
+    assert controller.guided_start_recording(
+        session,
+        "cancelled_test",
+        1,
+        False,
+    ) is not None
+    controller.update_sensor()
+    controller.update_sensor()
+
+    manifest = controller.guided_cancel_recording()
+
+    assert manifest is not None
+    assert manifest.completion_state == "incomplete"
+    assert (session / "manifest.json").is_file()
+    status = controller.guided_recording_status
+    assert status.cancelled is True
+    assert status.active is False
+    assert controller.guided_workflow.status(GuidedStage.RECORD) is (
+        StageStatus.IN_PROGRESS
+    )
+    finding = controller.guided_workflow.findings_for_stage(GuidedStage.RECORD)[0]
+    assert finding.message == "recording cancelled"
+    recovery = controller.guided_workflow.recovery_action(finding)
+    assert recovery.label == "Start new recording"
+
+    recovery()
+
+    assert controller.guided_recording_status.active is True
+    retry_root = Path(controller.guided_recording_status.session_dir or "")
+    assert retry_root != session
+    assert retry_root.name == "cancelled_retry_1"
+    controller.guided_cancel_recording()
+
+
+def test_failed_dataset_validation_blocks_record(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    controller, _sensor = _run_ready_controller(
+        monkeypatch,
+        [_frame(0), _frame(1)],
+    )
+    _enter_record_stage(controller)
+    session = tmp_path / "failed_validation"
+    assert controller.guided_start_recording(
+        session,
+        "failed_test",
+        2,
+        False,
+    ) is not None
+    controller.update_sensor()
+    planted = Finding(
+        "checksum_mismatch",
+        "error",
+        "shard shard_00000 file audio.wav",
+        "planted checksum mismatch",
+    )
+    monkeypatch.setattr(
+        controller_module,
+        "validate_dataset",
+        lambda _root: SimpleNamespace(
+            status="failed",
+            findings=(planted,),
+            error_count=1,
+            warning_count=0,
+        ),
+    )
+
+    assert controller.guided_stop_recording() is not None
+
+    assert controller.guided_recording_status.validation_status == "failed"
+    assert controller.guided_workflow.status(GuidedStage.RECORD) is (
+        StageStatus.BLOCKED
+    )
+    mapped = controller.guided_workflow.findings_for_stage(GuidedStage.RECORD)
+    assert mapped[0].check_id == "dataset_checksum_mismatch"
+    assert mapped[0].field == "guided_session_dir"

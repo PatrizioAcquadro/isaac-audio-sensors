@@ -71,6 +71,14 @@ class ExtensionUiState:
     guided_mode_enabled: bool = True
     guided_preset_id: str = ""
     guided_stage: str = "setup"
+    guided_session_dir: str = "guided_dataset"
+    guided_dataset_id: str = "guided_dataset"
+    guided_shard_max_frames: int = 100
+    guided_record_aligned: bool = False
+    guided_scene_id: str = "guided_scene"
+    guided_environment_id: str = "guided_environment"
+    guided_split_group: str = "guided_scene"
+    guided_session_seed: int = 0
 
     selected_prim_paths: tuple[str, ...] = ()
     stage_status: str = "No stage checked."

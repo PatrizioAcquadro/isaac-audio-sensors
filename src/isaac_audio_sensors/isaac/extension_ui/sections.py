@@ -11,14 +11,20 @@ from .constants import (
     ROOM_OUT_OF_BOUNDS_CHOICES,
     WAVEFORM_MODE_CHOICES,
 )
-from .instruments import COMPASS_IMAGE_SIZE, METER_MAX_ROWS, TIMELINE_MAX_ROWS
+from .instruments import (
+    COMPASS_IMAGE_SIZE,
+    METER_MAX_ROWS,
+    TIMELINE_MAX_ROWS,
+    compass_view_model,
+    meter_view_models,
+)
 from .spectro import (
     SPECTROGRAM_IMAGE_HEIGHT,
     SPECTROGRAM_IMAGE_WIDTH,
     WAVEFORM_IMAGE_HEIGHT,
     WAVEFORM_IMAGE_WIDTH,
 )
-from .ui_models import _combo_index, _set_widget_text
+from .ui_models import _combo_index, _set_model_value, _set_widget_text
 from .workflow import GUIDED_STAGE_ORDER, SAFE_PRESETS, GuidedStage
 
 if TYPE_CHECKING:
@@ -26,7 +32,7 @@ if TYPE_CHECKING:
 
 
 def build_guided_section(window: OmniReferenceWindow) -> None:
-    """Build the guided breadcrumb and the Setup/Validate stage panels."""
+    """Build the guided breadcrumb and operational Run B panels."""
 
     ui = window.ui
     workflow = window.controller.guided_workflow
@@ -83,6 +89,50 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                 finding_rows.append(
                     {"row": row, "label": issue_label, "button": action_button}
                 )
+        with ui.VStack(spacing=4, height=0) as run_panel:
+            with ui.HStack(spacing=4, height=0):
+                window._button("Start Guided Run", window.controller.guided_start_run)
+                window._button("Stop Guided Run", window.controller.guided_stop_run)
+            run_lifecycle = ui.Label("", word_wrap=True)
+            run_frames = ui.Label("", word_wrap=True)
+        with ui.VStack(spacing=4, height=0) as inspect_panel:
+            inspect_summary = ui.Label("", word_wrap=True)
+            inspect_compass = ui.Label("", word_wrap=True)
+            inspect_meters = ui.Label("", word_wrap=True)
+            inspect_spectrogram = ui.Label("", word_wrap=True)
+            window._button(
+                "Mark Inspected",
+                window.controller.guided_mark_inspected,
+            )
+        with ui.VStack(spacing=4, height=0) as record_panel:
+            window._string_row("Session Dir", "guided_session_dir")
+            session_dir_field = window._string_fields.pop("guided_session_dir")
+            window._string_row("Dataset ID", "guided_dataset_id")
+            dataset_id_field = window._string_fields.pop("guided_dataset_id")
+            window._int_row("Shard Frames", "guided_shard_max_frames")
+            shard_frames_field = window._int_fields.pop("guided_shard_max_frames")
+            window._bool_row("Episode Aligned", "guided_record_aligned")
+            aligned_field = window._bool_fields.pop("guided_record_aligned")
+            with ui.HStack(spacing=4, height=0):
+                window._button(
+                    "Start Recording",
+                    lambda: window.controller.guided_start_recording(
+                        window.controller.state.guided_session_dir,
+                        window.controller.state.guided_dataset_id,
+                        window.controller.state.guided_shard_max_frames,
+                        window.controller.state.guided_record_aligned,
+                    ),
+                )
+                window._button(
+                    "Cancel Recording",
+                    window.controller.guided_cancel_recording,
+                )
+                window._button(
+                    "Stop and Finalize",
+                    window.controller.guided_stop_recording,
+                )
+            recording_progress = ui.Label("", word_wrap=True)
+            recording_validation = ui.Label("", word_wrap=True)
         with ui.VStack(spacing=4, height=0) as future_panel:
             future_summary = ui.Label("", word_wrap=True)
         with ui.HStack(spacing=4, height=0):
@@ -100,6 +150,21 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
         "validate_panel": validate_panel,
         "findings_summary": findings_summary,
         "finding_rows": finding_rows,
+        "run_panel": run_panel,
+        "run_lifecycle": run_lifecycle,
+        "run_frames": run_frames,
+        "inspect_panel": inspect_panel,
+        "inspect_summary": inspect_summary,
+        "inspect_compass": inspect_compass,
+        "inspect_meters": inspect_meters,
+        "inspect_spectrogram": inspect_spectrogram,
+        "record_panel": record_panel,
+        "session_dir_field": session_dir_field,
+        "dataset_id_field": dataset_id_field,
+        "shard_frames_field": shard_frames_field,
+        "aligned_field": aligned_field,
+        "recording_progress": recording_progress,
+        "recording_validation": recording_validation,
         "future_panel": future_panel,
         "future_summary": future_summary,
     }
@@ -113,10 +178,22 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
         )
         _set_widget_text(breadcrumb, crumbs)
         _set_widget_text(stage_title, f"Current stage: {current.value.title()}")
-        _set_widget_text(stage_status, f"Status: {workflow.current_status.value}")
+        current_findings = workflow.findings_for_stage(current)
+        _set_widget_text(
+            stage_status,
+            f"Status: {workflow.current_status.value}"
+            + (
+                ""
+                if not current_findings
+                else " | " + " | ".join(item.message for item in current_findings)
+            ),
+        )
         setup_panel.visible = current is GuidedStage.SETUP
         validate_panel.visible = current is GuidedStage.VALIDATE
-        future_panel.visible = current not in {GuidedStage.SETUP, GuidedStage.VALIDATE}
+        run_panel.visible = current is GuidedStage.RUN
+        inspect_panel.visible = current is GuidedStage.INSPECT
+        record_panel.visible = current is GuidedStage.RECORD
+        future_panel.visible = current is GuidedStage.EXPORT
         chosen = window.controller.state.guided_preset_id
         preset = next((item for item in SAFE_PRESETS if item.preset_id == chosen), None)
         _set_widget_text(
@@ -147,9 +224,86 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             _set_widget_text(
                 row["button"], workflow.recovery_action(finding).label
             )
+        run_status = window.controller.guided_run_status
+        _set_widget_text(
+            run_lifecycle,
+            "Lifecycle: "
+            f"{run_status.lifecycle} | configured={run_status.configured} | "
+            f"running={run_status.running} | stopped={run_status.stopped}",
+        )
+        _set_widget_text(
+            run_frames,
+            f"Observed frames: {run_status.frame_count} | "
+            f"last timestamp: {run_status.last_timestamp_ms}",
+        )
+        summary = window.controller.guided_inspect_summary()
+        _set_widget_text(
+            inspect_summary,
+            "Frame: "
+            f"{summary['latest_frame_id'] or 'none'} | "
+            f"timestamp={summary['latest_timestamp_ms']} | "
+            f"detections={summary['detection_count']} | "
+            f"backend={summary['backend']} | "
+            f"capabilities={summary['capability_generation']}",
+        )
+        compass = compass_view_model(
+            bearing_deg=window.controller.state.latest_bearing_deg,
+            candidate_bearings=window.controller.state.latest_candidate_bearings,
+            sector=window.controller.state.latest_sector,
+            confidence=window.controller.state.latest_bearing_confidence,
+            occluded=window.controller.state.latest_occluded,
+        )
+        _set_widget_text(inspect_compass, f"Bearing: {compass.summary}")
+        meters = meter_view_models(window.controller.state.latest_aggregate_rms)
+        _set_widget_text(
+            inspect_meters,
+            "Per-mic RMS: "
+            + (" | ".join(meter.text for meter in meters) or "none"),
+        )
+        _set_widget_text(
+            inspect_spectrogram,
+            "Spectrogram: "
+            + (
+                "available"
+                if window.controller.state.latest_waveform_paths
+                else "unavailable"
+            ),
+        )
+        recording = window.controller.guided_recording_status
+        _set_model_value(
+            session_dir_field.model,
+            window.controller.state.guided_session_dir,
+        )
+        _set_model_value(
+            dataset_id_field.model,
+            window.controller.state.guided_dataset_id,
+        )
+        _set_model_value(
+            shard_frames_field.model,
+            str(window.controller.state.guided_shard_max_frames),
+        )
+        _set_model_value(
+            aligned_field.model,
+            window.controller.state.guided_record_aligned,
+        )
+        _set_widget_text(
+            recording_progress,
+            f"Recording: {'active' if recording.active else 'idle'} | "
+            f"episode={recording.current_episode or 'none'} | "
+            f"frames={recording.frames} | dropped={recording.dropped_frames} | "
+            f"shards={recording.shards_promoted} | bytes={recording.bytes_written}",
+        )
+        report = window.controller.guided_dataset_validation_report
+        _set_widget_text(
+            recording_validation,
+            "Validation: not run"
+            if report is None
+            else f"Validation: {report.status} | "
+            f"errors={report.error_count} | warnings={report.warning_count}",
+        )
         _set_widget_text(
             future_summary,
-            f"{current.value.title()} is delivered in Run B or Run C.",
+            "Export is delivered in Run C.",
         )
 
     window._refresh_guided_section = _refresh
