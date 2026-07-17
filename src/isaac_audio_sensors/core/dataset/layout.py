@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sqlite3
 import struct
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -142,6 +143,17 @@ class SessionLayoutResult:
     manifest: AudioDatasetManifest | None
     shards: tuple[VerifiedShard, ...]
     warnings: tuple[LayoutWarning, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _RecordFileScan:
+    records: tuple[DatasetFrameRecord, ...]
+    warnings: tuple[LayoutWarning, ...]
+    line_count: int
+    episode_ids: tuple[str, ...]
+    max_audio_end: int
+    index_error: DatasetLayoutError | None
+    producer_error: DatasetLayoutError | None
 
 
 def episode_id(ordinal: int) -> str:
@@ -527,38 +539,72 @@ def validate_record_sequence(
 ) -> None:
     """Validate local bounds, ordering, overlap, reset, and empty-range rules."""
 
+    resets = _prepare_sequence_validation(
+        sample_count=sample_count,
+        reset_frame_indices=reset_frame_indices,
+        max_overlap_samples=max_overlap_samples,
+    )
+    previous: DatasetFrameRecord | None = None
+    for line_number, record in enumerate(records, start=1):
+        _validate_record_pair(
+            previous,
+            record,
+            line_number=line_number,
+            sample_count=sample_count,
+            reset_frame_indices=resets,
+            max_overlap_samples=max_overlap_samples,
+            location=location,
+        )
+        previous = record
+
+
+def _prepare_sequence_validation(
+    *,
+    sample_count: int,
+    reset_frame_indices: Iterable[int],
+    max_overlap_samples: int | None,
+) -> set[int]:
     _require_non_negative_int(sample_count, "sample_count")
     if max_overlap_samples is not None:
         _require_non_negative_int(max_overlap_samples, "max_overlap_samples")
     resets = set(reset_frame_indices)
     for reset in resets:
         _require_non_negative_int(reset, "reset frame index")
-    previous: DatasetFrameRecord | None = None
-    for line_number, record in enumerate(records, start=1):
-        record_location = f"{location} line {line_number}"
-        _validate_record_fields(
-            record, location=record_location, sample_count=sample_count
+    return resets
+
+
+def _validate_record_pair(
+    previous: DatasetFrameRecord | None,
+    record: DatasetFrameRecord,
+    *,
+    line_number: int,
+    sample_count: int,
+    reset_frame_indices: set[int],
+    max_overlap_samples: int | None,
+    location: str,
+) -> None:
+    record_location = f"{location} line {line_number}"
+    _validate_record_fields(record, location=record_location, sample_count=sample_count)
+    if previous is None:
+        return
+    if record.audio_start_sample < previous.audio_start_sample:
+        raise DatasetLayoutError(
+            f"{record_location}: audio_start_sample is non-monotonic."
         )
-        if previous is not None:
-            if record.audio_start_sample < previous.audio_start_sample:
-                raise DatasetLayoutError(
-                    f"{record_location}: audio_start_sample is non-monotonic."
-                )
-            if record.audio_end_sample < previous.audio_end_sample:
-                raise DatasetLayoutError(
-                    f"{record_location}: audio_end_sample is non-monotonic."
-                )
-            overlap = previous.audio_end_sample - record.audio_start_sample
-            if record.dataset_frame_index in resets and overlap > 0:
-                raise DatasetLayoutError(
-                    f"{record_location}: audio range overlaps across a reset boundary."
-                )
-            if max_overlap_samples is not None and overlap > max_overlap_samples:
-                raise DatasetLayoutError(
-                    f"{record_location}: audio overlap {overlap} exceeds configured "
-                    f"maximum {max_overlap_samples}."
-                )
-        previous = record
+    if record.audio_end_sample < previous.audio_end_sample:
+        raise DatasetLayoutError(
+            f"{record_location}: audio_end_sample is non-monotonic."
+        )
+    overlap = previous.audio_end_sample - record.audio_start_sample
+    if record.dataset_frame_index in reset_frame_indices and overlap > 0:
+        raise DatasetLayoutError(
+            f"{record_location}: audio range overlaps across a reset boundary."
+        )
+    if max_overlap_samples is not None and overlap > max_overlap_samples:
+        raise DatasetLayoutError(
+            f"{record_location}: audio overlap {overlap} exceeds configured "
+            f"maximum {max_overlap_samples}."
+        )
 
 
 def _validate_record_fields(
@@ -889,6 +935,7 @@ def verify_shard_completion(
     *,
     manifest: AudioDatasetManifest | None = None,
     max_overlap_samples: int | None = None,
+    retain_records: bool = True,
 ) -> VerifiedShard:
     """Verify every per-shard invariant and optional manifest agreement."""
 
@@ -953,7 +1000,9 @@ def verify_shard_completion(
                 f"shard {shard_label} file {name}: sha256 mismatch."
             )
     audio_meta = payload["audio"]
-    header = _read_audio_header(directory / audio_meta["path"])
+    header = _read_audio_header(
+        directory / audio_meta["path"], streaming=not retain_records
+    )
     for field in (
         "container",
         "subtype",
@@ -978,39 +1027,37 @@ def verify_shard_completion(
             if episode.episode_id in payload["episode_ids"]
             for reset in episode.reset_markers
         )
-    records, warnings = _read_record_file(
+    scan = _scan_record_file(
         directory / "frames.jsonl",
         sample_count=audio_meta["sample_count"],
         session_root=directory.parent.parent,
         reset_frame_indices=reset_indices,
         max_overlap_samples=max_overlap_samples,
+        expected_start_frame=payload["start_frame"],
+        retain_records=retain_records,
     )
-    if len(records) != payload["frame_count"]:
+    if scan.line_count != payload["frame_count"]:
         raise DatasetLayoutError(
-            f"shard {shard_label} file frames.jsonl: line count {len(records)} "
+            f"shard {shard_label} file frames.jsonl: line count {scan.line_count} "
             f"does not equal frame_count {payload['frame_count']}."
         )
-    for line_number, record in enumerate(records, start=1):
-        expected_index = payload["start_frame"] + line_number - 1
-        if record.dataset_frame_index != expected_index:
-            raise DatasetLayoutError(
-                f"shard {shard_label} file frames.jsonl line {line_number}: "
-                f"dataset_frame_index {record.dataset_frame_index} != {expected_index}."
-            )
-    actual_episode_ids = _first_appearance(record.episode_id for record in records)
-    if actual_episode_ids != tuple(payload["episode_ids"]):
+    if scan.index_error is not None:
+        raise scan.index_error
+    if scan.episode_ids != tuple(payload["episode_ids"]):
         raise DatasetLayoutError(
             f"shard {shard_label} file frames.jsonl: episode_ids do not exactly "
             "match record first-appearance order."
         )
-    max_end = max((record.audio_end_sample for record in records), default=0)
-    expected_tail = audio_meta["sample_count"] - max_end
+    expected_tail = audio_meta["sample_count"] - scan.max_audio_end
     if payload["tail_samples"] != expected_tail:
         raise DatasetLayoutError(
             f"shard {shard_label} file shard.complete.json: tail_samples "
             f"{payload['tail_samples']} != {expected_tail}."
         )
-    _validate_producer_ids(records, shard_label)
+    if retain_records:
+        _validate_producer_ids(scan.records, shard_label)
+    elif scan.producer_error is not None:
+        raise scan.producer_error
     if manifest is not None:
         _verify_manifest_marker_agreement(manifest, payload, directory)
         if audio_meta["channels"] != len(manifest.channel_order):
@@ -1027,8 +1074,8 @@ def verify_shard_completion(
     return VerifiedShard(
         shard_dir=directory,
         marker=payload,
-        records=records,
-        warnings=warnings,
+        records=scan.records,
+        warnings=scan.warnings,
     )
 
 
@@ -1158,47 +1205,165 @@ def _read_record_file(
     reset_frame_indices: Iterable[int],
     max_overlap_samples: int | None,
 ) -> tuple[tuple[DatasetFrameRecord, ...], tuple[LayoutWarning, ...]]:
+    scan = _scan_record_file(
+        path,
+        sample_count=sample_count,
+        session_root=session_root,
+        reset_frame_indices=reset_frame_indices,
+        max_overlap_samples=max_overlap_samples,
+        expected_start_frame=None,
+        retain_records=True,
+    )
+    return scan.records, scan.warnings
+
+
+def _iter_record_file(
+    path: Path,
+    *,
+    sample_count: int,
+    session_root: Path,
+) -> Iterable[tuple[int, DatasetFrameRecord, tuple[LayoutWarning, ...]]]:
     shard_label = path.parent.name
     try:
-        data = path.read_bytes()
+        stream = path.open("rb")
     except FileNotFoundError as exc:
         raise DatasetLayoutError(
             f"shard {shard_label} file frames.jsonl: missing file."
         ) from exc
-    if not data.endswith(b"\n"):
-        raise DatasetLayoutError(
-            f"shard {shard_label} file frames.jsonl: final line is not "
-            "newline-terminated."
-        )
-    lines = data.splitlines(keepends=True)
-    records: list[DatasetFrameRecord] = []
-    warnings: list[LayoutWarning] = []
-    for line_number, line in enumerate(lines, start=1):
-        location = f"shard {shard_label} file frames.jsonl line {line_number}"
-        if line in {b"\n", b"\r\n"}:
-            raise DatasetLayoutError(f"{location}: blank lines are forbidden.")
-        record = parse_dataset_frame_record(
-            line,
-            location=location,
-            sample_count=sample_count,
-            session_root=session_root,
-        )
-        records.append(record)
-        warnings.extend(
-            validate_trace_projection(
+    with stream:
+        stream.seek(0, 2)
+        size = stream.tell()
+        if size == 0:
+            terminated = False
+        else:
+            stream.seek(-1, 2)
+            terminated = stream.read(1) == b"\n"
+        if not terminated:
+            raise DatasetLayoutError(
+                f"shard {shard_label} file frames.jsonl: final line is not "
+                "newline-terminated."
+            )
+        stream.seek(0)
+        for line_number, line in enumerate(stream, start=1):
+            location = f"shard {shard_label} file frames.jsonl line {line_number}"
+            if line in {b"\n", b"\r\n"}:
+                raise DatasetLayoutError(f"{location}: blank lines are forbidden.")
+            record = parse_dataset_frame_record(
+                line,
+                location=location,
+                sample_count=sample_count,
+                session_root=session_root,
+            )
+            warnings = validate_trace_projection(
                 record.frame,
                 session_root=session_root,
                 location=f"{location}.frame",
             )
+            yield line_number, record, warnings
+
+
+def _scan_record_file(
+    path: Path,
+    *,
+    sample_count: int,
+    session_root: Path,
+    reset_frame_indices: Iterable[int],
+    max_overlap_samples: int | None,
+    expected_start_frame: int | None,
+    retain_records: bool,
+) -> _RecordFileScan:
+    shard_label = path.parent.name
+    records: list[DatasetFrameRecord] = []
+    warnings: list[LayoutWarning] = []
+    episode_ids: list[str] = []
+    episode_seen: set[str] = set()
+    max_audio_end = 0
+    line_count = 0
+    index_error: DatasetLayoutError | None = None
+    producer_error: DatasetLayoutError | None = None
+    sequence_error: Exception | None = None
+    try:
+        resets = _prepare_sequence_validation(
+            sample_count=sample_count,
+            reset_frame_indices=reset_frame_indices,
+            max_overlap_samples=max_overlap_samples,
         )
-    validate_record_sequence(
-        records,
-        sample_count=sample_count,
-        reset_frame_indices=reset_frame_indices,
-        max_overlap_samples=max_overlap_samples,
-        location=f"shard {shard_label} file frames.jsonl",
+    except (TypeError, ValueError) as exc:
+        resets = set()
+        sequence_error = exc
+    producer_db: sqlite3.Connection | None = None
+    if not retain_records:
+        producer_db = sqlite3.connect("")
+        producer_db.execute("PRAGMA cache_size = -1024")
+        producer_db.execute("PRAGMA temp_store = FILE")
+        producer_db.execute(
+            "CREATE TABLE producer_ids ("
+            "episode_id TEXT NOT NULL, producer_frame_id TEXT NOT NULL, "
+            "PRIMARY KEY (episode_id, producer_frame_id)) WITHOUT ROWID"
+        )
+    previous: DatasetFrameRecord | None = None
+    try:
+        for line_number, record, record_warnings in _iter_record_file(
+            path, sample_count=sample_count, session_root=session_root
+        ):
+            line_count = line_number
+            if retain_records:
+                records.append(record)
+            warnings.extend(record_warnings)
+            if sequence_error is None:
+                try:
+                    _validate_record_pair(
+                        previous,
+                        record,
+                        line_number=line_number,
+                        sample_count=sample_count,
+                        reset_frame_indices=resets,
+                        max_overlap_samples=max_overlap_samples,
+                        location=f"shard {shard_label} file frames.jsonl",
+                    )
+                except DatasetLayoutError as exc:
+                    sequence_error = exc
+            previous = record
+            if expected_start_frame is not None and index_error is None:
+                expected_index = expected_start_frame + line_number - 1
+                if record.dataset_frame_index != expected_index:
+                    index_error = DatasetLayoutError(
+                        f"shard {shard_label} file frames.jsonl line {line_number}: "
+                        f"dataset_frame_index {record.dataset_frame_index} != "
+                        f"{expected_index}."
+                    )
+            if record.episode_id not in episode_seen:
+                episode_seen.add(record.episode_id)
+                episode_ids.append(record.episode_id)
+            max_audio_end = max(max_audio_end, record.audio_end_sample)
+            if producer_db is not None:
+                producer_id = record.frame["frame_id"]
+                try:
+                    producer_db.execute(
+                        "INSERT INTO producer_ids VALUES (?, ?)",
+                        (record.episode_id, producer_id),
+                    )
+                except sqlite3.IntegrityError:
+                    if producer_error is None:
+                        producer_error = DatasetLayoutError(
+                            f"shard {shard_label} file frames.jsonl line "
+                            f"{line_number}: duplicate producer frame_id "
+                            f"{producer_id!r} within {record.episode_id}."
+                        )
+    finally:
+        if producer_db is not None:
+            producer_db.close()
+    if sequence_error is not None:
+        raise sequence_error
+    return _RecordFileScan(
+        records=tuple(records),
+        warnings=tuple(warnings),
+        line_count=line_count,
+        episode_ids=tuple(episode_ids),
+        max_audio_end=max_audio_end,
+        index_error=index_error,
+        producer_error=producer_error,
     )
-    return tuple(records), tuple(warnings)
 
 
 def verify_shard_tiling(shards: Sequence[VerifiedShard | Mapping[str, Any]]) -> None:
@@ -1254,6 +1419,7 @@ def validate_session_layout(
     session_root: str | Path,
     *,
     allow_incomplete: bool = True,
+    retain_records: bool = True,
 ) -> SessionLayoutResult:
     """Validate lifecycle, portability, correspondence, and complete publication."""
 
@@ -1330,13 +1496,16 @@ def validate_session_layout(
             shards_root / shard.shard_id,
             manifest=manifest,
             max_overlap_samples=max_overlap,
+            retain_records=retain_records,
         )
         for shard in manifest.shards
     )
     verify_shard_tiling(verified)
     _validate_split_groups(manifest, verified, root)
     _validate_boundary_policy(config, manifest, verified, root)
-    _validate_episode_correspondence(manifest, verified, root)
+    _validate_episode_correspondence(
+        manifest, verified, root, retain_records=retain_records
+    )
     for current, following in zip(verified, verified[1:], strict=False):
         if (
             current.marker["episode_ids"][-1] == following.marker["episode_ids"][0]
@@ -1471,8 +1640,11 @@ def _validate_episode_correspondence(
     manifest: AudioDatasetManifest,
     shards: Sequence[VerifiedShard],
     root: Path,
+    *,
+    retain_records: bool,
 ) -> None:
-    records = tuple(record for shard in shards for record in shard.records)
+    records = iter(_iter_verified_records(shards, root))
+    total_records = sum(shard.marker["frame_count"] for shard in shards)
     expected_start = 0
     for ordinal, episode in enumerate(manifest.episodes):
         if episode.start_frame != expected_start:
@@ -1486,63 +1658,102 @@ def _validate_episode_correspondence(
                 f"session {root} episode {episode.episode_id}: timestamps_ms length "
                 f"does not equal frame count at frame {episode.start_frame}."
             )
-        if episode.end_frame >= len(records):
+        if episode.end_frame >= total_records:
             raise DatasetLayoutError(
                 f"session {root} episode {episode.episode_id}: missing record at frame "
-                f"{len(records)}."
+                f"{total_records}."
             )
-        producer_ids: set[str] = set()
+        producer_ids: set[str] | None = set() if retain_records else None
+        producer_db: sqlite3.Connection | None = None
+        if not retain_records:
+            producer_db = sqlite3.connect("")
+            producer_db.execute("PRAGMA cache_size = -1024")
+            producer_db.execute("PRAGMA temp_store = FILE")
+            producer_db.execute(
+                "CREATE TABLE producer_ids (producer_frame_id TEXT PRIMARY KEY) "
+                "WITHOUT ROWID"
+            )
         previous_timestamp: int | None = None
-        for offset, dataset_index in enumerate(
-            range(episode.start_frame, episode.end_frame + 1)
-        ):
-            record = records[dataset_index]
-            if record.dataset_frame_index != dataset_index:
-                raise DatasetLayoutError(
-                    f"session {root} episode {episode.episode_id}: misordered "
-                    f"record at frame {dataset_index}."
-                )
-            if record.episode_id != episode.episode_id:
-                raise DatasetLayoutError(
-                    f"session {root} episode {episode.episode_id}: interleaved record "
-                    f"{record.episode_id} at frame {dataset_index}."
-                )
-            timestamp = record.frame["timestamp_ms"]
-            if timestamp != episode.timestamps_ms[offset]:
-                raise DatasetLayoutError(
-                    f"session {root} episode {episode.episode_id}: timestamp mismatch "
-                    f"at frame {dataset_index}."
-                )
-            if timestamp < 0 or (
-                previous_timestamp is not None and timestamp < previous_timestamp
+        try:
+            for offset, dataset_index in enumerate(
+                range(episode.start_frame, episode.end_frame + 1)
             ):
-                raise DatasetLayoutError(
-                    f"session {root} episode {episode.episode_id}: non-monotonic "
-                    f"timestamp at frame {dataset_index}."
-                )
-            previous_timestamp = timestamp
-            producer_id = record.frame["frame_id"]
-            if producer_id in producer_ids:
-                raise DatasetLayoutError(
-                    f"session {root} episode {episode.episode_id}: duplicate producer "
-                    f"frame_id {producer_id!r} at frame {dataset_index}."
-                )
-            producer_ids.add(producer_id)
-            frame_rate = record.frame.get("sample_rate_hz")
-            if frame_rate is not None and frame_rate != manifest.sample_rate_hz:
-                raise DatasetLayoutError(
-                    f"session {root} episode {episode.episode_id}: sample rate changed "
-                    f"at frame {dataset_index}."
-                )
+                record = next(records)
+                if record.dataset_frame_index != dataset_index:
+                    raise DatasetLayoutError(
+                        f"session {root} episode {episode.episode_id}: misordered "
+                        f"record at frame {dataset_index}."
+                    )
+                if record.episode_id != episode.episode_id:
+                    raise DatasetLayoutError(
+                        f"session {root} episode {episode.episode_id}: interleaved "
+                        f"record {record.episode_id} at frame {dataset_index}."
+                    )
+                timestamp = record.frame["timestamp_ms"]
+                if timestamp != episode.timestamps_ms[offset]:
+                    raise DatasetLayoutError(
+                        f"session {root} episode {episode.episode_id}: timestamp "
+                        f"mismatch at frame {dataset_index}."
+                    )
+                if timestamp < 0 or (
+                    previous_timestamp is not None and timestamp < previous_timestamp
+                ):
+                    raise DatasetLayoutError(
+                        f"session {root} episode {episode.episode_id}: non-monotonic "
+                        f"timestamp at frame {dataset_index}."
+                    )
+                previous_timestamp = timestamp
+                producer_id = record.frame["frame_id"]
+                duplicate = False
+                if producer_ids is not None:
+                    duplicate = producer_id in producer_ids
+                    producer_ids.add(producer_id)
+                else:
+                    assert producer_db is not None
+                    try:
+                        producer_db.execute(
+                            "INSERT INTO producer_ids VALUES (?)", (producer_id,)
+                        )
+                    except sqlite3.IntegrityError:
+                        duplicate = True
+                if duplicate:
+                    raise DatasetLayoutError(
+                        f"session {root} episode {episode.episode_id}: duplicate "
+                        f"producer frame_id {producer_id!r} at frame {dataset_index}."
+                    )
+                frame_rate = record.frame.get("sample_rate_hz")
+                if frame_rate is not None and frame_rate != manifest.sample_rate_hz:
+                    raise DatasetLayoutError(
+                        f"session {root} episode {episode.episode_id}: sample rate "
+                        f"changed at frame {dataset_index}."
+                    )
+        finally:
+            if producer_db is not None:
+                producer_db.close()
         expected_start = episode.end_frame + 1
         del ordinal
-    if len(records) != expected_start:
+    if total_records != expected_start:
         offending = expected_start
         raise DatasetLayoutError(
             f"session {root}: extra dataset record at frame {offending}."
         )
     if manifest.episodes and expected_start == 0:
         raise AssertionError("Internal episode tiling error.")
+
+
+def _iter_verified_records(
+    shards: Sequence[VerifiedShard], root: Path
+) -> Iterable[DatasetFrameRecord]:
+    for shard in shards:
+        if shard.records:
+            yield from shard.records
+            continue
+        for _, record, _ in _iter_record_file(
+            shard.shard_dir / "frames.jsonl",
+            sample_count=shard.marker["audio"]["sample_count"],
+            session_root=root,
+        ):
+            yield record
 
 
 def _validate_split_groups(
@@ -1644,9 +1855,11 @@ def _validate_producer_ids(
         episode_seen.add(producer_id)
 
 
-def _read_audio_header(path: Path) -> dict[str, Any]:
+def _read_audio_header(path: Path, *, streaming: bool = False) -> dict[str, Any]:
     suffix = path.suffix.lower()
     if suffix == ".wav":
+        if streaming:
+            return _stream_wav_header(path)
         try:
             wave = read_wav(path)
         except (OSError, ValueError) as exc:
@@ -1679,6 +1892,84 @@ def _read_audio_header(path: Path) -> dict[str, Any]:
     raise DatasetLayoutError(
         f"file {path}: audio filename must be audio.wav or audio.flac."
     )
+
+
+def _stream_wav_header(path: Path) -> dict[str, Any]:
+    try:
+        file_size = path.stat().st_size
+        with path.open("rb") as stream:
+            header = stream.read(12)
+            if len(header) < 12 or header[:4] != b"RIFF" or header[8:] != b"WAVE":
+                raise DatasetLayoutError(f"file {path}: not a RIFF/WAVE file.")
+            fmt: tuple[int, int, int, int] | None = None
+            data_size: int | None = None
+            while True:
+                chunk_header = stream.read(8)
+                if not chunk_header:
+                    break
+                if len(chunk_header) != 8:
+                    break
+                chunk_id = chunk_header[:4]
+                size = struct.unpack_from("<I", chunk_header, 4)[0]
+                if stream.tell() + size > file_size:
+                    raise DatasetLayoutError(
+                        f"file {path}: WAV chunk exceeds the file size."
+                    )
+                if chunk_id == b"fmt ":
+                    body = stream.read(min(size, 40))
+                    if len(body) < 16:
+                        break
+                    audio_format, channels, sample_rate, _, _block_align, bits = (
+                        struct.unpack_from("<HHIIHH", body)
+                    )
+                    if audio_format == 0xFFFE and len(body) >= 26:
+                        audio_format = struct.unpack_from("<H", body, 24)[0]
+                    fmt = (
+                        int(audio_format),
+                        int(channels),
+                        int(sample_rate),
+                        int(bits),
+                    )
+                    stream.seek(size - len(body), 1)
+                else:
+                    if chunk_id == b"data":
+                        data_size = size
+                    stream.seek(size, 1)
+                if size % 2:
+                    stream.seek(1, 1)
+                if fmt is not None and data_size is not None:
+                    break
+    except OSError as exc:
+        raise DatasetLayoutError(
+            f"file {path}: cannot decode WAV header: {exc}"
+        ) from exc
+    if fmt is None:
+        raise DatasetLayoutError(f"file {path}: WAV fmt chunk is missing or invalid.")
+    if data_size is None:
+        raise DatasetLayoutError(f"file {path}: WAV data chunk is missing or invalid.")
+    audio_format, channels, sample_rate, bits = fmt
+    encodings = {
+        (3, 32): ("FLOAT", "float32"),
+        (1, 16): ("PCM_16", "int16"),
+        (1, 24): ("PCM_24", "int24"),
+        (1, 32): ("PCM_32", "int32"),
+    }
+    if (audio_format, bits) not in encodings:
+        raise DatasetLayoutError(
+            f"file {path}: unsupported WAV encoding format={audio_format}, bits={bits}."
+        )
+    bytes_per_frame = channels * bits // 8
+    if channels <= 0 or sample_rate <= 0 or bytes_per_frame <= 0:
+        raise DatasetLayoutError(f"file {path}: WAV fmt chunk is missing or invalid.")
+    subtype, dtype = encodings[(audio_format, bits)]
+    return {
+        "container": "wav",
+        "subtype": subtype,
+        "channels": channels,
+        "sample_rate_hz": sample_rate,
+        "dtype": dtype,
+        "sample_count": data_size // bytes_per_frame,
+    }
 
 
 def _wav_format(path: Path) -> tuple[int, int]:

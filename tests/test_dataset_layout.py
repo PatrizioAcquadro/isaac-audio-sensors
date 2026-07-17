@@ -453,6 +453,102 @@ def test_marker_manifest_channel_count_and_duplicate_producer_id(tmp_path):
         verify_shard_completion(duplicate / "shards" / "shard_00000")
 
 
+@pytest.mark.parametrize(
+    "case",
+    [
+        "accepted",
+        "warning",
+        "line_count",
+        "overlap",
+        "index",
+        "duplicate_producer",
+        "tail",
+    ],
+)
+def test_streaming_shard_verification_matches_retained_mode(tmp_path, case):
+    root = _session(tmp_path, case)
+    shard_dir = root / "shards/shard_00000"
+    if case == "warning":
+        _mutate_frame_line(
+            root,
+            "shard_00000",
+            0,
+            lambda payload: payload["frame"]["diagnostics"].__setitem__(
+                "debug_path", "/tmp/diagnostic-only"
+            ),
+        )
+    elif case == "line_count":
+        frames_path = shard_dir / "frames.jsonl"
+        lines = frames_path.read_text(encoding="utf-8").splitlines(keepends=True)
+        frames_path.write_text("".join(lines[:-1]), encoding="utf-8")
+        _refresh_asset(root, "shard_00000", "frames.jsonl")
+    elif case == "overlap":
+        _mutate_frame_line(
+            root,
+            "shard_00000",
+            1,
+            lambda payload: payload.__setitem__("audio_start_sample", 0),
+        )
+    elif case == "index":
+        _mutate_frame_line(
+            root,
+            "shard_00000",
+            1,
+            lambda payload: payload.__setitem__("dataset_frame_index", 7),
+        )
+    elif case == "duplicate_producer":
+        first_id = json.loads(
+            (shard_dir / "frames.jsonl").read_text(encoding="utf-8").splitlines()[0]
+        )["frame"]["frame_id"]
+        _mutate_frame_line(
+            root,
+            "shard_00000",
+            1,
+            lambda payload: payload["frame"].__setitem__("frame_id", first_id),
+        )
+    elif case == "tail":
+        marker_path = shard_dir / "shard.complete.json"
+        marker = _json(marker_path)
+        marker["tail_samples"] += 1
+        _write_pretty(marker_path, marker)
+
+    outcomes = []
+    for retain_records in (True, False):
+        try:
+            outcomes.append(
+                ("accepted", verify_shard_completion(
+                    shard_dir, retain_records=retain_records
+                ))
+            )
+        except DatasetLayoutError as exc:
+            outcomes.append(("rejected", str(exc)))
+
+    assert outcomes[0][0] == outcomes[1][0]
+    if outcomes[0][0] == "rejected":
+        assert outcomes[0][1] == outcomes[1][1]
+    else:
+        retained = outcomes[0][1]
+        streamed = outcomes[1][1]
+        assert retained.records
+        assert streamed.records == ()
+        assert streamed.marker == retained.marker
+        assert streamed.warnings == retained.warnings
+
+
+def test_streaming_session_validation_returns_empty_shard_records(tmp_path):
+    root = _session(tmp_path, "streaming_session")
+
+    retained = validate_session_layout(root)
+    streamed = validate_session_layout(root, retain_records=False)
+
+    assert streamed.manifest == retained.manifest
+    assert streamed.warnings == retained.warnings
+    assert [item.marker for item in streamed.shards] == [
+        item.marker for item in retained.shards
+    ]
+    assert all(item.records == () for item in streamed.shards)
+
+
 def test_projection_paths_symlinks_diagnostics_and_identity(tmp_path):
     root = tmp_path / "portable"
     asset = root / "assets" / "sample.bin"

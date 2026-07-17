@@ -36,7 +36,6 @@ from isaac_audio_sensors.core.dataset.layout import (
     DatasetLayoutError,
     ShardBoundary,
     ShardPlanner,
-    VerifiedShard,
     build_dataset_frame_record,
     canonical_configuration_bytes,
     configuration_sha256,
@@ -114,7 +113,12 @@ class _EpisodeState:
     start_frame: int
     frame_count: int = 0
     last_timestamp_ms: int | None = None
-    reset_frame_indices: list[int] = field(default_factory=list)
+    timestamps_ms: list[int] = field(default_factory=list)
+    first_producer_step: int | None = None
+    last_producer_step: int | None = None
+    reset_markers: list[ResetMarker] = field(default_factory=list)
+    published_frame_count: int = 0
+    published_last_step: int | None = None
     ended: bool = False
     end_frame: int | None = None
 
@@ -126,7 +130,21 @@ class _EpisodeState:
             "split_group": self.split_group,
             "seed": self.seed,
             "start_frame": self.start_frame,
-            "reset_frame_indices": list(self.reset_frame_indices),
+            "frame_count": self.frame_count,
+            "last_timestamp_ms": self.last_timestamp_ms,
+            "timestamps_ms": list(self.timestamps_ms),
+            "first_producer_step": self.first_producer_step,
+            "last_producer_step": self.last_producer_step,
+            "reset_markers": [
+                {
+                    "step_index": marker.step_index,
+                    "frame_index": marker.frame_index,
+                    "timestamp_ms": marker.timestamp_ms,
+                }
+                for marker in self.reset_markers
+            ],
+            "published_frame_count": self.published_frame_count,
+            "published_last_step": self.published_last_step,
             "ended": self.ended,
             "end_frame": self.end_frame,
         }
@@ -223,7 +241,7 @@ class SessionRecorder:
         self._carry = CarryState(np.zeros((self.channels, 0), dtype=np.float32))
         self._pending_drop_count = 0
         self._pending_drop_ids: list[str] = []
-        self._published: list[VerifiedShard] = []
+        self._published: list[dict[str, Any]] = []
         self._closed = False
         self._handling_cancellation = False
         self._producer_db: sqlite3.Connection | None = None
@@ -414,19 +432,34 @@ class SessionRecorder:
                 self._resolve_pending_boundary(mid_episode=True)
 
             dataset_index = self._next_dataset_frame
+            producer_step = payload.get("frame_index")
+            if not isinstance(producer_step, int) or isinstance(producer_step, bool):
+                producer_step = None
+            episode = self._current_episode
+            episode.timestamps_ms.append(int(timestamp_ms))
+            if episode.frame_count == 0:
+                episode.first_producer_step = producer_step
+            episode.last_producer_step = producer_step
             if is_reset:
-                self._current_episode.reset_frame_indices.append(dataset_index)
-                self._write_state()
+                episode.reset_markers.append(
+                    ResetMarker(
+                        step_index=(
+                            producer_step
+                            if producer_step is not None
+                            else dataset_index
+                        ),
+                        frame_index=dataset_index,
+                        timestamp_ms=int(timestamp_ms),
+                    )
+                )
             boundaries = self._planner.feed_frame(
-                self._current_episode.ordinal,
-                self._current_episode.split_group,
+                episode.ordinal,
+                episode.split_group,
             )
             self._next_dataset_frame += 1
-            self._current_episode.frame_count += 1
-            self._current_episode.last_timestamp_ms = int(timestamp_ms)
-            self._record_producer_id(
-                self._current_episode.ordinal, str(payload["frame_id"])
-            )
+            episode.frame_count += 1
+            episode.last_timestamp_ms = int(timestamp_ms)
+            self._record_producer_id(episode.ordinal, str(payload["frame_id"]))
 
             if self.shard_episode_aligned:
                 self._buffer_aligned_frame(
@@ -924,7 +957,7 @@ class SessionRecorder:
 
     def _promote_open_shard(
         self, boundary: ShardBoundary, *, flush_carry: bool
-    ) -> VerifiedShard:
+    ) -> dict[str, Any]:
         open_shard = self._open_shard
         if open_shard is None:
             raise AssertionError(f"{boundary.shard_id} has no staged shard")
@@ -941,6 +974,9 @@ class SessionRecorder:
             wav_result = open_shard.wav.finalize(flush_carry=flush_carry)
             open_shard.jsonl.flush_and_fsync()
             self._write_carry_checkpoint(boundary.start_frame + boundary.frame_count)
+            # Persist all append-time episode metadata before the marker can make
+            # this boundary durable. A resume trims this state to verified markers.
+            self._write_state()
             frames_result = open_shard.jsonl.publish(final_dir / "frames.jsonl")
             open_shard.wav.publish(final_dir / "audio.wav")
             marker = {
@@ -982,6 +1018,7 @@ class SessionRecorder:
             verified = verify_shard_completion(
                 final_dir,
                 max_overlap_samples=self.window_sample_count - self.hop_sample_count,
+                retain_records=False,
             )
         except BaseException as exc:
             self._open_shard = None
@@ -992,7 +1029,9 @@ class SessionRecorder:
                 f"session {self.session_root} shard {boundary.shard_id}: "
                 f"promotion failed at {final_dir}: {exc}"
             ) from exc
-        self._published.append(verified)
+        marker_payload = verified.marker
+        self._published.append(marker_payload)
+        self._mark_published_boundary(boundary)
         self._pending_drop_count = 0
         self._pending_drop_ids.clear()
         self._open_shard = None
@@ -1009,7 +1048,23 @@ class SessionRecorder:
         )
         if self._promotion_callback is not None:
             self._promotion_callback(event)
-        return verified
+        return marker_payload
+
+    def _mark_published_boundary(self, boundary: ShardBoundary) -> None:
+        published_end = boundary.start_frame + boundary.frame_count
+        for episode in self._episodes:
+            count = min(
+                episode.frame_count,
+                max(0, published_end - episode.start_frame),
+            )
+            if count <= episode.published_frame_count:
+                continue
+            if count != episode.frame_count:
+                raise AssertionError(
+                    "published boundary step is unavailable for a staged frame"
+                )
+            episode.published_frame_count = count
+            episode.published_last_step = episode.last_producer_step
 
     def _remove_failed_shard(self, final_dir: Path, open_shard: _OpenShard) -> None:
         with suppress(OSError):
@@ -1121,6 +1176,7 @@ class SessionRecorder:
             verify_shard_completion(
                 path,
                 max_overlap_samples=self.window_sample_count - self.hop_sample_count,
+                retain_records=False,
             )
             for path in sorted(
                 self._shards_root.iterdir() if self._shards_root.exists() else (),
@@ -1133,8 +1189,9 @@ class SessionRecorder:
             raise SessionRecorderError(
                 f"session {self.session_root}: published shard inventory changed"
             )
-        episodes = self._episode_records(verified)
-        shards = tuple(self._manifest_shard(item) for item in verified)
+        markers = tuple(item.marker for item in verified)
+        episodes = self._episode_records(markers)
+        shards = tuple(self._manifest_shard(marker) for marker in markers)
         manifest = AudioDatasetManifest(
             dataset_id=self.configuration["dataset_id"],
             creation_timestamp_ms=self.creation_timestamp_ms,
@@ -1171,19 +1228,22 @@ class SessionRecorder:
         return manifest
 
     def _episode_records(
-        self, verified: Sequence[VerifiedShard]
+        self, markers: Sequence[Mapping[str, Any]]
     ) -> tuple[EpisodeRecord, ...]:
-        records = [record for item in verified for record in item.records]
-        if not records:
+        if not markers:
             return ()
         metadata_by_id = {episode_id(item.ordinal): item for item in self._episodes}
-        grouped: list[tuple[str, list[Any]]] = []
-        for record in records:
-            if not grouped or grouped[-1][0] != record.episode_id:
-                grouped.append((record.episode_id, []))
-            grouped[-1][1].append(record)
+        published_episode_ids: list[str] = []
+        for marker in markers:
+            for episode_value in marker["episode_ids"]:
+                if (
+                    not published_episode_ids
+                    or published_episode_ids[-1] != episode_value
+                ):
+                    published_episode_ids.append(episode_value)
+        published_frame_count = sum(marker["frame_count"] for marker in markers)
         result: list[EpisodeRecord] = []
-        for ordinal, (episode_value, episode_records) in enumerate(grouped):
+        for ordinal, episode_value in enumerate(published_episode_ids):
             if episode_value != episode_id(ordinal):
                 raise SessionRecorderError(
                     f"session {self.session_root}: published episodes do not tile"
@@ -1194,13 +1254,28 @@ class SessionRecorder:
                 raise SessionRecorderError(
                     f"session {self.session_root}: missing state for {episode_value}"
                 ) from exc
-            start = episode_records[0].dataset_frame_index
-            end = episode_records[-1].dataset_frame_index
-            timestamps = tuple(
-                int(item.frame["timestamp_ms"]) for item in episode_records
+            start = metadata.start_frame
+            end = (
+                metadata_by_id[published_episode_ids[ordinal + 1]].start_frame - 1
+                if ordinal + 1 < len(published_episode_ids)
+                else published_frame_count - 1
             )
-            first_step = episode_records[0].frame.get("frame_index")
-            last_step = episode_records[-1].frame.get("frame_index")
+            frame_count = end - start + 1
+            if frame_count <= 0 or len(metadata.timestamps_ms) < frame_count:
+                raise SessionRecorderError(
+                    f"session {self.session_root}: incomplete state for {episode_value}"
+                )
+            timestamps = tuple(metadata.timestamps_ms[:frame_count])
+            first_step = metadata.first_producer_step
+            last_step = (
+                metadata.published_last_step
+                if metadata.published_frame_count == frame_count
+                else (
+                    metadata.last_producer_step
+                    if metadata.frame_count == frame_count
+                    else None
+                )
+            )
             if (
                 isinstance(first_step, int)
                 and not isinstance(first_step, bool)
@@ -1211,24 +1286,11 @@ class SessionRecorder:
                 start_step, end_step = first_step, last_step
             else:
                 start_step, end_step = start, end
-            by_index = {item.dataset_frame_index: item for item in episode_records}
-            resets: list[ResetMarker] = []
-            for frame_index in metadata.reset_frame_indices:
-                record = by_index.get(frame_index)
-                if record is None:
-                    continue
-                step = record.frame.get("frame_index")
-                resets.append(
-                    ResetMarker(
-                        step_index=(
-                            step
-                            if isinstance(step, int) and not isinstance(step, bool)
-                            else frame_index
-                        ),
-                        frame_index=frame_index,
-                        timestamp_ms=int(record.frame["timestamp_ms"]),
-                    )
-                )
+            resets = tuple(
+                marker
+                for marker in metadata.reset_markers
+                if start <= marker.frame_index <= end
+            )
             result.append(
                 EpisodeRecord(
                     episode_id=episode_value,
@@ -1241,14 +1303,13 @@ class SessionRecorder:
                     end_frame=end,
                     timestamps_ms=timestamps,
                     split_group=metadata.split_group,
-                    reset_markers=tuple(resets),
+                    reset_markers=resets,
                 )
             )
         return tuple(result)
 
     @staticmethod
-    def _manifest_shard(verified: VerifiedShard) -> ShardRecord:
-        marker = verified.marker
+    def _manifest_shard(marker: Mapping[str, Any]) -> ShardRecord:
         return ShardRecord(
             shard_id=marker["shard_id"],
             episode_ids=tuple(marker["episode_ids"]),
@@ -1405,17 +1466,18 @@ class SessionRecorder:
         state_episodes = {
             int(item["ordinal"]): item for item in state_payload.get("episodes", [])
         }
-        verified = self._scan_published_for_resume()
-        verify_shard_tiling(verified)
-        committed_records = [record for item in verified for record in item.records]
-        next_frame = sum(item.marker["frame_count"] for item in verified)
+        published = self._scan_published_for_resume()
+        verify_shard_tiling(published)
+        next_frame = sum(item["frame_count"] for item in published)
         self._next_dataset_frame = next_frame
 
-        records_by_episode: dict[int, list[Any]] = {}
-        for record in committed_records:
-            ordinal = int(record.episode_id.rsplit("_", 1)[1])
-            records_by_episode.setdefault(ordinal, []).append(record)
-        committed_ordinals = sorted(records_by_episode)
+        committed_ids: list[str] = []
+        for marker in published:
+            for episode_value in marker["episode_ids"]:
+                if not committed_ids or committed_ids[-1] != episode_value:
+                    committed_ids.append(episode_value)
+        committed_ordinals = [int(value.rsplit("_", 1)[1]) for value in committed_ids]
+        reset_indices_by_ordinal: dict[int, set[int]] = {}
         for ordinal in committed_ordinals:
             try:
                 item = state_episodes[ordinal]
@@ -1424,42 +1486,24 @@ class SessionRecorder:
                     f"session {self.session_root}: missing resume state for "
                     f"{episode_id(ordinal)}"
                 ) from exc
-            episode_records = records_by_episode[ordinal]
-            stored_end_frame = item.get("end_frame")
-            stored_ended = bool(item.get("ended", False)) and (
-                isinstance(stored_end_frame, int) and stored_end_frame < next_frame
-            )
-            later_episode_committed = ordinal != committed_ordinals[-1]
             episode = _EpisodeState(
                 ordinal=ordinal,
                 scene_id=str(item["scene_id"]),
                 environment_id=str(item["environment_id"]),
                 split_group=str(item["split_group"]),
                 seed=int(item["seed"]),
-                start_frame=episode_records[0].dataset_frame_index,
-                frame_count=len(episode_records),
-                last_timestamp_ms=int(episode_records[-1].frame["timestamp_ms"]),
-                reset_frame_indices=[
-                    int(value)
-                    for value in item.get("reset_frame_indices", [])
-                    if int(value) < next_frame
-                ],
-                ended=stored_ended or later_episode_committed,
-                end_frame=(
-                    int(stored_end_frame)
-                    if stored_ended and isinstance(stored_end_frame, int)
-                    else None
-                ),
+                start_frame=int(item["start_frame"]),
             )
             self._episodes.append(episode)
-
-        for episode in self._episodes:
-            for _record in records_by_episode[episode.ordinal]:
-                self._planner.feed_frame(episode.ordinal, episode.split_group)
-            if episode.ended:
-                self._planner.end_episode(episode.ordinal)
-        if self._episodes and not self._episodes[-1].ended:
-            self._current_episode = self._episodes[-1]
+            reset_indices_by_ordinal[ordinal] = {
+                int(value)
+                for value in item.get("reset_frame_indices", [])
+                if int(value) < next_frame
+            } | {
+                int(marker["frame_index"])
+                for marker in item.get("reset_markers", [])
+                if int(marker["frame_index"]) < next_frame
+            }
 
         carry = self._read_carry_checkpoint(next_frame)
         self._carry.replace(carry)
@@ -1467,22 +1511,71 @@ class SessionRecorder:
         self._staging_root.mkdir(parents=True)
         self._open_producer_index()
         assert self._producer_db is not None
-        self._producer_db.executemany(
-            "INSERT INTO producer_ids (episode_ordinal, producer_frame_id) "
-            "VALUES (?, ?)",
-            (
-                (
-                    int(record.episode_id.rsplit("_", 1)[1]),
-                    str(record.frame["frame_id"]),
-                )
-                for record in committed_records
-            ),
-        )
-        self._published = list(verified)
+        episodes_by_ordinal = {item.ordinal: item for item in self._episodes}
+        for marker in published:
+            frames_path = (
+                self._shards_root / marker["shard_id"] / "frames.jsonl"
+            )
+            with frames_path.open("rb") as stream:
+                for line in stream:
+                    record = json.loads(line)
+                    ordinal = int(record["episode_id"].rsplit("_", 1)[1])
+                    episode = episodes_by_ordinal[ordinal]
+                    frame = record["frame"]
+                    dataset_index = int(record["dataset_frame_index"])
+                    timestamp = int(frame["timestamp_ms"])
+                    producer_step = frame.get("frame_index")
+                    if not isinstance(producer_step, int) or isinstance(
+                        producer_step, bool
+                    ):
+                        producer_step = None
+                    if episode.frame_count == 0:
+                        episode.first_producer_step = producer_step
+                    episode.last_producer_step = producer_step
+                    episode.timestamps_ms.append(timestamp)
+                    episode.frame_count += 1
+                    episode.last_timestamp_ms = timestamp
+                    if dataset_index in reset_indices_by_ordinal[ordinal]:
+                        episode.reset_markers.append(
+                            ResetMarker(
+                                step_index=(
+                                    producer_step
+                                    if producer_step is not None
+                                    else dataset_index
+                                ),
+                                frame_index=dataset_index,
+                                timestamp_ms=timestamp,
+                            )
+                        )
+                    self._record_producer_id(ordinal, str(frame["frame_id"]))
+
+        for episode in self._episodes:
+            episode.published_frame_count = episode.frame_count
+            episode.published_last_step = episode.last_producer_step
+            stored = state_episodes[episode.ordinal]
+            stored_end_frame = stored.get("end_frame")
+            stored_ended = bool(stored.get("ended", False)) and (
+                isinstance(stored_end_frame, int) and stored_end_frame < next_frame
+            )
+            later_episode_committed = episode.ordinal != committed_ordinals[-1]
+            episode.ended = stored_ended or later_episode_committed
+            episode.end_frame = (
+                int(stored_end_frame)
+                if stored_ended and isinstance(stored_end_frame, int)
+                else None
+            )
+            for _ in range(episode.frame_count):
+                self._planner.feed_frame(episode.ordinal, episode.split_group)
+            if episode.ended:
+                self._planner.end_episode(episode.ordinal)
+        if self._episodes and not self._episodes[-1].ended:
+            self._current_episode = self._episodes[-1]
+
+        self._published = list(published)
         self._write_state()
 
-    def _scan_published_for_resume(self) -> tuple[VerifiedShard, ...]:
-        verified: list[VerifiedShard] = []
+    def _scan_published_for_resume(self) -> tuple[dict[str, Any], ...]:
+        verified: list[dict[str, Any]] = []
         if not self._shards_root.exists():
             self._shards_root.mkdir(parents=True)
         for path in sorted(self._shards_root.iterdir(), key=lambda item: item.name):
@@ -1499,7 +1592,8 @@ class SessionRecorder:
                     path,
                     max_overlap_samples=self.window_sample_count
                     - self.hop_sample_count,
-                )
+                    retain_records=False,
+                ).marker
             )
         return tuple(verified)
 

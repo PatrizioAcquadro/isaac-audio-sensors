@@ -103,6 +103,13 @@ def _audio(index: int) -> np.ndarray:
     return values / np.float32(32.0) + np.float32(index / 128.0)
 
 
+def _rss_bytes() -> int:
+    for line in Path("/proc/self/status").read_text(encoding="utf-8").splitlines():
+        if line.startswith("VmRSS:"):
+            return int(line.split()[1]) * 1024
+    raise RuntimeError("VmRSS is absent from /proc/self/status")
+
+
 def _record_session(
     root: Path,
     *,
@@ -401,3 +408,38 @@ def test_memory_harness_scale_smoke(tmp_path):
     assert result["runs"]["W2"]["samples"]
     assert result["runs"]["W2"]["validation"]["passed"]
     assert json.loads((tmp_path / "telemetry.json").read_text())["status"] == "passed"
+
+
+def test_unaligned_multishard_recording_does_not_retain_frame_payloads(tmp_path):
+    root = tmp_path / "bounded_recording"
+    recorder = SessionRecorder(
+        root,
+        _configuration(aligned=False, shard_max_frames=400),
+        **_recorder_kwargs(),
+    )
+    recorder.begin_episode("scene_a", "environment_0", "scene_a")
+    diagnostic_blob = "x" * (16 * 1024)
+    baseline = _rss_bytes()
+    peak = baseline
+
+    for index in range(1_600):
+        payload = frame_to_trace_dict(_frame(index))
+        payload["diagnostics"] = {"retention_guard": diagnostic_blob}
+        result = recorder.append_frame(
+            payload,
+            _audio(index),
+            index,
+            is_reset=index == 0,
+        )
+        assert result.accepted
+        peak = max(peak, _rss_bytes())
+    recorder.end_episode()
+    recorder.finalize()
+    peak = max(peak, _rss_bytes())
+
+    # Four retained 400-frame shards would keep at least 25 MiB of diagnostic
+    # strings alone. 18 MiB leaves ample room for bounded writer bookkeeping
+    # while remaining below that unavoidable pre-fix payload-retention floor.
+    assert peak - baseline < 18 * 1024 * 1024
+    assert recorder.promoted_shard_count == 4
+    assert all(isinstance(marker, dict) for marker in recorder._published)

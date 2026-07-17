@@ -289,9 +289,10 @@ def measure_workload(
                 is_reset=global_index == 0,
             )
             global_index += 1
-        monitor.stop()
         published_at_sampling_end = recorder.promoted_shard_count
         recorder.finalize_incomplete()
+        monitor.sample("finalize_incomplete")
+        monitor.stop()
         if (
             scale == 1.0
             and published_at_sampling_end != workload.expected_published_shards
@@ -329,10 +330,11 @@ def measure_workload(
                 global_index += 1
             recorder.end_episode()
         recorder.finalize()
+        monitor.sample("finalize")
         monitor.stop()
         published_at_sampling_end = recorder.promoted_shard_count
 
-    layout = validate_session_layout(root)
+    layout = validate_session_layout(root, retain_records=False)
     samples = list(monitor.samples)
     peak_rss_delta = max(row["rss_bytes"] for row in samples) - baseline_rss
     peak_fd_delta = max(row["fd_count"] for row in samples) - baseline_fd
@@ -428,6 +430,7 @@ def run_memory_measurements(
             "period_seconds": 0.5,
             "forced_after_each_shard_promotion": True,
             "baseline_sample_count": 3,
+            "window_end": "after finalization and before post-run validation",
         },
         "frozen_limits": {
             "peak_rss_delta_bytes": RSS_LIMIT_BYTES,
