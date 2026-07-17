@@ -88,3 +88,14 @@ Final canonical result: all four scenarios passed against artifact-set id
 `SHA256SUMS_final.txt` matched `dist/SHA256SUMS`; user state restoration and
 output-local cleanup both passed. Canonical evidence:
 `outputs/isaac_audio_sensors/S1/S1.6/clean_install_gate.json`.
+
+## Final provenance-bound artifact run (2026-07-17)
+
+The previous artifact set is superseded by artifact-set id
+`6dbbab35db6b04f75ca06a5f0a34a2cc9e5cf4aec94df18d555c4bcc441408bd`,
+built from clean committed source revision
+`814da7a122741372254f883c477c210c7daa64ab`. Headless, reinstall, GUI, and
+wheel-venv scenarios all passed; `SHA256SUMS_final.txt` matched
+`dist/SHA256SUMS`, user state was restored, and the clean environment was
+removed. The canonical evidence path remains
+`outputs/isaac_audio_sensors/S1/S1.6/clean_install_gate.json`.

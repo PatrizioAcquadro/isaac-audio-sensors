@@ -113,3 +113,34 @@ had zero drift; and `git diff --check` passed in both repositories.
 Canonical overall evidence:
 `outputs/isaac_audio_sensors/S1/post_review_final_gate_summary.json`.
 Verdict: **S1 is ready for S2**.
+
+## Final clean-source provenance correction (2026-07-17)
+
+This section supersedes every earlier S1 artifact hash while preserving the
+earlier records as historical evidence. The canonical artifacts were rebuilt
+from clean committed source revision
+`814da7a122741372254f883c477c210c7daa64ab`; build entry points now reject
+dirty tracked or untracked source, and archive audits compare embedded source
+and release scripts with the recorded commit.
+
+Final artifact-set id:
+`6dbbab35db6b04f75ca06a5f0a34a2cc9e5cf4aec94df18d555c4bcc441408bd`.
+
+| Artifact | Final clean-source sha256 |
+| --- | --- |
+| `isaac_audio_sensors-1.8.0-py3-none-any.whl` | `237dfbe417520265e7773ed5fd31715f3c35f0beba9fb27e093f95eb589428eb` |
+| `isaac_audio_sensors-1.8.0.tar.gz` | `e2a3e8f8c2dd30c8fc0aeaa9ca8a1b239b77af4f6e7424987e05727b587b5339` |
+| `kit/isaac_audio_sensors.omni-1.8.0.zip` | `ba4fe4ae7a906ba6b6456bb07a679e323a73d069b918bbf68ff8978b3a104f29` |
+| `packs/isaac_audio_sensors_acoustic_pack-l2l3-1.8.0-linux_x86_64-cp312.tar.gz` | `98f1c5d307d012197ef7a0e786b42896e1243ef467146b3f2a1292e9953af201` |
+
+The full main-checkout battery passed 522 tests with 67 documented
+optional-dependency skips; lint, version synchronization, distribution, Kit,
+and pack audits passed. The clean-source artifact set also passed real offline
+pack installation and 8-import activation, all four S1.6 Isaac scenarios, all
+8 S1.8 installed-consumer cases, and zero-drift schema, trace, and manifest
+regeneration. The final sdist excludes unrelated local documentation changes.
+
+Canonical final evidence is under `outputs/isaac_audio_sensors/S1/`, including
+`S1.5/final_provenance_pack_activation.json`,
+`S1.6/clean_install_gate.json`, and `S1.8/consumer_gate.json`.
+Verdict: **S1 is complete and ready for S2**.

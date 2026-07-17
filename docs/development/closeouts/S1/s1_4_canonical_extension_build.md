@@ -85,3 +85,12 @@ and re-audited as a 98-file Kit archive. It is the exact Kit artifact used by
 all four final S1.6 scenarios; packaged imports resolved from its `_vendor`
 tree, not the repository or a virtual environment. This refresh changes no
 S2 surface.
+
+## Final provenance correction (2026-07-17)
+
+The release builders now fail closed unless tracked and untracked source is
+clean, and both the builder and auditor bind vendored bytes to a full committed
+Git revision. The final Kit archive was built from
+`814da7a122741372254f883c477c210c7daa64ab`, records that exact revision in
+`_vendor/VENDORED.json`, and passed the 98-file archive audit with sha256
+`ba4fe4ae7a906ba6b6456bb07a679e323a73d069b918bbf68ff8978b3a104f29`.

@@ -73,3 +73,13 @@ with no errors, produced identical graph hashes
 `26de618c877a1e1319ede5eca7f6aba40744fdc7bb0fa9f576c3bc9802db9e11`,
 and confirmed the consumer checkout was unchanged during execution. Evidence:
 `outputs/isaac_audio_sensors/S1/S1.8/consumer_gate.json`.
+
+## Final provenance-bound artifact run (2026-07-17)
+
+The gate was rerun against wheel sha256
+`237dfbe417520265e7773ed5fd31715f3c35f0beba9fb27e093f95eb589428eb`,
+built from clean committed source revision
+`814da7a122741372254f883c477c210c7daa64ab`. All 8 cases passed, the two
+canonical graph exports remained byte-identical, the boundary scan had zero
+hits, and the consumer repository remained clean at
+`afa6981eeb6554d4bab33c727a6a018f2f28ae49`.
