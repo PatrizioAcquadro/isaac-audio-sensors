@@ -16,6 +16,13 @@ Official Isaac 6.0.1 / Isaac Lab 3.0.0-beta2 launcher migration:
 - Added configuration-validated `training_features` and `waveform_fidelity`
   runtime profiles. `waveform_fidelity` is the compatibility default; unknown
   profiles and waveform export under `training_features` fail closed.
+- Added import-safe `PropagationBackend`, `DoaEstimator`, and
+  `AudioFeatureExtractor` protocols plus frozen capability declarations and a
+  registry that rejects duplicate ids, missing dependencies at resolution,
+  incompatible devices/profiles, output-contract lies, and false determinism.
+  Existing L0/L1/L2 backends and the GCC/SRP estimators are registered without
+  changing backend construction or simulation semantics; no core audio feature
+  extractor or learned model is claimed.
 - Added exact schema regeneration through the CLI and Makefile, deterministic
   valid-fixture regeneration, and distribution inventory coverage.
 

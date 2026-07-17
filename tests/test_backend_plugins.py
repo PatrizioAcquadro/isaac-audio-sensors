@@ -1,0 +1,305 @@
+"""Contract, rejection, inventory, and no-drift tests for audio plugins."""
+
+from __future__ import annotations
+
+import itertools
+
+import numpy as np
+import pytest
+
+from isaac_audio_sensors.core.backends.base import get_backend
+from isaac_audio_sensors.core.backends.geometry import GeometryBackend
+from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.exceptions import ConfigValidationError
+from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
+from isaac_audio_sensors.core.microphone_array import create_microphone_array
+from isaac_audio_sensors.core.plugins import (
+    AudioFeatureExtractor,
+    DoaEstimator,
+    PluginDeclaration,
+    PluginRegistry,
+    PropagationBackend,
+    get_default_registry,
+)
+from isaac_audio_sensors.core.types import (
+    AudioSceneSnapshot,
+    AudioSourceSpec,
+    AudioTimeWindow,
+)
+
+
+class _MeanFeatureExtractor:
+    def extract(self, samples, sample_rate_hz):
+        del sample_rate_hz
+        return np.mean(samples, axis=1, dtype=np.float32), {"statistic": "mean"}
+
+
+class _LyingShapeExtractor:
+    def extract(self, samples, sample_rate_hz):
+        del samples, sample_rate_hz
+        return np.zeros((3,), dtype=np.float32), {}
+
+
+class _NondeterministicExtractor:
+    _counter = itertools.count()
+
+    def extract(self, samples, sample_rate_hz):
+        del samples, sample_rate_hz
+        return np.asarray([next(self._counter)], dtype=np.float32), {}
+
+
+def _feature_declaration(
+    plugin_id: str,
+    *,
+    dependencies: tuple[str, ...] = (),
+    devices: tuple[str, ...] = ("cpu",),
+    profiles: tuple[str, ...] = ("training_features",),
+    deterministic: bool = True,
+    shape: tuple[int, ...] = (4,),
+) -> PluginDeclaration:
+    return PluginDeclaration(
+        plugin_id=plugin_id,
+        kind="audio_feature_extractor",
+        fidelity_level=None,
+        required_dependencies=dependencies,
+        supported_devices=devices,
+        supported_profiles=profiles,
+        deterministic=deterministic,
+        output_contract={"shape": shape, "dtype": "float32"},
+        description="Test-local mean feature extractor.",
+        provenance="tests.test_backend_plugins",
+    )
+
+
+def test_protocols_are_structural_and_existing_backends_satisfy_propagation():
+    assert isinstance(GeometryBackend(), PropagationBackend)
+    assert isinstance(TdoaSyntheticBackend(), PropagationBackend)
+    assert isinstance(_MeanFeatureExtractor(), AudioFeatureExtractor)
+
+    registry = get_default_registry()
+    assert isinstance(
+        registry.resolve("doa_estimator", "tdoa_least_squares"),
+        DoaEstimator,
+    )
+    assert isinstance(registry.resolve("doa_estimator", "srp_phat"), DoaEstimator)
+
+
+def test_declaration_rejects_invalid_identity_kind_and_capabilities():
+    with pytest.raises(ConfigValidationError, match="without whitespace"):
+        _feature_declaration("bad id")
+    with pytest.raises(ConfigValidationError, match="kind must be one of"):
+        PluginDeclaration(
+            plugin_id="bad_kind",
+            kind="classifier",
+            fidelity_level=None,
+            required_dependencies=(),
+            supported_devices=("cpu",),
+            supported_profiles=("training_features",),
+            deterministic=True,
+            output_contract={"shape": (1,), "dtype": "float32"},
+            description="Invalid kind.",
+            provenance="tests.test_backend_plugins",
+        )
+    with pytest.raises(ConfigValidationError, match="unsupported values"):
+        _feature_declaration("bad_device", devices=("tpu",))
+    with pytest.raises(ConfigValidationError, match="unsupported values"):
+        _feature_declaration("bad_profile", profiles=("unknown",))
+    with pytest.raises(ConfigValidationError, match="must not be empty"):
+        _feature_declaration("no_profile", profiles=())
+
+
+def test_registry_rejects_duplicate_id_within_kind():
+    registry = PluginRegistry()
+    declaration = _feature_declaration("mean_feature")
+    registry.register(declaration, _MeanFeatureExtractor)
+
+    with pytest.raises(ConfigValidationError, match="Duplicate.*mean_feature"):
+        registry.register(declaration, _MeanFeatureExtractor)
+
+
+def test_registry_rejects_unknown_kind_and_id():
+    registry = PluginRegistry()
+
+    with pytest.raises(ConfigValidationError, match="Unknown plugin kind"):
+        registry.resolve("classifier", "missing")
+    with pytest.raises(ConfigValidationError, match="Unknown doa_estimator plugin id"):
+        registry.resolve("doa_estimator", "missing")
+
+
+def test_missing_dependency_registers_but_resolution_fails_actionably():
+    registry = PluginRegistry()
+    dependency = "isaac_audio_sensors_dependency_that_does_not_exist"
+    registry.register(
+        _feature_declaration("missing_dep", dependencies=(dependency,)),
+        _MeanFeatureExtractor,
+    )
+
+    availability = registry.availability("audio_feature_extractor", "missing_dep")
+    assert availability.available is False
+    assert availability.missing_dependencies == (dependency,)
+    with pytest.raises(ConfigValidationError, match=dependency):
+        registry.resolve("audio_feature_extractor", "missing_dep")
+
+
+def test_importable_stdlib_dependency_resolves_normally():
+    registry = PluginRegistry()
+    registry.register(
+        _feature_declaration("stdlib_dep", dependencies=("sys",)),
+        _MeanFeatureExtractor,
+    )
+
+    assert registry.availability(
+        "audio_feature_extractor", "stdlib_dep"
+    ).available
+    assert isinstance(
+        registry.resolve(
+            "audio_feature_extractor",
+            "stdlib_dep",
+            runtime_profile="training_features",
+        ),
+        _MeanFeatureExtractor,
+    )
+
+
+def test_resolution_rejects_unsupported_device_and_profile():
+    registry = PluginRegistry()
+    registry.register(_feature_declaration("mean_feature"), _MeanFeatureExtractor)
+
+    with pytest.raises(ConfigValidationError, match="does not support device 'cuda'"):
+        registry.resolve(
+            "audio_feature_extractor",
+            "mean_feature",
+            device="cuda",
+            runtime_profile="training_features",
+        )
+    with pytest.raises(
+        ConfigValidationError,
+        match="does not support runtime profile 'waveform_fidelity'",
+    ):
+        registry.resolve(
+            "audio_feature_extractor",
+            "mean_feature",
+            runtime_profile="waveform_fidelity",
+        )
+
+
+def test_registration_rejects_declared_shape_lie():
+    registry = PluginRegistry()
+
+    with pytest.raises(ConfigValidationError, match="returned feature shape"):
+        registry.register(
+            _feature_declaration("lying_shape", shape=(2,)),
+            _LyingShapeExtractor,
+        )
+
+
+def test_registration_rejects_false_determinism_declaration():
+    registry = PluginRegistry()
+
+    with pytest.raises(ConfigValidationError, match="deterministic=True"):
+        registry.register(
+            _feature_declaration("random_feature", shape=(1,)),
+            _NondeterministicExtractor,
+        )
+
+
+def test_default_registry_builtin_inventory_and_capabilities():
+    declarations = {
+        (item.kind, item.plugin_id): item
+        for item in get_default_registry().declarations()
+    }
+    assert set(declarations) == {
+        ("propagation_backend", "geometry_only"),
+        ("propagation_backend", "tdoa_synthetic"),
+        ("propagation_backend", "room_acoustics"),
+        ("propagation_backend", "room_acoustics_srp"),
+        ("doa_estimator", "tdoa_least_squares"),
+        ("doa_estimator", "srp_phat"),
+    }
+    assert not any(
+        kind == "audio_feature_extractor" for kind, _plugin_id in declarations
+    )
+    assert declarations[("propagation_backend", "geometry_only")].fidelity_level == "L0"
+    assert (
+        declarations[("propagation_backend", "tdoa_synthetic")].fidelity_level
+        == "L1"
+    )
+    for plugin_id in ("room_acoustics", "room_acoustics_srp"):
+        declaration = declarations[("propagation_backend", plugin_id)]
+        assert declaration.fidelity_level == "L2"
+        assert declaration.required_dependencies == ("pyroomacoustics",)
+        assert declaration.supported_profiles == ("waveform_fidelity",)
+    assert all(item.supported_devices == ("cpu",) for item in declarations.values())
+    assert all(item.deterministic for item in declarations.values())
+
+
+def test_room_backend_registry_availability_matches_optional_dependency():
+    registry = get_default_registry()
+    if RoomAcousticsBackend.is_available():
+        assert isinstance(
+            registry.resolve("propagation_backend", "room_acoustics"),
+            RoomAcousticsBackend,
+        )
+    else:
+        with pytest.raises(ConfigValidationError, match="pyroomacoustics"):
+            registry.resolve("propagation_backend", "room_acoustics")
+
+
+@pytest.mark.parametrize(
+    ("backend_class", "backend_id", "kwargs"),
+    [
+        (GeometryBackend, "geometry_only", {}),
+        (
+            TdoaSyntheticBackend,
+            "tdoa_synthetic",
+            {"seed": 713, "noise_std_s": 1e-6, "clock_jitter_s": 2e-7},
+        ),
+    ],
+)
+def test_get_backend_registry_routing_has_no_seeded_frame_drift(
+    backend_class,
+    backend_id,
+    kwargs,
+):
+    array = create_microphone_array(
+        array_id="plugin_no_drift",
+        prim_path="/World/PluginNoDrift",
+        layout_name="quad_front",
+    )
+    source = AudioSourceSpec(
+        source_id="speaker",
+        prim_path="/World/Speaker",
+        class_label="Speech",
+        audio_asset_path="generated://impulse",
+        position_world=(3.0, 2.0, 0.5),
+        orientation_world_quat=None,
+        start_time_s=0.0,
+        duration_s=1.0,
+        gain_db=-2.0,
+    )
+    scene = AudioSceneSnapshot(
+        stage_id="plugin_no_drift",
+        timestamp_ms=25,
+        sources=(source,),
+        arrays=(array,),
+    )
+    window = AudioTimeWindow(
+        start_time_s=0.0,
+        end_time_s=0.1,
+        timestamp_ms=25,
+        sample_rate_hz=48_000,
+        frame_index=4,
+    )
+
+    direct = backend_class(**kwargs).simulate(scene, array, window)
+    registered = get_backend(backend_id, **kwargs).simulate(scene, array, window)
+
+    assert frame_to_trace_dict(registered) == frame_to_trace_dict(direct)
+
+
+def test_get_backend_unknown_id_error_text_is_frozen():
+    with pytest.raises(ValueError) as error:
+        get_backend("unknown")
+
+    assert str(error.value) == "Unknown audio simulation backend 'unknown'."

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, cast
 
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
@@ -29,24 +29,15 @@ class AudioSimulationBackend(Protocol):
 def get_backend(backend_id: str, **kwargs: object) -> AudioSimulationBackend:
     """Instantiate a backend by public id."""
 
-    if backend_id == "geometry_only":
-        from isaac_audio_sensors.core.backends.geometry import GeometryBackend
+    from isaac_audio_sensors.core.exceptions import ConfigValidationError
+    from isaac_audio_sensors.core.plugins.registry import get_default_registry
 
-        return GeometryBackend(**kwargs)
-    if backend_id == "tdoa_synthetic":
-        from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
-
-        return TdoaSyntheticBackend(**kwargs)
-    if backend_id == "room_acoustics":
-        from isaac_audio_sensors.core.backends.room_acoustics import (
-            RoomAcousticsBackend,
+    try:
+        backend = get_default_registry().instantiate_registered(
+            "propagation_backend",
+            backend_id,
+            **kwargs,
         )
-
-        return RoomAcousticsBackend(**kwargs)
-    if backend_id == "room_acoustics_srp":
-        from isaac_audio_sensors.core.backends.room_acoustics import (
-            RoomAcousticsSrpBackend,
-        )
-
-        return RoomAcousticsSrpBackend(**kwargs)
-    raise ValueError(f"Unknown audio simulation backend {backend_id!r}.")
+    except ConfigValidationError as exc:
+        raise ValueError(f"Unknown audio simulation backend {backend_id!r}.") from exc
+    return cast(AudioSimulationBackend, backend)

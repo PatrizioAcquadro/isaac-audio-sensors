@@ -1,0 +1,43 @@
+"""Public plugin protocols, declarations, adapters, and registry."""
+
+from __future__ import annotations
+
+from isaac_audio_sensors.core.plugins.adapters import (
+    GccPhatLeastSquaresEstimator,
+    SrpPhatEstimator,
+)
+from isaac_audio_sensors.core.plugins.declarations import (
+    PLUGIN_KINDS,
+    SUPPORTED_PLUGIN_DEVICES,
+    PluginDeclaration,
+)
+from isaac_audio_sensors.core.plugins.protocols import (
+    AudioFeatureExtractor,
+    DoaEstimator,
+    PluginOutputContract,
+    PropagationBackend,
+)
+from isaac_audio_sensors.core.plugins.registry import (
+    PluginAvailability,
+    PluginFactory,
+    PluginRegistry,
+    get_default_registry,
+    validate_declaration,
+)
+
+__all__ = [
+    "PLUGIN_KINDS",
+    "SUPPORTED_PLUGIN_DEVICES",
+    "AudioFeatureExtractor",
+    "DoaEstimator",
+    "GccPhatLeastSquaresEstimator",
+    "PluginAvailability",
+    "PluginDeclaration",
+    "PluginFactory",
+    "PluginOutputContract",
+    "PluginRegistry",
+    "PropagationBackend",
+    "SrpPhatEstimator",
+    "get_default_registry",
+    "validate_declaration",
+]
