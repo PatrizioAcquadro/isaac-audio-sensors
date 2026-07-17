@@ -49,6 +49,7 @@ Stable units:
 | `position` | `m` | Positions and offsets in meters |
 | `orientation` | `quaternion_xyzw` | Quaternion order `[x, y, z, w]` |
 | `bearing` | `deg_clockwise_from_array_forward` | Degrees clockwise from array forward |
+| `elevation` | `deg_up_from_array_horizontal` | Degrees up from the array horizontal plane |
 | `distance` | `m` | Source and microphone distances in meters |
 | `time` | `s` | Frame start/end times in seconds |
 | `timestamp` | `ms` | Integer timestamps in milliseconds |
@@ -66,14 +67,16 @@ Timestamp semantics:
 Detections preserve `detection_id`, `source_id`, `class_label`,
 `detection_mode`, `timestamp_ms`, `ground_truth_bearing_deg`,
 `source_distance_m`, `doa`, `source_pose`, `per_mic_delay_s`, `per_mic_rms`,
-`audio_asset_path`, and `diagnostics`.
+`audio_asset_path`, `diagnostics`, and the additive optional
+`ground_truth_elevation_deg` and `occluded` fields.
 
 DOA estimates preserve `estimated_bearing_deg`, `candidate_bearing_deg`,
 `bearing_sector`, `bearing_confidence`, `ambiguity_class`, and
-`ambiguity_reason`. Two-microphone front/back ambiguity must remain explicit:
-when the bearing is ambiguous, producers record candidate bearings plus
-`ambiguity_class` and `ambiguity_reason`. Isaac Lab tensor views map a non-null
-`ambiguity_class` to `ambiguity_mask=True`.
+`ambiguity_reason`, plus additive optional `estimated_elevation_deg` and
+`candidate_elevation_deg`. Two-microphone front/back ambiguity must remain
+explicit: when the bearing is ambiguous, producers record candidate bearings
+plus `ambiguity_class` and `ambiguity_reason`. Isaac Lab tensor views map a
+non-null `ambiguity_class` to `ambiguity_mask=True`.
 
 `bearing_sector` uses the corrected stable v1 8-sector mapping. Bearings are
 normalized into `[0, 360)`, measured clockwise from array forward, and assigned
@@ -119,6 +122,66 @@ Export the schema from code:
 ```bash
 isaac-audio-sensors export-schema --out /tmp/audio_sensor_frame.v1.schema.json
 ```
+
+The [Compatibility Matrix](compatibility_matrix.md) records the `1.7.0` trace
+baseline and the only canonical defaults that may appear when an older record
+is serialized by the current writer.
+
+## Stage 1 Contracts And Plugins
+
+The dataset manifest and calibration profile are independent versioned
+contracts:
+
+```python
+from isaac_audio_sensors.core import (
+    AudioCalibrationProfile,
+    AudioDatasetManifest,
+    check_profile_compatibility,
+)
+from isaac_audio_sensors.core.io import (
+    read_calibration_profile,
+    read_dataset_manifest,
+    write_calibration_profile,
+    write_dataset_manifest,
+)
+```
+
+Their schema identifiers are `ias.audio_dataset_manifest.v1` and
+`ias.audio_calibration_profile.v1`. The corresponding generated schemas are
+under `docs/schemas/`, and valid and invalid examples are under
+`examples/manifests/` and `examples/calibration/`.
+
+Configuration accepts `training_features` and `waveform_fidelity` as runtime
+profiles. When `audio.runtime_profile` is absent, `waveform_fidelity` preserves
+the behavior of configurations written before Stage 1.
+
+Plugin consumers use import-safe structural protocols and frozen declarations:
+
+```python
+from isaac_audio_sensors.core import (
+    AudioFeatureExtractor,
+    DoaEstimator,
+    PluginDeclaration,
+    PluginRegistry,
+    PropagationBackend,
+    get_default_registry,
+)
+
+backend = get_default_registry().resolve(
+    "propagation_backend",
+    "geometry_only",
+)
+```
+
+The built-in registry contains propagation ids `geometry_only`,
+`tdoa_synthetic`, `room_acoustics`, and `room_acoustics_srp`, plus DOA ids
+`tdoa_least_squares` and `srp_phat`. No built-in audio feature extractor is
+claimed. Capability discovery is available through `discover_capabilities()`
+or `isaac-audio-sensors capabilities --json` without making optional packs a
+base import dependency.
+
+The complete module-qualified freeze is in
+[Public API Inventory](public_api_inventory.md).
 
 ## Acoustic Fidelity Ladder
 

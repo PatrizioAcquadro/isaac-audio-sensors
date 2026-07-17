@@ -6,7 +6,7 @@ Use Python 3.10 or newer for the pure package. After building the local final
 release, install the wheel directly:
 
 ```bash
-python -m pip install dist/isaac_audio_sensors-1.0.0-py3-none-any.whl
+python -m pip install dist/isaac_audio_sensors-1.8.0-py3-none-any.whl
 python -m isaac_audio_sensors --version
 ```
 

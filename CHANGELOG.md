@@ -45,6 +45,11 @@ Official Isaac 6.0.1 / Isaac Lab 3.0.0-beta2 launcher migration:
   staging, backed-up preflight decontamination/restoration, sanitized Kit and
   fresh-venv scenarios, installed-origin evidence, lifecycle/capture/export
   probes, and optional GUI screenshot proof.
+- Froze the S1.7 compatibility matrix and public-name inventory. The published
+  `1.7.0` frame/schema/config fixtures remain byte-identical and load with
+  identical semantics; round trips add only documented optional defaults.
+  `AudioSensorConfig.runtime_profile` now also defaults to
+  `waveform_fidelity` for direct legacy-style construction.
 
 - Makefile live gates now auto-detect the official installs at `~/isaacsim`
   and `~/IsaacLab`, while keeping `ISAAC_SIM_COMMAND` and `ISAAC_LAB_PYTHON`

@@ -12,6 +12,8 @@ gate for SquadBot, Alex, ROS 2, or any downstream research system.
 | Category | V1 scope | Release meaning |
 | --- | --- | --- |
 | Stable public contract | Stable `AudioSensorFrame` v1 public contract | The `ias.audio_sensor_frame.v1` JSON shape, stable fields, units, provenance values, coordinate convention, ambiguity fields, schema export, and trace round-trip behavior are compatibility commitments for compatible v1 releases starting with `1.0.0`. |
+| Stable public contracts | Stage 1 dataset and calibration contracts | `ias.audio_dataset_manifest.v1` and `ias.audio_calibration_profile.v1`, their public readers/writers, checked schemas, units, validation, and compatibility checks are independent versioned contracts added in `1.8.0`. |
+| Stable extension surface | Import-safe plugin contracts | `PropagationBackend`, `DoaEstimator`, `AudioFeatureExtractor`, declarations, and registry resolution are generic sensor extension contracts. Registry inventory may grow additively; no built-in feature extractor is claimed. |
 | Stable backends | Stable L0 `geometry_only` backend | Deterministic bearing, distance, sector, `max_events`, and frame-contract behavior are stable v1 runtime behavior. |
 | Stable backends | Stable L1 `tdoa_synthetic` backend | Deterministic direct-path synthetic delay/RMS diagnostics, stress controls, and explicit two-mic ambiguity metadata are stable v1 runtime behavior. |
 | Supported optional backend | Supported optional L2 `room_acoustics` backend | The backend is dependency-gated behind the `room` extra, skips or raises clear optional-dependency errors when absent, and records stable L2 diagnostics when present. |
@@ -39,9 +41,10 @@ historical, or adapter-oriented. They must not redefine the v1 release scope.
 
 ## Release Gate Policy
 
-Core v1 releases must verify the stable frame contract, schema
-parity, JSON and JSONL trace round trips, L0/L1 behavior, optional L2 behavior,
-package import safety, lint, build, import smoke, and distribution audit.
+Core v1 releases must verify the stable frame, dataset-manifest, calibration,
+and plugin contracts; schema parity; JSON and JSONL trace round trips; L0/L1
+behavior; optional L2 behavior; package import safety; lint; build; import
+smoke; and distribution audit.
 
 Isaac Sim and Isaac Lab live checks are release gates for the supported live
 sensor paths when an installed runtime is available. If a live runtime is

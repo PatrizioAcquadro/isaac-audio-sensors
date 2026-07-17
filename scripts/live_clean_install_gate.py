@@ -1026,7 +1026,7 @@ def _parse_scenarios(value: str) -> list[str]:
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--isaac-root", type=Path, default=Path("/home/pacquadr/isaacsim")
+        "--isaac-root", type=Path, default=Path.home() / "isaacsim"
     )
     parser.add_argument("--app", type=Path, default=Path("apps/isaacsim.exp.base.kit"))
     parser.add_argument("--dist-dir", type=Path, default=Path("dist"))

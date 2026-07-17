@@ -18,7 +18,13 @@ preset), the SRP-PHAT estimation path as the additive `room_acoustics_srp`
 L2 backend id, and Doppler from the new optional `velocity_world_mps` spec
 fields (metadata at L1, resampled source waveforms at L2). The frame schema
 version is unchanged; new DOA/detection/unit fields are additive optional
-and absent-tolerant, so pre-1.7.0 traces still load.
+and absent-tolerant, so pre-1.7.0 traces still load. Under the S1.7 freeze,
+`1.7.0` traces load with identical semantics; current serialization adds only
+the four documented canonical defaults for absent optional fields:
+`occluded=false`, `ground_truth_elevation_deg=null`,
+`doa.estimated_elevation_deg=null`, and
+`doa.candidate_elevation_deg=[]`. No other key appears, disappears, or changes.
+See the [Compatibility Matrix](compatibility_matrix.md).
 
 `1.6.0` is a v1 minor release with a documented `room_acoustics` behavior
 break: rooms are fixed in world space (`origin_m` + `dimensions_m`) instead

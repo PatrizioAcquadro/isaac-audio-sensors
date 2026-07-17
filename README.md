@@ -23,6 +23,10 @@ Current package release: `1.8.0`. The frame schema version remains separate at
   arrays, detections, DOA estimates, and sensor frames.
 - Stable `AudioSensorFrame` v1 trace contract with schema version, frame name,
   poses, units, provenance, max-event semantics, and JSON Schema export.
+- Versioned dataset-manifest and calibration-profile contracts with checked
+  schemas, deterministic JSON IO, and fail-closed validation.
+- Import-safe propagation, DOA, and feature-extractor plugin protocols with a
+  validated capability registry and optional-pack discovery.
 - `geometry_only` backend for deterministic source bearing and sector labels.
 - `tdoa_synthetic` backend for per-microphone delay and RMS diagnostics.
 - Explicit two-microphone front/back ambiguity reporting.
@@ -53,8 +57,8 @@ Current package release: `1.8.0`. The frame schema version remains separate at
   stack stage binding, scene/env binding helpers, semantic cloned-stage
   discovery, and scene entity/articulation tensor binding for robot/link
   mounted arrays and source entities.
-- CLI commands for config validation, simulation, schema export, and trace
-  export.
+- CLI commands for config validation, simulation, schema export, trace export,
+  and capability reporting.
 
 ## Architecture
 
@@ -75,7 +79,8 @@ The package is organized into four layers:
 ## V1 Scope
 
 The canonical v1 scope is frozen in [V1 Public Scope](docs/v1_scope.md). V1
-promises only the stable `AudioSensorFrame` v1 contract, stable L0
+promises the stable `AudioSensorFrame` v1 contract, Stage 1 dataset and
+calibration contracts, import-safe plugin contracts, stable L0
 `geometry_only`, stable L1 `tdoa_synthetic`, supported optional L2
 `room_acoustics`, supported Isaac Sim and Isaac Lab sensor paths, the Omniverse
 extension as reference UX, stable JSON/JSONL export, and Replicator only as an
@@ -91,7 +96,7 @@ Alex/SquadBot validation before releasing the sensor package.
 For the local final wheel after `make build`:
 
 ```bash
-python -m pip install dist/isaac_audio_sensors-1.4.0-py3-none-any.whl
+python -m pip install dist/isaac_audio_sensors-1.8.0-py3-none-any.whl
 python -m isaac_audio_sensors --version
 ```
 

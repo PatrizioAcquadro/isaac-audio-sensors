@@ -39,7 +39,7 @@ class AudioSensorConfig:
     stage_units: str
     up_axis: str
     default_backend: str
-    runtime_profile: str
+    runtime_profile: str = DEFAULT_RUNTIME_PROFILE
     sample_rate_hz: int
     speed_of_sound_mps: float
     write_waveforms: bool

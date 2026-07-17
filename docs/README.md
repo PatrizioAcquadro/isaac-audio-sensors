@@ -15,6 +15,8 @@ public users.
 - [Audio Assets](audio_assets.md)
 - [TDOA And DOA](tdoa_doa.md)
 - [API Freeze](api_freeze_0_1.md)
+- [Compatibility Matrix](compatibility_matrix.md)
+- [Public API Inventory](public_api_inventory.md)
 - [AudioSensorFrame Schema](schemas/audio_sensor_frame.v1.schema.json)
 - [Validation](validation.md)
 - [Limitations](limitations.md)

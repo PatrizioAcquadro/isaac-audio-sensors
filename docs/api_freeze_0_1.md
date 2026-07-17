@@ -7,7 +7,7 @@ downstream research project, and the pure Python core must remain importable
 without Isaac Sim, Isaac Lab, Omniverse, `pyroomacoustics`, `scipy`,
 `soundfile`, protobuf, ROS 2, CUDA, or torch installed.
 
-The distribution version is currently `1.1.0`. The frame schema version
+The distribution version is currently `1.8.0`. The frame schema version
 is independent and remains `ias.audio_sensor_frame.v1` for all compatible v1
 releases.
 
@@ -18,7 +18,7 @@ calibration, real hardware benchmarks, complete L3/L4 fidelity, or realistic
 material/occlusion acoustics into v1 release gates.
 
 The file name is retained for existing documentation links; the active release
-target is `1.1.0`.
+target is `1.8.0`.
 
 ## Stable For V1-Compatible Releases
 
@@ -183,6 +183,43 @@ CLI commands:
 - `isaac-audio-sensors export-trace`
 - `isaac-audio-sensors export-schema`
 
+Stage 1 versioned contracts and runtime profiles:
+
+- `AudioDatasetManifest` and schema `ias.audio_dataset_manifest.v1`
+- `AudioCalibrationProfile` and schema `ias.audio_calibration_profile.v1`
+- `read_dataset_manifest(...)` and `write_dataset_manifest(...)`
+- `read_calibration_profile(...)` and `write_calibration_profile(...)`
+- `check_profile_compatibility(...)`
+- `audio_dataset_manifest_json_schema()` and
+  `write_audio_dataset_manifest_json_schema(...)`
+- `audio_calibration_profile_json_schema()` and
+  `write_audio_calibration_profile_json_schema(...)`
+- runtime profiles `training_features` and `waveform_fidelity`, with
+  `waveform_fidelity` the compatibility default
+
+The frame, dataset-manifest, and calibration-profile schema identifiers are
+independent. A change incompatible with one contract requires a new version of
+that contract; it does not silently reshape another contract.
+
+Stage 1 plugin contracts:
+
+- `PropagationBackend`
+- `DoaEstimator`
+- `AudioFeatureExtractor`
+- `PluginDeclaration`
+- `PluginAvailability`
+- `PluginRegistry`
+- `get_default_registry()`
+- `validate_declaration(...)`
+- adapters `GccPhatLeastSquaresEstimator` and `SrpPhatEstimator`
+- plugin kinds `propagation_backend`, `doa_estimator`, and
+  `audio_feature_extractor`
+
+Plugin declarations and protocol input/output meanings are stable. Registry
+inventory may grow additively. The absence of a built-in feature extractor is
+an explicit non-claim, not an unavailable feature silently reported as
+present.
+
 Isaac Sim explicit lifecycle:
 
 - `IsaacAudioArraySensor.from_stage(...)`
@@ -286,6 +323,19 @@ diagnostics rather than treated as stable core behavior. Replicator is supported
 only as an optional extension capability: core package import,
 `AudioSensorFrame`, JSON/JSONL export, `IsaacAudioArraySensor`, and the Isaac
 Lab sensor APIs must remain usable without `omni.replicator.core`.
+
+Stage 1 pack and capability management is provisional but supported:
+
+- `CapabilityReport`, `CapabilityStatus`, and `discover_capabilities()`
+- `PackError`, `PackValidationError`, and `PackActivationError`
+- `discover_pack_installs(...)`, `validate_pack_install(...)`, and
+  `activate_pack(...)`
+- `isaac-audio-sensors capabilities --json`
+
+These APIs must preserve actionable failure and import-safe base behavior.
+Artifact fields, platform checks, and capability details may grow additively.
+The exact S1.7 module-qualified inventory and lifecycle classifications are in
+[Public API Inventory](public_api_inventory.md).
 
 ## Experimental
 
