@@ -12,7 +12,7 @@ WHEELHOUSE ?=
 CONSUMER_USER ?= pacquadr
 CONSUMER_REPO ?= /home/$(CONSUMER_USER)/Desktop/squadbot-av-phase1
 
-.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests regenerate-reference-dataset measure-writer-memory live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config dataset-validate-fixture export-schema regenerate-traces regenerate-manifests regenerate-reference-dataset measure-writer-memory live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -68,6 +68,9 @@ import-smoke:
 
 validate-config:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors.cli validate-config configs/isaac_audio_sensors_demo.toml
+
+dataset-validate-fixture:
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors dataset validate examples/datasets/reference_session_v1
 
 export-schema:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors.cli export-schema --out docs/schemas/audio_sensor_frame.v1.schema.json

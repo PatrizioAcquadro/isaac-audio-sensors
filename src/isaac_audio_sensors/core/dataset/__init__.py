@@ -55,6 +55,14 @@ from isaac_audio_sensors.core.dataset.replay import (
     ReplayEventKind,
     replay_session,
 )
+from isaac_audio_sensors.core.dataset.statistics import Statistics
+from isaac_audio_sensors.core.dataset.validate import (
+    Finding,
+    FindingSeverity,
+    ValidationReport,
+    ValidationStatus,
+    validate_dataset,
+)
 
 __all__ = [
     "DATASET_FRAME_RECORD_VERSION",
@@ -66,6 +74,8 @@ __all__ = [
     "DatasetFrameRecord",
     "DatasetLayoutError",
     "FilesystemSeam",
+    "Finding",
+    "FindingSeverity",
     "JsonlShardFile",
     "LayoutWarning",
     "LoadedFrame",
@@ -79,8 +89,11 @@ __all__ = [
     "ShardPlanner",
     "ShardPromotion",
     "StagedFile",
+    "Statistics",
     "StreamingWavShardWriter",
     "VerifiedShard",
+    "ValidationReport",
+    "ValidationStatus",
     "build_dataset_frame_record",
     "build_shard_completion",
     "canonical_configuration_bytes",
@@ -97,6 +110,7 @@ __all__ = [
     "serialize_shard_completion",
     "shard_id",
     "validate_record_sequence",
+    "validate_dataset",
     "validate_session_layout",
     "validate_trace_projection",
     "verify_shard_completion",
