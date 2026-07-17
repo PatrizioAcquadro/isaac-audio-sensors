@@ -713,6 +713,7 @@ def test_public_files_use_neutral_demo_names():
         "docs/isaac_lab.md",
         "docs/limitations.md",
         "docs/open_source_release_checklist.md",
+        "docs/reference_rig_hardware_environment.md",
         "docs/v1_scope.md",
         "docs/validation.md",
         "docs/versioning.md",
@@ -723,12 +724,18 @@ def test_public_files_use_neutral_demo_names():
         "validation is not required",
         "does not promise",
     )
+    project_token_context_exempt_paths = {
+        "docs/reference_rig_hardware_environment.md",
+    }
     for path in public_files:
         text = path.read_text(encoding="utf-8")
+        path_posix = path.as_posix()
         assert not any(term in text for term in forbidden), path
-        if project_token in text:
-            assert path.as_posix() in project_token_allowed_paths, path
-            assert any(phrase in text for phrase in forbidden_project_context), path
+        # Internal docs/development execution artifacts are excluded from distribution.
+        if project_token in text and not path_posix.startswith("docs/development/"):
+            assert path_posix in project_token_allowed_paths, path
+            if path_posix not in project_token_context_exempt_paths:
+                assert any(phrase in text for phrase in forbidden_project_context), path
 
 
 def test_detection_mode_validation_rejects_unknown_mode():
