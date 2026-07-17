@@ -94,7 +94,11 @@ unavailable in Stage 1.
 ## Umbrella artifact flow
 
 `make artifacts WHEELHOUSE=/offline/wheels` runs version synchronization, then
-the base wheel/sdist build (which recreates `dist/`), the Kit build and audit,
-the acoustic-pack build and audit, and finally writes `dist/SHA256SUMS` for the
-wheel, sdist, Kit zip, and pack tarball. Building the base first prevents its
-clean `dist/` step from deleting later artifacts.
+a fail-closed Git source preflight, the base wheel/sdist build (which recreates
+`dist/`), the Kit build and audit, the acoustic-pack build and audit, and
+finally writes `dist/SHA256SUMS` for the wheel, sdist, Kit zip, and pack
+tarball. The preflight rejects every tracked or untracked worktree change so
+setuptools cannot silently add unrelated files to the sdist. Kit and pack
+audits validate their recorded full Git revisions against local history and
+compare embedded canonical files to those committed trees. Building the base
+first prevents its clean `dist/` step from deleting later artifacts.

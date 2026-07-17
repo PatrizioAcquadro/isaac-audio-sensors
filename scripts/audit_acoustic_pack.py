@@ -18,6 +18,11 @@ try:
         read_pack_declaration,
         read_project_version,
     )
+    from scripts.release_provenance import (
+        ReleaseProvenanceError,
+        git_file_bytes,
+        recorded_revision_findings,
+    )
 except ModuleNotFoundError:  # pragma: no cover - direct script execution
     from build_acoustic_pack import (  # type: ignore[no-redef]
         BUILD_TOOL_VERSION,
@@ -25,6 +30,11 @@ except ModuleNotFoundError:  # pragma: no cover - direct script execution
         inspect_wheel_bytes,
         read_pack_declaration,
         read_project_version,
+    )
+    from release_provenance import (  # type: ignore[no-redef]
+        ReleaseProvenanceError,
+        git_file_bytes,
+        recorded_revision_findings,
     )
 
 
@@ -104,6 +114,7 @@ def _manifest_findings(
     repo_root: Path,
     archive_path: Path,
     skip_version_check: bool,
+    skip_revision_check: bool,
 ) -> list[str]:
     if not isinstance(manifest, dict):
         return ["pack_manifest.json must contain a JSON object"]
@@ -237,6 +248,10 @@ def _manifest_findings(
                 )
         if provenance.get("build_tool_version") != BUILD_TOOL_VERSION:
             findings.append("manifest build tool version is unsupported")
+        if not skip_revision_check:
+            findings.extend(
+                recorded_revision_findings(repo_root, provenance.get("git_revision"))
+            )
     return findings
 
 
@@ -276,6 +291,7 @@ def audit_acoustic_pack(
     *,
     repo_root: Path,
     skip_version_check: bool = False,
+    skip_revision_check: bool = False,
 ) -> AcousticPackAudit:
     """Return exact member, hygiene, manifest, and wheel-hash findings."""
 
@@ -343,6 +359,7 @@ def audit_acoustic_pack(
                     repo_root=repo_root,
                     archive_path=archive_path,
                     skip_version_check=skip_version_check,
+                    skip_revision_check=skip_revision_check,
                 )
             )
 
@@ -368,21 +385,40 @@ def audit_acoustic_pack(
             assert isinstance(pack, dict)
             canonical_members = {
                 "requirements.lock": (
-                    repo_root
-                    / "packs"
-                    / "acoustics"
-                    / str(pack["requirements_lock"])
+                    f"packs/acoustics/{pack['requirements_lock']}"
                 ),
-                "install_pack.py": repo_root / "scripts" / "install_pack.py",
+                "install_pack.py": "scripts/install_pack.py",
             }
-            for name, canonical_path in canonical_members.items():
+            recorded_revision = None
+            if isinstance(manifest, dict):
+                provenance = manifest.get("build_provenance")
+                if isinstance(provenance, dict):
+                    recorded_revision = provenance.get("git_revision")
+            for name, relative_path in canonical_members.items():
                 if name not in actual_set:
                     continue
                 stream = archive.extractfile(name)
                 assert stream is not None
-                if stream.read() != canonical_path.read_bytes():
+                expected_payload: bytes
+                if (
+                    not skip_revision_check
+                    and isinstance(recorded_revision, str)
+                    and not recorded_revision_findings(repo_root, recorded_revision)
+                ):
+                    try:
+                        expected_payload = git_file_bytes(
+                            repo_root, recorded_revision, relative_path
+                        )
+                    except ReleaseProvenanceError as exc:
+                        findings.append(
+                            f"cannot read {relative_path} at recorded revision: {exc}"
+                        )
+                        continue
+                else:
+                    expected_payload = (repo_root / relative_path).read_bytes()
+                if stream.read() != expected_payload:
                     findings.append(
-                        f"{name} differs from canonical source {canonical_path}"
+                        f"{name} differs from canonical source {relative_path}"
                     )
 
             if isinstance(manifest, dict):
@@ -452,11 +488,13 @@ def require_clean_audit(
     *,
     repo_root: Path,
     skip_version_check: bool = False,
+    skip_revision_check: bool = False,
 ) -> AcousticPackAudit:
     result = audit_acoustic_pack(
         archive_path,
         repo_root=repo_root,
         skip_version_check=skip_version_check,
+        skip_revision_check=skip_revision_check,
     )
     if result.findings:
         raise AcousticPackAuditError("\n".join(result.findings))
@@ -471,12 +509,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Allow an archive built for a foreign source revision/version.",
     )
+    parser.add_argument(
+        "--skip-revision-check",
+        action="store_true",
+        help="Do not verify build_provenance.git_revision against local Git history.",
+    )
     args = parser.parse_args(argv)
     repo_root = Path(__file__).resolve().parents[1]
     result = audit_acoustic_pack(
         args.archive,
         repo_root=repo_root,
         skip_version_check=args.skip_version_check,
+        skip_revision_check=args.skip_revision_check,
     )
     if result.findings:
         print("[pack-audit] FAILED", file=sys.stderr)

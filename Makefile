@@ -12,7 +12,7 @@ WHEELHOUSE ?=
 CONSUMER_USER ?= pacquadr
 CONSUMER_REPO ?= /home/$(CONSUMER_USER)/Desktop/squadbot-av-phase1
 
-.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -28,14 +28,14 @@ build: check-version
 	$(PYTHON) -m build $(BUILD_FLAGS)
 	$(PYTHON) scripts/audit_distribution.py --dist-dir dist
 
-build-kit: check-version
+build-kit: check-release-source check-version
 	$(PYTHON) scripts/build_kit_extension.py
 	$(PYTHON) scripts/audit_kit_archive.py dist/kit/isaac_audio_sensors.omni-$(EXPECTED_VERSION).zip
 
 audit-kit:
 	$(PYTHON) scripts/audit_kit_archive.py dist/kit/isaac_audio_sensors.omni-$(EXPECTED_VERSION).zip
 
-build-pack: check-version
+build-pack: check-release-source check-version
 	@test -n "$(WHEELHOUSE)" || { echo "WHEELHOUSE is required: make build-pack WHEELHOUSE=/path/to/wheels" >&2; exit 2; }
 	$(PYTHON) scripts/build_acoustic_pack.py --wheelhouse "$(WHEELHOUSE)"
 
@@ -45,7 +45,7 @@ audit-pack:
 checksums:
 	$(PYTHON) -c "from pathlib import Path; import hashlib; root=Path('dist'); paths=sorted([*root.glob('*.whl'), *root.glob('*.tar.gz'), *root.glob('kit/*.zip'), *root.glob('packs/*.tar.gz')]); (root/'SHA256SUMS').write_text(''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(root).as_posix()}\n' for path in paths), encoding='utf-8')"
 
-artifacts: check-version
+artifacts: check-release-source check-version
 	@test -n "$(WHEELHOUSE)" || { echo "WHEELHOUSE is required: make artifacts WHEELHOUSE=/path/to/wheels" >&2; exit 2; }
 	$(MAKE) build
 	$(MAKE) build-kit
@@ -56,6 +56,9 @@ artifacts: check-version
 
 check-version:
 	$(PYTHON) scripts/check_version_sync.py
+
+check-release-source:
+	$(PYTHON) scripts/check_release_source.py
 
 audit-dist:
 	$(PYTHON) scripts/audit_distribution.py --dist-dir dist

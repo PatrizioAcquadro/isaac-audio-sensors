@@ -6,7 +6,6 @@ import argparse
 import hashlib
 import json
 import shutil
-import subprocess
 import sys
 import zipfile
 from collections.abc import Iterable, Iterator
@@ -17,6 +16,19 @@ try:  # pragma: no cover - Python 3.11+ path in CI
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
     import tomli as tomllib  # type: ignore[no-redef]
+
+try:
+    from scripts.release_provenance import (
+        ReleaseProvenanceError,
+        head_revision,
+        require_clean_source,
+    )
+except ModuleNotFoundError:  # pragma: no cover - direct script execution
+    from release_provenance import (  # type: ignore[no-redef]
+        ReleaseProvenanceError,
+        head_revision,
+        require_clean_source,
+    )
 
 
 EXTENSION_NAME = "isaac_audio_sensors.omni"
@@ -83,22 +95,22 @@ def read_extension_version(extension_dir: Path) -> str:
     return version
 
 
-def resolve_source_revision(repo_root: Path, override: str | None = None) -> str:
+def resolve_source_revision(
+    repo_root: Path,
+    override: str | None = None,
+    *,
+    verify_source: bool = True,
+) -> str:
+    if override is not None and not override.strip():
+        raise ValueError("--source-revision must not be empty")
+    if verify_source:
+        return require_clean_source(repo_root, expected_revision=override)
     if override is not None:
-        if not override.strip():
-            raise ValueError("--source-revision must not be empty")
         return override
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except (FileNotFoundError, subprocess.CalledProcessError):
+        return head_revision(repo_root)
+    except ReleaseProvenanceError:
         return "unknown"
-    return result.stdout.strip() or "unknown"
 
 
 def build_kit_extension(
@@ -106,6 +118,7 @@ def build_kit_extension(
     repo_root: Path,
     output_dir: Path,
     source_revision: str | None = None,
+    verify_source: bool = True,
 ) -> KitBuild:
     """Assemble the staging tree, deterministic zip, and checksum file."""
 
@@ -127,7 +140,11 @@ def build_kit_extension(
             "extension version does not match pyproject.toml: "
             f"{extension_version!r} != {version!r}"
         )
-    revision = resolve_source_revision(repo_root, source_revision)
+    revision = resolve_source_revision(
+        repo_root,
+        source_revision,
+        verify_source=verify_source,
+    )
     staging_dir = output_dir / f"{EXTENSION_NAME}-{version}"
     archive_path = output_dir / f"{EXTENSION_NAME}-{version}.zip"
     checksums_path = output_dir / "SHA256SUMS"

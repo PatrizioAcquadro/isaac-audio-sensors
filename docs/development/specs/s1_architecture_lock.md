@@ -341,8 +341,12 @@ time, the Kit builder copies it byte for byte into
 `<archive>/_vendor/isaac_audio_sensors/` and writes
 `<archive>/_vendor/VENDORED.json`.  This packaged-mode metadata records
 `mode=packaged`, the extension version, source Git revision, and SHA-256 tree
-hash.  The source checkout carries a separate, tracked developer-mode
-sentinel.  The builder excludes that developer sentinel from the archive.
+hash.  Canonical artifact builders reject tracked or untracked worktree changes
+before reading release inputs.  Auditors resolve the recorded revision from
+local Git history and compare packaged source bytes to that committed tree, so
+metadata cannot name an older clean commit while packaging newer dirty files.
+The source checkout carries a separate, tracked developer-mode sentinel.  The
+builder excludes that developer sentinel from the archive.
 
 The extension entrypoint loader is rewritten in S1.4 with two exclusive modes:
 

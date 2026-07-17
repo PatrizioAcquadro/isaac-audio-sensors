@@ -10,7 +10,6 @@ import hashlib
 import io
 import json
 import re
-import subprocess
 import sys
 import tarfile
 import zipfile
@@ -21,6 +20,19 @@ try:  # pragma: no cover - Python 3.11+ path in CI
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
     import tomli as tomllib  # type: ignore[no-redef]
+
+try:
+    from scripts.release_provenance import (
+        ReleaseProvenanceError,
+        head_revision,
+        require_clean_source,
+    )
+except ModuleNotFoundError:  # pragma: no cover - direct script execution
+    from release_provenance import (  # type: ignore[no-redef]
+        ReleaseProvenanceError,
+        head_revision,
+        require_clean_source,
+    )
 
 
 MANIFEST_SCHEMA = "ias.acoustic_pack_manifest.v1"
@@ -271,18 +283,22 @@ def inspect_wheel_bytes(payload: bytes, wheel_name: str) -> dict[str, object]:
     }
 
 
-def resolve_git_revision(repo_root: Path) -> str:
+def resolve_git_revision(
+    repo_root: Path,
+    override: str | None = None,
+    *,
+    verify_source: bool = True,
+) -> str:
+    if override is not None and not override.strip():
+        raise ValueError("source revision must not be empty")
+    if verify_source:
+        return require_clean_source(repo_root, expected_revision=override)
+    if override is not None:
+        return override
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except (FileNotFoundError, subprocess.CalledProcessError):
+        return head_revision(repo_root)
+    except ReleaseProvenanceError:
         return "unknown"
-    return result.stdout.strip() or "unknown"
 
 
 def _validated_inputs(
@@ -386,7 +402,11 @@ def _validated_inputs(
 
 
 def _manifest(
-    repo_root: Path, declaration: dict[str, object], wheelhouse: Path
+    repo_root: Path,
+    declaration: dict[str, object],
+    wheelhouse: Path,
+    *,
+    git_revision: str,
 ) -> dict[str, object]:
     pack = declaration["pack"]
     target = declaration["target"]
@@ -429,7 +449,7 @@ def _manifest(
         "pack_distributions": distributions,
         "capabilities": capabilities,
         "build_provenance": {
-            "git_revision": resolve_git_revision(repo_root),
+            "git_revision": git_revision,
             "build_tool_version": BUILD_TOOL_VERSION,
         },
     }
@@ -468,15 +488,30 @@ def _write_checksums(output_dir: Path, path: Path) -> None:
 
 
 def build_acoustic_pack(
-    *, repo_root: Path, wheelhouse: Path, output_dir: Path
+    *,
+    repo_root: Path,
+    wheelhouse: Path,
+    output_dir: Path,
+    source_revision: str | None = None,
+    verify_source: bool = True,
 ) -> AcousticPackBuild:
     repo_root = repo_root.resolve()
     wheelhouse = wheelhouse.resolve()
     output_dir = output_dir.resolve()
+    revision = resolve_git_revision(
+        repo_root,
+        source_revision,
+        verify_source=verify_source,
+    )
     declaration, _lock_entries = _validated_inputs(repo_root, wheelhouse)
     pack = declaration["pack"]
     assert isinstance(pack, dict)
-    manifest = _manifest(repo_root, declaration, wheelhouse)
+    manifest = _manifest(
+        repo_root,
+        declaration,
+        wheelhouse,
+        git_revision=revision,
+    )
     lock_path = repo_root / "packs" / "acoustics" / str(pack["requirements_lock"])
     installer_path = repo_root / "scripts" / "install_pack.py"
     if not installer_path.is_file():

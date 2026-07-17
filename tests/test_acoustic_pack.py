@@ -219,7 +219,11 @@ def _build(tmp_path: Path) -> tuple[Path, Path, Path]:
     repo, wheelhouse = _fixture_repo(tmp_path)
     output = tmp_path / "out"
     result = build_acoustic_pack(
-        repo_root=repo, wheelhouse=wheelhouse, output_dir=output
+        repo_root=repo,
+        wheelhouse=wheelhouse,
+        output_dir=output,
+        source_revision="test-revision",
+        verify_source=False,
     )
     return repo, wheelhouse, result.archive_path
 
@@ -303,19 +307,33 @@ def test_builder_rejects_invalid_wheelhouse(tmp_path, failure):
             repo_root=repo,
             wheelhouse=wheelhouse,
             output_dir=tmp_path / "out",
+            source_revision="test-revision",
+            verify_source=False,
         )
 
 
 def test_builder_is_byte_deterministic_and_audit_accepts(tmp_path):
     repo, wheelhouse = _fixture_repo(tmp_path)
     first = build_acoustic_pack(
-        repo_root=repo, wheelhouse=wheelhouse, output_dir=tmp_path / "first"
+        repo_root=repo,
+        wheelhouse=wheelhouse,
+        output_dir=tmp_path / "first",
+        source_revision="test-revision",
+        verify_source=False,
     )
     second = build_acoustic_pack(
-        repo_root=repo, wheelhouse=wheelhouse, output_dir=tmp_path / "second"
+        repo_root=repo,
+        wheelhouse=wheelhouse,
+        output_dir=tmp_path / "second",
+        source_revision="test-revision",
+        verify_source=False,
     )
     assert first.archive_path.read_bytes() == second.archive_path.read_bytes()
-    result = audit_acoustic_pack(first.archive_path, repo_root=repo)
+    result = audit_acoustic_pack(
+        first.archive_path,
+        repo_root=repo,
+        skip_revision_check=True,
+    )
     assert result.findings == ()
     manifest = _tar_json(first.archive_path, "pack_manifest.json")
     distributions = manifest["pack_distributions"]
@@ -407,7 +425,10 @@ def test_audit_version_check_can_be_skipped_for_foreign_revision(tmp_path):
     )
     strict = audit_acoustic_pack(broken, repo_root=repo)
     foreign = audit_acoustic_pack(
-        broken, repo_root=repo, skip_version_check=True
+        broken,
+        repo_root=repo,
+        skip_version_check=True,
+        skip_revision_check=True,
     )
     assert "sensor_package_version" in "\n".join(strict.findings)
     assert foreign.findings == ()
@@ -446,7 +467,9 @@ def test_offline_installer_is_atomic_and_refuses_overwrite(tmp_path, monkeypatch
     assert second.returncode != 0
     assert "already exists" in second.stderr
     assert discover_pack_installs(root) == (final.resolve(),)
-    assert audit_acoustic_pack(archive, repo_root=repo).findings == ()
+    assert audit_acoustic_pack(
+        archive, repo_root=repo, skip_revision_check=True
+    ).findings == ()
 
 
 def test_installer_hash_mismatch_never_creates_selectable_root(tmp_path):

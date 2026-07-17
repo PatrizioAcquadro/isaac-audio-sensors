@@ -19,11 +19,21 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
 try:
     from scripts import audit_distribution
     from scripts.build_kit_extension import hash_source_tree, tree_sha256
+    from scripts.release_provenance import (
+        ReleaseProvenanceError,
+        git_tree_entries,
+        recorded_revision_findings,
+    )
 except ModuleNotFoundError:  # pragma: no cover - direct script execution
     import audit_distribution  # type: ignore[no-redef]
     from build_kit_extension import (  # type: ignore[no-redef]
         hash_source_tree,
         tree_sha256,
+    )
+    from release_provenance import (  # type: ignore[no-redef]
+        ReleaseProvenanceError,
+        git_tree_entries,
+        recorded_revision_findings,
     )
 
 
@@ -92,6 +102,7 @@ def audit_kit_archive(
     *,
     repo_root: Path,
     skip_worktree_drift: bool = False,
+    skip_revision_check: bool = False,
 ) -> KitArchiveAudit:
     """Return precise archive hygiene, provenance, drift, and version findings."""
 
@@ -111,6 +122,7 @@ def audit_kit_archive(
                     archive_path=archive_path,
                     repo_root=repo_root,
                     skip_worktree_drift=skip_worktree_drift,
+                    skip_revision_check=skip_revision_check,
                 )
             )
     except (FileNotFoundError, zipfile.BadZipFile, OSError) as exc:
@@ -123,11 +135,13 @@ def require_clean_audit(
     *,
     repo_root: Path,
     skip_worktree_drift: bool = False,
+    skip_revision_check: bool = False,
 ) -> KitArchiveAudit:
     audit = audit_kit_archive(
         archive_path,
         repo_root=repo_root,
         skip_worktree_drift=skip_worktree_drift,
+        skip_revision_check=skip_revision_check,
     )
     if audit.findings:
         raise KitArchiveAuditError("\n".join(audit.findings))
@@ -198,6 +212,7 @@ def _metadata_and_drift_findings(
     archive_path: Path,
     repo_root: Path,
     skip_worktree_drift: bool,
+    skip_revision_check: bool,
 ) -> list[str]:
     findings: list[str] = []
     required = set(REQUIRED_ENTRIES)
@@ -265,6 +280,31 @@ def _metadata_and_drift_findings(
             "vendored tree hash mismatch: archive recomputed "
             f"{archive_tree_hash} != VENDORED.json {metadata['tree_sha256']}"
         )
+    if not skip_revision_check:
+        revision_findings = recorded_revision_findings(
+            repo_root, metadata["source_revision"]
+        )
+        findings.extend(revision_findings)
+        if not revision_findings:
+            try:
+                revision_tree_hash = tree_sha256(
+                    git_tree_entries(
+                        repo_root,
+                        metadata["source_revision"],
+                        "src/isaac_audio_sensors",
+                    )
+                )
+            except ReleaseProvenanceError as exc:
+                findings.append(
+                    f"cannot read recorded source revision tree: {exc}"
+                )
+            else:
+                if archive_tree_hash != revision_tree_hash:
+                    findings.append(
+                        "vendored tree does not match recorded source revision: "
+                        f"archive {archive_tree_hash} != "
+                        f"{metadata['source_revision']} {revision_tree_hash}"
+                    )
     if not skip_worktree_drift:
         source_dir = repo_root / "src" / "isaac_audio_sensors"
         try:
@@ -288,12 +328,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Do not compare the archive tree with the current checkout source.",
     )
+    parser.add_argument(
+        "--skip-revision-check",
+        action="store_true",
+        help="Do not verify VENDORED.json source_revision against local Git history.",
+    )
     args = parser.parse_args(argv)
     repo_root = Path(__file__).resolve().parents[1]
     audit = audit_kit_archive(
         args.archive,
         repo_root=repo_root,
         skip_worktree_drift=args.skip_worktree_drift,
+        skip_revision_check=args.skip_revision_check,
     )
     if audit.findings:
         print("[kit-audit] FAILED", file=sys.stderr)

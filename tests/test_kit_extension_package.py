@@ -35,6 +35,7 @@ def _build(tmp_path: Path):
         repo_root=REPO_ROOT,
         output_dir=output_dir,
         source_revision="test-revision",
+        verify_source=False,
     )
     return builder, result
 
@@ -120,7 +121,11 @@ def test_build_produces_deterministic_staging_zip_checksums_and_clean_audit(
     assert result.checksums_path.read_text(encoding="utf-8") == (
         f"{checksum}  {result.archive_path.name}\n"
     )
-    clean = audit.audit_kit_archive(result.archive_path, repo_root=REPO_ROOT)
+    clean = audit.audit_kit_archive(
+        result.archive_path,
+        repo_root=REPO_ROOT,
+        skip_revision_check=True,
+    )
     assert clean.findings == ()
 
     first_bytes = result.archive_path.read_bytes()
@@ -128,6 +133,7 @@ def test_build_produces_deterministic_staging_zip_checksums_and_clean_audit(
         repo_root=REPO_ROOT,
         output_dir=result.archive_path.parent,
         source_revision="test-revision",
+        verify_source=False,
     )
     assert rebuilt.archive_path.read_bytes() == first_bytes
 
