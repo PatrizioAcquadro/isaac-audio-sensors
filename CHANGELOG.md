@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.8.0 - Unreleased
+
+Stage 1 stable installable foundation (phase S1 of the final sensor
+development plan): additive `ias.audio_dataset_manifest.v1` and
+`ias.audio_calibration_profile.v1` contracts, runtime profiles, plugin
+protocols, canonical self-contained Kit extension build, and Linux
+base/acoustic-pack artifacts. `ias.audio_sensor_frame.v1` is unchanged.
 
 Official Isaac 6.0.1 / Isaac Lab 3.0.0-beta2 launcher migration:
 

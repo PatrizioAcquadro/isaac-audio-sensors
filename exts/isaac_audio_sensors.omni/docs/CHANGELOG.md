@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.0 - Unreleased
+
+- Version aligned with package release `1.8.0` (Stage 1 stable installable
+  foundation). Packaged self-contained extension build lands in this line.
+
 ## 1.7.0 - 2026-06-12
 
 - The backend selector adds `room_acoustics_srp` (the L2 room pipeline with
