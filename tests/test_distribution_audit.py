@@ -47,6 +47,8 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
                 f"version = '{RELEASE_VERSION}'\n"
             ),
             "configs/isaac_audio_sensors_demo.toml": "[scene]\n",
+            "packs/acoustics/pack.toml": "[pack]\n",
+            "packs/acoustics/requirements.lock": "fake==1 --hash=sha256:abc\n",
             "docs/acoustic_fidelity.md": "# Acoustic Fidelity Ladder\n",
             "docs/api_freeze_0_1.md": _api_freeze_doc_text(),
             "docs/api_reference.md": "# API Reference\n",
@@ -161,19 +163,24 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             ): '{"mode": "developer"}\n',
             "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py": "\n",
             "scripts/audit_kit_archive.py": "print('kit audit')\n",
+            "scripts/audit_acoustic_pack.py": "print('pack audit')\n",
             "scripts/audit_distribution.py": "print('audit')\n",
+            "scripts/build_acoustic_pack.py": "print('pack build')\n",
             "scripts/build_kit_extension.py": "print('kit build')\n",
             "scripts/check_version_sync.py": "print('version sync')\n",
             "scripts/regenerate_example_manifests.py": "print('regenerate')\n",
             "scripts/generate_live_evidence_report.py": "print('report')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",
             "scripts/live_omniverse_extension_ux.py": "print('ux')\n",
+            "scripts/install_pack.py": "print('pack install')\n",
             "src/isaac_audio_sensors/__init__.py": (
                 f"__version__ = '{RELEASE_VERSION}'\n"
             ),
             "src/isaac_audio_sensors/__main__.py": "from .cli import main\n",
             "src/isaac_audio_sensors/cli.py": "def main(): return 0\n",
             "src/isaac_audio_sensors/core/fidelity.py": "LADDER = ()\n",
+            "src/isaac_audio_sensors/core/capabilities.py": "\n",
+            "src/isaac_audio_sensors/core/packs.py": "\n",
             "src/isaac_audio_sensors/core/dataset_manifest.py": "\n",
             "src/isaac_audio_sensors/core/calibration_profile.py": "\n",
             "src/isaac_audio_sensors/core/schema.py": "\n",
@@ -193,6 +200,10 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "src/isaac_audio_sensors/isaac/replicator.py": "\n",
             "src/isaac_audio_sensors/isaac/sound_profiles.py": "\n",
             "tests/test_acoustic_fidelity.py": "def test_ladder():\n    assert True\n",
+            "tests/test_acoustic_pack.py": "def test_pack():\n    assert True\n",
+            "tests/test_capability_discovery.py": (
+                "def test_capabilities():\n    assert True\n"
+            ),
             "tests/test_isaac_audio_core.py": "def test_core():\n    assert True\n",
             "tests/test_dataset_manifest.py": "def test_manifest():\n    assert True\n",
             (
@@ -211,6 +222,8 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "isaac_audio_sensors/__init__.py": f"__version__ = '{RELEASE_VERSION}'\n",
             "isaac_audio_sensors/__main__.py": "from .cli import main\n",
             "isaac_audio_sensors/cli.py": "def main(): return 0\n",
+            "isaac_audio_sensors/core/capabilities.py": "\n",
+            "isaac_audio_sensors/core/packs.py": "\n",
             "isaac_audio_sensors/core/dataset_manifest.py": "\n",
             "isaac_audio_sensors/core/calibration_profile.py": "\n",
             "isaac_audio_sensors/core/schema.py": "\n",

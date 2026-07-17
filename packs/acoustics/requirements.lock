@@ -1,0 +1,7 @@
+# NumPy is deliberately absent: version 2.5.0 is owned by the Kit host and
+# must be validated, never installed or shadowed by the acoustic pack.
+pyroomacoustics==0.10.1 --hash=sha256:c1b1077cfcafed9775d1b826dbbaf25fb4090aa95d21e9bc6dac795f88e8875c
+scipy==1.18.0 --hash=sha256:1f55797419e16e7f30cf88ffb3113ce0467f00cfe3f70d5c281730b21769bfc2
+soundfile==0.14.0 --hash=sha256:1e38bac1853412871318e82a1ba69a8be677619b56025bbfcccdb41b6cafe82d
+cffi==2.1.0 --hash=sha256:1e9f50d192a3e525b15a75ab5114e442d83d657b7ec29182a991bc9a88fd3a66
+pycparser==3.0 --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992

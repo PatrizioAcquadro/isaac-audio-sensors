@@ -9,6 +9,7 @@ from pathlib import Path
 
 from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.backends.base import get_backend
+from isaac_audio_sensors.core.capabilities import discover_capabilities
 from isaac_audio_sensors.core.config import build_scene_snapshot, load_audio_config
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict, write_frame_trace
 from isaac_audio_sensors.core.schema import (
@@ -56,6 +57,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         default="frame",
     )
     schema_parser.add_argument("--out", type=Path, default=None)
+
+    capabilities_parser = subparsers.add_parser("capabilities")
+    capabilities_parser.add_argument("--json", action="store_true")
 
     args = parser.parse_args(argv)
     if args.command == "validate-config":
@@ -107,6 +111,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         output_path = args.out or default_path
         writer(output_path)
         print(json.dumps({"wrote": str(output_path)}, sort_keys=True))
+        return 0
+
+    if args.command == "capabilities":
+        report = discover_capabilities()
+        if args.json:
+            print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+        else:
+            for capability in report.capabilities:
+                detail = (
+                    f" ({capability.actionable_message})"
+                    if capability.actionable_message
+                    else ""
+                )
+                print(
+                    f"{capability.capability_id}: {capability.status} "
+                    f"[{capability.origin}]{detail}"
+                )
         return 0
 
     parser.error(f"Unhandled command {args.command!r}.")

@@ -10,6 +10,11 @@ from isaac_audio_sensors.core.calibration_profile import (
     AudioCalibrationProfile,
     check_profile_compatibility,
 )
+from isaac_audio_sensors.core.capabilities import (
+    CapabilityReport,
+    CapabilityStatus,
+    discover_capabilities,
+)
 from isaac_audio_sensors.core.config import (
     AudioSensorConfig,
     build_scene_snapshot,
@@ -26,6 +31,14 @@ from isaac_audio_sensors.core.fidelity import (
 from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
     microphone_world_positions,
+)
+from isaac_audio_sensors.core.packs import (
+    PackActivationError,
+    PackError,
+    PackValidationError,
+    activate_pack,
+    discover_pack_installs,
+    validate_pack_install,
 )
 from isaac_audio_sensors.core.plugins import (
     AudioFeatureExtractor,
@@ -75,6 +88,8 @@ __all__ = [
     "ACOUSTIC_FIDELITY_LADDER",
     "AcousticFidelityLevel",
     "AcousticFidelityMetadata",
+    "CapabilityReport",
+    "CapabilityStatus",
     "DoaEstimate",
     "DoaEstimator",
     "GccPhatLeastSquaresEstimator",
@@ -85,6 +100,9 @@ __all__ = [
     "PluginAvailability",
     "PluginDeclaration",
     "PluginRegistry",
+    "PackActivationError",
+    "PackError",
+    "PackValidationError",
     "PropagationBackend",
     "RoomAcousticsBackend",
     "RoomAcousticsSpec",
@@ -94,15 +112,19 @@ __all__ = [
     "audio_sensor_frame_json_schema",
     "audio_calibration_profile_json_schema",
     "audio_dataset_manifest_json_schema",
+    "activate_pack",
     "build_scene_snapshot",
     "check_profile_compatibility",
     "create_microphone_array",
+    "discover_capabilities",
+    "discover_pack_installs",
     "fidelity_level_for_backend",
     "get_backend",
     "get_default_registry",
     "load_audio_config",
     "microphone_world_positions",
     "validate_audio_config",
+    "validate_pack_install",
     "validate_declaration",
     "write_audio_sensor_frame_json_schema",
     "write_audio_calibration_profile_json_schema",

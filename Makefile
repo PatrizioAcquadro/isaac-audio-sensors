@@ -8,8 +8,9 @@ ISAAC_LAB_PERF_BUDGET_MS ?= 20
 ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
 EXPECTED_VERSION ?= 1.8.0
+WHEELHOUSE ?=
 
-.PHONY: test lint format build build-kit audit-kit check-version audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -31,6 +32,25 @@ build-kit: check-version
 
 audit-kit:
 	$(PYTHON) scripts/audit_kit_archive.py dist/kit/isaac_audio_sensors.omni-$(EXPECTED_VERSION).zip
+
+build-pack: check-version
+	@test -n "$(WHEELHOUSE)" || { echo "WHEELHOUSE is required: make build-pack WHEELHOUSE=/path/to/wheels" >&2; exit 2; }
+	$(PYTHON) scripts/build_acoustic_pack.py --wheelhouse "$(WHEELHOUSE)"
+
+audit-pack:
+	$(PYTHON) scripts/audit_acoustic_pack.py dist/packs/isaac_audio_sensors_acoustic_pack-l2l3-$(EXPECTED_VERSION)-linux_x86_64-cp312.tar.gz
+
+checksums:
+	$(PYTHON) -c "from pathlib import Path; import hashlib; root=Path('dist'); paths=sorted([*root.glob('*.whl'), *root.glob('*.tar.gz'), *root.glob('kit/*.zip'), *root.glob('packs/*.tar.gz')]); (root/'SHA256SUMS').write_text(''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(root).as_posix()}\n' for path in paths), encoding='utf-8')"
+
+artifacts: check-version
+	@test -n "$(WHEELHOUSE)" || { echo "WHEELHOUSE is required: make artifacts WHEELHOUSE=/path/to/wheels" >&2; exit 2; }
+	$(MAKE) build
+	$(MAKE) build-kit
+	$(MAKE) audit-kit
+	$(MAKE) build-pack WHEELHOUSE="$(WHEELHOUSE)"
+	$(MAKE) audit-pack
+	$(MAKE) checksums
 
 check-version:
 	$(PYTHON) scripts/check_version_sync.py

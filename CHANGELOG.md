@@ -31,6 +31,16 @@ Official Isaac 6.0.1 / Isaac Lab 3.0.0-beta2 launcher migration:
   packaged/developer mode metadata without borrowing an installed package.
 - Added a version synchronization build gate deriving every current-release
   surface from `pyproject.toml` while leaving historical references unchanged.
+- Added the deterministic, hash-locked Linux `cp312` acoustic-pack builder,
+  offline atomic installer, and archive audit. Pack dependencies install only
+  into private immutable version roots; Kit-owned NumPy is validated and never
+  installed or shadowed.
+- Added fail-closed pack activation with runtime, distribution, host-origin,
+  and preloaded-module provenance checks, plus deterministic capability
+  discovery and the `capabilities --json` CLI report. Removing a pack leaves
+  L0/L1 healthy and reports the exact L2/L3 pack artifact to install.
+- Added `build-pack`, `audit-pack`, and ordered `artifacts` Make targets with a
+  combined top-level checksum inventory for all four release artifact forms.
 
 - Makefile live gates now auto-detect the official installs at `~/isaacsim`
   and `~/IsaacLab`, while keeping `ISAAC_SIM_COMMAND` and `ISAAC_LAB_PYTHON`

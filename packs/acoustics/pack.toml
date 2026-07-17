@@ -1,0 +1,78 @@
+[pack]
+pack_id = "acoustics-l2l3"
+pack_version = "1.8.0"
+artifact_name = "isaac_audio_sensors_acoustic_pack-l2l3-1.8.0-linux_x86_64-cp312.tar.gz"
+requirements_lock = "requirements.lock"
+numpy_compatibility = ">=2.0,<2.8"
+
+[target]
+python_version = "3.12"
+abi = "cp312"
+os = "linux"
+arch = "x86_64"
+
+[[host_requirements]]
+name = "numpy"
+version = "2.5.0"
+reason = "Kit-owned numerical runtime; validated but never installed or shadowed"
+
+[[host_requirements]]
+name = "typing_extensions"
+version = "4.12.2"
+reason = "Kit pip_prebundle ships it; scipy 1.18.0 has an undeclared upstream runtime dependency on it for cp312; validated by exact version and host origin and never installed or shadowed by the pack"
+
+[[pack_distributions]]
+name = "pyroomacoustics"
+version = "0.10.1"
+wheel = "pyroomacoustics-0.10.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+sha256 = "c1b1077cfcafed9775d1b826dbbaf25fb4090aa95d21e9bc6dac795f88e8875c"
+
+[[pack_distributions]]
+name = "scipy"
+version = "1.18.0"
+wheel = "scipy-1.18.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+sha256 = "1f55797419e16e7f30cf88ffb3113ce0467f00cfe3f70d5c281730b21769bfc2"
+
+[[pack_distributions]]
+name = "soundfile"
+version = "0.14.0"
+wheel = "soundfile-0.14.0-py2.py3-none-manylinux_2_28_x86_64.whl"
+sha256 = "1e38bac1853412871318e82a1ba69a8be677619b56025bbfcccdb41b6cafe82d"
+
+[[pack_distributions]]
+name = "cffi"
+version = "2.1.0"
+wheel = "cffi-2.1.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
+sha256 = "1e9f50d192a3e525b15a75ab5114e442d83d657b7ec29182a991bc9a88fd3a66"
+
+[[pack_distributions]]
+name = "pycparser"
+version = "3.0"
+wheel = "pycparser-3.0-py3-none-any.whl"
+sha256 = "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992"
+
+[[capabilities]]
+id = "room_acoustics"
+kind = "backend"
+fidelity_level = "L2"
+modules = ["pyroomacoustics"]
+
+[[capabilities]]
+id = "room_acoustics_srp"
+kind = "backend"
+fidelity_level = "L2"
+modules = ["pyroomacoustics"]
+
+[[capabilities]]
+id = "waveform_export_wav"
+kind = "waveform_export"
+fidelity_level = "L2"
+format = "WAV"
+modules = ["soundfile"]
+
+[[capabilities]]
+id = "waveform_export_flac"
+kind = "waveform_export"
+fidelity_level = "L2"
+format = "FLAC"
+modules = ["soundfile"]
