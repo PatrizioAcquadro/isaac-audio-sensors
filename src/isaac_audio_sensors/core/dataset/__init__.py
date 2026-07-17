@@ -1,5 +1,19 @@
 """Import-safe public dataset session-layout API."""
 
+from isaac_audio_sensors.core.dataset.atomic import (
+    CancellationToken,
+    CancelledWrite,
+    FilesystemSeam,
+    JsonlShardFile,
+    StagedFile,
+    publish_file,
+    write_json_atomic,
+    write_with_retry,
+)
+from isaac_audio_sensors.core.dataset.audio_shards import (
+    CarryState,
+    StreamingWavShardWriter,
+)
 from isaac_audio_sensors.core.dataset.layout import (
     DATASET_FRAME_RECORD_VERSION,
     SHARD_COMPLETION_VERSION,
@@ -32,12 +46,19 @@ from isaac_audio_sensors.core.dataset.layout import (
 __all__ = [
     "DATASET_FRAME_RECORD_VERSION",
     "SHARD_COMPLETION_VERSION",
+    "CancellationToken",
+    "CancelledWrite",
+    "CarryState",
     "DatasetFrameRecord",
     "DatasetLayoutError",
+    "FilesystemSeam",
+    "JsonlShardFile",
     "LayoutWarning",
     "SessionLayoutResult",
     "ShardBoundary",
     "ShardPlanner",
+    "StagedFile",
+    "StreamingWavShardWriter",
     "VerifiedShard",
     "build_dataset_frame_record",
     "build_shard_completion",
@@ -48,6 +69,7 @@ __all__ = [
     "episode_seed",
     "parse_dataset_frame_record",
     "plan_shards",
+    "publish_file",
     "serialize_dataset_frame_record",
     "serialize_shard_completion",
     "shard_id",
@@ -56,4 +78,6 @@ __all__ = [
     "validate_trace_projection",
     "verify_shard_completion",
     "verify_shard_tiling",
+    "write_json_atomic",
+    "write_with_retry",
 ]
