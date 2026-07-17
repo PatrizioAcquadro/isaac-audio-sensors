@@ -42,6 +42,13 @@ from isaac_audio_sensors.core.dataset.layout import (
     verify_shard_completion,
     verify_shard_tiling,
 )
+from isaac_audio_sensors.core.dataset.recorder import (
+    AppendFrameResult,
+    SessionRecorder,
+    SessionRecorderError,
+    ShardPromotion,
+    resume,
+)
 
 __all__ = [
     "DATASET_FRAME_RECORD_VERSION",
@@ -49,14 +56,18 @@ __all__ = [
     "CancellationToken",
     "CancelledWrite",
     "CarryState",
+    "AppendFrameResult",
     "DatasetFrameRecord",
     "DatasetLayoutError",
     "FilesystemSeam",
     "JsonlShardFile",
     "LayoutWarning",
     "SessionLayoutResult",
+    "SessionRecorder",
+    "SessionRecorderError",
     "ShardBoundary",
     "ShardPlanner",
+    "ShardPromotion",
     "StagedFile",
     "StreamingWavShardWriter",
     "VerifiedShard",
@@ -70,6 +81,7 @@ __all__ = [
     "parse_dataset_frame_record",
     "plan_shards",
     "publish_file",
+    "resume",
     "serialize_dataset_frame_record",
     "serialize_shard_completion",
     "shard_id",
