@@ -11,7 +11,11 @@ from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.config import build_scene_snapshot, load_audio_config
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict, write_frame_trace
-from isaac_audio_sensors.core.schema import write_audio_sensor_frame_json_schema
+from isaac_audio_sensors.core.schema import (
+    write_audio_calibration_profile_json_schema,
+    write_audio_dataset_manifest_json_schema,
+    write_audio_sensor_frame_json_schema,
+)
 from isaac_audio_sensors.core.types import AudioTimeWindow
 
 
@@ -46,7 +50,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     trace_parser.add_argument("--out", type=Path, required=True)
 
     schema_parser = subparsers.add_parser("export-schema")
-    schema_parser.add_argument("--out", type=Path, required=True)
+    schema_parser.add_argument(
+        "--schema",
+        choices=("frame", "dataset-manifest", "calibration-profile"),
+        default="frame",
+    )
+    schema_parser.add_argument("--out", type=Path, default=None)
 
     args = parser.parse_args(argv)
     if args.command == "validate-config":
@@ -80,8 +89,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "export-schema":
-        write_audio_sensor_frame_json_schema(args.out)
-        print(json.dumps({"wrote": str(args.out)}, sort_keys=True))
+        writers = {
+            "frame": (
+                write_audio_sensor_frame_json_schema,
+                Path("docs/schemas/audio_sensor_frame.v1.schema.json"),
+            ),
+            "dataset-manifest": (
+                write_audio_dataset_manifest_json_schema,
+                Path("docs/schemas/audio_dataset_manifest.v1.schema.json"),
+            ),
+            "calibration-profile": (
+                write_audio_calibration_profile_json_schema,
+                Path("docs/schemas/audio_calibration_profile.v1.schema.json"),
+            ),
+        }
+        writer, default_path = writers[args.schema]
+        output_path = args.out or default_path
+        writer(output_path)
+        print(json.dumps({"wrote": str(output_path)}, sort_keys=True))
         return 0
 
     parser.error(f"Unhandled command {args.command!r}.")

@@ -1,0 +1,614 @@
+{
+  "$id": "https://isaac-audio-sensors.dev/schemas/audio_dataset_manifest.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Portable, checksummed dataset contract. Its schema version is independent of the Python package version; constructors enforce cross-record ordering, reference, split, and completion invariants.",
+  "properties": {
+    "calibration_profile": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "minLength": 1,
+              "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+              "type": "string"
+            },
+            "profile_id": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            "profile_version": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "profile_id",
+            "profile_version",
+            "path",
+            "sha256"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "channel_order": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "completion_state": {
+      "enum": [
+        "complete",
+        "incomplete"
+      ]
+    },
+    "configuration_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "coordinate_convention": {
+      "const": "x_forward_y_right_z_up_clockwise_bearing"
+    },
+    "coordinate_frames": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "creation": {
+      "additionalProperties": false,
+      "properties": {
+        "backend_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "type": "string"
+        },
+        "estimator_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "type": "string"
+        },
+        "isaac_lab_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isaac_sim_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kit_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tool_name": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "type": "string"
+        },
+        "tool_version": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool_name",
+        "tool_version",
+        "isaac_sim_version",
+        "isaac_lab_version",
+        "kit_version",
+        "backend_id",
+        "estimator_id"
+      ],
+      "type": "object"
+    },
+    "creation_timestamp_ms": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "dataset_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "device": {
+      "additionalProperties": false,
+      "properties": {
+        "compute_device": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "device_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "type": "string"
+        },
+        "device_type": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "platform": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "device_id",
+        "device_type",
+        "platform",
+        "compute_device"
+      ],
+      "type": "object"
+    },
+    "dtype": {
+      "enum": [
+        "float32",
+        "float64",
+        "int16",
+        "int24",
+        "int32"
+      ]
+    },
+    "episodes": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "array_poses": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "entity_id": {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                  "type": "string"
+                },
+                "entity_kind": {
+                  "enum": [
+                    "array",
+                    "source"
+                  ]
+                },
+                "frame": {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                  "type": "string"
+                },
+                "orientation_xyzw": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "items": {
+                        "type": "number"
+                      },
+                      "maxItems": 4,
+                      "minItems": 4,
+                      "type": "array"
+                    }
+                  ]
+                },
+                "position_m": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                "timestamp_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "entity_id",
+                "entity_kind",
+                "timestamp_ms",
+                "position_m",
+                "orientation_xyzw",
+                "frame"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "end_frame": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "end_step": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "environment_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "episode_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "labels": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "reset_markers": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "frame_index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "step_index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "timestamp_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "step_index",
+                "frame_index",
+                "timestamp_ms"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "scene_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "seed": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_truth": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "class_label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "pose": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "entity_id": {
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                      "type": "string"
+                    },
+                    "entity_kind": {
+                      "enum": [
+                        "array",
+                        "source"
+                      ]
+                    },
+                    "frame": {
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                      "type": "string"
+                    },
+                    "orientation_xyzw": {
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "items": {
+                            "type": "number"
+                          },
+                          "maxItems": 4,
+                          "minItems": 4,
+                          "type": "array"
+                        }
+                      ]
+                    },
+                    "position_m": {
+                      "items": {
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "timestamp_ms": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "entity_id",
+                    "entity_kind",
+                    "timestamp_ms",
+                    "position_m",
+                    "orientation_xyzw",
+                    "frame"
+                  ],
+                  "type": "object"
+                },
+                "source_id": {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                  "type": "string"
+                },
+                "timestamp_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "source_id",
+                "timestamp_ms",
+                "class_label",
+                "active",
+                "pose"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "split_group": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "start_frame": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "start_step": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamps_ms": {
+            "items": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "visual_sync_asset_ids": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "episode_id",
+          "scene_id",
+          "environment_id",
+          "seed",
+          "start_step",
+          "end_step",
+          "start_frame",
+          "end_frame",
+          "timestamps_ms",
+          "split_group",
+          "reset_markers",
+          "array_poses",
+          "source_truth",
+          "labels",
+          "visual_sync_asset_ids"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "license": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "runtime_profile": {
+      "enum": [
+        "training_features",
+        "waveform_fidelity"
+      ]
+    },
+    "sample_rate_hz": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "ias.audio_dataset_manifest.v1"
+    },
+    "shards": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "assets": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "audio_flac",
+                    "audio_wav",
+                    "frame_trace_jsonl",
+                    "visual_sync"
+                  ]
+                },
+                "path": {
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+                  "type": "string"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "asset_id",
+                "path",
+                "kind",
+                "sha256"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "completion_state": {
+            "enum": [
+              "complete",
+              "incomplete"
+            ]
+          },
+          "episode_ids": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "shard_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shard_id",
+          "episode_ids",
+          "assets",
+          "completion_state"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "source": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "split_grouping_key": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "splits": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "group_ids": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "name": {
+            "enum": [
+              "test",
+              "train",
+              "validation"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "group_ids"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "time_base": {
+      "enum": [
+        "monotonic",
+        "simulation_time",
+        "utc"
+      ]
+    },
+    "units": {
+      "additionalProperties": false,
+      "properties": {
+        "orientation": {
+          "const": "quaternion_xyzw",
+          "type": "string"
+        },
+        "position": {
+          "const": "m",
+          "type": "string"
+        },
+        "sample_rate": {
+          "const": "Hz",
+          "type": "string"
+        },
+        "time": {
+          "const": "s",
+          "type": "string"
+        },
+        "timestamp": {
+          "const": "ms",
+          "type": "string"
+        }
+      },
+      "required": [
+        "orientation",
+        "position",
+        "sample_rate",
+        "time",
+        "timestamp"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "dataset_id",
+    "creation_timestamp_ms",
+    "creation",
+    "license",
+    "source",
+    "runtime_profile",
+    "device",
+    "coordinate_convention",
+    "coordinate_frames",
+    "time_base",
+    "sample_rate_hz",
+    "channel_order",
+    "units",
+    "dtype",
+    "episodes",
+    "shards",
+    "calibration_profile",
+    "configuration_sha256",
+    "split_grouping_key",
+    "splits",
+    "completion_state",
+    "schema_version"
+  ],
+  "title": "Isaac Audio Sensors AudioDatasetManifest v1",
+  "type": "object"
+}

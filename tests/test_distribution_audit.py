@@ -61,7 +61,88 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "docs/versioning.md": f"package version: `{RELEASE_VERSION}`\n",
             "docs/v1_scope.md": _scope_doc_text(),
             "docs/schemas/audio_sensor_frame.v1.schema.json": "{}\n",
+            "docs/schemas/audio_dataset_manifest.v1.schema.json": "{}\n",
+            "docs/schemas/audio_calibration_profile.v1.schema.json": "{}\n",
             "examples/README.md": "# Examples\n",
+            "examples/manifests/README.md": "# Manifest Examples\n",
+            "examples/manifests/minimal_manifest.v1.json": "{}\n",
+            "examples/manifests/multi_episode_manifest.v1.json": "{}\n",
+            "examples/manifests/invalid/invalid_id_whitespace.json": "{}\n",
+            "examples/manifests/invalid/invalid_units_position.json": "{}\n",
+            (
+                "examples/manifests/invalid/"
+                "invalid_frame_range_nonmonotonic.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/"
+                "invalid_timestamps_nonmonotonic.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/"
+                "invalid_channel_order_duplicate.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/"
+                "invalid_asset_checksum_format.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/invalid_checksum_format.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/"
+                "invalid_complete_manifest_incomplete_shard.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/"
+                "invalid_completion_state_unknown.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/invalid_coordinate_frame.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/invalid_split_unknown_group.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/"
+                "invalid_runtime_profile_unknown.json"
+            ): "{}\n",
+            (
+                "examples/manifests/invalid/invalid_timestamp_negative.json"
+            ): "{}\n",
+            "examples/manifests/invalid/invalid_path_absolute.json": "{}\n",
+            (
+                "examples/manifests/invalid/invalid_path_parent_traversal.json"
+            ): "{}\n",
+            "examples/calibration/README.md": "# Calibration Examples\n",
+            (
+                "examples/calibration/respeaker_xvf3800_nominal.v1.json"
+            ): "{}\n",
+            "examples/calibration/invalid/invalid_id_whitespace.json": "{}\n",
+            "examples/calibration/invalid/invalid_units_gain.json": "{}\n",
+            (
+                "examples/calibration/invalid/invalid_coordinate_frame.json"
+            ): "{}\n",
+            (
+                "examples/calibration/invalid/invalid_timestamp_not_utc.json"
+            ): "{}\n",
+            (
+                "examples/calibration/invalid/"
+                "invalid_channel_order_duplicate.json"
+            ): "{}\n",
+            (
+                "examples/calibration/invalid/invalid_checksum_format.json"
+            ): "{}\n",
+            (
+                "examples/calibration/invalid/invalid_schema_version.json"
+            ): "{}\n",
+            (
+                "examples/calibration/invalid/"
+                "invalid_unmeasured_has_value.json"
+            ): "{}\n",
+            (
+                "examples/calibration/invalid/invalid_path_parent_traversal.json"
+            ): "{}\n",
+            "examples/calibration/invalid/invalid_sample_rate.json": "{}\n",
             "examples/core/single_source_bearing.py": "print('example')\n",
             "examples/traces/ambiguity_frame.v1.json": "{}\n",
             "examples/traces/diagnostics_provenance_sequence.v1.ndjson": "{}\n",
@@ -76,6 +157,7 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "exts/isaac_audio_sensors.omni/docs/README.md": "# Overview\n",
             "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py": "\n",
             "scripts/audit_distribution.py": "print('audit')\n",
+            "scripts/regenerate_example_manifests.py": "print('regenerate')\n",
             "scripts/generate_live_evidence_report.py": "print('report')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",
             "scripts/live_omniverse_extension_ux.py": "print('ux')\n",
@@ -85,8 +167,12 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "src/isaac_audio_sensors/__main__.py": "from .cli import main\n",
             "src/isaac_audio_sensors/cli.py": "def main(): return 0\n",
             "src/isaac_audio_sensors/core/fidelity.py": "LADDER = ()\n",
+            "src/isaac_audio_sensors/core/dataset_manifest.py": "\n",
+            "src/isaac_audio_sensors/core/calibration_profile.py": "\n",
             "src/isaac_audio_sensors/core/schema.py": "\n",
             "src/isaac_audio_sensors/core/types.py": "\n",
+            "src/isaac_audio_sensors/core/io/manifests.py": "\n",
+            "src/isaac_audio_sensors/core/io/calibration.py": "\n",
             "src/isaac_audio_sensors/core/io/traces.py": "\n",
             "src/isaac_audio_sensors/isaac/extension_ui/__init__.py": "\n",
             "src/isaac_audio_sensors/isaac/extension_ui/controller.py": "\n",
@@ -96,6 +182,11 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "src/isaac_audio_sensors/isaac/sound_profiles.py": "\n",
             "tests/test_acoustic_fidelity.py": "def test_ladder():\n    assert True\n",
             "tests/test_isaac_audio_core.py": "def test_core():\n    assert True\n",
+            "tests/test_dataset_manifest.py": "def test_manifest():\n    assert True\n",
+            (
+                "tests/test_calibration_profile.py"
+            ): "def test_calibration():\n    assert True\n",
+            "tests/test_runtime_profiles.py": "def test_profiles():\n    assert True\n",
             (
                 "tests/test_live_evidence_report.py"
             ): "def test_report():\n    assert True\n",
@@ -108,8 +199,12 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "isaac_audio_sensors/__init__.py": f"__version__ = '{RELEASE_VERSION}'\n",
             "isaac_audio_sensors/__main__.py": "from .cli import main\n",
             "isaac_audio_sensors/cli.py": "def main(): return 0\n",
+            "isaac_audio_sensors/core/dataset_manifest.py": "\n",
+            "isaac_audio_sensors/core/calibration_profile.py": "\n",
             "isaac_audio_sensors/core/schema.py": "\n",
             "isaac_audio_sensors/core/types.py": "\n",
+            "isaac_audio_sensors/core/io/manifests.py": "\n",
+            "isaac_audio_sensors/core/io/calibration.py": "\n",
             "isaac_audio_sensors/core/io/traces.py": "\n",
             "isaac_audio_sensors/isaac/extension.py": "\n",
             "isaac_audio_sensors/isaac/extension_ui/__init__.py": "\n",

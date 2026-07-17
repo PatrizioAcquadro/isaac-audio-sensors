@@ -1,0 +1,146 @@
+{
+  "calibration_profile": null,
+  "channel_order": [
+    "ch0",
+    "ch1",
+    "ch2",
+    "ch3"
+  ],
+  "completion_state": "complete",
+  "configuration_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+  "coordinate_frames": [
+    "world",
+    "xvf3800_array"
+  ],
+  "creation": {
+    "backend_id": "room_acoustics",
+    "estimator_id": "tdoa_least_squares",
+    "isaac_lab_version": "3.0.0",
+    "isaac_sim_version": "6.0.1-rc.7",
+    "kit_version": "108.0",
+    "tool_name": "ias_fixture_generator",
+    "tool_version": "1.8.0"
+  },
+  "creation_timestamp_ms": 0,
+  "dataset_id": "minimal_fixture",
+  "device": {
+    "compute_device": "cuda:0",
+    "device_id": "rtx4090_reference",
+    "device_type": "simulation_host",
+    "platform": "linux_x86_64"
+  },
+  "dtype": "float32",
+  "episodes": [
+    {
+      "array_poses": [
+        {
+          "entity_id": "xvf3800_array",
+          "entity_kind": "array",
+          "frame": "world",
+          "orientation_xyzw": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_m": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "timestamp_ms": 0
+        }
+      ],
+      "end_frame": 1,
+      "end_step": 1,
+      "environment_id": "env_0",
+      "episode_id": "episode_000",
+      "labels": [
+        "Speech"
+      ],
+      "reset_markers": [
+        {
+          "frame_index": 0,
+          "step_index": 0,
+          "timestamp_ms": 0
+        }
+      ],
+      "scene_id": "scene_a",
+      "seed": 7,
+      "source_truth": [
+        {
+          "active": true,
+          "class_label": "Speech",
+          "pose": {
+            "entity_id": "speaker_1",
+            "entity_kind": "source",
+            "frame": "world",
+            "orientation_xyzw": null,
+            "position_m": [
+              2.0,
+              0.5,
+              1.0
+            ],
+            "timestamp_ms": 0
+          },
+          "source_id": "speaker_1",
+          "timestamp_ms": 0
+        }
+      ],
+      "split_group": "scene_a",
+      "start_frame": 0,
+      "start_step": 0,
+      "timestamps_ms": [
+        0,
+        20
+      ],
+      "visual_sync_asset_ids": []
+    }
+  ],
+  "license": "CC0-1.0",
+  "runtime_profile": "waveform_fidelity",
+  "sample_rate_hz": 48000,
+  "schema_version": "ias.audio_dataset_manifest.v1",
+  "shards": [
+    {
+      "assets": [
+        {
+          "asset_id": "frames_000",
+          "kind": "frame_trace_jsonl",
+          "path": "shards/000/frames.ndjson",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "asset_id": "audio_000",
+          "kind": "audio_flac",
+          "path": "shards/000/audio.flac",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "completion_state": "complete",
+      "episode_ids": [
+        "episode_000"
+      ],
+      "shard_id": "shard_000"
+    }
+  ],
+  "source": "Deterministic synthetic fixture",
+  "split_grouping_key": "scene_id",
+  "splits": [
+    {
+      "group_ids": [
+        "scene_a"
+      ],
+      "name": "train"
+    }
+  ],
+  "time_base": "simulation_time",
+  "units": {
+    "orientation": "quaternion_xyzw",
+    "position": "m",
+    "sample_rate": "Hz",
+    "time": "s",
+    "timestamp": "ms"
+  }
+}

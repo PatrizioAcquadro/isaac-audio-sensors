@@ -10,6 +10,15 @@ base/acoustic-pack artifacts. `ias.audio_sensor_frame.v1` is unchanged.
 
 Official Isaac 6.0.1 / Isaac Lab 3.0.0-beta2 launcher migration:
 
+- Added the independent `ias.audio_dataset_manifest.v1` and
+  `ias.audio_calibration_profile.v1` dataclass, schema, deterministic JSON,
+  validation, and valid/invalid fixture contracts.
+- Added configuration-validated `training_features` and `waveform_fidelity`
+  runtime profiles. `waveform_fidelity` is the compatibility default; unknown
+  profiles and waveform export under `training_features` fail closed.
+- Added exact schema regeneration through the CLI and Makefile, deterministic
+  valid-fixture regeneration, and distribution inventory coverage.
+
 - Makefile live gates now auto-detect the official installs at `~/isaacsim`
   and `~/IsaacLab`, while keeping `ISAAC_SIM_COMMAND` and `ISAAC_LAB_PYTHON`
   overrides for non-default or legacy runtimes.

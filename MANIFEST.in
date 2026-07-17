@@ -10,10 +10,14 @@ include Makefile
 include pyproject.toml
 recursive-include configs *.toml
 recursive-include docs *.md *.json
+include docs/schemas/audio_dataset_manifest.v1.schema.json
+include docs/schemas/audio_calibration_profile.v1.schema.json
 exclude docs/reference_rig_hardware_environment.md
 recursive-exclude docs/development *
 recursive-exclude docs/evidence *
 recursive-include examples *.md *.py *.json *.ndjson
+recursive-include examples/manifests *.md *.json
+recursive-include examples/calibration *.md *.json
 recursive-include exts *.toml *.py *.md *.svg
 recursive-include scripts *.py
 recursive-include tests *.py

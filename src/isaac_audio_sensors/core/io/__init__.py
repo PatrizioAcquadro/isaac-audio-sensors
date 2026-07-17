@@ -2,6 +2,20 @@
 
 from __future__ import annotations
 
+from isaac_audio_sensors.core.io.calibration import (
+    calibration_profile_from_dict,
+    calibration_profile_to_dict,
+    read_calibration_profile,
+    write_calibration_profile,
+)
+from isaac_audio_sensors.core.io.manifests import (
+    dataset_manifest_from_dict,
+    dataset_manifest_to_dict,
+    manifest_from_dict,
+    manifest_to_dict,
+    read_dataset_manifest,
+    write_dataset_manifest,
+)
 from isaac_audio_sensors.core.io.traces import (
     AudioFrameJsonlWriter,
     append_frame_jsonl,
@@ -27,11 +41,21 @@ __all__ = [
     "WaveformSink",
     "WaveformWriteResult",
     "append_frame_jsonl",
+    "calibration_profile_from_dict",
+    "calibration_profile_to_dict",
+    "dataset_manifest_from_dict",
+    "dataset_manifest_to_dict",
     "frame_from_trace_dict",
     "frame_to_trace_dict",
     "generated_impulse_metadata",
+    "manifest_from_dict",
+    "manifest_to_dict",
+    "read_calibration_profile",
+    "read_dataset_manifest",
     "read_frame_trace",
     "waveform_safe_filename",
     "write_frame_trace",
+    "write_calibration_profile",
+    "write_dataset_manifest",
     "write_multichannel_wav",
 ]

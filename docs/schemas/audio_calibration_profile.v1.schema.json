@@ -1,0 +1,738 @@
+{
+  "$id": "https://isaac-audio-sensors.dev/schemas/audio_calibration_profile.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Fail-closed device calibration contract with explicit measured, nominal-not-measured, unmeasured, and unsupported states. Its schema version is independent of the Python package version.",
+  "properties": {
+    "acquisition_procedure": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "applicability_limits": {
+      "additionalProperties": false,
+      "properties": {
+        "environment_tags": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "frequency_max_hz": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "frequency_min_hz": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "temperature_max_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "temperature_min_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "temperature_min_c",
+        "temperature_max_c",
+        "frequency_min_hz",
+        "frequency_max_hz",
+        "environment_tags"
+      ],
+      "type": "object"
+    },
+    "array_frame": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "array_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "channel_order": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "channels": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "delay_s": {
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "enum": [
+                  "measured",
+                  "nominal_not_measured",
+                  "unmeasured",
+                  "unsupported"
+                ]
+              },
+              "uncertainty": {
+                "minimum": 0.0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "value",
+              "uncertainty"
+            ],
+            "type": "object"
+          },
+          "frequency_response": {
+            "additionalProperties": false,
+            "properties": {
+              "points": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "frequency_hz": {
+                      "exclusiveMinimum": 0.0,
+                      "type": "number"
+                    },
+                    "magnitude_db": {
+                      "type": "number"
+                    },
+                    "phase_deg": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "frequency_hz",
+                    "magnitude_db",
+                    "phase_deg"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "status": {
+                "enum": [
+                  "measured",
+                  "nominal_not_measured",
+                  "unmeasured",
+                  "unsupported"
+                ]
+              },
+              "uncertainty_db": {
+                "minimum": 0.0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "points",
+              "uncertainty_db"
+            ],
+            "type": "object"
+          },
+          "gain_db": {
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "enum": [
+                  "measured",
+                  "nominal_not_measured",
+                  "unmeasured",
+                  "unsupported"
+                ]
+              },
+              "uncertainty": {
+                "minimum": 0.0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "value",
+              "uncertainty"
+            ],
+            "type": "object"
+          },
+          "polarity": {
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "enum": [
+                  "measured",
+                  "nominal_not_measured",
+                  "unmeasured",
+                  "unsupported"
+                ]
+              },
+              "uncertainty": {
+                "minimum": 0.0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "value",
+              "uncertainty"
+            ],
+            "type": "object"
+          },
+          "self_noise_db_spl": {
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "enum": [
+                  "measured",
+                  "nominal_not_measured",
+                  "unmeasured",
+                  "unsupported"
+                ]
+              },
+              "uncertainty": {
+                "minimum": 0.0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "value",
+              "uncertainty"
+            ],
+            "type": "object"
+          },
+          "usable_frequency_range": {
+            "additionalProperties": false,
+            "properties": {
+              "maximum_hz": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "minimum_hz": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "measured",
+                  "nominal_not_measured",
+                  "unmeasured",
+                  "unsupported"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "minimum_hz",
+              "maximum_hz"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "channel_id",
+          "gain_db",
+          "delay_s",
+          "polarity",
+          "frequency_response",
+          "self_noise_db_spl",
+          "usable_frequency_range"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "coordinate_convention": {
+      "const": "x_forward_y_right_z_up_clockwise_bearing"
+    },
+    "created_at": {
+      "format": "date-time",
+      "pattern": "Z$",
+      "type": "string"
+    },
+    "device_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "device_model": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "environment_description": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "evidence_status": {
+      "enum": [
+        "measured",
+        "nominal_not_measured",
+        "unmeasured",
+        "unsupported"
+      ]
+    },
+    "fit_metrics": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "unit": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "unit"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "fitted_model_parameters": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "estimate": {
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "enum": [
+                  "measured",
+                  "nominal_not_measured",
+                  "unmeasured",
+                  "unsupported"
+                ]
+              },
+              "uncertainty": {
+                "minimum": 0.0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "value",
+              "uncertainty"
+            ],
+            "type": "object"
+          },
+          "name": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "unit": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "unit",
+          "estimate"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "holdout_metrics": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "unit": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "unit"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "microphone_geometry": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "frame": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "position_m": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "measured",
+              "nominal_not_measured",
+              "unmeasured",
+              "unsupported"
+            ]
+          },
+          "uncertainty_m": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "items": {
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "required": [
+          "channel_id",
+          "status",
+          "position_m",
+          "uncertainty_m",
+          "frame"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "pose_measurement_method": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "profile_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "profile_version": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "raw_measurements": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "minLength": 1,
+            "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "reference_rig_bom_path": {
+      "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+      "type": "string"
+    },
+    "reference_signal": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "sample_rate_hz": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "ias.audio_calibration_profile.v1"
+    },
+    "source_frame": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "source_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "speaker_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
+    },
+    "speed_of_sound_mps": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "nominal_not_measured",
+            "unmeasured",
+            "unsupported"
+          ]
+        },
+        "uncertainty": {
+          "minimum": 0.0,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "value",
+        "uncertainty"
+      ],
+      "type": "object"
+    },
+    "speed_of_sound_policy": {
+      "enum": [
+        "fixed",
+        "measured",
+        "temperature_derived"
+      ]
+    },
+    "temperature_c": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "nominal_not_measured",
+            "unmeasured",
+            "unsupported"
+          ]
+        },
+        "uncertainty": {
+          "minimum": 0.0,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "value",
+        "uncertainty"
+      ],
+      "type": "object"
+    },
+    "tool_version": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "uncertainty_notes": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "units": {
+      "additionalProperties": false,
+      "properties": {
+        "delay": {
+          "const": "s",
+          "type": "string"
+        },
+        "frequency": {
+          "const": "Hz",
+          "type": "string"
+        },
+        "gain": {
+          "const": "dB",
+          "type": "string"
+        },
+        "position": {
+          "const": "m",
+          "type": "string"
+        },
+        "position_uncertainty": {
+          "const": "m",
+          "type": "string"
+        },
+        "self_noise": {
+          "const": "dB_SPL",
+          "type": "string"
+        },
+        "speed_of_sound": {
+          "const": "m/s",
+          "type": "string"
+        },
+        "temperature": {
+          "const": "deg_C",
+          "type": "string"
+        }
+      },
+      "required": [
+        "delay",
+        "frequency",
+        "gain",
+        "position",
+        "position_uncertainty",
+        "self_noise",
+        "speed_of_sound",
+        "temperature"
+      ],
+      "type": "object"
+    },
+    "unmeasured_fields": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "profile_id",
+    "profile_version",
+    "device_id",
+    "device_model",
+    "array_id",
+    "channel_order",
+    "reference_rig_bom_path",
+    "microphone_geometry",
+    "array_frame",
+    "source_frame",
+    "coordinate_convention",
+    "units",
+    "sample_rate_hz",
+    "temperature_c",
+    "speed_of_sound_policy",
+    "speed_of_sound_mps",
+    "environment_description",
+    "channels",
+    "source_id",
+    "speaker_id",
+    "pose_measurement_method",
+    "reference_signal",
+    "acquisition_procedure",
+    "fitted_model_parameters",
+    "fit_metrics",
+    "holdout_metrics",
+    "applicability_limits",
+    "uncertainty_notes",
+    "raw_measurements",
+    "tool_version",
+    "created_at",
+    "unmeasured_fields",
+    "evidence_status",
+    "schema_version"
+  ],
+  "title": "Isaac Audio Sensors AudioCalibrationProfile v1",
+  "type": "object"
+}

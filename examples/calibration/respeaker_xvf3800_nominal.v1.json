@@ -1,0 +1,314 @@
+{
+  "acquisition_procedure": "not run; fixture exercises the public contract",
+  "applicability_limits": {
+    "environment_tags": [
+      "nominal_fixture"
+    ],
+    "frequency_max_hz": null,
+    "frequency_min_hz": null,
+    "temperature_max_c": null,
+    "temperature_min_c": null
+  },
+  "array_frame": "xvf3800_array",
+  "array_id": "xvf3800_array",
+  "channel_order": [
+    "ch0",
+    "ch1",
+    "ch2",
+    "ch3"
+  ],
+  "channels": [
+    {
+      "channel_id": "ch0",
+      "delay_s": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "frequency_response": {
+        "points": [
+          {
+            "frequency_hz": 100.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          },
+          {
+            "frequency_hz": 1000.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          },
+          {
+            "frequency_hz": 10000.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          }
+        ],
+        "status": "nominal_not_measured",
+        "uncertainty_db": null
+      },
+      "gain_db": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "polarity": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 1.0
+      },
+      "self_noise_db_spl": {
+        "status": "unmeasured",
+        "uncertainty": null,
+        "value": null
+      },
+      "usable_frequency_range": {
+        "maximum_hz": 10000.0,
+        "minimum_hz": 100.0,
+        "status": "nominal_not_measured"
+      }
+    },
+    {
+      "channel_id": "ch1",
+      "delay_s": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "frequency_response": {
+        "points": [
+          {
+            "frequency_hz": 100.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          },
+          {
+            "frequency_hz": 1000.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          },
+          {
+            "frequency_hz": 10000.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          }
+        ],
+        "status": "nominal_not_measured",
+        "uncertainty_db": null
+      },
+      "gain_db": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "polarity": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 1.0
+      },
+      "self_noise_db_spl": {
+        "status": "unmeasured",
+        "uncertainty": null,
+        "value": null
+      },
+      "usable_frequency_range": {
+        "maximum_hz": 10000.0,
+        "minimum_hz": 100.0,
+        "status": "nominal_not_measured"
+      }
+    },
+    {
+      "channel_id": "ch2",
+      "delay_s": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "frequency_response": {
+        "points": [
+          {
+            "frequency_hz": 100.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          },
+          {
+            "frequency_hz": 1000.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          },
+          {
+            "frequency_hz": 10000.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          }
+        ],
+        "status": "nominal_not_measured",
+        "uncertainty_db": null
+      },
+      "gain_db": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "polarity": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 1.0
+      },
+      "self_noise_db_spl": {
+        "status": "unmeasured",
+        "uncertainty": null,
+        "value": null
+      },
+      "usable_frequency_range": {
+        "maximum_hz": 10000.0,
+        "minimum_hz": 100.0,
+        "status": "nominal_not_measured"
+      }
+    },
+    {
+      "channel_id": "ch3",
+      "delay_s": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "frequency_response": {
+        "points": [
+          {
+            "frequency_hz": 100.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          },
+          {
+            "frequency_hz": 1000.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          },
+          {
+            "frequency_hz": 10000.0,
+            "magnitude_db": 0.0,
+            "phase_deg": null
+          }
+        ],
+        "status": "nominal_not_measured",
+        "uncertainty_db": null
+      },
+      "gain_db": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "polarity": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 1.0
+      },
+      "self_noise_db_spl": {
+        "status": "unmeasured",
+        "uncertainty": null,
+        "value": null
+      },
+      "usable_frequency_range": {
+        "maximum_hz": 10000.0,
+        "minimum_hz": 100.0,
+        "status": "nominal_not_measured"
+      }
+    }
+  ],
+  "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+  "created_at": "2026-01-01T00:00:00Z",
+  "device_id": "respeaker_xvf3800_fixture",
+  "device_model": "ReSpeaker XVF3800 USB 4-Mic Array",
+  "environment_description": "Nominal room-temperature fixture; no physical acquisition was run.",
+  "evidence_status": "nominal_not_measured",
+  "fit_metrics": [],
+  "fitted_model_parameters": [],
+  "holdout_metrics": [],
+  "microphone_geometry": [
+    {
+      "channel_id": "ch0",
+      "frame": "xvf3800_array",
+      "position_m": [
+        0.035,
+        0.0,
+        0.0
+      ],
+      "status": "nominal_not_measured",
+      "uncertainty_m": null
+    },
+    {
+      "channel_id": "ch1",
+      "frame": "xvf3800_array",
+      "position_m": [
+        0.0,
+        0.035,
+        0.0
+      ],
+      "status": "nominal_not_measured",
+      "uncertainty_m": null
+    },
+    {
+      "channel_id": "ch2",
+      "frame": "xvf3800_array",
+      "position_m": [
+        -0.035,
+        0.0,
+        0.0
+      ],
+      "status": "nominal_not_measured",
+      "uncertainty_m": null
+    },
+    {
+      "channel_id": "ch3",
+      "frame": "xvf3800_array",
+      "position_m": [
+        0.0,
+        -0.035,
+        0.0
+      ],
+      "status": "nominal_not_measured",
+      "uncertainty_m": null
+    }
+  ],
+  "pose_measurement_method": "not measured; nominal geometry only",
+  "profile_id": "respeaker_xvf3800_nominal",
+  "profile_version": "v1",
+  "raw_measurements": [],
+  "reference_rig_bom_path": "reference_rig/bom.json",
+  "reference_signal": "not acquired; nominal flat response points",
+  "sample_rate_hz": 48000,
+  "schema_version": "ias.audio_calibration_profile.v1",
+  "source_frame": "speaker_reference",
+  "source_id": "nominal_reference_source",
+  "speaker_id": "nominal_reference_speaker",
+  "speed_of_sound_mps": {
+    "status": "nominal_not_measured",
+    "uncertainty": null,
+    "value": 343.0
+  },
+  "speed_of_sound_policy": "temperature_derived",
+  "temperature_c": {
+    "status": "nominal_not_measured",
+    "uncertainty": null,
+    "value": 20.0
+  },
+  "tool_version": "ias_fixture_generator/1.8.0",
+  "uncertainty_notes": "No measurement uncertainty is claimed for nominal values.",
+  "units": {
+    "delay": "s",
+    "frequency": "Hz",
+    "gain": "dB",
+    "position": "m",
+    "position_uncertainty": "m",
+    "self_noise": "dB_SPL",
+    "speed_of_sound": "m/s",
+    "temperature": "deg_C"
+  },
+  "unmeasured_fields": [
+    "raw_measurements",
+    "fit_metrics",
+    "holdout_metrics",
+    "channels.*.self_noise_db_spl",
+    "microphone_geometry.*.uncertainty_m"
+  ]
+}

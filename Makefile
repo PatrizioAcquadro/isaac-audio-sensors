@@ -9,7 +9,7 @@ ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
 EXPECTED_VERSION ?= 1.8.0
 
-.PHONY: test lint format build audit-dist import-smoke validate-config export-schema regenerate-traces live-evidence-report live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test lint format build audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -36,9 +36,14 @@ validate-config:
 
 export-schema:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors.cli export-schema --out docs/schemas/audio_sensor_frame.v1.schema.json
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors.cli export-schema --schema dataset-manifest --out docs/schemas/audio_dataset_manifest.v1.schema.json
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors.cli export-schema --schema calibration-profile --out docs/schemas/audio_calibration_profile.v1.schema.json
 
 regenerate-traces:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/regenerate_example_traces.py
+
+regenerate-manifests:
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/regenerate_example_manifests.py
 
 live-evidence-report:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) scripts/generate_live_evidence_report.py

@@ -13,9 +13,11 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10.
 
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
+    DEFAULT_RUNTIME_PROFILE,
     DEFAULT_SAMPLE_RATE_HZ,
     DEFAULT_SPEED_OF_SOUND_MPS,
     KNOWN_BACKENDS,
+    RUNTIME_PROFILES,
     TDOA_AMBIGUITY_POLICIES,
 )
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
@@ -37,6 +39,7 @@ class AudioSensorConfig:
     stage_units: str
     up_axis: str
     default_backend: str
+    runtime_profile: str
     sample_rate_hz: int
     speed_of_sound_mps: float
     write_waveforms: bool
@@ -79,6 +82,20 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             raise ConfigValidationError(
                 f"audio.default_backend must be one of {sorted(KNOWN_BACKENDS)}."
             )
+        runtime_profile = str(
+            audio.get("runtime_profile", DEFAULT_RUNTIME_PROFILE)
+        )
+        if runtime_profile not in RUNTIME_PROFILES:
+            raise ConfigValidationError(
+                f"audio.runtime_profile must be one of {list(RUNTIME_PROFILES)}."
+            )
+        write_waveforms = bool(audio.get("write_waveforms", False))
+        if runtime_profile == "training_features" and write_waveforms:
+            raise ConfigValidationError(
+                "audio.runtime_profile 'training_features' is incompatible with "
+                "audio.write_waveforms=true; select 'waveform_fidelity' or disable "
+                "waveform export."
+            )
         speed_of_sound = float(
             audio.get("speed_of_sound_mps", DEFAULT_SPEED_OF_SOUND_MPS)
         )
@@ -107,9 +124,10 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             stage_units=stage_units,
             up_axis=up_axis,
             default_backend=default_backend,
+            runtime_profile=runtime_profile,
             sample_rate_hz=sample_rate_hz,
             speed_of_sound_mps=speed_of_sound,
-            write_waveforms=bool(audio.get("write_waveforms", False)),
+            write_waveforms=write_waveforms,
             waveform_dir=(
                 None
                 if audio.get("waveform_dir") is None

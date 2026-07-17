@@ -5,6 +5,30 @@ from __future__ import annotations
 COORDINATE_CONVENTION = "x_forward_y_right_z_up_clockwise_bearing"
 DEFAULT_SAMPLE_RATE_HZ = 48_000
 DEFAULT_SPEED_OF_SOUND_MPS = 343.0
+RUNTIME_PROFILES = ("training_features", "waveform_fidelity")
+DEFAULT_RUNTIME_PROFILE = "waveform_fidelity"
+
+DATASET_MANIFEST_SCHEMA_VERSION = "ias.audio_dataset_manifest.v1"
+CALIBRATION_PROFILE_SCHEMA_VERSION = "ias.audio_calibration_profile.v1"
+
+DATASET_MANIFEST_UNITS = {
+    "position": "m",
+    "orientation": "quaternion_xyzw",
+    "time": "s",
+    "timestamp": "ms",
+    "sample_rate": "Hz",
+}
+
+CALIBRATION_PROFILE_UNITS = {
+    "position": "m",
+    "position_uncertainty": "m",
+    "gain": "dB",
+    "delay": "s",
+    "frequency": "Hz",
+    "self_noise": "dB_SPL",
+    "temperature": "deg_C",
+    "speed_of_sound": "m/s",
+}
 
 # Octave-band centers shared by occlusion transmission-loss producers and the
 # room backend's per-band attenuation filter.

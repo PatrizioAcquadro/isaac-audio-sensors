@@ -6,12 +6,17 @@ from isaac_audio_sensors.core.backends.base import AudioSimulationBackend, get_b
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.calibration_profile import (
+    AudioCalibrationProfile,
+    check_profile_compatibility,
+)
 from isaac_audio_sensors.core.config import (
     AudioSensorConfig,
     build_scene_snapshot,
     load_audio_config,
     validate_audio_config,
 )
+from isaac_audio_sensors.core.dataset_manifest import AudioDatasetManifest
 from isaac_audio_sensors.core.fidelity import (
     ACOUSTIC_FIDELITY_LADDER,
     AcousticFidelityLevel,
@@ -23,7 +28,11 @@ from isaac_audio_sensors.core.microphone_array import (
     microphone_world_positions,
 )
 from isaac_audio_sensors.core.schema import (
+    audio_calibration_profile_json_schema,
+    audio_dataset_manifest_json_schema,
     audio_sensor_frame_json_schema,
+    write_audio_calibration_profile_json_schema,
+    write_audio_dataset_manifest_json_schema,
     write_audio_sensor_frame_json_schema,
 )
 from isaac_audio_sensors.core.types import (
@@ -42,6 +51,8 @@ from isaac_audio_sensors.core.types import (
 
 __all__ = [
     "AudioDetection",
+    "AudioCalibrationProfile",
+    "AudioDatasetManifest",
     "AudioSceneSnapshot",
     "AudioSensorConfig",
     "AudioSensorFrame",
@@ -61,7 +72,10 @@ __all__ = [
     "SourceOcclusion",
     "TdoaSyntheticBackend",
     "audio_sensor_frame_json_schema",
+    "audio_calibration_profile_json_schema",
+    "audio_dataset_manifest_json_schema",
     "build_scene_snapshot",
+    "check_profile_compatibility",
     "create_microphone_array",
     "fidelity_level_for_backend",
     "get_backend",
@@ -69,4 +83,6 @@ __all__ = [
     "microphone_world_positions",
     "validate_audio_config",
     "write_audio_sensor_frame_json_schema",
+    "write_audio_calibration_profile_json_schema",
+    "write_audio_dataset_manifest_json_schema",
 ]
