@@ -50,6 +50,12 @@ Official Isaac 6.0.1 / Isaac Lab 3.0.0-beta2 launcher migration:
   identical semantics; round trips add only documented optional defaults.
   `AudioSensorConfig.runtime_profile` now also defaults to
   `waveform_fidelity` for direct legacy-style construction.
+- Added the S1.8 installed-artifact consumer harness. It hash-verifies and
+  installs the wheel in an isolated venv, runs the external adapter contract
+  fixtures without installing or modifying the consumer checkout, double-runs
+  a canonical trace-to-graph export, scans the installed generic boundary, and
+  records unavailable consumer access or dependencies as blockers rather than
+  passes.
 
 - Makefile live gates now auto-detect the official installs at `~/isaacsim`
   and `~/IsaacLab`, while keeping `ISAAC_SIM_COMMAND` and `ISAAC_LAB_PYTHON`

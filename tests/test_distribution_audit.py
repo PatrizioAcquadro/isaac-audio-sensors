@@ -172,6 +172,7 @@ def test_distribution_audit_accepts_required_sdist_and_wheel(tmp_path):
             "scripts/generate_live_evidence_report.py": "print('report')\n",
             "scripts/live_clean_install_gate.py": "print('clean gate')\n",
             "scripts/live_clean_install_probe.py": "print('clean probe')\n",
+            "scripts/run_installed_consumer_gate.py": "print('consumer gate')\n",
             "scripts/live_isaac_sim_audio_smoke.py": "print('smoke')\n",
             "scripts/live_omniverse_extension_ux.py": "print('ux')\n",
             "scripts/install_pack.py": "print('pack install')\n",

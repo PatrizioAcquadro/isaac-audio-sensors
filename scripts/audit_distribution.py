@@ -222,6 +222,7 @@ REQUIRED_SDIST_ENTRIES = (
     "scripts/generate_live_evidence_report.py",
     "scripts/live_clean_install_gate.py",
     "scripts/live_clean_install_probe.py",
+    "scripts/run_installed_consumer_gate.py",
     "scripts/live_omniverse_extension_ux.py",
     "scripts/live_isaac_sim_audio_smoke.py",
     "scripts/install_pack.py",

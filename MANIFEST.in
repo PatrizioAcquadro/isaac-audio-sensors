@@ -22,6 +22,7 @@ recursive-include exts *.toml *.py *.md *.svg *.json
 recursive-include scripts *.py
 include scripts/live_clean_install_gate.py
 include scripts/live_clean_install_probe.py
+include scripts/run_installed_consumer_gate.py
 recursive-include packs/acoustics *.toml *.lock
 recursive-exclude packs *.whl
 recursive-include src/isaac_audio_sensors/core/plugins *.py

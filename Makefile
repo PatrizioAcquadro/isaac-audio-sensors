@@ -9,8 +9,10 @@ ISAAC_DIAGNOSTICS_OUT_DIR ?= outputs/isaac_audio_sensors/diagnostics
 BUILD_FLAGS ?= --no-isolation
 EXPECTED_VERSION ?= 1.8.0
 WHEELHOUSE ?=
+CONSUMER_USER ?= pacquadr
+CONSUMER_REPO ?= /home/$(CONSUMER_USER)/Desktop/squadbot-av-phase1
 
-.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-clean-install live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version audit-dist import-smoke validate-config export-schema regenerate-traces regenerate-manifests live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -81,6 +83,11 @@ live-evidence-report:
 live-clean-install:
 	$(PYTHON) scripts/live_clean_install_gate.py --isaac-root "$(ISAAC_SIM_ROOT)" --scenarios headless,reinstall,wheel-venv
 	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S1/S1.6/clean_install_gate.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
+
+# A "blocked" consumer-gate status is a blocker record, not a passing gate.
+consumer-gate:
+	$(PYTHON) scripts/run_installed_consumer_gate.py --consumer-repo "$(CONSUMER_REPO)"
+	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S1/S1.8/consumer_gate.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
 
 live-clean-install-gui:
 	$(PYTHON) scripts/live_clean_install_gate.py --isaac-root "$(ISAAC_SIM_ROOT)" --scenarios gui
