@@ -956,6 +956,54 @@ def _git_revision() -> str:
     return result.stdout.strip()
 
 
+def _live_evidence() -> tuple[str, object, dict[str, object]]:
+    required_files = [
+        "live_isaac_teleport_summary.json",
+        "live_isaac_teleport_frames.jsonl",
+        "live_isaac_teleport.log",
+        "live_isaac_teleport_stage.usda",
+        "live_isaac_environment.json",
+    ]
+    summary_path = OUTPUT / required_files[0]
+    if not summary_path.is_file():
+        return "pending_live", None, {
+            "status": "pending_live",
+            "owner": "orchestrator",
+            "required_files": required_files,
+        }
+    try:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return "failed", None, {
+            "status": "failed",
+            "owner": "orchestrator",
+            "required_files": required_files,
+            "error": f"invalid live summary: {type(exc).__name__}: {exc}",
+        }
+    status = summary.get("status")
+    if status not in {"passed", "failed", "blocked"}:
+        status = "failed"
+    missing_files = [name for name in required_files if not (OUTPUT / name).is_file()]
+    if status == "passed" and missing_files:
+        status = "failed"
+    environment_path = OUTPUT / "live_isaac_environment.json"
+    environment: object = None
+    if environment_path.is_file():
+        try:
+            environment = json.loads(environment_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            environment = {"error": f"{type(exc).__name__}: {exc}"}
+            if status == "passed":
+                status = "failed"
+    return status, environment, {
+        "status": status,
+        "owner": "orchestrator",
+        "required_files": required_files,
+        "missing_files": missing_files,
+        "summary_status": summary.get("status"),
+    }
+
+
 def main() -> int:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     constant, raw_maximum, constant_fixture_hash = _constant_velocity_evidence()
@@ -968,6 +1016,7 @@ def main() -> int:
     room, room_waveform_hash = _room_evidence()
     off_state, _ = _off_state_evidence()
     registry = _registry_evidence()
+    live_status, live_environment, live_artifacts = _live_evidence()
 
     rows = {
         "raw_constant_velocity": constant["status"],
@@ -983,14 +1032,13 @@ def main() -> int:
         "room_teleport_no_spike": room["status"],
         "motion_off_state": off_state["status"],
         "registry_twice_run_determinism": registry["status"],
-        "live_isaac_teleport": "pending_live",
+        "live_isaac_teleport": live_status,
     }
     artifact_hashes = {
         path.name: _file_sha256(path)
         for path in sorted(OUTPUT.iterdir())
         if path.is_file()
         and path.name != "pose_velocity_gate.json"
-        and not path.name.startswith("live_isaac_")
     }
     pure_statuses = {
         status for name, status in rows.items() if not name.startswith("live")
@@ -1060,22 +1108,17 @@ def main() -> int:
             "make test",
             "make lint",
             "make check-version",
+            "make live-s3-1-pose-velocity",
             ".venv/bin/python scripts/s3_1_evidence.py",
         ],
-        "live_environment_identity": None,
-        "live_artifacts": {
-            "status": "pending_live",
-            "owner": "orchestrator",
-            "required_files": [
-                "live_isaac_teleport_summary.json",
-                "live_isaac_teleport_frames.jsonl",
-                "live_isaac_teleport.log",
-                "live_isaac_teleport_stage.usda",
-                "live_isaac_environment.json",
-            ],
-        },
+        "live_environment_identity": live_environment,
+        "live_artifacts": live_artifacts,
         "artifact_sha256": artifact_hashes,
-        "status": "pending_live" if pure_statuses == {"passed"} else "failed",
+        "status": (
+            live_status
+            if pure_statuses == {"passed"}
+            else "failed"
+        ),
     }
     _write_json("pose_velocity_gate.json", gate)
     print(
@@ -1084,7 +1127,7 @@ def main() -> int:
                 "output": str(OUTPUT.relative_to(ROOT)),
                 "status": gate["status"],
                 "measured_maxima": gate["measured_maxima"],
-                "live": "pending_live",
+                "live": live_status,
             },
             sort_keys=True,
         )
