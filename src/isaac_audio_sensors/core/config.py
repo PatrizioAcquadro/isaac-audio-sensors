@@ -133,6 +133,16 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
                     "source ids and selected array ids to be disjoint; received "
                     f"collisions {collisions!r}."
                 )
+        microphone_self_noise_db: dict[str, float | None] = {}
+        for array in arrays.values():
+            for microphone in array.microphones:
+                if (
+                    microphone.mic_id not in microphone_self_noise_db
+                    or microphone_self_noise_db[microphone.mic_id] is None
+                ):
+                    microphone_self_noise_db[microphone.mic_id] = (
+                        microphone.self_noise_db
+                    )
         validate_effects_config(
             effects,
             microphone_orders=tuple(
@@ -142,6 +152,7 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             sample_rate_hz=sample_rate_hz,
             backend_id=default_backend,
             runtime_profile=runtime_profile,
+            microphone_self_noise_db=microphone_self_noise_db,
         )
         room = _parse_room(raw.get("room"))
         lab = dict(raw.get("lab", {}))

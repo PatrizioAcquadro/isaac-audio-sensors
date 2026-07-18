@@ -232,6 +232,13 @@ class RoomAcousticsBackend:
         )
         mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
         sample_rate_hz = time_window.sample_rate_hz
+        nominal_window_start_sample = int(
+            round(time_window.start_time_s * sample_rate_hz)
+        )
+        microphone_self_noise_db = {
+            microphone.mic_id: microphone.self_noise_db
+            for microphone in sensor.microphones
+        }
         window_sample_count = max(
             1,
             int(
@@ -252,6 +259,7 @@ class RoomAcousticsBackend:
                 backend_id=self.backend_id,
                 runtime_profile=self.runtime_profile,
                 sample_count=window_sample_count,
+                microphone_self_noise_db=microphone_self_noise_db,
             )
         if segments_per_window > 1:
             assert self.window_motion is not None
@@ -390,24 +398,38 @@ class RoomAcousticsBackend:
                         premix[index, mic_index] *= 10.0 ** (
                             per_mic_gain_db[mic_id] / 20.0
                         )
-            if not self.effects.all_disabled:
+            if self.effects.channel_response.enabled:
                 for index in range(len(active)):
-                    processed, diagnostics = self.effects_chain.apply(
+                    processed, diagnostics = self.effects_chain.apply_premix(
                         premix[index],
                         mic_ids=mic_ids,
                         sample_rate_hz=sample_rate_hz,
                         frame_id=frame_id,
                         backend_id=self.backend_id,
                         runtime_profile=self.runtime_profile,
+                        microphone_self_noise_db=microphone_self_noise_db,
                     )
                     premix[index] = processed
                     if diagnostics:
-                        effect_diagnostics = diagnostics
+                        effect_diagnostics.update(diagnostics)
             summed = np.sum(premix, axis=0)
             if summed.shape[1] >= window_sample_count:
                 mixture = summed
             else:
                 mixture[:, : summed.shape[1]] = summed
+            if self.effects.noise.enabled:
+                mixture, diagnostics = self.effects_chain.apply_mixture(
+                    mixture,
+                    mic_ids=mic_ids,
+                    sample_rate_hz=sample_rate_hz,
+                    frame_id=frame_id,
+                    backend_id=self.backend_id,
+                    runtime_profile=self.runtime_profile,
+                    nominal_window_start_sample=nominal_window_start_sample,
+                    microphone_self_noise_db=microphone_self_noise_db,
+                )
+                if diagnostics:
+                    effect_diagnostics.update(diagnostics)
 
             max_delay = (
                 _max_microphone_spacing(mic_room) / self.speed_of_sound_mps + 0.002
@@ -576,15 +598,31 @@ class RoomAcousticsBackend:
                     "room_microphone_positions_m": mic_room,
                 }
 
-        if not active and not self.effects.all_disabled:
-            mixture, effect_diagnostics = self.effects_chain.apply(
+        if not active and self.effects.channel_response.enabled:
+            mixture, diagnostics = self.effects_chain.apply_premix(
                 mixture,
                 mic_ids=mic_ids,
                 sample_rate_hz=sample_rate_hz,
                 frame_id=frame_id,
                 backend_id=self.backend_id,
                 runtime_profile=self.runtime_profile,
+                microphone_self_noise_db=microphone_self_noise_db,
             )
+            if diagnostics:
+                effect_diagnostics.update(diagnostics)
+        if not active and self.effects.noise.enabled:
+            mixture, diagnostics = self.effects_chain.apply_mixture(
+                mixture,
+                mic_ids=mic_ids,
+                sample_rate_hz=sample_rate_hz,
+                frame_id=frame_id,
+                backend_id=self.backend_id,
+                runtime_profile=self.runtime_profile,
+                nominal_window_start_sample=nominal_window_start_sample,
+                microphone_self_noise_db=microphone_self_noise_db,
+            )
+            if diagnostics:
+                effect_diagnostics.update(diagnostics)
 
         aggregate_per_mic_rms = rms_by_channel(
             {

@@ -2,6 +2,7 @@
 
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import (
+    AmbientNoiseConfig,
     ChannelResponseConfig,
     ChannelResponseMicConfig,
     DirectivityConfig,
@@ -10,10 +11,14 @@ from isaac_audio_sensors.core.effects.config import (
     FrequencyResponsePointConfig,
     MotionEffectsConfig,
     NoiseConfig,
+    NoiseLevelSpecConfig,
+    NoiseSpectrumPointConfig,
+    SelfNoiseConfig,
     UnsupportedEffectError,
 )
 
 __all__ = [
+    "AmbientNoiseConfig",
     "ChannelEffectsChain",
     "ChannelResponseConfig",
     "ChannelResponseMicConfig",
@@ -23,5 +28,8 @@ __all__ = [
     "FrequencyResponsePointConfig",
     "MotionEffectsConfig",
     "NoiseConfig",
+    "NoiseLevelSpecConfig",
+    "NoiseSpectrumPointConfig",
+    "SelfNoiseConfig",
     "UnsupportedEffectError",
 ]

@@ -14,6 +14,7 @@ from isaac_audio_sensors.core.effects.config import (
     EffectsConfig,
     validate_effects_config,
 )
+from isaac_audio_sensors.core.effects.noise import apply_noise
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 
 
@@ -32,10 +33,11 @@ class ChannelEffectsChain:
         frame_id: str,
         backend_id: str = "waveform",
         runtime_profile: str = "waveform_fidelity",
+        nominal_window_start_sample: int = 0,
+        microphone_self_noise_db: dict[str, float | None] | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         """Return effected samples and stage diagnostics."""
 
-        del frame_id  # Reserved for named stochastic streams in later stages.
         if self.config.all_disabled:
             return samples, {}
         self.validate(
@@ -44,6 +46,7 @@ class ChannelEffectsChain:
             sample_rate_hz=sample_rate_hz,
             backend_id=backend_id,
             runtime_profile=runtime_profile,
+            microphone_self_noise_db=microphone_self_noise_db,
         )
         output = samples
         diagnostics: dict[str, Any] = {}
@@ -56,7 +59,86 @@ class ChannelEffectsChain:
             )
             if response_diagnostics:
                 diagnostics["channel_response"] = response_diagnostics
+        if self.config.noise.enabled:
+            output, noise_diagnostics = apply_noise(
+                output,
+                mic_ids=mic_ids,
+                sample_rate_hz=sample_rate_hz,
+                frame_id=frame_id,
+                nominal_window_start_sample=nominal_window_start_sample,
+                config=self.config.noise,
+                microphone_self_noise_db=microphone_self_noise_db,
+            )
+            if noise_diagnostics:
+                diagnostics["noise"] = noise_diagnostics
         return output, diagnostics
+
+    def apply_premix(
+        self,
+        samples: np.ndarray,
+        *,
+        mic_ids: Sequence[str],
+        sample_rate_hz: int,
+        frame_id: str,
+        backend_id: str,
+        runtime_profile: str,
+        microphone_self_noise_db: dict[str, float | None] | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        """Apply only deterministic linear stages to one source premix."""
+
+        del frame_id
+        if not self.config.channel_response.enabled:
+            return samples, {}
+        self.validate(
+            samples,
+            mic_ids=mic_ids,
+            sample_rate_hz=sample_rate_hz,
+            backend_id=backend_id,
+            runtime_profile=runtime_profile,
+            microphone_self_noise_db=microphone_self_noise_db,
+        )
+        output, diagnostics = apply_channel_response(
+            samples,
+            mic_ids=mic_ids,
+            sample_rate_hz=sample_rate_hz,
+            config=self.config.channel_response,
+        )
+        return output, ({"channel_response": diagnostics} if diagnostics else {})
+
+    def apply_mixture(
+        self,
+        samples: np.ndarray,
+        *,
+        mic_ids: Sequence[str],
+        sample_rate_hz: int,
+        frame_id: str,
+        backend_id: str,
+        runtime_profile: str,
+        nominal_window_start_sample: int,
+        microphone_self_noise_db: dict[str, float | None] | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        """Apply stochastic/nonlinear stages once to the summed mixture."""
+
+        if not self.config.noise.enabled:
+            return samples, {}
+        self.validate(
+            samples,
+            mic_ids=mic_ids,
+            sample_rate_hz=sample_rate_hz,
+            backend_id=backend_id,
+            runtime_profile=runtime_profile,
+            microphone_self_noise_db=microphone_self_noise_db,
+        )
+        output, diagnostics = apply_noise(
+            samples,
+            mic_ids=mic_ids,
+            sample_rate_hz=sample_rate_hz,
+            frame_id=frame_id,
+            nominal_window_start_sample=nominal_window_start_sample,
+            config=self.config.noise,
+            microphone_self_noise_db=microphone_self_noise_db,
+        )
+        return output, ({"noise": diagnostics} if diagnostics else {})
 
     def validate(
         self,
@@ -66,6 +148,7 @@ class ChannelEffectsChain:
         sample_rate_hz: int,
         backend_id: str,
         runtime_profile: str,
+        microphone_self_noise_db: dict[str, float | None] | None = None,
     ) -> None:
         """Fail before any active stage can mutate caller-owned samples."""
 
@@ -106,6 +189,7 @@ class ChannelEffectsChain:
             backend_id=backend_id,
             runtime_profile=runtime_profile,
             sample_count=samples.shape[1],
+            microphone_self_noise_db=microphone_self_noise_db,
         )
 
 

@@ -15,6 +15,7 @@ from isaac_audio_sensors.core.effects.config import (
     EffectsConfig,
     validate_effects_config,
 )
+from isaac_audio_sensors.core.effects.noise import metadata_noise_timing_values
 from isaac_audio_sensors.core.math_utils import (
     bearing_from_components,
     dot,
@@ -69,6 +70,22 @@ class GeometryBackend:
         time_window: AudioTimeWindow,
     ) -> AudioSensorFrame:
         mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
+        frame_id = deterministic_frame_id(
+            backend_id=self.backend_id,
+            stage_id=scene.stage_id,
+            array_id=sensor.array_id,
+            timestamp_ms=time_window.timestamp_ms,
+            frame_index=time_window.frame_index,
+        )
+        sample_count = max(
+            1,
+            int(
+                round(
+                    (time_window.end_time_s - time_window.start_time_s)
+                    * time_window.sample_rate_hz
+                )
+            ),
+        )
         effect_gain_db: dict[str, float] = {}
         effect_diagnostics: dict[str, object] = {}
         if (
@@ -81,6 +98,11 @@ class GeometryBackend:
                 sample_rate_hz=time_window.sample_rate_hz,
                 backend_id=self.backend_id,
                 runtime_profile=self.runtime_profile,
+                sample_count=sample_count,
+                microphone_self_noise_db={
+                    microphone.mic_id: microphone.self_noise_db
+                    for microphone in sensor.microphones
+                },
             )
             effect_gain_db, _delays, _polarities, response_diagnostics = (
                 metadata_channel_values(
@@ -90,13 +112,18 @@ class GeometryBackend:
             )
             if response_diagnostics:
                 effect_diagnostics["channel_response"] = response_diagnostics
-        frame_id = deterministic_frame_id(
-            backend_id=self.backend_id,
-            stage_id=scene.stage_id,
-            array_id=sensor.array_id,
-            timestamp_ms=time_window.timestamp_ms,
-            frame_index=time_window.frame_index,
-        )
+            _noise_offsets, noise_diagnostics = metadata_noise_timing_values(
+                self.effects.noise,
+                mic_ids=mic_ids,
+                sample_rate_hz=time_window.sample_rate_hz,
+                frame_id=frame_id,
+                nominal_window_start_sample=int(
+                    round(time_window.start_time_s * time_window.sample_rate_hz)
+                ),
+                sample_count=sample_count,
+            )
+            if noise_diagnostics:
+                effect_diagnostics["noise"] = noise_diagnostics
         detections: list[AudioDetection] = []
         aggregate_rms_power = {
             microphone.mic_id: 0.0 for microphone in sensor.microphones
