@@ -171,14 +171,22 @@ def srp_phat_direction(
 
 
 def srp_phat_confidence(result: SrpPhatResult) -> float:
-    """Normalized peak prominence of a steered-response grid in ``[0, 1]``."""
+    """Return a noise-aware SRP reliability ordering in ``[0, 1]``.
+
+    Grid contrast is weighted by absolute PHAT coherence per microphone pair,
+    so incoherent noise remains low even when its grid has a prominent maximum.
+    The result is an uncalibrated reliability ordering, not a probability of
+    correct localization.
+    """
 
     if result.peak_power <= 0.0:
         return 0.0
-    return max(
+    coherence = max(0.0, min(1.0, result.peak_power / result.pair_count))
+    contrast = max(
         0.0,
         min(1.0, (result.peak_power - result.mean_power) / result.peak_power),
     )
+    return contrast * coherence
 
 
 def _direction_grid(

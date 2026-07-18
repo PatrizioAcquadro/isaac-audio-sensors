@@ -76,6 +76,7 @@ from isaac_audio_sensors.core.types import (
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "outputs/isaac_audio_sensors/S3/S3.6"
 PROTOCOL_REVISION = "31e0282"
+SRP_CONFIDENCE_REMEDIATION_REVISION = "5bfa67e"
 SAMPLE_RATE_HZ = 48_000
 R = math.sqrt(0.5)
 QUATERNIONS = (
@@ -101,6 +102,7 @@ ROOM_SOURCE_POSITION = (2.0, 4.0, 1.5)
 ROOM_MIRRORED_SOURCE_POSITION = (8.0, 4.0, 1.5)
 ROOM_ARRAY_CENTER = (6.0, 4.0, 1.5)
 ESTIMATOR_ANGLES_DEG = (0, 90, 120, 180)
+SRP_CONFIDENCE_FORMULA_ID = "contrast_times_clamped_peak_power_per_pair_v1"
 ESTIMATOR_QUATERNIONS = (
     QUATERNIONS[0],
     QUATERNIONS[1],
@@ -194,7 +196,13 @@ def _plot_png(
     image = np.full((height, width, 3), 255, dtype=np.uint8)
     image[height // 2, :, :] = 220
     image[:, width // 2, :] = 220
-    colors = ((20, 90, 200), (220, 60, 40), (40, 150, 70), (140, 50, 180))
+    colors = (
+        (20, 90, 200),
+        (220, 60, 40),
+        (40, 150, 70),
+        (140, 50, 180),
+        (220, 140, 20),
+    )
     finite = np.concatenate([values[np.isfinite(values)] for values in series])
     lower = float(np.min(finite)) if finite.size else -1.0
     upper = float(np.max(finite)) if finite.size else 1.0
@@ -1613,7 +1621,7 @@ def _estimator_ladder_evidence() -> dict[str, object]:
                     "srp_bearing_deg": result.bearing_deg,
                     "srp_absolute_bearing_error_deg": bearing_error,
                     "srp_peak_grid_power": result.peak_power,
-                    "srp_normalized_confidence_diagnostic": srp_phat_confidence(result),
+                    "srp_bearing_confidence": srp_phat_confidence(result),
                 }
             )
         hashes[str(seed)] = {
@@ -1633,7 +1641,7 @@ def _estimator_ladder_evidence() -> dict[str, object]:
         "gcc_peak_proxy",
         "srp_absolute_bearing_error_deg",
         "srp_peak_grid_power",
-        "srp_normalized_confidence_diagnostic",
+        "srp_bearing_confidence",
     )
     medians = {
         metric: [
@@ -1650,6 +1658,7 @@ def _estimator_ladder_evidence() -> dict[str, object]:
     gcc = medians["gcc_peak_proxy"]
     bearing_error = medians["srp_absolute_bearing_error_deg"]
     peak_power = medians["srp_peak_grid_power"]
+    confidence = medians["srp_bearing_confidence"]
     srp_power_drop_db = 10.0 * math.log10(peak_power[0] / peak_power[-1])
     checks = {
         "snr_strictly_decreasing": all(
@@ -1666,8 +1675,19 @@ def _estimator_ladder_evidence() -> dict[str, object]:
             bearing_error[-1] - bearing_error[0] >= 30.0
         ),
         "srp_peak_power_drop_at_least_15_db": srp_power_drop_db >= 15.0,
+        "srp_confidence_front_at_least_0_050": confidence[0] >= 0.050,
+        "srp_confidence_rear_at_most_0_005": confidence[-1] <= 0.005,
+        "srp_confidence_front_rear_drop_at_least_0_040": (
+            confidence[0] - confidence[-1] >= 0.040
+        ),
+        "srp_confidence_non_increasing": all(
+            left >= right
+            for left, right in zip(confidence, confidence[1:], strict=False)
+        ),
     }
     payload = {
+        "confidence_formula_id": SRP_CONFIDENCE_FORMULA_ID,
+        "confidence_remediation_revision": SRP_CONFIDENCE_REMEDIATION_REVISION,
         "fixture": {
             "angles_deg": ESTIMATOR_ANGLES_DEG,
             "noise_seeds": list(range(20260718, 20260726)),
@@ -1696,6 +1716,7 @@ def _estimator_ladder_evidence() -> dict[str, object]:
             np.asarray(gcc),
             np.asarray(bearing_error),
             np.asarray(peak_power),
+            np.asarray(confidence),
         ),
     )
     return payload
@@ -2159,6 +2180,7 @@ def main() -> int:
     gate = {
         "subphase": "S3.6",
         "protocol_revision": PROTOCOL_REVISION,
+        "confidence_remediation_revision": SRP_CONFIDENCE_REMEDIATION_REVISION,
         "implementation_revision": _git_revision(),
         "package_version": __version__,
         "environment": environment,
@@ -2192,7 +2214,12 @@ def main() -> int:
             "estimator_gcc_front_rear_drop": 0.05,
             "estimator_srp_bearing_error_increase_deg": 30.0,
             "estimator_srp_peak_power_drop_db": 15.0,
+            "estimator_confidence_front_floor": 0.050,
+            "estimator_confidence_rear_ceiling": 0.005,
+            "estimator_confidence_front_rear_drop": 0.040,
+            "estimator_confidence_ladder_order": "non_increasing",
         },
+        "confidence_formula_id": SRP_CONFIDENCE_FORMULA_ID,
         "measured_maxima": {
             "polar_absolute_error": polar_max,
             "cardinal_non_null_error_db": cardinal_db,
