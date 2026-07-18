@@ -64,11 +64,42 @@ _DISCOVERY_ALIAS_PROPERTY_NAMES = frozenset(
     }
 )
 
+_ACOUSTIC_REFRESH_REASONS = (
+    "room_geometry_changed",
+    "material_changed",
+    "occluder_moved",
+)
+_ROOM_GEOMETRY_PROPERTIES = frozenset(
+    {
+        "ias:room_min_world",
+        "ias:room_max_world",
+        "ias:room_size_m",
+        "size",
+        "extent",
+    }
+)
+_MATERIAL_PROPERTIES = frozenset(
+    {
+        "ias:acoustic_material_id",
+        "ias:material",
+        "ias:absorption",
+        "ias:transmission_loss_db",
+        "ias:transmission_loss_db_bands",
+        "material:binding",
+    }
+)
+
 
 class StageAudioCache:
     """Per-sensor cache of discovered audio prim paths on one stage."""
 
-    def __init__(self, stage: Any, *, rediscover_each_update: bool = False) -> None:
+    def __init__(
+        self,
+        stage: Any,
+        *,
+        rediscover_each_update: bool = False,
+        room_anchor_prim_path: str | None = None,
+    ) -> None:
         if stage is None or not hasattr(stage, "Traverse"):
             raise ValueError("stage must provide a Traverse method.")
         self.stage = stage
@@ -76,15 +107,72 @@ class StageAudioCache:
         self.full_discovery_count = 0
         self.cached_tick_count = 0
         self.invalidation_reasons: list[str] = []
+        self.acoustic_refresh_reasons: list[str] = []
+        self.room_anchor_prim_path = (
+            None
+            if room_anchor_prim_path is None
+            else str(room_anchor_prim_path).rstrip("/")
+        )
         self._cached: _CachedDiscovery | None = None
         self._dirty = False
         self._listener: Any | None = None
+        self._current_acoustic_refresh_reasons: list[str] = []
+        self._pending_non_audio_pose_paths: list[str] = []
 
     def invalidate(self, reason: str) -> None:
         """Mark the cache dirty; the next snapshot runs full discovery."""
 
+        resolved = str(reason)
         self._dirty = True
-        self.invalidation_reasons.append(str(reason))
+        self.invalidation_reasons.append(resolved)
+        if resolved in _ACOUSTIC_REFRESH_REASONS:
+            self._append_acoustic_refresh(resolved)
+
+    def record_acoustic_refresh(self, reason: str) -> None:
+        """Record a recompute-only acoustic reason without dirtying discovery."""
+
+        resolved = str(reason)
+        if resolved != "occluder_moved":
+            raise ValueError(
+                "record_acoustic_refresh only accepts recompute-only 'occluder_moved'."
+            )
+        self._append_acoustic_refresh(resolved)
+
+    @property
+    def current_acoustic_refresh_reasons(self) -> tuple[str, ...]:
+        """Reasons awaiting successful publication by the current capture."""
+
+        return tuple(self._current_acoustic_refresh_reasons)
+
+    @property
+    def pending_non_audio_pose_paths(self) -> tuple[str, ...]:
+        """Pose-only non-audio paths awaiting comparison with a fresh raycast."""
+
+        return tuple(self._pending_non_audio_pose_paths)
+
+    def consume_acoustic_refresh_reasons(self) -> tuple[str, ...]:
+        """Consume the deterministic current-frame reason subset."""
+
+        reasons = tuple(self._current_acoustic_refresh_reasons)
+        self._current_acoustic_refresh_reasons.clear()
+        return reasons
+
+    def clear_pending_non_audio_pose_paths(self) -> None:
+        """Clear pose notices after a successful fresh raycast comparison."""
+
+        self._pending_non_audio_pose_paths.clear()
+
+    def reset_acoustic_state(self) -> None:
+        """Clear transient acoustic comparison state for a sensor reset."""
+
+        self._current_acoustic_refresh_reasons.clear()
+        self._pending_non_audio_pose_paths.clear()
+
+    def _append_acoustic_refresh(self, reason: str) -> None:
+        if reason in self._current_acoustic_refresh_reasons:
+            return
+        self._current_acoustic_refresh_reasons.append(reason)
+        self.acoustic_refresh_reasons.append(reason)
 
     def rediscover(self) -> None:
         """Force full re-discovery (and one Traverse) on the next snapshot."""
@@ -100,6 +188,11 @@ class StageAudioCache:
                 revoke()
             self._listener = None
         self._cached = None
+        self._dirty = False
+        self.invalidation_reasons.clear()
+        self.acoustic_refresh_reasons.clear()
+        self._current_acoustic_refresh_reasons.clear()
+        self._pending_non_audio_pose_paths.clear()
 
     def snapshot(
         self,
@@ -390,6 +483,7 @@ class StageAudioCache:
             "full_discovery_count": self.full_discovery_count,
             "cached_tick_count": self.cached_tick_count,
             "invalidation_reasons": tuple(self.invalidation_reasons),
+            "acoustic_refresh_reasons": tuple(self.acoustic_refresh_reasons),
         }
 
     def _register_usd_listener(self) -> None:
@@ -415,15 +509,77 @@ class StageAudioCache:
             resynced = tuple(notice.GetResyncedPaths())
         except Exception:  # noqa: BLE001 - treat unknown notices as structural.
             resynced = ("unknown",)
-        if resynced:
-            self.invalidate("usd_objects_changed_resync")
-            return
         try:
             info_only = tuple(notice.GetChangedInfoOnlyPaths())
         except Exception:  # noqa: BLE001 - notice variants without the API.
             info_only = ()
-        if any(_discovery_relevant_property(path) for path in info_only):
+        room_geometry_changed = any(
+            self._resync_changes_room(path) for path in resynced
+        ) or any(self._property_changes_room(path) for path in info_only)
+        material_changed = any(
+            self._property_changes_material(path) for path in info_only
+        )
+        if room_geometry_changed:
+            self.invalidate("room_geometry_changed")
+        if material_changed:
+            self.invalidate("material_changed")
+        for path in info_only:
+            if not _is_pose_property(path) or self._property_changes_room(path):
+                continue
+            prim_path = _property_prim_path(path)
+            if self._is_audio_path(prim_path):
+                continue
+            if prim_path not in self._pending_non_audio_pose_paths:
+                self._pending_non_audio_pose_paths.append(prim_path)
+        if resynced:
+            self.invalidate("usd_objects_changed_resync")
+            return
+        acoustic_names = _ROOM_GEOMETRY_PROPERTIES | _MATERIAL_PROPERTIES
+        if any(
+            _discovery_relevant_property(path)
+            and _property_name(path) not in acoustic_names
+            for path in info_only
+        ):
             self.invalidate("usd_info_only_discovery_attr")
+
+    def _resync_changes_room(self, path: Any) -> bool:
+        anchor = self.room_anchor_prim_path
+        if anchor is None:
+            return False
+        changed = str(path).rstrip("/")
+        return _paths_overlap(changed, anchor)
+
+    def _property_changes_room(self, path: Any) -> bool:
+        anchor = self.room_anchor_prim_path
+        if anchor is None:
+            return False
+        prim_path = _property_prim_path(path)
+        name = _property_name(path)
+        if name.startswith("xformOp:"):
+            return _path_is_same_or_ancestor(prim_path, anchor)
+        return name in _ROOM_GEOMETRY_PROPERTIES and _paths_overlap(
+            prim_path,
+            anchor,
+        )
+
+    def _is_audio_path(self, path: str) -> bool:
+        cached = self._cached
+        if cached is None:
+            return False
+        audio_paths = tuple(
+            entry_path
+            for entry_path, _reasons in cached.array_entries + cached.source_entries
+        )
+        return any(_path_is_same_or_descendant(path, item) for item in audio_paths)
+
+    def _property_changes_material(self, path: Any) -> bool:
+        if _property_name(path) not in _MATERIAL_PROPERTIES:
+            return False
+        prim_path = _property_prim_path(path)
+        anchor = self.room_anchor_prim_path
+        if anchor is not None and _paths_overlap(prim_path, anchor):
+            return True
+        return not self._is_audio_path(prim_path)
 
 
 def _discovery_relevant_property(path: Any) -> bool:
@@ -434,10 +590,51 @@ def _discovery_relevant_property(path: Any) -> bool:
     attributes discovery reads must invalidate it.
     """
 
-    name = getattr(path, "name", None)
-    if not isinstance(name, str) or not name:
-        text = str(path)
-        _, _, name = text.rpartition(".")
+    name = _property_name(path)
     if not name:
         return False
     return name.startswith("ias:") or name in _DISCOVERY_ALIAS_PROPERTY_NAMES
+
+
+def _property_name(path: Any) -> str:
+    name = getattr(path, "name", None)
+    if isinstance(name, str) and name:
+        return name
+    get_name = getattr(path, "GetName", None)
+    if callable(get_name):
+        name = str(get_name())
+        if name:
+            return name
+    _prim, _dot, name = str(path).rpartition(".")
+    return name
+
+
+def _property_prim_path(path: Any) -> str:
+    get_prim_path = getattr(path, "GetPrimPath", None)
+    if callable(get_prim_path):
+        return str(get_prim_path()).rstrip("/")
+    prim_path, _dot, _name = str(path).rpartition(".")
+    return (prim_path or str(path)).rstrip("/")
+
+
+def _is_pose_property(path: Any) -> bool:
+    return _property_name(path).startswith("xformOp:")
+
+
+def _path_is_same_or_descendant(path: str, ancestor: str) -> bool:
+    resolved_path = path.rstrip("/")
+    resolved_ancestor = ancestor.rstrip("/")
+    return resolved_path == resolved_ancestor or resolved_path.startswith(
+        f"{resolved_ancestor}/"
+    )
+
+
+def _path_is_same_or_ancestor(path: str, descendant: str) -> bool:
+    return _path_is_same_or_descendant(descendant, path)
+
+
+def _paths_overlap(left: str, right: str) -> bool:
+    return _path_is_same_or_descendant(left, right) or _path_is_same_or_descendant(
+        right,
+        left,
+    )

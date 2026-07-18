@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import json
 import math
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -11,6 +12,11 @@ from typing import Any
 
 import numpy as np
 
+from isaac_audio_sensors.core.acoustics.materials import (
+    MATERIAL_BAND_CENTERS_HZ,
+    MaterialResolution,
+    resolve_material_coefficients,
+)
 from isaac_audio_sensors.core.backends.tdoa import estimate_doa_from_delays
 from isaac_audio_sensors.core.constants import (
     DEFAULT_SPEED_OF_SOUND_MPS,
@@ -681,6 +687,16 @@ class RoomAcousticsBackend:
                 for source_id, summary in per_source_rir_summary.items()
             },
         }
+        if isinstance(scene.room.absorption, str) or scene.occlusion:
+            room_resolution = _room_material_resolution(scene.room)
+            material_evidence = {
+                "room": room_resolution[1],
+                **_occluder_material_evidence(scene),
+            }
+            frame_diagnostics["acoustics_state"] = {
+                "room_state_hash": _room_state_hash(scene.room),
+                "material_evidence": material_evidence,
+            }
         if effect_diagnostics:
             frame_diagnostics["effects"] = effect_diagnostics
         if segments_per_window > 1:
@@ -1183,11 +1199,14 @@ def _build_shoebox_room(
     sample_rate_hz: int,
     speed_of_sound_mps: float,
 ) -> Any:
-    materials = (
-        pra.Material(room_spec.absorption)
-        if hasattr(pra, "Material")
-        else room_spec.absorption
-    )
+    absorption, _evidence, resolution = _room_material_resolution(room_spec)
+    if resolution is not None:
+        absorption = {
+            "description": resolution.description,
+            "coeffs": resolution.values,
+            "center_freqs": MATERIAL_BAND_CENTERS_HZ,
+        }
+    materials = pra.Material(absorption) if hasattr(pra, "Material") else absorption
     kwargs: dict[str, Any] = {
         "fs": sample_rate_hz,
         "materials": materials,
@@ -1201,7 +1220,10 @@ def _build_shoebox_room(
             return pra.ShoeBox(room_spec.dimensions_m, **kwargs)
         except TypeError as exc:
             removed = False
-            for optional_key in ("c", "ray_tracing", "air_absorption", "materials"):
+            optional_keys = ("c", "ray_tracing", "air_absorption")
+            if not isinstance(room_spec.absorption, str):
+                optional_keys = (*optional_keys, "materials")
+            for optional_key in optional_keys:
                 if optional_key in kwargs:
                     kwargs.pop(optional_key)
                     removed = True
@@ -1372,11 +1394,112 @@ def _room_config_summary(room_spec: RoomAcousticsSpec) -> dict[str, object]:
 
 
 def _absorption_summary(
-    absorption: float | dict[str, float],
-) -> float | dict[str, float]:
+    absorption: float | dict[str, float] | str,
+) -> float | dict[str, float] | str:
+    if isinstance(absorption, str):
+        return absorption
     if isinstance(absorption, dict):
         return {str(key): float(value) for key, value in sorted(absorption.items())}
     return float(absorption)
+
+
+def _room_material_resolution(
+    room_spec: RoomAcousticsSpec,
+) -> tuple[
+    float | dict[str, float] | tuple[float, ...],
+    dict[str, str],
+    MaterialResolution | None,
+]:
+    """Return the applied room absorption and its frozen evidence record."""
+
+    absorption = room_spec.absorption
+    if isinstance(absorption, str):
+        resolution = resolve_material_coefficients(
+            absorption,
+            "absorption",
+            application=f"room {room_spec.room_id!r}",
+        )
+        return resolution.values, resolution.evidence_record(), resolution
+    if isinstance(absorption, dict):
+        return (
+            absorption,
+            {
+                "material_id": "inline_room_absorption:mapping",
+                "coefficient": "absorption",
+                "evidence": "nominal",
+            },
+            None,
+        )
+    return (
+        float(absorption),
+        {
+            "material_id": "inline_room_absorption:scalar",
+            "coefficient": "absorption",
+            "evidence": "nominal",
+        },
+        None,
+    )
+
+
+def _room_state_hash(room_spec: RoomAcousticsSpec) -> str:
+    """Hash the complete canonical S3.7 room state."""
+
+    applied, evidence, resolution = _room_material_resolution(room_spec)
+    if isinstance(applied, dict):
+        absorption_payload: object = {
+            str(key): float(value) for key, value in sorted(applied.items())
+        }
+    elif isinstance(applied, tuple):
+        absorption_payload = list(applied)
+    else:
+        absorption_payload = [float(applied)] * 6
+    state = (
+        room_spec.room_id,
+        room_spec.dimensions_m,
+        room_spec.origin_m,
+        room_spec.out_of_bounds,
+        room_spec.anchor_prim_path,
+        absorption_payload,
+        evidence["material_id"],
+        evidence["evidence"],
+        None if resolution is None else resolution.citation,
+        room_spec.max_order,
+        room_spec.air_absorption,
+        room_spec.ray_tracing,
+    )
+    encoded = json.dumps(
+        state,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _occluder_material_evidence(
+    scene: AudioSceneSnapshot,
+) -> dict[str, dict[str, str]]:
+    """Derive pure-core evidence for material ids carried by occlusion records."""
+
+    evidence: dict[str, dict[str, str]] = {}
+    for occlusion in scene.occlusion or ():
+        for prim_path, authored_id in sorted(occlusion.hit_materials.items()):
+            application = f"occluder:{prim_path}"
+            if authored_id == "usd_attribute":
+                record = {
+                    "material_id": f"usd_attribute:{prim_path}",
+                    "coefficient": "transmission_db",
+                    "evidence": "nominal",
+                }
+            else:
+                record = resolve_material_coefficients(
+                    authored_id,
+                    "transmission_db",
+                    application=application,
+                ).evidence_record()
+            evidence[application] = record
+    return {key: evidence[key] for key in sorted(evidence)}
 
 
 def _world_to_room_positions(

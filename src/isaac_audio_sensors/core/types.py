@@ -247,7 +247,7 @@ class RoomAcousticsSpec:
 
     room_id: str
     dimensions_m: Vector3
-    absorption: float | dict[str, float]
+    absorption: float | dict[str, float] | str
     max_order: int
     air_absorption: bool = False
     ray_tracing: bool = False
@@ -264,7 +264,17 @@ class RoomAcousticsSpec:
         )
         if any(component <= 0.0 for component in self.dimensions_m):
             raise ValueError("RoomAcousticsSpec.dimensions_m values must be positive.")
-        if isinstance(self.absorption, dict):
+        if isinstance(self.absorption, str):
+            from isaac_audio_sensors.core.acoustics.materials import (
+                resolve_material_coefficients,
+            )
+
+            resolve_material_coefficients(
+                self.absorption,
+                "absorption",
+                application=f"room {self.room_id!r}",
+            )
+        elif isinstance(self.absorption, dict):
             for key, value in self.absorption.items():
                 _require_non_empty(key, "RoomAcousticsSpec.absorption key")
                 _require_probability(value, "RoomAcousticsSpec.absorption value")

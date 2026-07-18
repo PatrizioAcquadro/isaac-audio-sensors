@@ -14,9 +14,16 @@ edge effects, and thickness-dependent transmission are not modeled.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from isaac_audio_sensors.core.acoustics.materials import (
+    LEGACY_MATERIAL_ALIASES,
+    MaterialResolution,
+    resolve_material,
+    resolve_material_coefficients,
+)
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 from isaac_audio_sensors.core.math_utils import Vector3, add, norm, scale, subtract
@@ -33,20 +40,14 @@ OCCLUSION_MODEL_RAYCAST_TRANSMISSION = "raycast_transmission_v1"
 
 TRANSMISSION_LOSS_ATTR = "ias:transmission_loss_db"
 TRANSMISSION_LOSS_BANDS_ATTR = "ias:transmission_loss_db_bands"
+ACOUSTIC_MATERIAL_ID_ATTR = "ias:acoustic_material_id"
 
 # Illustrative octave-band transmission-loss presets (dB per surface hit),
 # aligned with OCCLUSION_BAND_CENTERS_HZ. These are documentation-grade
 # approximations for simulation plausibility, not measured material truth.
 DEFAULT_MATERIAL_TRANSMISSION_DB: dict[str, tuple[float, ...]] = {
-    "concrete": (33.0, 36.0, 40.0, 44.0, 50.0, 55.0),
-    "brick": (30.0, 33.0, 37.0, 42.0, 48.0, 52.0),
-    "metal": (20.0, 25.0, 30.0, 35.0, 39.0, 42.0),
-    "drywall": (15.0, 22.0, 29.0, 34.0, 39.0, 44.0),
-    "plaster": (15.0, 22.0, 29.0, 34.0, 39.0, 44.0),
-    "glass": (18.0, 22.0, 26.0, 30.0, 33.0, 36.0),
-    "wood": (15.0, 19.0, 23.0, 26.0, 29.0, 32.0),
-    "fabric": (3.0, 4.0, 6.0, 9.0, 12.0, 15.0),
-    "curtain": (3.0, 4.0, 6.0, 9.0, 12.0, 15.0),
+    alias: resolve_material_coefficients(target, "transmission_db").values
+    for alias, target in LEGACY_MATERIAL_ALIASES.items()
 }
 
 
@@ -65,6 +66,10 @@ class TransmissionLoss:
     broadband_db: float
     band_db: tuple[float, ...] | None = None
     material: str | None = None
+    expanded_band_db: tuple[float, ...] | None = None
+    material_id: str | None = None
+    evidence: str = "nominal"
+    citation: str | None = None
 
 
 class TransmissionLossResolver(Protocol):
@@ -146,18 +151,51 @@ class UsdTransmissionLossResolver:
             DEFAULT_MATERIAL_TRANSMISSION_DB if presets is None else dict(presets)
         )
         self.default_db = float(default_db)
+        if not math.isfinite(self.default_db) or self.default_db < 0.0:
+            raise ValueError("default_db must be finite and non-negative.")
+        for name, bands in self.presets.items():
+            _validated_transmission_vector(
+                bands,
+                application=f"transmission preset {name!r}",
+            )
+        self.material_evidence: dict[str, dict[str, str]] = {}
+
+    def begin_capture(self) -> None:
+        """Clear per-capture material applications before fresh raycasts."""
+
+        self.material_evidence.clear()
 
     def loss_for(self, prim_path: str) -> TransmissionLoss:
         """Return the transmission loss for one blocking prim path."""
 
         prim = self._prim(prim_path)
-        explicit = self._explicit_loss(prim)
+        explicit = self._explicit_loss(prim, prim_path=prim_path)
         if explicit is not None:
+            self._record_evidence(prim_path, explicit)
             return explicit
+        bound_path, bound_prim = _bound_material(prim)
+        if bound_prim is not None:
+            bound_explicit = self._explicit_loss(
+                bound_prim,
+                prim_path=bound_path or prim_path,
+            )
+            if bound_explicit is not None:
+                self._record_evidence(prim_path, bound_explicit)
+                return bound_explicit
+        referenced = self._referenced_material_loss(prim, prim_path=prim_path)
+        if referenced is not None:
+            self._record_evidence(prim_path, referenced)
+            return referenced
         preset = self._preset_loss(prim, prim_path)
         if preset is not None:
+            self._record_evidence(prim_path, preset)
             return preset
-        return TransmissionLoss(broadband_db=self.default_db)
+        fallback = TransmissionLoss(
+            broadband_db=self.default_db,
+            material_id=f"configured_fallback:{self.default_db:g}-db",
+        )
+        self._record_evidence(prim_path, fallback)
+        return fallback
 
     def _prim(self, prim_path: str) -> Any | None:
         if self.stage is None or not prim_path:
@@ -170,24 +208,73 @@ class UsdTransmissionLossResolver:
             return None
         return prim
 
-    def _explicit_loss(self, prim: Any | None) -> TransmissionLoss | None:
+    def _explicit_loss(
+        self,
+        prim: Any | None,
+        *,
+        prim_path: str,
+    ) -> TransmissionLoss | None:
         if prim is None:
             return None
         bands_value = _prim_attr(prim, TRANSMISSION_LOSS_BANDS_ATTR)
         if bands_value is not None:
-            bands = tuple(float(value) for value in bands_value)
-            if len(bands) == len(OCCLUSION_BAND_CENTERS_HZ):
-                return TransmissionLoss(
-                    broadband_db=sum(bands) / len(bands),
-                    band_db=bands,
-                    material="usd_attribute",
-                )
+            bands = _validated_transmission_vector(
+                bands_value,
+                application=f"USD attribute on {prim_path}",
+            )
+            return TransmissionLoss(
+                broadband_db=sum(bands) / len(bands),
+                band_db=bands,
+                material="usd_attribute",
+                material_id=f"usd_attribute:{prim_path}",
+            )
         broadband_value = _prim_attr(prim, TRANSMISSION_LOSS_ATTR)
         if broadband_value is not None:
-            return TransmissionLoss(
-                broadband_db=float(broadband_value),
-                material="usd_attribute",
+            broadband = _validated_nonnegative_float(
+                broadband_value,
+                application=f"USD attribute on {prim_path}",
             )
+            return TransmissionLoss(
+                broadband_db=broadband,
+                material="usd_attribute",
+                expanded_band_db=(broadband,) * len(OCCLUSION_BAND_CENTERS_HZ),
+                material_id=f"usd_attribute:{prim_path}",
+            )
+        return None
+
+    def _referenced_material_loss(
+        self,
+        prim: Any | None,
+        *,
+        prim_path: str,
+    ) -> TransmissionLoss | None:
+        if prim is None:
+            return None
+        for attr_name in (ACOUSTIC_MATERIAL_ID_ATTR, "ias:material"):
+            value = _prim_attr(prim, attr_name)
+            if value is None or not str(value).strip():
+                continue
+            resolution = resolve_material_coefficients(
+                str(value),
+                "transmission_db",
+                application=f"occluder {prim_path!r} attribute {attr_name}",
+            )
+            return _loss_from_resolution(resolution, legacy_material=False)
+        bound_path, bound_prim = _bound_material(prim)
+        if bound_prim is None:
+            return None
+        for attr_name in (ACOUSTIC_MATERIAL_ID_ATTR, "ias:material"):
+            value = _prim_attr(bound_prim, attr_name)
+            if value is None or not str(value).strip():
+                continue
+            resolution = resolve_material_coefficients(
+                str(value),
+                "transmission_db",
+                application=(
+                    f"bound material {bound_path!r} for occluder {prim_path!r}"
+                ),
+            )
+            return _loss_from_resolution(resolution, legacy_material=False)
         return None
 
     def _preset_loss(
@@ -202,12 +289,30 @@ class UsdTransmissionLossResolver:
         for candidate in candidates:
             for token, bands in self.presets.items():
                 if token.lower() in candidate:
+                    try:
+                        material_id = resolve_material(token).material_id
+                    except ValueError:
+                        material_id = f"nominal.custom:{token}"
                     return TransmissionLoss(
                         broadband_db=sum(bands) / len(bands),
                         band_db=tuple(float(value) for value in bands),
                         material=token,
+                        material_id=material_id,
                     )
         return None
+
+    def _record_evidence(self, prim_path: str, loss: TransmissionLoss) -> None:
+        if loss.material_id is None:
+            return
+        record = {
+            "material_id": loss.material_id,
+            "coefficient": "transmission_db",
+            "evidence": loss.evidence,
+        }
+        if loss.evidence == "measured":
+            assert loss.citation is not None
+            record["citation"] = loss.citation
+        self.material_evidence[f"occluder:{prim_path}"] = record
 
 
 def compute_scene_occlusion(
@@ -232,10 +337,13 @@ def compute_scene_occlusion(
     the legacy ``occlusion_factor * max_attenuation_db``.
     """
 
-    if max_attenuation_db < 0.0:
-        raise ValueError("max_attenuation_db must be non-negative.")
-    if attenuation_cap_db < 0.0:
-        raise ValueError("attenuation_cap_db must be non-negative.")
+    if not math.isfinite(max_attenuation_db) or max_attenuation_db < 0.0:
+        raise ValueError("max_attenuation_db must be finite and non-negative.")
+    if not math.isfinite(attenuation_cap_db) or attenuation_cap_db < 0.0:
+        raise ValueError("attenuation_cap_db must be finite and non-negative.")
+    begin_capture = getattr(transmission_resolver, "begin_capture", None)
+    if callable(begin_capture):
+        begin_capture()
     band_count = len(OCCLUSION_BAND_CENTERS_HZ)
     records: list[SourceOcclusion] = []
     for array in scene.arrays:
@@ -275,12 +383,23 @@ def compute_scene_occlusion(
                         if transmission_resolver is not None
                         else TransmissionLoss(broadband_db=float(max_attenuation_db))
                     )
-                    broadband += max(0.0, float(loss.broadband_db))
-                    hit_bands = (
+                    broadband_loss = _validated_nonnegative_float(
+                        loss.broadband_db,
+                        application=f"transmission loss for {hit_path!r}",
+                    )
+                    broadband += broadband_loss
+                    raw_hit_bands = (
                         loss.band_db
                         if loss.band_db is not None
-                        and len(loss.band_db) == band_count
-                        else None
+                        else loss.expanded_band_db
+                    )
+                    hit_bands = (
+                        None
+                        if raw_hit_bands is None
+                        else _validated_transmission_vector(
+                            raw_hit_bands,
+                            application=f"transmission loss for {hit_path!r}",
+                        )
                     )
                     if hit_bands is not None:
                         mic_has_band_data = True
@@ -290,7 +409,7 @@ def compute_scene_occlusion(
                             float(
                                 hit_bands[index]
                                 if hit_bands is not None
-                                else loss.broadband_db
+                                else broadband_loss
                             ),
                         )
                     if loss.material is not None:
@@ -323,9 +442,7 @@ def compute_scene_occlusion(
                     per_mic_attenuation_db=per_mic_attenuation_db,
                     per_mic_band_attenuation_db=per_mic_band_attenuation_db,
                     band_centers_hz=(
-                        OCCLUSION_BAND_CENTERS_HZ
-                        if per_mic_band_attenuation_db
-                        else ()
+                        OCCLUSION_BAND_CENTERS_HZ if per_mic_band_attenuation_db else ()
                     ),
                     per_mic_hit_prim_paths=per_mic_hit_prim_paths,
                     hit_materials=hit_materials,
@@ -410,20 +527,85 @@ def _prim_attr(prim: Any, name: str) -> Any | None:
 def _bound_material_name(prim: Any) -> str | None:
     """Best-effort bound-material name for preset matching."""
 
+    path, _material_prim = _bound_material(prim)
+    return path
+
+
+def _bound_material(prim: Any) -> tuple[str | None, Any | None]:
+    """Best-effort bound material path and prim for exact-id resolution."""
+
     if prim is None:
-        return None
+        return None, None
+    duck_material = getattr(prim, "bound_material", None)
+    if duck_material is not None:
+        path = getattr(duck_material, "path", None)
+        return (None if path is None else str(path)), duck_material
     try:
         from pxr import UsdShade  # type: ignore
     except ImportError:
-        return None
+        return None, None
     try:
         binding = UsdShade.MaterialBindingAPI(prim)
         material, _ = binding.ComputeBoundMaterial()
         if material and material.GetPrim().IsValid():
-            return str(material.GetPath())
+            return str(material.GetPath()), material.GetPrim()
     except Exception:  # noqa: BLE001 - material lookup is best-effort.
-        return None
-    return None
+        return None, None
+    return None, None
+
+
+def _validated_nonnegative_float(value: Any, *, application: str) -> float:
+    try:
+        resolved = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{application} must be a finite non-negative value.") from exc
+    if not math.isfinite(resolved) or resolved < 0.0:
+        raise ValueError(f"{application} must be a finite non-negative value.")
+    return resolved
+
+
+def _validated_transmission_vector(
+    values: Any,
+    *,
+    application: str,
+) -> tuple[float, ...]:
+    try:
+        resolved = tuple(float(value) for value in values)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{application} transmission vector must contain finite values."
+        ) from exc
+    expected = len(OCCLUSION_BAND_CENTERS_HZ)
+    if len(resolved) != expected:
+        raise ValueError(
+            f"{application} transmission vector must contain exactly {expected} "
+            f"bands, got {len(resolved)}."
+        )
+    if any(not math.isfinite(value) or value < 0.0 for value in resolved):
+        raise ValueError(
+            f"{application} transmission values must be finite and non-negative."
+        )
+    return resolved
+
+
+def _loss_from_resolution(
+    resolution: MaterialResolution,
+    *,
+    legacy_material: bool,
+) -> TransmissionLoss:
+    material = (
+        resolution.material_id.removeprefix("nominal.")
+        if legacy_material
+        else resolution.material_id
+    )
+    return TransmissionLoss(
+        broadband_db=sum(resolution.values) / len(resolution.values),
+        band_db=resolution.values,
+        material=material,
+        material_id=resolution.material_id,
+        evidence=resolution.evidence,
+        citation=resolution.citation,
+    )
 
 
 def _carb_vec3(value: Vector3) -> Any:

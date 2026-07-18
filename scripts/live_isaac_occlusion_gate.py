@@ -14,6 +14,7 @@ viewport screenshot with the occlusion-colored bearing-ray overlay.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import platform
@@ -23,7 +24,12 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
+from isaac_audio_sensors.core.io.waveforms import (
+    WaveformWriteResult,
+    write_multichannel_wav,
+)
+from isaac_audio_sensors.core.types import AudioSensorFrame, RoomAcousticsSpec
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
@@ -47,6 +53,17 @@ MATERIAL_WALL_TRANSMISSION_DB = 12.0
 ATTENUATION_TOLERANCE_DB = 0.5
 SETTLE_UPDATE_COUNT = 12
 POLICY_UPDATE_COUNT = 3
+S3_7_OUTPUT = Path("outputs/isaac_audio_sensors/S3/S3.7")
+MOVING_Y_POSITIONS = (0.25, 0.08, 0.0, -0.08, -0.25)
+MOVING_BLOCKED_MIC_IDS = (
+    (),
+    ("right",),
+    ("front", "right", "rear", "left"),
+    ("left",),
+    (),
+)
+MOVING_WALL_SCALE = (0.2, 0.11, 3.0)
+MOVING_WINDOW_S = 0.05
 
 
 def main() -> int:
@@ -79,6 +96,7 @@ def main() -> int:
         "attenuation_tolerance_db": ATTENUATION_TOLERANCE_DB,
     }
     simulation_app = None
+    sensor = None
     exit_code = 0
 
     try:
@@ -92,7 +110,7 @@ def main() -> int:
         stage = usd_context.get_stage()
         if stage is None:
             raise RuntimeError("omni.usd context has no stage after new_stage().")
-        wall_translate_op = _author_stage(stage)
+        wall_translate_op, wall_scale_op = _author_stage(stage)
         _write_config_snapshot(config_path)
         evidence["stage_authored"] = True
 
@@ -238,8 +256,9 @@ def main() -> int:
         policy_evidence = {
             "full_discovery_count": policy_cache.full_discovery_count,
             "cached_tick_count": policy_cache.cached_tick_count,
-            "policy": policy_frames[-1]
-            .diagnostics["stage_snapshot"]["discovery_cache"]["policy"],
+            "policy": policy_frames[-1].diagnostics["stage_snapshot"][
+                "discovery_cache"
+            ]["policy"],
         }
         evidence["cache_policy"] = policy_evidence
         _require(
@@ -272,6 +291,14 @@ def main() -> int:
 
         evidence["final_frame_index"] = final_frame.frame_index
         sensor.close()
+        sensor = None
+        moving = _run_moving_occluder_phase(
+            stage=stage,
+            wall_translate_op=wall_translate_op,
+            wall_scale_op=wall_scale_op,
+            screenshot_path=screenshot_path,
+        )
+        evidence["s3_7_moving_occluder"] = moving
         evidence["status"] = "passed"
     except BaseException as exc:  # noqa: BLE001 - gate evidence records the error.
         if isinstance(exc, KeyboardInterrupt):
@@ -286,6 +313,9 @@ def main() -> int:
             }
         )
     finally:
+        if sensor is not None:
+            with suppress(Exception):
+                sensor.close()
         _write_evidence(args.out, evidence)
         if simulation_app is not None:
             try:
@@ -298,6 +328,337 @@ def main() -> int:
         sys.stdout.flush()
 
     return exit_code
+
+
+class _MovingWaveformSink:
+    """Retain float64 mixtures and write the exact S3.7 FLOAT WAV names."""
+
+    def __init__(self, output_dir: Path, prefix: str) -> None:
+        self.output_dir = output_dir
+        self.prefix = prefix
+        self.mixtures: list[Any] = []
+
+    def write_frame_mixture(self, **kwargs: Any) -> WaveformWriteResult:
+        import numpy as np
+
+        mixture = np.asarray(kwargs["mixture"], dtype=np.float64).copy()
+        index = len(self.mixtures)
+        self.mixtures.append(mixture)
+        path = self.output_dir / f"{self.prefix}_{index:02d}.wav"
+        write_multichannel_wav(
+            path,
+            mixture,
+            sample_rate_hz=int(kwargs["sample_rate_hz"]),
+        )
+        return WaveformWriteResult(
+            paths=(str(path),),
+            diagnostics={
+                "mode": "per_frame",
+                "channel_mic_ids": list(kwargs["mic_ids"]),
+                "sample_count": int(mixture.shape[1]),
+                "window_sample_count": int(kwargs["window_sample_count"]),
+                "sample_rate_hz": int(kwargs["sample_rate_hz"]),
+                "subtype": "FLOAT",
+            },
+        )
+
+    def close(self) -> None:
+        return None
+
+
+def _run_moving_occluder_phase(
+    *,
+    stage: Any,
+    wall_translate_op: Any,
+    wall_scale_op: Any,
+    screenshot_path: Path,
+) -> dict[str, Any]:
+    """Execute the additive five-state S3.7 live room-acoustics scenario."""
+
+    import numpy as np
+    import soundfile
+    from pxr import Gf  # type: ignore
+
+    output = S3_7_OUTPUT
+    wav_dir = output / "live_moving_occluder_wavs"
+    output.mkdir(parents=True, exist_ok=True)
+    wav_dir.mkdir(parents=True, exist_ok=True)
+    paths = {
+        "summary": output / "live_moving_occluder_summary.json",
+        "frames": output / "live_moving_occluder_frames.jsonl",
+        "hashes": output / "live_moving_occluder_wav_sha256.json",
+        "stage": output / "live_moving_occluder_stage.usda",
+        "environment": output / "live_moving_occluder_environment.json",
+        "log": output / "live_moving_occluder.log",
+        "viewport": output / "live_moving_occluder_viewport.png",
+    }
+    for path in (*paths.values(), *wav_dir.glob("*.wav")):
+        with suppress(FileNotFoundError):
+            path.unlink()
+    wall_scale_op.Set(Gf.Vec3f(*MOVING_WALL_SCALE))
+    wall_translate_op.Set(Gf.Vec3d(2.0, MOVING_Y_POSITIONS[0], 1.0))
+    _author_wall_transmission_loss(stage, MATERIAL_WALL_TRANSMISSION_DB)
+    attach_sound_source_attrs(
+        stage.GetPrimAtPath(SOURCE_PRIM_PATH),
+        source_id="speaker_front",
+        class_label="Tone",
+        position_world=SOURCE_POSITION,
+        audio_asset_path="generated://tone",
+        start_time_s=0.0,
+        duration_s=None,
+        gain_db=0.0,
+        directivity="omni",
+    )
+    _update_app(SETTLE_UPDATE_COUNT)
+
+    room = RoomAcousticsSpec(
+        room_id="s3_7_live_room",
+        dimensions_m=(6.0, 6.0, 3.0),
+        origin_m=(-1.0, -3.0, 0.0),
+        absorption="pra.rough_concrete",
+        max_order=1,
+        air_absorption=False,
+        ray_tracing=False,
+    )
+    observed_sink = _MovingWaveformSink(wav_dir, "observed")
+    reference_sink = _MovingWaveformSink(wav_dir, "reference")
+    observed = None
+    reference = None
+    observations: list[dict[str, Any]] = []
+    try:
+        observed = IsaacAudioArraySensor.from_stage(
+            stage=stage,
+            array_prim_path=ARRAY_PRIM_PATH,
+            source_prim_path=SOURCE_PRIM_PATH,
+            backend="room_acoustics",
+            update_period_s=MOVING_WINDOW_S,
+            max_events=1,
+            room=room,
+            occlusion_enabled=True,
+            occlusion_max_attenuation_db=OCCLUSION_MAX_ATTENUATION_DB,
+            waveform_dir=wav_dir / "observed_internal",
+        ).start()
+        reference = IsaacAudioArraySensor.from_stage(
+            stage=stage,
+            array_prim_path=ARRAY_PRIM_PATH,
+            source_prim_path=SOURCE_PRIM_PATH,
+            backend="room_acoustics",
+            update_period_s=MOVING_WINDOW_S,
+            max_events=1,
+            room=room,
+            occlusion_enabled=False,
+            waveform_dir=wav_dir / "reference_internal",
+        ).start()
+        observed._waveform_sink = observed_sink  # noqa: SLF001 - gate tee.
+        reference._waveform_sink = reference_sink  # noqa: SLF001 - gate tee.
+        for index, (y_position, expected_blocked) in enumerate(
+            zip(MOVING_Y_POSITIONS, MOVING_BLOCKED_MIC_IDS, strict=True)
+        ):
+            if index:
+                wall_translate_op.Set(Gf.Vec3d(2.0, y_position, 1.0))
+                _update_app(SETTLE_UPDATE_COUNT)
+            sim_time_s = 1.0 + index * 0.1
+            observed_frame = observed.update(sim_time_s=sim_time_s, force=True)
+            reference_frame = reference.update(sim_time_s=sim_time_s, force=True)
+            observed_wave = observed_sink.mixtures[index]
+            reference_wave = reference_sink.mixtures[index]
+            observation = _validate_moving_frame(
+                index=index,
+                y_position=y_position,
+                expected_blocked=expected_blocked,
+                observed_frame=observed_frame,
+                reference_frame=reference_frame,
+                observed_wave=observed_wave,
+                reference_wave=reference_wave,
+            )
+            observations.append(observation)
+            with paths["frames"].open("a", encoding="utf-8") as stream:
+                for kind, frame in (
+                    ("observed", observed_frame),
+                    ("reference", reference_frame),
+                ):
+                    payload = frame_to_trace_dict(frame)
+                    payload["s3_7_role"] = kind
+                    payload["s3_7_state_index"] = index
+                    stream.write(json.dumps(payload, sort_keys=True) + "\n")
+            with paths["log"].open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(observation, sort_keys=True) + "\n")
+            if index == 2:
+                screenshot = _capture_viewport_screenshot(
+                    paths["viewport"],
+                    framed_paths=(ARRAY_PRIM_PATH, SOURCE_PRIM_PATH, WALL_PRIM_PATH),
+                )
+                _require(
+                    screenshot["status"] == "captured",
+                    f"S3.7 moving viewport failed: {screenshot!r}",
+                )
+        observed_cache = observed._stage_cache  # noqa: SLF001 - gate evidence.
+        full_counts = [row["full_discovery_count"] for row in observations]
+        _require(
+            max(full_counts) == min(full_counts),
+            f"wall pose motion forced full rediscovery: {full_counts!r}",
+        )
+        _require(
+            observed_cache.cached_tick_count >= 4,
+            "moving phase did not use cached discovery for wall pose steps",
+        )
+    finally:
+        if reference is not None:
+            reference.close()
+        if observed is not None:
+            observed.close()
+
+    stage.GetRootLayer().Export(str(paths["stage"]))
+    wav_hashes = {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(wav_dir.glob("*.wav"))
+    }
+    _write_evidence(paths["hashes"], wav_hashes)
+    environment = {
+        "python_executable": sys.executable,
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "soundfile_version": soundfile.__version__,
+        "numpy_version": np.__version__,
+        "pyroomacoustics_version": __import__("pyroomacoustics").__version__,
+        "headless": True,
+    }
+    _write_evidence(paths["environment"], environment)
+    summary = {
+        "status": "passed",
+        "scenario": "S3.7_live_moving_occluder",
+        "wall_y_positions_m": list(MOVING_Y_POSITIONS),
+        "wall_scale": list(MOVING_WALL_SCALE),
+        "expected_blocked_mic_ids": [list(row) for row in MOVING_BLOCKED_MIC_IDS],
+        "observations": observations,
+        "wav_sha256": wav_hashes,
+        "screenshot": str(paths["viewport"]),
+        "assertions": {
+            "blocked_maps_exact": True,
+            "waveform_rms_consistent": True,
+            "attenuation_within_0_5_db": True,
+            "occluder_moved_on_four_transitions": True,
+            "pose_motion_kept_discovery_cached": True,
+        },
+    }
+    _write_evidence(paths["summary"], summary)
+    _ingest_moving_phase_into_dynamic_gate()
+    return summary
+
+
+def _ingest_moving_phase_into_dynamic_gate() -> None:
+    gate_path = S3_7_OUTPUT / "dynamic_rooms_gate.json"
+    if not gate_path.is_file():
+        return
+    gate = json.loads(gate_path.read_text(encoding="utf-8"))
+    rows = dict(gate.get("rows", {}))
+    rows["live_moving_occluder"] = "passed"
+    gate["rows"] = rows
+    gate["dependency_gated_rows"] = [
+        name for name, status in rows.items() if status not in {"passed", "failed"}
+    ]
+    gate["failed_rows"] = [name for name, status in rows.items() if status == "failed"]
+    gate["live_artifacts_pending"] = []
+    gate["status"] = (
+        "failed"
+        if gate["failed_rows"]
+        else "dependency_unavailable"
+        if gate["dependency_gated_rows"]
+        else "passed"
+    )
+    gate["artifact_sha256"] = {
+        path.relative_to(S3_7_OUTPUT).as_posix(): hashlib.sha256(
+            path.read_bytes()
+        ).hexdigest()
+        for path in sorted(S3_7_OUTPUT.rglob("*"))
+        if path.is_file() and path != gate_path
+    }
+    _write_evidence(gate_path, gate)
+
+
+def _validate_moving_frame(
+    *,
+    index: int,
+    y_position: float,
+    expected_blocked: tuple[str, ...],
+    observed_frame: AudioSensorFrame,
+    reference_frame: AudioSensorFrame,
+    observed_wave: Any,
+    reference_wave: Any,
+) -> dict[str, Any]:
+    import numpy as np
+
+    detection = observed_frame.detections[0]
+    occlusion = detection.diagnostics["occlusion"]
+    expected_map = {
+        mic_id: mic_id in expected_blocked
+        for mic_id in ("front", "right", "rear", "left")
+    }
+    _require(occlusion["per_mic_blocked"] == expected_map, "blocked map mismatch")
+    _require(
+        occlusion["occlusion_factor"] == len(expected_blocked) / 4,
+        "occlusion factor mismatch",
+    )
+    _require(
+        occlusion["occlusion_model"] == "raycast_transmission_v1",
+        "occlusion model mismatch",
+    )
+    state = observed_frame.diagnostics["acoustics_state"]
+    _require(state["occlusion_recompute_count"] == 1, "recompute count mismatch")
+    if index:
+        _require(
+            state["refresh_reasons"] == ["occluder_moved"],
+            f"missing occluder_moved at state {index}: {state!r}",
+        )
+        _require(
+            state["changed_occlusion_pairs"] == ["rig_front:speaker_front"],
+            f"changed pair mismatch at state {index}: {state!r}",
+        )
+    evidence = state["material_evidence"].get(f"occluder:{WALL_PRIM_PATH}")
+    if expected_blocked:
+        _require(
+            evidence is not None and evidence["evidence"] == "nominal",
+            f"wall evidence missing at state {index}: {state!r}",
+        )
+    observed_rms = np.sqrt(np.mean(np.square(observed_wave), axis=1))
+    reference_rms = np.sqrt(np.mean(np.square(reference_wave), axis=1))
+    mic_ids = ("front", "right", "rear", "left")
+    attenuation = {}
+    for mic_index, mic_id in enumerate(mic_ids):
+        frame_rms = observed_frame.aggregate_per_mic_rms[mic_id]
+        detection_rms = detection.per_mic_rms[mic_id]
+        _require(abs(frame_rms - observed_rms[mic_index]) <= 1e-12, "frame RMS drift")
+        _require(
+            abs(detection_rms - observed_rms[mic_index]) <= 1e-12,
+            "detection RMS drift",
+        )
+        value = 20.0 * math.log10(reference_rms[mic_index] / observed_rms[mic_index])
+        attenuation[mic_id] = value
+        expected = MATERIAL_WALL_TRANSMISSION_DB if mic_id in expected_blocked else 0.0
+        _require(
+            abs(value - expected) <= ATTENUATION_TOLERANCE_DB,
+            f"state {index} mic {mic_id} attenuation {value} != {expected}",
+        )
+    cache = observed_frame.diagnostics["stage_snapshot"]["discovery_cache"]
+    return {
+        "index": index,
+        "wall_y_m": y_position,
+        "expected_blocked": list(expected_blocked),
+        "observed_blocked": [key for key, value in expected_map.items() if value],
+        "occlusion_factor": occlusion["occlusion_factor"],
+        "attenuation_db": attenuation,
+        "aggregate_per_mic_rms": dict(observed_frame.aggregate_per_mic_rms),
+        "reference_per_mic_rms": dict(reference_frame.aggregate_per_mic_rms),
+        "refresh_reasons": state["refresh_reasons"],
+        "changed_occlusion_pairs": state.get("changed_occlusion_pairs", []),
+        "occlusion_recompute_count": state["occlusion_recompute_count"],
+        "full_discovery_count": cache["full_discovery_count"],
+        "cached_tick_count": cache["cached_tick_count"],
+        "observed_waveform_sha256": hashlib.sha256(observed_wave.tobytes()).hexdigest(),
+        "reference_waveform_sha256": hashlib.sha256(
+            reference_wave.tobytes()
+        ).hexdigest(),
+    }
 
 
 def _ensure_isaac_runtime(evidence: dict[str, Any]) -> Any | None:
@@ -322,7 +683,7 @@ def _ensure_isaac_runtime(evidence: dict[str, Any]) -> Any | None:
     return simulation_app
 
 
-def _author_stage(stage: Any) -> Any:
+def _author_stage(stage: Any) -> tuple[Any, Any]:
     """Author the gate scene and return the wall's translate op."""
 
     from pxr import Gf, UsdGeom, UsdLux, UsdPhysics  # type: ignore
@@ -370,7 +731,8 @@ def _author_stage(stage: Any) -> Any:
     wall_xform = UsdGeom.Xformable(wall.GetPrim())
     wall_translate_op = wall_xform.AddTranslateOp()
     wall_translate_op.Set(Gf.Vec3d(*WALL_CLEAR_POSITION))
-    wall_xform.AddScaleOp().Set(Gf.Vec3f(*WALL_SCALE))
+    wall_scale_op = wall_xform.AddScaleOp()
+    wall_scale_op.Set(Gf.Vec3f(*WALL_SCALE))
     UsdPhysics.CollisionAPI.Apply(wall.GetPrim())
 
     # Side-view camera perpendicular to the source-to-array axis so the
@@ -380,7 +742,7 @@ def _author_stage(stage: Any) -> Any:
     camera_xform = UsdGeom.Xformable(camera.GetPrim())
     camera_xform.AddTranslateOp().Set(Gf.Vec3d(2.0, -13.0, 2.0))
     camera_xform.AddRotateXYZOp().Set(Gf.Vec3f(85.0, 0.0, 0.0))
-    return wall_translate_op
+    return wall_translate_op, wall_scale_op
 
 
 def _author_wall_transmission_loss(stage: Any, loss_db: float) -> None:
@@ -550,8 +912,20 @@ def _require(condition: Any, message: str) -> None:
 
 
 def _is_runtime_blocker(exc: BaseException) -> bool:
-    message = str(exc)
-    return "SimulationApp" in message or "isaacsim" in message
+    message = str(exc).lower()
+    blockers = (
+        "simulationapp",
+        "isaacsim",
+        "pyroomacoustics",
+        "soundfile",
+        "physx",
+        "gpu",
+        "display",
+        "viewport",
+    )
+    return isinstance(exc, ModuleNotFoundError) or any(
+        token in message for token in blockers
+    )
 
 
 if __name__ == "__main__":

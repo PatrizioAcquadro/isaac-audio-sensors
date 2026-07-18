@@ -8,6 +8,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+from isaac_audio_sensors.core.acoustics.materials import resolve_material
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.config import AudioSensorConfig, build_scene_snapshot
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
@@ -34,6 +35,7 @@ from isaac_audio_sensors.core.motion import (
     build_window_motion,
     validate_pose_observation,
 )
+from isaac_audio_sensors.core.room_anchor import room_spec_from_bounds
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSensorFrame,
@@ -62,6 +64,14 @@ from isaac_audio_sensors.isaac.viz.debug_draw import IsaacDebugDrawer
 from isaac_audio_sensors.isaac.viz.overlays import (
     DebugPrimitive,
     build_debug_primitives,
+)
+from isaac_audio_sensors.usd_bounds import (
+    ABSORPTION_ATTR,
+    DEFAULT_SEMANTIC_ABSORPTION,
+    MATERIAL_ATTR,
+    prim_attributes,
+    resolve_room_absorption,
+    world_aligned_bbox,
 )
 
 
@@ -118,6 +128,17 @@ class IsaacAudioArraySensor:
     _pose_history: PoseHistory | None = field(default=None, init=False)
     _pose_history_stage: Any | None = field(default=None, init=False)
     _motion_entity_paths: dict[str, str] = field(default_factory=dict, init=False)
+    _anchor_room_template: RoomAcousticsSpec | None = field(default=None, init=False)
+    _previous_occlusion_pairs: dict[tuple[str, str], tuple[Any, ...]] = field(
+        default_factory=dict,
+        init=False,
+    )
+    _has_previous_occlusion_capture: bool = field(default=False, init=False)
+    _pending_occlusion_pairs: dict[tuple[str, str], tuple[Any, ...]] | None = field(
+        default=None,
+        init=False,
+    )
+    _frame_acoustics_state: dict[str, Any] | None = field(default=None, init=False)
     _reset_listeners: list[Callable[[], None]] = field(
         default_factory=list,
         init=False,
@@ -125,6 +146,8 @@ class IsaacAudioArraySensor:
     )
 
     def __post_init__(self) -> None:
+        if self.room is not None and self.room.anchor_prim_path is not None:
+            self._anchor_room_template = self.room
         validate_motion_effects_config(self.effects.motion)
         if self.effects.motion.segments_per_window > 1:
             if not self.effects.motion.derive_velocity_from_poses:
@@ -428,6 +451,12 @@ class IsaacAudioArraySensor:
         self.latest_debug_primitives = ()
         self._latest_scene = None
         self._latest_sensor = None
+        self._previous_occlusion_pairs.clear()
+        self._has_previous_occlusion_capture = False
+        self._pending_occlusion_pairs = None
+        self._frame_acoustics_state = None
+        if self._stage_cache is not None:
+            self._stage_cache.reset_acoustic_state()
         if self._pose_history is not None:
             self._pose_history.reset()
             self._motion_entity_paths.clear()
@@ -456,6 +485,10 @@ class IsaacAudioArraySensor:
         if self._stage_cache is not None:
             self._stage_cache.close()
             self._stage_cache = None
+        self._previous_occlusion_pairs.clear()
+        self._has_previous_occlusion_capture = False
+        self._pending_occlusion_pairs = None
+        self._frame_acoustics_state = None
         if self._pose_history is not None:
             self._pose_history.reset()
             self._pose_history = None
@@ -610,6 +643,7 @@ class IsaacAudioArraySensor:
             kwargs["window_motion"] = window_motion
         backend = get_backend(self.backend, **kwargs)
         frame = backend.simulate(scene, sensor, time_window)
+        frame = self._merge_acoustics_state(frame)
         if self.stage is not None:
             stage_diagnostics = dict(self._latest_stage_diagnostics or {})
             motion_diagnostics = stage_diagnostics.pop("motion", None)
@@ -620,11 +654,7 @@ class IsaacAudioArraySensor:
             if motion_diagnostics is not None:
                 backend_motion = diagnostics.get("motion")
                 diagnostics["motion"] = {
-                    **(
-                        backend_motion
-                        if isinstance(backend_motion, dict)
-                        else {}
-                    ),
+                    **(backend_motion if isinstance(backend_motion, dict) else {}),
                     **motion_diagnostics,
                 }
             frame = replace(
@@ -700,11 +730,21 @@ class IsaacAudioArraySensor:
             if self._pose_history is not None:
                 self._pose_history.reset()
                 self._motion_entity_paths.clear()
+            self._previous_occlusion_pairs.clear()
+            self._has_previous_occlusion_capture = False
+            self._pending_occlusion_pairs = None
+            self._frame_acoustics_state = None
+            if self._stage_cache is not None:
+                self._stage_cache.reset_acoustic_state()
             self._timeline_subscription = None
             self._pose_history_stage = self.stage
         if self._stage_cache is not None and self._stage_cache.stage is not self.stage:
             self._stage_cache.close()
             self._stage_cache = None
+            self._previous_occlusion_pairs.clear()
+            self._has_previous_occlusion_capture = False
+            self._pending_occlusion_pairs = None
+            self._frame_acoustics_state = None
         if self._stage_cache is None:
             rediscover_each_update = (
                 self.scene_binding_cfg is not None
@@ -713,6 +753,9 @@ class IsaacAudioArraySensor:
             self._stage_cache = StageAudioCache(
                 self.stage,
                 rediscover_each_update=rediscover_each_update,
+                room_anchor_prim_path=(
+                    None if self.room is None else self.room.anchor_prim_path
+                ),
             )
         return self._stage_cache
 
@@ -739,6 +782,8 @@ class IsaacAudioArraySensor:
         usd_time_code: Any | None,
         sim_time_s: float | None,
     ) -> AudioSceneSnapshot:
+        self._frame_acoustics_state = None
+        self._pending_occlusion_pairs = None
         effective_source_prim_path = source_prim_path or self.source_prim_path
         if self.stage is not None:
             cache = self._ensure_stage_cache()
@@ -769,6 +814,10 @@ class IsaacAudioArraySensor:
                     diagnostics_out=diagnostics,
                 )
                 self._latest_stage_diagnostics = diagnostics
+            self._refresh_anchored_room_if_needed(
+                cache,
+                time_code=usd_time_code,
+            )
         elif self.config is not None:
             scene = build_scene_snapshot(self.config, timestamp_ms=timestamp_ms)
             self._latest_stage_diagnostics = None
@@ -807,6 +856,90 @@ class IsaacAudioArraySensor:
             scene = self._enrich_live_motion(scene, time_s=sim_time_s)
         return self._apply_occlusion(scene)
 
+    def _refresh_anchored_room_if_needed(
+        self,
+        cache: StageAudioCache,
+        *,
+        time_code: Any | None,
+    ) -> None:
+        """Rebuild an anchor-derived room after frozen acoustic invalidations."""
+
+        template = self._anchor_room_template
+        if template is None or template.anchor_prim_path is None:
+            return
+        reasons = cache.current_acoustic_refresh_reasons
+        if not any(
+            reason in {"room_geometry_changed", "material_changed"}
+            for reason in reasons
+        ):
+            return
+        anchor_path = template.anchor_prim_path
+        get_prim = getattr(self.stage, "GetPrimAtPath", None)
+        prim = get_prim(anchor_path) if callable(get_prim) else None
+        if prim is None or (hasattr(prim, "IsValid") and not prim.IsValid()):
+            raise ValueError(
+                f"Room anchor {anchor_path!r} is missing after "
+                "room_geometry_changed/material_changed; the previous room "
+                "cannot be reused."
+            )
+        minimum, maximum = world_aligned_bbox(
+            prim,
+            prim_path=anchor_path,
+            time_code=time_code,
+        )
+        absorption = self._resolve_anchor_absorption(
+            prim,
+            template=template,
+            time_code=time_code,
+        )
+        self.room = room_spec_from_bounds(
+            min_world=minimum,
+            max_world=maximum,
+            room_id=template.room_id,
+            absorption=absorption,
+            max_order=template.max_order,
+            out_of_bounds=template.out_of_bounds,
+            anchor_prim_path=anchor_path,
+            air_absorption=template.air_absorption,
+            ray_tracing=template.ray_tracing,
+        )
+
+    @staticmethod
+    def _resolve_anchor_absorption(
+        prim: Any,
+        *,
+        template: RoomAcousticsSpec,
+        time_code: Any | None,
+    ) -> float | dict[str, float] | str:
+        attrs = prim_attributes(prim, time_code=time_code)
+        explicit = attrs.get(ABSORPTION_ATTR)
+        if explicit is not None:
+            if isinstance(explicit, dict):
+                return {str(key): float(value) for key, value in explicit.items()}
+            return float(explicit)
+        acoustic_id = attrs.get("ias:acoustic_material_id")
+        if acoustic_id is not None:
+            return resolve_material(
+                str(acoustic_id),
+                application=f"room anchor {template.anchor_prim_path!r}",
+            ).material_id
+        material_id = attrs.get(MATERIAL_ATTR)
+        if material_id is not None and str(material_id).strip():
+            try:
+                return resolve_material(
+                    str(material_id),
+                    application=f"room anchor {template.anchor_prim_path!r}",
+                ).material_id
+            except ValueError:
+                pass
+        absorption, _provenance = resolve_room_absorption(
+            prim,
+            semantic_absorption=dict(DEFAULT_SEMANTIC_ABSORPTION),
+            default=template.absorption,
+            time_code=time_code,
+        )
+        return absorption
+
     def _enrich_live_motion(
         self,
         scene: AudioSceneSnapshot,
@@ -839,9 +972,7 @@ class IsaacAudioArraySensor:
         for entity_id, position, orientation in observations:
             validate_pose_observation(entity_id, time_s, position, orientation)
 
-        current_paths = {
-            source.source_id: source.prim_path for source in scene.sources
-        }
+        current_paths = {source.source_id: source.prim_path for source in scene.sources}
         current_paths[selected_array.array_id] = selected_array.prim_path
         for entity_id, previous_path in tuple(self._motion_entity_paths.items()):
             if current_paths.get(entity_id) != previous_path:
@@ -857,9 +988,7 @@ class IsaacAudioArraySensor:
         self._motion_entity_paths = current_paths
         if self._latest_stage_diagnostics is None:
             self._latest_stage_diagnostics = {}
-        self._latest_stage_diagnostics["motion"] = {
-            "velocity_source": velocity_sources
-        }
+        self._latest_stage_diagnostics["motion"] = {"velocity_source": velocity_sources}
         return enriched
 
     def _apply_occlusion(self, scene: AudioSceneSnapshot) -> AudioSceneSnapshot:
@@ -886,7 +1015,39 @@ class IsaacAudioArraySensor:
             self._note_occlusion_diagnostics(
                 {"status": "unavailable", "error": str(exc)}
             )
+            self._frame_acoustics_state = {"occlusion_recompute_count": 0}
             return scene
+        current_pairs = {
+            (record.array_id, record.source_id): _canonical_occlusion_pair(record)
+            for record in records
+        }
+        had_previous = self._has_previous_occlusion_capture
+        changed_pairs = [
+            f"{array_id}:{source_id}"
+            for array in scene.arrays
+            for source in scene.sources
+            for array_id, source_id in ((array.array_id, source.source_id),)
+            if had_previous
+            and self._previous_occlusion_pairs.get((array_id, source_id))
+            != current_pairs.get((array_id, source_id))
+        ]
+        cache = self._stage_cache
+        if cache is not None and cache.pending_non_audio_pose_paths and changed_pairs:
+            cache.record_acoustic_refresh("occluder_moved")
+        self._pending_occlusion_pairs = current_pairs
+        resolver_evidence = getattr(
+            self.occlusion_transmission_resolver,
+            "material_evidence",
+            {},
+        )
+        state: dict[str, Any] = {"occlusion_recompute_count": 1}
+        if had_previous:
+            state["changed_occlusion_pairs"] = changed_pairs
+        if isinstance(resolver_evidence, dict) and resolver_evidence:
+            state["material_evidence"] = {
+                key: dict(resolver_evidence[key]) for key in sorted(resolver_evidence)
+            }
+        self._frame_acoustics_state = state
         self._note_occlusion_diagnostics(
             {
                 "status": "computed",
@@ -897,6 +1058,51 @@ class IsaacAudioArraySensor:
             }
         )
         return replace(scene, occlusion=records)
+
+    def _merge_acoustics_state(self, frame: AudioSensorFrame) -> AudioSensorFrame:
+        """Merge room and live acoustic diagnostics after successful simulation."""
+
+        diagnostics = dict(frame.diagnostics)
+        backend_state = diagnostics.get("acoustics_state")
+        state: dict[str, Any] = (
+            dict(backend_state) if isinstance(backend_state, dict) else {}
+        )
+        live_state = self._frame_acoustics_state
+        if live_state is not None:
+            live_materials = live_state.get("material_evidence")
+            room_materials = state.get("material_evidence")
+            merged_materials: dict[str, Any] = {}
+            if isinstance(room_materials, dict) and "room" in room_materials:
+                merged_materials["room"] = room_materials["room"]
+            for mapping in (room_materials, live_materials):
+                if isinstance(mapping, dict):
+                    for key in sorted(mapping):
+                        if key != "room":
+                            merged_materials[key] = mapping[key]
+            if merged_materials:
+                state["material_evidence"] = merged_materials
+            for key, value in live_state.items():
+                if key != "material_evidence":
+                    state[key] = value
+        cache = self._stage_cache
+        reasons = () if cache is None else cache.consume_acoustic_refresh_reasons()
+        if state or self.occlusion_enabled:
+            state["refresh_reasons"] = list(reasons)
+            diagnostics["acoustics_state"] = state
+        if cache is not None:
+            if self._pending_occlusion_pairs is not None:
+                self._previous_occlusion_pairs = self._pending_occlusion_pairs
+                self._has_previous_occlusion_capture = True
+                cache.clear_pending_non_audio_pose_paths()
+            stage_diagnostics = self._latest_stage_diagnostics
+            if isinstance(stage_diagnostics, dict):
+                cache_diagnostics = stage_diagnostics.get("discovery_cache")
+                if isinstance(cache_diagnostics, dict):
+                    cache_diagnostics["acoustic_refresh_reasons"] = tuple(
+                        cache.acoustic_refresh_reasons
+                    )
+        self._pending_occlusion_pairs = None
+        return replace(frame, diagnostics=diagnostics)
 
     def _note_occlusion_diagnostics(self, info: dict[str, Any]) -> None:
         if self._latest_stage_diagnostics is None:
@@ -1004,6 +1210,12 @@ class IsaacAudioArraySensor:
             if self._pose_history is not None:
                 self._pose_history.reset()
                 self._motion_entity_paths.clear()
+            self._previous_occlusion_pairs.clear()
+            self._has_previous_occlusion_capture = False
+            self._pending_occlusion_pairs = None
+            self._frame_acoustics_state = None
+            if self._stage_cache is not None:
+                self._stage_cache.reset_acoustic_state()
 
         return stream.create_subscription_to_pop(
             _on_timeline_event,
@@ -1039,6 +1251,34 @@ def _is_timeline_reset_event(event: Any, timeline_module: Any) -> bool:
     if event_type in reset_values:
         return True
     text = str(event_type).upper()
-    return text == "STOP" or text == "RESET" or text.endswith(".STOP") or text.endswith(
-        ".RESET"
+    return (
+        text == "STOP"
+        or text == "RESET"
+        or text.endswith(".STOP")
+        or text.endswith(".RESET")
+    )
+
+
+def _canonical_occlusion_pair(record: Any) -> tuple[Any, ...]:
+    """Serialize all acoustic pair fields used by the moving-occluder seam."""
+
+    return (
+        record.array_id,
+        record.source_id,
+        tuple(record.per_mic_blocked.items()),
+        record.occlusion_factor,
+        record.attenuation_db,
+        tuple(record.per_mic_attenuation_db.items()),
+        tuple(record.band_centers_hz),
+        tuple(
+            (mic_id, tuple(values))
+            for mic_id, values in record.per_mic_band_attenuation_db.items()
+        ),
+        tuple(record.hit_prim_paths),
+        tuple(
+            (mic_id, tuple(paths))
+            for mic_id, paths in record.per_mic_hit_prim_paths.items()
+        ),
+        tuple(sorted(record.hit_materials.items())),
+        record.occlusion_model,
     )
