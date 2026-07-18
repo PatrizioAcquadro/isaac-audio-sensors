@@ -4,24 +4,25 @@
 
 | Field | Frozen value |
 | --- | --- |
-| State | `S3.3` and `S3.4` frozen/implemented/closed; `S3.5` design and acceptance protocol frozen prospectively; `S3.5` implementation and evidence do not yet exist |
+| State | `S3.3` and `S3.4` frozen/implemented/closed; `S3.5` and `S3.6` designs and acceptance protocols frozen prospectively; their implementation and evidence do not yet exist |
 | Design date | 2026-07-18 |
 | Entry revision | `716336095f3436d824c76de4387374ff009022c3` |
 | S3.4 protocol revision | `776ec423efd9e84fd798db465050b459ab75f1fb` |
 | S3.5 protocol revision | `451b98a` |
+| S3.6 protocol revision | `31e0282` |
 | Governing gates | `S3.3` channel response, `S3.4` seeded noise, `S3.5` electronics, `S3.6` waveform directivity |
 | Governing acceptance | `docs/development/specs/s0_squadbot_readiness_acceptance.md` §S3 |
 | Evidence roots | `outputs/isaac_audio_sensors/S3/S3.3/` through `outputs/isaac_audio_sensors/S3/S3.6/` |
 
 This specification freezes the common per-channel effects architecture and the
-complete `S3.3`, `S3.4`, and `S3.5` acceptance protocols before their owning
-acceptance evidence. It preserves the existing `ias.audio_sensor_frame.v1`
+complete `S3.3`, `S3.4`, `S3.5`, and `S3.6` acceptance protocols before their
+owning acceptance evidence. It preserves the existing `ias.audio_sensor_frame.v1`
 fields and meaning. Effects add optional configuration and diagnostics; they do
 not create a new frame contract or a new propagation backend.
 
-The numerical tolerances for `S3.6` remain intentionally unset. Its
-architecture placement is frozen by this document, and its owning section
-carries the mandatory pre-evidence revision rule.
+The dated `31e0282` revision freezes the complete `S3.6` pattern model,
+configuration, fixtures, numerical tolerances, and verification map before any
+`S3.6` acceptance evidence is generated or viewed.
 
 ### Status revision history
 
@@ -32,6 +33,7 @@ Prior entries are retained; the later row amends only the named subphase.
 | 2026-07-18 | `716336095f3436d824c76de4387374ff009022c3` | Initial common architecture and complete prospective `S3.3` protocol frozen. |
 | 2026-07-18 | `776ec423efd9e84fd798db465050b459ab75f1fb` | Complete prospective `S3.4` seeded-noise protocol, fixtures, tolerances, and verification map frozen; documentation only, with no `S3.4` evidence viewed or claimed. |
 | 2026-07-18 | `451b98a` | Complete prospective `S3.5` electronics model, fixtures, tolerances, and verification map frozen; documentation only, with no `S3.5` evidence generated or viewed. |
+| 2026-07-18 | `31e0282` | Complete prospective `S3.6` waveform-directivity model, fixtures, tolerances, and verification map frozen; documentation only, with no `S3.6` evidence generated or viewed. |
 
 ## 1. Problem definition and responsibility boundary
 
@@ -235,13 +237,29 @@ no self-noise. This resolution runs only when `NoiseConfig.self_noise` is not
 explicit `level_db=-inf` overrides every fallback with exact zero. A missing
 `ambient.spectrum` or noise-level spectrum means white.
 
-`S3.5` completes the electronics records and ranges in §3.6. `S3.6` continues
-to reserve only its architectural container: directivity has optional source
-pattern, microphone pattern, and mode settings whose concrete nested fields
-and validation ranges must be frozen in the mandated later revision before
-that subphase gathers evidence. `motion` is routed through the same immutable
-configuration surface but is implemented and accepted by `S3.1`/`S3.2`, not
-by this chain.
+`S3.5` completes the electronics records and ranges in §3.6. `S3.6` completes
+the directivity records below; all optional fields default to `None`, mappings
+are immutable copies, and only `DirectivityConfig.enabled` defaults to
+`False`.
+
+| Record | Fields and defaults |
+| --- | --- |
+| `DirectivityFrequencyPointConfig` | `freq_hz=None`, `gain_db=None` |
+| `DirectivityPatternConfig` | `family=None`, `frequency_points=None` |
+| `DirectivityPatternSetConfig` | `default=None`, `overrides=None` |
+| `DirectivityConfig` | `enabled=False`, `source_patterns=None`, `mic_patterns=None`, `mode=None` |
+
+`source_patterns.overrides` is keyed by exact `AudioSourceSpec.source_id` and
+`mic_patterns.overrides` by exact `MicrophoneSpec.mic_id`. Each optional
+`default` is a pattern, not a reserved entity id. Pattern resolution is exact
+override, then the corresponding default, then frequency-flat `omni`.
+`mode=None` resolves to `per_pair_direct_path`; that is the only Stage 1 mode.
+The existing `AudioSourceSpec.directivity` field remains the L0/L1 amplitude
+input and is not an implicit second fallback for this waveform configuration.
+Shared-family consistency is verified explicitly in §9.5 rather than by
+silently coupling the two configuration surfaces. `motion` is routed through
+the same immutable configuration surface but is implemented and accepted by
+`S3.1`/`S3.2`, not by this chain.
 
 ### 3.2 S3.3 TOML form
 
@@ -459,6 +477,71 @@ fields under an explicitly disabled electronics stage. The frozen rules are:
 Validation errors name the complete `audio.effects.electronics` field path,
 offending value, and backend/profile envelope. Runtime non-finite arrays use
 the chain-level fail-closed rule in §11.
+
+### 3.7 S3.6 directivity TOML form and validation
+
+The normative TOML shape is:
+
+```toml
+[audio.effects.directivity]
+enabled = true
+mode = "per_pair_direct_path"
+
+[audio.effects.directivity.source_patterns.default]
+family = "omni"
+
+[audio.effects.directivity.source_patterns.overrides.talker]
+family = "cardioid"
+frequency_points = [
+  { freq_hz = 100.0, gain_db = -3.0 },
+  { freq_hz = 1000.0, gain_db = 0.0 },
+  { freq_hz = 20000.0, gain_db = -6.0 },
+]
+
+[audio.effects.directivity.mic_patterns.default]
+family = "supercardioid"
+
+[audio.effects.directivity.mic_patterns.overrides.rear]
+family = "figure_eight"
+```
+
+All supplied fields are validated before `_scheduled_window_signal`, room
+construction, a random draw, or any output write, including values beneath a
+disabled directivity stage. The frozen rules are:
+
+- `enabled` is an exact bool. `mode`, when non-`None`, is exactly
+  `"per_pair_direct_path"`; every other value raises
+  `UnsupportedEffectError`.
+- `family` is required for every supplied pattern and is one of the exact,
+  case-sensitive strings `omni`, `cardioid`, `figure_eight`, or
+  `supercardioid`. Unknown families and missing family values raise
+  `ConfigValidationError`; there is no alias, case folding, or silent omni
+  fallback for a supplied record.
+- `overrides` is an immutable mapping in selected scene/array order. Empty,
+  duplicate-after-normalization, reordered, or unknown ids fail. Source ids
+  are validated against the complete selected `AudioSceneSnapshot.sources`,
+  not only the sources active in the current window, and microphone ids are
+  validated against the selected array.
+- A non-omni resolved pattern requires a non-`None` orientation. Source
+  patterns use `AudioSourceSpec.orientation_world_quat`; microphone patterns
+  use the composed array-world and microphone-relative orientation defined in
+  §9.1. A missing orientation fails before synthesis rather than converting
+  the pattern to omni. Omni does not require an orientation.
+- `frequency_points` is absent for a frequency-flat pattern. When supplied it
+  reuses the §3.3/§6.1 magnitude-response validation: at least two points;
+  finite, positive, strictly increasing `freq_hz`; finite `gain_db`; and the
+  highest point no greater than Nyquist. Values below the first and above the
+  last point use the same flat extrapolation as §6.1. There is no phase field.
+- An enabled configuration must supply at least one source or microphone
+  pattern set. Resolving every active pair to frequency-flat omni is a
+  deliberate no-op governed by §9.5, not an unsupported configuration.
+- Active directivity is waveform-only. It is supported only by
+  `room_acoustics` and `room_acoustics_srp` under `waveform_fidelity`; L0/L1,
+  `training_features`, and every other backend/profile combination raise
+  `UnsupportedEffectError` before partial synthesis.
+
+Every validation error names the complete `audio.effects.directivity` field
+path, offending value or id, selected backend/profile, and supported envelope.
 
 ## 4. Diagnostics and frame compatibility
 
@@ -1022,26 +1105,196 @@ Every fixture array and retained artifact records a SHA-256 value.
 | Mixture/backend and primary registry | `N=48000`; channel frequencies `(997,1499,2203,3301) Hz`; `x_m[n]=0.9*sin(2*pi*f_m*n/48000)+0.6*sin(2*pi*(f_m+211)*n/48000)`. Store one source premix equal to `x`. The four-source decomposition partitions samples without arithmetic overlap: source `j` contains `x[:,n]` only when `n % 4 == j` and exact zero otherwise. Its sum is therefore byte-identical to `x` before dispatch. Enable the AGC settings above and TPDF dither. Aggregate RMS, estimator-input trace when applicable, waveform export, diagnostics, same/alternate-seed replay, and the registry two-run self-test all use this primary fixture. |
 | L0/L1 and off-state | Apply the active primary electronics configuration separately to the canonical L0 and L1 fixtures and require typed rejection with an empty partial-output listing. For off-state, use the impulse, tone, broadband, silent, room/backend, waveform-export, and registry golden corpus pinned at revision `451b98a`. |
 
-## 9. S3.6 waveform directivity — architecture freeze
+## 9. S3.6 waveform directivity — frozen design and tolerances
 
-`directivity.py` validates and evaluates source and microphone polar/frequency
-patterns. The room backend applies the product of source and microphone
-responses to each direct source-to-microphone synthesis contribution before
-per-source contributions are mixed. It is not a post-mix chain operation.
-Pattern evaluation uses the source orientation, microphone orientation, and
-the existing coordinate convention; invalid or unsupported patterns fail
-before partial synthesis.
+### 9.1 Polar families, axes, and angle convention
 
-Stage 1 directivity is a direct-path/source-to-microphone weighting
-approximation. It does not claim that each reflected path has a separately
-resolved arrival/departure angle. This limitation must be repeated in `S3.6`
-evidence and the fidelity envelope.
+For every source/microphone pair, each polar response is the signed first-order
+pattern
 
-> **TOLERANCES DEFERRED:** cardinal-angle, frequency-sweep, invalid-pattern,
-> and estimator-confidence-degradation tolerances will be frozen in a dated
-> revision of this specification before any `S3.6` acceptance evidence is
-> generated or viewed. They may not be selected or adjusted from final
-> `S3.6` results.
+```text
+g(theta) = a + (1 - a) * cos(theta)
+```
+
+with these exact family constants and analytical cardinal targets:
+
+| Family | Frozen `a` | `g(0°)` | `g(90°)` | `g(180°)` | `g(270°)` |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `omni` | `1.0` | `1.0` | `1.0` | `1.0` | `1.0` |
+| `cardioid` | `0.5` | `1.0` | `0.5` | `0.0` | `0.5` |
+| `figure_eight` | `0.0` | `1.0` | `0.0` | `-1.0` | `0.0` |
+| `supercardioid` | `0.37` | `1.0` | `0.37` | `-0.26` | `0.37` |
+
+The pattern axis is local `+X`. Quaternions use the public `(x,y,z,w)` order.
+For a source, rotate `(1,0,0)` by the normalized
+`AudioSourceSpec.orientation_world_quat`; `theta_s` is the angle between that
+axis and the normalized direct-path direction from source to microphone. This
+is the existing `core/backends/amplitude.py::directivity_factor` convention:
+that helper normalizes the quaternion, rotates local `+X`, uses `to_mic =
+mic_position_world - source.position_world`, clamps the cosine to `[-1,1]`,
+and evaluates the `a=0.5` cardioid.
+
+For a microphone, first compose and normalize
+`q_mic_world = q_array_world * q_mic_relative`, using the repository's
+Hamilton product and treating a missing relative orientation as identity.
+Rotate local `(1,0,0)` by `q_mic_world`; `theta_m` is the angle between that
+axis and the normalized direct-path incidence direction from microphone to
+source. `AudioSourceSpec`, `MicrophoneSpec`, and `MicrophoneArraySpec` already
+pass nonzero finite quaternions through `as_quaternion_xyzw`, which normalizes
+them. Consequently an unnormalized but finite nonzero input is accepted and
+stored normalized, while a zero or non-finite quaternion fails at frame/type
+construction before pattern evaluation.
+
+If source and microphone occupy the same world position, the direction is
+undefined. S3.6 reuses `directivity_factor`'s zero-distance policy: the polar
+factor for each side is exactly `1.0`; configured frequency response still
+applies. No arbitrary angle, NaN, or division by zero is produced.
+
+The signed polar value is applied as-is. A cardioid rear null therefore has
+exact target zero, while the rear of a figure-eight and supercardioid pattern
+reverses waveform polarity. Absolute value, squaring, or clamping negative
+lobes to zero is forbidden. With source and microphone patterns active, their
+signed values multiply, so two negative lobes restore positive polarity.
+
+### 9.2 Frequency dependence and pair response
+
+Absent `frequency_points` means an exactly frequency-flat response of unity.
+Configured points use `gain_db` as relative amplitude dB and the exact §6.1
+NumPy-only Type-I linear-phase FIR design, interpolation, flat extrapolation,
+tap policy, group-delay compensation, zero-padded linear convolution, crop,
+and common edge exclusion. Point amplitude is
+`10 ** (gain_db / 20)`. No directivity phase response beyond the signed polar
+polarity and the FIR's compensated linear phase is modeled.
+
+Recovery excludes the sum of the active FIR half-supports at each edge:
+`sum_i((T_i-1)/2)`, where `T_i` is the §6.1 tap count for each configured
+source/microphone response. At 48 kHz this is 256 samples for one 513-tap
+response and 512 samples for two; the exported window retains those finite-
+support edge transients.
+
+For the contribution from source `s` to microphone `m`, let `x_sm` be the
+frequency-flat, nondirectional pair contribution, `F_s` and `F_m` the resolved
+source and microphone FIRs (identity when absent), and `p_s`, `p_m` their
+signed polar values. The result is exactly:
+
+```text
+y_sm = p_s * p_m * F_m(F_s(x_sm))
+mixture_m = sum_s(y_sm)
+```
+
+Source directivity is thus semantically applied to the source signal separately
+for the same source at every microphone, and microphone directivity separately
+for every incident source. The responses combine multiplicatively and are
+applied before source mixing; there is no post-mix directivity dispatcher. The
+room backend realizes this per-pair semantic at the equivalent premix location
+frozen in §9.3.
+
+### 9.3 Honest room-backend insertion model
+
+The frozen diagnostic mode is exactly `per_pair_direct_path`. In the current
+room backend, `_scheduled_window_signal` creates one signal per source and
+pyroomacoustics convolves it with every source/microphone RIR before returning
+`premix[source_index, mic_index, sample]`. A microphone-specific pattern cannot
+be placed on that one shared source signal without duplicating the room
+simulation. The Stage 1 implementation therefore evaluates the direct-path
+angle for each pair and applies its signed scalar/FIR response to that pair's
+complete returned premix stem, after `_simulate_premix` and before `np.sum`.
+For piecewise room synthesis, it applies to each `segment_premix` before
+overlap-add so a segment's direct-path geometry is not replaced by the last
+segment's geometry.
+
+This model is named **per-pair direct-path-angle weighting of the full
+convolved contribution**. For an LTI scalar/FIR it is algebraically equivalent
+to a separate per-pair pre-RIR filter, but it weights the direct arrival and
+every image-source reflection in that pair by the same response selected from
+the direct-path angle. It is not direct-arrival-only filtering and does not
+resolve reflection departure or incidence angles. Applying the response to
+the summed mixture, using an array-center angle for every microphone, or
+claiming path-resolved reflected directivity violates this protocol.
+
+Pyroomacoustics-native directional sources/microphones and separately angled
+image paths are out of scope for Stage 1 and deferred to P2. They are not a
+fallback mode: an unavailable or requested mode other than
+`per_pair_direct_path` fails before synthesis.
+
+### 9.4 Diagnostics and fidelity reconciliation
+
+When at least one resolved active pattern is non-omni or has frequency points,
+the directivity stage diagnostic contains exactly the §4 keys:
+
+- `source_pattern` maps active source ids in scene order to the resolved
+  `family` and exact configured `frequency_points` (or `null`);
+- `mic_pattern` maps selected microphone ids in array order to the same
+  resolved record shape; and
+- `mode` is exactly `"per_pair_direct_path"`.
+
+An enabled configuration resolving every active pair to frequency-flat omni is
+the explicit no-op in §9.5: it emits no directivity stage mapping so the
+complete frame remains entry-behavior byte-identical. No diagnostic may imply
+reflection-specific angles.
+
+At revision `31e0282`, `core/fidelity.py` still says L2 source directivity is
+metadata-only and places richer directivity in future L3 wording. This
+documentation-only revision does not edit that file. The S3.6 closeout must
+record the discrepancy, and S3.9 must reconcile the public fidelity ladder and
+claim/evidence map with the actual passing S3.6 envelope. Until that
+reconciliation, S3.6 evidence supports only this specification's narrow L2
+mode and must not be quoted as the broader fidelity metadata claim.
+
+### 9.5 Frozen acceptance numbers
+
+All deterministic bounds are maxima. Statistical estimator rows use exactly
+the seeds and counts in §9.6; there is no retry, seed selection, rung removal,
+or result-dependent threshold adjustment.
+
+| Criterion | Frozen pass threshold | Brief basis |
+| --- | --- | --- |
+| Polar evaluator | Maximum absolute scalar error `<= 1e-12` for every family and cardinal angle against the §9.1 table | The evaluator is a closed-form float64 dot/cosine expression; the allowance covers cardinal quaternion roundoff but not a wrong family constant or direction convention |
+| Cardinal waveform gain | For every nonzero target, signed least-squares gain has the exact target sign and magnitude error `<= 0.05 dB`; for a zero target, `abs(g_hat) <= 1e-6` and `rms(y)/rms(baseline) <= 1e-6` | Reuses §6's scalar-gain bound; the linear null form avoids an undefined `-inf dB` comparison and rejects residuals above `-120 dB` amplitude |
+| Frequency-sweep recovery | Maximum Welch H1 magnitude error `<= 0.25 dB` on every accepted bin for one frequency-dependent pattern and `<= 0.50 dB` when both source and microphone FIRs are active; signed polarity at 1 kHz must also match exactly | One response reuses the §6 FIR bound; two cascaded independently bounded FIR approximations receive the additive dB bound without hiding either individual result |
+| Full-contribution room weighting | In the reverberant fixture, each frequency-flat effected pair stem is byte-equivalent to the baseline full convolved stem multiplied once by the analytical signed polar product; frequency-dependent stems meet the corresponding Welch bound, and direct plus RIR-tail samples both change | Detects direct-only edits, post-mix application, source-count multiplication, and false reflection-angle behavior |
+| L0/L1-to-L2 shared-family consistency | For source-only frequency-flat `omni` and `cardioid`, L2 signed gain and `amplitude.py::directivity_factor` agree within `0.05 dB` at nonzero cardinal targets and within `1e-6` linear amplitude at the cardioid rear null | Uses the same source `+X`, quaternion normalization, direct-path direction, and first-order cardioid convention across metadata and waveform paths |
+| Estimator degradation | Across the `0°,90°,120°,180°` cardioid ladder, the known-component SNR proxy is strictly decreasing, drops at least `5.5 dB` on each of the first two steps and at least `40 dB` front-to-rear; the eight-seed median SRP confidence and median GCC peak proxy are strictly decreasing at every step, with front-to-rear absolute drops `>=0.10` and `>=0.05`, respectively | Cardioid amplitude halves from `1` to `0.5` to `0.25` before its rear null, giving about `6.02 dB` SNR loss per finite step; fixed additive noise converts reduced directional level into lower PHAT coherence/prominence without freezing scene-specific exact values |
+| Invalid/unsupported patterns | Every unknown family/id, invalid point list/Nyquist value, missing required orientation, and unsupported mode/backend/profile raises the located typed error before `_scheduled_window_signal`, room construction, draw, frame, waveform, or evidence asset | Fail-closed validation is a pre-synthesis contract, not cleanup after a partial result |
+| Disabled and explicit-omni compatibility | Disabled directivity and enabled frequency-flat omni-only configuration produce entry-revision-identical premix, mixture, detection, aggregate RMS, waveform, diagnostics, serialized frame, and artifact hashes; no `effects` key is added | Unity directionality is semantically the prior backend and the omitted no-op diagnostic preserves full byte identity |
+| Determinism and registry | Two fresh enabled instances produce byte-identical float64 premixes, mixtures, diagnostics, frames, and artifacts; the existing two-factory/two-run registry self-test passes with the primary directivity fixture | Directivity has no RNG or mutable state and must preserve the backend's deterministic declaration |
+
+For waveform gain, `baseline` is the matching directivity-disabled pair stem
+and `g_hat=sum(baseline*y)/sum(baseline**2)` after the §6 common edge
+exclusion. A nonzero sign passes only when `sign(g_hat)` equals the analytical
+sign; magnitude-only RMS cannot prove figure-eight polarity.
+
+The GCC peak proxy is the median absolute `GccPhatDelay.peak_value` over the six
+unordered microphone pairs and then the median over the eight fixed noise
+seeds. SRP confidence is exactly `srp_phat_confidence`, namely clamped
+`(peak_power-mean_power)/peak_power`. These metrics preserve the current
+estimator semantics; S3.6 does not invent a new runtime GCC confidence field.
+The ladder feeds the estimators retained directivity-weighted signal plus fixed
+noise components as a pure acceptance fixture. It does not relabel the current
+scheduled-known-source premix confidence as mixture-noise-aware; any runtime
+confidence claim must still obey §2.2, and moving/multi-source behavior remains
+S3.8 coverage.
+
+### 9.6 Frozen fixtures and measurement methods
+
+Unless stated otherwise, fixtures use float64, 48,000 Hz, no channel response,
+noise-stage contribution, electronics, occlusion, or motion, and record input,
+configuration, intermediate-stem, and output SHA-256 values. Let
+`r=sqrt(0.5)`. Cardinal yaw quaternions `(x,y,z,w)` are exactly
+`q0=(0,0,0,1)`, `q90=(0,0,r,r)`, `q180=(0,0,1,0)`, and
+`q270=(0,0,-r,r)`. The 120-degree estimator rung uses
+`q120=(0,0,sqrt(3)/2,0.5)`.
+
+| Fixture | Frozen protocol |
+| --- | --- |
+| Pure cardinal source/mic | Source-polar geometry is source `(0,0,0)` to microphone `(1,0,0)`; microphone-polar geometry is microphone `(0,0,0)` to source `(1,0,0)`. Rotate the tested pattern axis through `q0/q90/q180/q270`, evaluate all four families, and compare with the §9.1 table. Repeat quaternion cases scaled by `3.0` and require the normalized result to meet the same bound. |
+| Cardinal L2 waveform | Shoebox room `10 x 8 x 3 m`, origin `(0,0,0)`, `max_order=0`; source `talker` at `(2,4,1.5)`, reference microphone at array-local `(0,0,0)` with array center `(6,4,1.5)`, plus microphones at `(0,+0.08,0)`, `(0,-0.08,0)`, and `(0,0,+0.08)` to keep a valid array. Use a 48,000-sample deterministic broadband probe at `0.1` RMS. Sweep `q0/q90/q180/q270` for source-only patterns. For microphone-only patterns, mirror the source to `(8,4,1.5)` so mic-to-source is `+X` and use the same quaternion sequence. For simultaneous patterns with the source at `(2,4,1.5)`, use source `q0/q90/q180/q270` and reference-mic world quaternions `q180/q270/q0/q90` for microphone-relative angles `0/90/180/270` respectively. Measure the reference pair stem against the matching directivity-disabled baseline and include one- and two-negative-lobe cases. |
+| Frequency sweep | `N=2**18` deterministic Gaussian probe with seed `20260718`; points `[(100,-6), (1000,0), (8000,-3), (20000,-9)]`; non-null `0°` polar orientation. Use the exact §6.3 Welch H1 method (`nperseg=8192`, `noverlap=4096`), the summed-half-support edge exclusion in §9.2, and accepted bins 200 Hz–18 kHz. Run source-only, mic-only, and simultaneous source+mic cases; the simultaneous analytical target is the dB sum of both point curves. |
+| Reverberant insertion | Reuse the L2 geometry with absorption `0.2`, `max_order=3`, and `N=48000`. Retain direct-arrival and post-direct-arrival RIR-tail masks from the baseline. For each pair, compare the effected stem with one signed multiplication for frequency-flat patterns and with the §9.2 FIR target for frequency-dependent patterns; verify the sum occurs only after all pair responses. For piecewise unit coverage, use four equal 12,000-sample segments and apply each segment's midpoint direct-path angle before overlap-add. |
+| Metadata/waveform consistency | Use the source cardinal geometry, `AudioSourceSpec.directivity` in `{omni,cardioid}`, and a present source orientation. Compare L0/L1 `directivity_factor` with an explicitly matching source-only L2 `DirectivityPatternConfig`; mic patterns are omni and frequency-flat. |
+| Estimator ladder | Rank-3 tetrahedral array of edge length `0.16 m` centered at `(6,4,1.5)` and source at `(2,4,1.5)`. Build `N=65536` geometrically delayed channels from one 200 Hz–12 kHz deterministic broadband probe (seed `20260718`), apply per-pair cardioid gains for `q0/q90/q120/q180`, then add the same independent per-mic broadband-noise bytes at every rung. Use exactly seeds `20260718` through `20260725`, scaled so the `q0` aggregate known-component SNR is `18.0 dB`. Run GCC with `interp=8` and default SRP grid/confidence semantics. Compute SNR from retained clean directional and noise components, never from an estimator-selected residual. |
+| Invalid and zero direction | Parameterize every §3.7 family/id/point/orientation/mode/backend failure, including a highest point of `24000.000001 Hz` at 48 kHz, and assert an empty partial-output listing. Separately co-locate source/reference mic and require unity polar factors, finite frequency-filtered output, and no NaN. Include figure-eight 90°/270° nulls and all source/mic sign products. |
+| Off-state and registry | The off-state corpus is the impulse, tone, broadband, silent, file/generated source, reverberant room, waveform export, and registry behavior at revision `31e0282`. Repeat with directivity disabled and with explicit frequency-flat omni defaults. The primary enabled registry fixture is the reverberant geometry with source `cardioid`, reference-mic `supercardioid`, and the frozen frequency points. |
 
 ## 10. S3.3 verification map
 
@@ -1161,6 +1414,58 @@ subphase. Live moving-scene and multi-source electronics coverage belongs to
 S3.8 stress and cannot retroactively change this protocol. The S3.5 closeout
 path is `docs/development/closeouts/S3/s3_5_electronics.md`.
 
+### 10.3 S3.6 verification map
+
+Implementation adds focused pure tests in `tests/test_effects_directivity.py`,
+extends config/dispatch cases in `tests/test_channel_effects_chain.py`, and
+extends room-backend and registry cases in
+`tests/test_effects_backend_integration.py` and
+`tests/test_backend_plugins.py`. Exact function names may follow repository
+style, but every row below is mandatory.
+
+| Acceptance criterion | Proof type and key assertion | Required evidence below `outputs/isaac_audio_sensors/S3/S3.6/` |
+| --- | --- | --- |
+| Frozen config/defaults | dataclass-field and TOML round-trip tests; exact §3.1/§3.7 fields/defaults, immutable nested mappings/points, resolution order, and mode default | `directivity_config_contract.json` |
+| Polar families/angles | pure parameterized evaluator over all families/cardinal quaternions; scalar error `<=1e-12`, normalized-quaternion equivalence, signed rear lobes | `polar_cardinal_results.json`, `polar_response_overlay.png` |
+| Cardinal waveform gain | L2 pair-stem integration test; every nonzero target sign and `0.05 dB` magnitude bound, every null within `1e-6` linear bounds | `cardinal_waveform_gain.json`, `cardinal_pair_stems_sha256.json` |
+| Frequency response | pure and L2 Welch H1 tests; one-pattern maximum error `<=0.25 dB`, simultaneous maximum `<=0.50 dB`, signed polarity retained | `frequency_sweep_welch.json`, `frequency_response_overlay.png`, `frequency_response_error.png` |
+| Source/mic product | pure/L2 Cartesian pattern test; scalar/FIR product per pair, including one-negative, two-negative, null, and simultaneous frequency patterns | `source_mic_product_matrix.json`, `source_mic_pair_stems.npz` |
+| Full-convolved-stem insertion | reverberant and piecewise backend spy/hash tests; direct and tail samples weighted once per pair before sum, segment weighting before overlap-add, zero post-mix dispatches | `per_pair_insertion_trace.json`, `rir_tail_weighting.json`, `full_contribution_sha256.json` |
+| Metadata/waveform consistency | L0/L1 helper versus L2 source-only test; shared omni/cardioid nonzero cases within `0.05 dB`, rear null within `1e-6` linear amplitude | `metadata_waveform_consistency.json` |
+| Estimator degradation | fixed eight-seed ladder; SNR, SRP confidence, and GCC proxy meet every monotonic/minimum-drop assertion in §9.5 | `estimator_confidence_ladder.json`, `estimator_confidence_overlay.png`, `estimator_input_sha256.json` |
+| Fail-closed validation | parameterized invalid family/id/point/orientation/mode/backend tests; located typed exception before scheduling/room/output | `invalid_directivity_config_matrix.json`, `partial_output_listing.txt` |
+| Zero direction and nulls | pure boundary tests; co-location produces unity polar factors and finite response, figure-eight nulls meet linear bound, no NaN | `directivity_edge_case_matrix.json` |
+| Diagnostics contract | backend test; exactly `source_pattern`, `mic_pattern`, and `mode`, stable source/mic order, exact resolved records, no reflection-angle claim | `directivity_diagnostics.json` |
+| Disabled/omni off-state | full golden regression; exact revision-`31e0282` premix/mixture/detection/RMS/waveform/frame hashes and no `effects` key | `off_state_golden_sha256.json`, `off_state_frame.json`, `off_state_waveform_sha256.txt` |
+| Determinism/registry | two fresh enabled instances and existing two-factory/two-run self-test; exact stems, output, diagnostics, frame, and artifact bytes | `registry_determinism_directivity.json`, `enabled_replay_sha256.json` |
+| Fidelity limitation ledger | static claim/evidence review; records full-convolved-pair limitation, P2 deferrals, and the required S3.9 reconciliation of `core/fidelity.py` | `fidelity_reconciliation.json` |
+
+`waveform_directivity_gate.json` is the mandatory machine-readable roll-up. It
+records protocol revision `31e0282`, implementation revision,
+Python/NumPy/pyroomacoustics/platform versions and module origins, exact
+normalized configuration, fixture and intermediate-stem hashes, sample counts,
+Welch parameters, every frozen threshold, measured maxima/ladder statistics,
+per-row status, reproduction commands, and artifact SHA-256 values. A failed
+row is fixed and rerun with unchanged fixtures, seeds, bins, and thresholds;
+selective estimator-seed or angle removal is forbidden.
+
+S3.6 is a pure/offline CPU gate. The pure evaluator, config, estimator, and
+fake-backend rows require no Isaac runtime. The real L2 integration rows do
+require the pinned pyroomacoustics-capable Python environment; when Isaac
+Sim's Python is used only because it supplies that dependency, evidence records
+the exact Isaac/Kit/Python/package/module origins in
+`evidence_environment.json`, following the S3.1 environment-record pattern,
+but does not launch `SimulationApp` or promote the run to a live scenario. A
+base environment that lacks pyroomacoustics may skip ordinary optional tests
+but cannot pass the L2 acceptance rows; evidence generation must use the
+recorded dependency-capable environment.
+
+No live Isaac stage, renderer, GPU, microphone, robot, or hardware scenario is
+required for S3.6. Moving/rotating mounts, multi-source imbalance, and live
+scene stress belong to S3.8 and cannot retroactively alter this protocol. The
+S3.6 closeout path is
+`docs/development/closeouts/S3/s3_6_waveform_directivity.md`.
+
 ## 11. Edge cases and failure behavior
 
 The minimum invalid/boundary matrix includes empty and one-sample arrays,
@@ -1187,6 +1492,19 @@ or non-unity-containing gain bounds; and zero, negative, NaN, infinite, or
 greater-than-60-second attack/release times. Every invalid case raises the
 located `ConfigValidationError` or required `UnsupportedEffectError` before a
 dither draw, sample change, diagnostic, frame, or asset.
+
+For S3.6 specifically, the matrix also includes absent and empty directivity,
+source-pattern, mic-pattern, default, and override tables; non-bool enable;
+unknown/missing/case-mismatched families; unknown, empty, duplicate-normalized,
+or reordered source and microphone ids; missing non-omni source/microphone
+orientations; finite non-unit quaternions (accepted and normalized); zero or
+non-finite quaternions (rejected by the frame/type contract); zero-length
+source-to-mic direction (unity polar factor); fewer than two, non-finite,
+non-positive, duplicate, decreasing, or above-Nyquist frequency points;
+unsupported modes/profiles/backends; figure-eight nulls at 90/270 degrees;
+negative rear lobes; and simultaneous source/microphone patterns including two
+negative lobes. Every invalid case fails before source scheduling, room/RIR
+construction, sample filtering, diagnostic, frame, waveform, or asset.
 
 A finite DC input uses its absolute amplitude as the per-window RMS detector
 and follows the exact §8.1 recurrence. Alternating-sign samples at exactly
@@ -1247,9 +1565,15 @@ diagnostic.
 - S3.5 quantization is a normalized float-domain mid-tread model. It does not
   define packed PCM storage, codec behavior, sample-word endianness, ADC
   integral/differential nonlinearity, missing codes, or physical voltage units.
-- S3.6 directivity is the direct-path/source-to-microphone weighting
-  approximation in §9; reflected-path angular directivity remains unsupported
-  unless a later reviewed design adds and validates it.
+- S3.6 directivity is the §9 `per_pair_direct_path` approximation: one response
+  selected from each pair's direct-path angle weights that pair's entire
+  convolved contribution. Per-reflection departure/incidence angles,
+  direct-arrival-only separation, diffraction-aware pattern changes, and
+  path-resolved pattern filtering are not claimed and are deferred to P2.
+- Pyroomacoustics-native directional source/microphone objects or any native
+  directivity fallback are not Stage 1 behavior. A separately reviewed P2
+  design must define their family mapping, RIR/path semantics, compatibility,
+  and acceptance evidence before they can replace or augment §9's mode.
 - No diffraction, wave solver, scattering solver, or edge-bending model is
   introduced. Existing ray/transmission occlusion must not be described as
   diffraction.
@@ -1267,7 +1591,7 @@ diagnostic.
 ## 13. Entry, closeout, and verification status
 
 Implementation may begin only from this frozen architecture and the owning
-frozen protocol. Any change to an `S3.3`, `S3.4`, or `S3.5` fixture,
+frozen protocol. Any change to an `S3.3`, `S3.4`, `S3.5`, or `S3.6` fixture,
 measurement method, sample count, seed, accepted sample, rounding rule, or
 threshold after acceptance evidence is generated invalidates that subphase
 evidence and requires a reviewed design revision plus a complete rerun.
@@ -1276,8 +1600,12 @@ evidence and requires a reviewed design revision plus a complete rerun.
 prospectively by the dated `451b98a` status entry and may proceed to
 implementation without adjusting this protocol from observed results; its
 acceptance closeout path is
-`docs/development/closeouts/S3/s3_5_electronics.md`. `S3.6` may not begin
-acceptance evidence until its deferred tolerances are frozen prospectively.
+`docs/development/closeouts/S3/s3_5_electronics.md`. `S3.6` implementation and
+acceptance may proceed prospectively only from the dated `31e0282` freeze in
+§9/§10.3, without adjusting it from observed results. Its closeout path is
+`docs/development/closeouts/S3/s3_6_waveform_directivity.md`; closeout must
+carry the reflected-path limitation and S3.9 `core/fidelity.py` reconciliation
+item forward without broadening the supported claim.
 
 This change is documentation only. No implementation, unit, integration,
 Isaac, GPU, or hardware verification was run or is claimed by this
@@ -1293,12 +1621,17 @@ specification.
 - `src/isaac_audio_sensors/core/effects/config.py`.
 - `src/isaac_audio_sensors/core/effects/noise.py`.
 - `src/isaac_audio_sensors/core/effects/streams.py`.
+- `src/isaac_audio_sensors/core/backends/amplitude.py`.
 - `src/isaac_audio_sensors/core/backends/room_acoustics.py`.
 - `src/isaac_audio_sensors/core/backends/tdoa.py`.
 - `src/isaac_audio_sensors/core/backends/geometry.py`.
 - `src/isaac_audio_sensors/core/calibration_profile.py`.
 - `src/isaac_audio_sensors/core/config.py`.
 - `src/isaac_audio_sensors/core/constants.py`.
+- `src/isaac_audio_sensors/core/math_utils.py`.
+- `src/isaac_audio_sensors/core/types.py`.
+- `src/isaac_audio_sensors/core/doa/gcc_phat.py`.
+- `src/isaac_audio_sensors/core/doa/srp_phat.py`.
 - `src/isaac_audio_sensors/core/fidelity.py`.
 - `src/isaac_audio_sensors/core/plugins/declarations.py`.
 - `src/isaac_audio_sensors/core/plugins/registry.py`.
