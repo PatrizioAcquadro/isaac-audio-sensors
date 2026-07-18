@@ -27,7 +27,13 @@ from isaac_audio_sensors.core.io.waveforms import (
     WaveformSink,
     waveform_safe_filename,
 )
-from isaac_audio_sensors.core.motion import PoseHistory, validate_pose_observation
+from isaac_audio_sensors.core.motion import (
+    EntityMotionInput,
+    PoseHistory,
+    WindowMotionPlan,
+    build_window_motion,
+    validate_pose_observation,
+)
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSensorFrame,
@@ -120,6 +126,24 @@ class IsaacAudioArraySensor:
 
     def __post_init__(self) -> None:
         validate_motion_effects_config(self.effects.motion)
+        if self.effects.motion.segments_per_window > 1:
+            if not self.effects.motion.derive_velocity_from_poses:
+                raise UnsupportedEffectError(
+                    "audio.effects.motion.segments_per_window>1 requires "
+                    "derive_velocity_from_poses=true."
+                )
+            if self.backend not in {"room_acoustics", "room_acoustics_srp"}:
+                raise UnsupportedEffectError(
+                    "audio.effects.motion.segments_per_window>1 requires "
+                    "room_acoustics or room_acoustics_srp."
+                )
+            if self.config is not None and self.config.runtime_profile != (
+                "waveform_fidelity"
+            ):
+                raise UnsupportedEffectError(
+                    "audio.effects.motion.segments_per_window>1 requires "
+                    "runtime profile 'waveform_fidelity'."
+                )
         if self.effects.motion.derive_velocity_from_poses:
             if self.stage is None:
                 raise UnsupportedEffectError(
@@ -351,11 +375,38 @@ class IsaacAudioArraySensor:
 
         self._raise_if_closed()
         self._running = True
+        if self.effects.motion.segments_per_window > 1:
+            self._prime_piecewise_motion()
         if subscribe_to_update_stream:
             self._update_subscription = self._subscribe_to_isaac_updates()
             if self._pose_history is not None:
                 self._timeline_subscription = self._subscribe_to_timeline_events()
         return self
+
+    def _prime_piecewise_motion(self) -> None:
+        """Observe current live poses once without emitting a backend frame."""
+
+        if self.stage is None or self._pose_history is None:
+            raise UnsupportedEffectError(
+                "piecewise motion requires a live stage pose-time stream"
+            )
+        prime_time_s = _current_isaac_timeline_time_s()
+        if prime_time_s is None:
+            prime_time_s = 0.0
+        if not math.isfinite(prime_time_s):
+            raise ValueError("piecewise motion prime time must be finite")
+        timestamp_ms = int(round(prime_time_s * 1000.0))
+        self._scene_for_capture(
+            timestamp_ms=timestamp_ms,
+            source_prim_path=self.source_prim_path,
+            usd_time_code=self._resolve_usd_time_code(
+                explicit_time_code=None,
+                sim_time_s=prime_time_s,
+                timestamp_ms=timestamp_ms,
+            ),
+            sim_time_s=prime_time_s,
+        )
+        self._last_update_time_s = prime_time_s
 
     def stop(self) -> None:
         """Stop update-loop capture without discarding the latest frame."""
@@ -440,24 +491,50 @@ class IsaacAudioArraySensor:
         if not self._running and not force:
             raise RuntimeError("IsaacAudioArraySensor.update requires start() first.")
         update_time_s = self._resolve_update_time(sim_time_s=sim_time_s, dt=dt)
+        if not math.isfinite(update_time_s):
+            raise ValueError("simulation update time must be finite")
         if (
-            not force
-            and self.latest_frame is not None
+            self._last_update_time_s is not None
+            and update_time_s < self._last_update_time_s
+        ):
+            raise ValueError("simulation update time is non-monotonic")
+        if (
+            force
+            and self.effects.motion.segments_per_window > 1
             and self._last_update_time_s is not None
             and update_time_s - self._last_update_time_s < self.update_period_s
         ):
+            raise ValueError(
+                "forced update time duplicates or overlaps the prior capture window"
+            )
+        if (
+            not force
+            and self._last_update_time_s is not None
+            and update_time_s - self._last_update_time_s < self.update_period_s
+        ):
+            if self.latest_frame is None:
+                raise ValueError(
+                    "capture time duplicates the piecewise-motion prime sample"
+                )
             return self.latest_frame
 
+        piecewise = self.effects.motion.segments_per_window > 1
+        window_s = (
+            self.update_period_s
+            if piecewise
+            else (dt if dt is not None and dt > 0.0 else self.update_period_s)
+        )
+        start_time_s = update_time_s - window_s if piecewise else update_time_s
+        end_time_s = update_time_s if piecewise else update_time_s + window_s
         timestamp = (
             int(timestamp_ms)
             if timestamp_ms is not None
-            else int(round(update_time_s * 1000.0))
+            else int(round(start_time_s * 1000.0))
         )
-        window_s = dt if dt is not None and dt > 0.0 else self.update_period_s
         frame = self.capture(
             timestamp_ms=timestamp,
-            start_time_s=update_time_s,
-            end_time_s=update_time_s + window_s,
+            start_time_s=start_time_s,
+            end_time_s=end_time_s,
             frame_index=self._frame_index,
             max_events=self.max_events,
             usd_time_code=self._resolve_usd_time_code(
@@ -514,6 +591,9 @@ class IsaacAudioArraySensor:
             frame_index=frame_index,
             max_events=self.max_events if max_events is None else max_events,
         )
+        window_motion: WindowMotionPlan | None = None
+        if self.effects.motion.segments_per_window > 1:
+            window_motion = self._build_window_motion(scene, sensor, time_window)
         kwargs: dict[str, Any] = {}
         if self.backend in {"tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}:
             kwargs = {
@@ -526,6 +606,8 @@ class IsaacAudioArraySensor:
                 kwargs["waveform_writer"] = sink
         if self.effects.motion.derive_velocity_from_poses:
             kwargs["effects"] = EffectsConfig(motion=self.effects.motion)
+        if window_motion is not None:
+            kwargs["window_motion"] = window_motion
         backend = get_backend(self.backend, **kwargs)
         frame = backend.simulate(scene, sensor, time_window)
         if self.stage is not None:
@@ -536,7 +618,15 @@ class IsaacAudioArraySensor:
                 "stage_snapshot": stage_diagnostics,
             }
             if motion_diagnostics is not None:
-                diagnostics["motion"] = motion_diagnostics
+                backend_motion = diagnostics.get("motion")
+                diagnostics["motion"] = {
+                    **(
+                        backend_motion
+                        if isinstance(backend_motion, dict)
+                        else {}
+                    ),
+                    **motion_diagnostics,
+                }
             frame = replace(
                 frame,
                 provenance="isaac_live",
@@ -545,6 +635,56 @@ class IsaacAudioArraySensor:
         self._latest_scene = scene
         self._latest_sensor = sensor
         return frame
+
+    def _build_window_motion(
+        self,
+        scene: AudioSceneSnapshot,
+        sensor: MicrophoneArraySpec,
+        time_window: AudioTimeWindow,
+    ) -> WindowMotionPlan:
+        history = self._pose_history
+        if history is None:
+            raise UnsupportedEffectError(
+                "piecewise motion requires an owned live PoseHistory"
+            )
+        stage_motion = (self._latest_stage_diagnostics or {}).get("motion")
+        velocity_sources = (
+            stage_motion.get("velocity_source")
+            if isinstance(stage_motion, dict)
+            else None
+        )
+        if not isinstance(velocity_sources, dict):
+            raise ValueError("piecewise motion has no velocity-source diagnostics")
+        entities: dict[str, EntityMotionInput] = {
+            source.source_id: EntityMotionInput(
+                position_world_m=source.position_world,
+                velocity_world_mps=source.velocity_world_mps,
+                velocity_source=str(velocity_sources[source.source_id]),
+            )
+            for source in scene.sources
+        }
+        entities[sensor.array_id] = EntityMotionInput(
+            position_world_m=sensor.position_world,
+            velocity_world_mps=sensor.velocity_world_mps,
+            velocity_source=str(velocity_sources[sensor.array_id]),
+        )
+        window_sample_count = round(
+            (time_window.end_time_s - time_window.start_time_s)
+            * time_window.sample_rate_hz
+        )
+        if self.effects.motion.segments_per_window > window_sample_count:
+            raise UnsupportedEffectError(
+                "audio.effects.motion.segments_per_window must be no greater "
+                f"than window_sample_count={window_sample_count}."
+            )
+        return build_window_motion(
+            history,
+            entities=entities,
+            start_time_s=time_window.start_time_s,
+            sample_rate_hz=time_window.sample_rate_hz,
+            window_sample_count=window_sample_count,
+            segments_per_window=self.effects.motion.segments_per_window,
+        )
 
     def rediscover(self) -> None:
         """Force full stage re-discovery (one Traverse) on the next capture."""

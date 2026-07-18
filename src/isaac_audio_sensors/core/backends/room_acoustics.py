@@ -29,6 +29,7 @@ from isaac_audio_sensors.core.doppler import source_doppler_factor
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import (
     EffectsConfig,
+    UnsupportedEffectError,
     validate_effects_config,
 )
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
@@ -45,6 +46,10 @@ from isaac_audio_sensors.core.microphone_array import (
     layout_rank_xyz,
     microphone_world_positions,
     validate_tdoa_array,
+)
+from isaac_audio_sensors.core.motion import (
+    WindowMotionPlan,
+    motion_segment_diagnostics,
 )
 from isaac_audio_sensors.core.scene import (
     active_sources,
@@ -101,6 +106,7 @@ class RoomAcousticsBackend:
         doa_estimator: str = "tdoa_least_squares",
         effects: EffectsConfig | None = None,
         runtime_profile: str = "waveform_fidelity",
+        window_motion: WindowMotionPlan | None = None,
     ) -> None:
         if speed_of_sound_mps <= 0.0 or not math.isfinite(speed_of_sound_mps):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
@@ -123,6 +129,7 @@ class RoomAcousticsBackend:
         self.doa_estimator = doa_estimator
         self.effects = EffectsConfig() if effects is None else effects
         self.runtime_profile = runtime_profile
+        self.window_motion = window_motion
         self.effects_chain = ChannelEffectsChain(self.effects)
 
     @staticmethod
@@ -209,6 +216,12 @@ class RoomAcousticsBackend:
         validate_tdoa_array(sensor)
         if scene.room is None:
             raise ValueError("room_acoustics requires scene.room to be configured.")
+        segments_per_window = self.effects.motion.segments_per_window
+        if segments_per_window > 1 and self.window_motion is None:
+            raise UnsupportedEffectError(
+                "audio.effects.motion.segments_per_window>1 requires a live "
+                "bracketed window-motion plan."
+            )
         pra = _import_pyroomacoustics()
         frame_id = deterministic_frame_id(
             backend_id=self.backend_id,
@@ -228,7 +241,10 @@ class RoomAcousticsBackend:
                 )
             ),
         )
-        if not self.effects.all_disabled:
+        if (
+            not self.effects.all_disabled
+            or self.effects.motion.segments_per_window != 1
+        ):
             validate_effects_config(
                 self.effects,
                 microphone_orders=(mic_ids,),
@@ -237,6 +253,16 @@ class RoomAcousticsBackend:
                 runtime_profile=self.runtime_profile,
                 sample_count=window_sample_count,
             )
+        if segments_per_window > 1:
+            assert self.window_motion is not None
+            if (
+                self.window_motion.sample_rate_hz != sample_rate_hz
+                or self.window_motion.window_sample_count != window_sample_count
+                or len(self.window_motion.segments) != segments_per_window
+            ):
+                raise UnsupportedEffectError(
+                    "window-motion plan disagrees with the configured capture window"
+                )
 
         detections: list[AudioDetection] = []
         active = active_sources(scene, time_window)
@@ -246,73 +272,99 @@ class RoomAcousticsBackend:
         mixture = np.zeros((len(mic_ids), window_sample_count), dtype=float)
         clamped_position_ids: tuple[str, ...] = ()
         effect_diagnostics: dict[str, Any] = {}
+        segment_factor_rows: tuple[dict[str, float], ...] = (
+            tuple({} for _ in self.window_motion.segments)
+            if segments_per_window > 1 and self.window_motion is not None
+            else ()
+        )
 
         if active:
-            source_positions = {
-                f"source:{source.source_id}": source.position_world
-                for source in active
-            }
-            microphone_positions = {
-                f"mic:{mic_id}": position for mic_id, position in mic_world.items()
-            }
-            room_positions, clamped_position_ids = _world_to_room_positions(
-                room_spec=scene.room,
-                positions={**source_positions, **microphone_positions},
-            )
-            source_room_positions = {
-                source.source_id: room_positions[f"source:{source.source_id}"]
-                for source in active
-            }
-            mic_room = {
-                mic_id: room_positions[f"mic:{mic_id}"] for mic_id in mic_ids
-            }
-
-            room = _build_shoebox_room(
-                pra=pra,
-                room_spec=scene.room,
-                sample_rate_hz=sample_rate_hz,
-                speed_of_sound_mps=self.speed_of_sound_mps,
-            )
-            scheduled: list[_ScheduledSignal] = []
-            doppler_factors: dict[str, float] = {}
-            for source in active:
-                signal = _scheduled_window_signal(source, time_window=time_window)
-                factor = source_doppler_factor(
-                    source,
-                    sensor,
+            if segments_per_window > 1:
+                assert self.window_motion is not None
+                piecewise = _simulate_piecewise_room(
+                    pra=pra,
+                    room_spec=scene.room,
+                    active=active,
+                    sensor=sensor,
+                    time_window=time_window,
+                    plan=self.window_motion,
                     speed_of_sound_mps=self.speed_of_sound_mps,
                 )
-                if (
-                    factor is None
-                    and self.effects.motion.derive_velocity_from_poses
-                ):
-                    factor = 1.0
-                if factor is not None:
-                    doppler_factors[source.source_id] = factor
-                    if abs(factor - 1.0) > 1e-9:
-                        signal = replace(
-                            signal,
-                            signal=_doppler_resampled_signal(
-                                signal.signal, factor=factor
-                            ),
-                        )
-                scheduled.append(signal)
-                room.add_source(
-                    source_room_positions[source.source_id],
-                    signal=signal.signal,
+                room = piecewise.last_room
+                scheduled = list(piecewise.scheduled)
+                doppler_factors = {}
+                premix = piecewise.premix
+                source_room_positions = piecewise.source_room_positions
+                mic_room = piecewise.microphone_room_positions
+                clamped_position_ids = piecewise.clamped_position_ids
+                segment_factor_rows = piecewise.doppler_factor_by_segment
+            else:
+                source_positions = {
+                    f"source:{source.source_id}": source.position_world
+                    for source in active
+                }
+                microphone_positions = {
+                    f"mic:{mic_id}": position
+                    for mic_id, position in mic_world.items()
+                }
+                room_positions, clamped_position_ids = _world_to_room_positions(
+                    room_spec=scene.room,
+                    positions={**source_positions, **microphone_positions},
                 )
-            mic_matrix = np.asarray(
-                [mic_room[mic_id] for mic_id in mic_ids], dtype=float
-            ).T
-            _add_microphone_array(
-                pra, room, mic_matrix, sample_rate_hz=sample_rate_hz
-            )
-            room.compute_rir()
-            premix = _simulate_premix(
-                room,
-                source_count=len(active),
-                mic_count=len(mic_ids),
-            )
+                source_room_positions = {
+                    source.source_id: room_positions[f"source:{source.source_id}"]
+                    for source in active
+                }
+                mic_room = {
+                    mic_id: room_positions[f"mic:{mic_id}"] for mic_id in mic_ids
+                }
+
+                room = _build_shoebox_room(
+                    pra=pra,
+                    room_spec=scene.room,
+                    sample_rate_hz=sample_rate_hz,
+                    speed_of_sound_mps=self.speed_of_sound_mps,
+                )
+                scheduled = []
+                doppler_factors: dict[str, float] = {}
+                for source in active:
+                    signal = _scheduled_window_signal(source, time_window=time_window)
+                    factor = source_doppler_factor(
+                        source,
+                        sensor,
+                        speed_of_sound_mps=self.speed_of_sound_mps,
+                    )
+                    if (
+                        factor is None
+                        and self.effects.motion.derive_velocity_from_poses
+                    ):
+                        factor = 1.0
+                    if factor is not None:
+                        doppler_factors[source.source_id] = factor
+                        if abs(factor - 1.0) > 1e-9:
+                            signal = replace(
+                                signal,
+                                signal=_doppler_resampled_signal(
+                                    signal.signal, factor=factor
+                                ),
+                            )
+                    scheduled.append(signal)
+                    room.add_source(
+                        source_room_positions[source.source_id],
+                        signal=signal.signal,
+                    )
+                mic_matrix = np.asarray(
+                    [mic_room[mic_id] for mic_id in mic_ids], dtype=float
+                ).T
+                _add_microphone_array(
+                    pra, room, mic_matrix, sample_rate_hz=sample_rate_hz
+                )
+                room.compute_rir()
+                premix = _simulate_premix(
+                    room,
+                    source_count=len(active),
+                    mic_count=len(mic_ids),
+                )
             # Occlusion attenuates the per-source/per-mic premix before
             # summing, so the mixture, per-source premix RMS, aggregate RMS,
             # GCC-PHAT diagnostics, and exported waveforms all stay mutually
@@ -567,6 +619,15 @@ class RoomAcousticsBackend:
         }
         if effect_diagnostics:
             frame_diagnostics["effects"] = effect_diagnostics
+        if segments_per_window > 1:
+            assert self.window_motion is not None
+            frame_diagnostics["motion"] = {
+                "segments_per_window": segments_per_window,
+                "segments": motion_segment_diagnostics(
+                    self.window_motion,
+                    segment_factor_rows,
+                ),
+            }
         waveform_paths: tuple[str, ...] = ()
         if self.waveform_writer is not None:
             write_result = self.waveform_writer.write_frame_mixture(
@@ -631,6 +692,204 @@ class _ScheduledSignal:
     mode: str
     start_offset_samples: int
     content_sample_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class _PiecewiseRoomResult:
+    premix: np.ndarray
+    scheduled: tuple[_ScheduledSignal, ...]
+    last_room: Any
+    source_room_positions: dict[str, tuple[float, float, float]]
+    microphone_room_positions: dict[str, tuple[float, float, float]]
+    clamped_position_ids: tuple[str, ...]
+    doppler_factor_by_segment: tuple[dict[str, float], ...]
+
+
+def _piecewise_phase_signal(
+    waveform: np.ndarray,
+    *,
+    factors: tuple[float, ...],
+    segment_lengths: tuple[int, ...],
+) -> np.ndarray:
+    """Render sample-exact segments with one cumulative float64 phase cursor."""
+
+    if len(factors) != len(segment_lengths) or not factors:
+        raise ValueError("piecewise factors and segment lengths must match")
+    if any(length <= 0 for length in segment_lengths):
+        raise ValueError("piecewise segment lengths must be positive")
+    source = np.asarray(waveform, dtype=float)
+    output = np.zeros(sum(segment_lengths), dtype=float)
+    cursor = 0.0
+    output_index = 0
+    for factor, length in zip(factors, segment_lengths, strict=True):
+        if not math.isfinite(factor) or factor <= 0.0:
+            raise ValueError("piecewise Doppler factors must be positive and finite")
+        for _ in range(length):
+            lower = math.floor(cursor)
+            fraction = cursor - lower
+            first = source[lower] if 0 <= lower < source.size else 0.0
+            second_index = lower + 1
+            second = (
+                source[second_index]
+                if 0 <= second_index < source.size
+                else 0.0
+            )
+            output[output_index] = first + fraction * (second - first)
+            output_index += 1
+            cursor += factor
+    return output
+
+
+def _simulate_piecewise_room(
+    *,
+    pra: Any,
+    room_spec: RoomAcousticsSpec,
+    active: tuple[AudioSourceSpec, ...],
+    sensor: MicrophoneArraySpec,
+    time_window: AudioTimeWindow,
+    plan: WindowMotionPlan,
+    speed_of_sound_mps: float,
+) -> _PiecewiseRoomResult:
+    """Simulate segment midpoint geometry and overlap-add every RIR tail."""
+
+    mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
+    scheduled = tuple(
+        _scheduled_window_signal(source, time_window=time_window)
+        for source in active
+    )
+    factor_rows: list[dict[str, float]] = []
+    factors_by_source: dict[str, list[float]] = {
+        source.source_id: [] for source in active
+    }
+    for segment in plan.segments:
+        array_motion = segment.entities[sensor.array_id]
+        segment_sensor = replace(
+            sensor,
+            position_world=array_motion.midpoint_position_world_m,
+            velocity_world_mps=array_motion.velocity_world_mps,
+        )
+        row: dict[str, float] = {}
+        for source in active:
+            source_motion = segment.entities[source.source_id]
+            segment_source = replace(
+                source,
+                position_world=source_motion.midpoint_position_world_m,
+                velocity_world_mps=source_motion.velocity_world_mps,
+            )
+            if (
+                source_motion.velocity_source.startswith("none:")
+                or array_motion.velocity_source.startswith("none:")
+            ):
+                factor = 1.0
+            else:
+                factor = source_doppler_factor(
+                    segment_source,
+                    segment_sensor,
+                    speed_of_sound_mps=speed_of_sound_mps,
+                )
+                if factor is None:
+                    factor = 1.0
+            row[source.source_id] = factor
+            factors_by_source[source.source_id].append(factor)
+        factor_rows.append(row)
+
+    lengths = tuple(segment.sample_count for segment in plan.segments)
+    rendered = {
+        source.source_id: _piecewise_phase_signal(
+            scheduled[index].signal,
+            factors=tuple(factors_by_source[source.source_id]),
+            segment_lengths=lengths,
+        )
+        for index, source in enumerate(active)
+    }
+    assembled = np.zeros(
+        (len(active), len(mic_ids), plan.window_sample_count),
+        dtype=float,
+    )
+    clamped: set[str] = set()
+    last_room: Any = None
+    last_source_room: dict[str, tuple[float, float, float]] = {}
+    last_mic_room: dict[str, tuple[float, float, float]] = {}
+    for segment in plan.segments:
+        array_position = segment.entities[
+            sensor.array_id
+        ].midpoint_position_world_m
+        segment_sensor = replace(sensor, position_world=array_position)
+        mic_world = microphone_world_positions(segment_sensor)
+        source_positions = {
+            f"source:{source.source_id}": segment.entities[
+                source.source_id
+            ].midpoint_position_world_m
+            for source in active
+        }
+        microphone_positions = {
+            f"mic:{mic_id}": position for mic_id, position in mic_world.items()
+        }
+        room_positions, clamped_ids = _world_to_room_positions(
+            room_spec=room_spec,
+            positions={**source_positions, **microphone_positions},
+        )
+        clamped.update(clamped_ids)
+        source_room = {
+            source.source_id: room_positions[f"source:{source.source_id}"]
+            for source in active
+        }
+        mic_room = {
+            mic_id: room_positions[f"mic:{mic_id}"] for mic_id in mic_ids
+        }
+        room = _build_shoebox_room(
+            pra=pra,
+            room_spec=room_spec,
+            sample_rate_hz=plan.sample_rate_hz,
+            speed_of_sound_mps=speed_of_sound_mps,
+        )
+        for source in active:
+            room.add_source(
+                source_room[source.source_id],
+                signal=rendered[source.source_id][
+                    segment.start_sample : segment.end_sample
+                ],
+            )
+        mic_matrix = np.asarray(
+            [mic_room[mic_id] for mic_id in mic_ids], dtype=float
+        ).T
+        _add_microphone_array(
+            pra,
+            room,
+            mic_matrix,
+            sample_rate_hz=plan.sample_rate_hz,
+        )
+        room.compute_rir()
+        segment_premix = _simulate_premix(
+            room,
+            source_count=len(active),
+            mic_count=len(mic_ids),
+        )
+        required = segment.start_sample + segment_premix.shape[2]
+        if required > assembled.shape[2]:
+            expanded = np.zeros(
+                (len(active), len(mic_ids), required),
+                dtype=float,
+            )
+            expanded[:, :, : assembled.shape[2]] = assembled
+            assembled = expanded
+        assembled[
+            :,
+            :,
+            segment.start_sample : required,
+        ] += segment_premix
+        last_room = room
+        last_source_room = source_room
+        last_mic_room = mic_room
+    return _PiecewiseRoomResult(
+        premix=assembled,
+        scheduled=scheduled,
+        last_room=last_room,
+        source_room_positions=last_source_room,
+        microphone_room_positions=last_mic_room,
+        clamped_position_ids=tuple(sorted(clamped)),
+        doppler_factor_by_segment=tuple(factor_rows),
+    )
 
 
 def _scheduled_window_signal(

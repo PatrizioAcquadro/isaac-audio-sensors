@@ -29,6 +29,15 @@ class VelocityDerivation:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class PoseHistorySample:
+    """Read-only public projection of one retained pose endpoint."""
+
+    time_s: float
+    position_world_m: Vector3
+    orientation_world_xyzw: Quaternion | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _PoseSample:
     time_s: float
     position_world_m: Vector3
@@ -164,6 +173,52 @@ class PoseHistory:
 
         self.remove_entity(entity_id)
 
+    def samples(self, entity_id: str) -> tuple[PoseHistorySample, ...]:
+        """Return the retained endpoints without changing estimator state."""
+
+        _validate_entity_id(entity_id)
+        state = self._entities.get(entity_id)
+        if state is None:
+            return ()
+        return tuple(
+            PoseHistorySample(
+                time_s=sample.time_s,
+                position_world_m=sample.position_world_m,
+                orientation_world_xyzw=sample.orientation_world_xyzw,
+            )
+            for sample in state.samples
+        )
+
+    def last_result(self, entity_id: str) -> VelocityDerivation | None:
+        """Return the latest tagged result without changing estimator state."""
+
+        _validate_entity_id(entity_id)
+        state = self._entities.get(entity_id)
+        return None if state is None else state.last_result
+
+    def interpolate_position(self, entity_id: str, time_s: float) -> Vector3:
+        """Linearly interpolate a time bracketed by the retained endpoint pair."""
+
+        _validate_entity_id(entity_id)
+        target = _finite_number(time_s, f"entity {entity_id!r} time_s")
+        samples = self.samples(entity_id)
+        if len(samples) != 2:
+            raise ValueError(
+                f"entity {entity_id!r} has no two-sample pose bracket"
+            )
+        older, newer = samples
+        if target < older.time_s or target > newer.time_s:
+            raise ValueError(
+                f"entity {entity_id!r} pose pair does not bracket time {target!r}"
+            )
+        weight = (target - older.time_s) / (newer.time_s - older.time_s)
+        return tuple(
+            older.position_world_m[index]
+            + weight
+            * (newer.position_world_m[index] - older.position_world_m[index])
+            for index in range(3)
+        )
+
     def _restart_entity(
         self,
         entity_id: str,
@@ -271,6 +326,7 @@ def _bounded_finite_number(value: object, *, field_name: str, upper: float) -> f
 
 
 __all__ = [
+    "PoseHistorySample",
     "PoseHistory",
     "VelocityDerivation",
     "VelocityReason",

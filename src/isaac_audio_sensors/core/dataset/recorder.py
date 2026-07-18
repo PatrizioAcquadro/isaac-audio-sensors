@@ -47,6 +47,14 @@ from isaac_audio_sensors.core.dataset.layout import (
     verify_shard_completion,
     verify_shard_tiling,
 )
+from isaac_audio_sensors.core.dataset.time_gaps import (
+    TimeGapCursor,
+    TimeGapPlan,
+    advance_time_gap_cursor,
+)
+from isaac_audio_sensors.core.dataset.time_gaps import (
+    plan_time_gap as compute_time_gap_plan,
+)
 from isaac_audio_sensors.core.dataset_manifest import (
     AssetRecord,
     AudioDatasetManifest,
@@ -180,6 +188,14 @@ class _PendingRecord:
     desired_audio_end: int
 
 
+_TIME_GAP_COUNTER_NAMES = (
+    "gap_event_count",
+    "inserted_silence_samples",
+    "absorbed_drift_count",
+    "absorbed_drift_samples_signed",
+)
+
+
 class SessionRecorder:
     """Record and atomically publish one waveform-fidelity session.
 
@@ -247,6 +263,9 @@ class SessionRecorder:
         self._handling_cancellation = False
         self._producer_db: sqlite3.Connection | None = None
         self._pending_finalization_state: str | None = None
+        self._time_gap_cursor = TimeGapCursor()
+        self._planned_session_audio_samples = 0
+        self._time_gap_counters = {name: 0 for name in _TIME_GAP_COUNTER_NAMES}
 
         if _resume_payload is None:
             self._start_new_session()
@@ -286,6 +305,18 @@ class SessionRecorder:
         return self._next_dataset_frame
 
     @property
+    def preserve_time_gaps(self) -> bool:
+        """Whether the optional S3.2 recorder placement path is active."""
+
+        return bool(self.configuration.get("preserve_time_gaps", False))
+
+    @property
+    def time_gap_summary(self) -> dict[str, int]:
+        """Return the four bounded cumulative S3.2 recorder counters."""
+
+        return dict(self._time_gap_counters)
+
+    @property
     def promoted_shard_count(self) -> int:
         return len(self._published)
 
@@ -313,6 +344,9 @@ class SessionRecorder:
             )
         if not isinstance(self.configuration["shard_episode_aligned"], bool):
             raise ValueError("configuration.shard_episode_aligned must be a bool")
+        preserve = self.configuration.get("preserve_time_gaps", False)
+        if type(preserve) is not bool:
+            raise ValueError("configuration.preserve_time_gaps must be a bool")
         channels = self.configuration["channel_order"]
         if (
             not isinstance(channels, list)
@@ -401,11 +435,47 @@ class SessionRecorder:
             )
             self._episodes.append(episode)
             self._current_episode = episode
+            if self.preserve_time_gaps:
+                self._time_gap_cursor = TimeGapCursor()
             self._write_state()
             return episode_value
         except CancelledWrite:
             self._cancel_and_finalize()
             raise
+
+    def plan_time_gap(
+        self,
+        frame: AudioSensorFrame | dict[str, Any],
+        *,
+        timestamp_ms: int | None = None,
+    ) -> dict[str, Any]:
+        """Plan one single-use placement diagnostic without mutating state."""
+
+        self._check_open()
+        if not self.preserve_time_gaps:
+            raise RuntimeError("configuration.preserve_time_gaps is disabled")
+        if self._current_episode is None:
+            raise RuntimeError("begin_episode() must be called first")
+        payload = (
+            frame_to_trace_dict(frame)
+            if isinstance(frame, AudioSensorFrame)
+            else frame
+        )
+        if not isinstance(payload, dict):
+            raise ValueError("frame must project to an object")
+        diagnostics = payload.get("diagnostics")
+        if not isinstance(diagnostics, dict):
+            raise ValueError("frame.diagnostics must be an object")
+        recording = diagnostics.get("recording")
+        if recording is not None and not isinstance(recording, dict):
+            raise ValueError("frame.diagnostics.recording must be an object")
+        if isinstance(recording, dict) and "time_gap" in recording:
+            raise ValueError("frame has a conflicting recording.time_gap diagnostic")
+        incoming_timestamp = (
+            payload.get("timestamp_ms") if timestamp_ms is None else timestamp_ms
+        )
+        plan = self._compute_time_gap_plan(payload, incoming_timestamp)
+        return plan.diagnostic()
 
     def append_frame(
         self,
@@ -425,9 +495,15 @@ class SessionRecorder:
             self.cancellation_token.check()
             if self._current_episode is None:
                 raise RuntimeError("begin_episode() must be called first")
-            payload, block, reason = self._validated_append_inputs(
-                frame, audio_block, timestamp_ms, is_reset
-            )
+            gap_plan: TimeGapPlan | None = None
+            if self.preserve_time_gaps:
+                payload, block, gap_plan, reason = self._validated_gap_append_inputs(
+                    frame, audio_block, timestamp_ms, is_reset
+                )
+            else:
+                payload, block, reason = self._validated_append_inputs(
+                    frame, audio_block, timestamp_ms, is_reset
+                )
             if reason is not None:
                 self._record_drop(frame)
                 return AppendFrameResult(False, None, reason)
@@ -465,12 +541,20 @@ class SessionRecorder:
             episode.last_timestamp_ms = int(timestamp_ms)
             self._record_producer_id(episode.ordinal, str(payload["frame_id"]))
 
+            if gap_plan is not None:
+                self._commit_time_gap_plan(gap_plan, timestamp_ms=int(timestamp_ms))
+
             if self.shard_episode_aligned:
                 self._buffer_aligned_frame(
                     payload,
                     block,
                     dataset_index=dataset_index,
                     is_reset=is_reset,
+                    gap_samples=(
+                        0
+                        if gap_plan is None
+                        else gap_plan.inserted_silence_samples
+                    ),
                 )
                 self._handle_aligned_feed_boundaries(boundaries)
             else:
@@ -480,6 +564,11 @@ class SessionRecorder:
                     dataset_index=dataset_index,
                     is_reset=is_reset,
                     boundaries=boundaries,
+                    gap_samples=(
+                        0
+                        if gap_plan is None
+                        else gap_plan.inserted_silence_samples
+                    ),
                 )
             return AppendFrameResult(True, dataset_index)
         except CancelledWrite:
@@ -541,6 +630,100 @@ class SessionRecorder:
         except (DatasetLayoutError, KeyError, TypeError, ValueError) as exc:
             return None, None, str(exc)
 
+    def _validated_gap_append_inputs(
+        self,
+        frame: AudioSensorFrame | dict[str, Any],
+        audio_block: np.ndarray | None,
+        timestamp_ms: int,
+        is_reset: bool,
+    ) -> tuple[
+        dict[str, Any] | None,
+        np.ndarray | None,
+        TimeGapPlan | None,
+        str | None,
+    ]:
+        payload, block, reason = self._validated_append_inputs(
+            frame, audio_block, timestamp_ms, is_reset
+        )
+        if reason is not None:
+            if "timestamp_ms is non-monotonic" in reason:
+                reason = "non-monotonic timestamp within the episode"
+            return None, None, None, reason
+        assert payload is not None
+        try:
+            if type(timestamp_ms) is not int or timestamp_ms < 0:
+                raise ValueError("timestamp_ms must be a non-negative integer")
+            if block is None or block.shape != (
+                self.channels,
+                self.window_sample_count,
+            ):
+                raise ValueError(
+                    "audio_block must be finite float32 with exact shape "
+                    f"({self.channels}, {self.window_sample_count})"
+                )
+            if 4 * self.channels > 1_048_576:
+                raise ValueError(
+                    "audio_block channel row exceeds the 1 MiB gap allocation cap"
+                )
+            plan = self._compute_time_gap_plan(payload, timestamp_ms)
+            diagnostics = payload.get("diagnostics")
+            if not isinstance(diagnostics, dict):
+                raise ValueError("time-gap diagnostic mismatch: diagnostics missing")
+            recording = diagnostics.get("recording")
+            if not isinstance(recording, dict):
+                raise ValueError(
+                    "time-gap diagnostic mismatch: recording mapping missing"
+                )
+            attached = recording.get("time_gap")
+            if attached != plan.diagnostic():
+                raise ValueError(
+                    "time-gap diagnostic mismatch: attached plan is missing or stale"
+                )
+            return payload, block, plan, None
+        except (KeyError, TypeError, ValueError) as exc:
+            return None, None, None, str(exc)
+
+    def _compute_time_gap_plan(
+        self,
+        payload: Mapping[str, Any],
+        timestamp_ms: object,
+    ) -> TimeGapPlan:
+        return compute_time_gap_plan(
+            self._time_gap_cursor,
+            placement_sequence=self._next_dataset_frame,
+            start_time_s=payload.get("start_time_s"),
+            end_time_s=payload.get("end_time_s"),
+            timestamp_ms=timestamp_ms,  # type: ignore[arg-type]
+            sample_rate_hz=self.sample_rate_hz,
+            window_sample_count=self.window_sample_count,
+            hop_sample_count=self.hop_sample_count,
+            session_audio_start_sample=self._planned_session_audio_samples,
+        )
+
+    def _commit_time_gap_plan(
+        self,
+        plan: TimeGapPlan,
+        *,
+        timestamp_ms: int,
+    ) -> None:
+        self._time_gap_cursor = advance_time_gap_cursor(
+            self._time_gap_cursor,
+            plan,
+            timestamp_ms=timestamp_ms,
+            hop_sample_count=self.hop_sample_count,
+        )
+        inserted = plan.inserted_silence_samples
+        absorbed = plan.absorbed_drift_samples
+        if inserted:
+            self._time_gap_counters["gap_event_count"] += 1
+            self._time_gap_counters["inserted_silence_samples"] += inserted
+        if absorbed:
+            self._time_gap_counters["absorbed_drift_count"] += 1
+            self._time_gap_counters[
+                "absorbed_drift_samples_signed"
+            ] += absorbed
+        self._planned_session_audio_samples += inserted + self.hop_sample_count
+
     def _record_drop(self, frame: AudioSensorFrame | dict[str, Any]) -> None:
         producer_id: object
         if isinstance(frame, AudioSensorFrame):
@@ -582,6 +765,7 @@ class SessionRecorder:
         *,
         dataset_index: int,
         is_reset: bool,
+        gap_samples: int,
     ) -> None:
         if self._episode_buffer is None:
             self._episode_buffer = self._new_episode_buffer(dataset_index)
@@ -591,6 +775,7 @@ class SessionRecorder:
             "audio_sample_count": sample_count,
             "dataset_frame_index": dataset_index,
             "frame": payload,
+            "gap_samples": gap_samples,
             "is_reset": is_reset,
         }
         line = json.dumps(metadata, sort_keys=True, separators=(",", ":")) + "\n"
@@ -622,12 +807,16 @@ class SessionRecorder:
         dataset_index: int,
         is_reset: bool,
         boundaries: Sequence[ShardBoundary],
+        gap_samples: int,
     ) -> None:
         if self._open_shard is None:
             self._open_shard = self._new_open_shard(
                 shard_ordinal=len(self._published), start_frame=dataset_index
             )
         open_shard = self._open_shard
+        if gap_samples:
+            self._stream_time_gap(open_shard.wav, gap_samples)
+        self.cancellation_token.check()
         start, desired_end = self._mix_and_append_audio(
             open_shard.wav, block, is_reset=is_reset
         )
@@ -712,10 +901,38 @@ class SessionRecorder:
         attributed = min(int(block.shape[1]), self.window_sample_count)
         return start, start + attributed
 
+    def _stream_time_gap(
+        self,
+        writer: StreamingWavShardWriter,
+        sample_count: int,
+    ) -> None:
+        """Advance zero acoustic input and carry in bounded float32 blocks."""
+
+        if sample_count <= 0:
+            return
+        block_cap = min(
+            65_536,
+            max(1, 1_048_576 // (4 * self.channels)),
+        )
+        remaining = sample_count
+        while remaining:
+            self.cancellation_token.check()
+            count = min(remaining, block_cap)
+            chunk = np.zeros((self.channels, count), dtype=np.float32)
+            carry = self._carry.pending_samples
+            overlap = min(carry.shape[1], count)
+            if overlap:
+                chunk[:, :overlap] += carry[:, :overlap]
+            self._carry.replace(carry[:, overlap:])
+            writer.append_samples(chunk)
+            remaining -= count
+
     def _flush_carry_to_writer(self, writer: StreamingWavShardWriter) -> None:
         pending = self._carry.pending_samples
         if pending.shape[1]:
             writer.append_samples(pending)
+            if self.preserve_time_gaps:
+                self._planned_session_audio_samples += int(pending.shape[1])
             self._carry.replace(np.zeros((self.channels, 0), dtype=np.float32))
 
     def _append_record_line(
@@ -797,6 +1014,10 @@ class SessionRecorder:
                 item = json.loads(line)
                 sample_count = int(item["audio_sample_count"])
                 block = self._read_buffer_block(audio_stream, sample_count)
+                gap_samples = int(item.get("gap_samples", 0))
+                if gap_samples:
+                    self._stream_time_gap(open_shard.wav, gap_samples)
+                self.cancellation_token.check()
                 start, desired_end = self._mix_and_append_audio(
                     open_shard.wav,
                     block,
@@ -891,6 +1112,8 @@ class SessionRecorder:
             episode.ended = True
             episode.end_frame = self._next_dataset_frame - 1
             self._current_episode = None
+            if self.preserve_time_gaps:
+                self._time_gap_cursor = TimeGapCursor()
             self._write_state()
             return None
         except CancelledWrite:
@@ -937,6 +1160,10 @@ class SessionRecorder:
                 block = self._read_buffer_block(
                     audio_stream, int(item["audio_sample_count"])
                 )
+                gap_samples = int(item.get("gap_samples", 0))
+                if gap_samples:
+                    self._stream_time_gap(open_shard.wav, gap_samples)
+                self.cancellation_token.check()
                 start, end = self._mix_and_append_audio(
                     open_shard.wav, block, is_reset=bool(item["is_reset"])
                 )
@@ -1096,13 +1323,16 @@ class SessionRecorder:
         try:
             staged.append(pending.tobytes(order="C"))
             publish_file(staged, checkpoint_dir / data_name)
+            metadata: dict[str, Any] = {
+                "channels": self.channels,
+                "next_dataset_frame_index": next_frame,
+                "sample_count": pending.shape[1],
+            }
+            if self.preserve_time_gaps:
+                metadata["time_gap_state"] = self._time_gap_state_dict()
             write_json_atomic(
                 checkpoint_dir / metadata_name,
-                {
-                    "channels": self.channels,
-                    "next_dataset_frame_index": next_frame,
-                    "sample_count": pending.shape[1],
-                },
+                metadata,
                 seam=self.seam,
                 cancellation_token=self.cancellation_token,
             )
@@ -1155,6 +1385,12 @@ class SessionRecorder:
         self._handling_cancellation = True
         try:
             self._abandon_unpublished()
+            if self.preserve_time_gaps:
+                # Gap insertion is replay-atomic: retain the last published
+                # carry/time checkpoint and let resume regenerate this frame.
+                self._close_producer_index()
+                self._closed = True
+                return
             self._finalize_manifest(completion_state="incomplete")
         finally:
             self._handling_cancellation = False
@@ -1363,6 +1599,8 @@ class SessionRecorder:
             },
             "episodes": [item.state_dict() for item in self._episodes],
         }
+        if self.preserve_time_gaps:
+            payload["time_gap_state"] = self._time_gap_state_dict()
         write_json_atomic(
             self._state_path,
             payload,
@@ -1372,6 +1610,47 @@ class SessionRecorder:
             ),
         )
         self._pending_finalization_state = finalization_state
+
+    def _time_gap_state_dict(self) -> dict[str, Any]:
+        return {
+            "cursor": self._time_gap_cursor.to_dict(),
+            "planned_session_audio_samples": self._planned_session_audio_samples,
+            "summary": dict(self._time_gap_counters),
+        }
+
+    def _restore_time_gap_state(self, value: object) -> None:
+        if not isinstance(value, dict):
+            raise SessionRecorderError(
+                f"session {self.session_root}: invalid time-gap checkpoint"
+            )
+        try:
+            cursor = TimeGapCursor.from_dict(value.get("cursor"))
+            planned = value.get("planned_session_audio_samples")
+            summary = value.get("summary")
+            if type(planned) is not int or planned < 0:
+                raise ValueError(
+                    "planned_session_audio_samples must be non-negative"
+                )
+            if not isinstance(summary, dict):
+                raise ValueError("summary must be an object")
+            counters = {
+                name: summary.get(name)
+                for name in _TIME_GAP_COUNTER_NAMES
+            }
+            if any(type(item) is not int for item in counters.values()):
+                raise ValueError("time-gap summary counters must be integers")
+            if any(
+                counters[name] < 0
+                for name in _TIME_GAP_COUNTER_NAMES[:-1]
+            ):
+                raise ValueError("time-gap summary counts must be non-negative")
+        except (TypeError, ValueError) as exc:
+            raise SessionRecorderError(
+                f"session {self.session_root}: invalid time-gap checkpoint: {exc}"
+            ) from exc
+        self._time_gap_cursor = cursor
+        self._planned_session_audio_samples = planned
+        self._time_gap_counters = counters
 
     def _open_producer_index(self) -> None:
         database_path = self._staging_root / "producer_ids.sqlite3"
@@ -1609,6 +1888,8 @@ class SessionRecorder:
             self._episode_from_state_payload(item)
             for item in state_payload.get("episodes", ())
         ]
+        if self.preserve_time_gaps:
+            self._restore_time_gap_state(state_payload.get("time_gap_state"))
         published = self._scan_published_for_resume()
         verify_shard_tiling(published)
         self._published = list(published)
@@ -1729,6 +2010,8 @@ class SessionRecorder:
                 self._planner.end_episode(episode.ordinal)
         if self._episodes and not self._episodes[-1].ended:
             self._current_episode = self._episodes[-1]
+        elif self.preserve_time_gaps and next_frame:
+            self._restore_time_gap_state(state_payload.get("time_gap_state"))
 
         self._published = list(published)
         self._write_state()
@@ -1761,6 +2044,10 @@ class SessionRecorder:
         metadata_path = checkpoint_dir / f"carry_{next_frame:012d}.json"
         data_path = checkpoint_dir / f"carry_{next_frame:012d}.f32"
         if not metadata_path.exists() or not data_path.exists():
+            if self.preserve_time_gaps and next_frame:
+                raise SessionRecorderError(
+                    f"session {self.session_root}: missing time-gap carry checkpoint"
+                )
             return np.zeros((self.channels, 0), dtype=np.float32)
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         if (
@@ -1770,6 +2057,8 @@ class SessionRecorder:
             raise SessionRecorderError(
                 f"session {self.session_root}: invalid carry checkpoint"
             )
+        if self.preserve_time_gaps:
+            self._restore_time_gap_state(metadata.get("time_gap_state"))
         sample_count = int(metadata["sample_count"])
         data = data_path.read_bytes()
         if len(data) != self.channels * sample_count * 4:

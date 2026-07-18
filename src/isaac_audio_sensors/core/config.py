@@ -118,6 +118,11 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         sources = _parse_sources(raw.get("sources"))
         arrays = _parse_arrays(raw.get("arrays", {}), sample_rate_hz=sample_rate_hz)
         effects = parse_effects_config(audio.get("effects"))
+        if effects.motion.segments_per_window > 1:
+            raise UnsupportedEffectError(
+                "audio.effects.motion.segments_per_window>1 requires a live "
+                "Isaac pose-time stream; static/offline configuration is unsupported."
+            )
         if effects.motion.derive_velocity_from_poses:
             collisions = sorted(
                 {source.source_id for source in sources}.intersection(arrays)

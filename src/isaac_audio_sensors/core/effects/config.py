@@ -117,6 +117,7 @@ class MotionEffectsConfig:
     teleport_speed_threshold_mps: float = 50.0
     stale_time_s: float = 0.5
     smoothing_alpha: float | None = None
+    segments_per_window: int = 1
 
     @property
     def enabled(self) -> bool:
@@ -266,6 +267,30 @@ def validate_effects_config(
     )
     validate_motion_effects_config(config.motion)
 
+    segments = config.motion.segments_per_window
+    if segments > 1:
+        if not config.motion.derive_velocity_from_poses:
+            raise UnsupportedEffectError(
+                "audio.effects.motion.segments_per_window>1 requires "
+                "derive_velocity_from_poses=true."
+            )
+        if backend_id not in {"room_acoustics", "room_acoustics_srp"}:
+            raise UnsupportedEffectError(
+                "audio.effects.motion.segments_per_window>1 is unsupported by "
+                f"backend {backend_id!r}; use room_acoustics or "
+                "room_acoustics_srp."
+            )
+        if runtime_profile != "waveform_fidelity":
+            raise UnsupportedEffectError(
+                "audio.effects.motion.segments_per_window>1 requires runtime "
+                "profile 'waveform_fidelity'."
+            )
+        if sample_count is not None and segments > sample_count:
+            raise UnsupportedEffectError(
+                "audio.effects.motion.segments_per_window must be no greater "
+                f"than window_sample_count={sample_count}; received {segments}."
+            )
+
     if response.enabled:
         for mic_id, mic_config in (microphones or {}).items():
             if mic_config.frequency_response is not None and (
@@ -335,6 +360,7 @@ def _parse_motion(raw: object) -> MotionEffectsConfig:
             "teleport_speed_threshold_mps",
             "stale_time_s",
             "smoothing_alpha",
+            "segments_per_window",
         },
         table_name,
     )
@@ -361,6 +387,7 @@ def _parse_motion(raw: object) -> MotionEffectsConfig:
             upper=1.0,
             optional=True,
         ),
+        segments_per_window=table.get("segments_per_window", 1),
     )
 
 
@@ -576,7 +603,7 @@ def validate_motion_effects_config(config: MotionEffectsConfig) -> None:
         raise UnsupportedEffectError(
             f"{table}.enabled=true is removed by S3.1; accepted fields are "
             "derive_velocity_from_poses, teleport_speed_threshold_mps, "
-            "stale_time_s, and smoothing_alpha."
+            "stale_time_s, smoothing_alpha, and segments_per_window."
         )
     if not isinstance(config, MotionEffectsConfig):
         raise ConfigValidationError(
@@ -587,6 +614,14 @@ def validate_motion_effects_config(config: MotionEffectsConfig) -> None:
         raise ConfigValidationError(
             f"{table}.derive_velocity_from_poses must be a bool; received "
             f"{config.derive_velocity_from_poses!r}."
+        )
+    if (
+        type(config.segments_per_window) is not int
+        or not 1 <= config.segments_per_window <= 64
+    ):
+        raise ConfigValidationError(
+            f"{table}.segments_per_window must be an exact integer in [1, 64]; "
+            f"received {config.segments_per_window!r}."
         )
     _validate_bounded_number(
         config.teleport_speed_threshold_mps,

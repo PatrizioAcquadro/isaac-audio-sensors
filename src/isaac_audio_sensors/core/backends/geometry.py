@@ -71,7 +71,10 @@ class GeometryBackend:
         mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
         effect_gain_db: dict[str, float] = {}
         effect_diagnostics: dict[str, object] = {}
-        if not self.effects.all_disabled:
+        if (
+            not self.effects.all_disabled
+            or self.effects.motion.segments_per_window != 1
+        ):
             validate_effects_config(
                 self.effects,
                 microphone_orders=(mic_ids,),

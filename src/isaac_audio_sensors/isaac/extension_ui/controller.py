@@ -462,10 +462,13 @@ class ExtensionController:
         environment_id: str | None = None,
         split_group: str | None = None,
         session_seed: int | None = None,
+        preserve_time_gaps: bool = False,
     ) -> SessionRecorder | None:
         """Start one guided dataset session and its single v1 episode."""
 
         try:
+            if type(preserve_time_gaps) is not bool:
+                raise ExtensionActionError("preserve_time_gaps must be a bool.")
             if not self.guided_workflow.goto(GuidedStage.RECORD):
                 return None
             if self._guided_recorder is not None:
@@ -502,6 +505,7 @@ class ExtensionController:
                 "environment_id": str(chosen_environment),
                 "split_group": str(chosen_group),
                 "session_seed": int(chosen_seed),
+                "preserve_time_gaps": preserve_time_gaps,
             }
             configuration = self._guided_recorder_configuration(request)
             token = CancellationToken()
@@ -873,7 +877,7 @@ class ExtensionController:
             and diagnostic_window > 0
         ):
             window_samples = diagnostic_window
-        return {
+        configuration = {
             "backend_id": self.state.backend,
             "channel_order": channel_order,
             "dataset_id": request["dataset_id"],
@@ -887,6 +891,9 @@ class ExtensionController:
             "split_grouping_key": "scene_id",
             "window_sample_count": window_samples,
         }
+        if request.get("preserve_time_gaps", False):
+            configuration["preserve_time_gaps"] = True
+        return configuration
 
     def _guided_record_frame(self, frame: Any) -> None:
         recorder = self._guided_recorder
@@ -937,6 +944,16 @@ class ExtensionController:
                     )
                 )
             recording_frame = replace(frame, waveform_paths=())
+            if recorder.preserve_time_gaps:
+                gap_diagnostic = recorder.plan_time_gap(recording_frame)
+                diagnostics = dict(recording_frame.diagnostics)
+                recording = dict(diagnostics.get("recording", {}))
+                recording["time_gap"] = gap_diagnostic
+                diagnostics["recording"] = recording
+                recording_frame = replace(
+                    recording_frame,
+                    diagnostics=diagnostics,
+                )
             result = recorder.append_frame(
                 recording_frame,
                 audio_block,
@@ -1073,6 +1090,7 @@ class ExtensionController:
             environment_id=retry["environment_id"],
             split_group=retry["split_group"],
             session_seed=retry["session_seed"],
+            preserve_time_gaps=bool(retry.get("preserve_time_gaps", False)),
         )
 
     def on_startup(self, ext_id: str) -> None:

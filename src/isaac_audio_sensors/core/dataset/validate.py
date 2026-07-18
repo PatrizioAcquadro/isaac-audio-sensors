@@ -20,6 +20,11 @@ from isaac_audio_sensors.core.dataset.layout import (
 )
 from isaac_audio_sensors.core.dataset.loader import LoadedFrame, SessionDataset
 from isaac_audio_sensors.core.dataset.statistics import Statistics, StatisticsBuilder
+from isaac_audio_sensors.core.dataset.time_gaps import (
+    TimeGapCursor,
+    advance_time_gap_cursor,
+    plan_time_gap,
+)
 from isaac_audio_sensors.core.io.traces import (
     frame_from_trace_dict,
 )
@@ -169,10 +174,16 @@ def validate_dataset(
         raise TypeError("deep_audio must be a bool.")
     root = Path(session_root)
     _reject_unsupported_input(root)
+    preserve_time_gaps = _preserve_time_gaps_enabled(root)
     try:
         dataset = SessionDataset.open(root, allow_incomplete=allow_incomplete)
     except DatasetLayoutError as exc:
-        return _report(_FindingAccumulator((_error_finding(exc),)), Statistics.empty())
+        return _report(
+            _FindingAccumulator(
+                (_error_finding(exc, time_gap_mode=preserve_time_gaps),)
+            ),
+            Statistics.empty(),
+        )
 
     findings = _FindingAccumulator()
     builder = StatisticsBuilder(dataset.manifest)
@@ -193,7 +204,9 @@ def validate_dataset(
             marker = verified.marker
             dataset._verified_markers[shard.shard_id] = marker
         except DatasetLayoutError as exc:
-            findings.add(_error_finding(exc))
+            findings.add(
+                _error_finding(exc, time_gap_mode=preserve_time_gaps)
+            )
             builder.add_skipped_shard()
             continue
         verified_markers[shard.shard_id] = marker
@@ -205,13 +218,22 @@ def validate_dataset(
                 findings.add(deep_finding)
 
     findings.extend(_split_group_findings(root, dataset, verified_markers))
+    time_gap_layout_error = False
+    if preserve_time_gaps and len(verified_markers) == len(loadable_shards):
+        try:
+            findings.extend(_time_gap_findings(root, dataset, verified_markers))
+        except DatasetLayoutError as exc:
+            findings.add(_error_finding(exc, time_gap_mode=True))
+            time_gap_layout_error = True
 
-    if len(verified_markers) == len(loadable_shards):
+    if len(verified_markers) == len(loadable_shards) and not time_gap_layout_error:
         try:
             for item in dataset.iter_records():
                 builder.add_frame(item)
         except DatasetLayoutError as exc:
-            findings.add(_error_finding(exc))
+            findings.add(
+                _error_finding(exc, time_gap_mode=preserve_time_gaps)
+            )
     else:
         # Bad shards are isolated; records from independently verified shards
         # remain useful and are streamed without attempting cross-shard claims.
@@ -255,6 +277,14 @@ def _reject_unsupported_input(root: Path) -> None:
             f"session {root} file config/session_config.json: unsupported runtime "
             "profile for dataset layout v1."
         )
+
+
+def _preserve_time_gaps_enabled(root: Path) -> bool:
+    try:
+        payload = json.loads((root / "config/session_config.json").read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    return isinstance(payload, dict) and payload.get("preserve_time_gaps") is True
 
 
 def _warning_findings(warnings: tuple[LayoutWarning, ...]) -> tuple[Finding, ...]:
@@ -350,6 +380,106 @@ def _split_group_findings(
     return tuple(findings)
 
 
+def _time_gap_findings(
+    root: Path,
+    dataset: SessionDataset,
+    markers: Mapping[str, Mapping[str, Any]],
+) -> tuple[Finding, ...]:
+    """Recompute S3.2 placement and reconcile diagnostics and shard offsets."""
+
+    config = json.loads((root / "config/session_config.json").read_bytes())
+    sample_rate_hz = int(config["sample_rate_hz"])
+    window_sample_count = int(config["window_sample_count"])
+    hop_sample_count = int(config["hop_sample_count"])
+    shard_bases: dict[str, int] = {}
+    audio_cursor = 0
+    for shard in dataset.manifest.shards:
+        marker = markers.get(shard.shard_id)
+        if marker is None:
+            continue
+        shard_bases[shard.shard_id] = audio_cursor
+        audio_cursor += int(marker["audio"]["sample_count"])
+
+    cursors: dict[str, TimeGapCursor] = {}
+    next_audio_before_gap: dict[str, int] = {}
+    findings: list[Finding] = []
+    for item in dataset.iter_records():
+        location = (
+            f"shard {item.shard_id} file frames.jsonl line {item.line_number}"
+        )
+        cursor = cursors.get(item.episode_id, TimeGapCursor())
+        actual_start = shard_bases[item.shard_id] + item.audio_start_sample
+        before_gap = next_audio_before_gap.get(item.episode_id, actual_start)
+        frame = item.frame
+        try:
+            plan = plan_time_gap(
+                cursor,
+                placement_sequence=item.dataset_frame_index,
+                start_time_s=frame.start_time_s,
+                end_time_s=frame.end_time_s,
+                timestamp_ms=frame.timestamp_ms,
+                sample_rate_hz=sample_rate_hz,
+                window_sample_count=window_sample_count,
+                hop_sample_count=hop_sample_count,
+                session_audio_start_sample=before_gap,
+            )
+        except (TypeError, ValueError) as exc:
+            detail = str(exc)
+            code = (
+                "non_monotonic_window_placement"
+                if "non-monotonic timestamp" in detail
+                or "overlapping window placement" in detail
+                else "time_gap_metadata_mismatch"
+            )
+            findings.append(
+                Finding(
+                    code=code,
+                    severity="error",
+                    location=location,
+                    detail=detail,
+                )
+            )
+            continue
+
+        if actual_start != plan.session_audio_start_sample:
+            findings.append(
+                Finding(
+                    code="unexpected_audio_gap",
+                    severity="error",
+                    location=location,
+                    detail=(
+                        f"audio starts at concatenated sample {actual_start}, "
+                        f"expected {plan.session_audio_start_sample}"
+                    ),
+                )
+            )
+        recording = frame.diagnostics.get("recording")
+        attached = (
+            recording.get("time_gap")
+            if isinstance(recording, dict)
+            else None
+        )
+        if attached != plan.diagnostic():
+            findings.append(
+                Finding(
+                    code="time_gap_metadata_mismatch",
+                    severity="error",
+                    location=location,
+                    detail="recording.time_gap disagrees with recomputed placement",
+                )
+            )
+        cursors[item.episode_id] = advance_time_gap_cursor(
+            cursor,
+            plan,
+            timestamp_ms=frame.timestamp_ms,
+            hop_sample_count=hop_sample_count,
+        )
+        next_audio_before_gap[item.episode_id] = (
+            plan.session_audio_start_sample + hop_sample_count
+        )
+    return tuple(findings)
+
+
 def _check_wav_finiteness(
     root: Path, shard_id: str, marker: Mapping[str, Any]
 ) -> Finding | None:
@@ -405,18 +535,27 @@ def _check_wav_finiteness(
         )
 
 
-def _error_finding(error: DatasetLayoutError) -> Finding:
+def _error_finding(
+    error: DatasetLayoutError,
+    *,
+    time_gap_mode: bool = False,
+) -> Finding:
     text = str(error)
     return Finding(
-        code=_finding_code(text),
+        code=_finding_code(text, time_gap_mode=time_gap_mode),
         severity="error",
         location=text,
         detail=text.split(": ", 1)[-1],
     )
 
 
-def _finding_code(text: str) -> str:
+def _finding_code(text: str, *, time_gap_mode: bool = False) -> str:
     lowered = text.lower()
+    if time_gap_mode and (
+        "non-monotonic timestamp" in lowered
+        or "non-negative and monotonic" in lowered
+    ):
+        return "non_monotonic_window_placement"
     rules = (
         (("schema_version", "marker_version", "record_version"), "unknown_version"),
         (("manifest/marker",), "manifest_marker_disagreement"),
