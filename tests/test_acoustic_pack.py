@@ -23,7 +23,7 @@ from isaac_audio_sensors.core.packs import discover_pack_installs
 from scripts.audit_acoustic_pack import audit_acoustic_pack
 from scripts.build_acoustic_pack import build_acoustic_pack
 
-VERSION = "1.9.0"
+VERSION = "1.10.0"
 ARTIFACT = (
     "isaac_audio_sensors_acoustic_pack-l2l3-"
     f"{VERSION}-linux_x86_64-cp312.tar.gz"
@@ -498,7 +498,7 @@ def test_partial_and_staging_directories_are_never_discovered(tmp_path):
     pack_parent = root / "acoustics-l2l3"
     (pack_parent / ".staging-123").mkdir(parents=True)
     (pack_parent / "missing-manifest").mkdir()
-    invalid = pack_parent / "1.9.0"
+    invalid = pack_parent / "1.10.0"
     invalid.mkdir()
     (invalid / "pack_manifest.json").write_text(
         json.dumps({"schema": "ias.acoustic_pack_manifest.v1"}),

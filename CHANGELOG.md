@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.10.0 - Unreleased
+
+Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
+development plan), in progress. `ias.audio_sensor_frame.v1` is unchanged.
+
+- All new physical-effect diagnostics are additive.
+- Every new physical effect defaults off and preserves a compatibility
+  off-state.
+
 ## 1.9.0 - Unreleased
 
 Stage 1 recording, replay, diagnostics, and operational GUI (phase S2 of the

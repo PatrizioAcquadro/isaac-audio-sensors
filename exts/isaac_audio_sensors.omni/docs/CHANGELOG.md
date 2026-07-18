@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.10.0 - Unreleased
+
+- Version aligned with package release `1.10.0` (Stage 1 dynamic acoustics
+  line). No packaged extension behavior change yet in this line.
+
 ## 1.9.0 - Unreleased
 
 - Version aligned with package release `1.9.0` (Stage 1 recording, replay,

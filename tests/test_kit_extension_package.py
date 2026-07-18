@@ -292,7 +292,7 @@ def test_version_sync_cli_and_synthetic_disagreement(tmp_path):
     makefile = synthetic / "Makefile"
     makefile.write_text(
         makefile.read_text(encoding="utf-8").replace(
-            "EXPECTED_VERSION ?= 1.9.0", "EXPECTED_VERSION ?= 9.9.9"
+            "EXPECTED_VERSION ?= 1.10.0", "EXPECTED_VERSION ?= 9.9.9"
         ),
         encoding="utf-8",
     )
