@@ -22,20 +22,28 @@ from isaac_audio_sensors.core.math_utils import (
 from isaac_audio_sensors.core.types import AudioSourceSpec, MicrophoneSpec
 
 DISTANCE_FLOOR_M = 0.1
+_DIRECTIVITY_COEFFICIENTS = {
+    "omni": 1.0,
+    "cardioid": 0.5,
+    "figure_eight": 0.0,
+    "supercardioid": 0.37,
+}
 
 
 def resolve_directivity(source: AudioSourceSpec) -> str:
     """Return the directivity model the L0/L1 backends actually apply.
 
-    Only ``"cardioid"`` is modeled, and it needs an orientation to point the
-    lobe; every other declared directivity behaves as ``"omni"``.
+    Frozen first-order families require an orientation to point any non-omni
+    lobe. Legacy unknown values and unoriented non-omni values retain the
+    pre-S3.6 metadata fallback to ``"omni"``.
     """
 
     if (
-        source.directivity == "cardioid"
+        source.directivity in _DIRECTIVITY_COEFFICIENTS
+        and source.directivity != "omni"
         and source.orientation_world_quat is not None
     ):
-        return "cardioid"
+        return source.directivity
     return "omni"
 
 
@@ -43,9 +51,10 @@ def directivity_factor(
     source: AudioSourceSpec,
     mic_position_world: Vector3,
 ) -> float:
-    """First-order directivity gain toward one microphone, in ``[0, 1]``."""
+    """Signed first-order directivity gain toward one microphone."""
 
-    if resolve_directivity(source) != "cardioid":
+    family = resolve_directivity(source)
+    if family == "omni":
         return 1.0
     forward = rotate_vector_by_quaternion(
         (1.0, 0.0, 0.0),
@@ -56,7 +65,8 @@ def directivity_factor(
     if distance <= EPSILON:
         return 1.0
     cos_theta = clamp(dot(forward, to_mic) / distance, -1.0, 1.0)
-    return (1.0 + cos_theta) / 2.0
+    coefficient = _DIRECTIVITY_COEFFICIENTS[family]
+    return coefficient + (1.0 - coefficient) * cos_theta
 
 
 def source_amplitude_at(
@@ -72,7 +82,7 @@ def source_amplitude_at(
     gain_scale = 10.0 ** ((source.gain_db + extra_gain_db) / 20.0)
     amplitude = (
         gain_scale
-        * directivity_factor(source, mic_position_world)
+        * abs(directivity_factor(source, mic_position_world))
         / max(distance, DISTANCE_FLOOR_M)
     )
     if air_absorption_db_per_m > 0.0:

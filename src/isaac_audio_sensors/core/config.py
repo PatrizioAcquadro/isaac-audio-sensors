@@ -26,6 +26,9 @@ from isaac_audio_sensors.core.effects.config import (
     parse_effects_config,
     validate_effects_config,
 )
+from isaac_audio_sensors.core.effects.directivity import (
+    microphone_world_orientation,
+)
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.math_utils import basis_from_quaternion
 from isaac_audio_sensors.core.types import (
@@ -89,9 +92,7 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             raise ConfigValidationError(
                 f"audio.default_backend must be one of {sorted(KNOWN_BACKENDS)}."
             )
-        runtime_profile = str(
-            audio.get("runtime_profile", DEFAULT_RUNTIME_PROFILE)
-        )
+        runtime_profile = str(audio.get("runtime_profile", DEFAULT_RUNTIME_PROFILE))
         if runtime_profile not in RUNTIME_PROFILES:
             raise ConfigValidationError(
                 f"audio.runtime_profile must be one of {list(RUNTIME_PROFILES)}."
@@ -153,6 +154,18 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             backend_id=default_backend,
             runtime_profile=runtime_profile,
             microphone_self_noise_db=microphone_self_noise_db,
+            source_ids=tuple(source.source_id for source in sources),
+            source_orientations={
+                source.source_id: source.orientation_world_quat for source in sources
+            },
+            microphone_orientations={
+                microphone.mic_id: microphone_world_orientation(
+                    array.orientation_world_quat,
+                    microphone.relative_orientation_quat,
+                )
+                for array in arrays.values()
+                for microphone in array.microphones
+            },
         )
         room = _parse_room(raw.get("room"))
         lab = dict(raw.get("lab", {}))

@@ -150,19 +150,49 @@ class ElectronicsConfig:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class DirectivityConfig:
-    """Reserved S3.6 configuration container; behavior is not implemented."""
+class DirectivityFrequencyPointConfig:
+    """One relative waveform-directivity magnitude point."""
 
-    enabled: bool = False
-    source_pattern: object | None = None
-    microphone_pattern: object | None = None
-    mode: object | None = None
+    freq_hz: float | None = None
+    gain_db: float | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class DirectivityPatternConfig:
+    """One signed first-order polar family and optional frequency response."""
+
+    family: str | None = None
+    frequency_points: tuple[DirectivityFrequencyPointConfig, ...] | None = None
 
     def __post_init__(self) -> None:
-        for name in ("source_pattern", "microphone_pattern", "mode"):
-            value = getattr(self, name)
-            if value is not None:
-                object.__setattr__(self, name, _freeze(value))
+        if self.frequency_points is not None:
+            object.__setattr__(self, "frequency_points", tuple(self.frequency_points))
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class DirectivityPatternSetConfig:
+    """Default pattern plus exact entity-id overrides."""
+
+    default: DirectivityPatternConfig | None = None
+    overrides: Mapping[str, DirectivityPatternConfig] | None = None
+
+    def __post_init__(self) -> None:
+        if self.overrides is not None:
+            object.__setattr__(
+                self,
+                "overrides",
+                MappingProxyType(dict(self.overrides)),
+            )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class DirectivityConfig:
+    """Frozen S3.6 source/microphone waveform-directivity configuration."""
+
+    enabled: bool = False
+    source_patterns: DirectivityPatternSetConfig | None = None
+    mic_patterns: DirectivityPatternSetConfig | None = None
+    mode: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -232,12 +262,7 @@ def parse_effects_config(raw: object) -> EffectsConfig:
         channel_response=_parse_channel_response(effects.get("channel_response")),
         noise=_parse_noise(effects.get("noise")),
         electronics=_parse_electronics(effects.get("electronics")),
-        directivity=_parse_reserved(
-            effects.get("directivity"),
-            table="audio.effects.directivity",
-            record=DirectivityConfig,
-            fields=("source_pattern", "microphone_pattern", "mode"),
-        ),
+        directivity=_parse_directivity(effects.get("directivity")),
         motion=_parse_motion(effects.get("motion")),
     )
 
@@ -251,6 +276,11 @@ def validate_effects_config(
     runtime_profile: str,
     sample_count: int | None = None,
     microphone_self_noise_db: Mapping[str, float | None] | None = None,
+    source_ids: Sequence[str] | None = None,
+    source_orientations: Mapping[str, tuple[float, float, float, float] | None]
+    | None = None,
+    microphone_orientations: Mapping[str, tuple[float, float, float, float] | None]
+    | None = None,
 ) -> None:
     """Validate effects against arrays and a concrete backend/profile envelope."""
 
@@ -322,8 +352,19 @@ def validate_effects_config(
         runtime_profile=runtime_profile,
         sample_count=sample_count,
     )
-    _validate_reserved_stage(
-        config.directivity, "directivity", backend_id, runtime_profile
+    from isaac_audio_sensors.core.effects.directivity import (
+        validate_directivity_config,
+    )
+
+    validate_directivity_config(
+        config.directivity,
+        microphone_orders=orders,
+        sample_rate_hz=sample_rate_hz,
+        backend_id=backend_id,
+        runtime_profile=runtime_profile,
+        source_ids=source_ids,
+        source_orientations=source_orientations,
+        microphone_orientations=microphone_orientations,
     )
     validate_motion_effects_config(config.motion)
 
@@ -483,6 +524,127 @@ def _parse_electronics(raw: object) -> ElectronicsConfig:
         dither_enabled=dither,
         agc=_parse_agc(table.get("agc")),
     )
+
+
+def _parse_directivity(raw: object) -> DirectivityConfig:
+    if raw is None:
+        return DirectivityConfig()
+    table_name = "audio.effects.directivity"
+    table = _mapping(raw, table_name)
+    _reject_unknown(
+        table,
+        {"enabled", "source_patterns", "mic_patterns", "mode"},
+        table_name,
+    )
+    mode = table.get("mode")
+    if mode is not None and not isinstance(mode, str):
+        raise UnsupportedEffectError(
+            f"{table_name}.mode must be exactly 'per_pair_direct_path' or None; "
+            f"received {mode!r}."
+        )
+    return DirectivityConfig(
+        enabled=_bool(table.get("enabled", False), f"{table_name}.enabled"),
+        source_patterns=_parse_directivity_pattern_set(
+            table.get("source_patterns"),
+            table=f"{table_name}.source_patterns",
+            entity_label="AudioSourceSpec.source_id",
+        ),
+        mic_patterns=_parse_directivity_pattern_set(
+            table.get("mic_patterns"),
+            table=f"{table_name}.mic_patterns",
+            entity_label="MicrophoneSpec.mic_id",
+        ),
+        mode=mode,
+    )
+
+
+def _parse_directivity_pattern_set(
+    raw: object,
+    *,
+    table: str,
+    entity_label: str,
+) -> DirectivityPatternSetConfig | None:
+    if raw is None:
+        return None
+    values = _mapping(raw, table)
+    _reject_unknown(values, {"default", "overrides"}, table)
+    overrides_raw = values.get("overrides")
+    overrides: Mapping[str, DirectivityPatternConfig] | None = None
+    if overrides_raw is not None:
+        override_table = _mapping(overrides_raw, f"{table}.overrides")
+        normalized_ids = tuple(str(raw_id) for raw_id in override_table)
+        if len(set(normalized_ids)) != len(normalized_ids):
+            duplicate = next(
+                entity_id
+                for index, entity_id in enumerate(normalized_ids)
+                if entity_id in normalized_ids[:index]
+            )
+            raise ConfigValidationError(
+                f"{table}.overrides contains duplicate id {duplicate!r} "
+                "after normalization."
+            )
+        parsed_overrides: dict[str, DirectivityPatternConfig] = {}
+        for raw_id, raw_pattern in override_table.items():
+            entity_id = str(raw_id)
+            if not isinstance(raw_id, str) or not entity_id:
+                raise ConfigValidationError(
+                    f"{table}.overrides ids must be exact non-empty {entity_label} "
+                    f"strings; received {raw_id!r}."
+                )
+            parsed_overrides[entity_id] = _parse_directivity_pattern(
+                raw_pattern,
+                table=f"{table}.overrides.{entity_id}",
+            )
+        overrides = MappingProxyType(parsed_overrides)
+    default_raw = values.get("default")
+    return DirectivityPatternSetConfig(
+        default=(
+            None
+            if default_raw is None
+            else _parse_directivity_pattern(default_raw, table=f"{table}.default")
+        ),
+        overrides=overrides,
+    )
+
+
+def _parse_directivity_pattern(
+    raw: object,
+    *,
+    table: str,
+) -> DirectivityPatternConfig:
+    values = _mapping(raw, table)
+    _reject_unknown(values, {"family", "frequency_points"}, table)
+    family = values.get("family")
+    if family is not None and not isinstance(family, str):
+        raise ConfigValidationError(
+            f"{table}.family must be an exact case-sensitive string; received "
+            f"{family!r}."
+        )
+    raw_points = values.get("frequency_points")
+    points: tuple[DirectivityFrequencyPointConfig, ...] | None = None
+    if raw_points is not None:
+        if not isinstance(raw_points, (list, tuple)):
+            raise ConfigValidationError(
+                f"{table}.frequency_points must be a sequence of tables; "
+                f"received {type(raw_points).__name__}."
+            )
+        parsed: list[DirectivityFrequencyPointConfig] = []
+        for index, raw_point in enumerate(raw_points):
+            point_table_name = f"{table}.frequency_points[{index}]"
+            point = _mapping(raw_point, point_table_name)
+            _reject_unknown(point, {"freq_hz", "gain_db"}, point_table_name)
+            parsed.append(
+                DirectivityFrequencyPointConfig(
+                    freq_hz=_optional_float(
+                        point.get("freq_hz"), f"{point_table_name}.freq_hz"
+                    ),
+                    gain_db=_optional_float(
+                        point.get("gain_db"), f"{point_table_name}.gain_db"
+                    ),
+                )
+            )
+        points = tuple(parsed)
+    return DirectivityPatternConfig(family=family, frequency_points=points)
 
 
 def _parse_agc(raw: object) -> AgcConfig | None:
@@ -1616,6 +1778,9 @@ __all__ = [
     "ChannelResponseConfig",
     "ChannelResponseMicConfig",
     "DirectivityConfig",
+    "DirectivityFrequencyPointConfig",
+    "DirectivityPatternConfig",
+    "DirectivityPatternSetConfig",
     "EffectsConfig",
     "ElectronicsConfig",
     "FrequencyResponsePointConfig",

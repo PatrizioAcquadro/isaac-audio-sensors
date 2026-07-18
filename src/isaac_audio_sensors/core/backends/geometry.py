@@ -15,6 +15,7 @@ from isaac_audio_sensors.core.effects.config import (
     EffectsConfig,
     validate_effects_config,
 )
+from isaac_audio_sensors.core.effects.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.noise import metadata_noise_timing_values
 from isaac_audio_sensors.core.math_utils import (
     bearing_from_components,
@@ -89,7 +90,7 @@ class GeometryBackend:
         effect_gain_db: dict[str, float] = {}
         effect_diagnostics: dict[str, object] = {}
         if (
-            not self.effects.all_disabled
+            self.effects != EffectsConfig()
             or self.effects.motion.segments_per_window != 1
         ):
             validate_effects_config(
@@ -101,6 +102,18 @@ class GeometryBackend:
                 sample_count=sample_count,
                 microphone_self_noise_db={
                     microphone.mic_id: microphone.self_noise_db
+                    for microphone in sensor.microphones
+                },
+                source_ids=tuple(source.source_id for source in scene.sources),
+                source_orientations={
+                    source.source_id: source.orientation_world_quat
+                    for source in scene.sources
+                },
+                microphone_orientations={
+                    microphone.mic_id: microphone_world_orientation(
+                        sensor.orientation_world_quat,
+                        microphone.relative_orientation_quat,
+                    )
                     for microphone in sensor.microphones
                 },
             )

@@ -28,9 +28,16 @@ from isaac_audio_sensors.core.doa.srp_phat import (
 from isaac_audio_sensors.core.doppler import source_doppler_factor
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import (
+    DirectivityConfig,
     EffectsConfig,
     UnsupportedEffectError,
     validate_effects_config,
+)
+from isaac_audio_sensors.core.effects.directivity import (
+    apply_pair_directivity,
+    directivity_diagnostics,
+    microphone_world_orientation,
+    resolve_pattern,
 )
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
@@ -179,9 +186,7 @@ class RoomAcousticsBackend:
                 ambiguity_class=None,
                 ambiguity_reason=None,
                 estimated_elevation_deg=elevation,
-                candidate_elevation_deg=(
-                    () if elevation is None else (elevation,)
-                ),
+                candidate_elevation_deg=(() if elevation is None else (elevation,)),
             )
             return doa, {
                 "doa_estimator": "srp_phat",
@@ -222,7 +227,6 @@ class RoomAcousticsBackend:
                 "audio.effects.motion.segments_per_window>1 requires a live "
                 "bracketed window-motion plan."
             )
-        pra = _import_pyroomacoustics()
         frame_id = deterministic_frame_id(
             backend_id=self.backend_id,
             stage_id=scene.stage_id,
@@ -239,17 +243,23 @@ class RoomAcousticsBackend:
             microphone.mic_id: microphone.self_noise_db
             for microphone in sensor.microphones
         }
+        microphone_orientations = {
+            microphone.mic_id: microphone_world_orientation(
+                sensor.orientation_world_quat,
+                microphone.relative_orientation_quat,
+            )
+            for microphone in sensor.microphones
+        }
         window_sample_count = max(
             1,
             int(
                 round(
-                    (time_window.end_time_s - time_window.start_time_s)
-                    * sample_rate_hz
+                    (time_window.end_time_s - time_window.start_time_s) * sample_rate_hz
                 )
             ),
         )
         if (
-            not self.effects.all_disabled
+            self.effects != EffectsConfig()
             or self.effects.motion.segments_per_window != 1
         ):
             validate_effects_config(
@@ -260,6 +270,12 @@ class RoomAcousticsBackend:
                 runtime_profile=self.runtime_profile,
                 sample_count=window_sample_count,
                 microphone_self_noise_db=microphone_self_noise_db,
+                source_ids=tuple(source.source_id for source in scene.sources),
+                source_orientations={
+                    source.source_id: source.orientation_world_quat
+                    for source in scene.sources
+                },
+                microphone_orientations=microphone_orientations,
             )
         if segments_per_window > 1:
             assert self.window_motion is not None
@@ -271,6 +287,7 @@ class RoomAcousticsBackend:
                 raise UnsupportedEffectError(
                     "window-motion plan disagrees with the configured capture window"
                 )
+        pra = _import_pyroomacoustics()
 
         detections: list[AudioDetection] = []
         active = active_sources(scene, time_window)
@@ -297,6 +314,7 @@ class RoomAcousticsBackend:
                     time_window=time_window,
                     plan=self.window_motion,
                     speed_of_sound_mps=self.speed_of_sound_mps,
+                    directivity_config=self.effects.directivity,
                 )
                 room = piecewise.last_room
                 scheduled = list(piecewise.scheduled)
@@ -312,8 +330,7 @@ class RoomAcousticsBackend:
                     for source in active
                 }
                 microphone_positions = {
-                    f"mic:{mic_id}": position
-                    for mic_id, position in mic_world.items()
+                    f"mic:{mic_id}": position for mic_id, position in mic_world.items()
                 }
                 room_positions, clamped_position_ids = _world_to_room_positions(
                     room_spec=scene.room,
@@ -373,6 +390,25 @@ class RoomAcousticsBackend:
                     source_count=len(active),
                     mic_count=len(mic_ids),
                 )
+                if self.effects.directivity.enabled:
+                    premix, diagnostics = _apply_directivity_to_premix(
+                        premix,
+                        active=active,
+                        sensor=sensor,
+                        microphone_positions_world=mic_world,
+                        sample_rate_hz=sample_rate_hz,
+                        config=self.effects.directivity,
+                    )
+                    if diagnostics:
+                        effect_diagnostics["directivity"] = diagnostics
+            if segments_per_window > 1 and self.effects.directivity.enabled:
+                diagnostics = directivity_diagnostics(
+                    self.effects.directivity,
+                    active_source_ids=tuple(source.source_id for source in active),
+                    microphone_ids=mic_ids,
+                )
+                if diagnostics:
+                    effect_diagnostics["directivity"] = diagnostics
             # Occlusion attenuates the per-source/per-mic premix before
             # summing, so the mixture, per-source premix RMS, aggregate RMS,
             # GCC-PHAT diagnostics, and exported waveforms all stay mutually
@@ -382,9 +418,7 @@ class RoomAcousticsBackend:
                 occlusion = scene.occlusion_for(sensor.array_id, source.source_id)
                 if occlusion is None:
                     continue
-                per_mic_gain_db = occlusion_per_mic_extra_gain_db(
-                    occlusion, mic_ids
-                )
+                per_mic_gain_db = occlusion_per_mic_extra_gain_db(occlusion, mic_ids)
                 for mic_index, mic_id in enumerate(mic_ids):
                     band = occlusion_band_attenuation_db(occlusion, mic_id)
                     if band is not None:
@@ -458,17 +492,13 @@ class RoomAcousticsBackend:
                     # Active but silent in this window (e.g. an exhausted file
                     # asset): GCC-PHAT is undefined on all-zero signals.
                     tdoa_matrix = {
-                        f"{left}->{right}": 0.0
-                        for left in mic_ids
-                        for right in mic_ids
+                        f"{left}->{right}": 0.0 for left in mic_ids for right in mic_ids
                     }
                     gcc_peaks = {key: 0.0 for key in tdoa_matrix}
                     per_mic_delay_s = {mic_id: 0.0 for mic_id in mic_ids}
                 per_mic_rms = rms_by_channel(source_waveforms)
                 source_room = source_room_positions[source.source_id]
-                rir_length_samples = _rir_lengths(
-                    room, mic_ids, source_index=index
-                )
+                rir_length_samples = _rir_lengths(room, mic_ids, source_index=index)
                 rir_peak_delay_s = _rir_peak_delays(
                     room, mic_ids, sample_rate_hz, source_index=index
                 )
@@ -496,8 +526,7 @@ class RoomAcousticsBackend:
                 )
                 oracle_bearing_error = (
                     None
-                    if doa.estimated_bearing_deg is None
-                    or ground_truth_bearing is None
+                    if doa.estimated_bearing_deg is None or ground_truth_bearing is None
                     else angular_error_deg(
                         doa.estimated_bearing_deg,
                         ground_truth_bearing,
@@ -572,9 +601,7 @@ class RoomAcousticsBackend:
                             ),
                             **(
                                 {
-                                    "doppler_factor": doppler_factors[
-                                        source.source_id
-                                    ],
+                                    "doppler_factor": doppler_factors[source.source_id],
                                     "doppler_waveform_rendered": abs(
                                         doppler_factors[source.source_id] - 1.0
                                     )
@@ -627,10 +654,7 @@ class RoomAcousticsBackend:
                 effect_diagnostics.update(diagnostics)
 
         aggregate_per_mic_rms = rms_by_channel(
-            {
-                mic_id: mixture[mic_index]
-                for mic_index, mic_id in enumerate(mic_ids)
-            }
+            {mic_id: mixture[mic_index] for mic_index, mic_id in enumerate(mic_ids)}
         )
         frame_diagnostics: dict[str, Any] = {
             "backend": self.backend_id,
@@ -769,11 +793,7 @@ def _piecewise_phase_signal(
             fraction = cursor - lower
             first = source[lower] if 0 <= lower < source.size else 0.0
             second_index = lower + 1
-            second = (
-                source[second_index]
-                if 0 <= second_index < source.size
-                else 0.0
-            )
+            second = source[second_index] if 0 <= second_index < source.size else 0.0
             output[output_index] = first + fraction * (second - first)
             output_index += 1
             cursor += factor
@@ -789,13 +809,13 @@ def _simulate_piecewise_room(
     time_window: AudioTimeWindow,
     plan: WindowMotionPlan,
     speed_of_sound_mps: float,
+    directivity_config: DirectivityConfig,
 ) -> _PiecewiseRoomResult:
     """Simulate segment midpoint geometry and overlap-add every RIR tail."""
 
     mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
     scheduled = tuple(
-        _scheduled_window_signal(source, time_window=time_window)
-        for source in active
+        _scheduled_window_signal(source, time_window=time_window) for source in active
     )
     factor_rows: list[dict[str, float]] = []
     factors_by_source: dict[str, list[float]] = {
@@ -816,10 +836,9 @@ def _simulate_piecewise_room(
                 position_world=source_motion.midpoint_position_world_m,
                 velocity_world_mps=source_motion.velocity_world_mps,
             )
-            if (
-                source_motion.velocity_source.startswith("none:")
-                or array_motion.velocity_source.startswith("none:")
-            ):
+            if source_motion.velocity_source.startswith(
+                "none:"
+            ) or array_motion.velocity_source.startswith("none:"):
                 factor = 1.0
             else:
                 factor = source_doppler_factor(
@@ -851,16 +870,24 @@ def _simulate_piecewise_room(
     last_source_room: dict[str, tuple[float, float, float]] = {}
     last_mic_room: dict[str, tuple[float, float, float]] = {}
     for segment in plan.segments:
-        array_position = segment.entities[
-            sensor.array_id
-        ].midpoint_position_world_m
+        array_position = segment.entities[sensor.array_id].midpoint_position_world_m
         segment_sensor = replace(sensor, position_world=array_position)
         mic_world = microphone_world_positions(segment_sensor)
-        source_positions = {
-            f"source:{source.source_id}": segment.entities[
-                source.source_id
-            ].midpoint_position_world_m
+        segment_sources = tuple(
+            replace(
+                source,
+                position_world=segment.entities[
+                    source.source_id
+                ].midpoint_position_world_m,
+                velocity_world_mps=segment.entities[
+                    source.source_id
+                ].velocity_world_mps,
+            )
             for source in active
+        )
+        source_positions = {
+            f"source:{source.source_id}": source.position_world
+            for source in segment_sources
         }
         microphone_positions = {
             f"mic:{mic_id}": position for mic_id, position in mic_world.items()
@@ -874,9 +901,7 @@ def _simulate_piecewise_room(
             source.source_id: room_positions[f"source:{source.source_id}"]
             for source in active
         }
-        mic_room = {
-            mic_id: room_positions[f"mic:{mic_id}"] for mic_id in mic_ids
-        }
+        mic_room = {mic_id: room_positions[f"mic:{mic_id}"] for mic_id in mic_ids}
         room = _build_shoebox_room(
             pra=pra,
             room_spec=room_spec,
@@ -890,9 +915,7 @@ def _simulate_piecewise_room(
                     segment.start_sample : segment.end_sample
                 ],
             )
-        mic_matrix = np.asarray(
-            [mic_room[mic_id] for mic_id in mic_ids], dtype=float
-        ).T
+        mic_matrix = np.asarray([mic_room[mic_id] for mic_id in mic_ids], dtype=float).T
         _add_microphone_array(
             pra,
             room,
@@ -905,6 +928,15 @@ def _simulate_piecewise_room(
             source_count=len(active),
             mic_count=len(mic_ids),
         )
+        if directivity_config.enabled:
+            segment_premix, _diagnostics = _apply_directivity_to_premix(
+                segment_premix,
+                active=segment_sources,
+                sensor=segment_sensor,
+                microphone_positions_world=mic_world,
+                sample_rate_hz=plan.sample_rate_hz,
+                config=directivity_config,
+            )
         required = segment.start_sample + segment_premix.shape[2]
         if required > assembled.shape[2]:
             expanded = np.zeros(
@@ -932,6 +964,50 @@ def _simulate_piecewise_room(
     )
 
 
+def _apply_directivity_to_premix(
+    premix: np.ndarray,
+    *,
+    active: tuple[AudioSourceSpec, ...],
+    sensor: MicrophoneArraySpec,
+    microphone_positions_world: dict[str, tuple[float, float, float]],
+    sample_rate_hz: int,
+    config: DirectivityConfig,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Weight every complete pair stem using its direct-path angle."""
+
+    mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
+    diagnostics = directivity_diagnostics(
+        config,
+        active_source_ids=tuple(source.source_id for source in active),
+        microphone_ids=mic_ids,
+    )
+    if not diagnostics:
+        return premix, {}
+    output = premix.copy()
+    microphone_orientations = {
+        microphone.mic_id: microphone_world_orientation(
+            sensor.orientation_world_quat,
+            microphone.relative_orientation_quat,
+        )
+        for microphone in sensor.microphones
+    }
+    for source_index, source in enumerate(active):
+        source_pattern = resolve_pattern(config.source_patterns, source.source_id)
+        for mic_index, mic_id in enumerate(mic_ids):
+            microphone_pattern = resolve_pattern(config.mic_patterns, mic_id)
+            output[source_index, mic_index] = apply_pair_directivity(
+                output[source_index, mic_index],
+                source_pattern=source_pattern,
+                microphone_pattern=microphone_pattern,
+                source_position_world=source.position_world,
+                source_orientation_world_xyzw=source.orientation_world_quat,
+                microphone_position_world=microphone_positions_world[mic_id],
+                microphone_orientation_world_xyzw=microphone_orientations[mic_id],
+                sample_rate_hz=sample_rate_hz,
+            )
+    return output, diagnostics
+
+
 def _scheduled_window_signal(
     source: AudioSourceSpec,
     *,
@@ -946,16 +1022,10 @@ def _scheduled_window_signal(
 
     sample_rate_hz = time_window.sample_rate_hz
     start_offset_samples = int(
-        round(
-            max(0.0, source.start_time_s - time_window.start_time_s)
-            * sample_rate_hz
-        )
+        round(max(0.0, source.start_time_s - time_window.start_time_s) * sample_rate_hz)
     )
     elapsed_samples = int(
-        round(
-            max(0.0, time_window.start_time_s - source.start_time_s)
-            * sample_rate_hz
-        )
+        round(max(0.0, time_window.start_time_s - source.start_time_s) * sample_rate_hz)
     )
     source_end_s = (
         math.inf
@@ -993,9 +1063,7 @@ def _scheduled_window_signal(
             content_samples=content_samples,
             source_end_s=source_end_s,
         )
-    signal = np.concatenate(
-        [np.zeros(start_offset_samples, dtype=float), content]
-    )
+    signal = np.concatenate([np.zeros(start_offset_samples, dtype=float), content])
     if signal.size == 0:
         signal = np.zeros(1, dtype=float)
     return _ScheduledSignal(
@@ -1027,9 +1095,9 @@ def _generated_source_content(
         return np.zeros(0, dtype=float)
     seed = int(hashlib.sha256(source.source_id.encode("utf-8")).hexdigest()[:8], 16)
     frequency_hz = 550.0 + float(seed % 700)
-    time_s = (
-        elapsed_samples + np.arange(content_samples, dtype=float)
-    ) / float(sample_rate_hz)
+    time_s = (elapsed_samples + np.arange(content_samples, dtype=float)) / float(
+        sample_rate_hz
+    )
     waveform = (
         np.sin(2.0 * math.pi * frequency_hz * time_s)
         + _SECONDARY_TONE_GAIN
@@ -1176,9 +1244,7 @@ def _apply_band_attenuation(
     gains_db = -np.asarray(band_attenuation_db, dtype=float)
     frequencies = np.fft.rfftfreq(sample_count, d=1.0 / float(sample_rate_hz))
     log_frequencies = np.log2(np.maximum(frequencies, centers[0] / 4.0))
-    gain_curve = 10.0 ** (
-        np.interp(log_frequencies, np.log2(centers), gains_db) / 20.0
-    )
+    gain_curve = 10.0 ** (np.interp(log_frequencies, np.log2(centers), gains_db) / 20.0)
     spectrum = np.fft.rfft(waveform) * gain_curve
     return np.fft.irfft(spectrum, n=sample_count)
 
@@ -1252,8 +1318,7 @@ def _resample_waveform(
         from scipy.signal import resample_poly  # type: ignore
     except ImportError as exc:
         raise OptionalDependencyUnavailable(
-            "Resampling audio_asset_path files requires scipy from the "
-            "'room' extra."
+            "Resampling audio_asset_path files requires scipy from the 'room' extra."
         ) from exc
     divisor = math.gcd(from_hz, to_hz)
     return np.asarray(
@@ -1332,9 +1397,7 @@ def _world_to_room_positions(
     room_positions: dict[str, tuple[float, float, float]] = {}
     clamped_ids: list[str] = []
     for key, position in positions.items():
-        room_position = [
-            float(position[axis] - origin[axis]) for axis in range(3)
-        ]
+        room_position = [float(position[axis] - origin[axis]) for axis in range(3)]
         out_of_bounds = any(
             room_position[axis] < 0.0 or room_position[axis] > dimensions[axis]
             for axis in range(3)
@@ -1355,9 +1418,7 @@ def _world_to_room_positions(
                     if room_spec.anchor_prim_path is not None
                     else ""
                 )
-                max_corner = tuple(
-                    origin[axis] + dimensions[axis] for axis in range(3)
-                )
+                max_corner = tuple(origin[axis] + dimensions[axis] for axis in range(3))
                 raise ValueError(
                     f"room_acoustics position {key!r} at world "
                     f"{tuple(float(value) for value in position)} is outside "

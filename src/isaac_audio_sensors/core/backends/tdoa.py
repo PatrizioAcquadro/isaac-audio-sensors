@@ -25,6 +25,7 @@ from isaac_audio_sensors.core.effects.config import (
     EffectsConfig,
     validate_effects_config,
 )
+from isaac_audio_sensors.core.effects.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.noise import metadata_noise_timing_values
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
@@ -132,7 +133,7 @@ class TdoaSyntheticBackend:
         effect_delay_s: dict[str, float] = {}
         effect_diagnostics: dict[str, object] = {}
         if (
-            not self.effects.all_disabled
+            self.effects != EffectsConfig()
             or self.effects.motion.segments_per_window != 1
         ):
             validate_effects_config(
@@ -144,6 +145,18 @@ class TdoaSyntheticBackend:
                 sample_count=sample_count,
                 microphone_self_noise_db={
                     microphone.mic_id: microphone.self_noise_db
+                    for microphone in sensor.microphones
+                },
+                source_ids=tuple(source.source_id for source in scene.sources),
+                source_orientations={
+                    source.source_id: source.orientation_world_quat
+                    for source in scene.sources
+                },
+                microphone_orientations={
+                    microphone.mic_id: microphone_world_orientation(
+                        sensor.orientation_world_quat,
+                        microphone.relative_orientation_quat,
+                    )
                     for microphone in sensor.microphones
                 },
             )
@@ -167,9 +180,7 @@ class TdoaSyntheticBackend:
                 sample_count=sample_count,
             )
             for mic_id, offset_s in noise_offsets.items():
-                effect_delay_s[mic_id] = (
-                    effect_delay_s.get(mic_id, 0.0) + offset_s
-                )
+                effect_delay_s[mic_id] = effect_delay_s.get(mic_id, 0.0) + offset_s
             if noise_diagnostics:
                 effect_diagnostics["noise"] = noise_diagnostics
         detections: list[AudioDetection] = []
@@ -209,8 +220,7 @@ class TdoaSyntheticBackend:
             )
             oracle_elevation_error = (
                 None
-                if doa.estimated_elevation_deg is None
-                or ground_truth_elevation is None
+                if doa.estimated_elevation_deg is None or ground_truth_elevation is None
                 else abs(doa.estimated_elevation_deg - ground_truth_elevation)
             )
             for mic_id, rms in delay_result.per_mic_rms.items():
@@ -262,9 +272,7 @@ class TdoaSyntheticBackend:
                         "directivity_applied": resolve_directivity(source),
                         "oracle_bearing_error_deg": oracle_bearing_error,
                         "oracle_elevation_error_deg": oracle_elevation_error,
-                        "per_mic_gain_offset_db": (
-                            delay_result.per_mic_gain_offset_db
-                        ),
+                        "per_mic_gain_offset_db": (delay_result.per_mic_gain_offset_db),
                         "stress_controls_deterministic": True,
                         **doppler_diagnostics,
                         **occlusion_detection_diagnostics(occlusion),
@@ -514,9 +522,7 @@ class TdoaSyntheticBackend:
                 ambiguity_reason="Least-squares direction has zero horizontal norm.",
             )
         elevation = (
-            None
-            if uz is None
-            else math.degrees(math.asin(clamp(uz, -1.0, 1.0)))
+            None if uz is None else math.degrees(math.asin(clamp(uz, -1.0, 1.0)))
         )
         residual_penalty = 1.0 / (1.0 + residual * 40.0)
         confidence = 0.95 * self._stress_penalty(0.001) * residual_penalty
@@ -665,9 +671,7 @@ def _least_squares_direction(
     """
 
     if layout_rank_xyz(sensor) >= 3:
-        return _least_squares_direction_3d(
-            sensor, per_mic_delay_s, speed_of_sound_mps
-        )
+        return _least_squares_direction_3d(sensor, per_mic_delay_s, speed_of_sound_mps)
     microphones = sensor.microphones
     ref = microphones[0]
     ref_pos = ref.relative_position_m
