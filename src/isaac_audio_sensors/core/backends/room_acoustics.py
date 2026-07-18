@@ -282,6 +282,11 @@ class RoomAcousticsBackend:
                     sensor,
                     speed_of_sound_mps=self.speed_of_sound_mps,
                 )
+                if (
+                    factor is None
+                    and self.effects.motion.derive_velocity_from_poses
+                ):
+                    factor = 1.0
                 if factor is not None:
                     doppler_factors[source.source_id] = factor
                     if abs(factor - 1.0) > 1e-9:

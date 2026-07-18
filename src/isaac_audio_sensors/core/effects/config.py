@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from numbers import Real
 from types import MappingProxyType
 from typing import Any
 
@@ -110,14 +111,28 @@ class DirectivityConfig:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class MotionEffectsConfig:
-    """Reserved routing container for the separately owned motion effects."""
+    """Pose-derived linear-velocity policy configuration."""
 
-    enabled: bool = False
-    settings: object | None = None
+    derive_velocity_from_poses: bool = False
+    teleport_speed_threshold_mps: float = 50.0
+    stale_time_s: float = 0.5
+    smoothing_alpha: float | None = None
 
-    def __post_init__(self) -> None:
-        if self.settings is not None:
-            object.__setattr__(self, "settings", _freeze(self.settings))
+    @property
+    def enabled(self) -> bool:
+        """Compatibility view of the motion activation bit."""
+
+        return self.derive_velocity_from_poses
+
+
+class _LegacyEnabledMotionEffectsConfig(MotionEffectsConfig):
+    """Parser marker so the removed ``enabled`` key fails during validation."""
+
+    __slots__ = ()
+
+    @property
+    def enabled(self) -> bool:
+        return True
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -176,12 +191,7 @@ def parse_effects_config(raw: object) -> EffectsConfig:
             record=DirectivityConfig,
             fields=("source_pattern", "microphone_pattern", "mode"),
         ),
-        motion=_parse_reserved(
-            effects.get("motion"),
-            table="audio.effects.motion",
-            record=MotionEffectsConfig,
-            fields=("settings",),
-        ),
+        motion=_parse_motion(effects.get("motion")),
     )
 
 
@@ -254,7 +264,7 @@ def validate_effects_config(
     _validate_reserved_stage(
         config.directivity, "directivity", backend_id, runtime_profile
     )
-    _validate_reserved_stage(config.motion, "motion", backend_id, runtime_profile)
+    validate_motion_effects_config(config.motion)
 
     if response.enabled:
         for mic_id, mic_config in (microphones or {}).items():
@@ -309,6 +319,49 @@ def _parse_channel_response(raw: object) -> ChannelResponseConfig:
             normalized[mic_id] = _parse_mic_config(mic_id, raw_mic)
         microphones = MappingProxyType(normalized)
     return ChannelResponseConfig(enabled=enabled, microphones=microphones)
+
+
+def _parse_motion(raw: object) -> MotionEffectsConfig:
+    if raw is None:
+        return MotionEffectsConfig()
+    table_name = "audio.effects.motion"
+    table = _mapping(raw, table_name)
+    if set(table) == {"enabled"} and table["enabled"] is True:
+        return _LegacyEnabledMotionEffectsConfig()
+    _reject_unknown(
+        table,
+        {
+            "derive_velocity_from_poses",
+            "teleport_speed_threshold_mps",
+            "stale_time_s",
+            "smoothing_alpha",
+        },
+        table_name,
+    )
+    return MotionEffectsConfig(
+        derive_velocity_from_poses=_bool(
+            table.get("derive_velocity_from_poses", False),
+            f"{table_name}.derive_velocity_from_poses",
+        ),
+        teleport_speed_threshold_mps=_bounded_optional_float(
+            table.get("teleport_speed_threshold_mps", 50.0),
+            f"{table_name}.teleport_speed_threshold_mps",
+            upper=100.0,
+            optional=False,
+        ),
+        stale_time_s=_bounded_optional_float(
+            table.get("stale_time_s", 0.5),
+            f"{table_name}.stale_time_s",
+            upper=60.0,
+            optional=False,
+        ),
+        smoothing_alpha=_bounded_optional_float(
+            table.get("smoothing_alpha"),
+            f"{table_name}.smoothing_alpha",
+            upper=1.0,
+            optional=True,
+        ),
+    )
 
 
 def _parse_mic_config(mic_id: str, raw: object) -> ChannelResponseMicConfig:
@@ -515,6 +568,44 @@ def _validate_reserved_stage(
         )
 
 
+def validate_motion_effects_config(config: MotionEffectsConfig) -> None:
+    """Validate a normalized S3.1 motion record without backend side effects."""
+
+    table = "audio.effects.motion"
+    if isinstance(config, _LegacyEnabledMotionEffectsConfig):
+        raise UnsupportedEffectError(
+            f"{table}.enabled=true is removed by S3.1; accepted fields are "
+            "derive_velocity_from_poses, teleport_speed_threshold_mps, "
+            "stale_time_s, and smoothing_alpha."
+        )
+    if not isinstance(config, MotionEffectsConfig):
+        raise ConfigValidationError(
+            f"{table} must normalize to MotionEffectsConfig; received "
+            f"{type(config).__name__}."
+        )
+    if type(config.derive_velocity_from_poses) is not bool:
+        raise ConfigValidationError(
+            f"{table}.derive_velocity_from_poses must be a bool; received "
+            f"{config.derive_velocity_from_poses!r}."
+        )
+    _validate_bounded_number(
+        config.teleport_speed_threshold_mps,
+        f"{table}.teleport_speed_threshold_mps",
+        upper=100.0,
+    )
+    _validate_bounded_number(
+        config.stale_time_s,
+        f"{table}.stale_time_s",
+        upper=60.0,
+    )
+    if config.smoothing_alpha is not None:
+        _validate_bounded_number(
+            config.smoothing_alpha,
+            f"{table}.smoothing_alpha",
+            upper=1.0,
+        )
+
+
 def _mapping(value: object, table: str) -> Mapping[Any, Any]:
     if not isinstance(value, Mapping):
         raise ConfigValidationError(
@@ -562,6 +653,43 @@ def _optional_float(value: object, field_name: str) -> float | None:
     return result
 
 
+def _bounded_optional_float(
+    value: object,
+    field_name: str,
+    *,
+    upper: float,
+    optional: bool,
+) -> float | None:
+    if value is None and optional:
+        return None
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise ConfigValidationError(
+            f"{field_name} must be a finite number in (0.0, {upper}]; "
+            f"received {value!r}."
+        )
+    result = _optional_float(value, field_name)
+    if result is None or result <= 0.0 or result > upper:
+        raise ConfigValidationError(
+            f"{field_name} must be a finite number in (0.0, {upper}]; "
+            f"received {value!r}."
+        )
+    return result
+
+
+def _validate_bounded_number(value: object, field_name: str, *, upper: float) -> None:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise ConfigValidationError(
+            f"{field_name} must be a finite number in (0.0, {upper}]; "
+            f"received {value!r}."
+        )
+    result = float(value)
+    if not math.isfinite(result) or result <= 0.0 or result > upper:
+        raise ConfigValidationError(
+            f"{field_name} must be a finite number in (0.0, {upper}]; "
+            f"received {value!r}."
+        )
+
+
 def _freeze(value: object) -> object:
     if isinstance(value, Mapping):
         return MappingProxyType(
@@ -584,4 +712,5 @@ __all__ = [
     "UnsupportedEffectError",
     "parse_effects_config",
     "validate_effects_config",
+    "validate_motion_effects_config",
 ]

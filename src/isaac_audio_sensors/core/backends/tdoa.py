@@ -185,6 +185,9 @@ class TdoaSyntheticBackend:
                 source,
                 sensor,
                 speed_of_sound_mps=self.speed_of_sound_mps,
+                force_unity_when_absent=(
+                    self.effects.motion.derive_velocity_from_poses
+                ),
             )
             detections.append(
                 AudioDetection(
@@ -568,6 +571,7 @@ def _doppler_diagnostics(
     sensor: MicrophoneArraySpec,
     *,
     speed_of_sound_mps: float,
+    force_unity_when_absent: bool = False,
 ) -> dict[str, object]:
     """Doppler metadata for L1: frequency-shift ratios only, no rendering.
 
@@ -581,7 +585,9 @@ def _doppler_diagnostics(
         speed_of_sound_mps=speed_of_sound_mps,
     )
     if factor is None:
-        return {}
+        if not force_unity_when_absent:
+            return {}
+        factor = 1.0
     per_mic = {
         mic_id: doppler_factor(
             source_position=source.position_world,

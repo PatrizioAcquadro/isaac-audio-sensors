@@ -22,6 +22,7 @@ from isaac_audio_sensors.core.constants import (
 )
 from isaac_audio_sensors.core.effects.config import (
     EffectsConfig,
+    UnsupportedEffectError,
     parse_effects_config,
     validate_effects_config,
 )
@@ -117,6 +118,16 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         sources = _parse_sources(raw.get("sources"))
         arrays = _parse_arrays(raw.get("arrays", {}), sample_rate_hz=sample_rate_hz)
         effects = parse_effects_config(audio.get("effects"))
+        if effects.motion.derive_velocity_from_poses:
+            collisions = sorted(
+                {source.source_id for source in sources}.intersection(arrays)
+            )
+            if collisions:
+                raise ConfigValidationError(
+                    "audio.effects.motion.derive_velocity_from_poses=true requires "
+                    "source ids and selected array ids to be disjoint; received "
+                    f"collisions {collisions!r}."
+                )
         validate_effects_config(
             effects,
             microphone_orders=tuple(
@@ -130,6 +141,12 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         room = _parse_room(raw.get("room"))
         lab = dict(raw.get("lab", {}))
         _validate_lab(lab)
+        if lab and effects.motion.derive_velocity_from_poses:
+            raise UnsupportedEffectError(
+                "audio.effects.motion.derive_velocity_from_poses=true is "
+                "unsupported by Isaac Lab scalar and batched capture paths in "
+                "S3.1; use a live IsaacAudioArraySensor stage stream."
+            )
         _validate_backend_requirements(
             default_backend=default_backend,
             arrays=arrays,

@@ -11,7 +11,15 @@ from typing import Any
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.config import AudioSensorConfig, build_scene_snapshot
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
-from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
+from isaac_audio_sensors.core.effects.config import (
+    EffectsConfig,
+    UnsupportedEffectError,
+    validate_motion_effects_config,
+)
+from isaac_audio_sensors.core.exceptions import (
+    ConfigValidationError,
+    IsaacIntegrationUnavailable,
+)
 from isaac_audio_sensors.core.io.traces import AudioFrameJsonlWriter
 from isaac_audio_sensors.core.io.waveforms import (
     ContinuousWaveformWriter,
@@ -19,6 +27,7 @@ from isaac_audio_sensors.core.io.waveforms import (
     WaveformSink,
     waveform_safe_filename,
 )
+from isaac_audio_sensors.core.motion import PoseHistory, validate_pose_observation
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSensorFrame,
@@ -39,7 +48,10 @@ from isaac_audio_sensors.isaac.occlusion import (
     compute_scene_occlusion,
 )
 from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
-from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
+from isaac_audio_sensors.isaac.stage_snapshot import (
+    build_stage_snapshot,
+    enrich_snapshot_motion,
+)
 from isaac_audio_sensors.isaac.viz.debug_draw import IsaacDebugDrawer
 from isaac_audio_sensors.isaac.viz.overlays import (
     DebugPrimitive,
@@ -54,6 +66,7 @@ class IsaacAudioArraySensor:
     array_id: str
     backend: str = "tdoa_synthetic"
     config: AudioSensorConfig | None = None
+    effects: EffectsConfig = field(default_factory=EffectsConfig)
     stage_snapshot: AudioSceneSnapshot | None = None
     stage: Any | None = None
     room: RoomAcousticsSpec | None = None
@@ -94,7 +107,11 @@ class IsaacAudioArraySensor:
         init=False,
     )
     _update_subscription: Any | None = field(default=None, init=False)
+    _timeline_subscription: Any | None = field(default=None, init=False)
     _stage_cache: StageAudioCache | None = field(default=None, init=False)
+    _pose_history: PoseHistory | None = field(default=None, init=False)
+    _pose_history_stage: Any | None = field(default=None, init=False)
+    _motion_entity_paths: dict[str, str] = field(default_factory=dict, init=False)
     _reset_listeners: list[Callable[[], None]] = field(
         default_factory=list,
         init=False,
@@ -102,6 +119,30 @@ class IsaacAudioArraySensor:
     )
 
     def __post_init__(self) -> None:
+        validate_motion_effects_config(self.effects.motion)
+        if self.effects.motion.derive_velocity_from_poses:
+            if self.stage is None:
+                raise UnsupportedEffectError(
+                    "audio.effects.motion.derive_velocity_from_poses=true requires "
+                    "a live Isaac stage pose-time stream; configuration-only and "
+                    "offline sensors are unsupported."
+                )
+            if self.stage_snapshot is not None and any(
+                source.source_id == self.array_id
+                for source in self.stage_snapshot.sources
+            ):
+                raise ConfigValidationError(
+                    "audio.effects.motion.derive_velocity_from_poses=true cannot "
+                    f"represent source/selected-array id collision {self.array_id!r}."
+                )
+            self._pose_history = PoseHistory(
+                teleport_speed_threshold_mps=(
+                    self.effects.motion.teleport_speed_threshold_mps
+                ),
+                stale_time_s=self.effects.motion.stale_time_s,
+                smoothing_alpha=self.effects.motion.smoothing_alpha,
+            )
+            self._pose_history_stage = self.stage
         if self.update_period_s <= 0.0:
             raise ValueError("update_period_s must be positive.")
         if self.max_events is not None and self.max_events < 0:
@@ -146,6 +187,7 @@ class IsaacAudioArraySensor:
         writer_path: str | Path | None = None,
         waveform_dir: str | Path | None = None,
         waveform_mode: str = "per_frame",
+        effects: EffectsConfig | None = None,
     ) -> IsaacAudioArraySensor:
         """Create a live sensor from a real or duck-typed Isaac stage."""
 
@@ -164,6 +206,7 @@ class IsaacAudioArraySensor:
         return cls(
             array_id=snapshot.arrays[0].array_id,
             backend=backend,
+            effects=EffectsConfig() if effects is None else effects,
             stage_snapshot=snapshot,
             stage=stage,
             room=room,
@@ -210,6 +253,7 @@ class IsaacAudioArraySensor:
         writer_path: str | Path | None = None,
         waveform_dir: str | Path | None = None,
         waveform_mode: str = "per_frame",
+        effects: EffectsConfig | None = None,
     ) -> IsaacAudioArraySensor:
         """Create a live sensor by discovering arrays and sources on a stage."""
 
@@ -240,6 +284,7 @@ class IsaacAudioArraySensor:
         return cls(
             array_id=result.selected_array.spec.array_id,
             backend=backend,
+            effects=EffectsConfig() if effects is None else effects,
             stage_snapshot=snapshot,
             stage=stage,
             room=room,
@@ -276,10 +321,16 @@ class IsaacAudioArraySensor:
 
         if array_id not in config.arrays:
             raise KeyError(f"Unknown array id {array_id!r}.")
+        if config.effects.motion.derive_velocity_from_poses:
+            raise UnsupportedEffectError(
+                "audio.effects.motion.derive_velocity_from_poses=true requires a "
+                "live Isaac stage pose-time stream; from_config is offline."
+            )
         return cls(
             array_id=array_id,
             backend=backend or config.default_backend,
             config=config,
+            effects=config.effects,
             update_period_s=update_period_s,
             max_events=max_events,
             speed_of_sound_mps=config.speed_of_sound_mps,
@@ -302,6 +353,8 @@ class IsaacAudioArraySensor:
         self._running = True
         if subscribe_to_update_stream:
             self._update_subscription = self._subscribe_to_isaac_updates()
+            if self._pose_history is not None:
+                self._timeline_subscription = self._subscribe_to_timeline_events()
         return self
 
     def stop(self) -> None:
@@ -309,6 +362,7 @@ class IsaacAudioArraySensor:
 
         self._running = False
         self._update_subscription = None
+        self._timeline_subscription = None
 
     def reset(self) -> None:
         """Reset frame counters and buffered output, starting a new session."""
@@ -323,6 +377,9 @@ class IsaacAudioArraySensor:
         self.latest_debug_primitives = ()
         self._latest_scene = None
         self._latest_sensor = None
+        if self._pose_history is not None:
+            self._pose_history.reset()
+            self._motion_entity_paths.clear()
         for listener in tuple(self._reset_listeners):
             listener()
 
@@ -348,6 +405,11 @@ class IsaacAudioArraySensor:
         if self._stage_cache is not None:
             self._stage_cache.close()
             self._stage_cache = None
+        if self._pose_history is not None:
+            self._pose_history.reset()
+            self._pose_history = None
+            self._motion_entity_paths.clear()
+            self._pose_history_stage = None
         self.latest_debug_primitives = ()
         self._closed = True
 
@@ -403,6 +465,7 @@ class IsaacAudioArraySensor:
                 sim_time_s=update_time_s,
                 timestamp_ms=timestamp,
             ),
+            sim_time_s=update_time_s,
         )
 
         self.latest_frame = frame
@@ -424,6 +487,7 @@ class IsaacAudioArraySensor:
         max_events: int | None = None,
         source_prim_path: str | None = None,
         usd_time_code: Any | None = None,
+        sim_time_s: float | None = None,
     ) -> AudioSensorFrame:
         """Capture one deterministic offline frame."""
 
@@ -439,6 +503,7 @@ class IsaacAudioArraySensor:
                     timestamp_ms=timestamp_ms,
                 )
             ),
+            sim_time_s=sim_time_s,
         )
         sensor = scene.array_by_id(self.array_id)
         time_window = AudioTimeWindow(
@@ -459,16 +524,23 @@ class IsaacAudioArraySensor:
             sink = self._resolve_waveform_sink()
             if sink is not None:
                 kwargs["waveform_writer"] = sink
+        if self.effects.motion.derive_velocity_from_poses:
+            kwargs["effects"] = EffectsConfig(motion=self.effects.motion)
         backend = get_backend(self.backend, **kwargs)
         frame = backend.simulate(scene, sensor, time_window)
         if self.stage is not None:
+            stage_diagnostics = dict(self._latest_stage_diagnostics or {})
+            motion_diagnostics = stage_diagnostics.pop("motion", None)
+            diagnostics = {
+                **frame.diagnostics,
+                "stage_snapshot": stage_diagnostics,
+            }
+            if motion_diagnostics is not None:
+                diagnostics["motion"] = motion_diagnostics
             frame = replace(
                 frame,
                 provenance="isaac_live",
-                diagnostics={
-                    **frame.diagnostics,
-                    "stage_snapshot": self._latest_stage_diagnostics or {},
-                },
+                diagnostics=diagnostics,
             )
         self._latest_scene = scene
         self._latest_sensor = sensor
@@ -481,6 +553,18 @@ class IsaacAudioArraySensor:
             self._stage_cache.rediscover()
 
     def _ensure_stage_cache(self) -> StageAudioCache:
+        if (
+            self._pose_history_stage is not None
+            and self._pose_history_stage is not self.stage
+        ):
+            if self._pose_history is not None:
+                self._pose_history.reset()
+                self._motion_entity_paths.clear()
+            self._timeline_subscription = None
+            self._pose_history_stage = self.stage
+        if self._stage_cache is not None and self._stage_cache.stage is not self.stage:
+            self._stage_cache.close()
+            self._stage_cache = None
         if self._stage_cache is None:
             rediscover_each_update = (
                 self.scene_binding_cfg is not None
@@ -513,6 +597,7 @@ class IsaacAudioArraySensor:
         timestamp_ms: int,
         source_prim_path: str | None,
         usd_time_code: Any | None,
+        sim_time_s: float | None,
     ) -> AudioSceneSnapshot:
         effective_source_prim_path = source_prim_path or self.source_prim_path
         if self.stage is not None:
@@ -573,7 +658,69 @@ class IsaacAudioArraySensor:
                     f"No source prim found at {effective_source_prim_path!r}."
                 )
             scene = replace(scene, sources=sources)
+        if self.effects.motion.derive_velocity_from_poses:
+            if sim_time_s is None:
+                raise ValueError(
+                    "Enabled pose derivation requires a finite explicit sim_time_s "
+                    "for direct live capture."
+                )
+            scene = self._enrich_live_motion(scene, time_s=sim_time_s)
         return self._apply_occlusion(scene)
+
+    def _enrich_live_motion(
+        self,
+        scene: AudioSceneSnapshot,
+        *,
+        time_s: float,
+    ) -> AudioSceneSnapshot:
+        history = self._pose_history
+        if history is None:
+            raise RuntimeError("Enabled pose derivation has no PoseHistory.")
+        selected_array = scene.array_by_id(self.array_id)
+        if any(source.source_id == self.array_id for source in scene.sources):
+            raise ConfigValidationError(
+                "audio.effects.motion.derive_velocity_from_poses=true cannot "
+                f"represent source/selected-array id collision {self.array_id!r}."
+            )
+        observations = tuple(
+            (
+                source.source_id,
+                source.position_world,
+                source.orientation_world_quat,
+            )
+            for source in scene.sources
+        ) + (
+            (
+                selected_array.array_id,
+                selected_array.position_world,
+                selected_array.orientation_world_quat,
+            ),
+        )
+        for entity_id, position, orientation in observations:
+            validate_pose_observation(entity_id, time_s, position, orientation)
+
+        current_paths = {
+            source.source_id: source.prim_path for source in scene.sources
+        }
+        current_paths[selected_array.array_id] = selected_array.prim_path
+        for entity_id, previous_path in tuple(self._motion_entity_paths.items()):
+            if current_paths.get(entity_id) != previous_path:
+                history.remove_entity(entity_id)
+
+        enriched, velocity_sources = enrich_snapshot_motion(
+            scene,
+            selected_array_id=self.array_id,
+            time_s=time_s,
+            pose_history=history,
+            motion_config=self.effects.motion,
+        )
+        self._motion_entity_paths = current_paths
+        if self._latest_stage_diagnostics is None:
+            self._latest_stage_diagnostics = {}
+        self._latest_stage_diagnostics["motion"] = {
+            "velocity_source": velocity_sources
+        }
+        return enriched
 
     def _apply_occlusion(self, scene: AudioSceneSnapshot) -> AudioSceneSnapshot:
         """Attach Isaac-raycast occlusion records to a live snapshot."""
@@ -700,6 +847,29 @@ class IsaacAudioArraySensor:
             name="isaac_audio_sensors.update",
         )
 
+    def _subscribe_to_timeline_events(self) -> Any | None:
+        try:
+            import omni.timeline  # type: ignore
+        except ImportError:
+            return None
+        timeline = omni.timeline.get_timeline_interface()
+        get_stream = getattr(timeline, "get_timeline_event_stream", None)
+        if not callable(get_stream):
+            return None
+        stream = get_stream()
+
+        def _on_timeline_event(event: Any) -> None:
+            if not _is_timeline_reset_event(event, omni.timeline):
+                return
+            if self._pose_history is not None:
+                self._pose_history.reset()
+                self._motion_entity_paths.clear()
+
+        return stream.create_subscription_to_pop(
+            _on_timeline_event,
+            name="isaac_audio_sensors.timeline",
+        )
+
     def _raise_if_closed(self) -> None:
         if self._closed:
             raise RuntimeError("IsaacAudioArraySensor is closed.")
@@ -716,3 +886,19 @@ def _current_isaac_timeline_time_s() -> float | None:
     if hasattr(timeline, "get_current_time_seconds"):
         return float(timeline.get_current_time_seconds())
     return None
+
+
+def _is_timeline_reset_event(event: Any, timeline_module: Any) -> bool:
+    event_type = getattr(event, "type", event)
+    enum = getattr(timeline_module, "TimelineEventType", None)
+    reset_values = {
+        getattr(enum, name)
+        for name in ("STOP", "RESET")
+        if enum is not None and hasattr(enum, name)
+    }
+    if event_type in reset_values:
+        return True
+    text = str(event_type).upper()
+    return text == "STOP" or text == "RESET" or text.endswith(".STOP") or text.endswith(
+        ".RESET"
+    )
