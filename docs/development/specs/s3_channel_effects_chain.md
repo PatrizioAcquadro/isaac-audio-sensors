@@ -10,6 +10,7 @@
 | S3.4 protocol revision | `776ec423efd9e84fd798db465050b459ab75f1fb` |
 | S3.5 protocol revision | `451b98a` |
 | S3.6 protocol revision | `31e0282` |
+| S3.6 estimator-ladder amendment revision | `7ba5a1f` |
 | Governing gates | `S3.3` channel response, `S3.4` seeded noise, `S3.5` electronics, `S3.6` waveform directivity |
 | Governing acceptance | `docs/development/specs/s0_squadbot_readiness_acceptance.md` §S3 |
 | Evidence roots | `outputs/isaac_audio_sensors/S3/S3.3/` through `outputs/isaac_audio_sensors/S3/S3.6/` |
@@ -24,6 +25,11 @@ The dated `31e0282` revision freezes the complete `S3.6` pattern model,
 configuration, fixtures, numerical tolerances, and verification map before any
 `S3.6` acceptance evidence is generated or viewed.
 
+The dated 2026-07-18 amendment at entry revision `7ba5a1f` changes only the
+`S3.6` estimator-degradation ladder fixture and criteria in §9.5/§9.6 and
+their corresponding verification-map wording. All other frozen `S3.6`
+content remains unchanged.
+
 ### Status revision history
 
 Prior entries are retained; the later row amends only the named subphase.
@@ -34,6 +40,7 @@ Prior entries are retained; the later row amends only the named subphase.
 | 2026-07-18 | `776ec423efd9e84fd798db465050b459ab75f1fb` | Complete prospective `S3.4` seeded-noise protocol, fixtures, tolerances, and verification map frozen; documentation only, with no `S3.4` evidence viewed or claimed. |
 | 2026-07-18 | `451b98a` | Complete prospective `S3.5` electronics model, fixtures, tolerances, and verification map frozen; documentation only, with no `S3.5` evidence generated or viewed. |
 | 2026-07-18 | `31e0282` | Complete prospective `S3.6` waveform-directivity model, fixtures, tolerances, and verification map frozen; documentation only, with no `S3.6` evidence generated or viewed. |
+| 2026-07-18 | `7ba5a1f` | Amended only the blocked `S3.6` estimator-degradation ladder: full-band noise replaces the 200 Hz–12 kHz noise band, and SRP bearing error plus peak grid power replace normalized SRP confidence as acceptance observables. The frozen estimator formula and already-passed `S3.6` pure rows are unchanged. |
 
 ## 1. Problem definition and responsibility boundary
 
@@ -1254,7 +1261,7 @@ or result-dependent threshold adjustment.
 | Frequency-sweep recovery | Maximum Welch H1 magnitude error `<= 0.25 dB` on every accepted bin for one frequency-dependent pattern and `<= 0.50 dB` when both source and microphone FIRs are active; signed polarity at 1 kHz must also match exactly | One response reuses the §6 FIR bound; two cascaded independently bounded FIR approximations receive the additive dB bound without hiding either individual result |
 | Full-contribution room weighting | In the reverberant fixture, each frequency-flat effected pair stem is byte-equivalent to the baseline full convolved stem multiplied once by the analytical signed polar product; frequency-dependent stems meet the corresponding Welch bound, and direct plus RIR-tail samples both change | Detects direct-only edits, post-mix application, source-count multiplication, and false reflection-angle behavior |
 | L0/L1-to-L2 shared-family consistency | For source-only frequency-flat `omni` and `cardioid`, L2 signed gain and `amplitude.py::directivity_factor` agree within `0.05 dB` at nonzero cardinal targets and within `1e-6` linear amplitude at the cardioid rear null | Uses the same source `+X`, quaternion normalization, direct-path direction, and first-order cardioid convention across metadata and waveform paths |
-| Estimator degradation | Across the `0°,90°,120°,180°` cardioid ladder, the known-component SNR proxy is strictly decreasing, drops at least `5.5 dB` on each of the first two steps and at least `40 dB` front-to-rear; the eight-seed median SRP confidence and median GCC peak proxy are strictly decreasing at every step, with front-to-rear absolute drops `>=0.10` and `>=0.05`, respectively | Cardioid amplitude halves from `1` to `0.5` to `0.25` before its rear null, giving about `6.02 dB` SNR loss per finite step; fixed additive noise converts reduced directional level into lower PHAT coherence/prominence without freezing scene-specific exact values |
+| Estimator degradation | Across the `0°,90°,120°,180°` cardioid ladder, the known-component SNR proxy is strictly decreasing, drops at least `5.5 dB` on each of the first two steps and at least `40 dB` front-to-rear; the eight-seed median GCC peak proxy is strictly decreasing at every step with a front-to-rear absolute drop `>=0.05`; the eight-seed median SRP rear-aspect absolute bearing error exceeds the front-aspect error by `>=30.0°`; and median SRP peak grid power drops front-to-rear by `>=15.0 dB` | Cardioid amplitude halves from `1` to `0.5` to `0.25` before its rear null, giving about `6.02 dB` SNR loss per finite step; the full-band-noise fixture preserves the GCC endpoint contrast, while SRP bearing error and absolute peak grid power expose localization loss without relying on normalized confidence's invalid behavior on noise-dominated input |
 | Invalid/unsupported patterns | Every unknown family/id, invalid point list/Nyquist value, missing required orientation, and unsupported mode/backend/profile raises the located typed error before `_scheduled_window_signal`, room construction, draw, frame, waveform, or evidence asset | Fail-closed validation is a pre-synthesis contract, not cleanup after a partial result |
 | Disabled and explicit-omni compatibility | Disabled directivity and enabled frequency-flat omni-only configuration produce entry-revision-identical premix, mixture, detection, aggregate RMS, waveform, diagnostics, serialized frame, and artifact hashes; no `effects` key is added | Unity directionality is semantically the prior backend and the omitted no-op diagnostic preserves full byte identity |
 | Determinism and registry | Two fresh enabled instances produce byte-identical float64 premixes, mixtures, diagnostics, frames, and artifacts; the existing two-factory/two-run registry self-test passes with the primary directivity fixture | Directivity has no RNG or mutable state and must preserve the backend's deterministic declaration |
@@ -1266,9 +1273,15 @@ sign; magnitude-only RMS cannot prove figure-eight polarity.
 
 The GCC peak proxy is the median absolute `GccPhatDelay.peak_value` over the six
 unordered microphone pairs and then the median over the eight fixed noise
-seeds. SRP confidence is exactly `srp_phat_confidence`, namely clamped
-`(peak_power-mean_power)/peak_power`. These metrics preserve the current
-estimator semantics; S3.6 does not invent a new runtime GCC confidence field.
+seeds. For SRP, compute each seed's smallest wrapped absolute bearing error
+against the fixture's true `180°` array-local bearing and then take the median
+at each rung. Let `P_front` and `P_rear` be the eight-seed medians of the
+positive `SrpPhatResult.peak_power` values at `0°` and `180°`; the frozen peak
+grid power drop is `10*log10(P_front/P_rear)`. `srp_phat_confidence` remains
+exactly the clamped `(peak_power-mean_power)/peak_power` diagnostic, but it is
+not an acceptance observable for this ladder. These metrics preserve the
+current estimator semantics; S3.6 does not invent a new runtime GCC confidence
+field or change any estimator formula.
 The ladder feeds the estimators retained directivity-weighted signal plus fixed
 noise components as a pure acceptance fixture. It does not relabel the current
 scheduled-known-source premix confidence as mixture-noise-aware; any runtime
@@ -1292,9 +1305,37 @@ configuration, intermediate-stem, and output SHA-256 values. Let
 | Frequency sweep | `N=2**18` deterministic Gaussian probe with seed `20260718`; points `[(100,-6), (1000,0), (8000,-3), (20000,-9)]`; non-null `0°` polar orientation. Use the exact §6.3 Welch H1 method (`nperseg=8192`, `noverlap=4096`), the summed-half-support edge exclusion in §9.2, and accepted bins 200 Hz–18 kHz. Run source-only, mic-only, and simultaneous source+mic cases; the simultaneous analytical target is the dB sum of both point curves. |
 | Reverberant insertion | Reuse the L2 geometry with absorption `0.2`, `max_order=3`, and `N=48000`. Retain direct-arrival and post-direct-arrival RIR-tail masks from the baseline. For each pair, compare the effected stem with one signed multiplication for frequency-flat patterns and with the §9.2 FIR target for frequency-dependent patterns; verify the sum occurs only after all pair responses. For piecewise unit coverage, use four equal 12,000-sample segments and apply each segment's midpoint direct-path angle before overlap-add. |
 | Metadata/waveform consistency | Use the source cardinal geometry, `AudioSourceSpec.directivity` in `{omni,cardioid}`, and a present source orientation. Compare L0/L1 `directivity_factor` with an explicitly matching source-only L2 `DirectivityPatternConfig`; mic patterns are omni and frequency-flat. |
-| Estimator ladder | Rank-3 tetrahedral array of edge length `0.16 m` centered at `(6,4,1.5)` and source at `(2,4,1.5)`. Build `N=65536` geometrically delayed channels from one 200 Hz–12 kHz deterministic broadband probe (seed `20260718`), apply per-pair cardioid gains for `q0/q90/q120/q180`, then add the same independent per-mic broadband-noise bytes at every rung. Use exactly seeds `20260718` through `20260725`, scaled so the `q0` aggregate known-component SNR is `18.0 dB`. Run GCC with `interp=8` and default SRP grid/confidence semantics. Compute SNR from retained clean directional and noise components, never from an estimator-selected residual. |
+| Estimator ladder | Rank-3 tetrahedral array of edge length `0.16 m` centered at `(6,4,1.5)` and source at `(2,4,1.5)`. Build `N=65536` geometrically delayed channels from one 200 Hz–12 kHz deterministic broadband probe (seed `20260718`), apply per-pair cardioid gains for `q0/q90/q120/q180`, then add the same independent per-mic **full-band white-Gaussian noise bytes, with no band-limit or other spectral filter**, at every rung. For each ladder seed, draw the microphone-major noise array in the built-in tetrahedral microphone order with `np.random.default_rng(seed).standard_normal((4,N))`; reuse those bytes at every rung. Use exactly seeds `20260718` through `20260725`, scaled by one common scalar per seed so the `q0` aggregate known-component SNR is `18.0 dB`. Run GCC with `interp=8` and default SRP grid/confidence semantics. Compute SNR from retained clean directional and noise components, never from an estimator-selected residual. Full-band noise is required because the former 200 Hz–12 kHz noise band depressed the GCC coherence proxy's front-aspect baseline and compressed the endpoint contrast, hiding the degradation signal. |
 | Invalid and zero direction | Parameterize every §3.7 family/id/point/orientation/mode/backend failure, including a highest point of `24000.000001 Hz` at 48 kHz, and assert an empty partial-output listing. Separately co-locate source/reference mic and require unity polar factors, finite frequency-filtered output, and no NaN. Include figure-eight 90°/270° nulls and all source/mic sign products. |
 | Off-state and registry | The off-state corpus is the impulse, tone, broadband, silent, file/generated source, reverberant room, waveform export, and registry behavior at revision `31e0282`. Repeat with directivity disabled and with explicit frequency-flat omni defaults. The primary enabled registry fixture is the reverberant geometry with source `cardioid`, reference-mic `supercardioid`, and the frozen frequency points. |
+
+#### 9.6.1 Estimator-ladder amendment (2026-07-18, entry `7ba5a1f`)
+
+Read-only runs of the frozen `N=65536` geometry, probe, seed corpus, and
+estimator code established the following eight-seed medians before this narrow
+amendment:
+
+| Observable | Former 200 Hz–12 kHz noise | Amended full-band noise | Frozen result |
+| --- | --- | --- | --- |
+| Known-component SNR, front / rear | `18.00000 / -61.99306 dB` | `18.00000 / -61.99306 dB` | Existing `>=40 dB` endpoint loss retained |
+| GCC proxy, front / rear / drop | `0.0597953 / 0.0302335 / 0.0295618` | `0.0601810 / 0.00195423 / 0.0582268` | Existing `>=0.05` endpoint drop retained |
+| SRP normalized confidence, front / rear | `0.9622957 / 1.0000000` | `0.9637048 / 0.9840886` | Diagnostic only; no acceptance direction or drop |
+| SRP absolute bearing error, front / rear / increase | — | `0.0° / 63.0° / 63.0°` | Require increase `>=30.0°` |
+| SRP median peak grid power, front / rear / drop | — | `0.3607903 / 0.00393069 / 19.6279 dB` | Require drop `>=15.0 dB` |
+
+The original SRP-confidence criterion was unsatisfiable under the mandated
+formula. Independent noise can leave near-zero mean steered-grid power while
+the maximum over a finite grid remains positive, so clamped
+`(peak_power-mean_power)/peak_power` increases toward `1.0` as the retained
+signal vanishes. Near-unity confidence on noise-only or effectively noise-only
+input is therefore a documented limitation of this metric, **not evidence of
+localization**. The `srp_phat_confidence` formula itself is unchanged because
+it is a frozen `S1` public contract. `S3.9` must restate this limitation in its
+fidelity envelope and claim/evidence reconciliation.
+
+This amendment affects only the blocked estimator-degradation row. It changes
+no source code, estimator behavior, non-ladder fixture, or already-passed
+`S3.6` pure row; those results remain valid.
 
 ## 10. S3.3 verification map
 
@@ -1432,7 +1473,7 @@ style, but every row below is mandatory.
 | Source/mic product | pure/L2 Cartesian pattern test; scalar/FIR product per pair, including one-negative, two-negative, null, and simultaneous frequency patterns | `source_mic_product_matrix.json`, `source_mic_pair_stems.npz` |
 | Full-convolved-stem insertion | reverberant and piecewise backend spy/hash tests; direct and tail samples weighted once per pair before sum, segment weighting before overlap-add, zero post-mix dispatches | `per_pair_insertion_trace.json`, `rir_tail_weighting.json`, `full_contribution_sha256.json` |
 | Metadata/waveform consistency | L0/L1 helper versus L2 source-only test; shared omni/cardioid nonzero cases within `0.05 dB`, rear null within `1e-6` linear amplitude | `metadata_waveform_consistency.json` |
-| Estimator degradation | fixed eight-seed ladder; SNR, SRP confidence, and GCC proxy meet every monotonic/minimum-drop assertion in §9.5 | `estimator_confidence_ladder.json`, `estimator_confidence_overlay.png`, `estimator_input_sha256.json` |
+| Estimator degradation | fixed eight-seed full-band-noise ladder; SNR and GCC meet every monotonic/minimum-drop assertion in §9.5, SRP rear bearing-error increase is `>=30.0°`, and median SRP peak grid power drop is `>=15.0 dB`; normalized SRP confidence is recorded only as a limitation diagnostic | `estimator_confidence_ladder.json`, `estimator_confidence_overlay.png`, `estimator_input_sha256.json` |
 | Fail-closed validation | parameterized invalid family/id/point/orientation/mode/backend tests; located typed exception before scheduling/room/output | `invalid_directivity_config_matrix.json`, `partial_output_listing.txt` |
 | Zero direction and nulls | pure boundary tests; co-location produces unity polar factors and finite response, figure-eight nulls meet linear bound, no NaN | `directivity_edge_case_matrix.json` |
 | Diagnostics contract | backend test; exactly `source_pattern`, `mic_pattern`, and `mode`, stable source/mic order, exact resolved records, no reflection-angle claim | `directivity_diagnostics.json` |
@@ -1601,15 +1642,17 @@ prospectively by the dated `451b98a` status entry and may proceed to
 implementation without adjusting this protocol from observed results; its
 acceptance closeout path is
 `docs/development/closeouts/S3/s3_5_electronics.md`. `S3.6` implementation and
-acceptance may proceed prospectively only from the dated `31e0282` freeze in
-§9/§10.3, without adjusting it from observed results. Its closeout path is
+acceptance proceeds from the dated `31e0282` freeze in §9/§10.3 as narrowly
+amended at entry revision `7ba5a1f` for the blocked estimator-degradation row.
+Its closeout path is
 `docs/development/closeouts/S3/s3_6_waveform_directivity.md`; closeout must
 carry the reflected-path limitation and S3.9 `core/fidelity.py` reconciliation
 item forward without broadening the supported claim.
 
-This change is documentation only. No implementation, unit, integration,
-Isaac, GPU, or hardware verification was run or is claimed by this
-specification.
+This change is documentation only. Read-only pure estimator-fixture runs were
+used only to justify the dated ladder amendment and do not constitute `S3.6`
+acceptance. No implementation change, integration, Isaac, GPU, or hardware
+verification was run or is claimed by this specification.
 
 ## References
 
