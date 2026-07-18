@@ -31,6 +31,7 @@ from isaac_audio_sensors.core.types import AudioSensorFrame
 DATASET_FRAME_RECORD_VERSION = "ias.dataset_frame_record.v1"
 SHARD_COMPLETION_VERSION = "ias.shard_completion.v1"
 ID_LIMIT = 100_000
+MAX_STREAMING_WARNINGS_PER_SHARD = 100
 
 _EPISODE_ID_RE = re.compile(r"^episode_[0-9]{5}$")
 _SHARD_ID_RE = re.compile(r"^shard_[0-9]{5}$")
@@ -132,6 +133,7 @@ class VerifiedShard:
     marker: dict[str, Any]
     records: tuple[DatasetFrameRecord, ...]
     warnings: tuple[LayoutWarning, ...]
+    warning_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,12 +145,14 @@ class SessionLayoutResult:
     manifest: AudioDatasetManifest | None
     shards: tuple[VerifiedShard, ...]
     warnings: tuple[LayoutWarning, ...]
+    total_warning_count: int
 
 
 @dataclass(frozen=True, slots=True)
 class _RecordFileScan:
     records: tuple[DatasetFrameRecord, ...]
     warnings: tuple[LayoutWarning, ...]
+    warning_count: int
     line_count: int
     episode_ids: tuple[str, ...]
     max_audio_end: int
@@ -1076,6 +1080,7 @@ def verify_shard_completion(
         marker=payload,
         records=scan.records,
         warnings=scan.warnings,
+        warning_count=scan.warning_count,
     )
 
 
@@ -1275,6 +1280,7 @@ def _scan_record_file(
     shard_label = path.parent.name
     records: list[DatasetFrameRecord] = []
     warnings: list[LayoutWarning] = []
+    warning_count = 0
     episode_ids: list[str] = []
     episode_seen: set[str] = set()
     max_audio_end = 0
@@ -1309,7 +1315,13 @@ def _scan_record_file(
             line_count = line_number
             if retain_records:
                 records.append(record)
-            warnings.extend(record_warnings)
+            warning_count += len(record_warnings)
+            if retain_records:
+                warnings.extend(record_warnings)
+            else:
+                remaining = MAX_STREAMING_WARNINGS_PER_SHARD - len(warnings)
+                if remaining > 0:
+                    warnings.extend(record_warnings[:remaining])
             if sequence_error is None:
                 try:
                     _validate_record_pair(
@@ -1358,6 +1370,7 @@ def _scan_record_file(
     return _RecordFileScan(
         records=tuple(records),
         warnings=tuple(warnings),
+        warning_count=warning_count,
         line_count=line_count,
         episode_ids=tuple(episode_ids),
         max_audio_end=max_audio_end,
@@ -1469,6 +1482,7 @@ def validate_session_layout(
             manifest=manifest,
             shards=(),
             warnings=(),
+            total_warning_count=0,
         )
     config = _read_and_validate_configuration(root, manifest, required=True)
     shards_root = root / "shards"
@@ -1540,6 +1554,7 @@ def validate_session_layout(
         manifest=manifest,
         shards=verified,
         warnings=warnings,
+        total_warning_count=sum(shard.warning_count for shard in verified),
     )
 
 
@@ -2127,6 +2142,7 @@ def _located_positive_int(value: object, location: str) -> None:
 
 __all__ = [
     "DATASET_FRAME_RECORD_VERSION",
+    "MAX_STREAMING_WARNINGS_PER_SHARD",
     "SHARD_COMPLETION_VERSION",
     "DatasetFrameRecord",
     "DatasetLayoutError",

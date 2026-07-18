@@ -22,6 +22,9 @@ from isaac_audio_sensors.core.dataset import (
     resume,
     validate_session_layout,
 )
+from isaac_audio_sensors.core.dataset.layout import (
+    MAX_STREAMING_WARNINGS_PER_SHARD,
+)
 from isaac_audio_sensors.core.dataset_manifest import (
     CreationProvenance,
     DeviceProvenance,
@@ -387,6 +390,47 @@ def test_projection_failure_is_drop_accounted_without_index(tmp_path):
         "count": 1,
         "producer_frame_ids": ["producer_99"],
     }
+
+
+def test_warning_heavy_finalize_retains_bounded_layout_examples(tmp_path):
+    root = tmp_path / "warning_heavy_finalize"
+    frame_count = 12
+    paths_per_frame = MAX_STREAMING_WARNINGS_PER_SHARD // frame_count + 2
+    recorder = SessionRecorder(
+        root,
+        _configuration(aligned=False, shard_max_frames=frame_count),
+        **_recorder_kwargs(),
+    )
+    recorder.begin_episode("scene_a", "environment_0", "scene_a")
+    for index in range(frame_count):
+        payload = frame_to_trace_dict(_frame(index))
+        payload["diagnostics"] = {
+            f"host_path_{path_index:02d}": (
+                f"/var/tmp/recorder/frame_{index:03d}_{path_index:02d}.log"
+            )
+            for path_index in range(paths_per_frame)
+        }
+        result = recorder.append_frame(
+            payload,
+            _audio(index),
+            index,
+            is_reset=index == 0,
+        )
+        assert result.accepted
+    recorder.end_episode()
+
+    manifest = recorder.finalize()
+    streamed = validate_session_layout(root, retain_records=False)
+    expected_total = frame_count * paths_per_frame
+
+    assert manifest.completion_state == "complete"
+    assert len(streamed.shards) == 1
+    assert len(streamed.shards[0].warnings) == MAX_STREAMING_WARNINGS_PER_SHARD
+    assert streamed.shards[0].warning_count == expected_total
+    assert streamed.total_warning_count == expected_total
+    # A small-session RSS delta is allocator- and test-order-sensitive. The
+    # retained result shape directly guards the finalize path's bounded object set.
+    assert len(streamed.warnings) == MAX_STREAMING_WARNINGS_PER_SHARD
 
 
 def test_memory_harness_scale_smoke(tmp_path):

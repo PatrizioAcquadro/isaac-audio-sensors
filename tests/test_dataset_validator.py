@@ -21,6 +21,10 @@ from isaac_audio_sensors.core.dataset import (
     SessionRecorder,
     validate_dataset,
 )
+from isaac_audio_sensors.core.dataset.layout import (
+    MAX_STREAMING_WARNINGS_PER_SHARD,
+)
+from isaac_audio_sensors.core.dataset.validate import MAX_FINDINGS_PER_CODE
 from isaac_audio_sensors.core.dataset_manifest import (
     CreationProvenance,
     DeviceProvenance,
@@ -28,6 +32,13 @@ from isaac_audio_sensors.core.dataset_manifest import (
 from isaac_audio_sensors.core.types import AudioSensorFrame
 
 REFERENCE = Path("examples/datasets/reference_session_v1")
+
+
+def _rss_bytes() -> int:
+    for line in Path("/proc/self/status").read_text(encoding="utf-8").splitlines():
+        if line.startswith("VmRSS:"):
+            return int(line.split()[1]) * 1024
+    raise RuntimeError("VmRSS is absent from /proc/self/status")
 
 
 def _json(path: Path) -> dict:
@@ -71,7 +82,16 @@ def _mutate_record(
     _refresh_asset(root, shard_id, "frames.jsonl")
 
 
-def _frame(index: int) -> AudioSensorFrame:
+def _frame(
+    index: int, *, diagnostic_path_count: int = 0
+) -> AudioSensorFrame:
+    diagnostics = {
+        f"host_path_{path_index:03d}": (
+            f"/var/tmp/validator/frame_{index:05d}/diagnostic_{path_index:03d}.log"
+        )
+        for path_index in range(diagnostic_path_count)
+    }
+    diagnostics["index"] = index
     return AudioSensorFrame(
         frame_id=f"producer_{index}",
         frame_name=f"frame_{index}",
@@ -85,11 +105,18 @@ def _frame(index: int) -> AudioSensorFrame:
         units=dict(FRAME_UNITS),
         provenance="synthetic/core",
         aggregate_per_mic_rms={"left": 0.25, "right": 0.25},
-        diagnostics={"index": index},
+        diagnostics=diagnostics,
     )
 
 
-def _record_session(root: Path, *, aligned: bool, frame_count: int = 7) -> None:
+def _record_session(
+    root: Path,
+    *,
+    aligned: bool,
+    frame_count: int = 7,
+    diagnostic_path_count: int = 0,
+    shard_max_frames: int = 2,
+) -> None:
     configuration = {
         "backend_id": "tdoa_synthetic",
         "channel_order": ["left", "right"],
@@ -100,7 +127,7 @@ def _record_session(root: Path, *, aligned: bool, frame_count: int = 7) -> None:
         "sample_rate_hz": 48_000,
         "session_seed": 17,
         "shard_episode_aligned": aligned,
-        "shard_max_frames": 2,
+        "shard_max_frames": shard_max_frames,
         "split_grouping_key": "scene_id",
         "window_sample_count": 6,
     }
@@ -129,7 +156,10 @@ def _record_session(root: Path, *, aligned: bool, frame_count: int = 7) -> None:
     for index in range(frame_count):
         audio = np.full((2, 6), index / 32.0, dtype=np.float32)
         result = recorder.append_frame(
-            _frame(index), audio, index * 10, is_reset=index == 0
+            _frame(index, diagnostic_path_count=diagnostic_path_count),
+            audio,
+            index * 10,
+            is_reset=index == 0,
         )
         assert result.accepted
     recorder.end_episode()
@@ -142,7 +172,7 @@ def test_reference_fixture_has_exact_statistics_and_no_findings():
     assert report.status == "passed"
     assert report.findings == ()
     assert report.error_count == report.warning_count == 0
-    assert report.statistics.to_dict() == {
+    expected_statistics = {
         "asset_bytes": {"audio_wav": 33368, "frame_trace_jsonl": 6969},
         "audio": {
             "attributed_sample_count": 1920,
@@ -189,6 +219,16 @@ def test_reference_fixture_has_exact_statistics_and_no_findings():
             "visual_sync_count": 0,
             "waveform_path_count": 0,
         },
+    }
+    assert report.statistics.to_dict() == expected_statistics
+    assert report.to_dict() == {
+        "error_count": 0,
+        "finding_totals": {},
+        "findings": [],
+        "statistics": expected_statistics,
+        "status": "passed",
+        "truncated_codes": [],
+        "warning_count": 0,
     }
 
 
@@ -343,6 +383,86 @@ def test_absolute_diagnostic_is_only_a_portability_warning(tmp_path):
     assert [finding.code for finding in report.findings] == ["portability_warning"]
     assert report.findings[0].severity == "warning"
     assert "diagnostics.host_log" in report.findings[0].location
+
+
+def test_warning_heavy_session_retains_cap_and_reports_true_total(tmp_path):
+    frame_count = 5
+    paths_per_frame = MAX_FINDINGS_PER_CODE // frame_count + 1
+    root = tmp_path / "warning_heavy"
+    _record_session(
+        root,
+        aligned=False,
+        frame_count=frame_count,
+        diagnostic_path_count=paths_per_frame,
+        shard_max_frames=frame_count,
+    )
+
+    report = validate_dataset(root)
+    expected_total = frame_count * paths_per_frame
+
+    assert expected_total > MAX_STREAMING_WARNINGS_PER_SHARD
+    assert report.status == "passed_with_warnings"
+    assert report.error_count == 0
+    assert report.warning_count == expected_total
+    assert len(report.findings) == MAX_FINDINGS_PER_CODE
+    assert {finding.code for finding in report.findings} == {
+        "portability_warning"
+    }
+    assert report.finding_totals == {"portability_warning": expected_total}
+    assert report.truncated_codes == ("portability_warning",)
+
+
+def test_warning_finding_retention_is_constant_above_cap(tmp_path, monkeypatch):
+    paths_per_frame = MAX_FINDINGS_PER_CODE + 1
+    roots = []
+    for frame_count in (2, 800):
+        root = tmp_path / f"bounded_{frame_count}"
+        roots.append((root, frame_count))
+        _record_session(
+            root,
+            aligned=False,
+            frame_count=frame_count,
+            diagnostic_path_count=paths_per_frame,
+            shard_max_frames=800,
+        )
+
+    original = SessionDataset.iter_records
+    baseline = _rss_bytes()
+    peak = baseline
+
+    def watched(self, episode_id=None):
+        nonlocal peak
+        for item in original(self, episode_id):
+            peak = max(peak, _rss_bytes())
+            yield item
+            peak = max(peak, _rss_bytes())
+
+    monkeypatch.setattr(SessionDataset, "iter_records", watched)
+    retained_counts = []
+    for root, frame_count in roots:
+        report = validate_dataset(root)
+        retained_counts.append(len(report.findings))
+        assert report.finding_totals == {
+            "portability_warning": frame_count * paths_per_frame
+        }
+
+    assert retained_counts == [MAX_FINDINGS_PER_CODE, MAX_FINDINGS_PER_CODE]
+    # The larger session produces 80,800 warnings. A 24 MiB allowance covers
+    # streaming parser churn while remaining below the pre-fix retained-object
+    # cost represented by that many located Finding instances.
+    assert peak - baseline < 24 * 1024 * 1024
+
+
+def test_warning_heavy_validation_is_deterministic(tmp_path):
+    root = tmp_path / "deterministic_warnings"
+    _record_session(
+        root,
+        aligned=False,
+        frame_count=5,
+        diagnostic_path_count=MAX_FINDINGS_PER_CODE // 5 + 1,
+    )
+
+    assert validate_dataset(root).to_dict() == validate_dataset(root).to_dict()
 
 
 def _wav_data_offset(data: bytes) -> int:

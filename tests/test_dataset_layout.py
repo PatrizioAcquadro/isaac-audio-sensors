@@ -34,6 +34,9 @@ from isaac_audio_sensors.core.dataset import (
     verify_shard_completion,
     verify_shard_tiling,
 )
+from isaac_audio_sensors.core.dataset.layout import (
+    MAX_STREAMING_WARNINGS_PER_SHARD,
+)
 from isaac_audio_sensors.core.io.manifests import (
     manifest_to_dict,
     read_dataset_manifest,
@@ -547,6 +550,40 @@ def test_streaming_session_validation_returns_empty_shard_records(tmp_path):
         item.marker for item in retained.shards
     ]
     assert all(item.records == () for item in streamed.shards)
+
+
+def test_streaming_warning_retention_is_bounded_counted_and_deterministic(tmp_path):
+    root = _session(tmp_path, "streaming_warnings")
+    warning_total = MAX_STREAMING_WARNINGS_PER_SHARD + 7
+    diagnostics = {
+        f"host_path_{index:03d}": f"/var/tmp/layout/diagnostic_{index:03d}.log"
+        for index in range(warning_total)
+    }
+    _mutate_frame_line(
+        root,
+        "shard_00000",
+        0,
+        lambda payload: payload["frame"].__setitem__("diagnostics", diagnostics),
+    )
+    shard_dir = root / "shards/shard_00000"
+
+    retained = verify_shard_completion(shard_dir)
+    streamed = verify_shard_completion(shard_dir, retain_records=False)
+    repeated = verify_shard_completion(shard_dir, retain_records=False)
+
+    assert len(retained.warnings) == retained.warning_count == warning_total
+    assert len(streamed.warnings) == MAX_STREAMING_WARNINGS_PER_SHARD
+    assert streamed.warning_count == warning_total
+    assert streamed.warnings == retained.warnings[:MAX_STREAMING_WARNINGS_PER_SHARD]
+    assert repeated.warnings == streamed.warnings
+    assert repeated.warning_count == streamed.warning_count
+
+    retained_session = validate_session_layout(root)
+    streamed_session = validate_session_layout(root, retain_records=False)
+    assert retained_session.total_warning_count == warning_total
+    assert streamed_session.total_warning_count == warning_total
+    assert retained_session.warnings == retained.warnings
+    assert streamed_session.warnings == streamed.warnings
 
 
 def test_projection_paths_symlinks_diagnostics_and_identity(tmp_path):

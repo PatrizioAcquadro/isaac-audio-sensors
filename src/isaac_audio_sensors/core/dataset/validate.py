@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import struct
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -15,18 +15,19 @@ from isaac_audio_sensors.core.dataset import loader as _loader
 from isaac_audio_sensors.core.dataset.layout import (
     DatasetLayoutError,
     LayoutWarning,
-    validate_trace_projection,
+    VerifiedShard,
+    verify_shard_completion,
 )
 from isaac_audio_sensors.core.dataset.loader import LoadedFrame, SessionDataset
 from isaac_audio_sensors.core.dataset.statistics import Statistics, StatisticsBuilder
 from isaac_audio_sensors.core.io.traces import (
     frame_from_trace_dict,
-    frame_to_trace_dict,
 )
 
 FindingSeverity = Literal["error", "warning"]
 ValidationStatus = Literal["passed", "passed_with_warnings", "failed"]
 _DEEP_AUDIO_CHUNK_BYTES = 1024 * 1024
+MAX_FINDINGS_PER_CODE = 100
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +57,8 @@ class ValidationReport:
     status: ValidationStatus
     findings: tuple[Finding, ...]
     statistics: Statistics
+    finding_totals: dict[str, int]
+    truncated_codes: tuple[str, ...]
     error_count: int
     warning_count: int
 
@@ -64,11 +67,87 @@ class ValidationReport:
 
         return {
             "error_count": self.error_count,
+            "finding_totals": dict(self.finding_totals),
             "findings": [finding.to_dict() for finding in self.findings],
             "statistics": self.statistics.to_dict(),
             "status": self.status,
+            "truncated_codes": list(self.truncated_codes),
             "warning_count": self.warning_count,
         }
+
+
+class _FindingAccumulator:
+    """Count every finding while retaining bounded deterministic examples."""
+
+    def __init__(self, findings: Iterable[Finding] = ()) -> None:
+        self._findings: list[Finding] = []
+        self._totals: dict[tuple[str, FindingSeverity], int] = {}
+        self._retained_counts: dict[tuple[str, FindingSeverity], int] = {}
+        self._seen: set[tuple[str, FindingSeverity, str]] = set()
+        self._truncated_codes: set[str] = set()
+        self.extend(findings)
+
+    def add(self, finding: Finding) -> None:
+        """Count one finding and retain its first unique located example."""
+
+        group = (finding.code, finding.severity)
+        self._totals[group] = self._totals.get(group, 0) + 1
+        retained_count = self._retained_counts.get(group, 0)
+        if retained_count < MAX_FINDINGS_PER_CODE:
+            deduplication_key = (
+                finding.code,
+                finding.severity,
+                finding.location,
+            )
+            if deduplication_key in self._seen:
+                return
+            self._seen.add(deduplication_key)
+            self._findings.append(finding)
+            self._retained_counts[group] = retained_count + 1
+        else:
+            self._truncated_codes.add(finding.code)
+
+    def add_unretained_occurrences(
+        self,
+        code: str,
+        severity: FindingSeverity,
+        count: int,
+    ) -> None:
+        """Count occurrences omitted by an upstream bounded result."""
+
+        if count <= 0:
+            return
+        group = (code, severity)
+        self._totals[group] = self._totals.get(group, 0) + count
+        self._truncated_codes.add(code)
+
+    def extend(self, findings: Iterable[Finding]) -> None:
+        """Add findings in encounter order."""
+
+        for finding in findings:
+            self.add(finding)
+
+    @property
+    def findings(self) -> tuple[Finding, ...]:
+        return tuple(self._findings)
+
+    @property
+    def finding_totals(self) -> dict[str, int]:
+        totals: dict[str, int] = {}
+        for (code, _severity), count in sorted(self._totals.items()):
+            totals[code] = totals.get(code, 0) + count
+        return totals
+
+    @property
+    def truncated_codes(self) -> tuple[str, ...]:
+        return tuple(sorted(self._truncated_codes))
+
+    def severity_count(self, severity: FindingSeverity) -> int:
+        return sum(
+            count
+            for (_code, finding_severity), count in self._totals.items()
+            if finding_severity == severity
+        )
 
 
 def validate_dataset(
@@ -93,9 +172,9 @@ def validate_dataset(
     try:
         dataset = SessionDataset.open(root, allow_incomplete=allow_incomplete)
     except DatasetLayoutError as exc:
-        return _report((_error_finding(exc),), Statistics.empty())
+        return _report(_FindingAccumulator((_error_finding(exc),)), Statistics.empty())
 
-    findings: list[Finding] = []
+    findings = _FindingAccumulator()
     builder = StatisticsBuilder(dataset.manifest)
     verified_markers: dict[str, Mapping[str, Any]] = {}
     loadable_shards = tuple(
@@ -105,20 +184,25 @@ def validate_dataset(
     )
     for shard in loadable_shards:
         try:
-            # A zero-length public range read enters the shard, invoking the
-            # loader's bounded streaming verification without loading payload.
-            dataset.read_shard_audio(shard.shard_id, 0, 0)
-            marker = dataset._verified_markers[shard.shard_id]
+            verified = verify_shard_completion(
+                root / "shards" / shard.shard_id,
+                manifest=dataset.manifest,
+                max_overlap_samples=dataset._max_overlap_samples,
+                retain_records=False,
+            )
+            marker = verified.marker
+            dataset._verified_markers[shard.shard_id] = marker
         except DatasetLayoutError as exc:
-            findings.append(_error_finding(exc))
+            findings.add(_error_finding(exc))
             builder.add_skipped_shard()
             continue
         verified_markers[shard.shard_id] = marker
         builder.add_verified_shard(shard, marker)
+        _add_layout_warning_findings(findings, verified)
         if deep_audio:
             deep_finding = _check_wav_finiteness(root, shard.shard_id, marker)
             if deep_finding is not None:
-                findings.append(deep_finding)
+                findings.add(deep_finding)
 
     findings.extend(_split_group_findings(root, dataset, verified_markers))
 
@@ -126,19 +210,15 @@ def validate_dataset(
         try:
             for item in dataset.iter_records():
                 builder.add_frame(item)
-                findings.extend(_portability_findings(item, root))
         except DatasetLayoutError as exc:
-            findings.append(_error_finding(exc))
+            findings.add(_error_finding(exc))
     else:
         # Bad shards are isolated; records from independently verified shards
         # remain useful and are streamed without attempting cross-shard claims.
-        for item, warnings in _iter_verified_shard_records(
-            root, dataset, verified_markers
-        ):
+        for item in _iter_verified_shard_records(root, dataset, verified_markers):
             builder.add_frame(item)
-            findings.extend(_warning_findings(warnings))
 
-    return _report(_deduplicate(findings), builder.finish())
+    return _report(findings, builder.finish())
 
 
 def _reject_unsupported_input(root: Path) -> None:
@@ -177,17 +257,6 @@ def _reject_unsupported_input(root: Path) -> None:
         )
 
 
-def _portability_findings(item: LoadedFrame, root: Path) -> tuple[Finding, ...]:
-    warnings = validate_trace_projection(
-        frame_to_trace_dict(item.frame),
-        session_root=root,
-        location=(
-            f"shard {item.shard_id} file frames.jsonl line {item.line_number}.frame"
-        ),
-    )
-    return _warning_findings(warnings)
-
-
 def _warning_findings(warnings: tuple[LayoutWarning, ...]) -> tuple[Finding, ...]:
     return tuple(
         Finding(
@@ -200,11 +269,22 @@ def _warning_findings(warnings: tuple[LayoutWarning, ...]) -> tuple[Finding, ...
     )
 
 
+def _add_layout_warning_findings(
+    findings: _FindingAccumulator, verified: VerifiedShard
+) -> None:
+    findings.extend(_warning_findings(verified.warnings))
+    findings.add_unretained_occurrences(
+        "portability_warning",
+        "warning",
+        verified.warning_count - len(verified.warnings),
+    )
+
+
 def _iter_verified_shard_records(
     root: Path,
     dataset: SessionDataset,
     markers: Mapping[str, Mapping[str, Any]],
-) -> Iterator[tuple[LoadedFrame, tuple[LayoutWarning, ...]]]:
+) -> Iterator[LoadedFrame]:
     for shard in dataset.manifest.shards:
         marker = markers.get(shard.shard_id)
         if marker is None:
@@ -216,22 +296,14 @@ def _iter_verified_shard_records(
                     f"shard {shard.shard_id} file frames.jsonl line {line_number}"
                 )
                 record = _loader._parse_record(line, location, marker, root)
-                warnings = validate_trace_projection(
-                    record.frame,
-                    session_root=root,
-                    location=f"{location}.frame",
-                )
-                yield (
-                    LoadedFrame(
-                        dataset_frame_index=record.dataset_frame_index,
-                        episode_id=record.episode_id,
-                        audio_start_sample=record.audio_start_sample,
-                        audio_end_sample=record.audio_end_sample,
-                        frame=frame_from_trace_dict(record.frame),
-                        shard_id=shard.shard_id,
-                        line_number=line_number,
-                    ),
-                    warnings,
+                yield LoadedFrame(
+                    dataset_frame_index=record.dataset_frame_index,
+                    episode_id=record.episode_id,
+                    audio_start_sample=record.audio_start_sample,
+                    audio_end_sample=record.audio_end_sample,
+                    frame=frame_from_trace_dict(record.frame),
+                    shard_id=shard.shard_id,
+                    line_number=line_number,
                 )
 
 
@@ -416,20 +488,11 @@ def _finding_code(text: str) -> str:
     return "layout_violation"
 
 
-def _deduplicate(findings: list[Finding]) -> tuple[Finding, ...]:
-    seen: set[tuple[str, str, str]] = set()
-    result: list[Finding] = []
-    for finding in findings:
-        key = (finding.code, finding.severity, finding.location)
-        if key not in seen:
-            seen.add(key)
-            result.append(finding)
-    return tuple(result)
-
-
-def _report(findings: tuple[Finding, ...], statistics: Statistics) -> ValidationReport:
-    errors = sum(finding.severity == "error" for finding in findings)
-    warnings = sum(finding.severity == "warning" for finding in findings)
+def _report(
+    findings: _FindingAccumulator, statistics: Statistics
+) -> ValidationReport:
+    errors = findings.severity_count("error")
+    warnings = findings.severity_count("warning")
     status: ValidationStatus
     if errors:
         status = "failed"
@@ -439,8 +502,10 @@ def _report(findings: tuple[Finding, ...], statistics: Statistics) -> Validation
         status = "passed"
     return ValidationReport(
         status=status,
-        findings=findings,
+        findings=findings.findings,
         statistics=statistics,
+        finding_totals=findings.finding_totals,
+        truncated_codes=findings.truncated_codes,
         error_count=errors,
         warning_count=warnings,
     )
@@ -449,6 +514,7 @@ def _report(findings: tuple[Finding, ...], statistics: Statistics) -> Validation
 __all__ = [
     "Finding",
     "FindingSeverity",
+    "MAX_FINDINGS_PER_CODE",
     "ValidationReport",
     "ValidationStatus",
     "validate_dataset",
