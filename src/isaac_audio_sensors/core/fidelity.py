@@ -94,8 +94,13 @@ ACOUSTIC_FIDELITY_LADDER = (
         ),
         does_not_model=(
             "calibrated acoustic twins",
-            "full material, occlusion, and directivity realism",
-            "source directivity and microphone self-noise (metadata-only at L2)",
+            "non-shoebox room geometry",
+            "diffraction or a complete wave solver",
+            "reflected-path angular directivity (per_pair_direct_path uses the "
+            "direct-path angle for the full convolved pair stem)",
+            "diffuse-field noise coherence",
+            "measured material transmission (measured materials cover absorption "
+            "only; transmission presets are nominal)",
             "calibrated microphone response",
             "production beamforming",
         ),
@@ -120,7 +125,13 @@ ACOUSTIC_FIDELITY_LADDER = (
         ),
         does_not_model=(
             "a complete v1 runtime backend",
-            "frequency-dependent or material-based occlusion and diffraction",
+            "diffraction, edge bending, reflected-path occlusion, or a complete "
+            "wave solver",
+            "reflected-path angular directivity (per_pair_direct_path uses the "
+            "direct-path angle for the full convolved pair stem)",
+            "diffuse-field noise coherence",
+            "measured material transmission (measured materials cover absorption "
+            "only; transmission presets are nominal)",
             "calibrated sim-real acoustic behavior",
             "production perception or speech recognition",
         ),
