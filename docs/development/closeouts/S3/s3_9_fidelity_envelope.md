@@ -278,3 +278,33 @@ phase closeout at `docs/development/closeouts/S3_closeout.md`, including its
 final verification battery and `consumer-gate`. After that phase closeout,
 the next implementation input is S4.1, BOM and frame lock. No S4 calibrated
 claim may inherit a pass from this simulation-only envelope.
+
+## Confidence remediation (2026-07-18)
+
+The published envelope's SRP metric limitation has been updated to the
+noise-aware formula frozen in `s3_channel_effects_chain.md` §9.6.2 by commit
+`bb2efe7` (prospective entry `5bfa67e`) and implemented by `1e6e18f`.
+`bearing_confidence` is now documented as a supported, noise-aware,
+uncalibrated reliability ordering that degrades under the frozen directivity-
+suppression fixture; it is not documented as a probability. The legacy
+prominence-only saturation remains as historical context. Occlusion and all
+other fidelity-envelope wording are unchanged by this remediation.
+
+The regenerated authoritative claim map reports `status="passed"`, 10/10
+claim rows, 41/41 affirmative fixture hashes, and 12/12 compatibility
+off-state hashes: 53/53 mapped artifacts in total. Its SHA-256 is
+`a50d758b4828a2c7d80f638f71d1bb32d1714d05ae98a5c7268753f26e07b3d4`,
+superseding the earlier claim-map hash recorded above. The regenerated S3C-07
+row pins `estimator_confidence_ladder.json` at
+`c1513fd55ce701c06b266f4e313bc387e39b6f5d003294bd3c531c2e75b1d79b`;
+the S3.9 gate reports all 10 rows `passed`, empty `failed_rows`/`failures`, and
+the same claim-map hash.
+
+For exact provenance, that regenerated gate pins the pre-wording-update
+envelope SHA-256
+`635ba6f95c0a10b9436e1dda802f4454674250d142974e2d89a0433815318471`.
+This later documentation-only wording revision has SHA-256
+`01b32680e095032ac1853e2cff0a9860a652c5992d9e076b270e367185d3ad0f`;
+it is not relabeled as the already-recorded gate run. The gate's passing
+claim-map and owning-row evidence remain authoritative at their recorded
+revision.

@@ -13,6 +13,7 @@ off-state is preserved.
 - Added seeded spectral self-noise, ambient coherence, clock jitter, and drift with deterministic named streams, replay, isolation, and additive diagnostics.
 - Added the post-mix electronics path for saturation/clipping, quantization, TPDF dither, and optional AGC with clipping and gain-trace diagnostics.
 - Added L2 waveform source/microphone directivity in `per_pair_direct_path` mode, applying signed polar and frequency response to each complete convolved pair stem.
+- Added noise-aware SRP bearing confidence; `room_srp` confidence values change behavior without a schema change and now degrade on noise-dominated input instead of saturating.
 - Added measured-absorption provenance, nominal transmission separation, dynamic-room/material invalidation, and live direct-ray occlusion refresh without claiming diffraction.
 - Added the supported/unsupported motion and multi-source stress matrix plus a published claim-to-evidence fidelity envelope with explicit geometry, dependency, performance, and realism limits.
 

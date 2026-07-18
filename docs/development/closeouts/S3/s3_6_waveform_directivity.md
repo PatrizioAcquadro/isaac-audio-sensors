@@ -266,3 +266,35 @@ dynamic-room cache invalidation, and occlusion must preserve waveform/RMS/
 diagnostic/export agreement without claiming reflected-path angular
 directivity, diffraction, or pyroomacoustics-native directivity unless a
 separately reviewed later design and evidence explicitly add them.
+
+## Confidence remediation (2026-07-18)
+
+This dated section preserves the original closeout above and supersedes only
+its SRP-confidence limitation, proxy-criteria amendment, and associated
+carry-forward obligation. The noise-aware formula and decision were frozen in
+`docs/development/specs/s3_channel_effects_chain.md` §9.6.2 by commit
+`bb2efe7` (prospective specification entry `5bfa67e`), implemented by
+`1e6e18f`, and regenerated evidence records
+`implementation_revision=497c0fffdae2f77b33905b64c5de41b906c2c0c7`.
+The schema remains unchanged, and confidence remains an uncalibrated
+reliability ordering rather than a probability.
+
+The original acceptance criterion—“estimator tests show the expected confidence
+degradation”—is now met directly. The authoritative S3.6 gate's
+`estimator_degradation` row is `passed`; its eight-seed median
+`bearing_confidence` values at `0°,90°,120°,180°` are
+`0.05814612482686094, 0.05514319161396962, 0.04778229697397164,
+0.0006422450143033353`. They are non-increasing, meet the `>=0.050` front
+floor and `<=0.005` rear ceiling, and drop by
+`0.0575038798125576 >=0.040` front-to-rear. The retained corroborating SNR,
+GCC, bearing-error, and peak-power criteria also pass; they no longer stand in
+for confidence.
+
+The earlier `1967c03` amendment (entry identifier `7ba5a1f`) remains recorded
+above as history but is superseded where it replaced confidence degradation
+with proxy observables and treated the saturating formula as immutable. The
+development plan §6.6 `S3.6` and S0 acceptance `S3.6` wording are therefore
+satisfied as originally written. No governing-document amendment is required.
+The regenerated ladder artifact hash is
+`c1513fd55ce701c06b266f4e313bc387e39b6f5d003294bd3c531c2e75b1d79b`;
+the prior hash in the original table remains revision-specific provenance.

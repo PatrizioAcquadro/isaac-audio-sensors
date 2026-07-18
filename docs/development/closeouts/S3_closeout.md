@@ -135,3 +135,32 @@ the owning closeouts rather than being hidden by this aggregate pass.
   1.10.0 in the audited artifacts, but adding these surfaces to the S6 CI
   matrix is a required follow-up so a future release cannot repeat the
   phase-final drift.
+
+## Confidence and version-sync remediation (2026-07-18)
+
+This dated section supplements rather than rewrites the original phase
+closeout. Commit `bb2efe7` froze the noise-aware SRP confidence formula and
+decision (prospective specification entry `5bfa67e`); `1e6e18f` implemented
+the behavior and restored direct confidence-degradation acceptance. The
+regenerated `0°,90°,120°,180°` median confidences are
+`0.05814612482686094, 0.05514319161396962, 0.04778229697397164,
+0.0006422450143033353`, a non-increasing sequence with a
+`0.0575038798125576` front-to-rear drop. The value is a noise-aware,
+uncalibrated reliability ordering, not a localization probability; the frame
+schema is unchanged.
+
+At evidence revision
+`497c0fffdae2f77b33905b64c5de41b906c2c0c7`, the regenerated S3.6
+`waveform_directivity_gate.json` reports `passed`, S3.8
+`stress_matrix_gate.json` reports `Passed`, and S3.9
+`fidelity_envelope_gate.json` reports `passed`. The updated repository test
+battery totals are **1106 passed, 0 failed, 78 skipped**. Commit `497c0ff`
+also extended `scripts/check_version_sync.py` and its disagreement tests to
+cover both `pack.toml` `pack_version` and version-bearing `artifact_name`,
+superseding the original follow-up limitation above.
+
+The S3 exit gate remains met at the recorded evidence revisions, now with the
+plan §6.6/S0 S3.6 confidence criterion satisfied directly under the frozen
+formula rather than through proxy observables. The original amendment and
+closeout text remain above as provenance; no governing acceptance wording was
+changed.

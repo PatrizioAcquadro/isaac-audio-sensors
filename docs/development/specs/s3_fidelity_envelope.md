@@ -210,15 +210,25 @@ directional objects are not a Stage 1 fallback.
 
 ### Metric limitations
 
-The normalized SRP diagnostic is clamped
-`(peak_power-mean_power)/peak_power`. On noise-dominated input it can saturate
-toward one because mean steered-grid power approaches zero while a finite-grid
-maximum stays positive. The measured values were
-`0.9635921293431229, 0.9640566760866303, 0.9642531814832411,
-0.9842162004789096`; confidence rose by `0.02062407113578668` while SNR fell
-nearly 80 dB and bearing error reached `63°`. Therefore
-`srp_phat_confidence` is not localization evidence on noise-only or
-effectively noise-only input.
+`bearing_confidence` is a supported noise-aware, uncalibrated reliability
+ordering under the formula frozen by the 2026-07-18 remediation in
+`s3_channel_effects_chain.md` §9.6.2 (specification/decision commit `bb2efe7`,
+prospective entry `5bfa67e`). Across the regenerated `0°,90°,120°,180°`
+directivity-suppression ladder, its eight-seed medians were
+`0.05814612482686094, 0.05514319161396962, 0.04778229697397164,
+0.0006422450143033353`: non-increasing at every rung, above the frozen
+`0.050` front floor, below the `0.005` rear ceiling, and with a
+`0.0575038798125576` front-to-rear drop against the `0.040` minimum. It ranks
+reliability; neither the value nor either formula factor is a probability of
+correct localization.
+
+Historically, the superseded prominence-only formula
+`clamp((peak_power-mean_power)/peak_power, 0, 1)` saturated on
+noise-dominated input: its corresponding medians rose from
+`0.9635921293431229` to `0.9842162004789096` while SNR fell nearly 80 dB.
+That limitation remains provenance for the legacy behavior; the dated
+`bb2efe7`/`5bfa67e` remediation added absolute noise sensitivity without
+changing `ias.audio_sensor_frame.v1`.
 
 The GCC value above is a fixture proxy: the median absolute pairwise
 `GccPhatDelay.peak_value`, then the median over eight fixed seeds. It behaved
