@@ -66,13 +66,28 @@ gate), and unbounded warning/finding retention in streaming validation
   large (bounded, exactly-counted) warning totals; warning-only by the
   frozen layout contract. A producer-side diagnostics path policy is a
   candidate S3+ refinement.
-- Simulator reset boundaries are not yet exposed by the tick contract, so
-  recorded episodes carry no mid-episode reset markers (documented in
-  workflow.py); S3.2 (time gaps and intra-window motion) is the natural
-  owner.
+- Guided recording now closes and starts episodes at explicit simulator
+  reset notifications and detected timestamp/frame-index rollbacks; the
+  first post-reset record carries the reset marker.
 - The reference fixture and rig documents are repo-only, excluded from the
   sdist under the frozen S1 audit; revisiting distribution policy belongs
   to an S6/P4 ADR.
 - S3 entry: dynamic acoustics consume the S2.2 writer timing contract
   (S3.2 depends on it) and the canonical validator; the endurance harness
   and reliability scenarios are reusable gates for S3.9/S5.6.
+
+<!-- BEGIN GENERATED S2 REVIEW REMEDIATION -->
+
+## S2 review remediation exit gate (regenerated)
+
+All review findings are closed without changing the frozen acceptance criteria. Manifest
+finalization recovery, shared device/calibration validation, FLAC export/replay, and
+guided reset-boundary gates pass. The S2.7 real-waveform rerun has 201 nonempty
+attributed ranges and nonzero audio; the S2.8 rerun has exact GUI/headless audio across
+20 ranges and 0 semantic differences. Generated pure-gate statuses:
+{"audio_parity_metrics": "passed", "device_calibration_shared_validation": "passed",
+"flac_export_replay": "passed", "guided_reset_boundaries": "passed",
+"manifest_finalization_recovery": "passed", "manifest_in_trailing_blank_line":
+"passed"}.
+
+<!-- END GENERATED S2 REVIEW REMEDIATION -->

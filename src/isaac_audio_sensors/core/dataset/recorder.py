@@ -8,7 +8,7 @@ import sqlite3
 import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, BinaryIO
 
@@ -203,6 +203,7 @@ class SessionRecorder:
         cancellation_token: CancellationToken | None = None,
         promotion_callback: Callable[[ShardPromotion], None] | None = None,
         _resume_payload: dict[str, Any] | None = None,
+        _recover_finalization: bool = False,
     ) -> None:
         self.session_root = Path(session_root)
         self.seam = seam or FilesystemSeam()
@@ -245,9 +246,12 @@ class SessionRecorder:
         self._closed = False
         self._handling_cancellation = False
         self._producer_db: sqlite3.Connection | None = None
+        self._pending_finalization_state: str | None = None
 
         if _resume_payload is None:
             self._start_new_session()
+        elif _recover_finalization:
+            self._restore_finalization(_resume_payload)
         else:
             self._restore_session(_resume_payload)
 
@@ -1172,6 +1176,8 @@ class SessionRecorder:
         self._pending_record = None
 
     def _finalize_manifest(self, *, completion_state: str) -> AudioDatasetManifest:
+        if completion_state not in {"complete", "incomplete"}:
+            raise ValueError("completion_state must be 'complete' or 'incomplete'")
         verified = tuple(
             verify_shard_completion(
                 path,
@@ -1215,15 +1221,20 @@ class SessionRecorder:
             splits=(),
             completion_state=completion_state,
         )
+        # The intent is a durable recovery journal. It must survive until the
+        # manifest payload, atomic replacement, and parent-directory fsync have
+        # all completed successfully.
+        self._write_state(finalization_state=completion_state)
         self._close_producer_index()
-        if self._staging_root.exists():
-            shutil.rmtree(self._staging_root)
         write_json_atomic(
             self.session_root / "manifest.json",
             manifest_to_dict(manifest),
             seam=self.seam,
             cancellation_token=None,
         )
+        if self._staging_root.exists():
+            shutil.rmtree(self._staging_root)
+        self._pending_finalization_state = None
         self._closed = True
         return manifest
 
@@ -1332,19 +1343,35 @@ class SessionRecorder:
             completion_state="complete",
         )
 
-    def _write_state(self) -> None:
+    def _write_state(self, *, finalization_state: str | None = None) -> None:
+        if finalization_state not in {None, "complete", "incomplete"}:
+            raise ValueError(
+                "finalization_state must be None, 'complete', or 'incomplete'"
+            )
         payload = {
             "state_version": _STATE_VERSION,
             "configuration_sha256": configuration_sha256(self._configuration_bytes),
             "creation_timestamp_ms": self.creation_timestamp_ms,
+            "finalization_state": finalization_state,
+            "recovery_metadata": {
+                "creation": asdict(self.creation),
+                "device": asdict(self.device),
+                "license": self.license,
+                "source": self.source,
+                "coordinate_frames": list(self.coordinate_frames),
+                "time_base": self.time_base,
+            },
             "episodes": [item.state_dict() for item in self._episodes],
         }
         write_json_atomic(
             self._state_path,
             payload,
             seam=self.seam,
-            cancellation_token=self.cancellation_token,
+            cancellation_token=(
+                self.cancellation_token if finalization_state is None else None
+            ),
         )
+        self._pending_finalization_state = finalization_state
 
     def _open_producer_index(self) -> None:
         database_path = self._staging_root / "producer_ids.sqlite3"
@@ -1438,7 +1465,68 @@ class SessionRecorder:
             _resume_payload=state_payload,
         )
 
-    def _restore_session(self, state_payload: dict[str, Any]) -> None:
+    @classmethod
+    def recover_finalization(
+        cls,
+        session_root: str | Path,
+        *,
+        seam: FilesystemSeam | None = None,
+    ) -> AudioDatasetManifest:
+        """Retry an interrupted manifest finalization from durable state.
+
+        This path is intentionally separate from :meth:`resume`: once a
+        finalization intent is durable, no producer input may be appended.
+        The manifest may already be visible when its parent-directory fsync
+        failed; recovery rewrites and fsyncs it before removing ``_staging``.
+        """
+
+        root = Path(session_root)
+        state_path = root / "_staging/recorder_state.json"
+        try:
+            state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SessionRecorderError(
+                f"session {root}: cannot read finalization recovery state: {exc}"
+            ) from exc
+        try:
+            configuration = json.loads(
+                (root / "config/session_config.json").read_text(encoding="utf-8")
+            )
+            recovery = state_payload["recovery_metadata"]
+            creation = CreationProvenance(**recovery["creation"])
+            device = DeviceProvenance(**recovery["device"])
+            license_text = str(recovery["license"])
+            source = str(recovery["source"])
+            coordinate_frames = tuple(recovery["coordinate_frames"])
+            time_base = str(recovery["time_base"])
+            creation_timestamp_ms = int(state_payload["creation_timestamp_ms"])
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            raise SessionRecorderError(
+                f"session {root}: invalid durable finalization recovery state: {exc}"
+            ) from exc
+        recorder = cls(
+            root,
+            configuration,
+            creation=creation,
+            device=device,
+            license=license_text,
+            source=source,
+            coordinate_frames=coordinate_frames,
+            time_base=time_base,
+            creation_timestamp_ms=creation_timestamp_ms,
+            seam=seam,
+            cancellation_token=CancellationToken(),
+            _resume_payload=state_payload,
+            _recover_finalization=True,
+        )
+        state = recorder._pending_finalization_state
+        if state is None:
+            raise SessionRecorderError(
+                f"session {root}: no durable finalization intent is present"
+            )
+        return recorder._finalize_manifest(completion_state=state)
+
+    def _validate_restore_state(self, state_payload: Mapping[str, Any]) -> None:
         if state_payload.get("state_version") != _STATE_VERSION:
             raise SessionRecorderError(
                 f"session {self.session_root}: unsupported recorder state"
@@ -1462,6 +1550,77 @@ class SessionRecorder:
                 f"session {self.session_root}: creation timestamp mismatch"
             )
         self.creation_timestamp_ms = stored_timestamp
+
+    @staticmethod
+    def _episode_from_state_payload(item: Mapping[str, Any]) -> _EpisodeState:
+        episode = _EpisodeState(
+            ordinal=int(item["ordinal"]),
+            scene_id=str(item["scene_id"]),
+            environment_id=str(item["environment_id"]),
+            split_group=str(item["split_group"]),
+            seed=int(item["seed"]),
+            start_frame=int(item["start_frame"]),
+            frame_count=int(item.get("frame_count", 0)),
+            last_timestamp_ms=(
+                None
+                if item.get("last_timestamp_ms") is None
+                else int(item["last_timestamp_ms"])
+            ),
+            timestamps_ms=[int(value) for value in item.get("timestamps_ms", ())],
+            first_producer_step=(
+                None
+                if item.get("first_producer_step") is None
+                else int(item["first_producer_step"])
+            ),
+            last_producer_step=(
+                None
+                if item.get("last_producer_step") is None
+                else int(item["last_producer_step"])
+            ),
+            reset_markers=[
+                ResetMarker(
+                    step_index=int(marker["step_index"]),
+                    frame_index=int(marker["frame_index"]),
+                    timestamp_ms=int(marker["timestamp_ms"]),
+                )
+                for marker in item.get("reset_markers", ())
+            ],
+            published_frame_count=int(item.get("published_frame_count", 0)),
+            published_last_step=(
+                None
+                if item.get("published_last_step") is None
+                else int(item["published_last_step"])
+            ),
+            ended=bool(item.get("ended", False)),
+            end_frame=(
+                None if item.get("end_frame") is None else int(item["end_frame"])
+            ),
+        )
+        return episode
+
+    def _restore_finalization(self, state_payload: dict[str, Any]) -> None:
+        self._validate_restore_state(state_payload)
+        state = state_payload.get("finalization_state")
+        if state not in {"complete", "incomplete"}:
+            raise SessionRecorderError(
+                f"session {self.session_root}: no durable finalization intent"
+            )
+        self._episodes = [
+            self._episode_from_state_payload(item)
+            for item in state_payload.get("episodes", ())
+        ]
+        published = self._scan_published_for_resume()
+        verify_shard_tiling(published)
+        self._published = list(published)
+        self._next_dataset_frame = sum(item["frame_count"] for item in published)
+        self._pending_finalization_state = state
+
+    def _restore_session(self, state_payload: dict[str, Any]) -> None:
+        self._validate_restore_state(state_payload)
+        if state_payload.get("finalization_state") is not None:
+            raise SessionRecorderError(
+                f"session {self.session_root}: finalization recovery is required"
+            )
 
         state_episodes = {
             int(item["ordinal"]): item for item in state_payload.get("episodes", [])
@@ -1632,10 +1791,24 @@ def resume(
     return SessionRecorder.resume(session_root, configuration, **kwargs)
 
 
+def recover_finalization(
+    session_root: str | Path,
+    *,
+    seam: FilesystemSeam | None = None,
+) -> AudioDatasetManifest:
+    """Public convenience entry point for finalization-only recovery."""
+
+    return SessionRecorder.recover_finalization(
+        session_root,
+        seam=seam,
+    )
+
+
 __all__ = [
     "AppendFrameResult",
     "SessionRecorder",
     "SessionRecorderError",
     "ShardPromotion",
+    "recover_finalization",
     "resume",
 ]

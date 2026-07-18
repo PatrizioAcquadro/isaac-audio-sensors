@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from isaac_audio_sensors_omni import Extension
+from live_endurance_capture_gate import (
+    DEMO_CONFIG,
+    _author_demo_scene,
+    _room_scene_adaptation,
+)
 from live_isaac_sim_audio_smoke import (
     _ensure_isaac_runtime,
     _record_gpu_preflight,
@@ -31,6 +36,8 @@ from live_omniverse_extension_ux import (
     _try_enable_extension_manager,
 )
 
+from isaac_audio_sensors.core.config import load_audio_config
+from isaac_audio_sensors.core.dataset import SessionDataset
 from isaac_audio_sensors.core.dataset.validate import validate_dataset
 from isaac_audio_sensors.isaac.extension_ui import (
     CurrentStageContext,
@@ -57,6 +64,7 @@ def main() -> int:
 
     session_dir = args.out.parent / "guided_recording_session"
     cancelled_dir = args.out.parent / "guided_cancelled_session"
+    waveform_dir = args.out.parent / "waveforms"
     screenshot_path = args.out.parent / "guided_workflow.png"
     args.out.parent.mkdir(parents=True, exist_ok=True)
     _remove_gate_artifact(args.out)
@@ -64,6 +72,7 @@ def main() -> int:
     _remove_gate_tree(args.export_dir)
     _remove_gate_tree(session_dir)
     _remove_gate_tree(cancelled_dir)
+    _remove_gate_tree(waveform_dir)
 
     evidence: dict[str, Any] = {
         "argv": sys.argv,
@@ -112,6 +121,18 @@ def main() -> int:
         _author_minimal_stage(stage)
         _update_kit_once(evidence)
 
+        from isaac_audio_sensors.core.backends.room_acoustics import (
+            RoomAcousticsBackend,
+        )
+
+        if not RoomAcousticsBackend.is_available():
+            raise RuntimeError(
+                "S2.7 requires the real room_acoustics waveform backend; "
+                "backend substitution is forbidden."
+            )
+        config = load_audio_config(DEMO_CONFIG)
+        scene_adaptation = _room_scene_adaptation(config)
+
         startup_ext_id = _enabled_extension_id(evidence) or EXTENSION_ID
         extension = Extension()
         extension.on_startup(startup_ext_id)
@@ -133,21 +154,31 @@ def main() -> int:
         _install_transition_log(controller, evidence["stage_transitions"])
         evidence["invalid_states"].append(_probe_absent_stage())
 
-        preset = _require(
-            controller.guided_apply_preset("minimal_single_source"),
-            "guided preset apply",
+        _author_demo_scene(
+            controller,
+            stage,
+            config,
+            "room_acoustics",
+            scene_adaptation,
         )
-        _require(controller.author_array(stage=stage), "array authoring")
-        _require(controller.author_source(stage=stage), "source authoring")
+        controller.state.waveform_dir = str(waveform_dir.resolve())
         evidence["preset"] = {
-            "preset_id": preset.preset_id,
+            "preset_id": "xvf3800_quad_demo",
             "array_prim_path": controller.state.array_prim_path,
             "source_prim_path": controller.state.source_prim_path,
+        }
+        evidence["waveform_backend"] = {
+            "backend_id": "room_acoustics",
+            "substitution": None,
+            "waveform_dir": str(waveform_dir.resolve()),
+            "scene_adaptation": scene_adaptation,
         }
         if not controller.guided_advance():
             raise RuntimeError("Setup did not advance to Validate.")
 
-        evidence["invalid_states"].append(_probe_invalid_backend(controller))
+        evidence["invalid_states"].append(
+            _probe_invalid_backend(controller, "room_acoustics")
+        )
         validation = controller.guided_validate()
         if not validation.ok:
             raise RuntimeError(f"Guided validation remained blocked: {validation}")
@@ -249,6 +280,11 @@ def main() -> int:
         if report.status not in {"passed", "passed_with_warnings"}:
             raise RuntimeError(f"Canonical export validation failed: {report.status}")
         evidence["validator_summary"] = report.to_dict()
+        evidence["audio_acceptance"] = _audio_acceptance(exported)
+        if not evidence["audio_acceptance"]["passed"]:
+            raise RuntimeError(
+                f"Exported audio acceptance failed: {evidence['audio_acceptance']}"
+            )
         evidence["output_inventory"] = list(controller.guided_output_inventory())
         evidence["export_status"] = _export_status_dict(
             controller.guided_export_status
@@ -330,7 +366,10 @@ def _probe_absent_stage() -> dict[str, Any]:
     }
 
 
-def _probe_invalid_backend(controller: ExtensionController) -> dict[str, Any]:
+def _probe_invalid_backend(
+    controller: ExtensionController,
+    expected_backend: str,
+) -> dict[str, Any]:
     controller.state.backend = "planted_invalid_backend"
     report = controller.guided_validate()
     finding = next(
@@ -341,6 +380,7 @@ def _probe_invalid_backend(controller: ExtensionController) -> dict[str, Any]:
     if blocked_status != "blocked":
         raise RuntimeError("Invalid-backend probe did not block Validate.")
     recovery()
+    controller.state.backend = expected_backend
     recovered = controller.guided_validate()
     if not recovered.ok:
         raise RuntimeError("Invalid-backend recovery did not unblock Validate.")
@@ -353,6 +393,32 @@ def _probe_invalid_backend(controller: ExtensionController) -> dict[str, Any]:
         "field": finding.field,
         "recovery": recovery.label,
         "recovered": True,
+        "recovered_backend": controller.state.backend,
+    }
+
+
+def _audio_acceptance(session_root: Path) -> dict[str, Any]:
+    dataset = SessionDataset.open(session_root)
+    frame_count = 0
+    nonempty_ranges = 0
+    nonzero_sample_values = 0
+    for item in dataset.iter_records():
+        frame_count += 1
+        if item.audio_end_sample > item.audio_start_sample:
+            nonempty_ranges += 1
+        nonzero_sample_values += int(
+            (dataset.read_frame_audio(item) != 0).sum()
+        )
+    return {
+        "frame_count": frame_count,
+        "nonempty_attributed_ranges": nonempty_ranges,
+        "nonzero_sample_values": nonzero_sample_values,
+        "all_ranges_nonempty": frame_count > 0 and nonempty_ranges == frame_count,
+        "passed": (
+            frame_count > 0
+            and nonempty_ranges == frame_count
+            and nonzero_sample_values > 0
+        ),
     }
 
 

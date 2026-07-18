@@ -30,6 +30,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from isaac_audio_sensors.core.io.wave_read import read_wav
 
 _NORMALIZED = "<normalized>"
@@ -57,7 +59,7 @@ def compare_sessions(left: str | Path, right: str | Path) -> dict[str, Any]:
     _diff(left_data["config"], right_data["config"], "config", differences)
     _diff(left_data["markers"], right_data["markers"], "shards", differences)
     _diff(left_data["frames"], right_data["frames"], "frames", differences)
-    _compare_audio(left_data, right_data, differences)
+    audio_parity = _compare_audio(left_data, right_data, differences)
 
     return {
         "status": "equal" if not differences else "different",
@@ -70,6 +72,7 @@ def compare_sessions(left: str | Path, right: str | Path) -> dict[str, Any]:
         },
         "difference_count": len(differences),
         "differences": differences,
+        "audio_parity": audio_parity,
         "normalizations": [
             "creation_timestamp_ms",
             "creation tool/version runtime fields",
@@ -236,7 +239,13 @@ def _compare_audio(
     left: dict[str, Any],
     right: dict[str, Any],
     differences: list[dict[str, Any]],
-) -> None:
+) -> dict[str, Any]:
+    ranges_compared = 0
+    exact_ranges = 0
+    nonempty_left = 0
+    nonempty_right = 0
+    nonzero_left = 0
+    nonzero_right = 0
     for index, (left_record, right_record) in enumerate(
         zip(left["frames"], right["frames"], strict=False)
     ):
@@ -268,6 +277,13 @@ def _compare_audio(
             continue
         left_samples = left_audio.samples[:, left_start:left_end]
         right_samples = right_audio.samples[:, right_start:right_end]
+        ranges_compared += 1
+        if left_samples.shape[1] > 0:
+            nonempty_left += 1
+        if right_samples.shape[1] > 0:
+            nonempty_right += 1
+        nonzero_left += int(np.count_nonzero(left_samples))
+        nonzero_right += int(np.count_nonzero(right_samples))
         if (
             left_samples.shape != right_samples.shape
             or left_samples.dtype != right_samples.dtype
@@ -287,6 +303,28 @@ def _compare_audio(
                     },
                 }
             )
+        else:
+            exact_ranges += 1
+
+    return {
+        "ranges_compared": ranges_compared,
+        "exact_ranges": exact_ranges,
+        "nonempty_ranges": {
+            "left": nonempty_left,
+            "right": nonempty_right,
+        },
+        "nonzero_sample_values": {
+            "left": nonzero_left,
+            "right": nonzero_right,
+        },
+        "all_ranges_nonempty": (
+            ranges_compared > 0
+            and nonempty_left == ranges_compared
+            and nonempty_right == ranges_compared
+        ),
+        "nonzero_audio": nonzero_left > 0 and nonzero_right > 0,
+        "exact": ranges_compared > 0 and exact_ranges == ranges_compared,
+    }
 
 
 def _diff(left: Any, right: Any, path: str, out: list[dict[str, Any]]) -> None:

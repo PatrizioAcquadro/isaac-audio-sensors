@@ -201,6 +201,9 @@ class ExtensionController:
         self._guided_promotions: list[ShardPromotion] = []
         self._guided_last_run_frame_id: str | None = None
         self._guided_last_recorded_frame_id: str | None = None
+        self._guided_last_recorded_timestamp_ms: int | None = None
+        self._guided_last_recorded_producer_index: int | None = None
+        self._guided_reset_pending = False
         self._guided_dataset_validation_report: Any | None = None
         self._guided_export_validation_report: Any | None = None
         self._guided_output_entries: tuple[dict[str, Any], ...] = ()
@@ -276,6 +279,10 @@ class ExtensionController:
             self._validation.validate_stage_present(stage is not None),
             self._validation.validate_runtime(state),
             self._validation.validate_backend_available(state.backend),
+            self._validation.validate_backend_device(
+                state.backend,
+                state.compute_device,
+            ),
             self._validation.validate_abs_prim_path(
                 state.source_prim_path,
                 "source_prim_path",
@@ -284,6 +291,10 @@ class ExtensionController:
             self._validation.validate_source_geometry(state),
             self._validation.validate_array_geometry(state),
             self._validation.validate_layout(state),
+            self._validation.validate_calibration_profile(
+                state.calibration_profile_path,
+                self._calibration_array_facts(),
+            ),
         ]
         if state.room_anchor_prim_path:
             reports.append(
@@ -495,6 +506,9 @@ class ExtensionController:
             token = CancellationToken()
             self._guided_promotions = []
             self._guided_last_recorded_frame_id = None
+            self._guided_last_recorded_timestamp_ms = None
+            self._guided_last_recorded_producer_index = None
+            self._guided_reset_pending = False
             self._guided_dataset_validation_report = None
             recorder = SessionRecorder(
                 root,
@@ -506,10 +520,10 @@ class ExtensionController:
                     estimator_id=self.state.backend,
                 ),
                 device=DeviceProvenance(
-                    device_id="isaac_sim",
+                    device_id=self.state.device_id,
                     device_type="simulator",
                     platform=sys.platform,
-                    compute_device="cpu",
+                    compute_device=self.state.compute_device,
                 ),
                 license="CC0-1.0",
                 source="Isaac Audio Sensors guided extension",
@@ -878,18 +892,61 @@ class ExtensionController:
         if recorder is None or not self.guided_workflow.recording_status.active:
             return
         frame_id = str(frame.frame_id)
-        if frame_id == self._guided_last_recorded_frame_id:
+        timestamp_ms = int(frame.timestamp_ms)
+        producer_index = getattr(frame, "frame_index", None)
+        producer_index = (
+            producer_index
+            if isinstance(producer_index, int) and not isinstance(producer_index, bool)
+            else None
+        )
+        automatic_reset = (
+            self._guided_last_recorded_timestamp_ms is not None
+            and timestamp_ms < self._guided_last_recorded_timestamp_ms
+        ) or (
+            producer_index is not None
+            and self._guided_last_recorded_producer_index is not None
+            and producer_index < self._guided_last_recorded_producer_index
+        )
+        reset_boundary = self._guided_reset_pending or automatic_reset
+        if frame_id == self._guided_last_recorded_frame_id and not reset_boundary:
             return
         try:
+            first_recorded_frame = self._guided_last_recorded_timestamp_ms is None
             audio_block = self._guided_audio_block_for_frame(frame, recorder)
+            if reset_boundary and not first_recorded_frame:
+                recorder.end_episode()
+                request = self._guided_recording_request or {}
+                reset_ordinal = self.guided_workflow.recording_status.reset_count + 1
+                environment = str(
+                    request.get(
+                        "environment_id",
+                        self.state.guided_environment_id,
+                    )
+                )
+                episode = recorder.begin_episode(
+                    str(request.get("scene_id", self.state.guided_scene_id)),
+                    f"{environment}_reset_{reset_ordinal:05d}",
+                    str(request.get("split_group", self.state.guided_split_group)),
+                )
+                self.guided_workflow.update_recording(
+                    replace(
+                        self.guided_workflow.recording_status,
+                        current_episode=episode,
+                        reset_count=reset_ordinal,
+                    )
+                )
             recording_frame = replace(frame, waveform_paths=())
             result = recorder.append_frame(
                 recording_frame,
                 audio_block,
-                int(frame.timestamp_ms),
-                is_reset=False,
+                timestamp_ms,
+                is_reset=first_recorded_frame or reset_boundary,
             )
-            self._guided_last_recorded_frame_id = frame_id
+            if result.accepted:
+                self._guided_last_recorded_frame_id = frame_id
+                self._guided_last_recorded_timestamp_ms = timestamp_ms
+                self._guided_last_recorded_producer_index = producer_index
+                self._guided_reset_pending = False
             previous = self.guided_workflow.recording_status
             status = replace(
                 previous,
@@ -904,6 +961,12 @@ class ExtensionController:
         except Exception as exc:
             self.guided_workflow.fail_recording(str(exc))
             self._record_error("Guided frame recording failed", exc)
+
+    def guided_notify_simulator_reset(self) -> None:
+        """Mark the next recorded frame as the start of a reset episode."""
+
+        if self._guided_recorder is not None:
+            self._guided_reset_pending = True
 
     @staticmethod
     def _guided_audio_block_for_frame(
@@ -3002,6 +3065,13 @@ class ExtensionController:
             {
                 "schema_version": "ias.omni_extension_binding.v1",
                 "backend": state.backend,
+                "device": {
+                    "device_id": state.device_id,
+                    "compute_device": state.compute_device,
+                },
+                "calibration": {
+                    "profile_path": state.calibration_profile_path or None,
+                },
                 "guided": {
                     "mode_enabled": state.guided_mode_enabled,
                     "preset_id": state.guided_preset_id or None,
@@ -3465,6 +3535,27 @@ class ExtensionController:
 
     def _validate_backend_available(self) -> None:
         self._validation.validate_backend_available(self.state.backend).raise_first()
+
+    def _validate_backend_device(self) -> None:
+        self._validation.validate_backend_device(
+            self.state.backend,
+            self.state.compute_device,
+        ).raise_first()
+
+    def _validate_calibration_profile(self) -> None:
+        self._validation.validate_calibration_profile(
+            self.state.calibration_profile_path,
+            self._calibration_array_facts(),
+        ).raise_first()
+
+    def _calibration_array_facts(self) -> dict[str, Any]:
+        return {
+            "array_id": self.state.array_id,
+            "device_id": self.state.device_id,
+            "microphones": microphone_layout(self.state.layout_name),
+            "sample_rate_hz": self.state.sample_rate_hz,
+            "coordinate_convention": self.state.coordinate_convention,
+        }
 
     def _validate_layout_state(self) -> None:
         self._validation.validate_layout(self.state).raise_first()
@@ -4034,6 +4125,8 @@ class ExtensionController:
         array_binding = dict(payload.get("array_binding", {}))
         binding = dict(payload.get("stage_binding", {}))
         lifecycle = dict(payload.get("lifecycle", {}))
+        device = dict(payload.get("device", {}))
+        calibration = dict(payload.get("calibration", {}))
         recording = dict(payload.get("recording", {}))
         package_recording = dict(recording.get("package_jsonl", {}))
         replicator = dict(recording.get("replicator", {}))
@@ -4105,6 +4198,17 @@ class ExtensionController:
         )
 
         self.state.backend = str(payload.get("backend", self.state.backend))
+        self.state.device_id = str(
+            device.get("device_id", self.state.device_id)
+        )
+        self.state.compute_device = str(
+            device.get("compute_device", self.state.compute_device)
+        )
+        if "profile_path" in calibration:
+            selected_calibration = calibration.get("profile_path")
+            self.state.calibration_profile_path = (
+                "" if selected_calibration is None else str(selected_calibration)
+            )
         self.state.array_prim_path = str(
             array.get("prim_path", self.state.array_prim_path)
         )

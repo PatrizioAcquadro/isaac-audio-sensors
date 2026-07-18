@@ -55,3 +55,13 @@ report counts, duration, missingness, channel/sample-rate consistency,
 timestamps, ranges, labels, modalities, and asset integrity; zero
 violations on valid fixtures; every planted corruption from the S2.3
 matrix must map to a distinct machine-readable finding.
+
+<!-- BEGIN GENERATED S2 REVIEW REMEDIATION -->
+
+## S2 review remediation (regenerated)
+
+The documented export-only FLAC path now passes int16 and int24 export/replay, exact
+declared-type decoded comparisons, corruption location, and missing-dependency behavior.
+Evidence: `outputs/isaac_audio_sensors/S2/S2.review/remediation_gate.json`.
+
+<!-- END GENERATED S2 REVIEW REMEDIATION -->

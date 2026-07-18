@@ -2,9 +2,9 @@
 
 Inspect completion is deliberately an explicit user action: the instrument
 readouts provide evidence, but deciding that the observation is acceptable is
-human judgment.  The current extension tick contract does not expose simulator
-reset boundaries, so Run B records frames with ``is_reset=False``; a future
-reset-aware tick contract can supply markers without changing the workflow.
+human judgment. Guided recording accepts explicit reset notifications and also
+detects timestamp/frame-index rollback; every simulator reset starts a new
+episode whose first frame is reset-marked.
 """
 
 from __future__ import annotations
@@ -211,6 +211,7 @@ class RecordingStatus:
     shards_promoted: int = 0
     bytes_written: int = 0
     current_episode: str | None = None
+    reset_count: int = 0
     validation_status: str | None = None
 
     @property

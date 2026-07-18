@@ -33,7 +33,9 @@ from .checks import (
     check_attached_array_target,
     check_attached_source_target,
     check_backend_available,
+    check_calibration_profile,
     check_config_schema_version,
+    check_device_supported,
     check_layout,
     check_object_profile_mapping_known,
     check_object_profile_mappings_mapping,
@@ -174,6 +176,56 @@ class ValidationController:
                 actionable_message=actionable_message,
             )
         )
+
+    def validate_backend_device(self, backend_id: str, device: str) -> ValidationReport:
+        """Validate the requested device from the current plugin declaration."""
+
+        from isaac_audio_sensors.core.plugins.registry import get_default_registry
+
+        supported: tuple[str, ...] = ()
+        for declaration in get_default_registry().declarations(
+            "propagation_backend"
+        ):
+            if declaration.plugin_id == backend_id:
+                supported = declaration.supported_devices
+                break
+        return ValidationReport(check_device_supported(backend_id, device, supported))
+
+    def validate_calibration_profile(
+        self,
+        profile_path: str,
+        array_spec_like: object,
+    ) -> ValidationReport:
+        """Load and check an optional calibration selection on every call.
+
+        No profile object is cached, so replacing, deleting, or changing the
+        selected file cannot produce a stale validation answer.
+        """
+
+        requested = profile_path.strip()
+        if not requested:
+            return ValidationReport()
+        from isaac_audio_sensors.core.calibration_profile import (
+            check_profile_compatibility,
+        )
+        from isaac_audio_sensors.core.io.calibration import read_calibration_profile
+
+        try:
+            profile = read_calibration_profile(requested)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            return ValidationReport(
+                check_calibration_profile(requested, read_error=str(exc))
+            )
+        try:
+            check_profile_compatibility(profile, array_spec_like)
+        except ValueError as exc:
+            return ValidationReport(
+                check_calibration_profile(
+                    requested,
+                    compatibility_error=str(exc),
+                )
+            )
+        return ValidationReport(check_calibration_profile(requested))
 
     def validate_runtime(self, state: ValidationState) -> ValidationReport:
         return ValidationReport(check_runtime_state(state))

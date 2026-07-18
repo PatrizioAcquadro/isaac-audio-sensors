@@ -523,6 +523,54 @@ def test_guided_recording_end_to_end_validates_and_reports_progress(
     )
 
 
+def test_guided_recording_marks_explicit_and_detected_simulator_resets(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    recorded = (
+        _frame(5, waveform_path=_waveform(tmp_path / "reset/5.wav", 5)),
+        _frame(6, waveform_path=_waveform(tmp_path / "reset/6.wav", 6)),
+        _frame(0, waveform_path=_waveform(tmp_path / "reset/0.wav", 0)),
+    )
+    controller, _sensor = _run_ready_controller(
+        monkeypatch,
+        [_frame(0), *recorded],
+    )
+    _enter_record_stage(controller)
+    session = tmp_path / "reset_session"
+    assert controller.guided_start_recording(
+        session,
+        "guided_reset_test",
+        8,
+        False,
+        scene_id="scene_a",
+        environment_id="environment_a",
+        split_group="scene_a",
+        session_seed=17,
+    ) is not None
+
+    assert controller.update_sensor() is recorded[0]
+    controller.guided_notify_simulator_reset()
+    assert controller.update_sensor() is recorded[1]
+    assert controller.update_sensor() is recorded[2]
+    assert controller.guided_recording_status.reset_count == 2
+    assert controller.guided_stop_recording() is not None
+
+    manifest = read_dataset_manifest(session / "manifest.json")
+    assert [episode.environment_id for episode in manifest.episodes] == [
+        "environment_a",
+        "environment_a_reset_00001",
+        "environment_a_reset_00002",
+    ]
+    assert [len(episode.reset_markers) for episode in manifest.episodes] == [1, 1, 1]
+    assert [episode.reset_markers[0].frame_index for episode in manifest.episodes] == [
+        0,
+        1,
+        2,
+    ]
+    assert validate_dataset(session).status in {"passed", "passed_with_warnings"}
+
+
 def test_guided_recording_cancellation_finalizes_incomplete_and_recovers(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

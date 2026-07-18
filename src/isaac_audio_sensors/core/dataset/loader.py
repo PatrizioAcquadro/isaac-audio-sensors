@@ -36,6 +36,7 @@ from isaac_audio_sensors.core.dataset_manifest import (
     EpisodeRecord,
     ShardRecord,
 )
+from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.manifests import (
     manifest_to_dict,
     read_dataset_manifest,
@@ -248,7 +249,7 @@ class SessionDataset:
     def read_shard_audio(
         self, shard_id: str, start_sample: int, end_sample: int
     ) -> np.ndarray:
-        """Seek-read one bounded channel-first float32 WAV window."""
+        """Seek-read one bounded channel-first WAV or FLAC sample window."""
 
         shard = self._shards_by_id.get(shard_id)
         if shard is None:
@@ -276,7 +277,19 @@ class SessionDataset:
             )
         channels = marker["audio"]["channels"]
         if start_sample == end_sample:
-            return np.zeros((channels, 0), dtype=np.float32)
+            return np.zeros(
+                (channels, 0),
+                dtype=_decoded_audio_dtype(marker["audio"]["dtype"]),
+            )
+        if marker["audio"]["path"] == "audio.flac":
+            return _read_flac_range(
+                self.session_root / "shards" / shard_id / "audio.flac",
+                start_sample=start_sample,
+                end_sample=end_sample,
+                channels=channels,
+                declared_dtype=str(marker["audio"]["dtype"]),
+                location=location,
+            )
         if (
             marker["audio"]["path"] != "audio.wav"
             or marker["audio"]["dtype"] != "float32"
@@ -301,6 +314,7 @@ class SessionDataset:
             )
         interleaved = np.frombuffer(payload, dtype="<f4")
         return np.ascontiguousarray(interleaved.reshape(-1, channels).T)
+
 
     def _iter_all_records(self) -> Iterator[LoadedFrame]:
         episodes = self.manifest.episodes
@@ -490,6 +504,55 @@ class SessionDataset:
             raise
         self._verified_markers[shard.shard_id] = marker
         return marker
+
+
+def _decoded_audio_dtype(declared_dtype: str) -> np.dtype[Any]:
+    if declared_dtype == "float32":
+        return np.dtype(np.float32)
+    if declared_dtype == "int16":
+        return np.dtype(np.int16)
+    if declared_dtype == "int24":
+        # libsndfile exposes 24-bit PCM left-aligned in int32 containers.
+        return np.dtype(np.int32)
+    raise DatasetLayoutError(f"unsupported replay dtype {declared_dtype!r}")
+
+
+def _read_flac_range(
+    path: Path,
+    *,
+    start_sample: int,
+    end_sample: int,
+    channels: int,
+    declared_dtype: str,
+    location: str,
+) -> np.ndarray:
+    try:
+        import soundfile  # type: ignore
+    except ImportError as exc:
+        raise OptionalDependencyUnavailable(
+            "FLAC dataset export and replay require soundfile from the 'room' extra."
+        ) from exc
+    dtype = "int16" if declared_dtype == "int16" else "int32"
+    if declared_dtype not in {"int16", "int24"}:
+        raise DatasetLayoutError(
+            f"{location}: FLAC replay requires declared dtype int16 or int24."
+        )
+    try:
+        with soundfile.SoundFile(path, mode="r") as stream:
+            stream.seek(start_sample)
+            data = stream.read(
+                end_sample - start_sample,
+                dtype=dtype,
+                always_2d=True,
+            )
+    except (OSError, RuntimeError) as exc:
+        raise DatasetLayoutError(f"{location}: FLAC range read failed: {exc}") from exc
+    expected_shape = (end_sample - start_sample, channels)
+    if data.shape != expected_shape:
+        raise DatasetLayoutError(
+            f"{location}: truncated FLAC range {data.shape} != {expected_shape}."
+        )
+    return np.ascontiguousarray(data.T)
 
 
 def _read_json_object(path: Path, location: str) -> dict[str, Any]:

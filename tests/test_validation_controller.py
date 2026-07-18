@@ -409,6 +409,64 @@ def test_valid_state_passes_shared_and_extension_controller_checks():
     controller._validate_layout_state()
 
 
+def test_device_and_calibration_results_match_gui_and_headless(tmp_path):
+    state = _state(compute_device="cuda")
+    validation = ValidationController()
+    controller = ExtensionController(state=state)
+
+    _assert_parity(
+        validation.validate_backend_device(state.backend, state.compute_device),
+        controller._validate_backend_device,
+    )
+
+    missing = tmp_path / "missing-calibration.json"
+    state.compute_device = "cpu"
+    state.calibration_profile_path = str(missing)
+    direct = validation.validate_calibration_profile(
+        state.calibration_profile_path,
+        controller._calibration_array_facts(),
+    )
+    _assert_parity(direct, controller._validate_calibration_profile)
+    assert direct.findings[0].check_id == "calibration_profile_readable"
+
+
+def test_device_and_calibration_checks_never_answer_from_stale_state(tmp_path):
+    profile_path = (
+        Path(__file__).resolve().parents[1]
+        / "examples/calibration/respeaker_xvf3800_nominal.v1.json"
+    )
+    selected = tmp_path / "selected-calibration.json"
+    selected.write_bytes(profile_path.read_bytes())
+    facts = {
+        "array_id": "xvf3800_array",
+        "device_id": "respeaker_xvf3800_fixture",
+        "microphones": tuple(
+            {"mic_id": channel} for channel in ("ch0", "ch1", "ch2", "ch3")
+        ),
+        "sample_rate_hz": 48_000,
+        "coordinate_convention": (
+            "x_forward_y_right_z_up_clockwise_bearing"
+        ),
+        "array_frame": "xvf3800_array",
+    }
+    validation = ValidationController()
+
+    assert validation.validate_backend_device("tdoa_synthetic", "cpu").ok
+    changed_device = validation.validate_backend_device("tdoa_synthetic", "cuda")
+    assert not changed_device.ok
+    assert changed_device.findings[0].check_id == "backend_device_supported"
+
+    assert validation.validate_calibration_profile(str(selected), facts).ok
+    selected.write_text("{}\n", encoding="utf-8")
+    replaced = validation.validate_calibration_profile(str(selected), facts)
+    assert not replaced.ok
+    assert replaced.findings[0].check_id == "calibration_profile_readable"
+    selected.unlink()
+    deleted = validation.validate_calibration_profile(str(selected), facts)
+    assert not deleted.ok
+    assert "No such file" in deleted.findings[0].message
+
+
 def test_stage_selection_path_and_attach_messages_match_controller_shims():
     validation = ValidationController()
     controller = ExtensionController(
@@ -530,6 +588,26 @@ def test_check_id_inventory_is_stable_and_unique():
         ),
         ValidationController().validate_layout(_state(layout_name="bad")),
         ValidationController().validate_layout(_state(sample_rate_hz=0)),
+        ValidationReport(
+            validation_checks.check_device_supported(
+                "tdoa_synthetic", "", ("cpu",)
+            )
+        ),
+        ValidationReport(
+            validation_checks.check_device_supported(
+                "tdoa_synthetic", "cuda", ("cpu",)
+            )
+        ),
+        ValidationReport(
+            validation_checks.check_calibration_profile(
+                "profile.json", read_error="missing"
+            )
+        ),
+        ValidationReport(
+            validation_checks.check_calibration_profile(
+                "profile.json", compatibility_error="channel mismatch"
+            )
+        ),
         ValidationReport(validation_checks.check_stage_present(False)),
         ValidationReport(validation_checks.check_selection(None, False)),
         ValidationReport(
@@ -662,6 +740,10 @@ def test_check_id_inventory_is_stable_and_unique():
         "array_local_orientation_finite",
         "array_layout_known",
         "sample_rate_positive",
+        "compute_device_non_empty",
+        "backend_device_supported",
+        "calibration_profile_readable",
+        "calibration_profile_compatible",
         "stage_present",
         "selection_present",
         "selected_object_exists",

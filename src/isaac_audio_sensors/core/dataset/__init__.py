@@ -14,6 +14,7 @@ from isaac_audio_sensors.core.dataset.audio_shards import (
     CarryState,
     StreamingWavShardWriter,
 )
+from isaac_audio_sensors.core.dataset.flac import export_session_flac
 from isaac_audio_sensors.core.dataset.layout import (
     DATASET_FRAME_RECORD_VERSION,
     SHARD_COMPLETION_VERSION,
@@ -48,6 +49,7 @@ from isaac_audio_sensors.core.dataset.recorder import (
     SessionRecorder,
     SessionRecorderError,
     ShardPromotion,
+    recover_finalization,
     resume,
 )
 from isaac_audio_sensors.core.dataset.replay import (
@@ -119,10 +121,12 @@ __all__ = [
     "configuration_sha256",
     "episode_id",
     "episode_seed",
+    "export_session_flac",
     "parse_dataset_frame_record",
     "plan_shards",
     "publish_file",
     "read_split_plan",
+    "recover_finalization",
     "resume",
     "replay_session",
     "serialize_dataset_frame_record",

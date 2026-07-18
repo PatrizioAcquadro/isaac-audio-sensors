@@ -190,6 +190,9 @@ def test_fully_populated_config_summary_roundtrip_is_byte_identical(
     state.guided_split_validation_ratio = 0.3
     state.guided_split_test_ratio = 0.1
     state.backend = "geometry_only"
+    state.device_id = "perturbed_device"
+    state.compute_device = "cpu"
+    state.calibration_profile_path = str(tmp_path / "calibration.json")
     state.array_prim_path = "/World/PerturbedArray"
     state.array_id = "perturbed_array"
     state.layout_name = "mono"
@@ -514,6 +517,15 @@ def test_semantic_diff_equal_sessions_exit_zero_and_normalizes_provenance(
 
     assert report["equal"] is True
     assert report["differences"] == []
+    assert report["audio_parity"] == {
+        "ranges_compared": 3,
+        "exact_ranges": 3,
+        "nonempty_ranges": {"left": 3, "right": 3},
+        "nonzero_sample_values": {"left": 11, "right": 11},
+        "all_ranges_nonempty": True,
+        "nonzero_audio": True,
+        "exact": True,
+    }
     assert compare_main([str(left), str(right), "--json", "-"]) == 0
     assert json.loads(capsys.readouterr().out)["differences"] == []
 

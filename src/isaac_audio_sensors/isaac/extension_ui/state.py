@@ -149,6 +149,9 @@ class ExtensionUiState:
     robot_base_prim_path: str = ""
     discovery_roots_text: str = "/World"
     backend: str = "tdoa_synthetic"
+    device_id: str = "isaac_sim"
+    compute_device: str = "cpu"
+    calibration_profile_path: str = ""
     ambiguity_policy: str = "none"
     update_period_s: float = 0.05
     max_events: int = 8

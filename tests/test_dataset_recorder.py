@@ -363,6 +363,143 @@ def test_enospc_during_promotion_preserves_prior_shard(tmp_path):
     assert not (root / "shards/shard_00001").exists()
 
 
+@pytest.mark.parametrize(
+    ("operation", "index", "manifest_visible_after_failure"),
+    (
+        ("write", 2, False),
+        ("replace", 2, False),
+        ("fsync", 3, False),
+        ("fsync", 4, True),
+    ),
+    ids=("manifest-write", "manifest-replace", "manifest-file-fsync", "root-fsync"),
+)
+def test_fresh_process_recovers_enospc_during_manifest_finalization(
+    tmp_path,
+    operation,
+    index,
+    manifest_visible_after_failure,
+):
+    root = tmp_path / f"manifest_{operation}_{index}"
+    configuration = _configuration(aligned=False, shard_max_frames=1)
+    failure_script = textwrap.dedent(
+        """
+        import errno
+        import json
+        import sys
+        from pathlib import Path
+
+        import numpy as np
+
+        from isaac_audio_sensors.core.dataset import FilesystemSeam, SessionRecorder
+        from isaac_audio_sensors.core.dataset_manifest import (
+            CreationProvenance,
+            DeviceProvenance,
+        )
+        from isaac_audio_sensors.core.types import AudioSensorFrame
+
+        root = Path(sys.argv[1])
+        configuration = json.loads(sys.argv[2])
+        operation = sys.argv[3]
+        target_index = int(sys.argv[4])
+        kwargs = dict(
+            creation=CreationProvenance(
+                tool_name="recorder_test",
+                tool_version="1.0",
+                backend_id="tdoa_synthetic",
+                estimator_id="test_estimator",
+            ),
+            device=DeviceProvenance(
+                device_id="test_host",
+                device_type="synthetic",
+                platform="test",
+                compute_device="cpu",
+            ),
+            license="CC0-1.0",
+            source="deterministic recorder integration test",
+            coordinate_frames=("world", "array"),
+            time_base="simulation_time",
+            creation_timestamp_ms=1767225600000,
+        )
+        recorder = SessionRecorder(root, configuration, **kwargs)
+        recorder.begin_episode("scene_a", "environment_0", "scene_a")
+        frame = AudioSensorFrame(
+            frame_id="producer_0",
+            frame_name="frame_0",
+            timestamp_ms=0,
+            start_time_s=0.0,
+            end_time_s=0.001,
+            sample_rate_hz=48000,
+            frame_index=0,
+            backend_id="tdoa_synthetic",
+            array_id="array",
+            provenance="synthetic/core",
+            aggregate_per_mic_rms={"front": 0.1, "rear": 0.1},
+            diagnostics={"deterministic": True},
+        )
+        audio = np.arange(16, dtype=np.float32).reshape(2, 8) / np.float32(32)
+        assert recorder.append_frame(frame, audio, 0, is_reset=True).accepted
+        recorder.end_episode()
+
+        def fail(actual_operation, actual_index):
+            if (actual_operation, actual_index) == (operation, target_index):
+                raise OSError(errno.ENOSPC, "injected manifest disk full")
+
+        recorder.seam = FilesystemSeam(operation_hook=fail)
+        try:
+            recorder.finalize()
+        except OSError as exc:
+            assert exc.errno == errno.ENOSPC
+            print("ENOSPC", flush=True)
+        else:
+            raise AssertionError("manifest finalization unexpectedly succeeded")
+        """
+    )
+    failed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            failure_script,
+            str(root),
+            json.dumps(configuration),
+            operation,
+            str(index),
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert failed.stdout.strip() == "ENOSPC"
+    state_path = root / "_staging/recorder_state.json"
+    assert state_path.is_file()
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["finalization_state"] == "complete"
+    assert (root / "manifest.json").exists() is manifest_visible_after_failure
+
+    recovery_script = textwrap.dedent(
+        """
+        import sys
+        from pathlib import Path
+
+        from isaac_audio_sensors.core.dataset import recover_finalization
+
+        root = Path(sys.argv[1])
+        manifest = recover_finalization(root)
+        print(manifest.completion_state, flush=True)
+        """
+    )
+    recovered = subprocess.run(
+        [sys.executable, "-c", recovery_script, str(root)],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert recovered.stdout.strip() == "complete"
+    assert not (root / "_staging").exists()
+    assert validate_session_layout(root).lifecycle_state == "complete"
+
+
 def test_projection_failure_is_drop_accounted_without_index(tmp_path):
     root = tmp_path / "drop"
     recorder = SessionRecorder(

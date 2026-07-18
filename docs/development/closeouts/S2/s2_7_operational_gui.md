@@ -55,3 +55,14 @@ of `omni.ui`; S2.8 must provide config/CLI equivalents for the same
 operations and prove semantic equivalence of GUI-driven and headless
 outputs from one normalized configuration after documented path
 normalization.
+
+<!-- BEGIN GENERATED S2 REVIEW REMEDIATION -->
+
+## S2 review remediation rerun (regenerated)
+
+The real room-acoustics waveform backend produced 201 attributed frame ranges; 201 were
+nonempty and 1919994 decoded sample values were nonzero. The exported dataset has zero
+validator errors. Guided recording also has tested explicit and timestamp/index-detected
+reset boundaries. Evidence: `outputs/isaac_audio_sensors/S2/S2.7/`.
+
+<!-- END GENERATED S2 REVIEW REMEDIATION -->

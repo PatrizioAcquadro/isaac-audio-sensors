@@ -66,6 +66,9 @@ class ValidationState(Protocol):
     array_local_yaw_deg: float
     layout_name: str
     sample_rate_hz: int
+    device_id: str
+    compute_device: str
+    calibration_profile_path: str
 
 
 def _error(
@@ -156,6 +159,57 @@ def check_backend_available(
     if actionable_message:
         message = f"{message} {actionable_message}"
     return _error("backend_available", message, "backend")
+
+
+def check_device_supported(
+    backend_id: str,
+    device: str,
+    supported_devices: Iterable[str],
+) -> tuple[ValidationFinding, ...]:
+    """Check an explicit compute-device choice against a backend declaration."""
+
+    requested = device.strip()
+    if not requested:
+        return _error(
+            "compute_device_non_empty",
+            "compute_device must be non-empty.",
+            "compute_device",
+        )
+    supported = tuple(supported_devices)
+    if not supported or requested in supported:
+        return ()
+    return _error(
+        "backend_device_supported",
+        f"Backend {backend_id!r} does not support device {requested!r}; "
+        f"supported devices: {list(supported)}.",
+        "compute_device",
+    )
+
+
+def check_calibration_profile(
+    profile_path: str,
+    *,
+    read_error: str | None = None,
+    compatibility_error: str | None = None,
+) -> tuple[ValidationFinding, ...]:
+    """Convert fresh calibration load/compatibility facts into stable findings."""
+
+    if not profile_path.strip():
+        return ()
+    if read_error is not None:
+        return _error(
+            "calibration_profile_readable",
+            f"Calibration profile {profile_path!r} cannot be loaded: {read_error}",
+            "calibration_profile_path",
+        )
+    if compatibility_error is not None:
+        return _error(
+            "calibration_profile_compatible",
+            f"Calibration profile {profile_path!r} is incompatible: "
+            f"{compatibility_error}",
+            "calibration_profile_path",
+        )
+    return ()
 
 
 def check_source_metadata(state: ValidationState) -> tuple[ValidationFinding, ...]:
@@ -745,6 +799,8 @@ __all__ = [
     "check_attached_array_target",
     "check_attached_source_target",
     "check_config_schema_version",
+    "check_calibration_profile",
+    "check_device_supported",
     "check_layout",
     "check_object_profile_mapping_known",
     "check_object_profile_mappings_mapping",

@@ -50,3 +50,14 @@ ratifies the frozen representative capture definition (layout spec
 Appendix A + the frozen S2.2 memory rule), executes >= 30 minutes of
 continuous headless capture, and closes the phase on the canonical
 validator plus telemetry.
+
+<!-- BEGIN GENERATED S2 REVIEW REMEDIATION -->
+
+## S2 review remediation rerun (regenerated)
+
+The live GUI/headless rerun compared 20 nonempty attributed waveform ranges from the
+real room-acoustics backend. All 20 ranges were byte-exact, with nonzero counts 191097
+and 191097; semantic difference count was 0. Both exports have zero validator errors.
+Evidence: `outputs/isaac_audio_sensors/S2/S2.8/parity_gate.json`.
+
+<!-- END GENERATED S2 REVIEW REMEDIATION -->

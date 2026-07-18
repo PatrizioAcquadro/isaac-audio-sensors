@@ -85,3 +85,15 @@ context on missing assets, corruption, checksum mismatch, non-monotonic
 time, and unknown versions. `layout.verify_shard_completion(...,
 retain_records=False)` and the internal streaming record generator are the
 building blocks.
+
+<!-- BEGIN GENERATED S2 REVIEW REMEDIATION -->
+
+## S2 review remediation (regenerated)
+
+Fresh-process ENOSPC coverage passes for manifest temporary-file write, atomic replace,
+temporary-file fsync, and session-root directory fsync. Durable finalization intent
+remains under `_staging/` until manifest publication is complete, and recovery produces
+a validator-clean final session. Evidence:
+`outputs/isaac_audio_sensors/S2/S2.review/remediation_gate.json`.
+
+<!-- END GENERATED S2 REVIEW REMEDIATION -->

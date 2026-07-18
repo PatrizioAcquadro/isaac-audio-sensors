@@ -151,6 +151,35 @@ Their schema identifiers are `ias.audio_dataset_manifest.v1` and
 under `docs/schemas/`, and valid and invalid examples are under
 `examples/manifests/` and `examples/calibration/`.
 
+Finalized waveform sessions can be checked, replayed, recovered after an
+interrupted manifest publication, or exported to the documented archival FLAC
+profile:
+
+```python
+from isaac_audio_sensors.core.dataset import (
+    SessionDataset,
+    export_session_flac,
+    recover_finalization,
+)
+
+recovered_manifest = recover_finalization("runs/interrupted-session")
+flac_root = export_session_flac(
+    "runs/wav-session",
+    "runs/flac-session",
+    dataset_id="archival-copy",
+    dtype="int24",
+)
+dataset = SessionDataset.open("runs/flac-session")
+for record in dataset.iter_records():
+    declared_type_audio = dataset.read_frame_audio(record)
+```
+
+`recover_finalization` uses the durable finalization intent and provenance
+retained in `_staging/`; ordinary resume intentionally refuses that state. FLAC
+export is never in-place, supports only `int16` and `int24` with at most eight
+channels, and requires the optional `soundfile` dependency. Missing dependencies
+and corrupt assets fail explicitly without publishing a partial destination.
+
 Configuration accepts `training_features` and `waveform_fidelity` as runtime
 profiles. When `audio.runtime_profile` is absent, `waveform_fidelity` preserves
 the behavior of configurations written before Stage 1.

@@ -63,4 +63,3 @@ prune .agents
 prune .codex
 prune src/*.egg-info
 include exts/isaac_audio_sensors.omni/data/preview.png
-

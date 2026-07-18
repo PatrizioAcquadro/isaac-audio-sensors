@@ -51,3 +51,14 @@ are runtime-lifecycle, not configuration validation, per the Run A report.
 The guided GUI builds its Validate stage on `ValidationController` reports
 (findings carry `field` hints for inline error mapping) and its dependency
 gating on `CapabilityState`; headless S2.8 consumes the identical services.
+
+<!-- BEGIN GENERATED S2 REVIEW REMEDIATION -->
+
+## S2 review remediation (regenerated)
+
+Explicit compute-device and calibration-profile checks now execute through the shared
+controller. GUI and headless results are identical, and replacement/deletion plus
+device-change tests prove that neither check answers from stale state. Evidence:
+`outputs/isaac_audio_sensors/S2/S2.review/remediation_gate.json`.
+
+<!-- END GENERATED S2 REVIEW REMEDIATION -->
