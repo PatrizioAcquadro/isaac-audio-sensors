@@ -305,6 +305,29 @@ def _author_demo_scene(
         ) = scene_adaptation["adapted_array_position"]
     if controller.author_array(stage=stage) is None:
         raise RuntimeError("could not author the demo four-channel array")
+    if scene_adaptation is not None:
+        # author_array derives its pose from the existing prim xform, not the
+        # state pose fields; the adapted in-room pose must be applied explicitly.
+        if controller.apply_array_pose(stage=stage) is None:
+            raise RuntimeError("could not apply the adapted in-room array pose")
+        # On real USD the pose resolver prefers the prim's xform stack over the
+        # ias:position_world attribute apply_array_pose writes, so the adapted
+        # pose must also land in the actual USD xform.
+        from isaac_audio_sensors.isaac.stage_audio import (
+            get_or_define_prim as _gate_get_prim,
+        )
+        from isaac_audio_sensors.isaac.stage_audio import (
+            set_prim_xform_pose as _gate_set_pose,
+        )
+
+        array_prim = _gate_get_prim(
+            stage, prim_path=state.array_prim_path, prim_type="Xform"
+        )
+        _gate_set_pose(
+            array_prim,
+            position=tuple(scene_adaptation["adapted_array_position"]),
+            orientation=(0.0, 0.0, 0.0, 1.0),
+        )
 
     for source in config.sources:
         source_position = adjusted_sources.get(
