@@ -18,6 +18,7 @@ from types import MethodType
 from typing import Any
 
 from isaac_audio_sensors.core.config import load_audio_config
+from isaac_audio_sensors.core.constants import ROOM_CLAMP_MARGIN_M
 from isaac_audio_sensors.core.dataset import (
     classify_session_lifecycle,
     validate_dataset,
@@ -182,11 +183,109 @@ def _bind_demo_room(controller: Any, config: Any) -> None:
     controller._room_spec_or_none = MethodType(room_from_demo, controller)
 
 
-def _author_demo_scene(controller: Any, stage: Any, config: Any, backend: str) -> None:
+def _strictly_inside_room(
+    position: tuple[float, float, float],
+    origin: tuple[float, float, float],
+    dimensions: tuple[float, float, float],
+) -> bool:
+    return all(
+        origin[axis] < position[axis] < origin[axis] + dimensions[axis]
+        for axis in range(3)
+    )
+
+
+def _room_scene_adaptation(config: Any) -> dict[str, Any]:
+    room = config.room
+    if room is None:
+        raise RuntimeError("demo config has no room definition")
+    array = config.arrays["rig_front"]
+    origin = tuple(float(value) for value in room.origin_m)
+    dimensions = tuple(float(value) for value in room.dimensions_m)
+    margin_m = max(
+        ROOM_CLAMP_MARGIN_M,
+        *(
+            abs(float(component))
+            for microphone in array.microphones
+            for component in microphone.relative_position_m
+        ),
+    )
+    if any(dimension <= 2.0 * margin_m for dimension in dimensions):
+        raise RuntimeError(
+            f"demo room {room.room_id!r} cannot provide a strict {margin_m:g} m "
+            "interior margin"
+        )
+
+    original_array_position = tuple(float(value) for value in array.position_world)
+    adapted_array_position = tuple(
+        origin[axis] + dimensions[axis] / 2.0 for axis in range(3)
+    )
+    microphone_positions = (
+        tuple(
+            adapted_array_position[axis]
+            + float(microphone.relative_position_m[axis])
+            for axis in range(3)
+        )
+        for microphone in array.microphones
+    )
+    if not all(
+        _strictly_inside_room(position, origin, dimensions)
+        for position in microphone_positions
+    ):
+        raise RuntimeError(
+            f"adapted demo array does not fit strictly inside room {room.room_id!r}"
+        )
+
+    sources_adjusted = []
+    for source in config.sources:
+        original_position = tuple(float(value) for value in source.position_world)
+        if _strictly_inside_room(original_position, origin, dimensions):
+            continue
+        adapted_position = tuple(
+            min(
+                max(original_position[axis], origin[axis] + margin_m),
+                origin[axis] + dimensions[axis] - margin_m,
+            )
+            for axis in range(3)
+        )
+        if not _strictly_inside_room(adapted_position, origin, dimensions):
+            raise RuntimeError(
+                f"demo source {source.source_id!r} could not be shifted strictly "
+                f"inside room {room.room_id!r}"
+            )
+        sources_adjusted.append(
+            {
+                "source_id": source.source_id,
+                "original_position": original_position,
+                "adapted_position": adapted_position,
+            }
+        )
+
+    return {
+        "reason": (
+            "room_acoustics requires the headless demo array and sources to be "
+            f"strictly inside the configured room; interior margin={margin_m:g} m"
+        ),
+        "original_array_position": original_array_position,
+        "adapted_array_position": adapted_array_position,
+        "sources_adjusted": sources_adjusted,
+    }
+
+
+def _author_demo_scene(
+    controller: Any,
+    stage: Any,
+    config: Any,
+    backend: str,
+    scene_adaptation: dict[str, Any] | None,
+) -> None:
     if controller.guided_apply_preset("xvf3800_quad_demo") is None:
         raise RuntimeError("could not apply the demo XVF3800 guided preset")
     state = controller.state
     array = config.arrays["rig_front"]
+    adjusted_sources = {
+        item["source_id"]: item["adapted_position"]
+        for item in (scene_adaptation or {}).get("sources_adjusted", ())
+    }
     state.backend = backend
     state.array_prim_path = array.prim_path
     state.array_id = array.array_id
@@ -198,17 +297,27 @@ def _author_demo_scene(controller: Any, stage: Any, config: Any, backend: str) -
     state.trace_enabled = False
     state.waveform_enabled = backend == "room_acoustics"
     state.waveform_mode = "per_frame"
+    if scene_adaptation is not None:
+        (
+            state.array_position_x_m,
+            state.array_position_y_m,
+            state.array_position_z_m,
+        ) = scene_adaptation["adapted_array_position"]
     if controller.author_array(stage=stage) is None:
         raise RuntimeError("could not author the demo four-channel array")
 
     for source in config.sources:
+        source_position = adjusted_sources.get(
+            source.source_id,
+            source.position_world,
+        )
         state.source_prim_path = source.prim_path
         state.source_id = source.source_id
         state.source_class_label = source.class_label
         state.audio_asset_path = str(source.audio_asset_path or "generated://impulse")
-        state.source_position_x_m = float(source.position_world[0])
-        state.source_position_y_m = float(source.position_world[1])
-        state.source_position_z_m = float(source.position_world[2])
+        state.source_position_x_m = float(source_position[0])
+        state.source_position_y_m = float(source_position[1])
+        state.source_position_z_m = float(source_position[2])
         state.source_start_time_s = source.start_time_s
         state.source_duration_s = float(source.duration_s or 1.0)
         state.source_gain_db = source.gain_db
@@ -217,13 +326,14 @@ def _author_demo_scene(controller: Any, stage: Any, config: Any, backend: str) -
             raise RuntimeError(f"could not author demo source {source.source_id}")
 
     first = config.sources[0]
+    first_position = adjusted_sources.get(first.source_id, first.position_world)
     state.source_prim_path = first.prim_path
     state.source_id = first.source_id
     state.source_class_label = first.class_label
     state.audio_asset_path = str(first.audio_asset_path or "generated://impulse")
-    state.source_position_x_m = float(first.position_world[0])
-    state.source_position_y_m = float(first.position_world[1])
-    state.source_position_z_m = float(first.position_world[2])
+    state.source_position_x_m = float(first_position[0])
+    state.source_position_y_m = float(first_position[1])
+    state.source_position_z_m = float(first_position[2])
     state.source_start_time_s = first.start_time_s
     state.source_duration_s = float(first.duration_s or 1.0)
     state.source_gain_db = first.gain_db
@@ -430,12 +540,22 @@ def _run_live(args: argparse.Namespace, evidence: dict[str, Any]) -> int:
         )
         if substitution is not None:
             evidence["backend_substitution"] = substitution
+        scene_adaptation = (
+            _room_scene_adaptation(config) if backend == "room_acoustics" else None
+        )
+        evidence["scene_adaptation"] = scene_adaptation
 
         extension = Extension()
         extension.on_startup(_enabled_extension_id(evidence) or EXTENSION_ID)
         controller = extension.controller
         controller.stage_context_provider = lambda: CurrentStageContext(stage, ())
-        _author_demo_scene(controller, stage, config, backend)
+        _author_demo_scene(
+            controller,
+            stage,
+            config,
+            backend,
+            scene_adaptation,
+        )
         controller.state.guided_dataset_id = "s2_9_endurance_capture"
         controller.state.guided_shard_max_frames = shard_max_frames
         controller.state.guided_record_aligned = False
@@ -681,6 +801,7 @@ def main(argv: list[str] | None = None) -> int:
             "shard_simulated_seconds": SHARD_SIMULATED_SECONDS,
             "telemetry_period_s": SAMPLE_PERIOD_S,
         },
+        "scene_adaptation": None,
     }
     return _run_live(args, evidence)
 
