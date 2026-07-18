@@ -731,7 +731,133 @@ def test_enabled_directivity_replay_is_byte_deterministic() -> None:
     assert first.tobytes() == second.tobytes()
 
 
-def test_real_room_and_estimator_rows_are_dependency_gated() -> None:
+def test_real_room_cardinal_gain_and_small_estimator_ladder_direction() -> None:
     pytest.importorskip("pyroomacoustics")
-    # Real pyroomacoustics cardinal/reverberant/SRP/GCC fixtures are generated
-    # by scripts/s3_6_evidence.py in the dependency-capable environment.
+    from dataclasses import replace
+
+    from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+    from isaac_audio_sensors.core.doa.gcc_phat import gcc_phat_delay
+    from isaac_audio_sensors.core.effects.channel_response import fractional_delay
+    from isaac_audio_sensors.core.io.waveforms import WaveformWriteResult
+    from isaac_audio_sensors.core.types import (
+        AudioSceneSnapshot,
+        AudioTimeWindow,
+        RoomAcousticsSpec,
+    )
+
+    class CaptureSink:
+        def __init__(self) -> None:
+            self.mixture = None
+
+        def write_frame_mixture(self, **kwargs):
+            self.mixture = np.asarray(kwargs["mixture"], dtype=float).copy()
+            return WaveformWriteResult(paths=())
+
+        def close(self):
+            return None
+
+    sensor = replace(_array(), position_world=(2.0, 2.0, 1.0))
+    window = AudioTimeWindow(
+        start_time_s=0.0,
+        end_time_s=0.05,
+        timestamp_ms=0,
+        sample_rate_hz=SAMPLE_RATE_HZ,
+        frame_index=0,
+    )
+
+    def room_output(quaternion, effects=None):
+        source = _source(position=(1.0, 2.0, 1.0), orientation=quaternion)
+        scene = AudioSceneSnapshot(
+            stage_id="s3_6_fast_room",
+            timestamp_ms=0,
+            sources=(source,),
+            arrays=(sensor,),
+            room=RoomAcousticsSpec(
+                room_id="s3_6_fast",
+                dimensions_m=(4.0, 4.0, 2.5),
+                absorption=0.0,
+                max_order=0,
+            ),
+        )
+        sink = CaptureSink()
+        RoomAcousticsBackend(waveform_writer=sink, effects=effects).simulate(
+            scene, sensor, window
+        )
+        assert sink.mixture is not None
+        return sink.mixture[0]
+
+    baseline = room_output(CARDINAL_QUATERNIONS[0])
+    front = room_output(
+        CARDINAL_QUATERNIONS[0],
+        EffectsConfig(directivity=_active_config(source=_pattern("cardioid"))),
+    )
+    side = room_output(
+        CARDINAL_QUATERNIONS[1],
+        EffectsConfig(directivity=_active_config(source=_pattern("cardioid"))),
+    )
+    denominator = float(np.dot(baseline, baseline))
+    front_gain = float(np.dot(baseline, front) / denominator)
+    side_gain = float(np.dot(baseline, side) / denominator)
+    assert front_gain == pytest.approx(1.0, abs=1e-12)
+    assert side_gain == pytest.approx(0.5, abs=1e-12)
+
+    sample_count = 8192
+    microphone_positions = {
+        microphone.mic_id: np.asarray(microphone.relative_position_m)
+        for microphone in sensor.microphones
+    }
+    source_position = np.asarray((-1.0, 0.0, 0.0))
+    distances = {
+        mic_id: float(np.linalg.norm(position - source_position))
+        for mic_id, position in microphone_positions.items()
+    }
+    minimum_distance = min(distances.values())
+    probe = np.random.default_rng(20260718).standard_normal(sample_count)
+    delayed = np.asarray(
+        [
+            fractional_delay(
+                probe,
+                delay_s=(distances[microphone.mic_id] - minimum_distance) / 343.0,
+                sample_rate_hz=SAMPLE_RATE_HZ,
+            )
+            for microphone in sensor.microphones
+        ]
+    )
+    front_clean = delayed
+    rear_clean = np.asarray(
+        [
+            delayed[index]
+            * source_polar_gain(
+                "cardioid",
+                source_position_world=tuple(source_position),
+                source_orientation_world_xyzw=CARDINAL_QUATERNIONS[2],
+                microphone_position_world=tuple(position),
+            )
+            for index, position in enumerate(microphone_positions.values())
+        ]
+    )
+    noise = np.random.default_rng(20260719).standard_normal(front_clean.shape)
+    noise *= (
+        np.sqrt(np.mean(front_clean**2))
+        / np.sqrt(np.mean(noise**2))
+        / 10.0 ** (12.0 / 20.0)
+    )
+
+    def gcc_proxy(samples):
+        peaks = []
+        for left in range(samples.shape[0]):
+            for right in range(left + 1, samples.shape[0]):
+                peaks.append(
+                    abs(
+                        gcc_phat_delay(
+                            samples[left],
+                            samples[right],
+                            sample_rate_hz=SAMPLE_RATE_HZ,
+                            interp=8,
+                        ).peak_value
+                    )
+                )
+        return float(np.median(peaks))
+
+    assert np.sqrt(np.mean(front_clean**2)) > np.sqrt(np.mean(rear_clean**2))
+    assert gcc_proxy(front_clean + noise) > gcc_proxy(rear_clean + noise)
