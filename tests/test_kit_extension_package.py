@@ -280,6 +280,7 @@ def test_version_sync_cli_and_synthetic_disagreement(tmp_path):
         "src/isaac_audio_sensors/__init__.py",
         "exts/isaac_audio_sensors.omni/config/extension.toml",
         "exts/isaac_audio_sensors.omni/docs/CHANGELOG.md",
+        "packs/acoustics/pack.toml",
         "scripts/audit_distribution.py",
         "tests/test_isaac_audio_core.py",
         "tests/test_distribution_audit.py",
@@ -289,22 +290,56 @@ def test_version_sync_cli_and_synthetic_disagreement(tmp_path):
         destination = synthetic / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, destination)
+
+    def run_synthetic():
+        return subprocess.run(
+            [sys.executable, str(script), "--repo-root", str(synthetic)],
+            cwd=tmp_path,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
     makefile = synthetic / "Makefile"
+    makefile_text = makefile.read_text(encoding="utf-8")
     makefile.write_text(
-        makefile.read_text(encoding="utf-8").replace(
+        makefile_text.replace(
             "EXPECTED_VERSION ?= 1.10.0", "EXPECTED_VERSION ?= 9.9.9"
         ),
         encoding="utf-8",
     )
-    mismatch = subprocess.run(
-        [sys.executable, str(script), "--repo-root", str(synthetic)],
-        cwd=tmp_path,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    mismatch = run_synthetic()
     assert mismatch.returncode != 0
     assert "Makefile EXPECTED_VERSION default" in mismatch.stderr
+
+    makefile.write_text(makefile_text, encoding="utf-8")
+    pack_manifest = synthetic / "packs/acoustics/pack.toml"
+    pack_manifest_text = pack_manifest.read_text(encoding="utf-8")
+    pack_manifest.write_text(
+        pack_manifest_text.replace(
+            'pack_version = "1.10.0"', 'pack_version = "9.9.9"'
+        ),
+        encoding="utf-8",
+    )
+    mismatch = run_synthetic()
+    assert mismatch.returncode != 0
+    assert "packs/acoustics/pack.toml pack.pack_version" in mismatch.stderr
+    assert "version '9.9.9' does not match pyproject.toml '1.10.0'" in mismatch.stderr
+
+    wrong_artifact = (
+        "isaac_audio_sensors_acoustic_pack-l2l3-9.9.9-linux_x86_64-cp312.tar.gz"
+    )
+    expected_artifact = (
+        "isaac_audio_sensors_acoustic_pack-l2l3-1.10.0-linux_x86_64-cp312.tar.gz"
+    )
+    pack_manifest.write_text(
+        pack_manifest_text.replace(expected_artifact, wrong_artifact),
+        encoding="utf-8",
+    )
+    mismatch = run_synthetic()
+    assert mismatch.returncode != 0
+    assert "packs/acoustics/pack.toml pack.artifact_name" in mismatch.stderr
+    assert f"expected artifact name '{expected_artifact}'" in mismatch.stderr
 
 
 def test_archive_audit_rejects_vendored_tree_tampering(tmp_path):
