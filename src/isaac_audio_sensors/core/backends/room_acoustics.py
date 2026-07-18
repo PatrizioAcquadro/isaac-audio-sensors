@@ -224,6 +224,11 @@ class RoomAcousticsBackend:
         sensor: MicrophoneArraySpec,
         time_window: AudioTimeWindow,
     ) -> AudioSensorFrame:
+        if self.backend_id == "room_acoustics_srp" and len(sensor.microphones) == 2:
+            raise UnsupportedEffectError(
+                "room_acoustics_srp requires at least three microphones for an "
+                "unambiguous S3.8 claim"
+            )
         validate_tdoa_array(sensor)
         if scene.room is None:
             raise ValueError("room_acoustics requires scene.room to be configured.")

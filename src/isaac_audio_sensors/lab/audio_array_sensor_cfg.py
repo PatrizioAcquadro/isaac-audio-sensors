@@ -12,6 +12,7 @@ from isaac_audio_sensors.core.constants import (
     KNOWN_BACKENDS,
     TDOA_AMBIGUITY_POLICIES,
 )
+from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.core.exceptions import IsaacLabUnavailable
 from isaac_audio_sensors.lab._isaac_lab import load_isaac_lab_types
 
@@ -48,6 +49,8 @@ def _validate_cfg(cfg: Any) -> None:
             "AudioArraySensorCfg.compute_path must be 'auto', 'scalar', or "
             "'batched'."
         )
+    if not isinstance(cfg.effects, EffectsConfig):
+        raise TypeError("AudioArraySensorCfg.effects must be an EffectsConfig.")
 
 
 _LAB_TYPES = load_isaac_lab_types()
@@ -72,6 +75,7 @@ if _LAB_TYPES is not None:
         device: str | None = None
         ambiguity_policy: str = "none"
         compute_path: str = "auto"
+        effects: EffectsConfig = EffectsConfig()
         write_waveforms: bool = False
         writer_path: str | None = None
         waveform_dir: str | None = None
@@ -104,6 +108,7 @@ else:
         device: str | None = None
         ambiguity_policy: str = "none"
         compute_path: str = "auto"
+        effects: EffectsConfig = EffectsConfig()
         write_waveforms: bool = False
         writer_path: str | None = None
         waveform_dir: str | None = None

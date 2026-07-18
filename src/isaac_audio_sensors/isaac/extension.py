@@ -637,8 +637,8 @@ class IsaacAudioArraySensor:
             sink = self._resolve_waveform_sink()
             if sink is not None:
                 kwargs["waveform_writer"] = sink
-        if self.effects.motion.derive_velocity_from_poses:
-            kwargs["effects"] = EffectsConfig(motion=self.effects.motion)
+        if not self.effects.all_disabled:
+            kwargs["effects"] = self.effects
         if window_motion is not None:
             kwargs["window_motion"] = window_motion
         backend = get_backend(self.backend, **kwargs)

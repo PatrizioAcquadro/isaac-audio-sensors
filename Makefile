@@ -12,7 +12,7 @@ WHEELHOUSE ?=
 CONSUMER_USER ?= pacquadr
 CONSUMER_REPO ?= /home/$(CONSUMER_USER)/Desktop/squadbot-av-phase1
 
-.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config dataset-validate-fixture export-schema regenerate-traces regenerate-manifests regenerate-reference-dataset measure-writer-memory live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-s3-1-pose-velocity live-s3-2-time-gaps live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-guided-workflow live-headless-parity live-reliability live-endurance-capture live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config dataset-validate-fixture export-schema regenerate-traces regenerate-manifests regenerate-reference-dataset measure-writer-memory live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-s3-1-pose-velocity live-s3-2-time-gaps live-s3-stress live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-guided-workflow live-headless-parity live-reliability live-endurance-capture live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
 test:
 	$(PYTHON) -m pytest
@@ -116,6 +116,10 @@ live-s3-1-pose-velocity:
 live-s3-2-time-gaps:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/run_s3_2_live_time_gaps.py
 	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S3/S3.2/live_throttled_capture_summary.json').read_text()); sys.exit(0 if data.get('status') == 'passed' else 1)"
+
+live-s3-stress:
+	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_s3_stress_gate.py
+	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S3/S3.8/live_stress_summary.json').read_text()); sys.exit(0 if data.get('status') == 'passed' and data.get('teardown', {}).get('status') == 'passed' else 1)"
 
 live-isaac-occlusion:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_isaac_occlusion_gate.py

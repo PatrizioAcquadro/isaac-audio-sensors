@@ -8,6 +8,7 @@ from typing import Any
 
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.constants import EPSILON, SECTOR_ORDER
+from isaac_audio_sensors.core.effects import EffectsConfig, UnsupportedEffectError
 from isaac_audio_sensors.core.exceptions import IsaacLabUnavailable
 from isaac_audio_sensors.core.io.waveforms import FrameWaveformWriter
 from isaac_audio_sensors.core.microphone_array import microphone_layout
@@ -499,6 +500,16 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
 
         scene_snapshot = scene_snapshot or self._resolve_scene_snapshot(env_id)
         sensor = sensor or self._resolve_sensor(env_id)
+        if str(getattr(self.cfg, "compute_path", "auto")) == "batched" and (
+            sensor.velocity_world_mps is not None
+            or any(
+                source.velocity_world_mps is not None
+                for source in scene_snapshot.sources
+            )
+        ):
+            raise UnsupportedEffectError(
+                "authored velocity Doppler semantics require the Lab scalar frame path"
+            )
         kwargs: dict[str, Any] = {}
         if self.cfg.backend in {"tdoa_synthetic", "room_acoustics"}:
             kwargs = {"ambiguity_policy": self.cfg.ambiguity_policy}
@@ -506,6 +517,9 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
             sink = self._resolve_waveform_sink(env_id)
             if sink is not None:
                 kwargs["waveform_writer"] = sink
+        effects = getattr(self.cfg, "effects", EffectsConfig())
+        if not effects.all_disabled:
+            kwargs["effects"] = effects
         backend = get_backend(self.cfg.backend, **kwargs)
         return backend.simulate(
             scene_snapshot,
@@ -532,7 +546,12 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
         if not ids:
             return
         self._ensure_runtime_buffers(num_envs=max(self._known_num_envs(), max(ids) + 1))
+        requested_batched = str(getattr(self.cfg, "compute_path", "auto")) == "batched"
+        if requested_batched:
+            self._validate_batched_effects()
         if self._resolve_compute_path() == "batched":
+            if not requested_batched:
+                self._validate_batched_effects()
             self._update_buffers_batched(ids)
             return
         self._last_compute_path = "scalar"
@@ -610,6 +629,55 @@ class AudioArraySensor(_SENSOR_BASE):  # type: ignore[misc, valid-type]
         if self._pending_timestamp_ms:
             for env_id in ids:
                 self._pending_timestamp_ms.pop(int(env_id), None)
+
+    def _validate_batched_effects(self) -> None:
+        """Reject semantics the Stage 1 tensor kernel cannot represent."""
+
+        effects = getattr(self.cfg, "effects", EffectsConfig())
+        if effects.motion.derive_velocity_from_poses:
+            raise UnsupportedEffectError(
+                "derive_velocity_from_poses=true is unsupported by Isaac Lab "
+                "batched compute in Stage 1"
+            )
+        if effects.motion.segments_per_window > 1:
+            raise UnsupportedEffectError(
+                "audio.effects.motion.segments_per_window>1 is unsupported by "
+                "Isaac Lab batched compute"
+            )
+        for stage_name, stage in (
+            ("channel_response", effects.channel_response),
+            ("noise", effects.noise),
+            ("electronics", effects.electronics),
+            ("directivity", effects.directivity),
+        ):
+            if stage.enabled:
+                raise UnsupportedEffectError(
+                    f"audio.effects.{stage_name} is unsupported by Isaac Lab "
+                    "batched compute"
+                )
+        snapshots = getattr(self, "_bound_scene_snapshots", {})
+        for snapshot in snapshots.values():
+            if snapshot.occlusion:
+                raise UnsupportedEffectError(
+                    "AudioSceneSnapshot.occlusion is unsupported by Isaac Lab "
+                    "batched compute"
+                )
+            if snapshot.room is not None:
+                raise UnsupportedEffectError(
+                    "AudioSceneSnapshot.room is unsupported by Isaac Lab batched "
+                    "compute"
+                )
+        provider_cfg = getattr(getattr(self, "_scene_provider", None), "cfg", None)
+        if getattr(provider_cfg, "room", None) is not None:
+            raise UnsupportedEffectError(
+                "LabAudioEntityBindingCfg.room is unsupported by Isaac Lab batched "
+                "compute"
+            )
+        if getattr(provider_cfg, "room_prim_path", None) is not None:
+            raise UnsupportedEffectError(
+                "LabAudioStageBindingCfg.room_prim_path is unsupported by Isaac Lab "
+                "batched compute"
+            )
 
     def _pose_batch_on_device(
         self,
