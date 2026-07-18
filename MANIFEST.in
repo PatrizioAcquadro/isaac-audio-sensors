@@ -13,11 +13,16 @@ recursive-include docs *.md *.json
 include docs/schemas/audio_dataset_manifest.v1.schema.json
 include docs/schemas/audio_calibration_profile.v1.schema.json
 exclude docs/reference_rig_hardware_environment.md
+exclude docs/zed_respeaker_mount_pre_cad.md
 recursive-exclude docs/development *
 recursive-exclude docs/evidence *
 recursive-include examples *.md *.py *.json *.ndjson
 recursive-include examples/manifests *.md *.json
 recursive-include examples/calibration *.md *.json
+# The S2.1 reference session fixture stays a repo-only development
+# artifact for the 1.9.0 line: the frozen distribution audit bans media
+# payloads, and shipping it without WAV/JSONL would be a broken session.
+recursive-exclude examples/datasets *
 recursive-include exts *.toml *.py *.md *.svg *.json
 recursive-include scripts *.py
 include scripts/live_clean_install_gate.py
@@ -58,3 +63,4 @@ prune .agents
 prune .codex
 prune src/*.egg-info
 include exts/isaac_audio_sensors.omni/data/preview.png
+
