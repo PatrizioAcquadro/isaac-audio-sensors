@@ -698,7 +698,10 @@ def _run_live(args: argparse.Namespace, evidence: dict[str, Any]) -> int:
         acceptance = evidence["run_kind"] == "acceptance"
         shard_count_passed = len(markers) >= 5 if acceptance else True
         validator_passed = (
-            report.status == "passed"
+            # Zero violations means zero error findings; documented
+            # warning-only findings (diagnostics portability) are permitted
+            # by the frozen layout contract, as in the S2.7 live gate.
+            report.status in ("passed", "passed_with_warnings")
             and report.error_count == 0
             and lifecycle == "finalized-incomplete"
         )
