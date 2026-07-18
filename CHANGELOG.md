@@ -3,11 +3,18 @@
 ## 1.10.0 - Unreleased
 
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
-development plan), in progress. `ias.audio_sensor_frame.v1` is unchanged.
+development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects
+and diagnostics are additive, every effect defaults off, and the compatibility
+off-state is preserved.
 
-- All new physical-effect diagnostics are additive.
-- Every new physical effect defaults off and preserves a compatibility
-  off-state.
+- Added pose-derived source and array velocity with tagged first-sample, reset, stale-time, teleport, smoothing, recovery, and authored-precedence policies.
+- Added opt-in session time-gap preservation and segmented intra-window motion with bounded interpolation, piecewise Doppler/RIR rendering, and exact gap accounting.
+- Added per-channel gain, fractional delay, polarity, and frequency-response effects with honest metadata-only L1 adapters and typed unsupported waveform cases.
+- Added seeded spectral self-noise, ambient coherence, clock jitter, and drift with deterministic named streams, replay, isolation, and additive diagnostics.
+- Added the post-mix electronics path for saturation/clipping, quantization, TPDF dither, and optional AGC with clipping and gain-trace diagnostics.
+- Added L2 waveform source/microphone directivity in `per_pair_direct_path` mode, applying signed polar and frequency response to each complete convolved pair stem.
+- Added measured-absorption provenance, nominal transmission separation, dynamic-room/material invalidation, and live direct-ray occlusion refresh without claiming diffraction.
+- Added the supported/unsupported motion and multi-source stress matrix plus a published claim-to-evidence fidelity envelope with explicit geometry, dependency, performance, and realism limits.
 
 ## 1.9.0 - Unreleased
 
