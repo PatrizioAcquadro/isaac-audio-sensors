@@ -2,6 +2,7 @@
 
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import (
+    AgcConfig,
     AmbientNoiseConfig,
     ChannelResponseConfig,
     ChannelResponseMicConfig,
@@ -18,6 +19,7 @@ from isaac_audio_sensors.core.effects.config import (
 )
 
 __all__ = [
+    "AgcConfig",
     "AmbientNoiseConfig",
     "ChannelEffectsChain",
     "ChannelResponseConfig",

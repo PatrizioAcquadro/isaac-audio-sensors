@@ -14,6 +14,7 @@ from isaac_audio_sensors.core.effects.config import (
     EffectsConfig,
     validate_effects_config,
 )
+from isaac_audio_sensors.core.effects.electronics import apply_electronics
 from isaac_audio_sensors.core.effects.noise import apply_noise
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 
@@ -39,6 +40,21 @@ class ChannelEffectsChain:
         """Return effected samples and stage diagnostics."""
 
         if self.config.all_disabled:
+            if self.config != EffectsConfig():
+                sample_count = (
+                    samples.shape[1]
+                    if isinstance(samples, np.ndarray) and samples.ndim == 2
+                    else None
+                )
+                validate_effects_config(
+                    self.config,
+                    microphone_orders=(tuple(mic_ids),),
+                    sample_rate_hz=sample_rate_hz,
+                    backend_id=backend_id,
+                    runtime_profile=runtime_profile,
+                    sample_count=sample_count,
+                    microphone_self_noise_db=microphone_self_noise_db,
+                )
             return samples, {}
         self.validate(
             samples,
@@ -71,6 +87,16 @@ class ChannelEffectsChain:
             )
             if noise_diagnostics:
                 diagnostics["noise"] = noise_diagnostics
+        if self.config.electronics.enabled:
+            output, electronics_diagnostics = apply_electronics(
+                output,
+                mic_ids=mic_ids,
+                sample_rate_hz=sample_rate_hz,
+                frame_id=frame_id,
+                config=self.config.electronics,
+                seed=self.config.noise.seed,
+            )
+            diagnostics["electronics"] = electronics_diagnostics
         return output, diagnostics
 
     def apply_premix(
@@ -119,7 +145,7 @@ class ChannelEffectsChain:
     ) -> tuple[np.ndarray, dict[str, Any]]:
         """Apply stochastic/nonlinear stages once to the summed mixture."""
 
-        if not self.config.noise.enabled:
+        if not (self.config.noise.enabled or self.config.electronics.enabled):
             return samples, {}
         self.validate(
             samples,
@@ -129,16 +155,31 @@ class ChannelEffectsChain:
             runtime_profile=runtime_profile,
             microphone_self_noise_db=microphone_self_noise_db,
         )
-        output, diagnostics = apply_noise(
-            samples,
-            mic_ids=mic_ids,
-            sample_rate_hz=sample_rate_hz,
-            frame_id=frame_id,
-            nominal_window_start_sample=nominal_window_start_sample,
-            config=self.config.noise,
-            microphone_self_noise_db=microphone_self_noise_db,
-        )
-        return output, ({"noise": diagnostics} if diagnostics else {})
+        output = samples
+        stage_diagnostics: dict[str, Any] = {}
+        if self.config.noise.enabled:
+            output, noise_diagnostics = apply_noise(
+                output,
+                mic_ids=mic_ids,
+                sample_rate_hz=sample_rate_hz,
+                frame_id=frame_id,
+                nominal_window_start_sample=nominal_window_start_sample,
+                config=self.config.noise,
+                microphone_self_noise_db=microphone_self_noise_db,
+            )
+            if noise_diagnostics:
+                stage_diagnostics["noise"] = noise_diagnostics
+        if self.config.electronics.enabled:
+            output, electronics_diagnostics = apply_electronics(
+                output,
+                mic_ids=mic_ids,
+                sample_rate_hz=sample_rate_hz,
+                frame_id=frame_id,
+                config=self.config.electronics,
+                seed=self.config.noise.seed,
+            )
+            stage_diagnostics["electronics"] = electronics_diagnostics
+        return output, stage_diagnostics
 
     def validate(
         self,

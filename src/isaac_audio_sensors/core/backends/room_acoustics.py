@@ -417,7 +417,7 @@ class RoomAcousticsBackend:
                 mixture = summed
             else:
                 mixture[:, : summed.shape[1]] = summed
-            if self.effects.noise.enabled:
+            if self.effects.noise.enabled or self.effects.electronics.enabled:
                 mixture, diagnostics = self.effects_chain.apply_mixture(
                     mixture,
                     mic_ids=mic_ids,
@@ -610,7 +610,9 @@ class RoomAcousticsBackend:
             )
             if diagnostics:
                 effect_diagnostics.update(diagnostics)
-        if not active and self.effects.noise.enabled:
+        if not active and (
+            self.effects.noise.enabled or self.effects.electronics.enabled
+        ):
             mixture, diagnostics = self.effects_chain.apply_mixture(
                 mixture,
                 mic_ids=mic_ids,
