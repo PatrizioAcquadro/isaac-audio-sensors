@@ -66,9 +66,10 @@ gate), and unbounded warning/finding retention in streaming validation
   large (bounded, exactly-counted) warning totals; warning-only by the
   frozen layout contract. A producer-side diagnostics path policy is a
   candidate S3+ refinement.
-- Guided recording now closes and starts episodes at explicit simulator
-  reset notifications and detected timestamp/frame-index rollbacks; the
-  first post-reset record carries the reset marker.
+- Guided recording subscribes to the Isaac post-reset lifecycle and the
+  sensor reset lifecycle; each actual reset closes and starts episodes,
+  and the first post-reset record carries an explicit reset marker.
+  Timestamp/frame-index rollback remains a tested fallback.
 - The reference fixture and rig documents are repo-only, excluded from the
   sdist under the frozen S1 audit; revisiting distribution policy belongs
   to an S6/P4 ADR.
@@ -82,7 +83,9 @@ gate), and unbounded warning/finding retention in streaming validation
 
 All review findings are closed without changing the frozen acceptance criteria. Manifest
 finalization recovery, shared device/calibration validation, FLAC export/replay, and
-guided reset-boundary gates pass. The S2.7 real-waveform rerun has 201 nonempty
+guided reset-boundary gates pass. The live guided gate performs an actual sensor reset
+without manually notifying the recorder and proves the equal-identity edge creates a new
+episode with an explicit ResetMarker. The S2.7 real-waveform rerun has 201 nonempty
 attributed ranges and nonzero audio; the S2.8 rerun has exact GUI/headless audio across
 20 ranges and 0 semantic differences. Generated pure-gate statuses:
 {"audio_parity_metrics": "passed", "device_calibration_shared_validation": "passed",

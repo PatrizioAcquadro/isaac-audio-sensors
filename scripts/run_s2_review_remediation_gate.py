@@ -40,8 +40,18 @@ def _run_gate(
         "returncode": result.returncode,
         "duration_s": round(time.monotonic() - started, 6),
         "command": command,
-        "log": str(log_path.relative_to(REPO_ROOT)),
+        "log": _evidence_path(log_path),
     }
+
+
+def _evidence_path(path: Path) -> str:
+    """Render repository paths relatively and external output paths absolutely."""
+
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(resolved)
 
 
 def main() -> int:
@@ -107,7 +117,11 @@ def main() -> int:
                 "pytest",
                 "-q",
                 "tests/test_guided_workflow.py::"
-                "test_guided_recording_marks_explicit_and_detected_simulator_resets",
+                "test_guided_recording_marks_sensor_and_detected_simulator_resets",
+                "tests/test_guided_workflow.py::"
+                "test_equal_frame_identity_after_sensor_reset_is_not_a_duplicate",
+                "tests/test_guided_workflow.py::"
+                "test_isaac_post_reset_lifecycle_resets_sensor_and_notifies_recorder",
             ],
         ),
         (

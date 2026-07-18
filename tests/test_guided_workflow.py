@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import wave
 from pathlib import Path
 from types import SimpleNamespace
@@ -136,6 +137,7 @@ class _FakeSensor:
         self._latest_sensor = None
         self.debug_drawer = None
         self.running = False
+        self.reset_listeners: list[Any] = []
 
     def start(self, *, subscribe_to_update_stream: bool = False) -> _FakeSensor:
         del subscribe_to_update_stream
@@ -147,6 +149,14 @@ class _FakeSensor:
 
     def close(self) -> None:
         self.running = False
+
+    def reset(self) -> None:
+        self.latest_frame = None
+        for listener in tuple(self.reset_listeners):
+            listener()
+
+    def _add_reset_listener(self, listener: Any) -> None:
+        self.reset_listeners.append(listener)
 
     def update(self, *, force: bool = False) -> AudioSensorFrame:
         del force
@@ -523,7 +533,7 @@ def test_guided_recording_end_to_end_validates_and_reports_progress(
     )
 
 
-def test_guided_recording_marks_explicit_and_detected_simulator_resets(
+def test_guided_recording_marks_sensor_and_detected_simulator_resets(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -532,7 +542,7 @@ def test_guided_recording_marks_explicit_and_detected_simulator_resets(
         _frame(6, waveform_path=_waveform(tmp_path / "reset/6.wav", 6)),
         _frame(0, waveform_path=_waveform(tmp_path / "reset/0.wav", 0)),
     )
-    controller, _sensor = _run_ready_controller(
+    controller, sensor = _run_ready_controller(
         monkeypatch,
         [_frame(0), *recorded],
     )
@@ -550,7 +560,7 @@ def test_guided_recording_marks_explicit_and_detected_simulator_resets(
     ) is not None
 
     assert controller.update_sensor() is recorded[0]
-    controller.guided_notify_simulator_reset()
+    sensor.reset()
     assert controller.update_sensor() is recorded[1]
     assert controller.update_sensor() is recorded[2]
     assert controller.guided_recording_status.reset_count == 2
@@ -569,6 +579,93 @@ def test_guided_recording_marks_explicit_and_detected_simulator_resets(
         2,
     ]
     assert validate_dataset(session).status in {"passed", "passed_with_warnings"}
+
+
+def test_equal_frame_identity_after_sensor_reset_is_not_a_duplicate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    before = _frame(5, waveform_path=_waveform(tmp_path / "equal/before.wav", 5))
+    after = _frame(5, waveform_path=_waveform(tmp_path / "equal/after.wav", 6))
+    controller, sensor = _run_ready_controller(
+        monkeypatch,
+        [_frame(0), before, after],
+    )
+    _enter_record_stage(controller)
+    session = tmp_path / "equal_identity_session"
+    assert controller.guided_start_recording(
+        session,
+        "guided_equal_identity_reset",
+        8,
+        False,
+    ) is not None
+
+    assert controller.update_sensor() is before
+    sensor.reset()
+    assert controller.update_sensor() is after
+    assert controller.guided_recording_status.frames == 2
+    assert controller.guided_recording_status.reset_count == 1
+    assert controller.guided_stop_recording() is not None
+
+    manifest = read_dataset_manifest(session / "manifest.json")
+    assert len(manifest.episodes) == 2
+    assert [len(episode.reset_markers) for episode in manifest.episodes] == [1, 1]
+    assert manifest.episodes[1].reset_markers[0].frame_index == 1
+    assert validate_dataset(session).status in {"passed", "passed_with_warnings"}
+
+
+def test_isaac_post_reset_lifecycle_resets_sensor_and_notifies_recorder(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    callbacks: list[Any] = []
+    deregistered: list[int] = []
+    post_reset = object()
+    simulation = SimpleNamespace(
+        IsaacEvents=SimpleNamespace(POST_RESET=post_reset),
+        SimulationManager=SimpleNamespace(
+            register_callback=lambda callback, *, event: (
+                callbacks.append((callback, event)) or 41
+            ),
+            deregister_callback=deregistered.append,
+        ),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "isaacsim.core.simulation_manager",
+        simulation,
+    )
+    frames = (
+        _frame(5, waveform_path=_waveform(tmp_path / "lifecycle/5.wav", 5)),
+        _frame(6, waveform_path=_waveform(tmp_path / "lifecycle/6.wav", 6)),
+    )
+    controller, sensor = _run_ready_controller(
+        monkeypatch,
+        [_frame(0), *frames],
+    )
+    _enter_record_stage(controller)
+    session = tmp_path / "lifecycle_session"
+    assert controller.guided_start_recording(
+        session,
+        "guided_lifecycle_reset",
+        8,
+        False,
+    ) is not None
+    assert controller.update_sensor() is frames[0]
+
+    controller._register_simulation_reset_callback()
+    assert callbacks[0][1] is post_reset
+    callbacks[0][0](object())
+    assert sensor.latest_frame is None
+    assert controller.update_sensor() is frames[1]
+    assert controller.guided_recording_status.reset_count == 1
+    assert controller.guided_stop_recording() is not None
+    controller._unregister_simulation_reset_callback()
+
+    manifest = read_dataset_manifest(session / "manifest.json")
+    assert len(manifest.episodes) == 2
+    assert len(manifest.episodes[1].reset_markers) == 1
+    assert deregistered == [41]
 
 
 def test_guided_recording_cancellation_finalizes_incomplete_and_recovers(

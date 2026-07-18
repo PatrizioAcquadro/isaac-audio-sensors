@@ -54,6 +54,17 @@ def main() -> int:
     guided = _read(OUTPUT_ROOT / "S2.7/guided_workflow_gate.json")
     parity = _read(OUTPUT_ROOT / "S2.8/parity_gate.json")
     audio = guided["audio_acceptance"]
+    reset = guided["reset_lifecycle"]
+    if (
+        reset.get("status") != "passed"
+        or reset.get("isaac_post_reset_callback_registered") is not True
+        or reset.get("manual_recorder_notification") is not False
+        or reset.get("episode_count") != 2
+        or reset.get("reset_count") != 1
+        or reset.get("equal_identity_before_reset")
+        != reset.get("equal_identity_after_reset")
+    ):
+        raise RuntimeError("refusing closeout generation from invalid reset evidence")
     semantic = parity["semantic_diff"]
     parity_audio = semantic["audio_parity"]
     gate_status = {item["name"]: item["status"] for item in remediation["gates"]}
@@ -89,8 +100,10 @@ def main() -> int:
             f"attributed frame ranges; {audio['nonempty_attributed_ranges']} were "
             f"nonempty and {audio['nonzero_sample_values']} decoded sample values "
             "were nonzero. The exported dataset has zero validator errors. "
-            "Guided recording also has tested explicit and timestamp/index-detected "
-            "reset boundaries. Evidence: `outputs/isaac_audio_sensors/S2/S2.7/`."
+            "An actual sensor reset, without a manual recorder notification, created "
+            "a second episode with an explicit ResetMarker even when frame id, "
+            "timestamp, and producer frame index were unchanged. Evidence: "
+            "`outputs/isaac_audio_sensors/S2/S2.7/`."
         ),
         "S2/s2_8_headless_parity.md": (
             "## S2 review remediation rerun (regenerated)\n\n"
@@ -116,14 +129,15 @@ def main() -> int:
         "  owner."
     )
     new_reset = (
+        "- Guided recording subscribes to the Isaac post-reset lifecycle and the\n"
+        "  sensor reset lifecycle; each actual reset closes and starts episodes,\n"
+        "  and the first post-reset record carries an explicit reset marker.\n"
+        "  Timestamp/frame-index rollback remains a tested fallback."
+    )
+    previous_generated_reset = (
         "- Guided recording now closes and starts episodes at explicit simulator\n"
         "  reset notifications and detected timestamp/frame-index rollbacks; the\n"
         "  first post-reset record carries the reset marker."
-    )
-    previous_generated_reset = (
-        "- Guided recording now closes and starts episodes at explicit simulator "
-        "reset notifications and detected timestamp/frame-index rollbacks; the "
-        "first post-reset record carries the reset marker."
     )
     if old_reset in phase_text or previous_generated_reset in phase_text:
         phase_path.write_text(
@@ -139,6 +153,9 @@ def main() -> int:
         "All review findings are closed without changing the frozen acceptance "
         "criteria. Manifest finalization recovery, shared device/calibration "
         "validation, FLAC export/replay, and guided reset-boundary gates pass. "
+        "The live guided gate performs an actual sensor reset without manually "
+        "notifying the recorder and proves the equal-identity edge creates a new "
+        "episode with an explicit ResetMarker. "
         f"The S2.7 real-waveform rerun has {audio['nonempty_attributed_ranges']} "
         "nonempty attributed ranges and nonzero audio; the S2.8 rerun has exact "
         f"GUI/headless audio across {parity_audio['exact_ranges']} ranges and "
@@ -159,6 +176,9 @@ def main() -> int:
         f"- S2.7: {audio['frame_count']} frames, "
         f"{audio['nonempty_attributed_ranges']} nonempty ranges, "
         f"{audio['nonzero_sample_values']} nonzero sample values.\n"
+        "- S2.7 reset lifecycle: Isaac callback registered; actual sensor reset;\n"
+        "  no manual recorder notification; 2 episodes; 1 reset; equal frame\n"
+        "  identity preserved; explicit ResetMarker.\n"
         f"- S2.8: {parity_audio['exact_ranges']}/"
         f"{parity_audio['ranges_compared']} exact audio ranges, "
         f"{semantic['difference_count']} semantic differences.\n"

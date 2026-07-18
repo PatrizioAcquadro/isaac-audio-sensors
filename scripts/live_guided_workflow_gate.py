@@ -137,6 +137,10 @@ def main() -> int:
         extension = Extension()
         extension.on_startup(startup_ext_id)
         controller = extension.controller
+        if controller._simulation_reset_callback_id is None:
+            raise RuntimeError(
+                "Isaac POST_RESET lifecycle callback was not registered."
+            )
         controller.stage_context_provider = lambda: CurrentStageContext(stage, ())
         evidence["ui_available"] = extension.ui_available
         evidence["window_type"] = type(controller.window).__name__
@@ -184,7 +188,7 @@ def main() -> int:
             raise RuntimeError(f"Guided validation remained blocked: {validation}")
 
         sensor = _require(controller.guided_start_run(), "guided sensor start")
-        first_frame = _capture_at_sim_time(controller, 0.0)
+        _capture_at_sim_time(controller, 0.0)
         if controller.guided_run_status.frame_count < 1:
             raise RuntimeError("Run did not observe a live sensor frame.")
         if not controller.guided_advance() or not controller.guided_mark_inspected():
@@ -241,21 +245,66 @@ def main() -> int:
 
         frame_count = max(2, int(round(args.record_seconds / 0.05)))
         recording_start_s = 0.30
-        last_frame = first_frame
-        first_recorded_frame = None
-        for index in range(frame_count + 1):
+        sensor.reset()
+        first_recorded_frame = _capture_at_sim_time(
+            controller,
+            recording_start_s,
+        )
+        reset_identity = {
+            "frame_id": first_recorded_frame.frame_id,
+            "timestamp_ms": first_recorded_frame.timestamp_ms,
+            "frame_index": first_recorded_frame.frame_index,
+        }
+        sensor.reset()
+        reset_frame = _capture_at_sim_time(controller, recording_start_s)
+        post_reset_identity = {
+            "frame_id": reset_frame.frame_id,
+            "timestamp_ms": reset_frame.timestamp_ms,
+            "frame_index": reset_frame.frame_index,
+        }
+        if post_reset_identity != reset_identity:
+            raise RuntimeError(
+                "Live equal-identity reset probe did not reproduce the same "
+                "frame id, timestamp, and producer frame index."
+            )
+        last_frame = reset_frame
+        for index in range(1, frame_count):
             last_frame = _capture_at_sim_time(
                 controller,
                 recording_start_s + index * 0.05,
             )
-            if first_recorded_frame is None:
-                first_recorded_frame = last_frame
         _require(controller.guided_stop_recording(), "recording finalize")
         recording = controller.guided_recording_status
         if recording.validation_status not in {"passed", "passed_with_warnings"}:
             raise RuntimeError(
                 f"Finalized recording validation failed: {recording.validation_status}"
             )
+        recorded_dataset = SessionDataset.open(Path(recording.session_dir or ""))
+        reset_episodes = recorded_dataset.manifest.episodes
+        if recording.reset_count != 1 or len(reset_episodes) != 2:
+            raise RuntimeError(
+                "Actual sensor reset did not create exactly one new episode."
+            )
+        second_markers = reset_episodes[1].reset_markers
+        if len(second_markers) != 1:
+            raise RuntimeError(
+                "Actual sensor reset episode did not contain an explicit ResetMarker."
+            )
+        evidence["reset_lifecycle"] = {
+            "status": "passed",
+            "operation": "IsaacAudioArraySensor.reset",
+            "isaac_post_reset_callback_registered": True,
+            "manual_recorder_notification": False,
+            "equal_identity_before_reset": reset_identity,
+            "equal_identity_after_reset": post_reset_identity,
+            "episode_count": len(reset_episodes),
+            "reset_count": recording.reset_count,
+            "reset_marker": {
+                "step_index": second_markers[0].step_index,
+                "frame_index": second_markers[0].frame_index,
+                "timestamp_ms": second_markers[0].timestamp_ms,
+            },
+        }
         evidence["recording_stats"] = {
             "session_dir": recording.session_dir,
             "frames": recording.frames,

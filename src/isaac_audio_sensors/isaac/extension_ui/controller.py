@@ -193,6 +193,7 @@ class ExtensionController:
         self._menu_items: list[Any] = []
         self._audition_player = AuditionPlayer()
         self._stage_event_subscription: Any | None = None
+        self._simulation_reset_callback_id: int | None = None
         self._last_followed_selection: tuple[str, ...] | None = None
         self._usd_debug_author: UsdDebugGeometryAuthor | None = None
         self._guided_recorder: SessionRecorder | None = None
@@ -968,6 +969,18 @@ class ExtensionController:
         if self._guided_recorder is not None:
             self._guided_reset_pending = True
 
+    def _attach_guided_reset_listener(self, sensor: Any) -> None:
+        add_listener = getattr(sensor, "_add_reset_listener", None)
+        if callable(add_listener):
+            add_listener(self.guided_notify_simulator_reset)
+
+    def _handle_simulation_reset(self, _event: Any) -> None:
+        """Reset the sensor and recorder boundary from Isaac's reset lifecycle."""
+
+        self.guided_notify_simulator_reset()
+        if self.sensor is not None:
+            self.sensor.reset()
+
     @staticmethod
     def _guided_audio_block_for_frame(
         frame: Any,
@@ -1148,10 +1161,12 @@ class ExtensionController:
         self._register_menu()
         self._register_hotkey()
         self._register_stage_event_subscription()
+        self._register_simulation_reset_callback()
 
     def unregister_kit_integrations(self) -> None:
         """Best-effort cleanup of Kit action/menu/hotkey registrations."""
 
+        self._unregister_simulation_reset_callback()
         self._unregister_stage_event_subscription()
         self._unregister_hotkey()
         self._unregister_menu()
@@ -2727,6 +2742,7 @@ class ExtensionController:
             sensor = self._build_sensor(stage_obj)
             self.close_sensor()
             self.sensor = sensor
+            self._attach_guided_reset_listener(sensor)
             self.state.sensor_running = False
             self._set_status(
                 f"Configured {sensor.backend} sensor for array {sensor.array_id}."
@@ -3371,6 +3387,36 @@ class ExtensionController:
 
     def _unregister_stage_event_subscription(self) -> None:
         self._stage_event_subscription = None
+
+    def _register_simulation_reset_callback(self) -> None:
+        """Subscribe to the Isaac World post-reset lifecycle when available."""
+
+        self._unregister_simulation_reset_callback()
+        try:
+            simulation = importlib.import_module(
+                "isaacsim.core.simulation_manager"
+            )
+            manager = simulation.SimulationManager
+            event = simulation.IsaacEvents.POST_RESET
+            self._simulation_reset_callback_id = manager.register_callback(
+                self._handle_simulation_reset,
+                event=event,
+            )
+        except (AttributeError, ImportError, RuntimeError, TypeError, ValueError):
+            self._simulation_reset_callback_id = None
+
+    def _unregister_simulation_reset_callback(self) -> None:
+        callback_id = self._simulation_reset_callback_id
+        self._simulation_reset_callback_id = None
+        if callback_id is None:
+            return
+        try:
+            simulation = importlib.import_module(
+                "isaacsim.core.simulation_manager"
+            )
+            simulation.SimulationManager.deregister_callback(callback_id)
+        except (AttributeError, ImportError, RuntimeError, TypeError, ValueError):
+            pass
 
     def _viewport_follow_tick(self) -> None:
         """Per-tick fallback when stage events are unavailable, plus pose sync."""

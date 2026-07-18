@@ -7,6 +7,9 @@ non-passing input artifact. The frozen S2 acceptance criteria were not
 edited.
 
 - Pure remediation gates: 6/6 passed.
-- S2.7: 201 frames, 201 nonempty ranges, 1919994 nonzero sample values.
+- S2.7: 201 frames, 201 nonempty ranges, 1919997 nonzero sample values.
+- S2.7 reset lifecycle: Isaac callback registered; actual sensor reset;
+  no manual recorder notification; 2 episodes; 1 reset; equal frame
+  identity preserved; explicit ResetMarker.
 - S2.8: 20/20 exact audio ranges, 0 semantic differences.
 - Canonical validator errors: 0 for the S2.7 export and both S2.8 exports.

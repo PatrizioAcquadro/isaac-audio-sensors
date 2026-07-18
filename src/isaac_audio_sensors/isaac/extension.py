@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -94,6 +95,11 @@ class IsaacAudioArraySensor:
     )
     _update_subscription: Any | None = field(default=None, init=False)
     _stage_cache: StageAudioCache | None = field(default=None, init=False)
+    _reset_listeners: list[Callable[[], None]] = field(
+        default_factory=list,
+        init=False,
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
         if self.update_period_s <= 0.0:
@@ -317,6 +323,14 @@ class IsaacAudioArraySensor:
         self.latest_debug_primitives = ()
         self._latest_scene = None
         self._latest_sensor = None
+        for listener in tuple(self._reset_listeners):
+            listener()
+
+    def _add_reset_listener(self, listener: Callable[[], None]) -> None:
+        """Attach an internal observer to the completed sensor reset lifecycle."""
+
+        if listener not in self._reset_listeners:
+            self._reset_listeners.append(listener)
 
     def close(self) -> None:
         """Stop the sensor and close any package writer fallback."""

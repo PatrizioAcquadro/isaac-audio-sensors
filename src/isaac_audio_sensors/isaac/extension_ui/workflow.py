@@ -2,9 +2,9 @@
 
 Inspect completion is deliberately an explicit user action: the instrument
 readouts provide evidence, but deciding that the observation is acceptable is
-human judgment. Guided recording accepts explicit reset notifications and also
-detects timestamp/frame-index rollback; every simulator reset starts a new
-episode whose first frame is reset-marked.
+human judgment. Guided recording consumes the Isaac simulator and sensor reset
+lifecycle, while timestamp/frame-index rollback remains a fallback; every reset
+starts a new episode whose first frame is reset-marked.
 """
 
 from __future__ import annotations

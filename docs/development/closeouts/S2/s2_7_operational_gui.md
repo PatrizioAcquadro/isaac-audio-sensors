@@ -61,8 +61,9 @@ normalization.
 ## S2 review remediation rerun (regenerated)
 
 The real room-acoustics waveform backend produced 201 attributed frame ranges; 201 were
-nonempty and 1919994 decoded sample values were nonzero. The exported dataset has zero
-validator errors. Guided recording also has tested explicit and timestamp/index-detected
-reset boundaries. Evidence: `outputs/isaac_audio_sensors/S2/S2.7/`.
+nonempty and 1919997 decoded sample values were nonzero. The exported dataset has zero
+validator errors. An actual sensor reset, without a manual recorder notification,
+created a second episode with an explicit ResetMarker even when frame id, timestamp, and
+producer frame index were unchanged. Evidence: `outputs/isaac_audio_sensors/S2/S2.7/`.
 
 <!-- END GENERATED S2 REVIEW REMEDIATION -->
