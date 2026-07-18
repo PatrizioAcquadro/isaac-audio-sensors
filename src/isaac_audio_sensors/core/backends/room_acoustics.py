@@ -26,6 +26,11 @@ from isaac_audio_sensors.core.doa.srp_phat import (
     srp_phat_direction,
 )
 from isaac_audio_sensors.core.doppler import source_doppler_factor
+from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
+from isaac_audio_sensors.core.effects.config import (
+    EffectsConfig,
+    validate_effects_config,
+)
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
 from isaac_audio_sensors.core.math_utils import (
@@ -94,6 +99,8 @@ class RoomAcousticsBackend:
         gcc_phat_interp: int = 8,
         waveform_writer: WaveformSink | None = None,
         doa_estimator: str = "tdoa_least_squares",
+        effects: EffectsConfig | None = None,
+        runtime_profile: str = "waveform_fidelity",
     ) -> None:
         if speed_of_sound_mps <= 0.0 or not math.isfinite(speed_of_sound_mps):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
@@ -114,6 +121,9 @@ class RoomAcousticsBackend:
         self.gcc_phat_interp = int(gcc_phat_interp)
         self.waveform_writer = waveform_writer
         self.doa_estimator = doa_estimator
+        self.effects = EffectsConfig() if effects is None else effects
+        self.runtime_profile = runtime_profile
+        self.effects_chain = ChannelEffectsChain(self.effects)
 
     @staticmethod
     def is_available() -> bool:
@@ -218,6 +228,15 @@ class RoomAcousticsBackend:
                 )
             ),
         )
+        if not self.effects.all_disabled:
+            validate_effects_config(
+                self.effects,
+                microphone_orders=(mic_ids,),
+                sample_rate_hz=sample_rate_hz,
+                backend_id=self.backend_id,
+                runtime_profile=self.runtime_profile,
+                sample_count=window_sample_count,
+            )
 
         detections: list[AudioDetection] = []
         active = active_sources(scene, time_window)
@@ -226,6 +245,7 @@ class RoomAcousticsBackend:
         per_source_rir_summary: dict[str, dict[str, object]] = {}
         mixture = np.zeros((len(mic_ids), window_sample_count), dtype=float)
         clamped_position_ids: tuple[str, ...] = ()
+        effect_diagnostics: dict[str, Any] = {}
 
         if active:
             source_positions = {
@@ -313,6 +333,19 @@ class RoomAcousticsBackend:
                         premix[index, mic_index] *= 10.0 ** (
                             per_mic_gain_db[mic_id] / 20.0
                         )
+            if not self.effects.all_disabled:
+                for index in range(len(active)):
+                    processed, diagnostics = self.effects_chain.apply(
+                        premix[index],
+                        mic_ids=mic_ids,
+                        sample_rate_hz=sample_rate_hz,
+                        frame_id=frame_id,
+                        backend_id=self.backend_id,
+                        runtime_profile=self.runtime_profile,
+                    )
+                    premix[index] = processed
+                    if diagnostics:
+                        effect_diagnostics = diagnostics
             summed = np.sum(premix, axis=0)
             if summed.shape[1] >= window_sample_count:
                 mixture = summed
@@ -486,6 +519,16 @@ class RoomAcousticsBackend:
                     "room_microphone_positions_m": mic_room,
                 }
 
+        if not active and not self.effects.all_disabled:
+            mixture, effect_diagnostics = self.effects_chain.apply(
+                mixture,
+                mic_ids=mic_ids,
+                sample_rate_hz=sample_rate_hz,
+                frame_id=frame_id,
+                backend_id=self.backend_id,
+                runtime_profile=self.runtime_profile,
+            )
+
         aggregate_per_mic_rms = rms_by_channel(
             {
                 mic_id: mixture[mic_index]
@@ -517,6 +560,8 @@ class RoomAcousticsBackend:
                 for source_id, summary in per_source_rir_summary.items()
             },
         }
+        if effect_diagnostics:
+            frame_diagnostics["effects"] = effect_diagnostics
         waveform_paths: tuple[str, ...] = ()
         if self.waveform_writer is not None:
             write_result = self.waveform_writer.write_frame_mixture(

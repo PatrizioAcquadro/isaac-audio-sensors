@@ -20,6 +20,11 @@ from isaac_audio_sensors.core.doa.ambiguity import (
 )
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
 from isaac_audio_sensors.core.doppler import doppler_factor, source_doppler_factor
+from isaac_audio_sensors.core.effects.channel_response import metadata_channel_values
+from isaac_audio_sensors.core.effects.config import (
+    EffectsConfig,
+    validate_effects_config,
+)
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
     bearing_from_components,
@@ -70,6 +75,8 @@ class TdoaSyntheticBackend:
         ambiguity_policy: str = "none",
         seed: int | None = None,
         air_absorption_db_per_m: float = 0.0,
+        effects: EffectsConfig | None = None,
+        runtime_profile: str = "waveform_fidelity",
     ) -> None:
         if speed_of_sound_mps <= 0.0 or not math.isfinite(speed_of_sound_mps):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
@@ -90,6 +97,8 @@ class TdoaSyntheticBackend:
         self.ambiguity_policy = ambiguity_policy
         self.seed = None if seed is None else int(seed)
         self.air_absorption_db_per_m = float(air_absorption_db_per_m)
+        self.effects = EffectsConfig() if effects is None else effects
+        self.runtime_profile = runtime_profile
 
     def simulate(
         self,
@@ -98,6 +107,29 @@ class TdoaSyntheticBackend:
         time_window: AudioTimeWindow,
     ) -> AudioSensorFrame:
         validate_tdoa_array(sensor)
+        mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
+        effect_gain_db: dict[str, float] = {}
+        effect_delay_s: dict[str, float] = {}
+        effect_diagnostics: dict[str, object] = {}
+        if not self.effects.all_disabled:
+            validate_effects_config(
+                self.effects,
+                microphone_orders=(mic_ids,),
+                sample_rate_hz=time_window.sample_rate_hz,
+                backend_id=self.backend_id,
+                runtime_profile=self.runtime_profile,
+            )
+            (
+                effect_gain_db,
+                effect_delay_s,
+                _effect_polarity,
+                response_diagnostics,
+            ) = metadata_channel_values(
+                self.effects.channel_response,
+                mic_ids,
+            )
+            if response_diagnostics:
+                effect_diagnostics["channel_response"] = response_diagnostics
         frame_id = deterministic_frame_id(
             backend_id=self.backend_id,
             stage_id=scene.stage_id,
@@ -119,8 +151,10 @@ class TdoaSyntheticBackend:
                 frame_id=frame_id,
                 per_mic_extra_gain_db=occlusion_per_mic_extra_gain_db(
                     occlusion,
-                    tuple(microphone.mic_id for microphone in sensor.microphones),
+                    mic_ids,
                 ),
+                effect_gain_db=effect_gain_db,
+                effect_delay_s=effect_delay_s,
             )
             ground_truth_bearing = _ground_truth_bearing(source.position_world, sensor)
             ground_truth_elevation = _ground_truth_elevation(
@@ -200,6 +234,22 @@ class TdoaSyntheticBackend:
                 )
             )
 
+        frame_diagnostics: dict[str, object] = {
+            "backend": self.backend_id,
+            "active_source_count": len(detections),
+            "ambiguity_policy": self.ambiguity_policy,
+            "noise_std_s": self.noise_std_s,
+            "clock_jitter_s": self.clock_jitter_s,
+            "gain_mismatch_db": self.gain_mismatch_db,
+            "noise_seed": self.seed,
+            "air_absorption_db_per_m": self.air_absorption_db_per_m,
+            "array_geometry_rank_xy": layout_rank_xy(sensor),
+            "array_geometry_rank_xyz": layout_rank_xyz(sensor),
+            "stress_controls_deterministic": True,
+        }
+        if effect_diagnostics:
+            frame_diagnostics["effects"] = effect_diagnostics
+
         return AudioSensorFrame(
             frame_id=frame_id,
             frame_name=deterministic_frame_name(
@@ -226,19 +276,7 @@ class TdoaSyntheticBackend:
                 sensor.microphones,
             ),
             waveform_paths=(),
-            diagnostics={
-                "backend": self.backend_id,
-                "active_source_count": len(detections),
-                "ambiguity_policy": self.ambiguity_policy,
-                "noise_std_s": self.noise_std_s,
-                "clock_jitter_s": self.clock_jitter_s,
-                "gain_mismatch_db": self.gain_mismatch_db,
-                "noise_seed": self.seed,
-                "air_absorption_db_per_m": self.air_absorption_db_per_m,
-                "array_geometry_rank_xy": layout_rank_xy(sensor),
-                "array_geometry_rank_xyz": layout_rank_xyz(sensor),
-                "stress_controls_deterministic": True,
-            },
+            diagnostics=frame_diagnostics,
         )
 
     def _per_mic_delays_and_rms(
@@ -248,9 +286,13 @@ class TdoaSyntheticBackend:
         *,
         frame_id: str,
         per_mic_extra_gain_db: dict[str, float] | None = None,
+        effect_gain_db: dict[str, float] | None = None,
+        effect_delay_s: dict[str, float] | None = None,
     ) -> _DelayResult:
         positions = microphone_world_positions(sensor)
         extra_gains = per_mic_extra_gain_db or {}
+        effect_gains = effect_gain_db or {}
+        effect_delays = effect_delay_s or {}
         distances: dict[str, float] = {}
         delays: dict[str, float] = {}
         rms: dict[str, float] = {}
@@ -262,7 +304,11 @@ class TdoaSyntheticBackend:
                 frame_id=frame_id,
                 mic_id=microphone.mic_id,
             )
-            delay = distance / self.speed_of_sound_mps + delay_noise
+            delay = (
+                distance / self.speed_of_sound_mps
+                + delay_noise
+                + effect_delays.get(microphone.mic_id, 0.0)
+            )
             gain_offset_db = self._gain_offset_db(microphone.mic_id)
             amplitude = source_amplitude_at(
                 source,
@@ -270,6 +316,7 @@ class TdoaSyntheticBackend:
                 extra_gain_db=(
                     microphone.gain_db
                     + gain_offset_db
+                    + effect_gains.get(microphone.mic_id, 0.0)
                     + extra_gains.get(microphone.mic_id, 0.0)
                 ),
                 air_absorption_db_per_m=self.air_absorption_db_per_m,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,11 @@ from isaac_audio_sensors.core.constants import (
     KNOWN_BACKENDS,
     RUNTIME_PROFILES,
     TDOA_AMBIGUITY_POLICIES,
+)
+from isaac_audio_sensors.core.effects.config import (
+    EffectsConfig,
+    parse_effects_config,
+    validate_effects_config,
 )
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.math_utils import basis_from_quaternion
@@ -40,6 +45,7 @@ class AudioSensorConfig:
     up_axis: str
     default_backend: str
     runtime_profile: str = DEFAULT_RUNTIME_PROFILE
+    effects: EffectsConfig = field(default_factory=EffectsConfig)
     sample_rate_hz: int
     speed_of_sound_mps: float
     write_waveforms: bool
@@ -110,6 +116,17 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
 
         sources = _parse_sources(raw.get("sources"))
         arrays = _parse_arrays(raw.get("arrays", {}), sample_rate_hz=sample_rate_hz)
+        effects = parse_effects_config(audio.get("effects"))
+        validate_effects_config(
+            effects,
+            microphone_orders=tuple(
+                tuple(microphone.mic_id for microphone in array.microphones)
+                for array in arrays.values()
+            ),
+            sample_rate_hz=sample_rate_hz,
+            backend_id=default_backend,
+            runtime_profile=runtime_profile,
+        )
         room = _parse_room(raw.get("room"))
         lab = dict(raw.get("lab", {}))
         _validate_lab(lab)
@@ -125,6 +142,7 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             up_axis=up_axis,
             default_backend=default_backend,
             runtime_profile=runtime_profile,
+            effects=effects,
             sample_rate_hz=sample_rate_hz,
             speed_of_sound_mps=speed_of_sound,
             write_waveforms=write_waveforms,

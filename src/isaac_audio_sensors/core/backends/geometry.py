@@ -10,6 +10,11 @@ from isaac_audio_sensors.core.backends.amplitude import (
     source_amplitude_at,
 )
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
+from isaac_audio_sensors.core.effects.channel_response import metadata_channel_values
+from isaac_audio_sensors.core.effects.config import (
+    EffectsConfig,
+    validate_effects_config,
+)
 from isaac_audio_sensors.core.math_utils import (
     bearing_from_components,
     dot,
@@ -48,12 +53,40 @@ class GeometryBackend:
 
     backend_id = "geometry_only"
 
+    def __init__(
+        self,
+        *,
+        effects: EffectsConfig | None = None,
+        runtime_profile: str = "waveform_fidelity",
+    ) -> None:
+        self.effects = EffectsConfig() if effects is None else effects
+        self.runtime_profile = runtime_profile
+
     def simulate(
         self,
         scene: AudioSceneSnapshot,
         sensor: MicrophoneArraySpec,
         time_window: AudioTimeWindow,
     ) -> AudioSensorFrame:
+        mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
+        effect_gain_db: dict[str, float] = {}
+        effect_diagnostics: dict[str, object] = {}
+        if not self.effects.all_disabled:
+            validate_effects_config(
+                self.effects,
+                microphone_orders=(mic_ids,),
+                sample_rate_hz=time_window.sample_rate_hz,
+                backend_id=self.backend_id,
+                runtime_profile=self.runtime_profile,
+            )
+            effect_gain_db, _delays, _polarities, response_diagnostics = (
+                metadata_channel_values(
+                    self.effects.channel_response,
+                    mic_ids,
+                )
+            )
+            if response_diagnostics:
+                effect_diagnostics["channel_response"] = response_diagnostics
         frame_id = deterministic_frame_id(
             backend_id=self.backend_id,
             stage_id=scene.stage_id,
@@ -94,8 +127,9 @@ class GeometryBackend:
                 sensor,
                 per_mic_extra_gain_db=occlusion_per_mic_extra_gain_db(
                     occlusion,
-                    tuple(microphone.mic_id for microphone in sensor.microphones),
+                    mic_ids,
                 ),
+                effect_gain_db=effect_gain_db,
             )
             for mic_id, rms in per_mic_rms.items():
                 aggregate_rms_power[mic_id] += rms * rms
@@ -146,6 +180,15 @@ class GeometryBackend:
                 )
             )
 
+        frame_diagnostics: dict[str, object] = {
+            "backend": self.backend_id,
+            "source_count": len(scene.sources),
+            "active_source_count": len(detections),
+            "coordinate_convention": sensor.coordinate_convention,
+        }
+        if effect_diagnostics:
+            frame_diagnostics["effects"] = effect_diagnostics
+
         return AudioSensorFrame(
             frame_id=frame_id,
             frame_name=deterministic_frame_name(
@@ -172,12 +215,7 @@ class GeometryBackend:
                 sensor.microphones,
             ),
             waveform_paths=(),
-            diagnostics={
-                "backend": self.backend_id,
-                "source_count": len(scene.sources),
-                "active_source_count": len(detections),
-                "coordinate_convention": sensor.coordinate_convention,
-            },
+            diagnostics=frame_diagnostics,
         )
 
 
@@ -186,13 +224,17 @@ def _rms_proxy_for_source(
     sensor: MicrophoneArraySpec,
     *,
     per_mic_extra_gain_db: dict[str, float] | None = None,
+    effect_gain_db: dict[str, float] | None = None,
 ) -> dict[str, float]:
     per_mic: dict[str, float] = {}
     extra_gains = per_mic_extra_gain_db or {}
+    effect_gains = effect_gain_db or {}
     for mic_id, mic_position in microphone_world_positions(sensor).items():
         per_mic[mic_id] = source_amplitude_at(
             source,
             mic_position,
-            extra_gain_db=extra_gains.get(mic_id, 0.0),
+            extra_gain_db=(
+                extra_gains.get(mic_id, 0.0) + effect_gains.get(mic_id, 0.0)
+            ),
         )
     return per_mic
