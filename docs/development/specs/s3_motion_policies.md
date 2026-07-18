@@ -8,6 +8,7 @@
 | Design date | 2026-07-18 |
 | Entry revision | `839fe906ac3f65ed24e60a4ddca9b5c999923eb3` (`839fe90`) |
 | S3.2 design revision | 2026-07-18 at `8bc7955e526e227b14d5e452ad774cd72d87f6ce` (`8bc7955`); the original S3.1 entry above remains authoritative for S3.1 |
+| S3.2 live-scenario amendment | 2026-07-18 at `6de3c7e`; only the not-yet-generated §12.1 live fixture and its §12 verification row change to `W=4800`, `H=2400`; pure S3.2 fixtures, formulas, tolerances, and evidence remain pinned and unchanged |
 | Governing gates | `S3.1` pose-derived velocity; `S3.2` time gaps and intra-window motion |
 | Governing acceptance | `docs/development/specs/s0_squadbot_readiness_acceptance.md` §S3 |
 | Evidence roots | `outputs/isaac_audio_sensors/S3/S3.1/` and `outputs/isaac_audio_sensors/S3/S3.2/` |
@@ -974,7 +975,7 @@ repository style, but every row is mandatory.
 | Boundary continuity | Analytical phase reference at every boundary; maximum residual `<=2e-6` | `segment_continuity_results.json`, `segment_continuity_trace.csv` |
 | L0/L1 rejection | Backend matrix; exact pre-output `UnsupportedEffectError`, no files or diagnostics | `unsupported_segment_backend_matrix.json` |
 | Off-state and `P=1` | Pinned `8bc7955` golden regressions and call-spy proof of literal branches | `time_gap_off_state_sha256.json`, `segments_one_golden_sha256.json`, `registry_self_test.json` |
-| Live throttled capture | Running Kit scenario below; exact 16,800-sample gap and clean resume | `live_throttled_capture_summary.json`, `live_throttled_capture_frames.jsonl`, `live_throttled_capture_audio.wav`, `live_throttled_capture.log`, `live_throttled_capture_stage.usda`, `live_time_motion_environment.json` |
+| Live throttled capture | Running Kit scenario below with `W=4800`, `H=2400`; exact 16,800-sample zero-input gap over `[4,800, 21,600)`, carried RIR tail at its head, record ranges `[0, 4,800)`, `[2,400, 7,200)`, and `[21,600, 26,400)`, exact 26,400-sample final stream, and clean resume | `live_throttled_capture_summary.json`, `live_throttled_capture_frames.jsonl`, `live_throttled_capture_audio.wav`, `live_throttled_capture.log`, `live_throttled_capture_stage.usda`, `live_time_motion_environment.json` |
 | S2 reliability regression | Rerun the complete recorder reliability target after implementation | `live_reliability_rerun.log`, `live_reliability_rerun_summary.json` |
 
 The focused pure/integration command is expected to be:
@@ -1001,21 +1002,62 @@ GPU/display, or room dependency is `Blocked` under S0, never a skipped pass.
 ### 12.1 Live Kit pause/resume scenario
 
 Run Kit with one static four-microphone array and one continuously active
-source, 48 kHz, a 0.05 s capture period, `W=H=2400`, room waveform output, and
-`preserve_time_gaps=true`. Capture windows starting at `0.00` and `0.05 s`,
-pause the sensor's capture subscription while the Kit timeline continues, and
-resume capture at `0.45 s`. Do not pause simulation time: the purpose is to
-exercise the same dropped sub-period/capture interval that occurs under live
-throttling.
+source, 48 kHz, a 0.05 s capture period, overlapping recorder windows
+`W=4800`, `H=2400`, per-frame room waveform output, and
+`preserve_time_gaps=true`. The live harness must configure `W` and `H`
+independently and assert that each block supplied to the recorder has exact
+shape `(4, 4800)`; it must not infer `H` from `W`. Capture windows
+`[0.00, 0.10)`, `[0.05, 0.15)`, and `[0.45, 0.55) s`. After the second
+capture, pause the sensor's capture subscription while the Kit timeline
+continues, and resume capture for the third window at `0.45 s`. Do not pause
+simulation time: the purpose is to exercise the same dropped
+sub-period/capture interval that occurs under live throttling.
 
-The output must contain exactly 16,800 zero-input elapsed samples before the
-resumed window, exact total/sample-range accounting from §11.1, a decaying RIR
-tail rather than an instantaneous cut, no duplicate frame, and validator-clean
-published shards. Then enable `P=8` in a separate continuously moving-source
-phase, retain the primed and rendered windows, and prove finite per-segment
-poses/factors plus the continuity bound. Save the USD, frame trace, WAV, log,
-environment, and summary under the names in the verification table before Kit
-teardown.
+The exact placement derivation is frozen as follows. With `O=0`, `R=48000`,
+and `H=2400`, the first two placements are `P_0=0` and `P_1=2400`; phase
+locking therefore makes the expected third placement `E_2=P_1+H=4800`
+(`0.10 s`). The resumed placement is `P_2=round(0.45*48000)=21600`, so
+`D_2=P_2-E_2=16800`, which exceeds `Q=0.1H=240` and inserts exactly 16,800
+zero-input samples. The insertion occupies `[4,800, 21,600)`. Recorder frame
+starts are exactly `0`, `2,400`, and `21,600`, their authoritative half-open
+ranges are `[0, 4,800)`, `[2,400, 7,200)`, and `[21,600, 26,400)`, and episode
+tail flush makes the final stream length exactly 26,400 samples.
+
+Let `B_1` be the exact float32 block supplied for `[0.05, 0.15)`, and let
+`C=B_1[:, 2400:4800]` be the recorder carry after that append. The fixture
+must make `C` a nonempty decaying RIR tail: its first sample vector is not all
+zero. If `L`, `4 <= L <= 2400`, is the last sample of that support plus one and
+`q=floor(L/4)`, the RMS of `C[:, L-q:L]` must be finite, nonzero, and strictly
+less than the RMS of `C[:, 0:q]`. The decoded session waveform `Y` must satisfy
+exact float32 equality `Y[:, 4800:4800+L] == C[:, :L]` and exact zero equality
+`Y[:, 4800+L:21600] == 0`. Thus the inserted gap begins with the carried tail,
+advanced sample-for-sample and decaying rather than beginning with zeros;
+zeros begin only after the tail support ends. The output must also contain no
+duplicate frame and have validator-clean published shards.
+
+Then enable `P=8` in a separate continuously moving-source phase. Because the
+overlapping window is `0.10 s` wide, prime the two-entry pose history exactly
+`0.10 s` before each retained rendered window and do not insert an intervening
+history mutation; the retained pair must bracket the full window as required
+by §9.6. Retain the primed and rendered windows and prove finite per-segment
+poses/factors plus the unchanged continuity bound. Save the USD, frame trace,
+WAV, log, environment, and summary under the names in the verification table
+before Kit teardown.
+
+**Amendment note (2026-07-18, `6de3c7e`).** Code inspection after generation
+of the pure S3.2 evidence exposed a conflict in the former `W=H=2400` live
+fixture. `SessionRecorder._mix_and_append_audio` in
+`src/isaac_audio_sensors/core/dataset/recorder.py` writes the first `H` samples
+and populates `CarryState` only from `block[:, H:]`; that tail is empty when
+`W=H`. `_guided_audio_block_for_frame` in
+`src/isaac_audio_sensors/isaac/extension_ui/controller.py` truncates a rendered
+waveform to `W` before recorder append, so rendered samples beyond `W` cannot
+repopulate the empty carry. The old geometry therefore required the inserted
+gap to begin with zeros while simultaneously requiring a decaying RIR tail.
+This dated amendment changes only the not-yet-generated live fixture and its
+verification-row wording. Every pure S3.2 fixture, formula, tolerance, and
+generated pure evidence artifact is unchanged; the live artifacts remain
+pending, so this amendment invalidates no evidence.
 
 ## 13. Entry, closeout, and verification status
 
