@@ -4,22 +4,32 @@
 
 | Field | Frozen value |
 | --- | --- |
-| State | Frozen prospective design; implementation and evidence do not yet exist |
+| State | `S3.3` frozen/implemented; `S3.4` design and acceptance protocol frozen prospectively; `S3.4` implementation and evidence do not yet exist |
 | Design date | 2026-07-18 |
 | Entry revision | `716336095f3436d824c76de4387374ff009022c3` |
+| S3.4 protocol revision | `776ec423efd9e84fd798db465050b459ab75f1fb` |
 | Governing gates | `S3.3` channel response, `S3.4` seeded noise, `S3.5` electronics, `S3.6` waveform directivity |
 | Governing acceptance | `docs/development/specs/s0_squadbot_readiness_acceptance.md` §S3 |
 | Evidence roots | `outputs/isaac_audio_sensors/S3/S3.3/` through `outputs/isaac_audio_sensors/S3/S3.6/` |
 
 This specification freezes the common per-channel effects architecture and the
-complete `S3.3` acceptance protocol before implementation or acceptance
+complete `S3.3` and `S3.4` acceptance protocols before their owning acceptance
 evidence. It preserves the existing `ias.audio_sensor_frame.v1` fields and
 meaning. Effects add optional configuration and diagnostics; they do not create
 a new frame contract or a new propagation backend.
 
-The numerical tolerances for `S3.4`, `S3.5`, and `S3.6` are intentionally not
-set here. Their architecture placement is frozen by this document, and each
-owning section carries the mandatory pre-evidence revision rule.
+The numerical tolerances for `S3.5` and `S3.6` remain intentionally unset.
+Their architecture placement is frozen by this document, and each owning
+section carries the mandatory pre-evidence revision rule.
+
+### Status revision history
+
+Prior entries are retained; the later row amends only the named subphase.
+
+| Date | Revision | Status entry |
+| --- | --- | --- |
+| 2026-07-18 | `716336095f3436d824c76de4387374ff009022c3` | Initial common architecture and complete prospective `S3.3` protocol frozen. |
+| 2026-07-18 | `776ec423efd9e84fd798db465050b459ab75f1fb` | Complete prospective `S3.4` seeded-noise protocol, fixtures, tolerances, and verification map frozen; documentation only, with no `S3.4` evidence viewed or claimed. |
 
 ## 1. Problem definition and responsibility boundary
 
@@ -85,9 +95,11 @@ post-mix gain cannot retain source angle or source identity.
 
 The effects chain accepts a microphone-major array of shape
 `(microphone_count, sample_count)` plus ordered microphone ids, sample rate,
-frame id, and immutable configuration. It returns an array with the same shape
-and a stage-diagnostics mapping. An enabled stage may allocate a new array;
-the all-disabled path has the stronger identity rule in §2.4.
+frame id, and immutable configuration. When S3.4 timing effects are active, the
+backend additionally supplies the exact integer nominal window-start sample
+defined in §7.2. It returns an array with the same shape and a stage-diagnostics
+mapping. An enabled stage may allocate a new array; the all-disabled path has
+the stronger identity rule in §2.4.
 
 The current room backend builds a per-source/per-microphone `premix`, sums it,
 derives GCC-PHAT delay and per-microphone RMS, estimates DOA, and exports the
@@ -198,9 +210,31 @@ channel fit can serialize the same values into
 The calibration profile's evidence-status wrappers remain a serialization
 concern and are not copied into runtime effects configuration.
 
-The initial `S3.4`/`S3.5`/`S3.6` records reserve only their architectural
-containers: noise has optional seed, microphone, ambient, jitter, and drift
-settings; electronics has optional per-microphone quantization, saturation,
+`S3.4` freezes the following additional immutable records and exact field
+names. All optional fields default to `None`; the only non-`None` default is
+`NoiseConfig.enabled=False`.
+
+| Record | Fields and defaults |
+| --- | --- |
+| `NoiseSpectrumPointConfig` | `freq_hz=None`, `level_db=None` |
+| `NoiseLevelSpecConfig` | `level_db=None`, `spectrum=None` |
+| `SelfNoiseConfig` | `default=None`, `microphones=None` |
+| `AmbientNoiseConfig` | `level_db=None`, `spectrum=None`, `coherent_fraction=None` |
+| `NoiseConfig` | `enabled=False`, `seed=None`, `self_noise=None`, `ambient=None`, `clock_jitter_std_s=None`, `clock_drift_ppm=None` |
+
+`SelfNoiseConfig.microphones` and `clock_drift_ppm` are mappings keyed by exact
+`MicrophoneSpec.mic_id`. `clock_jitter_std_s` is either one scalar applied to
+all microphones or a per-microphone mapping; mixed scalar/mapping forms are
+invalid. A missing microphone in a timing mapping means zero jitter or drift.
+`self_noise` resolves a microphone in this order: exact `microphones` entry,
+`default`, then a flat-spectrum level from `MicrophoneSpec.self_noise_db`, then
+no self-noise. This resolution runs only when `NoiseConfig.self_noise` is not
+`None`; `None` disables self-noise without consulting microphone metadata. An
+explicit `level_db=-inf` overrides every fallback with exact zero. A missing
+`ambient.spectrum` or noise-level spectrum means white.
+
+The `S3.5`/`S3.6` records continue to reserve only their architectural
+containers: electronics has optional per-microphone quantization, saturation,
 and AGC settings; directivity has optional source pattern, microphone pattern,
 and mode settings. Their concrete nested fields and validation ranges must be
 frozen in the mandated later revision before the owning subphase gathers
@@ -264,6 +298,82 @@ Runtime profile does not silently switch backends. Selecting
 `waveform_fidelity` with an L0/L1 backend still does not make waveform-only
 effects representable, and selecting `training_features` with such an effect
 enabled fails closed.
+
+### 3.5 S3.4 TOML form and fail-closed validation
+
+The normative TOML shape is:
+
+```toml
+[audio.effects.noise]
+enabled = true
+seed = 20260718
+clock_jitter_std_s = { front = 0.000010, right = 0.000020 }
+clock_drift_ppm = { front = 125.0, right = -80.0 }
+
+[audio.effects.noise.self_noise.default]
+level_db = -48.0
+spectrum = [
+  { freq_hz = 100.0, level_db = -18.0 },
+  { freq_hz = 2000.0, level_db = 0.0 },
+  { freq_hz = 20000.0, level_db = -12.0 },
+]
+
+[audio.effects.noise.self_noise.microphones.front]
+level_db = -42.0
+
+[audio.effects.noise.ambient]
+level_db = -36.0
+coherent_fraction = 0.25
+spectrum = [
+  { freq_hz = 100.0, level_db = -9.0 },
+  { freq_hz = 1000.0, level_db = 0.0 },
+  { freq_hz = 20000.0, level_db = -18.0 },
+]
+```
+
+Static validation occurs before any random draw. A draw-dependent usable-region
+check is then completed from the stateless named draw before samples are
+changed or any frame, waveform, or diagnostic is emitted. The frozen ranges
+are:
+
+- `enabled` is an exact bool. Any nonzero stochastic setting requires `seed`
+  to be an exact integer in `[-2**63, 2**63 - 1]`; bool is not an integer for
+  this contract. Deterministic drift and explicitly zero-level settings need
+  no seed.
+- An absolute `level_db` is finite in `[-300.0, +60.0]` dBFS RMS, except that
+  negative infinity is the sole accepted sentinel for exact zero. Positive
+  infinity, NaN, strings, and all other non-finite values fail. Floating
+  waveforms may exceed 0 dBFS before the deferred electronics stage, hence the
+  intentional positive upper range.
+- Every explicitly configured `NoiseLevelSpecConfig` and non-`None` ambient
+  record requires a non-`None` `level_db`; a spectrum without an absolute
+  level fails rather than guessing a level.
+- A spectrum has at least two points. `freq_hz` values are finite, positive,
+  strictly increasing, and no greater than Nyquist. Point `level_db` values
+  are finite in `[-120.0, +120.0]`; NaN and either infinity fail. The designed
+  FIR energy and every generated scale must also be finite and nonzero unless
+  the absolute level is the exact-zero sentinel.
+- `coherent_fraction` is finite in `[0.0, 1.0]`; `None` means `0.0`. It is a
+  power fraction, not an amplitude weight.
+- Every jitter standard deviation is finite in `[0.0, 0.25]` seconds. For the
+  selected window, positive jitter additionally requires
+  `ceil(6 * jitter_std_s * sample_rate_hz) < sample_count`; an actual seeded
+  draw whose absolute shift leaves no sample-valid region also fails before
+  processing. Thus a positive-jitter one-sample window is invalid rather than
+  silently clamped.
+- Every drift value is finite in `[-1000.0, +1000.0]` ppm. The implementation
+  computes the accumulated integer and fractional sample offsets without an
+  unbounded phase accumulator; if the required zero-extended source interval
+  leaves no sample-valid region, validation fails rather than wrapping or
+  resetting drift.
+- Unknown microphone ids, duplicate ids after normalization, mapping order
+  inconsistent with the selected array, an empty id, and a scalar/map type
+  mismatch fail with `ConfigValidationError` naming the full table path and
+  backend/profile envelope.
+- On L0/L1, self-noise and ambient settings are waveform-only and raise
+  `UnsupportedEffectError`. Only jitter and drift are adapted to additive
+  delay metadata. The legacy TDOA stress knobs and derivation remain separate
+  and unchanged.
 
 ## 4. Diagnostics and frame compatibility
 
@@ -418,24 +528,237 @@ extrapolation defined in §6.1. Welch bins outside 200 Hz–18 kHz are retained 
 evidence but are not passband acceptance bins because DC/Nyquist edge behavior
 and finite FIR support dominate there.
 
-## 7. S3.4 seeded noise — architecture freeze
+## 7. S3.4 seeded noise — frozen design and tolerances
 
-`noise.py` owns independent named streams for spectral microphone self-noise,
-ambient noise, clock jitter, and clock drift. Waveform self/ambient noise is
-added after channel response and before electronics. Timing jitter/drift that
-changes waveform sampling is applied in this stage; the L0/L1 adapter may map
-only representable timing offsets into delay metadata. Noise is added once to
-the real mixture, never independently to every source premix.
+### 7.1 Absolute level and spectral-noise definitions
 
-The stage must report the stable stream ids, seed derivation id, and measured
-per-microphone added-noise RMS under the diagnostics keys in §4. Fixed seeds
-must replay exactly and adding/removing one effect or microphone must not alter
-unrelated streams.
+Waveforms use the existing normalized floating convention with full scale
+equal to `1.0`. An absolute noise level `L` is **full-band dBFS RMS**:
 
-> **TOLERANCES DEFERRED:** PSD, RMS, delay-statistic, drift, replay, and
-> cross-correlation tolerances will be frozen in a dated revision of this
-> specification before any `S3.4` acceptance evidence is generated or viewed.
-> They may not be selected or adjusted from final `S3.4` results.
+```text
+A(L) = 10 ** (L / 20)
+L = 20 * log10(rms / 1.0)
+A(-inf) = 0 exactly
+```
+
+It is not a per-bin or per-Hz level. A spectrum point's `level_db` is instead
+a relative band-magnitude value. Adding the same constant to every spectrum
+point does not alter absolute RMS because the designed filter is energy
+normalized. This separation prevents bandwidth or FFT-size changes from
+silently changing the configured noise level.
+
+For a configured spectrum, construct the odd-length, Hann-windowed FIR `h0`
+with the exact §6.1 `firwin2`-style design, interpolation, extrapolation, and
+tap policy. Point amplitude is `10 ** (point.level_db / 20)`. Normalize it as:
+
+```text
+h = h0 / sqrt(sum_k(h0[k] ** 2))
+```
+
+For an `N`-sample output and `T=len(h)`, draw `N + T - 1` independent standard
+normal values from the named stream and take the `N`-sample valid convolution:
+
+```text
+z = convolve(w, h, mode="valid")
+n = A(L) * z
+```
+
+Guard draws, rather than zero padding, make every output sample stationary and
+give even a one-sample window the declared population RMS. With no spectrum,
+`h=[1.0]` is the exact white-noise definition. With `L=-inf`, the stage returns
+an exact all-zero contribution and makes no generator draw.
+
+Self-noise uses one `domain="noise", effect="self_noise"` stream for each
+exact microphone id. Streams are independent across microphones. An explicit
+effects level follows the resolution order in §3.1. When it falls back to
+`MicrophoneSpec.self_noise_db`, that field has this same full-band dBFS RMS
+meaning. Thus the existing L0/L1 metadata power term
+`(10 ** (self_noise_db / 20)) ** 2` and an enabled L2 waveform realization
+refer to the same population power. This is a unit/meaning agreement, not a
+claim that waveform self-noise is representable on L0/L1. The all-disabled
+path preserves the existing backend behavior: it does not newly synthesize L2
+noise and does not change the legacy L0/L1 metadata floor.
+
+Ambient noise has one shared spectrum and absolute level. For microphone `m`,
+let `u_m` be its independently drawn, filtered, unit-population-RMS sequence
+and let `u_c` be the common sequence. If `c=coherent_fraction`, then:
+
+```text
+ambient_m = A(L) * (sqrt(1 - c) * u_m + sqrt(c) * u_c)
+```
+
+The independent stream uses `effect="ambient"` and the exact microphone id.
+The common stream uses `effect="ambient_common"` and the reserved component
+`mic_id="__common__"`; this label is not a microphone-id normalization rule.
+At `c=0`, no common draw is made. At `c=1`, no per-microphone ambient draw is
+made and the pre-clock ambient contribution is byte-identical on every
+microphone. The coefficient is a power fraction, so the expected total ambient
+RMS remains `A(L)`. This optional common component is the only spatial
+coherence model: there is no diffuse-field, spacing-dependent, direction-
+dependent, or frequency-dependent inter-microphone coherence claim.
+
+For each microphone, the additive contribution is exactly:
+
+```text
+additive_noise_m = self_noise_m + ambient_m
+pre_clock_m = channel_response_mixture_m + additive_noise_m
+```
+
+Self-noise and ambient are added exactly once to the summed mixture. The room
+backend must not call the noise dispatcher while iterating source premixes.
+Changing source count while holding the already-summed input mixture fixed
+therefore leaves the generated noise contribution byte-identical.
+
+### 7.2 Clock jitter and drift
+
+Noise-stage internal order is fixed as additive self/ambient noise, clock
+drift, then clock jitter. Electronics follows the entire noise stage.
+
+For each window and microphone, positive `clock_jitter_std_s=sigma_m` draws:
+
+```text
+J_m ~ Normal(0, sigma_m ** 2)
+```
+
+from `domain="noise", effect="clock_jitter"`. The draw is constant over that
+microphone's window and is applied to `pre_clock_m` as a fractional delay using
+the exact zero-padded rFFT phase-shift and crop in §6.1. Zero standard deviation
+produces exact zero delay and makes no draw.
+
+Clock drift is configured, not randomly drawn. For `p_m=clock_drift_ppm[m]`,
+set `epsilon_m=p_m*1e-6`. The backend supplies the exact integer nominal sample
+origin `q0=int(round(time_window.start_time_s*sample_rate_hz))` for the
+half-open window, matching the existing scheduling/sample-count rounding path.
+It is never derived from `frame_id`, wall clock, or mutable call count. At local
+output sample `n`, the ideal accumulated delay in samples and source position
+are:
+
+```text
+D_m(q0 + n) = (q0 + n) * epsilon_m / (1 + epsilon_m)
+u_m[n] = n - D_m(q0 + n)
+```
+
+Positive ppm therefore means a faster microphone clock and an increasing
+positive effective delay under the §6 sign convention. Evaluate the resampled
+waveform by zero-extended first-order fractional interpolation:
+
+```text
+k = floor(u_m[n])
+alpha = u_m[n] - k                 # always in [0, 1)
+drifted_m[n] = (1-alpha)*x_m[k] + alpha*x_m[k+1]
+```
+
+Out-of-window `x_m` samples are zero. Implementations compute `D` as the shown
+product/ratio, split it into an integer slip and bounded fractional phase, and
+must not accumulate phase by repeated floating additions. This keeps the
+fractional phase bounded over long sessions and makes any whole-sample slip
+explicit. If the zero-extended window cannot retain a non-empty valid region,
+the call fails closed; drift never wraps, saturates, or silently resets at a
+frame boundary. `p_m=0` is an exact identity with no interpolation.
+
+The L0/L1 adapter maps timing only. Its per-microphone additive effect offset at
+the window midpoint `q_mid=q0+(N-1)/2` is:
+
+```text
+noise_timing_offset_s = J_m + D_m(q_mid) / sample_rate_hz
+```
+
+For L1 this is added after geometric propagation, unchanged legacy delay noise,
+and configured S3.3 channel delay. If both legacy `clock_jitter_s` and S3.4
+jitter are configured, both independent values add; the legacy draw and byte
+derivation do not change. L0 may report the timing offset but does not alter its
+geometry-derived bearing. Spectral self-noise and ambient remain unsupported
+on both metadata-only backends.
+
+### 7.3 Diagnostics, electronics, and DOA interaction
+
+When the noise stage has an applicable configured contribution, its diagnostics
+contain exactly the §4 keys:
+
+- `streams` maps stable labels (`self_noise:<mic_id>`,
+  `ambient:<mic_id>`, `ambient_common`, `clock_jitter:<mic_id>`, and
+  deterministic `clock_drift:<mic_id>`) to records containing `effect`,
+  `mic_id`, and `stochastic`. Stochastic records additionally contain the full
+  canonical-key SHA-256 hex digest and derived unsigned 64-bit seed. Drift is
+  labeled for configuration isolation but has `stochastic=false` and no
+  derived seed.
+- `per_mic_rms` is the float64 RMS of `additive_noise_m` before drift/jitter,
+  keyed in selected microphone order. Timing offsets are not misreported as
+  amplitude noise.
+- `seed_derivation_id` is exactly `sha256-colon-v1-pcg64-le64` whenever a
+  noise-stage diagnostic exists, including exact-zero/drift-only cases. It
+  identifies the frozen policy even when no stochastic record required a draw.
+
+An enabled exact-zero setting is observably different from a disabled stage:
+its added contribution and `per_mic_rms` values are exact zeros and it emits a
+noise diagnostic, but it performs no random draw. The all-disabled chain still
+returns the exact input object and empty diagnostics under §2.4.
+
+S3.5 remains deferred. Its future input is the single summed mixture after all
+operations above; clipping, quantization, or AGC may change an S3.4 PSD/RMS and
+therefore must be disabled in every S3.4 numerical fixture. S3.5 may not move
+noise after electronics or distribute electronics/noise over source stems.
+
+Waveform GCC/TDOA or SRP-PHAT output that claims to include noise degradation
+must consume the final processed mixture after noise (and, later, electronics).
+Detection-level known-source premix RMS and source-attribution diagnostics
+remain signal-only and may not claim noise-aware confidence. S3.4 freezes input
+consistency, not a scene-dependent DOA accuracy threshold; motion/multi-source
+noise degradation is exercised in S3.8.
+
+### 7.4 Frozen acceptance numbers
+
+All non-statistical bounds are maxima. Statistical rows use exactly the sample
+counts in §7.5; no retry, seed selection, result-dependent bin removal, or
+threshold adjustment is permitted.
+
+| Criterion | Frozen pass threshold | Brief basis |
+| --- | --- | --- |
+| Self-noise PSD recovery | Welch maximum absolute error `<= 2.0 dB` at every accepted bin from 200 Hz through 18 kHz, against the analytical one-sided PSD of the normalized FIR | 255 half-overlapped Hann segments put ordinary per-bin error far below 2 dB; the allowance covers the simultaneous maximum over thousands of correlated bins without accepting an unshaped spectrum |
+| Full-band RMS level | `abs(20*log10(measured_rms/A(L))) <= 0.15 dB` for every nonzero self/ambient level and microphone at `N=2**20`; exact-zero cases are bytewise all-zero | The frozen record length makes Gaussian RMS uncertainty much smaller than 0.15 dB even after the 513-tap correlation, while retaining a finite statistical allowance |
+| Ambient coherence | At `c in {0.0, 0.25}`, `abs(r-c) <= 0.02` for every microphone pair before clock effects; at `c=1.0`, contributions are byte-identical | The formula makes zero-lag correlation equal to the power fraction; `N=2**18` makes 0.02 a conservative finite-sample allowance |
+| Jitter draw statistics | For each positive sigma, `abs(sample_mean) <= 0.01*sigma` and `abs(sample_std(ddof=1)/sigma - 1) <= 0.01` over exactly 100,000 frame draws | These are about 3.2 standard errors for the mean and 4.5 for the standard deviation, while rejecting materially biased/scaled draws |
+| Jitter waveform delay | Maximum recovered delay error `<= 0.10 sample` for each of the first 256 configured frame draws | Reuses the S3.3 fractional-delay estimator bound on a fixed, prospectively selected draw corpus without tail filtering |
+| Drift ramp slope | Maximum absolute recovered slope error `<= 0.50 ppm` for every nonzero configured drift | The deterministic linear phase ramp and long probe resolve sub-ppm slope; 0.50 ppm allows interpolation and lag-fit error without accepting a sign error or per-window reset |
+| Seed replay and separation | Same seed/config/frame produces byte-identical float64 waveforms, diagnostics, and artifact hashes in two fresh instances; changing only seed changes at least one waveform byte and every active stochastic derived seed | Exact replay is the contract of named PCG64 streams; a probabilistic equality tolerance would hide state/call-order defects |
+| Stream independence | For every pair of distinct latent stochastic streams, maximum `abs(Pearson r) <= 0.010` at `N=2**18`; intentional common-component reuse is excluded and tested by the coherence row | Independent normal-stream correlation has standard scale about `1/sqrt(N)=0.00195`; 0.010 allows a simultaneous pairwise matrix while exposing accidental stream reuse |
+| Stream configuration isolation | Changing one mic/effect level, spectrum, coherence setting, or enabling another mic leaves every unrelated raw-draw byte string and derived seed byte-identical | SHA-256 domain/leaf/mic separation is primary evidence; the statistical correlation matrix is secondary evidence |
+| Mixture-only insertion | With a fixed summed input and seed, noise delta is byte-identical for one-source and four-source premix decompositions and is added exactly once | Directly detects the source-count multiplication failure mode at the room-backend integration point |
+| Metadata/waveform consistency | Recomputed final-mixture RMS differs from `aggregate_per_mic_rms` by at most `1e-12` absolute per mic; an enabled L2 self-noise realization also meets the `0.15 dB` population-level bound implied by its L0/L1 metadata convention | Both frame RMS and export consume the same float64 final mixture; the separate statistical level check covers metadata-vs-waveform meaning |
+| Timing metadata adapter | L1 jitter offset equals the named draw within `1e-12 s`; drift midpoint offset equals `D(q_mid)/sample_rate_hz` within `1e-12 s`; legacy draws are byte-identical to baseline | Adapter arithmetic is directly observable and must not inherit waveform-estimator uncertainty |
+| Pure/backend off-state | Pure chain returns the same input object and empty diagnostics; serialized backend frame and waveform hashes are byte-identical to revision `776ec42`; no `effects` key | Disabled S3.4 is the compatibility branch, not a statistical comparison |
+| Registry determinism | The registry's exact two-factory/two-run test passes with the enabled four-mic seeded-noise fixture | Proves enabled stochastic effects remain a pure function of configuration and frame identity |
+
+The structural seed guarantee is the primary independence proof: distinct
+canonical keys produce distinct SHA-256-derived PCG64 seeds, and each call
+constructs a fresh generator. Pearson correlation is a regression screen for
+key reuse or wiring mistakes, not a proof of cryptographic independence. The
+S0 row uses “stream” for all four effect paths; configured drift is a
+deterministic, zero-random-variance transform, for which Pearson `r` is
+undefined. Its distinct label, formula/slope check, and configuration-isolation
+hash are therefore the frozen independence evidence in place of a fabricated
+correlation statistic.
+
+### 7.5 Frozen fixtures and measurement methods
+
+Unless a row says otherwise, fixtures use float64, 48,000 Hz, microphone-major
+arrays ordered `("front", "right", "rear", "left")`, primary seed `20260718`,
+alternate seed `20260719`, frame id `s3_4_frame_000000`, and no other enabled
+stage. Fixture arrays and all generated evidence record SHA-256 values.
+
+| Fixture | Frozen protocol |
+| --- | --- |
+| Self-noise PSD | `N=2**20`; absolute level `-48 dBFS RMS`; points `[(100,-18), (500,-6), (2000,0), (8000,-3), (20000,-12)]`. Welch uses a periodic Hann window, `nperseg=8192`, `noverlap=4096`, per-segment constant detrending, density scaling by `sample_rate_hz*sum(window**2)`, doubling every positive non-Nyquist one-sided bin, and the arithmetic mean of exactly 255 periodograms. Compare measured dBFS-squared/Hz with `2*A(L)**2*abs(H(f))**2/sample_rate_hz` on every bin in 200 Hz–18 kHz; the normalized FIR has `sum(h**2)=1`. |
+| RMS levels | `N=2**20`; self-noise and ambient are tested separately at `-60`, `-42`, and `-18 dBFS RMS`, with white and the self-noise PSD spectrum; all four microphones. The `-inf` case is a separate exact-zero assertion. |
+| Ambient coherence | `N=2**18`; level `-36 dBFS RMS`; points `[(100,-9), (1000,0), (8000,-6), (20000,-18)]`; `c=0.0`, `0.25`, and `1.0`; Pearson correlation is computed after subtracting each sequence mean and before timing effects. |
+| Jitter statistics | Exactly 100,000 frame ids `s3_4_jitter_000000` through `s3_4_jitter_099999`; per-mic sigmas `10`, `20`, `30`, and `40 microseconds` in array order; one draw per frame/mic; sample standard deviation uses `ddof=1`. |
+| Jitter waveform | `N=16384` centered band-limited S3.3 delay probe; sigma `20 microseconds`; evaluate exactly frame ids `s3_4_jitter_waveform_000` through `s3_4_jitter_waveform_255` with no draw filtering; recover signed lag by the §6.3 full correlation and three-point parabolic interpolation. |
+| Drift slope | `N=2**20` deterministic seed-fixed broadband probe; `q0=0`; ppm values `+125.0`, `-80.0`, `0.0`, `+37.5`; divide into 32,768-sample blocks with 16,384-sample hop, recover each block-center lag by cross-correlation/parabolic interpolation, and fit ordinary least-squares lag in samples versus nominal sample index. Report recovered ppm with the sign convention in §7.2. |
+| Long-session drift arithmetic | For each drift value above, evaluate `D(q)` at `q=0`, one hour, one day, and 30 days of 48 kHz samples. Decompose into integer slip plus fractional phase; require fractional phase in `[0,1)`, reconstruction error `<=1e-6 sample`, monotonic magnitude for fixed nonzero sign, and typed fail-closed behavior if a waveform window lacks the required source interval. |
+| Replay/isolation/correlation | `N=2**18` raw standard-normal draws for every self-noise, independent ambient, common ambient, and jitter canonical key using frame `s3_4_independence`; store raw little-endian float64 bytes. Drift is excluded from Pearson because it has no random draw, but its configuration-isolation hashes are mandatory. Repeat with one setting changed at a time. |
+| Mixture/backend | Four deterministic source premixes whose sum equals a separately stored single-source mixture, plus a silent mixture; 48,000 samples; self-noise default `-48 dBFS RMS`, ambient `-36 dBFS RMS` with `c=0.25`, and jitter `20 microseconds`. Estimator-input, aggregate-RMS, and waveform-export hashes must all trace to the once-effected mixture. |
+| L1 adapter | Current canonical single-source quad-array fixture at exact nominal window-start samples `q0=0` and `q0=4096`; legacy `noise_std_s`, `clock_jitter_s`, and `gain_mismatch_db` tested both all-zero and nonzero; subtract the matching baseline to isolate S3.4 jitter/drift while preserving legacy bytes. |
+| Registry/off-state | Current canonical registry fixture with the primary four-mic noise configuration, plus the impulse, tone, broadband, silent, and room/plugin off-state corpus at revision `776ec42`. |
 
 ## 8. S3.5 electronics — architecture freeze
 
@@ -507,6 +830,51 @@ values. The subphase closeout is
 artifact convention. Evidence files are machine-local until included in the
 declared release evidence package.
 
+### 10.1 S3.4 verification map
+
+Implementation adds focused pure tests in `tests/test_seeded_noise.py`, extends
+config/chain cases in `tests/test_channel_effects_chain.py`, and extends backend
+integration and registry cases in `tests/test_effects_backend_integration.py`
+and `tests/test_backend_plugins.py`. Exact function names may follow repository
+style, but every row is mandatory.
+
+| Acceptance criterion | Proof type and key assertion | Required evidence below `outputs/isaac_audio_sensors/S3/S3.4/` |
+| --- | --- | --- |
+| Frozen config/defaults | dataclass-field and TOML round-trip tests; exact fields/defaults, immutable nested records, precedence, scalar/map forms | `noise_config_contract.json` |
+| Fail-closed ranges | parameterized invalid-input unit tests; every §3.5 range/type/id/Nyquist/window failure occurs before draw/output | `invalid_noise_config_matrix.json`, `partial_output_listing.txt` |
+| Self-noise PSD | pure Welch test with exact §7.5 protocol; every accepted bin within `2.0 dB` | `self_noise_welch.json`, `psd/self_noise_psd_overlay.png`, `psd/self_noise_psd_error.png` |
+| RMS and exact zero | pure self/ambient tests; all nonzero cases within `0.15 dB`, `-inf` delta exact zero with diagnostics and no stream draw | `noise_rms_results.json`, `zero_level_noise.json` |
+| Ambient coherence | pure latent/output tests; pairwise `r` follows `c` within `0.02`, `c=1` exact common bytes | `ambient_coherence.json`, `correlation_matrix.json`, `psd/ambient_psd_overlay.png` |
+| Jitter statistics | named-draw test over exactly 100,000 frame ids; mean/std bounds per mic | `jitter_statistics.json`, `jitter_histogram.png` |
+| Jitter waveform delay | delay-probe test; every included draw recovers within `0.10 sample` | `jitter_delay_recovery.json`, `jitter_delay_traces.npz` |
+| Drift slope/long session | deterministic resampler unit tests; slope within `0.50 ppm`, bounded phase decomposition and typed unavailable-history failure | `drift_slope_results.json`, `drift_phase_long_session.json`, `drift_delay_fit.png` |
+| Seed replay/separation | two fresh chain/backend instances; exact waveform/diagnostic hashes for same seed and differing bytes/seeds for alternate seed | `seed_replay_sha256.json`, `seeded_waveform_hashes.json` |
+| Stream independence | raw latent-draw matrix; all unintended pairwise `abs(r)<=0.010`, canonical keys and derived seeds unique | `correlation_matrix.json`, `stream_key_manifest.json`, `stream_correlation_heatmap.png` |
+| Configuration isolation | one-setting-at-a-time property test; unrelated raw-draw bytes and derived seeds unchanged | `stream_isolation_hashes.json` |
+| Noise once on mixture | room-backend integration spy/hash test; equal summed input gives equal one-source/four-source noise delta and no per-premix noise dispatch | `mixture_once_trace.json`, `mixture_noise_delta_sha256.json` |
+| Diagnostics contract | chain/backend test; exactly `streams`, `per_mic_rms`, and `seed_derivation_id` under noise, stable mic order and labels | `noise_diagnostics.json` |
+| Waveform/RMS/DOA consistency | backend integration trace; aggregate RMS within `1e-12`, export and any noise-aware estimator consume the same final mixture | `metadata_waveform_consistency.json`, `estimator_input_trace.json`, `final_mixture_sha256.txt` |
+| L0/L1 adapter | metadata integration test; jitter/drift offsets meet `1e-12 s`, waveform-only noise raises typed error, legacy hashes unchanged | `l0_l1_noise_adapter.json`, `legacy_tdoa_rng_sha256.json` |
+| Pure/backend off-state | identity and golden regression; input object identity, empty diagnostics, exact revision-`776ec42` frame/waveform hashes | `off_state_chain_identity.json`, `off_state_golden_sha256.json`, `off_state_frame.json`, `off_state_waveform_sha256.txt` |
+| Registry determinism | existing exact two-factory/two-run self-test with the enabled §7.5 primary fixture | `registry_determinism_noise.json` |
+| Minimum-window/runtime failures | zero/one-sample, empty, non-finite, extreme timing and unavailable-history tests; exact supported behavior from §11 | `noise_edge_case_matrix.json` |
+
+`seeded_noise_gate.json` is the mandatory machine-readable roll-up. It records
+protocol revision `776ec42`, implementation revision, Python/NumPy/platform
+versions, canonical stream keys and derived seeds, fixture/artifact SHA-256
+values, exact sample counts and Welch parameters, every frozen threshold,
+measured maxima/statistics, per-row status, and reproduction commands. It must
+link rather than duplicate the complete `correlation_matrix.json` and PSD
+artifacts. A failed statistical row is fixed and rerun with the unchanged
+seeds, counts, bins, and thresholds; selective resampling is forbidden.
+
+All S3.4 verification is pure CPU and simulator-runtime-independent testing.
+No live Isaac, Omniverse, GPU, microphone, robot, or hardware scenario is
+required: named stream determinism and the declared statistical transforms do
+not depend on a live stage. Live moving-scene and multi-source noise coverage
+arrives in S3.8 stress and cannot retroactively change this protocol. The
+subphase closeout is `docs/development/closeouts/S3/s3_4_seeded_noise.md`.
+
 ## 11. Edge cases and failure behavior
 
 The minimum invalid/boundary matrix includes empty and one-sample arrays,
@@ -515,6 +883,26 @@ microphone ids, non-finite gains/delays, invalid polarity, duplicate or
 non-monotonic response points, response above Nyquist, non-`None` response
 phase, delay larger than the usable window, silent input, signed zeros, and an
 enabled waveform-only effect on each L0/L1 backend.
+
+For S3.4 specifically, the matrix also includes absent and empty noise tables,
+seed bool/out-of-range values, `-inf`/minimum/maximum absolute levels, NaN and
+infinite absolute levels, invalid/NaN/infinite/non-monotonic spectrum points,
+spectrum points above Nyquist, coherent fractions below zero and above one,
+unknown or reordered mic maps, scalar/map jitter confusion, negative/NaN/
+infinite/excessive jitter standard deviation, drift outside the ppm range, and
+accumulated drift whose required source interval is unavailable.
+
+An enabled `level_db=-inf` contribution produces exact zero samples, makes no
+draw, and remains distinguishable from a disabled stage through its noise
+diagnostic. An empty-time input remains empty and consumes no draw; the effects
+package does not invent samples. One-sample self/ambient noise is supported by
+the FIR guard-draw definition in §7.1. One-sample positive jitter fails the
+six-sigma window bound, while exact-zero jitter and drift are identities.
+Extreme seeded jitter that still exceeds the usable window after prospective
+configuration validation fails before changing samples. Long-session drift
+uses explicit integer-slip/bounded-fractional-phase arithmetic and fails if
+zero extension cannot supply a non-empty valid region; it never wraps phase or
+silently resets the session origin.
 
 Supported empty-time behavior must follow the backend's existing minimum
 window contract; the effects package does not invent samples. Invalid
@@ -526,8 +914,16 @@ diagnostic.
 ## 12. Non-goals and limitations
 
 - No diffuse-field spatial-coherence or inter-microphone noise-coherence claim
-  is made. Named-stream independence is a determinism/statistical-isolation
-  contract, not a room-noise field model.
+  beyond §7.1's optional fully common component is made. Named-stream
+  independence is a determinism/statistical-isolation contract, not a
+  room-noise field model.
+- Noise `level_db` and `MicrophoneSpec.self_noise_db` are full-band dBFS RMS in
+  this effects contract, not dB SPL, A-weighted self-noise, sensitivity, or a
+  calibrated microphone data-sheet value. S4 calibration/evidence is required
+  before making a physical self-noise claim.
+- Clock drift is deterministic sample-rate mismatch with zero-extended finite
+  windows and first-order interpolation. It is not a PLL, clock-recovery,
+  oscillator phase-noise, Allan-deviation, or unlimited-history model.
 - S3.6 directivity is the direct-path/source-to-microphone weighting
   approximation in §9; reflected-path angular directivity remains unsupported
   unless a later reviewed design adds and validates it.
@@ -547,11 +943,16 @@ diagnostic.
 
 ## 13. Entry, closeout, and verification status
 
-Implementation may begin only from this frozen architecture and `S3.3`
-protocol. Any change to an `S3.3` fixture, measurement method, or threshold
-after acceptance evidence is generated invalidates that evidence and requires
-a reviewed design revision plus a complete rerun. `S3.4`–`S3.6` may not begin
-acceptance evidence until their deferred tolerances are frozen prospectively.
+Implementation may begin only from this frozen architecture and the owning
+frozen protocol. Any change to an `S3.3` or `S3.4` fixture, measurement method,
+sample count, seed, accepted bin, or threshold after acceptance evidence is
+generated invalidates that subphase evidence and requires a reviewed design
+revision plus a complete rerun. `S3.4` is frozen prospectively by the dated
+`776ec42` status entry and may proceed to implementation; its acceptance
+closeout path is
+`docs/development/closeouts/S3/s3_4_seeded_noise.md`. `S3.5` and `S3.6` may not
+begin acceptance evidence until their deferred tolerances are frozen
+prospectively.
 
 This change is documentation only. No implementation, unit, integration,
 Isaac, GPU, or hardware verification was run or is claimed by this
