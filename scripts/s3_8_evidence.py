@@ -2453,7 +2453,8 @@ def main() -> int:
         "commands": [
             ".venv/bin/python -m pytest -q tests/test_s3_stress_matrix.py",
             ".venv/bin/python scripts/s3_8_evidence.py",
-            "make live-s3-stress (pending orchestrator execution)",
+            "make live-s3-stress"
+            + ("" if "live_s3_stress" not in pending_rows else " (pending)"),
         ],
         "artifact_sha256": hashes,
     }

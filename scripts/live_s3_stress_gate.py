@@ -283,6 +283,11 @@ def main() -> int:
         }
         summary["artifact_inventory"] = _inventory(paths, exclude=("summary", "hashes"))
         _atomic_json(paths["summary"], summary)
+        # The checksum artifact must be durable before SimulationApp.close():
+        # Kit teardown reliably terminates this process inside close(), and a
+        # missing required artifact is failure by the frozen spec. The
+        # post-close rewrite below refreshes it best-effort when close returns.
+        _write_hashes(paths)
         sys.stdout.flush()
 
         if simulation_app is not None:
