@@ -772,6 +772,53 @@ def _live_evidence() -> tuple[str, object, dict[str, object]]:
     }
 
 
+def _reliability_rerun_evidence() -> tuple[str, dict[str, object]]:
+    """Ingest orchestrator-copied S2 reliability rerun evidence from S3.2."""
+
+    required = [
+        "live_reliability_rerun.log",
+        "live_reliability_rerun_summary.json",
+    ]
+    missing = [name for name in required if not (OUTPUT / name).is_file()]
+    ingestion = (
+        "Run make live-reliability, copy its complete log and verdict summary "
+        "to outputs/isaac_audio_sensors/S3/S3.2 under the required names, "
+        "then rerun scripts/s3_2_evidence.py."
+    )
+    if missing:
+        return "pending_live", {
+            "status": "pending_live",
+            "owner": "orchestrator",
+            "required_files": required,
+            "missing_files": missing,
+            "ingestion": ingestion,
+        }
+    summary_path = OUTPUT / required[1]
+    try:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        log_size = (OUTPUT / required[0]).stat().st_size
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return "failed", {
+            "status": "failed",
+            "owner": "orchestrator",
+            "required_files": required,
+            "error": f"invalid reliability rerun evidence: {type(exc).__name__}: {exc}",
+            "ingestion": ingestion,
+        }
+    status = summary.get("status")
+    if status not in {"passed", "failed", "blocked"} or log_size <= 0:
+        status = "failed"
+    return status, {
+        "status": status,
+        "owner": "orchestrator",
+        "required_files": required,
+        "missing_files": [],
+        "summary_status": summary.get("status"),
+        "log_size_bytes": log_size,
+        "ingestion": ingestion,
+    }
+
+
 def main() -> int:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     focused = subprocess.run(
@@ -798,11 +845,8 @@ def main() -> int:
         pause, counters, continuity, focused_status
     )
     live_status, live_environment, live_artifacts = _live_evidence()
-    reliability_status = (
-        "passed"
-        if (OUTPUT / "live_reliability_rerun_summary.json").is_file()
-        else "pending_live"
-    )
+    reliability_status, reliability_artifacts = _reliability_rerun_evidence()
+    live_artifacts["reliability_rerun"] = reliability_artifacts
     rows = {
         "pause_throttle_accounting": pause["status"],
         "tolerance_rounding": rounding["status"],
