@@ -4,23 +4,24 @@
 
 | Field | Frozen value |
 | --- | --- |
-| State | `S3.3` frozen/implemented; `S3.4` design and acceptance protocol frozen prospectively; `S3.4` implementation and evidence do not yet exist |
+| State | `S3.3` and `S3.4` frozen/implemented/closed; `S3.5` design and acceptance protocol frozen prospectively; `S3.5` implementation and evidence do not yet exist |
 | Design date | 2026-07-18 |
 | Entry revision | `716336095f3436d824c76de4387374ff009022c3` |
 | S3.4 protocol revision | `776ec423efd9e84fd798db465050b459ab75f1fb` |
+| S3.5 protocol revision | `451b98a` |
 | Governing gates | `S3.3` channel response, `S3.4` seeded noise, `S3.5` electronics, `S3.6` waveform directivity |
 | Governing acceptance | `docs/development/specs/s0_squadbot_readiness_acceptance.md` §S3 |
 | Evidence roots | `outputs/isaac_audio_sensors/S3/S3.3/` through `outputs/isaac_audio_sensors/S3/S3.6/` |
 
 This specification freezes the common per-channel effects architecture and the
-complete `S3.3` and `S3.4` acceptance protocols before their owning acceptance
-evidence. It preserves the existing `ias.audio_sensor_frame.v1` fields and
-meaning. Effects add optional configuration and diagnostics; they do not create
-a new frame contract or a new propagation backend.
+complete `S3.3`, `S3.4`, and `S3.5` acceptance protocols before their owning
+acceptance evidence. It preserves the existing `ias.audio_sensor_frame.v1`
+fields and meaning. Effects add optional configuration and diagnostics; they do
+not create a new frame contract or a new propagation backend.
 
-The numerical tolerances for `S3.5` and `S3.6` remain intentionally unset.
-Their architecture placement is frozen by this document, and each owning
-section carries the mandatory pre-evidence revision rule.
+The numerical tolerances for `S3.6` remain intentionally unset. Its
+architecture placement is frozen by this document, and its owning section
+carries the mandatory pre-evidence revision rule.
 
 ### Status revision history
 
@@ -30,6 +31,7 @@ Prior entries are retained; the later row amends only the named subphase.
 | --- | --- | --- |
 | 2026-07-18 | `716336095f3436d824c76de4387374ff009022c3` | Initial common architecture and complete prospective `S3.3` protocol frozen. |
 | 2026-07-18 | `776ec423efd9e84fd798db465050b459ab75f1fb` | Complete prospective `S3.4` seeded-noise protocol, fixtures, tolerances, and verification map frozen; documentation only, with no `S3.4` evidence viewed or claimed. |
+| 2026-07-18 | `451b98a` | Complete prospective `S3.5` electronics model, fixtures, tolerances, and verification map frozen; documentation only, with no `S3.5` evidence generated or viewed. |
 
 ## 1. Problem definition and responsibility boundary
 
@@ -233,13 +235,13 @@ no self-noise. This resolution runs only when `NoiseConfig.self_noise` is not
 explicit `level_db=-inf` overrides every fallback with exact zero. A missing
 `ambient.spectrum` or noise-level spectrum means white.
 
-The `S3.5`/`S3.6` records continue to reserve only their architectural
-containers: electronics has optional per-microphone quantization, saturation,
-and AGC settings; directivity has optional source pattern, microphone pattern,
-and mode settings. Their concrete nested fields and validation ranges must be
-frozen in the mandated later revision before the owning subphase gathers
-evidence. `motion` is routed through the same immutable configuration surface
-but is implemented and accepted by `S3.1`/`S3.2`, not by this chain.
+`S3.5` completes the electronics records and ranges in §3.6. `S3.6` continues
+to reserve only its architectural container: directivity has optional source
+pattern, microphone pattern, and mode settings whose concrete nested fields
+and validation ranges must be frozen in the mandated later revision before
+that subphase gathers evidence. `motion` is routed through the same immutable
+configuration surface but is implemented and accepted by `S3.1`/`S3.2`, not
+by this chain.
 
 ### 3.2 S3.3 TOML form
 
@@ -374,6 +376,89 @@ are:
   `UnsupportedEffectError`. Only jitter and drift are adapted to additive
   delay metadata. The legacy TDOA stress knobs and derivation remain separate
   and unchanged.
+
+### 3.6 S3.5 electronics records, TOML form, and validation
+
+`S3.5` replaces the reserved electronics payload with these exact immutable
+records. Every optional value defaults to `None`; an absent table normalizes to
+the shown disabled record.
+
+| Record | Fields and defaults |
+| --- | --- |
+| `AgcConfig` | `enabled=False`, `target_rms_dbfs=None`, `attack_time_s=None`, `release_time_s=None`, `gain_floor_db=None`, `gain_ceiling_db=None` |
+| `ElectronicsConfig` | `enabled=False`, `full_scale=None`, `bit_depth=None`, `dither_enabled=None`, `agc=None` |
+
+`full_scale` is the positive float-domain clipping amplitude. `bit_depth`
+controls the uniform quantization interval, and `dither_enabled=None` has the
+same active-stage meaning as `False`. `agc=None` has the same active-stage
+meaning as a disabled `AgcConfig`. Electronics settings are global to the
+selected microphone array rather than per-microphone overrides; the same
+transfer path is applied independently to each microphone in deterministic
+array order.
+
+The normative TOML form is:
+
+```toml
+# Section 5's existing stochastic root seed also keys electronics dither.
+[audio.effects.noise]
+seed = 20260718
+
+[audio.effects.electronics]
+enabled = true
+full_scale = 1.0
+bit_depth = 16
+dither_enabled = true
+
+[audio.effects.electronics.agc]
+enabled = true
+target_rms_dbfs = -12.041199826559248
+attack_time_s = 0.010
+release_time_s = 0.050
+gain_floor_db = -12.041199826559248
+gain_ceiling_db = 12.041199826559248
+```
+
+No second stochastic-root field is added. When dither is active, the `seed`
+in the §5 canonical key is exactly `EffectsConfig.noise.seed`, even when the
+noise stage itself is disabled. This retains one already-frozen seed range and
+uses the `electronics` domain to isolate the draw from every S3.4 stream.
+
+All supplied fields are validated before a draw or sample operation, including
+fields under an explicitly disabled electronics stage. The frozen rules are:
+
+- For every numeric rule below, bool is rejected rather than treated as an
+  integer or real number.
+- `ElectronicsConfig.enabled` and `AgcConfig.enabled` are exact bools.
+  Non-`None` `dither_enabled` is also an exact bool; integers are not bools.
+- Active electronics requires `full_scale` and `bit_depth`. `full_scale` is a
+  finite real number strictly greater than zero. `bit_depth` is an exact
+  integer in `[8, 32]`; bool is rejected.
+- The derived `Delta=2*full_scale/2**bit_depth` must be finite and strictly
+  positive. For enabled AGC, the derived target, linear gain bounds, and both
+  per-sample coefficients must likewise be finite and strictly positive (with
+  each coefficient also strictly less than one). Overflow or underflow fails
+  before processing.
+- Active dither requires `EffectsConfig.noise.seed` to be an exact integer in
+  `[-2**63, 2**63 - 1]`. Dither-disabled electronics needs no seed.
+- An enabled AGC requires every other `AgcConfig` field. `target_rms_dbfs` is
+  finite in `[-120.0, 0.0]` dBFS. `attack_time_s` and `release_time_s` are
+  finite in `(0.0, 60.0]` seconds. Both gain bounds are finite in
+  `[-120.0, +120.0]` dB, with
+  `gain_floor_db <= 0.0 <= gain_ceiling_db` and
+  `gain_floor_db <= gain_ceiling_db`.
+- Any optional electronics or AGC value supplied while its owning substage is
+  disabled still must meet its type/range rule. Explicitly disabling the stage
+  controls application; it does not turn malformed configuration into valid
+  configuration.
+- Active electronics on `geometry_only` (L0) or `tdoa_synthetic` (L1), under
+  either runtime profile, raises `UnsupportedEffectError` before a detection,
+  frame, diagnostic, waveform, or other asset is partially emitted. No
+  clipping flag, scalar RMS adjustment, or other metadata approximation is
+  permitted.
+
+Validation errors name the complete `audio.effects.electronics` field path,
+offending value, and backend/profile envelope. Runtime non-finite arrays use
+the chain-level fail-closed rule in §11.
 
 ## 4. Diagnostics and frame compatibility
 
@@ -760,25 +845,182 @@ stage. Fixture arrays and all generated evidence record SHA-256 values.
 | L1 adapter | Current canonical single-source quad-array fixture at exact nominal window-start samples `q0=0` and `q0=4096`; legacy `noise_std_s`, `clock_jitter_s`, and `gain_mismatch_db` tested both all-zero and nonzero; subtract the matching baseline to isolate S3.4 jitter/drift while preserving legacy bytes. |
 | Registry/off-state | Current canonical registry fixture with the primary four-mic noise configuration, plus the impulse, tone, broadband, silent, and room/plugin off-state corpus at revision `776ec42`. |
 
-## 8. S3.5 electronics — architecture freeze
+## 8. S3.5 electronics — frozen design and tolerances
 
-`electronics.py` runs after response and noise. Its order is AGC (when
-enabled), saturation/clipping, then quantization; a later `S3.5` pre-evidence
-revision may freeze a different internal order only by explicitly amending
-this architecture before implementation evidence. Electronics processes the
-summed mixture once because clipping and AGC are nonlinear and cannot be
-distributed across source stems.
+### 8.1 Operation definitions and order
 
-The stage emits bounded summaries for clipping count per microphone,
-saturated-sample ratio, AGC gain trace, and quantization step. With electronics
-disabled it contributes no operation and no diagnostics. Electronics is never
-metadata-emulated on L0/L1.
+The statement in frozen §7.3 that S3.5 “remains deferred” records the status at
+the S3.4 protocol revision. This dated §8 supersedes only that status; §7's
+frozen input boundary and prohibition on moving/distributing stages remain
+binding.
 
-> **TOLERANCES DEFERRED:** quantization-noise, clipping-boundary, saturation,
-> AGC attack/release/recovery, diagnostic-count, and off-state tolerances will
-> be frozen in a dated revision of this specification before any `S3.5`
-> acceptance evidence is generated or viewed. They may not be selected or
-> adjusted from final `S3.5` results.
+`electronics.py` runs after the complete response and noise stages. Its
+internal order is fixed and may not be reordered by a backend or profile:
+
+```text
+summed mixture -> AGC (when enabled) -> hard saturation -> quantization
+```
+
+Electronics processes the summed mixture exactly once. AGC, clipping, and
+quantization are not distributive over source stems, so no electronics
+dispatcher may run in the per-source premix loop. The processed mixture is the
+one consumed by aggregate RMS, waveform export, and any estimator that claims
+electronics-aware input. Known-source premix diagnostics remain signal-only as
+defined in §2.2.
+
+For microphone `m`, the AGC detector is the float64 RMS of the complete input
+window presented to the electronics stage, before any electronics operation:
+
+```text
+R_m = sqrt((1/N) * sum_{n=0}^{N-1} x_m[n]**2)
+T   = full_scale * 10**(target_rms_dbfs / 20)
+g_floor = 10**(gain_floor_db / 20)
+g_ceiling = 10**(gain_ceiling_db / 20)
+```
+
+The implementation evaluates the mathematically equivalent RMS with scaled
+norm arithmetic so a finite high-amplitude input does not overflow while
+squaring. A non-finite derived detector fails before output is changed.
+
+For `R_m > 0`, the feed-forward asymptotic gain is
+`g_star_m=clip(T/R_m, g_floor, g_ceiling)`. For exact silence (`R_m==0`), the
+policy is **release toward unity**: `g_star_m=1.0`. Configuration guarantees
+that unity lies within the gain bounds. The detector and gain state are local
+to one call; there is no cross-frame mutable AGC state, and every call starts
+from exact unity `g_m[-1]=1.0`. This makes replay independent of prior call
+order.
+
+At each sample, attenuation uses the attack coefficient and increasing gain
+uses the release coefficient:
+
+```text
+alpha_attack  = exp(-1 / (attack_time_s  * sample_rate_hz))
+alpha_release = exp(-1 / (release_time_s * sample_rate_hz))
+alpha_m[n] = alpha_attack  if g_star_m < g_m[n-1]
+             alpha_release if g_star_m > g_m[n-1]
+             0.0           otherwise
+g_m[n] = g_star_m + alpha_m[n] * (g_m[n-1] - g_star_m)
+a_m[n] = g_m[n] * x_m[n]
+```
+
+For a constant target and direction, the exact analytical reference after
+sample `n` is:
+
+```text
+g_m[n] = g_star_m + (g_m[-1] - g_star_m) * alpha**(n + 1)
+```
+
+AGC-disabled electronics defines `g_m[n]=1.0` exactly for every sample and
+does not evaluate the RMS detector. An enabled AGC on an empty-time array is
+invalid because its per-window detector is undefined; electronics with AGC
+disabled supports the empty array behavior in §11. A one-sample window uses
+`R_m=abs(x_m[0])` and exactly one recurrence update.
+
+Saturation is the float-domain hard clip:
+
+```text
+s_m[n] = min(max(a_m[n], -full_scale), full_scale)
+clipped_m[n] = abs(a_m[n]) > full_scale
+```
+
+Equality at either full-scale boundary is not clipping. No soft knee,
+waveshaping curve, hysteresis, or recovery state is included.
+
+For `B=bit_depth`, the mid-tread quantization step is exactly:
+
+```text
+Delta = 2 * full_scale / 2**B
+```
+
+With dither disabled, `d_m[n]=0`. With dither enabled, construct a fresh §5
+named generator for each microphone using `domain="electronics"` and
+`effect="tpdf_dither"`. Draw exactly `2*N` `Generator.random` float64 values in
+one call, split the first and second `N` values into `u_m` and `v_m`, and set:
+
+```text
+d_m[n] = (Delta / 2) * (u_m[n] - v_m[n])
+```
+
+This is triangular PDF dither with support `(-Delta/2, +Delta/2)`, hence one
+LSB peak-to-peak. A zero-length array makes no draw. Quantization uses IEEE/NumPy
+round-to-nearest, ties-to-even (`rint`) and reconstructs in the float domain:
+
+```text
+q_m[n] = clip(Delta * rint((s_m[n] + d_m[n]) / Delta),
+                  -full_scale, full_scale)
+```
+
+Thus zero and both full-scale endpoints are representable. `bit_depth`
+specifies `2**B` equal intervals over `[-full_scale, full_scale]`; this model is
+not a packed signed-PCM storage codec. With dither disabled, every in-range
+reconstruction value `k*Delta` is idempotent under repeated quantization.
+
+### 8.2 Frozen diagnostics contract
+
+When electronics is enabled, its stage diagnostic contains exactly the four
+§4 keys:
+
+- `clipping_count_per_mic` maps microphone ids in selected array order to the
+  exact integer count of `clipped_m[n]`.
+- `saturated_sample_ratio` is
+  `sum_m(clipping_count_per_mic[m])/(microphone_count*N)`. It is `0.0` for an
+  AGC-disabled empty-time array.
+- `agc_gain_trace_summary` maps each microphone id to exactly
+  `initial_gain`, `final_gain`, `minimum_gain`, `maximum_gain`, and
+  `detector_rms`. Gains are linear float64 values. `initial_gain` is always
+  `1.0`; for an empty or AGC-disabled trace all four gain values are `1.0`, and
+  `detector_rms` is `null` when AGC is disabled.
+- `quantization_step` is the scalar float64 `Delta` shared by the array.
+
+The full microphone-major gain trace is retained only as an evidence artifact.
+Counts describe samples changed by hard saturation, not samples merely at the
+boundary, rounded to a different quantization level, or clipped only after a
+dither excursion inside the quantizer reconstruction rule.
+
+### 8.3 Frozen acceptance numbers
+
+All deterministic bounds are maxima. Statistical rows use exactly the seeds,
+sample counts, and signals in §8.4; no retry, seed selection, selective sample
+removal, or result-dependent threshold change is permitted. The frozen
+quantization-error whitening assertion is the error-versus-signal correlation
+measurement below; S3.5 makes no additional PSD-flatness claim.
+
+| Criterion | Frozen pass threshold | Brief basis |
+| --- | --- | --- |
+| Boundary clipping counts | For the exact boundary fixture, `clipping_count_per_mic == {"front": 0, "right": 0, "rear": 16, "left": 8}` | The comparison is strictly `abs(a)>full_scale`; all 16 rear samples and exactly half the left samples exceed the boundary, while equality and one-LSB-below samples do not |
+| Saturated-sample ratio | Exact `24/64 == 0.375`, with no tolerance | The ratio is derived from the same integer mask over four microphones and 16 samples; any other numerator or denominator is a diagnostic defect |
+| Quantization-noise power | `0.9 <= mean((q-x)**2)/(Delta**2/12) <= 1.1` at `N=2**18`, dither disabled | The deterministic full-range ramp samples the half-to-even quantization phase densely; the 10% band covers endpoint/tie discretization while rejecting an incorrect step, rounding rule, or grossly nonuniform error |
+| Dither whitening/decorrelation | For every microphone, `abs(Pearson r(x, q-x)) <= 0.010` at `N=2**18` | Independent TPDF draws should leave correlation at the finite-record scale `1/sqrt(N)=0.00195`; 0.010 is a simultaneous regression allowance and detects signal-locked error or reused/missing dither |
+| AGC analytical trace | Maximum `abs(observed_gain-reference_gain) <= 1e-12` over every sample of the frozen attack/release fixture | The recurrence has a closed-form float64 reference; this tolerance permits evaluation-order roundoff but not a different coefficient, initial state, or direction rule |
+| AGC attack settling | At or before exactly `8*attack_time_s`, gain is within `0.01 dB` of `g_star` and remains within that bound | First-order residual is `exp(-8)`; for the frozen 1-to-0.5 step the analytical gain error is below `0.003 dB`, leaving numerical margin |
+| AGC release settling | At or before exactly `8*release_time_s`, gain is within `0.01 dB` of `g_star` and remains within that bound | The same `exp(-8)` basis applies to the frozen 1-to-2 increasing-gain step and rejects use of the attack coefficient in the release direction |
+| AGC unity and bounds | Disabled AGC trace is elementwise and bytewise float64 `1.0`; enabled traces satisfy `g_floor <= g_m[n] <= g_ceiling` for every sample with exact comparisons | Unity is an explicit bypass, and the bounded target plus convex first-order update cannot legitimately overshoot either configured bound |
+| Diagnostics | Exactly the §8.2 keys, values, integer counts, scalar ratio, ordered microphones, and summary schema; `quantization_step == Delta` in the power-of-two fixture | Diagnostics are a protocol, not approximate telemetry |
+| Mixture-only insertion | Equal summed input and seed produce byte-identical electronics output and diagnostics for one-source and four-source decompositions; exactly one mixture dispatch and zero premix electronics dispatches | Directly detects source-count-dependent AGC, clipping, quantization, or dither |
+| Pure/backend off-state | Pure chain returns the same array object and empty diagnostics; backend frame and waveform are byte-identical to revision `451b98a`, with no `effects` key | Disabled electronics is the compatibility branch and performs no floating-point operation |
+| L0/L1 rejection | Every enabled-electronics fixture raises `UnsupportedEffectError` before partial frame or asset creation | Electronics has no honest metadata representation on waveform-free backends |
+| Seed replay and registry determinism | Two fresh same-seed instances produce byte-identical float64 output, diagnostics, gain traces, and dither artifacts; an alternate seed changes every dither derived seed and at least one output byte; the registry two-factory/two-run self-test passes with the enabled primary fixture | Named streams make dither a pure function of configuration, frame identity, and microphone id without weakening the deterministic backend declaration |
+
+### 8.4 Frozen fixtures and measurement methods
+
+Unless a row says otherwise, fixtures use float64, 48,000 Hz, microphone-major
+arrays ordered `("front", "right", "rear", "left")`, `full_scale=1.0`,
+`bit_depth=16`, primary seed `20260718`, alternate seed `20260719`, frame id
+`s3_5_frame_000000`, and no response, noise contribution, directivity, or
+motion. The seed is carried by the disabled `NoiseConfig` as frozen in §3.6.
+Every fixture array and retained artifact records a SHA-256 value.
+
+| Fixture | Frozen protocol |
+| --- | --- |
+| Boundary clipping and ratio | `N=16`, `Delta=1/32768`, AGC/dither disabled. `front[n]=(-1)**n*1.0`; `right[n]=(-1)**n*(1.0-Delta)`; `rear[n]=(-1)**n*1.5`; `left` repeats `(1.0, -1.0, 1.5, -1.5)` four times. Expected counts are `(0,0,16,8)` in array order and the exact aggregate ratio is `24/(4*16)=0.375`. |
+| Quantization-noise ramp | One microphone, `N=2**18`, dither/AGC disabled, and `x[n]=-full_scale+Delta/2+(2*full_scale-Delta)*n/(N-1)`. No sample exceeds full scale. Measure uncentered error power `mean((q-x)**2)` against `Delta**2/12`. |
+| TPDF decorrelation | Four identical channels, `N=2**18`, `x[n]=0.75*sin(2*pi*5445*n/N)` (exact frequency `5445*48000/N Hz`), dither enabled, AGC disabled, and frame id `s3_5_dither_000000`. Compute Pearson `r` after subtracting each signal/error mean, where error is `q-x`; record the raw dither/error little-endian float64 hashes and named-stream descriptors. |
+| AGC attack/release and bounds | `N=24000`; target `-12.041199826559248 dBFS` (`T=0.25`), attack `0.010 s`, release `0.050 s`, floor `-12.041199826559248 dB` (`0.25`), ceiling `+12.041199826559248 dB` (`4.0`), dither disabled. Constant channels are `front=0.5` (`g_star=0.5`, attack), `right=0.125` (`g_star=2.0`, release), `rear=1.0` (`g_star=0.25`, floor), and `left=0.03125` (`g_star=4.0`, ceiling). Compare every sample with the §8.1 analytical trace; evaluate settling after exactly 3,840 attack updates and 19,200 release updates. |
+| AGC disabled/silence/single sample | On the AGC fixture with `agc=None`, retain the exact all-ones gain trace. With AGC enabled, a 24,000-sample all-zero array has exact-zero output and an exact-unity trace under the silent release policy. For each AGC channel above, a separate `N=1` input must match the first analytical update exactly within the `1e-12` trace bound. |
+| Gain-bound stress | Reuse the `rear` and `left` AGC channels above; assert every trace element lies in `[0.25,4.0]` by exact comparison, the asymptotic targets equal the respective bounds, and the recurrence is monotone with no overshoot. |
+| Idempotence and full-scale signs | Dither/AGC disabled. Quantize every `k*Delta` for integer `k` in `[-32768,32768]` in deterministic chunks and require the second quantization bytes to equal the first. A separate alternating `(-1.0,+1.0)` 4096-sample channel has zero clipping count and preserves both endpoints exactly. |
+| Mixture/backend and primary registry | `N=48000`; channel frequencies `(997,1499,2203,3301) Hz`; `x_m[n]=0.9*sin(2*pi*f_m*n/48000)+0.6*sin(2*pi*(f_m+211)*n/48000)`. Store one source premix equal to `x`. The four-source decomposition partitions samples without arithmetic overlap: source `j` contains `x[:,n]` only when `n % 4 == j` and exact zero otherwise. Its sum is therefore byte-identical to `x` before dispatch. Enable the AGC settings above and TPDF dither. Aggregate RMS, estimator-input trace when applicable, waveform export, diagnostics, same/alternate-seed replay, and the registry two-run self-test all use this primary fixture. |
+| L0/L1 and off-state | Apply the active primary electronics configuration separately to the canonical L0 and L1 fixtures and require typed rejection with an empty partial-output listing. For off-state, use the impulse, tone, broadband, silent, room/backend, waveform-export, and registry golden corpus pinned at revision `451b98a`. |
 
 ## 9. S3.6 waveform directivity — architecture freeze
 
@@ -875,6 +1117,50 @@ not depend on a live stage. Live moving-scene and multi-source noise coverage
 arrives in S3.8 stress and cannot retroactively change this protocol. The
 subphase closeout is `docs/development/closeouts/S3/s3_4_seeded_noise.md`.
 
+### 10.2 S3.5 verification map
+
+Implementation adds focused pure tests in `tests/test_effects_electronics.py`,
+extends config/dispatch cases in `tests/test_channel_effects_chain.py`, and
+extends backend and registry cases in
+`tests/test_effects_backend_integration.py` and
+`tests/test_backend_plugins.py`. Exact function names may follow repository
+style, but every row below is mandatory.
+
+| Acceptance criterion | Proof type and key assertion | Required evidence below `outputs/isaac_audio_sensors/S3/S3.5/` |
+| --- | --- | --- |
+| Frozen config/defaults | dataclass-field and TOML round-trip tests; exact §3.6 fields/defaults, immutable nested AGC, seed ownership, and absent-table normalization | `electronics_config_contract.json` |
+| Fail-closed validation | parameterized invalid-input tests; every §3.6 type/range/required-field/backend failure precedes draw or output | `invalid_electronics_config_matrix.json`, `partial_output_listing.txt` |
+| Boundary clipping and ratio | pure exact-mask test on the §8.4 boundary fixture; counts `(0,0,16,8)` and scalar ratio `0.375` exactly | `clipping_boundary_results.json`, `saturation_mask.npy` |
+| Quantization-noise power | pure deterministic-ramp test; power ratio in `[0.9,1.1]` at exactly `N=2**18` | `quantization_noise_power.json`, `quantization_error_histogram.png` |
+| TPDF dither decorrelation | pure named-stream test; every microphone `abs(r)<=0.010`, one-LSB peak-to-peak construction and stream descriptors exact | `tpdf_dither_correlation.json`, `tpdf_dither_stream_manifest.json`, `tpdf_error_correlation.png` |
+| AGC analytical response/settling | pure constant-window tests; full trace within `1e-12`, attack/release within `0.01 dB` by `8*tau`, correct coefficient direction | `agc_step_response.json`, `agc_gain_traces.npz`, `agc_settling_overlay.png` |
+| AGC unity/silence/bounds | exact disabled all-ones trace, silent exact unity/zero output, monotone bound fixtures with no exact inequality violation | `agc_unity_silence_bounds.json` |
+| Quantizer edge invariants | pure property/regression tests; half-to-even ties, reconstruction endpoints, all frozen 16-bit levels idempotent without dither, alternating full scale not counted as clipped | `quantizer_edge_invariants.json` |
+| Diagnostics contract | chain/backend test; exactly the four §8.2 keys, stable mic order, integer counts, scalar ratio/step, bounded gain summary | `electronics_diagnostics.json`, `full_agc_trace_sha256.txt` |
+| Electronics once on mixture | room-backend integration spy/hash test; equal one/four-source sums produce exact output/diagnostics with one mixture and zero premix dispatches | `mixture_once_trace.json`, `mixture_electronics_sha256.json` |
+| Waveform/RMS/estimator consistency | backend integration trace; aggregate RMS absolute error `<=1e-12`, export and any electronics-aware estimator consume the same final mixture | `metadata_waveform_consistency.json`, `estimator_input_trace.json`, `final_mixture_sha256.txt` |
+| L0/L1 rejection | metadata-backend integration tests; enabled electronics raises `UnsupportedEffectError` with no partial frame/assets | `l0_l1_electronics_errors.json`, `partial_output_listing.txt` |
+| Pure/backend off-state | identity and golden regression; input object/bytes exact, empty diagnostics, revision-`451b98a` frame/waveform hashes exact | `off_state_chain_identity.json`, `off_state_golden_sha256.json`, `off_state_frame.json`, `off_state_waveform_sha256.txt` |
+| Seed replay/separation | two fresh chain/backend instances; same-seed dither/output/diagnostics/gain artifacts exact, alternate seed changes every active dither seed and output | `seed_replay_sha256.json`, `dithered_waveform_hashes.json` |
+| Registry determinism | existing exact two-factory/two-run self-test with the fully enabled §8.4 primary fixture | `registry_determinism_electronics.json` |
+| Minimum-window/runtime failures | empty, one-sample, DC, silence, non-finite, full-scale signs, bit-depth endpoints, and idempotence cases follow §11 exactly | `electronics_edge_case_matrix.json` |
+
+`electronics_gate.json` is the mandatory machine-readable roll-up. It records
+protocol revision `451b98a`, implementation revision, Python/NumPy/platform
+versions, exact configuration and named-stream descriptors, fixture/artifact
+SHA-256 values, sample counts, every frozen threshold, measured
+counts/ratios/maxima/correlations, per-row status, reproduction commands, and
+artifact SHA-256 values. A failed statistical row is fixed and rerun with the
+unchanged seed, count, signal, and threshold; selective resampling is
+forbidden.
+
+Every S3.5 verification row is pure CPU and simulator-runtime-independent. The
+room/backend rows use the repository's deterministic fake backend; there is no
+live Isaac, Omniverse, GPU, microphone, robot, or hardware scenario in this
+subphase. Live moving-scene and multi-source electronics coverage belongs to
+S3.8 stress and cannot retroactively change this protocol. The S3.5 closeout
+path is `docs/development/closeouts/S3/s3_5_electronics.md`.
+
 ## 11. Edge cases and failure behavior
 
 The minimum invalid/boundary matrix includes empty and one-sample arrays,
@@ -891,6 +1177,34 @@ spectrum points above Nyquist, coherent fractions below zero and above one,
 unknown or reordered mic maps, scalar/map jitter confusion, negative/NaN/
 infinite/excessive jitter standard deviation, drift outside the ppm range, and
 accumulated drift whose required source interval is unavailable.
+
+For S3.5 specifically, the matrix includes absent and empty electronics/AGC
+tables; non-bool enable/dither values; missing active fields; `full_scale` equal
+to zero, negative, NaN, or either infinity; bit depths `7`, `8`, `32`, `33`,
+bool, and non-integer; active dither with a missing, bool, or out-of-range
+shared seed; target RMS and gain bounds at and beyond every endpoint; reversed
+or non-unity-containing gain bounds; and zero, negative, NaN, infinite, or
+greater-than-60-second attack/release times. Every invalid case raises the
+located `ConfigValidationError` or required `UnsupportedEffectError` before a
+dither draw, sample change, diagnostic, frame, or asset.
+
+A finite DC input uses its absolute amplitude as the per-window RMS detector
+and follows the exact §8.1 recurrence. Alternating-sign samples at exactly
+`-full_scale` and `+full_scale` are finite, are not counted as clipped, and
+quantize to the exact endpoints. Exact silence under enabled AGC selects a
+unity asymptote and therefore produces an exact-unity gain trace and exact-zero
+output from the required unity initial state. With AGC disabled, an empty-time
+array remains empty, makes no dither draw even when dither is configured, and
+reports zero counts/ratio; with AGC enabled it fails because the per-window RMS
+is undefined. A single-sample window is supported and uses its absolute sample
+as detector RMS followed by one gain update.
+
+NaN or infinite input fails at chain validation before caller-owned data is
+changed. With AGC and dither disabled, quantizing any already-quantized in-range
+`k*Delta` reconstruction value is idempotent, including zero and both
+full-scale endpoints; the second output must be byte-identical to the first.
+Dither intentionally removes that repeated-application idempotence and is
+excluded from this invariant.
 
 An enabled `level_db=-inf` contribution produces exact zero samples, makes no
 draw, and remains distinguishable from a disabled stage through its noise
@@ -924,6 +1238,15 @@ diagnostic.
 - Clock drift is deterministic sample-rate mismatch with zero-extended finite
   windows and first-order interpolation. It is not a PLL, clock-recovery,
   oscillator phase-noise, Allan-deviation, or unlimited-history model.
+- S3.5 saturation is hard clipping only. Soft-knee saturation, analog
+  waveshaping, hysteresis, slew-rate limits, anti-alias filtering of nonlinear
+  products, and recovery-memory models are out of scope.
+- S3.5 AGC uses one stateless per-window RMS detector and independent
+  microphone gains. It is not a cross-frame compressor, linked-array gain
+  controller, peak limiter, loudness standard, or physical circuit model.
+- S3.5 quantization is a normalized float-domain mid-tread model. It does not
+  define packed PCM storage, codec behavior, sample-word endianness, ADC
+  integral/differential nonlinearity, missing codes, or physical voltage units.
 - S3.6 directivity is the direct-path/source-to-microphone weighting
   approximation in §9; reflected-path angular directivity remains unsupported
   unless a later reviewed design adds and validates it.
@@ -944,15 +1267,17 @@ diagnostic.
 ## 13. Entry, closeout, and verification status
 
 Implementation may begin only from this frozen architecture and the owning
-frozen protocol. Any change to an `S3.3` or `S3.4` fixture, measurement method,
-sample count, seed, accepted bin, or threshold after acceptance evidence is
-generated invalidates that subphase evidence and requires a reviewed design
-revision plus a complete rerun. `S3.4` is frozen prospectively by the dated
-`776ec42` status entry and may proceed to implementation; its acceptance
-closeout path is
-`docs/development/closeouts/S3/s3_4_seeded_noise.md`. `S3.5` and `S3.6` may not
-begin acceptance evidence until their deferred tolerances are frozen
-prospectively.
+frozen protocol. Any change to an `S3.3`, `S3.4`, or `S3.5` fixture,
+measurement method, sample count, seed, accepted sample, rounding rule, or
+threshold after acceptance evidence is generated invalidates that subphase
+evidence and requires a reviewed design revision plus a complete rerun.
+`S3.4` is implemented and closed at
+`docs/development/closeouts/S3/s3_4_seeded_noise.md`. `S3.5` is frozen
+prospectively by the dated `451b98a` status entry and may proceed to
+implementation without adjusting this protocol from observed results; its
+acceptance closeout path is
+`docs/development/closeouts/S3/s3_5_electronics.md`. `S3.6` may not begin
+acceptance evidence until its deferred tolerances are frozen prospectively.
 
 This change is documentation only. No implementation, unit, integration,
 Isaac, GPU, or hardware verification was run or is claimed by this
@@ -964,6 +1289,10 @@ specification.
 - `docs/development/specs/s0_squadbot_readiness_acceptance.md`, §S3.
 - `docs/development/specs/s1_architecture_lock.md`.
 - `docs/development/specs/s2_atomic_writers.md`.
+- `src/isaac_audio_sensors/core/effects/chain.py`.
+- `src/isaac_audio_sensors/core/effects/config.py`.
+- `src/isaac_audio_sensors/core/effects/noise.py`.
+- `src/isaac_audio_sensors/core/effects/streams.py`.
 - `src/isaac_audio_sensors/core/backends/room_acoustics.py`.
 - `src/isaac_audio_sensors/core/backends/tdoa.py`.
 - `src/isaac_audio_sensors/core/backends/geometry.py`.
@@ -973,3 +1302,4 @@ specification.
 - `src/isaac_audio_sensors/core/fidelity.py`.
 - `src/isaac_audio_sensors/core/plugins/declarations.py`.
 - `src/isaac_audio_sensors/core/plugins/registry.py`.
+- `tests/test_effects_noise.py`.
