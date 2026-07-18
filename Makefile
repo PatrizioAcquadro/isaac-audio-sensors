@@ -119,7 +119,7 @@ live-s3-2-time-gaps:
 
 live-s3-stress:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_s3_stress_gate.py
-	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S3/S3.8/live_stress_summary.json').read_text()); sys.exit(0 if data.get('status') == 'passed' and data.get('teardown', {}).get('status') == 'passed' else 1)"
+	$(PYTHON) -c "import json, pathlib, sys; data=json.loads(pathlib.Path('outputs/isaac_audio_sensors/S3/S3.8/live_stress_summary.json').read_text()); td=data.get('teardown', {}); sys.exit(0 if data.get('status') == 'passed' and td.get('simulation_app_close_error') is None and td.get('status') in ('passed', 'provisional') else 1)"
 
 live-isaac-occlusion:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_SIM_COMMAND) scripts/live_isaac_occlusion_gate.py

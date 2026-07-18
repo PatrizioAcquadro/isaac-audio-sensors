@@ -95,6 +95,7 @@ def build_window_motion(
         raise ValueError("sample_rate_hz must be a positive integer")
     boundaries = segment_boundaries(window_sample_count, segments_per_window)
     end_time_s = start_time_s + window_sample_count / sample_rate_hz
+    bracket_tolerance_s = 1e-9 * max(1.0, abs(end_time_s))
     resolved: list[WindowMotionSegment] = []
     for segment_index, (start_sample, end_sample) in enumerate(
         zip(boundaries[:-1], boundaries[1:], strict=True)
@@ -120,8 +121,9 @@ def build_window_motion(
                 samples = pose_history.samples(entity_id)
                 if (
                     len(samples) != 2
-                    or samples[0].time_s > start_time_s
-                    or samples[1].time_s < end_time_s
+                    or samples[0].time_s
+                    > start_time_s + bracket_tolerance_s
+                    or samples[1].time_s < end_time_s - bracket_tolerance_s
                 ):
                     raise ValueError(
                         f"entity {entity_id!r} pose pair does not bracket trailing "

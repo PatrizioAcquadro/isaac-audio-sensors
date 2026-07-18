@@ -207,11 +207,16 @@ class PoseHistory:
                 f"entity {entity_id!r} has no two-sample pose bracket"
             )
         older, newer = samples
-        if target < older.time_s or target > newer.time_s:
+        bracket_tolerance_s = 1e-9 * max(1.0, abs(target))
+        if (
+            target < older.time_s - bracket_tolerance_s
+            or target > newer.time_s + bracket_tolerance_s
+        ):
             raise ValueError(
                 f"entity {entity_id!r} pose pair does not bracket time {target!r}"
             )
         weight = (target - older.time_s) / (newer.time_s - older.time_s)
+        weight = min(1.0, max(0.0, weight))
         return tuple(
             older.position_world_m[index]
             + weight

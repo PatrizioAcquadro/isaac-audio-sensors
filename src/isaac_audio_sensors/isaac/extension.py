@@ -536,6 +536,11 @@ class IsaacAudioArraySensor:
             and self.effects.motion.segments_per_window > 1
             and self._last_update_time_s is not None
             and update_time_s - self._last_update_time_s < self.update_period_s
+            and not math.isclose(
+                update_time_s - self._last_update_time_s,
+                self.update_period_s,
+                rel_tol=1e-9,
+            )
         ):
             raise ValueError(
                 "forced update time duplicates or overlaps the prior capture window"
