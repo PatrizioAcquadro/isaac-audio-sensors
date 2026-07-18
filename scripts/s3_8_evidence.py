@@ -1217,9 +1217,10 @@ def _run_pytest() -> dict[str, Any]:
 
 def _room_python() -> Path | None:
     configured = os.environ.get("ISAAC_AUDIO_S3_8_ROOM_PYTHON")
+    home_isaacsim = Path.home() / "isaacsim/kit/python/bin/python3"
     candidates = (
         Path(configured) if configured else None,
-        Path("/home/pacquadr/isaacsim/kit/python/bin/python3"),
+        home_isaacsim,
         Path(sys.executable),
     )
     for candidate in candidates:
