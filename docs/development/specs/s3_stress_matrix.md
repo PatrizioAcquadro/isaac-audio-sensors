@@ -11,7 +11,8 @@
 | Governing acceptance | `docs/development/specs/s0_squadbot_readiness_acceptance.md` §S3 |
 | Passed predecessors | `S3.1` through `S3.7` |
 | Evidence root | `outputs/isaac_audio_sensors/S3/S3.8/` |
-| Required closeout | `docs/development/closeouts/S3/s3_8_motion_multi_source.md` |
+| Required closeout | `docs/development/closeouts/S3/s3_8_stress.md` |
+| Amendment 2026-07-18 (`51f7453`) | Corrected the L0/L1 profile name `metadata_only` to the shipped declared profile `training_features` (`core/constants.py` RUNTIME_PROFILES), and the closeout filename to the acceptance-locked `s3_8_stress.md`. Prospective: no S3.8 evidence existed. |
 
 This specification freezes the complete `S3.8` supported-combination matrix,
 pure and live stress scenarios, invariants, resource bounds, and evidence
@@ -108,8 +109,8 @@ The matrix is interpreted as follows.
   velocity is N/A rather than supported. Authored velocity always wins over a
   derived value. Derived velocity requires a primed, monotonic pose history.
 - **Profiles.** Every L0/L1 S cell executes under both declared profiles,
-  `metadata_only` and `waveform_fidelity`, while retaining its level-specific
-  semantics. Every L2 S cell executes only under its declared
+  `training_features` and `waveform_fidelity`, while retaining its
+  level-specific semantics. Every L2 S cell executes only under its declared
   `waveform_fidelity` profile. An undeclared profile is an explicit registry
   resolution failure, not a downgraded run.
 - **Segments.** `segments_per_window=8` is the claimed stress setting. Only
