@@ -65,6 +65,19 @@ def reset_isaac_lab_type_cache() -> None:
     _LAST_IMPORT_ERROR = None
 
 
+def _resolve_configclass(candidate: object) -> object:
+    """Unwrap the decorator when the import resolved the submodule.
+
+    Isaac Lab ships isaaclab/utils/configclass.py; depending on the runtime
+    version, ``from isaaclab.utils import configclass`` binds that module
+    instead of the decorator it defines.
+    """
+
+    if not callable(candidate) and hasattr(candidate, "configclass"):
+        return candidate.configclass
+    return candidate
+
+
 def _load_modern_isaac_lab() -> IsaacLabTypes:
     from isaaclab.sensors import SensorBase, SensorBaseCfg  # type: ignore
     from isaaclab.utils import configclass  # type: ignore
@@ -72,7 +85,7 @@ def _load_modern_isaac_lab() -> IsaacLabTypes:
     return IsaacLabTypes(
         SensorBase=SensorBase,
         SensorBaseCfg=SensorBaseCfg,
-        configclass=configclass,
+        configclass=_resolve_configclass(configclass),
         module_name="isaaclab",
     )
 
@@ -84,6 +97,6 @@ def _load_legacy_omni_isaac_lab() -> IsaacLabTypes:
     return IsaacLabTypes(
         SensorBase=SensorBase,
         SensorBaseCfg=SensorBaseCfg,
-        configclass=configclass,
+        configclass=_resolve_configclass(configclass),
         module_name="omni.isaac.lab",
     )
