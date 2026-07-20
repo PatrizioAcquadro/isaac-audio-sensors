@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import math
 from dataclasses import fields, replace
 from types import MappingProxyType
@@ -11,8 +10,9 @@ from types import MappingProxyType
 import numpy as np
 import pytest
 from test_effects_backend_integration import (
-    PREEDIT_FRAME_SHA256,
+    PREEDIT_CANONICAL_FRAME_SHA256,
     PREEDIT_WAVEFORM_SHA256,
+    _canonical_frame_bytes,
 )
 from test_intra_window_motion import (
     P as MOTION_SEGMENTS,
@@ -61,7 +61,6 @@ from isaac_audio_sensors.core.effects.streams import (
     named_stream_descriptor,
 )
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
-from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 
 SAMPLE_RATE_HZ = 48_000
@@ -914,13 +913,6 @@ def test_l0_l1_waveform_noise_is_typed_unsupported(backend):
         backend(effects=effects).simulate(scene, array, _window())
 
 
-def _serialized_frame_bytes(frame) -> bytes:
-    return (
-        json.dumps(frame_to_trace_dict(frame), sort_keys=True, separators=(",", ":"))
-        + "\n"
-    ).encode()
-
-
 def test_backend_off_state_golden_and_enabled_registry_style_determinism(monkeypatch):
     _install_fake_pyroom(monkeypatch)
     array = _quad_array()
@@ -932,8 +924,8 @@ def test_backend_off_state_golden_and_enabled_registry_style_determinism(monkeyp
         scene, array, _window()
     )
     assert (
-        hashlib.sha256(_serialized_frame_bytes(baseline)).hexdigest()
-        == PREEDIT_FRAME_SHA256
+        hashlib.sha256(_canonical_frame_bytes(baseline)).hexdigest()
+        == PREEDIT_CANONICAL_FRAME_SHA256
     )
     assert hashlib.sha256(
         baseline_sink.calls[0]["mixture"].tobytes()

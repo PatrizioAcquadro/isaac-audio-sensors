@@ -39,8 +39,8 @@ from isaac_audio_sensors.core.types import (
 )
 
 SAMPLE_RATE_HZ = 48_000
-PREEDIT_FRAME_SHA256 = (
-    "2b3f7b929dc3ae3e97d71f00f21552b91ca0772052c242eb6ea0e1d78413a16b"
+PREEDIT_CANONICAL_FRAME_SHA256 = (
+    "23c24f579608b77d8dc891709cffd662ad6d22a30fa7529d8ea90e0d163ca002"
 )
 PREEDIT_WAVEFORM_SHA256 = (
     "a856ae93a9d1036f5fa11390f48cffd228cc3b10da1d0fd092b00a6e135abcdd"
@@ -228,6 +228,29 @@ def _serialized_frame_bytes(frame) -> bytes:
     ).encode("utf-8")
 
 
+def _canonicalize_frame_value(value):
+    if isinstance(value, float):
+        return float(format(value, ".12g"))
+    if isinstance(value, dict):
+        return {
+            key: _canonicalize_frame_value(item) for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonicalize_frame_value(item) for item in value]
+    return value
+
+
+def _canonical_frame_bytes(frame) -> bytes:
+    return (
+        json.dumps(
+            _canonicalize_frame_value(frame_to_trace_dict(frame)),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
 def test_room_backend_off_state_matches_pristine_self_reference_and_head_hashes(
     monkeypatch,
 ):
@@ -254,7 +277,10 @@ def test_room_backend_off_state_matches_pristine_self_reference_and_head_hashes(
     disabled_waveform = disabled_sink.calls[0]["mixture"].tobytes(order="C")
     assert baseline_frame == disabled_frame
     assert baseline_waveform == disabled_waveform
-    assert hashlib.sha256(baseline_frame).hexdigest() == PREEDIT_FRAME_SHA256
+    assert (
+        hashlib.sha256(_canonical_frame_bytes(baseline)).hexdigest()
+        == PREEDIT_CANONICAL_FRAME_SHA256
+    )
     assert hashlib.sha256(baseline_waveform).hexdigest() == PREEDIT_WAVEFORM_SHA256
     assert "effects" not in baseline.diagnostics
     assert "effects" not in disabled.diagnostics

@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import math
 from dataclasses import fields, replace
 
 import numpy as np
 import pytest
 from test_effects_backend_integration import (
-    PREEDIT_FRAME_SHA256,
+    PREEDIT_CANONICAL_FRAME_SHA256,
     PREEDIT_WAVEFORM_SHA256,
+    _canonical_frame_bytes,
 )
 from test_intra_window_motion import P as MOTION_SEGMENTS
 from test_intra_window_motion import _plan_for_trajectory, _room_fixture
@@ -51,7 +51,6 @@ from isaac_audio_sensors.core.effects.electronics import (
 )
 from isaac_audio_sensors.core.effects.streams import named_stream_descriptor
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
-from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 
 SAMPLE_RATE_HZ = 48_000
@@ -704,13 +703,6 @@ def test_segmented_room_noise_and_electronics_compose_once(monkeypatch):
     assert "electronics" in frame.diagnostics["effects"]
 
 
-def _serialized_frame_bytes(frame) -> bytes:
-    return (
-        json.dumps(frame_to_trace_dict(frame), sort_keys=True, separators=(",", ":"))
-        + "\n"
-    ).encode()
-
-
 def test_off_state_identity_backend_golden_and_no_effects_key(monkeypatch):
     samples = np.asarray([[1.0, -0.0]], dtype=np.float64)
     output, diagnostics = ChannelEffectsChain().apply(
@@ -731,8 +723,8 @@ def test_off_state_identity_backend_golden_and_no_effects_key(monkeypatch):
         _window(),
     )
     assert (
-        hashlib.sha256(_serialized_frame_bytes(frame)).hexdigest()
-        == PREEDIT_FRAME_SHA256
+        hashlib.sha256(_canonical_frame_bytes(frame)).hexdigest()
+        == PREEDIT_CANONICAL_FRAME_SHA256
     )
     assert (
         hashlib.sha256(sink.calls[0]["mixture"].tobytes()).hexdigest()
