@@ -1,27 +1,35 @@
 # S4.1 closeout - rig, mount, geometry, and frame lock
 
-Status: **blocked** (2026-07-20). The functional S4 acceptance amendment is
-frozen at `86d2a5a3bf8b5aba3e2a2c988fc893d92ed6f368`. S4.2 is not authorized.
+Status: **passed** (2026-07-20). The functional S4 acceptance amendment is
+frozen at `86d2a5a3bf8b5aba3e2a2c988fc893d92ed6f368`. S4.2 is authorized but has
+not started.
 
 ## Scope and authority
 
 This closeout evaluates the `S4.1` row in
 [`s0_squadbot_readiness_acceptance.md`](../../specs/s0_squadbot_readiness_acceptance.md)
 for `S4_TEMP_DESKTOP_FIXTURE_REV0`. The fixture's electronic and practical
-checks pass, but the evidence-integrity gate does not: the exact nominal CAD
-transform JSON and an immutable retrievable companion-release locator are not
-available. The missing source is not reconstructed from prose.
+checks pass. This is the installed, handmade desktop fixture: the ZED and
+ReSpeaker are fixed on two inverted plastic supports over a corrugated-cardboard
+riser. Its recorded approximate as-used geometry, marked axes and footprint,
+and practical checks are the S4.1 authority.
+
+The Revision A Option 1 3D-printed mount was not fabricated or used for S4.1.
+Its reported CAD geometry is future-design context only. The unavailable CAD
+source is neither reconstructed from prose nor treated as a blocker for the
+different installed fixture.
 
 The authoritative records are:
 
 - [`s4_1_evidence_index.md`](s4_1_evidence_index.md) for tracked/archived
-  evidence, hashes, retrieval, and the remaining blocker;
+  evidence, hashes, and retrieval;
 - [`reference_rig_hardware_environment.md`](../../../reference_rig_hardware_environment.md)
   for hardware, environment, topology, measurements, and limitations;
 - [`zed_respeaker_mount_model_handoff.md`](../../../zed_respeaker_mount_model_handoff.md)
-  for the unverified companion-CAD handoff; and
+  for the future, unbuilt printed-mount handoff; and
 - `outputs/isaac_audio_sensors/S4/S4.1/evidence_index.json`,
-  `rig_frame_lock.json`, `live_fixture_gate.json`, and `cad_provenance.json`
+  `rig_frame_lock.json`, `live_fixture_gate.json`, and
+  `future_printed_mount_reference.json`
   for machine-readable status.
 
 ## Passing functional fixture checks
@@ -44,24 +52,23 @@ The authoritative records are:
   found no person or personal identifier, so the privacy-clean media check
   passes.
 
-## Blocking CAD provenance
+## Installed fixture and future printed mount boundary
 
-The handoff reports a 90 mm CAD mechanical-center separation, Fusion cloud
-version 9, release paths, and release-file checksums. Those statements do not
-substitute for the exact `parameters/T_zed_from_array_nominal.json` bytes or a
-locator from which the sealed release can actually be retrieved.
+The passing S4.1 evidence applies only to `S4_TEMP_DESKTOP_FIXTURE_REV0`, the
+handmade fixture visible in the retained top image. The tape-measured
+approximate as-used geometry is not derived from the Fusion design and is not a
+precision optical/acoustic extrinsic.
 
-Searches of the repository, current workstation, local CAD remnants, and
-connected Drive found no exact transform JSON, F3D release, sealed release
-directory, or retrievable immutable release URL. The surviving local export is
-STL-only. `outputs/isaac_audio_sensors/S4/S4.1/cad_provenance.json` records the
-search and blocker without inventing the missing transform.
+The handoff's reported 90 mm nominal separation and checksums describe an
+unbuilt future 3D-printed mount. Its source package was not retrievable during
+closeout, so those values remain reported context and are not authenticated or
+assigned to the installed fixture. This lack of future-design provenance does
+not weaken or block evidence for the different as-built fixture.
 
-To unblock S4.1, recover one of the following and verify it against its source:
-
-1. the exact nominal transform JSON, tracked with its SHA-256; or
-2. an immutable retrievable release locator containing that JSON, plus the
-   release checksum and exact retrieval procedure.
+When the printed mount is fabricated, it must receive a new mount identity.
+Its as-built ZED/ReSpeaker pose and uncertainty must be measured, and the
+stability, repeatability, microphone-opening, FOV, and cable checks must be
+rerun. Evidence from the handmade fixture does not transfer automatically.
 
 ## Evidence retention and verification
 
@@ -83,5 +90,5 @@ make check-version
 git diff --check
 ```
 
-The S4.1 validator must fail until CAD provenance passes. This is a blocked
-closeout, not authorization to start S4.2.
+All commands above must pass at the frozen evidence revision. This closeout
+authorizes S4.2 while making no claim that S4.2 work has started.

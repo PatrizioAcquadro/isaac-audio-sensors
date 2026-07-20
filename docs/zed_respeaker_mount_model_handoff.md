@@ -1,4 +1,4 @@
-# ZED 2i / ReSpeaker Mount — Model and Development Handoff
+# ZED 2i / ReSpeaker Future 3D-Printed Mount — Model and Development Handoff
 
 Last updated: 2026-07-20
 
@@ -18,9 +18,13 @@ authoritative release package is
 [`releases/ZED_ReSpeaker_Mount_RevA_2026-07-18_Option1/`](releases/ZED_ReSpeaker_Mount_RevA_2026-07-18_Option1/).
 That companion release and its exact nominal-transform JSON were not
 retrievable from this repository, the current workstation search, or connected
-Drive during S4.1 closeout. Therefore this handoff is not sufficient provenance
-for the CAD-transform gate, despite retaining the previously recorded release
-checksums below.
+Drive during S4.1 closeout. The files are not reconstructed from prose.
+
+This design was not printed or installed for S4.1. The passing S4.1 authority
+is the separate handmade `S4_TEMP_DESKTOP_FIXTURE_REV0`; therefore missing
+future-design files do not block that fixture's closeout. When this design is
+eventually printed, it must receive a new mount identity, new as-built pose and
+uncertainty measurements, and new practical fixture checks before use.
 
 The assembly is **not yet physically or field accepted**. The real build must
 still pass the controlled tests in
@@ -28,9 +32,11 @@ still pass the controlled tests in
 Cable-clamp shims must also remain measurement-pending until both real cable
 jacket diameters are measured at their intended clamp locations.
 
-This file is the compact project handoff. Numerical values here summarize the
-controlled files; when editing or releasing, use the linked machine-readable
-specification, drawings, BOM, and evidence as the source of truth.
+This file is the compact future-design handoff. Numerical values here summarize
+reported companion-project files and must not be assigned to the handmade S4.1
+fixture. When the source becomes available for editing or release, use the
+linked machine-readable specification, drawings, BOM, and evidence as its
+source of truth.
 
 ## 1. Purpose and design boundary
 

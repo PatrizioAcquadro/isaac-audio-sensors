@@ -1,6 +1,6 @@
 # Reference Rig Hardware And Environment
 
-Status: **S4.1 functional fixture checks passed, but S4.1 closeout is blocked on exact nominal CAD-transform provenance; S4.2 is not authorized**
+Status: **S4.1 passed for the installed handmade desktop fixture; S4.2 is authorized but has not started**
 Last verified: **July 16, 2026 hardware bring-up; July 20, 2026 operator report, photographic environment/fixture review, SSH/audio checks, and current-fixture ZED/audio capture**
 
 This document is the canonical record of the physical development rig for the
@@ -292,13 +292,14 @@ objects remain separate robustness conditions.
 
 ## Mounting And Measurement Equipment
 
-The current functional setup uses `S4_TEMP_DESKTOP_FIXTURE_REV0`, metric tape,
-a printed angular reference, and an optional iPhone level application. The
-operator reports that the two inverted plastic supports, ReSpeaker, and ZED are
-fixed and do not detach or move in use. Photographs show the fixture on a
-corrugated-cardboard riser at the WANG 2022 workstation. Existing furniture,
-rooms, and free Purdue resources may be used where they support safe,
-repeatable testing. No tripod is required for the current desktop fixture.
+The current functional setup uses the operator-built, handmade
+`S4_TEMP_DESKTOP_FIXTURE_REV0`, metric tape, a printed angular reference, and an
+optional iPhone level application. The operator reports that the two inverted
+plastic supports, ReSpeaker, and ZED are fixed and do not detach or move in
+use. Photographs show this actual fixture on a corrugated-cardboard riser at
+the WANG 2022 workstation. Existing furniture, rooms, and free Purdue resources
+may be used where they support safe, repeatable testing. No tripod or printed
+CAD mount is part of the current fixture.
 
 Current S4 does not require purchases of a professional reference speaker,
 dedicated audio interface, calibrated reference microphone, speaker/microphone
@@ -311,10 +312,12 @@ the functional procedure and available evidence.
 ## ZED And ReSpeaker Mount
 
 [ZED 2i / ReSpeaker Mount Model And Development Handoff](zed_respeaker_mount_model_handoff.md)
-is the repository-level authority for the implemented design and its status.
+is the repository-level record for a future printed design, not the installed
+S4.1 mount.
 Revision A Option 1 is reported digitally complete and released in the external
 companion CAD project, but its exact transform and sealed release were not
-retrievable during S4.1 closeout. It is not yet fabricated;
+retrievable during S4.1 closeout. That does not block the different handmade
+fixture. Revision A Option 1 is not yet fabricated;
 filament/procurement preparation is in progress. It remains the planned future
 mount and uses a detachable steel-ballasted table base. The historical
 [pre-CAD input lock](zed_respeaker_mount_pre_cad.md) remains useful
@@ -329,11 +332,11 @@ assembly or a measured transform. Neither fixture has a measured optical/
 acoustic extrinsic; the future printed assembly has not been physically or field
 accepted.
 
-Current S4 evidence identifies the temporary configuration only as
+Current S4 evidence identifies the installed handmade configuration only as
 `S4_TEMP_DESKTOP_FIXTURE_REV0`. Every accepted take records that mount identity
 and actual state. A future printed Revision A Option 1 mount receives a distinct
-identity and practical/bridge testing before any existing profile or result is
-claimed to transfer.
+identity, new as-built pose and uncertainty measurements, and practical/bridge
+testing before any existing profile or result is claimed to transfer.
 
 For initial S4 functional testing, check and record only that the rig does not
 move unintentionally, the support remains stable during the planned test, the
@@ -379,28 +382,27 @@ this repository, logs, datasets, or release artifacts.
 ## Remaining Gates
 
 The ZED SDK installation and ZED 2i diagnostic, viewer, depth, IMU, stability,
-and SVO checks are closed. The functional fixture work closes the current
+and SVO checks are closed. S4.1 passed for the installed handmade fixture. The
+functional fixture work closes the current
 device/channel/frame/room/topology record, approximate as-used geometry, marked
 placement, practical mount/FOV/cable checks, SSH, audible playback, six-channel
-local audio capture, and current-fixture ZED capture. S4.1 itself remains
-blocked because the exact nominal CAD transform JSON and an immutable,
-retrievable companion-release locator were not available during closeout.
-Formal CAD-mount physical acceptance remains separate. The following gates
-remain open:
+local audio capture, and current-fixture ZED capture. The unavailable future
+CAD package is not evidence for this fixture and is not an S4.1 blocker.
+Formal printed-mount physical acceptance remains separate. S4.2 is authorized
+but has not started. The following later gates remain open:
 
-1. Recover and verify the exact nominal CAD transform JSON or its immutable
-   retrievable release, then rerun the S4.1 integrity validator.
-2. Lock acquisition metadata, practical time-association/alignment, data-quality
+1. Lock acquisition metadata, practical time-association/alignment, data-quality
    rules, compact controlled matrix, stopping rule, and failure thresholds.
-3. Freeze development/fit and held-out groups, supported fields, criteria, and
+2. Freeze development/fit and held-out groups, supported fields, criteria, and
    hashes before final held-out evaluation.
+3. If the 3D-printed mount is fabricated, assign a new mount identity, measure
+   its as-built sensor pose and uncertainty, and rerun practical fixture checks.
 4. Obtain Alex access/installation approval; verify the actual installed camera,
    compute/network behavior, and live software before claiming real Alex
    validation.
 
 The absence of professional acoustic/metrology equipment is not an S4 blocker.
-Until functional gates pass, describe the setup as an available development
-rig. After they pass, claims may describe supported functional evidence inside
+Claims may now describe supported functional evidence inside
 the documented envelope, but not absolute calibration, universal transfer, or
 measured optical/acoustic extrinsics without additional evidence.
 

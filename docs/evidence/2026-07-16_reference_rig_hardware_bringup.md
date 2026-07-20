@@ -229,6 +229,19 @@ establish calibrated level, frequency response, SPL, or output fidelity. The
 July 16 statements above remain the correct record of what had and had not been
 observed during the original bring-up.
 
+### July 20 S4.1 fixture closeout clarification
+
+S4.1 used the operator-built `S4_TEMP_DESKTOP_FIXTURE_REV0`: the ZED and
+ReSpeaker fixed on two inverted plastic supports over a corrugated-cardboard
+desktop riser. The retained top image, marked axes/footprint, approximate tape
+measurements, audio capture, and corrected ZED FOV run describe that handmade
+fixture.
+
+The Revision A Option 1 3D-printed mount was not fabricated or installed for
+these checks. Its reported CAD values do not describe the as-used fixture and
+are not an S4.1 blocker. If printed later, it requires a distinct mount identity,
+new as-built pose and uncertainty measurements, and rerun practical checks.
+
 ## Official Sources
 
 - https://wiki.seeedstudio.com/respeaker_xvf3800_introduction/

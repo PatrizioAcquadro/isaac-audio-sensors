@@ -1,47 +1,45 @@
 {
   "schema": "ias.s4_1.evidence_index.v1",
-  "status": "blocked",
+  "status": "passed",
   "date": "2026-07-20",
   "acceptance_revision": "86d2a5a3bf8b5aba3e2a2c988fc893d92ed6f368",
   "archive": {
     "kind": "git_tracked",
     "repository": "git@github.com:PatrizioAcquadro/isaac-audio-sensors.git",
-    "git_ref": "refs/tags/s4.1-evidence-2026-07-20",
+    "git_ref": "refs/tags/s4.1-evidence-passed-2026-07-20",
     "publication_state": "local_commit_and_annotated_tag_only",
     "ignored_artifact_policy": "Raw S4.1 outputs match global ignore rules but are force-tracked in the evidence commit.",
     "retrieval_steps": [
-      "git checkout --detach refs/tags/s4.1-evidence-2026-07-20",
-      "git restore --source refs/tags/s4.1-evidence-2026-07-20 --worktree -- outputs/isaac_audio_sensors/S4/S4.1",
+      "git checkout --detach refs/tags/s4.1-evidence-passed-2026-07-20",
+      "git restore --source refs/tags/s4.1-evidence-passed-2026-07-20 --worktree -- outputs/isaac_audio_sensors/S4/S4.1",
       "sha256sum -c outputs/isaac_audio_sensors/S4/S4.1/evidence_manifest.sha256",
       ".venv/bin/python scripts/validate_s4_1_integrity.py --json"
     ]
   },
-  "blockers": [
-    "The exact parameters/T_zed_from_array_nominal.json and an immutable retrievable companion release are unavailable."
-  ],
+  "blockers": [],
   "artifacts": [
     {
       "path": "docs/README.md",
       "role": "authoritative_document",
-      "sha256": "2507cf2457efee93911f163081721fbe69b46f9b679ec09c092a5d585ed63dbc",
+      "sha256": "7692760ae36abad04e8d2e0c8ce4ab7df97d24927dd60b5d583e378dda875684",
       "git_tracked": true
     },
     {
       "path": "docs/development/closeouts/S3_closeout.md",
       "role": "authoritative_document",
-      "sha256": "df7fee56e9db8814a408167e4baac39d36b0e7f7c5d1e4e6daa5ea1dfe580ab9",
+      "sha256": "7bb4e894d7014edf0f47341125b39c95b0d43c301569f3569dc38d7f1db2d15b",
       "git_tracked": true
     },
     {
       "path": "docs/development/closeouts/S4/s4_1_bom_frame_lock.md",
       "role": "closeout",
-      "sha256": "d0768dd8a1d92c196c4ea738ecc16e20184389882eaa2111465c4715b8bdaf2b",
+      "sha256": "814ce11d61154ddece2716803586e47d0559c9b8966199c28a29010624d22b68",
       "git_tracked": true
     },
     {
       "path": "docs/development/closeouts/S4/s4_1_evidence_index.md",
       "role": "authoritative_document",
-      "sha256": "03a13b27920b8180e345b4ccab203dd51f4bcefda52310810433d211ea486e39",
+      "sha256": "c381c8130368611cfdd4154ff0aee20d6b90cd25bd0029f98e05f0029212ab37",
       "git_tracked": true
     },
     {
@@ -53,25 +51,25 @@
     {
       "path": "docs/development/specs/s0_squadbot_readiness_acceptance.md",
       "role": "authoritative_document",
-      "sha256": "1c9cee63d9cd18b8918c6a9b8f6ac2e93f440d4c1306940e264538ea8166c7b2",
+      "sha256": "c9b6d4c8b012d96b81bb25916a9357b567f9a90d6b0b7e0a9530c3d25a1f14e0",
       "git_tracked": true
     },
     {
       "path": "docs/evidence/2026-07-16_reference_rig_hardware_bringup.md",
       "role": "authoritative_document",
-      "sha256": "64d12ee858349c08e9ee3e85686112e3aa282f8aab39bb0686960a63e124350a",
+      "sha256": "8271e99c896d25e4c9869df85ef71083e9f438389805730f96f1ac50927f51e3",
       "git_tracked": true
     },
     {
       "path": "docs/final_sensor_development_plan.md",
       "role": "authoritative_document",
-      "sha256": "fff36d5b169bd9e13831ff2e3230207ebff66877b5a020ed822583292b2df2d7",
+      "sha256": "fc3a5b2ea982450d71bbd9b8d1276d260da84972d0bf9c6c74a57e8e327481b2",
       "git_tracked": true
     },
     {
       "path": "docs/reference_rig_hardware_environment.md",
       "role": "authoritative_document",
-      "sha256": "8163ed12545b7330cd39658de890983f59eb1a38fcd9867a546c65a45b16a338",
+      "sha256": "9729f65f36aea72ea8a442cfe762801517f6eb011720b12c989bbfc11d05963f",
       "git_tracked": true
     },
     {
@@ -82,8 +80,8 @@
     },
     {
       "path": "docs/zed_respeaker_mount_model_handoff.md",
-      "role": "cad_handoff",
-      "sha256": "85455bc34ed3151b938f133128becd4ad7f11351de192de4da5cd36b0dcb7d88",
+      "role": "future_mount_handoff",
+      "sha256": "e76bbac99251f7441f5306feaf05170f23f9202490a84f10bd7fd95dcc12c553",
       "git_tracked": true
     },
     {
@@ -95,26 +93,19 @@
     {
       "path": "scripts/validate_s4_1_integrity.py",
       "role": "integrity_validator",
-      "sha256": "0e360a6a037a4c92431d29b9bdbe17c6ae84c9fc4d2177e78f9c103046c5def1",
+      "sha256": "871c3f32d76d79a9ae7c99f359ad461d2ee4ab740d93b523ca2af0560ffe8c08",
       "git_tracked": true
     },
     {
       "path": "tests/test_s4_1_integrity_validator.py",
       "role": "integrity_validator",
-      "sha256": "d288c635755260044deaef984ffce03e0b0baae75cf0da40fb444979cfb0ecff",
+      "sha256": "f4a0cbc05968867dacc6335eb073bba4bcdb3f8ffc881b3623512b3473bb14b4",
       "git_tracked": true
     },
     {
-      "path": "outputs/isaac_audio_sensors/S4/S4.1/cad/T_zed_from_array_nominal.json",
-      "role": "cad_transform",
-      "sha256": null,
-      "git_tracked": false,
-      "availability": "blocked_missing_exact_source"
-    },
-    {
-      "path": "outputs/isaac_audio_sensors/S4/S4.1/cad_provenance.json",
-      "role": "cad_provenance",
-      "sha256": "9705287ae04cdc8210f43571a20ff06d87f9e7c6f6d4a9b460b1de297507d671",
+      "path": "outputs/isaac_audio_sensors/S4/S4.1/future_printed_mount_reference.json",
+      "role": "future_mount_reference",
+      "sha256": "e6c6a5e76f60ee2a2c726dac257962a345dfc2ed5ea3f017819d526bb9546209",
       "git_tracked": true
     },
     {
@@ -155,13 +146,13 @@
     {
       "path": "outputs/isaac_audio_sensors/S4/S4.1/live_fixture_gate.json",
       "role": "machine_record",
-      "sha256": "9fb6c28768ae790108f923a203c8ffbc97e19a9c242fc4b8bcc72047e9fe763b",
+      "sha256": "38508ab7b30430417682c0bcc31184e4692c5464c919573952c1d04f8570c7c9",
       "git_tracked": true
     },
     {
       "path": "outputs/isaac_audio_sensors/S4/S4.1/rig_frame_lock.json",
       "role": "machine_record",
-      "sha256": "94d7fee6601b25e25ce5f9a6e6261dd4aff4f78c4ddded26153003805a8497f9",
+      "sha256": "17fc836b8a6e6ba4855d64f13075a5d77b7723713ede0a6623511a64b04ca0ee",
       "git_tracked": true
     }
   ]

@@ -15,7 +15,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 S4_ROOT = Path("outputs/isaac_audio_sensors/S4/S4.1")
 INDEX_PATH = S4_ROOT / "evidence_index.json"
 MANIFEST_PATH = S4_ROOT / "evidence_manifest.sha256"
-CAD_PATH = S4_ROOT / "cad/T_zed_from_array_nominal.json"
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 EXPECTED_PATHS = {
     "docs/README.md",
@@ -31,23 +30,21 @@ EXPECTED_PATHS = {
     "docs/zed_respeaker_mount_model_handoff.md",
     "scripts/run_s4_1_zed_fixture_check.py",
     "scripts/validate_s4_1_integrity.py",
-    f"{S4_ROOT}/cad/T_zed_from_array_nominal.json",
-    f"{S4_ROOT}/cad_provenance.json",
     f"{S4_ROOT}/evidence/current_fixture_audio_6ch.wav",
     f"{S4_ROOT}/evidence/fixture_top_axes_xy.png",
     f"{S4_ROOT}/evidence/zed_fixture_rerun_raw.json",
     f"{S4_ROOT}/evidence/zed_fov_final_privacy_clean.png",
     f"{S4_ROOT}/evidence/zed_fov_initial_obstructed.png",
     f"{S4_ROOT}/live_fixture_gate.json",
+    f"{S4_ROOT}/future_printed_mount_reference.json",
     f"{S4_ROOT}/rig_frame_lock.json",
     "tests/test_s4_1_integrity_validator.py",
 }
 REQUIRED_ROLES = {
     "authoritative_document",
-    "cad_handoff",
-    "cad_provenance",
-    "cad_transform",
     "closeout",
+    "future_mount_handoff",
+    "future_mount_reference",
     "integrity_validator",
     "machine_record",
     "raw_machine_log",
@@ -130,6 +127,7 @@ def validate_index(
         "ias.s4_1.evidence_index.v1",
     )
     require_equal(findings, "index status", index.get("status"), "passed")
+    require_equal(findings, "index blockers", index.get("blockers"), [])
 
     acceptance_revision = index.get("acceptance_revision")
     if not isinstance(acceptance_revision, str) or not re.fullmatch(
@@ -251,7 +249,9 @@ def validate_semantics(repo_root: Path, findings: list[str]) -> None:
     raw = load_json(
         repo_root / S4_ROOT / "evidence/zed_fixture_rerun_raw.json", findings
     )
-    cad = load_json(repo_root / S4_ROOT / "cad_provenance.json", findings)
+    future_mount = load_json(
+        repo_root / S4_ROOT / "future_printed_mount_reference.json", findings
+    )
 
     require_equal(
         findings,
@@ -284,17 +284,56 @@ def validate_semantics(repo_root: Path, findings: list[str]) -> None:
         "5": "raw microphone 3",
     }
     require_equal(findings, "ReSpeaker channel order", channel_order, expected_channels)
-    cad_geometry = rig.get("cad_nominal_geometry", {})
-    if "not" not in str(cad_geometry.get("classification", "")).lower():
-        findings.append(
-            "CAD geometry classification must reject measured-extrinsic use"
-        )
+    actual_fixture = rig.get("actual_fixture", {})
     require_equal(
         findings,
-        "rig CAD artifact path",
-        cad_geometry.get("authoritative_nominal_transform"),
-        CAD_PATH.as_posix(),
+        "installed fixture classification",
+        actual_fixture.get("classification"),
+        "as-built handmade desktop fixture",
     )
+    require_equal(
+        findings,
+        "installed fixture authority",
+        actual_fixture.get("authority"),
+        "installed S4.1 mount",
+    )
+    as_used = rig.get("approximate_as_used_geometry", {})
+    require_equal(
+        findings,
+        "as-used geometry authority",
+        as_used.get("authority"),
+        "installed handmade fixture S4_TEMP_DESKTOP_FIXTURE_REV0",
+    )
+    translation = as_used.get("array_center_position_from_zed_stereo_midpoint_m")
+    uncertainty = as_used.get("component_uncertainty_m")
+    if not isinstance(translation, list) or len(translation) != 3 or not all(
+        isinstance(value, (int, float)) for value in translation
+    ):
+        findings.append("as-used array-center translation must contain 3 numbers")
+    if not isinstance(uncertainty, list) or len(uncertainty) != 3 or not all(
+        isinstance(value, (int, float)) and value > 0 for value in uncertainty
+    ):
+        findings.append("as-used component uncertainty must contain 3 positive numbers")
+    printed = rig.get("future_printed_mount", {})
+    require_equal(
+        findings,
+        "future printed mount installed",
+        printed.get("installed"),
+        False,
+    )
+    require_equal(
+        findings,
+        "future printed mount S4.1 effect",
+        printed.get("s4_1_gate_effect"),
+        "non_blocking",
+    )
+    require_equal(
+        findings,
+        "future CAD applies to installed fixture",
+        printed.get("cad_values_apply_to_installed_fixture"),
+        False,
+    )
+    require_equal(findings, "rig blockers", rig.get("blockers"), [])
 
     require_equal(
         findings,
@@ -303,6 +342,19 @@ def validate_semantics(repo_root: Path, findings: list[str]) -> None:
         "ias.s4_1.live_fixture_gate.v1",
     )
     require_equal(findings, "live status", live.get("status"), "passed")
+    installed_mount = live.get("installed_mount", {})
+    require_equal(
+        findings,
+        "live installed mount classification",
+        installed_mount.get("classification"),
+        "as-built handmade desktop fixture",
+    )
+    require_equal(
+        findings,
+        "live printed CAD mount used",
+        installed_mount.get("printed_cad_mount_used"),
+        False,
+    )
     initial = live.get("zed_initial_host_check", {})
     require_equal(
         findings,
@@ -348,21 +400,52 @@ def validate_semantics(repo_root: Path, findings: list[str]) -> None:
 
     require_equal(
         findings,
-        "CAD provenance schema",
-        cad.get("schema"),
-        "ias.s4_1.cad_provenance.v1",
+        "future mount reference schema",
+        future_mount.get("schema"),
+        "ias.s4_1.future_printed_mount_reference.v1",
     )
-    require_equal(findings, "CAD provenance status", cad.get("status"), "verified")
-    require_equal(findings, "CAD artifact", cad.get("artifact"), CAD_PATH.as_posix())
-    digest = cad.get("sha256")
-    if not isinstance(digest, str) or SHA256_RE.fullmatch(digest) is None:
-        findings.append("CAD provenance requires the exact transform SHA-256")
-    locator = cad.get("immutable_release_locator")
-    if not isinstance(locator, str) or not locator:
-        findings.append("CAD provenance requires an immutable retrievable locator")
-    retrieval = cad.get("retrieval_procedure")
-    if not isinstance(retrieval, list) or not retrieval:
-        findings.append("CAD provenance requires an exact retrieval procedure")
+    require_equal(
+        findings,
+        "future mount status",
+        future_mount.get("status"),
+        "documented_future_option",
+    )
+    require_equal(
+        findings,
+        "future mount installed for S4.1",
+        future_mount.get("installed_for_s4_1"),
+        False,
+    )
+    require_equal(
+        findings,
+        "future mount fixture assignment",
+        future_mount.get("applies_to_fixture_id"),
+        None,
+    )
+    require_equal(
+        findings,
+        "future mount S4.1 gate effect",
+        future_mount.get("s4_1_gate_effect"),
+        "non_blocking",
+    )
+    boundary = future_mount.get("boundary", {})
+    require_equal(
+        findings,
+        "future CAD values apply to installed fixture",
+        boundary.get("cad_values_apply_to_installed_fixture"),
+        False,
+    )
+    require_equal(
+        findings,
+        "missing future CAD blocks S4.1",
+        boundary.get("missing_cad_source_blocks_s4_1"),
+        False,
+    )
+    transition = future_mount.get("future_transition_requirements")
+    if not isinstance(transition, list) or len(transition) < 4 or not all(
+        isinstance(item, str) and item for item in transition
+    ):
+        findings.append("future printed mount requires explicit transition checks")
 
 
 def validate(repo_root: Path) -> list[str]:

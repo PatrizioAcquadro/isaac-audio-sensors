@@ -25,7 +25,7 @@ public users.
 - [Final Sensor Development Plan](final_sensor_development_plan.md)
 - [Reference Rig Hardware And Environment](reference_rig_hardware_environment.md)
 - [ZED 2i And ReSpeaker Mount Pre-CAD Input Lock](zed_respeaker_mount_pre_cad.md)
-- [ZED 2i / ReSpeaker Mount Model And Development Handoff](zed_respeaker_mount_model_handoff.md)
+- [Future ZED 2i / ReSpeaker 3D-Printed Mount Handoff](zed_respeaker_mount_model_handoff.md)
 - [S4.1 Evidence Index](development/closeouts/S4/s4_1_evidence_index.md)
 - [Showcase](showcase.md)
 - [Open Source Release Checklist](open_source_release_checklist.md)

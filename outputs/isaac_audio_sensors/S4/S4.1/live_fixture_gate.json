@@ -3,6 +3,11 @@
   "status": "passed",
   "date": "2026-07-20",
   "fixture_id": "S4_TEMP_DESKTOP_FIXTURE_REV0",
+  "installed_mount": {
+    "classification": "as-built handmade desktop fixture",
+    "construction": "two fixed inverted plastic supports over a corrugated-cardboard desktop riser",
+    "printed_cad_mount_used": false
+  },
   "environment_probe": {
     "status": "not_counted",
     "result": "sandbox did not expose an NVIDIA CUDA device; the ZED check was rerun host-visible"
@@ -78,5 +83,5 @@
     "zed_fov_clear": "passed by corrected host-visible frame review",
     "safe_non_disturbing_cables": "passed by operator report and photographic review"
   },
-  "overall_reason": "All S4.1 electronic and practical fixture checks pass after retaining and correcting the initial FOV failure; overall S4.1 remains blocked only by CAD provenance."
+  "overall_reason": "All S4.1 electronic and practical checks for the installed handmade fixture pass after retaining and correcting the initial FOV failure. The unbuilt printed CAD mount was not used and is not an S4.1 gate."
 }

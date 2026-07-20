@@ -110,9 +110,11 @@ the owning closeouts rather than being hidden by this aggregate pass.
 
 - The next implementation input is S4.1, rig and frame lock. The later current
   S4 acceptance authority refines this handoff: version device/channel identity,
-  frames, source, room, topology, nominal CAD references, approximate as-used
-  geometry, evidence status, and uncertainty/unsupported labels required by the
-  functional metrics. Unmeasured quantities block only claims that require
+  frames, source, room, topology, installed-mount identity, approximate as-used
+  geometry, separate future CAD references, evidence status, and
+  uncertainty/unsupported labels required by the functional metrics. Future
+  CAD values are not assigned to a different installed fixture. Unmeasured
+  quantities block only claims that require
   them; no S3 simulation result substitutes for real functional evidence or a
   calibrated measurement when calibration is claimed.
 - The published envelope is an approximate pyroomacoustics shoebox/image-
