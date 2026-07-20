@@ -108,10 +108,13 @@ the owning closeouts rather than being hidden by this aggregate pass.
 
 ## Known limitations and next-phase input contract
 
-- The next implementation input is S4.1, BOM and frame lock. It must measure
-  and version device/channel identity, microphone coordinates, array/source
-  frames, speaker, room, clocks, environmental method, and uncertainty; no S3
-  simulation result substitutes for a calibrated measurement.
+- The next implementation input is S4.1, rig and frame lock. The later current
+  S4 acceptance authority refines this handoff: version device/channel identity,
+  frames, source, room, topology, nominal CAD references, approximate as-used
+  geometry, evidence status, and uncertainty/unsupported labels required by the
+  functional metrics. Unmeasured quantities block only claims that require
+  them; no S3 simulation result substitutes for real functional evidence or a
+  calibrated measurement when calibration is claimed.
 - The published envelope is an approximate pyroomacoustics shoebox/image-
   source simulation. It does not establish arbitrary room geometry,
   diffraction, edge bending, a complete wave solver, reflected-path
