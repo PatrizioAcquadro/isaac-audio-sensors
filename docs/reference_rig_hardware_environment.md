@@ -1,30 +1,42 @@
 # Reference Rig Hardware And Environment
 
-Status: **Partial reference rig; sensor bring-up complete except audible ReSpeaker playback; calibration measurements pending**
-Last verified: **July 16, 2026**
+Status: **S4.1 functional fixture checks passed, but S4.1 closeout is blocked on exact nominal CAD-transform provenance; S4.2 is not authorized**
+Last verified: **July 16, 2026 hardware bring-up; July 20, 2026 operator report, photographic environment/fixture review, SSH/audio checks, and current-fixture ZED/audio capture**
 
 This document is the canonical record of the physical development rig for the
 Isaac Audio Sensor and the later SquadBot bench work. It separates live-verified
-facts from manufacturer specifications, documented Alex facts, and planned
-equipment. It is not evidence that the rig is calibrated.
+facts from manufacturer specifications, CAD-derived design references,
+user-reported current setup, documented Alex facts, and planned work. It is not
+evidence that the rig is absolutely calibrated or that either the temporary
+fixture or future printed mount has passed formal physical or field acceptance.
 
 ## Evidence Terms
 
 - **Verified:** observed on the live hardware or host.
+- **Measured:** directly measured for the recorded test with the stated method
+  and uncertainty; not necessarily metrology-grade.
+- **CAD-derived:** taken or calculated from the released mechanical design;
+  not an as-built optical/acoustic measurement.
 - **Nominal:** taken from manufacturer documentation; not independently measured.
+- **Approximate:** sufficient for the stated functional use but not a precision
+  calibrated quantity.
+- **User-reported:** reported as part of the current setup but not independently
+  reverified by the dated hardware bring-up evidence.
 - **Documented:** taken from the restricted Alex003 guide; not live-verified.
 - **Planned:** selected but not yet acquired, installed, or validated.
+- **Unmeasured:** no measurement is currently available.
+- **Unsupported:** the available evidence cannot establish the quantity.
 
 ## Reference Topology
 
 ```text
-Temporary source: MacBook speakers
-Final source: powered reference monitor
+Primary controlled source: MacBook speakers
+Robustness sources: phone, voice, claps, impacts, ordinary objects
                     |
                     v
 Room -> ReSpeaker XVF3800 -> USB -> Raspberry Pi 5
                                       |
-                                wired Purdue LAN
+                               Purdue network/SSH
                                       |
                                       v
                               RTX 4090 workstation
@@ -33,10 +45,14 @@ Room -> ReSpeaker XVF3800 -> USB -> Raspberry Pi 5
                               USB 3 <- ZED 2i
 ```
 
-The **workstation** is the Alienware desktop in the lab that runs Isaac Sim,
-Isaac Lab, ZED tooling, and development workloads. The Raspberry Pi and
-workstation are connected to the same wired Purdue subnet; they do not require
-a direct cable, a private switch, or an additional Ethernet adapter.
+The **workstation** is the fixed Alienware desktop at the WANG 2022 desk. It
+runs Isaac Sim, Isaac Lab, ZED tooling, and development workloads. The ZED 2i
+therefore remains directly attached to its verified rear USB 3 port. The
+ReSpeaker attaches to the Raspberry Pi in the same test area; the workstation
+controls that host through SSH. A July 20 live check from the current workstation
+resolved `elab-raspberrypi5`, returned the expected hostname, and enumerated the
+ReSpeaker playback device. Recordings are written locally before transfer rather
+than treating network command timing as synchronization.
 
 Tailscale and key-only SSH through the `elab-raspberrypi5` alias remain the
 stable management path. Dataset traffic should prefer wired Ethernet. Exact
@@ -54,9 +70,11 @@ DHCP and Tailscale addresses are intentionally not tracked here.
 | ReSpeaker firmware | Verified | ReSpeaker serial `114993701261100454`; official six-channel USB firmware `2.0.8`; native ALSA capture is six-channel, 16 kHz, `S16_LE`. Firmware binary SHA-256: `8dd27762ebd87a28f0b4546f1634ece5e7eae308375d66952f7a9e3fb948266a`. |
 | Camera | Verified | Stereolabs ZED 2i serial `39011785`, camera firmware `1523`, sensor firmware `777`; connected directly to a rear workstation USB 3 port at 5 Gb/s. An initially selected USB port produced protocol errors and resets; changing rear ports produced clean two- and ten-minute tests. |
 | ZED software | Verified | Full official ZED SDK `5.4.0` for Ubuntu 24/CUDA 12 installed at `/usr/local/zed`, including tools, samples, Python support, TensorRT 10.9, and neural depth models. NVIDIA driver `580.159.03` and CUDA toolkit `12.2` were preserved. Installer SHA-256: `bab3ae693865225b0e2cac2b09dadd0c520ce245a011a8e3785037ec46f1f811`. |
-| Temporary speaker | Verified/limited | The user's MacBook built-in speakers may be used for pilot acquisition only. Exact Mac model is not yet recorded. |
-| Reference speaker | Planned | Current-but-not-frozen purchase direction: one Genelec 8030C powered monitor driven through a Focusrite Scarlett Solo USB interface. This supersedes the previously documented Genelec 8010A direction. It is required before final calibrated sim-vs-real claims, not before initial software and pilot work. The purchase BOM is not frozen. |
-| Reference microphone | Planned | One serial-calibrated miniDSP UMIK-1 for level, response, noise, and room-response measurements. |
+| Primary controlled source | User-reported/limited | The user's MacBook built-in speakers are the primary S4 controlled source. The exact Mac identity, WAV, volume, pose, distance, orientation, and relevant settings are recorded per comparable take. Its source-room transfer and internal DSP are not isolated. |
+| Robustness sources | User-reported/limited | Phone, human voice, claps, impacts, and ordinary objects are available for robustness trials; they are not primary calibration references. |
+| Specialized acoustic source/reference | Not required for current functional testing | No professional reference speaker, dedicated Focusrite-class interface, UMIK-1/calibrated microphone, certified SPL meter, or acoustic calibrator is required for S4. Add one later only if an advertised final claim or observed blocker establishes the need. |
+| Placement and orientation aids | User-reported | Metric tape, printed angular reference, and an iPhone level application are available for practical placement and basic orientation checks. |
+| Current functional fixture | User-reported/photographically reviewed | `S4_TEMP_DESKTOP_FIXTURE_REV0`: ZED below and ReSpeaker above on two fixed inverted plastic supports, all held in place on a corrugated-cardboard desktop riser. The operator reports that neither support nor sensor detaches or moves in use. Tape-measured approximate ReSpeaker-center position relative to the ZED stereo midpoint is `(-0.085, 0.000, +0.095) m` in project `(+X forward, +Y right, +Z up)`, with `+/-0.005 m` practical measurement uncertainty per component; the `+Z` value is the midpoint of the reported `90-100 mm` range. The ZED lens midpoint is `0.055 +/- 0.005 m` above the desktop, or approximately `0.755 m` above the floor when combined with the approximate `0.70 m` desk height. These are approximate as-used quantities, not calibrated extrinsics. The fixture footprint and all three project axes are physically marked. |
 | Alex | Available/documented | Physical Alex003 fixed-torso platform and pedestal are available. Live compute access and mounting authorization still require verification. |
 
 ## Verified Network State
@@ -66,9 +84,12 @@ DHCP and Tailscale addresses are intentionally not tracked here.
 - A 20-packet wired test produced 0% loss and RTT
   `min/avg/max/mdev = 0.129/0.202/0.412/0.060 ms`.
 - Raspberry Wi-Fi and Tailscale remain available as fallback management paths.
-- Wired reachability does not prove clock synchronization. A chrony/NTP or PTP
-  policy, offset logging, and failure threshold must be locked before synchronized
-  calibration capture.
+- SSH reachability from the WANG 2022 workstation passed on July 20, 2026. The
+  first accepted take still requires the planned local audio/ZED capture check.
+- Wired reachability does not prove clock synchronization. S4 records the
+  time-association method and uncertainty appropriate to each metric. Chrony/NTP,
+  PTP, or additional timing hardware is required only when practical per-take
+  chirp/clap/visible-impact alignment cannot support the claimed metric.
 
 No Ethernet switch, USB Ethernet adapter, or replacement ZED cable is currently
 required.
@@ -108,12 +129,26 @@ and the sanitized official ZED Diagnostic result is
   pairs were not sample-identical. The workstation capture had one negative
   full-scale sample on channel 0 but no sustained clipping; the Raspberry
   capture had no full-scale samples.
-- Native playback streams opened and completed on both hosts. Audible output
-  through the ReSpeaker 3.5 mm connection was not physically confirmed, so the
-  playback portion of the ReSpeaker gates remains open.
+- Native playback streams opened and completed on both hosts. A July 20 WANG
+  2022 SSH check enumerated the ReSpeaker as ALSA playback `card 2, device 0`.
+  The device exposes stereo `PCM,0` and mono `PCM,1` playback controls.
+- Audible output through the ReSpeaker 3.5 mm connection was physically
+  confirmed on July 20 using known-good headphones and a `speaker-test` 1 kHz
+  stereo sine stream at 48 kHz `S16_LE`. The operator heard the signal at
+  `PCM,0 = 70%` (`-18 dB`); the earlier `35%` (`-39 dB`) attempt was inaudible.
+  After the check, `PCM,0` was returned to `55%` (`-27 dB`). This verifies the
+  analog-output path but is not a frequency-response, SPL, or fidelity
+  calibration.
 - Raspberry Pi disconnect/reconnect recovery passed, as did a two-second
   post-reconnect capture and a bounded 30-minute six-channel stream to
   `/dev/null`. No large audio artifact was added to the repository.
+- A July 20 current-fixture capture produced a 20.000-second, six-channel,
+  16 kHz, `S16_LE` WAV. All six channels were non-silent, no channel contained
+  a full-scale sample, and the prompted transient was most evident on processed
+  channel 0. SHA-256:
+  `80e077b02a5d0dda047311e9c891fa74ab125de41cdd8d128139083c3ee1f7eb`.
+  This passes the S4.1 local audio-integrity check; raw-channel event/DOA and
+  audio-video alignment checks remain S4.2 work.
 
 ### ZED 2i
 
@@ -147,31 +182,99 @@ and the sanitized official ZED Diagnostic result is
   `e0030e9217dd17471e71726681c0fd2c00c3f043b7e48dc8ec90725625c4ed2d`.
   No manual camera calibration was run because ZED Diagnostic did not require
   it.
+- A July 20 host-visible current-fixture check at HD720@30 captured 299 image,
+  depth, and sensor reads in 10.381 seconds with zero grab failures and strictly
+  increasing image timestamps. A saved left frame has SHA-256
+  `4f924b51f2be0fa5b3a69d29dd09dbb98fa3126e2e22bd6227b16c8bf0f8e1a2`.
+  Electronic capture passed, but practical FOV acceptance did not: the
+  cardboard riser occupied approximately the lower third of the image. The
+  required corrective action was to move the complete fixed sensor assembly
+  forward so the ZED face reached or slightly overhung the riser edge, remark
+  the footprint, and rerun before closing S4.1.
+- The operator moved the complete fixed assembly to the front edge without
+  changing the relative ZED/ReSpeaker geometry and remarked its footprint. The
+  host-visible rerun captured 300 image, depth, and sensor reads in 10.381
+  seconds with zero grab failures, strictly increasing timestamps, and a
+  66.653 ms maximum observed image-timestamp gap. Visual review confirmed that
+  the cardboard obstruction was eliminated. The rerun left-frame SHA-256 is
+  `ee521792e61f9db1fdcee8fc4ee90dabba6855af4a5d6f041f3cd462ee964651`.
+  This passes the current-fixture electronic and practical ZED FOV checks, but
+  the raw frame remains outside versioned evidence because a person is
+  partially visible at the right edge. A separate July 20 host-visible rerun
+  using the tracked `scripts/run_s4_1_zed_fixture_check.py` also passed 300
+  image/depth/sensor reads with zero grab failures and strictly increasing
+  timestamps. Full-resolution review of the unaltered final frame found no
+  person, readable screen content, label, or personal identifier. Its SHA-256
+  is `4fd766f8377b4661ee4bdd761740b710bfc88f9dfe143ff1302d9b5c9ecc289b`.
 
 ## Acoustic Environment
 
-| Field | Current record |
+The current primary functional environment is the fixed workstation area near
+the entrance of Purdue University WANG 2022. WANG 2052 remains a documented
+earlier candidate/possible robustness environment; it is not the primary joint
+ZED/ReSpeaker environment because the verified ZED host is a fixed workstation.
+
+| Field | Current WANG 2022 record |
 | --- | --- |
-| Location | Purdue University, WANG 2052 |
-| Dimensions | Approximately 6.5 m x 3.0 m x 3.0 m; derived volume approximately 58.5 m3 |
-| Floor | Carpet tiles; exact construction and absorption unknown |
-| Ceiling | Suspended acoustic tiles with lighting and HVAC openings; exact material unknown |
-| Walls and large surfaces | Painted walls, large whiteboards, mounted display, glass door/panel, and a hard conference table |
-| Furniture | One long fixed table; 13 movable chairs; two movable waste bins |
-| Reconfiguration | Chairs and bins may be repositioned; the table cannot be moved |
+| Overall geometry | Approximately `13.5 m x 8 m x 3 m`; open office/cubicle area rather than a closed small room. |
+| Local rig-to-boundary geometry | Relative to the ZED facing direction: approximately `3.3 m` to the wall in front, `0.55 m` behind the rig, `0.3 m` to rig-left, and `5.5 m` to the structural wall on rig-right; the area opens toward behind-left. |
+| Desk | User-reported wood desk, approximately `0.61 m x 1.35 m`, surface height approximately `0.70 m`. The temporary fixture currently sits on a corrugated-cardboard riser on this desk. |
+| Floor | Carpet tiles; exact construction and absorption unknown. |
+| Ceiling | Suspended acoustical ceiling-tile grid with recessed lighting troffers and visible air supply/return grilles. HVAC operating state is unconfirmed; the operator reports no audible HVAC noise. |
+| Walls and partitions | Painted gypsum-board walls plus rigid cubicle partitions with translucent upper panels. There are no soft acoustic dividers at the test station. |
+| Nearby fixed objects | Two fixed monitors are visible behind/near the rig, the fixed workstation tower is below the desk, and a filing cabinet and cubicle partitions are close to the station. The ReSpeaker is approximately `0.20 m` from the nearest fixed monitor. Their state is held fixed for controlled repetitions. The third screen visible in the photographs is the movable MacBook controlled source, not a fixed monitor. |
+| Wider open-space objects | Other cubicles, desks, chairs, cabinets, a door, and distant windows with blinds are visible in the supplied photographs. No nearby exterior window is reported at the test station. |
+| Occupancy | Four people normally use the larger open-space; controlled takes target zero other people present. |
+| Noise | Operator reports the area is normally quiet, without routine corridor, printer, machinery, or speech noise. Workstation fans are variable but usually quiet and may become more audible during Isaac training. |
+| Source-placement access | The photographed MacBook is the movable controlled source. Placement is available in front, behind, and to either side. A workstation/cubicle divider may occlude some front paths; exact allowed distance/angle cells are frozen in the S4.2/S4.3 runbook. |
+| Reconfiguration | Chairs and wider-area occupancy can vary. Monitors and the test-station layout are reported fixed for controlled takes; every accepted take records deviations. |
 
-WANG 2052 is the first repeatable **meeting-room reference environment**, not an
+Nine user-supplied fixture/environment photographs were reviewed on July 20,
+2026. They support the qualitative layout, fixed-fixture claim, footprint
+marks, and project-axis orientation above but are not yet copied into the
+versioned S4.1 evidence root. Their source attachment names and SHA-256
+identities are retained for later selection and sanitization:
+
+| Photograph | SHA-256 | Archival note |
+| --- | --- | --- |
+| `codex-clipboard-0fa0efdb-2ebc-44d1-b73c-c028fe31dc06.png` | `1dd0e5418e5240d23ebef869094fbac21a3d0633b59d3451cea5cb805a3e2c63` | Close fixture view; sanitize before versioning. |
+| `codex-clipboard-ba9b616a-2bc5-43e6-af80-8ec295728354.png` | `022c41e33bef84787b20fda157a5434e4ee487883f3afa0399d71b426a3fb278` | Wide environment view; sanitize before versioning. |
+| `codex-clipboard-6945a2d1-6100-44f8-be5d-ec677e021741.png` | `feb9d60d70c6b416d45def53988bcdeedf794b7594bbc282124ec800353eeb4e` | Wide environment view; sanitize people/background before versioning. |
+| `codex-clipboard-acfc9631-abc7-475c-a61b-103796f9fb76.png` | `991de1c4610776bad8aebd724e04e5e5324b6f8833441e3acd5d171c1fbd63d2` | Wide environment view; sanitize before versioning. |
+| `codex-clipboard-de1f5ef9-75eb-4a6e-9f40-89b53b1de4fd.png` | `64bde314c83f9f6b6350a911d4022300f806439b4540bce3ac944565550e8cb8` | Test-station view; sanitize before versioning. |
+| `codex-clipboard-ec17d964-843c-491b-8200-8316eec2d7c1.png` | `06b0c59d6bb0ffedc1c0ad8181ea67da2b011810a86c660894e69c9a84f16214` | Top view showing footprint and `+X`/`+Y`; candidate after sanitization. |
+| `codex-clipboard-0be62b66-1665-406c-b31c-78fb6f87a7d0.png` | `5192a01c5ff76911b7e4ff4fe02ec950275a56b799f43691585866f5611ca55d` | Do not version as supplied: shipping label contains personal information; crop or redact first. |
+| `codex-clipboard-99bc8f2e-6ad7-4ff3-95cb-61174a6f3ce8.png` | `420f74e7b0202b376686839415c264c3cf3f603fea68087c40f296d895d005cc` | Angled fixture/axis view; candidate after sanitization. |
+| `codex-clipboard-4e959e9c-f810-4ced-bb07-2101e83f0e68.png` | `fd7d188d131563cfd3f0605598ea1d01ff8f5231664d6789fbda1c76b38418f3` | ReSpeaker connector view; candidate after sanitization. |
+
+Before closeout, copy the selected sanitized photographs into the S4.1
+evidence package and verify these hashes. The operator corrected the
+ReSpeaker-to-nearest-fixed-monitor distance to approximately `0.20 m` and
+confirmed that both ZED and ReSpeaker are approximately `5.5 m` from the right
+structural wall. A physical outline has been marked to reproduce the fixture's
+desk placement, so a ZED-to-desk-edge distance is not required for the current
+placement method. The physical project axes use the package convention: local
+`+X` forward along the ZED viewing direction, local `+Y` to the ZED's right,
+and local `+Z` vertically upward. The photographed `+X` and `+Y` arrows are
+consistent with this convention. On July 20 the operator confirmed that the
+`+Z`-up mark was subsequently added; no additional photograph was required for
+this user-reported fixture-state update.
+
+WANG 2022 is a repeatable **open-office functional environment**, not an
 anechoic or acoustically controlled room. Carpet and ceiling tiles provide some
-absorption, while the table, whiteboards, display, glass, walls, and column create
-strong reflections and occlusion opportunities.
+absorption, while the desk, cardboard riser, monitors, cubicle panels, cabinets,
+walls, ceiling, and wider office create reflections and occlusion opportunities.
 
-Before calibration, measure the room and fixed-object geometry. Every accepted
-take must record the door state, HVAC state, furniture layout, source and sensor
-heights, temperature, humidity, and any people present.
+Before controlled functional characterization, record enough room and
+fixed-object geometry to reproduce placement and interpret the target metrics.
+Every accepted take records the room, source and sensor poses, door/HVAC and
+materially relevant furniture/people state. Temperature and humidity are
+recorded when available or needed for the claim; missing environmental values
+are labeled rather than silently invented or made automatic blockers.
 
 ## Source And Capture Controls
 
-For MacBook pilot playback:
+For controlled MacBook playback:
 
 - use one versioned, checksummed lossless reference file;
 - include a synchronization chirp;
@@ -180,43 +283,66 @@ For MacBook pilot playback:
 - disable Spatial Audio, EQ, notification sounds, and other audio processing
   where controllable.
 
-MacBook speakers are not the final reference source because their frequency
-response, limiting, and device DSP are not fully controlled or portable. They
-remain useful as an additional consumer-source robustness condition.
+MacBook speakers support repeatable functional claims within the recorded
+configuration and controlled variation across recorded WAV, volume, pose,
+distance, and angle ranges. Their combined source-room-sensor frequency
+behavior, limiting, and device DSP do not support isolated speaker response,
+absolute SPL, or universal transfer. Phone, voice, claps, impacts, and ordinary
+objects remain separate robustness conditions.
 
 ## Mounting And Measurement Equipment
 
-No dedicated tripod, speaker stand, calibrated microphone, environmental meter,
-turntable, or rigid ZED/ReSpeaker mount is currently available.
+The current functional setup uses `S4_TEMP_DESKTOP_FIXTURE_REV0`, metric tape,
+a printed angular reference, and an optional iPhone level application. The
+operator reports that the two inverted plastic supports, ReSpeaker, and ZED are
+fixed and do not detach or move in use. Photographs show the fixture on a
+corrugated-cardboard riser at the WANG 2022 workstation. Existing furniture,
+rooms, and free Purdue resources may be used where they support safe,
+repeatable testing. No tripod is required for the current desktop fixture.
 
-Selected equipment before S4 calibration:
-
-- two K&M 201A/2 stands for the reference speaker and UMIK-1;
-- Hosa CYX-403M 3.5 mm TRS-to-dual-XLR cable, previously selected for the
-  Genelec 8010A setup; revalidate the cable choice against the current Genelec
-  8030C and Focusrite Scarlett Solo direction before purchase;
-- Bosch GLM165-25G laser distance meter;
-- Klein Tools 935DAG digital angle gauge/level;
-- iGaging 100-700-06 digital caliper;
-- Komelon 4916IM 5 m metric/imperial tape;
-- Testo 608-H1 temperature/humidity meter.
-
-Do not buy a low-cost SPL meter if the calibrated UMIK-1 is acquired. A
-traceable Class 2 meter/calibrator is a later decision only if the final claim
-requires that level of metrology. A turntable is also deferred until pilot data
-shows that marked poses plus visual tracking are insufficient.
+Current S4 does not require purchases of a professional reference speaker,
+dedicated audio interface, calibrated reference microphone, speaker/microphone
+stands, tripod, laser distance meter, digital caliper, dedicated digital level,
+AprilTags, turntable, certified SPL meter/calibrator, cosmetic cable management,
+or formal mount-qualification accessories. Introduce a more precise tool later
+only when a required final claim or observed uncertainty cannot be resolved by
+the functional procedure and available evidence.
 
 ## ZED And ReSpeaker Mount
 
-The bench and Alex configuration require a rigid, removable bar that holds the
-ZED 2i and ReSpeaker with a measured transform. The bracket should use a standard
-tripod interface and preserve access to microphones, buttons, USB connectors,
-and the camera field of view. Select the tripod and final bracket BOM only after
-measuring both enclosures.
+[ZED 2i / ReSpeaker Mount Model And Development Handoff](zed_respeaker_mount_model_handoff.md)
+is the repository-level authority for the implemented design and its status.
+Revision A Option 1 is reported digitally complete and released in the external
+companion CAD project, but its exact transform and sealed release were not
+retrievable during S4.1 closeout. It is not yet fabricated;
+filament/procurement preparation is in progress. It remains the planned future
+mount and uses a detachable steel-ballasted table base. The historical
+[pre-CAD input lock](zed_respeaker_mount_pre_cad.md) remains useful
+context but does not override the completed design.
 
-Printable AprilTag `tag36h11` markers may provide pose references for the ZED
-workflow. Print them at a known size on a flat matte backing and attach them with
-removable tape. Do not attach anything to Alex without authorization.
+The CAD-derived sensor mechanical centers are nominally separated by `90 mm`.
+That dimension and the nominal CAD transform are mechanical design references,
+not measured optical/acoustic extrinsics or as-built calibration. The temporary
+fixture's operator-reported center-to-center separation is approximately
+`90-100 mm`, visually consistent with the CAD design intent but not the CAD
+assembly or a measured transform. Neither fixture has a measured optical/
+acoustic extrinsic; the future printed assembly has not been physically or field
+accepted.
+
+Current S4 evidence identifies the temporary configuration only as
+`S4_TEMP_DESKTOP_FIXTURE_REV0`. Every accepted take records that mount identity
+and actual state. A future printed Revision A Option 1 mount receives a distinct
+identity and practical/bridge testing before any existing profile or result is
+claimed to transfer.
+
+For initial S4 functional testing, check and record only that the rig does not
+move unintentionally, the support remains stable during the planned test, the
+pose is reproducible enough for the target metrics, microphone openings and the
+camera field of view remain sufficiently unobstructed, and cable routing is safe
+and does not disturb the rig. Formal torque, adhesive, lifecycle, proof-pull,
+precision-deflection, and mount-metrology gates in the companion release remain
+pending physical-qualification work; they are not automatic blockers for safe,
+repeatable functional testing and must not be claimed as passed.
 
 ## Alex Integration Boundary
 
@@ -231,10 +357,20 @@ The restricted Alex003 guide documents:
 - a head location and routed GMSL cable intended for a ZED X Mini, but no
   delivered camera or mount.
 
-The available ZED 2i is USB and cannot use the documented ZED X Mini GMSL cable.
-It therefore requires a non-invasive custom mount and an approved USB route.
-Initially power the Raspberry Pi and sensors independently; do not modify Alex
-power or electronics without IHMC approval. Exact onboard OS/ROS versions,
+This is authoritative evidence of an intended camera provision, not proof that
+a ZED X Mini or any other camera is installed on Alex now. Before V14-15, verify
+the actual installed camera model from the unit-specific model, approved robot
+records, or live inventory. Use that camera when appropriate; do not require the
+bench USB ZED 2i on Alex merely to reproduce the bench configuration. Record a
+functionally sufficient ReSpeaker-to-installed-camera pose instead of reusing
+the bench nominal transform.
+
+A simple non-permanent ReSpeaker installation is acceptable when it is stable,
+safe, documented, and repeatable enough for the planned validation. Add straps,
+specialized hardware, or more precise metrology only if actual safety,
+stability, association, or final-claim evidence requires them. Initially power
+the Raspberry Pi and sensors independently; do not modify Alex power or
+electronics without IHMC approval. Exact onboard OS/ROS versions, camera model,
 network access, and live sensor throughput remain unverified.
 
 The Alex guide contains sensitive credentials. They must never be copied into
@@ -243,27 +379,34 @@ this repository, logs, datasets, or release artifacts.
 ## Remaining Gates
 
 The ZED SDK installation and ZED 2i diagnostic, viewer, depth, IMU, stability,
-and SVO checks are closed. The following reference-rig gates remain open:
+and SVO checks are closed. The functional fixture work closes the current
+device/channel/frame/room/topology record, approximate as-used geometry, marked
+placement, practical mount/FOV/cable checks, SSH, audible playback, six-channel
+local audio capture, and current-fixture ZED capture. S4.1 itself remains
+blocked because the exact nominal CAD transform JSON and an immutable,
+retrievable companion-release locator were not available during closeout.
+Formal CAD-mount physical acceptance remains separate. The following gates
+remain open:
 
-1. Confirm audible ReSpeaker playback through its physical 3.5 mm output on the
-   workstation and Raspberry Pi. Native ALSA playback streaming has passed on
-   both hosts.
-2. Measure room dimensions, ReSpeaker geometry, ZED/ReSpeaker extrinsics, mount
-   geometry, source poses, and uncertainty.
-3. Acquire and characterize the reference monitor, UMIK-1, stands, and
-   measurement tools.
-4. Lock clock synchronization, acquisition metadata, and failure thresholds.
-5. Obtain Alex mounting/access approval and verify the live onboard software.
-6. Freeze remaining serial numbers, calibrated profiles, and
-   the final reference-rig BOM before S4 holdout collection.
+1. Recover and verify the exact nominal CAD transform JSON or its immutable
+   retrievable release, then rerun the S4.1 integrity validator.
+2. Lock acquisition metadata, practical time-association/alignment, data-quality
+   rules, compact controlled matrix, stopping rule, and failure thresholds.
+3. Freeze development/fit and held-out groups, supported fields, criteria, and
+   hashes before final held-out evaluation.
+4. Obtain Alex access/installation approval; verify the actual installed camera,
+   compute/network behavior, and live software before claiming real Alex
+   validation.
 
-Until these gates pass, describe the setup as an available four-microphone
-development rig, not a calibrated research reference.
+The absence of professional acoustic/metrology equipment is not an S4 blocker.
+Until functional gates pass, describe the setup as an available development
+rig. After they pass, claims may describe supported functional evidence inside
+the documented envelope, but not absolute calibration, universal transfer, or
+measured optical/acoustic extrinsics without additional evidence.
 
 ## External Technical References
 
 - [ReSpeaker XVF3800 guide](https://wiki.seeedstudio.com/respeaker_xvf3800_introduction/)
 - [ZED SDK Linux installation](https://docs.stereolabs.com/docs/development/zed-sdk/linux)
-- [ZED and Isaac ROS AprilTag example](https://docs.stereolabs.com/docs/integrations/isaac-ros/april-tag-detection)
 - Alex003 Usage Guide: restricted Google Drive document; do not reproduce its
   credentials or restricted content.

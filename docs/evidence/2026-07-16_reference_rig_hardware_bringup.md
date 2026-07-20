@@ -204,13 +204,30 @@ Passed:
 - Short checksummed SVO outside Git
 - Camera firmware compatibility; no update required
 
-Not passed or intentionally still open:
+Not passed or intentionally still open as of the July 16 bring-up:
 
 - Audible ReSpeaker playback through the physical 3.5 mm output was not
   confirmed, although native playback streaming succeeded on both hosts.
 - Mounting, purchases, room and sensor geometry measurements, ZED/ReSpeaker
   extrinsics, clock synchronization, calibration, calibrated profiles, final
   BOM freeze, and Alex access/mounting authorization remain open.
+
+### July 20 audible-output follow-up
+
+The previously open audible-output check was completed from the WANG 2022
+workstation through SSH to `elab-raspberrypi5`. ALSA enumerated the ReSpeaker as
+`card 2, device 0`; its stereo `PCM,0` playback switch was on. A known-good pair
+of headphones was connected to the ReSpeaker 3.5 mm output. The command
+`speaker-test -D plughw:CARD=Array,DEV=0 -c 2 -t sine -f 1000 -l 1` opened a
+48 kHz, `S16_LE`, two-channel stream and completed successfully. The operator
+confirmed that the tone was audible at `PCM,0 = 70%` (`-18 dB`). The earlier
+`35%` (`-39 dB`) attempt was inaudible, and the control was returned to `55%`
+(`-27 dB`) after verification.
+
+This closes only the physical analog-output functionality check. It does not
+establish calibrated level, frequency response, SPL, or output fidelity. The
+July 16 statements above remain the correct record of what had and had not been
+observed during the original bring-up.
 
 ## Official Sources
 

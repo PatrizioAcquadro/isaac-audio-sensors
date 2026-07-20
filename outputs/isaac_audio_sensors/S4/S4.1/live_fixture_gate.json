@@ -1,0 +1,82 @@
+{
+  "schema": "ias.s4_1.live_fixture_gate.v1",
+  "status": "passed",
+  "date": "2026-07-20",
+  "fixture_id": "S4_TEMP_DESKTOP_FIXTURE_REV0",
+  "environment_probe": {
+    "status": "not_counted",
+    "result": "sandbox did not expose an NVIDIA CUDA device; the ZED check was rerun host-visible"
+  },
+  "audio_capture": {
+    "status": "passed",
+    "host": "elab-raspberrypi5",
+    "device": "hw:CARD=Array,DEV=0",
+    "duration_s": 20.0,
+    "channels": 6,
+    "sample_rate_hz": 16000,
+    "format": "S16_LE",
+    "frames": 320000,
+    "all_channels_non_silent": true,
+    "per_channel_rms": [2065.345, 188.622, 165.174, 168.532, 158.933, 160.522],
+    "per_channel_abs_peak": [18207, 924, 748, 759, 696, 712],
+    "per_channel_full_scale_samples": [0, 0, 0, 0, 0, 0],
+    "prompted_transient_most_evident_on": "processed Conference channel 0",
+    "raw_channel_event_diagnostics": "deferred; not an S4.1 audio-integrity criterion",
+    "artifact": "outputs/isaac_audio_sensors/S4/S4.1/evidence/current_fixture_audio_6ch.wav",
+    "sha256": "80e077b02a5d0dda047311e9c891fa74ab125de41cdd8d128139083c3ee1f7eb"
+  },
+  "zed_initial_host_check": {
+    "status": "failed_then_corrected",
+    "electronic_capture": "passed",
+    "frames": 299,
+    "grab_failures": 0,
+    "image_reads": 299,
+    "depth_reads": 299,
+    "sensor_reads": 299,
+    "timestamps_strictly_monotonic": true,
+    "failure": "corrugated-cardboard riser occupied approximately the lower third of the left image",
+    "artifact": "outputs/isaac_audio_sensors/S4/S4.1/evidence/zed_fov_initial_obstructed.png",
+    "sha256": "4f924b51f2be0fa5b3a69d29dd09dbb98fa3126e2e22bd6227b16c8bf0f8e1a2"
+  },
+  "corrective_action": {
+    "action": "operator moved the complete fixed assembly to the front edge without changing relative sensor geometry and remarked the footprint",
+    "photo_required": false
+  },
+  "zed_host_rerun": {
+    "status": "passed",
+    "runner": "scripts/run_s4_1_zed_fixture_check.py",
+    "runner_sha256": "da8f2aa8221fb5cd2c291f0badf2dc2f2ede6cf49fea955bd2f4b993780c5986",
+    "raw_log": "outputs/isaac_audio_sensors/S4/S4.1/evidence/zed_fixture_rerun_raw.json",
+    "sdk_version": "5.4.0",
+    "serial_number": 39011785,
+    "mode": "HD720@30",
+    "depth_mode": "PERFORMANCE",
+    "requested_duration_s": 10.0,
+    "elapsed_s": 10.383388077025302,
+    "frames": 300,
+    "grab_failures": 0,
+    "image_reads": 300,
+    "depth_reads": 300,
+    "sensor_reads": 300,
+    "timestamps_strictly_monotonic": true,
+    "max_timestamp_gap_ms": 66.549,
+    "mean_sampled_finite_depth_ratio": 0.7976794704861111,
+    "fov_obstruction": "none from the fixture/riser after correction",
+    "artifact": "outputs/isaac_audio_sensors/S4/S4.1/evidence/zed_fov_final_privacy_clean.png",
+    "sha256": "4fd766f8377b4661ee4bdd761740b710bfc88f9dfe143ff1302d9b5c9ecc289b",
+    "privacy_review": {
+      "status": "passed",
+      "method": "full-resolution visual review of the unaltered left frame",
+      "finding": "no person, face, skin, readable screen content, shipping label, or personal identifier is visible; the right edge contains only chair/fabric"
+    }
+  },
+  "practical_mount_checks": {
+    "stable": "passed by operator report and unchanged capture pose",
+    "no_unintended_motion": "passed by operator report",
+    "repeatable_placement": "passed using remarked footprint",
+    "microphone_openings_clear": "passed by photographic review",
+    "zed_fov_clear": "passed by corrected host-visible frame review",
+    "safe_non_disturbing_cables": "passed by operator report and photographic review"
+  },
+  "overall_reason": "All S4.1 electronic and practical fixture checks pass after retaining and correcting the initial FOV failure; overall S4.1 remains blocked only by CAD provenance."
+}
