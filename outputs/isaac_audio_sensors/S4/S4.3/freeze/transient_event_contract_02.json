@@ -1,0 +1,82 @@
+{
+  "schema": "ias.s4_3.transient_event_contract.v2",
+  "id": "S4.3-PROSPECTIVE-TRANSIENT-EVENT-CONTRACT-02",
+  "status": "frozen_before_prospective_trial_collection",
+  "frozen_at_utc": "2026-07-21T23:38:05Z",
+  "specification": {
+    "path": "docs/development/specs/s4_3_pilot_corrective_02.md",
+    "sha256": "754ae3368aeadb8cc8e8d4dbe3586e552ffa0e47d7027dd3558b5b0e6e2a0cad"
+  },
+  "defect_reproduction": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/boundary_defect_reproduction_02.json",
+    "sha256": "35c8589abd6a2f2ec72b1361d2bfa35ca707e7e9fd5fbe08b8a4028a0e32bcd8",
+    "reproduced_case_count": 4,
+    "production_modified_before_reproduction": false
+  },
+  "supersedes_contract_01": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/transient_event_contract_01.json",
+    "sha256": "0022c1553fa344a4a8e274291688d248862aaa45a2dd25585e7302c96183311c",
+    "retained_immutable": true,
+    "prior_trial_id": "s4_3_rob_silence_02_prospective_events_01",
+    "prior_result_retained": true
+  },
+  "prospective_metric": {
+    "metric_id": "prospective_deduplicated_transient_event_rate",
+    "event_semantics": "one complete-support, bounded, multi-channel, de-duplicated RMS-envelope excursion classified as transient rather than short, stationary, or boundary-censored",
+    "denominator": "complete inspected intended-silence interval duration in seconds",
+    "units": "event count and events/s",
+    "aggregation": "event count, rate, durations, peak samples, stationary/short/boundary diagnostic counts",
+    "applicability": "only the prospectively frozen corrective-02 intended-silence trial",
+    "limitations": "functional digital room-fixture-sensor characterization; not SPL, microphone self-noise, or a population event rate"
+  },
+  "detector": {
+    "input_channels": "all four declared raw analysis channels",
+    "sample_rate_hz": 16000,
+    "energy_envelope": "per-channel centered moving RMS",
+    "energy_window_samples": 320,
+    "energy_window_ms": 20,
+    "convolution_operation": "numpy.convolve(square, ones(320) / 320, mode=same)",
+    "even_window_indexing_convention": "output center j uses half-open raw support [j-160,j+160), indices j-160 through j+159 inclusive",
+    "lower_index_support_samples": 160,
+    "higher_index_support_samples": 159,
+    "complete_support_center_start_inclusive": 160,
+    "complete_support_center_stop_exclusive_expression": "N-159",
+    "complete_support_center_rule": "160 <= j < N-159",
+    "connected_excursion_boundary_rule": "for bridged run [start,stop), censor when start < 160 or stop > N-159",
+    "arbitrary_fixed_time_guard_used": false,
+    "absolute_rms_floor_full_scale": 0.002,
+    "adaptive_baseline": "per-channel median RMS envelope",
+    "adaptive_scale": "1.4826 times per-channel MAD",
+    "robust_sigma_multiplier": 8.0,
+    "channel_threshold": "max(absolute floor, median + 8 * 1.4826 * MAD)",
+    "minimum_concurrent_raw_channels": 2,
+    "maximum_bridge_gap_samples": 1600,
+    "maximum_bridge_gap_ms": 100,
+    "minimum_event_duration_samples": 160,
+    "minimum_event_duration_ms": 10,
+    "maximum_transient_duration_samples": 16000,
+    "maximum_transient_duration_ms": 1000,
+    "separation_and_deduplication": "bridge each bounded inactive gap no longer than 1600 samples once, then classify each connected qualifying excursion once",
+    "boundary_event_policy": "incomplete_rms_support_censored_not_counted",
+    "stationary_excursion_policy": "reported_not_counted_as_transient",
+    "short_excursion_policy": "reported_not_counted_as_transient",
+    "detector_window_overlap_dependency": "none"
+  },
+  "formal_detector_change_from_corrective_01": true,
+  "formal_change": "replace run-touch-only boundary detection with exact even-window RMS support completeness",
+  "preserved_semantics": [
+    "duration thresholds",
+    "channel concurrence",
+    "bounded-gap bridging",
+    "stationary classification",
+    "short-excursion classification",
+    "reporting-overlap independence"
+  ],
+  "prospective_evidence_trial_id": "s4_3_rob_silence_03_boundary_support_01",
+  "stopping_rule": "one terminal attempt completes the corrective-02 cell; every attempt remains retained; a failed attempt leaves corrective-02 coverage unavailable absent separately authorized and frozen failure handling",
+  "new_trial_data_collected_before_freeze": false,
+  "new_trial_results_viewed_before_freeze": false,
+  "detector_tuned_after_new_results": false,
+  "retroactive_confirmation_from_inspected_data_forbidden": true,
+  "s4_4_started": false
+}

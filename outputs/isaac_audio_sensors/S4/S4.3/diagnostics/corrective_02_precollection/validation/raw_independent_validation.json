@@ -1,0 +1,64 @@
+{
+  "corrective_provenance": {
+    "checks": [
+      {
+        "corrective_revision": "corrective_02",
+        "effective_sustained_clip_run_samples": 4000,
+        "id": "s4_3_corrective_provenance",
+        "prospective_evidence_trial_id": "s4_3_rob_silence_03_boundary_support_01",
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "inventory_contract": {
+    "checks": [
+      {
+        "id": "s4_3_inventory",
+        "inventory_count": 16,
+        "planned_count": 16,
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "preregistration": {
+    "checks": [
+      {
+        "category_counts": {
+          "controlled": 2,
+          "repeatability": 4,
+          "robustness": 10
+        },
+        "id": "s4_3_preregistration",
+        "planned_trial_count": 16,
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "raw_required": false,
+  "review_remediation": {
+    "checks": [
+      {
+        "id": "s4_3_review_remediation",
+        "implementation_record_count": 4,
+        "matrix_canonical_sha256": "3872b3ebd7aa6f29d2fe48e60b38e75b8014f598b0b814e3f2f1439bbb7901e8",
+        "scientific_contract_canonical_sha256": "4999a914cb89414f8c9acd97865b8bb1f4746556bd15aea31b4ca3e5ca18434e",
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "schema": "ias.s4_3.raw_independent_validation.v1",
+  "scope": "frozen specification, configuration, matrix, schemas, and inventory semantics",
+  "status": "passed"
+}

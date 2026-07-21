@@ -1,0 +1,47 @@
+{
+  "schema": "ias.s4_3.corrective_precollection_inventory.v2",
+  "status": "frozen_before_prospective_trial_collection",
+  "frozen_at_utc": "2026-07-21T23:38:05Z",
+  "prior_terminal_inventory": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/trial_inventory.json",
+    "sha256_before_corrective_02": "4a03d97135971bbfca55c996af01987218044f1344040a89896b53590fa131dd",
+    "planned_trial_count": 15,
+    "terminal_trial_count": 15,
+    "attempt_count": 16,
+    "accepted_attempt_count": 14,
+    "failed_attempt_count": 2,
+    "retained_immutable_before_new_capture": true
+  },
+  "corrected_matrix": {
+    "canonical_json_sha256": "0a8910e341a0d9fc2d41f3ba04164ad2f8703e0c97ab77dc9efb1843d28394dc",
+    "planned_trial_count": 16,
+    "terminal_trial_count_before_new_capture": 15,
+    "category_counts": {
+      "controlled": 2,
+      "repeatability": 4,
+      "robustness": 10
+    }
+  },
+  "prospective_trial": {
+    "trial_id": "s4_3_rob_silence_03_boundary_support_01",
+    "trial_definition_canonical_sha256": "957458208bc36c46c2babb74e247d3856cd033f8805cee9f8dd7bb83b9270658",
+    "duration_s": 15,
+    "attempt_count_before_capture": 0,
+    "terminal": false,
+    "required_for_corrective_02_metric_coverage": true,
+    "only_new_trial_authorized": true
+  },
+  "prior_prospective_trial": {
+    "trial_id": "s4_3_rob_silence_02_prospective_events_01",
+    "outcome": "accepted",
+    "event_count": 0,
+    "event_rate_per_s": 0.0,
+    "contract_sha256": "0022c1553fa344a4a8e274291688d248862aaa45a2dd25585e7302c96183311c",
+    "retained_without_corrective_02_confirmation_use": true
+  },
+  "formal_detector_change_requires_new_trial": true,
+  "overlap_trial_recollection_authorized": false,
+  "unrelated_trial_recollection_authorized": false,
+  "raw_evidence_modified": false,
+  "s4_4_started": false
+}

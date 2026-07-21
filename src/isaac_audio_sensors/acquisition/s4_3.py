@@ -41,12 +41,14 @@ from isaac_audio_sensors.core.types import MicrophoneSpec
 CONFIG_SCHEMA = "ias.s4_3.pilot_config.v1"
 CONFIG_AMENDMENT_SCHEMA = "ias.s4_3.pilot_config_amendment.v1"
 CORRECTIVE_CONFIG_SCHEMA = "ias.s4_3.pilot_corrective_config.v1"
+CORRECTIVE_CONFIG_SCHEMA_V2 = "ias.s4_3.pilot_corrective_config.v2"
 PREREGISTRATION_SCHEMA = "ias.s4_3.preregistration.v1"
 ANALYSIS_SCHEMA = "ias.s4_3.trial_analysis.v1"
 INVENTORY_SCHEMA = "ias.s4_3.trial_inventory.v1"
 REVIEW_REMEDIATION_SCHEMA = "ias.s4_3.review_remediation_manifest.v1"
 CLIPPING_CORRECTIVE_SCHEMA = "ias.s4_3.clipping_corrective.v1"
 TRANSIENT_EVENT_CONTRACT_SCHEMA = "ias.s4_3.transient_event_contract.v1"
+TRANSIENT_EVENT_CONTRACT_SCHEMA_V2 = "ias.s4_3.transient_event_contract.v2"
 EXPECTED_CATEGORIES = {"repeatability", "controlled", "robustness"}
 EXPECTED_PROJECT_FRAME = {
     "frame_name": "F_project",
@@ -321,6 +323,232 @@ def load_pilot_configuration(
     payload = load_json(source)
     if payload.get("schema") == CONFIG_SCHEMA:
         return payload
+    if payload.get("schema") == CORRECTIVE_CONFIG_SCHEMA_V2:
+        allowed = {
+            "schema",
+            "phase",
+            "id",
+            "frozen_at_utc",
+            "base_effective_configuration",
+            "prospective_transient_event_contract",
+            "effective_noise_metric_contract",
+            "matrix_additions",
+            "authorization",
+            "supersedes",
+            "phase_boundary",
+        }
+        unexpected = sorted(set(payload) - allowed)
+        if unexpected:
+            raise S43Error(
+                f"{source}: unexpected corrective-02 fields {unexpected}"
+            )
+        root = Path(repo_root) if repo_root is not None else source.resolve().parents[1]
+
+        def verify_binding(record: Mapping[str, Any], label: str) -> tuple[Path, str]:
+            relative = record.get("path")
+            if (
+                not isinstance(relative, str)
+                or Path(relative).is_absolute()
+                or ".." in Path(relative).parts
+            ):
+                raise S43Error(f"{source}: unsafe corrective-02 binding {label}")
+            target = root / relative
+            if not target.is_file() or sha256_file(target) != record.get("sha256"):
+                raise S43Error(
+                    f"{source}: corrective-02 binding {label} SHA-256 mismatch"
+                )
+            return target, relative
+
+        base_record = payload.get("base_effective_configuration")
+        if not isinstance(base_record, Mapping):
+            raise S43Error(
+                f"{source}: base_effective_configuration must be an object"
+            )
+        base_path, _base_relative = verify_binding(
+            base_record, "base_effective_configuration"
+        )
+        base = load_pilot_configuration(base_path, repo_root=root)
+        if (
+            canonical_sha256(base) != base_record.get("effective_canonical_sha256")
+            or base.get("configuration_source", {}).get("schema")
+            != CORRECTIVE_CONFIG_SCHEMA
+        ):
+            raise S43Error(
+                f"{source}: corrective-01 effective configuration binding mismatch"
+            )
+
+        contract_record = payload.get("prospective_transient_event_contract")
+        if not isinstance(contract_record, Mapping):
+            raise S43Error(
+                f"{source}: prospective_transient_event_contract must be an object"
+            )
+        contract_path, contract_relative = verify_binding(
+            contract_record, "prospective_transient_event_contract"
+        )
+        contract = load_json(contract_path)
+        if contract.get("schema") != TRANSIENT_EVENT_CONTRACT_SCHEMA_V2:
+            raise S43Error(
+                f"{source}: corrective-02 transient contract schema mismatch"
+            )
+        for label in ("specification", "defect_reproduction", "supersedes_contract_01"):
+            record = contract.get(label)
+            if not isinstance(record, Mapping):
+                raise S43Error(f"{source}: corrective-02 contract {label} absent")
+            verify_binding(record, label)
+
+        detector = contract.get("detector")
+        if not isinstance(detector, Mapping):
+            raise S43Error(f"{source}: corrective-02 detector provenance absent")
+        required_detector = {
+            "sample_rate_hz": 16_000,
+            "energy_window_samples": 320,
+            "lower_index_support_samples": 160,
+            "higher_index_support_samples": 159,
+            "complete_support_center_start_inclusive": 160,
+            "complete_support_center_stop_exclusive_expression": "N-159",
+            "complete_support_center_rule": "160 <= j < N-159",
+            "connected_excursion_boundary_rule": (
+                "for bridged run [start,stop), censor when start < 160 or "
+                "stop > N-159"
+            ),
+            "arbitrary_fixed_time_guard_used": False,
+            "absolute_rms_floor_full_scale": 0.002,
+            "robust_sigma_multiplier": 8.0,
+            "maximum_bridge_gap_samples": 1_600,
+            "minimum_event_duration_samples": 160,
+            "maximum_transient_duration_samples": 16_000,
+            "minimum_concurrent_raw_channels": 2,
+            "boundary_event_policy": (
+                "incomplete_rms_support_censored_not_counted"
+            ),
+            "stationary_excursion_policy": "reported_not_counted_as_transient",
+            "short_excursion_policy": "reported_not_counted_as_transient",
+            "detector_window_overlap_dependency": "none",
+        }
+        if any(detector.get(key) != value for key, value in required_detector.items()):
+            raise S43Error(f"{source}: corrective-02 detector semantics mismatch")
+        if contract.get("formal_detector_change_from_corrective_01") is not True:
+            raise S43Error(f"{source}: corrective-02 formal detector change absent")
+        for field in (
+            "new_trial_data_collected_before_freeze",
+            "new_trial_results_viewed_before_freeze",
+            "detector_tuned_after_new_results",
+            "s4_4_started",
+        ):
+            if contract.get(field) is not False:
+                raise S43Error(
+                    f"{source}: corrective-02 boundary field {field} violated"
+                )
+
+        additions = payload.get("matrix_additions")
+        if not isinstance(additions, list) or len(additions) != 1:
+            raise S43Error(
+                f"{source}: exactly one corrective-02 matrix addition required"
+            )
+        added_trial = additions[0]
+        if (
+            not isinstance(added_trial, Mapping)
+            or added_trial.get("trial_id")
+            != contract.get("prospective_evidence_trial_id")
+            or added_trial.get("stimulus") != "silence"
+            or added_trial.get("corrective_revision") != "corrective_02"
+            or added_trial.get("corrective_prospective_metric_trial") is not True
+        ):
+            raise S43Error(f"{source}: corrective-02 silence trial binding mismatch")
+
+        noise_contract = payload.get("effective_noise_metric_contract")
+        prospective_contracts = (
+            noise_contract.get("prospective_detector_contracts")
+            if isinstance(noise_contract, Mapping)
+            else None
+        )
+        if (
+            not isinstance(noise_contract, Mapping)
+            or noise_contract.get("legacy_distinct_event_rate") != "Unmeasured"
+            or not isinstance(prospective_contracts, list)
+            or len(prospective_contracts) != 2
+        ):
+            raise S43Error(f"{source}: corrective-02 noise metric contract absent")
+        expected_contract_bindings = {
+            (
+                "corrective_01",
+                "s4_3_rob_silence_02_prospective_events_01",
+                "0022c1553fa344a4a8e274291688d248862aaa45a2dd25585e7302c96183311c",
+            ),
+            (
+                "corrective_02",
+                str(contract.get("prospective_evidence_trial_id")),
+                str(contract_record.get("sha256")),
+            ),
+        }
+        observed_contract_bindings = {
+            (
+                str(item.get("revision")),
+                str(item.get("trial_id")),
+                str(item.get("sha256")),
+            )
+            for item in prospective_contracts
+            if isinstance(item, Mapping)
+        }
+        if observed_contract_bindings != expected_contract_bindings:
+            raise S43Error(f"{source}: corrective-02 metric provenance mismatch")
+
+        prior_contract = base.get("corrective_provenance", {}).get(
+            "prospective_transient_event_contract"
+        )
+        prior_detector = base.get("noise_event_detector")
+        if not isinstance(prior_contract, Mapping) or not isinstance(
+            prior_detector, Mapping
+        ):
+            raise S43Error(f"{source}: corrective-01 detector provenance absent")
+
+        effective = deepcopy(base)
+        effective["frozen_at_utc"] = payload.get("frozen_at_utc")
+        effective["metric_contracts"]["noise"] = deepcopy(noise_contract)
+        effective["noise_event_detector"] = deepcopy(detector)
+        effective["matrix"] = [*effective["matrix"], deepcopy(dict(added_trial))]
+        prior_provenance = deepcopy(effective["corrective_provenance"])
+        effective["corrective_provenance"] = {
+            **prior_provenance,
+            "id": payload.get("id"),
+            "corrective_01_effective_configuration": deepcopy(base_record),
+            "prior_prospective_transient_event_contract": deepcopy(prior_contract),
+            "prospective_transient_event_contract": {
+                "path": contract_relative,
+                "sha256": contract_record.get("sha256"),
+                "prospective_evidence_trial_id": contract[
+                    "prospective_evidence_trial_id"
+                ],
+            },
+            "prospective_transient_event_contracts": [
+                {
+                    "revision": "corrective_01",
+                    **deepcopy(dict(prior_contract)),
+                    "detector": deepcopy(dict(prior_detector)),
+                },
+                {
+                    "revision": "corrective_02",
+                    "path": contract_relative,
+                    "sha256": contract_record.get("sha256"),
+                    "prospective_evidence_trial_id": contract[
+                        "prospective_evidence_trial_id"
+                    ],
+                    "detector": deepcopy(dict(detector)),
+                },
+            ],
+            "corrective_02_specification": deepcopy(contract["specification"]),
+            "boundary_defect_reproduction": deepcopy(contract["defect_reproduction"]),
+        }
+        effective["configuration_source"] = {
+            "schema": CORRECTIVE_CONFIG_SCHEMA_V2,
+            "path": source.relative_to(root).as_posix()
+            if source.is_absolute()
+            else source.as_posix(),
+            "id": payload.get("id"),
+            "base_effective_configuration": deepcopy(base_record),
+            "supersedes": deepcopy(payload.get("supersedes")),
+        }
+        return effective
     if payload.get("schema") == CORRECTIVE_CONFIG_SCHEMA:
         allowed = {
             "schema",
@@ -1241,12 +1469,11 @@ def validate_preregistration(
         )
     expansion_count = sum(expansion_by_parent.values())
     expansion_contract = configuration.get("expansion", {})
-    corrective_allowance = (
-        1
-        if configuration.get("configuration_source", {}).get("schema")
-        == CORRECTIVE_CONFIG_SCHEMA
-        else 0
-    )
+    corrective_schema = configuration.get("configuration_source", {}).get("schema")
+    corrective_allowance = {
+        CORRECTIVE_CONFIG_SCHEMA: 1,
+        CORRECTIVE_CONFIG_SCHEMA_V2: 2,
+    }.get(corrective_schema, 0)
     if expansion_count > (
         expansion_contract.get("maximum_added_trials_total", -1) + corrective_allowance
     ):
@@ -1302,10 +1529,8 @@ def validate_corrective_provenance(
     root = Path(repo_root)
     issues: list[ValidationIssue] = []
     source = configuration.get("configuration_source")
-    if (
-        not isinstance(source, Mapping)
-        or source.get("schema") != CORRECTIVE_CONFIG_SCHEMA
-    ):
+    source_schema = source.get("schema") if isinstance(source, Mapping) else None
+    if source_schema not in {CORRECTIVE_CONFIG_SCHEMA, CORRECTIVE_CONFIG_SCHEMA_V2}:
         issues.append(
             _issue(
                 "corrective_configuration_absent",
@@ -1324,12 +1549,21 @@ def validate_corrective_provenance(
             )
         )
         return ValidationReport((), tuple(issues))
-    for label in (
+    required_provenance_labels = [
         "original_frozen_configuration",
         "original_preregistration",
         "clipping_corrective",
         "prospective_transient_event_contract",
-    ):
+    ]
+    if source_schema == CORRECTIVE_CONFIG_SCHEMA_V2:
+        required_provenance_labels.extend(
+            [
+                "prior_prospective_transient_event_contract",
+                "corrective_02_specification",
+                "boundary_defect_reproduction",
+            ]
+        )
+    for label in required_provenance_labels:
         record = provenance.get(label)
         if not isinstance(record, Mapping):
             issues.append(_issue("corrective_binding_absent", label, "must be object"))
@@ -1388,6 +1622,45 @@ def validate_corrective_provenance(
                 "must be prospectively frozen",
             )
         )
+    elif source_schema == CORRECTIVE_CONFIG_SCHEMA_V2:
+        expected_support = {
+            "energy_window_samples": 320,
+            "lower_index_support_samples": 160,
+            "higher_index_support_samples": 159,
+            "complete_support_center_start_inclusive": 160,
+            "complete_support_center_stop_exclusive_expression": "N-159",
+            "complete_support_center_rule": "160 <= j < N-159",
+            "boundary_event_policy": (
+                "incomplete_rms_support_censored_not_counted"
+            ),
+            "arbitrary_fixed_time_guard_used": False,
+        }
+        if any(detector.get(key) != value for key, value in expected_support.items()):
+            issues.append(
+                _issue(
+                    "corrective_02_boundary_support_mismatch",
+                    "noise_event_detector",
+                    "exact 320-sample support provenance differs",
+                )
+            )
+        contracts = provenance.get("prospective_transient_event_contracts")
+        if (
+            not isinstance(contracts, list)
+            or len(contracts) != 2
+            or {
+                record.get("revision")
+                for record in contracts
+                if isinstance(record, Mapping)
+            }
+            != {"corrective_01", "corrective_02"}
+        ):
+            issues.append(
+                _issue(
+                    "corrective_02_contract_history_incomplete",
+                    "corrective_provenance.prospective_transient_event_contracts",
+                    "must retain corrective-01 and corrective-02",
+                )
+            )
     prereg_config = preregistration.get("configuration")
     source_path = source.get("path")
     if (
@@ -1414,6 +1687,20 @@ def validate_corrective_provenance(
         "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/"
         "corrective_01_precollection_gate.json",
     }
+    if source_schema == CORRECTIVE_CONFIG_SCHEMA_V2:
+        required_corrective_paths.update(
+            {
+                "docs/development/specs/s4_3_pilot_corrective_02.md",
+                "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+                "boundary_defect_reproduction_02.json",
+                "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+                "transient_event_contract_02.json",
+                "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+                "trial_inventory_corrective_02_precollection.json",
+                "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+                "corrective_02_supersession.json",
+            }
+        )
     observed_corrective_paths: set[str] = set()
     if not isinstance(corrective_records, list):
         issues.append(
@@ -1478,6 +1765,11 @@ def validate_corrective_provenance(
                 "prospective_evidence_trial_id": provenance.get(
                     "prospective_transient_event_contract", {}
                 ).get("prospective_evidence_trial_id"),
+                "corrective_revision": (
+                    "corrective_02"
+                    if source_schema == CORRECTIVE_CONFIG_SCHEMA_V2
+                    else "corrective_01"
+                ),
             },
         ),
         tuple(issues),
@@ -2700,10 +2992,17 @@ def _bridge_event_gaps(mask: np.ndarray, maximum_gap_samples: int) -> np.ndarray
 def _prospective_transient_events(
     raw_samples: np.ndarray,
     configuration: Mapping[str, Any],
+    *,
+    detector_override: Mapping[str, Any] | None = None,
+    contract_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Count de-duplicated transient candidates independently of report windows."""
 
-    detector = configuration.get("noise_event_detector")
+    detector = (
+        detector_override
+        if detector_override is not None
+        else configuration.get("noise_event_detector")
+    )
     if not isinstance(detector, Mapping):
         raise S43Error("prospective transient-event detector provenance is absent")
     rate = int(configuration["audio"]["sample_rate_hz"])
@@ -2738,6 +3037,27 @@ def _prospective_transient_events(
     censored: list[dict[str, Any]] = []
     short: list[dict[str, Any]] = []
     aggregate_envelope = np.median(envelopes, axis=1)
+    support_aware_boundary = (
+        detector.get("boundary_event_policy")
+        == "incomplete_rms_support_censored_not_counted"
+    )
+    if support_aware_boundary:
+        lower_support = int(detector["lower_index_support_samples"])
+        higher_support = int(detector["higher_index_support_samples"])
+        if (
+            lower_support != window // 2
+            or higher_support != window - lower_support - 1
+            or lower_support + higher_support + 1 != window
+            or detector.get("arbitrary_fixed_time_guard_used") is not False
+        ):
+            raise S43Error(
+                "prospective transient detector boundary support is inconsistent"
+            )
+        complete_center_start = lower_support
+        complete_center_stop = raw_samples.shape[0] - higher_support
+    else:
+        complete_center_start = 0
+        complete_center_stop = raw_samples.shape[0]
     for start, stop in _boolean_runs(bridged):
         duration = stop - start
         peak = start + int(np.argmax(aggregate_envelope[start:stop]))
@@ -2749,7 +3069,7 @@ def _prospective_transient_events(
             "peak_sample": peak,
             "peak_median_raw_rms_full_scale": float(aggregate_envelope[peak]),
         }
-        if start == 0 or stop == bridged.size:
+        if start < complete_center_start or stop > complete_center_stop:
             censored.append(record)
         elif duration < int(detector["minimum_event_duration_samples"]):
             short.append(record)
@@ -2758,12 +3078,16 @@ def _prospective_transient_events(
         else:
             events.append(record)
     duration_s = raw_samples.shape[0] / rate
-    return {
+    result = {
         "status": "measured",
         "metric_id": "prospective_deduplicated_transient_event_rate",
-        "contract_sha256": configuration["corrective_provenance"][
-            "prospective_transient_event_contract"
-        ]["sha256"],
+        "contract_sha256": (
+            contract_sha256
+            if contract_sha256 is not None
+            else configuration["corrective_provenance"][
+                "prospective_transient_event_contract"
+            ]["sha256"]
+        ),
         "detector_window_overlap_dependency": "none",
         "duration_s": duration_s,
         "event_count": len(events),
@@ -2780,6 +3104,44 @@ def _prospective_transient_events(
         "per_channel_threshold_rms_full_scale": thresholds.tolist(),
         "classification": "Measured",
     }
+    if support_aware_boundary:
+        result["boundary_support"] = {
+            "energy_window_samples": window,
+            "even_window_raw_support_for_center_j": "[j-160,j+160)",
+            "complete_center_start_inclusive": complete_center_start,
+            "complete_center_stop_exclusive": complete_center_stop,
+            "complete_center_stop_exclusive_expression": "N-159",
+            "excursion_rule": (
+                "censor [start,stop) when start < 160 or stop > N-159"
+            ),
+            "arbitrary_fixed_time_guard_used": False,
+        }
+    return result
+
+
+def _prospective_detector_binding(
+    configuration: Mapping[str, Any], trial_id: str
+) -> Mapping[str, Any] | None:
+    """Return the prospectively frozen detector binding for one trial only."""
+
+    provenance = configuration.get("corrective_provenance", {})
+    records = provenance.get("prospective_transient_event_contracts")
+    if isinstance(records, list):
+        for record in records:
+            if (
+                isinstance(record, Mapping)
+                and record.get("prospective_evidence_trial_id") == trial_id
+                and isinstance(record.get("detector"), Mapping)
+            ):
+                return record
+        return None
+    record = provenance.get("prospective_transient_event_contract")
+    if (
+        isinstance(record, Mapping)
+        and record.get("prospective_evidence_trial_id") == trial_id
+    ):
+        return {**record, "detector": configuration.get("noise_event_detector")}
+    return None
 
 
 def analyze_noise_characterization(
@@ -2883,12 +3245,21 @@ def analyze_noise_characterization(
         },
         "prospective_distinct_transient_events": (
             _prospective_transient_events(
-                samples[interval_start:interval_stop, raw_indices], configuration
+                samples[interval_start:interval_stop, raw_indices],
+                configuration,
+                detector_override=_prospective_detector_binding(
+                    configuration, str(trial["trial_id"])
+                )["detector"],
+                contract_sha256=str(
+                    _prospective_detector_binding(
+                        configuration, str(trial["trial_id"])
+                    )["sha256"]
+                ),
             )
-            if trial["trial_id"]
-            == configuration.get("corrective_provenance", {})
-            .get("prospective_transient_event_contract", {})
-            .get("prospective_evidence_trial_id")
+            if _prospective_detector_binding(
+                configuration, str(trial["trial_id"])
+            )
+            is not None
             else {
                 "status": "unmeasured",
                 "metric_id": "prospective_deduplicated_transient_event_rate",
@@ -3866,20 +4237,33 @@ def validate_metric_evidence(
         set(measured_noise) == expected_noise_ids,
         "noise-transient results are absent for applicable trials",
     )
-    corrective_noise = (
-        configuration.get("configuration_source", {}).get("schema")
-        == CORRECTIVE_CONFIG_SCHEMA
-    )
-    prospective_trial_id = (
-        configuration.get("corrective_provenance", {})
-        .get("prospective_transient_event_contract", {})
-        .get("prospective_evidence_trial_id")
-    )
+    corrective_schema = configuration.get("configuration_source", {}).get("schema")
+    corrective_noise = corrective_schema in {
+        CORRECTIVE_CONFIG_SCHEMA,
+        CORRECTIVE_CONFIG_SCHEMA_V2,
+    }
+    provenance = configuration.get("corrective_provenance", {})
+    prospective_bindings: dict[str, Mapping[str, Any]] = {}
+    if corrective_schema == CORRECTIVE_CONFIG_SCHEMA_V2:
+        records = provenance.get("prospective_transient_event_contracts")
+        if isinstance(records, list):
+            prospective_bindings = {
+                str(record.get("prospective_evidence_trial_id")): record
+                for record in records
+                if isinstance(record, Mapping)
+                and isinstance(record.get("prospective_evidence_trial_id"), str)
+            }
+    else:
+        record = provenance.get("prospective_transient_event_contract")
+        if isinstance(record, Mapping) and isinstance(
+            record.get("prospective_evidence_trial_id"), str
+        ):
+            prospective_bindings[str(record["prospective_evidence_trial_id"])] = record
     if corrective_noise:
         require(
             "noise",
-            isinstance(prospective_trial_id, str)
-            and prospective_trial_id in measured_noise,
+            bool(prospective_bindings)
+            and set(prospective_bindings) <= set(measured_noise),
             "required prospective silence evidence is absent",
         )
     for trial_id, record in measured_noise.items():
@@ -3918,10 +4302,11 @@ def validate_metric_evidence(
         )
         require(
             "noise",
-            isinstance(prospective_trial_id, str),
+            bool(prospective_bindings),
             "prospective transient detector provenance or evidence trial is absent",
         )
-        if trial_id == prospective_trial_id:
+        if trial_id in prospective_bindings:
+            binding = prospective_bindings[trial_id]
             require(
                 "noise",
                 isinstance(prospective, Mapping)
@@ -3932,11 +4317,29 @@ def validate_metric_evidence(
                 and isinstance(prospective.get("event_rate_per_s"), (int, float))
                 and prospective.get("detector_window_overlap_dependency") == "none"
                 and prospective.get("contract_sha256")
-                == configuration["corrective_provenance"][
-                    "prospective_transient_event_contract"
-                ]["sha256"],
+                == binding.get("sha256"),
                 f"{trial_id}: prospective transient-event evidence incomplete",
             )
+            if binding.get("revision") == "corrective_02":
+                support = (
+                    prospective.get("boundary_support")
+                    if isinstance(prospective, Mapping)
+                    else None
+                )
+                require(
+                    "noise",
+                    isinstance(support, Mapping)
+                    and support.get("energy_window_samples") == 320
+                    and support.get("complete_center_start_inclusive") == 160
+                    and support.get("complete_center_stop_exclusive")
+                    == int(round(float(record.get("duration_s", 0.0)) * 16_000))
+                    - 159
+                    and support.get("arbitrary_fixed_time_guard_used") is False,
+                    (
+                        f"{trial_id}: corrective-02 exact boundary-support "
+                        "evidence incomplete"
+                    ),
+                )
         else:
             require(
                 "noise",

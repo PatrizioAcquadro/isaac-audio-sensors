@@ -534,6 +534,19 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         / "corrective_01_precollection/validation/raw_independent_validation.json",
         diagnostic_root
         / "corrective_01_precollection/validation/evidence_coverage.json",
+        ROOT / "docs/development/specs/s4_3_pilot_corrective_02.md",
+        freeze_root / "boundary_defect_reproduction_02.json",
+        freeze_root / "transient_event_contract_02.json",
+        freeze_root / "trial_inventory_corrective_02_precollection.json",
+        freeze_root / "corrective_02_supersession.json",
+        diagnostic_root / "corrective_02_precollection_gate.json",
+        diagnostic_root / "corrective_02_precollection/trial_inventory.json",
+        diagnostic_root
+        / "corrective_02_precollection/validation/deterministic_replay.json",
+        diagnostic_root
+        / "corrective_02_precollection/validation/raw_independent_validation.json",
+        diagnostic_root
+        / "corrective_02_precollection/validation/evidence_coverage.json",
         ROOT / "src/isaac_audio_sensors/acquisition/s4_3.py",
         ROOT / "scripts/run_s4_3_trial.py",
         ROOT / "scripts/reanalyze_s4_3_array_frame.py",
@@ -625,14 +638,14 @@ def main() -> int:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/s4_3_pilot_corrective_01.v1.json"),
+        default=Path("configs/s4_3_pilot_corrective_02.v1.json"),
     )
     parser.add_argument(
         "--preregistration",
         type=Path,
         default=Path(
             "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
-            "preregistration_corrective_01.json"
+            "preregistration_corrective_02.json"
         ),
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)

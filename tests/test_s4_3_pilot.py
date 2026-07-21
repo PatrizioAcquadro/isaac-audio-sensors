@@ -14,6 +14,7 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     EXPECTED_INTERACTIVE_STIMULUS_PROTOCOL,
     EXPECTED_OPERATIONAL_GATE_POLICY,
     S43Error,
+    _prospective_transient_events,
     aggregate_category,
     analysis_microphone_positions_project_m,
     analyze_noise_characterization,
@@ -60,7 +61,8 @@ INTERACTIVE_PREREG_PATH = (
     ROOT / "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
     "preregistration_amendment_04.json"
 )
-CORRECTIVE_CONFIG_PATH = ROOT / "configs/s4_3_pilot_corrective_01.v1.json"
+CORRECTIVE_01_CONFIG_PATH = ROOT / "configs/s4_3_pilot_corrective_01.v1.json"
+CORRECTIVE_CONFIG_PATH = ROOT / "configs/s4_3_pilot_corrective_02.v1.json"
 REFERENCE_PATH = (
     ROOT / "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav"
 )
@@ -1089,10 +1091,12 @@ def test_missing_or_inconsistent_corrective_provenance_fails_closed(
     tmp_path: Path,
 ) -> None:
     payload = load_json(CORRECTIVE_CONFIG_PATH)
-    payload["clipping_corrective"]["path"] = "missing/clipping.json"
+    payload["prospective_transient_event_contract"]["path"] = (
+        "missing/transient-event-contract-02.json"
+    )
     broken_path = tmp_path / "broken-corrective.json"
     broken_path.write_text(json.dumps(payload), encoding="utf-8")
-    with pytest.raises(S43Error, match="clipping_corrective SHA-256 mismatch"):
+    with pytest.raises(S43Error, match="corrective-02 binding.*SHA-256 mismatch"):
         load_pilot_configuration(broken_path, repo_root=ROOT)
 
     config = _corrective_config()
@@ -1100,7 +1104,7 @@ def test_missing_or_inconsistent_corrective_provenance_fails_closed(
     inconsistent["quality"]["maximum_sustained_clip_run_samples"] = 3_999
     preregistration = {
         "configuration": {
-            "path": "configs/s4_3_pilot_corrective_01.v1.json",
+            "path": "configs/s4_3_pilot_corrective_02.v1.json",
             "effective_canonical_sha256": canonical_sha256(inconsistent),
         }
     }
@@ -1110,6 +1114,46 @@ def test_missing_or_inconsistent_corrective_provenance_fails_closed(
     assert not report.passed
     assert any(
         issue.code == "effective_clipping_threshold_mismatch" for issue in report.issues
+    )
+
+
+def test_missing_or_inconsistent_corrective_02_provenance_fails_closed() -> None:
+    config = _corrective_config()
+    preregistration = {
+        "configuration": {
+            "path": "configs/s4_3_pilot_corrective_02.v1.json",
+            "effective_canonical_sha256": canonical_sha256(config),
+        },
+        "corrective_records": [],
+    }
+
+    missing = copy.deepcopy(config)
+    missing["corrective_provenance"].pop("corrective_02_specification")
+    preregistration["configuration"]["effective_canonical_sha256"] = canonical_sha256(
+        missing
+    )
+    report = validate_corrective_provenance(
+        missing, preregistration, repo_root=ROOT
+    )
+    assert not report.passed
+    assert any(
+        issue.code == "corrective_binding_absent"
+        and issue.path == "corrective_02_specification"
+        for issue in report.issues
+    )
+
+    inconsistent = copy.deepcopy(config)
+    inconsistent["noise_event_detector"]["lower_index_support_samples"] = 159
+    preregistration["configuration"]["effective_canonical_sha256"] = canonical_sha256(
+        inconsistent
+    )
+    report = validate_corrective_provenance(
+        inconsistent, preregistration, repo_root=ROOT
+    )
+    assert not report.passed
+    assert any(
+        issue.code == "corrective_02_boundary_support_mismatch"
+        for issue in report.issues
     )
 
 
@@ -1125,7 +1169,7 @@ def _noise_result(
     return analyze_noise_characterization(
         wav_path,
         {"reference_start_sample": None},
-        _trial(config, "s4_3_rob_silence_02_prospective_events_01"),
+        _trial(config, "s4_3_rob_silence_03_boundary_support_01"),
         config,
     )
 
@@ -1138,6 +1182,87 @@ def test_stationary_above_threshold_is_not_repeatedly_counted_as_events(
     prospective = _noise_result(tmp_path, raw)["prospective_distinct_transient_events"]
     assert prospective["event_count"] == 0
     assert prospective["stationary_excursion_count"] == 1
+
+
+@pytest.mark.parametrize("amplitude", [0.0021, 0.0025])
+@pytest.mark.parametrize("boundary", ["start", "stop"])
+def test_prospective_event_with_required_rms_support_at_boundary_is_censored(
+    tmp_path: Path,
+    amplitude: float,
+    boundary: str,
+) -> None:
+    raw = np.zeros((3 * 16_000, 4), dtype=np.float64)
+    if boundary == "start":
+        raw[:2_400, :] = amplitude
+    else:
+        raw[-2_400:, :] = amplitude
+
+    prospective = _noise_result(tmp_path, raw)[
+        "prospective_distinct_transient_events"
+    ]
+    assert prospective["event_count"] == 0
+    assert prospective["boundary_censored_excursion_count"] == 1
+    assert len(prospective["boundary_censored_excursions"]) == 1
+    support = prospective["boundary_support"]
+    assert support["even_window_raw_support_for_center_j"] == "[j-160,j+160)"
+    assert support["complete_center_start_inclusive"] == 160
+    assert support["complete_center_stop_exclusive"] == raw.shape[0] - 159
+    assert support["arbitrary_fixed_time_guard_used"] is False
+
+
+@pytest.mark.parametrize("amplitude", [0.0021, 0.0025])
+def test_equivalent_fully_interior_low_amplitude_event_counts_once(
+    tmp_path: Path, amplitude: float
+) -> None:
+    raw = np.zeros((3 * 16_000, 4), dtype=np.float64)
+    raw[12_000:14_400, :] = amplitude
+    prospective = _noise_result(tmp_path, raw)[
+        "prospective_distinct_transient_events"
+    ]
+    assert prospective["event_count"] == 1
+    assert prospective["boundary_censored_excursion_count"] == 0
+    assert len(prospective["events"]) == 1
+
+
+def test_corrective_02_preserves_short_and_channel_concurrence_semantics() -> None:
+    config = _corrective_config()
+    raw = np.zeros((48_000, 4), dtype=np.float64)
+    raw[20_000:20_320, :] = 0.00201
+    short = _prospective_transient_events(raw, config)
+    assert short["event_count"] == 0
+    assert short["short_excursion_count"] == 1
+
+    one_channel = np.zeros((48_000, 4), dtype=np.float64)
+    one_channel[12_000:14_400, 0] = 0.05
+    assert _prospective_transient_events(one_channel, config)["event_count"] == 0
+    two_channels = one_channel.copy()
+    two_channels[12_000:14_400, 1] = 0.05
+    assert _prospective_transient_events(two_channels, config)["event_count"] == 1
+
+
+def test_corrective_02_preserves_duration_boundary_and_gap_bridging() -> None:
+    config = _corrective_config()
+    at_maximum = np.zeros((48_000, 4), dtype=np.float64)
+    at_maximum[20_000 : 20_000 + 16_089, :] = 0.0025
+    result = _prospective_transient_events(at_maximum, config)
+    assert result["event_count"] == 1
+    assert result["events"][0]["duration_samples"] == 16_000
+
+    above_maximum = np.zeros((48_000, 4), dtype=np.float64)
+    above_maximum[20_000 : 20_000 + 16_090, :] = 0.0025
+    result = _prospective_transient_events(above_maximum, config)
+    assert result["event_count"] == 0
+    assert result["stationary_excursion_count"] == 1
+    assert result["stationary_excursions"][0]["duration_samples"] == 16_001
+
+    bridged = np.zeros((48_000, 4), dtype=np.float64)
+    bridged[10_000:10_400, :] = 0.05
+    bridged[12_319:12_719, :] = 0.05
+    assert _prospective_transient_events(bridged, config)["event_count"] == 1
+    separated = np.zeros((48_000, 4), dtype=np.float64)
+    separated[10_000:10_400, :] = 0.05
+    separated[12_320:12_720, :] = 0.05
+    assert _prospective_transient_events(separated, config)["event_count"] == 2
 
 
 def test_separated_events_are_distinct_and_one_spanning_windows_counts_once(

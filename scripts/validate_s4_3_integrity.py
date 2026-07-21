@@ -227,6 +227,13 @@ def validate(
         "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_corrective_01_precollection.json",
         "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_01_supersession.json",
         "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/corrective_01_precollection_gate.json",
+        "configs/s4_3_pilot_corrective_02.v1.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_corrective_02.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/boundary_defect_reproduction_02.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/transient_event_contract_02.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_corrective_02_precollection.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_supersession.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/corrective_02_precollection_gate.json",
     }
     if require_final:
         required.update(
@@ -346,14 +353,14 @@ def main() -> int:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/s4_3_pilot_corrective_01.v1.json"),
+        default=Path("configs/s4_3_pilot_corrective_02.v1.json"),
     )
     parser.add_argument(
         "--preregistration",
         type=Path,
         default=Path(
             "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
-            "preregistration_corrective_01.json"
+            "preregistration_corrective_02.json"
         ),
     )
     parser.add_argument("--require-machine-local", action="store_true")

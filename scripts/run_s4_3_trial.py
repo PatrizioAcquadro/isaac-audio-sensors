@@ -702,14 +702,14 @@ def main() -> int:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/s4_3_pilot_corrective_01.v1.json"),
+        default=Path("configs/s4_3_pilot_corrective_02.v1.json"),
     )
     parser.add_argument(
         "--preregistration",
         type=Path,
         default=Path(
             "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
-            "preregistration_corrective_01.json"
+            "preregistration_corrective_02.json"
         ),
     )
     parser.add_argument("--trial-id", required=True)
