@@ -1,13 +1,13 @@
 {
   "schema": "ias.s4_3.repository_gate.v1",
-  "status": "failed",
+  "status": "passed",
   "phase": "S4.3",
-  "s4_3_verdict": "FAIL",
-  "s4_4_readiness": "NO-GO",
+  "s4_3_verdict": "PASS",
+  "s4_4_readiness": "GO",
   "s4_4_started": false,
   "remediation_baseline_revision": "91baa3a03742f4efd21e0a145e59774c18952c1c",
-  "validated_checkpoint_revision": "ac05849191647bca152edf13e0251e4a29840be3",
-  "working_tree_state": "uncommitted_prospective_silence_evidence",
+  "validated_checkpoint_revision": "628e9bb98e1331de68b21c08e528d8ff15a6ebaf",
+  "working_tree_state": "clean_at_release_validation; finalization evidence pending separate commit",
   "active_preregistration": {
     "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_corrective_01.json",
     "sha256": "114887e8464390349988c7202464f834cb8e59f9582d0774a70c19ecf5cf72c6"
@@ -83,10 +83,10 @@
     "deterministic_replay_passed": true,
     "machine_local_validation_passed": true,
     "raw_independent_validation_passed": true,
-    "repository_release_source_clean": false,
-    "kit_build_and_audit_passed": false,
-    "pack_build_and_audit_passed": false,
-    "final_integrity_validation_passed": false,
+    "repository_release_source_clean": true,
+    "kit_build_and_audit_passed": true,
+    "pack_build_and_audit_passed": true,
+    "final_integrity_validation_passed": true,
     "raw_media_gitignored": true,
     "s4_4_not_started": true
   },
@@ -135,15 +135,11 @@
     "the legacy distinct-event transient rate is Unmeasured because inspected data cannot confirm the prospective detector",
     "the prospectively frozen detector measured zero events in one 15-second intended-silence trial; this single interval does not establish a population event rate",
     "small-sample nearest-rank tails describe this pilot only",
-    "clean-source release, Kit, pack, and final-integrity validation remain pending a local evidence checkpoint commit"
+    "the PASS/GO evidence is provenance-bound to checkpoint 628e9bb98e1331de68b21c08e528d8ff15a6ebaf; any later source change requires revalidation"
   ],
   "superseded_fail_closed_provenance": {
     "state": "retained",
     "summary": "Before checkpoint authorization, release-source, Kit, pack, and final integrity failed closed on the intentionally dirty remediation worktree; the clean checkpoint rerun supersedes those operational blocker outcomes without deleting them."
-  },
-  "blocker": {
-    "code": "uncommitted_prospective_silence_evidence",
-    "resolution": "commit the bounded regenerated S4.3 evidence, rerun clean-source release, Kit, pack, and final integrity, then create the provenance-only finalization commit"
   },
   "evidence_index": "outputs/isaac_audio_sensors/S4/S4.3/evidence_index.json",
   "closeout": "docs/development/closeouts/S4/s4_3_pilot_repeatability.md"

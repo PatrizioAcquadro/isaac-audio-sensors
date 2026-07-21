@@ -1,11 +1,11 @@
 {
   "schema": "ias.s4_3.repository_validation.v1",
-  "status": "failed",
+  "status": "passed",
   "remediation_baseline_revision": "91baa3a03742f4efd21e0a145e59774c18952c1c",
-  "validated_checkpoint_revision": "ac05849191647bca152edf13e0251e4a29840be3",
+  "validated_checkpoint_revision": "628e9bb98e1331de68b21c08e528d8ff15a6ebaf",
   "branch": "main",
-  "working_tree_clean": false,
-  "working_tree_clean_at_release_validation": false,
+  "working_tree_clean": true,
+  "working_tree_clean_at_release_validation": true,
   "commands": [
     {
       "command": "PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_s4_3_pilot.py",
@@ -19,13 +19,13 @@
     },
     {
       "command": "PYTHONPATH=src .venv/bin/python scripts/validate_s4_3_integrity.py --require-machine-local",
-      "result": "pending_post_checkpoint",
-      "summary": "pending regenerated evidence checkpoint"
+      "result": "passed",
+      "summary": "318 indexed artifacts checked; 258 machine-local records; zero issues"
     },
     {
       "command": "make test",
-      "result": "pending_post_checkpoint",
-      "summary": "not yet rerun after prospective capture"
+      "result": "passed",
+      "summary": "1277 passed, 80 expected optional-dependency or hardware-gated skips"
     },
     {
       "command": "make lint",
@@ -34,43 +34,43 @@
     },
     {
       "command": "make build",
-      "result": "pending_post_checkpoint",
-      "summary": "not yet rerun after prospective capture"
+      "result": "passed",
+      "summary": "sdist and wheel built; embedded distribution audit passed"
     },
     {
       "command": "make check-version",
-      "result": "pending_post_checkpoint",
-      "summary": "not yet rerun after prospective capture"
+      "result": "passed",
+      "summary": "version 1.10.0 synchronized"
     },
     {
       "command": "make check-release-source",
-      "result": "failed_expected_pending_evidence_checkpoint",
-      "summary": "regenerated prospective evidence is intentionally uncommitted"
+      "result": "passed",
+      "summary": "clean release source 628e9bb98e1331de68b21c08e528d8ff15a6ebaf"
     },
     {
       "command": "make audit-dist",
-      "result": "pending_post_checkpoint",
-      "summary": "not yet rerun after prospective capture"
+      "result": "passed",
+      "summary": "sdist 409 files; wheel 133 files"
     },
     {
       "command": "make build-kit",
-      "result": "pending_post_checkpoint",
-      "summary": "clean-source checkpoint required"
+      "result": "passed",
+      "summary": "Kit archive built for version 1.10.0 and revision 628e9bb98e1331de68b21c08e528d8ff15a6ebaf; embedded audit passed for 134 files"
     },
     {
       "command": "make audit-kit",
-      "result": "pending_post_checkpoint",
-      "summary": "clean-source checkpoint required"
+      "result": "passed",
+      "summary": "Kit archive audit passed for 134 files"
     },
     {
       "command": "make build-pack WHEELHOUSE=/tmp/ias-s4-3-wheelhouse-Yqs1Oh",
-      "result": "pending_post_checkpoint",
-      "summary": "clean-source checkpoint required"
+      "result": "passed",
+      "summary": "acoustic pack built from the controlled five-wheel wheelhouse for version 1.10.0 and clean revision 628e9bb98e1331de68b21c08e528d8ff15a6ebaf"
     },
     {
       "command": "make audit-pack",
-      "result": "pending_post_checkpoint",
-      "summary": "clean-source checkpoint required"
+      "result": "passed",
+      "summary": "acoustic-pack archive audit passed for 8 files"
     },
     {
       "command": "git diff --check",
@@ -79,8 +79,8 @@
     },
     {
       "command": "PYTHONPATH=src .venv/bin/python scripts/validate_s4_3_integrity.py --require-machine-local --require-final --output outputs/isaac_audio_sensors/S4/S4.3/validation/final_integrity_validation.json",
-      "result": "pending_post_checkpoint",
-      "summary": "repository gate and clean-source validation pending"
+      "result": "passed",
+      "summary": "318 artifacts checked including 258 machine-local records; zero issues"
     }
   ],
   "s4_3_validation_artifacts": {
@@ -113,9 +113,9 @@
     },
     "final_integrity_validation": {
       "path": "outputs/isaac_audio_sensors/S4/S4.3/validation/final_integrity_validation.json",
-      "status": "failed",
-      "checked_artifact_count": null,
-      "issue_count": null,
+      "status": "passed",
+      "checked_artifact_count": 318,
+      "issue_count": 0,
       "issue_paths": []
     }
   },
@@ -135,12 +135,7 @@
       "make audit-kit and make audit-pack had no newly built archive to audit",
       "final require-final integrity reported only the failed repository gate and repository-validation blocker records"
     ],
-    "superseded_by": "clean-source validation at c1f351dcc3e81234b81c6d52cf8fc626f45d0e95"
-  },
-  "current_blocker": {
-    "code": "uncommitted_prospective_silence_evidence",
-    "reason": "the accepted prospective silence attempt and regenerated evidence are not yet committed",
-    "required_action": "create the bounded local evidence checkpoint, rerun every clean-source validation, and finalize provenance without pushing"
+    "superseded_by": "clean-source validation at 628e9bb98e1331de68b21c08e528d8ff15a6ebaf"
   },
   "s4_4_started": false
 }

@@ -2,19 +2,21 @@
 
 ## Verdict
 
-**S4.3: FAIL. S4.4 readiness: NO-GO.** S4.4 was not started.
+**S4.3: PASS. S4.4 readiness: GO.** S4.4 was not started.
 
 The clipping/noise corrective science, prospective silence acquisition, all 22
-metric contracts, and retained-raw reanalysis pass. The repository gate is
-temporarily fail-closed because the new machine-local attempt and regenerated
-evidence are not yet bound to a clean committed checkpoint. Release-source,
-Kit, pack, and final integrity must be rerun after that bounded commit. This
-remains functional engineering characterization, not acoustic metrology.
+metric contracts, retained-raw reanalysis, clean-source release gate, Kit
+build/audit, controlled-wheelhouse acoustic-pack build/audit, and final
+integrity validation pass at checkpoint
+`628e9bb98e1331de68b21c08e528d8ff15a6ebaf`. This remains functional
+engineering characterization, not acoustic metrology.
 
 The remediation baseline is clean commit
 `91baa3a03742f4efd21e0a145e59774c18952c1c` on `main`; the corrected
 implementation and corrective pre-capture freeze were committed as checkpoint
-`ac05849191647bca152edf13e0251e4a29840be3`. The active immutable
+`ac05849191647bca152edf13e0251e4a29840be3`; the prospective silence evidence
+and regenerated analysis were committed as clean validation checkpoint
+`628e9bb98e1331de68b21c08e528d8ff15a6ebaf`. The active immutable
 preregistration is
 `outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_corrective_01.json`
 (SHA-256
@@ -239,7 +241,7 @@ superseded coordinate records are preserved.
 
 ## Validation
 
-The corrective implementation and uncommitted regenerated evidence currently
+The corrective implementation and checkpoint-bound regenerated evidence
 produce:
 
 - targeted S4.3 tests: 70 passed;
@@ -252,9 +254,17 @@ produce:
 - pre-capture fail-closed evidence: 21/22 contracts passed and noise alone was
   missing before the new trial;
 - `make lint` and `git diff --check`: PASS during corrective implementation;
-- full repository, clean-source, distribution, Kit, pack, and final-integrity
-  results remain pending the evidence checkpoint commit and are not silently
-  reported as passes.
+- `make test`: 1277 passed and 80 documented optional-dependency or
+  hardware-gated skips;
+- `make lint`: PASS;
+- `make build`, `make check-version`, `make check-release-source`, and
+  `make audit-dist`: PASS; version 1.10.0, clean source checkpoint
+  `628e9bb98e1331de68b21c08e528d8ff15a6ebaf`, sdist 409 files, wheel 133 files;
+- Kit build/audit: PASS, 134 files;
+- controlled five-wheel wheelhouse acoustic-pack build/audit: PASS, 8 files;
+- final integrity: PASS, 318 checked artifacts including 258 machine-local
+  records and zero issues;
+- `git diff --check`: PASS.
 
 The prior dirty-worktree fail-closed release, Kit, pack, and final-integrity
 outcomes remain explicitly retained as superseded provenance in
@@ -283,7 +293,6 @@ reports, not raw WAV or SVO2 media. The machine-local dataset is the only copy
 confirmed by this closeout; no independent backup or durability guarantee is
 claimed.
 
-S4.4 remains untouched and NO-GO until the corrective evidence checkpoint,
-clean-source validation, and final provenance commit pass. Any later GO remains
-conditional on preserving these limitations, using leakage-relevant grouping,
-and freezing development/fit and held-out conditions before final tuning.
+S4.4 remains untouched. Its GO verdict is conditional on preserving these
+limitations, using leakage-relevant grouping, and freezing development/fit and
+held-out conditions before final tuning.
