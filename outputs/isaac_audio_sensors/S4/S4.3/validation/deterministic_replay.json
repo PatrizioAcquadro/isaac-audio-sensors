@@ -1,5 +1,5 @@
 {
-  "accepted_attempt_count": 13,
+  "accepted_attempt_count": 14,
   "checks": [
     {
       "attempt_id": "s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
@@ -266,6 +266,27 @@
               "frame_to_adapter_round_trip_ms"
             ],
             "scientific_replay_sha256": "47b3297454df8a7f35fd5d062141cce9d489d2aa89d06b0b66f9165c95df81ef",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rob_silence_02_prospective_events_01_20260721T225816Z_4b67afd5",
+      "trial_id": "s4_3_rob_silence_02_prospective_events_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "68b34e6d55b6db8859aec52e835cba3e1365edbd70c1285a353c6cfb7d6d1cf9",
             "status": "passed"
           }
         ],

@@ -209,6 +209,7 @@
             "sustained_clipping": false
           }
         ],
+        "declared_channel_health_failure_count": 0,
         "declared_channel_order": [
           "conference",
           "asr",
@@ -227,6 +228,7 @@
         "outcome": "accepted",
         "raw_channel_health_failure_count": 0,
         "status": "passed",
+        "sustained_clip_failure_comparator": "greater_than_or_equal",
         "sustained_clip_run_samples_min": 4000,
         "trial_id": "s4_3_rpt_baseline_01"
       },
@@ -318,6 +320,7 @@
             "sustained_clipping": false
           }
         ],
+        "declared_channel_health_failure_count": 0,
         "declared_channel_order": [
           "conference",
           "asr",
@@ -336,6 +339,7 @@
         "outcome": "accepted",
         "raw_channel_health_failure_count": 0,
         "status": "passed",
+        "sustained_clip_failure_comparator": "greater_than_or_equal",
         "sustained_clip_run_samples_min": 4000,
         "trial_id": "s4_3_rpt_baseline_02"
       },
@@ -427,6 +431,7 @@
             "sustained_clipping": false
           }
         ],
+        "declared_channel_health_failure_count": 0,
         "declared_channel_order": [
           "conference",
           "asr",
@@ -445,6 +450,7 @@
         "outcome": "accepted",
         "raw_channel_health_failure_count": 0,
         "status": "passed",
+        "sustained_clip_failure_comparator": "greater_than_or_equal",
         "sustained_clip_run_samples_min": 4000,
         "trial_id": "s4_3_rpt_baseline_03"
       },
@@ -536,6 +542,7 @@
             "sustained_clipping": false
           }
         ],
+        "declared_channel_health_failure_count": 0,
         "declared_channel_order": [
           "conference",
           "asr",
@@ -554,6 +561,7 @@
         "outcome": "accepted",
         "raw_channel_health_failure_count": 0,
         "status": "passed",
+        "sustained_clip_failure_comparator": "greater_than_or_equal",
         "sustained_clip_run_samples_min": 4000,
         "trial_id": "s4_3_rpt_baseline_01_confirm_array_frame_01"
       }

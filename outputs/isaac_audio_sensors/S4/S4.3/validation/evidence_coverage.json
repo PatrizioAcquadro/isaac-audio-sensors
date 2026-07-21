@@ -1,6 +1,6 @@
 {
-  "accepted_analysis_count": 13,
-  "attempt_channel_evidence_count": 15,
+  "accepted_analysis_count": 14,
+  "attempt_channel_evidence_count": 16,
   "metric_contract_count": 22,
   "metric_contracts": {
     "abstention": {
@@ -246,10 +246,10 @@
       "status": "passed"
     }
   },
-  "noise_transient_result_count": 13,
-  "planned_trial_count": 14,
+  "noise_transient_result_count": 14,
+  "planned_trial_count": 15,
   "s4_4_content_present": false,
   "schema": "ias.s4_3.evidence_coverage.v2",
   "status": "passed",
-  "terminal_trial_count": 14
+  "terminal_trial_count": 15
 }

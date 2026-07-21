@@ -1,8 +1,8 @@
 {
-  "attempt_count": 15,
-  "configuration_sha256": "4057d0178622934ee5609c31e9c7ab0d0ccd523af08bf74e5f600ff0a1013d3d",
+  "attempt_count": 16,
+  "configuration_sha256": "affd31024d57458f49dbe9630e492c2e2e985c344e90f6f1e618773744580917",
   "outcome_counts": {
-    "accepted": 13,
+    "accepted": 14,
     "failed": 2,
     "in_progress": 0,
     "interrupted": 0,
@@ -10,11 +10,11 @@
     "rejected": 0,
     "unfavorable": 0
   },
-  "planned_trial_count": 14,
+  "planned_trial_count": 15,
   "s4_4_started": false,
   "schema": "ias.s4_3.trial_inventory.v1",
   "status": "terminal",
-  "terminal_trial_count": 14,
+  "terminal_trial_count": 15,
   "trials": [
     {
       "attempts": [
@@ -292,6 +292,25 @@
       "planned_definition_sha256": "fb09f65a11c049efb7563a0cd79818080a824c0e19f1f55a343eb6c40c69422e",
       "planned_outcome": "accepted",
       "trial_id": "s4_3_rob_voice_01_confirm_timing_01"
+    },
+    {
+      "attempts": [
+        {
+          "analysis_sha256": "962464d31e7962924ea01197e99287c941fbe6c5e4f0496b48c141b9f8f82580",
+          "attempt_id": "s4_3_rob_silence_02_prospective_events_01_20260721T225816Z_4b67afd5",
+          "attempt_root": "dataset/S4.3/attempts/s4_3_rob_silence_02_prospective_events_01/s4_3_rob_silence_02_prospective_events_01_20260721T225816Z_4b67afd5",
+          "lifecycle_state": "accepted",
+          "manifest_sha256": "25c4ea43697899b1eb1c77b78e3451a0abdb5a0670a6d7843883e75b9df5f102",
+          "outcome": "accepted",
+          "quality_status": "passed",
+          "reason": "quality and analysis passed",
+          "scientific_disposition": "pending_aggregate_and_closeout"
+        }
+      ],
+      "category": "robustness",
+      "planned_definition_sha256": "844aa0d4c073c9d15be3bbe755c6b0b9527fa2adbfe800e3612ba3254fa2fdc9",
+      "planned_outcome": "accepted",
+      "trial_id": "s4_3_rob_silence_02_prospective_events_01"
     }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "attempt_count": 15,
+  "attempt_count": 16,
   "checks": [
     {
       "attempt_id": "s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0",
@@ -177,6 +177,18 @@
         "status": "passed"
       },
       "trial_id": "s4_3_rob_voice_01_confirm_timing_01"
+    },
+    {
+      "attempt_id": "s4_3_rob_silence_02_prospective_events_01_20260721T225816Z_4b67afd5",
+      "integrity": {
+        "checked": 4,
+        "checksum_manifests": [
+          "SHA256SUMS"
+        ],
+        "issues": [],
+        "status": "passed"
+      },
+      "trial_id": "s4_3_rob_silence_02_prospective_events_01"
     }
   ],
   "fresh_clone_raw_available": false,

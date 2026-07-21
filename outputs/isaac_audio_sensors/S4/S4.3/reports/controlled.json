@@ -91,6 +91,7 @@
           "sustained_clipping": false
         }
       ],
+      "declared_channel_health_failure_count": 0,
       "declared_channel_order": [
         "conference",
         "asr",
@@ -109,6 +110,7 @@
       "outcome": "accepted",
       "raw_channel_health_failure_count": 0,
       "status": "passed",
+      "sustained_clip_failure_comparator": "greater_than_or_equal",
       "sustained_clip_run_samples_min": 4000,
       "trial_id": "s4_3_ctl_front_01"
     },
@@ -200,6 +202,7 @@
           "sustained_clipping": false
         }
       ],
+      "declared_channel_health_failure_count": 0,
       "declared_channel_order": [
         "conference",
         "asr",
@@ -218,6 +221,7 @@
       "outcome": "accepted",
       "raw_channel_health_failure_count": 0,
       "status": "passed",
+      "sustained_clip_failure_comparator": "greater_than_or_equal",
       "sustained_clip_run_samples_min": 4000,
       "trial_id": "s4_3_ctl_opposite_side_01"
     }
@@ -271,7 +275,23 @@
       "interval_kind": "reference_pre_stimulus",
       "interval_start_sample": 0,
       "interval_stop_sample": 39992,
-      "limitation": "functional room-fixture-sensor noise, not microphone self-noise SPL",
+      "legacy_distinct_event_rate": {
+        "classification": "Unmeasured",
+        "metric_id": "legacy_distinct_transient_event_rate",
+        "reason": "the retained S4.3 waveform was inspected before the prospective de-duplicated detector contract was frozen",
+        "status": "unmeasured"
+      },
+      "legacy_overlapping_window_rms_exceedance": {
+        "classification": "Measured",
+        "exceedance_rate_per_s": 7.201440288057612,
+        "exceedance_window_count": 18,
+        "limitation": "overlapping analysis-window exceedances are correlated and are not distinct physical transient events",
+        "metric_id": "legacy_overlapping_window_rms_exceedance_rate",
+        "overlapping_window_count": 18,
+        "status": "measured",
+        "threshold_median_raw_rms_full_scale": 0.002
+      },
+      "limitation": "functional room-fixture-sensor noise, not microphone self-noise SPL; legacy overlapping-window exceedances and prospective de-duplicated events are distinct metrics",
       "median_raw_rms_full_scale": {
         "count": 18,
         "mad": 0.00011006254245038384,
@@ -309,10 +329,14 @@
           "worst": 0.004971564551769713
         }
       },
+      "prospective_distinct_transient_events": {
+        "classification": "Unmeasured",
+        "metric_id": "prospective_deduplicated_transient_event_rate",
+        "reason": "trial predates the prospectively frozen detector contract",
+        "status": "unmeasured"
+      },
+      "schema": "ias.s4_3.noise_characterization.v2",
       "status": "measured",
-      "transient_count": 18,
-      "transient_rate_per_s": 7.201440288057612,
-      "transient_threshold_median_raw_rms_full_scale": 0.002,
       "trial_id": "s4_3_ctl_front_01",
       "window_count": 18,
       "window_duration_ms": 250,
@@ -361,7 +385,23 @@
       "interval_kind": "reference_pre_stimulus",
       "interval_start_sample": 0,
       "interval_stop_sample": 41326,
-      "limitation": "functional room-fixture-sensor noise, not microphone self-noise SPL",
+      "legacy_distinct_event_rate": {
+        "classification": "Unmeasured",
+        "metric_id": "legacy_distinct_transient_event_rate",
+        "reason": "the retained S4.3 waveform was inspected before the prospective de-duplicated detector contract was frozen",
+        "status": "unmeasured"
+      },
+      "legacy_overlapping_window_rms_exceedance": {
+        "classification": "Measured",
+        "exceedance_rate_per_s": 7.356143831970188,
+        "exceedance_window_count": 19,
+        "limitation": "overlapping analysis-window exceedances are correlated and are not distinct physical transient events",
+        "metric_id": "legacy_overlapping_window_rms_exceedance_rate",
+        "overlapping_window_count": 19,
+        "status": "measured",
+        "threshold_median_raw_rms_full_scale": 0.002
+      },
+      "limitation": "functional room-fixture-sensor noise, not microphone self-noise SPL; legacy overlapping-window exceedances and prospective de-duplicated events are distinct metrics",
       "median_raw_rms_full_scale": {
         "count": 19,
         "mad": 0.0012382925997938016,
@@ -399,10 +439,14 @@
           "worst": 0.01449182922827831
         }
       },
+      "prospective_distinct_transient_events": {
+        "classification": "Unmeasured",
+        "metric_id": "prospective_deduplicated_transient_event_rate",
+        "reason": "trial predates the prospectively frozen detector contract",
+        "status": "unmeasured"
+      },
+      "schema": "ias.s4_3.noise_characterization.v2",
       "status": "measured",
-      "transient_count": 19,
-      "transient_rate_per_s": 7.356143831970188,
-      "transient_threshold_median_raw_rms_full_scale": 0.002,
       "trial_id": "s4_3_ctl_opposite_side_01",
       "window_count": 19,
       "window_duration_ms": 250,
