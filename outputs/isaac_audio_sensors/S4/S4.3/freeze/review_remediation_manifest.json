@@ -1,0 +1,52 @@
+{
+  "schema": "ias.s4_3.review_remediation_manifest.v1",
+  "status": "frozen_post_trial_review_remediation",
+  "created_at_utc": "2026-07-21T21:30:10Z",
+  "baseline_branch": "main",
+  "baseline_commit": "91baa3a03742f4efd21e0a145e59774c18952c1c",
+  "purpose": "Bind fail-closed review remediation without rewriting the precollection scientific contract.",
+  "configuration": {
+    "path": "configs/s4_3_pilot_amendment_04.v1.json",
+    "sha256": "8b86e697209f1031bbfd44a6c2cd95f8d0cc9c3206261d0776ceb8ae5c0d4e81",
+    "effective_canonical_sha256": "4057d0178622934ee5609c31e9c7ab0d0ccd523af08bf74e5f600ff0a1013d3d"
+  },
+  "preregistration": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_04.json",
+    "sha256": "6a2012e6bc22608d5495877c38068963f9c9b816c51d4fbc25b5765521f356ba"
+  },
+  "matrix_canonical_sha256": "3872b3ebd7aa6f29d2fe48e60b38e75b8014f598b0b814e3f2f1439bbb7901e8",
+  "scientific_contract_canonical_sha256": "4999a914cb89414f8c9acd97865b8bb1f4746556bd15aea31b4ca3e5ca18434e",
+  "raw_dataset_pre_remediation_aggregate_sha256": "e465b648ffda26f38ed972b3af9c00932cecff437774adbde4430910cdad7710",
+  "implementation": [
+    {
+      "path": "src/isaac_audio_sensors/acquisition/s4_3.py",
+      "sha256": "bb89d1af9f0ea861c7cdcb883f9d498db5b8f65b7fdb7ee1bf8a0265eae93417"
+    },
+    {
+      "path": "scripts/build_s4_3_evidence.py",
+      "sha256": "4eaa1c225ae7cfb84e1bf46930971e11b1242f40632008af5fdfc348ac62a5f8"
+    },
+    {
+      "path": "scripts/validate_s4_3_integrity.py",
+      "sha256": "6e4e927127afa4a0a2f7d14ef0e98081f40f0cf83ed228d96b3ccf7303dbdb4f"
+    },
+    {
+      "path": "tests/test_s4_3_pilot.py",
+      "sha256": "1fed61e4a8359380487e36708bc2cd310ac4a7cc42b98336f848b3603a25f079"
+    }
+  ],
+  "corrected_rules": [
+    "metric-specific validation for all 22 contracts and concrete required outputs",
+    "abstained windows excluded from numeric bearing-error, TDOA, TDOA-error, and relative-delay distributions but retained in coverage denominators",
+    "repeatability raw-channel-health failure threshold enforced",
+    "exact per-trial, per-channel, per-band, and per-pair completeness required",
+    "candidate counts and nearest-candidate errors required",
+    "per-channel presence, order, health, RMS, peak, and clipping summaries required",
+    "noise-transient results and coarse audio-video association required"
+  ],
+  "scientific_thresholds_changed": false,
+  "matrix_changed": false,
+  "raw_evidence_modified": false,
+  "trials_recollected": false,
+  "s4_4_started": false
+}

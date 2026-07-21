@@ -43,6 +43,7 @@ CONFIG_AMENDMENT_SCHEMA = "ias.s4_3.pilot_config_amendment.v1"
 PREREGISTRATION_SCHEMA = "ias.s4_3.preregistration.v1"
 ANALYSIS_SCHEMA = "ias.s4_3.trial_analysis.v1"
 INVENTORY_SCHEMA = "ias.s4_3.trial_inventory.v1"
+REVIEW_REMEDIATION_SCHEMA = "ias.s4_3.review_remediation_manifest.v1"
 EXPECTED_CATEGORIES = {"repeatability", "controlled", "robustness"}
 EXPECTED_PROJECT_FRAME = {
     "frame_name": "F_project",
@@ -138,6 +139,7 @@ EXPECTED_INTERACTIVE_STIMULUS_PROTOCOL = {
     "settle_before_stimulus_cue_s": 2.0,
     "operator_input_does_not_consume_capture_duration": True,
 }
+SUSTAINED_CLIP_RUN_SAMPLES = 4_000
 
 
 class S43Error(RuntimeError):
@@ -272,12 +274,8 @@ def evaluate_zed_startup_contract(
         hard_checks.update(
             {
                 "sdk_matches": version_comparisons["sdk_version"],
-                "camera_firmware_matches": version_comparisons[
-                    "camera_firmware"
-                ],
-                "sensor_firmware_matches": version_comparisons[
-                    "sensor_firmware"
-                ],
+                "camera_firmware_matches": version_comparisons["camera_firmware"],
+                "sensor_firmware_matches": version_comparisons["sensor_firmware"],
             }
         )
     return {
@@ -307,9 +305,7 @@ def zed_device_timestamps_are_valid(
         )
         and all(
             later > earlier
-            for earlier, later in zip(
-                timestamps_ns, timestamps_ns[1:], strict=False
-            )
+            for earlier, later in zip(timestamps_ns, timestamps_ns[1:], strict=False)
         )
     )
 
@@ -440,6 +436,7 @@ def validate_preregistration(
     preregistration: Mapping[str, Any],
     *,
     repo_root: str | Path,
+    verify_implementation_hashes: bool = True,
 ) -> ValidationReport:
     """Validate the complete frozen contract before hardware or result access."""
 
@@ -736,7 +733,7 @@ def validate_preregistration(
                 "amendment must hash its analysis and evidence implementation",
             )
         )
-    if isinstance(implementation_records, list):
+    if verify_implementation_hashes and isinstance(implementation_records, list):
         for index, record in enumerate(implementation_records):
             if not isinstance(record, Mapping):
                 issues.append(
@@ -1045,6 +1042,182 @@ def validate_preregistration(
                 "status": "passed" if not issues else "failed",
                 "planned_trial_count": len(matrix),
                 "category_counts": dict(sorted(categories.items())),
+            },
+        ),
+        tuple(issues),
+    )
+
+
+def validate_review_remediation_manifest(
+    configuration: Mapping[str, Any],
+    preregistration: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    *,
+    repo_root: str | Path,
+) -> ValidationReport:
+    """Bind post-trial validator changes without rewriting the frozen contract."""
+
+    root = Path(repo_root)
+    issues: list[ValidationIssue] = []
+    if manifest.get("schema") != REVIEW_REMEDIATION_SCHEMA:
+        issues.append(
+            _issue(
+                "wrong_review_remediation_schema",
+                "schema",
+                repr(manifest.get("schema")),
+            )
+        )
+    for field in (
+        "scientific_thresholds_changed",
+        "matrix_changed",
+        "raw_evidence_modified",
+        "trials_recollected",
+        "s4_4_started",
+    ):
+        if manifest.get(field) is not False:
+            issues.append(_issue("review_scope_violation", field, "must be false"))
+    for label, expected_payload in (
+        ("configuration", configuration),
+        ("preregistration", preregistration),
+    ):
+        record = manifest.get(label)
+        if not isinstance(record, Mapping):
+            issues.append(_issue("missing_review_binding", label, "must be object"))
+            continue
+        relative = record.get("path")
+        if (
+            not isinstance(relative, str)
+            or Path(relative).is_absolute()
+            or ".." in Path(relative).parts
+        ):
+            issues.append(_issue("unsafe_review_binding", label, repr(relative)))
+            continue
+        path = root / relative
+        if not path.is_file():
+            issues.append(_issue("missing_review_binding", relative, "file absent"))
+            continue
+        if sha256_file(path) != record.get("sha256"):
+            issues.append(
+                _issue("review_binding_hash_mismatch", relative, "SHA-256 differs")
+            )
+        if label == "configuration":
+            if canonical_sha256(expected_payload) != record.get(
+                "effective_canonical_sha256"
+            ):
+                issues.append(
+                    _issue(
+                        "review_effective_configuration_mismatch",
+                        relative,
+                        "effective canonical SHA-256 differs",
+                    )
+                )
+        elif load_json(path) != dict(expected_payload):
+            issues.append(
+                _issue(
+                    "review_preregistration_payload_mismatch",
+                    relative,
+                    "payload differs from active frozen preregistration",
+                )
+            )
+    matrix = configuration.get("matrix", [])
+    if canonical_sha256(matrix) != manifest.get("matrix_canonical_sha256"):
+        issues.append(
+            _issue("review_matrix_hash_mismatch", "matrix", "SHA-256 differs")
+        )
+    threshold_payload = {
+        key: configuration.get(key)
+        for key in (
+            "analysis",
+            "audio",
+            "expansion",
+            "metric_contracts",
+            "quality",
+            "reference",
+            "repeatability_acceptance",
+        )
+    }
+    if canonical_sha256(threshold_payload) != manifest.get(
+        "scientific_contract_canonical_sha256"
+    ):
+        issues.append(
+            _issue(
+                "review_scientific_contract_hash_mismatch",
+                "scientific_contract_canonical_sha256",
+                "SHA-256 differs",
+            )
+        )
+    implementation = manifest.get("implementation")
+    required_paths = {
+        "src/isaac_audio_sensors/acquisition/s4_3.py",
+        "scripts/build_s4_3_evidence.py",
+        "scripts/validate_s4_3_integrity.py",
+        "tests/test_s4_3_pilot.py",
+    }
+    observed_paths: set[str] = set()
+    if not isinstance(implementation, list) or not implementation:
+        issues.append(
+            _issue("missing_review_implementation", "implementation", "must be list")
+        )
+    else:
+        for index, record in enumerate(implementation):
+            if not isinstance(record, Mapping):
+                issues.append(
+                    _issue(
+                        "invalid_review_implementation",
+                        f"implementation[{index}]",
+                        "must be object",
+                    )
+                )
+                continue
+            relative = record.get("path")
+            if (
+                not isinstance(relative, str)
+                or Path(relative).is_absolute()
+                or ".." in Path(relative).parts
+                or relative in observed_paths
+            ):
+                issues.append(
+                    _issue(
+                        "unsafe_review_implementation",
+                        f"implementation[{index}]",
+                        repr(relative),
+                    )
+                )
+                continue
+            observed_paths.add(relative)
+            path = root / relative
+            if not path.is_file():
+                issues.append(
+                    _issue("missing_review_implementation", relative, "file absent")
+                )
+            elif sha256_file(path) != record.get("sha256"):
+                issues.append(
+                    _issue(
+                        "review_implementation_hash_mismatch",
+                        relative,
+                        "SHA-256 differs",
+                    )
+                )
+    if not required_paths <= observed_paths:
+        issues.append(
+            _issue(
+                "review_implementation_coverage_missing",
+                "implementation",
+                repr(sorted(required_paths - observed_paths)),
+            )
+        )
+    return ValidationReport(
+        (
+            {
+                "id": "s4_3_review_remediation",
+                "status": "passed" if not issues else "failed",
+                "matrix_canonical_sha256": canonical_sha256(matrix),
+                "scientific_contract_canonical_sha256": canonical_sha256(
+                    threshold_payload
+                ),
+                "implementation_record_count": len(implementation)
+                if isinstance(implementation, list)
+                else 0,
             },
         ),
         tuple(issues),
@@ -1576,7 +1749,12 @@ def analyze_trial_wav(
         },
         "analysis_frame_correction": configuration.get("analysis_frame_correction"),
     }
-    report["summary"] = summarize_windows(windows)
+    report["summary"] = summarize_windows(
+        windows,
+        bearing_reference_deg=(
+            None if bearing_reference is None else float(bearing_reference)
+        ),
+    )
     return report
 
 
@@ -1602,15 +1780,33 @@ def _stats(values: Sequence[float]) -> dict[str, Any]:
     }
 
 
-def summarize_windows(windows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def summarize_windows(
+    windows: Sequence[Mapping[str, Any]], *, bearing_reference_deg: float | None = None
+) -> dict[str, Any]:
     """Aggregate one trial without hiding abstentions or missing values."""
 
-    detected = [frame for frame in windows if frame.get("signal_present")]
+    detected = [frame for frame in windows if not bool(frame.get("abstained"))]
     bearing_errors = [
         float(frame["absolute_bearing_error_deg"])
-        for frame in windows
+        for frame in detected
         if frame.get("absolute_bearing_error_deg") is not None
     ]
+    referenced = [frame for frame in windows if "candidate_covered" in frame]
+    candidate_counts = [
+        float(len(frame.get("candidate_bearing_deg", [])))
+        for frame in detected
+        if "candidate_covered" in frame
+    ]
+    nearest_candidate_errors = []
+    if bearing_reference_deg is not None:
+        nearest_candidate_errors = [
+            min(
+                _angular_error(float(candidate), float(bearing_reference_deg))
+                for candidate in frame.get("candidate_bearing_deg", [])
+            )
+            for frame in detected
+            if frame.get("candidate_bearing_deg")
+        ]
     return {
         "window_count": len(windows),
         "detected_count": len(detected),
@@ -1628,18 +1824,43 @@ def summarize_windows(windows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             ]
         ),
         "absolute_bearing_error_deg": _stats(bearing_errors),
+        "candidate_count": _stats(candidate_counts),
+        "nearest_candidate_error_deg": _stats(nearest_candidate_errors),
         "confidence": _stats([float(frame["bearing_confidence"]) for frame in windows]),
         "sector_accuracy": (
-            sum(bool(frame.get("sector_correct")) for frame in windows) / len(windows)
-            if windows and any("sector_correct" in frame for frame in windows)
+            sum(
+                not bool(frame.get("abstained")) and bool(frame.get("sector_correct"))
+                for frame in referenced
+            )
+            / len(referenced)
+            if referenced
             else None
         ),
         "candidate_coverage": (
-            sum(bool(frame.get("candidate_covered")) for frame in windows)
-            / len(windows)
-            if windows and any("candidate_covered" in frame for frame in windows)
+            sum(
+                not bool(frame.get("abstained"))
+                and bool(frame.get("candidate_covered"))
+                for frame in referenced
+            )
+            / len(referenced)
+            if referenced
             else None
         ),
+        "candidate_coverage_counts": {
+            "denominator": len(referenced),
+            "covered": sum(
+                not bool(frame.get("abstained"))
+                and bool(frame.get("candidate_covered"))
+                for frame in referenced
+            ),
+            "uncovered": sum(
+                bool(frame.get("abstained")) or not bool(frame.get("candidate_covered"))
+                for frame in referenced
+            ),
+            "abstained_uncovered": sum(
+                bool(frame.get("abstained")) for frame in referenced
+            ),
+        },
         "major_polarity_anomaly_count": sum(
             bool(frame.get("major_polarity_anomaly")) for frame in windows
         ),
@@ -1865,31 +2086,294 @@ def _group_values(windows: Sequence[Mapping[str, Any]], field: str) -> list[floa
     return [float(window[field]) for window in windows if window.get(field) is not None]
 
 
+def _raw_channel_ids(configuration: Mapping[str, Any]) -> tuple[str, ...]:
+    return tuple(str(value) for value in configuration["audio"]["analysis_channel_ids"])
+
+
+def _spectral_band_ids(configuration: Mapping[str, Any]) -> tuple[str, ...]:
+    return tuple(
+        f"{int(low)}-{int(high)}"
+        for low, high in configuration["analysis"]["spectral_bands_hz"]
+    )
+
+
+def _ordered_pair_ids(channel_ids: Sequence[str]) -> tuple[str, ...]:
+    return tuple(f"{left}->{right}" for left in channel_ids for right in channel_ids)
+
+
+def _nonself_pair_ids(channel_ids: Sequence[str]) -> tuple[str, ...]:
+    return tuple(
+        f"{left}->{right}"
+        for left in channel_ids
+        for right in channel_ids
+        if left != right
+    )
+
+
+def _unique_pair_ids(channel_ids: Sequence[str]) -> tuple[str, ...]:
+    return tuple(
+        f"{left}->{right}"
+        for left_index, left in enumerate(channel_ids)
+        for right_index, right in enumerate(channel_ids)
+        if right_index > left_index
+    )
+
+
+def build_channel_evidence(
+    analysis: Mapping[str, Any] | None,
+    trial: Mapping[str, Any],
+    configuration: Mapping[str, Any],
+    *,
+    attempt_id: str,
+    outcome: str,
+) -> dict[str, Any]:
+    """Describe every declared channel, including explicit missing-channel evidence."""
+
+    expected_order = tuple(
+        str(value) for value in configuration["audio"]["channel_order"]
+    )
+    raw_ids = set(_raw_channel_ids(configuration))
+    if analysis is None:
+        return {
+            "trial_id": trial["trial_id"],
+            "attempt_id": attempt_id,
+            "outcome": outcome,
+            "status": "not_applicable_before_capture",
+            "reason": "attempt ended before a waveform analysis record existed",
+            "expected_channel_count": len(expected_order),
+            "declared_channel_order": list(expected_order),
+            "channels": [],
+            "raw_channel_health_failure_count": 0,
+        }
+    wav = analysis.get("wav")
+    if not isinstance(wav, Mapping):
+        wav = {}
+    observed_count = wav.get("channel_count")
+    arrays = {
+        "rms_pcm16": wav.get("per_channel_rms_pcm16"),
+        "peak_pcm16": wav.get("per_channel_peak_pcm16"),
+        "maximum_clip_run_samples": wav.get("per_channel_maximum_clip_run_samples"),
+    }
+    channels = []
+    for index, channel_id in enumerate(expected_order):
+        values: dict[str, Any] = {}
+        for field, sequence in arrays.items():
+            values[field] = (
+                sequence[index]
+                if isinstance(sequence, list) and index < len(sequence)
+                else None
+            )
+        numeric = all(
+            isinstance(values[field], (int, float))
+            and math.isfinite(float(values[field]))
+            for field in values
+        )
+        present = isinstance(observed_count, int) and observed_count > index and numeric
+        raw = channel_id in raw_ids
+        nonsilent_required = raw and trial.get("stimulus") != "silence"
+        silent_failure = bool(
+            nonsilent_required
+            and isinstance(values["rms_pcm16"], (int, float))
+            and float(values["rms_pcm16"]) <= 0.0
+        )
+        sustained_clipping = bool(
+            isinstance(values["maximum_clip_run_samples"], (int, float))
+            and float(values["maximum_clip_run_samples"]) >= SUSTAINED_CLIP_RUN_SAMPLES
+        )
+        healthy = present and not silent_failure and not sustained_clipping
+        channels.append(
+            {
+                "channel_index": index,
+                "channel_id": channel_id,
+                "analysis_raw_channel": raw,
+                "present": present,
+                "finite_summary": numeric,
+                "nonsilent_required": nonsilent_required,
+                "silent_failure": silent_failure,
+                "sustained_clipping": sustained_clipping,
+                "healthy": healthy,
+                **values,
+            }
+        )
+    raw_failures = sum(
+        not bool(channel["healthy"])
+        for channel in channels
+        if channel["analysis_raw_channel"]
+    )
+    complete = (
+        observed_count == len(expected_order)
+        and len(channels) == len(expected_order)
+        and all(channel["finite_summary"] for channel in channels)
+    )
+    return {
+        "trial_id": trial["trial_id"],
+        "attempt_id": attempt_id,
+        "outcome": outcome,
+        "status": "passed" if complete and raw_failures == 0 else "failed",
+        "expected_channel_count": len(expected_order),
+        "observed_channel_count": observed_count,
+        "declared_channel_order": list(expected_order),
+        "order_verification": {
+            "status": "passed" if complete else "failed",
+            "method": "frozen device identity and firmware channel map plus WAV index",
+            "limitation": "physical acoustic centers were not independently traced",
+        },
+        "sustained_clip_run_samples_min": SUSTAINED_CLIP_RUN_SAMPLES,
+        "channels": channels,
+        "raw_channel_health_failure_count": raw_failures,
+    }
+
+
+def analyze_noise_transients(
+    wav_path: str | Path,
+    analysis: Mapping[str, Any],
+    trial: Mapping[str, Any],
+    configuration: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Measure frozen-window noise transients from retained waveform evidence."""
+
+    stimulus = str(trial.get("stimulus"))
+    if stimulus != "silence" and "mac_reference" not in stimulus:
+        return {
+            "trial_id": trial["trial_id"],
+            "status": "not_applicable",
+            "reason": "no intended-silence or reference pre-stimulus interval",
+        }
+    samples, rate = _read_pcm16(Path(wav_path))
+    if stimulus == "silence":
+        interval_start = 0
+        interval_stop = samples.shape[0]
+        interval_kind = "intended_silence"
+    else:
+        reference_start = analysis.get("reference_start_sample")
+        if not isinstance(reference_start, int) or reference_start <= 0:
+            return {
+                "trial_id": trial["trial_id"],
+                "status": "unmeasured",
+                "reason": "reference pre-stimulus boundary absent",
+            }
+        interval_start = 0
+        interval_stop = min(reference_start, samples.shape[0])
+        interval_kind = "reference_pre_stimulus"
+    size = round(configuration["analysis"]["window_duration_ms"] * rate / 1000)
+    hop = round(
+        size * (1.0 - configuration["analysis"]["window_overlap_percent"] / 100.0)
+    )
+    raw_indices = tuple(
+        int(value) for value in configuration["audio"]["analysis_channel_indices"]
+    )
+    raw_ids = _raw_channel_ids(configuration)
+    threshold = float(configuration["analysis"]["signal_rms_full_scale_threshold"])
+    median_rms_values: list[float] = []
+    per_channel: dict[str, list[float]] = {channel_id: [] for channel_id in raw_ids}
+    spectrum: dict[str, list[float]] = {
+        band_id: [] for band_id in _spectral_band_ids(configuration)
+    }
+    for start in range(interval_start, interval_stop - size + 1, hop):
+        window = samples[start : start + size, raw_indices].T
+        rms = np.sqrt(np.mean(window * window, axis=1))
+        median_rms_values.append(float(np.median(rms)))
+        for channel_id, value in zip(raw_ids, rms, strict=True):
+            per_channel[channel_id].append(float(value))
+        bands = _relative_band_db(
+            np.mean(window, axis=0),
+            rate,
+            configuration["analysis"]["spectral_bands_hz"],
+        )
+        for band_id, value in bands.items():
+            spectrum[band_id].append(float(value))
+    duration_s = (interval_stop - interval_start) / rate
+    transient_count = sum(value > threshold for value in median_rms_values)
+    if not median_rms_values or duration_s <= 0.0:
+        return {
+            "trial_id": trial["trial_id"],
+            "status": "unmeasured",
+            "reason": "noise interval contains no complete frozen window",
+        }
+    return {
+        "trial_id": trial["trial_id"],
+        "status": "measured",
+        "interval_kind": interval_kind,
+        "interval_start_sample": interval_start,
+        "interval_stop_sample": interval_stop,
+        "duration_s": duration_s,
+        "window_duration_ms": configuration["analysis"]["window_duration_ms"],
+        "window_overlap_percent": configuration["analysis"]["window_overlap_percent"],
+        "window_count": len(median_rms_values),
+        "transient_threshold_median_raw_rms_full_scale": threshold,
+        "transient_count": transient_count,
+        "transient_rate_per_s": transient_count / duration_s,
+        "median_raw_rms_full_scale": _stats(median_rms_values),
+        "per_channel_rms_full_scale": {
+            channel_id: _stats(values)
+            for channel_id, values in sorted(per_channel.items())
+        },
+        "combined_spectrum_relative_db": {
+            band_id: _stats(values) for band_id, values in sorted(spectrum.items())
+        },
+        "classification": "Measured",
+        "limitation": (
+            "functional room-fixture-sensor noise, not microphone self-noise SPL"
+        ),
+    }
+
+
 def aggregate_category(
     category: str,
     analyses: Sequence[Mapping[str, Any]],
     inventory: Mapping[str, Any],
+    *,
+    configuration: Mapping[str, Any] | None = None,
+    channel_evidence: Sequence[Mapping[str, Any]] = (),
+    noise_transient_results: Sequence[Mapping[str, Any]] = (),
+    coarse_audio_video_association: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a separated category report with complete small-sample summaries."""
 
     selected = [report for report in analyses if report.get("category") == category]
-    windows = [window for report in selected for window in report.get("windows", [])]
+    definitions = (
+        {str(trial["trial_id"]): trial for trial in configuration.get("matrix", [])}
+        if configuration is not None
+        else {}
+    )
+    window_records = [
+        (report, window) for report in selected for window in report.get("windows", [])
+    ]
+    windows = [window for _report, window in window_records]
+    nonabstained_records = [
+        (report, window)
+        for report, window in window_records
+        if not bool(window.get("abstained"))
+    ]
+    nonabstained = [window for _report, window in nonabstained_records]
+    referenced_records = [
+        (report, window)
+        for report, window in window_records
+        if "candidate_covered" in window
+    ]
     channel_rms: dict[str, list[float]] = {}
     channel_relative: dict[str, list[float]] = {}
     spectral: dict[str, list[float]] = {}
     tdoa_us: dict[str, list[float]] = {}
+    tdoa_error_us: dict[str, list[float]] = {}
     delays_us: dict[str, list[float]] = {}
     polarity: dict[str, list[float]] = {}
-    for window in windows:
+    for report, window in window_records:
         for key, value in window.get("per_channel_rms_full_scale", {}).items():
             channel_rms.setdefault(key, []).append(float(value))
-        for key, value in window.get("per_channel_relative_rms_db", {}).items():
-            channel_relative.setdefault(key, []).append(float(value))
         for key, value in window.get("combined_spectrum_relative_db", {}).items():
             spectral.setdefault(key, []).append(float(value))
+        if bool(window.get("abstained")):
+            continue
+        if report.get("stimulus") != "silence":
+            for key, value in window.get("per_channel_relative_rms_db", {}).items():
+                channel_relative.setdefault(key, []).append(float(value))
         for key, value in window.get("tdoa_s", {}).items():
             if key.split("->")[0] != key.split("->")[1]:
                 tdoa_us.setdefault(key, []).append(float(value) * 1e6)
+        for key, value in window.get("tdoa_error_s", {}).items():
+            if key.split("->")[0] != key.split("->")[1]:
+                tdoa_error_us.setdefault(key, []).append(float(value) * 1e6)
         for key, value in window.get("relative_channel_delay_s", {}).items():
             delays_us.setdefault(key, []).append(float(value) * 1e6)
         for key, value in window.get("aligned_pair_correlation", {}).items():
@@ -1899,8 +2383,44 @@ def aggregate_category(
         entry for entry in inventory["trials"] if entry["category"] == category
     ]
     attempts = [attempt for entry in inventory_trials for attempt in entry["attempts"]]
-    return {
-        "schema": "ias.s4_3.category_report.v1",
+    trial_ids = {str(entry["trial_id"]) for entry in inventory_trials}
+    corrected_summaries = {}
+    for report in selected:
+        definition = definitions.get(str(report["trial_id"]), {})
+        reference = definition.get("source_bearing_deg")
+        corrected_summaries[str(report["trial_id"])] = summarize_windows(
+            report.get("windows", []),
+            bearing_reference_deg=(None if reference is None else float(reference)),
+        )
+    candidate_counts = [
+        float(len(window.get("candidate_bearing_deg", [])))
+        for _report, window in referenced_records
+        if not bool(window.get("abstained"))
+    ]
+    nearest_candidate_errors = []
+    for report, window in referenced_records:
+        if bool(window.get("abstained")):
+            continue
+        definition = definitions.get(str(report["trial_id"]), {})
+        reference = definition.get("source_bearing_deg")
+        candidates = window.get("candidate_bearing_deg", [])
+        if reference is not None and candidates:
+            nearest_candidate_errors.append(
+                min(
+                    _angular_error(float(candidate), float(reference))
+                    for candidate in candidates
+                )
+            )
+        elif window.get("absolute_bearing_error_deg") is not None and candidates:
+            nearest_candidate_errors.append(float(window["absolute_bearing_error_deg"]))
+    least_squares_bearings = _group_values(nonabstained, "least_squares_bearing_deg")
+    least_squares_missing_count = sum(
+        window.get("least_squares_bearing_deg") is None
+        for _report, window in referenced_records
+        if not bool(window.get("abstained"))
+    )
+    report_payload = {
+        "schema": "ias.s4_3.category_report.v2",
         "category": category,
         "planned_trial_count": len(inventory_trials),
         "attempt_count": len(attempts),
@@ -1909,7 +2429,7 @@ def aggregate_category(
         "trial_summaries": [
             {
                 "trial_id": report["trial_id"],
-                "summary": report["summary"],
+                "summary": corrected_summaries[str(report["trial_id"])],
                 "relative_decay": report.get("relative_decay"),
                 "scientific_replay_sha256": report["scientific_replay_sha256"],
             }
@@ -1917,10 +2437,15 @@ def aggregate_category(
         ],
         "pooled": {
             "window_count": len(windows),
-            "bearing_deg": _stats(_group_values(windows, "srp_bearing_deg")),
+            "nonabstained_window_count": len(nonabstained),
+            "bearing_deg": _stats(_group_values(nonabstained, "srp_bearing_deg")),
             "absolute_bearing_error_deg": _stats(
-                _group_values(windows, "absolute_bearing_error_deg")
+                _group_values(nonabstained, "absolute_bearing_error_deg")
             ),
+            "least_squares_bearing_deg": _stats(least_squares_bearings),
+            "least_squares_missing_count": least_squares_missing_count,
+            "candidate_count": _stats(candidate_counts),
+            "nearest_candidate_error_deg": _stats(nearest_candidate_errors),
             "confidence": _stats(_group_values(windows, "bearing_confidence")),
             "abstention_rate": (
                 sum(bool(window.get("abstained")) for window in windows) / len(windows)
@@ -1931,17 +2456,57 @@ def aggregate_category(
                 Counter(str(window.get("ambiguity_class")) for window in windows)
             ),
             "sector_accuracy": (
-                sum(bool(window.get("sector_correct")) for window in windows)
-                / len(windows)
-                if windows and any("sector_correct" in window for window in windows)
+                sum(
+                    not bool(window.get("abstained"))
+                    and bool(window.get("sector_correct"))
+                    for _, window in referenced_records
+                )
+                / len(referenced_records)
+                if referenced_records
                 else None
             ),
+            "sector_accuracy_counts": {
+                "denominator": len(referenced_records),
+                "correct": sum(
+                    not bool(window.get("abstained"))
+                    and bool(window.get("sector_correct"))
+                    for _, window in referenced_records
+                ),
+                "incorrect": sum(
+                    bool(window.get("abstained"))
+                    or not bool(window.get("sector_correct"))
+                    for _, window in referenced_records
+                ),
+                "abstained_incorrect": sum(
+                    bool(window.get("abstained")) for _, window in referenced_records
+                ),
+            },
             "candidate_coverage": (
-                sum(bool(window.get("candidate_covered")) for window in windows)
-                / len(windows)
-                if windows and any("candidate_covered" in window for window in windows)
+                sum(
+                    not bool(window.get("abstained"))
+                    and bool(window.get("candidate_covered"))
+                    for _, window in referenced_records
+                )
+                / len(referenced_records)
+                if referenced_records
                 else None
             ),
+            "candidate_coverage_counts": {
+                "denominator": len(referenced_records),
+                "covered": sum(
+                    not bool(window.get("abstained"))
+                    and bool(window.get("candidate_covered"))
+                    for _, window in referenced_records
+                ),
+                "uncovered": sum(
+                    bool(window.get("abstained"))
+                    or not bool(window.get("candidate_covered"))
+                    for _, window in referenced_records
+                ),
+                "abstained_uncovered": sum(
+                    bool(window.get("abstained")) for _, window in referenced_records
+                ),
+            },
             "major_polarity_anomaly_count": sum(
                 bool(window.get("major_polarity_anomaly")) for window in windows
             ),
@@ -1961,6 +2526,9 @@ def aggregate_category(
                 key: _stats(values) for key, values in sorted(spectral.items())
             },
             "tdoa_us": {key: _stats(values) for key, values in sorted(tdoa_us.items())},
+            "tdoa_error_us": {
+                key: _stats(values) for key, values in sorted(tdoa_error_us.items())
+            },
             "relative_channel_delay_us": {
                 key: _stats(values) for key, values in sorted(delays_us.items())
             },
@@ -1975,6 +2543,24 @@ def aggregate_category(
             "nearest-rank p95 is labeled small-sample and is not a population estimate",
         ],
     }
+    report_payload["channel_presence_order_health"] = [
+        dict(record)
+        for record in channel_evidence
+        if str(record.get("trial_id")) in trial_ids
+    ]
+    report_payload["noise_transient_results"] = [
+        dict(record)
+        for record in noise_transient_results
+        if str(record.get("trial_id")) in trial_ids
+        and record.get("status") != "not_applicable"
+    ]
+    if category == "robustness":
+        report_payload["coarse_audio_video_association"] = (
+            None
+            if coarse_audio_video_association is None
+            else dict(coarse_audio_video_association)
+        )
+    return report_payload
 
 
 def _circular_range(values: Sequence[float]) -> float | None:
@@ -2003,25 +2589,52 @@ def evaluate_repeatability(
         report for report in analyses if report.get("trial_id") == "s4_3_rob_silence_01"
     ]
     thresholds = configuration["repeatability_acceptance"]
-    trial_bearings = [
-        float(report["summary"]["bearing_deg"]["median"])
+    definitions = {str(trial["trial_id"]): trial for trial in configuration["matrix"]}
+    expected_baseline_ids = {
+        trial_id
+        for trial_id, trial in definitions.items()
+        if trial.get("category") == "repeatability"
+    }
+    baseline_ids = {str(report.get("trial_id")) for report in baseline}
+    summaries = {
+        str(report["trial_id"]): summarize_windows(
+            report.get("windows", []),
+            bearing_reference_deg=float(
+                definitions[str(report["trial_id"])]["source_bearing_deg"]
+            ),
+        )
         for report in baseline
-        if report["summary"]["bearing_deg"]["median"] is not None
+        if str(report.get("trial_id")) in definitions
+    }
+    trial_bearings = [
+        float(summaries[str(report["trial_id"])]["bearing_deg"]["median"])
+        for report in baseline
+        if summaries.get(str(report.get("trial_id")), {})
+        .get("bearing_deg", {})
+        .get("median")
+        is not None
     ]
     trial_errors = [
-        float(report["summary"]["absolute_bearing_error_deg"]["median"])
+        float(
+            summaries[str(report["trial_id"])]["absolute_bearing_error_deg"]["median"]
+        )
         for report in baseline
-        if report["summary"]["absolute_bearing_error_deg"]["median"] is not None
+        if summaries.get(str(report.get("trial_id")), {})
+        .get("absolute_bearing_error_deg", {})
+        .get("median")
+        is not None
     ]
     sector = [
-        float(report["summary"]["sector_accuracy"])
+        float(summaries[str(report["trial_id"])]["sector_accuracy"])
         for report in baseline
-        if report["summary"]["sector_accuracy"] is not None
+        if summaries.get(str(report.get("trial_id")), {}).get("sector_accuracy")
+        is not None
     ]
     candidates = [
-        float(report["summary"]["candidate_coverage"])
+        float(summaries[str(report["trial_id"])]["candidate_coverage"])
         for report in baseline
-        if report["summary"]["candidate_coverage"] is not None
+        if summaries.get(str(report.get("trial_id")), {}).get("candidate_coverage")
+        is not None
     ]
 
     def trial_medians(field: str) -> dict[str, list[float]]:
@@ -2029,6 +2642,10 @@ def evaluate_repeatability(
         for report in baseline:
             per_report: dict[str, list[float]] = {}
             for window in report["windows"]:
+                if field in {"tdoa_s", "relative_channel_delay_s"} and bool(
+                    window.get("abstained")
+                ):
+                    continue
                 for key, value in window.get(field, {}).items():
                     if field.endswith("_s"):
                         value = float(value) * 1e6
@@ -2040,7 +2657,25 @@ def evaluate_repeatability(
     tdoa = trial_medians("tdoa_s")
     relative_rms = trial_medians("per_channel_relative_rms_db")
     spectrum = trial_medians("combined_spectrum_relative_db")
+    raw_ids = _raw_channel_ids(configuration)
+    expected_tdoa = set(_ordered_pair_ids(raw_ids))
+    expected_bands = set(_spectral_band_ids(configuration))
+    raw_health_records = [
+        build_channel_evidence(
+            report,
+            definitions[str(report["trial_id"])],
+            configuration,
+            attempt_id=str(report["trial_id"]),
+            outcome="accepted",
+        )
+        for report in baseline
+        if str(report.get("trial_id")) in definitions
+    ]
+    raw_health_failure_count = sum(
+        int(record["raw_channel_health_failure_count"]) for record in raw_health_records
+    )
     checks = {
+        "complete_repeatability_trials": baseline_ids == expected_baseline_ids,
         "required_baseline_trials": len(baseline)
         >= thresholds["required_baseline_trials"],
         "median_absolute_bearing_error": bool(trial_errors)
@@ -2056,24 +2691,29 @@ def evaluate_repeatability(
         and float(np.mean(sector)) >= thresholds["sector_accuracy_min"],
         "candidate_coverage": len(candidates) == len(baseline)
         and float(np.mean(candidates)) >= thresholds["candidate_coverage_min"],
-        "pair_tdoa_range": bool(tdoa)
+        "pair_tdoa_range": set(tdoa) == expected_tdoa
         and all(
-            max(values) - min(values)
+            len(values) == len(baseline)
+            and max(values) - min(values)
             <= thresholds["pair_tdoa_trial_median_range_us_max"]
             for values in tdoa.values()
         ),
-        "relative_rms_range": bool(relative_rms)
+        "relative_rms_range": set(relative_rms) == set(raw_ids)
         and all(
-            max(values) - min(values)
+            len(values) == len(baseline)
+            and max(values) - min(values)
             <= thresholds["relative_rms_trial_median_range_db_max"]
             for values in relative_rms.values()
         ),
-        "spectral_band_range": bool(spectrum)
+        "spectral_band_range": set(spectrum) == expected_bands
         and all(
-            max(values) - min(values)
+            len(values) == len(baseline)
+            and max(values) - min(values)
             <= thresholds["spectral_band_trial_median_range_db_max"]
             for values in spectrum.values()
         ),
+        "raw_channel_health_failures": raw_health_failure_count
+        <= thresholds["raw_channel_health_failure_count_max"],
         "major_polarity_anomalies": sum(
             report["summary"]["major_polarity_anomaly_count"] for report in baseline
         )
@@ -2083,7 +2723,7 @@ def evaluate_repeatability(
         >= thresholds["silence_abstention_rate_min"],
     }
     return {
-        "schema": "ias.s4_3.repeatability_gate.v1",
+        "schema": "ias.s4_3.repeatability_gate.v2",
         "status": "passed" if all(checks.values()) else "failed",
         "checks": checks,
         "observations": {
@@ -2095,9 +2735,655 @@ def evaluate_repeatability(
             "pair_tdoa_trial_medians_us": tdoa,
             "relative_rms_trial_medians_db": relative_rms,
             "spectral_band_trial_medians_db": spectrum,
+            "raw_channel_health_failure_count": raw_health_failure_count,
+            "raw_channel_health_by_trial": raw_health_records,
             "silence_abstention_rate": (
                 silence[0]["summary"]["abstention_rate"] if len(silence) == 1 else None
             ),
         },
         "thresholds": dict(thresholds),
+    }
+
+
+def validate_metric_evidence(
+    configuration: Mapping[str, Any],
+    analyses: Sequence[Mapping[str, Any]],
+    inventory: Mapping[str, Any],
+    category_reports: Mapping[str, Mapping[str, Any]],
+    channel_evidence: Sequence[Mapping[str, Any]],
+    noise_transient_results: Sequence[Mapping[str, Any]],
+    failure_report: Mapping[str, Any],
+    coarse_audio_video_association: Mapping[str, Any] | None,
+    svo_replay: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Validate each frozen metric against concrete, complete evidence."""
+
+    metric_names = {
+        "abstention",
+        "acquisition_analysis_failures",
+        "ambiguity",
+        "bearing_doa_error",
+        "candidate_bearing",
+        "capture_to_frame_latency",
+        "channel_imbalance",
+        "channel_presence_order_health",
+        "coarse_audio_video_association",
+        "combined_spectrum",
+        "confidence",
+        "echo_relative_decay",
+        "frame_to_adapter_latency",
+        "major_polarity_anomaly",
+        "noise",
+        "occlusion",
+        "overlap",
+        "relative_channel_delay",
+        "relative_rms_level",
+        "sector_accuracy",
+        "silence",
+        "tdoa",
+    }
+    issues: dict[str, list[str]] = {name: [] for name in sorted(metric_names)}
+
+    def require(metric: str, condition: bool, message: str) -> None:
+        if not condition:
+            issues[metric].append(message)
+
+    contracts = configuration.get("metric_contracts", {})
+    contract_fields = {
+        "method",
+        "reference",
+        "units",
+        "uncertainty",
+        "aggregation",
+        "exclusions",
+        "missing",
+        "applicability",
+        "limitations",
+    }
+    for metric in metric_names:
+        contract = contracts.get(metric)
+        require(metric, isinstance(contract, Mapping), "metric contract absent")
+        if isinstance(contract, Mapping):
+            missing_fields = sorted(contract_fields - set(contract))
+            require(
+                metric,
+                not missing_fields,
+                f"metric contract fields absent: {missing_fields}",
+            )
+    unexpected_contracts = sorted(set(contracts) - metric_names)
+    if unexpected_contracts:
+        for metric in metric_names:
+            require(
+                metric,
+                False,
+                f"unvalidated metric contracts present: {unexpected_contracts}",
+            )
+
+    definitions = {
+        str(trial["trial_id"]): trial for trial in configuration.get("matrix", [])
+    }
+    accepted_trial_ids = {
+        str(entry["trial_id"])
+        for entry in inventory.get("trials", [])
+        if any(
+            attempt.get("outcome") == "accepted"
+            for attempt in entry.get("attempts", [])
+        )
+    }
+    analyses_by_id = {
+        str(report.get("trial_id")): report
+        for report in analyses
+        if isinstance(report, Mapping)
+    }
+    require(
+        "acquisition_analysis_failures",
+        set(analyses_by_id) == accepted_trial_ids,
+        "accepted trial analyses are missing or duplicated",
+    )
+    raw_ids = _raw_channel_ids(configuration)
+    raw_set = set(raw_ids)
+    ordered_pairs = set(_ordered_pair_ids(raw_ids))
+    nonself_pairs = set(_nonself_pair_ids(raw_ids))
+    unique_pairs = set(_unique_pair_ids(raw_ids))
+    band_set = set(_spectral_band_ids(configuration))
+    category_expected: dict[str, dict[str, int]] = {
+        category: {
+            "windows": 0,
+            "nonabstained": 0,
+            "referenced": 0,
+            "referenced_nonabstained": 0,
+            "active_nonabstained": 0,
+        }
+        for category in EXPECTED_CATEGORIES
+    }
+
+    for trial_id in sorted(accepted_trial_ids):
+        report = analyses_by_id.get(trial_id)
+        trial = definitions.get(trial_id)
+        if report is None or trial is None:
+            continue
+        category = str(trial["category"])
+        windows = report.get("windows")
+        if not isinstance(windows, list) or not windows:
+            for metric in metric_names - {"acquisition_analysis_failures"}:
+                require(metric, False, f"{trial_id}: analyzed windows absent")
+            continue
+        require(
+            "acquisition_analysis_failures",
+            report.get("status") == "passed"
+            and report.get("window_count") == len(windows),
+            f"{trial_id}: analysis status/count invalid",
+        )
+        referenced = trial.get("source_bearing_deg") is not None
+        active = trial.get("stimulus") != "silence"
+        for index, window in enumerate(windows):
+            label = f"{trial_id}.windows[{index}]"
+            abstained = window.get("abstained")
+            require(
+                "abstention", isinstance(abstained, bool), f"{label}: abstention absent"
+            )
+            if not isinstance(abstained, bool):
+                abstained = True
+            category_expected[category]["windows"] += 1
+            if not abstained:
+                category_expected[category]["nonabstained"] += 1
+            if referenced:
+                category_expected[category]["referenced"] += 1
+                if not abstained:
+                    category_expected[category]["referenced_nonabstained"] += 1
+            if active and not abstained:
+                category_expected[category]["active_nonabstained"] += 1
+            confidence = window.get("bearing_confidence")
+            require(
+                "confidence",
+                isinstance(confidence, (int, float))
+                and math.isfinite(float(confidence)),
+                f"{label}: confidence absent or nonfinite",
+            )
+            require(
+                "ambiguity",
+                isinstance(window.get("ambiguity_class"), str)
+                and bool(window.get("ambiguity_class")),
+                f"{label}: ambiguity class absent",
+            )
+            for metric, field in (
+                ("capture_to_frame_latency", "capture_to_frame_offline_ms"),
+                ("frame_to_adapter_latency", "frame_to_adapter_round_trip_ms"),
+            ):
+                value = window.get(field)
+                require(
+                    metric,
+                    isinstance(value, (int, float))
+                    and math.isfinite(float(value))
+                    and float(value) >= 0.0,
+                    f"{label}: {field} absent or invalid",
+                )
+            for metric, field, expected in (
+                ("relative_rms_level", "per_channel_rms_full_scale", raw_set),
+                ("combined_spectrum", "combined_spectrum_relative_db", band_set),
+            ):
+                values = window.get(field)
+                require(
+                    metric,
+                    isinstance(values, Mapping)
+                    and set(values) == expected
+                    and all(
+                        isinstance(value, (int, float)) and math.isfinite(float(value))
+                        for value in values.values()
+                    ),
+                    f"{label}: incomplete {field}",
+                )
+            if referenced:
+                require(
+                    "candidate_bearing",
+                    isinstance(window.get("candidate_covered"), bool),
+                    f"{label}: candidate coverage flag absent",
+                )
+                require(
+                    "sector_accuracy",
+                    isinstance(window.get("sector_correct"), bool),
+                    f"{label}: sector correctness flag absent",
+                )
+                if not abstained:
+                    candidates = window.get("candidate_bearing_deg")
+                    require(
+                        "candidate_bearing",
+                        isinstance(candidates, list)
+                        and bool(candidates)
+                        and all(
+                            isinstance(value, (int, float))
+                            and math.isfinite(float(value))
+                            for value in candidates
+                        ),
+                        f"{label}: candidate bearings absent",
+                    )
+                    for field in ("srp_bearing_deg", "absolute_bearing_error_deg"):
+                        value = window.get(field)
+                        require(
+                            "bearing_doa_error",
+                            isinstance(value, (int, float))
+                            and math.isfinite(float(value)),
+                            f"{label}: {field} absent or nonfinite",
+                        )
+                    least_squares = window.get("least_squares_bearing_deg")
+                    require(
+                        "bearing_doa_error",
+                        "least_squares_bearing_deg" in window
+                        and (
+                            least_squares is None
+                            or (
+                                isinstance(least_squares, (int, float))
+                                and math.isfinite(float(least_squares))
+                            )
+                        )
+                        and isinstance(
+                            window.get("least_squares_candidates_deg"), list
+                        ),
+                        f"{label}: least-squares result/missing state absent",
+                    )
+            if active and not abstained:
+                for metric, field, expected in (
+                    ("tdoa", "tdoa_s", ordered_pairs),
+                    ("relative_channel_delay", "relative_channel_delay_s", raw_set),
+                    (
+                        "major_polarity_anomaly",
+                        "aligned_pair_correlation",
+                        unique_pairs,
+                    ),
+                    ("channel_imbalance", "per_channel_relative_rms_db", raw_set),
+                ):
+                    values = window.get(field)
+                    require(
+                        metric,
+                        isinstance(values, Mapping)
+                        and set(values) == expected
+                        and all(
+                            isinstance(value, (int, float))
+                            and math.isfinite(float(value))
+                            for value in values.values()
+                        ),
+                        f"{label}: incomplete {field}",
+                    )
+                require(
+                    "major_polarity_anomaly",
+                    isinstance(window.get("major_polarity_anomaly"), bool),
+                    f"{label}: polarity anomaly flag absent",
+                )
+                if referenced:
+                    tdoa_error = window.get("tdoa_error_s")
+                    require(
+                        "tdoa",
+                        isinstance(tdoa_error, Mapping)
+                        and set(tdoa_error) == ordered_pairs
+                        and all(
+                            isinstance(value, (int, float))
+                            and math.isfinite(float(value))
+                            for value in tdoa_error.values()
+                        ),
+                        f"{label}: incomplete tdoa_error_s",
+                    )
+
+        decay = report.get("relative_decay")
+        if (
+            "mac_reference" in str(trial.get("stimulus"))
+            or trial.get("stimulus") == "visible_audible_ordinary_object_impact"
+        ):
+            require(
+                "echo_relative_decay",
+                isinstance(decay, Mapping)
+                and decay.get("status") in {"measured", "censored", "unmeasured"},
+                f"{trial_id}: relative decay result absent",
+            )
+
+    for category in sorted(EXPECTED_CATEGORIES):
+        report = category_reports.get(category)
+        for metric in metric_names - {
+            "acquisition_analysis_failures",
+            "coarse_audio_video_association",
+        }:
+            require(
+                metric,
+                isinstance(report, Mapping)
+                and report.get("schema") == "ias.s4_3.category_report.v2",
+                f"{category}: category report absent or wrong schema",
+            )
+        if not isinstance(report, Mapping):
+            continue
+        pooled = report.get("pooled")
+        if not isinstance(pooled, Mapping):
+            for metric in metric_names:
+                require(metric, False, f"{category}: pooled report absent")
+            continue
+        expected = category_expected[category]
+        aggregate_requirements = {
+            "bearing_doa_error": (
+                "absolute_bearing_error_deg",
+                expected["referenced_nonabstained"],
+            ),
+            "candidate_bearing": (
+                "candidate_count",
+                expected["referenced_nonabstained"],
+            ),
+            "capture_to_frame_latency": (
+                "capture_to_frame_offline_ms",
+                expected["windows"],
+            ),
+            "confidence": ("confidence", expected["windows"]),
+            "frame_to_adapter_latency": (
+                "frame_to_adapter_round_trip_ms",
+                expected["windows"],
+            ),
+        }
+        for metric, (field, count) in aggregate_requirements.items():
+            stats = pooled.get(field)
+            require(
+                metric,
+                isinstance(stats, Mapping) and stats.get("count") == count,
+                f"{category}: {field} count is incomplete",
+            )
+        least_squares = pooled.get("least_squares_bearing_deg")
+        least_squares_missing = pooled.get("least_squares_missing_count")
+        require(
+            "bearing_doa_error",
+            isinstance(least_squares, Mapping)
+            and isinstance(least_squares_missing, int)
+            and least_squares.get("count") + least_squares_missing
+            == expected["referenced_nonabstained"],
+            f"{category}: least-squares result/missing count is incomplete",
+        )
+        nearest = pooled.get("nearest_candidate_error_deg")
+        require(
+            "candidate_bearing",
+            isinstance(nearest, Mapping)
+            and nearest.get("count") == expected["referenced_nonabstained"],
+            f"{category}: nearest-candidate error count is incomplete",
+        )
+        coverage_counts = pooled.get("candidate_coverage_counts")
+        require(
+            "candidate_bearing",
+            isinstance(coverage_counts, Mapping)
+            and coverage_counts.get("denominator") == expected["referenced"]
+            and coverage_counts.get("abstained_uncovered")
+            == expected["referenced"] - expected["referenced_nonabstained"],
+            f"{category}: candidate coverage denominator is incomplete",
+        )
+        sector_counts = pooled.get("sector_accuracy_counts")
+        require(
+            "sector_accuracy",
+            isinstance(sector_counts, Mapping)
+            and sector_counts.get("denominator") == expected["referenced"]
+            and sector_counts.get("abstained_incorrect")
+            == expected["referenced"] - expected["referenced_nonabstained"],
+            f"{category}: sector denominator is incomplete",
+        )
+        ambiguity_counts = pooled.get("ambiguity_counts")
+        require(
+            "ambiguity",
+            isinstance(ambiguity_counts, Mapping)
+            and sum(int(value) for value in ambiguity_counts.values())
+            == expected["windows"],
+            f"{category}: ambiguity counts are incomplete",
+        )
+        abstention_rate = pooled.get("abstention_rate")
+        require(
+            "abstention",
+            isinstance(abstention_rate, (int, float))
+            and math.isclose(
+                float(abstention_rate),
+                (expected["windows"] - expected["nonabstained"]) / expected["windows"],
+                abs_tol=1e-15,
+            ),
+            f"{category}: abstention rate/count is incomplete",
+        )
+        for metric, field, keys, count in (
+            ("tdoa", "tdoa_us", nonself_pairs, expected["active_nonabstained"]),
+            (
+                "relative_channel_delay",
+                "relative_channel_delay_us",
+                raw_set,
+                expected["active_nonabstained"],
+            ),
+            (
+                "major_polarity_anomaly",
+                "aligned_pair_correlation",
+                unique_pairs,
+                expected["active_nonabstained"],
+            ),
+            (
+                "relative_rms_level",
+                "per_channel_rms_full_scale",
+                raw_set,
+                expected["windows"],
+            ),
+            (
+                "combined_spectrum",
+                "combined_spectrum_relative_db",
+                band_set,
+                expected["windows"],
+            ),
+            (
+                "channel_imbalance",
+                "per_channel_relative_rms_db",
+                raw_set,
+                expected["active_nonabstained"],
+            ),
+        ):
+            grouped = pooled.get(field)
+            require(
+                metric,
+                isinstance(grouped, Mapping)
+                and set(grouped) == keys
+                and all(
+                    isinstance(stats, Mapping) and stats.get("count") == count
+                    for stats in grouped.values()
+                ),
+                f"{category}: {field} per-key evidence incomplete",
+            )
+        expected_error_count = expected["referenced_nonabstained"]
+        grouped_error = pooled.get("tdoa_error_us")
+        require(
+            "tdoa",
+            isinstance(grouped_error, Mapping)
+            and set(grouped_error) == nonself_pairs
+            and all(
+                isinstance(stats, Mapping)
+                and stats.get("count") == expected_error_count
+                for stats in grouped_error.values()
+            ),
+            f"{category}: tdoa_error_us per-pair evidence incomplete",
+        )
+
+    attempt_count = sum(
+        len(entry.get("attempts", [])) for entry in inventory.get("trials", [])
+    )
+    require(
+        "channel_presence_order_health",
+        len(channel_evidence) == attempt_count,
+        "attempt-level channel evidence count is incomplete",
+    )
+    channel_by_attempt = {
+        str(record.get("attempt_id")): record for record in channel_evidence
+    }
+    for entry in inventory.get("trials", []):
+        for attempt in entry.get("attempts", []):
+            attempt_id = str(attempt.get("attempt_id"))
+            record = channel_by_attempt.get(attempt_id)
+            require(
+                "channel_presence_order_health",
+                isinstance(record, Mapping),
+                f"{attempt_id}: channel evidence absent",
+            )
+            if not isinstance(record, Mapping):
+                continue
+            status = record.get("status")
+            require(
+                "channel_presence_order_health",
+                status in {"passed", "failed", "not_applicable_before_capture"},
+                f"{attempt_id}: channel evidence status invalid",
+            )
+            if status != "not_applicable_before_capture":
+                channels = record.get("channels")
+                require(
+                    "channel_presence_order_health",
+                    isinstance(channels, list)
+                    and len(channels) == len(configuration["audio"]["channel_order"])
+                    and all(
+                        set(
+                            (
+                                "channel_index",
+                                "channel_id",
+                                "present",
+                                "healthy",
+                                "rms_pcm16",
+                                "peak_pcm16",
+                                "maximum_clip_run_samples",
+                                "sustained_clipping",
+                            )
+                        )
+                        <= set(channel)
+                        for channel in channels
+                    ),
+                    (
+                        f"{attempt_id}: per-channel presence/health/clip summaries "
+                        "incomplete"
+                    ),
+                )
+                if attempt.get("outcome") == "accepted":
+                    require(
+                        "channel_presence_order_health",
+                        status == "passed",
+                        f"{attempt_id}: accepted attempt channel health failed",
+                    )
+
+    expected_noise_ids = {
+        trial_id
+        for trial_id in accepted_trial_ids
+        if definitions[trial_id].get("stimulus") == "silence"
+        or "mac_reference" in str(definitions[trial_id].get("stimulus"))
+    }
+    measured_noise = {
+        str(record.get("trial_id")): record
+        for record in noise_transient_results
+        if record.get("status") == "measured"
+    }
+    require(
+        "noise",
+        set(measured_noise) == expected_noise_ids,
+        "noise-transient results are absent for applicable trials",
+    )
+    for trial_id, record in measured_noise.items():
+        require(
+            "noise",
+            isinstance(record.get("transient_count"), int)
+            and isinstance(record.get("transient_rate_per_s"), (int, float))
+            and record.get("window_count", 0) > 0
+            and set(record.get("per_channel_rms_full_scale", {})) == raw_set
+            and set(record.get("combined_spectrum_relative_db", {})) == band_set,
+            f"{trial_id}: noise transient/channel/spectrum output incomplete",
+        )
+
+    silence = analyses_by_id.get("s4_3_rob_silence_01")
+    require(
+        "silence",
+        isinstance(silence, Mapping)
+        and bool(silence.get("windows"))
+        and all(bool(window.get("abstained")) for window in silence.get("windows", [])),
+        "silence trial abstention evidence absent",
+    )
+    robustness = category_reports.get("robustness", {})
+    conditions = robustness.get("condition_deltas", {}).get("conditions", [])
+    condition_ids = {
+        str(condition.get("trial_id"))
+        for condition in conditions
+        if isinstance(condition, Mapping)
+    }
+    require(
+        "occlusion",
+        "s4_3_rob_occluded_01" in condition_ids,
+        "occlusion paired delta absent",
+    )
+    require(
+        "overlap",
+        "s4_3_rob_overlap_01" in condition_ids,
+        "overlap paired delta absent",
+    )
+
+    nonaccepted = [
+        attempt
+        for entry in inventory.get("trials", [])
+        for attempt in entry.get("attempts", [])
+        if attempt.get("outcome") != "accepted"
+    ]
+    require(
+        "acquisition_analysis_failures",
+        failure_report.get("failure_count") == len(nonaccepted)
+        and len(failure_report.get("failures", [])) == len(nonaccepted)
+        and failure_report.get("all_failures_retained") is True,
+        "failure inventory is incomplete",
+    )
+
+    av = coarse_audio_video_association
+    require(
+        "coarse_audio_video_association",
+        isinstance(av, Mapping)
+        and av.get("schema") == "ias.s4_3.coarse_audio_video_association.v1"
+        and av.get("status") == "passed"
+        and av.get("event_audible") is True
+        and av.get("event_visible") is True
+        and av.get("event_unique") is True
+        and all(
+            isinstance(av.get(field), (int, float)) and math.isfinite(float(av[field]))
+            for field in (
+                "audio_event_sample_index",
+                "audio_sample_rate_hz",
+                "zed_event_frame_index",
+                "zed_event_timestamp_ns",
+                "offset_s",
+                "total_uncertainty_ms",
+                "maximum_uncertainty_ms",
+            )
+        )
+        and float(av.get("total_uncertainty_ms", math.inf))
+        <= float(av.get("maximum_uncertainty_ms", -math.inf)),
+        "coarse audio-video association output absent or invalid",
+    )
+    require(
+        "coarse_audio_video_association",
+        isinstance(svo_replay, Mapping)
+        and svo_replay.get("status") == "passed"
+        and svo_replay.get("end_of_svo_reached") is True
+        and svo_replay.get("declared_frame_count")
+        == svo_replay.get("replayed_frame_count"),
+        "complete SVO2 replay evidence absent",
+    )
+
+    records = {
+        metric: {
+            "contract_present": isinstance(contracts.get(metric), Mapping),
+            "status": "passed" if not issues[metric] else "failed",
+            "required_outputs_verified": not issues[metric],
+            "issues": issues[metric],
+            "reports": [
+                "reports/repeatability.json",
+                "reports/controlled.json",
+                "reports/robustness.json",
+            ],
+        }
+        for metric in sorted(metric_names)
+    }
+    return {
+        "schema": "ias.s4_3.evidence_coverage.v2",
+        "status": (
+            "passed"
+            if records and all(item["status"] == "passed" for item in records.values())
+            else "failed"
+        ),
+        "metric_contract_count": len(contracts),
+        "metric_contracts": records,
+        "planned_trial_count": inventory.get("planned_trial_count"),
+        "terminal_trial_count": inventory.get("terminal_trial_count"),
+        "accepted_analysis_count": len(analyses),
+        "attempt_channel_evidence_count": len(channel_evidence),
+        "noise_transient_result_count": len(noise_transient_results),
+        "s4_4_content_present": False,
     }

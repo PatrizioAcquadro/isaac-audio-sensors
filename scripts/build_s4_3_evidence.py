@@ -15,20 +15,25 @@ from isaac_audio_sensors.acquisition.s4_2 import sha256_file
 from isaac_audio_sensors.acquisition.s4_3 import (
     S43Error,
     aggregate_category,
+    analyze_noise_transients,
     analyze_trial_wav,
+    build_channel_evidence,
     canonical_sha256,
     evaluate_repeatability,
     inventory_from_attempts,
     load_json,
     load_pilot_configuration,
     validate_inventory,
+    validate_metric_evidence,
     validate_preregistration,
+    validate_review_remediation_manifest,
     verify_deterministic_replay,
 )
 from isaac_audio_sensors.core.dataset.atomic import write_json_atomic
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "outputs/isaac_audio_sensors/S4/S4.3"
+DEFAULT_REVIEW_REMEDIATION = DEFAULT_OUTPUT / "freeze/review_remediation_manifest.json"
 
 
 def _trial(configuration: dict[str, Any], trial_id: str) -> dict[str, Any]:
@@ -200,9 +205,25 @@ def _condition_deltas(analyses: list[dict[str, Any]]) -> dict[str, Any]:
 def build(args: argparse.Namespace) -> dict[str, Any]:
     configuration = load_pilot_configuration(args.config, repo_root=ROOT)
     preregistration = load_json(args.preregistration)
-    freeze = validate_preregistration(configuration, preregistration, repo_root=ROOT)
+    freeze = validate_preregistration(
+        configuration,
+        preregistration,
+        repo_root=ROOT,
+        verify_implementation_hashes=False,
+    )
     if not freeze.passed:
         raise S43Error(f"preregistration failed: {freeze.to_dict()}")
+    review_remediation = load_json(args.review_remediation)
+    review_validation = validate_review_remediation_manifest(
+        configuration,
+        preregistration,
+        review_remediation,
+        repo_root=ROOT,
+    )
+    if not review_validation.passed:
+        raise S43Error(
+            f"review remediation manifest failed: {review_validation.to_dict()}"
+        )
     output = args.output.resolve()
     try:
         output.relative_to(DEFAULT_OUTPUT.resolve())
@@ -233,9 +254,14 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     replay_checks = []
     machine_checks = []
     failures = []
+    channel_evidence = []
+    noise_transient_results = []
+    coarse_audio_video_association: dict[str, Any] | None = None
+    impact_svo_replay: dict[str, Any] | None = None
     reference_path = ROOT / configuration["reference"]["local_path"]
     for entry, attempt in _attempt_paths(inventory):
         attempt_root = ROOT / attempt["attempt_root"]
+        trial = _trial(configuration, entry["trial_id"])
         integrity = _verify_attempt(attempt_root, outcome=attempt["outcome"])
         machine_checks.append(
             {
@@ -245,6 +271,21 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
             }
         )
         if attempt["outcome"] != "accepted":
+            failed_analysis_path = attempt_root / "analysis.json"
+            failed_analysis = (
+                load_json(failed_analysis_path)
+                if failed_analysis_path.is_file()
+                else None
+            )
+            channel_evidence.append(
+                build_channel_evidence(
+                    failed_analysis,
+                    trial,
+                    configuration,
+                    attempt_id=attempt["attempt_id"],
+                    outcome=attempt["outcome"],
+                )
+            )
             failures.append(
                 {
                     "trial_id": entry["trial_id"],
@@ -258,7 +299,6 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         stored_path = attempt_root / "analysis.json"
         wav_path = attempt_root / "raw/respeaker_audio.wav"
         stored = load_json(stored_path)
-        trial = _trial(configuration, entry["trial_id"])
         active_configuration_sha256 = canonical_sha256(configuration)
         superseded_configuration_sha256 = (
             configuration.get("configuration_source", {})
@@ -312,24 +352,58 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
                 "validation": replay.to_dict(),
             }
         )
-        analyses.append(stored)
+        for stored_window, replayed_window in zip(
+            stored.get("windows", []), replayed.get("windows", []), strict=True
+        ):
+            for runtime_field in (
+                "analysis_runtime_ms",
+                "capture_to_frame_offline_ms",
+                "frame_to_adapter_round_trip_ms",
+            ):
+                replayed_window[runtime_field] = stored_window[runtime_field]
+        analyses.append(replayed)
+        channel_evidence.append(
+            build_channel_evidence(
+                replayed,
+                trial,
+                configuration,
+                attempt_id=attempt["attempt_id"],
+                outcome=attempt["outcome"],
+            )
+        )
+        noise_transient_results.append(
+            analyze_noise_transients(wav_path, replayed, trial, configuration)
+        )
+        if entry["trial_id"] == "s4_3_rob_impact_av_01":
+            association_path = attempt_root / "coarse_audio_video_association.json"
+            replay_path = attempt_root / "zed_svo_replay.json"
+            coarse_audio_video_association = load_json(association_path)
+            impact_svo_replay = load_json(replay_path)
 
+    category_reports = {}
     for category in ("repeatability", "controlled", "robustness"):
-        report = aggregate_category(category, analyses, inventory)
+        report = aggregate_category(
+            category,
+            analyses,
+            inventory,
+            configuration=configuration,
+            channel_evidence=channel_evidence,
+            noise_transient_results=noise_transient_results,
+            coarse_audio_video_association=coarse_audio_video_association,
+        )
         if category == "robustness":
             report["condition_deltas"] = _condition_deltas(analyses)
+        category_reports[category] = report
         write_json_atomic(reports_root / f"{category}.json", report)
     repeatability = evaluate_repeatability(analyses, configuration)
     write_json_atomic(reports_root / "repeatability_gate.json", repeatability)
-    write_json_atomic(
-        output / "failures.json",
-        {
-            "schema": "ias.s4_3.failure_inventory.v1",
-            "failure_count": len(failures),
-            "failures": failures,
-            "all_failures_retained": True,
-        },
-    )
+    failure_report = {
+        "schema": "ias.s4_3.failure_inventory.v1",
+        "failure_count": len(failures),
+        "failures": failures,
+        "all_failures_retained": True,
+    }
+    write_json_atomic(output / "failures.json", failure_report)
     deterministic = {
         "schema": "ias.s4_3.deterministic_replay.v1",
         "status": (
@@ -361,10 +435,13 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "schema": "ias.s4_3.raw_independent_validation.v1",
         "status": (
             "passed"
-            if freeze.passed and (inventory_report.passed or args.allow_in_progress)
+            if freeze.passed
+            and review_validation.passed
+            and (inventory_report.passed or args.allow_in_progress)
             else "failed"
         ),
         "preregistration": freeze.to_dict(),
+        "review_remediation": review_validation.to_dict(),
         "inventory_contract": inventory_report.to_dict(),
         "raw_required": False,
         "scope": (
@@ -376,27 +453,17 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         validation_root / "raw_independent_validation.json", raw_independent
     )
 
-    metric_contracts = configuration["metric_contracts"]
-    coverage = {
-        "schema": "ias.s4_3.evidence_coverage.v1",
-        "status": "passed" if analyses and len(metric_contracts) >= 20 else "failed",
-        "metric_contract_count": len(metric_contracts),
-        "metric_contracts": {
-            metric: {
-                "contract_present": True,
-                "reports": [
-                    "reports/repeatability.json",
-                    "reports/controlled.json",
-                    "reports/robustness.json",
-                ],
-            }
-            for metric in sorted(metric_contracts)
-        },
-        "planned_trial_count": inventory["planned_trial_count"],
-        "terminal_trial_count": inventory["terminal_trial_count"],
-        "accepted_analysis_count": len(analyses),
-        "s4_4_content_present": False,
-    }
+    coverage = validate_metric_evidence(
+        configuration,
+        analyses,
+        inventory,
+        category_reports,
+        channel_evidence,
+        noise_transient_results,
+        failure_report,
+        coarse_audio_video_association,
+        impact_svo_replay,
+    )
     write_json_atomic(validation_root / "evidence_coverage.json", coverage)
 
     freeze_root = ROOT / "outputs/isaac_audio_sensors/S4/S4.3/freeze"
@@ -431,6 +498,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         ROOT / "configs/s4_3_pilot_amendment_04.v1.json",
         freeze_root / "preregistration_amendment_04.json",
         freeze_root / "trial_inventory_amendment_04_precollection.json",
+        ROOT / args.review_remediation,
         diagnostic_root / "voice_interactive_timing_failure_20260721T201200Z.json",
         ROOT / "src/isaac_audio_sensors/acquisition/s4_3.py",
         ROOT / "scripts/run_s4_3_trial.py",
@@ -450,6 +518,17 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         validation_root / "raw_independent_validation.json",
         validation_root / "evidence_coverage.json",
     ]
+    if output == DEFAULT_OUTPUT.resolve():
+        tracked_paths.extend(
+            path
+            for path in (
+                ROOT / "docs/development/closeouts/S4/s4_3_pilot_repeatability.md",
+                output / "repository_gate.json",
+                validation_root / "repository_validation.json",
+                validation_root / "final_integrity_validation.json",
+            )
+            if path.is_file()
+        )
     tracked_paths = list(dict.fromkeys(tracked_paths))
     raw_root = ROOT / configuration["retention"]["machine_local_root"]
     raw_paths = (
@@ -465,6 +544,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
                 record["status"] == "passed"
                 for record in (deterministic, machine, raw_independent, coverage)
             )
+            and repeatability["status"] == "passed"
             else "failed"
         ),
         "tracked_artifact_count": len(tracked_paths),
@@ -517,6 +597,9 @@ def main() -> int:
         default=Path("outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration.json"),
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--review-remediation", type=Path, default=DEFAULT_REVIEW_REMEDIATION
+    )
     parser.add_argument("--allow-in-progress", action="store_true")
     args = parser.parse_args()
     try:

@@ -1,14 +1,22 @@
 {
   "schema": "ias.s4_3.repository_gate.v1",
-  "status": "passed",
+  "status": "failed",
   "phase": "S4.3",
-  "s4_3_verdict": "PASS",
-  "s4_4_readiness": "GO",
+  "s4_3_verdict": "FAIL",
+  "s4_4_readiness": "NO-GO",
   "s4_4_started": false,
-  "validated_source_revision": "20b77c3e1814ad619abd5a1687d95eedb8ebf802",
+  "remediation_baseline_revision": "91baa3a03742f4efd21e0a145e59774c18952c1c",
+  "working_tree_state": "uncommitted_review_remediation",
   "active_preregistration": {
     "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_04.json",
     "sha256": "6a2012e6bc22608d5495877c38068963f9c9b816c51d4fbc25b5765521f356ba"
+  },
+  "review_remediation": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/review_remediation_manifest.json",
+    "matrix_changed": false,
+    "scientific_thresholds_changed": false,
+    "raw_evidence_modified": false,
+    "trials_recollected": false
   },
   "matrix": {
     "sha256": "3872b3ebd7aa6f29d2fe48e60b38e75b8014f598b0b814e3f2f1439bbb7901e8",
@@ -29,24 +37,41 @@
   },
   "checks": {
     "frozen_contract_valid": true,
+    "review_remediation_manifest_valid": true,
     "all_planned_trials_terminal": true,
     "all_attempts_and_failures_retained": true,
     "repeatability_gate_passed": true,
-    "metric_contract_coverage_passed": true,
+    "raw_channel_health_gate_enforced_and_passed": true,
+    "metric_specific_evidence_coverage_passed": true,
+    "abstained_numeric_exclusion_validated": true,
+    "complete_trial_channel_pair_evidence_validated": true,
     "deterministic_replay_passed": true,
     "machine_local_validation_passed": true,
     "raw_independent_validation_passed": true,
-    "final_integrity_validation_passed": true,
-    "repository_validation_passed": true,
+    "repository_release_source_clean": false,
+    "kit_build_and_audit_passed": false,
+    "pack_build_and_audit_passed": false,
+    "final_integrity_validation_passed": false,
     "raw_media_gitignored": true,
     "s4_4_not_started": true
+  },
+  "corrected_results": {
+    "opposite_side_detected_error_median_p95_worst_deg": [6.0, 8.0, 82.0],
+    "opposite_side_overall_candidate_and_sector_coverage": 0.9487179487179487,
+    "voice_confirmation_detected_error_median_p95_worst_deg": [2.0, 4.0, 30.0],
+    "voice_confirmation_overall_candidate_and_sector_coverage": 0.23300970873786409,
+    "impact_detected_error_median_p95_worst_deg": [18.0, 64.0, 64.0],
+    "impact_overall_candidate_coverage": 0.26666666666666666,
+    "impact_overall_sector_accuracy": 0.4,
+    "repeatability_raw_channel_health_failure_count": 0,
+    "intended_silence_threshold_exceedance_windows": 119,
+    "intended_silence_threshold_exceedance_rate_per_s": 7.933333333333334
   },
   "scientific_scope": {
     "classification": "functional engineering characterization",
     "supported": [
       "within-configuration repeatability for the tested installed rig and deterministic Mac source",
-      "functional bearing, candidate, sector, TDOA, channel, relative level-spectrum-delay-polarity, offline latency, noise, decay, occlusion, overlap, silence, confidence, ambiguity, abstention, failure, and coarse audio-video observations inside the retained pilot",
-      "S4.4 grouped development/fit and held-out matrix freeze planning using the reported limitations"
+      "functional observations inside the retained pilot with corrected abstention semantics and complete metric-specific evidence"
     ],
     "unsupported": [
       "absolute SPL or microphone sensitivity",
@@ -62,12 +87,18 @@
   ],
   "material_limitations": [
     "the 180 degree array-to-project correction is a measured functional correction, not metrological extrinsic calibration",
-    "opposite-side controlled evidence has 82 degree p95 and 84 degree worst bearing error despite a 6 degree median",
+    "opposite-side controlled evidence retains an 82 degree detected-window worst error",
     "the accepted occlusion take has only 56.4 percent sector and candidate coverage and its confirmation failed quality",
-    "voice localization was intermittent and the first voice timing attempt was operationally uninformative",
-    "impact localization abstained in 8 of 15 windows and had 74 degree p95 and worst error",
-    "small-sample nearest-rank tails describe this pilot only"
+    "voice localization was intermittent; corrected voice-confirmation coverage is 23.3 percent",
+    "corrected impact candidate coverage is 26.67 percent and sector accuracy is 40 percent",
+    "all 119 overlapping intended-silence raw windows exceeded the frozen median-RMS detector threshold even though confidence forced all 103 central analysis windows to abstain",
+    "small-sample nearest-rank tails describe this pilot only",
+    "clean-source Kit and pack validation remains blocked until an authorized local commit"
   ],
+  "blocker": {
+    "code": "uncommitted_review_remediation",
+    "resolution": "authorize one local remediation commit, do not push, then rerun release-source, Kit, pack, final integrity, and repository gates"
+  },
   "evidence_index": "outputs/isaac_audio_sensors/S4/S4.3/evidence_index.json",
   "closeout": "docs/development/closeouts/S4/s4_3_pilot_repeatability.md"
 }

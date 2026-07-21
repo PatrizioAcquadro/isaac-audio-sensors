@@ -16,7 +16,9 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     S43Error,
     aggregate_category,
     analysis_microphone_positions_project_m,
+    analyze_noise_transients,
     analyze_trial_wav,
+    build_channel_evidence,
     canonical_sha256,
     evaluate_repeatability,
     evaluate_zed_startup_contract,
@@ -24,9 +26,12 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     load_pilot_configuration,
     planned_inventory,
     sha256_file,
+    summarize_windows,
     validate_inventory,
     validate_mac_dynamic_preflight_report,
+    validate_metric_evidence,
     validate_preregistration,
+    validate_review_remediation_manifest,
     verify_deterministic_replay,
     zed_device_timestamps_are_valid,
 )
@@ -118,7 +123,12 @@ def _reference_capture(path: Path, *, duration_s: int = 20) -> None:
 def test_frozen_preregistration_and_matrix_validate() -> None:
     config = _config()
     preregistration = _preregistration()
-    report = validate_preregistration(config, preregistration, repo_root=ROOT)
+    report = validate_preregistration(
+        config,
+        preregistration,
+        repo_root=ROOT,
+        verify_implementation_hashes=False,
+    )
     assert report.passed, report.to_dict()
     assert preregistration["matrix"]["canonical_json_sha256"] == canonical_sha256(
         config["matrix"]
@@ -299,9 +309,7 @@ def test_superseded_array_frame_amendment_is_retained() -> None:
     superseded = operational["configuration_source"]["supersedes"]
     assert superseded["effective_canonical_sha256"] == canonical_sha256(config)
     assert superseded["configuration_sha256"] == sha256_file(AMENDMENT_CONFIG_PATH)
-    assert superseded["preregistration_sha256"] == sha256_file(
-        AMENDMENT_PREREG_PATH
-    )
+    assert superseded["preregistration_sha256"] == sha256_file(AMENDMENT_PREREG_PATH)
     assert len(config["matrix"]) == 12
 
     tampered = copy.deepcopy(config)
@@ -320,12 +328,8 @@ def test_superseded_operational_amendment_is_retained_without_matrix_change() ->
     current = _occlusion_confirmation_config()
     superseded = current["configuration_source"]["supersedes"]
     assert superseded["effective_canonical_sha256"] == canonical_sha256(config)
-    assert superseded["configuration_sha256"] == sha256_file(
-        OPERATIONAL_CONFIG_PATH
-    )
-    assert superseded["preregistration_sha256"] == sha256_file(
-        OPERATIONAL_PREREG_PATH
-    )
+    assert superseded["configuration_sha256"] == sha256_file(OPERATIONAL_CONFIG_PATH)
+    assert superseded["preregistration_sha256"] == sha256_file(OPERATIONAL_PREREG_PATH)
     assert len(config["matrix"]) == 12
 
 
@@ -353,7 +357,12 @@ def test_superseded_occlusion_confirmation_is_retained() -> None:
 def test_frozen_interactive_protocol_and_final_expansion_validate() -> None:
     config = _interactive_config()
     preregistration = load_json(INTERACTIVE_PREREG_PATH)
-    report = validate_preregistration(config, preregistration, repo_root=ROOT)
+    report = validate_preregistration(
+        config,
+        preregistration,
+        repo_root=ROOT,
+        verify_implementation_hashes=False,
+    )
     assert report.passed, report.to_dict()
     assert config["interactive_stimulus_protocol"] == (
         EXPECTED_INTERACTIVE_STIMULUS_PROTOCOL
@@ -529,8 +538,23 @@ def _passing_summary() -> dict:
 
 
 def _passing_window() -> dict:
+    raw_ids = [f"raw_microphone_{index}" for index in range(4)]
+    ordered_pairs = {
+        f"{left}->{right}": 0.0001 if left != right else 0.0
+        for left in raw_ids
+        for right in raw_ids
+    }
+    unique_pairs = {
+        f"{left}->{right}": 0.8
+        for left_index, left in enumerate(raw_ids)
+        for right_index, right in enumerate(raw_ids)
+        if right_index > left_index
+    }
     return {
         "srp_bearing_deg": 90.0,
+        "least_squares_bearing_deg": 90.0,
+        "least_squares_candidates_deg": [90.0],
+        "candidate_bearing_deg": [90.0],
         "absolute_bearing_error_deg": 0.0,
         "bearing_confidence": 0.2,
         "abstained": False,
@@ -540,12 +564,29 @@ def _passing_window() -> dict:
         "major_polarity_anomaly": False,
         "capture_to_frame_offline_ms": 251.0,
         "frame_to_adapter_round_trip_ms": 0.01,
-        "tdoa_s": {"raw_microphone_0->raw_microphone_1": 0.0001},
-        "relative_channel_delay_s": {"raw_microphone_0": 0.0},
-        "per_channel_rms_full_scale": {"raw_microphone_0": 0.1},
-        "per_channel_relative_rms_db": {"raw_microphone_0": 0.0},
-        "combined_spectrum_relative_db": {"250-500": -3.0},
-        "aligned_pair_correlation": {"raw_microphone_0->raw_microphone_1": 0.8},
+        "tdoa_s": ordered_pairs,
+        "tdoa_error_s": dict(ordered_pairs),
+        "relative_channel_delay_s": {channel_id: 0.0 for channel_id in raw_ids},
+        "per_channel_rms_full_scale": {channel_id: 0.1 for channel_id in raw_ids},
+        "per_channel_relative_rms_db": {channel_id: 0.0 for channel_id in raw_ids},
+        "combined_spectrum_relative_db": {
+            "250-500": -3.0,
+            "500-1000": -3.0,
+            "1000-2000": -3.0,
+            "2000-4000": -3.0,
+            "4000-6500": -3.0,
+        },
+        "aligned_pair_correlation": unique_pairs,
+        "median_raw_rms_full_scale": 0.1,
+    }
+
+
+def _passing_wav() -> dict:
+    return {
+        "channel_count": 6,
+        "per_channel_rms_pcm16": [100.0] * 6,
+        "per_channel_peak_pcm16": [1000] * 6,
+        "per_channel_maximum_clip_run_samples": [0] * 6,
     }
 
 
@@ -557,6 +598,8 @@ def test_repeatability_gate_and_category_aggregation_are_fail_closed() -> None:
             "category": "repeatability",
             "summary": _passing_summary(),
             "windows": [_passing_window()],
+            "stimulus": "mac_reference",
+            "wav": _passing_wav(),
             "relative_decay": {"status": "measured"},
             "scientific_replay_sha256": str(index) * 64,
         }
@@ -578,11 +621,481 @@ def test_repeatability_gate_and_category_aggregation_are_fail_closed() -> None:
     assert gate["status"] == "passed", gate
 
     inventory = planned_inventory(config)
-    report = aggregate_category("repeatability", analyses, inventory)
+    report = aggregate_category(
+        "repeatability", analyses, inventory, configuration=config
+    )
     assert report["planned_trial_count"] == 3
     assert report["accepted_analysis_count"] == 3
     assert report["pooled"]["absolute_bearing_error_deg"]["worst"] == 0.0
 
     analyses[0]["summary"]["bearing_deg"]["median"] = 130.0
     analyses[0]["summary"]["absolute_bearing_error_deg"]["median"] = 40.0
+    analyses[0]["windows"][0]["srp_bearing_deg"] = 130.0
+    analyses[0]["windows"][0]["absolute_bearing_error_deg"] = 40.0
     assert evaluate_repeatability(analyses, config)["status"] == "failed"
+
+
+def _synthetic_metric_fixture() -> dict:
+    config = _interactive_config()
+    inventory = planned_inventory(config)
+    analyses = []
+    channel_evidence = []
+    noise_results = []
+    for entry in inventory["trials"]:
+        trial = _trial(config, entry["trial_id"])
+        attempt_id = f"{trial['trial_id']}_synthetic_evidence"
+        entry["attempts"] = [
+            {
+                "attempt_id": attempt_id,
+                "outcome": "accepted",
+                "reason": "synthetic regression fixture",
+            }
+        ]
+        window = _passing_window()
+        reference = trial.get("source_bearing_deg")
+        if reference is None:
+            window.update(
+                {
+                    "abstained": True,
+                    "signal_present": False,
+                    "srp_bearing_deg": None,
+                    "least_squares_bearing_deg": None,
+                    "candidate_bearing_deg": [],
+                    "bearing_confidence": 0.0,
+                    "ambiguity_class": "abstained_low_level",
+                }
+            )
+            for field in (
+                "absolute_bearing_error_deg",
+                "candidate_covered",
+                "sector_correct",
+                "tdoa_s",
+                "tdoa_error_s",
+                "relative_channel_delay_s",
+                "aligned_pair_correlation",
+            ):
+                window.pop(field, None)
+        else:
+            window["srp_bearing_deg"] = float(reference)
+            window["least_squares_bearing_deg"] = float(reference)
+            window["candidate_bearing_deg"] = [float(reference)]
+        stimulus = str(trial["stimulus"])
+        analysis = {
+            "schema": "ias.s4_3.trial_analysis.v1",
+            "status": "passed",
+            "trial_id": trial["trial_id"],
+            "category": trial["category"],
+            "stimulus": stimulus,
+            "window_count": 1,
+            "windows": [window],
+            "wav": _passing_wav(),
+            "relative_decay": (
+                {"status": "measured", "decay_to_minus_10_db_ms": 125.0}
+                if "mac_reference" in stimulus
+                or stimulus == "visible_audible_ordinary_object_impact"
+                else {"status": "not_applicable"}
+            ),
+            "scientific_replay_sha256": canonical_sha256(
+                {"trial_id": trial["trial_id"]}
+            ),
+        }
+        analysis["summary"] = summarize_windows(
+            analysis["windows"],
+            bearing_reference_deg=(None if reference is None else float(reference)),
+        )
+        analyses.append(analysis)
+        channel_evidence.append(
+            build_channel_evidence(
+                analysis,
+                trial,
+                config,
+                attempt_id=attempt_id,
+                outcome="accepted",
+            )
+        )
+        if stimulus == "silence" or "mac_reference" in stimulus:
+            raw_ids = config["audio"]["analysis_channel_ids"]
+            bands = [
+                f"{low}-{high}" for low, high in config["analysis"]["spectral_bands_hz"]
+            ]
+            noise_results.append(
+                {
+                    "trial_id": trial["trial_id"],
+                    "status": "measured",
+                    "window_count": 1,
+                    "transient_count": 0,
+                    "transient_rate_per_s": 0.0,
+                    "per_channel_rms_full_scale": {
+                        channel_id: {"count": 1} for channel_id in raw_ids
+                    },
+                    "combined_spectrum_relative_db": {
+                        band: {"count": 1} for band in bands
+                    },
+                }
+            )
+    inventory.update(
+        {
+            "status": "terminal",
+            "attempt_count": len(inventory["trials"]),
+            "terminal_trial_count": len(inventory["trials"]),
+            "outcome_counts": {"accepted": len(inventory["trials"])},
+        }
+    )
+    reports = {
+        category: aggregate_category(
+            category,
+            analyses,
+            inventory,
+            configuration=config,
+            channel_evidence=channel_evidence,
+            noise_transient_results=noise_results,
+        )
+        for category in ("repeatability", "controlled", "robustness")
+    }
+    reports["robustness"]["condition_deltas"] = {
+        "status": "measured",
+        "conditions": [
+            {
+                "trial_id": trial_id,
+                "relative_rms_delta_db": 0.0,
+                "confidence_delta": 0.0,
+                "absolute_bearing_error_delta_deg": 0.0,
+                "abstention_rate": 0.0,
+            }
+            for trial_id in (
+                "s4_3_rob_occluded_01",
+                "s4_3_rob_overlap_01",
+            )
+        ],
+    }
+    return {
+        "config": config,
+        "inventory": inventory,
+        "analyses": analyses,
+        "reports": reports,
+        "channel_evidence": channel_evidence,
+        "noise_results": noise_results,
+        "failure_report": {
+            "schema": "ias.s4_3.failure_inventory.v1",
+            "failure_count": 0,
+            "failures": [],
+            "all_failures_retained": True,
+        },
+        "av": {
+            "schema": "ias.s4_3.coarse_audio_video_association.v1",
+            "status": "passed",
+            "event_audible": True,
+            "event_visible": True,
+            "event_unique": True,
+            "audio_event_sample_index": 100,
+            "audio_sample_rate_hz": 16000,
+            "zed_event_frame_index": 10,
+            "zed_event_timestamp_ns": 1000,
+            "offset_s": 0.01,
+            "total_uncertainty_ms": 20.0,
+            "maximum_uncertainty_ms": 50.0,
+        },
+        "svo": {
+            "status": "passed",
+            "end_of_svo_reached": True,
+            "declared_frame_count": 20,
+            "replayed_frame_count": 20,
+        },
+    }
+
+
+def _validate_fixture(fixture: dict) -> dict:
+    return validate_metric_evidence(
+        fixture["config"],
+        fixture["analyses"],
+        fixture["inventory"],
+        fixture["reports"],
+        fixture["channel_evidence"],
+        fixture["noise_results"],
+        fixture["failure_report"],
+        fixture["av"],
+        fixture["svo"],
+    )
+
+
+def test_metric_specific_coverage_positive_fixture_passes_all_22_contracts() -> None:
+    coverage = _validate_fixture(_synthetic_metric_fixture())
+    assert coverage["status"] == "passed", coverage
+    assert len(coverage["metric_contracts"]) == 22
+    assert all(
+        record["required_outputs_verified"]
+        for record in coverage["metric_contracts"].values()
+    )
+
+
+@pytest.mark.parametrize(
+    "metric",
+    [
+        "abstention",
+        "acquisition_analysis_failures",
+        "ambiguity",
+        "bearing_doa_error",
+        "candidate_bearing",
+        "capture_to_frame_latency",
+        "channel_imbalance",
+        "channel_presence_order_health",
+        "coarse_audio_video_association",
+        "combined_spectrum",
+        "confidence",
+        "echo_relative_decay",
+        "frame_to_adapter_latency",
+        "major_polarity_anomaly",
+        "noise",
+        "occlusion",
+        "overlap",
+        "relative_channel_delay",
+        "relative_rms_level",
+        "sector_accuracy",
+        "silence",
+        "tdoa",
+    ],
+)
+def test_metric_specific_coverage_fails_when_required_output_is_absent(
+    metric: str,
+) -> None:
+    fixture = _synthetic_metric_fixture()
+    baseline = next(
+        report
+        for report in fixture["analyses"]
+        if report["trial_id"] == "s4_3_rpt_baseline_01"
+    )
+    window = baseline["windows"][0]
+    if metric == "abstention":
+        window.pop("abstained")
+    elif metric == "acquisition_analysis_failures":
+        fixture["inventory"]["trials"][0]["attempts"].append(
+            {"attempt_id": "retained_failure", "outcome": "failed"}
+        )
+    elif metric == "ambiguity":
+        window.pop("ambiguity_class")
+    elif metric == "bearing_doa_error":
+        window.pop("absolute_bearing_error_deg")
+    elif metric == "candidate_bearing":
+        window["candidate_bearing_deg"] = []
+    elif metric == "capture_to_frame_latency":
+        window.pop("capture_to_frame_offline_ms")
+    elif metric == "channel_imbalance":
+        window["per_channel_relative_rms_db"].pop("raw_microphone_3")
+    elif metric == "channel_presence_order_health":
+        fixture["channel_evidence"][0]["channels"][0].pop("maximum_clip_run_samples")
+    elif metric == "coarse_audio_video_association":
+        fixture["av"]["status"] = "failed"
+    elif metric == "combined_spectrum":
+        window["combined_spectrum_relative_db"].pop("4000-6500")
+    elif metric == "confidence":
+        window.pop("bearing_confidence")
+    elif metric == "echo_relative_decay":
+        baseline["relative_decay"] = None
+    elif metric == "frame_to_adapter_latency":
+        window.pop("frame_to_adapter_round_trip_ms")
+    elif metric == "major_polarity_anomaly":
+        window["aligned_pair_correlation"].pop("raw_microphone_2->raw_microphone_3")
+    elif metric == "noise":
+        fixture["noise_results"] = []
+    elif metric in {"occlusion", "overlap"}:
+        omitted = (
+            "s4_3_rob_occluded_01" if metric == "occlusion" else "s4_3_rob_overlap_01"
+        )
+        conditions = fixture["reports"]["robustness"]["condition_deltas"]["conditions"]
+        fixture["reports"]["robustness"]["condition_deltas"]["conditions"] = [
+            condition for condition in conditions if condition["trial_id"] != omitted
+        ]
+    elif metric == "relative_channel_delay":
+        window["relative_channel_delay_s"].pop("raw_microphone_3")
+    elif metric == "relative_rms_level":
+        window["per_channel_rms_full_scale"].pop("raw_microphone_3")
+    elif metric == "sector_accuracy":
+        window.pop("sector_correct")
+    elif metric == "silence":
+        silence = next(
+            report
+            for report in fixture["analyses"]
+            if report["trial_id"] == "s4_3_rob_silence_01"
+        )
+        silence["windows"][0]["abstained"] = False
+    elif metric == "tdoa":
+        window["tdoa_s"].pop("raw_microphone_3->raw_microphone_2")
+    coverage = _validate_fixture(fixture)
+    assert coverage["status"] == "failed"
+    assert coverage["metric_contracts"][metric]["status"] == "failed", coverage
+
+
+def test_abstained_numeric_values_are_excluded_but_remain_uncovered() -> None:
+    config = _config()
+    detected = _passing_window()
+    abstained = copy.deepcopy(detected)
+    abstained.update(
+        {
+            "abstained": True,
+            "signal_present": False,
+            "absolute_bearing_error_deg": 170.0,
+            "candidate_covered": False,
+            "sector_correct": False,
+        }
+    )
+    abstained["tdoa_s"] = {key: 0.99 for key in abstained["tdoa_s"]}
+    abstained["tdoa_error_s"] = {key: 0.99 for key in abstained["tdoa_error_s"]}
+    abstained["relative_channel_delay_s"] = {
+        key: 0.99 for key in abstained["relative_channel_delay_s"]
+    }
+    summary = summarize_windows([detected, abstained], bearing_reference_deg=90.0)
+    assert summary["absolute_bearing_error_deg"]["count"] == 1
+    assert summary["absolute_bearing_error_deg"]["worst"] == 0.0
+    assert summary["candidate_coverage_counts"] == {
+        "denominator": 2,
+        "covered": 1,
+        "uncovered": 1,
+        "abstained_uncovered": 1,
+    }
+    analysis = {
+        "trial_id": "s4_3_rpt_baseline_01",
+        "category": "repeatability",
+        "stimulus": "mac_reference",
+        "windows": [detected, abstained],
+        "summary": summary,
+        "relative_decay": {"status": "measured"},
+        "scientific_replay_sha256": "a" * 64,
+    }
+    report = aggregate_category(
+        "repeatability",
+        [analysis],
+        planned_inventory(config),
+        configuration=config,
+    )
+    assert report["pooled"]["absolute_bearing_error_deg"]["count"] == 1
+    assert all(stats["count"] == 1 for stats in report["pooled"]["tdoa_us"].values())
+    assert all(
+        stats["count"] == 1
+        for stats in report["pooled"]["relative_channel_delay_us"].values()
+    )
+
+
+def test_repeatability_gate_rejects_partial_pairs_and_raw_health_failure() -> None:
+    config = _config()
+    analyses = []
+    for index in (1, 2, 3):
+        analyses.append(
+            {
+                "trial_id": f"s4_3_rpt_baseline_0{index}",
+                "category": "repeatability",
+                "stimulus": "mac_reference",
+                "summary": _passing_summary(),
+                "windows": [_passing_window()],
+                "wav": _passing_wav(),
+            }
+        )
+    analyses.append(
+        {
+            "trial_id": "s4_3_rob_silence_01",
+            "category": "robustness",
+            "summary": {"abstention_rate": 1.0},
+            "windows": [],
+        }
+    )
+    assert evaluate_repeatability(analyses, config)["status"] == "passed"
+    partial = copy.deepcopy(analyses)
+    partial[0]["windows"][0]["tdoa_s"].pop("raw_microphone_3->raw_microphone_2")
+    gate = evaluate_repeatability(partial, config)
+    assert gate["checks"]["pair_tdoa_range"] is False
+    unhealthy = copy.deepcopy(analyses)
+    unhealthy[0]["wav"]["per_channel_maximum_clip_run_samples"][2] = 4000
+    gate = evaluate_repeatability(unhealthy, config)
+    assert gate["checks"]["raw_channel_health_failures"] is False
+    assert gate["observations"]["raw_channel_health_failure_count"] == 1
+
+
+def test_noise_transient_analysis_uses_frozen_detector_threshold(
+    tmp_path: Path,
+) -> None:
+    config = _config()
+    trial = _trial(config, "s4_3_rob_silence_01")
+    wav_path = tmp_path / "silence.wav"
+    _write_pcm16(wav_path, np.zeros((2 * 16_000, 6), dtype=np.float64))
+    result = analyze_noise_transients(
+        wav_path,
+        {"reference_start_sample": None},
+        trial,
+        config,
+    )
+    assert result["status"] == "measured"
+    assert result["transient_count"] == 0
+    assert (
+        result["transient_threshold_median_raw_rms_full_scale"]
+        == config["analysis"]["signal_rms_full_scale_threshold"]
+    )
+    assert set(result["per_channel_rms_full_scale"]) == set(
+        config["audio"]["analysis_channel_ids"]
+    )
+
+
+def _review_manifest_payload() -> dict:
+    config = _interactive_config()
+    threshold_payload = {
+        key: config.get(key)
+        for key in (
+            "analysis",
+            "audio",
+            "expansion",
+            "metric_contracts",
+            "quality",
+            "reference",
+            "repeatability_acceptance",
+        )
+    }
+    implementation_paths = [
+        "src/isaac_audio_sensors/acquisition/s4_3.py",
+        "scripts/build_s4_3_evidence.py",
+        "scripts/validate_s4_3_integrity.py",
+        "tests/test_s4_3_pilot.py",
+    ]
+    return {
+        "schema": "ias.s4_3.review_remediation_manifest.v1",
+        "status": "frozen_post_trial_review_remediation",
+        "configuration": {
+            "path": "configs/s4_3_pilot_amendment_04.v1.json",
+            "sha256": sha256_file(INTERACTIVE_CONFIG_PATH),
+            "effective_canonical_sha256": canonical_sha256(config),
+        },
+        "preregistration": {
+            "path": (
+                "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+                "preregistration_amendment_04.json"
+            ),
+            "sha256": sha256_file(INTERACTIVE_PREREG_PATH),
+        },
+        "matrix_canonical_sha256": canonical_sha256(config["matrix"]),
+        "scientific_contract_canonical_sha256": canonical_sha256(threshold_payload),
+        "implementation": [
+            {"path": path, "sha256": sha256_file(ROOT / path)}
+            for path in implementation_paths
+        ],
+        "scientific_thresholds_changed": False,
+        "matrix_changed": False,
+        "raw_evidence_modified": False,
+        "trials_recollected": False,
+        "s4_4_started": False,
+    }
+
+
+def test_review_remediation_manifest_binds_code_without_rewriting_freeze() -> None:
+    config = _interactive_config()
+    preregistration = load_json(INTERACTIVE_PREREG_PATH)
+    manifest = _review_manifest_payload()
+    report = validate_review_remediation_manifest(
+        config, preregistration, manifest, repo_root=ROOT
+    )
+    assert report.passed, report.to_dict()
+    tampered = copy.deepcopy(manifest)
+    tampered["implementation"][0]["sha256"] = "0" * 64
+    report = validate_review_remediation_manifest(
+        config, preregistration, tampered, repo_root=ROOT
+    )
+    assert not report.passed
+    assert any(
+        issue.code == "review_implementation_hash_mismatch" for issue in report.issues
+    )

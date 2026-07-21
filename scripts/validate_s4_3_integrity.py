@@ -16,10 +16,12 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     load_pilot_configuration,
     validate_inventory,
     validate_preregistration,
+    validate_review_remediation_manifest,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 S43_OUTPUT = ROOT / "outputs/isaac_audio_sensors/S4/S4.3"
+DEFAULT_REVIEW_REMEDIATION = S43_OUTPUT / "freeze/review_remediation_manifest.json"
 
 
 def _problem(code: str, path: str, message: str) -> dict[str, str]:
@@ -31,6 +33,7 @@ def validate(
     *,
     config_path: Path,
     preregistration_path: Path,
+    review_remediation_path: Path,
     require_machine_local: bool,
     require_final: bool,
 ) -> dict[str, Any]:
@@ -51,11 +54,33 @@ def validate(
         issues.append(
             _problem("wrong_index_schema", str(index_path), repr(index.get("schema")))
         )
+    if index.get("status") != "passed":
+        issues.append(
+            _problem(
+                "evidence_index_failed", str(index_path), repr(index.get("status"))
+            )
+        )
     configuration = load_pilot_configuration(config_path, repo_root=ROOT)
     preregistration = load_json(preregistration_path)
-    freeze = validate_preregistration(configuration, preregistration, repo_root=ROOT)
+    freeze = validate_preregistration(
+        configuration,
+        preregistration,
+        repo_root=ROOT,
+        verify_implementation_hashes=False,
+    )
     issues.extend(
         _problem(item.code, item.path, item.message) for item in freeze.issues
+    )
+    review_remediation = load_json(review_remediation_path)
+    review_validation = validate_review_remediation_manifest(
+        configuration,
+        preregistration,
+        review_remediation,
+        repo_root=ROOT,
+    )
+    issues.extend(
+        _problem(item.code, item.path, item.message)
+        for item in review_validation.issues
     )
     inventory_path = evidence_root / "trial_inventory.json"
     if not inventory_path.is_file():
@@ -177,6 +202,7 @@ def validate(
         f"{evidence_root_relative}/validation/machine_local_validation.json",
         f"{evidence_root_relative}/validation/raw_independent_validation.json",
         f"{evidence_root_relative}/validation/evidence_coverage.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/review_remediation_manifest.json",
     }
     if require_final:
         required.update(
@@ -202,7 +228,7 @@ def validate(
                 "outputs/isaac_audio_sensors/S4/S4.3/validation/repository_validation.json",
             }
         )
-    for relative in gate_paths:
+    for relative in sorted(gate_paths):
         path = ROOT / relative
         if path.is_file() and load_json(path).get("status") != "passed":
             issues.append(
@@ -210,6 +236,58 @@ def validate(
                     "evidence_gate_failed",
                     relative,
                     repr(load_json(path).get("status")),
+                )
+            )
+    coverage_path = evidence_root / "validation/evidence_coverage.json"
+    if coverage_path.is_file():
+        coverage = load_json(coverage_path)
+        records = coverage.get("metric_contracts")
+        if (
+            coverage.get("schema") != "ias.s4_3.evidence_coverage.v2"
+            or not isinstance(records, dict)
+            or set(records) != set(configuration.get("metric_contracts", {}))
+            or any(
+                not isinstance(record, dict)
+                or record.get("status") != "passed"
+                or record.get("required_outputs_verified") is not True
+                or record.get("issues") != []
+                for record in records.values()
+            )
+        ):
+            issues.append(
+                _problem(
+                    "metric_specific_coverage_invalid",
+                    str(coverage_path),
+                    "all frozen metrics must have verified concrete outputs",
+                )
+            )
+    repeatability_path = evidence_root / "reports/repeatability_gate.json"
+    if repeatability_path.is_file():
+        repeatability = load_json(repeatability_path)
+        if (
+            repeatability.get("schema") != "ias.s4_3.repeatability_gate.v2"
+            or repeatability.get("checks", {}).get("raw_channel_health_failures")
+            is not True
+            or "raw_channel_health_failure_count"
+            not in repeatability.get("observations", {})
+        ):
+            issues.append(
+                _problem(
+                    "repeatability_channel_health_gate_missing",
+                    str(repeatability_path),
+                    "raw-channel-health threshold must be enforced",
+                )
+            )
+    for category in ("repeatability", "controlled", "robustness"):
+        report_path = evidence_root / f"reports/{category}.json"
+        if report_path.is_file() and load_json(report_path).get("schema") != (
+            "ias.s4_3.category_report.v2"
+        ):
+            issues.append(
+                _problem(
+                    "category_report_schema_outdated",
+                    str(report_path),
+                    "metric-complete category report v2 required",
                 )
             )
     if require_machine_local and machine_records == 0:
@@ -250,6 +328,9 @@ def main() -> int:
         default=Path("outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration.json"),
     )
     parser.add_argument("--require-machine-local", action="store_true")
+    parser.add_argument(
+        "--review-remediation", type=Path, default=DEFAULT_REVIEW_REMEDIATION
+    )
     parser.add_argument("--require-final", action="store_true")
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
@@ -258,6 +339,7 @@ def main() -> int:
             args.index,
             config_path=args.config,
             preregistration_path=args.preregistration,
+            review_remediation_path=args.review_remediation,
             require_machine_local=args.require_machine_local,
             require_final=args.require_final,
         )

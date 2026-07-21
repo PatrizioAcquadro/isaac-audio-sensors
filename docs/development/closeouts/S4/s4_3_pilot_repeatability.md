@@ -2,21 +2,53 @@
 
 ## Verdict
 
-**S4.3: PASS. S4.4 readiness: GO.** S4.4 was not started.
+**S4.3: FAIL. S4.4 readiness: NO-GO.** S4.4 was not started.
 
-This is a functional engineering characterization of the installed reference
-rig, not acoustic metrology. The PASS closes the preregistered compact pilot and
-authorizes only S4.4 grouped development/fit and held-out matrix freeze work. It
-does not assert production performance or universal transfer.
+The retained pilot's scientific acceptance and corrected evidence validation
+pass, but the final repository gate is fail-closed because the review
+remediation is intentionally uncommitted and `make check-release-source`, the
+Kit build, and the acoustic-pack build cannot validate a dirty source tree.
+One local provenance commit and clean-source rerun are required before S4.3 can
+return to PASS or S4.4 can return to GO. This remains functional engineering
+characterization of the installed reference rig, not acoustic metrology.
 
-The validated clean-source checkpoint is
-`20b77c3e1814ad619abd5a1687d95eedb8ebf802` on `main`. The active immutable
-preregistration is
+The remediation baseline is clean commit
+`91baa3a03742f4efd21e0a145e59774c18952c1c` on `main`; the corrected working
+tree is not committed. The active immutable preregistration remains
 `outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_04.json`
 (SHA-256
 `6a2012e6bc22608d5495877c38068963f9c9b816c51d4fbc25b5765521f356ba`).
 The frozen matrix SHA-256 is
 `3872b3ebd7aa6f29d2fe48e60b38e75b8014f598b0b814e3f2f1439bbb7901e8`.
+The post-trial provenance-only review record is
+`outputs/isaac_audio_sensors/S4/S4.3/freeze/review_remediation_manifest.json`.
+It binds the corrected implementation while recording that the matrix,
+scientific thresholds, retained raw evidence, and S4.4 boundary did not change.
+
+## Review remediation
+
+The prior 22-contract count-only coverage check was replaced by metric-specific
+validation. Every metric now verifies concrete required outputs, counts,
+applicability, complete accepted-trial coverage, and exact raw-channel,
+spectral-band, directed-pair, unique-pair, and relative-delay cardinalities.
+The reports now include candidate-count and nearest-candidate-error
+distributions; per-attempt channel presence/order/health and per-channel RMS,
+peak, and clipping summaries; explicit noise-threshold-exceedance results; and
+the complete coarse audio-video association plus full SVO2 replay.
+
+Abstained windows are excluded from numeric bearing-error, TDOA, TDOA-error,
+relative-delay, candidate-count, and nearest-candidate-error distributions.
+They remain in sector and candidate denominators as incorrect/uncovered. Four
+non-abstained voice-confirmation windows had explicit null least-squares
+solutions; these are now counted as missing solver results rather than silently
+dropped or treated as absent evidence. The SRP-PHAT primary estimates remain
+numeric for those windows. The repeatability gate now enforces the frozen
+`raw_channel_health_failure_count_max = 0`; the observed count is 0.
+
+Regression coverage includes a positive complete 22-metric fixture and one
+negative missing-output case for every metric, plus dedicated abstention,
+partial-pair, raw-channel-health, noise-transient, immutable-freeze, and
+provenance-manifest tests. No scientific threshold was changed.
 
 ## Coordinate and analysis frames
 
@@ -68,10 +100,12 @@ results for this exact Mac/WAV/volume/pose/room/rig/mount setup.
 
 - Front: 39 windows, median error 0 degrees, p95/worst 2 degrees, 100 percent
   sector accuracy and candidate coverage, no abstention.
-- Opposite side: 39 windows, median bearing 264 degrees against 270 degrees,
-  median error 6 degrees, but p95 82 degrees and worst 84 degrees; sector and
-  candidate coverage were 94.87 percent with one abstention. The poor tail is
-  retained and limits any claim based only on central error.
+- Opposite side: 39 windows, 38 non-abstained, median bearing 264 degrees
+  against 270 degrees, median error 6 degrees, p95 8 degrees, and worst 82
+  degrees. The prior 84 degree numeric worst belonged to the abstained window
+  and is now excluded from the numeric distribution. Sector and candidate
+  coverage were 94.87 percent with one abstention. The poor tail is retained
+  and limits any claim based only on central error.
 
 ### Robustness
 
@@ -90,18 +124,22 @@ results for this exact Mac/WAV/volume/pose/room/rig/mount setup.
   the cue arrived 12.51 seconds into a 15 second capture; all 103 windows
   abstained. The frozen timing confirmation detected 25 of 103 windows, with
   median detected bearing 90 degrees, 75.73 percent overall abstention, and
-  33.01 percent overall sector/candidate coverage. Voice localization is
-  intermittent in this tested condition.
+  corrected 23.30 percent overall sector/candidate coverage because all 78
+  abstentions are now incorrect/uncovered even when legacy analysis retained a
+  candidate. Numeric detected-window bearing error was 2 degree median, 4
+  degree p95, and 30 degree worst. Voice localization is intermittent in this
+  tested condition.
 - Overlap: 39 windows, median error 2 degrees, worst 4 degrees, 100 percent
   sector/candidate coverage, and no abstention for the deterministic reference
   in the tested overlap.
 - Rear-near: 39 windows, median error 0 degrees, worst 2 degrees, 100 percent
   sector/candidate coverage, and no abstention.
-- Impact: 15 windows, 7 detections and 8 abstentions; median/p95/worst error was
-  18/74/74 degrees, sector accuracy 66.67 percent, and candidate coverage
-  53.33 percent. Relative decay reached -10 dB in 125 ms and did not reach -20
-  dB within the 875 ms observation. This is combined event-room-fixture-sensor
-  decay, not RT60.
+- Impact: 15 windows, 7 detections and 8 abstentions; detected-window
+  median/p95/worst error was corrected to 18/64/64 degrees. Overall sector
+  accuracy was corrected to 40 percent and candidate coverage to 26.67 percent
+  because every abstention is incorrect/uncovered. Relative decay reached -10
+  dB in 125 ms and did not reach -20 dB within the 875 ms observation. This is
+  combined event-room-fixture-sensor decay, not RT60.
 - Coarse audio-video association: the unique audible impact peak at audio
   sample 180783 was associated with reviewed ZED frame 286. The measured
   elapsed-origin offset was -1.7652525 s with 37.311 ms RSS uncertainty, below
@@ -115,8 +153,19 @@ frame-to-adapter round trips were about 0.0218 to 0.0310 ms and the worst was
 0.0604 ms. These are local offline functional measurements. Six-channel format,
 declared order, device identity, raw-channel presence/health, channel-relative
 RMS/delay, TDOA, spectra, confidence, ambiguity, abstention, and polarity data
-are reported with counts, medians, MAD, nearest-rank p95, and worst cases in the
-category reports. No major persistent polarity anomaly was observed.
+are reported with complete counts, medians, MAD, nearest-rank p95, and worst
+cases in the category reports. All 14 captured attempts had complete passing
+six-channel evidence; the retained pre-recorder failure is explicitly not
+applicable. Captured raw-channel health failures were 0 and the largest clip
+run was 15 samples, below the existing 4,000-sample sustained-clipping rule. No
+major persistent polarity anomaly was observed.
+
+The intended-silence raw interval had 119 complete frozen windows and all 119
+exceeded the already frozen 0.002 full-scale median-RMS detector threshold,
+while all 103 central SRP analysis windows still abstained on confidence. This
+is an unfavorable but retained result: the threshold-exceedance rate was 7.933
+windows/s for this overlapping-window definition. It is not an event count,
+absolute self-noise, or SPL measurement.
 
 ## Evidence classification and claim boundary
 
@@ -155,29 +204,30 @@ superseded coordinate records are preserved.
 
 ## Validation
 
-The clean checkpoint revision passed:
+The corrected uncommitted working tree produced:
 
-- targeted S4.3 tests: 35 passed;
+- targeted S4.3 tests: 62 passed;
 - S4.3 evidence build: 14/14 terminal, 13 accepted analyses, 2 retained failed
   attempts, repeatability PASS;
 - deterministic replay: 13/13 accepted analyses passed;
 - machine-local validation: 15/15 attempts passed;
-- raw-independent validation and 22-metric evidence coverage: PASS;
-- pre-closeout integrity: 288 indexed artifacts, including 245 machine-local
+- raw-independent validation and metric-specific 22-metric evidence coverage:
+  PASS;
+- pre-closeout integrity: 289 indexed artifacts, including 245 machine-local
   records, with zero issues;
-- final closeout integrity: 291 assembled artifacts, including all 245
-  machine-local records, with zero issues before indexing the validator's own
-  result;
-- `make test`: 1242 passed, 80 expected optional-dependency/hardware skips;
-- `make lint`, `make build`, `make check-version`, `make check-release-source`,
-  `make audit-dist`, `make build-kit`, `make audit-kit`, controlled-wheelhouse
-  `make build-pack`, `make audit-pack`, and `git diff --check`: PASS.
+- `make test`: 1269 passed, 80 expected optional-dependency/hardware skips;
+- `make lint`, `make build`, `make check-version`, `make audit-dist`, targeted
+  S4.3 integrity, and `git diff --check`: PASS;
+- `make check-release-source`, `make build-kit`, and controlled-wheelhouse
+  `make build-pack`: correctly FAILED because the remediation is uncommitted;
+- `make audit-kit` and `make audit-pack`: FAILED because the dirty-source
+  builders correctly produced no new archives;
+- final `--require-final` integrity: FAIL until the repository gate and
+  repository validation can pass on a clean committed source.
 
-Before the authorized checkpoint commit, the release-source-dependent commands
-correctly failed on the dirty worktree and the downstream audits lacked new
-archives. Those blocker outcomes are retained in
+The blocker outcomes are retained in
 `outputs/isaac_audio_sensors/S4/S4.3/validation/repository_validation.json`;
-all commands passed after commit `20b77c3`.
+they must be replaced by clean-source passes after an authorized local commit.
 
 ## Evidence and retention
 
@@ -202,6 +252,7 @@ reports, not raw WAV or SVO2 media. The machine-local dataset is the only copy
 confirmed by this closeout; no independent backup or durability guarantee is
 claimed.
 
-S4.4 remains untouched. Its GO is conditional on preserving these limitations,
-using leakage-relevant grouping, and freezing development/fit and held-out
-conditions before any final tuning.
+S4.4 remains untouched and is NO-GO while the remediation provenance blocker
+remains. After a clean-source finalization, any restored GO remains conditional
+on preserving these limitations, using leakage-relevant grouping, and freezing
+development/fit and held-out conditions before final tuning.
