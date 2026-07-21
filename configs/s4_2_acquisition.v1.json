@@ -4,8 +4,13 @@
     "event_instruction": "Perform one sharp hand clap or visible impact approximately 1 m in front of the rig, inside the central ZED field of view, after both recorders are ready and before playback.",
     "event_position_m": null,
     "impact_tool": null,
+    "cue_delay_s": 3.0,
     "maximum_uncertainty_ms": 50.0,
-    "method": "visible_audible_impact"
+    "method": "visible_audible_impact",
+    "remove_cue_delay_s": 1.5,
+    "remove_instruction": "For an authorized chat-operated take, self-time 1.5 seconds from ALIGNMENT EVENT NOW, remove the event object without waiting for a second chat message, and retain the scheduled target as unobserved operator timing; reference playback starts at the frozen 2.0-second target.",
+    "remove_to_playback_s": 0.5,
+    "post_event_pre_playback_s": 2.0
   },
   "acceptance_amendment": {
     "id": "S4.2-PRECAPTURE-AMENDMENT-2026-07-20-A",
@@ -43,6 +48,7 @@
     "afplay_gain": 1.0,
     "balance_centered_confirmed": false,
     "background_sounds_off_confirmed": false,
+    "focus_and_notifications_verification_basis": "operator_confirmation_required",
     "inventory_path": "docs/development/specs/s4_2_mac_source_inventory.v1.json",
     "inventory_sha256": "2360b24977dd25e48ebe9b975a4158dd407151d7bb4de50a8f3ab7f6eb29466d",
     "model_identifier": "MacBookPro18,1",
@@ -55,12 +61,16 @@
     "reference_path": "S4.2/reference/s4_2_reference_v1.0.0.wav",
     "ssh_alias": "patrizios-macbook",
     "system_ui_sounds_disabled_or_prevented": false,
-    "system_volume_percent": 63,
+    "system_volume_percent": 40,
     "work_focus_active_confirmed": false
   },
   "reference": {
+    "duration_s": 9.5,
     "local_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+    "minimum_correlated_raw_channels": 2,
+    "minimum_normalized_correlation": 0.03,
     "metadata_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/reference_wav.json",
+    "playback_duration_tolerance_s": 1.5,
     "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
   },
   "respeaker": {
@@ -81,14 +91,47 @@
     "sample_format": "S16_LE",
     "sample_rate_hz": 16000,
     "serial": "114993701261100454",
-    "ssh_alias": "elab-raspberrypi5"
+    "ssh_alias": "elab-raspberrypi5",
+    "usb_product": "reSpeaker XVF3800 4-Mic Array"
   },
   "schema": "ias.s4_2.acquisition_config.v1",
+  "validation_profile": {
+    "alignment_policy": "required_with_threshold",
+    "channel_signal_policy": "all_channels_nonsilent",
+    "clipping_policy": "reject_sustained",
+    "controlled_source_policy": "exact_profile",
+    "duration_policy": "exact_with_tolerance",
+    "id": "s4_2_controlled_dry_run_v1",
+    "imu_policy": "every_frame_success_and_fresh",
+    "playback_overlap_policy": "complete_with_margin",
+    "pose_policy": "every_frame_ok_and_fresh",
+    "required_modalities": [
+      "audio_video_alignment",
+      "mac_reference_playback",
+      "respeaker_audio",
+      "zed_depth",
+      "zed_image",
+      "zed_imu",
+      "zed_pose",
+      "zed_svo2"
+    ],
+    "schema": "ias.s4.validation_profile.v1",
+    "stimulus_policy": "complete_reference",
+    "svo_frame_count_policy": "exact_jsonl_match",
+    "svo_replay_policy": "required_before_acceptance",
+    "svo_replay_stage": "offline_finalization"
+  },
   "session": {
     "attempt_root": "dataset/S4.2/attempts",
-    "duration_s": 20.0,
+    "duration_s": 35.0,
+    "duration_tolerance_s": 0.25,
+    "chat_cue_ack_timeout_s": 15.0,
     "minimum_local_free_bytes": 5368709120,
-    "minimum_pi_free_bytes": 1073741824
+    "minimum_pi_free_bytes": 1073741824,
+    "post_playback_margin_s": 2.0,
+    "stable_preflight_id": null,
+    "stable_preflight_invalidation_path": null,
+    "stable_preflight_report_path": null
   },
   "source": {
     "delta_x_m": null,

@@ -1,0 +1,109 @@
+{
+  "pi": {
+    "arecord_pid": 5768,
+    "capture_format": {
+      "channel_count": 6,
+      "compression": "NONE",
+      "encoding": "PCM_S16_LE",
+      "sample_rate_hz": 16000,
+      "sample_width_bytes": 2
+    },
+    "checks": {
+      "arecord_available": true,
+      "capture_started": true,
+      "device_present": true,
+      "disk_space": true,
+      "firmware_matches": true,
+      "model_matches": true,
+      "sample_format_s16_le": true,
+      "sample_rate_16000": true,
+      "serial_matches": true,
+      "six_channels": true,
+      "usb_available": true
+    },
+    "event": "ready",
+    "free_bytes": 112699514880,
+    "identity": {
+      "firmware": "2.08",
+      "firmware_bcd_raw": "0208",
+      "model": "reSpeaker XVF3800 4-Mic Array",
+      "product_id": "001a",
+      "serial": "114993701261100454",
+      "usb_speed_mbps": 480.0,
+      "vendor_id": "2886"
+    },
+    "minimum_free_bytes": 1073741824,
+    "observed_workstation_monotonic_ns": 393475398740053,
+    "observed_workstation_wall_time_utc": "2026-07-21T15:37:48.069655+00:00",
+    "started_monotonic_ns": 70644281413091,
+    "started_wall_time_utc": "2026-07-21T15:37:48.038794+00:00",
+    "verification_basis": "actual_recording_partial_wav_header"
+  },
+  "zed": {
+    "checks": {
+      "camera_firmware_matches": true,
+      "depth_mode_requested": true,
+      "depth_retrieved_gpu_authoritative": true,
+      "fps_matches": true,
+      "grab_success": true,
+      "image_retrieved": true,
+      "imu_retrieved": true,
+      "pose_ok": true,
+      "resolution_matches": true,
+      "sdk_matches": true,
+      "sensor_firmware_matches": true,
+      "serial_matches": true,
+      "svo_recording_enabled": true,
+      "usb_3_speed": true,
+      "usb_serial_present": true,
+      "usb_video_present": true
+    },
+    "duration_s": 35.0,
+    "event": "ready",
+    "host_monotonic_ns": 393477238986972,
+    "host_wall_time_utc": "2026-07-21T15:37:49.909903+00:00",
+    "identity": {
+      "camera_firmware": "1523",
+      "model": "ZED 2i",
+      "sdk_version": "5.4.0",
+      "sensor_firmware": "777",
+      "serial": "39011785"
+    },
+    "observed_workstation_monotonic_ns": 393477239179044,
+    "observed_workstation_wall_time_utc": "2026-07-21T15:37:49.910098+00:00",
+    "requested_mode": {
+      "depth_mode": "PERFORMANCE",
+      "fps": 30,
+      "resolution": "HD720"
+    },
+    "startup_probe": {
+      "depth_status": "SUCCESS",
+      "grab_status": "SUCCESS",
+      "image_status": "SUCCESS",
+      "imu_status": "SUCCESS",
+      "pose_status": "OK",
+      "pose_valid": true
+    },
+    "usb": {
+      "serial_interfaces": [
+        {
+          "product": "ZED-2i HID INTERFACE",
+          "product_id": "f881",
+          "serial": "39011785",
+          "speed_mbps": 12.0,
+          "vendor_id": "2b03"
+        }
+      ],
+      "video_interfaces": [
+        {
+          "product": "ZED 2i",
+          "product_id": "f880",
+          "serial": "OV0001",
+          "speed_mbps": 5000.0,
+          "vendor_id": "2b03"
+        }
+      ]
+    },
+    "verification_basis": "actual_recorder_open_and_retrieval"
+  }
+}

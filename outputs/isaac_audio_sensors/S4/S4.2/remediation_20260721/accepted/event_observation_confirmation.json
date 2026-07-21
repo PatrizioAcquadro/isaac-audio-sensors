@@ -1,0 +1,22 @@
+{
+  "schema": "ias.s4_2.event_observation_confirmation.v1",
+  "confirmed_at_local": "2026-07-21T11:41:29-04:00",
+  "confirmation_source": "operator chat message: CONFIRMED ALL FOUR",
+  "operator_confirmed": true,
+  "event_unique": true,
+  "event_audible": true,
+  "event_visible": true,
+  "self_timed_removal_confirmed": true,
+  "no_second_impact": true,
+  "no_person_or_hand_in_reviewed_frames": true,
+  "no_unexpected_mac_or_ui_sound": true,
+  "no_other_relevant_room_noise": true,
+  "reviewed_visual_window": {
+    "first_frame_index": 311,
+    "last_frame_index": 365,
+    "contact_transition_frames": [
+      344,
+      345
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "remote": {
+    "command": [
+      "/usr/bin/afplay",
+      "-v",
+      "1.0",
+      "S4.2/reference/s4_2_reference_v1.0.0.wav"
+    ],
+    "completed_monotonic_ns": 9929203208,
+    "completed_wall_time_utc": "2026-07-21T15:38:12.689575+00:00",
+    "exit_status": 0,
+    "started_monotonic_ns": 16577208,
+    "started_wall_time_utc": "2026-07-21T15:38:02.777146+00:00"
+  },
+  "return_code": 0,
+  "stderr": "",
+  "stdout": "{\"command\": [\"/usr/bin/afplay\", \"-v\", \"1.0\", \"S4.2/reference/s4_2_reference_v1.0.0.wav\"], \"started_wall_time_utc\": \"2026-07-21T15:38:02.777146+00:00\", \"started_monotonic_ns\": 16577208, \"completed_wall_time_utc\": \"2026-07-21T15:38:12.689575+00:00\", \"completed_monotonic_ns\": 9929203208, \"exit_status\": 0}\n",
+  "workstation_envelope": {
+    "claim": "workstation process-liveness envelope; SSH timing is not cross-host synchronization",
+    "completed_monotonic_ns": 393502133829933,
+    "completed_wall_time_utc": "2026-07-21T15:38:14.804745+00:00",
+    "post_playback_margin_s": 2.0,
+    "recorders_alive": {
+      "after_playback": {
+        "pi": true,
+        "zed": true
+      },
+      "after_post_margin": {
+        "pi": true,
+        "zed": true
+      },
+      "before_playback": {
+        "pi": true,
+        "zed": true
+      }
+    },
+    "started_monotonic_ns": 393489932320320,
+    "started_wall_time_utc": "2026-07-21T15:38:02.603238+00:00"
+  }
+}

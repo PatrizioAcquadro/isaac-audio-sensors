@@ -23,8 +23,8 @@ REQUIRED_ROLES = {
     "acquisition_implementation",
     "workstation_cli",
     "pi_helper",
-    "zed_preflight",
     "zed_capture_helper",
+    "zed_svo_validator",
     "mac_preflight_helper",
     "mac_source_inventory",
     "reference_generator",
@@ -34,6 +34,10 @@ REQUIRED_ROLES = {
     "semantic_validator",
     "tests",
     "accepted_mac_preflight",
+    "stable_session_preflight",
+    "mac_dynamic_preflight",
+    "producer_readiness_validation",
+    "operator_remove_cue",
     "accepted_attempt_manifest",
     "accepted_validation_report",
     "accepted_alignment_report",
@@ -188,9 +192,7 @@ def validate_index(
                 )
             if not isinstance(entry.get("media_properties"), dict):
                 issues.append(
-                    _issue(
-                        "missing_media_properties", relative, "must be an object"
-                    )
+                    _issue("missing_media_properties", relative, "must be an object")
                 )
             if not isinstance(entry.get("acquisition_contract"), dict):
                 issues.append(

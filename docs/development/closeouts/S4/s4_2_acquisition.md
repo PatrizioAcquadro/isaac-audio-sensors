@@ -1,39 +1,41 @@
 # S4.2 closeout - synchronized practical acquisition
 
-Status: **passed** (2026-07-20 local / 2026-07-21 UTC). The maintained
-acquisition path, one real accepted hardware take, release-archive audits, and
-the raw-independent clean-checkout S4.2 gate pass. This document does not
-authorize or start S4.3.
+Status: **NO-GO pending authorized frozen-commit validation** (2026-07-21).
+The maintained acquisition path and replacement real hardware take pass. The
+raw-independent clean-checkout and provenance-bound Kit/pack gates still
+require the operator-authorized frozen commit. This document does not authorize
+or start S4.3.
 
 ## Accepted take
 
-The accepted attempt is
-`s4_2_20260721T002805Z_accepted_candidate_004`, retained only under the
-gitignored machine-local archive `dataset/S4.2/`. It records 20.000 seconds of
+The replacement accepted attempt is
+`s4_2_20260721T153800Z_optimized_candidate_014`, retained only under the
+gitignored machine-local archive `dataset/S4.2/`. It records 35.000 seconds of
 six-channel ReSpeaker audio at 16 kHz PCM S16_LE, a ZED 2i HD720 30 FPS SVO2,
-and 602 JSONL records containing image signatures, sampled depth, IMU, device
+and 1,052 JSONL records containing image signatures, sampled depth, IMU, device
 and host timestamps, and tracking pose/state. The capture gate, media
-validation, checksums, Mac playback, Mac preflight, and practical alignment all
-pass.
+validation, complete-reference overlap, checksums, Mac playback, Mac preflight,
+full-file ZED SDK replay, and practical alignment all pass.
 
-The event was one visible and audible impact on a blue wastebasket bearing a
-white recycling symbol, using a long plain paper roll. The descriptive symbol
-correction was recorded after acquisition without changing the predeclared
-method, position, or threshold. The approximate event position was
+The event was one operator-confirmed visible and audible impact on a blue
+wastebasket bearing a white recycling symbol, using a long plain paper roll.
+The operator self-timed the 1.5-second visible hold/removal from the single chat
+cue; playback remained scheduled at the frozen 2.0-second target. The
+approximate event position was
 `(+1.15, 0.00, -0.40) m` in `F_project`. Manual review confirmed no person,
 hand, label containing private information, screen, or other personal data in
 the retained review frames.
 
-The audio transient is at sample 234417, or 14.6510625 s after audio start. The
-corresponding ZED observation is frame 450 at 15.000842 s after ZED capture
+The audio transient is at sample 213696, or 13.356 s after audio start. The
+corresponding ZED observation is frame 345 at 11.500677 s after ZED capture
 start. The reported offset is:
 
 ```text
-ZED elapsed time - ReSpeaker audio elapsed time = +0.349779500 s
+ZED elapsed time - ReSpeaker audio elapsed time = -1.855323000 s
 ```
 
-The conservative uncertainty is 37.326716 ms, below the frozen 50 ms maximum.
-Its components are one audio sample (0.0625 ms), audio localization (1.000 ms),
+The conservative uncertainty is 37.366880 ms, below the frozen 50 ms maximum.
+Its components are one audio sample (0.0625 ms), audio localization (2.000 ms),
 half a ZED frame interval (16.687 ms), and one-frame visual localization
 (33.374 ms), combined by root-sum-square. SSH launch proximity is recorded as
 a timing observation only and is not synchronization.
@@ -62,8 +64,9 @@ footprint with no component movement, clear microphone openings and ZED field
 of view, safe cables, an operator-reported quiet room, and a privacy-cleared
 retained scene.
 
-The accepted Mac preflight records Work Focus active, notifications suppressed,
-MacBook Pro Speakers selected, volume 63 percent, unmuted output, centered
+The accepted Mac preflight records operator-confirmed Work Focus active and
+notifications suppressed, MacBook Pro Speakers selected, volume 40 percent,
+unmuted output, centered
 balance confirmed manually, AC power, mono off, and Background Sounds off.
 System/UI sounds and volume feedback remained enabled but were prevented by the
 frozen no-trigger procedure; the operator reported no unexpected sound.
@@ -76,7 +79,7 @@ The deterministic copyright-free reference is
 The tracked generator, seed, exact segment timing, statistics, provenance, and
 regeneration command are in the adjacent reference metadata. The Mac copy was
 verified with `shasum -a 256`, `afinfo`, and the read-only preflight before the
-accepted take. Playback used `/usr/bin/afplay -v 1.0` at fixed system volume 63
+accepted take. Playback used `/usr/bin/afplay -v 1.0` at fixed system volume 40
 percent.
 
 The workstation CLI validates all configuration and required metadata before
@@ -101,6 +104,29 @@ cleans local and remote children on all exits.
   were hashed in a pre-deletion record and permanently deleted. The deletion
   record and all nonvisual evidence remain; the deleted visuals are
   unrecoverable.
+- `s4_2_20260721T002805Z_accepted_candidate_004`: passed its original gate, but
+  remediation proved that complete reference playback and the post-playback
+  margin were outside the recorder intervals. Its original lifecycle remains
+  unchanged; a separate remediation disposition classifies it as failed
+  historical evidence.
+- `s4_2_20260721T140500Z_remediation_candidate_005`: failed because channel
+  stimulus-start estimates were inconsistent.
+- `s4_2_20260721T141300Z_remediation_candidate_006`: failed because the complete
+  deterministic reference stimulus was not retained.
+- `s4_2_20260721T141730Z_remediation_candidate_007` and
+  `s4_2_20260721T142430Z_remediation_candidate_008`: failed because the visible
+  alignment event was missing or ambiguous.
+- `s4_2_20260721T151000Z_optimized_candidate_009`: failed before the cue because
+  the marketing model was compared with the exact USB product descriptor.
+- `s4_2_20260721T151000Z_optimized_candidate_010`: failed because buffered cue
+  lines became visible together after the action window.
+- `s4_2_20260721T151100Z_optimized_candidate_011`: failed because the terminal
+  matcher delivered no compliant action cue.
+- `s4_2_20260721T151300Z_optimized_candidate_012`: failed because tool
+  notifications were not chat messages.
+- `s4_2_20260721T152300Z_optimized_candidate_013`: failed because the second chat
+  turn arrived 11.967133078 seconds after the first and both recorders ended
+  before complete playback plus margin.
 - `mac_preflight_focus_inactive_20260720T235809Z`: Work Focus was inactive, so
   the preflight failed and was retained before the operator activated Focus.
 - Two earlier Pi firmware-representation failures under the tracked S4.2
@@ -109,8 +135,9 @@ cleans local and remote children on all exits.
 
 ## Evidence retention and limitations
 
-The authoritative machine-readable index is
-`outputs/isaac_audio_sensors/S4/S4.2/evidence_index.json`. Its checksum manifest
+The replacement machine-readable index is
+`outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721/evidence_index.json`.
+Its checksum manifest
 covers every indexed tracked or machine-local artifact except the index itself
 and checksum file, avoiding circular self-hashes. Every retained file under
 `dataset/S4.2/` has a role, byte size, media properties, SHA-256, local path,
@@ -127,24 +154,16 @@ pass both checksum and semantic validation.
 
 ## Final gate
 
-The frozen candidate is commit `ef313768994ac34f527f4090ccc5348ca0b93953`.
-The targeted S4.2 suite passed with 61 tests and one explicit hardware-gated
-skip. The full primary-worktree suite passed with 1171 tests and 79 genuine
-optional-dependency or explicit hardware skips. `make lint`, `make build`,
-`make check-version`, `make audit-dist`, `make audit-kit`, `make audit-pack`,
-and `git diff --check` passed from the clean frozen revision.
+The targeted S4.2 suite passed with 94 tests and two explicit hardware/real-SVO
+fixture skips. The full primary-worktree suite passed with 1,204 tests and 80
+genuine optional-dependency or explicit hardware skips. `make lint`,
+`make build`, `make check-version`, and `make audit-dist` pass. `make audit-kit`
+and `make audit-pack` report absent archives because their build targets require
+a clean frozen release source; `make check-release-source` rejects the
+intentionally dirty uncommitted worktree.
 
-An isolated local clone of that commit contained no `dataset/S4.2/`. Its
-raw-independent S4.2 integrity validator, deterministic reference regeneration,
-61 targeted tests, lint, build, version, distribution, Kit, acoustic-pack, and
-whitespace gates passed. A diagnostic full-suite invocation in that clone was
-not used as passing evidence: one developer-mode test resolved the explicitly
-shared virtual environment's editable install to the original checkout (1168
-passed, 81 skipped, one failed). This environment-coupling observation does not
-replace the passing full suite at the frozen primary source revision or the
-passing required S4.2 clean-checkout gate.
-
-The authoritative machine-readable result is
-`outputs/isaac_audio_sensors/S4/S4.2/final_repository_gate.json`. S4.2 is
-closed as PASS subject to the documented machine-local raw-retention
-limitations.
+The current machine-readable candidate result is
+`outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721/candidate_repository_gate.json`.
+S4.2 remains NO-GO until the operator authorizes the frozen commit, the
+raw-independent clean-checkout gate passes, and provenance-bound Kit/pack
+archives are built and audited from that frozen source.

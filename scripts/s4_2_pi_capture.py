@@ -11,6 +11,7 @@ import re
 import signal
 import subprocess
 import time
+import wave
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -53,6 +54,25 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _inspect_partial_wav(path: Path) -> dict[str, Any]:
+    """Inspect the header produced by the actual recorder process."""
+
+    with wave.open(str(path), "rb") as reader:
+        sample_width = reader.getsampwidth()
+        compression = reader.getcomptype()
+        return {
+            "channel_count": reader.getnchannels(),
+            "sample_rate_hz": reader.getframerate(),
+            "sample_width_bytes": sample_width,
+            "compression": compression,
+            "encoding": (
+                "PCM_S16_LE"
+                if sample_width == 2 and compression == "NONE"
+                else "unsupported"
+            ),
+        }
+
+
 def _usb_identity() -> dict[str, Any] | None:
     for device in Path("/sys/bus/usb/devices").glob("*"):
         try:
@@ -83,80 +103,6 @@ def _usb_identity() -> dict[str, Any] | None:
     return None
 
 
-def _arecord_probe(device: str) -> dict[str, Any]:
-    completed = subprocess.run(
-        [
-            "/usr/bin/arecord",
-            "-D",
-            device,
-            "--dump-hw-params",
-            "-d",
-            "1",
-            "-f",
-            "S16_LE",
-            "-r",
-            "16000",
-            "-c",
-            "6",
-            "/dev/null",
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
-    combined = completed.stdout + "\n" + completed.stderr
-    return {
-        "exit_status": completed.returncode,
-        "six_channels": bool(re.search(r"^CHANNELS:\s+6$", combined, re.MULTILINE)),
-        "sample_rate_16000": bool(
-            re.search(r"^RATE:\s+16000$", combined, re.MULTILINE)
-        ),
-        "sample_format_s16_le": bool(
-            re.search(r"^FORMAT:\s+S16_LE$", combined, re.MULTILINE)
-        ),
-    }
-
-
-def preflight(args: argparse.Namespace) -> int:
-    root = Path(args.root).expanduser()
-    root.mkdir(parents=True, exist_ok=True)
-    identity = _usb_identity()
-    disk = os.statvfs(root)
-    free_bytes = disk.f_bavail * disk.f_frsize
-    alsa = _arecord_probe(args.device)
-    checks = {
-        "device_present": identity is not None,
-        "serial_matches": identity is not None
-        and identity.get("serial") == EXPECTED_SERIAL,
-        "model_matches": identity is not None
-        and identity.get("model") == EXPECTED_MODEL,
-        "firmware_matches": identity is not None
-        and identity.get("firmware") == EXPECTED_FIRMWARE,
-        "usb_available": identity is not None
-        and float(identity.get("usb_speed_mbps", 0)) >= 480,
-        "arecord_available": Path("/usr/bin/arecord").is_file(),
-        "capture_opened": alsa["exit_status"] == 0,
-        "six_channels": alsa["six_channels"],
-        "sample_rate_16000": alsa["sample_rate_16000"],
-        "sample_format_s16_le": alsa["sample_format_s16_le"],
-        "disk_space": free_bytes >= args.minimum_free_bytes,
-    }
-    payload = {
-        "schema": SCHEMA,
-        "operation": "preflight",
-        "status": "passed" if all(checks.values()) else "failed",
-        "collected_at_utc": datetime.now(timezone.utc).isoformat(),
-        "identity": identity,
-        "alsa": alsa,
-        "free_bytes": free_bytes,
-        "minimum_free_bytes": args.minimum_free_bytes,
-        "checks": checks,
-    }
-    print(json.dumps(payload, indent=2, sort_keys=True), flush=True)
-    return 0 if all(checks.values()) else 1
-
-
 def record(args: argparse.Namespace) -> int:
     attempt = Path(args.attempt).expanduser()
     if attempt.exists():
@@ -167,6 +113,36 @@ def record(args: argparse.Namespace) -> int:
     final = attempt / "respeaker_audio.wav"
     status_path = attempt / "producer_status.json"
     pid_path = attempt / "producer.pid"
+    identity = _usb_identity()
+    disk = os.statvfs(attempt)
+    free_bytes = disk.f_bavail * disk.f_frsize
+    startup_checks = {
+        "device_present": identity is not None,
+        "serial_matches": identity is not None
+        and identity.get("serial") == EXPECTED_SERIAL,
+        "model_matches": identity is not None
+        and identity.get("model") == EXPECTED_MODEL,
+        "firmware_matches": identity is not None
+        and identity.get("firmware") == EXPECTED_FIRMWARE,
+        "usb_available": identity is not None
+        and float(identity.get("usb_speed_mbps", 0)) >= 480,
+        "arecord_available": Path("/usr/bin/arecord").is_file(),
+        "disk_space": free_bytes >= args.minimum_free_bytes,
+    }
+    if not all(startup_checks.values()):
+        result = {
+            "schema": SCHEMA,
+            "operation": "record",
+            "status": "failed",
+            "reason": "ReSpeaker identity, USB, executable, or disk check failed",
+            "identity": identity,
+            "free_bytes": free_bytes,
+            "minimum_free_bytes": args.minimum_free_bytes,
+            "startup_checks": startup_checks,
+        }
+        _atomic_json(status_path, result)
+        print(json.dumps({"event": "failed", "summary": result}), flush=True)
+        return 3
     command = [
         "/usr/bin/arecord",
         "-D",
@@ -187,19 +163,47 @@ def record(args: argparse.Namespace) -> int:
     started_monotonic_ns = time.monotonic_ns()
     process = subprocess.Popen(command, start_new_session=True)  # noqa: S603
     pid_path.write_text(f"{os.getpid()} {process.pid}\n", encoding="ascii")
-    time.sleep(0.5)
-    if process.poll() is not None:
+    capture_format: dict[str, Any] | None = None
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline and process.poll() is None:
+        if partial.is_file() and partial.stat().st_size >= 44:
+            try:
+                capture_format = _inspect_partial_wav(partial)
+                break
+            except (EOFError, OSError, wave.Error):
+                pass
+        time.sleep(0.05)
+    startup_checks.update(
+        {
+            "capture_started": process.poll() is None,
+            "six_channels": capture_format is not None
+            and capture_format["channel_count"] == 6,
+            "sample_rate_16000": capture_format is not None
+            and capture_format["sample_rate_hz"] == 16_000,
+            "sample_format_s16_le": capture_format is not None
+            and capture_format["encoding"] == "PCM_S16_LE",
+        }
+    )
+    if not all(startup_checks.values()):
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGINT)
+            process.wait(timeout=5)
         result = {
             "schema": SCHEMA,
             "operation": "record",
             "status": "failed",
-            "reason": f"arecord exited before readiness with {process.returncode}",
+            "reason": "actual arecord process failed its startup contract",
             "started_wall_time_utc": started_wall,
             "started_monotonic_ns": started_monotonic_ns,
+            "identity": identity,
+            "capture_format": capture_format,
+            "free_bytes": free_bytes,
+            "minimum_free_bytes": args.minimum_free_bytes,
+            "startup_checks": startup_checks,
         }
         _atomic_json(status_path, result)
-        print(json.dumps(result, sort_keys=True), flush=True)
-        return 3
+        print(json.dumps({"event": "failed", "summary": result}), flush=True)
+        return 4
     print(
         json.dumps(
             {
@@ -207,6 +211,12 @@ def record(args: argparse.Namespace) -> int:
                 "started_wall_time_utc": started_wall,
                 "started_monotonic_ns": started_monotonic_ns,
                 "arecord_pid": process.pid,
+                "identity": identity,
+                "capture_format": capture_format,
+                "free_bytes": free_bytes,
+                "minimum_free_bytes": args.minimum_free_bytes,
+                "checks": startup_checks,
+                "verification_basis": "actual_recording_partial_wav_header",
             },
             sort_keys=True,
         ),
@@ -256,6 +266,9 @@ def record(args: argparse.Namespace) -> int:
         "partial_path": partial.name if partial.is_file() else None,
         "byte_size": final.stat().st_size if final.is_file() else 0,
         "sha256": _sha256(final) if final.is_file() else None,
+        "identity": identity,
+        "capture_format": capture_format,
+        "startup_checks": startup_checks,
     }
     _atomic_json(status_path, result)
     pid_path.unlink(missing_ok=True)
@@ -293,15 +306,11 @@ def stop(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="operation", required=True)
-    preflight_parser = subparsers.add_parser("preflight")
-    preflight_parser.add_argument("--root", required=True)
-    preflight_parser.add_argument("--device", required=True)
-    preflight_parser.add_argument("--minimum-free-bytes", type=int, required=True)
-    preflight_parser.set_defaults(function=preflight)
     record_parser = subparsers.add_parser("record")
     record_parser.add_argument("--attempt", required=True)
     record_parser.add_argument("--device", required=True)
     record_parser.add_argument("--duration", type=int, required=True)
+    record_parser.add_argument("--minimum-free-bytes", type=int, required=True)
     record_parser.set_defaults(function=record)
     stop_parser = subparsers.add_parser("stop")
     stop_parser.add_argument("--attempt", required=True)

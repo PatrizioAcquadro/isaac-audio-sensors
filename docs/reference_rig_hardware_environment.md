@@ -1,7 +1,7 @@
 # Reference Rig Hardware And Environment
 
-Status: **S4.1 passed for the installed handmade desktop fixture; S4.2 is authorized but has not started**
-Last verified: **July 16, 2026 hardware bring-up; July 20, 2026 operator report, photographic environment/fixture review, SSH/audio checks, and current-fixture ZED/audio capture**
+Status: **S4.1 passed for the installed handmade desktop fixture; the S4.2 replacement hardware take passes, with frozen-commit repository validation pending**
+Last verified: **July 16, 2026 hardware bring-up; July 20, 2026 operator report, photographic environment/fixture review, SSH/audio checks, and current-fixture ZED/audio capture; July 21, 2026 accepted S4.2 replacement capture and full SVO2 replay**
 
 This document is the canonical record of the physical development rig for the
 Isaac Audio Sensor and the later SquadBot bench work. It separates live-verified
@@ -148,7 +148,15 @@ and the sanitized official ZED Diagnostic result is
   channel 0. SHA-256:
   `80e077b02a5d0dda047311e9c891fa74ab125de41cdd8d128139083c3ee1f7eb`.
   This passes the S4.1 local audio-integrity check; raw-channel event/DOA and
-  audio-video alignment checks remain S4.2 work.
+  audio-video alignment checks were subsequently closed by the S4.2
+  replacement take described below.
+- The July 21 S4.2 replacement attempt
+  `s4_2_20260721T153800Z_optimized_candidate_014` retained 35.000 seconds of
+  six-channel audio, a 1,052-frame HD720/30 FPS SVO2 and JSONL record, the full
+  9.5-second reference playback, and the two-second post-playback margin. Full
+  ZED SDK replay and representative image/depth/IMU/pose retrieval passed. The
+  visible/audible impact association is `-1.855323 s` using the documented
+  `ZED elapsed - audio elapsed` definition, with `37.366880 ms` uncertainty.
 
 ### ZED 2i
 
@@ -254,8 +262,9 @@ confirmed that both ZED and ReSpeaker are approximately `5.5 m` from the right
 structural wall. A physical outline has been marked to reproduce the fixture's
 desk placement, so a ZED-to-desk-edge distance is not required for the current
 placement method. The physical project axes use the package convention: local
-`+X` forward along the ZED viewing direction, local `+Y` to the ZED's right,
-and local `+Z` vertically upward. The photographed `+X` and `+Y` arrows are
+`+X` forward along the ZED viewing direction, local `+Y` to the operator's
+right while facing the camera (the ZED camera's left), and local `+Z`
+vertically upward. The photographed `+X` and `+Y` arrows are
 consistent with this convention. On July 20 the operator confirmed that the
 `+Z`-up mark was subsequently added; no additional photograph was required for
 this user-reported fixture-state update.
@@ -388,8 +397,14 @@ device/channel/frame/room/topology record, approximate as-used geometry, marked
 placement, practical mount/FOV/cable checks, SSH, audible playback, six-channel
 local audio capture, and current-fixture ZED capture. The unavailable future
 CAD package is not evidence for this fixture and is not an S4.1 blocker.
-Formal printed-mount physical acceptance remains separate. S4.2 is authorized
-but has not started. The following later gates remain open:
+Formal printed-mount physical acceptance remains separate. The S4.2 replacement
+take retains the complete reference playback and passes blocking offline SVO2
+replay and retained-data validation. Its startup path uses stable-session
+Mac/GPU checks and actual-recorder readiness rather than redundant per-take
+probes. S4.2 repository closeout still requires the authorized frozen commit,
+raw-independent clean-checkout validation, and provenance-bound Kit/pack
+audits. S4.3 has not started. The
+following later gates remain open:
 
 1. Lock acquisition metadata, practical time-association/alignment, data-quality
    rules, compact controlled matrix, stopping rule, and failure thresholds.

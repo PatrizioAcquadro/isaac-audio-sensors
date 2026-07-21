@@ -219,7 +219,9 @@ def _reference_wav(path: Path, expected_sha256: str) -> dict[str, Any]:
     return result
 
 
-def collect(wav_path: Path, expected_sha256: str) -> dict[str, Any]:
+def collect(
+    wav_path: Path, expected_sha256: str, expected_volume_percent: int = 63
+) -> dict[str, Any]:
     """Collect a redacted report without changing any system setting."""
 
     now = datetime.now().astimezone()
@@ -301,7 +303,7 @@ def collect(wav_path: Path, expected_sha256: str) -> dict[str, Any]:
         "output_device_matches": audio.get("device_name") == "MacBook Pro Speakers",
         "output_channels_match": audio.get("channel_count") == 2,
         "output_sample_rate_matches": audio.get("nominal_sample_rate_hz") == 48_000,
-        "volume_matches": volume.get("output_volume") == 63,
+        "volume_matches": volume.get("output_volume") == expected_volume_percent,
         "unmuted": volume.get("output_muted") is False,
         "ac_power": power.get("on_ac_power") is True,
         "work_focus_active": focus.get("work_focus_active") is True,
@@ -319,22 +321,78 @@ def collect(wav_path: Path, expected_sha256: str) -> dict[str, Any]:
     return report
 
 
+def collect_dynamic(expected_volume_percent: int) -> dict[str, Any]:
+    """Collect only settings that can change between takes in one stable session."""
+
+    now = datetime.now().astimezone()
+    audio = _selected_audio_output()
+    volume = _volume_settings()
+    power = _power_state()
+    checks = {
+        "output_device_matches": audio.get("device_name") == "MacBook Pro Speakers",
+        "output_channels_match": audio.get("channel_count") == 2,
+        "output_sample_rate_matches": audio.get("nominal_sample_rate_hz") == 48_000,
+        "volume_matches": volume.get("output_volume") == expected_volume_percent,
+        "unmuted": volume.get("output_muted") is False,
+        "ac_power": power.get("on_ac_power") is True,
+    }
+    return {
+        "schema": "ias.s4_2.mac_dynamic_preflight.v1",
+        "collector_version": COLLECTOR_VERSION,
+        "read_only": True,
+        "scope": "per_take_dynamic_only",
+        "collected_at": now.isoformat(timespec="seconds"),
+        "timezone": str(now.tzinfo),
+        "audio_output": audio,
+        "volume": volume,
+        "power": power,
+        "checks": checks,
+        "status": "passed" if all(checks.values()) else "failed",
+        "privacy": {
+            "redacted_fields": [
+                "serial_numbers",
+                "hardware_uuid",
+                "username",
+                "hostname",
+                "ip_addresses",
+                "wifi",
+                "apple_id",
+            ]
+        },
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--wav", type=Path, required=True)
-    parser.add_argument("--expected-sha256", required=True)
+    parser.add_argument("--wav", type=Path, default=None)
+    parser.add_argument("--expected-sha256", default=None)
+    parser.add_argument(
+        "--expected-volume-percent",
+        type=int,
+        choices=range(0, 101),
+        required=True,
+    )
     parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("--dynamic-only", action="store_true")
     args = parser.parse_args()
-    if not re.fullmatch(r"[0-9a-fA-F]{64}", args.expected_sha256):
-        parser.error("--expected-sha256 must contain exactly 64 hexadecimal digits")
-    report = collect(args.wav, args.expected_sha256)
+    if args.dynamic_only:
+        report = collect_dynamic(args.expected_volume_percent)
+    else:
+        if args.wav is None:
+            parser.error("--wav is required unless --dynamic-only is used")
+        if args.expected_sha256 is None or not re.fullmatch(
+            r"[0-9a-fA-F]{64}", args.expected_sha256
+        ):
+            parser.error("--expected-sha256 must contain exactly 64 hexadecimal digits")
+        report = collect(args.wav, args.expected_sha256, args.expected_volume_percent)
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output is None:
         sys.stdout.write(encoded)
     else:
         args.output.write_text(encoded, encoding="utf-8")
         sys.stdout.write(encoded)
-    return 0 if all(report["frozen_checks"].values()) else 1
+    checks = report.get("frozen_checks", report.get("checks", {}))
+    return 0 if all(checks.values()) else 1
 
 
 if __name__ == "__main__":

@@ -4,6 +4,13 @@ Status: **frozen before accepted-take evidence** on 2026-07-20 and amended,
 before any accepted capture, by
 `s4_2_pre_capture_acceptance_amendment.v1.json`.
 
+Remediation acceptance was frozen before the replacement capture on 2026-07-21
+in `s4_2_remediation_acceptance.v1.json`. It invalidates the former S4.2 pass
+because attempt `s4_2_20260721T002805Z_accepted_candidate_004` did not contain
+the complete reference playback. That attempt and its original lifecycle are
+retained unchanged; `remediation_reclassification.json` records its current
+failed scientific disposition.
+
 This specification implements only the `S4.2` row of
 `s0_squadbot_readiness_acceptance.md`. It does not define or collect the S4.3
 experimental matrix. Passing S4.1 and the S2.2 atomic-writer contract are entry
@@ -34,21 +41,50 @@ cross-system alignment event.
 | --- | --- |
 | Fixture | `S4_TEMP_DESKTOP_FIXTURE_REV0` on its marked footprint |
 | Project frame | `F_project`: origin at the ZED stereo-lens midpoint; +X forward with the ZED view, +Y to the operator's right while facing the camera (the ZED camera's left), +Z up; positive bearing counterclockwise from +X toward +Y viewed from above |
-| ReSpeaker | XVF3800, serial `114993701261100454`, USB descriptor firmware `2.08` |
+| ReSpeaker | XVF3800 marketing model; USB product descriptor `reSpeaker XVF3800 4-Mic Array`, serial `114993701261100454`, USB descriptor firmware `2.08` |
 | ReSpeaker capture | ALSA `hw:CARD=Array,DEV=0`, six channels, 16,000 Hz, `S16_LE`, interleaved PCM |
 | ReSpeaker channel order | 0 Conference, 1 ASR, 2 raw microphone 0, 3 raw microphone 1, 4 raw microphone 2, 5 raw microphone 3 |
 | ZED | ZED 2i, serial `39011785`, SDK `5.4.0`, camera firmware `1523`, sensor firmware `777` |
 | ZED mode | HD720 at 30 FPS, PERFORMANCE depth, meters, right-handed Y-up camera coordinates |
 | ZED outputs | SVO2 plus frame JSONL containing image/depth/IMU/device timestamps and tracking pose/state |
 | Mac | `MacBookPro18,1`, macOS `26.5.2` build `25F84`, `MacBook Pro Speakers` |
-| Playback | `/usr/bin/afplay -v 1.0 <reference.wav>`; system output volume 63%; unmuted |
-| Bounded take | 20 s nominal; accepted range 15-60 s |
+| Playback | `/usr/bin/afplay -v 1.0 <reference.wav>`; system output volume 40%; unmuted |
+| Bounded take | 20 s nominal, `+/-0.25 s` WAV-duration tolerance; accepted configured range 15-60 s |
 
-The acquisition configuration and current Mac preflight must match these values
-before hardware acquisition starts. Unknown or changed channel order,
+The acquisition configuration, stable-session Mac preflight, and per-take Mac
+dynamic report must match these values before acquisition starts. Unknown or
+changed channel order,
 coordinate convention, fixture identity, device identity, firmware, output
 device, volume, mute, balance, power, reference hash, or physical state rejects
 the take.
+
+### 2.1 Validation-profile boundary
+
+The take configuration contains the explicit profile
+`ias.s4.validation_profile.v1` with id
+`s4_2_controlled_dry_run_v1`. The profile makes the following requirements
+strict for S4.2 without turning them into universal S4 invariants.
+
+| Rule | Classification | S4.2 profile | Later S4 contract |
+| --- | --- | --- | --- |
+| Corrupt/truncated files, hashes, schemas, units, frames, lifecycle, declared channel/device contract, and forged derived reports | Universal integrity invariant | Required | Always required for every artifact/stream that is declared present |
+| Host/device timestamps | Universal integrity invariant | Strictly monotonic | Strictly monotonic for every present stream; an absent optional stream is not fabricated |
+| 20 s WAV and 0.25 s tolerance | S4.2 controlled dry run | Exact with tolerance | Declared per trial; may be exact, minimum, or another preregistered duration |
+| Complete 9.5 s reference, correlation 0.03, two raw channels | S4.2 controlled dry run | Required | Declared stimulus and metric-specific detector; may be absent for silence, impact-only, voice, or other source trials |
+| Playback overlap and 2 s margin | S4.2 controlled dry run | Required | Declared when a playback stimulus is required; not applicable to trials without playback |
+| Full SVO2 SDK replay | Universal integrity invariant for a take that declares an SVO2 artifact | Required before acceptance during offline finalization | Required before acceptance, either offline finalization or batch validation |
+| SVO2/JSONL exact frame equality and representative image/depth/IMU/pose | S4.2 controlled dry run | Exact and all modalities | Frame correspondence and representative modalities declared by the trial contract |
+| Every-frame valid `pose_status == OK` and fresh pose/IMU | S4.2 controlled dry run | Required | Metric-specific; absence invalidates pose/IMU-dependent metrics, not unrelated declared metrics |
+| 50 ms alignment uncertainty | S4.2 controlled dry run | Required | Preregistered per metric; not applicable when no cross-modal metric is claimed |
+| Mac identity/volume and fixed source/room/fixture | S4.2 controlled dry run | Exact profile | Exact for repeatability cells, declared variation for controlled/robustness trials |
+| Silence and sustained clipping quality disposition | Configurable per trial/metric | All channels nonsilent; sustained clipping rejects | Silence may be the intended stimulus; clipping may be retained as failed/robustness evidence under an explicit metric policy |
+
+A required modality cannot be paired with a disabled validator. Profile
+validation rejects that contradiction before hardware access. Later S4 trials
+must declare required modalities, duration/stimulus policies, replay/frame
+correspondence, pose/IMU needs, alignment gates, and controlled-versus-varied
+source/environment fields before capture. Missing optional data remain explicit
+and invalidate metrics that require them; they never become a silent pass.
 
 ## 3. Controlled reference waveform contract
 
@@ -80,10 +116,24 @@ read-only Mac preflight all agree with the frozen record.
 
 ## 4. Preflight and required operator record
 
-Configuration and required metadata are semantically validated before any
-device probe. The tool then checks local and remote free space, SSH access,
-ReSpeaker identity/format/availability, ZED/GPU/USB/device settings, Mac
-preflight, reference WAV identity, and output nonexistence.
+Configuration and required metadata are semantically validated before hardware
+access. A named stable-session preflight runs the full read-only Mac inventory
+and `nvidia-smi` once. Its immutable report is bound to the exact configuration
+hash and is invalidated by a setting change, disconnection, recorder startup
+error, or operator-reported change. Mac connectivity is observed by that real
+preflight command; Pi connectivity is observed by the real recorder SSH
+command. There are no separate three-round-trip SSH timing probes.
+
+Immediately before every take, the tool checks local disk and runs only the
+read-only Mac dynamic checks for selected output, volume, mute, and AC power.
+The real Pi recorder verifies ReSpeaker USB identity, firmware, free space, and
+the actual partial WAV header (six channels, 16 kHz, S16_LE) before it reports
+ready. The real ZED recorder opens the camera once, verifies identity, SDK,
+firmware, USB 3 and requested mode, then successfully retrieves image, depth,
+IMU, and valid pose from that same instance before enabling SVO2 and reporting
+ready. Per-take depth retrieval is the authoritative GPU-access check. A
+separate `arecord` probe, ZED open/close cycle, or per-take `nvidia-smi` is
+forbidden. The workstation validates both readiness payloads fail-closed.
 
 The operator must record, in meters and degrees in `F_project`:
 
@@ -110,10 +160,33 @@ screen facing the same general direction as the ZED. These orientation values
 are a practical placement class, not angular metrology, and the built-in
 speaker acoustic radiation axis is not measured or claimed.
 
-The current Mac report must establish AC power, 63% volume, unmuted built-in
+The stable-session Mac report must establish 40% volume, unmuted built-in
 output, centered left/right balance, Work Focus/notification suppression, mono
-off, background sounds off, and the system/UI-sound procedure. A field that the
-helper cannot read remains an explicit manual check and cannot be inferred.
+off, background sounds off, and the system/UI-sound procedure. Every take then
+rechecks selected output, volume, mute, and AC power dynamically. A field that
+the helper cannot read remains an explicit manual check and cannot be inferred.
+For Work Focus and notification suppression only, the operator confirmation is
+authoritative until the operator reports a change. These fields are recorded as
+`operator_confirmed`; a conflicting automatic observation is preserved as a
+non-blocking warning rather than treated as automatic verification. Every other
+preflight mismatch remains fail-closed.
+
+The operator first requested 30% after the failed remediation attempt at 63%
+was judged too loud. That retained 30% take failed the unchanged raw-channel
+reference-correlation gate. Before the next take, the operator authorized an
+exact 40% predeclared setting. The reference WAV and every correlation, overlap,
+duration, clipping, and alignment threshold remain unchanged. The operator
+strikes immediately when `ALIGNMENT EVENT NOW` is issued; playback remains a
+separate step beginning after the frozen two-second interval.
+The retained failed 40% attempt showed that the first strike was not visible at
+30 FPS. Before the next take, the operator confirmed the basket's standard white
+recycling symbol is not a private label and approved a visible-strike procedure:
+the paper roll enters the image and strikes once at `ALIGNMENT EVENT NOW`, then
+remains visible for an operator-self-timed 1.5 s. The operator removes it
+without waiting for a second chat message; playback starts at the frozen 2.0 s
+target, 0.5 s after the scheduled removal target. Hands and body stay outside
+the image. The scheduled removal timestamp is not mislabeled as an automatic
+observation of the physical removal.
 
 ## 5. Lifecycle and atomicity
 
@@ -132,6 +205,35 @@ rejected, interrupted, and partial attempts remain present with exact reasons.
 The Pi WAV is retrieved only after the remote recorder exits and finalizes it.
 Child and remote processes receive bounded graceful shutdown followed by a
 recorded forced-stop failure if required.
+
+Interactive operator readiness is resolved after the lightweight per-take
+preflight and before either bounded recorder starts. After both actual
+producers report verified ready, the frozen schedule is 3.0 s to
+`ALIGNMENT EVENT NOW`, an operator-self-timed 1.5 s visible hold/removal target,
+then 0.5 s to playback. The chat-cue acknowledgment and scheduled removal target
+retain wall and monotonic timestamps, deadlines, and scheduler error. The
+scheduled target is explicitly unobserved operator timing. The 2.0 s
+cue-to-playback interval,
+at most 11.0 s for the 9.5 s `afplay` interval including declared playback
+tolerance, and 2.0 s post-playback margin are unchanged. The configured
+35.0 s duration includes a fail-closed 15.0 s chat-ack reserve and must contain
+the 33.0 s worst-case post-readiness schedule. An acknowledgment after 15.0 s
+rejects the attempt without playback. Both recorder
+processes must be alive before playback, after playback, and after the margin.
+The retained ZED host-monotonic records must bracket the workstation playback
+envelope. These observations do not synchronize the Pi or Mac clocks.
+
+When the operator receives instructions through chat, the maintained
+`--chat-cue-handshake` mode is required. After verified recorder readiness and
+the frozen 3.0 s lead, acquisition pauses. The assistant sends the exact
+`ALIGNMENT EVENT NOW` cue as a chat message and immediately acknowledges it
+through the acquisition PTY; the acknowledgment wall/monotonic timestamp and
+its basis are retained. Tool notifications and buffered terminal text are not
+operator action cues. Under the operator-authorized self-timed procedure, the
+operator removes the roll 1.5 s after the chat cue without waiting for a second
+chat turn. Acquisition records the scheduled target as unobserved and launches
+playback at the frozen 2.0 s target. The retained audible/visible event, not
+chat transport timing, determines final cross-system alignment and uncertainty.
 
 ## 6. Practical alignment and frozen uncertainty gate
 
@@ -176,9 +278,18 @@ The validator rejects, without repair or coercion:
 - any channel with RMS below `1.0` PCM16 count or at least 250 ms continuously
   at or above `0.999` full scale;
 - missing/empty SVO, image/depth/IMU/pose retrieval failures, fewer than 90% of
-  requested frames, duplicate/nonmonotonic device or pose timestamps, pose
-  timestamps older than one observed frame interval, or repeated image-content
-  signatures across more than two advancing device timestamps (stale frames);
+  requested frames, duplicate/nonmonotonic host-wall, host-monotonic, device,
+  IMU, or pose timestamps, invalid pose state/data, pose or IMU timestamps older
+  than one observed frame interval, or repeated image-content signatures across
+  more than two advancing device timestamps (stale frames);
+- an SVO2 that cannot be replayed from beginning to end by ZED SDK 5.4.0 during
+  offline finalization, whose
+  serial/mode/frame count differs from the JSONL record, or whose first, middle,
+  or penultimate representative image/depth/IMU/pose retrieval fails;
+- ReSpeaker WAV duration outside `35.0 +/- 0.25 s`, recorder/playback overlap
+  that does not contain the full playback and margin, or fewer than two raw
+  microphone channels matching the complete deterministic reference at
+  normalized correlation `0.03`;
 - missing/stale device identities, USB 3/GPU/SDK failure, insufficient disk,
   SSH/device loss, interruption, partial transfer, or checksum mismatch;
 - corrupt JSON/JSONL, missing schema/version/units/frame fields, invalid frame
@@ -192,6 +303,10 @@ The validator rejects, without repair or coercion:
 Sustained clipping is frozen at 250 ms, not a single isolated full-scale sample.
 Silence is checked per channel. Channel identity/order is a metadata and device
 contract check; the validator never reorders samples to make a take pass.
+During finalization, the alignment offset and uncertainty are recomputed from
+the retained WAV sample index and ZED JSONL frame/device timestamps. Stored
+derived values or a stored `status: passed` never satisfy the gate by
+themselves.
 
 ## 8. Evidence and machine-local retention contract
 

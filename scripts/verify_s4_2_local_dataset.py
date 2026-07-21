@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from isaac_audio_sensors.acquisition.s4_2 import (
+    S42_VALIDATION_PROFILE,
     inspect_six_channel_wav,
     load_json,
     read_jsonl,
@@ -58,7 +59,11 @@ def verify_local_dataset(
             role = entry.get("role")
             semantic_issues: list[str] = []
             if role == "raw_respeaker_wav":
-                _, issues = inspect_six_channel_wav(artifact)
+                _, issues = inspect_six_channel_wav(
+                    artifact,
+                    require_nonsilent_channels=True,
+                    reject_sustained_clipping=True,
+                )
                 semantic_issues = [issue.code for issue in issues]
             elif role == "raw_zed_frame_records":
                 rows, jsonl_issues = read_jsonl(artifact)
@@ -72,7 +77,10 @@ def verify_local_dataset(
                     semantic_issues.extend(
                         issue.code
                         for issue in validate_zed_records(
-                            rows, duration_s=duration_s, fps=fps
+                            rows,
+                            duration_s=duration_s,
+                            fps=fps,
+                            validation_profile=S42_VALIDATION_PROFILE,
                         ).issues
                     )
             elif artifact.stat().st_size == 0:

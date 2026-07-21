@@ -20,11 +20,13 @@ from isaac_audio_sensors.core.dataset.atomic import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-OUTPUT_ROOT = Path("outputs/isaac_audio_sensors/S4/S4.2")
+OUTPUT_ROOT = Path("outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721")
 DATASET_ROOT = Path("dataset/S4.2")
 ACCEPTED_ATTEMPT = Path(
-    "dataset/S4.2/attempts/s4_2_20260721T002805Z_accepted_candidate_004"
+    "dataset/S4.2/attempts/s4_2_20260721T153800Z_optimized_candidate_014"
 )
+SUPERSEDED_ATTEMPTS = {"s4_2_20260721T002805Z_accepted_candidate_004"}
+DATASET_CHECKSUM_NAME = "SHA256SUMS.remediation_20260721"
 
 ACCEPTED_COPIES = {
     "mac_preflight.json": "mac_preflight.json",
@@ -34,6 +36,21 @@ ACCEPTED_COPIES = {
     "gate.json": "gate.json",
     "lifecycle.json": "lifecycle.json",
     "event_observation_confirmation.json": "event_observation_confirmation.json",
+    "stable_session_preflight.json": "stable_session_preflight.json",
+    "mac_dynamic_preflight.json": "mac_dynamic_preflight.json",
+    "producer_readiness_validation.json": "producer_readiness_validation.json",
+    "operator_remove_cue.json": "operator_remove_cue.json",
+    "operator_cue.json": "operator_cue.json",
+    "chat_cue_handshake_ready.json": "chat_cue_handshake_ready.json",
+    "chat_removal_cue_target.json": "chat_removal_cue_target.json",
+    "playback.json": "playback.json",
+    "producer_readiness.json": "producer_readiness.json",
+    "finalization_validation.json": "finalization_validation.json",
+    "alignment_recomputed.json": "alignment_recomputed.json",
+    "svo_replay_finalization_validation.json": (
+        "svo_replay_finalization_validation.json"
+    ),
+    "normalized_configuration.json": "normalized_configuration.json",
 }
 
 TRACKED_INPUTS = [
@@ -43,6 +60,7 @@ TRACKED_INPUTS = [
     ("configs/s4_2_accepted_dry_run.v1.json", "accepted_configuration"),
     ("docs/development/specs/s4_2_acquisition.md", "s4_2_specification"),
     ("docs/development/s4_2_operator_runbook.md", "operator_runbook"),
+    ("docs/reference_rig_hardware_environment.md", "reference_rig_status"),
     (
         "docs/development/specs/s4_2_mac_source_inventory.v1.json",
         "mac_source_inventory",
@@ -50,6 +68,10 @@ TRACKED_INPUTS = [
     (
         "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
         "pre_capture_acceptance_amendment",
+    ),
+    (
+        "docs/development/specs/s4_2_remediation_acceptance.v1.json",
+        "remediation_acceptance",
     ),
     ("docs/development/closeouts/S4/s4_2_acquisition.md", "s4_2_closeout"),
     (
@@ -76,8 +98,8 @@ TRACKED_INPUTS = [
     ("scripts/generate_s4_2_reference_wav.py", "reference_generator"),
     ("scripts/s4_2_mac_preflight.py", "mac_preflight_helper"),
     ("scripts/s4_2_pi_capture.py", "pi_helper"),
-    ("scripts/preflight_s4_2_zed.py", "zed_preflight"),
     ("scripts/run_s4_2_zed_capture.py", "zed_capture_helper"),
+    ("scripts/validate_s4_2_zed_svo.py", "zed_svo_validator"),
     ("scripts/s4_2_alignment_candidates.py", "alignment_helper"),
     ("scripts/s4_2_extract_alignment_frames.py", "alignment_review_helper"),
     ("scripts/s4_2_delete_privacy_visuals.py", "privacy_deletion_helper"),
@@ -86,8 +108,7 @@ TRACKED_INPUTS = [
     ("scripts/build_s4_2_evidence_index.py", "evidence_index_builder"),
     ("tests/test_s4_2_acquisition.py", "tests"),
     (
-        "outputs/isaac_audio_sensors/S4/S4.2/reference/"
-        "s4_2_reference_v1.0.0.wav",
+        "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
         "reference_wav",
     ),
     (
@@ -214,6 +235,8 @@ def _machine_role(relative: str) -> str:
     if relative.endswith("/raw/zed_frames.jsonl") and ACCEPTED_ATTEMPT.name in relative:
         return "raw_zed_frame_records"
     attempt_id, state = _attempt_context(relative)
+    if attempt_id in SUPERSEDED_ATTEMPTS:
+        return "retained_failure"
     if attempt_id and state != "accepted":
         return "retained_failure"
     if relative.startswith("dataset/S4.2/failures/"):
@@ -261,7 +284,7 @@ def _machine_entry(path: Path) -> dict[str, Any]:
     if role == "raw_respeaker_wav":
         contract.update(
             {
-                "duration_s": 20.0,
+                "duration_s": 35.0,
                 "sample_rate_hz": 16000,
                 "sample_format": "S16_LE",
                 "channel_count": 6,
@@ -278,7 +301,7 @@ def _machine_entry(path: Path) -> dict[str, Any]:
     if role in {"raw_zed_svo2", "raw_zed_frame_records"}:
         contract.update(
             {
-                "duration_s": 20.0,
+                "duration_s": 35.0,
                 "fps": 30,
                 "resolution": "HD720",
                 "depth_mode": "PERFORMANCE",
@@ -326,12 +349,15 @@ def _repository_gate_payload() -> dict[str, Any]:
         "status": "no_go_pending_frozen_commit_validation",
         "accepted_capture_gate": "passed",
         "completed_checks": {
-            "targeted_unit_and_integration": "61 passed, 1 hardware-gated skip",
-            "make_test": "1171 passed, 79 optional-dependency/hardware skips",
+            "targeted_unit_and_integration": (
+                "94 passed, 2 explicit hardware/real-SVO-fixture skips"
+            ),
+            "make_test": "1204 passed, 80 optional-dependency/hardware skips",
             "make_lint": "passed",
             "make_build": "passed",
             "make_check_version": "passed (1.10.0)",
             "make_audit_dist": "passed",
+            "git_diff_check": "passed before evidence assembly",
         },
         "pending_checks": {
             "make_build_kit_and_audit_kit": (
@@ -364,7 +390,7 @@ def build() -> dict[str, Any]:
             accepted_output / destination_name,
         )
 
-    dataset_checksum_path = dataset_root / "SHA256SUMS"
+    dataset_checksum_path = dataset_root / DATASET_CHECKSUM_NAME
     dataset_files_before_checksum = sorted(
         path for path in dataset_root.rglob("*") if path.is_file()
     )
@@ -412,6 +438,23 @@ def build() -> dict[str, Any]:
                     "event_observation_confirmation.json": (
                         "event_observation_confirmation"
                     ),
+                    "stable_session_preflight.json": "stable_session_preflight",
+                    "mac_dynamic_preflight.json": "mac_dynamic_preflight",
+                    "producer_readiness_validation.json": (
+                        "producer_readiness_validation"
+                    ),
+                    "operator_remove_cue.json": "operator_remove_cue",
+                    "operator_cue.json": "operator_cue",
+                    "chat_cue_handshake_ready.json": "chat_cue_handshake_ready",
+                    "chat_removal_cue_target.json": "chat_removal_cue_target",
+                    "playback.json": "playback_record",
+                    "producer_readiness.json": "producer_readiness",
+                    "finalization_validation.json": "finalization_validation",
+                    "alignment_recomputed.json": "alignment_recomputed",
+                    "svo_replay_finalization_validation.json": (
+                        "svo_replay_validation"
+                    ),
+                    "normalized_configuration.json": "accepted_configuration_copy",
                 }[name],
             )
             for name in ACCEPTED_COPIES

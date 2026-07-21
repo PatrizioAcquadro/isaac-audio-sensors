@@ -84,27 +84,30 @@ shasum -a 256 S4.2/reference/s4_2_reference_v1.0.0.wav
 afinfo S4.2/reference/s4_2_reference_v1.0.0.wav
 /usr/bin/python3 S4.2/bin/s4_2_mac_preflight.py \
   --wav S4.2/reference/s4_2_reference_v1.0.0.wav \
-  --expected-sha256 27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468
+  --expected-sha256 27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468 \
+  --expected-volume-percent 40
 ```
 
 Expected `shasum` is
 `27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468`.
 `afinfo` must report WAVE, one channel, 48,000 Hz, Int16, and 9.500000 s.
 
-The helper is read-only and redacts personal identifiers. The workstation can
-collect the same report with:
-
-```text
-PYTHONPATH=src .venv/bin/python -m isaac_audio_sensors s4-2 mac-preflight \
-  configs/s4_2_acquisition.v1.json \
-  --output outputs/isaac_audio_sensors/S4/S4.2/mac_preflight_current.json
-```
+The helper is read-only and redacts personal identifiers. The workstation
+collects the full report once through the named stable-session preflight in
+Section 5; do not repeat it before every take.
 
 ## 4. Mac settings immediately before an accepted take
 
 Keep Work Focus active and notifications suppressed. Confirm built-in `MacBook
-Pro Speakers`, stereo 48 kHz output, 63% system volume, unmuted output, AC
+Pro Speakers`, stereo 48 kHz output, 40% system volume, unmuted output, AC
 power, mono audio off, background sounds off, and centered left/right balance.
+
+For S4.2, the operator's explicit Work Focus and notification-suppression
+confirmation is authoritative until the operator reports a change. Record both
+fields as `operator_confirmed`. The helper's automatic Focus observation is
+retained; a conflicting or unavailable automatic result is a non-blocking
+warning and is never relabeled as automatic verification. This exception does
+not apply to any other preflight field.
 
 The collector cannot read balance reliably. In System Settings -> Sound ->
 Output, visually verify the Balance control is centered and report that
@@ -129,12 +132,26 @@ Playback remains:
 /usr/bin/afplay -v 1.0 "$HOME/S4.2/reference/s4_2_reference_v1.0.0.wav"
 ```
 
+The sound between the chirps is the intentional deterministic seeded broadband
+test segment, not an uncontrolled disturbance. At `ALIGNMENT EVENT NOW`, show
+the paper roll and strike once immediately. Keep it visible for a self-timed
+1.5 seconds, then remove it without waiting for another chat message. Reference
+playback begins at the frozen two-second impact-cue-to-playback target. Do not
+wait for a chirp or any other signal.
+
+The object is the blue wastebasket with its standard white recycling symbol and
+no private label. Prepare the paper-roll tip just outside the image. At the cue,
+immediately sweep it into view, strike the camera-facing rim or side once, keep
+it visible for a self-timed 1.5 seconds, then withdraw it. Hands and body remain
+outside the image.
+
 ## 5. Complete and validate the acquisition configuration
 
 Copy `configs/s4_2_acquisition.v1.json` to a take-specific configuration. Fill
 all null physical and preflight fields and explicit confirmations. Do not edit
 frozen device, waveform, mode, channel-order, room, frame, evidence-policy, or
-threshold values.
+threshold values, including the `s4_2_controlled_dry_run_v1` validation profile.
+That profile is deliberately stricter than future per-trial S4 profiles.
 
 ```text
 PYTHONPATH=src .venv/bin/python -m isaac_audio_sensors s4-2 validate-config \
@@ -147,31 +164,83 @@ requires the pre-capture acceptance amendment and explicit acknowledgment that
 the raw data are gitignored, unreplicated, vulnerable to workstation loss, and
 unavailable from a fresh clone.
 
+Create the stable-session preflight once after deployment and after confirming
+that the stable hardware/settings state is established:
+
+```text
+PYTHONPATH=src .venv/bin/python -m isaac_audio_sensors s4-2 session-preflight \
+  <take-config.json>
+```
+
+This runs the full Mac preflight and `nvidia-smi` once and writes the configured
+immutable session report. After any setting change, disconnection, recorder
+startup error, or operator-reported change, use a new session id and new report
+paths. Record an operator-reported invalidation explicitly:
+
+```text
+PYTHONPATH=src .venv/bin/python -m isaac_audio_sensors s4-2 \
+  invalidate-session-preflight <take-config.json> --reason '<exact reason>'
+```
+
 ## 6. Bounded acquisition
 
-The orchestrator validates metadata, reference and current Mac report; checks
-local disk; records three SSH round-trip observations per remote host without
-calling them synchronization; verifies Pi/ReSpeaker and ZED/GPU/USB settings;
-then starts both local producers.
+The orchestrator validates metadata, reference, and the immutable stable-session
+report; checks local disk; and runs only the Mac dynamic selected-output,
+volume, mute, and power checks. It then asks for operator readiness **before**
+starting either bounded producer. There are no repeated SSH timing probes,
+separate `arecord` probe, separate ZED open/close, or per-take `nvidia-smi`.
+Mac connectivity is proven by the real dynamic preflight and Pi connectivity by
+the real recorder command. SSH timing remains diagnostic only.
 
 ```text
 PYTHONPATH=src .venv/bin/python -m isaac_audio_sensors s4-2 run \
-  <take-config.json> --interactive-cue
+  <take-config.json> --interactive-cue --chat-cue-handshake
 ```
 
-When the terminal prints the active-recording warning, hold the clap/impact object
-approximately 1 m in front of the rig, in the central ZED field of view, while
-keeping hands, face, labels, and screens out of retained frames. When it prints
-the Enter prompt, press Enter only when the operator is prepared. When it then
-prints `ALIGNMENT EVENT NOW`, immediately perform exactly one sharp clap or
-visible impact. Do not perform another similar impact. Playback starts four
-seconds later in interactive mode. Do not touch the Mac volume keys or generate
-UI sounds.
+At the first warning, put the impact object and tool in position while keeping
+hands, face, labels, and screens out of the ZED field of view. Press Enter only
+when the scene is clear and the impact can be performed without another setup
+delay. The bounded recorders start only after that Enter. After both report
+ready, the tool waits the frozen 3.0-second lead and arms the chat barrier. At
+the assistant's `ALIGNMENT EVENT NOW` chat message, the operator immediately
+shows the roll, performs exactly one sharp impact, self-times 1.5 seconds, and
+removes the roll without waiting for another chat message. Playback starts at
+the frozen 2.0-second target. The chat acknowledgment and scheduled removal
+target wall/monotonic timestamps are retained; the target is explicitly not an
+automatic observation of the physical removal. Do not perform another similar
+impact, touch the Mac, or generate UI sounds.
 
-The 20 s recorders stop automatically. The Pi WAV is copied only after local
-Pi finalization. Interruption, failure, timeout, or partial transfer preserves a
-non-accepted attempt with lifecycle and reason. Never rerun into an existing
+For a chat-operated take, only the assistant's exact `ALIGNMENT EVENT NOW` chat
+commentary message is an action cue. Tool notifications and terminal output are
+not cues. The command pauses once after recorder readiness; the assistant sends
+the chat cue and acknowledges it through the PTY. The operator self-times the
+1.5-second hold/removal and does not wait for a second chat message. Playback
+launches at the frozen +2.0-second target. The PTY acknowledgment is retained as
+a practical cue observation; the scheduled removal target is marked unobserved,
+and final alignment comes from the retained audio transient and visible frame.
+
+The 35 s recorders stop automatically. The frozen schedule includes a 15.0 s
+fail-closed chat-ack reserve, up to 11.0 seconds for the complete 9.5-second
+`afplay` command, and a further 2.0-second recorder margin. A chat
+acknowledgment later than 15.0 s rejects the attempt before playback. The Pi WAV
+is copied only after local Pi finalization. A take is rejected if WAV duration
+differs from 35.0 s by more than 0.25 s, either recorder fails to contain
+playback plus margin, fewer
+than two raw microphone channels match the complete deterministic stimulus at
+the frozen correlation threshold, or the retained ZED host interval does not
+bracket playback. Interruption, failure, timeout, or partial transfer preserves
+a non-accepted attempt with lifecycle and reason. Never rerun into an existing
 attempt id.
+
+The ZED producer uses its one actual camera instance to verify identity, SDK,
+firmware, rear-port USB 3 speed, HD720/30/PERFORMANCE mode, and successful
+image/depth/IMU/valid-pose retrieval before reporting ready. Successful depth
+retrieval is the per-take GPU check. The Pi producer reports ready only after
+the actual recording process has produced a verified six-channel, 16 kHz,
+S16_LE partial WAV header. A missing or false readiness field fails the take
+and invalidates the stable session. Blocking full SVO2 SDK replay remains in
+offline finalization; visual alignment remains the existing manual/Codex review
+workflow. No automatic motion detection or background SVO validation is used.
 
 For the accepted dry run, the visible/audible event is one strike of a plain,
 unmarked blue wastebasket with a long, plain paper roll at approximately
@@ -213,6 +282,11 @@ Finalize only after annotation:
 PYTHONPATH=src .venv/bin/python -m isaac_audio_sensors s4-2 finalize \
   <attempt-root>
 ```
+
+Finalization reopens and replays the SVO2 through the ZED SDK, validates the
+complete WAV/reference overlap, host/device/IMU/pose timestamps and states, and
+recomputes alignment from the retained WAV/JSONL. It rejects a forged or stale
+alignment report even if that report says `status: passed`.
 
 ## 8. Evidence and machine-local validation
 

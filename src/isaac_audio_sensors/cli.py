@@ -128,10 +128,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     s42_mac_parser = s42_subparsers.add_parser("mac-preflight")
     s42_mac_parser.add_argument("config", type=Path)
     s42_mac_parser.add_argument("--output", type=Path, required=True)
+    s42_session_parser = s42_subparsers.add_parser("session-preflight")
+    s42_session_parser.add_argument("config", type=Path)
+    s42_invalidate_parser = s42_subparsers.add_parser("invalidate-session-preflight")
+    s42_invalidate_parser.add_argument("config", type=Path)
+    s42_invalidate_parser.add_argument("--reason", required=True)
     s42_run_parser = s42_subparsers.add_parser("run")
     s42_run_parser.add_argument("config", type=Path)
     s42_run_parser.add_argument("--attempt-id", default=None)
     s42_run_parser.add_argument("--interactive-cue", action="store_true")
+    s42_run_parser.add_argument("--chat-cue-handshake", action="store_true")
     s42_align_parser = s42_subparsers.add_parser("annotate-alignment")
     s42_align_parser.add_argument("attempt_root", type=Path)
     s42_align_parser.add_argument("--audio-sample-index", type=int, required=True)
@@ -316,8 +322,10 @@ def _s42_command(args: argparse.Namespace) -> int:
     )
     from isaac_audio_sensors.acquisition.s4_2_orchestrator import (
         collect_mac_preflight,
+        collect_stable_session_preflight,
         deploy_helpers_and_reference,
         finalize_attempt,
+        invalidate_stable_session_preflight,
         run_capture,
     )
 
@@ -335,11 +343,24 @@ def _s42_command(args: argparse.Namespace) -> int:
             result = collect_mac_preflight(load_json(args.config), args.output)
             print(json.dumps(result, indent=2, sort_keys=True))
             return 0 if result["status"] == "passed" else 1
+        if args.s42_command == "session-preflight":
+            configuration = load_json(args.config)
+            output = Path(configuration["session"]["stable_preflight_report_path"])
+            result = collect_stable_session_preflight(configuration, output)
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0 if result["status"] == "passed" else 1
+        if args.s42_command == "invalidate-session-preflight":
+            result = invalidate_stable_session_preflight(
+                load_json(args.config), reason=args.reason
+            )
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0
         if args.s42_command == "run":
             result = run_capture(
                 load_json(args.config),
                 attempt_id=args.attempt_id,
                 interactive_cue=args.interactive_cue,
+                chat_cue_handshake=args.chat_cue_handshake,
             )
             print(json.dumps(result, indent=2, sort_keys=True))
             return 0 if result["status"] == "accepted" else 2
@@ -383,6 +404,11 @@ def _s42_command(args: argparse.Namespace) -> int:
                 ),
             )
             result["zed_event_frame_index"] = args.zed_frame_index
+            result["audio_localization_half_width_samples"] = (
+                args.audio_half_width_samples
+            )
+            result["zed_localization_half_width_frames"] = args.zed_half_width_frames
+            result["extra_readout_quantization_ms"] = args.extra_uncertainty_ms
             confirmation_path = (
                 args.attempt_root / "event_observation_confirmation.json"
             )
@@ -403,9 +429,7 @@ def _s42_command(args: argparse.Namespace) -> int:
             result["event_observation_confirmation"] = confirmation
             result["coordinate_frame"] = configuration["coordinate_frame"]
             result["source_geometry"] = configuration["source"]
-            result["acceptance_amendment"] = configuration[
-                "acceptance_amendment"
-            ]
+            result["acceptance_amendment"] = configuration["acceptance_amendment"]
             write_json_atomic(output, result)
             print(json.dumps(result, indent=2, sort_keys=True))
             return 0 if result["status"] == "passed" else 1

@@ -55,13 +55,41 @@ def _event(kind: str, **fields: Any) -> None:
 
 
 def _camera_identity(info: Any) -> dict[str, Any]:
+    raw_model = str(info.camera_model)
+    model_token = raw_model.split(".")[-1].replace("_", "").replace(" ", "").lower()
+    normalized_model = "ZED 2i" if model_token == "zed2i" else raw_model
     return {
-        "model": str(info.camera_model).split(".")[-1].replace("_", " "),
+        "model": normalized_model,
         "serial": str(info.serial_number),
         "camera_firmware": str(info.camera_configuration.firmware_version),
         "sensor_firmware": str(info.sensors_configuration.firmware_version),
         "sdk_version": sl.Camera.get_sdk_version(),
     }
+
+
+def _read(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="ascii").strip()
+    except OSError:
+        return None
+
+
+def _usb_records() -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for device in Path("/sys/bus/usb/devices").glob("*"):
+        if _read(device / "idVendor") != "2b03":
+            continue
+        speed = _read(device / "speed")
+        records.append(
+            {
+                "vendor_id": "2b03",
+                "product_id": _read(device / "idProduct"),
+                "product": _read(device / "product"),
+                "serial": _read(device / "serial"),
+                "speed_mbps": float(speed) if speed is not None else None,
+            }
+        )
+    return records
 
 
 def main() -> int:
@@ -72,6 +100,10 @@ def main() -> int:
     parser.add_argument("--expected-sdk", required=True)
     parser.add_argument("--expected-camera-firmware", required=True)
     parser.add_argument("--expected-sensor-firmware", required=True)
+    parser.add_argument("--resolution", choices=("HD720",), required=True)
+    parser.add_argument("--fps", type=int, choices=(30,), required=True)
+    parser.add_argument("--depth-mode", choices=("PERFORMANCE",), required=True)
+    parser.add_argument("--minimum-usb-speed-mbps", type=float, required=True)
     args = parser.parse_args()
     global _PROTOCOL_STDOUT
     _PROTOCOL_STDOUT = os.fdopen(os.dup(1), "w", encoding="utf-8")
@@ -89,9 +121,9 @@ def main() -> int:
     frames_path = args.output_dir / "frames.jsonl"
     camera = sl.Camera()
     init = sl.InitParameters()
-    init.camera_resolution = sl.RESOLUTION.HD720
-    init.camera_fps = 30
-    init.depth_mode = sl.DEPTH_MODE.PERFORMANCE
+    init.camera_resolution = getattr(sl.RESOLUTION, args.resolution)
+    init.camera_fps = args.fps
+    init.depth_mode = getattr(sl.DEPTH_MODE, args.depth_mode)
     init.coordinate_units = sl.UNIT.METER
     init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
     open_status = camera.open(init)
@@ -115,6 +147,8 @@ def main() -> int:
     result_status = "failed"
     failure_reason: str | None = None
     identity: dict[str, Any] = {}
+    startup_checks: dict[str, bool] = {}
+    startup_probe: dict[str, Any] = {}
     first_device_timestamp_ns: int | None = None
     last_device_timestamp_ns: int | None = None
     image = sl.Mat()
@@ -123,6 +157,18 @@ def main() -> int:
     pose = sl.Pose()
     runtime = sl.RuntimeParameters()
     try:
+        usb = _usb_records()
+        video_interfaces = [
+            record
+            for record in usb
+            if record["product_id"] == "f880" and record["product"] == "ZED 2i"
+        ]
+        serial_interfaces = [
+            record
+            for record in usb
+            if record["product_id"] == "f881"
+            and record["serial"] == args.expected_serial
+        ]
         info = camera.get_camera_information()
         identity = _camera_identity(info)
         expected = {
@@ -136,8 +182,35 @@ def main() -> int:
             for key, value in expected.items()
             if identity.get(key) != value
         }
-        if mismatches:
-            failure_reason = f"ZED identity mismatch: {mismatches}"
+        width = int(info.camera_configuration.resolution.width)
+        height = int(info.camera_configuration.resolution.height)
+        actual_fps = int(info.camera_configuration.fps)
+        startup_checks = {
+            "usb_video_present": bool(video_interfaces),
+            "usb_serial_present": bool(serial_interfaces),
+            "usb_3_speed": max(
+                (float(record["speed_mbps"] or 0) for record in video_interfaces),
+                default=0.0,
+            )
+            >= args.minimum_usb_speed_mbps,
+            "serial_matches": identity.get("serial") == args.expected_serial,
+            "sdk_matches": identity.get("sdk_version") == args.expected_sdk,
+            "camera_firmware_matches": identity.get("camera_firmware")
+            == args.expected_camera_firmware,
+            "sensor_firmware_matches": identity.get("sensor_firmware")
+            == args.expected_sensor_firmware,
+            "resolution_matches": [width, height] == [1280, 720],
+            "fps_matches": actual_fps == args.fps,
+            "depth_mode_requested": args.depth_mode == "PERFORMANCE",
+        }
+        if mismatches or not all(startup_checks.values()):
+            failed_checks = sorted(
+                name for name, passed in startup_checks.items() if not passed
+            )
+            failure_reason = (
+                "actual ZED recorder startup contract mismatch: "
+                f"identity={mismatches}, failed_checks={failed_checks}"
+            )
             return_code = 3
         else:
             tracking = sl.PositionalTrackingParameters()
@@ -149,20 +222,79 @@ def main() -> int:
                 return_code = 4
             else:
                 tracking_enabled = True
-                recording = sl.RecordingParameters(
-                    str(svo_path), sl.SVO_COMPRESSION_MODE.H265
-                )
-                recording_status = camera.enable_recording(recording)
-                if recording_status != sl.ERROR_CODE.SUCCESS:
-                    failure_reason = f"enable_recording: {recording_status}"
+                startup_deadline = time.monotonic() + 10.0
+                startup_ready = False
+                while time.monotonic() < startup_deadline and not _STOP_REQUESTED:
+                    grab_status = camera.grab(runtime)
+                    if grab_status != sl.ERROR_CODE.SUCCESS:
+                        continue
+                    image_status = camera.retrieve_image(image, sl.VIEW.LEFT)
+                    depth_status = camera.retrieve_measure(depth, sl.MEASURE.DEPTH)
+                    imu_status = camera.get_sensors_data(
+                        sensors, sl.TIME_REFERENCE.IMAGE
+                    )
+                    pose_status = camera.get_position(pose, sl.REFERENCE_FRAME.WORLD)
+                    startup_probe = {
+                        "grab_status": str(grab_status),
+                        "image_status": str(image_status),
+                        "depth_status": str(depth_status),
+                        "imu_status": str(imu_status),
+                        "pose_status": str(pose_status).split(".")[-1],
+                        "pose_valid": bool(pose.valid),
+                    }
+                    startup_checks.update(
+                        {
+                            "grab_success": grab_status == sl.ERROR_CODE.SUCCESS,
+                            "image_retrieved": image_status == sl.ERROR_CODE.SUCCESS,
+                            "depth_retrieved_gpu_authoritative": depth_status
+                            == sl.ERROR_CODE.SUCCESS,
+                            "imu_retrieved": imu_status == sl.ERROR_CODE.SUCCESS,
+                            "pose_ok": str(pose_status).split(".")[-1] == "OK"
+                            and bool(pose.valid),
+                        }
+                    )
+                    if all(startup_checks.values()):
+                        startup_ready = True
+                        break
+                if not startup_ready:
+                    failure_reason = (
+                        "actual ZED recorder failed startup retrieval contract"
+                    )
                     return_code = 5
                 else:
+                    recording = sl.RecordingParameters(
+                        str(svo_path), sl.SVO_COMPRESSION_MODE.H265
+                    )
+                    recording_status = camera.enable_recording(recording)
+                    startup_checks["svo_recording_enabled"] = (
+                        recording_status == sl.ERROR_CODE.SUCCESS
+                    )
+                    if recording_status != sl.ERROR_CODE.SUCCESS:
+                        failure_reason = f"enable_recording: {recording_status}"
+                        return_code = 6
+                        raise RuntimeError(failure_reason)
                     recording_enabled = True
                     jsonl = JsonlShardFile(
                         args.output_dir / "_staging_frames",
                         filename="frames.jsonl",
                     )
-                    _event("ready", identity=identity, duration_s=args.duration)
+                    _event(
+                        "ready",
+                        identity=identity,
+                        duration_s=args.duration,
+                        requested_mode={
+                            "resolution": args.resolution,
+                            "fps": args.fps,
+                            "depth_mode": args.depth_mode,
+                        },
+                        usb={
+                            "video_interfaces": video_interfaces,
+                            "serial_interfaces": serial_interfaces,
+                        },
+                        startup_probe=startup_probe,
+                        checks=startup_checks,
+                        verification_basis="actual_recorder_open_and_retrieval",
+                    )
                     started_monotonic = time.monotonic()
                     return_code = 0
                     while time.monotonic() - started_monotonic < args.duration:
@@ -319,6 +451,18 @@ def main() -> int:
         "status": result_status,
         "failure_reason": failure_reason,
         "identity": identity,
+        "requested_mode": {
+            "resolution": args.resolution,
+            "fps": args.fps,
+            "depth_mode": args.depth_mode,
+        },
+        "usb": {
+            "records": _usb_records(),
+            "minimum_speed_mbps": args.minimum_usb_speed_mbps,
+        },
+        "startup_probe": startup_probe,
+        "startup_checks": startup_checks,
+        "startup_verification_basis": "actual_recorder_open_and_retrieval",
         "requested_duration_s": args.duration,
         "elapsed_s": elapsed_s,
         "frame_count": frame_count,
