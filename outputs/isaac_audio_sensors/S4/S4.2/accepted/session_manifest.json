@@ -1,0 +1,571 @@
+{
+  "acceptance_amendment": {
+    "id": "S4.2-PRECAPTURE-AMENDMENT-2026-07-20-A",
+    "record_path": "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
+    "record_sha256": "1a5a4df23a15e95389a5b2a5a64ff25edd79c1422e7e30890f9f19814f15d7cc"
+  },
+  "artifacts": [
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 3840044,
+      "local_relative_path": "raw/respeaker_audio.wav",
+      "media_properties": {
+        "byte_size": 3840044,
+        "channel_count": 6,
+        "compression": "NONE",
+        "declared_frame_count": 320000,
+        "decoded_frame_count": 320000,
+        "duration_s": 20.0,
+        "per_channel_maximum_clip_run_samples": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "per_channel_peak_pcm16": [
+          5591,
+          1855,
+          1264,
+          1535,
+          1027,
+          1577
+        ],
+        "per_channel_rms_pcm16": [
+          123.62915803169169,
+          154.2584230682396,
+          155.11639947955214,
+          158.90934669057387,
+          148.48576574246098,
+          148.8540489456031
+        ],
+        "sample_rate_hz": 16000,
+        "sample_width_bytes": 2,
+        "sha256": "f95a1f5cf5717fbb9e5bd98c23c67d489c7ab1a1bda7b186c75f47e1e8070ee8"
+      },
+      "path": "raw/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "six_channel_audio",
+      "sha256": "f95a1f5cf5717fbb9e5bd98c23c67d489c7ab1a1bda7b186c75f47e1e8070ee8"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 542,
+      "local_relative_path": "raw/pi_producer_status.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "raw/pi_producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "pi_producer_status",
+      "sha256": "98c13f99a7ec39bbc0cfa7a8b0bdc309a6fc03e5cd316c878643dc54f2d6b454"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 31401326,
+      "local_relative_path": "raw/zed_capture.svo2",
+      "media_properties": {
+        "compression": "H265",
+        "container": "SVO2",
+        "depth_mode": "PERFORMANCE",
+        "depth_reconstruction": "replay frozen stereo SVO2 with ZED SDK and recorded mode",
+        "fps": 30,
+        "resolution": "HD720"
+      },
+      "path": "raw/zed_capture.svo2",
+      "retention": "machine_local_gitignored",
+      "role": "zed_svo2",
+      "sha256": "7ea30bbe1d67bd1579d02178eb1e1c6fd5fd7d9cb3601b2c0b8bc34084228868"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 3026112,
+      "local_relative_path": "raw/zed_frames.jsonl",
+      "media_properties": {
+        "contains": [
+          "image signatures",
+          "sampled depth grids in meters",
+          "IMU",
+          "device/host timestamps",
+          "tracking pose/state"
+        ],
+        "encoding": "UTF-8 JSONL",
+        "record_count": 602,
+        "schema": "ias.s4_2.zed_frame.v1"
+      },
+      "path": "raw/zed_frames.jsonl",
+      "retention": "machine_local_gitignored",
+      "role": "zed_frame_records",
+      "sha256": "34fda568f4f9a938095c33d13af20a46e9507792fc48e0b990c3c15ef6e40fe0"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 593,
+      "local_relative_path": "raw/zed_producer_summary.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "raw/zed_producer_summary.json",
+      "retention": "machine_local_gitignored",
+      "role": "zed_producer_status",
+      "sha256": "373e3461610d0d19097aa86684948771d1da617eccec8ce8414197efdb9a3049"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 6017,
+      "local_relative_path": "normalized_configuration.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "normalized_configuration.json",
+      "retention": "machine_local_gitignored",
+      "role": "configuration",
+      "sha256": "0117bb0f2ee8413f0fc1afe76c63ea0eb98aa2b031837d69012550d205bc6f65"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 3320,
+      "local_relative_path": "mac_preflight.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "mac_preflight.json",
+      "retention": "machine_local_gitignored",
+      "role": "mac_preflight",
+      "sha256": "83a11b44ae1d1b353c9775e5ba7f24788891293e6d3d17317540253c223ec061"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 1880,
+      "local_relative_path": "reference_wav.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "reference_wav.json",
+      "retention": "machine_local_gitignored",
+      "role": "reference_metadata",
+      "sha256": "78f55b77a8079700ab0b53aced458fdd7d3a830a9365e82c68d30c36f394b91a"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 2024,
+      "local_relative_path": "mac_source_inventory.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "mac_source_inventory.json",
+      "retention": "machine_local_gitignored",
+      "role": "mac_source_inventory",
+      "sha256": "0bf4b1df19a5022ab6bdee25c7b76f1d7ae8a825fe66888ac7192c50b5030e8b"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 1765,
+      "local_relative_path": "pre_capture_acceptance_amendment.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "pre_capture_acceptance_amendment.json",
+      "retention": "machine_local_gitignored",
+      "role": "pre_capture_acceptance_amendment",
+      "sha256": "cf0c0412cfe46c1771a8b17baba867fcc35940d940c20ccf306f96cf7c7f6328"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 13038,
+      "local_relative_path": "hardware_preflight.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "hardware_preflight.json",
+      "retention": "machine_local_gitignored",
+      "role": "hardware_preflight",
+      "sha256": "7df79baa988b99339c8d29a80f08dbca52dbb00d7111e2c140c42cfe16953e9a"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 510,
+      "local_relative_path": "producer_readiness.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "producer_readiness.json",
+      "retention": "machine_local_gitignored",
+      "role": "producer_readiness",
+      "sha256": "98ad6b2db4fead39ffb4f959629bbf4716511720a878f49a52ed52651f9874cf"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 461,
+      "local_relative_path": "operator_cue.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "operator_cue.json",
+      "retention": "machine_local_gitignored",
+      "role": "operator_cue",
+      "sha256": "14b070e3e51b4f19807507f827ff0852e1ee589545085fd2dcc240237fa666f1"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 761,
+      "local_relative_path": "playback.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "playback.json",
+      "retention": "machine_local_gitignored",
+      "role": "playback_record",
+      "sha256": "cf1b4c1f5273d8971f33a53663e8f9267f0fb183ff5a83a7d8948e4ea2ca8be3"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 1099,
+      "local_relative_path": "capture_validation.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "capture_validation.json",
+      "retention": "machine_local_gitignored",
+      "role": "capture_validation",
+      "sha256": "2448decfe2709f6365ba58541b92742af99bfd2c6173c01cc31f2e5f7991b564"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 3642,
+      "local_relative_path": "alignment.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "alignment.json",
+      "retention": "machine_local_gitignored",
+      "role": "alignment_report",
+      "sha256": "1c7c4d479bd1d14defbdf0572c5ba2a9fe46e1e7627899c212191a0353228cb1"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 5404,
+      "local_relative_path": "gate.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "gate.json",
+      "retention": "machine_local_gitignored",
+      "role": "attempt_gate",
+      "sha256": "3968da0e7b01ba08657533a98dd9cc454e88c603b0bbbbf56a3826c32d470fb4"
+    },
+    {
+      "acquisition_contract": {
+        "configuration": "normalized_configuration.json",
+        "lifecycle": "lifecycle.json",
+        "publication": "S2.2 atomic writer/session lifecycle"
+      },
+      "byte_size": 841,
+      "local_relative_path": "event_observation_confirmation.json",
+      "media_properties": {
+        "format": "role-specific record; see role and acquisition contract"
+      },
+      "path": "event_observation_confirmation.json",
+      "retention": "machine_local_gitignored",
+      "role": "event_observation_confirmation",
+      "sha256": "b5f9a938abcfd307211b71d78e6e4e55c27dbbdabb4ecff04870fa99b8f33507"
+    }
+  ],
+  "attempt_id": "s4_2_20260721T002805Z_accepted_candidate_004",
+  "configuration_schema": "ias.s4_2.acquisition_config.v1",
+  "coordinate_frame": {
+    "axes": {
+      "x": "forward",
+      "y": "operator_right_facing_camera_zed_camera_left",
+      "z": "up"
+    },
+    "bearing_definition": "degrees counterclockwise from +X toward +Y viewed from above",
+    "frame_name": "F_project",
+    "origin": "ZED stereo-lens midpoint",
+    "position_units": "m"
+  },
+  "created_at_utc": "2026-07-21T00:32:14.424413+00:00",
+  "lifecycle_status": "accepted",
+  "limitations": [
+    "sample-accurate synchronization",
+    "acoustic time-of-flight",
+    "absolute capture latency",
+    "host clock synchronization",
+    "calibrated optical-acoustic extrinsics",
+    "raw evidence exists only under dataset/S4.2 on this workstation",
+    "raw evidence is not replicated or available from a fresh clone",
+    "workstation loss can make the raw evidence unavailable"
+  ],
+  "normalized_configuration": {
+    "acceptance_amendment": {
+      "id": "S4.2-PRECAPTURE-AMENDMENT-2026-07-20-A",
+      "record_path": "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
+      "record_sha256": "1a5a4df23a15e95389a5b2a5a64ff25edd79c1422e7e30890f9f19814f15d7cc"
+    },
+    "alignment": {
+      "event_instruction": "Strike the plain unmarked blue wastebasket exactly once with the long plain paper roll at approximately (1.15, 0.00, -0.40) m in F_project while both recorders are active; keep all people and hands outside the ZED field of view.",
+      "event_object": "plain unmarked blue wastebasket",
+      "event_position_m": [
+        1.15,
+        0.0,
+        -0.4
+      ],
+      "impact_tool": "long plain paper roll",
+      "maximum_uncertainty_ms": 50.0,
+      "method": "visible_audible_impact"
+    },
+    "coordinate_frame": {
+      "axes": {
+        "x": "forward",
+        "y": "operator_right_facing_camera_zed_camera_left",
+        "z": "up"
+      },
+      "bearing_definition": "degrees counterclockwise from +X toward +Y viewed from above",
+      "frame_name": "F_project",
+      "origin": "ZED stereo-lens midpoint",
+      "position_units": "m"
+    },
+    "environment": {
+      "noise_state": "operator-reported quiet; no audible relevant room-noise source, speech, or music",
+      "occupancy": "no people present in retained scene",
+      "operator_notes": "Rig and source remain unchanged for the take. Screens, shipping label, and private information are hidden. Mac and ZED headings are approximately parallel. Mac acoustic radiation axis is not measured or claimed. Any unexpected system sound rejects the take.",
+      "privacy_scene_cleared": true,
+      "temporary_mac_audio_changes": [
+        "authorized remote set of output volume to 63 percent before take",
+        "authorized remote unmute before take"
+      ]
+    },
+    "fixture": {
+      "cables_safe": true,
+      "fixture_id": "S4_TEMP_DESKTOP_FIXTURE_REV0",
+      "marked_footprint_confirmed": true,
+      "microphone_openings_clear": true,
+      "no_component_moved": true,
+      "room_id": "WANG_2022_DESK_NEAR_ENTRANCE",
+      "zed_fov_clear": true
+    },
+    "mac": {
+      "afplay_gain": 1.0,
+      "background_sounds_off_confirmed": true,
+      "balance_centered_confirmed": true,
+      "inventory_path": "docs/development/specs/s4_2_mac_source_inventory.v1.json",
+      "inventory_sha256": "2360b24977dd25e48ebe9b975a4158dd407151d7bb4de50a8f3ab7f6eb29466d",
+      "model_identifier": "MacBookPro18,1",
+      "mono_audio_off_confirmed": true,
+      "notifications_suppressed_confirmed": true,
+      "os_build": "25F84",
+      "os_version": "26.5.2",
+      "output_device": "MacBook Pro Speakers",
+      "preflight_report_path": "dataset/S4.2/preflight/mac_preflight_accepted_006.json",
+      "reference_path": "S4.2/reference/s4_2_reference_v1.0.0.wav",
+      "ssh_alias": "patrizios-macbook",
+      "system_sound_control_procedure": "system and UI sounds remain enabled; after setting volume, do not touch Mac input or controls, interact with applications, or trigger system sounds; playback only by authorized remote afplay; unexpected sound rejects the take",
+      "system_ui_sounds_disabled_or_prevented": true,
+      "system_ui_sounds_enabled": true,
+      "system_volume_percent": 63,
+      "volume_change_feedback_enabled": true,
+      "work_focus_active_confirmed": true
+    },
+    "raw_evidence": {
+      "checksum_command": "cd dataset/S4.2 && sha256sum -c SHA256SUMS",
+      "fresh_clone_available": false,
+      "machine_local_root": "dataset/S4.2",
+      "machine_loss_risk_acknowledged": true,
+      "off_machine_storage_authorized": false,
+      "replicated": false,
+      "retention": "machine_local_gitignored",
+      "semantic_validation_command": "PYTHONPATH=src .venv/bin/python scripts/validate_s4_2_integrity.py --index outputs/isaac_audio_sensors/S4/S4.2/evidence_index.json --require-machine-local"
+    },
+    "reference": {
+      "local_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+      "metadata_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/reference_wav.json",
+      "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+    },
+    "respeaker": {
+      "channel_count": 6,
+      "channel_order": [
+        "conference",
+        "asr",
+        "raw_microphone_0",
+        "raw_microphone_1",
+        "raw_microphone_2",
+        "raw_microphone_3"
+      ],
+      "channel_order_verified_each_take": true,
+      "device": "hw:CARD=Array,DEV=0",
+      "firmware": "2.08",
+      "model": "ReSpeaker XVF3800 USB 4-Mic Array",
+      "remote_attempt_root": "S4.2/captures",
+      "sample_format": "S16_LE",
+      "sample_rate_hz": 16000,
+      "serial": "114993701261100454",
+      "ssh_alias": "elab-raspberrypi5"
+    },
+    "schema": "ias.s4_2.acquisition_config.v1",
+    "session": {
+      "attempt_root": "dataset/S4.2/attempts",
+      "duration_s": 20.0,
+      "minimum_local_free_bytes": 5368709120,
+      "minimum_pi_free_bytes": 1073741824
+    },
+    "source": {
+      "acoustic_radiation_axis": "not_measured_or_claimed",
+      "bearing_deg_counterclockwise_from_positive_x": 90.0,
+      "delta_x_m": 0.0,
+      "delta_y_m": 0.9,
+      "delta_z_m": -0.135,
+      "distance_from_rig_origin_m": 0.91,
+      "distance_provenance": "derived_from_position_m_not_independent_measurement",
+      "lid_angle_deg": 90.0,
+      "lid_state": "open",
+      "orientation_deg": {
+        "pitch": 0.0,
+        "roll": 0.0,
+        "yaw": 0.0
+      },
+      "orientation_measurement_classification": "practical_visual_placement_not_metrology",
+      "position_m": [
+        0.0,
+        0.9,
+        -0.135
+      ],
+      "relative_side": "operator_right_facing_camera",
+      "screen_heading": "same_general_direction_as_zed",
+      "speaker_height_m": 0.71,
+      "vertical_offset_uncertainty_m": 0.01,
+      "zed_stereo_midpoint_height_derived_m": 0.845
+    },
+    "zed": {
+      "camera_firmware": "1523",
+      "coordinate_system": "RIGHT_HANDED_Y_UP",
+      "coordinate_units": "m",
+      "depth_mode": "PERFORMANCE",
+      "fps": 30,
+      "model": "ZED 2i",
+      "resolution": "HD720",
+      "sdk_version": "5.4.0",
+      "sensor_firmware": "777",
+      "serial": "39011785",
+      "usb_minimum_speed_mbps": 5000
+    }
+  },
+  "raw_evidence_policy": {
+    "checksum_command": "cd dataset/S4.2 && sha256sum -c SHA256SUMS",
+    "fresh_clone_available": false,
+    "machine_local_root": "dataset/S4.2",
+    "machine_loss_risk_acknowledged": true,
+    "off_machine_storage_authorized": false,
+    "replicated": false,
+    "retention": "machine_local_gitignored",
+    "semantic_validation_command": "PYTHONPATH=src .venv/bin/python scripts/validate_s4_2_integrity.py --index outputs/isaac_audio_sensors/S4/S4.2/evidence_index.json --require-machine-local"
+  },
+  "schema": "ias.s4_2.attempt_manifest.v1",
+  "source_geometry": {
+    "acoustic_radiation_axis": "not_measured_or_claimed",
+    "bearing_deg_counterclockwise_from_positive_x": 90.0,
+    "delta_x_m": 0.0,
+    "delta_y_m": 0.9,
+    "delta_z_m": -0.135,
+    "distance_from_rig_origin_m": 0.91,
+    "distance_provenance": "derived_from_position_m_not_independent_measurement",
+    "lid_angle_deg": 90.0,
+    "lid_state": "open",
+    "orientation_deg": {
+      "pitch": 0.0,
+      "roll": 0.0,
+      "yaw": 0.0
+    },
+    "orientation_measurement_classification": "practical_visual_placement_not_metrology",
+    "position_m": [
+      0.0,
+      0.9,
+      -0.135
+    ],
+    "relative_side": "operator_right_facing_camera",
+    "screen_heading": "same_general_direction_as_zed",
+    "speaker_height_m": 0.71,
+    "vertical_offset_uncertainty_m": 0.01,
+    "zed_stereo_midpoint_height_derived_m": 0.845
+  },
+  "ssh_timing_is_synchronization": false,
+  "unsupported_claims": [
+    "sample-accurate synchronization",
+    "absolute capture latency",
+    "acoustic time-of-flight",
+    "calibrated optical-acoustic extrinsics",
+    "universal source-room-device transfer",
+    "off-machine or replicated S4.2 raw retention",
+    "S4.2 raw availability after workstation loss",
+    "S4.2 raw availability from a fresh clone",
+    "independent review of absent machine-local raw evidence"
+  ]
+}

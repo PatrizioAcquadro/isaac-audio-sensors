@@ -1,0 +1,70 @@
+{
+  "schema": "ias.s4_2.mac_source_inventory.v1",
+  "inventory_timestamp": "2026-07-20T18:02:32-04:00",
+  "model": "MacBook Pro",
+  "model_identifier": "MacBookPro18,1",
+  "chip": "Apple M1 Pro",
+  "cpu": {
+    "cores": 10,
+    "performance_cores": 8,
+    "efficiency_cores": 2
+  },
+  "ram_gb": 16,
+  "os": {
+    "name": "macOS",
+    "version": "26.5.2",
+    "build": "25F84"
+  },
+  "audio_output": {
+    "selected_device": "MacBook Pro Speakers",
+    "built_in_speakers_available": true,
+    "built_in_speakers_selected": true,
+    "system_output_volume_percent": 63,
+    "muted": false,
+    "channel_count": 2,
+    "channel_layout": "stereo",
+    "sample_rate_hz": 48000,
+    "format": "LPCM, 32-bit float, little-endian, interleaved, packed",
+    "left_right_balance": "unverified",
+    "spatial_head_tracking_preference": "on; not applicable to stereo WAV playback through afplay and built-in speakers",
+    "equalizer": "off",
+    "sound_check": "not applicable to afplay",
+    "mono_audio": false,
+    "system_ui_sounds": true,
+    "startup_sound": true,
+    "volume_change_feedback": true,
+    "background_sounds": false,
+    "headphone_accommodations": false
+  },
+  "power": {
+    "source": "AC adapter",
+    "battery_percent": 42,
+    "charging": true
+  },
+  "focus": {
+    "mode": "Work",
+    "active": true,
+    "notifications_suppressed": true
+  },
+  "proposed_playback_command": "/usr/bin/afplay -v 1.0 \"/path/reference.wav\"",
+  "dynamic_recheck_required_before_every_accepted_take": [
+    "selected output device",
+    "system output volume",
+    "mute state",
+    "left/right balance",
+    "power state",
+    "Focus and notification state",
+    "mono audio",
+    "background sounds",
+    "system/UI sound procedure",
+    "volume-change feedback procedure",
+    "reference WAV SHA-256 and afinfo properties"
+  ],
+  "privacy": {
+    "serial_numbers_stored": false,
+    "hardware_uuid_stored": false,
+    "username_stored": false,
+    "hostname_or_ip_stored": false,
+    "wifi_or_apple_id_stored": false
+  }
+}

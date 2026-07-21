@@ -1,0 +1,15 @@
+{
+  "actual_event_object": "blue wastebasket with white recycling symbol and no identifying or private label",
+  "configured_description_correction": "The pre-capture phrase 'plain unmarked blue wastebasket' is superseded only for descriptive marking metadata; position, event method, privacy gate, and thresholds are unchanged.",
+  "confirmed_at_local": "2026-07-20T20:31:44-04:00",
+  "event_audible": true,
+  "event_count": 1,
+  "event_unique": true,
+  "impact_tool": "long plain paper roll",
+  "no_person_or_hand_in_reviewed_frames": true,
+  "no_unexpected_mac_or_ui_sound": true,
+  "operator_confirmed": true,
+  "schema": "ias.s4_2.event_observation_confirmation.v1",
+  "visual_observation": "wastebasket response localized by maximum consecutive-frame change in the bounded expected impact window",
+  "zed_candidate_frame_index": 450
+}

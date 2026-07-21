@@ -1,0 +1,35 @@
+{
+  "attempt_id": "s4_2_20260721T002805Z_accepted_candidate_004",
+  "events": [
+    {
+      "monotonic_ns": 338893017593852,
+      "reason": "attempt directory created",
+      "state": "preflight",
+      "wall_time_local": "2026-07-20T20:28:05.688508-04:00",
+      "wall_time_utc": "2026-07-21T00:28:05.688508+00:00"
+    },
+    {
+      "monotonic_ns": 338900030343825,
+      "reason": "Pi and ZED producers reported ready",
+      "state": "recording",
+      "wall_time_local": "2026-07-20T20:28:12.701255-04:00",
+      "wall_time_utc": "2026-07-21T00:28:12.701255+00:00"
+    },
+    {
+      "monotonic_ns": 338928341828957,
+      "reason": "all local producers finalized",
+      "state": "finalizing",
+      "wall_time_local": "2026-07-20T20:28:41.012735-04:00",
+      "wall_time_utc": "2026-07-21T00:28:41.012735+00:00"
+    },
+    {
+      "monotonic_ns": 339141756226932,
+      "reason": "all frozen S4.2 attempt gates passed",
+      "state": "accepted",
+      "wall_time_local": "2026-07-20T20:32:14.427143-04:00",
+      "wall_time_utc": "2026-07-21T00:32:14.427143+00:00"
+    }
+  ],
+  "schema": "ias.s4_2.lifecycle.v1",
+  "state": "accepted"
+}

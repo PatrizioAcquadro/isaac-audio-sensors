@@ -1,0 +1,51 @@
+{
+  "accepted_capture_started_under_superseded_convention": false,
+  "adopted_at_local": "2026-07-20T19:56:21-04:00",
+  "archive_policy_correction": {
+    "clean_checkout_scope": "implementation, schemas, deterministic reference regeneration, tracked manifests, and integrity contracts only",
+    "fresh_clone_raw_available": false,
+    "machine_local_root": "dataset/S4.2",
+    "machine_loss_risk": true,
+    "off_machine_storage_authorized": false,
+    "replicated": false,
+    "tracked_raw_contract_fields": [
+      "role",
+      "local_relative_path",
+      "byte_size",
+      "media_properties",
+      "sha256",
+      "acquisition_contract"
+    ]
+  },
+  "coordinate_correction": {
+    "bearing_definition": "degrees counterclockwise from +X toward +Y viewed from above",
+    "canonical_mac_bearing_deg": 90.0,
+    "canonical_mac_position_m": [
+      0.0,
+      0.9,
+      -0.135
+    ],
+    "corrected_axes": {
+      "x": "forward in the ZED viewing direction",
+      "y": "operator right while facing the camera, equivalent to ZED camera left",
+      "z": "up"
+    },
+    "error": "The superseded pre-capture draft assigned the Mac to negative Y and mixed clockwise and counterclockwise bearing language.",
+    "historical_raw_evidence_rewritten": false,
+    "superseded_values": {
+      "bearing_deg": -90.0,
+      "position_m": [
+        0.0,
+        -0.9,
+        -0.135
+      ]
+    }
+  },
+  "id": "S4.2-PRECAPTURE-AMENDMENT-2026-07-20-A",
+  "phase": "S4.2",
+  "reason": "Operator correction and explicit machine-local evidence authorization supplied before accepted capture.",
+  "schema": "ias.s4_2.pre_capture_acceptance_amendment.v1",
+  "s4_1_historical_evidence_modified": false,
+  "s4_3_started": false,
+  "status": "adopted_before_accepted_capture"
+}

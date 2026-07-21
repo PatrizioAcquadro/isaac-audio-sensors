@@ -1,0 +1,142 @@
+{
+  "alignment": {
+    "acceptance_amendment": {
+      "id": "S4.2-PRECAPTURE-AMENDMENT-2026-07-20-A",
+      "record_path": "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
+      "record_sha256": "1a5a4df23a15e95389a5b2a5a64ff25edd79c1422e7e30890f9f19814f15d7cc"
+    },
+    "audio_event_elapsed_s": 14.6510625,
+    "audio_event_sample_index": 234417,
+    "audio_sample_rate_hz": 16000,
+    "coordinate_frame": {
+      "axes": {
+        "x": "forward",
+        "y": "operator_right_facing_camera_zed_camera_left",
+        "z": "up"
+      },
+      "bearing_definition": "degrees counterclockwise from +X toward +Y viewed from above",
+      "frame_name": "F_project",
+      "origin": "ZED stereo-lens midpoint",
+      "position_units": "m"
+    },
+    "event_audible": true,
+    "event_observation_confirmation": {
+      "actual_event_object": "blue wastebasket with white recycling symbol and no identifying or private label",
+      "configured_description_correction": "The pre-capture phrase 'plain unmarked blue wastebasket' is superseded only for descriptive marking metadata; position, event method, privacy gate, and thresholds are unchanged.",
+      "confirmed_at_local": "2026-07-20T20:31:44-04:00",
+      "event_audible": true,
+      "event_count": 1,
+      "event_unique": true,
+      "impact_tool": "long plain paper roll",
+      "no_person_or_hand_in_reviewed_frames": true,
+      "no_unexpected_mac_or_ui_sound": true,
+      "operator_confirmed": true,
+      "schema": "ias.s4_2.event_observation_confirmation.v1",
+      "visual_observation": "wastebasket response localized by maximum consecutive-frame change in the bounded expected impact window",
+      "zed_candidate_frame_index": 450
+    },
+    "event_unique": true,
+    "event_visible": true,
+    "failure_reasons": [],
+    "maximum_uncertainty_ms": 50.0,
+    "method": "visible_audible_impact",
+    "offset_definition": "zed_event_elapsed_s - audio_event_elapsed_s",
+    "offset_s": 0.34977950000000035,
+    "schema": "ias.s4_2.alignment.v1",
+    "source_geometry": {
+      "acoustic_radiation_axis": "not_measured_or_claimed",
+      "bearing_deg_counterclockwise_from_positive_x": 90.0,
+      "delta_x_m": 0.0,
+      "delta_y_m": 0.9,
+      "delta_z_m": -0.135,
+      "distance_from_rig_origin_m": 0.91,
+      "distance_provenance": "derived_from_position_m_not_independent_measurement",
+      "lid_angle_deg": 90.0,
+      "lid_state": "open",
+      "orientation_deg": {
+        "pitch": 0.0,
+        "roll": 0.0,
+        "yaw": 0.0
+      },
+      "orientation_measurement_classification": "practical_visual_placement_not_metrology",
+      "position_m": [
+        0.0,
+        0.9,
+        -0.135
+      ],
+      "relative_side": "operator_right_facing_camera",
+      "screen_heading": "same_general_direction_as_zed",
+      "speaker_height_m": 0.71,
+      "vertical_offset_uncertainty_m": 0.01,
+      "zed_stereo_midpoint_height_derived_m": 0.845
+    },
+    "ssh_timing_is_synchronization": false,
+    "status": "passed",
+    "supported_claims": [
+      "coarse audio-video association",
+      "metrics with decision margin greater than total_uncertainty_ms"
+    ],
+    "total_uncertainty_ms": 37.32671632021762,
+    "uncertainty_components": {
+      "audio_localization_ms": 1.0,
+      "audio_sample_quantization_ms": 0.0625,
+      "extra_readout_quantization_ms": 0.0,
+      "zed_half_frame_ms": 16.687,
+      "zed_visual_localization_ms": 33.374
+    },
+    "unsupported_claims": [
+      "sample-accurate synchronization",
+      "acoustic time-of-flight",
+      "absolute capture latency",
+      "host clock synchronization",
+      "calibrated optical-acoustic extrinsics"
+    ],
+    "zed_event_elapsed_s": 15.000842,
+    "zed_event_frame_index": 450,
+    "zed_event_timestamp_ns": 1784593707665246276,
+    "zed_first_timestamp_ns": 1784593692664404276
+  },
+  "artifact_integrity": {
+    "checks": [
+      {
+        "artifact_count": 15,
+        "id": "artifact_integrity",
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "attempt_id": "s4_2_20260721T002805Z_accepted_candidate_004",
+  "configuration": {
+    "checks": [
+      {
+        "id": "configuration_semantics",
+        "require_ready": true,
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "event_observation_confirmation": {
+    "actual_event_object": "blue wastebasket with white recycling symbol and no identifying or private label",
+    "configured_description_correction": "The pre-capture phrase 'plain unmarked blue wastebasket' is superseded only for descriptive marking metadata; position, event method, privacy gate, and thresholds are unchanged.",
+    "confirmed_at_local": "2026-07-20T20:31:44-04:00",
+    "event_audible": true,
+    "event_count": 1,
+    "event_unique": true,
+    "impact_tool": "long plain paper roll",
+    "no_person_or_hand_in_reviewed_frames": true,
+    "no_unexpected_mac_or_ui_sound": true,
+    "operator_confirmed": true,
+    "schema": "ias.s4_2.event_observation_confirmation.v1",
+    "visual_observation": "wastebasket response localized by maximum consecutive-frame change in the bounded expected impact window",
+    "zed_candidate_frame_index": 450
+  },
+  "issues": [],
+  "schema": "ias.s4_2.attempt_gate.v1",
+  "status": "passed"
+}

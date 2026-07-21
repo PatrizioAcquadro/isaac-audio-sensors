@@ -118,6 +118,33 @@ def main(argv: Sequence[str] | None = None) -> int:
     guided_duration.add_argument("--seconds", type=float, default=None)
     guided_run_parser.add_argument("--json", dest="json_path", default=None)
 
+    s42_parser = subparsers.add_parser("s4-2")
+    s42_subparsers = s42_parser.add_subparsers(dest="s42_command", required=True)
+    s42_config_parser = s42_subparsers.add_parser("validate-config")
+    s42_config_parser.add_argument("config", type=Path)
+    s42_config_parser.add_argument("--require-ready", action="store_true")
+    s42_deploy_parser = s42_subparsers.add_parser("deploy")
+    s42_deploy_parser.add_argument("config", type=Path)
+    s42_mac_parser = s42_subparsers.add_parser("mac-preflight")
+    s42_mac_parser.add_argument("config", type=Path)
+    s42_mac_parser.add_argument("--output", type=Path, required=True)
+    s42_run_parser = s42_subparsers.add_parser("run")
+    s42_run_parser.add_argument("config", type=Path)
+    s42_run_parser.add_argument("--attempt-id", default=None)
+    s42_run_parser.add_argument("--interactive-cue", action="store_true")
+    s42_align_parser = s42_subparsers.add_parser("annotate-alignment")
+    s42_align_parser.add_argument("attempt_root", type=Path)
+    s42_align_parser.add_argument("--audio-sample-index", type=int, required=True)
+    s42_align_parser.add_argument("--zed-frame-index", type=int, required=True)
+    s42_align_parser.add_argument("--audio-half-width-samples", type=int, required=True)
+    s42_align_parser.add_argument("--zed-half-width-frames", type=float, required=True)
+    s42_align_parser.add_argument("--extra-uncertainty-ms", type=float, default=0.0)
+    s42_align_parser.add_argument("--event-unique", action="store_true")
+    s42_align_parser.add_argument("--event-visible", action="store_true")
+    s42_align_parser.add_argument("--event-audible", action="store_true")
+    s42_finalize_parser = s42_subparsers.add_parser("finalize")
+    s42_finalize_parser.add_argument("attempt_root", type=Path)
+
     args = parser.parse_args(argv)
     if args.command == "validate-config":
         config = load_audio_config(args.config)
@@ -186,6 +213,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"[{capability.origin}]{detail}"
                 )
         return 0
+
+    if args.command == "s4-2":
+        return _s42_command(args)
 
     if args.command == "dataset":
         if args.dataset_command == "split":
@@ -271,6 +301,122 @@ def _write_json_output(path: Path, payload: dict) -> None:
     path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+
+
+def _s42_command(args: argparse.Namespace) -> int:
+    from statistics import median
+
+    from isaac_audio_sensors.acquisition.s4_2 import (
+        AttemptLifecycle,
+        S42Error,
+        calculate_alignment,
+        load_json,
+        read_jsonl,
+        validate_configuration,
+    )
+    from isaac_audio_sensors.acquisition.s4_2_orchestrator import (
+        collect_mac_preflight,
+        deploy_helpers_and_reference,
+        finalize_attempt,
+        run_capture,
+    )
+
+    try:
+        if args.s42_command == "validate-config":
+            payload = load_json(args.config)
+            report = validate_configuration(payload, require_ready=args.require_ready)
+            print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+            return 0 if report.passed else 1
+        if args.s42_command == "deploy":
+            result = deploy_helpers_and_reference(load_json(args.config))
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0
+        if args.s42_command == "mac-preflight":
+            result = collect_mac_preflight(load_json(args.config), args.output)
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0 if result["status"] == "passed" else 1
+        if args.s42_command == "run":
+            result = run_capture(
+                load_json(args.config),
+                attempt_id=args.attempt_id,
+                interactive_cue=args.interactive_cue,
+            )
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0 if result["status"] == "accepted" else 2
+        if args.s42_command == "annotate-alignment":
+            lifecycle = AttemptLifecycle.open_existing(args.attempt_root)
+            if lifecycle.state != "finalizing":
+                raise S42Error(f"attempt must be finalizing, got {lifecycle.state}")
+            output = args.attempt_root / "alignment.json"
+            if output.exists():
+                raise S42Error(f"alignment record already exists: {output}")
+            records, issues = read_jsonl(args.attempt_root / "raw/zed_frames.jsonl")
+            if issues:
+                raise S42Error(f"invalid ZED JSONL: {[i.to_dict() for i in issues]}")
+            if not 0 <= args.zed_frame_index < len(records):
+                raise S42Error("--zed-frame-index is outside the retained records")
+            timestamps = [int(record["device_timestamp_ns"]) for record in records]
+            intervals = [
+                later - earlier
+                for earlier, later in zip(timestamps, timestamps[1:], strict=False)
+                if later > earlier
+            ]
+            if not intervals:
+                raise S42Error("cannot determine a ZED frame interval")
+            configuration = load_json(
+                args.attempt_root / "normalized_configuration.json"
+            )
+            result = calculate_alignment(
+                audio_event_sample_index=args.audio_sample_index,
+                audio_sample_rate_hz=int(configuration["respeaker"]["sample_rate_hz"]),
+                zed_first_timestamp_ns=timestamps[0],
+                zed_event_timestamp_ns=timestamps[args.zed_frame_index],
+                audio_localization_half_width_samples=args.audio_half_width_samples,
+                zed_frame_interval_ns=round(median(intervals)),
+                zed_localization_half_width_frames=args.zed_half_width_frames,
+                extra_uncertainty_ms=args.extra_uncertainty_ms,
+                event_unique=args.event_unique,
+                event_visible=args.event_visible,
+                event_audible=args.event_audible,
+                maximum_uncertainty_ms=float(
+                    configuration["alignment"]["maximum_uncertainty_ms"]
+                ),
+            )
+            result["zed_event_frame_index"] = args.zed_frame_index
+            confirmation_path = (
+                args.attempt_root / "event_observation_confirmation.json"
+            )
+            confirmation = load_json(confirmation_path)
+            if confirmation.get("schema") != (
+                "ias.s4_2.event_observation_confirmation.v1"
+            ) or any(
+                confirmation.get(field) is not True
+                for field in (
+                    "operator_confirmed",
+                    "event_unique",
+                    "event_audible",
+                    "no_person_or_hand_in_reviewed_frames",
+                    "no_unexpected_mac_or_ui_sound",
+                )
+            ):
+                raise S42Error("event observation confirmation is incomplete")
+            result["event_observation_confirmation"] = confirmation
+            result["coordinate_frame"] = configuration["coordinate_frame"]
+            result["source_geometry"] = configuration["source"]
+            result["acceptance_amendment"] = configuration[
+                "acceptance_amendment"
+            ]
+            write_json_atomic(output, result)
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0 if result["status"] == "passed" else 1
+        if args.s42_command == "finalize":
+            result = finalize_attempt(args.attempt_root)
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0 if result["status"] == "passed" else 1
+    except (OSError, S42Error, ValueError) as exc:
+        print(f"S4.2 command failed: {exc}", file=sys.stderr)
+        return 1
+    raise AssertionError(f"unhandled S4.2 command: {args.s42_command}")
 
 
 def _guided_run_headless(args: argparse.Namespace) -> int:

@@ -74,6 +74,9 @@ include = ["isaac_audio_sensors*"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
+markers = [
+  "s4_2_hardware: requires the live S4.2 ZED, ReSpeaker, Pi, Mac, and operator gate",
+]
 
 [tool.ruff]
 line-length = 88

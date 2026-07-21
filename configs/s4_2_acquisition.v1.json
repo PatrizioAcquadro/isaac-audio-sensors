@@ -1,0 +1,133 @@
+{
+  "alignment": {
+    "event_object": null,
+    "event_instruction": "Perform one sharp hand clap or visible impact approximately 1 m in front of the rig, inside the central ZED field of view, after both recorders are ready and before playback.",
+    "event_position_m": null,
+    "impact_tool": null,
+    "maximum_uncertainty_ms": 50.0,
+    "method": "visible_audible_impact"
+  },
+  "acceptance_amendment": {
+    "id": "S4.2-PRECAPTURE-AMENDMENT-2026-07-20-A",
+    "record_path": "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
+    "record_sha256": null
+  },
+  "coordinate_frame": {
+    "axes": {
+      "x": "forward",
+      "y": "operator_right_facing_camera_zed_camera_left",
+      "z": "up"
+    },
+    "bearing_definition": "degrees counterclockwise from +X toward +Y viewed from above",
+    "frame_name": "F_project",
+    "origin": "ZED stereo-lens midpoint",
+    "position_units": "m"
+  },
+  "environment": {
+    "noise_state": null,
+    "occupancy": null,
+    "operator_notes": null,
+    "privacy_scene_cleared": false,
+    "temporary_mac_audio_changes": []
+  },
+  "fixture": {
+    "cables_safe": false,
+    "fixture_id": "S4_TEMP_DESKTOP_FIXTURE_REV0",
+    "marked_footprint_confirmed": false,
+    "microphone_openings_clear": false,
+    "no_component_moved": false,
+    "room_id": "WANG_2022_DESK_NEAR_ENTRANCE",
+    "zed_fov_clear": false
+  },
+  "mac": {
+    "afplay_gain": 1.0,
+    "balance_centered_confirmed": false,
+    "background_sounds_off_confirmed": false,
+    "inventory_path": "docs/development/specs/s4_2_mac_source_inventory.v1.json",
+    "inventory_sha256": "2360b24977dd25e48ebe9b975a4158dd407151d7bb4de50a8f3ab7f6eb29466d",
+    "model_identifier": "MacBookPro18,1",
+    "mono_audio_off_confirmed": false,
+    "notifications_suppressed_confirmed": false,
+    "os_build": "25F84",
+    "os_version": "26.5.2",
+    "output_device": "MacBook Pro Speakers",
+    "preflight_report_path": null,
+    "reference_path": "S4.2/reference/s4_2_reference_v1.0.0.wav",
+    "ssh_alias": "patrizios-macbook",
+    "system_ui_sounds_disabled_or_prevented": false,
+    "system_volume_percent": 63,
+    "work_focus_active_confirmed": false
+  },
+  "reference": {
+    "local_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+    "metadata_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/reference_wav.json",
+    "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+  },
+  "respeaker": {
+    "channel_count": 6,
+    "channel_order": [
+      "conference",
+      "asr",
+      "raw_microphone_0",
+      "raw_microphone_1",
+      "raw_microphone_2",
+      "raw_microphone_3"
+    ],
+    "channel_order_verified_each_take": true,
+    "device": "hw:CARD=Array,DEV=0",
+    "firmware": "2.08",
+    "model": "ReSpeaker XVF3800 USB 4-Mic Array",
+    "remote_attempt_root": "S4.2/captures",
+    "sample_format": "S16_LE",
+    "sample_rate_hz": 16000,
+    "serial": "114993701261100454",
+    "ssh_alias": "elab-raspberrypi5"
+  },
+  "schema": "ias.s4_2.acquisition_config.v1",
+  "session": {
+    "attempt_root": "dataset/S4.2/attempts",
+    "duration_s": 20.0,
+    "minimum_local_free_bytes": 5368709120,
+    "minimum_pi_free_bytes": 1073741824
+  },
+  "source": {
+    "delta_x_m": null,
+    "delta_y_m": null,
+    "delta_z_m": null,
+    "distance_from_rig_origin_m": null,
+    "distance_provenance": null,
+    "lid_angle_deg": null,
+    "lid_state": null,
+    "orientation_deg": null,
+    "orientation_measurement_classification": null,
+    "position_m": null,
+    "relative_side": null,
+    "screen_heading": null,
+    "speaker_height_m": null,
+    "vertical_offset_uncertainty_m": null,
+    "bearing_deg_counterclockwise_from_positive_x": null
+  },
+  "raw_evidence": {
+    "checksum_command": "cd dataset/S4.2 && sha256sum -c SHA256SUMS",
+    "fresh_clone_available": false,
+    "machine_local_root": "dataset/S4.2",
+    "machine_loss_risk_acknowledged": true,
+    "off_machine_storage_authorized": false,
+    "replicated": false,
+    "retention": "machine_local_gitignored",
+    "semantic_validation_command": "PYTHONPATH=src .venv/bin/python scripts/validate_s4_2_integrity.py --index outputs/isaac_audio_sensors/S4/S4.2/evidence_index.json --require-machine-local"
+  },
+  "zed": {
+    "camera_firmware": "1523",
+    "coordinate_system": "RIGHT_HANDED_Y_UP",
+    "coordinate_units": "m",
+    "depth_mode": "PERFORMANCE",
+    "fps": 30,
+    "model": "ZED 2i",
+    "resolution": "HD720",
+    "sdk_version": "5.4.0",
+    "sensor_firmware": "777",
+    "serial": "39011785",
+    "usb_minimum_speed_mbps": 5000
+  }
+}

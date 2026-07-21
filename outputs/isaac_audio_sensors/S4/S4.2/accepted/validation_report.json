@@ -1,0 +1,53 @@
+{
+  "audio_properties": {
+    "byte_size": 3840044,
+    "channel_count": 6,
+    "compression": "NONE",
+    "declared_frame_count": 320000,
+    "decoded_frame_count": 320000,
+    "duration_s": 20.0,
+    "per_channel_maximum_clip_run_samples": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "per_channel_peak_pcm16": [
+      5591,
+      1855,
+      1264,
+      1535,
+      1027,
+      1577
+    ],
+    "per_channel_rms_pcm16": [
+      123.62915803169169,
+      154.2584230682396,
+      155.11639947955214,
+      158.90934669057387,
+      148.48576574246098,
+      148.8540489456031
+    ],
+    "sample_rate_hz": 16000,
+    "sample_width_bytes": 2,
+    "sha256": "f95a1f5cf5717fbb9e5bd98c23c67d489c7ab1a1bda7b186c75f47e1e8070ee8"
+  },
+  "issues": [],
+  "schema": "ias.s4_2.capture_validation.v1",
+  "status": "passed",
+  "zed": {
+    "checks": [
+      {
+        "id": "zed_records",
+        "minimum_record_count": 540,
+        "record_count": 602,
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  }
+}
