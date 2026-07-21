@@ -1,0 +1,73 @@
+{
+  "schema": "ias.s4_3.repository_gate.v1",
+  "status": "passed",
+  "phase": "S4.3",
+  "s4_3_verdict": "PASS",
+  "s4_4_readiness": "GO",
+  "s4_4_started": false,
+  "validated_source_revision": "20b77c3e1814ad619abd5a1687d95eedb8ebf802",
+  "active_preregistration": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_04.json",
+    "sha256": "6a2012e6bc22608d5495877c38068963f9c9b816c51d4fbc25b5765521f356ba"
+  },
+  "matrix": {
+    "sha256": "3872b3ebd7aa6f29d2fe48e60b38e75b8014f598b0b814e3f2f1439bbb7901e8",
+    "planned_trial_count": 14,
+    "terminal_trial_count": 14,
+    "category_counts": {
+      "repeatability": 4,
+      "controlled": 2,
+      "robustness": 8
+    },
+    "attempt_outcomes": {
+      "accepted": 13,
+      "failed": 2,
+      "rejected": 0,
+      "interrupted": 0,
+      "in_progress": 0
+    }
+  },
+  "checks": {
+    "frozen_contract_valid": true,
+    "all_planned_trials_terminal": true,
+    "all_attempts_and_failures_retained": true,
+    "repeatability_gate_passed": true,
+    "metric_contract_coverage_passed": true,
+    "deterministic_replay_passed": true,
+    "machine_local_validation_passed": true,
+    "raw_independent_validation_passed": true,
+    "final_integrity_validation_passed": true,
+    "repository_validation_passed": true,
+    "raw_media_gitignored": true,
+    "s4_4_not_started": true
+  },
+  "scientific_scope": {
+    "classification": "functional engineering characterization",
+    "supported": [
+      "within-configuration repeatability for the tested installed rig and deterministic Mac source",
+      "functional bearing, candidate, sector, TDOA, channel, relative level-spectrum-delay-polarity, offline latency, noise, decay, occlusion, overlap, silence, confidence, ambiguity, abstention, failure, and coarse audio-video observations inside the retained pilot",
+      "S4.4 grouped development/fit and held-out matrix freeze planning using the reported limitations"
+    ],
+    "unsupported": [
+      "absolute SPL or microphone sensitivity",
+      "isolated speaker or microphone response",
+      "certified reverberation or traceable calibration",
+      "precision optical-acoustic extrinsics or synchronization",
+      "universal transfer beyond the tested rig, room, sources, poses, and conditions"
+    ]
+  },
+  "retained_failures": [
+    "initial baseline preflight failed because the restricted process could not resolve the Pi SSH host; elevated read-only verification and the accepted retry preserved the failure",
+    "occlusion confirmation failed because only one raw channel contained the complete reference above the frozen correlation threshold; the original accepted occlusion result and failed confirmation are both retained"
+  ],
+  "material_limitations": [
+    "the 180 degree array-to-project correction is a measured functional correction, not metrological extrinsic calibration",
+    "opposite-side controlled evidence has 82 degree p95 and 84 degree worst bearing error despite a 6 degree median",
+    "the accepted occlusion take has only 56.4 percent sector and candidate coverage and its confirmation failed quality",
+    "voice localization was intermittent and the first voice timing attempt was operationally uninformative",
+    "impact localization abstained in 8 of 15 windows and had 74 degree p95 and worst error",
+    "small-sample nearest-rank tails describe this pilot only"
+  ],
+  "evidence_index": "outputs/isaac_audio_sensors/S4/S4.3/evidence_index.json",
+  "closeout": "docs/development/closeouts/S4/s4_3_pilot_repeatability.md"
+}

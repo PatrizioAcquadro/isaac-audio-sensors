@@ -302,6 +302,34 @@
       "sha256": "5896eea9bfd22838c6a71624f5a45681921381609528a66b0bdbb7304547891e"
     },
     {
+      "byte_size": 11469,
+      "path": "docs/development/closeouts/S4/s4_3_pilot_repeatability.md",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "e9bbc2608bd3a0524f4290281a64e210be6c6c90157e975cec7bb126e85d2ae2"
+    },
+    {
+      "byte_size": 3552,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/repository_gate.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "2c37a7f55be0751eded2cb59ea465ab7d24560249c4b9700de529ad78cebafd6"
+    },
+    {
+      "byte_size": 5846,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/validation/repository_validation.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "6a67512e8c7b2638bd2d7db0433f44ae1ba59072d6ab701a9b36f5412447633f"
+    },
+    {
+      "byte_size": 250,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/validation/final_integrity_validation.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "4faa31275809aea6f4a99bd6e9d54f91376a5094ba600161212691686c71acce"
+    },
+    {
       "byte_size": 344,
       "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/SHA256SUMS",
       "retention": "machine_local_gitignored",
@@ -2025,5 +2053,5 @@
   "s4_4_started": false,
   "schema": "ias.s4_3.evidence_index.v1",
   "status": "passed",
-  "tracked_artifact_count": 43
+  "tracked_artifact_count": 47
 }
