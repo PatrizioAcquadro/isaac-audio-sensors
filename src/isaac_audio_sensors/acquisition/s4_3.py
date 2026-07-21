@@ -40,10 +40,13 @@ from isaac_audio_sensors.core.types import MicrophoneSpec
 
 CONFIG_SCHEMA = "ias.s4_3.pilot_config.v1"
 CONFIG_AMENDMENT_SCHEMA = "ias.s4_3.pilot_config_amendment.v1"
+CORRECTIVE_CONFIG_SCHEMA = "ias.s4_3.pilot_corrective_config.v1"
 PREREGISTRATION_SCHEMA = "ias.s4_3.preregistration.v1"
 ANALYSIS_SCHEMA = "ias.s4_3.trial_analysis.v1"
 INVENTORY_SCHEMA = "ias.s4_3.trial_inventory.v1"
 REVIEW_REMEDIATION_SCHEMA = "ias.s4_3.review_remediation_manifest.v1"
+CLIPPING_CORRECTIVE_SCHEMA = "ias.s4_3.clipping_corrective.v1"
+TRANSIENT_EVENT_CONTRACT_SCHEMA = "ias.s4_3.transient_event_contract.v1"
 EXPECTED_CATEGORIES = {"repeatability", "controlled", "robustness"}
 EXPECTED_PROJECT_FRAME = {
     "frame_name": "F_project",
@@ -139,7 +142,6 @@ EXPECTED_INTERACTIVE_STIMULUS_PROTOCOL = {
     "settle_before_stimulus_cue_s": 2.0,
     "operator_input_does_not_consume_capture_duration": True,
 }
-SUSTAINED_CLIP_RUN_SAMPLES = 4_000
 
 
 class S43Error(RuntimeError):
@@ -319,6 +321,219 @@ def load_pilot_configuration(
     payload = load_json(source)
     if payload.get("schema") == CONFIG_SCHEMA:
         return payload
+    if payload.get("schema") == CORRECTIVE_CONFIG_SCHEMA:
+        allowed = {
+            "schema",
+            "phase",
+            "id",
+            "frozen_at_utc",
+            "base_effective_configuration",
+            "clipping_corrective",
+            "prospective_transient_event_contract",
+            "effective_noise_metric_contract",
+            "matrix_additions",
+            "authorization",
+            "supersedes",
+            "phase_boundary",
+        }
+        unexpected = sorted(set(payload) - allowed)
+        if unexpected:
+            raise S43Error(f"{source}: unexpected corrective fields {unexpected}")
+        root = Path(repo_root) if repo_root is not None else source.resolve().parents[1]
+
+        def bound_payload(
+            field: str, expected_schema: str
+        ) -> tuple[dict[str, Any], str]:
+            record = payload.get(field)
+            if not isinstance(record, Mapping):
+                raise S43Error(f"{source}: {field} must be an object")
+            relative = record.get("path")
+            if (
+                not isinstance(relative, str)
+                or Path(relative).is_absolute()
+                or ".." in Path(relative).parts
+            ):
+                raise S43Error(f"{source}: unsafe {field} path")
+            target = root / relative
+            if not target.is_file() or sha256_file(target) != record.get("sha256"):
+                raise S43Error(f"{source}: {field} SHA-256 mismatch or file absent")
+            value = load_json(target)
+            if value.get("schema") != expected_schema:
+                raise S43Error(f"{source}: {field} schema mismatch")
+            return value, relative
+
+        base_record = payload.get("base_effective_configuration")
+        if not isinstance(base_record, Mapping):
+            raise S43Error(f"{source}: base_effective_configuration must be an object")
+        base_relative = base_record.get("path")
+        if (
+            not isinstance(base_relative, str)
+            or Path(base_relative).is_absolute()
+            or ".." in Path(base_relative).parts
+        ):
+            raise S43Error(f"{source}: unsafe base effective configuration path")
+        base_path = root / base_relative
+        if not base_path.is_file() or sha256_file(base_path) != base_record.get(
+            "sha256"
+        ):
+            raise S43Error(f"{source}: base effective configuration SHA-256 mismatch")
+        base = load_pilot_configuration(base_path, repo_root=root)
+        if canonical_sha256(base) != base_record.get("effective_canonical_sha256"):
+            raise S43Error(f"{source}: base effective canonical SHA-256 mismatch")
+        clipping, clipping_relative = bound_payload(
+            "clipping_corrective", CLIPPING_CORRECTIVE_SCHEMA
+        )
+        transient, transient_relative = bound_payload(
+            "prospective_transient_event_contract", TRANSIENT_EVENT_CONTRACT_SCHEMA
+        )
+
+        def verify_nested_binding(
+            record: Mapping[str, Any],
+            label: str,
+            *,
+            path_key: str = "path",
+            hash_key: str = "sha256",
+        ) -> None:
+            relative = record.get(path_key)
+            if (
+                not isinstance(relative, str)
+                or Path(relative).is_absolute()
+                or ".." in Path(relative).parts
+            ):
+                raise S43Error(f"{source}: unsafe nested corrective binding {label}")
+            target = root / relative
+            if not target.is_file() or sha256_file(target) != record.get(hash_key):
+                raise S43Error(
+                    f"{source}: nested corrective binding {label} SHA-256 mismatch"
+                )
+
+        for label in (
+            "original_frozen_configuration",
+            "original_preregistration",
+            "active_pre_corrective_configuration",
+            "active_pre_corrective_preregistration",
+        ):
+            record = clipping.get(label)
+            if not isinstance(record, Mapping):
+                raise S43Error(f"{source}: clipping corrective {label} absent")
+            verify_nested_binding(record, label)
+        inherited_record = clipping.get("inherited_definition")
+        if not isinstance(inherited_record, Mapping):
+            raise S43Error(f"{source}: inherited clipping definition absent")
+        verify_nested_binding(
+            inherited_record,
+            "inherited_specification",
+            path_key="specification_path",
+            hash_key="specification_sha256",
+        )
+        verify_nested_binding(
+            inherited_record,
+            "inherited_implementation",
+            path_key="implementation_path",
+            hash_key="implementation_sha256",
+        )
+        transient_specification = transient.get("specification")
+        if not isinstance(transient_specification, Mapping):
+            raise S43Error(f"{source}: transient-event specification absent")
+        verify_nested_binding(transient_specification, "transient_event_specification")
+        inherited = clipping.get("inherited_definition", {})
+        correction = clipping.get("corrected_effective_definition", {})
+        if (
+            inherited.get("sample_rate_hz") != 16_000
+            or inherited.get("sustained_duration_ms") != 250
+            or inherited.get("run_samples") != 4_000
+            or clipping.get("original_s4_3_value_samples") != 8
+            or correction.get("maximum_sustained_clip_run_samples") != 4_000
+            or correction.get("failure_comparator") != "greater_than_or_equal"
+            or correction.get("declared_channel_scope") != "all"
+        ):
+            raise S43Error(f"{source}: clipping corrective semantics mismatch")
+        detector = transient.get("detector")
+        if not isinstance(detector, Mapping):
+            raise S43Error(f"{source}: transient detector provenance absent")
+        required_detector = {
+            "sample_rate_hz": 16_000,
+            "energy_window_samples": 320,
+            "absolute_rms_floor_full_scale": 0.002,
+            "robust_sigma_multiplier": 8.0,
+            "maximum_bridge_gap_samples": 1_600,
+            "minimum_event_duration_samples": 160,
+            "maximum_transient_duration_samples": 16_000,
+            "minimum_concurrent_raw_channels": 2,
+            "boundary_event_policy": "censored_not_counted",
+            "stationary_excursion_policy": "reported_not_counted_as_transient",
+            "detector_window_overlap_dependency": "none",
+        }
+        if any(detector.get(key) != value for key, value in required_detector.items()):
+            raise S43Error(f"{source}: transient detector semantics mismatch")
+        for field in (
+            "new_trial_data_collected_before_freeze",
+            "new_trial_results_viewed_before_freeze",
+            "detector_tuned_after_new_results",
+            "s4_4_started",
+        ):
+            if transient.get(field) is not False:
+                raise S43Error(f"{source}: prospective boundary field {field} violated")
+        additions = payload.get("matrix_additions")
+        if not isinstance(additions, list) or len(additions) != 1:
+            raise S43Error(
+                f"{source}: exactly one prospective matrix addition required"
+            )
+        added_trial = additions[0]
+        if (
+            not isinstance(added_trial, Mapping)
+            or added_trial.get("trial_id")
+            != transient.get("prospective_evidence_trial_id")
+            or added_trial.get("stimulus") != "silence"
+            or added_trial.get("corrective_prospective_metric_trial") is not True
+        ):
+            raise S43Error(f"{source}: prospective silence trial binding mismatch")
+        noise_contract = payload.get("effective_noise_metric_contract")
+        if not isinstance(noise_contract, Mapping):
+            raise S43Error(f"{source}: effective noise metric contract absent")
+        if noise_contract.get(
+            "legacy_distinct_event_rate"
+        ) != "Unmeasured" or noise_contract.get(
+            "prospective_detector_contract_sha256"
+        ) != payload["prospective_transient_event_contract"].get("sha256"):
+            raise S43Error(f"{source}: noise metric identity/provenance mismatch")
+        effective = deepcopy(base)
+        effective["frozen_at_utc"] = payload.get("frozen_at_utc")
+        effective["quality"]["maximum_sustained_clip_run_samples"] = 4_000
+        effective["metric_contracts"]["noise"] = deepcopy(noise_contract)
+        effective["noise_event_detector"] = deepcopy(detector)
+        effective["matrix"] = [*effective["matrix"], deepcopy(dict(added_trial))]
+        effective["corrective_provenance"] = {
+            "id": payload.get("id"),
+            "clipping_corrective": {
+                "path": clipping_relative,
+                "sha256": payload["clipping_corrective"]["sha256"],
+            },
+            "prospective_transient_event_contract": {
+                "path": transient_relative,
+                "sha256": payload["prospective_transient_event_contract"]["sha256"],
+                "prospective_evidence_trial_id": transient[
+                    "prospective_evidence_trial_id"
+                ],
+            },
+            "original_frozen_configuration": deepcopy(
+                clipping.get("original_frozen_configuration")
+            ),
+            "original_preregistration": deepcopy(
+                clipping.get("original_preregistration")
+            ),
+            "base_effective_configuration": deepcopy(base_record),
+        }
+        effective["configuration_source"] = {
+            "schema": CORRECTIVE_CONFIG_SCHEMA,
+            "path": source.relative_to(root).as_posix()
+            if source.is_absolute()
+            else source.as_posix(),
+            "id": payload.get("id"),
+            "base_effective_configuration": deepcopy(base_record),
+            "supersedes": deepcopy(payload.get("supersedes")),
+        }
+        return effective
     if payload.get("schema") != CONFIG_AMENDMENT_SCHEMA:
         raise S43Error(f"{source}: unsupported pilot configuration schema")
     allowed = {
@@ -487,6 +702,14 @@ def validate_preregistration(
             "scientific_contract_changed",
             "s4_4_started",
         )
+    elif amendment_basis == "corrective_metric_provenance":
+        boundary_fields = (
+            "new_trial_data_collected_before_corrective_freeze",
+            "new_trial_results_viewed_before_corrective_freeze",
+            "detector_tuned_after_new_results",
+            "original_frozen_files_modified",
+            "s4_4_started",
+        )
     else:
         issues.append(
             _issue(
@@ -509,6 +732,18 @@ def validate_preregistration(
                 "amendment_trigger_results_undeclared",
                 "trigger_results_declared",
                 "must be true for a result-triggered amendment",
+            )
+        )
+    if (
+        preregistration.get("status") == "frozen_before_additional_trial_collection"
+        and amendment_basis == "corrective_metric_provenance"
+        and preregistration.get("corrective_authorization_declared") is not True
+    ):
+        issues.append(
+            _issue(
+                "corrective_authorization_undeclared",
+                "corrective_authorization_declared",
+                "must be true for corrective metric provenance",
             )
         )
     if (
@@ -1006,7 +1241,15 @@ def validate_preregistration(
         )
     expansion_count = sum(expansion_by_parent.values())
     expansion_contract = configuration.get("expansion", {})
-    if expansion_count > expansion_contract.get("maximum_added_trials_total", -1):
+    corrective_allowance = (
+        1
+        if configuration.get("configuration_source", {}).get("schema")
+        == CORRECTIVE_CONFIG_SCHEMA
+        else 0
+    )
+    if expansion_count > (
+        expansion_contract.get("maximum_added_trials_total", -1) + corrective_allowance
+    ):
         issues.append(
             _issue("expansion_total_exceeded", "matrix", str(expansion_count))
         )
@@ -1048,12 +1291,206 @@ def validate_preregistration(
     )
 
 
+def validate_corrective_provenance(
+    configuration: Mapping[str, Any],
+    preregistration: Mapping[str, Any],
+    *,
+    repo_root: str | Path,
+) -> ValidationReport:
+    """Validate the clipping correction and prospective noise contract chain."""
+
+    root = Path(repo_root)
+    issues: list[ValidationIssue] = []
+    source = configuration.get("configuration_source")
+    if (
+        not isinstance(source, Mapping)
+        or source.get("schema") != CORRECTIVE_CONFIG_SCHEMA
+    ):
+        issues.append(
+            _issue(
+                "corrective_configuration_absent",
+                "configuration_source",
+                "corrected effective configuration is required",
+            )
+        )
+        return ValidationReport((), tuple(issues))
+    provenance = configuration.get("corrective_provenance")
+    if not isinstance(provenance, Mapping):
+        issues.append(
+            _issue(
+                "corrective_provenance_absent",
+                "corrective_provenance",
+                "must be an object",
+            )
+        )
+        return ValidationReport((), tuple(issues))
+    for label in (
+        "original_frozen_configuration",
+        "original_preregistration",
+        "clipping_corrective",
+        "prospective_transient_event_contract",
+    ):
+        record = provenance.get(label)
+        if not isinstance(record, Mapping):
+            issues.append(_issue("corrective_binding_absent", label, "must be object"))
+            continue
+        relative = record.get("path")
+        if (
+            not isinstance(relative, str)
+            or Path(relative).is_absolute()
+            or ".." in Path(relative).parts
+        ):
+            issues.append(_issue("unsafe_corrective_binding", label, repr(relative)))
+            continue
+        path = root / relative
+        if not path.is_file() or sha256_file(path) != record.get("sha256"):
+            issues.append(
+                _issue(
+                    "corrective_binding_hash_mismatch",
+                    relative,
+                    "file absent or SHA-256 differs",
+                )
+            )
+    original = provenance.get("original_frozen_configuration")
+    if isinstance(original, Mapping):
+        path = root / str(original.get("path"))
+        if (
+            path.is_file()
+            and load_json(path)
+            .get("quality", {})
+            .get("maximum_sustained_clip_run_samples")
+            != 8
+        ):
+            issues.append(
+                _issue(
+                    "original_clipping_value_changed",
+                    str(original.get("path")),
+                    "original frozen value must remain 8",
+                )
+            )
+    if (
+        configuration.get("quality", {}).get("maximum_sustained_clip_run_samples")
+        != 4_000
+    ):
+        issues.append(
+            _issue(
+                "effective_clipping_threshold_mismatch",
+                "quality.maximum_sustained_clip_run_samples",
+                "must be 4000",
+            )
+        )
+    detector = configuration.get("noise_event_detector")
+    if not isinstance(detector, Mapping):
+        issues.append(
+            _issue(
+                "transient_detector_provenance_absent",
+                "noise_event_detector",
+                "must be prospectively frozen",
+            )
+        )
+    prereg_config = preregistration.get("configuration")
+    source_path = source.get("path")
+    if (
+        not isinstance(prereg_config, Mapping)
+        or prereg_config.get("path") != source_path
+        or canonical_sha256(configuration)
+        != prereg_config.get("effective_canonical_sha256")
+    ):
+        issues.append(
+            _issue(
+                "corrective_preregistration_configuration_mismatch",
+                "preregistration.configuration",
+                "must bind the corrected effective configuration",
+            )
+        )
+    corrective_records = preregistration.get("corrective_records")
+    required_corrective_paths = {
+        "docs/development/specs/s4_3_pilot_corrective_01.md",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/clipping_corrective_01.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/transient_event_contract_01.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+        "trial_inventory_corrective_01_precollection.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_01_supersession.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/"
+        "corrective_01_precollection_gate.json",
+    }
+    observed_corrective_paths: set[str] = set()
+    if not isinstance(corrective_records, list):
+        issues.append(
+            _issue(
+                "corrective_record_inventory_absent",
+                "preregistration.corrective_records",
+                "must be a list",
+            )
+        )
+    else:
+        for index, record in enumerate(corrective_records):
+            if not isinstance(record, Mapping):
+                issues.append(
+                    _issue(
+                        "invalid_corrective_record",
+                        f"preregistration.corrective_records[{index}]",
+                        "must be an object",
+                    )
+                )
+                continue
+            relative = record.get("path")
+            if (
+                not isinstance(relative, str)
+                or Path(relative).is_absolute()
+                or ".." in Path(relative).parts
+                or relative in observed_corrective_paths
+            ):
+                issues.append(
+                    _issue(
+                        "unsafe_corrective_record",
+                        f"preregistration.corrective_records[{index}]",
+                        repr(relative),
+                    )
+                )
+                continue
+            observed_corrective_paths.add(relative)
+            path = root / relative
+            if not path.is_file() or sha256_file(path) != record.get("sha256"):
+                issues.append(
+                    _issue(
+                        "corrective_record_hash_mismatch",
+                        relative,
+                        "file absent or SHA-256 differs",
+                    )
+                )
+    if not required_corrective_paths <= observed_corrective_paths:
+        issues.append(
+            _issue(
+                "corrective_record_coverage_missing",
+                "preregistration.corrective_records",
+                repr(sorted(required_corrective_paths - observed_corrective_paths)),
+            )
+        )
+    return ValidationReport(
+        (
+            {
+                "id": "s4_3_corrective_provenance",
+                "status": "passed" if not issues else "failed",
+                "effective_sustained_clip_run_samples": configuration.get(
+                    "quality", {}
+                ).get("maximum_sustained_clip_run_samples"),
+                "prospective_evidence_trial_id": provenance.get(
+                    "prospective_transient_event_contract", {}
+                ).get("prospective_evidence_trial_id"),
+            },
+        ),
+        tuple(issues),
+    )
+
+
 def validate_review_remediation_manifest(
     configuration: Mapping[str, Any],
     preregistration: Mapping[str, Any],
     manifest: Mapping[str, Any],
     *,
     repo_root: str | Path,
+    verify_implementation_hashes: bool = True,
 ) -> ValidationReport:
     """Bind post-trial validator changes without rewriting the frozen contract."""
 
@@ -1190,7 +1627,9 @@ def validate_review_remediation_manifest(
                 issues.append(
                     _issue("missing_review_implementation", relative, "file absent")
                 )
-            elif sha256_file(path) != record.get("sha256"):
+            elif verify_implementation_hashes and sha256_file(path) != record.get(
+                "sha256"
+            ):
                 issues.append(
                     _issue(
                         "review_implementation_hash_mismatch",
@@ -1464,6 +1903,9 @@ def analyze_trial_wav(
         path,
         require_nonsilent_channels=not intended_silence,
         reject_sustained_clipping=True,
+        sustained_clip_run_samples_min=int(
+            configuration["quality"]["maximum_sustained_clip_run_samples"]
+        ),
         expected_duration_s=float(trial["duration_s"]),
         duration_tolerance_s=float(configuration["quality"]["duration_tolerance_s"]),
     )
@@ -2133,6 +2575,9 @@ def build_channel_evidence(
         str(value) for value in configuration["audio"]["channel_order"]
     )
     raw_ids = set(_raw_channel_ids(configuration))
+    sustained_clip_run_samples_min = int(
+        configuration["quality"]["maximum_sustained_clip_run_samples"]
+    )
     if analysis is None:
         return {
             "trial_id": trial["trial_id"],
@@ -2178,7 +2623,8 @@ def build_channel_evidence(
         )
         sustained_clipping = bool(
             isinstance(values["maximum_clip_run_samples"], (int, float))
-            and float(values["maximum_clip_run_samples"]) >= SUSTAINED_CLIP_RUN_SAMPLES
+            and float(values["maximum_clip_run_samples"])
+            >= sustained_clip_run_samples_min
         )
         healthy = present and not silent_failure and not sustained_clipping
         channels.append(
@@ -2195,6 +2641,7 @@ def build_channel_evidence(
                 **values,
             }
         )
+    declared_failures = sum(not bool(channel["healthy"]) for channel in channels)
     raw_failures = sum(
         not bool(channel["healthy"])
         for channel in channels
@@ -2209,7 +2656,7 @@ def build_channel_evidence(
         "trial_id": trial["trial_id"],
         "attempt_id": attempt_id,
         "outcome": outcome,
-        "status": "passed" if complete and raw_failures == 0 else "failed",
+        "status": "passed" if complete and declared_failures == 0 else "failed",
         "expected_channel_count": len(expected_order),
         "observed_channel_count": observed_count,
         "declared_channel_order": list(expected_order),
@@ -2218,19 +2665,130 @@ def build_channel_evidence(
             "method": "frozen device identity and firmware channel map plus WAV index",
             "limitation": "physical acoustic centers were not independently traced",
         },
-        "sustained_clip_run_samples_min": SUSTAINED_CLIP_RUN_SAMPLES,
+        "sustained_clip_run_samples_min": sustained_clip_run_samples_min,
+        "sustained_clip_failure_comparator": "greater_than_or_equal",
+        "declared_channel_health_failure_count": declared_failures,
         "channels": channels,
         "raw_channel_health_failure_count": raw_failures,
     }
 
 
-def analyze_noise_transients(
+def _boolean_runs(mask: np.ndarray) -> list[tuple[int, int]]:
+    """Return half-open true runs from one boolean vector."""
+
+    if mask.ndim != 1:
+        raise S43Error("event mask must be one-dimensional")
+    padded = np.concatenate((np.asarray([False]), mask, np.asarray([False])))
+    changes = np.flatnonzero(padded[1:] != padded[:-1])
+    return [
+        (int(start), int(stop))
+        for start, stop in zip(changes[::2], changes[1::2], strict=True)
+    ]
+
+
+def _bridge_event_gaps(mask: np.ndarray, maximum_gap_samples: int) -> np.ndarray:
+    """Bridge only bounded inactive gaps, leaving interval boundaries censored."""
+
+    bridged = mask.copy()
+    false_runs = _boolean_runs(~mask)
+    for start, stop in false_runs:
+        if start > 0 and stop < mask.size and stop - start <= maximum_gap_samples:
+            bridged[start:stop] = True
+    return bridged
+
+
+def _prospective_transient_events(
+    raw_samples: np.ndarray,
+    configuration: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Count de-duplicated transient candidates independently of report windows."""
+
+    detector = configuration.get("noise_event_detector")
+    if not isinstance(detector, Mapping):
+        raise S43Error("prospective transient-event detector provenance is absent")
+    rate = int(configuration["audio"]["sample_rate_hz"])
+    if detector.get("sample_rate_hz") != rate:
+        raise S43Error("prospective transient detector sample rate is inconsistent")
+    window = int(detector["energy_window_samples"])
+    if raw_samples.ndim != 2 or raw_samples.shape[1] != len(
+        configuration["audio"]["analysis_channel_ids"]
+    ):
+        raise S43Error("prospective transient detector requires every raw channel")
+    kernel = np.ones(window, dtype=np.float64) / window
+    envelopes = np.column_stack(
+        [
+            np.sqrt(np.convolve(raw_samples[:, channel] ** 2, kernel, mode="same"))
+            for channel in range(raw_samples.shape[1])
+        ]
+    )
+    medians = np.median(envelopes, axis=0)
+    mads = np.median(np.abs(envelopes - medians), axis=0)
+    thresholds = np.maximum(
+        float(detector["absolute_rms_floor_full_scale"]),
+        medians + float(detector["robust_sigma_multiplier"]) * 1.4826 * mads,
+    )
+    concurrent = np.sum(envelopes >= thresholds, axis=1) >= int(
+        detector["minimum_concurrent_raw_channels"]
+    )
+    bridged = _bridge_event_gaps(
+        concurrent, int(detector["maximum_bridge_gap_samples"])
+    )
+    events: list[dict[str, Any]] = []
+    stationary: list[dict[str, Any]] = []
+    censored: list[dict[str, Any]] = []
+    short: list[dict[str, Any]] = []
+    aggregate_envelope = np.median(envelopes, axis=1)
+    for start, stop in _boolean_runs(bridged):
+        duration = stop - start
+        peak = start + int(np.argmax(aggregate_envelope[start:stop]))
+        record = {
+            "start_sample": start,
+            "stop_sample_exclusive": stop,
+            "duration_samples": duration,
+            "duration_ms": 1000.0 * duration / rate,
+            "peak_sample": peak,
+            "peak_median_raw_rms_full_scale": float(aggregate_envelope[peak]),
+        }
+        if start == 0 or stop == bridged.size:
+            censored.append(record)
+        elif duration < int(detector["minimum_event_duration_samples"]):
+            short.append(record)
+        elif duration > int(detector["maximum_transient_duration_samples"]):
+            stationary.append(record)
+        else:
+            events.append(record)
+    duration_s = raw_samples.shape[0] / rate
+    return {
+        "status": "measured",
+        "metric_id": "prospective_deduplicated_transient_event_rate",
+        "contract_sha256": configuration["corrective_provenance"][
+            "prospective_transient_event_contract"
+        ]["sha256"],
+        "detector_window_overlap_dependency": "none",
+        "duration_s": duration_s,
+        "event_count": len(events),
+        "event_rate_per_s": len(events) / duration_s,
+        "events": events,
+        "stationary_excursion_count": len(stationary),
+        "stationary_excursions": stationary,
+        "boundary_censored_excursion_count": len(censored),
+        "boundary_censored_excursions": censored,
+        "short_excursion_count": len(short),
+        "short_excursions": short,
+        "per_channel_baseline_rms_full_scale": medians.tolist(),
+        "per_channel_mad_rms_full_scale": mads.tolist(),
+        "per_channel_threshold_rms_full_scale": thresholds.tolist(),
+        "classification": "Measured",
+    }
+
+
+def analyze_noise_characterization(
     wav_path: str | Path,
     analysis: Mapping[str, Any],
     trial: Mapping[str, Any],
     configuration: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Measure frozen-window noise transients from retained waveform evidence."""
+    """Separate legacy RMS exceedances from prospective de-duplicated events."""
 
     stimulus = str(trial.get("stimulus"))
     if stimulus != "silence" and "mac_reference" not in stimulus:
@@ -2283,7 +2841,7 @@ def analyze_noise_transients(
         for band_id, value in bands.items():
             spectrum[band_id].append(float(value))
     duration_s = (interval_stop - interval_start) / rate
-    transient_count = sum(value > threshold for value in median_rms_values)
+    exceedance_count = sum(value > threshold for value in median_rms_values)
     if not median_rms_values or duration_s <= 0.0:
         return {
             "trial_id": trial["trial_id"],
@@ -2292,6 +2850,7 @@ def analyze_noise_transients(
         }
     return {
         "trial_id": trial["trial_id"],
+        "schema": "ias.s4_3.noise_characterization.v2",
         "status": "measured",
         "interval_kind": interval_kind,
         "interval_start_sample": interval_start,
@@ -2300,9 +2859,43 @@ def analyze_noise_transients(
         "window_duration_ms": configuration["analysis"]["window_duration_ms"],
         "window_overlap_percent": configuration["analysis"]["window_overlap_percent"],
         "window_count": len(median_rms_values),
-        "transient_threshold_median_raw_rms_full_scale": threshold,
-        "transient_count": transient_count,
-        "transient_rate_per_s": transient_count / duration_s,
+        "legacy_overlapping_window_rms_exceedance": {
+            "status": "measured",
+            "metric_id": "legacy_overlapping_window_rms_exceedance_rate",
+            "threshold_median_raw_rms_full_scale": threshold,
+            "exceedance_window_count": exceedance_count,
+            "overlapping_window_count": len(median_rms_values),
+            "exceedance_rate_per_s": exceedance_count / duration_s,
+            "classification": "Measured",
+            "limitation": (
+                "overlapping analysis-window exceedances are correlated and are "
+                "not distinct physical transient events"
+            ),
+        },
+        "legacy_distinct_event_rate": {
+            "status": "unmeasured",
+            "metric_id": "legacy_distinct_transient_event_rate",
+            "classification": "Unmeasured",
+            "reason": (
+                "the retained S4.3 waveform was inspected before the prospective "
+                "de-duplicated detector contract was frozen"
+            ),
+        },
+        "prospective_distinct_transient_events": (
+            _prospective_transient_events(
+                samples[interval_start:interval_stop, raw_indices], configuration
+            )
+            if trial["trial_id"]
+            == configuration.get("corrective_provenance", {})
+            .get("prospective_transient_event_contract", {})
+            .get("prospective_evidence_trial_id")
+            else {
+                "status": "unmeasured",
+                "metric_id": "prospective_deduplicated_transient_event_rate",
+                "classification": "Unmeasured",
+                "reason": "trial predates the prospectively frozen detector contract",
+            }
+        ),
         "median_raw_rms_full_scale": _stats(median_rms_values),
         "per_channel_rms_full_scale": {
             channel_id: _stats(values)
@@ -2313,7 +2906,9 @@ def analyze_noise_transients(
         },
         "classification": "Measured",
         "limitation": (
-            "functional room-fixture-sensor noise, not microphone self-noise SPL"
+            "functional room-fixture-sensor noise, not microphone self-noise SPL; "
+            "legacy overlapping-window exceedances and prospective de-duplicated "
+            "events are distinct metrics"
         ),
     }
 
@@ -3271,16 +3866,87 @@ def validate_metric_evidence(
         set(measured_noise) == expected_noise_ids,
         "noise-transient results are absent for applicable trials",
     )
-    for trial_id, record in measured_noise.items():
+    corrective_noise = (
+        configuration.get("configuration_source", {}).get("schema")
+        == CORRECTIVE_CONFIG_SCHEMA
+    )
+    prospective_trial_id = (
+        configuration.get("corrective_provenance", {})
+        .get("prospective_transient_event_contract", {})
+        .get("prospective_evidence_trial_id")
+    )
+    if corrective_noise:
         require(
             "noise",
-            isinstance(record.get("transient_count"), int)
-            and isinstance(record.get("transient_rate_per_s"), (int, float))
+            isinstance(prospective_trial_id, str)
+            and prospective_trial_id in measured_noise,
+            "required prospective silence evidence is absent",
+        )
+    for trial_id, record in measured_noise.items():
+        if not corrective_noise:
+            require(
+                "noise",
+                isinstance(record.get("transient_count"), int)
+                and isinstance(record.get("transient_rate_per_s"), (int, float))
+                and record.get("window_count", 0) > 0
+                and set(record.get("per_channel_rms_full_scale", {})) == raw_set
+                and set(record.get("combined_spectrum_relative_db", {})) == band_set,
+                f"{trial_id}: historical noise output incomplete",
+            )
+            continue
+        legacy = record.get("legacy_overlapping_window_rms_exceedance")
+        legacy_distinct = record.get("legacy_distinct_event_rate")
+        prospective = record.get("prospective_distinct_transient_events")
+        require(
+            "noise",
+            record.get("schema") == "ias.s4_3.noise_characterization.v2"
+            and isinstance(legacy, Mapping)
+            and legacy.get("metric_id")
+            == "legacy_overlapping_window_rms_exceedance_rate"
+            and isinstance(legacy.get("exceedance_window_count"), int)
+            and isinstance(legacy.get("exceedance_rate_per_s"), (int, float))
+            and isinstance(legacy_distinct, Mapping)
+            and legacy_distinct.get("status") == "unmeasured"
+            and legacy_distinct.get("classification") == "Unmeasured"
             and record.get("window_count", 0) > 0
             and set(record.get("per_channel_rms_full_scale", {})) == raw_set
             and set(record.get("combined_spectrum_relative_db", {})) == band_set,
-            f"{trial_id}: noise transient/channel/spectrum output incomplete",
+            (
+                f"{trial_id}: legacy noise/channel/spectrum output incomplete "
+                "or mislabeled"
+            ),
         )
+        require(
+            "noise",
+            isinstance(prospective_trial_id, str),
+            "prospective transient detector provenance or evidence trial is absent",
+        )
+        if trial_id == prospective_trial_id:
+            require(
+                "noise",
+                isinstance(prospective, Mapping)
+                and prospective.get("status") == "measured"
+                and prospective.get("metric_id")
+                == "prospective_deduplicated_transient_event_rate"
+                and isinstance(prospective.get("event_count"), int)
+                and isinstance(prospective.get("event_rate_per_s"), (int, float))
+                and prospective.get("detector_window_overlap_dependency") == "none"
+                and prospective.get("contract_sha256")
+                == configuration["corrective_provenance"][
+                    "prospective_transient_event_contract"
+                ]["sha256"],
+                f"{trial_id}: prospective transient-event evidence incomplete",
+            )
+        else:
+            require(
+                "noise",
+                isinstance(prospective, Mapping)
+                and prospective.get("status") == "unmeasured",
+                (
+                    f"{trial_id}: inspected legacy data must not confirm "
+                    "prospective events"
+                ),
+            )
 
     silence = analyses_by_id.get("s4_3_rob_silence_01")
     require(

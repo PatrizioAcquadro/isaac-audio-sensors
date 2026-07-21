@@ -29,6 +29,7 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     canonical_sha256,
     load_json,
     load_pilot_configuration,
+    validate_corrective_provenance,
     validate_mac_dynamic_preflight_report,
     validate_preregistration,
 )
@@ -263,6 +264,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     freeze = validate_preregistration(configuration, preregistration, repo_root=ROOT)
     if not freeze.passed:
         raise S43Error(f"preregistration failed: {freeze.to_dict()}")
+    corrective = validate_corrective_provenance(
+        configuration, preregistration, repo_root=ROOT
+    )
+    if not corrective.passed:
+        raise S43Error(f"corrective provenance failed: {corrective.to_dict()}")
     trial = _trial(configuration, args.trial_id)
     expected_confirmation = f"I_CONFIRMED_{trial['operator_action']}"
     if args.operator_confirmation != expected_confirmation:
@@ -282,9 +288,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "visible_audible_ordinary_object_impact",
     }:
         raise S43Error("this stimulus requires --interactive-trigger")
-    if args.interactive_trigger and configuration.get(
-        "interactive_stimulus_protocol"
-    ) != EXPECTED_INTERACTIVE_STIMULUS_PROTOCOL:
+    if (
+        args.interactive_trigger
+        and configuration.get("interactive_stimulus_protocol")
+        != EXPECTED_INTERACTIVE_STIMULUS_PROTOCOL
+    ):
         raise S43Error("interactive stimulus protocol is not frozen")
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -692,12 +700,17 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/s4_3_pilot.v1.json")
+        "--config",
+        type=Path,
+        default=Path("configs/s4_3_pilot_corrective_01.v1.json"),
     )
     parser.add_argument(
         "--preregistration",
         type=Path,
-        default=Path("outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration.json"),
+        default=Path(
+            "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+            "preregistration_corrective_01.json"
+        ),
     )
     parser.add_argument("--trial-id", required=True)
     parser.add_argument("--attempt-id", default=None)

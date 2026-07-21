@@ -1265,10 +1265,18 @@ def inspect_six_channel_wav(
     *,
     require_nonsilent_channels: bool,
     reject_sustained_clipping: bool,
+    sustained_clip_run_samples_min: int = 4_000,
     expected_duration_s: float | None = None,
     duration_tolerance_s: float = 0.0,
 ) -> tuple[dict[str, Any], tuple[ValidationIssue, ...]]:
     """Stream-validate the frozen six-channel ReSpeaker PCM contract."""
+
+    if (
+        isinstance(sustained_clip_run_samples_min, bool)
+        or not isinstance(sustained_clip_run_samples_min, int)
+        or sustained_clip_run_samples_min <= 0
+    ):
+        raise ValueError("sustained_clip_run_samples_min must be a positive integer")
 
     wav_path = Path(path)
     issues: list[ValidationIssue] = []
@@ -1375,7 +1383,7 @@ def inspect_six_channel_wav(
                 )
             )
     for channel, run in enumerate(maximum_clip_runs):
-        if reject_sustained_clipping and run >= 4_000:
+        if reject_sustained_clipping and run >= sustained_clip_run_samples_min:
             issues.append(
                 ValidationIssue(
                     "sustained_clipping",

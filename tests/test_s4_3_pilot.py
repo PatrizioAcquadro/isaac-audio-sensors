@@ -16,7 +16,7 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     S43Error,
     aggregate_category,
     analysis_microphone_positions_project_m,
-    analyze_noise_transients,
+    analyze_noise_characterization,
     analyze_trial_wav,
     build_channel_evidence,
     canonical_sha256,
@@ -27,6 +27,7 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     planned_inventory,
     sha256_file,
     summarize_windows,
+    validate_corrective_provenance,
     validate_inventory,
     validate_mac_dynamic_preflight_report,
     validate_metric_evidence,
@@ -59,6 +60,7 @@ INTERACTIVE_PREREG_PATH = (
     ROOT / "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
     "preregistration_amendment_04.json"
 )
+CORRECTIVE_CONFIG_PATH = ROOT / "configs/s4_3_pilot_corrective_01.v1.json"
 REFERENCE_PATH = (
     ROOT / "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav"
 )
@@ -86,6 +88,10 @@ def _occlusion_confirmation_config() -> dict:
 
 def _interactive_config() -> dict:
     return load_pilot_configuration(INTERACTIVE_CONFIG_PATH, repo_root=ROOT)
+
+
+def _corrective_config() -> dict:
+    return load_pilot_configuration(CORRECTIVE_CONFIG_PATH, repo_root=ROOT)
 
 
 def _trial(config: dict, trial_id: str) -> dict:
@@ -1009,27 +1015,186 @@ def test_repeatability_gate_rejects_partial_pairs_and_raw_health_failure() -> No
     assert gate["observations"]["raw_channel_health_failure_count"] == 1
 
 
-def test_noise_transient_analysis_uses_frozen_detector_threshold(
+@pytest.mark.parametrize(
+    ("run_samples", "expected_status"), [(3_999, "passed"), (4_000, "failed")]
+)
+def test_corrected_sustained_clip_boundary_controls_analysis(
+    tmp_path: Path, run_samples: int, expected_status: str
+) -> None:
+    config = _corrective_config()
+    trial = copy.deepcopy(_trial(config, "s4_3_rob_silence_02_prospective_events_01"))
+    trial["duration_s"] = 3
+    samples = np.zeros((48_000, 6), dtype=np.float64)
+    samples[:run_samples, 0] = 1.0
+    wav_path = tmp_path / f"clip-{run_samples}.wav"
+    _write_pcm16(wav_path, samples)
+    result = analyze_trial_wav(wav_path, trial, config)
+    assert result["status"] == expected_status
+    assert result["wav"]["per_channel_maximum_clip_run_samples"][0] == run_samples
+    assert ("sustained_clipping" in {issue["code"] for issue in result["issues"]}) is (
+        expected_status == "failed"
+    )
+
+
+def test_corrected_clipping_checks_every_declared_channel_and_reports_short_runs() -> (
+    None
+):
+    config = _corrective_config()
+    trial = _trial(config, "s4_3_rob_overlap_01")
+    for channel_index, channel_id in enumerate(config["audio"]["channel_order"]):
+        analysis = {"wav": _passing_wav()}
+        analysis["wav"]["per_channel_maximum_clip_run_samples"][channel_index] = 4_000
+        evidence = build_channel_evidence(
+            analysis,
+            trial,
+            config,
+            attempt_id=f"channel-{channel_index}",
+            outcome="accepted",
+        )
+        assert evidence["status"] == "failed"
+        assert evidence["channels"][channel_index]["channel_id"] == channel_id
+        assert evidence["channels"][channel_index]["sustained_clipping"] is True
+    analysis = {"wav": _passing_wav()}
+    analysis["wav"]["per_channel_maximum_clip_run_samples"][0] = 15
+    evidence = build_channel_evidence(
+        analysis, trial, config, attempt_id="overlap-short-run", outcome="accepted"
+    )
+    assert evidence["status"] == "passed"
+    assert evidence["channels"][0]["maximum_clip_run_samples"] == 15
+    assert evidence["channels"][0]["sustained_clipping"] is False
+
+
+def test_effective_configuration_is_the_only_s4_3_clipping_threshold_source() -> None:
+    config = _corrective_config()
+    trial = _trial(config, "s4_3_rob_overlap_01")
+    analysis = {"wav": _passing_wav()}
+    analysis["wav"]["per_channel_maximum_clip_run_samples"][0] = 4_000
+    assert (
+        build_channel_evidence(
+            analysis, trial, config, attempt_id="at-threshold", outcome="accepted"
+        )["status"]
+        == "failed"
+    )
+    alternate = copy.deepcopy(config)
+    alternate["quality"]["maximum_sustained_clip_run_samples"] = 5_000
+    assert (
+        build_channel_evidence(
+            analysis, trial, alternate, attempt_id="below-effective", outcome="accepted"
+        )["status"]
+        == "passed"
+    )
+
+
+def test_missing_or_inconsistent_corrective_provenance_fails_closed(
     tmp_path: Path,
 ) -> None:
-    config = _config()
-    trial = _trial(config, "s4_3_rob_silence_01")
-    wav_path = tmp_path / "silence.wav"
-    _write_pcm16(wav_path, np.zeros((2 * 16_000, 6), dtype=np.float64))
-    result = analyze_noise_transients(
+    payload = load_json(CORRECTIVE_CONFIG_PATH)
+    payload["clipping_corrective"]["path"] = "missing/clipping.json"
+    broken_path = tmp_path / "broken-corrective.json"
+    broken_path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(S43Error, match="clipping_corrective SHA-256 mismatch"):
+        load_pilot_configuration(broken_path, repo_root=ROOT)
+
+    config = _corrective_config()
+    inconsistent = copy.deepcopy(config)
+    inconsistent["quality"]["maximum_sustained_clip_run_samples"] = 3_999
+    preregistration = {
+        "configuration": {
+            "path": "configs/s4_3_pilot_corrective_01.v1.json",
+            "effective_canonical_sha256": canonical_sha256(inconsistent),
+        }
+    }
+    report = validate_corrective_provenance(
+        inconsistent, preregistration, repo_root=ROOT
+    )
+    assert not report.passed
+    assert any(
+        issue.code == "effective_clipping_threshold_mismatch" for issue in report.issues
+    )
+
+
+def _noise_result(
+    tmp_path: Path, raw: np.ndarray, *, overlap_percent: int = 50
+) -> dict:
+    config = _corrective_config()
+    config["analysis"]["window_overlap_percent"] = overlap_percent
+    samples = np.zeros((raw.shape[0], 6), dtype=np.float64)
+    samples[:, 2:6] = raw
+    wav_path = tmp_path / f"noise-{overlap_percent}-{len(list(tmp_path.iterdir()))}.wav"
+    _write_pcm16(wav_path, samples)
+    return analyze_noise_characterization(
         wav_path,
         {"reference_start_sample": None},
-        trial,
+        _trial(config, "s4_3_rob_silence_02_prospective_events_01"),
         config,
     )
-    assert result["status"] == "measured"
-    assert result["transient_count"] == 0
-    assert (
-        result["transient_threshold_median_raw_rms_full_scale"]
-        == config["analysis"]["signal_rms_full_scale_threshold"]
+
+
+def test_stationary_above_threshold_is_not_repeatedly_counted_as_events(
+    tmp_path: Path,
+) -> None:
+    raw = np.zeros((4 * 16_000, 4), dtype=np.float64)
+    raw[16_000 : 16_000 + 24_000, :] = 0.05
+    prospective = _noise_result(tmp_path, raw)["prospective_distinct_transient_events"]
+    assert prospective["event_count"] == 0
+    assert prospective["stationary_excursion_count"] == 1
+
+
+def test_separated_events_are_distinct_and_one_spanning_windows_counts_once(
+    tmp_path: Path,
+) -> None:
+    raw = np.zeros((4 * 16_000, 4), dtype=np.float64)
+    raw[8_000:10_400, :] = 0.05
+    raw[24_000:27_200, :] = 0.05
+    result = _noise_result(tmp_path, raw)
+    prospective = result["prospective_distinct_transient_events"]
+    assert prospective["event_count"] == 2
+    assert len(prospective["events"]) == 2
+    assert result["legacy_overlapping_window_rms_exceedance"]["metric_id"] == (
+        "legacy_overlapping_window_rms_exceedance_rate"
     )
-    assert set(result["per_channel_rms_full_scale"]) == set(
-        config["audio"]["analysis_channel_ids"]
+    assert result["legacy_distinct_event_rate"] == {
+        "status": "unmeasured",
+        "metric_id": "legacy_distinct_transient_event_rate",
+        "classification": "Unmeasured",
+        "reason": (
+            "the retained S4.3 waveform was inspected before the prospective "
+            "de-duplicated detector contract was frozen"
+        ),
+    }
+
+
+def test_prospective_event_count_is_independent_of_reporting_window_overlap(
+    tmp_path: Path,
+) -> None:
+    raw = np.zeros((3 * 16_000, 4), dtype=np.float64)
+    raw[12_000:16_800, :] = 0.05
+    counts = [
+        _noise_result(tmp_path, raw, overlap_percent=overlap)[
+            "prospective_distinct_transient_events"
+        ]["event_count"]
+        for overlap in (0, 50, 90)
+    ]
+    assert counts == [1, 1, 1]
+
+
+def test_corrected_noise_coverage_fails_without_provenance_or_new_evidence() -> None:
+    fixture = _synthetic_metric_fixture()
+    fixture["config"] = _corrective_config()
+    coverage = _validate_fixture(fixture)
+    assert coverage["metric_contracts"]["noise"]["status"] == "failed"
+    assert any(
+        "required prospective silence evidence is absent" in issue
+        for issue in coverage["metric_contracts"]["noise"]["issues"]
+    )
+
+    missing_provenance = copy.deepcopy(fixture)
+    missing_provenance["config"].pop("corrective_provenance")
+    coverage = _validate_fixture(missing_provenance)
+    assert coverage["metric_contracts"]["noise"]["status"] == "failed"
+    assert any(
+        "provenance" in issue
+        for issue in coverage["metric_contracts"]["noise"]["issues"]
     )
 
 

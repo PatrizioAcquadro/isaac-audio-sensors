@@ -15,7 +15,7 @@ from isaac_audio_sensors.acquisition.s4_2 import sha256_file
 from isaac_audio_sensors.acquisition.s4_3 import (
     S43Error,
     aggregate_category,
-    analyze_noise_transients,
+    analyze_noise_characterization,
     analyze_trial_wav,
     build_channel_evidence,
     canonical_sha256,
@@ -23,6 +23,7 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     inventory_from_attempts,
     load_json,
     load_pilot_configuration,
+    validate_corrective_provenance,
     validate_inventory,
     validate_metric_evidence,
     validate_preregistration,
@@ -34,6 +35,10 @@ from isaac_audio_sensors.core.dataset.atomic import write_json_atomic
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "outputs/isaac_audio_sensors/S4/S4.3"
 DEFAULT_REVIEW_REMEDIATION = DEFAULT_OUTPUT / "freeze/review_remediation_manifest.json"
+DEFAULT_REVIEW_CONFIG = ROOT / "configs/s4_3_pilot_amendment_04.v1.json"
+DEFAULT_REVIEW_PREREGISTRATION = (
+    DEFAULT_OUTPUT / "freeze/preregistration_amendment_04.json"
+)
 
 
 def _trial(configuration: dict[str, Any], trial_id: str) -> dict[str, Any]:
@@ -213,12 +218,24 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     )
     if not freeze.passed:
         raise S43Error(f"preregistration failed: {freeze.to_dict()}")
-    review_remediation = load_json(args.review_remediation)
-    review_validation = validate_review_remediation_manifest(
+    corrective_validation = validate_corrective_provenance(
         configuration,
         preregistration,
+        repo_root=ROOT,
+    )
+    if not corrective_validation.passed:
+        raise S43Error(
+            f"corrective provenance failed: {corrective_validation.to_dict()}"
+        )
+    review_remediation = load_json(args.review_remediation)
+    review_configuration = load_pilot_configuration(args.review_config, repo_root=ROOT)
+    review_preregistration = load_json(args.review_preregistration)
+    review_validation = validate_review_remediation_manifest(
+        review_configuration,
+        review_preregistration,
         review_remediation,
         repo_root=ROOT,
+        verify_implementation_hashes=False,
     )
     if not review_validation.passed:
         raise S43Error(
@@ -255,7 +272,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     machine_checks = []
     failures = []
     channel_evidence = []
-    noise_transient_results = []
+    noise_characterization_results = []
     coarse_audio_video_association: dict[str, Any] | None = None
     impact_svo_replay: dict[str, Any] | None = None
     reference_path = ROOT / configuration["reference"]["local_path"]
@@ -371,8 +388,8 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
                 outcome=attempt["outcome"],
             )
         )
-        noise_transient_results.append(
-            analyze_noise_transients(wav_path, replayed, trial, configuration)
+        noise_characterization_results.append(
+            analyze_noise_characterization(wav_path, replayed, trial, configuration)
         )
         if entry["trial_id"] == "s4_3_rob_impact_av_01":
             association_path = attempt_root / "coarse_audio_video_association.json"
@@ -388,7 +405,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
             inventory,
             configuration=configuration,
             channel_evidence=channel_evidence,
-            noise_transient_results=noise_transient_results,
+            noise_transient_results=noise_characterization_results,
             coarse_audio_video_association=coarse_audio_video_association,
         )
         if category == "robustness":
@@ -437,11 +454,13 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
             "passed"
             if freeze.passed
             and review_validation.passed
+            and corrective_validation.passed
             and (inventory_report.passed or args.allow_in_progress)
             else "failed"
         ),
         "preregistration": freeze.to_dict(),
         "review_remediation": review_validation.to_dict(),
+        "corrective_provenance": corrective_validation.to_dict(),
         "inventory_contract": inventory_report.to_dict(),
         "raw_required": False,
         "scope": (
@@ -459,7 +478,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         inventory,
         category_reports,
         channel_evidence,
-        noise_transient_results,
+        noise_characterization_results,
         failure_report,
         coarse_audio_video_association,
         impact_svo_replay,
@@ -499,7 +518,22 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         freeze_root / "preregistration_amendment_04.json",
         freeze_root / "trial_inventory_amendment_04_precollection.json",
         ROOT / args.review_remediation,
+        ROOT / "docs/development/specs/s4_3_pilot_corrective_01.md",
+        ROOT / args.config,
+        ROOT / args.preregistration,
+        freeze_root / "clipping_corrective_01.json",
+        freeze_root / "transient_event_contract_01.json",
+        freeze_root / "trial_inventory_corrective_01_precollection.json",
+        freeze_root / "corrective_01_supersession.json",
         diagnostic_root / "voice_interactive_timing_failure_20260721T201200Z.json",
+        diagnostic_root / "corrective_01_precollection_gate.json",
+        diagnostic_root / "corrective_01_precollection/trial_inventory.json",
+        diagnostic_root
+        / "corrective_01_precollection/validation/deterministic_replay.json",
+        diagnostic_root
+        / "corrective_01_precollection/validation/raw_independent_validation.json",
+        diagnostic_root
+        / "corrective_01_precollection/validation/evidence_coverage.json",
         ROOT / "src/isaac_audio_sensors/acquisition/s4_3.py",
         ROOT / "scripts/run_s4_3_trial.py",
         ROOT / "scripts/reanalyze_s4_3_array_frame.py",
@@ -589,16 +623,27 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/s4_3_pilot.v1.json")
+        "--config",
+        type=Path,
+        default=Path("configs/s4_3_pilot_corrective_01.v1.json"),
     )
     parser.add_argument(
         "--preregistration",
         type=Path,
-        default=Path("outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration.json"),
+        default=Path(
+            "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+            "preregistration_corrective_01.json"
+        ),
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
         "--review-remediation", type=Path, default=DEFAULT_REVIEW_REMEDIATION
+    )
+    parser.add_argument("--review-config", type=Path, default=DEFAULT_REVIEW_CONFIG)
+    parser.add_argument(
+        "--review-preregistration",
+        type=Path,
+        default=DEFAULT_REVIEW_PREREGISTRATION,
     )
     parser.add_argument("--allow-in-progress", action="store_true")
     args = parser.parse_args()

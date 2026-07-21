@@ -14,6 +14,7 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     S43Error,
     load_json,
     load_pilot_configuration,
+    validate_corrective_provenance,
     validate_inventory,
     validate_preregistration,
     validate_review_remediation_manifest,
@@ -22,6 +23,8 @@ from isaac_audio_sensors.acquisition.s4_3 import (
 ROOT = Path(__file__).resolve().parents[1]
 S43_OUTPUT = ROOT / "outputs/isaac_audio_sensors/S4/S4.3"
 DEFAULT_REVIEW_REMEDIATION = S43_OUTPUT / "freeze/review_remediation_manifest.json"
+DEFAULT_REVIEW_CONFIG = ROOT / "configs/s4_3_pilot_amendment_04.v1.json"
+DEFAULT_REVIEW_PREREGISTRATION = S43_OUTPUT / "freeze/preregistration_amendment_04.json"
 
 
 def _problem(code: str, path: str, message: str) -> dict[str, str]:
@@ -34,6 +37,8 @@ def validate(
     config_path: Path,
     preregistration_path: Path,
     review_remediation_path: Path,
+    review_config_path: Path,
+    review_preregistration_path: Path,
     require_machine_local: bool,
     require_final: bool,
 ) -> dict[str, Any]:
@@ -72,15 +77,27 @@ def validate(
         _problem(item.code, item.path, item.message) for item in freeze.issues
     )
     review_remediation = load_json(review_remediation_path)
+    review_configuration = load_pilot_configuration(review_config_path, repo_root=ROOT)
+    review_preregistration = load_json(review_preregistration_path)
     review_validation = validate_review_remediation_manifest(
-        configuration,
-        preregistration,
+        review_configuration,
+        review_preregistration,
         review_remediation,
         repo_root=ROOT,
+        verify_implementation_hashes=False,
     )
     issues.extend(
         _problem(item.code, item.path, item.message)
         for item in review_validation.issues
+    )
+    corrective_validation = validate_corrective_provenance(
+        configuration,
+        preregistration,
+        repo_root=ROOT,
+    )
+    issues.extend(
+        _problem(item.code, item.path, item.message)
+        for item in corrective_validation.issues
     )
     inventory_path = evidence_root / "trial_inventory.json"
     if not inventory_path.is_file():
@@ -203,6 +220,13 @@ def validate(
         f"{evidence_root_relative}/validation/raw_independent_validation.json",
         f"{evidence_root_relative}/validation/evidence_coverage.json",
         "outputs/isaac_audio_sensors/S4/S4.3/freeze/review_remediation_manifest.json",
+        "configs/s4_3_pilot_corrective_01.v1.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_corrective_01.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/clipping_corrective_01.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/transient_event_contract_01.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_corrective_01_precollection.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_01_supersession.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/corrective_01_precollection_gate.json",
     }
     if require_final:
         required.update(
@@ -320,16 +344,27 @@ def main() -> int:
         default=Path("outputs/isaac_audio_sensors/S4/S4.3/evidence_index.json"),
     )
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/s4_3_pilot.v1.json")
+        "--config",
+        type=Path,
+        default=Path("configs/s4_3_pilot_corrective_01.v1.json"),
     )
     parser.add_argument(
         "--preregistration",
         type=Path,
-        default=Path("outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration.json"),
+        default=Path(
+            "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+            "preregistration_corrective_01.json"
+        ),
     )
     parser.add_argument("--require-machine-local", action="store_true")
     parser.add_argument(
         "--review-remediation", type=Path, default=DEFAULT_REVIEW_REMEDIATION
+    )
+    parser.add_argument("--review-config", type=Path, default=DEFAULT_REVIEW_CONFIG)
+    parser.add_argument(
+        "--review-preregistration",
+        type=Path,
+        default=DEFAULT_REVIEW_PREREGISTRATION,
     )
     parser.add_argument("--require-final", action="store_true")
     parser.add_argument("--output", type=Path, default=None)
@@ -340,6 +375,8 @@ def main() -> int:
             config_path=args.config,
             preregistration_path=args.preregistration,
             review_remediation_path=args.review_remediation,
+            review_config_path=args.review_config,
+            review_preregistration_path=args.review_preregistration,
             require_machine_local=args.require_machine_local,
             require_final=args.require_final,
         )
