@@ -2,19 +2,20 @@
 
 ## Verdict
 
-**S4.3: FAIL. S4.4 readiness: NO-GO.** S4.4 was not started.
+**S4.3: PASS. S4.4 readiness: GO.** S4.4 was not started.
 
-The retained pilot's scientific acceptance and corrected evidence validation
-pass, but the final repository gate is fail-closed because the review
-remediation is intentionally uncommitted and `make check-release-source`, the
-Kit build, and the acoustic-pack build cannot validate a dirty source tree.
-One local provenance commit and clean-source rerun are required before S4.3 can
-return to PASS or S4.4 can return to GO. This remains functional engineering
-characterization of the installed reference rig, not acoustic metrology.
+The retained pilot's scientific acceptance, corrected evidence validation,
+clean-source release gate, Kit build/audit, controlled-wheelhouse acoustic-pack
+build/audit, and final integrity validation pass at checkpoint
+`c1f351dcc3e81234b81c6d52cf8fc626f45d0e95`. This remains functional
+engineering characterization of the installed reference rig, not acoustic
+metrology.
 
 The remediation baseline is clean commit
-`91baa3a03742f4efd21e0a145e59774c18952c1c` on `main`; the corrected working
-tree is not committed. The active immutable preregistration remains
+`91baa3a03742f4efd21e0a145e59774c18952c1c` on `main`; the corrected
+implementation and regenerated analysis evidence were committed as checkpoint
+`c1f351dcc3e81234b81c6d52cf8fc626f45d0e95`. The active immutable
+preregistration remains
 `outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_04.json`
 (SHA-256
 `6a2012e6bc22608d5495877c38068963f9c9b816c51d4fbc25b5765521f356ba`).
@@ -204,7 +205,7 @@ superseded coordinate records are preserved.
 
 ## Validation
 
-The corrected uncommitted working tree produced:
+The corrected implementation and clean checkpoint produced:
 
 - targeted S4.3 tests: 62 passed;
 - S4.3 evidence build: 14/14 terminal, 13 accepted analyses, 2 retained failed
@@ -218,16 +219,17 @@ The corrected uncommitted working tree produced:
 - `make test`: 1269 passed, 80 expected optional-dependency/hardware skips;
 - `make lint`, `make build`, `make check-version`, `make audit-dist`, targeted
   S4.3 integrity, and `git diff --check`: PASS;
-- `make check-release-source`, `make build-kit`, and controlled-wheelhouse
-  `make build-pack`: correctly FAILED because the remediation is uncommitted;
-- `make audit-kit` and `make audit-pack`: FAILED because the dirty-source
-  builders correctly produced no new archives;
-- final `--require-final` integrity: FAIL until the repository gate and
-  repository validation can pass on a clean committed source.
+- `make check-release-source`: PASS at
+  `c1f351dcc3e81234b81c6d52cf8fc626f45d0e95`;
+- `make build-kit` and `make audit-kit`: PASS, 134 archive files;
+- controlled five-wheelhouse `make build-pack` and `make audit-pack`: PASS, 8
+  archive files;
+- final `--require-final` integrity: PASS, 293 artifacts checked including 245
+  machine-local records, zero issues.
 
-The blocker outcomes are retained in
-`outputs/isaac_audio_sensors/S4/S4.3/validation/repository_validation.json`;
-they must be replaced by clean-source passes after an authorized local commit.
+The prior dirty-worktree fail-closed release, Kit, pack, and final-integrity
+outcomes remain explicitly retained as superseded provenance in
+`outputs/isaac_audio_sensors/S4/S4.3/validation/repository_validation.json`.
 
 ## Evidence and retention
 
@@ -252,7 +254,6 @@ reports, not raw WAV or SVO2 media. The machine-local dataset is the only copy
 confirmed by this closeout; no independent backup or durability guarantee is
 claimed.
 
-S4.4 remains untouched and is NO-GO while the remediation provenance blocker
-remains. After a clean-source finalization, any restored GO remains conditional
-on preserving these limitations, using leakage-relevant grouping, and freezing
-development/fit and held-out conditions before final tuning.
+S4.4 remains untouched. Its GO verdict is conditional on preserving these
+limitations, using leakage-relevant grouping, and freezing development/fit and
+held-out conditions before final tuning.

@@ -1,9 +1,11 @@
 {
   "schema": "ias.s4_3.repository_validation.v1",
-  "status": "failed",
+  "status": "passed",
   "remediation_baseline_revision": "91baa3a03742f4efd21e0a145e59774c18952c1c",
+  "validated_checkpoint_revision": "c1f351dcc3e81234b81c6d52cf8fc626f45d0e95",
   "branch": "main",
-  "working_tree_clean": false,
+  "working_tree_clean": true,
+  "working_tree_clean_at_release_validation": true,
   "commands": [
     {
       "command": "PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_s4_3_pilot.py",
@@ -42,8 +44,8 @@
     },
     {
       "command": "make check-release-source",
-      "result": "failed_expected_pending_authorized_commit",
-      "summary": "release-source policy rejected the intentionally dirty remediation worktree"
+      "result": "passed",
+      "summary": "clean release source c1f351dcc3e81234b81c6d52cf8fc626f45d0e95"
     },
     {
       "command": "make audit-dist",
@@ -52,23 +54,23 @@
     },
     {
       "command": "make build-kit",
-      "result": "failed_expected_pending_authorized_commit",
-      "summary": "clean-release-source prerequisite rejected the dirty worktree"
+      "result": "passed",
+      "summary": "Kit archive built for version 1.10.0 and revision c1f351dcc3e81234b81c6d52cf8fc626f45d0e95; embedded audit passed for 134 files"
     },
     {
       "command": "make audit-kit",
-      "result": "failed_downstream",
-      "summary": "no new Kit archive existed because the clean-source builder correctly refused to run"
+      "result": "passed",
+      "summary": "Kit archive audit passed for 134 files"
     },
     {
       "command": "make build-pack WHEELHOUSE=/tmp/ias-s4-3-wheelhouse-Yqs1Oh",
-      "result": "failed_expected_pending_authorized_commit",
-      "summary": "clean-release-source prerequisite rejected the dirty worktree before consuming the controlled wheelhouse"
+      "result": "passed",
+      "summary": "acoustic pack built from the controlled five-wheel wheelhouse for version 1.10.0 and clean revision c1f351dcc3e81234b81c6d52cf8fc626f45d0e95"
     },
     {
       "command": "make audit-pack",
-      "result": "failed_downstream",
-      "summary": "no new acoustic-pack archive existed because the clean-source builder correctly refused to run"
+      "result": "passed",
+      "summary": "acoustic-pack archive audit passed for 8 files"
     },
     {
       "command": "git diff --check",
@@ -77,8 +79,8 @@
     },
     {
       "command": "PYTHONPATH=src .venv/bin/python scripts/validate_s4_3_integrity.py --config configs/s4_3_pilot_amendment_04.v1.json --preregistration outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_04.json --require-machine-local --require-final --output outputs/isaac_audio_sensors/S4/S4.3/validation/final_integrity_validation.json",
-      "result": "failed_expected_pending_authorized_commit",
-      "summary": "293 artifacts checked including 245 machine-local records; failed only because repository_gate.json and repository_validation.json are fail-closed pending a clean source commit"
+      "result": "passed",
+      "summary": "293 artifacts checked including 245 machine-local records; zero issues"
     }
   ],
   "s4_3_validation_artifacts": {
@@ -111,13 +113,10 @@
     },
     "final_integrity_validation": {
       "path": "outputs/isaac_audio_sensors/S4/S4.3/validation/final_integrity_validation.json",
-      "status": "failed",
+      "status": "passed",
       "checked_artifact_count": 293,
-      "issue_count": 2,
-      "issue_paths": [
-        "outputs/isaac_audio_sensors/S4/S4.3/repository_gate.json",
-        "outputs/isaac_audio_sensors/S4/S4.3/validation/repository_validation.json"
-      ]
+      "issue_count": 0,
+      "issue_paths": []
     }
   },
   "controlled_wheelhouse": {
@@ -128,10 +127,15 @@
     "hashes_matched_at_original_closeout": true,
     "hashes_rechecked_during_remediation": true
   },
-  "blocker": {
-    "code": "uncommitted_review_remediation",
-    "reason": "the user has not authorized a local commit, so provenance-valid clean-source Kit and pack validation cannot run",
-    "required_action": "authorize one local remediation commit; push remains unauthorized"
+  "superseded_precommit_fail_closed_outcomes": {
+    "retained": true,
+    "outcomes": [
+      "make check-release-source rejected the intentionally dirty remediation worktree",
+      "make build-kit and make build-pack stopped at their clean-source prerequisite",
+      "make audit-kit and make audit-pack had no newly built archive to audit",
+      "final require-final integrity reported only the failed repository gate and repository-validation blocker records"
+    ],
+    "superseded_by": "clean-source validation at c1f351dcc3e81234b81c6d52cf8fc626f45d0e95"
   },
   "s4_4_started": false
 }

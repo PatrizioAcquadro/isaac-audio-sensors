@@ -1,21 +1,10 @@
 {
   "checked_artifact_count": 293,
   "indexed_artifact_count": 293,
-  "issues": [
-    {
-      "code": "evidence_gate_failed",
-      "message": "'failed'",
-      "path": "outputs/isaac_audio_sensors/S4/S4.3/repository_gate.json"
-    },
-    {
-      "code": "evidence_gate_failed",
-      "message": "'failed'",
-      "path": "outputs/isaac_audio_sensors/S4/S4.3/validation/repository_validation.json"
-    }
-  ],
+  "issues": [],
   "machine_local_record_count": 245,
   "require_final": true,
   "require_machine_local": true,
   "schema": "ias.s4_3.integrity_validation.v1",
-  "status": "failed"
+  "status": "passed"
 }

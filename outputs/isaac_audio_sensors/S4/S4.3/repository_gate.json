@@ -1,12 +1,13 @@
 {
   "schema": "ias.s4_3.repository_gate.v1",
-  "status": "failed",
+  "status": "passed",
   "phase": "S4.3",
-  "s4_3_verdict": "FAIL",
-  "s4_4_readiness": "NO-GO",
+  "s4_3_verdict": "PASS",
+  "s4_4_readiness": "GO",
   "s4_4_started": false,
   "remediation_baseline_revision": "91baa3a03742f4efd21e0a145e59774c18952c1c",
-  "working_tree_state": "uncommitted_review_remediation",
+  "validated_checkpoint_revision": "c1f351dcc3e81234b81c6d52cf8fc626f45d0e95",
+  "working_tree_state": "clean_at_release_validation; finalization evidence pending separate commit",
   "active_preregistration": {
     "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_04.json",
     "sha256": "6a2012e6bc22608d5495877c38068963f9c9b816c51d4fbc25b5765521f356ba"
@@ -48,10 +49,10 @@
     "deterministic_replay_passed": true,
     "machine_local_validation_passed": true,
     "raw_independent_validation_passed": true,
-    "repository_release_source_clean": false,
-    "kit_build_and_audit_passed": false,
-    "pack_build_and_audit_passed": false,
-    "final_integrity_validation_passed": false,
+    "repository_release_source_clean": true,
+    "kit_build_and_audit_passed": true,
+    "pack_build_and_audit_passed": true,
+    "final_integrity_validation_passed": true,
     "raw_media_gitignored": true,
     "s4_4_not_started": true
   },
@@ -93,11 +94,11 @@
     "corrected impact candidate coverage is 26.67 percent and sector accuracy is 40 percent",
     "all 119 overlapping intended-silence raw windows exceeded the frozen median-RMS detector threshold even though confidence forced all 103 central analysis windows to abstain",
     "small-sample nearest-rank tails describe this pilot only",
-    "clean-source Kit and pack validation remains blocked until an authorized local commit"
+    "the PASS/GO evidence is provenance-bound to checkpoint c1f351dcc3e81234b81c6d52cf8fc626f45d0e95; any later source change requires revalidation"
   ],
-  "blocker": {
-    "code": "uncommitted_review_remediation",
-    "resolution": "authorize one local remediation commit, do not push, then rerun release-source, Kit, pack, final integrity, and repository gates"
+  "superseded_fail_closed_provenance": {
+    "state": "retained",
+    "summary": "Before checkpoint authorization, release-source, Kit, pack, and final integrity failed closed on the intentionally dirty remediation worktree; the clean checkpoint rerun supersedes those operational blocker outcomes without deleting them."
   },
   "evidence_index": "outputs/isaac_audio_sensors/S4/S4.3/evidence_index.json",
   "closeout": "docs/development/closeouts/S4/s4_3_pilot_repeatability.md"
