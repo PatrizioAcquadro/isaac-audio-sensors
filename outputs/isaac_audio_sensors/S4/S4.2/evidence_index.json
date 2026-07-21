@@ -2672,18 +2672,18 @@
       "sha256": "83a11b44ae1d1b353c9775e5ba7f24788891293e6d3d17317540253c223ec061"
     },
     {
-      "byte_size": 7697,
+      "byte_size": 8185,
       "path": "docs/development/closeouts/S4/s4_2_acquisition.md",
       "retention": "tracked",
       "role": "s4_2_closeout",
-      "sha256": "bdf7e3ce5dcc1b0e7afc3eb359db695c2fdbbad207b8977c53df86f787b537c5"
+      "sha256": "a1021da19ce1b734066ecbb2a9793d40e2dd6bb3dad4f54d4f5cfc36faecdde6"
     },
     {
-      "byte_size": 2409,
+      "byte_size": 2536,
       "path": "docs/development/closeouts/S4/s4_2_evidence_index.md",
       "retention": "tracked",
       "role": "evidence_index_documentation",
-      "sha256": "5af3bd0845b15210b3fe6565b66939e0ad39a137e06de97305ba6bb69cb48129"
+      "sha256": "5cd4173ad0e2de1deb96e8e24668828c11c07c1a9b5f6b3f4b28645cec8fd9b7"
     },
     {
       "byte_size": 10291,
@@ -2714,11 +2714,11 @@
       "sha256": "1a5a4df23a15e95389a5b2a5a64ff25edd79c1422e7e30890f9f19814f15d7cc"
     },
     {
-      "byte_size": 24017,
+      "byte_size": 24146,
       "path": "outputs/isaac_audio_sensors/S4/S4.2/SHA256SUMS",
       "retention": "tracked",
       "role": "evidence_checksums",
-      "sha256": "cd10e373c109597762cb94eb876981732758225e0d42d3de256a8688dfc3a1b6"
+      "sha256": "0d49173706c6049494fc7f1ced6dfe49194839e8d5f364753ef6ac2e4c3f8add"
     },
     {
       "byte_size": 3642,
@@ -2775,6 +2775,13 @@
       "retention": "tracked",
       "role": "repository_gate_candidate",
       "sha256": "d6420d9756acb533313bbb1ade9e7875d556a6b3968a5c920e8d82ede2c3617d"
+    },
+    {
+      "byte_size": 3740,
+      "path": "outputs/isaac_audio_sensors/S4/S4.2/final_repository_gate.json",
+      "retention": "tracked",
+      "role": "repository_gate_final",
+      "sha256": "0bdb090979ea40e601df8a7cf652b51a2f19da254b9b91d6104d9a1be3bc2ee9"
     },
     {
       "byte_size": 1772,

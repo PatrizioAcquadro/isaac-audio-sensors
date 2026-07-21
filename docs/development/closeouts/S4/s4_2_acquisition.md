@@ -1,9 +1,9 @@
 # S4.2 closeout - synchronized practical acquisition
 
-Status: **NO-GO pending frozen-commit validation**. The maintained acquisition
-path and one real accepted hardware take exist, but release-archive and clean
-checkout gates intentionally remain blocked until the operator authorizes the
-required frozen commit. This document does not authorize or start S4.3.
+Status: **passed** (2026-07-20 local / 2026-07-21 UTC). The maintained
+acquisition path, one real accepted hardware take, release-archive audits, and
+the raw-independent clean-checkout S4.2 gate pass. This document does not
+authorize or start S4.3.
 
 ## Accepted take
 
@@ -125,16 +125,26 @@ tracked index and contracts; it deliberately does not claim or require raw
 recording retrieval. On this workstation the raw files must remain present and
 pass both checksum and semantic validation.
 
-## Pending final gate
+## Final gate
 
+The frozen candidate is commit `ef313768994ac34f527f4090ccc5348ca0b93953`.
 The targeted S4.2 suite passed with 61 tests and one explicit hardware-gated
-skip. The full suite passed with 1171 tests and 79 genuine optional-dependency
-or explicit hardware skips. `make lint`, `make build`, `make check-version`,
-and `make audit-dist` passed. `build-kit` and `build-pack` correctly refused the
-dirty source tree, so their audits and the required clean-checkout validation
-remain pending rather than being relabeled as passes.
+skip. The full primary-worktree suite passed with 1171 tests and 79 genuine
+optional-dependency or explicit hardware skips. `make lint`, `make build`,
+`make check-version`, `make audit-dist`, `make audit-kit`, `make audit-pack`,
+and `git diff --check` passed from the clean frozen revision.
 
-After explicit commit authorization, freeze the complete S4.2 candidate,
-construct and audit the kit and acoustic pack from that clean revision, run the
-raw-independent S4.2 integrity contract in a clean checkout, then bind those
-results in a final gate record. S4.2 remains NO-GO until that sequence passes.
+An isolated local clone of that commit contained no `dataset/S4.2/`. Its
+raw-independent S4.2 integrity validator, deterministic reference regeneration,
+61 targeted tests, lint, build, version, distribution, Kit, acoustic-pack, and
+whitespace gates passed. A diagnostic full-suite invocation in that clone was
+not used as passing evidence: one developer-mode test resolved the explicitly
+shared virtual environment's editable install to the original checkout (1168
+passed, 81 skipped, one failed). This environment-coupling observation does not
+replace the passing full suite at the frozen primary source revision or the
+passing required S4.2 clean-checkout gate.
+
+The authoritative machine-readable result is
+`outputs/isaac_audio_sensors/S4/S4.2/final_repository_gate.json`. S4.2 is
+closed as PASS subject to the documented machine-local raw-retention
+limitations.

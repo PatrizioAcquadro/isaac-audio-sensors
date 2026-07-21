@@ -1,0 +1,98 @@
+{
+  "accepted_attempt_id": "s4_2_20260721T002805Z_accepted_candidate_004",
+  "alignment": {
+    "offset_definition": "ZED elapsed time minus ReSpeaker audio elapsed time",
+    "offset_s": 0.34977950000000035,
+    "status": "passed",
+    "uncertainty_limit_ms": 50.0,
+    "uncertainty_ms": 37.32671632021762
+  },
+  "candidate_commit": "ef313768994ac34f527f4090ccc5348ca0b93953",
+  "clean_checkout": {
+    "commit": "ef313768994ac34f527f4090ccc5348ca0b93953",
+    "dataset_s4_2_present": false,
+    "full_suite_observation": {
+      "classification": "shared editable environment coupling outside the S4.2 clean-checkout contract",
+      "failed": 1,
+      "failure": "developer-mode test resolved the explicitly shared virtual environment's editable install to the original checkout",
+      "passed": 1168,
+      "skipped": 81,
+      "status": "not_used_as_passing_evidence"
+    },
+    "git_diff_check": "passed",
+    "integrity_validator_require_git_tracked": "passed",
+    "make_audit_dist": "passed",
+    "make_audit_kit": "passed",
+    "make_audit_pack": "passed",
+    "make_build": "passed",
+    "make_check_version": "passed",
+    "make_lint": "passed",
+    "reference_regeneration": "passed",
+    "s4_2_targeted_tests": {
+      "passed": 61,
+      "skipped": 1,
+      "skip_classification": "explicit live-hardware marker; real hardware evidence is retained separately",
+      "status": "passed"
+    },
+    "status": "passed"
+  },
+  "finalized_at_utc": "2026-07-21T00:51:33+00:00",
+  "limitations": [
+    "dataset/S4.2 is machine-local, gitignored, unreplicated, and unavailable from a fresh clone",
+    "machine loss is raw-evidence loss",
+    "SSH observations are not synchronization",
+    "alignment does not support sub-frame visual timing or precision host-clock synchronization",
+    "source and fixture poses are practical measurements, not metrology-grade calibration"
+  ],
+  "primary_frozen_worktree": {
+    "git_diff_check": "passed",
+    "make_audit_dist": "passed",
+    "make_audit_kit": "passed",
+    "make_audit_pack": "passed",
+    "make_build": "passed",
+    "make_check_version": "passed",
+    "make_lint": "passed",
+    "make_test": {
+      "passed": 1171,
+      "skipped": 79,
+      "skip_classification": "genuine optional dependencies and explicit hardware markers",
+      "status": "passed"
+    },
+    "status": "passed"
+  },
+  "raw_evidence": {
+    "artifact_count": 119,
+    "checksum_validation": "passed",
+    "fresh_clone_available": false,
+    "machine_local_root": "dataset/S4.2",
+    "replicated": false,
+    "semantic_validation": "passed",
+    "status": "passed"
+  },
+  "release_archive_audits": {
+    "dist_artifacts_retained_as_s4_2_evidence": false,
+    "make_audit_dist": "passed",
+    "make_audit_kit": "passed",
+    "make_audit_pack": "passed",
+    "make_build": "passed",
+    "provenance_note": "Kit and pack were rebuilt after the closing commit because Kit embeds the Git revision; ignored dist outputs are not cited as durable acquisition evidence",
+    "status": "passed"
+  },
+  "schema": "ias.s4_2.repository_gate.v1",
+  "s4_3_started": false,
+  "status": "passed",
+  "supported_claims": [
+    "maintained fail-closed S4.2 acquisition path",
+    "one accepted real ReSpeaker, ZED 2i, and controlled Mac playback dry run",
+    "frame-scale practical audio-video association within the reported uncertainty",
+    "deterministic reference WAV regeneration",
+    "machine-local raw integrity on the capture workstation"
+  ],
+  "unsupported_claims": [
+    "SSH or host-clock synchronization",
+    "sub-frame visual alignment",
+    "acoustic time-of-flight calibration",
+    "metrology-grade source or fixture pose",
+    "raw evidence recovery from Git, a fresh clone, or another machine"
+  ]
+}

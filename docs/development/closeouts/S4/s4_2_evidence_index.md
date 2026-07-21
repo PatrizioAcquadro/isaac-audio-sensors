@@ -1,6 +1,8 @@
 # S4.2 evidence index and machine-local retrieval
 
-Status: **candidate complete; final frozen-commit gate pending**.
+Status: **passed**. The frozen candidate and raw-independent clean-checkout
+gate passed; the machine-local raw archive also passes checksums and semantic
+validation on the capture workstation.
 
 The authoritative machine-readable inventory is
 `outputs/isaac_audio_sensors/S4/S4.2/evidence_index.json`; its adjacent
