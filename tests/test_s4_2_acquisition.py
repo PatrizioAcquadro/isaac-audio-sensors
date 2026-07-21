@@ -335,15 +335,30 @@ def _audio_only_validation_profile() -> dict:
     }
 
 
-def test_s4_2_profile_is_frozen_but_future_trial_profiles_are_configurable():
+def test_valid_relaxed_future_validation_profile_passes():
     future = _audio_only_validation_profile()
     assert validate_validation_profile(future).passed
 
+
+def test_future_validation_profile_cannot_replace_frozen_s4_2_profile():
+    future = _audio_only_validation_profile()
     payload = _ready_config()
     payload["validation_profile"] = future
     report = validate_configuration(payload, require_ready=True)
     assert not report.passed
     assert "frozen_value_mismatch" in _issue_codes(report)
+
+
+def test_validation_profile_rejects_empty_required_modalities():
+    profile = _audio_only_validation_profile()
+    profile["required_modalities"] = []
+    report = validate_validation_profile(profile)
+    assert not report.passed
+    assert any(
+        issue.code == "invalid_validation_profile"
+        and issue.path == "validation_profile.required_modalities"
+        for issue in report.issues
+    )
 
 
 def test_validation_profile_cannot_silently_disable_required_modality_check():

@@ -229,6 +229,7 @@ def validate_validation_profile(profile: Mapping[str, Any]) -> ValidationReport:
     modalities = set(modalities_raw) if isinstance(modalities_raw, list) else set()
     if (
         not isinstance(modalities_raw, list)
+        or not modalities_raw
         or len(modalities) != len(modalities_raw)
         or not modalities <= KNOWN_MODALITIES
     ):
@@ -236,7 +237,7 @@ def validate_validation_profile(profile: Mapping[str, Any]) -> ValidationReport:
             ValidationIssue(
                 "invalid_validation_profile",
                 "validation_profile.required_modalities",
-                "modalities must be unique known identifiers",
+                "modalities must be a nonempty list of unique known identifiers",
             )
         )
     enum_fields = {
