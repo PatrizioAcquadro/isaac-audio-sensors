@@ -1,0 +1,65 @@
+{
+  "schema": "ias.s4_3.bearing_frame_diagnostic.v1",
+  "status": "decision_required_before_additional_capture",
+  "created_at_utc": "2026-07-21T18:55:22Z",
+  "trigger": "analysis_contradiction_and_unresolved_bearing_or_sector_decision",
+  "frozen_inputs": {
+    "configuration_path": "configs/s4_3_pilot.v1.json",
+    "configuration_sha256": "3bfbd3a7f472d5a264a24336f0976d53eeb24420ea52a0dbc68a23817579dff5",
+    "preregistration_path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration.json",
+    "preregistration_sha256": "12bc7e6820a031105ee6ad600b568cd36db9a73a7b6079db9d29d07d819bfca3"
+  },
+  "s4_3_observation": {
+    "trial_id": "s4_3_rpt_baseline_01",
+    "attempt_id": "s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
+    "quality_status": "passed",
+    "wav_sha256": "ca9350ad4f5b6a679c898b6fe9733c7cefd2373bd8828e5641903d3d6a7333cf",
+    "original_analysis_sha256": "1022d5f840c2e0e3b4fae33ac48e752d3a71042afec2ce0881fd177735ef15aa",
+    "reference_bearing_project_deg": 90.0,
+    "identity_nominal_coordinate_result": {
+      "window_count": 39,
+      "srp_bearing_median_deg": 280.0,
+      "srp_bearing_range_deg": [278.0, 284.0],
+      "absolute_error_median_deg": 170.0,
+      "sector_accuracy": 0.0,
+      "candidate_coverage": 0.0
+    },
+    "candidate_rotate_180_about_z_replay": {
+      "operation": "replace each nominal microphone position (x,y,z) with (-x,-y,z); raw waveform and all thresholds unchanged",
+      "window_count": 39,
+      "srp_bearing_median_deg": 100.0,
+      "srp_bearing_range_deg": [98.0, 104.0],
+      "absolute_error_median_deg": 10.0,
+      "absolute_error_worst_deg": 14.0,
+      "sector_accuracy": 1.0,
+      "candidate_coverage": 1.0,
+      "scientific_replay_sha256": "237a58c1ebdb8ddb900357475f8b9e11cc1b622a793ce9b907fe1e03e6b460ad"
+    }
+  },
+  "independent_existing_s4_2_observation": {
+    "accepted_attempt_id": "s4_2_20260721T153800Z_optimized_candidate_014",
+    "wav_sha256": "8bbdd096b85dd85776327994a425424fbb851a7870f212bb6c9549d01c51d981",
+    "known_visible_audible_impact_sample": 213696,
+    "reference_bearing_project_deg": 0.0,
+    "analysis_window_samples": [211696, 215696],
+    "identity_nominal_coordinate_result_deg": 194.0,
+    "candidate_rotate_180_about_z_result_deg": 14.0,
+    "identity_and_candidate_confidence": 0.025809531849383394,
+    "use_limitation": "diagnostic cross-check only; S4.2 is not accepted as an S4.3 trial"
+  },
+  "interpretation": {
+    "estimator_unit_tests": "passed on known synthetic directions",
+    "nominal_microphone_coordinate_status": "Nominal positions are known, but the physical raw-channel-to-inlet and array-axis-to-project mapping was explicitly unmeasured before S4.3",
+    "most_supported_cause": "the nominal microphone-coordinate frame used by analysis is rotated approximately 180 degrees about +Z relative to the installed array/project frame",
+    "threshold_tuning_performed": false,
+    "raw_evidence_modified": false,
+    "original_unfavorable_analysis_retained": true
+  },
+  "required_decision": {
+    "candidate_action": "freeze a pre-capture analysis-frame amendment applying a 180 degree Z rotation to nominal microphone coordinates, preserve and reclassify the original analysis, deterministically reanalyze the retained take, and rerun the affected baseline cell before continuing",
+    "matrix_expansion": "one confirmation retry for the triggered baseline cell, within the frozen maximum of one confirmation trial per cell and three added trials total",
+    "operator_authorization_required": true,
+    "additional_recording_started": false,
+    "s4_4_started": false
+  }
+}

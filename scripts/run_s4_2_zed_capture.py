@@ -17,6 +17,10 @@ from typing import Any
 import numpy as np
 import pyzed.sl as sl
 
+from isaac_audio_sensors.acquisition.s4_3 import (
+    evaluate_zed_startup_contract,
+    zed_device_timestamps_are_valid,
+)
 from isaac_audio_sensors.core.dataset.atomic import JsonlShardFile, write_json_atomic
 
 _STOP_REQUESTED = False
@@ -100,6 +104,9 @@ def main() -> int:
     parser.add_argument("--expected-sdk", required=True)
     parser.add_argument("--expected-camera-firmware", required=True)
     parser.add_argument("--expected-sensor-firmware", required=True)
+    parser.add_argument(
+        "--version-policy", choices=("exact", "metadata"), default="exact"
+    )
     parser.add_argument("--resolution", choices=("HD720",), required=True)
     parser.add_argument("--fps", type=int, choices=(30,), required=True)
     parser.add_argument("--depth-mode", choices=("PERFORMANCE",), required=True)
@@ -144,13 +151,16 @@ def main() -> int:
     frame_count = 0
     grab_failures = 0
     retrieval_failures: list[dict[str, Any]] = []
+    timestamp_failures: list[dict[str, Any]] = []
     result_status = "failed"
     failure_reason: str | None = None
     identity: dict[str, Any] = {}
     startup_checks: dict[str, bool] = {}
+    version_provenance: dict[str, Any] = {}
     startup_probe: dict[str, Any] = {}
     first_device_timestamp_ns: int | None = None
     last_device_timestamp_ns: int | None = None
+    device_timestamps_ns: list[int] = []
     image = sl.Mat()
     depth = sl.Mat()
     sensors = sl.SensorsData()
@@ -171,45 +181,38 @@ def main() -> int:
         ]
         info = camera.get_camera_information()
         identity = _camera_identity(info)
-        expected = {
-            "serial": args.expected_serial,
-            "camera_firmware": args.expected_camera_firmware,
-            "sensor_firmware": args.expected_sensor_firmware,
-            "sdk_version": args.expected_sdk,
-        }
-        mismatches = {
-            key: {"expected": value, "actual": identity.get(key)}
-            for key, value in expected.items()
-            if identity.get(key) != value
-        }
         width = int(info.camera_configuration.resolution.width)
         height = int(info.camera_configuration.resolution.height)
         actual_fps = int(info.camera_configuration.fps)
-        startup_checks = {
-            "usb_video_present": bool(video_interfaces),
-            "usb_serial_present": bool(serial_interfaces),
-            "usb_3_speed": max(
+        startup_contract = evaluate_zed_startup_contract(
+            identity=identity,
+            expected_serial=args.expected_serial,
+            reference_sdk=args.expected_sdk,
+            reference_camera_firmware=args.expected_camera_firmware,
+            reference_sensor_firmware=args.expected_sensor_firmware,
+            version_policy=args.version_policy,
+            usb_video_present=bool(video_interfaces),
+            usb_serial_present=bool(serial_interfaces),
+            usb_speed_mbps=max(
                 (float(record["speed_mbps"] or 0) for record in video_interfaces),
                 default=0.0,
-            )
-            >= args.minimum_usb_speed_mbps,
-            "serial_matches": identity.get("serial") == args.expected_serial,
-            "sdk_matches": identity.get("sdk_version") == args.expected_sdk,
-            "camera_firmware_matches": identity.get("camera_firmware")
-            == args.expected_camera_firmware,
-            "sensor_firmware_matches": identity.get("sensor_firmware")
-            == args.expected_sensor_firmware,
-            "resolution_matches": [width, height] == [1280, 720],
-            "fps_matches": actual_fps == args.fps,
-            "depth_mode_requested": args.depth_mode == "PERFORMANCE",
-        }
-        if mismatches or not all(startup_checks.values()):
+            ),
+            minimum_usb_speed_mbps=args.minimum_usb_speed_mbps,
+            dimensions_px=[width, height],
+            resolution=args.resolution,
+            actual_fps=actual_fps,
+            requested_fps=args.fps,
+            depth_mode=args.depth_mode,
+        )
+        startup_checks = startup_contract["hard_checks"]
+        version_provenance = startup_contract["version_provenance"]
+        if startup_contract["status"] != "passed":
             failed_checks = sorted(
                 name for name, passed in startup_checks.items() if not passed
             )
             failure_reason = (
                 "actual ZED recorder startup contract mismatch: "
-                f"identity={mismatches}, failed_checks={failed_checks}"
+                f"failed_checks={failed_checks}"
             )
             return_code = 3
         else:
@@ -291,6 +294,7 @@ def main() -> int:
                             "video_interfaces": video_interfaces,
                             "serial_interfaces": serial_interfaces,
                         },
+                        version_provenance=version_provenance,
                         startup_probe=startup_probe,
                         checks=startup_checks,
                         verification_basis="actual_recorder_open_and_retrieval",
@@ -321,7 +325,21 @@ def main() -> int:
                         )
                         if first_device_timestamp_ns is None:
                             first_device_timestamp_ns = device_timestamp_ns
+                        if (
+                            last_device_timestamp_ns is not None
+                            and device_timestamp_ns <= last_device_timestamp_ns
+                        ):
+                            timestamp_failures.append(
+                                {
+                                    "frame_index": frame_count,
+                                    "previous_device_timestamp_ns": (
+                                        last_device_timestamp_ns
+                                    ),
+                                    "device_timestamp_ns": device_timestamp_ns,
+                                }
+                            )
                         last_device_timestamp_ns = device_timestamp_ns
+                        device_timestamps_ns.append(device_timestamp_ns)
                         image_status = camera.retrieve_image(image, sl.VIEW.LEFT)
                         depth_status = camera.retrieve_measure(depth, sl.MEASURE.DEPTH)
                         imu_status = camera.get_sensors_data(
@@ -436,12 +454,19 @@ def main() -> int:
                 return_code = 11
 
     elapsed_s = time.monotonic() - started_monotonic
+    strictly_increasing_timestamps = zed_device_timestamps_are_valid(
+        device_timestamps_ns, frame_count=frame_count
+    )
+    startup_checks["strictly_increasing_device_timestamps"] = (
+        strictly_increasing_timestamps
+    )
     if result_status == "complete" and (
         not svo_path.is_file()
         or svo_path.stat().st_size == 0
         or not frames_path.is_file()
         or retrieval_failures
         or grab_failures
+        or not strictly_increasing_timestamps
     ):
         result_status = "failed"
         failure_reason = "producer output incomplete or contains retrieval failures"
@@ -451,6 +476,7 @@ def main() -> int:
         "status": result_status,
         "failure_reason": failure_reason,
         "identity": identity,
+        "version_provenance": version_provenance,
         "requested_mode": {
             "resolution": args.resolution,
             "fps": args.fps,
@@ -468,6 +494,7 @@ def main() -> int:
         "frame_count": frame_count,
         "grab_failures": grab_failures,
         "retrieval_failures": retrieval_failures,
+        "timestamp_failures": timestamp_failures,
         "first_device_timestamp_ns": first_device_timestamp_ns,
         "last_device_timestamp_ns": last_device_timestamp_ns,
         "svo_path": svo_path.name,

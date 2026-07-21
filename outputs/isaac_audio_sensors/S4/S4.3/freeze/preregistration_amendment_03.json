@@ -1,0 +1,83 @@
+{
+  "schema": "ias.s4_3.preregistration.v1",
+  "status": "frozen_before_additional_trial_collection",
+  "frozen_at_utc": "2026-07-21T20:05:18Z",
+  "baseline_branch": "main",
+  "baseline_commit": "64f32ed7658e939deb907853d8303d32e78047c3",
+  "amendment_id": "S4.3-OCCLUSION-CONFIRMATION-AMENDMENT-03",
+  "amendment_basis": "result_trigger",
+  "authorization": {
+    "source": "operator chat",
+    "exact_text": "No i prefer to repeat a second time the occulusion, before the was another noise before that maybe altered it",
+    "received_before_confirmation_capture": true
+  },
+  "supersession": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/amendment_02_supersession.json",
+    "sha256": "c6e69d0ec4bdba32a66026d2531a12b5837d7f4fb259501b8a8f4d543cc70cd5",
+    "prior_records_retained_immutable": true
+  },
+  "specification": {
+    "path": "docs/development/specs/s4_3_pilot_repeatability_amendment_03.md",
+    "sha256": "393bf0cadf36294576bcfe55c751f3907d3b2bac734e8bd44ea4a1d4c3dc10fa"
+  },
+  "configuration": {
+    "path": "configs/s4_3_pilot_amendment_03.v1.json",
+    "sha256": "89185f401ed0b487f33943ec132d7429c58305b1a6ea24d44fd96a456a93c5b6",
+    "effective_canonical_sha256": "d9ecfdea5bf5b8300ca17702ca104810d0d0ae5b5e1e07411b38163bfcfb1e1b"
+  },
+  "precollection_inventory": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_amendment_03_precollection.json",
+    "sha256": "47d7b3f4c99bfbcb33a6969721f45cd37582ae409a9bff8a637fdc290784a96d",
+    "planned_trial_count": 13,
+    "attempt_count": 9,
+    "accepted_attempt_count": 8,
+    "failed_attempt_count": 1
+  },
+  "matrix": {
+    "canonical_json_sha256": "e9c2b024b490df3086edf0782c9707b59d95f296eadcdc106da4de1ed06fa060",
+    "canonicalization": "json.dumps(matrix, sort_keys=True, separators=(',', ':')).encode('utf-8')",
+    "planned_trial_count": 13,
+    "category_counts": {
+      "controlled": 2,
+      "repeatability": 4,
+      "robustness": 7
+    },
+    "added_trial_count": 2,
+    "operator_requested_added_trials": 1,
+    "added_trial_id": "s4_3_rob_occluded_01_confirm_noise_01",
+    "expansion_parent_trial_id": "s4_3_rob_occluded_01",
+    "expansion_limit_total": 3,
+    "confirmation_limit_per_triggered_cell": 1
+  },
+  "implementation": [
+    {"path": "src/isaac_audio_sensors/acquisition/s4_3.py", "sha256": "d4289959b5ded0893e09eee46d6805199537d5c89f08fa6f501f41102aac521a"},
+    {"path": "scripts/run_s4_3_trial.py", "sha256": "bfddeac6db7eee93bd6411d3a0a67fe637cd41ca4d039afa20847ff1d10e1c8c"},
+    {"path": "scripts/run_s4_2_zed_capture.py", "sha256": "22ffa53ec5eacef5368940236651eb7f39384cda9f56b8b8ef679297d306119d"},
+    {"path": "scripts/validate_s4_2_zed_svo.py", "sha256": "5fdc0aef5401716c70b151865d96e86dff4384a4c1f7d59a39ed8964065c3629"},
+    {"path": "scripts/reanalyze_s4_3_array_frame.py", "sha256": "e90f5349593fc3d21390350347f5af0e74db6adb9a92023faa6adffde5884a5e"},
+    {"path": "scripts/build_s4_3_evidence.py", "sha256": "f52b7a8f54c99cc3482fa5aa7150f1dc5ba58e7d16b57d9748fecdf105e4bde9"},
+    {"path": "scripts/validate_s4_3_integrity.py", "sha256": "7e04871501ce89ce6ec30cb21909487bff2be3165c27c658a660f6e9346fe0bb"},
+    {"path": "tests/test_s4_3_pilot.py", "sha256": "278c8fb75b3c4b4c687a8f1b32676c3f0298866f38944e50023290ac1562a461"}
+  ],
+  "trigger_results_declared": true,
+  "trigger_observation": {
+    "trial_id": "s4_3_rob_occluded_01",
+    "attempt_id": "s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm",
+    "analysis_sha256": "867a7fc494624c191f8fcb0eebf3d23ee562558b51e36eadf9dcd3653b5ce81b",
+    "manifest_sha256": "942a8259bc43634d1c73ee3441933866a4b2db43ad95dde0883f27cbc660dccb",
+    "quality_status": "passed",
+    "operator_reported_possible_extraneous_noise": true,
+    "first_result_retained_without_relabeling": true,
+    "threshold_tuning_performed": false
+  },
+  "trial_results_viewed_before_initial_freeze": false,
+  "s4_3_recorder_started_before_initial_freeze": false,
+  "additional_recorder_started_after_trigger_before_amendment_freeze": false,
+  "device_settings_changed": false,
+  "s4_4_started": false,
+  "notes": [
+    "The first accepted occlusion take remains valid evidence and is not deleted or reclassified.",
+    "The confirmation uses the same reported two-box occluder and changes no physical or analysis variable.",
+    "No second confirmation for this parent cell is permitted."
+  ]
+}

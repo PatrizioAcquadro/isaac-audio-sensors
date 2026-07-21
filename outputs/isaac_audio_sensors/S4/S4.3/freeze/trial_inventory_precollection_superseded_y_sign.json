@@ -1,0 +1,23 @@
+{
+  "schema": "ias.s4_3.trial_inventory.v1",
+  "status": "superseded_before_collection",
+  "configuration_sha256": "70e1b39c4ce2feab0dbc5128033506125ce99b4701d75f3c4617816f5430cdb8",
+  "planned_trial_count": 11,
+  "superseded_reason": "Inherited S4.2 Y-sign error; no S4.3 attempt existed.",
+  "outcome_counts": {"accepted": 0, "failed": 0, "interrupted": 0, "planned": 0, "rejected": 0, "unfavorable": 0},
+  "trial_definition_hashes": {
+    "s4_3_rpt_baseline_01": "7ac2eb087c11031d8e5105953926b404cba385775e9796ae6433dd5c486afefe",
+    "s4_3_rpt_baseline_02": "5d7564f54b73c20318a9b9226a2c1bd849b048d7b8f93c61d2227b63ee64530c",
+    "s4_3_rpt_baseline_03": "8f3049e5791cfb4a67578d7f858bf4d5091a7906c70160eb214de1065015f7a0",
+    "s4_3_ctl_front_01": "e1627cada903815edbfa0c2bd44d7ac962dc77005f087e40825049fe3dec8e56",
+    "s4_3_ctl_left_01": "7d99ac3485bd2aaa3b60efb67329f4467666b503112d1bb4a83d97a36a355869",
+    "s4_3_rob_silence_01": "cc463b98e563b37ca4af74ae528af3a513d231c87c2c7a4fcdbe36b864787215",
+    "s4_3_rob_occluded_01": "da8436d2814fbfc554bb656c7c4922c21263404b9309b48cb09ff50ecead7487",
+    "s4_3_rob_voice_01": "358c66509d811cbedc163b639c33612992c163eb005638759a4523529291573f",
+    "s4_3_rob_overlap_01": "5fca76a0c805bbae4e0eabefc85220ba8546198815ecd8765800fc2a1d7856b1",
+    "s4_3_rob_rear_near_01": "ca0948b72dff6a0ad001002f0a3cb350c33c908005e81646607d693b33fb7fa9",
+    "s4_3_rob_impact_av_01": "64867d209a60b978579dbfbd7f42bb7c57e554aa4bee39813c0ae88d8277e252"
+  },
+  "s4_3_trial_collected_before_supersession": false,
+  "s4_4_started": false
+}

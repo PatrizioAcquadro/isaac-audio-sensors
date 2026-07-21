@@ -1,0 +1,26 @@
+{
+  "schema": "ias.s4_3.preregistration.v1",
+  "status": "superseded_before_trial_collection",
+  "frozen_at_utc": "2026-07-21T16:41:41Z",
+  "superseded_at_utc": "2026-07-21T17:27:46Z",
+  "superseded_reason": "Operator confirmed the S4.2 MacBook was physically at Y=-0.90 m; this freeze inherited the erroneous recorded Y=+0.90 m sign.",
+  "baseline_branch": "main",
+  "baseline_commit": "64f32ed7658e939deb907853d8303d32e78047c3",
+  "specification": {
+    "path": "docs/development/specs/s4_3_pilot_repeatability.md",
+    "sha256_at_superseded_freeze": "b421076a1f89925c574494a6d83de253585670c0ac7712d38d05e978a8058cc5"
+  },
+  "configuration": {
+    "path": "configs/s4_3_pilot.v1.json",
+    "sha256_at_superseded_freeze": "c1bb636ef85d48499824e35c6d19bfa737dd940a1ef4fe449509576232146cc0"
+  },
+  "matrix": {
+    "canonical_json_sha256": "73a7da8adfd45b8e68e41c36d0e82f3e6005e6c2627607c675cb76aac4fe60fc",
+    "planned_trial_count": 11,
+    "category_counts": {"controlled": 2, "repeatability": 3, "robustness": 6}
+  },
+  "trial_results_viewed_before_freeze": false,
+  "s4_3_recorder_started_before_freeze": false,
+  "s4_3_trial_collected_before_supersession": false,
+  "s4_4_started": false
+}

@@ -1,0 +1,166 @@
+{
+  "attempt_count": 5,
+  "configuration_sha256": "1cc30c578d7ee771928f047f4155304a127f6035c42859066abbf991a540ebeb",
+  "outcome_counts": {
+    "accepted": 4,
+    "failed": 1,
+    "in_progress": 0,
+    "interrupted": 0,
+    "planned": 0,
+    "rejected": 0,
+    "unfavorable": 0
+  },
+  "planned_trial_count": 12,
+  "s4_4_started": false,
+  "schema": "ias.s4_3.trial_inventory.v1",
+  "status": "amendment_pre_collection",
+  "terminal_trial_count": 4,
+  "trials": [
+    {
+      "attempts": [
+        {
+          "analysis_sha256": null,
+          "attempt_id": "s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0",
+          "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0",
+          "lifecycle_state": "failed",
+          "manifest_sha256": null,
+          "outcome": "failed",
+          "quality_status": "missing",
+          "reason": "S43Error: existing Pi capture helper is unavailable",
+          "scientific_disposition": "missing"
+        },
+        {
+          "analysis_sha256": "1022d5f840c2e0e3b4fae33ac48e752d3a71042afec2ce0881fd177735ef15aa",
+          "attempt_id": "s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
+          "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
+          "lifecycle_state": "accepted",
+          "manifest_sha256": "2f6a28adc47ea71cd28b82938aade3e2d284fc9f86b17648cc7664ed74c40288",
+          "outcome": "accepted",
+          "quality_status": "passed",
+          "reason": "quality and analysis passed",
+          "scientific_disposition": "pending_aggregate_and_closeout"
+        }
+      ],
+      "category": "repeatability",
+      "planned_definition_sha256": "2f6e829b1b36b5f2ee14871cc057523c4bdd730db8769e6bced55708dcff06f2",
+      "planned_outcome": "accepted",
+      "trial_id": "s4_3_rpt_baseline_01"
+    },
+    {
+      "attempts": [
+        {
+          "analysis_sha256": "299ceb4ebd36b8ee8fc27f45a62067191a11732d2a901907cf4bdbf95e7f4a97",
+          "attempt_id": "s4_3_rpt_baseline_02_20260721T191817Z_b080d747",
+          "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747",
+          "lifecycle_state": "accepted",
+          "manifest_sha256": "300f1cea9a1ec3e0b3504e0a7ea22384e637b291001e0c3ede23a83b387cde46",
+          "outcome": "accepted",
+          "quality_status": "passed",
+          "reason": "quality and analysis passed",
+          "scientific_disposition": "pending_aggregate_and_closeout"
+        }
+      ],
+      "category": "repeatability",
+      "planned_definition_sha256": "dceffc0ecf55cc9a8b8110518a93db8bbb27778352501a1377345340fb531dbe",
+      "planned_outcome": "accepted",
+      "trial_id": "s4_3_rpt_baseline_02"
+    },
+    {
+      "attempts": [
+        {
+          "analysis_sha256": "7aa1e3fcc325c27658c23b2a15e914ce11c0f123fedd2cd291c043ffb7b8072b",
+          "attempt_id": "s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd",
+          "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd",
+          "lifecycle_state": "accepted",
+          "manifest_sha256": "03a83ad685d61096f55b1d05c4b26cc5f82960b2696d8ae60024bb774300786a",
+          "outcome": "accepted",
+          "quality_status": "passed",
+          "reason": "quality and analysis passed",
+          "scientific_disposition": "pending_aggregate_and_closeout"
+        }
+      ],
+      "category": "repeatability",
+      "planned_definition_sha256": "511555cd6bead950b1f8d62827a4781641e49e5972541f57fa681de9a2b056b9",
+      "planned_outcome": "accepted",
+      "trial_id": "s4_3_rpt_baseline_03"
+    },
+    {
+      "attempts": [],
+      "category": "controlled",
+      "planned_definition_sha256": "da653dca3db29a35aabc869154e3b35990d0cc0dca5781adf1942657637c3cbe",
+      "planned_outcome": "planned",
+      "trial_id": "s4_3_ctl_front_01"
+    },
+    {
+      "attempts": [],
+      "category": "controlled",
+      "planned_definition_sha256": "f277ec8c5c549e8424b403ebe85a9993b647fd90049658c74a9f0371ce7a890c",
+      "planned_outcome": "planned",
+      "trial_id": "s4_3_ctl_opposite_side_01"
+    },
+    {
+      "attempts": [],
+      "category": "robustness",
+      "planned_definition_sha256": "7c0c70c04c981db6c91f9562fe1f30c46194b7aa7ce6a2c23827b0dbcf9e06f8",
+      "planned_outcome": "planned",
+      "trial_id": "s4_3_rob_silence_01"
+    },
+    {
+      "attempts": [],
+      "category": "robustness",
+      "planned_definition_sha256": "3408288ba904a23f4d78e05b08ff9e170eb0f31a1d90abbc9fc1b02584e2c810",
+      "planned_outcome": "planned",
+      "trial_id": "s4_3_rob_occluded_01"
+    },
+    {
+      "attempts": [],
+      "category": "robustness",
+      "planned_definition_sha256": "40fb20510af05fb53d8936506fae58896dd17f86a6d47465e32b6af53ad69d69",
+      "planned_outcome": "planned",
+      "trial_id": "s4_3_rob_voice_01"
+    },
+    {
+      "attempts": [],
+      "category": "robustness",
+      "planned_definition_sha256": "7ada54e8c05109944ec490f2e7153e1f95ec8ba9acbc89423e8c0d06df67ecb3",
+      "planned_outcome": "planned",
+      "trial_id": "s4_3_rob_overlap_01"
+    },
+    {
+      "attempts": [],
+      "category": "robustness",
+      "planned_definition_sha256": "8ea26248a2d2e532c33c82959963a55b704e9ecf5902603502650e134a6e4f60",
+      "planned_outcome": "planned",
+      "trial_id": "s4_3_rob_rear_near_01"
+    },
+    {
+      "attempts": [],
+      "category": "robustness",
+      "planned_definition_sha256": "03349703f4c0a7bc40404e9a3a150b65e25d264c154d24e72049642daac77de7",
+      "planned_outcome": "planned",
+      "trial_id": "s4_3_rob_impact_av_01"
+    },
+    {
+      "attempts": [
+        {
+          "analysis_sha256": "c370829538d7dfbc92c77656bd890638ce08023f50eaaaf7cd394276a3ff93f9",
+          "attempt_id": "s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78",
+          "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78",
+          "lifecycle_state": "accepted",
+          "manifest_sha256": "4e4a54e15801472c3155399202864859e784933a8c0e63fdef0ddcda885bf045",
+          "outcome": "accepted",
+          "quality_status": "passed",
+          "reason": "quality and analysis passed",
+          "scientific_disposition": "pending_aggregate_and_closeout"
+        }
+      ],
+      "category": "repeatability",
+      "planned_definition_sha256": "d6f675df0a253a9f927f7971a655f7e967c57ce47f5826906b5101a70b64dc6c",
+      "planned_outcome": "accepted",
+      "trial_id": "s4_3_rpt_baseline_01_confirm_array_frame_01"
+    }
+  ],
+  "amendment_id": "S4.3-OPERATIONAL-GATES-AMENDMENT-02",
+  "snapshot_at_utc": "2026-07-21T19:32:09Z",
+  "additional_recorder_started_after_authorization": false
+}

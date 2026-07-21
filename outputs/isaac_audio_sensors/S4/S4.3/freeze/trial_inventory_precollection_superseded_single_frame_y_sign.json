@@ -1,0 +1,31 @@
+{
+  "schema": "ias.s4_3.trial_inventory.v1",
+  "status": "superseded_before_collection",
+  "configuration_sha256": "2aa40b8ba03137a25d12477624cf487ffae1c871f8aaad77f0473edd413854e0",
+  "inventory_record_sha256_before_supersession": "79f884a4a0e119573ba156639224bd4d374b610f40944bbc57ea37dfb8715cc6",
+  "planned_trial_count": 11,
+  "superseded_reason": "The definitions corrected the scalar Y sign but conflated F_operator_facing_zed with canonical F_project; no S4.3 attempt existed.",
+  "outcome_counts": {
+    "accepted": 0,
+    "failed": 0,
+    "interrupted": 0,
+    "planned": 0,
+    "rejected": 0,
+    "unfavorable": 0
+  },
+  "trial_definition_hashes": {
+    "s4_3_rpt_baseline_01": "781952bca4b481ee6da1fb6178588bcaeac49a84d1c32a8151405e5726354618",
+    "s4_3_rpt_baseline_02": "6b0ac6560ef5e2420bf2a6e500f889f566408dfeee169c25dc33959e427e09bd",
+    "s4_3_rpt_baseline_03": "a39881a1a39d75459b38c586347e4df317fc5ef4486d37ea4212e5f0ffd98260",
+    "s4_3_ctl_front_01": "e1627cada903815edbfa0c2bd44d7ac962dc77005f087e40825049fe3dec8e56",
+    "s4_3_ctl_opposite_side_01": "68359dd94618c1c630b036a7a4e2821e3ecca08ea6898b8cff02572d932ee3fe",
+    "s4_3_rob_silence_01": "cc463b98e563b37ca4af74ae528af3a513d231c87c2c7a4fcdbe36b864787215",
+    "s4_3_rob_occluded_01": "0dff848fbe87cf40224d9e2a58ea554ed55600824b543159a3db389b16971775",
+    "s4_3_rob_voice_01": "450b3f6887064f5d4617a1c6297b813ea0cc702de2c34c9bbef6630d54a958d6",
+    "s4_3_rob_overlap_01": "d6c56f1ebaf3351fa7a22365c2a07a604f265bf2aa3421587cfb044a735e562f",
+    "s4_3_rob_rear_near_01": "ca0948b72dff6a0ad001002f0a3cb350c33c908005e81646607d693b33fb7fa9",
+    "s4_3_rob_impact_av_01": "64867d209a60b978579dbfbd7f42bb7c57e554aa4bee39813c0ae88d8277e252"
+  },
+  "s4_3_trial_collected_before_supersession": false,
+  "s4_4_started": false
+}

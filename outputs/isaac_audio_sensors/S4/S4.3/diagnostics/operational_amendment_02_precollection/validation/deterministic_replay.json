@@ -1,0 +1,91 @@
+{
+  "accepted_attempt_count": 4,
+  "checks": [
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
+      "trial_id": "s4_3_rpt_baseline_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "0dc400c49a24ce1a014035281510ea2c7848583750f567c9db8d4538f4d681a6",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_02_20260721T191817Z_b080d747",
+      "trial_id": "s4_3_rpt_baseline_02",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "2956b383930e9462a77630f91e4f360cecf5a0087f62b90ccd1d76f9046921f7",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd",
+      "trial_id": "s4_3_rpt_baseline_03",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "f36cd13dbf84d9613c488e0ab556d8477bbeed1ba3cae12429a1bda114b7eb19",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78",
+      "trial_id": "s4_3_rpt_baseline_01_confirm_array_frame_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "305763cfc1ccde5104602e0e06aa12a4e41d039d430cd35c6952a8a8c946a2d4",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    }
+  ],
+  "schema": "ias.s4_3.deterministic_replay.v1",
+  "status": "passed"
+}

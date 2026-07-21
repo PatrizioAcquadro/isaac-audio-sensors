@@ -44,13 +44,23 @@ EXPECTED_CHANNEL_ORDER = (
 )
 EXPECTED_PROJECT_AXES = {
     "x": "forward",
-    "y": "operator_right_facing_camera_zed_camera_left",
+    "y": "right_as_viewed_from_zed_operator_left_facing_camera",
     "z": "up",
 }
-EXPECTED_BEARING_DEFINITION = (
-    "degrees counterclockwise from +X toward +Y viewed from above"
+EXPECTED_BEARING_DEFINITION = "degrees clockwise from +X toward +Y viewed from above"
+EXPECTED_OPERATOR_FACING_AXES = {
+    "positive_x": "behind_operator_forward_of_zed",
+    "negative_x": "in_front_of_operator_behind_zed",
+    "positive_y": "operator_right",
+    "negative_y": "operator_left",
+    "positive_z": "up_toward_ceiling",
+    "negative_z": "down_toward_floor",
+}
+EXPECTED_OPERATOR_BEARING_DEFINITION = (
+    "degrees clockwise from +X toward +Y viewed from above"
 )
 S42_ACCEPTANCE_AMENDMENT_ID = "S4.2-PRECAPTURE-AMENDMENT-2026-07-20-A"
+S42_COORDINATE_CORRECTION_ID = "S4.2-DUAL-FRAME-RECONCILIATION-2026-07-21-A"
 VALIDATION_PROFILE_SCHEMA = "ias.s4.validation_profile.v1"
 KNOWN_MODALITIES = {
     "respeaker_audio",
@@ -132,6 +142,34 @@ class ValidationReport:
 
 class S42Error(RuntimeError):
     """Located S4.2 acquisition or evidence failure."""
+
+
+def operator_facing_zed_position_to_project(
+    position_m: Sequence[float],
+) -> tuple[float, float, float]:
+    """Convert one position from F_operator_facing_zed to F_project."""
+
+    if len(position_m) != 3 or any(
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        for value in position_m
+    ):
+        raise ValueError("position must contain three finite numeric meters")
+    x_operator, y_operator, z_operator = map(float, position_m)
+    return (x_operator, -y_operator, z_operator)
+
+
+def operator_facing_zed_bearing_to_project(bearing_deg: float) -> float:
+    """Convert clockwise bearing from F_operator_facing_zed to F_project."""
+
+    if (
+        isinstance(bearing_deg, bool)
+        or not isinstance(bearing_deg, (int, float))
+        or not math.isfinite(float(bearing_deg))
+    ):
+        raise ValueError("bearing must be one finite numeric angle in degrees")
+    return (-float(bearing_deg)) % 360.0
 
 
 def sha256_file(path: str | Path) -> str:
@@ -385,6 +423,8 @@ def validate_configuration(
         "fixture.room_id",
         "coordinate_frame.frame_name",
         "coordinate_frame.axes",
+        "operator_facing_frame.frame_name",
+        "operator_facing_frame.axes",
         "alignment.method",
         "alignment.maximum_uncertainty_ms",
         "alignment.cue_delay_s",
@@ -398,6 +438,10 @@ def validate_configuration(
         "reference.minimum_correlated_raw_channels",
         "acceptance_amendment.id",
         "acceptance_amendment.record_path",
+        "coordinate_correction.id",
+        "coordinate_correction.record_path",
+        "coordinate_correction.superseded_record_path",
+        "coordinate_correction.superseded_record_sha256",
         "raw_evidence.machine_local_root",
         "raw_evidence.retention",
         "raw_evidence.checksum_command",
@@ -411,10 +455,13 @@ def validate_configuration(
                 "session.stable_preflight_report_path",
                 "session.stable_preflight_invalidation_path",
                 "acceptance_amendment.record_sha256",
+                "coordinate_correction.record_sha256",
                 "source.position_m",
+                "source.position_operator_facing_zed_m",
                 "source.distance_from_rig_origin_m",
                 "source.distance_provenance",
-                "source.bearing_deg_counterclockwise_from_positive_x",
+                "source.bearing_deg_clockwise_from_positive_x",
+                "source.bearing_operator_facing_zed_deg",
                 "source.speaker_height_m",
                 "source.delta_x_m",
                 "source.delta_y_m",
@@ -425,6 +472,8 @@ def validate_configuration(
                 "source.lid_angle_deg",
                 "source.lid_state",
                 "source.relative_side",
+                "source.relative_side_operator_facing_zed",
+                "source.relative_side_project_view",
                 "source.screen_heading",
                 "alignment.event_object",
                 "alignment.event_position_m",
@@ -489,9 +538,26 @@ def validate_configuration(
         "coordinate_frame.axes": EXPECTED_PROJECT_AXES,
         "coordinate_frame.position_units": "m",
         "coordinate_frame.bearing_definition": EXPECTED_BEARING_DEFINITION,
+        "operator_facing_frame.frame_name": "F_operator_facing_zed",
+        "operator_facing_frame.origin": "ZED stereo-lens midpoint",
+        "operator_facing_frame.axes": EXPECTED_OPERATOR_FACING_AXES,
+        "operator_facing_frame.position_units": "m",
+        "operator_facing_frame.bearing_definition": (
+            EXPECTED_OPERATOR_BEARING_DEFINITION
+        ),
         "acceptance_amendment.id": S42_ACCEPTANCE_AMENDMENT_ID,
         "acceptance_amendment.record_path": (
             "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json"
+        ),
+        "coordinate_correction.id": S42_COORDINATE_CORRECTION_ID,
+        "coordinate_correction.record_path": (
+            "docs/development/specs/s4_2_dual_frame_coordinate_reconciliation.v1.json"
+        ),
+        "coordinate_correction.superseded_record_path": (
+            "docs/development/specs/s4_2_post_capture_coordinate_correction.v1.json"
+        ),
+        "coordinate_correction.superseded_record_sha256": (
+            "80e5131a9654a9d4f5dbf978ab6ae8dcca193c4654e96765837a78c74caa58c1"
         ),
         "session.attempt_root": "dataset/S4.2/attempts",
         "raw_evidence.machine_local_root": "dataset/S4.2",
@@ -600,7 +666,13 @@ def validate_configuration(
             )
     checksum_paths = ["reference.sha256"]
     if require_ready:
-        checksum_paths.append("acceptance_amendment.record_sha256")
+        checksum_paths.extend(
+            (
+                "acceptance_amendment.record_sha256",
+                "coordinate_correction.record_sha256",
+                "coordinate_correction.superseded_record_sha256",
+            )
+        )
     for checksum_path in checksum_paths:
         checksum = _at(payload, checksum_path)
         try:
@@ -622,6 +694,8 @@ def validate_configuration(
         "reference.metadata_path",
         "mac.inventory_path",
         "acceptance_amendment.record_path",
+        "coordinate_correction.record_path",
+        "coordinate_correction.superseded_record_path",
         "raw_evidence.machine_local_root",
     ):
         value = _at(payload, path)
@@ -635,10 +709,12 @@ def validate_configuration(
     if require_ready:
         ready_frozen = {
             "source.position_m": [0.0, 0.9, -0.135],
+            "source.position_operator_facing_zed_m": [0.0, -0.9, -0.135],
             "source.delta_x_m": 0.0,
             "source.delta_y_m": 0.9,
             "source.delta_z_m": -0.135,
-            "source.bearing_deg_counterclockwise_from_positive_x": 90.0,
+            "source.bearing_deg_clockwise_from_positive_x": 90.0,
+            "source.bearing_operator_facing_zed_deg": 270.0,
             "source.speaker_height_m": 0.710,
             "source.vertical_offset_uncertainty_m": 0.010,
             "source.orientation_deg": {"yaw": 0.0, "pitch": 0.0, "roll": 0.0},
@@ -646,7 +722,9 @@ def validate_configuration(
                 "practical_visual_placement_not_metrology"
             ),
             "source.lid_angle_deg": 90.0,
-            "source.relative_side": "operator_right_facing_camera",
+            "source.relative_side": "operator_left_facing_camera",
+            "source.relative_side_operator_facing_zed": "left",
+            "source.relative_side_project_view": "right",
             "alignment.event_object": (
                 "blue wastebasket with standard white recycling symbol and no "
                 "private label"
@@ -733,6 +811,33 @@ def validate_configuration(
                         "tolerance is 0.02 m",
                     )
                 )
+            operator_position = _at(payload, "source.position_operator_facing_zed_m")
+            try:
+                converted_position = operator_facing_zed_position_to_project(
+                    operator_position
+                )
+            except (TypeError, ValueError):
+                issues.append(
+                    ValidationIssue(
+                        "invalid_operator_position",
+                        "source.position_operator_facing_zed_m",
+                        "must be three finite numbers in F_operator_facing_zed meters",
+                    )
+                )
+            else:
+                if any(
+                    not math.isclose(actual, float(expected), abs_tol=1e-12)
+                    for actual, expected in zip(
+                        converted_position, position, strict=True
+                    )
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            "inconsistent_dual_frame_position",
+                            "source.position_operator_facing_zed_m",
+                            "must convert exactly to source.position_m in F_project",
+                        )
+                    )
         orientation = _at(payload, "source.orientation_deg")
         if (
             not isinstance(orientation, Mapping)
@@ -750,7 +855,8 @@ def validate_configuration(
                 )
             )
         for path, minimum, maximum in (
-            ("source.bearing_deg_counterclockwise_from_positive_x", 0.0, 360.0),
+            ("source.bearing_deg_clockwise_from_positive_x", 0.0, 360.0),
+            ("source.bearing_operator_facing_zed_deg", 0.0, 360.0),
             ("source.lid_angle_deg", 0.0, 180.0),
         ):
             value = _at(payload, path)
@@ -765,6 +871,23 @@ def validate_configuration(
                         "invalid_angle",
                         path,
                         f"must be finite and within [{minimum}, {maximum}] degrees",
+                    )
+                )
+        operator_bearing = _at(payload, "source.bearing_operator_facing_zed_deg")
+        project_bearing = _at(payload, "source.bearing_deg_clockwise_from_positive_x")
+        try:
+            converted_bearing = operator_facing_zed_bearing_to_project(operator_bearing)
+        except ValueError:
+            pass
+        else:
+            if isinstance(project_bearing, (int, float)) and not math.isclose(
+                converted_bearing, float(project_bearing) % 360.0, abs_tol=1e-12
+            ):
+                issues.append(
+                    ValidationIssue(
+                        "inconsistent_dual_frame_bearing",
+                        "source.bearing_operator_facing_zed_deg",
+                        "must convert exactly to canonical F_project bearing",
                     )
                 )
         if _at(payload, "source.relative_side") not in {

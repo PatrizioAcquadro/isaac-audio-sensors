@@ -1,0 +1,31 @@
+{
+  "schema": "ias.s4_3.preregistration.v1",
+  "status": "superseded_before_trial_collection",
+  "frozen_at_utc": "2026-07-21T17:27:46Z",
+  "superseded_at_utc": "2026-07-21T17:55:54Z",
+  "superseded_reason": "This freeze corrected the scalar Y sign but silently treated the operator-facing coordinate as F_project. The explicit dual-frame contract supersedes it.",
+  "baseline_branch": "main",
+  "baseline_commit": "64f32ed7658e939deb907853d8303d32e78047c3",
+  "specification": {
+    "path": "docs/development/specs/s4_3_pilot_repeatability.md",
+    "sha256_at_superseded_freeze": "3974b4737b81ee239bd83182e7c4513a18895f4c3fdec1e36ba4730dc08768d9"
+  },
+  "configuration": {
+    "path": "configs/s4_3_pilot.v1.json",
+    "sha256_at_superseded_freeze": "eacb952cbac79d1d93ee367f701788a7b87986f8d5359e8190d3c81d92445a1d"
+  },
+  "matrix": {
+    "canonical_json_sha256": "98c1c8c4daff9d8c95aaff94f21f65e4146776d1f0ef5004004e4251722b05c5",
+    "planned_trial_count": 11,
+    "category_counts": {
+      "controlled": 2,
+      "repeatability": 3,
+      "robustness": 6
+    }
+  },
+  "frozen_record_sha256_before_supersession": "2a9273a42adbd5533bdab33b6dcd40c390338f3b927e617fec094bee3716ecf1",
+  "trial_results_viewed_before_freeze": false,
+  "s4_3_recorder_started_before_freeze": false,
+  "s4_3_trial_collected_before_supersession": false,
+  "s4_4_started": false
+}

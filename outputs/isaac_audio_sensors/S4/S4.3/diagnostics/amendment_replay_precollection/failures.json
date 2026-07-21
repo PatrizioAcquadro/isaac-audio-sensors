@@ -1,0 +1,14 @@
+{
+  "all_failures_retained": true,
+  "failure_count": 1,
+  "failures": [
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0",
+      "outcome": "failed",
+      "reason": "S43Error: existing Pi capture helper is unavailable",
+      "retained": true,
+      "trial_id": "s4_3_rpt_baseline_01"
+    }
+  ],
+  "schema": "ias.s4_3.failure_inventory.v1"
+}

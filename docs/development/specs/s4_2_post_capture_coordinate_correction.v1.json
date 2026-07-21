@@ -1,0 +1,54 @@
+{
+  "schema": "ias.s4_2.post_capture_coordinate_correction.v1",
+  "id": "S4.2-COORDINATE-CORRECTION-2026-07-21-A",
+  "adopted_at_local": "2026-07-21T13:21:03-04:00",
+  "status": "adopted_before_s4_3_trial_collection",
+  "authority": {
+    "physical_position": "operator-confirmed actual S4.2 MacBook placement",
+    "project_frame": "outputs/isaac_audio_sensors/S4/S4.1/rig_frame_lock.json",
+    "project_frame_sha256": "17fc836b8a6e6ba4855d64f13075a5d77b7723713ede0a6623511a64b04ca0ee"
+  },
+  "cause": "S4.2 translated camera-right into operator-right while facing the camera. Those directions are opposite, so the recorded Y sign and bearing were incorrect.",
+  "canonical_frame": {
+    "name": "F_project",
+    "origin": "ZED stereo-lens midpoint",
+    "axes": {
+      "x": "forward along the ZED viewing direction",
+      "y": "right as viewed from the ZED, equivalent to operator left while facing the camera",
+      "z": "up"
+    },
+    "bearing_definition": "degrees clockwise from +X toward +Y viewed from above",
+    "position_units": "m"
+  },
+  "physical_placement": "operator right while facing the camera, equivalent to left as viewed from the ZED",
+  "superseded_record": {
+    "path": "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
+    "sha256": "1a5a4df23a15e95389a5b2a5a64ff25edd79c1422e7e30890f9f19814f15d7cc",
+    "scope": "coordinate_correction only; all other amendment fields remain effective",
+    "recorded_position_m": [0.0, 0.9, -0.135],
+    "recorded_bearing_deg": 90.0
+  },
+  "corrected_source": {
+    "position_m": [0.0, -0.9, -0.135],
+    "delta_x_m": 0.0,
+    "delta_y_m": -0.9,
+    "delta_z_m": -0.135,
+    "distance_from_rig_origin_m": 0.91,
+    "distance_provenance": "derived_from_operator_confirmed_position_m_not_independent_measurement",
+    "bearing_deg_clockwise_from_positive_x": 270.0,
+    "relative_side_operator_facing_camera": "right",
+    "relative_side_viewed_from_zed": "left",
+    "position_classification": "Approximate",
+    "bearing_classification": "Approximate"
+  },
+  "scientific_disposition": {
+    "raw_capture_modified": false,
+    "historical_attempt_records_modified": false,
+    "waveform_or_timing_result_changed": false,
+    "s4_2_acquisition_gate": "passed_with_coordinate_metadata_correction",
+    "s4_2_supported_claim_effect": "No S4.2 bearing-performance claim was made; source-pose metadata is corrected for downstream characterization.",
+    "s4_3_effect": "All pre-capture S4.3 baseline and dependent cells must use the corrected source pose and regenerated frozen hashes.",
+    "s4_3_trial_started_before_correction": false,
+    "s4_4_started": false
+  }
+}

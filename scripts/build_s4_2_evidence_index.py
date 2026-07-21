@@ -20,13 +20,13 @@ from isaac_audio_sensors.core.dataset.atomic import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-OUTPUT_ROOT = Path("outputs/isaac_audio_sensors/S4/S4.2/final_20260721")
+OUTPUT_ROOT = Path("outputs/isaac_audio_sensors/S4/S4.2/dual_frame_reconciled_20260721")
 DATASET_ROOT = Path("dataset/S4.2")
 ACCEPTED_ATTEMPT = Path(
     "dataset/S4.2/attempts/s4_2_20260721T153800Z_optimized_candidate_014"
 )
 SUPERSEDED_ATTEMPTS = {"s4_2_20260721T002805Z_accepted_candidate_004"}
-DATASET_CHECKSUM_NAME = "SHA256SUMS.final_20260721"
+DATASET_CHECKSUM_NAME = "SHA256SUMS.dual_frame_reconciled_20260721"
 
 ACCEPTED_COPIES = {
     "mac_preflight.json": "mac_preflight.json",
@@ -50,8 +50,9 @@ ACCEPTED_COPIES = {
     "svo_replay_finalization_validation.json": (
         "svo_replay_finalization_validation.json"
     ),
-    "normalized_configuration.json": "normalized_configuration.json",
+    "historical_normalized_configuration.json": "normalized_configuration.json",
 }
+CORRECTED_CONFIGURATION_COPY = "corrected_normalized_configuration.json"
 
 TRACKED_INPUTS = [
     (".gitignore", "raw_evidence_ignore_policy"),
@@ -68,6 +69,14 @@ TRACKED_INPUTS = [
     (
         "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
         "pre_capture_acceptance_amendment",
+    ),
+    (
+        "docs/development/specs/s4_2_post_capture_coordinate_correction.v1.json",
+        "superseded_post_capture_coordinate_correction",
+    ),
+    (
+        "docs/development/specs/s4_2_dual_frame_coordinate_reconciliation.v1.json",
+        "dual_frame_coordinate_reconciliation",
     ),
     (
         "docs/development/specs/s4_2_remediation_acceptance.v1.json",
@@ -128,6 +137,28 @@ TRACKED_INPUTS = [
         "outputs/isaac_audio_sensors/S4/S4.2/failures/"
         "pi_preflight_firmware_representation_rerun_20260720T230901Z.json",
         "retained_failure",
+    ),
+    (
+        "outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json",
+        "superseded_pre_correction_evidence_index",
+    ),
+    (
+        "outputs/isaac_audio_sensors/S4/S4.2/final_20260721/repository_gate.json",
+        "superseded_pre_correction_repository_gate",
+    ),
+    (
+        "outputs/isaac_audio_sensors/S4/S4.2/coordinate_corrected_20260721/"
+        "evidence_index.json",
+        "superseded_single_frame_correction_evidence_index",
+    ),
+    (
+        "outputs/isaac_audio_sensors/S4/S4.2/coordinate_corrected_20260721/"
+        "repository_gate.json",
+        "superseded_single_frame_correction_repository_gate",
+    ),
+    (
+        "outputs/isaac_audio_sensors/S4/S4.2/final_repository_gate.json",
+        "current_top_level_repository_gate",
     ),
 ]
 
@@ -265,6 +296,12 @@ def _machine_entry(path: Path) -> dict[str, Any]:
     attempt_id, lifecycle = _attempt_context(relative)
     contract: dict[str, Any] = {
         "s4_2_acceptance_amendment": "S4.2-PRECAPTURE-AMENDMENT-2026-07-20-A",
+        "s4_2_coordinate_correction": ("S4.2-DUAL-FRAME-RECONCILIATION-2026-07-21-A"),
+        "coordinate_correction_application": (
+            "historical attempt metadata retained unchanged; use the tracked "
+            "dual-frame reconciliation for operator-facing physical placement "
+            "and canonical project-frame source pose"
+        ),
         "retention": "machine_local_gitignored",
         "replicated": False,
         "fresh_clone_available": False,
@@ -346,34 +383,51 @@ def _dataset_checksum_payload(paths: list[Path]) -> bytes:
 def _repository_gate_payload() -> dict[str, Any]:
     return {
         "schema": "ias.s4_2.repository_gate.v1",
-        "status": "passed",
-        "validated_at_utc": "2026-07-21T16:05:53Z",
-        "frozen_source_revision": (
-            "1f72983f25959cb46bdc052d3bb6acf9005df444"
-        ),
-        "accepted_capture_gate": "passed",
+        "status": "passed_with_dual_frame_metadata_reconciliation",
+        "validated_at_utc": "2026-07-21T17:31:01Z",
+        "frozen_source_revision": ("64f32ed7658e939deb907853d8303d32e78047c3"),
+        "correction_worktree_committed": False,
+        "accepted_capture_gate": "passed_with_dual_frame_metadata_reconciliation",
+        "coordinate_correction": {
+            "id": "S4.2-DUAL-FRAME-RECONCILIATION-2026-07-21-A",
+            "path": (
+                "docs/development/specs/"
+                "s4_2_dual_frame_coordinate_reconciliation.v1.json"
+            ),
+            "historical_attempt_records_modified": False,
+            "operator_facing_source_position_m": [0.0, -0.9, -0.135],
+            "operator_facing_source_bearing_deg_clockwise": 270.0,
+            "canonical_source_position_m": [0.0, 0.9, -0.135],
+            "canonical_source_bearing_deg_clockwise": 90.0,
+            "conversion": {
+                "x_project": "x_operator",
+                "y_project": "-y_operator",
+                "z_project": "z_operator",
+                "bearing_project": "(-bearing_operator) mod 360",
+            },
+            "superseded_records_retained": True,
+        },
         "completed_checks": {
             "targeted_unit_and_integration": (
-                "94 passed, 2 explicit hardware/real-SVO-fixture skips"
+                "106 passed, 2 explicit hardware/real-SVO-fixture skips"
             ),
-            "clean_checkout_s4_2_integrity": (
-                "passed, 524 artifacts, zero issues, raw-independent"
+            "post_correction_integrity": (
+                "run after coordinate-corrected evidence assembly"
             ),
             "make_test_primary_worktree": (
-                "1204 passed, 80 optional-dependency/hardware skips"
-            ),
-            "make_test_clean_checkout": (
-                "1202 passed, 82 optional-dependency/hardware skips"
+                "1216 passed, 80 optional-dependency/hardware skips"
             ),
             "make_lint": "passed",
             "make_build": "passed",
             "make_check_version": "passed (1.10.0)",
             "make_audit_dist": "passed",
-            "make_check_release_source": "passed",
-            "make_build_kit": "passed (133-file archive)",
-            "make_audit_kit": "passed",
-            "make_build_pack": "passed (five exact hash-locked wheels)",
-            "make_audit_pack": "passed (8-file archive)",
+            "make_check_release_source": (
+                "expected blocked: correction worktree intentionally uncommitted"
+            ),
+            "pre_correction_release_artifacts": (
+                "passed in final_20260721 gate; rebuild required after commit for "
+                "final provenance"
+            ),
             "reference_wav_regeneration": (
                 "passed, sha256 "
                 "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
@@ -395,7 +449,7 @@ def _repository_gate_payload() -> dict[str, Any]:
             "required_in_clean_checkout": False,
             "required_on_capture_workstation": True,
         },
-        "s4_3_verdict": "GO",
+        "s4_3_verdict": "GO_AFTER_DUAL_FRAME_S4_3_FREEZE_AND_OPERATOR_CONFIRMATION",
         "s4_3_started": False,
     }
 
@@ -412,6 +466,10 @@ def build() -> dict[str, Any]:
             REPO_ROOT / ACCEPTED_ATTEMPT / source_name,
             accepted_output / destination_name,
         )
+    _copy_immutable(
+        REPO_ROOT / "configs/s4_2_accepted_dry_run.v1.json",
+        accepted_output / CORRECTED_CONFIGURATION_COPY,
+    )
 
     dataset_checksum_path = dataset_root / DATASET_CHECKSUM_NAME
     dataset_files_before_checksum = sorted(
@@ -478,10 +536,17 @@ def build() -> dict[str, Any]:
                         "svo_replay_validation"
                     ),
                     "normalized_configuration.json": "accepted_configuration_copy",
+                    "historical_normalized_configuration.json": (
+                        "historical_accepted_configuration_copy"
+                    ),
                 }[name],
             )
             for name in ACCEPTED_COPIES
         ],
+        (
+            f"{OUTPUT_ROOT.as_posix()}/accepted/{CORRECTED_CONFIGURATION_COPY}",
+            "corrected_accepted_configuration_copy",
+        ),
         (
             f"{OUTPUT_ROOT.as_posix()}/machine_local_index_snapshot.json",
             "machine_local_index_contract",
@@ -518,6 +583,21 @@ def build() -> dict[str, Any]:
         "status": "passed",
         "scope": "S4.2 acquisition only",
         "accepted_attempt_id": ACCEPTED_ATTEMPT.name,
+        "coordinate_correction": {
+            "id": "S4.2-DUAL-FRAME-RECONCILIATION-2026-07-21-A",
+            "historical_attempt_records_modified": False,
+            "operator_facing_source_position_m": [0.0, -0.9, -0.135],
+            "operator_facing_source_bearing_deg_clockwise": 270.0,
+            "canonical_source_position_m": [0.0, 0.9, -0.135],
+            "canonical_source_bearing_deg_clockwise": 90.0,
+            "conversion": {
+                "x_project": "x_operator",
+                "y_project": "-y_operator",
+                "z_project": "z_operator",
+                "bearing_project": "(-bearing_operator) mod 360",
+            },
+            "superseded_records_retained": True,
+        },
         "checksum_manifest": checksum_relative,
         "raw_evidence_policy": {
             "root": DATASET_ROOT.as_posix(),

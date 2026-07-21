@@ -1,0 +1,1154 @@
+{
+  "artifacts": [
+    {
+      "byte_size": 11290,
+      "path": "docs/development/specs/s4_3_pilot_repeatability.md",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "c08c8c50be0ee883d2eef262b97f379ed73b01a7f220fdf922b912eb3ef9255c"
+    },
+    {
+      "byte_size": 25492,
+      "path": "configs/s4_3_pilot.v1.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "3bfbd3a7f472d5a264a24336f0976d53eeb24420ea52a0dbc68a23817579dff5"
+    },
+    {
+      "byte_size": 2573,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "12bc7e6820a031105ee6ad600b568cd36db9a73a7b6079db9d29d07d819bfca3"
+    },
+    {
+      "byte_size": 2714,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_precollection.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "56ffc6693203d440af27c118073ce7221f0caeee773f0f775b00a5e4ebb57710"
+    },
+    {
+      "byte_size": 1194,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_superseded_y_sign.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "2274eae100710e338b3622b0e67523e8c0523fd1e380a56efda9a124c5d37981"
+    },
+    {
+      "byte_size": 1567,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_precollection_superseded_y_sign.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "7d2d1d670f38a743dbe27419ee6548e3c91f341a713e8c2d6a16cc094e0a1a6f"
+    },
+    {
+      "byte_size": 1360,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_superseded_single_frame_y_sign.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "0d31855ddd17e38f02e7e4a7588a7fc0bc980351ded984c7b4aba6b616fb32e9"
+    },
+    {
+      "byte_size": 1798,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_precollection_superseded_single_frame_y_sign.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "7a94efed7a5949c215970b265e0141db3ab9a61810f0526d3c22279a1098a472"
+    },
+    {
+      "byte_size": 2333,
+      "path": "docs/development/specs/s4_3_pilot_repeatability_amendment_03.md",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "393bf0cadf36294576bcfe55c751f3907d3b2bac734e8bd44ea4a1d4c3dc10fa"
+    },
+    {
+      "byte_size": 6683,
+      "path": "configs/s4_3_pilot_amendment_03.v1.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "89185f401ed0b487f33943ec132d7429c58305b1a6ea24d44fd96a456a93c5b6"
+    },
+    {
+      "byte_size": 4400,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_03.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "6c9d8a0c8bc2c114dbbb5d56598b703cdd60a3bb85846ca555d8465ab9c5ad40"
+    },
+    {
+      "byte_size": 4199,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_amendment_01_precollection.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "5ce8d78c56525f7eca06bab4b9a69c921d3f393677949dfbce08aae9cd579271"
+    },
+    {
+      "byte_size": 1333,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/amendment_01_supersession.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "a81ac76e84f87384a6910abda2b0833f707889e2b1f2515e23b6f49a8322e062"
+    },
+    {
+      "byte_size": 4284,
+      "path": "docs/development/specs/s4_3_pilot_repeatability_amendment_02.md",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "2d42201db074efde021d14cdcb284973ebf12829df87431035c2ea40f7758545"
+    },
+    {
+      "byte_size": 5688,
+      "path": "configs/s4_3_pilot_amendment_02.v1.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "4164191571d1565ce363c3403816c1a731d292695090f46197487c23e18be7cd"
+    },
+    {
+      "byte_size": 4347,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_02.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "44ac938893766464f2e3dd4dd760def999d003421c4262eeb01a29583c61cec4"
+    },
+    {
+      "byte_size": 6799,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_amendment_02_precollection.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "c7f43202d023e968733c9f4ac1af8bc9e579f4e5fed3cb539414bbf76972f3cf"
+    },
+    {
+      "byte_size": 1340,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/amendment_02_supersession.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "c6e69d0ec4bdba32a66026d2531a12b5837d7f4fb259501b8a8f4d543cc70cd5"
+    },
+    {
+      "byte_size": 9778,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_amendment_03_precollection.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "47d7b3f4c99bfbcb33a6969721f45cd37582ae409a9bff8a637fdc290784a96d"
+    },
+    {
+      "byte_size": 3620,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/bearing_frame_contradiction_20260721T185522Z.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "61e001603b7222fdfee072aec8de1dac3308e0ed209722dcb8143204e79b2bcc"
+    },
+    {
+      "byte_size": 82400,
+      "path": "src/isaac_audio_sensors/acquisition/s4_3.py",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "d4289959b5ded0893e09eee46d6805199537d5c89f08fa6f501f41102aac521a"
+    },
+    {
+      "byte_size": 26231,
+      "path": "scripts/run_s4_3_trial.py",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "bfddeac6db7eee93bd6411d3a0a67fe637cd41ca4d039afa20847ff1d10e1c8c"
+    },
+    {
+      "byte_size": 5730,
+      "path": "scripts/reanalyze_s4_3_array_frame.py",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "e90f5349593fc3d21390350347f5af0e74db6adb9a92023faa6adffde5884a5e"
+    },
+    {
+      "byte_size": 8747,
+      "path": "scripts/annotate_s4_3_av.py",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "9b43aa3e7c4fe265d8a69586ba6d308d781720ea77696da7fd415cf7eaef399c"
+    },
+    {
+      "byte_size": 20991,
+      "path": "scripts/build_s4_3_evidence.py",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "f52b7a8f54c99cc3482fa5aa7150f1dc5ba58e7d16b57d9748fecdf105e4bde9"
+    },
+    {
+      "byte_size": 10608,
+      "path": "scripts/validate_s4_3_integrity.py",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "7e04871501ce89ce6ec30cb21909487bff2be3165c27c658a660f6e9346fe0bb"
+    },
+    {
+      "byte_size": 19680,
+      "path": "tests/test_s4_3_pilot.py",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "278c8fb75b3c4b4c687a8f1b32676c3f0298866f38944e50023290ac1562a461"
+    },
+    {
+      "byte_size": 9551,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/trial_inventory.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "7dc28936d45f5a9b660e58e0e6e5c3cee75d2b2262b3b4cd95745a250230857f"
+    },
+    {
+      "byte_size": 369,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/failures.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "1810411079bdf68459ee37fcd71971c4c7896a1e02eaa285e1bc632e490c29a6"
+    },
+    {
+      "byte_size": 17685,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/reports/repeatability.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "1cf9f775404e6a2e66dddeec09a0f17a6ce6edbbbe5cfe275d71c7664c41aa93"
+    },
+    {
+      "byte_size": 13157,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/reports/controlled.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "3f2c19878f32b0aaf02cc21634977670b27390cdb4caa849114eada2f5fccd78"
+    },
+    {
+      "byte_size": 13479,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/reports/robustness.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "98e34400f5bcfb8bff30380fdba1cc67b4471995527f636450be8ecb1fe37da0"
+    },
+    {
+      "byte_size": 4870,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/reports/repeatability_gate.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "6e7acf8e146bf9b9346203b30bf9eb27af9e7bb71f2508b27e75ffe7aa1c20af"
+    },
+    {
+      "byte_size": 5654,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/validation/deterministic_replay.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "915b2d0ab4df05db63ab7271f5c9513644250a08a9b2ed744ada48264747d58a"
+    },
+    {
+      "byte_size": 2940,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/validation/machine_local_validation.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "7a0f2ecc58e39977e351a08b1f85c7fe10ff5f017d5a092591e0d99480b1e906"
+    },
+    {
+      "byte_size": 851,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/validation/raw_independent_validation.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "182cec66bbf77b07073af8632302df638fb60e358d0d41927f02c0b41a743840"
+    },
+    {
+      "byte_size": 4639,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/occlusion_confirmation_amendment_03_precollection/validation/evidence_coverage.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "762472826d1116eea3746ceeb19f6de2485a0b94461fce664db5a0f3b243f68a"
+    },
+    {
+      "byte_size": 344,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/SHA256SUMS",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "1f689efc65b1ac1fc410f00d616de7ecd4b6035ca7e487c99db03ad923af7d9c"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/_incoming/pi/producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6e80432ac574d93e5abda11ffec63fdd1b54c7b04e43ad6a0d7355d605d44d31"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/_incoming/pi/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6426efd4b4a4380b55630e6eba16b1766a599f3935bbf23bc27046b4b3582347"
+    },
+    {
+      "byte_size": 256928,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/analysis.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "2e7f91d661d2e785b6ff5f9ba3f2bc367761b2cad8f2c4d3a86d752bb07e01dd"
+    },
+    {
+      "byte_size": 698,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/contract.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "f527b81a3310486ea47ec4617351d5dc8ce255ec25f81e013b7f29837b4bda97"
+    },
+    {
+      "byte_size": 807,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/lifecycle.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "1f19e28229ceed0f3af12eb344eb4cafdd9ddfc58c5c827550e660b262503a46"
+    },
+    {
+      "byte_size": 3578,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/mac_dynamic_preflight.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "490e7eb259c6eb489fb029785850ec62cb25228597ad202c26952ec7d8f13b43"
+    },
+    {
+      "byte_size": 1951,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/manifest.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "32b994d226c576a7f47fb9dc54e7e262d748718f1a0ac559af48ca7bdc25c235"
+    },
+    {
+      "byte_size": 761,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/playback.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "fbb06cb1a339111adc38d2fbe790e04b7c520ee2d35c145a698376cec2a5c9c3"
+    },
+    {
+      "byte_size": 1102,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/producer_readiness.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "7ee9c058eb7fa44908450d4187b038b0587d1112291832a3c6a9dd9580cffaea"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/raw/pi_producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6e80432ac574d93e5abda11ffec63fdd1b54c7b04e43ad6a0d7355d605d44d31"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/raw/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6426efd4b4a4380b55630e6eba16b1766a599f3935bbf23bc27046b4b3582347"
+    },
+    {
+      "byte_size": 949,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/remote_contract_checks.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "39630b6410cd91620fa3ef71076f4f8c1832dba16e0982757d54ce0fd1cf54b9"
+    },
+    {
+      "byte_size": 1069,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/transfer.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "4dc7a13f8e64b9011756bd18e1e783370a8d43ccc993c6044b73bb63bc78a11a"
+    },
+    {
+      "byte_size": 629,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_front_01/s4_3_ctl_front_01_20260721T194735Z_c13c81d0/trial_definition.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6b1002db585eefb42d4ab6450a1f25b067fa69ae2ad34924243e48a1eca6c99d"
+    },
+    {
+      "byte_size": 344,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/SHA256SUMS",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "f72752d39bdf838ff5fc661a5d2938ba88cee860c934c4243d3b94ec0a6d92a1"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/_incoming/pi/producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "bed2f12ca89fbea6c5ace35e53306d521089d522683435ea17bf231bfb076f73"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/_incoming/pi/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "8bd19cd04789d10af6de9f1f3ae716778f98f09d623591f73ab384bd6c3147af"
+    },
+    {
+      "byte_size": 258448,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/analysis.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "f67ab4dc47d9008fb668d1353aecf51cc7c8e9ccad2c0723e09d86c6eb79f670"
+    },
+    {
+      "byte_size": 709,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/contract.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "dab11d0fd312d07ebd7ece3e7627841a4db0ba6756865c07571d3ddb6ce6fb4e"
+    },
+    {
+      "byte_size": 807,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/lifecycle.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "754669af3ea035b6d8a4046b7328d99c25d834b177fc2700c8cdb8a0285ac24f"
+    },
+    {
+      "byte_size": 3578,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/mac_dynamic_preflight.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "f8a1e215d8d2dedd63888529fc6bdadc9e06513a9c46e662cba78ea2f7b4a64d"
+    },
+    {
+      "byte_size": 1967,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/manifest.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6327d55b57f6aa3e3cf8bd6000dc76baf2e1f18fd4aefd708806958add6ac880"
+    },
+    {
+      "byte_size": 759,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/playback.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "10bcd8dbf02d54d23e65b0de61ca7f6e2f6f63fb795a72d7704343c9a26d92b3"
+    },
+    {
+      "byte_size": 1102,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/producer_readiness.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "252f9a32868ef6afc8f90d02c590c3c38cb3cbebd981d89c25097856608484d4"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/raw/pi_producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "bed2f12ca89fbea6c5ace35e53306d521089d522683435ea17bf231bfb076f73"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/raw/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "8bd19cd04789d10af6de9f1f3ae716778f98f09d623591f73ab384bd6c3147af"
+    },
+    {
+      "byte_size": 949,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/remote_contract_checks.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "77af660b1fbcd47a33de3754e8fc1991f5ef0df277bd9bde23803a1cf63a7f54"
+    },
+    {
+      "byte_size": 1117,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/transfer.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "9decac1451062d7a6b843b4d9f85e49f8b145130b3f152fcccf621d2df648805"
+    },
+    {
+      "byte_size": 628,
+      "path": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83/trial_definition.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "a21274249e74a57d8ea10e240c371c6700feec95e8f33d7f86fe162f7e6c2c60"
+    },
+    {
+      "byte_size": 344,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/SHA256SUMS",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "e6cf41d625802e6ab6813ac7f5044ddc322e6c9d31b0d952d9334aadea6512eb"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/_incoming/pi/producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "ad2836dc5872a374d739fb7d55eaddfc851922162a4a0b9e8bdaf0583f3d07c5"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/_incoming/pi/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6f75fbe1a7338dd0034d47b0a9ea8c42d8a1c4166f578015d879ad62334e0af3"
+    },
+    {
+      "byte_size": 257695,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/analysis.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "867a7fc494624c191f8fcb0eebf3d23ee562558b51e36eadf9dcd3653b5ce81b"
+    },
+    {
+      "byte_size": 803,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/contract.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6e534e2b54044a2d2025a830717badfee14c9056d673e20139f2ce8375b68654"
+    },
+    {
+      "byte_size": 807,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/lifecycle.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "cb97e530284633343cc64aac97f6e25bf6acd6a1c0a82dc7661c09a37ce20866"
+    },
+    {
+      "byte_size": 3578,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/mac_dynamic_preflight.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "9c61f15649b6d4b013d7676d25c4b33a68177ccd49f84a72e438243c74bab5e0"
+    },
+    {
+      "byte_size": 1993,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/manifest.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "942a8259bc43634d1c73ee3441933866a4b2db43ad95dde0883f27cbc660dccb"
+    },
+    {
+      "byte_size": 759,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/playback.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "be78c3799202ea8d13fadc9cde6b0d8d35005ebff109d962c45a230b8e4d6fc5"
+    },
+    {
+      "byte_size": 1102,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/producer_readiness.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "aaba22296ce95704e5125d81039bf0db238b092e467b10d3b5c1aa35b51d70d2"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/raw/pi_producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "ad2836dc5872a374d739fb7d55eaddfc851922162a4a0b9e8bdaf0583f3d07c5"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/raw/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6f75fbe1a7338dd0034d47b0a9ea8c42d8a1c4166f578015d879ad62334e0af3"
+    },
+    {
+      "byte_size": 949,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/remote_contract_checks.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "d99131bacf1ef8c897d71e0ddfc543be4afd7b4be83affc8492b89504bf2ea20"
+    },
+    {
+      "byte_size": 1231,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/transfer.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "59fb51a7c8d66af8242a2e9bc70a256a4fe94f25a3e394e20fe7edb97ba0b325"
+    },
+    {
+      "byte_size": 775,
+      "path": "dataset/S4.3/attempts/s4_3_rob_occluded_01/s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm/trial_definition.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "8649858b048b88622823048101ab2bc8e19110ffe2f6445d808452ac6442e75a"
+    },
+    {
+      "byte_size": 344,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/SHA256SUMS",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "a76b87dfc5dcf83710d54d45864a136690830581f8aae65c14057de6366f9279"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/_incoming/pi/producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "ad90ea94f87582172e9adfffb8e8b183e16f840536a8ad0992ed3c42ba9abe7f"
+    },
+    {
+      "byte_size": 2880044,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/_incoming/pi/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "78a5f31e7a8d0af349d0184534ec745ba6ccdf38f8dd974ba23dd8b96138355f"
+    },
+    {
+      "byte_size": 424329,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/analysis.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "e3395c2b202a410decbf9f34b2a69225b2868cd11cba60cc81ae6b377798dd49"
+    },
+    {
+      "byte_size": 696,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/contract.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "98a8c90f3f304286499fb37853d56e0721487a9ecf87e8e9283ac54f7434ef0a"
+    },
+    {
+      "byte_size": 807,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/lifecycle.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "27e44c4852ab21251fe17c878965317c0b26daaca40db677aebf65b8ea81502a"
+    },
+    {
+      "byte_size": 1949,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/manifest.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "8b59689cc94e46b1709db8f4d8abd8ad8ed7c5337133d8c7fca3bde346cdd218"
+    },
+    {
+      "byte_size": 1102,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/producer_readiness.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "2c3c4b6c2f90768841ec34fa5ce55c34fd6e7cd8ff1b439aeace6d40cf4633c6"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/raw/pi_producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "ad90ea94f87582172e9adfffb8e8b183e16f840536a8ad0992ed3c42ba9abe7f"
+    },
+    {
+      "byte_size": 2880044,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/raw/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "78a5f31e7a8d0af349d0184534ec745ba6ccdf38f8dd974ba23dd8b96138355f"
+    },
+    {
+      "byte_size": 426,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/remote_contract_checks.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "a6598627998b3b31f9dd5694983dabab0ea7f2ccdf5bca87e02a24b1c102083e"
+    },
+    {
+      "byte_size": 1081,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/transfer.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "e1b8e16f957225d4aa962c2128d56bbda48663c2c2735988cdeab6ee611cdc29"
+    },
+    {
+      "byte_size": 571,
+      "path": "dataset/S4.3/attempts/s4_3_rob_silence_01/s4_3_rob_silence_01_20260721T195500Z_c23f31ed/trial_definition.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "be09d00a57759a659c46288a8c47b05bd7724d4ffdc6d9ffd1b4a8ec0f545d11"
+    },
+    {
+      "byte_size": 3,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0/cleanup.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+    },
+    {
+      "byte_size": 720,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0/contract.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "4d2ff0909bd3a0b7af4813945a640c58a78028eed9aa7d769b13c710940c642d"
+    },
+    {
+      "byte_size": 303,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0/failure.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "3118a010b26f641058f6e47f461df20f07124ff2502123218da0a17ca407886d"
+    },
+    {
+      "byte_size": 467,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0/lifecycle.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "846ba69cf4909419b516bc1c08d13acc5b7e59fb5f332e0dc3008bc61260fe53"
+    },
+    {
+      "byte_size": 652,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0/trial_definition.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "0d0ce9ada6dd2984e03392ecd7167da507b9aee6b5a395217cedfcfa22354054"
+    },
+    {
+      "byte_size": 344,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/SHA256SUMS",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "76e371d73d16a5a77eb9510ecf0e7bfefc1a3717f2eb5224b66d53a7215ca4a0"
+    },
+    {
+      "byte_size": 197,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/SHA256SUMS.amendment_01",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "d8e391ef7e862690b1243cb229aacf22112e6fdff2a3a6e5b9e41203824536dc"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/_incoming/pi/producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "f7d140c6a4587d3c5f4723dc2823a2f6434bfa6605ceaa6ab410c9a82a3b71ce"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/_incoming/pi/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "ca9350ad4f5b6a679c898b6fe9733c7cefd2373bd8828e5641903d3d6a7333cf"
+    },
+    {
+      "byte_size": 257289,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/analysis.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "1022d5f840c2e0e3b4fae33ac48e752d3a71042afec2ce0881fd177735ef15aa"
+    },
+    {
+      "byte_size": 258511,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/analysis_amendment_01.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "0852eba43d1bcaf355d33a771eac73846f5ffa4a28a20216560abf4f4d85fec8"
+    },
+    {
+      "byte_size": 1389,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/analysis_amendment_01_provenance.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "853cd65d171c18f7cb9d8a76204fcdf09484f89e337fd259f06ec1bc0bbb0102"
+    },
+    {
+      "byte_size": 720,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/contract.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "939a25453eccebfc3f6c8e4b724492afc8c24d0eaf7148485d22c35ca3b16b87"
+    },
+    {
+      "byte_size": 807,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/lifecycle.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "0cdcc099fe83df86387178ff92fb636934be89324bb85c5bc133ee73159944e7"
+    },
+    {
+      "byte_size": 3026,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/mac_dynamic_preflight.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "33cf85fc136fecb2b1f688a40df9533a364c53a85030b9c6806862df3be0ce7d"
+    },
+    {
+      "byte_size": 1960,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/manifest.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "2f6a28adc47ea71cd28b82938aade3e2d284fc9f86b17648cc7664ed74c40288"
+    },
+    {
+      "byte_size": 761,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/playback.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "a28eb8bd581435000bcc89e72e1dad305b02dacc87e2c9ead703a6d342b5acbf"
+    },
+    {
+      "byte_size": 1102,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/producer_readiness.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "3b870e15e23be4d672704df2e982c19f387d9ec499a16666dcc0fef734e67156"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/raw/pi_producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "f7d140c6a4587d3c5f4723dc2823a2f6434bfa6605ceaa6ab410c9a82a3b71ce"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/raw/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "ca9350ad4f5b6a679c898b6fe9733c7cefd2373bd8828e5641903d3d6a7333cf"
+    },
+    {
+      "byte_size": 948,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/remote_contract_checks.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6d37b632b46727f33fd982b79f3985f674bf41e181ac206c5dcc53e9e536f94f"
+    },
+    {
+      "byte_size": 1086,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/transfer.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "98768f468f65fbec4ce6c213adfa01d3f00d9f5ae27a557a6e77e5fd458f8961"
+    },
+    {
+      "byte_size": 652,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83/trial_definition.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "0d0ce9ada6dd2984e03392ecd7167da507b9aee6b5a395217cedfcfa22354054"
+    },
+    {
+      "byte_size": 344,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/SHA256SUMS",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "c5871d247d749d1b25243a4c4dbb6daacc26811f4596643ae780e89375b634c8"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/_incoming/pi/producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "ae7e4196032aaed631ff4efb5e8482301404e04993c0401edba64cc21de8ff29"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/_incoming/pi/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "abc8f4262895e6e6145a777f0d524d15edde2b0df2bbf743567282b9c1bd86e9"
+    },
+    {
+      "byte_size": 257374,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/analysis.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "c370829538d7dfbc92c77656bd890638ce08023f50eaaaf7cd394276a3ff93f9"
+    },
+    {
+      "byte_size": 800,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/contract.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "d848445f2b54c0171590f50cd0a7ea9e621b0dba334cea046f1e2cca0697d624"
+    },
+    {
+      "byte_size": 807,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/lifecycle.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "292f30e3d6e52b46573aed557612d8a4f075276b2cd98f034e718a1fddaaf70a"
+    },
+    {
+      "byte_size": 3026,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/mac_dynamic_preflight.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "362d73750d3b48a305abcaef3ec2792bfa987dfe1158f15768fcc65dc9528e64"
+    },
+    {
+      "byte_size": 2006,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/manifest.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "4e4a54e15801472c3155399202864859e784933a8c0e63fdef0ddcda885bf045"
+    },
+    {
+      "byte_size": 759,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/playback.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "a320de64d1741ce57d76eb43f4503743d16f0d90909f0099acdddecaa1719650"
+    },
+    {
+      "byte_size": 1102,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/producer_readiness.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "b9cf9004706f913b65d4b285dceae16edd51f0119d7b01ee7abba083a10e9ef5"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/raw/pi_producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "ae7e4196032aaed631ff4efb5e8482301404e04993c0401edba64cc21de8ff29"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/raw/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "abc8f4262895e6e6145a777f0d524d15edde2b0df2bbf743567282b9c1bd86e9"
+    },
+    {
+      "byte_size": 949,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/remote_contract_checks.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "e32e93e37f4108045666fcbbd519f4bcc2a66f713a0617298c2d9e9ceb243a87"
+    },
+    {
+      "byte_size": 1225,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/transfer.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "0a1603f7db4488beee980f7e754b4aa5599cb4519533575cf7bf3b7d79271915"
+    },
+    {
+      "byte_size": 1029,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78/trial_definition.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "6dbf2a6f65285a36d9e06909c11a778015e6c55dc938254efc63fa8c4436f155"
+    },
+    {
+      "byte_size": 344,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/SHA256SUMS",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "def0ad652274c67724d286d5a63cc57d6cd1a0742a2728c96235120bd23e1d8e"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/_incoming/pi/producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "0188d849b5cbf85f266296120918256208f020582afd9b071e4f1346e1687239"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/_incoming/pi/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "312758420ffc0cd3b0b7d84322a956e591e7e7fc5d520cc01785b061002c8abd"
+    },
+    {
+      "byte_size": 257446,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/analysis.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "299ceb4ebd36b8ee8fc27f45a62067191a11732d2a901907cf4bdbf95e7f4a97"
+    },
+    {
+      "byte_size": 702,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/contract.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "e90f0f3a3c1072d40108c28faf50ed722945c69d9a6a404b29984be19fa521af"
+    },
+    {
+      "byte_size": 807,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/lifecycle.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "5d08cb655ef5fad8bbfef9102d93ffdb454ac79f996b9b2b64122105b63106f7"
+    },
+    {
+      "byte_size": 3026,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/mac_dynamic_preflight.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "8442e2e2e3b67422e039bdfcc8c165c19cf31c0c45ffb1554c6f11f02409e1e9"
+    },
+    {
+      "byte_size": 1960,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/manifest.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "300f1cea9a1ec3e0b3504e0a7ea22384e637b291001e0c3ede23a83b387cde46"
+    },
+    {
+      "byte_size": 759,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/playback.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "175c9641364c2bf465753e59bae658f2d398d9e2f3f5074a4a1a178eba1d9fa7"
+    },
+    {
+      "byte_size": 1102,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/producer_readiness.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "a0a6a08e4a09ae303d27a783f78ea78f8b484ea44196e2f5b5c31c3c6745c691"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/raw/pi_producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "0188d849b5cbf85f266296120918256208f020582afd9b071e4f1346e1687239"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/raw/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "312758420ffc0cd3b0b7d84322a956e591e7e7fc5d520cc01785b061002c8abd"
+    },
+    {
+      "byte_size": 949,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/remote_contract_checks.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "84717997d106fb46953fe35c3c23a176331bff85d20038059e8a6bdd9afa4c30"
+    },
+    {
+      "byte_size": 1087,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/transfer.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "9d6580eecff59861e64ab363d0d5c3cb6ef276124534a9d552a68b6a983e0b98"
+    },
+    {
+      "byte_size": 634,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747/trial_definition.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "e788aa0375d7c4417e06a72c4727ddaac95ab3ff08f90f8c15d2f6cdc6bc7982"
+    },
+    {
+      "byte_size": 344,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/SHA256SUMS",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "cc698c48190973fb0fe915dd85332c2809adab79a7e95bf7f4fa0bc256e805c2"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/_incoming/pi/producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "048b384d909d660377caac47cfc95156a2a342864f5dbb7907e11f66bef3b575"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/_incoming/pi/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "96f98f93852b44d7208ba4ca9ad4dc9d723f723d6f0e501d3e52ccebe8e82d1b"
+    },
+    {
+      "byte_size": 257568,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/analysis.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "7aa1e3fcc325c27658c23b2a15e914ce11c0f123fedd2cd291c043ffb7b8072b"
+    },
+    {
+      "byte_size": 702,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/contract.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "a9dcc5478edb6e6235b9eef8ad4dce570121ac1c0cfd2cac1df85a0c10d915dd"
+    },
+    {
+      "byte_size": 807,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/lifecycle.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "4c130f298fad218f4a6302a8c327d05d654e19178647a0525f1f20e30fb68e54"
+    },
+    {
+      "byte_size": 3026,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/mac_dynamic_preflight.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "943cd86b6fa6c853a1e46c3a503a9b6b6858cb44dc96bdcd1fb6b8f4d2532dc9"
+    },
+    {
+      "byte_size": 1960,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/manifest.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "03a83ad685d61096f55b1d05c4b26cc5f82960b2696d8ae60024bb774300786a"
+    },
+    {
+      "byte_size": 761,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/playback.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "e2bc1bcfe786e985adc1649c20a587228c7839a90650ca46145a361a41f55c2a"
+    },
+    {
+      "byte_size": 1102,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/producer_readiness.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "c50f757a7ddb68d22276198bee844e2a21d69d263ddda15c0926c75e64fc8e0b"
+    },
+    {
+      "byte_size": 1286,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/raw/pi_producer_status.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "048b384d909d660377caac47cfc95156a2a342864f5dbb7907e11f66bef3b575"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/raw/respeaker_audio.wav",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "96f98f93852b44d7208ba4ca9ad4dc9d723f723d6f0e501d3e52ccebe8e82d1b"
+    },
+    {
+      "byte_size": 949,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/remote_contract_checks.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "e89d8b2c87e9513902a45ed1065356776a80cc39baa3405a9e7f967dcf56f5fc"
+    },
+    {
+      "byte_size": 1086,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/transfer.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "b4f71380951df4c887c7b9e7b17242fe5b03d2b53a176b8c6d9926e61d728948"
+    },
+    {
+      "byte_size": 634,
+      "path": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd/trial_definition.json",
+      "retention": "machine_local_gitignored",
+      "role": "machine_local_s4_3_evidence",
+      "sha256": "bdd740c31f7af352911bd28dd0a33cc782a6761052bf04b5b1b40c0e9c2d650d"
+    }
+  ],
+  "machine_local_artifact_count": 126,
+  "outcome_counts": {
+    "accepted": 8,
+    "failed": 1
+  },
+  "s4_4_started": false,
+  "schema": "ias.s4_3.evidence_index.v1",
+  "status": "passed",
+  "tracked_artifact_count": 37
+}

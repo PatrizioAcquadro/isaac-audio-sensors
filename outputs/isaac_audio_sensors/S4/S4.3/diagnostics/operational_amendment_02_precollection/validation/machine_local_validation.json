@@ -1,0 +1,69 @@
+{
+  "attempt_count": 5,
+  "checks": [
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0",
+      "integrity": {
+        "checked": 3,
+        "failure_evidence_without_media": true,
+        "issues": [],
+        "status": "passed"
+      },
+      "trial_id": "s4_3_rpt_baseline_01"
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
+      "integrity": {
+        "checked": 6,
+        "checksum_manifests": [
+          "SHA256SUMS",
+          "SHA256SUMS.amendment_01"
+        ],
+        "issues": [],
+        "status": "passed"
+      },
+      "trial_id": "s4_3_rpt_baseline_01"
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_02_20260721T191817Z_b080d747",
+      "integrity": {
+        "checked": 4,
+        "checksum_manifests": [
+          "SHA256SUMS"
+        ],
+        "issues": [],
+        "status": "passed"
+      },
+      "trial_id": "s4_3_rpt_baseline_02"
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd",
+      "integrity": {
+        "checked": 4,
+        "checksum_manifests": [
+          "SHA256SUMS"
+        ],
+        "issues": [],
+        "status": "passed"
+      },
+      "trial_id": "s4_3_rpt_baseline_03"
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78",
+      "integrity": {
+        "checked": 4,
+        "checksum_manifests": [
+          "SHA256SUMS"
+        ],
+        "issues": [],
+        "status": "passed"
+      },
+      "trial_id": "s4_3_rpt_baseline_01_confirm_array_frame_01"
+    }
+  ],
+  "fresh_clone_raw_available": false,
+  "machine_local_root": "dataset/S4.3",
+  "replicated": false,
+  "schema": "ias.s4_3.machine_local_validation.v1",
+  "status": "passed"
+}

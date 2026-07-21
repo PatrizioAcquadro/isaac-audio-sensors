@@ -262,12 +262,22 @@ confirmed that both ZED and ReSpeaker are approximately `5.5 m` from the right
 structural wall. A physical outline has been marked to reproduce the fixture's
 desk placement, so a ZED-to-desk-edge distance is not required for the current
 placement method. The physical project axes use the package convention: local
-`+X` forward along the ZED viewing direction, local `+Y` to the operator's
-right while facing the camera (the ZED camera's left), and local `+Z`
-vertically upward. The photographed `+X` and `+Y` arrows are
-consistent with this convention. On July 20 the operator confirmed that the
+`+X` forward along the ZED viewing direction, local `+Y` right as viewed from
+the ZED (the operator's left while facing the camera), and local `+Z`
+vertically upward. This wording was corrected on July 21 before any S4.3 trial
+to match the authoritative S4.1 frame lock; the machine-readable frame lock
+itself did not change. The photographed `+X` and `+Y` arrows are consistent
+with this convention. On July 20 the operator confirmed that the
 `+Z`-up mark was subsequently added; no additional photograph was required for
 this user-reported fixture-state update.
+
+Physical instructions use the explicit `F_operator_facing_zed` frame first.
+For an operator standing in front of and facing the ZED: +X is behind the
+operator/in front of the ZED, -X is in front of the operator/behind the ZED,
++Y is the operator's right, -Y is the operator's left, +Z is ceiling/up, and
+-Z is floor/down. It shares the `F_project` origin. Conversion to the canonical
+software frame is `(x, y, z)_project = (x, -y, z)_operator` and
+`bearing_project = (-bearing_operator) mod 360`.
 
 WANG 2022 is a repeatable **open-office functional environment**, not an
 anechoic or acoustically controlled room. Carpet and ceiling tiles provide some

@@ -17,14 +17,35 @@
     "record_path": "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
     "record_sha256": null
   },
+  "coordinate_correction": {
+    "id": "S4.2-DUAL-FRAME-RECONCILIATION-2026-07-21-A",
+    "record_path": "docs/development/specs/s4_2_dual_frame_coordinate_reconciliation.v1.json",
+    "record_sha256": null,
+    "superseded_record_path": "docs/development/specs/s4_2_post_capture_coordinate_correction.v1.json",
+    "superseded_record_sha256": "80e5131a9654a9d4f5dbf978ab6ae8dcca193c4654e96765837a78c74caa58c1"
+  },
   "coordinate_frame": {
     "axes": {
       "x": "forward",
-      "y": "operator_right_facing_camera_zed_camera_left",
+      "y": "right_as_viewed_from_zed_operator_left_facing_camera",
       "z": "up"
     },
-    "bearing_definition": "degrees counterclockwise from +X toward +Y viewed from above",
+    "bearing_definition": "degrees clockwise from +X toward +Y viewed from above",
     "frame_name": "F_project",
+    "origin": "ZED stereo-lens midpoint",
+    "position_units": "m"
+  },
+  "operator_facing_frame": {
+    "axes": {
+      "negative_x": "in_front_of_operator_behind_zed",
+      "negative_y": "operator_left",
+      "negative_z": "down_toward_floor",
+      "positive_x": "behind_operator_forward_of_zed",
+      "positive_y": "operator_right",
+      "positive_z": "up_toward_ceiling"
+    },
+    "bearing_definition": "degrees clockwise from +X toward +Y viewed from above",
+    "frame_name": "F_operator_facing_zed",
     "origin": "ZED stereo-lens midpoint",
     "position_units": "m"
   },
@@ -144,11 +165,15 @@
     "orientation_deg": null,
     "orientation_measurement_classification": null,
     "position_m": null,
+    "position_operator_facing_zed_m": null,
     "relative_side": null,
+    "relative_side_operator_facing_zed": null,
+    "relative_side_project_view": null,
     "screen_heading": null,
     "speaker_height_m": null,
     "vertical_offset_uncertainty_m": null,
-    "bearing_deg_counterclockwise_from_positive_x": null
+    "bearing_deg_clockwise_from_positive_x": null,
+    "bearing_operator_facing_zed_deg": null
   },
   "raw_evidence": {
     "checksum_command": "cd dataset/S4.2 && sha256sum -c SHA256SUMS",

@@ -1,0 +1,218 @@
+{
+  "schema": "ias.s4_3.pilot_config.v1",
+  "phase": "S4.3",
+  "title": "Pilot Repeatability and Functional Characterization",
+  "frozen_at_utc": "2026-07-21T17:55:54Z",
+  "baseline_commit": "64f32ed7658e939deb907853d8303d32e78047c3",
+  "spec_path": "docs/development/specs/s4_3_pilot_repeatability.md",
+  "s4_2_coordinate_correction": {
+    "id": "S4.2-DUAL-FRAME-RECONCILIATION-2026-07-21-A",
+    "path": "docs/development/specs/s4_2_dual_frame_coordinate_reconciliation.v1.json",
+    "sha256": "0c060cfb38f0b35288f123cdee786456b71ee9d68ca3b52eab543e0b5cfc3a44",
+    "superseded_path": "docs/development/specs/s4_2_post_capture_coordinate_correction.v1.json",
+    "superseded_sha256": "80e5131a9654a9d4f5dbf978ab6ae8dcca193c4654e96765837a78c74caa58c1"
+  },
+  "coordinate_frame": {
+    "frame_name": "F_project",
+    "origin": "ZED stereo-lens midpoint",
+    "axes": {"x":"forward","y":"right_as_viewed_from_zed_operator_left_facing_camera","z":"up"},
+    "bearing_definition": "degrees clockwise from +X toward +Y viewed from above",
+    "position_units": "m"
+  },
+  "operator_facing_frame": {
+    "frame_name": "F_operator_facing_zed",
+    "origin": "ZED stereo-lens midpoint",
+    "viewpoint": "operator standing in front of and facing the ZED",
+    "axes": {"positive_x":"behind_operator_forward_of_zed","negative_x":"in_front_of_operator_behind_zed","positive_y":"operator_right","negative_y":"operator_left","positive_z":"up_toward_ceiling","negative_z":"down_toward_floor"},
+    "bearing_definition": "degrees clockwise from +X toward +Y viewed from above",
+    "position_units": "m",
+    "operator_to_project": {"x_project":"x_operator","y_project":"-y_operator","z_project":"z_operator","bearing_project":"(-bearing_operator) mod 360"}
+  },
+  "phase_boundary": {
+    "s4_4_started": false,
+    "allowed_claim": "functional engineering characterization of the exact tested rig, source, placements, room, and analysis path",
+    "unsupported_claims": [
+      "absolute SPL",
+      "absolute microphone sensitivity",
+      "isolated speaker response",
+      "isolated microphone response",
+      "certified reverberation",
+      "traceable calibration",
+      "precision optical-acoustic extrinsics",
+      "live end-to-end capture latency",
+      "universal transfer"
+    ],
+    "classifications": [
+      "Verified",
+      "Measured",
+      "CAD-derived",
+      "Nominal",
+      "Approximate",
+      "Unmeasured",
+      "Unsupported"
+    ]
+  },
+  "hardware": {
+    "fixture_id": "S4_TEMP_DESKTOP_FIXTURE_REV0",
+    "room_id": "WANG_2022_DESK_NEAR_ENTRANCE",
+    "respeaker_serial": "114993701261100454",
+    "respeaker_firmware": "2.08",
+    "respeaker_device": "hw:CARD=Array,DEV=0",
+    "respeaker_ssh_alias": "elab-raspberrypi5",
+    "mac_ssh_alias": "patrizios-macbook",
+    "mac_model": "MacBookPro18,1",
+    "mac_output_device": "MacBook Pro Speakers",
+    "mac_volume_percent": 40,
+    "mac_afplay_gain": 1.0,
+    "zed_serial": "39011785",
+    "zed_sdk": "5.4.0"
+  },
+  "audio": {
+    "sample_rate_hz": 16000,
+    "sample_format": "S16_LE",
+    "channel_count": 6,
+    "channel_order": [
+      "conference",
+      "asr",
+      "raw_microphone_0",
+      "raw_microphone_1",
+      "raw_microphone_2",
+      "raw_microphone_3"
+    ],
+    "analysis_channel_indices": [2, 3, 4, 5],
+    "analysis_channel_ids": ["raw_microphone_0", "raw_microphone_1", "raw_microphone_2", "raw_microphone_3"],
+    "nominal_microphone_positions_m": [
+      [0.033, -0.033, 0.0],
+      [0.033, 0.033, 0.0],
+      [-0.033, 0.033, 0.0],
+      [-0.033, -0.033, 0.0]
+    ],
+    "geometry_classification": "Nominal",
+    "enclosure_to_project_alignment_classification": "Approximate",
+    "acoustic_axis_uncertainty": "Unmeasured"
+  },
+  "reference": {
+    "local_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+    "mac_path": "S4.2/reference/s4_2_reference_v1.0.0.wav",
+    "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468",
+    "duration_s": 9.5,
+    "minimum_normalized_correlation": 0.03,
+    "minimum_correlated_raw_channels": 2
+  },
+  "analysis": {
+    "window_duration_ms": 250,
+    "window_overlap_percent": 50,
+    "azimuth_step_deg": 2.0,
+    "gcc_interp": 8,
+    "nominal_speed_of_sound_mps": 343.0,
+    "signal_rms_full_scale_threshold": 0.002,
+    "minimum_detection_confidence": 0.015,
+    "low_confidence_ambiguity_threshold": 0.05,
+    "candidate_coverage_tolerance_deg": 20.0,
+    "spectral_bands_hz": [[250, 500], [500, 1000], [1000, 2000], [2000, 4000], [4000, 6500]],
+    "p95_method": "deterministic_nearest_rank_small_sample_labeled",
+    "deterministic_replay": true
+  },
+  "quality": {
+    "duration_tolerance_s": 0.25,
+    "maximum_sustained_clip_run_samples": 8,
+    "required_raw_channels": 4,
+    "reference_requires_complete_stimulus": true,
+    "required_reference_correlation": 0.03,
+    "required_reference_correlated_raw_channels": 2,
+    "impact_av_maximum_association_uncertainty_ms": 50.0,
+    "missing_required_data": "trial_quality_failed_and_metric_missing",
+    "unplanned_or_corrupt_evidence": "retain_fail_closed_never_repair_in_place"
+  },
+  "repeatability_acceptance": {
+    "required_baseline_trials": 3,
+    "median_absolute_bearing_error_deg_max": 30.0,
+    "worst_trial_median_absolute_bearing_error_deg_max": 45.0,
+    "trial_median_bearing_circular_range_deg_max": 20.0,
+    "sector_accuracy_min": 0.6666666666666666,
+    "candidate_coverage_min": 0.6666666666666666,
+    "pair_tdoa_trial_median_range_us_max": 125.0,
+    "relative_rms_trial_median_range_db_max": 3.0,
+    "spectral_band_trial_median_range_db_max": 6.0,
+    "silence_abstention_rate_min": 0.95,
+    "major_polarity_anomaly_count_max": 0,
+    "raw_channel_health_failure_count_max": 0
+  },
+  "expansion": {
+    "triggers": [
+      "quality_failure",
+      "excessive_baseline_variance",
+      "unresolved_bearing_or_sector_decision",
+      "analysis_contradiction",
+      "uncovered_required_claim"
+    ],
+    "freeze_before_added_capture": true,
+    "maximum_confirmation_trials_per_triggered_cell": 1,
+    "maximum_added_trials_total": 3,
+    "threshold_tuning_from_results_forbidden": true
+  },
+  "stopping_rule": {
+    "all_planned_trials_terminal": true,
+    "quality_and_repeatability_pass": true,
+    "all_required_metrics_reported_or_honestly_inapplicable": true,
+    "unresolved_expansion_triggers": 0,
+    "diminishing_information_gain": "an additional compatible trial would duplicate a stable covered result"
+  },
+  "retention": {
+    "machine_local_root": "dataset/S4.3",
+    "attempt_root": "dataset/S4.3/attempts",
+    "tracked_evidence_root": "outputs/isaac_audio_sensors/S4/S4.3",
+    "raw_gitignored": true,
+    "replicated": false,
+    "fresh_clone_raw_available": false,
+    "retain_all_outcomes": ["planned", "rejected", "interrupted", "failed", "unfavorable", "accepted"]
+  },
+  "matrix": [
+    {"trial_id":"s4_3_rpt_baseline_01","category":"repeatability","stimulus":"mac_reference","duration_s":20,"repetition":1,"source_frame":"F_project","source_position_m":[0.0,0.9,-0.135],"source_bearing_deg":90.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[0.0,-0.9,-0.135],"operator_source_bearing_deg":270.0,"source_distance_m":0.91,"mac_volume_percent":40,"occlusion":"none","zed_required":false,"operator_action":"from_your_view_place_mac_on_your_left_at_operator_0_-0.90_-0.135_then_verify_project_0_+0.90_-0.135"},
+    {"trial_id":"s4_3_rpt_baseline_02","category":"repeatability","stimulus":"mac_reference","duration_s":20,"repetition":2,"source_frame":"F_project","source_position_m":[0.0,0.9,-0.135],"source_bearing_deg":90.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[0.0,-0.9,-0.135],"operator_source_bearing_deg":270.0,"source_distance_m":0.91,"mac_volume_percent":40,"occlusion":"none","zed_required":false,"operator_action":"from_your_view_keep_mac_unchanged_on_your_left_then_verify_project_0_+0.90_-0.135"},
+    {"trial_id":"s4_3_rpt_baseline_03","category":"repeatability","stimulus":"mac_reference","duration_s":20,"repetition":3,"source_frame":"F_project","source_position_m":[0.0,0.9,-0.135],"source_bearing_deg":90.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[0.0,-0.9,-0.135],"operator_source_bearing_deg":270.0,"source_distance_m":0.91,"mac_volume_percent":40,"occlusion":"none","zed_required":false,"operator_action":"from_your_view_keep_mac_unchanged_on_your_left_then_verify_project_0_+0.90_-0.135"},
+    {"trial_id":"s4_3_ctl_front_01","category":"controlled","stimulus":"mac_reference","duration_s":20,"repetition":1,"source_frame":"F_project","source_position_m":[0.9,0.0,-0.135],"source_bearing_deg":0.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[0.9,0.0,-0.135],"operator_source_bearing_deg":0.0,"source_distance_m":0.91,"mac_volume_percent":40,"occlusion":"none","zed_required":false,"operator_action":"from_your_view_place_mac_behind_you_in_front_of_zed_then_verify_project_+0.90_0_-0.135"},
+    {"trial_id":"s4_3_ctl_opposite_side_01","category":"controlled","stimulus":"mac_reference","duration_s":20,"repetition":1,"source_frame":"F_project","source_position_m":[0.0,-0.9,-0.135],"source_bearing_deg":270.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[0.0,0.9,-0.135],"operator_source_bearing_deg":90.0,"source_distance_m":0.91,"mac_volume_percent":40,"occlusion":"none","zed_required":false,"operator_action":"from_your_view_place_mac_on_your_right_then_verify_project_0_-0.90_-0.135"},
+    {"trial_id":"s4_3_rob_silence_01","category":"robustness","stimulus":"silence","duration_s":15,"repetition":1,"source_frame":"F_project","source_position_m":null,"source_bearing_deg":null,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":null,"operator_source_bearing_deg":null,"source_distance_m":null,"mac_volume_percent":null,"occlusion":"not_applicable","zed_required":false,"operator_action":"from_your_view_remove_or_silence_all_deliberate_sources_no_position_applicable"},
+    {"trial_id":"s4_3_rob_occluded_01","category":"robustness","stimulus":"mac_reference","duration_s":20,"repetition":1,"source_frame":"F_project","source_position_m":[0.0,0.9,-0.135],"source_bearing_deg":90.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[0.0,-0.9,-0.135],"operator_source_bearing_deg":270.0,"source_distance_m":0.91,"mac_volume_percent":40,"occlusion":"operator-identified rigid ordinary object fully blocks direct line between Mac speakers and rig without touching either","zed_required":false,"operator_action":"from_your_view_keep_mac_on_your_left_and_place_occluder_between_mac_and_zed_then_verify_project_0_+0.90_-0.135"},
+    {"trial_id":"s4_3_rob_voice_01","category":"robustness","stimulus":"standardized_voice","duration_s":15,"repetition":1,"source_frame":"F_project","source_position_m":[0.0,0.9,-0.135],"source_bearing_deg":90.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[0.0,-0.9,-0.135],"operator_source_bearing_deg":270.0,"source_distance_m":0.91,"mac_volume_percent":null,"occlusion":"none","zed_required":false,"operator_action":"from_your_view_speak_twice_from_your_left_baseline_then_verify_project_0_+0.90_-0.135"},
+    {"trial_id":"s4_3_rob_overlap_01","category":"robustness","stimulus":"mac_reference_plus_standardized_voice","duration_s":20,"repetition":1,"source_frame":"F_project","source_position_m":[0.0,0.9,-0.135],"source_bearing_deg":90.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[0.0,-0.9,-0.135],"operator_source_bearing_deg":270.0,"source_distance_m":0.91,"mac_volume_percent":40,"occlusion":"none","zed_required":false,"operator_action":"from_your_view_speak_during_reference_from_your_left_baseline_then_verify_project_0_+0.90_-0.135"},
+    {"trial_id":"s4_3_rob_rear_near_01","category":"robustness","stimulus":"mac_reference","duration_s":20,"repetition":1,"source_frame":"F_project","source_position_m":[-0.4,0.0,-0.135],"source_bearing_deg":180.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[-0.4,0.0,-0.135],"operator_source_bearing_deg":180.0,"source_distance_m":0.42,"mac_volume_percent":40,"occlusion":"near rear boundary; source distance and room boundary confounded by access","zed_required":false,"operator_action":"from_your_view_place_mac_in_front_of_you_behind_zed_then_verify_project_-0.40_0_-0.135"},
+    {"trial_id":"s4_3_rob_impact_av_01","category":"robustness","stimulus":"visible_audible_ordinary_object_impact","duration_s":20,"repetition":1,"source_frame":"F_project","source_position_m":[1.15,0.0,-0.4],"source_bearing_deg":0.0,"operator_source_frame":"F_operator_facing_zed","operator_source_position_m":[1.15,0.0,-0.4],"operator_source_bearing_deg":0.0,"source_distance_m":1.22,"mac_volume_percent":null,"occlusion":"none","zed_required":true,"operator_action":"from_your_view_perform_privacy_clean_impact_behind_you_in_front_of_zed_then_verify_project_+1.15_0_-0.40"}
+  ],
+  "operator_protocol": {
+    "physical_instruction_order": "operator viewpoint first in F_operator_facing_zed, then canonical F_project in parentheses",
+    "standardized_voice_phrase": "Audio pilot check, one two three, direction test.",
+    "voice_repetitions": 2,
+    "privacy": "no names, identifiers, screens, private labels, third-party media, people, or hands in retained ZED frames",
+    "position_uncertainty_m": 0.02,
+    "bearing_reference_uncertainty_deg": 5.0,
+    "lid_angle_deg": 90.0,
+    "source_orientation": "same general heading as ZED; practical visual placement",
+    "room_occupancy": "zero other people for controlled and repeatability trials"
+  },
+  "metric_contracts": {
+    "bearing_doa_error":{"method":"SRP-PHAT primary and existing GCC-PHAT least-squares comparison on frozen raw-channel windows","reference":"practical marked source bearing in F_project","units":"deg","uncertainty":"5 deg placement reference plus 2 deg grid; acoustic-axis uncertainty unmeasured","aggregation":"window and trial count, median, MAD, nearest-rank p95, worst","exclusions":"quality-invalid or abstained windows excluded from numeric error but counted","missing":"required reference trial fails metric coverage","applicability":"reference, voice, overlap, rear, and impact active windows","limitations":"nominal mic geometry and approximate array/project alignment"},
+    "candidate_bearing":{"method":"candidate set emitted by existing estimators; coverage within frozen 20 deg tolerance","reference":"practical source bearing","units":"deg and fraction","uncertainty":"same as bearing reference","aggregation":"candidate count, coverage fraction, median and worst nearest-candidate error","exclusions":"abstained windows counted as uncovered","missing":"required active trial fails coverage","applicability":"active trials with bearing reference","limitations":"not a calibrated probability or exhaustive multipath solution"},
+    "sector_accuracy":{"method":"existing eight-sector mapping of primary bearing","reference":"sector containing practical source bearing","units":"fraction","uncertainty":"boundary cases within 5 deg labeled uncertain","aggregation":"counts, accuracy, worst trial","exclusions":"boundary-uncertain reported separately; abstentions incorrect for active source","missing":"required reference trial fails metric coverage","applicability":"active trials with bearing reference","limitations":"coarse functional sector only"},
+    "tdoa":{"method":"existing GCC-PHAT pair matrix over four raw channels","reference":"nominal plane-wave delay from nominal geometry, 343 m/s, and practical bearing","units":"us","uncertainty":"62.5 us sample period reduced only computationally by interpolation; nominal geometry and environmental speed not measured","aggregation":"per pair count, median, MAD, p95, worst and repeatability range","exclusions":"quality-invalid or abstained windows","missing":"required active reference trial fails metric coverage","applicability":"active trials","limitations":"contains propagation, room, geometry, firmware, and estimator effects"},
+    "channel_presence_order_health":{"method":"WAV header and device identity plus documented firmware channel map; per-channel finite/silence/clipping checks","reference":"frozen S4.2 verified device/channel contract","units":"count, boolean, dBFS","uncertainty":"channel labels Verified by firmware contract; physical acoustic centers not independently traced","aggregation":"all attempts and channels; failure counts and worst clip run","exclusions":"none","missing":"trial quality failure","applicability":"all trials","limitations":"order is contract verification, not injected per-microphone traceability"},
+    "channel_imbalance":{"method":"raw-channel RMS relative to raw-channel median","reference":"same-window raw-channel median","units":"dB","uncertainty":"PCM quantization and window selection; no absolute calibration","aggregation":"count, median, MAD, p95, worst per channel","exclusions":"silent windows","missing":"reported missing for intended silence and fails active reference coverage","applicability":"active trials","limitations":"source-room-sensor combined"},
+    "relative_rms_level":{"method":"PCM RMS full-scale and relative dB against baseline trial medians","reference":"digital full scale and frozen baseline","units":"FS and dB relative","uncertainty":"PCM quantization, placement 0.02 m, uncontrolled room microvariation","aggregation":"count, median, MAD, p95, worst","exclusions":"quality-invalid windows","missing":"required active trial fails coverage","applicability":"all trials, with silence treated as noise floor","limitations":"not SPL or microphone sensitivity"},
+    "combined_spectrum":{"method":"Hann-window FFT energy in frozen bands relative to total frozen-band energy","reference":"same-window total energy and baseline band medians","units":"dB relative","uncertainty":"FFT bin width and windowing; source/room/sensor inseparable","aggregation":"count, median, MAD, p95, worst by band","exclusions":"silent/quality-invalid active windows","missing":"required reference trial fails coverage","applicability":"active and silence trials","limitations":"not isolated speaker or microphone response"},
+    "relative_channel_delay":{"method":"GCC-PHAT delay relative to raw microphone 0","reference":"raw microphone 0 in same window","units":"us","uncertainty":"same as TDOA","aggregation":"count, median, MAD, p95, worst per channel","exclusions":"quality-invalid or abstained windows","missing":"required active trial fails coverage","applicability":"active trials","limitations":"includes acoustic path and cannot isolate hardware delay"},
+    "major_polarity_anomaly":{"method":"sign of aligned peak cross-correlation for raw pairs; persistent negative median across active baseline windows is major","reference":"raw microphone 0 and majority pair sign","units":"boolean and correlation","uncertainty":"multipath can alter sign; only major persistent anomalies claimed","aggregation":"pair/window counts and persistent anomaly count","exclusions":"silent windows","missing":"required baseline fails coverage","applicability":"active trials","limitations":"not phase calibration"},
+    "capture_to_frame_latency":{"method":"250 ms replay window duration plus measured analysis runtime after window availability","reference":"offline replay monotonic clock","units":"ms","uncertainty":"monotonic timer resolution and host scheduling","aggregation":"count, median, MAD, p95, worst","exclusions":"failed analyses counted separately","missing":"analysis failure","applicability":"all analyzed windows","limitations":"offline functional latency, not live capture/network latency"},
+    "frame_to_adapter_latency":{"method":"canonical analysis-frame JSON encode/decode round trip measured with monotonic clock","reference":"offline replay monotonic clock","units":"ms","uncertainty":"timer resolution and host scheduling","aggregation":"count, median, MAD, p95, worst","exclusions":"failed conversions counted separately","missing":"analysis failure","applicability":"all analyzed frames","limitations":"local serialization adapter only, not SquadBot transport"},
+    "noise":{"method":"raw-channel RMS, spectrum, and transient rate during intended-silence windows","reference":"digital full scale","units":"dBFS, relative dB, count/s","uncertainty":"finite sample and room nonstationarity","aggregation":"count, median, MAD, p95, worst","exclusions":"declared unexpected source windows remain failures and are not deleted","missing":"silence trial failure leaves metric uncovered","applicability":"silence and reference pre-stimulus intervals","limitations":"not self-noise SPL"},
+    "echo_relative_decay":{"method":"energy-envelope time to -10 dB and -20 dB after frozen chirp or impact peak when observable","reference":"same-event peak","units":"ms","uncertainty":"one analysis hop plus event localization","aggregation":"event count, median, range, worst; censored count","exclusions":"events without 20 dB dynamic range are censored and counted","missing":"reported unmeasured when no observable decay","applicability":"reference chirps and impact","limitations":"relative combined decay, not certified RT60"},
+    "occlusion":{"method":"paired robustness-minus-baseline changes in level, spectrum, bearing error, confidence, and abstention","reference":"three baseline trial aggregate","units":"dB, deg, confidence delta, fraction","uncertainty":"unreplicated occluder placement and baseline spread","aggregation":"paired deltas with baseline spread and worst","exclusions":"none after quality gate","missing":"occlusion trial failure leaves metric uncovered","applicability":"occluded robustness trial","limitations":"single ordinary occluder and geometry"},
+    "overlap":{"method":"overlap-minus-baseline changes in detections, bearing error, confidence, ambiguity, and abstention","reference":"baseline aggregate and voice-only trial","units":"deg, confidence delta, fraction","uncertainty":"human voice timing/level uncontrolled","aggregation":"counts, medians, p95, worst and deltas","exclusions":"none after quality gate","missing":"overlap failure leaves metric uncovered","applicability":"overlap robustness trial","limitations":"one phrase and one operator"},
+    "silence":{"method":"frozen signal detector over central intended-silence windows","reference":"operator-confirmed no intentional source","units":"fraction and counts","uncertainty":"uncontrolled ambient transients","aggregation":"window count, detection and abstention rates, worst RMS","exclusions":"unexpected sounds retained and reported","missing":"silence failure leaves metric uncovered","applicability":"silence robustness trial","limitations":"one room interval"},
+    "confidence":{"method":"existing SRP-PHAT confidence","reference":"relative ordering across frozen conditions","units":"unitless [0,1]","uncertainty":"not probabilistically calibrated","aggregation":"count, median, MAD, p95, worst by trial/category","exclusions":"quality-invalid windows","missing":"required analyzed trial fails coverage","applicability":"all nonzero windows","limitations":"not probability of correctness"},
+    "ambiguity":{"method":"candidate count plus confidence below 0.05 low-confidence ambiguity flag","reference":"frozen heuristic","units":"class and fraction","uncertainty":"heuristic threshold frozen before results","aggregation":"counts and rates by trial/category","exclusions":"quality-invalid windows","missing":"required analyzed trial fails coverage","applicability":"all analyzed windows","limitations":"not exhaustive scene-source separation"},
+    "abstention":{"method":"abstain unless median raw RMS exceeds 0.002 FS and SRP confidence is at least 0.015","reference":"frozen detector policy","units":"boolean and fraction","uncertainty":"heuristic thresholds frozen before results","aggregation":"counts/rates by trial/category and silence acceptance","exclusions":"quality-invalid windows","missing":"required analyzed trial fails coverage","applicability":"all analyzed windows","limitations":"pilot policy, not fitted production threshold"},
+    "acquisition_analysis_failures":{"method":"inventory lifecycle, validator issues, exceptions, missing data, and nonfinite results","reference":"all planned trials and all attempts","units":"counts and categorical reasons","uncertainty":"none; complete inventory required","aggregation":"counts by category/trial/outcome/reason and worst unresolved state","exclusions":"none","missing":"inventory incompleteness fails S4.3","applicability":"all trials and attempts","limitations":"does not infer causes without evidence"},
+    "coarse_audio_video_association":{"method":"visible impact sample versus manually reviewed ZED frame using S4.2 elapsed-time offset convention","reference":"same physical visible/audible event","units":"s offset and ms uncertainty","uncertainty":"one audio sample, audio localization, half frame interval, and one-frame visual localization RSS","aggregation":"single event result and uncertainty","exclusions":"privacy-invalid media retained only per authorized privacy policy and cannot pass","missing":"impact-AV trial failure leaves metric uncovered","applicability":"impact-AV robustness trial","limitations":"coarse association, not synchronization or absolute capture latency"}
+  }
+}

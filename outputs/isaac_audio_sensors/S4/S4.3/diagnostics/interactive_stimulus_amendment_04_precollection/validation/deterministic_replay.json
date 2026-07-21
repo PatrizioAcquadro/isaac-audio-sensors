@@ -1,0 +1,196 @@
+{
+  "accepted_attempt_count": 9,
+  "checks": [
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
+      "trial_id": "s4_3_rpt_baseline_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "0dc400c49a24ce1a014035281510ea2c7848583750f567c9db8d4538f4d681a6",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_02_20260721T191817Z_b080d747",
+      "trial_id": "s4_3_rpt_baseline_02",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "2956b383930e9462a77630f91e4f360cecf5a0087f62b90ccd1d76f9046921f7",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd",
+      "trial_id": "s4_3_rpt_baseline_03",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "f36cd13dbf84d9613c488e0ab556d8477bbeed1ba3cae12429a1bda114b7eb19",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_ctl_front_01_20260721T194735Z_c13c81d0",
+      "trial_id": "s4_3_ctl_front_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "05c57faabeae3220885a5ab855a90d057b9b8c003ecf69b40759f3137bfb3298",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83",
+      "trial_id": "s4_3_ctl_opposite_side_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "625515f0d6f2b7713e225436450dae968745a1bc10197e73020cfb2827419a31",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rob_silence_01_20260721T195500Z_c23f31ed",
+      "trial_id": "s4_3_rob_silence_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "502db4a166ccfddf7bc75ca25dc811b1879096b1bc148485ecf2204e67a97a56",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rob_occluded_01_20260721T200154Z_two_stacked_rigid_cardboard_boxes_39x26x24cm",
+      "trial_id": "s4_3_rob_occluded_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "4623550dfb57401b797b096702a5132a72a498dcf95be92001836204c9f18c25",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rob_voice_01_20260721T201147Z_c6760090",
+      "trial_id": "s4_3_rob_voice_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "56ec2b92e567ad96aeefcec28978cf7e134f9c941213fcfc18e5835a35025667",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78",
+      "trial_id": "s4_3_rpt_baseline_01_confirm_array_frame_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "305763cfc1ccde5104602e0e06aa12a4e41d039d430cd35c6952a8a8c946a2d4",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    }
+  ],
+  "schema": "ias.s4_3.deterministic_replay.v1",
+  "status": "passed"
+}

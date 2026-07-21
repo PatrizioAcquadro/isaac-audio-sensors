@@ -1,0 +1,36 @@
+{
+  "inventory_contract": {
+    "checks": [
+      {
+        "id": "s4_3_inventory",
+        "inventory_count": 13,
+        "planned_count": 13,
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "preregistration": {
+    "checks": [
+      {
+        "category_counts": {
+          "controlled": 2,
+          "repeatability": 4,
+          "robustness": 7
+        },
+        "id": "s4_3_preregistration",
+        "planned_trial_count": 13,
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "raw_required": false,
+  "schema": "ias.s4_3.raw_independent_validation.v1",
+  "scope": "frozen specification, configuration, matrix, schemas, and inventory semantics",
+  "status": "passed"
+}

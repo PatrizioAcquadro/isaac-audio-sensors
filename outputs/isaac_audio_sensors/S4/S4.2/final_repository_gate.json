@@ -1,98 +1,51 @@
 {
-  "accepted_attempt_id": "s4_2_20260721T002805Z_accepted_candidate_004",
-  "alignment": {
-    "offset_definition": "ZED elapsed time minus ReSpeaker audio elapsed time",
-    "offset_s": 0.34977950000000035,
-    "status": "passed",
-    "uncertainty_limit_ms": 50.0,
-    "uncertainty_ms": 37.32671632021762
+  "schema": "ias.s4_2.repository_gate.v1",
+  "status": "passed_with_dual_frame_metadata_reconciliation",
+  "reconciled_at_utc": "2026-07-21T17:55:54Z",
+  "accepted_attempt_id": "s4_2_20260721T153800Z_optimized_candidate_014",
+  "coordinate_reconciliation": {
+    "id": "S4.2-DUAL-FRAME-RECONCILIATION-2026-07-21-A",
+    "path": "docs/development/specs/s4_2_dual_frame_coordinate_reconciliation.v1.json",
+    "sha256": "0c060cfb38f0b35288f123cdee786456b71ee9d68ca3b52eab543e0b5cfc3a44",
+    "operator_facing_frame": "F_operator_facing_zed",
+    "operator_facing_source_position_m": [0.0, -0.9, -0.135],
+    "operator_facing_source_bearing_deg_clockwise": 270.0,
+    "canonical_frame": "F_project",
+    "canonical_source_position_m": [0.0, 0.9, -0.135],
+    "canonical_source_bearing_deg_clockwise": 90.0,
+    "operator_to_project": {
+      "x_project": "x_operator",
+      "y_project": "-y_operator",
+      "z_project": "z_operator",
+      "bearing_project": "(-bearing_operator) mod 360"
+    },
+    "historical_attempt_records_modified": false,
+    "waveform_or_timing_result_changed": false
   },
-  "candidate_commit": "ef313768994ac34f527f4090ccc5348ca0b93953",
-  "clean_checkout": {
-    "commit": "ef313768994ac34f527f4090ccc5348ca0b93953",
-    "dataset_s4_2_present": false,
-    "full_suite_observation": {
-      "classification": "shared editable environment coupling outside the S4.2 clean-checkout contract",
-      "failed": 1,
-      "failure": "developer-mode test resolved the explicitly shared virtual environment's editable install to the original checkout",
-      "passed": 1168,
-      "skipped": 81,
-      "status": "not_used_as_passing_evidence"
-    },
-    "git_diff_check": "passed",
-    "integrity_validator_require_git_tracked": "passed",
-    "make_audit_dist": "passed",
-    "make_audit_kit": "passed",
-    "make_audit_pack": "passed",
-    "make_build": "passed",
-    "make_check_version": "passed",
-    "make_lint": "passed",
-    "reference_regeneration": "passed",
-    "s4_2_targeted_tests": {
-      "passed": 61,
-      "skipped": 1,
-      "skip_classification": "explicit live-hardware marker; real hardware evidence is retained separately",
-      "status": "passed"
-    },
-    "status": "passed"
+  "evidence": {
+    "pre_correction_final_index": "outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json",
+    "pre_correction_final_index_sha256": "c714705eecccc75300373ef916c46af5daa88ef3923019162a29bddde53a8178",
+    "superseded_single_frame_index": "outputs/isaac_audio_sensors/S4/S4.2/coordinate_corrected_20260721/evidence_index.json",
+    "superseded_single_frame_index_sha256": "ae3ffb8cc828a94c5aed6d83aa0df29f904fe2ee1928afb30306722e972d522d",
+    "current_dual_frame_index": "outputs/isaac_audio_sensors/S4/S4.2/dual_frame_reconciled_20260721/evidence_index.json",
+    "superseded_top_level_gate_sha256": "9339cb4f2b46b0b1e180c9ea9d1a44bf8386d92b4768565776a63716fd1e2fe7"
   },
-  "finalized_at_utc": "2026-07-21T00:51:33+00:00",
-  "limitations": [
-    "dataset/S4.2 is machine-local, gitignored, unreplicated, and unavailable from a fresh clone",
-    "machine loss is raw-evidence loss",
-    "SSH observations are not synchronization",
-    "alignment does not support sub-frame visual timing or precision host-clock synchronization",
-    "source and fixture poses are practical measurements, not metrology-grade calibration"
-  ],
-  "primary_frozen_worktree": {
-    "git_diff_check": "passed",
-    "make_audit_dist": "passed",
-    "make_audit_kit": "passed",
-    "make_audit_pack": "passed",
-    "make_build": "passed",
-    "make_check_version": "passed",
+  "post_reconciliation_validation": {
+    "targeted_s4_2_s4_3": "106 passed, 2 explicit hardware/real-SVO-fixture skips",
+    "make_test": "1216 passed, 80 optional-dependency/hardware skips",
     "make_lint": "passed",
-    "make_test": {
-      "passed": 1171,
-      "skipped": 79,
-      "skip_classification": "genuine optional dependencies and explicit hardware markers",
-      "status": "passed"
-    },
-    "status": "passed"
+    "make_build": "passed; distribution audit passed (408-file sdist, 133-file wheel)",
+    "make_check_version": "passed (1.10.0)",
+    "make_check_release_source": "expected blocked: reconciliation worktree is intentionally uncommitted",
+    "git_diff_check": "passed"
   },
   "raw_evidence": {
-    "artifact_count": 119,
-    "checksum_validation": "passed",
-    "fresh_clone_available": false,
     "machine_local_root": "dataset/S4.2",
+    "historical_raw_modified": false,
     "replicated": false,
-    "semantic_validation": "passed",
-    "status": "passed"
+    "fresh_clone_available": false
   },
-  "release_archive_audits": {
-    "dist_artifacts_retained_as_s4_2_evidence": false,
-    "make_audit_dist": "passed",
-    "make_audit_kit": "passed",
-    "make_audit_pack": "passed",
-    "make_build": "passed",
-    "provenance_note": "Kit and pack were rebuilt after the closing commit because Kit embeds the Git revision; ignored dist outputs are not cited as durable acquisition evidence",
-    "status": "passed"
-  },
-  "schema": "ias.s4_2.repository_gate.v1",
   "s4_3_started": false,
-  "status": "passed",
-  "supported_claims": [
-    "maintained fail-closed S4.2 acquisition path",
-    "one accepted real ReSpeaker, ZED 2i, and controlled Mac playback dry run",
-    "frame-scale practical audio-video association within the reported uncertainty",
-    "deterministic reference WAV regeneration",
-    "machine-local raw integrity on the capture workstation"
-  ],
-  "unsupported_claims": [
-    "SSH or host-clock synchronization",
-    "sub-frame visual alignment",
-    "acoustic time-of-flight calibration",
-    "metrology-grade source or fixture pose",
-    "raw evidence recovery from Git, a fresh clone, or another machine"
-  ]
+  "s4_3_verdict": "GO_AFTER_DUAL_FRAME_FREEZE_VALIDATION_AND_OPERATOR_BASELINE_CONFIRMATION",
+  "s4_4_started": false
 }

@@ -6,6 +6,12 @@ validation, and provenance-bound distribution, Kit, and acoustic-pack gates all
 pass. The direct readiness verdict is **GO for S4.3**, but this closeout neither
 starts nor collects S4.3 data.
 
+On 2026-07-21, before any S4.3 recording, the operator confirmed the MacBook
+had physically been on the operator's **left** while facing the ZED. The
+pre-capture and first post-capture interpretations are retained as superseded
+contradictory records. The provenance-preserving current authority is
+`docs/development/specs/s4_2_dual_frame_coordinate_reconciliation.v1.json`.
+
 ## Accepted take
 
 The replacement accepted attempt is
@@ -48,18 +54,25 @@ that the workstation, Raspberry Pi, and Mac clocks share a timebase.
 
 ## Source, frame, and environment authority
 
-`F_project` is fixed as `+X` ZED-forward, `+Y` operator-right while facing the
-camera (ZED-camera-left), and `+Z` up. Positive bearing is counterclockwise from
-`+X` toward `+Y` viewed from above. The Mac speaker center is
-`(0.000, +0.900, -0.135) m`; canonical bearing is `+90 degrees`; the derived
+From the operator's viewpoint while standing in front of and facing the ZED,
+the Mac was on the operator's left at
+`F_operator_facing_zed (0.000, -0.900, -0.135) m`, bearing `270 degrees`.
+The canonical analysis representation is
+`F_project (0.000, +0.900, -0.135) m`, bearing `90 degrees`; `F_project` uses
+`+X` ZED-forward, `+Y` right as viewed from the ZED, `+Z` up, and clockwise
+bearing. The derived
 straight-line distance is approximately 0.910 m. The Mac speaker-center height
 is 0.710 m, vertical-offset practical uncertainty is +/-0.010 m, base
 yaw/pitch/roll is approximately 0/0/0 degrees, and lid angle is approximately
 90 degrees.
 
-The pre-capture amendment explicitly preserves the earlier sign/convention
-correction and confirms that no accepted capture began under the incorrect
-convention. The rig remained on `S4_TEMP_DESKTOP_FIXTURE_REV0`'s marked
+The pre-capture amendment's coordinate subsection and the first post-capture
+correction are superseded by the dual-frame reconciliation. Both contradictory
+records and original attempt metadata are retained for provenance; no audio,
+SVO2, timing, or waveform evidence was
+rewritten. S4.2 made no bearing-performance claim, so the acquisition gate
+remains passed with corrected downstream source-pose authority. The rig
+remained on `S4_TEMP_DESKTOP_FIXTURE_REV0`'s marked
 footprint with no component movement, clear microphone openings and ZED field
 of view, safe cables, an operator-reported quiet room, and a privacy-cleared
 retained scene.
@@ -135,8 +148,10 @@ cleans local and remote children on all exits.
 
 ## Evidence retention and limitations
 
-The final machine-readable index is
-`outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json`.
+The current machine-readable index is
+`outputs/isaac_audio_sensors/S4/S4.2/dual_frame_reconciled_20260721/evidence_index.json`.
+The prior `final_20260721` and `coordinate_corrected_20260721` indexes remain
+retained as superseded pre-reconciliation evidence.
 Its checksum manifest
 covers every indexed tracked or machine-local artifact except the index itself
 and checksum file, avoiding circular self-hashes. Every retained file under
@@ -174,7 +189,10 @@ dependencies or installation, exclusively through `https://pypi.org/simple`;
 every filename, version, and SHA-256 matched both `pack.toml` and
 `requirements.lock`. The temporary wheels are not evidence and are not in Git.
 
-The authoritative final repository result is
-`outputs/isaac_audio_sensors/S4/S4.2/final_20260721/repository_gate.json`.
-S4.2 is **PASS** and the readiness verdict for S4.3 is **GO**. S4.3 was not
-started.
+The current repository result is
+`outputs/isaac_audio_sensors/S4/S4.2/dual_frame_reconciled_20260721/repository_gate.json`,
+with the convenience pointer at
+`outputs/isaac_audio_sensors/S4/S4.2/final_repository_gate.json`. S4.2 is
+**PASS with dual-frame source-pose reconciliation** and the readiness verdict for
+S4.3 is **GO after dual-frame freeze validation and operator baseline
+confirmation**. No S4.3 recorder had started when the correction was frozen.

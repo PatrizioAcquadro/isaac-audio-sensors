@@ -26,6 +26,8 @@ from isaac_audio_sensors.acquisition.s4_2 import (
     disk_space_check,
     inspect_six_channel_wav,
     load_json,
+    operator_facing_zed_bearing_to_project,
+    operator_facing_zed_position_to_project,
     promote_finalized_file,
     read_jsonl,
     recompute_alignment_from_evidence,
@@ -79,6 +81,10 @@ def _ready_config() -> dict:
     payload["acceptance_amendment"]["record_sha256"] = hashlib.sha256(
         amendment.read_bytes()
     ).hexdigest()
+    correction = ROOT / payload["coordinate_correction"]["record_path"]
+    payload["coordinate_correction"]["record_sha256"] = hashlib.sha256(
+        correction.read_bytes()
+    ).hexdigest()
     payload["environment"].update(
         {
             "noise_state": "quiet office; HVAC audible; no speech",
@@ -119,12 +125,14 @@ def _ready_config() -> dict:
     )
     payload["source"] = {
         "position_m": [0.0, 0.9, -0.135],
+        "position_operator_facing_zed_m": [0.0, -0.9, -0.135],
         "delta_x_m": 0.0,
         "delta_y_m": 0.9,
         "delta_z_m": -0.135,
         "distance_from_rig_origin_m": 0.910,
         "distance_provenance": "derived_from_position_m_not_independent_measurement",
-        "bearing_deg_counterclockwise_from_positive_x": 90.0,
+        "bearing_deg_clockwise_from_positive_x": 90.0,
+        "bearing_operator_facing_zed_deg": 270.0,
         "speaker_height_m": 0.710,
         "vertical_offset_uncertainty_m": 0.010,
         "orientation_deg": {"yaw": 0.0, "pitch": 0.0, "roll": 0.0},
@@ -133,7 +141,9 @@ def _ready_config() -> dict:
         ),
         "lid_angle_deg": 90.0,
         "lid_state": "open",
-        "relative_side": "operator_right_facing_camera",
+        "relative_side": "operator_left_facing_camera",
+        "relative_side_operator_facing_zed": "left",
+        "relative_side_project_view": "right",
         "screen_heading": "same_general_direction_as_zed",
     }
     return payload
@@ -381,16 +391,51 @@ def test_s4_2_correlation_and_replay_stage_remain_frozen():
 def test_corrected_project_frame_and_bearing_are_frozen():
     payload = _ready_config()
     assert payload["coordinate_frame"]["axes"]["y"] == (
-        "operator_right_facing_camera_zed_camera_left"
+        "right_as_viewed_from_zed_operator_left_facing_camera"
     )
+    assert payload["coordinate_frame"]["bearing_definition"] == (
+        "degrees clockwise from +X toward +Y viewed from above"
+    )
+    assert payload["operator_facing_frame"]["axes"]["negative_y"] == ("operator_left")
+    assert payload["source"]["position_operator_facing_zed_m"] == [
+        0.0,
+        -0.9,
+        -0.135,
+    ]
+    assert payload["source"]["bearing_operator_facing_zed_deg"] == 270.0
     assert payload["source"]["position_m"] == [0.0, 0.9, -0.135]
-    assert payload["source"]["bearing_deg_counterclockwise_from_positive_x"] == 90.0
+    assert payload["source"]["bearing_deg_clockwise_from_positive_x"] == 90.0
     payload["source"]["position_m"][1] = -0.9
     payload["source"]["delta_y_m"] = -0.9
-    payload["source"]["bearing_deg_counterclockwise_from_positive_x"] = 270.0
+    payload["source"]["bearing_deg_clockwise_from_positive_x"] = 270.0
     report = validate_configuration(payload, require_ready=True)
     assert not report.passed
     assert "frozen_value_mismatch" in _issue_codes(report)
+
+
+def test_operator_facing_zed_conversion_is_explicit_and_fail_closed():
+    assert operator_facing_zed_position_to_project(
+        [0.0, -0.9, -0.135]
+    ) == pytest.approx((0.0, 0.9, -0.135))
+    assert operator_facing_zed_bearing_to_project(270.0) == pytest.approx(90.0)
+    assert operator_facing_zed_position_to_project([0.0, 0.9, -0.135]) == pytest.approx(
+        (0.0, -0.9, -0.135)
+    )
+    assert operator_facing_zed_bearing_to_project(90.0) == pytest.approx(270.0)
+    with pytest.raises(ValueError):
+        operator_facing_zed_position_to_project([0.0, float("nan"), 0.0])
+    with pytest.raises(ValueError):
+        operator_facing_zed_bearing_to_project(float("inf"))
+
+    payload = _ready_config()
+    payload["source"]["position_operator_facing_zed_m"][1] = 0.9
+    payload["source"]["bearing_operator_facing_zed_deg"] = 90.0
+    report = validate_configuration(payload, require_ready=True)
+    assert {
+        "frozen_value_mismatch",
+        "inconsistent_dual_frame_position",
+        "inconsistent_dual_frame_bearing",
+    } <= _issue_codes(report)
 
 
 @pytest.mark.parametrize(
@@ -430,7 +475,7 @@ def test_configuration_rejects_inconsistent_source_units_pose_and_side():
     payload["source"].update(
         {
             "distance_from_rig_origin_m": 99.0,
-            "bearing_deg_counterclockwise_from_positive_x": 361.0,
+            "bearing_deg_clockwise_from_positive_x": 361.0,
             "orientation_deg": {"yaw": 0.0},
             "relative_side": "above",
             "speaker_height_m": -1.0,

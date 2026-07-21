@@ -1,0 +1,168 @@
+{
+  "schema": "ias.s4_3.pilot_config_amendment.v1",
+  "phase": "S4.3",
+  "id": "S4.3-OCCLUSION-CONFIRMATION-AMENDMENT-03",
+  "frozen_at_utc": "2026-07-21T20:05:18Z",
+  "base_configuration": {
+    "path": "configs/s4_3_pilot.v1.json",
+    "sha256": "3bfbd3a7f472d5a264a24336f0976d53eeb24420ea52a0dbc68a23817579dff5",
+    "canonical_sha256": "f3505890e815d79ede53d405d465710c7036aef909b8181baca8e29a632bcec8"
+  },
+  "supersedes": {
+    "configuration_path": "configs/s4_3_pilot_amendment_02.v1.json",
+    "configuration_sha256": "4164191571d1565ce363c3403816c1a731d292695090f46197487c23e18be7cd",
+    "effective_canonical_sha256": "1cc30c578d7ee771928f047f4155304a127f6035c42859066abbf991a540ebeb",
+    "scientifically_equivalent_effective_canonical_sha256": [
+      "1cc30c578d7ee771928f047f4155304a127f6035c42859066abbf991a540ebeb",
+      "3bc10fd24040a53812fec33d4249456d8e604df3147f9c188edd4f88235dfbd8"
+    ],
+    "preregistration_path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_amendment_02.json",
+    "preregistration_sha256": "44ac938893766464f2e3dd4dd760def999d003421c4262eeb01a29583c61cec4",
+    "precollection_inventory_path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_amendment_02_precollection.json",
+    "precollection_inventory_sha256": "c7f43202d023e968733c9f4ac1af8bc9e579f4e5fed3cb539414bbf76972f3cf",
+    "records_retained_immutable": true,
+    "scientific_thresholds_unchanged": true
+  },
+  "analysis_frame_correction": {
+    "id": "S4.3-ARRAY-FRAME-AMENDMENT-01",
+    "status": "authorized_functional_correction",
+    "source_frame": "F_array_nominal",
+    "target_frame": "F_project",
+    "transform": "rotation_about_positive_z",
+    "yaw_deg": 180.0,
+    "position_rule": "p_project=Rz(180deg)*p_array_nominal",
+    "bearing_rule": "bearing_project=(bearing_array_nominal+180deg) mod 360",
+    "classification": "Measured functional correction",
+    "uncertainty": "unmeasured array acoustic-axis alignment; correction supported by two retained functional directions, not metrology",
+    "diagnostic_evidence": {
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/bearing_frame_contradiction_20260721T185522Z.json",
+      "sha256": "61e001603b7222fdfee072aec8de1dac3308e0ed209722dcb8143204e79b2bcc"
+    },
+    "reanalyzed_filename": "analysis_amendment_01.json",
+    "original_analysis_retention": "analysis.json remains immutable and unfavorable",
+    "raw_or_threshold_change": false
+  },
+  "operational_gate_policy": {
+    "id": "S4.3-OPERATIONAL-GATES-AMENDMENT-02",
+    "mac_dynamic_preflight": {
+      "aggregate_status": "metadata_only",
+      "command_return_code": "metadata_only_if_valid_report_present",
+      "power": "metadata_only",
+      "hard_fields": {
+        "device_name": "MacBook Pro Speakers",
+        "channel_count": 2,
+        "nominal_sample_rate_hz": 48000,
+        "output_volume": 40,
+        "output_muted": false
+      }
+    },
+    "zed_impact_capture": {
+      "version_policy": "metadata",
+      "reference_versions": {
+        "sdk_version": "5.4.0",
+        "camera_firmware": "1523",
+        "sensor_firmware": "777"
+      },
+      "metadata_only": [
+        "sdk_version",
+        "camera_firmware",
+        "sensor_firmware",
+        "version_comparisons"
+      ],
+      "hard_checks": [
+        "serial_matches",
+        "usb_video_present",
+        "usb_serial_present",
+        "usb_3_speed",
+        "resolution_matches",
+        "fps_matches",
+        "depth_mode_requested",
+        "grab_success",
+        "image_retrieved",
+        "depth_retrieved_gpu_authoritative",
+        "imu_retrieved",
+        "pose_ok",
+        "svo_recording_enabled",
+        "strictly_increasing_device_timestamps",
+        "producer_outputs_complete",
+        "full_svo2_replay"
+      ]
+    }
+  },
+  "matrix_additions": [
+    {
+      "trial_id": "s4_3_rpt_baseline_01_confirm_array_frame_01",
+      "category": "repeatability",
+      "stimulus": "mac_reference",
+      "duration_s": 20,
+      "repetition": 4,
+      "source_frame": "F_project",
+      "source_position_m": [
+        0.0,
+        0.9,
+        -0.135
+      ],
+      "source_bearing_deg": 90.0,
+      "operator_source_frame": "F_operator_facing_zed",
+      "operator_source_position_m": [
+        0.0,
+        -0.9,
+        -0.135
+      ],
+      "operator_source_bearing_deg": 270.0,
+      "source_distance_m": 0.91,
+      "mac_volume_percent": 40,
+      "occlusion": "none",
+      "zed_required": false,
+      "operator_action": "from_your_view_keep_mac_unchanged_on_your_left_then_verify_project_0_+0.90_-0.135_for_array_frame_confirmation",
+      "expansion": {
+        "parent_trial_id": "s4_3_rpt_baseline_01",
+        "trigger": "analysis_contradiction",
+        "confirmation_index": 1,
+        "changed_capture_variables": [],
+        "changed_analysis_variable": "array_to_project_yaw_deg",
+        "stopping_effect": "one confirmation retry resolves or leaves the array-frame contradiction terminal"
+      }
+    },
+    {
+      "trial_id": "s4_3_rob_occluded_01_confirm_noise_01",
+      "category": "robustness",
+      "stimulus": "mac_reference",
+      "duration_s": 20,
+      "repetition": 2,
+      "source_frame": "F_project",
+      "source_position_m": [
+        0.0,
+        0.9,
+        -0.135
+      ],
+      "source_bearing_deg": 90.0,
+      "operator_source_frame": "F_operator_facing_zed",
+      "operator_source_position_m": [
+        0.0,
+        -0.9,
+        -0.135
+      ],
+      "operator_source_bearing_deg": 270.0,
+      "source_distance_m": 0.91,
+      "mac_volume_percent": 40,
+      "occlusion": "same operator-identified two stacked rigid cardboard boxes, combined 39 x 26 x 24 cm, fully blocking direct line without touching either device",
+      "zed_required": false,
+      "operator_action": "from_your_view_keep_mac_on_your_left_and_keep_same_two_box_occluder_between_mac_and_zed_then_verify_project_0_+0.90_-0.135_for_noise_confirmation",
+      "expansion": {
+        "parent_trial_id": "s4_3_rob_occluded_01",
+        "trigger": "quality_failure",
+        "confirmation_index": 1,
+        "changed_capture_variables": [],
+        "operator_reported_reason": "possible extraneous noise during first accepted occlusion take",
+        "stopping_effect": "one confirmation determines whether the first-tail degradation is repeatable or noise-contaminated; both outcomes remain retained"
+      }
+    }
+  ],
+  "authorization": {
+    "source": "operator chat",
+    "exact_text": "No i prefer to repeat a second time the occulusion, before the was another noise before that maybe altered it",
+    "received_before_additional_capture": true,
+    "device_setting_change_authorized": false
+  }
+}

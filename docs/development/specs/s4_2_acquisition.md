@@ -2,7 +2,11 @@
 
 Status: **frozen before accepted-take evidence** on 2026-07-20 and amended,
 before any accepted capture, by
-`s4_2_pre_capture_acceptance_amendment.v1.json`.
+`s4_2_pre_capture_acceptance_amendment.v1.json`. Two contradictory coordinate
+interpretations were subsequently retained and superseded. The current
+authority is `s4_2_dual_frame_coordinate_reconciliation.v1.json`, adopted
+before any S4.3 trial; raw capture records remain unchanged and the
+reconciliation is an explicit provenance overlay.
 
 Remediation acceptance was frozen before the replacement capture on 2026-07-21
 in `s4_2_remediation_acceptance.v1.json`. It invalidates the former S4.2 pass
@@ -40,7 +44,8 @@ cross-system alignment event.
 | Item | Frozen value |
 | --- | --- |
 | Fixture | `S4_TEMP_DESKTOP_FIXTURE_REV0` on its marked footprint |
-| Project frame | `F_project`: origin at the ZED stereo-lens midpoint; +X forward with the ZED view, +Y to the operator's right while facing the camera (the ZED camera's left), +Z up; positive bearing counterclockwise from +X toward +Y viewed from above |
+| Project frame | `F_project`: origin at the ZED stereo-lens midpoint; +X forward with the ZED view, +Y right as viewed from the ZED (the operator's left while facing the camera), +Z up; positive bearing clockwise from +X toward +Y viewed from above |
+| Operator-facing frame | `F_operator_facing_zed`: same origin; for the operator standing in front of and facing the ZED, +X is behind the operator/in front of the ZED, -X is in front of the operator/behind the ZED, +Y is the operator's right, -Y is the operator's left, +Z is ceiling/up, and -Z is floor/down; positive bearing is clockwise from +X toward +Y viewed from above |
 | ReSpeaker | XVF3800 marketing model; USB product descriptor `reSpeaker XVF3800 4-Mic Array`, serial `114993701261100454`, USB descriptor firmware `2.08` |
 | ReSpeaker capture | ALSA `hw:CARD=Array,DEV=0`, six channels, 16,000 Hz, `S16_LE`, interleaved PCM |
 | ReSpeaker channel order | 0 Conference, 1 ASR, 2 raw microphone 0, 3 raw microphone 1, 4 raw microphone 2, 5 raw microphone 3 |
@@ -135,10 +140,12 @@ ready. Per-take depth retrieval is the authoritative GPU-access check. A
 separate `arecord` probe, ZED open/close cycle, or per-take `nvidia-smi` is
 forbidden. The workstation validates both readiness payloads fail-closed.
 
-The operator must record, in meters and degrees in `F_project`:
+Every physical instruction must first use the operator's viewpoint in
+`F_operator_facing_zed`, followed by canonical `F_project` in parentheses.
+The operator must record both representations in meters and degrees:
 
-- the MacBook speaker-center position `(x, y, z)`;
-- distance from the defined rig origin and counterclockwise bearing from +X
+- the MacBook speaker-center position `(x, y, z)` in both frames;
+- distance from the defined rig origin and clockwise bearing from +X
   toward +Y, viewed from above;
 - speaker height, MacBook yaw/pitch/roll, lid angle and screen/lid state;
 - front/behind/left/right placement;
@@ -150,10 +157,15 @@ The operator must record, in meters and degrees in `F_project`:
 No photograph substitutes for a measurement. The accepted scene must contain
 no person, label, credential, private screen, or other personal data.
 
-For the accepted dry-run configuration, the corrected source record is
-`(0.000, +0.900, -0.135) m`, with explicit deltas in the same units, a derived
-straight-line distance of approximately `0.910 m`, and canonical bearing
-`+90 deg` counterclockwise. Speaker-center height is `0.710 m`; vertical-offset
+For the accepted dry-run configuration, the physical placement is first stated
+from the operator's viewpoint: **on the operator's left while facing the ZED**,
+at `(0.000, -0.900, -0.135) m` and bearing `270 deg` in
+`F_operator_facing_zed`. The canonical analysis representation is
+`F_project (0.000, +0.900, -0.135) m`, bearing `90 deg`. The conversion is
+`x_project=x_operator`, `y_project=-y_operator`, `z_project=z_operator`, and
+`bearing_project=(-bearing_operator) mod 360`. The derived straight-line
+distance is approximately `0.910 m`.
+Speaker-center height is `0.710 m`; vertical-offset
 uncertainty is `+/-0.010 m`. The Mac base is approximately `yaw/pitch/roll =
 0/0/0 deg`, flat on the desk, with an approximately `90 deg` open lid and the
 screen facing the same general direction as the ZED. These orientation values

@@ -1,0 +1,10 @@
+{
+  "checked_artifact_count": 100,
+  "indexed_artifact_count": 100,
+  "issues": [],
+  "machine_local_record_count": 68,
+  "require_final": false,
+  "require_machine_local": true,
+  "schema": "ias.s4_3.integrity_validation.v1",
+  "status": "passed"
+}

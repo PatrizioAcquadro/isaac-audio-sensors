@@ -23,25 +23,30 @@ Never edit or synthesize a scientific frame to remove private content.
 
 ## 2. Measure the MacBook source pose
 
-`F_project` has its origin at the ZED stereo-lens midpoint. +X points forward
-along the ZED view. +Y points to the operator's right while the operator faces
-the camera, which is the ZED camera's left. +Z points up. Use meters and
-degrees.
+Stand in front of and face the ZED. Physical instructions use
+`F_operator_facing_zed` first: +X is behind you/in front of the ZED, -X is in
+front of you/behind the ZED, +Y is to your right, -Y is to your left, +Z is up
+toward the ceiling, and -Z is down toward the floor. Bearing is clockwise from
++X toward +Y viewed from above. `F_project` has the same origin and +X/+Z, but
++Y is right as viewed from the ZED. Convert with `x_project=x_operator`,
+`y_project=-y_operator`, `z_project=z_operator`, and
+`bearing_project=(-bearing_operator) mod 360`.
 
 1. Put the MacBook at the intended controlled-source position. Do not move the
    rig to make measurement easier.
 2. Identify the approximate center between the left and right built-in speaker
    regions as the source point.
-3. With metric tape, measure from the ZED stereo midpoint to that point:
-   forward/back displacement `x`, right/left displacement `y`, and vertical
-   displacement `z`. Forward, operator-right-facing-camera, and up are
-   positive; behind, operator-left-facing-camera, and down are negative.
+3. From your viewpoint while facing the ZED, measure from the ZED stereo
+   midpoint to that point. Record the operator-facing `(x,y,z)` first, then the
+   converted canonical `F_project` position in parentheses.
 4. Record source distance as `sqrt(x^2 + y^2 + z^2)` meters. The validator
    allows only 0.02 m difference between position and declared distance.
-5. Record horizontal bearing counterclockwise from +X toward +Y, viewed from
-   above: front `0 deg`, operator-right-facing-camera `90 deg`, behind
-   `180 deg`, and operator-left-facing-camera `270 deg`. Also record the
-   plain-language side and camera-relative equivalent.
+5. Record horizontal bearing from your viewpoint first: behind you/in front of
+   the ZED `0 deg`, your right `90 deg`, in front of you/behind the ZED
+   `180 deg`, and your left `270 deg`. Then record canonical `F_project`
+   bearing in parentheses: in front of the ZED `0 deg`, the ZED's right (your
+   left) `90 deg`, behind the ZED `180 deg`, and the ZED's left (your right)
+   `270 deg`.
 6. Measure speaker-center height above the floor in meters.
 7. Record Mac yaw, pitch, and roll in degrees, lid angle in degrees, whether the
    lid is open/closed, and which way the screen and keyboard face. An iPhone
@@ -197,7 +202,10 @@ PYTHONPATH=src .venv/bin/python -m isaac_audio_sensors s4-2 run \
   <take-config.json> --interactive-cue --chat-cue-handshake
 ```
 
-At the first warning, put the impact object and tool in position while keeping
+At the first warning, from your viewpoint while facing the ZED put the impact
+object behind you/in front of the ZED at
+`F_operator_facing_zed (1.15, 0.00, -0.40) m`
+(`F_project (1.15, 0.00, -0.40) m`) while keeping
 hands, face, labels, and screens out of the ZED field of view. Press Enter only
 when the scene is clear and the impact can be performed without another setup
 delay. The bounded recorders start only after that Enter. After both report
@@ -242,9 +250,11 @@ and invalidates the stable session. Blocking full SVO2 SDK replay remains in
 offline finalization; visual alignment remains the existing manual/Codex review
 workflow. No automatic motion detection or background SVO validation is used.
 
-For the accepted dry run, the visible/audible event is one strike of a plain,
-unmarked blue wastebasket with a long, plain paper roll at approximately
-`(1.15, 0.00, -0.40) m` in `F_project`. The operator and hands remain outside
+For the accepted dry run, from the operator's viewpoint the visible/audible
+event is behind the operator/in front of the ZED at approximately
+`F_operator_facing_zed (1.15, 0.00, -0.40) m`
+(`F_project (1.15, 0.00, -0.40) m`): one strike of a plain, unmarked blue
+wastebasket with a long, plain paper roll. The operator and hands remain outside
 the ZED field of view; only the two privacy-safe objects may appear.
 
 ## 7. Alignment annotation

@@ -678,9 +678,7 @@ def _run_chat_cue_handshake(
         "cue_mode": "assistant_chat_message_with_workstation_acknowledgment",
         "timestamp_basis": "PTY acknowledgment immediately after chat cue",
         "cue_delay_s": float(alignment["cue_delay_s"]),
-        "chat_ack_timeout_s": float(
-            configuration["session"]["chat_cue_ack_timeout_s"]
-        ),
+        "chat_ack_timeout_s": float(configuration["session"]["chat_cue_ack_timeout_s"]),
     }
     write_json_atomic(attempt_root / "operator_cue.json", cue)
     removal_target_ns = cue_ns + round(float(alignment["remove_cue_delay_s"]) * 1e9)
@@ -710,9 +708,7 @@ def _run_chat_cue_handshake(
         "host_wall_time_utc": wall_function(),
         "host_monotonic_ns": removal_ns,
         "scheduled_host_monotonic_ns": removal_target_ns,
-        "scheduled_elapsed_from_alignment_s": float(
-            alignment["remove_cue_delay_s"]
-        ),
+        "scheduled_elapsed_from_alignment_s": float(alignment["remove_cue_delay_s"]),
         "observed_elapsed_from_alignment_s": (removal_ns - cue_ns) / 1e9,
         "schedule_error_ms": (removal_ns - removal_target_ns) / 1e6,
         "cue_mode": "operator_authorized_self_timed_from_alignment_chat_cue",
@@ -753,9 +749,7 @@ def _read_chat_ack(
     try:
         selector.register(sys.stdin, selectors.EVENT_READ)
         if not selector.select(timeout=timeout_s):
-            raise S42Error(
-                f"chat-cue acknowledgment exceeded {timeout_s:.3f} seconds"
-            )
+            raise S42Error(f"chat-cue acknowledgment exceeded {timeout_s:.3f} seconds")
         if sys.stdin.readline() == "":
             raise S42Error("chat-cue acknowledgment input closed")
     finally:
@@ -937,7 +931,9 @@ def _write_manifest(
         "configuration_schema": configuration["schema"],
         "normalized_configuration": dict(configuration),
         "acceptance_amendment": dict(configuration["acceptance_amendment"]),
+        "coordinate_correction": dict(configuration["coordinate_correction"]),
         "coordinate_frame": dict(configuration["coordinate_frame"]),
+        "operator_facing_frame": dict(configuration["operator_facing_frame"]),
         "source_geometry": dict(configuration["source"]),
         "raw_evidence_policy": dict(configuration["raw_evidence"]),
         "created_at_utc": _wall_utc(),
@@ -985,14 +981,23 @@ def run_capture(
     amendment_path = REPO_ROOT / str(
         configuration["acceptance_amendment"]["record_path"]
     )
+    coordinate_correction_path = REPO_ROOT / str(
+        configuration["coordinate_correction"]["record_path"]
+    )
+    superseded_coordinate_correction_path = REPO_ROOT / str(
+        configuration["coordinate_correction"]["superseded_record_path"]
+    )
     if (
         not reference_path.is_file()
         or not metadata_path.is_file()
         or not inventory_path.is_file()
         or not amendment_path.is_file()
+        or not coordinate_correction_path.is_file()
+        or not superseded_coordinate_correction_path.is_file()
     ):
         raise S42Error(
-            "reference WAV, metadata, Mac inventory, or acceptance amendment is missing"
+            "reference WAV, metadata, Mac inventory, acceptance amendment, or "
+            "coordinate correction or retained superseded correction is missing"
         )
     if sha256_file(reference_path) != configuration["reference"]["sha256"]:
         raise S42Error("reference WAV checksum mismatch")
@@ -1003,6 +1008,16 @@ def run_capture(
         != configuration["acceptance_amendment"]["record_sha256"]
     ):
         raise S42Error("pre-capture acceptance amendment checksum mismatch")
+    if (
+        sha256_file(coordinate_correction_path)
+        != configuration["coordinate_correction"]["record_sha256"]
+    ):
+        raise S42Error("dual-frame coordinate reconciliation checksum mismatch")
+    if (
+        sha256_file(superseded_coordinate_correction_path)
+        != configuration["coordinate_correction"]["superseded_record_sha256"]
+    ):
+        raise S42Error("superseded coordinate correction checksum mismatch")
     session_report_path = REPO_ROOT / str(
         configuration["session"]["stable_preflight_report_path"]
     )
@@ -1029,6 +1044,14 @@ def run_capture(
     write_json_atomic(
         attempt.root / "pre_capture_acceptance_amendment.json",
         load_json(amendment_path),
+    )
+    write_json_atomic(
+        attempt.root / "dual_frame_coordinate_reconciliation.json",
+        load_json(coordinate_correction_path),
+    )
+    write_json_atomic(
+        attempt.root / "superseded_post_capture_coordinate_correction.json",
+        load_json(superseded_coordinate_correction_path),
     )
     processes: dict[str, subprocess.Popen[str]] = {}
     cleanup: list[dict[str, Any]] = []
@@ -1335,6 +1358,14 @@ def run_capture(
                 (
                     attempt.root / "pre_capture_acceptance_amendment.json",
                     "pre_capture_acceptance_amendment",
+                ),
+                (
+                    attempt.root / "dual_frame_coordinate_reconciliation.json",
+                    "dual_frame_coordinate_reconciliation",
+                ),
+                (
+                    attempt.root / "superseded_post_capture_coordinate_correction.json",
+                    "superseded_post_capture_coordinate_correction",
                 ),
                 (attempt.root / "hardware_preflight.json", "hardware_preflight"),
                 (attempt.root / "producer_readiness.json", "producer_readiness"),

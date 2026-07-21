@@ -1,10 +1,12 @@
 # S4.2 evidence index and machine-local retrieval
 
-Status: **PASS**. The replacement hardware take, machine-local raw archive,
-raw-independent clean-checkout contract, and repository release gates pass.
+Status: **PASS with dual-frame source-pose reconciliation**. The replacement hardware
+take, machine-local raw archive, raw-independent contract, and repository
+release gates pass. The operator-confirmed Y-sign correction was applied
+before S4.3 collection without modifying historical attempt records.
 
 The authoritative machine-readable inventory is
-`outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json`;
+`outputs/isaac_audio_sensors/S4/S4.2/dual_frame_reconciled_20260721/evidence_index.json`;
 its adjacent
 `SHA256SUMS` covers every indexed artifact other than itself. The index records
 tracked implementation/contracts and every retained machine-local file,
@@ -30,13 +32,13 @@ Verify every file on the capture workstation without repair or coercion:
 ```text
 cd <repository-root>
 cd dataset/S4.2
-sha256sum -c SHA256SUMS.final_20260721
+sha256sum -c SHA256SUMS.dual_frame_reconciled_20260721
 cd ../..
 PYTHONPATH=src .venv/bin/python scripts/validate_s4_2_integrity.py \
-  --index outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json \
+  --index outputs/isaac_audio_sensors/S4/S4.2/dual_frame_reconciled_20260721/evidence_index.json \
   --require-machine-local --json
 PYTHONPATH=src .venv/bin/python scripts/verify_s4_2_local_dataset.py \
-  --index outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json \
+  --index outputs/isaac_audio_sensors/S4/S4.2/dual_frame_reconciled_20260721/evidence_index.json \
   --repository-root . --report /tmp/s4_2_local_validation.json
 ```
 
@@ -52,7 +54,7 @@ Validate the raw-independent contract with:
 
 ```text
 PYTHONPATH=src .venv/bin/python scripts/validate_s4_2_integrity.py \
-  --index outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json \
+  --index outputs/isaac_audio_sensors/S4/S4.2/dual_frame_reconciled_20260721/evidence_index.json \
   --require-git-tracked --json
 ```
 

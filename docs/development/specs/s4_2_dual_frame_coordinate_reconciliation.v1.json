@@ -1,0 +1,83 @@
+{
+  "schema": "ias.s4_2.dual_frame_coordinate_reconciliation.v1",
+  "id": "S4.2-DUAL-FRAME-RECONCILIATION-2026-07-21-A",
+  "adopted_at_local": "2026-07-21T13:46:08-04:00",
+  "status": "adopted_before_s4_3_trial_collection",
+  "authority": {
+    "physical_position": "operator-confirmed actual S4.2 MacBook placement on the operator's left while facing the ZED",
+    "canonical_project_frame": "outputs/isaac_audio_sensors/S4/S4.1/rig_frame_lock.json",
+    "canonical_project_frame_sha256": "17fc836b8a6e6ba4855d64f13075a5d77b7723713ede0a6623511a64b04ca0ee"
+  },
+  "frames": {
+    "F_operator_facing_zed": {
+      "origin": "ZED stereo-lens midpoint",
+      "viewpoint": "operator standing in front of and facing the ZED",
+      "axes": {
+        "positive_x": "behind the operator, meaning forward or in front of the ZED",
+        "negative_x": "in front of the operator, meaning behind the ZED",
+        "positive_y": "operator's right",
+        "negative_y": "operator's left",
+        "positive_z": "upward toward the ceiling",
+        "negative_z": "downward toward the floor"
+      },
+      "bearing_definition": "degrees clockwise from +X toward +Y viewed from above",
+      "position_units": "m"
+    },
+    "F_project": {
+      "origin": "ZED stereo-lens midpoint",
+      "axes": {
+        "positive_x": "forward or in front of the ZED",
+        "positive_y": "right as viewed from the ZED",
+        "positive_z": "up"
+      },
+      "bearing_definition": "degrees clockwise from +X toward +Y viewed from above",
+      "position_units": "m",
+      "software_api_authority": true
+    }
+  },
+  "operator_to_project_conversion": {
+    "x_project": "x_operator",
+    "y_project": "-y_operator",
+    "z_project": "z_operator",
+    "bearing_project": "(-bearing_operator) mod 360",
+    "position_matrix": [[1, 0, 0], [0, -1, 0], [0, 0, 1]],
+    "inverse_is_identical": true
+  },
+  "s4_2_source": {
+    "physical_instruction_leading_view": "on your left while you stand in front of and face the ZED",
+    "operator_facing": {
+      "frame": "F_operator_facing_zed",
+      "position_m": [0.0, -0.9, -0.135],
+      "bearing_deg": 270.0
+    },
+    "canonical": {
+      "frame": "F_project",
+      "position_m": [0.0, 0.9, -0.135],
+      "bearing_deg": 90.0
+    },
+    "distance_from_shared_origin_m": 0.91,
+    "classification": "Approximate"
+  },
+  "superseded_records": [
+    {
+      "path": "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
+      "sha256": "1a5a4df23a15e95389a5b2a5a64ff25edd79c1422e7e30890f9f19814f15d7cc",
+      "scope": "coordinate subsection only"
+    },
+    {
+      "path": "docs/development/specs/s4_2_post_capture_coordinate_correction.v1.json",
+      "sha256": "80e5131a9654a9d4f5dbf978ab6ae8dcca193c4654e96765837a78c74caa58c1",
+      "scope": "entire first post-capture coordinate correction; retained as contradictory superseded evidence"
+    }
+  ],
+  "scientific_disposition": {
+    "raw_capture_modified": false,
+    "historical_attempt_records_modified": false,
+    "waveform_or_timing_result_changed": false,
+    "machine_readable_analysis_frame": "F_project",
+    "physical_instruction_frame": "F_operator_facing_zed first, followed by F_project",
+    "s4_2_acquisition_gate": "passed_with_dual_frame_metadata_reconciliation",
+    "s4_3_trial_started_before_reconciliation": false,
+    "s4_4_started": false
+  }
+}

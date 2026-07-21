@@ -1,0 +1,87 @@
+{
+  "schema": "ias.s4_3.preregistration.v1",
+  "status": "frozen_before_additional_trial_collection",
+  "frozen_at_utc": "2026-07-21T20:14:31Z",
+  "baseline_branch": "main",
+  "baseline_commit": "64f32ed7658e939deb907853d8303d32e78047c3",
+  "amendment_id": "S4.3-INTERACTIVE-STIMULUS-AMENDMENT-04",
+  "amendment_basis": "result_trigger",
+  "authorization": {
+    "source": "operator chat plus frozen automatic expansion rule",
+    "operator_ready_exact_text": "VOICE READY",
+    "received_before_confirmation_capture": true
+  },
+  "supersession": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/amendment_03_supersession.json",
+    "sha256": "db5f16d0f255157c14263c66eefdbac13a763306c7a123acded12b23a31c6dce",
+    "prior_records_retained_immutable": true
+  },
+  "specification": {
+    "path": "docs/development/specs/s4_3_pilot_repeatability_amendment_04.md",
+    "sha256": "1292103b6ce17128fdd563efff3aea1b68df31f5905664cd4011562ec2f6bd05"
+  },
+  "configuration": {
+    "path": "configs/s4_3_pilot_amendment_04.v1.json",
+    "sha256": "8b86e697209f1031bbfd44a6c2cd95f8d0cc9c3206261d0776ceb8ae5c0d4e81",
+    "effective_canonical_sha256": "4057d0178622934ee5609c31e9c7ab0d0ccd523af08bf74e5f600ff0a1013d3d"
+  },
+  "precollection_inventory": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_amendment_04_precollection.json",
+    "sha256": "5b94fe808838a7c4bce4f3f787ad9c0788e249fafe2f0f8221357a95303f0b66",
+    "planned_trial_count": 14,
+    "attempt_count": 11,
+    "accepted_attempt_count": 9,
+    "failed_attempt_count": 2,
+    "terminal_trial_count": 10
+  },
+  "matrix": {
+    "canonical_json_sha256": "3872b3ebd7aa6f29d2fe48e60b38e75b8014f598b0b814e3f2f1439bbb7901e8",
+    "canonicalization": "json.dumps(matrix, sort_keys=True, separators=(',', ':')).encode('utf-8')",
+    "planned_trial_count": 14,
+    "category_counts": {
+      "controlled": 2,
+      "repeatability": 4,
+      "robustness": 8
+    },
+    "added_trial_count": 3,
+    "added_trial_id": "s4_3_rob_voice_01_confirm_timing_01",
+    "expansion_parent_trial_id": "s4_3_rob_voice_01",
+    "expansion_limit_total": 3,
+    "remaining_expansion_capacity": 0,
+    "confirmation_limit_per_triggered_cell": 1
+  },
+  "implementation": [
+    {"path": "src/isaac_audio_sensors/acquisition/s4_3.py", "sha256": "a5976e7233851d1b9f0706604242a4e1beac0e2a628b5d22513755c4c01a7ee3"},
+    {"path": "scripts/run_s4_3_trial.py", "sha256": "fa9c859731e30867300f8ce2bc5607606cc087781cb07701b0d7bdd13ceb9209"},
+    {"path": "scripts/run_s4_2_zed_capture.py", "sha256": "22ffa53ec5eacef5368940236651eb7f39384cda9f56b8b8ef679297d306119d"},
+    {"path": "scripts/validate_s4_2_zed_svo.py", "sha256": "5fdc0aef5401716c70b151865d96e86dff4384a4c1f7d59a39ed8964065c3629"},
+    {"path": "scripts/reanalyze_s4_3_array_frame.py", "sha256": "e90f5349593fc3d21390350347f5af0e74db6adb9a92023faa6adffde5884a5e"},
+    {"path": "scripts/build_s4_3_evidence.py", "sha256": "0b5094d2cf53c14b398bf7cade35ba93e34c32a9c1d50f2db12a876b50df475d"},
+    {"path": "scripts/validate_s4_3_integrity.py", "sha256": "7e04871501ce89ce6ec30cb21909487bff2be3165c27c658a660f6e9346fe0bb"},
+    {"path": "tests/test_s4_3_pilot.py", "sha256": "1fe8a4cc379273ae3ed9a9c3d6dd937ad06b1faf74cd7216b2ce46f7ad41cc7b"}
+  ],
+  "trigger_results_declared": true,
+  "trigger_observation": {
+    "trial_id": "s4_3_rob_voice_01",
+    "attempt_id": "s4_3_rob_voice_01_20260721T201147Z_c6760090",
+    "analysis_sha256": "2e59d07c275ac02c0f6cd6c2abaa20511c40738ce2e26f4e49fedbdcb0d7705b",
+    "manifest_sha256": "31827c769f20d5c470c753db0bf7964a545baf35cec993e59501eaa8e68db687",
+    "diagnostic_path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/voice_interactive_timing_failure_20260721T201200Z.json",
+    "diagnostic_sha256": "6f848dcbb6c34738c013d3149940194a38f46ab1e3999f8114d74943a1458677",
+    "retained_lifecycle_state": "accepted",
+    "operationally_invalid_for_voice_claim": true,
+    "trigger_after_ready_s": 12.509511248,
+    "capture_remaining_after_trigger_s": 2.475788,
+    "threshold_tuning_performed": false
+  },
+  "trial_results_viewed_before_initial_freeze": false,
+  "s4_3_recorder_started_before_initial_freeze": false,
+  "additional_recorder_started_after_trigger_before_amendment_freeze": false,
+  "device_settings_changed": false,
+  "s4_4_started": false,
+  "notes": [
+    "Operator readiness now precedes recorder startup; the stimulus cue follows producer readiness and the frozen settle interval.",
+    "The first voice take remains retained exactly as captured and is not detector evidence.",
+    "This confirmation consumes the final matrix-expansion slot."
+  ]
+}
