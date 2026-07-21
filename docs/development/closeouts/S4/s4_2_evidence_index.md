@@ -1,12 +1,10 @@
 # S4.2 evidence index and machine-local retrieval
 
-Status: **NO-GO pending authorized frozen-commit validation**. The replacement
-hardware take passes and the machine-local raw archive passes checksums and
-semantic validation on the capture workstation. The raw-independent
-clean-checkout gate remains pending.
+Status: **PASS**. The replacement hardware take, machine-local raw archive,
+raw-independent clean-checkout contract, and repository release gates pass.
 
 The authoritative machine-readable inventory is
-`outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721/evidence_index.json`;
+`outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json`;
 its adjacent
 `SHA256SUMS` covers every indexed artifact other than itself. The index records
 tracked implementation/contracts and every retained machine-local file,
@@ -32,13 +30,13 @@ Verify every file on the capture workstation without repair or coercion:
 ```text
 cd <repository-root>
 cd dataset/S4.2
-sha256sum -c SHA256SUMS.remediation_20260721
+sha256sum -c SHA256SUMS.final_20260721
 cd ../..
 PYTHONPATH=src .venv/bin/python scripts/validate_s4_2_integrity.py \
-  --index outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721/evidence_index.json \
+  --index outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json \
   --require-machine-local --json
 PYTHONPATH=src .venv/bin/python scripts/verify_s4_2_local_dataset.py \
-  --index outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721/evidence_index.json \
+  --index outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json \
   --repository-root . --report /tmp/s4_2_local_validation.json
 ```
 
@@ -54,7 +52,7 @@ Validate the raw-independent contract with:
 
 ```text
 PYTHONPATH=src .venv/bin/python scripts/validate_s4_2_integrity.py \
-  --index outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721/evidence_index.json \
+  --index outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json \
   --require-git-tracked --json
 ```
 

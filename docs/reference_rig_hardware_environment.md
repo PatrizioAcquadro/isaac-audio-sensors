@@ -1,7 +1,7 @@
 # Reference Rig Hardware And Environment
 
-Status: **S4.1 passed for the installed handmade desktop fixture; the S4.2 replacement hardware take passes, with frozen-commit repository validation pending**
-Last verified: **July 16, 2026 hardware bring-up; July 20, 2026 operator report, photographic environment/fixture review, SSH/audio checks, and current-fixture ZED/audio capture; July 21, 2026 accepted S4.2 replacement capture and full SVO2 replay**
+Status: **S4.1 and S4.2 passed for the installed handmade desktop fixture; S4.3 has not started**
+Last verified: **July 16, 2026 hardware bring-up; July 20, 2026 operator report, photographic environment/fixture review, SSH/audio checks, and current-fixture ZED/audio capture; July 21, 2026 accepted S4.2 replacement capture, full SVO2 replay, machine-local validation, and clean-checkout repository gates**
 
 This document is the canonical record of the physical development rig for the
 Isaac Audio Sensor and the later SquadBot bench work. It separates live-verified
@@ -401,7 +401,7 @@ Formal printed-mount physical acceptance remains separate. The S4.2 replacement
 take retains the complete reference playback and passes blocking offline SVO2
 replay and retained-data validation. Its startup path uses stable-session
 Mac/GPU checks and actual-recorder readiness rather than redundant per-take
-probes. S4.2 repository closeout still requires the authorized frozen commit,
+probes. S4.2 repository closeout passed from the authorized frozen commit,
 raw-independent clean-checkout validation, and provenance-bound Kit/pack
 audits. S4.3 has not started. The
 following later gates remain open:

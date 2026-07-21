@@ -1,0 +1,199 @@
+{
+  "acceptance_amendment": {
+    "id": "S4.2-PRECAPTURE-AMENDMENT-2026-07-20-A",
+    "record_path": "docs/development/specs/s4_2_pre_capture_acceptance_amendment.v1.json",
+    "record_sha256": "1a5a4df23a15e95389a5b2a5a64ff25edd79c1422e7e30890f9f19814f15d7cc"
+  },
+  "alignment": {
+    "cue_delay_s": 3.0,
+    "event_instruction": "When ALIGNMENT EVENT NOW is issued in chat, immediately show the long plain paper roll, strike the camera-facing rim or side of the blue wastebasket exactly once at approximately (1.15, 0.00, -0.40) m in F_project, keep it visible for a self-timed 1.5 seconds, then remove it without waiting for a second chat message; keep all people and hands outside the ZED field of view.",
+    "event_object": "blue wastebasket with standard white recycling symbol and no private label",
+    "event_position_m": [
+      1.15,
+      0.0,
+      -0.4
+    ],
+    "impact_tool": "long plain paper roll",
+    "maximum_uncertainty_ms": 50.0,
+    "method": "visible_audible_impact",
+    "post_event_pre_playback_s": 2.0,
+    "remove_cue_delay_s": 1.5,
+    "remove_instruction": "Self-time 1.5 seconds from ALIGNMENT EVENT NOW, then remove the paper roll without waiting for a second chat message. Reference playback starts at the frozen 2.0-second target, 0.5 seconds after the scheduled removal target.",
+    "remove_to_playback_s": 0.5
+  },
+  "coordinate_frame": {
+    "axes": {
+      "x": "forward",
+      "y": "operator_right_facing_camera_zed_camera_left",
+      "z": "up"
+    },
+    "bearing_definition": "degrees counterclockwise from +X toward +Y viewed from above",
+    "frame_name": "F_project",
+    "origin": "ZED stereo-lens midpoint",
+    "position_units": "m"
+  },
+  "environment": {
+    "noise_state": "operator-reported quiet; no audible relevant room-noise source, speech, or music",
+    "occupancy": "no people present in retained scene",
+    "operator_notes": "Rig and source remain unchanged for the take. Screens, shipping label, and private information are hidden. Mac and ZED headings are approximately parallel. Mac acoustic radiation axis is not measured or claimed. Any unexpected system sound rejects the take.",
+    "privacy_scene_cleared": true,
+    "temporary_mac_audio_changes": [
+      "operator-requested safe pilot change from 63 to 30 percent after the failed remediation take was judged too loud",
+      "authorized remote set of output volume to 30 percent before the replacement take",
+      "operator-authorized predeclared change from 30 to 40 percent after the retained 30-percent take failed the unchanged reference-correlation gate",
+      "authorized remote set of output volume to 40 percent before the next replacement take",
+      "authorized remote unmute before take"
+    ]
+  },
+  "fixture": {
+    "cables_safe": true,
+    "fixture_id": "S4_TEMP_DESKTOP_FIXTURE_REV0",
+    "marked_footprint_confirmed": true,
+    "microphone_openings_clear": true,
+    "no_component_moved": true,
+    "room_id": "WANG_2022_DESK_NEAR_ENTRANCE",
+    "zed_fov_clear": true
+  },
+  "mac": {
+    "afplay_gain": 1.0,
+    "background_sounds_off_confirmed": true,
+    "balance_centered_confirmed": true,
+    "focus_and_notifications_verification_basis": "operator_confirmed",
+    "inventory_path": "docs/development/specs/s4_2_mac_source_inventory.v1.json",
+    "inventory_sha256": "2360b24977dd25e48ebe9b975a4158dd407151d7bb4de50a8f3ab7f6eb29466d",
+    "model_identifier": "MacBookPro18,1",
+    "mono_audio_off_confirmed": true,
+    "notifications_suppressed_confirmed": true,
+    "os_build": "25F84",
+    "os_version": "26.5.2",
+    "output_device": "MacBook Pro Speakers",
+    "preflight_report_path": "dataset/S4.2/preflight/mac_preflight_stable_session_20260721_006.json",
+    "reference_path": "S4.2/reference/s4_2_reference_v1.0.0.wav",
+    "ssh_alias": "patrizios-macbook",
+    "system_sound_control_procedure": "system and UI sounds remain enabled; after setting volume, do not touch Mac input or controls, interact with applications, or trigger system sounds; playback only by authorized remote afplay; unexpected sound rejects the take",
+    "system_ui_sounds_disabled_or_prevented": true,
+    "system_ui_sounds_enabled": true,
+    "system_volume_percent": 40,
+    "volume_change_feedback_enabled": true,
+    "work_focus_active_confirmed": true
+  },
+  "raw_evidence": {
+    "checksum_command": "cd dataset/S4.2 && sha256sum -c SHA256SUMS",
+    "fresh_clone_available": false,
+    "machine_local_root": "dataset/S4.2",
+    "machine_loss_risk_acknowledged": true,
+    "off_machine_storage_authorized": false,
+    "replicated": false,
+    "retention": "machine_local_gitignored",
+    "semantic_validation_command": "PYTHONPATH=src .venv/bin/python scripts/validate_s4_2_integrity.py --index outputs/isaac_audio_sensors/S4/S4.2/evidence_index.json --require-machine-local"
+  },
+  "reference": {
+    "duration_s": 9.5,
+    "local_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+    "metadata_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/reference_wav.json",
+    "minimum_correlated_raw_channels": 2,
+    "minimum_normalized_correlation": 0.03,
+    "playback_duration_tolerance_s": 1.5,
+    "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+  },
+  "respeaker": {
+    "channel_count": 6,
+    "channel_order": [
+      "conference",
+      "asr",
+      "raw_microphone_0",
+      "raw_microphone_1",
+      "raw_microphone_2",
+      "raw_microphone_3"
+    ],
+    "channel_order_verified_each_take": true,
+    "device": "hw:CARD=Array,DEV=0",
+    "firmware": "2.08",
+    "model": "ReSpeaker XVF3800 USB 4-Mic Array",
+    "remote_attempt_root": "S4.2/captures",
+    "sample_format": "S16_LE",
+    "sample_rate_hz": 16000,
+    "serial": "114993701261100454",
+    "ssh_alias": "elab-raspberrypi5",
+    "usb_product": "reSpeaker XVF3800 4-Mic Array"
+  },
+  "schema": "ias.s4_2.acquisition_config.v1",
+  "session": {
+    "attempt_root": "dataset/S4.2/attempts",
+    "chat_cue_ack_timeout_s": 15.0,
+    "duration_s": 35.0,
+    "duration_tolerance_s": 0.25,
+    "minimum_local_free_bytes": 5368709120,
+    "minimum_pi_free_bytes": 1073741824,
+    "post_playback_margin_s": 2.0,
+    "stable_preflight_id": "s4_2_stable_session_20260721_006",
+    "stable_preflight_invalidation_path": "dataset/S4.2/preflight/stable_session_20260721_006.invalidated.json",
+    "stable_preflight_report_path": "dataset/S4.2/preflight/stable_session_20260721_006.json"
+  },
+  "source": {
+    "acoustic_radiation_axis": "not_measured_or_claimed",
+    "bearing_deg_counterclockwise_from_positive_x": 90.0,
+    "delta_x_m": 0.0,
+    "delta_y_m": 0.9,
+    "delta_z_m": -0.135,
+    "distance_from_rig_origin_m": 0.91,
+    "distance_provenance": "derived_from_position_m_not_independent_measurement",
+    "lid_angle_deg": 90.0,
+    "lid_state": "open",
+    "orientation_deg": {
+      "pitch": 0.0,
+      "roll": 0.0,
+      "yaw": 0.0
+    },
+    "orientation_measurement_classification": "practical_visual_placement_not_metrology",
+    "position_m": [
+      0.0,
+      0.9,
+      -0.135
+    ],
+    "relative_side": "operator_right_facing_camera",
+    "screen_heading": "same_general_direction_as_zed",
+    "speaker_height_m": 0.71,
+    "vertical_offset_uncertainty_m": 0.01,
+    "zed_stereo_midpoint_height_derived_m": 0.845
+  },
+  "validation_profile": {
+    "alignment_policy": "required_with_threshold",
+    "channel_signal_policy": "all_channels_nonsilent",
+    "clipping_policy": "reject_sustained",
+    "controlled_source_policy": "exact_profile",
+    "duration_policy": "exact_with_tolerance",
+    "id": "s4_2_controlled_dry_run_v1",
+    "imu_policy": "every_frame_success_and_fresh",
+    "playback_overlap_policy": "complete_with_margin",
+    "pose_policy": "every_frame_ok_and_fresh",
+    "required_modalities": [
+      "audio_video_alignment",
+      "mac_reference_playback",
+      "respeaker_audio",
+      "zed_depth",
+      "zed_image",
+      "zed_imu",
+      "zed_pose",
+      "zed_svo2"
+    ],
+    "schema": "ias.s4.validation_profile.v1",
+    "stimulus_policy": "complete_reference",
+    "svo_frame_count_policy": "exact_jsonl_match",
+    "svo_replay_policy": "required_before_acceptance",
+    "svo_replay_stage": "offline_finalization"
+  },
+  "zed": {
+    "camera_firmware": "1523",
+    "coordinate_system": "RIGHT_HANDED_Y_UP",
+    "coordinate_units": "m",
+    "depth_mode": "PERFORMANCE",
+    "fps": 30,
+    "model": "ZED 2i",
+    "resolution": "HD720",
+    "sdk_version": "5.4.0",
+    "sensor_firmware": "777",
+    "serial": "39011785",
+    "usb_minimum_speed_mbps": 5000
+  }
+}

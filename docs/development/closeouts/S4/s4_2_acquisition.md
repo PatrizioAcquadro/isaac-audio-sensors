@@ -1,10 +1,10 @@
 # S4.2 closeout - synchronized practical acquisition
 
-Status: **NO-GO pending authorized frozen-commit validation** (2026-07-21).
-The maintained acquisition path and replacement real hardware take pass. The
-raw-independent clean-checkout and provenance-bound Kit/pack gates still
-require the operator-authorized frozen commit. This document does not authorize
-or start S4.3.
+Status: **PASS** (2026-07-21). The maintained acquisition path, replacement
+real hardware take, machine-local raw validation, raw-independent clean-checkout
+validation, and provenance-bound distribution, Kit, and acoustic-pack gates all
+pass. The direct readiness verdict is **GO for S4.3**, but this closeout neither
+starts nor collects S4.3 data.
 
 ## Accepted take
 
@@ -135,8 +135,8 @@ cleans local and remote children on all exits.
 
 ## Evidence retention and limitations
 
-The replacement machine-readable index is
-`outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721/evidence_index.json`.
+The final machine-readable index is
+`outputs/isaac_audio_sensors/S4/S4.2/final_20260721/evidence_index.json`.
 Its checksum manifest
 covers every indexed tracked or machine-local artifact except the index itself
 and checksum file, avoiding circular self-hashes. Every retained file under
@@ -154,16 +154,27 @@ pass both checksum and semantic validation.
 
 ## Final gate
 
-The targeted S4.2 suite passed with 94 tests and two explicit hardware/real-SVO
-fixture skips. The full primary-worktree suite passed with 1,204 tests and 80
-genuine optional-dependency or explicit hardware skips. `make lint`,
-`make build`, `make check-version`, and `make audit-dist` pass. `make audit-kit`
-and `make audit-pack` report absent archives because their build targets require
-a clean frozen release source; `make check-release-source` rejects the
-intentionally dirty uncommitted worktree.
+The frozen implementation/evidence source is commit
+`1f72983f25959cb46bdc052d3bb6acf9005df444`. In a clean clone of that exact
+revision, the targeted S4.2 suite passed with 94 tests and two explicit
+hardware/real-SVO-fixture skips, and the raw-independent integrity validator
+passed 524 contracts with zero issues. The full clean-checkout suite passed
+1,202 tests with 82 genuine optional-dependency or explicit hardware skips.
+The earlier primary-worktree run passed 1,204 tests with 80 such skips; the
+two-count difference is optional-environment availability, not relaxed
+criteria or a failed required check.
 
-The current machine-readable candidate result is
-`outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721/candidate_repository_gate.json`.
-S4.2 remains NO-GO until the operator authorizes the frozen commit, the
-raw-independent clean-checkout gate passes, and provenance-bound Kit/pack
-archives are built and audited from that frozen source.
+`make lint`, `make build`, `make check-version`, `make audit-dist`,
+`make check-release-source`, `make build-kit`, `make audit-kit`,
+`make build-pack`, `make audit-pack`, and `git diff --check` all pass. The
+distribution audit covers a 402-file sdist and 132-file wheel, the Kit audit a
+133-file archive, and the acoustic-pack audit an 8-file archive. The pack was
+built from exactly five wheels downloaded with cache disabled and no
+dependencies or installation, exclusively through `https://pypi.org/simple`;
+every filename, version, and SHA-256 matched both `pack.toml` and
+`requirements.lock`. The temporary wheels are not evidence and are not in Git.
+
+The authoritative final repository result is
+`outputs/isaac_audio_sensors/S4/S4.2/final_20260721/repository_gate.json`.
+S4.2 is **PASS** and the readiness verdict for S4.3 is **GO**. S4.3 was not
+started.

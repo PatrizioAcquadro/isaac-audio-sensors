@@ -1,0 +1,7 @@
+{
+  "host_monotonic_ns": 393480257473626,
+  "host_wall_time_utc": "2026-07-21T15:37:52.928376+00:00",
+  "instruction": "operator acts only on the assistant's exact chat message; terminal or tool notifications are not action cues",
+  "schema": "ias.s4_2.chat_cue_handshake.v1",
+  "status": "awaiting_alignment_chat_cue"
+}

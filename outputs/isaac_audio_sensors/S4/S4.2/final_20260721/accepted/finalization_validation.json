@@ -1,0 +1,234 @@
+{
+  "alignment_recomputation": {
+    "checks": [
+      {
+        "id": "alignment_recomputed_from_retained_evidence",
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "audio_properties": {
+    "byte_size": 6720044,
+    "channel_count": 6,
+    "compression": "NONE",
+    "declared_frame_count": 560000,
+    "decoded_frame_count": 560000,
+    "duration_s": 35.0,
+    "per_channel_maximum_clip_run_samples": [
+      7,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "per_channel_peak_pcm16": [
+      32768,
+      16961,
+      10727,
+      11971,
+      10928,
+      11577
+    ],
+    "per_channel_rms_pcm16": [
+      2288.603993449703,
+      357.24879029586253,
+      257.8591341978905,
+      260.9355050821946,
+      255.95009966021,
+      261.5912973275296
+    ],
+    "sample_rate_hz": 16000,
+    "sample_width_bytes": 2,
+    "sha256": "8bbdd096b85dd85776327994a425424fbb851a7870f212bb6c9549d01c51d981"
+  },
+  "issues": [],
+  "playback_capture_overlap": {
+    "checks": [
+      {
+        "id": "playback_capture_overlap",
+        "reference_duration_s": 9.5,
+        "remote_playback_elapsed_s": 9.912626,
+        "ssh_timing_is_synchronization": false,
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "reference_capture": {
+    "checks": [
+      {
+        "channel_results": [
+          {
+            "channel_index": 0,
+            "identity_peak_normalized_correlation": 0.13342202184924234,
+            "identity_reference_start_sample_index": 240890,
+            "peak_normalized_correlation": 0.13219935721196896,
+            "reference_start_elapsed_s": 15.055625,
+            "reference_start_sample_index": 240890
+          },
+          {
+            "channel_index": 1,
+            "identity_peak_normalized_correlation": 0.11668894998039578,
+            "identity_reference_start_sample_index": 240890,
+            "peak_normalized_correlation": 0.08997916908082214,
+            "reference_start_elapsed_s": 15.055625,
+            "reference_start_sample_index": 240890
+          },
+          {
+            "channel_index": 2,
+            "identity_peak_normalized_correlation": 0.10700052394851661,
+            "identity_reference_start_sample_index": 240032,
+            "peak_normalized_correlation": 0.09159672579244592,
+            "reference_start_elapsed_s": 15.001625,
+            "reference_start_sample_index": 240026
+          },
+          {
+            "channel_index": 3,
+            "identity_peak_normalized_correlation": 0.07057700505837013,
+            "identity_reference_start_sample_index": 240016,
+            "peak_normalized_correlation": 0.06583595407109129,
+            "reference_start_elapsed_s": 15.001375,
+            "reference_start_sample_index": 240022
+          },
+          {
+            "channel_index": 4,
+            "identity_peak_normalized_correlation": 0.08347985577408246,
+            "identity_reference_start_sample_index": 240037,
+            "peak_normalized_correlation": 0.07178379332283721,
+            "reference_start_elapsed_s": 15.001875,
+            "reference_start_sample_index": 240030
+          },
+          {
+            "channel_index": 5,
+            "identity_peak_normalized_correlation": 0.09056283525965948,
+            "identity_reference_start_sample_index": 240033,
+            "peak_normalized_correlation": 0.07279496221845608,
+            "reference_start_elapsed_s": 15.00225,
+            "reference_start_sample_index": 240036
+          }
+        ],
+        "evidence_interpretation": "full deterministic non-silent waveform identity; final-silence coverage is established separately by recorder/playback overlap",
+        "id": "complete_reference_stimulus",
+        "minimum_correlated_raw_channels": 2,
+        "minimum_normalized_correlation": 0.03,
+        "reference_duration_s": 9.5,
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  },
+  "schema": "ias.s4_2.finalization_validation.v1",
+  "status": "passed",
+  "svo_replay": {
+    "process": {
+      "command": [
+        "/home/pacquadr/Desktop/isaac-audio-sensors/.venv/bin/python",
+        "/home/pacquadr/Desktop/isaac-audio-sensors/scripts/validate_s4_2_zed_svo.py",
+        "dataset/S4.2/attempts/s4_2_20260721T153800Z_optimized_candidate_014/raw/zed_capture.svo2",
+        "--output",
+        "dataset/S4.2/attempts/s4_2_20260721T153800Z_optimized_candidate_014/svo_replay_finalization_validation.json",
+        "--expected-serial",
+        "39011785",
+        "--resolution",
+        "HD720",
+        "--fps",
+        "30",
+        "--depth-mode",
+        "PERFORMANCE"
+      ],
+      "completed_monotonic_ns": 393736526205011,
+      "completed_wall_time_utc": "2026-07-21T15:42:09.197134+00:00",
+      "elapsed_ms": 2586.243063,
+      "return_code": 0,
+      "started_monotonic_ns": 393733939961948,
+      "started_wall_time_utc": "2026-07-21T15:42:06.610874+00:00",
+      "stderr": "[2026-07-21 11:42:06 UTC][ZED][INFO] Logging level INFO\n[2026-07-21 11:42:06 UTC][ZED][INFO] [Init]  Serial Number: S/N 39011785\n[2026-07-21 11:42:06 UTC][ZED][WARNING] [Init]  PERFORMANCE is deprecated. Please update your configuration to use NEURAL instead.\n[2026-07-21 11:42:08 UTC][ZED][ERROR] END OF SVO FILE REACHED in sl::ERROR_CODE sl::Camera::grab(sl::RuntimeParameters)\n",
+      "stdout": "{\"capture\": {\"depth_mode\": \"PERFORMANCE\", \"fps\": 30, \"resolution\": \"HD720\"}, \"declared_frame_count\": 1052, \"decoded_dimensions_px\": [1280, 720], \"decoded_fps\": 30, \"end_of_svo_reached\": true, \"failure_reason\": null, \"identity\": {\"model\": \"ZED 2i\", \"sdk_version\": \"5.4.0\", \"serial\": \"39011785\"}, \"replayed_frame_count\": 1052, \"representative_frames\": [{\"depth_status\": \"SUCCESS\", \"device_timestamp_ns\": 1784648269864105000, \"frame_index\": 0, \"image_status\": \"SUCCESS\", \"imu_status\": \"SUCCESS\", \"pose_status\": \"OK\"}, {\"depth_status\": \"SUCCESS\", \"device_timestamp_ns\": 1784648287398363000, \"frame_index\": 526, \"image_status\": \"SUCCESS\", \"imu_status\": \"SUCCESS\", \"pose_status\": \"OK\"}, {\"depth_status\": \"SUCCESS\", \"device_timestamp_ns\": 1784648304866084000, \"frame_index\": 1050, \"image_status\": \"SUCCESS\", \"imu_status\": \"SUCCESS\", \"pose_status\": \"OK\"}], \"schema\": \"ias.s4_2.svo_replay_validation.v1\", \"status\": \"passed\", \"svo_path\": \"zed_capture.svo2\", \"tracking_enable_status\": \"SUCCESS\"}\n",
+      "timed_out": false
+    },
+    "report": {
+      "capture": {
+        "depth_mode": "PERFORMANCE",
+        "fps": 30,
+        "resolution": "HD720"
+      },
+      "declared_frame_count": 1052,
+      "decoded_dimensions_px": [
+        1280,
+        720
+      ],
+      "decoded_fps": 30,
+      "end_of_svo_reached": true,
+      "failure_reason": null,
+      "identity": {
+        "model": "ZED 2i",
+        "sdk_version": "5.4.0",
+        "serial": "39011785"
+      },
+      "replayed_frame_count": 1052,
+      "representative_frames": [
+        {
+          "depth_status": "SUCCESS",
+          "device_timestamp_ns": 1784648269864105000,
+          "frame_index": 0,
+          "image_status": "SUCCESS",
+          "imu_status": "SUCCESS",
+          "pose_status": "OK"
+        },
+        {
+          "depth_status": "SUCCESS",
+          "device_timestamp_ns": 1784648287398363000,
+          "frame_index": 526,
+          "image_status": "SUCCESS",
+          "imu_status": "SUCCESS",
+          "pose_status": "OK"
+        },
+        {
+          "depth_status": "SUCCESS",
+          "device_timestamp_ns": 1784648304866084000,
+          "frame_index": 1050,
+          "image_status": "SUCCESS",
+          "imu_status": "SUCCESS",
+          "pose_status": "OK"
+        }
+      ],
+      "schema": "ias.s4_2.svo_replay_validation.v1",
+      "status": "passed",
+      "svo_path": "zed_capture.svo2",
+      "tracking_enable_status": "SUCCESS"
+    },
+    "validation": {
+      "checks": [
+        {
+          "expected_frame_count": 1052,
+          "id": "svo2_sdk_replay",
+          "status": "passed"
+        }
+      ],
+      "issues": [],
+      "schema": "ias.s4_2.validation_report.v1",
+      "status": "passed"
+    }
+  },
+  "zed_records": {
+    "checks": [
+      {
+        "id": "zed_records",
+        "minimum_record_count": 945,
+        "record_count": 1052,
+        "status": "passed"
+      }
+    ],
+    "issues": [],
+    "schema": "ias.s4_2.validation_report.v1",
+    "status": "passed"
+  }
+}

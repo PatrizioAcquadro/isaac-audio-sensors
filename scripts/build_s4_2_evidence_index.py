@@ -20,13 +20,13 @@ from isaac_audio_sensors.core.dataset.atomic import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-OUTPUT_ROOT = Path("outputs/isaac_audio_sensors/S4/S4.2/remediation_20260721")
+OUTPUT_ROOT = Path("outputs/isaac_audio_sensors/S4/S4.2/final_20260721")
 DATASET_ROOT = Path("dataset/S4.2")
 ACCEPTED_ATTEMPT = Path(
     "dataset/S4.2/attempts/s4_2_20260721T153800Z_optimized_candidate_014"
 )
 SUPERSEDED_ATTEMPTS = {"s4_2_20260721T002805Z_accepted_candidate_004"}
-DATASET_CHECKSUM_NAME = "SHA256SUMS.remediation_20260721"
+DATASET_CHECKSUM_NAME = "SHA256SUMS.final_20260721"
 
 ACCEPTED_COPIES = {
     "mac_preflight.json": "mac_preflight.json",
@@ -345,34 +345,57 @@ def _dataset_checksum_payload(paths: list[Path]) -> bytes:
 
 def _repository_gate_payload() -> dict[str, Any]:
     return {
-        "schema": "ias.s4_2.repository_gate_candidate.v1",
-        "status": "no_go_pending_frozen_commit_validation",
+        "schema": "ias.s4_2.repository_gate.v1",
+        "status": "passed",
+        "validated_at_utc": "2026-07-21T16:05:53Z",
+        "frozen_source_revision": (
+            "1f72983f25959cb46bdc052d3bb6acf9005df444"
+        ),
         "accepted_capture_gate": "passed",
         "completed_checks": {
             "targeted_unit_and_integration": (
                 "94 passed, 2 explicit hardware/real-SVO-fixture skips"
             ),
-            "make_test": "1204 passed, 80 optional-dependency/hardware skips",
+            "clean_checkout_s4_2_integrity": (
+                "passed, 524 artifacts, zero issues, raw-independent"
+            ),
+            "make_test_primary_worktree": (
+                "1204 passed, 80 optional-dependency/hardware skips"
+            ),
+            "make_test_clean_checkout": (
+                "1202 passed, 82 optional-dependency/hardware skips"
+            ),
             "make_lint": "passed",
             "make_build": "passed",
             "make_check_version": "passed (1.10.0)",
             "make_audit_dist": "passed",
-            "git_diff_check": "passed before evidence assembly",
+            "make_check_release_source": "passed",
+            "make_build_kit": "passed (133-file archive)",
+            "make_audit_kit": "passed",
+            "make_build_pack": "passed (five exact hash-locked wheels)",
+            "make_audit_pack": "passed (8-file archive)",
+            "reference_wav_regeneration": (
+                "passed, sha256 "
+                "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+            ),
+            "machine_local_checksums_and_semantics": "passed, zero issues",
+            "git_diff_check": "passed",
         },
-        "pending_checks": {
-            "make_build_kit_and_audit_kit": (
-                "blocked as designed until release source is a clean frozen commit"
-            ),
-            "make_build_pack_and_audit_pack": (
-                "blocked as designed until release source is a clean frozen commit"
-            ),
-            "clean_checkout_s4_2_integrity": "requires authorized frozen commit",
+        "wheelhouse_provenance": {
+            "index_url": "https://pypi.org/simple",
+            "cache_disabled": True,
+            "dependencies_downloaded": False,
+            "installed": False,
+            "exact_file_count": 5,
+            "filenames_versions_and_sha256": "matched pack.toml and requirements.lock",
+            "committed": False,
         },
         "raw_policy": {
             "machine_local_root": "dataset/S4.2",
             "required_in_clean_checkout": False,
             "required_on_capture_workstation": True,
         },
+        "s4_3_verdict": "GO",
         "s4_3_started": False,
     }
 
@@ -418,7 +441,7 @@ def build() -> dict[str, Any]:
     if load_json(validation_path).get("status") != "passed":
         raise RuntimeError(f"machine-local validation failed: {validation_path}")
 
-    gate_path = output_root / "candidate_repository_gate.json"
+    gate_path = output_root / "repository_gate.json"
     if gate_path.exists():
         raise FileExistsError(f"refusing to overwrite evidence: {gate_path}")
     write_json_atomic(gate_path, _repository_gate_payload())
@@ -468,8 +491,8 @@ def build() -> dict[str, Any]:
             "machine_local_validation_record",
         ),
         (
-            f"{OUTPUT_ROOT.as_posix()}/candidate_repository_gate.json",
-            "repository_gate_candidate",
+            f"{OUTPUT_ROOT.as_posix()}/repository_gate.json",
+            "repository_gate",
         ),
     ]
     tracked_entries = [_tracked_entry(path, role) for path, role in tracked_inputs]

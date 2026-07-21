@@ -1,0 +1,51 @@
+{
+  "capture": {
+    "depth_mode": "PERFORMANCE",
+    "fps": 30,
+    "resolution": "HD720"
+  },
+  "declared_frame_count": 1052,
+  "decoded_dimensions_px": [
+    1280,
+    720
+  ],
+  "decoded_fps": 30,
+  "end_of_svo_reached": true,
+  "failure_reason": null,
+  "identity": {
+    "model": "ZED 2i",
+    "sdk_version": "5.4.0",
+    "serial": "39011785"
+  },
+  "replayed_frame_count": 1052,
+  "representative_frames": [
+    {
+      "depth_status": "SUCCESS",
+      "device_timestamp_ns": 1784648269864105000,
+      "frame_index": 0,
+      "image_status": "SUCCESS",
+      "imu_status": "SUCCESS",
+      "pose_status": "OK"
+    },
+    {
+      "depth_status": "SUCCESS",
+      "device_timestamp_ns": 1784648287398363000,
+      "frame_index": 526,
+      "image_status": "SUCCESS",
+      "imu_status": "SUCCESS",
+      "pose_status": "OK"
+    },
+    {
+      "depth_status": "SUCCESS",
+      "device_timestamp_ns": 1784648304866084000,
+      "frame_index": 1050,
+      "image_status": "SUCCESS",
+      "imu_status": "SUCCESS",
+      "pose_status": "OK"
+    }
+  ],
+  "schema": "ias.s4_2.svo_replay_validation.v1",
+  "status": "passed",
+  "svo_path": "zed_capture.svo2",
+  "tracking_enable_status": "SUCCESS"
+}
