@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import isaac_audio_sensors.acquisition.s4_3_postcapture as s43_postcapture
 from isaac_audio_sensors.acquisition.s4_3 import (
     EXPECTED_INTERACTIVE_STIMULUS_PROTOCOL,
     EXPECTED_OPERATIONAL_GATE_POLICY,
@@ -1205,6 +1206,93 @@ def test_corrective_02_postcapture_manifest_passes_and_fails_closed() -> None:
     missing["retained_attempts"] = missing["retained_attempts"][:1]
     with pytest.raises(S43Error, match="exactly two"):
         validate_corrective_02_postcapture_manifest(missing, repo_root=ROOT)
+
+
+def test_corrective_02_postcapture_rejects_nonexistent_commit() -> None:
+    path = (
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+        "corrective_02_postcapture_evidence_manifest.json"
+    )
+    manifest = load_json(path)
+    next(
+        item
+        for item in manifest["post_capture_implementation"]
+        if item["path"] == "tests/test_s4_3_pilot.py"
+    )["sha256"] = sha256_file(Path(__file__))
+    manifest["provenance_commits"][
+        "pre_capture_freeze_and_implementation"
+    ] = "f" * 40
+    with pytest.raises(S43Error, match="commit"):
+        validate_corrective_02_postcapture_manifest(manifest, repo_root=ROOT)
+
+
+def test_corrective_02_postcapture_rejects_reversed_commits() -> None:
+    path = (
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+        "corrective_02_postcapture_evidence_manifest.json"
+    )
+    manifest = load_json(path)
+    next(
+        item
+        for item in manifest["post_capture_implementation"]
+        if item["path"] == "tests/test_s4_3_pilot.py"
+    )["sha256"] = sha256_file(Path(__file__))
+    commits = manifest["provenance_commits"]
+    commits["pre_capture_freeze_and_implementation"], commits[
+        "replacement_authorization"
+    ] = (
+        commits["replacement_authorization"],
+        commits["pre_capture_freeze_and_implementation"],
+    )
+    with pytest.raises(S43Error, match="ancestry"):
+        validate_corrective_02_postcapture_manifest(manifest, repo_root=ROOT)
+
+
+def test_corrective_02_postcapture_rejects_real_commit_missing_freeze_artifacts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = (
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+        "corrective_02_postcapture_evidence_manifest.json"
+    )
+    manifest = load_json(path)
+    monkeypatch.setitem(
+        manifest["provenance_commits"],
+        "pre_capture_freeze_and_implementation",
+        "1d0b93d95860bc88450d925f98d58d229e59c552",
+    )
+    with pytest.raises(S43Error, match="artifact"):
+        validate_corrective_02_postcapture_manifest(manifest, repo_root=ROOT)
+
+
+def test_corrective_02_postcapture_rejects_non_repository(
+    tmp_path: Path,
+) -> None:
+    manifest = load_json(
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+        "corrective_02_postcapture_evidence_manifest.json"
+    )
+    with pytest.raises(S43Error, match="Git"):
+        validate_corrective_02_postcapture_manifest(
+            manifest, repo_root=tmp_path
+        )
+
+
+def test_corrective_02_postcapture_fails_closed_when_git_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = load_json(
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+        "corrective_02_postcapture_evidence_manifest.json"
+    )
+    monkeypatch.setattr(s43_postcapture.shutil, "which", lambda _name: None)
+    with pytest.raises(S43Error, match="Git is unavailable"):
+        validate_corrective_02_postcapture_manifest(manifest, repo_root=ROOT)
 
 
 def _noise_result(

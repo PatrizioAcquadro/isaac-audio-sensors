@@ -29,7 +29,8 @@ DEFAULT_REVIEW_REMEDIATION = S43_OUTPUT / "freeze/review_remediation_manifest.js
 DEFAULT_REVIEW_CONFIG = ROOT / "configs/s4_3_pilot_amendment_04.v1.json"
 DEFAULT_REVIEW_PREREGISTRATION = S43_OUTPUT / "freeze/preregistration_amendment_04.json"
 DEFAULT_CORRECTIVE_02_POSTCAPTURE = (
-    S43_OUTPUT / "freeze/corrective_02_postcapture_evidence_manifest.json"
+    S43_OUTPUT
+    / "freeze/corrective_02_postcapture_provenance_correction_02.json"
 )
 
 
@@ -257,6 +258,7 @@ def validate(
         "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/corrective_02_failed_attempt_diagnosis.json",
         "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_failure_handling_01.json",
         "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_evidence_manifest.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_provenance_correction_02.json",
     }
     if require_final:
         required.update(

@@ -43,7 +43,8 @@ DEFAULT_REVIEW_PREREGISTRATION = (
     DEFAULT_OUTPUT / "freeze/preregistration_amendment_04.json"
 )
 DEFAULT_CORRECTIVE_02_POSTCAPTURE = (
-    DEFAULT_OUTPUT / "freeze/corrective_02_postcapture_evidence_manifest.json"
+    DEFAULT_OUTPUT
+    / "freeze/corrective_02_postcapture_provenance_correction_02.json"
 )
 
 
@@ -558,6 +559,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         diagnostic_root / "corrective_02_pre_acquisition_confirmation_rejection.json",
         diagnostic_root / "corrective_02_failed_attempt_diagnosis.json",
         freeze_root / "corrective_02_failure_handling_01.json",
+        freeze_root / "corrective_02_postcapture_evidence_manifest.json",
         ROOT / args.corrective_02_postcapture,
         ROOT / "src/isaac_audio_sensors/acquisition/s4_3.py",
         ROOT / "src/isaac_audio_sensors/acquisition/s4_3_postcapture.py",
@@ -658,7 +660,7 @@ def main() -> int:
         type=Path,
         default=Path(
             "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
-            "corrective_02_postcapture_evidence_manifest.json"
+            "corrective_02_postcapture_provenance_correction_02.json"
         ),
     )
     parser.add_argument(
