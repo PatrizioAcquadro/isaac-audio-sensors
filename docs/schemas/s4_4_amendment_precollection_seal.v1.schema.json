@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PatrizioAcquadro/isaac-audio-sensors/schemas/s4_4_amendment_precollection_seal.v1.schema.json",
+  "title": "S4.4 amendment precollection seal v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","status","amendment_id","bindings","historical_split_plan_payload_sha256","historical_record_set_sha256","identity_contract_sha256","grouping_policy_sha256","replacement_policy_sha256","retention_policy_sha256","source_checkpoint","collection_allowed","s4_5_or_later_started","seal_payload_sha256"],
+  "properties": {
+    "schema": {"const": "ias.s4_4.amendment_precollection_seal.v1"},
+    "status": {"enum": ["awaiting_commit_authorization","committed"]},
+    "amendment_id": {"const": "s4_4_data_expansion_amendment_01"},
+    "bindings": {"type": "object", "minProperties": 10, "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "historical_split_plan_payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "historical_record_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identity_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "grouping_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "replacement_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "retention_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_checkpoint": {"type": ["object","null"]},
+    "collection_allowed": {"type": "boolean"},
+    "s4_5_or_later_started": {"const": false},
+    "seal_payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
