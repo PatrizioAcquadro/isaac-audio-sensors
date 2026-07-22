@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PatrizioAcquadro/isaac-audio-sensors/schemas/s4_4_amendment_session_readiness.v2.schema.json",
+  "title": "S4.4 amendment-03 pre-attempt live readiness v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","status","amendment_id","session_id","session_date_local","collected_at_utc","precollection_seal_sha256","session_preflight_path","session_preflight_sha256","checks","observations","attempt_allocated","recorder_started","playback_started","zed_capture_started","media_created","failure_retention_class","readiness_sha256"],
+  "properties": {
+    "schema": {"const": "ias.s4_4.amendment_session_readiness.v2"},
+    "status": {"enum": ["passed","failed"]},
+    "amendment_id": {"const": "s4_4_data_expansion_amendment_03"},
+    "session_id": {"enum": ["fit_b","prospective_holdout"]},
+    "session_date_local": {"type": "string", "format": "date"},
+    "collected_at_utc": {"type": "string", "format": "date-time"},
+    "precollection_seal_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "session_preflight_path": {"type": "string"},
+    "session_preflight_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "checks": {"type": "object", "minProperties": 14, "maxProperties": 14},
+    "observations": {"type": "object"},
+    "attempt_allocated": {"const": false},
+    "recorder_started": {"const": false},
+    "playback_started": {"const": false},
+    "zed_capture_started": {"const": false},
+    "media_created": {"const": false},
+    "failure_retention_class": {"type": ["string","null"]},
+    "readiness_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PatrizioAcquadro/isaac-audio-sensors/schemas/s4_4_amendment_manifest.v3.schema.json",
+  "title": "S4.4 amendment-03 future-session manifest v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","status","amendment_id","partition","session_id","session_date_local","calendar_policy","separate_session_required","planned_take_count","takes","manifest_sha256"],
+  "properties": {
+    "schema": {"const": "ias.s4_4.data_expansion_manifest.v3"},
+    "status": {"const": "frozen_before_collection"},
+    "amendment_id": {"const": "s4_4_data_expansion_amendment_03"},
+    "partition": {"enum": ["fit","prospective_holdout"]},
+    "session_id": {"enum": ["fit_b","prospective_holdout"]},
+    "session_date_local": {"type": "null"},
+    "calendar_policy": {"const": "same_local_calendar_date_permitted"},
+    "separate_session_required": {"const": true},
+    "planned_take_count": {"enum": [47,51]},
+    "takes": {"type": "array", "minItems": 47, "maxItems": 51, "items": {"type": "object"}},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
