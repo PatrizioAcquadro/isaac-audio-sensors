@@ -19,12 +19,18 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     validate_preregistration,
     validate_review_remediation_manifest,
 )
+from isaac_audio_sensors.acquisition.s4_3_postcapture import (
+    validate_corrective_02_postcapture_manifest,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 S43_OUTPUT = ROOT / "outputs/isaac_audio_sensors/S4/S4.3"
 DEFAULT_REVIEW_REMEDIATION = S43_OUTPUT / "freeze/review_remediation_manifest.json"
 DEFAULT_REVIEW_CONFIG = ROOT / "configs/s4_3_pilot_amendment_04.v1.json"
 DEFAULT_REVIEW_PREREGISTRATION = S43_OUTPUT / "freeze/preregistration_amendment_04.json"
+DEFAULT_CORRECTIVE_02_POSTCAPTURE = (
+    S43_OUTPUT / "freeze/corrective_02_postcapture_evidence_manifest.json"
+)
 
 
 def _problem(code: str, path: str, message: str) -> dict[str, str]:
@@ -39,6 +45,7 @@ def validate(
     review_remediation_path: Path,
     review_config_path: Path,
     review_preregistration_path: Path,
+    corrective_02_postcapture_path: Path,
     require_machine_local: bool,
     require_final: bool,
 ) -> dict[str, Any]:
@@ -99,6 +106,18 @@ def validate(
         _problem(item.code, item.path, item.message)
         for item in corrective_validation.issues
     )
+    try:
+        validate_corrective_02_postcapture_manifest(
+            load_json(corrective_02_postcapture_path), repo_root=ROOT
+        )
+    except (OSError, S43Error, ValueError) as exc:
+        issues.append(
+            _problem(
+                "corrective_02_postcapture_provenance_invalid",
+                str(corrective_02_postcapture_path),
+                str(exc),
+            )
+        )
     inventory_path = evidence_root / "trial_inventory.json"
     if not inventory_path.is_file():
         issues.append(_problem("missing_inventory", str(inventory_path), "file absent"))
@@ -234,6 +253,10 @@ def validate(
         "outputs/isaac_audio_sensors/S4/S4.3/freeze/trial_inventory_corrective_02_precollection.json",
         "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_supersession.json",
         "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/corrective_02_precollection_gate.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/corrective_02_pre_acquisition_confirmation_rejection.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/corrective_02_failed_attempt_diagnosis.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_failure_handling_01.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_evidence_manifest.json",
     }
     if require_final:
         required.update(
@@ -365,6 +388,11 @@ def main() -> int:
     )
     parser.add_argument("--require-machine-local", action="store_true")
     parser.add_argument(
+        "--corrective-02-postcapture",
+        type=Path,
+        default=DEFAULT_CORRECTIVE_02_POSTCAPTURE,
+    )
+    parser.add_argument(
         "--review-remediation", type=Path, default=DEFAULT_REVIEW_REMEDIATION
     )
     parser.add_argument("--review-config", type=Path, default=DEFAULT_REVIEW_CONFIG)
@@ -384,6 +412,7 @@ def main() -> int:
             review_remediation_path=args.review_remediation,
             review_config_path=args.review_config,
             review_preregistration_path=args.review_preregistration,
+            corrective_02_postcapture_path=args.corrective_02_postcapture,
             require_machine_local=args.require_machine_local,
             require_final=args.require_final,
         )

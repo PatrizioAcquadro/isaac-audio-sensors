@@ -1,5 +1,5 @@
 {
-  "accepted_attempt_count": 14,
+  "accepted_attempt_count": 15,
   "checks": [
     {
       "attempt_id": "s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
@@ -287,6 +287,27 @@
               "frame_to_adapter_round_trip_ms"
             ],
             "scientific_replay_sha256": "68b34e6d55b6db8859aec52e835cba3e1365edbd70c1285a353c6cfb7d6d1cf9",
+            "status": "passed"
+          }
+        ],
+        "issues": [],
+        "schema": "ias.s4_2.validation_report.v1",
+        "status": "passed"
+      }
+    },
+    {
+      "attempt_id": "s4_3_rob_silence_03_boundary_support_01_20260722T000035Z_a6e524d2",
+      "trial_id": "s4_3_rob_silence_03_boundary_support_01",
+      "validation": {
+        "checks": [
+          {
+            "id": "s4_3_deterministic_replay",
+            "runtime_fields_excluded": [
+              "analysis_runtime_ms",
+              "capture_to_frame_offline_ms",
+              "frame_to_adapter_round_trip_ms"
+            ],
+            "scientific_replay_sha256": "05a66a8eb73d5070ba2b3642b5ae2ec93f77e5f71ce1ba4b07de6f21d4167b9e",
             "status": "passed"
           }
         ],

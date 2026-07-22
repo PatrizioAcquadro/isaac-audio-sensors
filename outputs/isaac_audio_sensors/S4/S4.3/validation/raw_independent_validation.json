@@ -2,9 +2,10 @@
   "corrective_provenance": {
     "checks": [
       {
+        "corrective_revision": "corrective_02",
         "effective_sustained_clip_run_samples": 4000,
         "id": "s4_3_corrective_provenance",
-        "prospective_evidence_trial_id": "s4_3_rob_silence_02_prospective_events_01",
+        "prospective_evidence_trial_id": "s4_3_rob_silence_03_boundary_support_01",
         "status": "passed"
       }
     ],
@@ -16,8 +17,8 @@
     "checks": [
       {
         "id": "s4_3_inventory",
-        "inventory_count": 15,
-        "planned_count": 15,
+        "inventory_count": 16,
+        "planned_count": 16,
         "status": "passed"
       }
     ],
@@ -31,10 +32,10 @@
         "category_counts": {
           "controlled": 2,
           "repeatability": 4,
-          "robustness": 9
+          "robustness": 10
         },
         "id": "s4_3_preregistration",
-        "planned_trial_count": 15,
+        "planned_trial_count": 16,
         "status": "passed"
       }
     ],

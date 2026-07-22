@@ -1,20 +1,20 @@
 {
-  "attempt_count": 16,
-  "configuration_sha256": "affd31024d57458f49dbe9630e492c2e2e985c344e90f6f1e618773744580917",
+  "attempt_count": 18,
+  "configuration_sha256": "176cc395c543e8aa4876727c756ad4aeb9fbc381dc559a6702ee7d9c296f131d",
   "outcome_counts": {
-    "accepted": 14,
-    "failed": 2,
+    "accepted": 15,
+    "failed": 3,
     "in_progress": 0,
     "interrupted": 0,
     "planned": 0,
     "rejected": 0,
     "unfavorable": 0
   },
-  "planned_trial_count": 15,
+  "planned_trial_count": 16,
   "s4_4_started": false,
   "schema": "ias.s4_3.trial_inventory.v1",
   "status": "terminal",
-  "terminal_trial_count": 15,
+  "terminal_trial_count": 16,
   "trials": [
     {
       "attempts": [
@@ -311,6 +311,36 @@
       "planned_definition_sha256": "844aa0d4c073c9d15be3bbe755c6b0b9527fa2adbfe800e3612ba3254fa2fdc9",
       "planned_outcome": "accepted",
       "trial_id": "s4_3_rob_silence_02_prospective_events_01"
+    },
+    {
+      "attempts": [
+        {
+          "analysis_sha256": null,
+          "attempt_id": "s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb",
+          "attempt_root": "dataset/S4.3/attempts/s4_3_rob_silence_03_boundary_support_01/s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb",
+          "lifecycle_state": "failed",
+          "manifest_sha256": null,
+          "outcome": "failed",
+          "quality_status": "missing",
+          "reason": "S43Error: existing Pi capture helper is unavailable",
+          "scientific_disposition": "missing"
+        },
+        {
+          "analysis_sha256": "b7b18a20a7851d31ed6e2a280dff4a5682345f9243195bfcc21fad3c72876a72",
+          "attempt_id": "s4_3_rob_silence_03_boundary_support_01_20260722T000035Z_a6e524d2",
+          "attempt_root": "dataset/S4.3/attempts/s4_3_rob_silence_03_boundary_support_01/s4_3_rob_silence_03_boundary_support_01_20260722T000035Z_a6e524d2",
+          "lifecycle_state": "accepted",
+          "manifest_sha256": "9656af9e03da87c834ac1f1d58e8dbf5e72a03f2c5692d958ae265f03d0631bf",
+          "outcome": "accepted",
+          "quality_status": "passed",
+          "reason": "quality and analysis passed",
+          "scientific_disposition": "pending_aggregate_and_closeout"
+        }
+      ],
+      "category": "robustness",
+      "planned_definition_sha256": "957458208bc36c46c2babb74e247d3856cd033f8805cee9f8dd7bb83b9270658",
+      "planned_outcome": "accepted",
+      "trial_id": "s4_3_rob_silence_03_boundary_support_01"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
-  "accepted_analysis_count": 8,
-  "attempt_count": 9,
+  "accepted_analysis_count": 9,
+  "attempt_count": 11,
   "category": "robustness",
   "channel_presence_order_health": [
     {
@@ -1001,6 +1001,135 @@
       "sustained_clip_failure_comparator": "greater_than_or_equal",
       "sustained_clip_run_samples_min": 4000,
       "trial_id": "s4_3_rob_silence_02_prospective_events_01"
+    },
+    {
+      "attempt_id": "s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb",
+      "channels": [],
+      "declared_channel_order": [
+        "conference",
+        "asr",
+        "raw_microphone_0",
+        "raw_microphone_1",
+        "raw_microphone_2",
+        "raw_microphone_3"
+      ],
+      "expected_channel_count": 6,
+      "outcome": "failed",
+      "raw_channel_health_failure_count": 0,
+      "reason": "attempt ended before a waveform analysis record existed",
+      "status": "not_applicable_before_capture",
+      "trial_id": "s4_3_rob_silence_03_boundary_support_01"
+    },
+    {
+      "attempt_id": "s4_3_rob_silence_03_boundary_support_01_20260722T000035Z_a6e524d2",
+      "channels": [
+        {
+          "analysis_raw_channel": false,
+          "channel_id": "conference",
+          "channel_index": 0,
+          "finite_summary": true,
+          "healthy": true,
+          "maximum_clip_run_samples": 0,
+          "nonsilent_required": false,
+          "peak_pcm16": 4771,
+          "present": true,
+          "rms_pcm16": 970.661971699812,
+          "silent_failure": false,
+          "sustained_clipping": false
+        },
+        {
+          "analysis_raw_channel": false,
+          "channel_id": "asr",
+          "channel_index": 1,
+          "finite_summary": true,
+          "healthy": true,
+          "maximum_clip_run_samples": 0,
+          "nonsilent_required": false,
+          "peak_pcm16": 680,
+          "present": true,
+          "rms_pcm16": 148.08014388330395,
+          "silent_failure": false,
+          "sustained_clipping": false
+        },
+        {
+          "analysis_raw_channel": true,
+          "channel_id": "raw_microphone_0",
+          "channel_index": 2,
+          "finite_summary": true,
+          "healthy": true,
+          "maximum_clip_run_samples": 0,
+          "nonsilent_required": false,
+          "peak_pcm16": 582,
+          "present": true,
+          "rms_pcm16": 146.92085396282812,
+          "silent_failure": false,
+          "sustained_clipping": false
+        },
+        {
+          "analysis_raw_channel": true,
+          "channel_id": "raw_microphone_1",
+          "channel_index": 3,
+          "finite_summary": true,
+          "healthy": true,
+          "maximum_clip_run_samples": 0,
+          "nonsilent_required": false,
+          "peak_pcm16": 606,
+          "present": true,
+          "rms_pcm16": 150.75210863644108,
+          "silent_failure": false,
+          "sustained_clipping": false
+        },
+        {
+          "analysis_raw_channel": true,
+          "channel_id": "raw_microphone_2",
+          "channel_index": 4,
+          "finite_summary": true,
+          "healthy": true,
+          "maximum_clip_run_samples": 0,
+          "nonsilent_required": false,
+          "peak_pcm16": 575,
+          "present": true,
+          "rms_pcm16": 140.94881813386493,
+          "silent_failure": false,
+          "sustained_clipping": false
+        },
+        {
+          "analysis_raw_channel": true,
+          "channel_id": "raw_microphone_3",
+          "channel_index": 5,
+          "finite_summary": true,
+          "healthy": true,
+          "maximum_clip_run_samples": 0,
+          "nonsilent_required": false,
+          "peak_pcm16": 563,
+          "present": true,
+          "rms_pcm16": 140.82983526227673,
+          "silent_failure": false,
+          "sustained_clipping": false
+        }
+      ],
+      "declared_channel_health_failure_count": 0,
+      "declared_channel_order": [
+        "conference",
+        "asr",
+        "raw_microphone_0",
+        "raw_microphone_1",
+        "raw_microphone_2",
+        "raw_microphone_3"
+      ],
+      "expected_channel_count": 6,
+      "observed_channel_count": 6,
+      "order_verification": {
+        "limitation": "physical acoustic centers were not independently traced",
+        "method": "frozen device identity and firmware channel map plus WAV index",
+        "status": "passed"
+      },
+      "outcome": "accepted",
+      "raw_channel_health_failure_count": 0,
+      "status": "passed",
+      "sustained_clip_failure_comparator": "greater_than_or_equal",
+      "sustained_clip_run_samples_min": 4000,
+      "trial_id": "s4_3_rob_silence_03_boundary_support_01"
     }
   ],
   "coarse_audio_video_association": {
@@ -1117,6 +1246,14 @@
         "interpretation": "robustness observation; not controlled transfer",
         "relative_rms_delta_db": -3.146520123885472,
         "trial_id": "s4_3_rob_silence_02_prospective_events_01"
+      },
+      {
+        "absolute_bearing_error_delta_deg": null,
+        "abstention_rate": 1.0,
+        "confidence_delta": -0.027405618332225982,
+        "interpretation": "robustness observation; not controlled transfer",
+        "relative_rms_delta_db": -3.61272220211457,
+        "trial_id": "s4_3_rob_silence_03_boundary_support_01"
       }
     ],
     "status": "measured"
@@ -1705,13 +1842,161 @@
       "window_count": 119,
       "window_duration_ms": 250,
       "window_overlap_percent": 50
+    },
+    {
+      "classification": "Measured",
+      "combined_spectrum_relative_db": {
+        "1000-2000": {
+          "count": 119,
+          "mad": 0.7719713998937543,
+          "median": -17.197561924775854,
+          "p95": -15.211022563189466,
+          "worst": -12.355346959029646
+        },
+        "2000-4000": {
+          "count": 119,
+          "mad": 0.7747505109393735,
+          "median": -20.503350526756776,
+          "p95": -18.353000230829505,
+          "worst": -12.784309488500334
+        },
+        "250-500": {
+          "count": 119,
+          "mad": 0.09141517327887327,
+          "median": -0.512179801615995,
+          "p95": -0.31457641253032353,
+          "worst": -0.2543103072395713
+        },
+        "4000-6500": {
+          "count": 119,
+          "mad": 0.7143167823351924,
+          "median": -24.862708956742424,
+          "p95": -23.126581051130863,
+          "worst": -20.30455304254357
+        },
+        "500-1000": {
+          "count": 119,
+          "mad": 0.8253410829182375,
+          "median": -11.03751421722846,
+          "p95": -9.237569256174375,
+          "worst": -7.996213633615129
+        }
+      },
+      "duration_s": 15.0,
+      "interval_kind": "intended_silence",
+      "interval_start_sample": 0,
+      "interval_stop_sample": 240000,
+      "legacy_distinct_event_rate": {
+        "classification": "Unmeasured",
+        "metric_id": "legacy_distinct_transient_event_rate",
+        "reason": "the retained S4.3 waveform was inspected before the prospective de-duplicated detector contract was frozen",
+        "status": "unmeasured"
+      },
+      "legacy_overlapping_window_rms_exceedance": {
+        "classification": "Measured",
+        "exceedance_rate_per_s": 7.933333333333334,
+        "exceedance_window_count": 119,
+        "limitation": "overlapping analysis-window exceedances are correlated and are not distinct physical transient events",
+        "metric_id": "legacy_overlapping_window_rms_exceedance_rate",
+        "overlapping_window_count": 119,
+        "status": "measured",
+        "threshold_median_raw_rms_full_scale": 0.002
+      },
+      "limitation": "functional room-fixture-sensor noise, not microphone self-noise SPL; legacy overlapping-window exceedances and prospective de-duplicated events are distinct metrics",
+      "median_raw_rms_full_scale": {
+        "count": 119,
+        "mad": 0.000245309383962492,
+        "median": 0.00436158984469,
+        "p95": 0.005173309440227386,
+        "worst": 0.005432429412770062
+      },
+      "per_channel_rms_full_scale": {
+        "raw_microphone_0": {
+          "count": 119,
+          "mad": 0.0002601471006853,
+          "median": 0.004446548585462451,
+          "p95": 0.00531596994764421,
+          "worst": 0.005509059816343104
+        },
+        "raw_microphone_1": {
+          "count": 119,
+          "mad": 0.00030355156110266346,
+          "median": 0.0045444106413631636,
+          "p95": 0.005475329885522136,
+          "worst": 0.0056369584137358816
+        },
+        "raw_microphone_2": {
+          "count": 119,
+          "mad": 0.00024226803990235,
+          "median": 0.004253157440945778,
+          "p95": 0.00502633039706714,
+          "worst": 0.005353013993858748
+        },
+        "raw_microphone_3": {
+          "count": 119,
+          "mad": 0.00023895924920742852,
+          "median": 0.0042823006809479675,
+          "p95": 0.005019361510728025,
+          "worst": 0.00535579900919702
+        }
+      },
+      "prospective_distinct_transient_events": {
+        "boundary_censored_excursion_count": 0,
+        "boundary_censored_excursions": [],
+        "boundary_support": {
+          "arbitrary_fixed_time_guard_used": false,
+          "complete_center_start_inclusive": 160,
+          "complete_center_stop_exclusive": 239841,
+          "complete_center_stop_exclusive_expression": "N-159",
+          "energy_window_samples": 320,
+          "even_window_raw_support_for_center_j": "[j-160,j+160)",
+          "excursion_rule": "censor [start,stop) when start < 160 or stop > N-159"
+        },
+        "classification": "Measured",
+        "contract_sha256": "bbc46e2091d5a872a093e59ca788a76137c042a2fb66758db3bd73d22be7b90a",
+        "detector_window_overlap_dependency": "none",
+        "duration_s": 15.0,
+        "event_count": 0,
+        "event_rate_per_s": 0.0,
+        "events": [],
+        "metric_id": "prospective_deduplicated_transient_event_rate",
+        "per_channel_baseline_rms_full_scale": [
+          0.004209017756234564,
+          0.0043232637476051,
+          0.004034383141662673,
+          0.004024593298071391
+        ],
+        "per_channel_mad_rms_full_scale": [
+          0.0007919285007724553,
+          0.0007993633022670176,
+          0.0007342689368018184,
+          0.0007469420073698855
+        ],
+        "per_channel_threshold_rms_full_scale": [
+          0.013601923318196502,
+          0.013804352003133742,
+          0.012743400147281678,
+          0.012883923059084128
+        ],
+        "short_excursion_count": 0,
+        "short_excursions": [],
+        "stationary_excursion_count": 0,
+        "stationary_excursions": [],
+        "status": "measured"
+      },
+      "schema": "ias.s4_3.noise_characterization.v2",
+      "status": "measured",
+      "trial_id": "s4_3_rob_silence_03_boundary_support_01",
+      "window_count": 119,
+      "window_duration_ms": 250,
+      "window_overlap_percent": 50
     }
   ],
   "outcome_counts": {
-    "accepted": 8,
-    "failed": 1
+    "accepted": 9,
+    "failed": 2
   },
-  "planned_trial_count": 9,
+  "planned_trial_count": 10,
   "pooled": {
     "absolute_bearing_error_deg": {
       "count": 148,
@@ -1720,7 +2005,7 @@
       "p95": 74.0,
       "worst": 76.0
     },
-    "abstention_rate": 0.7279411764705882,
+    "abstention_rate": 0.7712519319938176,
     "aligned_pair_correlation": {
       "raw_microphone_0->raw_microphone_1": {
         "count": 148,
@@ -1766,7 +2051,7 @@
       }
     },
     "ambiguity_counts": {
-      "low_confidence": 544
+      "low_confidence": 647
     },
     "bearing_deg": {
       "count": 148,
@@ -1790,61 +2075,61 @@
       "uncovered": 210
     },
     "capture_to_frame_offline_ms": {
-      "count": 544,
-      "mad": 0.025861499999990656,
-      "median": 254.1121045,
-      "p95": 255.424668,
+      "count": 647,
+      "mad": 0.022430999999983214,
+      "median": 254.106779,
+      "p95": 255.411222,
       "worst": 263.610968
     },
     "combined_spectrum_relative_db": {
       "1000-2000": {
-        "count": 544,
-        "mad": 1.9858531303455011,
-        "median": -15.340619223215217,
-        "p95": -6.108269158175688,
+        "count": 647,
+        "mad": 1.639005242901172,
+        "median": -15.91812512722244,
+        "p95": -6.239058040808022,
         "worst": -2.228121368753557
       },
       "2000-4000": {
-        "count": 544,
-        "mad": 1.9962502197839633,
-        "median": -19.833376090306672,
-        "p95": -6.439653322587864,
+        "count": 647,
+        "mad": 1.595587803795123,
+        "median": -20.081838075734044,
+        "p95": -6.565069297440309,
         "worst": -5.765830391250724
       },
       "250-500": {
-        "count": 544,
-        "mad": 0.26319004013934943,
-        "median": -0.6874786878178727,
-        "p95": -0.3352024302510243,
+        "count": 647,
+        "mad": 0.2055440536634907,
+        "median": -0.6306431933908069,
+        "p95": -0.3307439848262799,
         "worst": -0.057271812561588906
       },
       "4000-6500": {
-        "count": 544,
-        "mad": 2.0231993364731675,
-        "median": -23.273192272969226,
-        "p95": -4.91980229148846,
+        "count": 647,
+        "mad": 1.6279246766654865,
+        "median": -23.743365201287602,
+        "p95": -5.1227982487652906,
         "worst": -2.3539052041361557
       },
       "500-1000": {
-        "count": 544,
-        "mad": 1.4370292468265085,
-        "median": -10.578921569466772,
-        "p95": -7.000558598390157,
+        "count": 647,
+        "mad": 1.322472473027446,
+        "median": -10.696556732039525,
+        "p95": -7.0662764920973835,
         "worst": -1.9499393236203388
       }
     },
     "confidence": {
-      "count": 544,
-      "mad": 0.0033523311495122186,
-      "median": 0.007303730281624196,
-      "p95": 0.032951133963347465,
+      "count": 647,
+      "mad": 0.0029488842550968635,
+      "median": 0.006701010157425515,
+      "p95": 0.03172813065040023,
       "worst": 0.03993123590468919
     },
     "frame_to_adapter_round_trip_ms": {
-      "count": 544,
-      "mad": 0.0026365,
-      "median": 0.029083499999999998,
-      "p95": 0.044014,
+      "count": 647,
+      "mad": 0.004587999999999998,
+      "median": 0.027926,
+      "p95": 0.033551,
       "worst": 0.060383
     },
     "least_squares_bearing_deg": {
@@ -1896,31 +2181,31 @@
     },
     "per_channel_rms_full_scale": {
       "raw_microphone_0": {
-        "count": 544,
-        "mad": 0.00051267766595208,
-        "median": 0.004820485201838509,
-        "p95": 0.014562055848896463,
+        "count": 647,
+        "mad": 0.00046973021049864,
+        "median": 0.004738361546456374,
+        "p95": 0.012086710889868098,
         "worst": 0.04705154175260529
       },
       "raw_microphone_1": {
-        "count": 544,
-        "mad": 0.0005203604988213897,
-        "median": 0.004917646589707758,
-        "p95": 0.014088722184034513,
+        "count": 647,
+        "mad": 0.00047130996722853126,
+        "median": 0.004856343050228504,
+        "p95": 0.011610239784417527,
         "worst": 0.052453999467990106
       },
       "raw_microphone_2": {
-        "count": 544,
-        "mad": 0.00047793034606742005,
-        "median": 0.004595568977119081,
-        "p95": 0.0125570399693618,
+        "count": 647,
+        "mad": 0.0004314227535639533,
+        "median": 0.004523272871240101,
+        "p95": 0.010144733309064657,
         "worst": 0.05172190360496589
       },
       "raw_microphone_3": {
-        "count": 544,
-        "mad": 0.0004900851253047045,
-        "median": 0.0046070288476129295,
-        "p95": 0.012820785116312577,
+        "count": 647,
+        "mad": 0.00043671294198722663,
+        "median": 0.004525993505605954,
+        "p95": 0.010472879115909486,
         "worst": 0.05007183389157287
       }
     },
@@ -2133,7 +2418,7 @@
         "worst": 132.8125
       }
     },
-    "window_count": 544
+    "window_count": 647
   },
   "schema": "ias.s4_3.category_report.v2",
   "small_sample_p95": true,
@@ -2841,6 +3126,85 @@
         "window_count": 103
       },
       "trial_id": "s4_3_rob_silence_02_prospective_events_01"
+    },
+    {
+      "relative_decay": {
+        "reason": "no preregistered chirp or impact event",
+        "status": "not_applicable"
+      },
+      "scientific_replay_sha256": "05a66a8eb73d5070ba2b3642b5ae2ec93f77e5f71ce1ba4b07de6f21d4167b9e",
+      "summary": {
+        "absolute_bearing_error_deg": {
+          "count": 0,
+          "mad": null,
+          "median": null,
+          "p95": null,
+          "worst": null
+        },
+        "abstained_count": 103,
+        "abstention_rate": 1.0,
+        "bearing_deg": {
+          "count": 0,
+          "mad": null,
+          "median": null,
+          "p95": null,
+          "worst": null
+        },
+        "candidate_count": {
+          "count": 0,
+          "mad": null,
+          "median": null,
+          "p95": null,
+          "worst": null
+        },
+        "candidate_coverage": null,
+        "candidate_coverage_counts": {
+          "abstained_uncovered": 0,
+          "covered": 0,
+          "denominator": 0,
+          "uncovered": 0
+        },
+        "capture_to_frame_offline_ms": {
+          "count": 103,
+          "mad": 0.012351999999992813,
+          "median": 254.088975,
+          "p95": 254.16187,
+          "worst": 258.169872
+        },
+        "confidence": {
+          "count": 103,
+          "mad": 0.00126476049154835,
+          "median": 0.004953473179138348,
+          "p95": 0.009625774980367202,
+          "worst": 0.01244504732776196
+        },
+        "detected_count": 0,
+        "frame_to_adapter_round_trip_ms": {
+          "count": 103,
+          "mad": 0.0006479999999999993,
+          "median": 0.021345,
+          "p95": 0.024063,
+          "worst": 0.031597
+        },
+        "major_polarity_anomaly_count": 0,
+        "median_raw_rms_full_scale": {
+          "count": 103,
+          "mad": 0.00026716178661805555,
+          "median": 0.004325011159428597,
+          "p95": 0.005032342617197963,
+          "worst": 0.005432429412770062
+        },
+        "nearest_candidate_error_deg": {
+          "count": 0,
+          "mad": null,
+          "median": null,
+          "p95": null,
+          "worst": null
+        },
+        "sector_accuracy": null,
+        "window_count": 103
+      },
+      "trial_id": "s4_3_rob_silence_03_boundary_support_01"
     }
   ]
 }

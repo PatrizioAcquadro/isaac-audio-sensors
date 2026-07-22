@@ -37,6 +37,9 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     verify_deterministic_replay,
     zed_device_timestamps_are_valid,
 )
+from isaac_audio_sensors.acquisition.s4_3_postcapture import (
+    validate_corrective_02_postcapture_manifest,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "configs/s4_3_pilot.v1.json"
@@ -1155,6 +1158,53 @@ def test_missing_or_inconsistent_corrective_02_provenance_fails_closed() -> None
         issue.code == "corrective_02_boundary_support_mismatch"
         for issue in report.issues
     )
+
+
+def test_corrective_02_replacement_failure_handling_is_bounded_and_tracked() -> None:
+    relative = (
+        "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+        "corrective_02_failure_handling_01.json"
+    )
+    record = load_json(ROOT / relative)
+    assert record["status"] == "frozen_before_replacement_attempt"
+    assert record["authorization"]["replacement_attempt_count_authorized"] == 1
+    assert record["replacement_rule"]["maximum_replacement_attempts"] == 1
+    assert record["replacement_rule"]["any_further_failure_stops_collection"] is True
+    assert record["scientific_changes"] == {
+        "detector_changed": False,
+        "matrix_changed": False,
+        "threshold_changed": False,
+        "trial_definition_changed": False,
+        "supported_claim_changed": False,
+        "unrelated_failure_handling_changed": False,
+    }
+    for script in (
+        "scripts/build_s4_3_evidence.py",
+        "scripts/validate_s4_3_integrity.py",
+    ):
+        assert "corrective_02_failure_handling_01.json" in (
+            ROOT / script
+        ).read_text(encoding="utf-8")
+
+
+def test_corrective_02_postcapture_manifest_passes_and_fails_closed() -> None:
+    path = (
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+        "corrective_02_postcapture_evidence_manifest.json"
+    )
+    manifest = load_json(path)
+    validate_corrective_02_postcapture_manifest(manifest, repo_root=ROOT)
+
+    inconsistent = copy.deepcopy(manifest)
+    inconsistent["scientific_changes"]["detector_changed_after_capture"] = True
+    with pytest.raises(S43Error, match="scientific-change"):
+        validate_corrective_02_postcapture_manifest(inconsistent, repo_root=ROOT)
+
+    missing = copy.deepcopy(manifest)
+    missing["retained_attempts"] = missing["retained_attempts"][:1]
+    with pytest.raises(S43Error, match="exactly two"):
+        validate_corrective_02_postcapture_manifest(missing, repo_root=ROOT)
 
 
 def _noise_result(

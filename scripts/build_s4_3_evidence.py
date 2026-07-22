@@ -30,6 +30,9 @@ from isaac_audio_sensors.acquisition.s4_3 import (
     validate_review_remediation_manifest,
     verify_deterministic_replay,
 )
+from isaac_audio_sensors.acquisition.s4_3_postcapture import (
+    validate_corrective_02_postcapture_manifest,
+)
 from isaac_audio_sensors.core.dataset.atomic import write_json_atomic
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +41,9 @@ DEFAULT_REVIEW_REMEDIATION = DEFAULT_OUTPUT / "freeze/review_remediation_manifes
 DEFAULT_REVIEW_CONFIG = ROOT / "configs/s4_3_pilot_amendment_04.v1.json"
 DEFAULT_REVIEW_PREREGISTRATION = (
     DEFAULT_OUTPUT / "freeze/preregistration_amendment_04.json"
+)
+DEFAULT_CORRECTIVE_02_POSTCAPTURE = (
+    DEFAULT_OUTPUT / "freeze/corrective_02_postcapture_evidence_manifest.json"
 )
 
 
@@ -227,6 +233,8 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         raise S43Error(
             f"corrective provenance failed: {corrective_validation.to_dict()}"
         )
+    postcapture_manifest = load_json(args.corrective_02_postcapture)
+    validate_corrective_02_postcapture_manifest(postcapture_manifest, repo_root=ROOT)
     review_remediation = load_json(args.review_remediation)
     review_configuration = load_pilot_configuration(args.review_config, repo_root=ROOT)
     review_preregistration = load_json(args.review_preregistration)
@@ -519,8 +527,8 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         freeze_root / "trial_inventory_amendment_04_precollection.json",
         ROOT / args.review_remediation,
         ROOT / "docs/development/specs/s4_3_pilot_corrective_01.md",
-        ROOT / args.config,
-        ROOT / args.preregistration,
+        ROOT / "configs/s4_3_pilot_corrective_01.v1.json",
+        freeze_root / "preregistration_corrective_01.json",
         freeze_root / "clipping_corrective_01.json",
         freeze_root / "transient_event_contract_01.json",
         freeze_root / "trial_inventory_corrective_01_precollection.json",
@@ -547,7 +555,12 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         / "corrective_02_precollection/validation/raw_independent_validation.json",
         diagnostic_root
         / "corrective_02_precollection/validation/evidence_coverage.json",
+        diagnostic_root / "corrective_02_pre_acquisition_confirmation_rejection.json",
+        diagnostic_root / "corrective_02_failed_attempt_diagnosis.json",
+        freeze_root / "corrective_02_failure_handling_01.json",
+        ROOT / args.corrective_02_postcapture,
         ROOT / "src/isaac_audio_sensors/acquisition/s4_3.py",
+        ROOT / "src/isaac_audio_sensors/acquisition/s4_3_postcapture.py",
         ROOT / "scripts/run_s4_3_trial.py",
         ROOT / "scripts/reanalyze_s4_3_array_frame.py",
         ROOT / "scripts/annotate_s4_3_av.py",
@@ -639,6 +652,14 @@ def main() -> int:
         "--config",
         type=Path,
         default=Path("configs/s4_3_pilot_corrective_02.v1.json"),
+    )
+    parser.add_argument(
+        "--corrective-02-postcapture",
+        type=Path,
+        default=Path(
+            "outputs/isaac_audio_sensors/S4/S4.3/freeze/"
+            "corrective_02_postcapture_evidence_manifest.json"
+        ),
     )
     parser.add_argument(
         "--preregistration",

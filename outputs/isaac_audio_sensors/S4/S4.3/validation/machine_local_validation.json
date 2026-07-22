@@ -1,5 +1,5 @@
 {
-  "attempt_count": 16,
+  "attempt_count": 18,
   "checks": [
     {
       "attempt_id": "s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0",
@@ -189,6 +189,28 @@
         "status": "passed"
       },
       "trial_id": "s4_3_rob_silence_02_prospective_events_01"
+    },
+    {
+      "attempt_id": "s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb",
+      "integrity": {
+        "checked": 3,
+        "failure_evidence_without_media": true,
+        "issues": [],
+        "status": "passed"
+      },
+      "trial_id": "s4_3_rob_silence_03_boundary_support_01"
+    },
+    {
+      "attempt_id": "s4_3_rob_silence_03_boundary_support_01_20260722T000035Z_a6e524d2",
+      "integrity": {
+        "checked": 4,
+        "checksum_manifests": [
+          "SHA256SUMS"
+        ],
+        "issues": [],
+        "status": "passed"
+      },
+      "trial_id": "s4_3_rob_silence_03_boundary_support_01"
     }
   ],
   "fresh_clone_raw_available": false,
