@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -17,8 +18,33 @@ ADAPTER_ID = "ias.s4_4.constraint_aware_group_adapter.v1"
 SEAL_SCHEMA = "ias.s4_4.holdout_seal.v1"
 GRANT_SCHEMA = "ias.s4_4.holdout_access_grant.v1"
 LEDGER_SCHEMA = "ias.s4_4.access_ledger_event.v1"
+SOURCE_CHECKPOINT_SCHEMA = "ias.s4_4.source_checkpoint.v1"
 S43_ROOM_ID = "WANG_2022_DESK_NEAR_ENTRANCE"
 ZERO_SHA256 = "0" * 64
+
+_HOLDOUT_ATTEMPT_FIELDS = {
+    "attempt_id",
+    "attempt_root",
+    "category",
+    "eligibility_reason",
+    "group_id",
+    "lifecycle_state",
+    "outcome",
+    "partition",
+    "quality_status",
+    "retained",
+    "trial_id",
+    "usable_coverage",
+}
+_HOLDOUT_CONDITION_FIELDS = {
+    "attempt_count",
+    "category",
+    "eligibility_reason",
+    "group_id",
+    "partition",
+    "quality_eligible",
+    "trial_id",
+}
 
 _GROUP_FIELDS = {
     "group_id",
@@ -72,6 +98,233 @@ def canonical_sha256(value: Any) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _git_blob(repo_root: Path, commit: str, relative: str) -> bytes:
+    result = subprocess.run(
+        ["git", "show", "--no-ext-diff", f"{commit}:{relative}"],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        raise S44Error(
+            f"source checkpoint: {relative} is absent from exact commit {commit}"
+        )
+    return result.stdout
+
+
+def _checkpoint_records(
+    repo_root: Path, commit: str, paths: tuple[str, ...], label: str
+) -> list[dict[str, str]]:
+    records: list[dict[str, str]] = []
+    for relative in sorted(paths):
+        safe = _safe_relative(relative, f"source checkpoint {label} path")
+        candidate = repo_root / safe
+        if not candidate.is_file():
+            raise S44Error(f"source checkpoint: missing working checkout file {safe}")
+        blob_sha256 = hashlib.sha256(_git_blob(repo_root, commit, safe)).hexdigest()
+        working_sha256 = sha256_file(candidate)
+        if working_sha256 != blob_sha256:
+            raise S44Error(
+                "source checkpoint: working checkout differs from exact commit "
+                f"for {safe}"
+            )
+        records.append({"path": safe, "sha256": blob_sha256})
+    return records
+
+
+def build_source_checkpoint_contract(
+    *,
+    repo_root: Path,
+    branch: str,
+    commit: str,
+    source_paths: tuple[str, ...],
+    frozen_input_paths: tuple[str, ...],
+) -> dict[str, Any]:
+    """Create a self-hashed contract for one exact committed S4.4 source tree."""
+
+    repo_root = repo_root.resolve()
+    if not isinstance(branch, str) or not branch:
+        raise S44Error("source checkpoint branch: expected non-empty string")
+    _require_git_commit(commit, "source checkpoint commit")
+    exists = subprocess.run(
+        ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+    )
+    if exists.returncode != 0:
+        raise S44Error(f"source checkpoint commit does not exist: {commit}")
+    payload: dict[str, Any] = {
+        "schema": SOURCE_CHECKPOINT_SCHEMA,
+        "status": "frozen",
+        "source_checkpoint_branch": branch,
+        "source_checkpoint_commit": commit,
+        "source_artifacts": _checkpoint_records(
+            repo_root, commit, source_paths, "source_artifacts"
+        ),
+        "frozen_inputs": _checkpoint_records(
+            repo_root, commit, frozen_input_paths, "frozen_inputs"
+        ),
+    }
+    return {**payload, "contract_sha256": canonical_sha256(payload)}
+
+
+def validate_source_checkpoint_contract(
+    contract: dict[str, Any],
+    *,
+    repo_root: Path,
+    expected_source_paths: tuple[str, ...],
+    expected_frozen_input_paths: tuple[str, ...],
+) -> None:
+    """Validate one immutable checkpoint against exact files and Git blobs."""
+
+    required = {
+        "schema",
+        "status",
+        "source_checkpoint_branch",
+        "source_checkpoint_commit",
+        "source_artifacts",
+        "frozen_inputs",
+        "contract_sha256",
+    }
+    if set(contract) != required:
+        raise S44Error(
+            "source checkpoint fields: expected "
+            f"{sorted(required)}, found {sorted(contract)}"
+        )
+    if contract["schema"] != SOURCE_CHECKPOINT_SCHEMA:
+        raise S44Error("source checkpoint schema: invalid")
+    if contract["status"] != "frozen":
+        raise S44Error("source checkpoint status: expected frozen")
+    commit = _require_git_commit(
+        contract["source_checkpoint_commit"], "source checkpoint commit"
+    )
+    supplied_hash = _require_sha256(
+        contract["contract_sha256"], "source checkpoint contract hash"
+    )
+    payload = {
+        key: value for key, value in contract.items() if key != "contract_sha256"
+    }
+    if supplied_hash != canonical_sha256(payload):
+        raise S44Error("source checkpoint contract hash mismatch")
+    repo_root = repo_root.resolve()
+    record_sets = (
+        ("source_artifacts", expected_source_paths),
+        ("frozen_inputs", expected_frozen_input_paths),
+    )
+    for field, expected_paths in record_sets:
+        records = contract[field]
+        if not isinstance(records, list):
+            raise S44Error(f"source checkpoint {field}: expected list")
+        if any(not isinstance(record, dict) for record in records):
+            raise S44Error(f"source checkpoint {field}: invalid record")
+        if any(set(record) != {"path", "sha256"} for record in records):
+            raise S44Error(f"source checkpoint {field}: invalid record fields")
+        paths = tuple(record["path"] for record in records)
+        if paths != tuple(sorted(expected_paths)):
+            raise S44Error(f"source checkpoint {field}: exact path set mismatch")
+        for record in records:
+            relative = _safe_relative(
+                record["path"], f"source checkpoint {field}.path"
+            )
+            expected_sha256 = _require_sha256(
+                record["sha256"], f"source checkpoint {field}.sha256"
+            )
+            candidate = repo_root / relative
+            if not candidate.is_file() or sha256_file(candidate) != expected_sha256:
+                raise S44Error(
+                    "source checkpoint: working checkout hash mismatch for "
+                    f"{relative}"
+                )
+            if (repo_root / ".git").exists():
+                blob_sha256 = hashlib.sha256(
+                    _git_blob(repo_root, commit, relative)
+                ).hexdigest()
+                if blob_sha256 != expected_sha256:
+                    raise S44Error(
+                        "source checkpoint: exact commit content mismatch for "
+                        f"{relative}"
+                    )
+
+
+def validate_provenance_source_checkpoint(
+    provenance: dict[str, Any],
+    contract: dict[str, Any],
+    *,
+    checkpoint_path: str,
+    checkpoint_file_sha256: str,
+) -> None:
+    """Require provenance to bind exactly to the authoritative checkpoint."""
+
+    if provenance.get("source_checkpoint_commit") != contract.get(
+        "source_checkpoint_commit"
+    ):
+        raise S44Error("provenance does not use the exact source checkpoint commit")
+    if provenance.get("source_checkpoint_branch") != contract.get(
+        "source_checkpoint_branch"
+    ):
+        raise S44Error("provenance does not use the exact source checkpoint branch")
+    if provenance.get("implementation") != contract.get("source_artifacts"):
+        raise S44Error("provenance implementation differs from source checkpoint")
+    expected_binding = {
+        "path": checkpoint_path,
+        "sha256": _require_sha256(
+            checkpoint_file_sha256, "source checkpoint file SHA-256"
+        ),
+        "contract_sha256": contract.get("contract_sha256"),
+    }
+    if provenance.get("source_checkpoint_contract") != expected_binding:
+        raise S44Error("provenance source checkpoint contract binding mismatch")
+
+
+def holdout_manifest_content_declarations() -> dict[str, Any]:
+    """Return the precise, frozen disclosure for held-out manifest metadata."""
+
+    return {
+        "historical_s4_3_quality_and_lifecycle_metadata_included": True,
+        "included_attempt_metadata_fields": [
+            "eligibility_reason",
+            "lifecycle_state",
+            "outcome",
+            "quality_status",
+            "usable_coverage",
+        ],
+        "performance_metrics_included": False,
+        "raw_or_analysis_payload_included": False,
+        "assignment_used_outcome_metrics": False,
+    }
+
+
+def validate_holdout_manifest_content(manifest: dict[str, Any]) -> None:
+    """Enforce honest quality metadata disclosure and metric-free holdout rows."""
+
+    declarations = manifest.get("content_declarations")
+    expected = holdout_manifest_content_declarations()
+    if not isinstance(declarations, dict):
+        raise S44Error("holdout manifest quality and lifecycle declaration missing")
+    if declarations != expected:
+        raise S44Error("holdout manifest quality and lifecycle declaration mismatch")
+    attempts = manifest.get("attempts")
+    conditions = manifest.get("condition_cells")
+    if not isinstance(attempts, list) or not isinstance(conditions, list):
+        raise S44Error("holdout manifest attempts or condition cells invalid")
+    for index, attempt in enumerate(attempts):
+        if not isinstance(attempt, dict) or set(attempt) != _HOLDOUT_ATTEMPT_FIELDS:
+            raise S44Error(
+                "holdout manifest performance metric or unexpected attempt field "
+                f"at attempts[{index}]"
+            )
+    for index, condition in enumerate(conditions):
+        if (
+            not isinstance(condition, dict)
+            or set(condition) != _HOLDOUT_CONDITION_FIELDS
+        ):
+            raise S44Error(
+                "holdout manifest performance metric or unexpected condition field "
+                f"at condition_cells[{index}]"
+            )
+
+
 def sha256_file(path: Path) -> str:
     """Hash a file in bounded chunks."""
 
@@ -101,6 +354,16 @@ def _require_sha256(value: object, label: str) -> str:
         or any(character not in "0123456789abcdef" for character in value)
     ):
         raise S44Error(f"{label}: expected lowercase SHA-256")
+    return value
+
+
+def _require_git_commit(value: object, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 40
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise S44Error(f"{label}: expected 40-character lowercase Git commit")
     return value
 
 

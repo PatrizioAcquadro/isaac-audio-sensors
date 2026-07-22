@@ -6,6 +6,7 @@ import copy
 import hashlib
 import json
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ from isaac_audio_sensors.acquisition.s4_4 import (
     build_assignment_companion,
     build_coverage_report,
     build_holdout_seal,
+    build_source_checkpoint_contract,
     build_trial_census,
     canonical_sha256,
     consume_s4_8_grant,
@@ -25,9 +27,12 @@ from isaac_audio_sensors.acquisition.s4_4 import (
     require_evidence_access,
     select_constraint_aware_split,
     validate_adapter_contract,
+    validate_holdout_manifest_content,
     validate_holdout_seal,
     validate_ledger,
     validate_preseed_contract,
+    validate_provenance_source_checkpoint,
+    validate_source_checkpoint_contract,
 )
 from isaac_audio_sensors.core.dataset.splits import (
     SplitPlan,
@@ -51,6 +56,24 @@ ALGORITHM_PATH = (
 )
 INVENTORY_PATH = ROOT / "outputs/isaac_audio_sensors/S4/S4.3/trial_inventory.json"
 S43_INDEX_PATH = ROOT / "outputs/isaac_audio_sensors/S4/S4.3/evidence_index.json"
+SOURCE_CHECKPOINT_PATH = (
+    ROOT
+    / "outputs/isaac_audio_sensors/S4/S4.4/freeze/source_checkpoint.v1.json"
+)
+SOURCE_PATHS = (
+    "scripts/build_s4_4_evidence.py",
+    "scripts/validate_s4_4_integrity.py",
+    "src/isaac_audio_sensors/acquisition/s4_4.py",
+    "tests/test_s4_4_holdout_freeze.py",
+)
+FROZEN_INPUT_PATHS = (
+    "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+    "constraint_adapter_algorithm.v1.json",
+    "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+    "preseed_coverage_constraints.json",
+    "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+    "s2_5_constraint_feasibility.json",
+)
 
 
 def _json(path: Path) -> dict:
@@ -495,19 +518,104 @@ def test_standard_s2_5_builder_behavior_remains_unchanged() -> None:
     assert verify_no_leakage(plan)
 
 
-def _build_temp_evidence(output: Path) -> None:
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def _copy_repo_file(repo: Path, relative: str) -> None:
+    destination = repo / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ROOT / relative, destination)
+
+
+def _prepare_synthetic_final_checkout(repo: Path) -> tuple[str, str, Path]:
+    constraints = _json(CONSTRAINTS_PATH)
+    algorithm = _json(ALGORITHM_PATH)
+    paths = {
+        *SOURCE_PATHS,
+        *FROZEN_INPUT_PATHS,
+        "docs/development/closeouts/S4/s4_4_holdout_freeze.md",
+        "outputs/isaac_audio_sensors/S4/S4.3/trial_inventory.json",
+        "outputs/isaac_audio_sensors/S4/S4.3/evidence_index.json",
+    }
+    paths.update(record["path"] for record in constraints["source_identities"])
+    paths.update(
+        record["path"]
+        for record in algorithm["bindings"].values()
+        if isinstance(record, dict) and "path" in record
+    )
+    repo.mkdir(parents=True)
+    for relative in sorted(paths):
+        _copy_repo_file(repo, relative)
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.name", "S4.4 Test")
+    _git(repo, "config", "user.email", "s4.4-test@example.invalid")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "source checkpoint")
+    source_commit = _git(repo, "rev-parse", "HEAD")
+    checkpoint = build_source_checkpoint_contract(
+        repo_root=repo,
+        branch="main",
+        commit=source_commit,
+        source_paths=SOURCE_PATHS,
+        frozen_input_paths=FROZEN_INPUT_PATHS,
+    )
+    checkpoint_path = repo / (
+        "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+        "source_checkpoint.v1.json"
+    )
+    checkpoint_path.write_text(
+        json.dumps(checkpoint, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    closeout = repo / "docs/development/closeouts/S4/s4_4_holdout_freeze.md"
+    closeout.write_text(
+        closeout.read_text(encoding="utf-8")
+        + "\nSynthetic delivery checkpoint for regression testing.\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "final delivery checkout")
+    final_commit = _git(repo, "rev-parse", "HEAD")
+    return source_commit, final_commit, checkpoint_path
+
+
+def _build_temp_evidence(
+    output: Path, *, repo_root: Path, source_checkpoint_path: Path
+) -> None:
     build_evidence(
         output=output,
-        constraints_path=CONSTRAINTS_PATH,
+        constraints_path=(
+            repo_root
+            / "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+            "preseed_coverage_constraints.json"
+        ),
         feasibility_path=(
-            ROOT
+            repo_root
             / "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
             "s2_5_constraint_feasibility.json"
         ),
-        algorithm_path=ALGORITHM_PATH,
-        inventory_path=INVENTORY_PATH,
-        s43_index_path=S43_INDEX_PATH,
+        algorithm_path=(
+            repo_root
+            / "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+            "constraint_adapter_algorithm.v1.json"
+        ),
+        inventory_path=(
+            repo_root / "outputs/isaac_audio_sensors/S4/S4.3/trial_inventory.json"
+        ),
+        s43_index_path=(
+            repo_root / "outputs/isaac_audio_sensors/S4/S4.3/evidence_index.json"
+        ),
+        source_checkpoint_path=source_checkpoint_path,
         initialize_access_state=False,
+        repo_root=repo_root,
     )
 
 
@@ -522,14 +630,22 @@ def _tree_bytes(root: Path) -> dict[str, bytes]:
 def test_builder_is_byte_deterministic_and_validator_is_raw_independent(
     tmp_path: Path,
 ) -> None:
-    first = tmp_path / "first"
-    second = tmp_path / "second"
-    _build_temp_evidence(first)
-    _build_temp_evidence(second)
+    repo = tmp_path / "repo"
+    source_commit, final_commit, checkpoint_path = (
+        _prepare_synthetic_final_checkout(repo)
+    )
+    first = repo / "first"
+    second = repo / "second"
+    _build_temp_evidence(
+        first, repo_root=repo, source_checkpoint_path=checkpoint_path
+    )
+    _build_temp_evidence(
+        second, repo_root=repo, source_checkpoint_path=checkpoint_path
+    )
     assert _tree_bytes(first) == _tree_bytes(second)
     result = validate_evidence(
         first / "evidence_index.json",
-        repo_root=ROOT,
+        repo_root=repo,
         require_machine_local=False,
         require_final=False,
         require_tracked=False,
@@ -541,7 +657,40 @@ def test_builder_is_byte_deterministic_and_validator_is_raw_independent(
     provenance = _json(first / "provenance.json")
     assert provenance["status"] == "frozen_source_checkpoint"
     assert provenance["final_source_commit_pending"] is False
-    assert len(provenance["source_checkpoint_commit"]) == 40
+    assert provenance["source_checkpoint_commit"] == source_commit
+    assert provenance["source_checkpoint_commit"] != final_commit
+    checkpoint = _json(checkpoint_path)
+    validate_source_checkpoint_contract(
+        checkpoint,
+        repo_root=repo,
+        expected_source_paths=SOURCE_PATHS,
+        expected_frozen_input_paths=FROZEN_INPUT_PATHS,
+    )
+    validate_provenance_source_checkpoint(
+        provenance,
+        checkpoint,
+        checkpoint_path=(
+            "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+            "source_checkpoint.v1.json"
+        ),
+        checkpoint_file_sha256=hashlib.sha256(
+            checkpoint_path.read_bytes()
+        ).hexdigest(),
+    )
+    substituted = copy.deepcopy(provenance)
+    substituted["source_checkpoint_commit"] = final_commit
+    with pytest.raises(S44Error, match="exact source checkpoint"):
+        validate_provenance_source_checkpoint(
+            substituted,
+            checkpoint,
+            checkpoint_path=(
+                "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+                "source_checkpoint.v1.json"
+            ),
+            checkpoint_file_sha256=hashlib.sha256(
+                checkpoint_path.read_bytes()
+            ).hexdigest(),
+        )
     assert {item["path"] for item in provenance["implementation"]} == {
         "scripts/build_s4_4_evidence.py",
         "scripts/validate_s4_4_integrity.py",
@@ -553,11 +702,103 @@ def test_builder_is_byte_deterministic_and_validator_is_raw_independent(
     )
 
 
+def test_source_checkpoint_rejects_contract_and_checkpoint_content_tamper(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _, _, checkpoint_path = _prepare_synthetic_final_checkout(repo)
+    checkpoint = _json(checkpoint_path)
+    tampered = copy.deepcopy(checkpoint)
+    tampered["source_artifacts"][0]["sha256"] = "0" * 64
+    with pytest.raises(S44Error, match="contract hash"):
+        validate_source_checkpoint_contract(
+            tampered,
+            repo_root=repo,
+            expected_source_paths=SOURCE_PATHS,
+            expected_frozen_input_paths=FROZEN_INPUT_PATHS,
+        )
+
+    source = repo / SOURCE_PATHS[0]
+    source.write_text(source.read_text(encoding="utf-8") + "\n# tampered\n")
+    with pytest.raises(S44Error, match="working checkout"):
+        validate_source_checkpoint_contract(
+            checkpoint,
+            repo_root=repo,
+            expected_source_paths=SOURCE_PATHS,
+            expected_frozen_input_paths=FROZEN_INPUT_PATHS,
+        )
+
+
+def test_holdout_manifest_declares_quality_metadata_not_performance_metrics(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _, _, checkpoint_path = _prepare_synthetic_final_checkout(repo)
+    output = repo / "evidence"
+    _build_temp_evidence(
+        output, repo_root=repo, source_checkpoint_path=checkpoint_path
+    )
+    manifest = _json(output / "holdout_manifest.json")
+    declarations = manifest["content_declarations"]
+    assert declarations == {
+        "historical_s4_3_quality_and_lifecycle_metadata_included": True,
+        "included_attempt_metadata_fields": [
+            "eligibility_reason",
+            "lifecycle_state",
+            "outcome",
+            "quality_status",
+            "usable_coverage",
+        ],
+        "performance_metrics_included": False,
+        "raw_or_analysis_payload_included": False,
+        "assignment_used_outcome_metrics": False,
+    }
+    validate_holdout_manifest_content(manifest)
+
+    misleading = copy.deepcopy(manifest)
+    misleading["content_declarations"][
+        "historical_s4_3_quality_and_lifecycle_metadata_included"
+    ] = False
+    with pytest.raises(S44Error, match="quality and lifecycle"):
+        validate_holdout_manifest_content(misleading)
+
+    metric_leak = copy.deepcopy(manifest)
+    metric_leak["attempts"][0]["median_bearing_error_deg"] = 1.0
+    with pytest.raises(S44Error, match="performance metric"):
+        validate_holdout_manifest_content(metric_leak)
+
+
+def test_closeout_documents_valid_dist_kit_pack_rebuild_order() -> None:
+    closeout = (
+        ROOT / "docs/development/closeouts/S4/s4_4_holdout_freeze.md"
+    ).read_text(encoding="utf-8")
+    commands = (
+        "make build\n",
+        "make build-kit\n",
+        "make audit-kit\n",
+        (
+            "make build-pack "
+            "WHEELHOUSE=/tmp/ias-s4-3-wheelhouse-Yqs1Oh\n"
+        ),
+        "make audit-pack\n",
+    )
+    positions = [closeout.index(command) for command in commands]
+    assert positions == sorted(positions)
+    assert "outputs/isaac_audio_sensors/S4/S4.3/validation/" in closeout
+    assert "repository_validation.json" in closeout
+    assert "unavailable" in closeout
+    assert "blocker" in closeout
+
+
 def test_machine_local_mode_fails_closed_when_raw_is_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    output = tmp_path / "evidence"
-    _build_temp_evidence(output)
+    repo = tmp_path / "repo"
+    _, _, checkpoint_path = _prepare_synthetic_final_checkout(repo)
+    output = repo / "evidence"
+    _build_temp_evidence(
+        output, repo_root=repo, source_checkpoint_path=checkpoint_path
+    )
     monkeypatch.setattr(
         s44_validator,
         "hash_only_holdout_integrity",
@@ -578,7 +819,7 @@ def test_machine_local_mode_fails_closed_when_raw_is_unavailable(
     )
     result = validate_evidence(
         output / "evidence_index.json",
-        repo_root=ROOT,
+        repo_root=repo,
         require_machine_local=True,
         require_final=False,
         require_tracked=False,
@@ -593,8 +834,12 @@ def test_machine_local_mode_fails_closed_when_raw_is_unavailable(
 def test_validator_detects_manifest_tamper_missing_file_and_split_crossing(
     tmp_path: Path,
 ) -> None:
-    output = tmp_path / "evidence"
-    _build_temp_evidence(output)
+    repo = tmp_path / "repo"
+    _, _, checkpoint_path = _prepare_synthetic_final_checkout(repo)
+    output = repo / "evidence"
+    _build_temp_evidence(
+        output, repo_root=repo, source_checkpoint_path=checkpoint_path
+    )
 
     coverage = output / "coverage_report.json"
     payload = _json(coverage)
@@ -602,7 +847,7 @@ def test_validator_detects_manifest_tamper_missing_file_and_split_crossing(
     coverage.write_text(json.dumps(payload), encoding="utf-8")
     result = validate_evidence(
         output / "evidence_index.json",
-        repo_root=ROOT,
+        repo_root=repo,
         require_machine_local=False,
         require_final=False,
         require_tracked=False,
@@ -616,11 +861,13 @@ def test_validator_detects_manifest_tamper_missing_file_and_split_crossing(
     }
 
     shutil.rmtree(output)
-    _build_temp_evidence(output)
+    _build_temp_evidence(
+        output, repo_root=repo, source_checkpoint_path=checkpoint_path
+    )
     (output / "fit_manifest.json").unlink()
     result = validate_evidence(
         output / "evidence_index.json",
-        repo_root=ROOT,
+        repo_root=repo,
         require_machine_local=False,
         require_final=False,
         require_tracked=False,
@@ -629,14 +876,16 @@ def test_validator_detects_manifest_tamper_missing_file_and_split_crossing(
     assert "missing_artifact" in {issue["code"] for issue in result["issues"]}
 
     shutil.rmtree(output)
-    _build_temp_evidence(output)
+    _build_temp_evidence(
+        output, repo_root=repo, source_checkpoint_path=checkpoint_path
+    )
     plan_path = output / "split_plan.json"
     plan = _json(plan_path)
     plan["assignments"]["fit"].append(plan["assignments"]["holdout"][0])
     plan_path.write_text(json.dumps(plan), encoding="utf-8")
     result = validate_evidence(
         output / "evidence_index.json",
-        repo_root=ROOT,
+        repo_root=repo,
         require_machine_local=False,
         require_final=False,
         require_tracked=False,

@@ -226,14 +226,26 @@ From the repository root:
 .venv/bin/python -m pytest -q tests/test_s4_4_holdout_freeze.py tests/test_dataset_splits.py
 make test
 make lint
-make build
 make check-version
 make check-release-source
+make build
 make audit-dist
+make build-kit
 make audit-kit
+test -d /tmp/ias-s4-3-wheelhouse-Yqs1Oh || { echo "BLOCKED: verified S4.3 wheelhouse unavailable at /tmp/ias-s4-3-wheelhouse-Yqs1Oh" >&2; exit 1; }
+make build-pack WHEELHOUSE=/tmp/ias-s4-3-wheelhouse-Yqs1Oh
 make audit-pack
 git diff --check
 ```
+
+`make build` clears `dist/`, so Kit and acoustic-pack archives must be rebuilt
+after it and before their audits. The only authorized wheelhouse for this
+closeout is the existing controlled five-wheel directory
+`/tmp/ias-s4-3-wheelhouse-Yqs1Oh`, recorded by
+`outputs/isaac_audio_sensors/S4/S4.3/validation/repository_validation.json` and
+matching `packs/acoustics/requirements.lock`. If that exact directory is
+unavailable, pack rebuild/audit is a blocker; no substitute wheelhouse may be
+invented or downloaded for this closeout.
 
 Focused tests pass 33/33. The raw-independent validator passes 19 indexed
 tracked-metadata artifacts. The machine-local hash-only validator

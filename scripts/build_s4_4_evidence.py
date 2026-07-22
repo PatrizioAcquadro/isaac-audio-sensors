@@ -17,14 +17,18 @@ from isaac_audio_sensors.acquisition.s4_4 import (
     build_assignment_companion,
     build_coverage_report,
     build_holdout_seal,
+    build_source_checkpoint_contract,
     build_trial_census,
     canonical_sha256,
     find_first_valid_seed,
+    holdout_manifest_content_declarations,
     load_json,
     sha256_file,
     validate_adapter_contract,
+    validate_holdout_manifest_content,
     validate_holdout_seal,
     validate_preseed_contract,
+    validate_source_checkpoint_contract,
 )
 from isaac_audio_sensors.core.dataset.atomic import write_json_atomic
 
@@ -34,6 +38,7 @@ DEFAULT_OUTPUT = ROOT / CANONICAL_OUTPUT
 DEFAULT_CONSTRAINTS = DEFAULT_OUTPUT / "freeze/preseed_coverage_constraints.json"
 DEFAULT_FEASIBILITY = DEFAULT_OUTPUT / "freeze/s2_5_constraint_feasibility.json"
 DEFAULT_ALGORITHM = DEFAULT_OUTPUT / "freeze/constraint_adapter_algorithm.v1.json"
+DEFAULT_SOURCE_CHECKPOINT = DEFAULT_OUTPUT / "freeze/source_checkpoint.v1.json"
 DEFAULT_INVENTORY = (
     ROOT / "outputs/isaac_audio_sensors/S4/S4.3/trial_inventory.json"
 )
@@ -50,6 +55,15 @@ _SOURCE_ARTIFACTS = {
 _DELIVERY_ARTIFACTS = {
     "docs/development/closeouts/S4/s4_4_holdout_freeze.md": "closeout",
 }
+_SOURCE_PATHS = tuple(sorted(_SOURCE_ARTIFACTS))
+_FROZEN_INPUT_PATHS = (
+    "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+    "constraint_adapter_algorithm.v1.json",
+    "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+    "preseed_coverage_constraints.json",
+    "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+    "s2_5_constraint_feasibility.json",
+)
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -63,10 +77,10 @@ def _copy_frozen(source: Path, destination: Path) -> None:
     shutil.copyfile(source, destination)
 
 
-def _git_output(*args: str) -> str:
+def _git_output(repo_root: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", *args],
-        cwd=ROOT,
+        cwd=repo_root,
         check=True,
         capture_output=True,
         text=True,
@@ -174,8 +188,10 @@ def _artifact_record(path: Path, *, role: str, relative: str) -> dict[str, Any]:
     }
 
 
-def _initialize_access_state(output: Path, seal_path: Path) -> dict[str, Any]:
-    access_root = ROOT / "dataset/S4.4/access"
+def _initialize_access_state(
+    output: Path, seal_path: Path, *, repo_root: Path
+) -> dict[str, Any]:
+    access_root = repo_root / "dataset/S4.4/access"
     grant = access_root / "holdout_access_grant.json"
     if grant.exists():
         raise S44Error(
@@ -217,14 +233,24 @@ def build(
     algorithm_path: Path,
     inventory_path: Path,
     s43_index_path: Path,
+    source_checkpoint_path: Path,
     initialize_access_state: bool,
+    repo_root: Path = ROOT,
 ) -> dict[str, Any]:
     """Build the complete deterministic tracked S4.4 evidence package."""
 
+    repo_root = repo_root.resolve()
     constraints = load_json(constraints_path)
     algorithm = load_json(algorithm_path)
-    validate_preseed_contract(constraints, repo_root=ROOT)
-    validate_adapter_contract(algorithm, constraints, repo_root=ROOT)
+    source_checkpoint = load_json(source_checkpoint_path)
+    validate_preseed_contract(constraints, repo_root=repo_root)
+    validate_adapter_contract(algorithm, constraints, repo_root=repo_root)
+    validate_source_checkpoint_contract(
+        source_checkpoint,
+        repo_root=repo_root,
+        expected_source_paths=_SOURCE_PATHS,
+        expected_frozen_input_paths=_FROZEN_INPUT_PATHS,
+    )
     feasibility = load_json(feasibility_path)
     if feasibility.get("status") != "no_satisfying_unadapted_assignment":
         raise S44Error("S2.5 feasibility record does not preserve the blocker")
@@ -245,6 +271,7 @@ def build(
         "preseed_coverage_constraints.json": constraints_path,
         "s2_5_constraint_feasibility.json": feasibility_path,
         "constraint_adapter_algorithm.v1.json": algorithm_path,
+        "source_checkpoint.v1.json": source_checkpoint_path,
     }
     for name, source in frozen_sources.items():
         _copy_frozen(source, output / "freeze" / name)
@@ -299,8 +326,10 @@ def build(
         partition="holdout",
         selection_groups=selection.plan.assignments["holdout"],
     )
-    holdout_manifest["contains_analysis_content"] = False
-    holdout_manifest["contains_derived_outcomes"] = False
+    holdout_manifest["content_declarations"] = (
+        holdout_manifest_content_declarations()
+    )
+    validate_holdout_manifest_content(holdout_manifest)
     access_policy = _access_policy()
 
     _write_json(output / "trial_census.json", census)
@@ -324,36 +353,32 @@ def build(
     validate_holdout_seal(seal, selection.plan)
     _write_json(output / "holdout_seal.json", seal)
 
-    source_checkpoint_branch = _git_output("branch", "--show-current")
-    source_checkpoint_commit = _git_output("rev-parse", "HEAD")
     provenance = {
         "schema": "ias.s4_4.provenance.v1",
         "status": "frozen_source_checkpoint",
         "baseline_branch": constraints["baseline"]["branch"],
         "baseline_commit": constraints["baseline"]["commit"],
-        "source_checkpoint_branch": source_checkpoint_branch,
-        "source_checkpoint_commit": source_checkpoint_commit,
+        "source_checkpoint_branch": source_checkpoint["source_checkpoint_branch"],
+        "source_checkpoint_commit": source_checkpoint["source_checkpoint_commit"],
+        "source_checkpoint_contract": {
+            "path": f"{CANONICAL_OUTPUT}/freeze/source_checkpoint.v1.json",
+            "sha256": sha256_file(source_checkpoint_path),
+            "contract_sha256": source_checkpoint["contract_sha256"],
+        },
         "final_source_commit_pending": False,
         "evidence_delivery_commit": (
             "the Git commit containing this artifact; intentionally not "
             "self-referenced"
         ),
         "source_identities": constraints["source_identities"],
-        "implementation": [
-            {
-                "path": relative,
-                "sha256": sha256_file(ROOT / relative),
-            }
-            for relative in sorted(_SOURCE_ARTIFACTS)
-            if (ROOT / relative).is_file()
-        ],
+        "implementation": source_checkpoint["source_artifacts"],
         "delivery_documents": [
             {
                 "path": relative,
-                "sha256": sha256_file(ROOT / relative),
+                "sha256": sha256_file(repo_root / relative),
             }
             for relative in sorted(_DELIVERY_ARTIFACTS)
-            if (ROOT / relative).is_file()
+            if (repo_root / relative).is_file()
         ],
         "split_plan_sha256": selection.plan.plan_sha256,
         "holdout_seal_sha256": sha256_file(output / "holdout_seal.json"),
@@ -395,6 +420,7 @@ def build(
         "freeze/constraint_adapter_algorithm.v1.json": "frozen_adapter_algorithm",
         "freeze/preseed_coverage_constraints.json": "frozen_coverage_constraints",
         "freeze/s2_5_constraint_feasibility.json": "s2_5_feasibility",
+        "freeze/source_checkpoint.v1.json": "source_checkpoint",
         "validation/adapter_validation.json": "adapter_validation",
     }
     artifacts = [
@@ -406,11 +432,11 @@ def build(
         for relative, role in sorted(output_roles.items())
     ]
     for relative, role in sorted(_SOURCE_ARTIFACTS.items()):
-        path = ROOT / relative
+        path = repo_root / relative
         if path.is_file():
             artifacts.append(_artifact_record(path, role=role, relative=relative))
     for relative, role in sorted(_DELIVERY_ARTIFACTS.items()):
-        path = ROOT / relative
+        path = repo_root / relative
         if path.is_file():
             artifacts.append(_artifact_record(path, role=role, relative=relative))
     index = {
@@ -434,7 +460,9 @@ def build(
         encoding="utf-8",
     )
     state = (
-        _initialize_access_state(output, output / "holdout_seal.json")
+        _initialize_access_state(
+            output, output / "holdout_seal.json", repo_root=repo_root
+        )
         if initialize_access_state
         else None
     )
@@ -463,11 +491,34 @@ def main() -> int:
     parser.add_argument("--constraints", type=Path, default=DEFAULT_CONSTRAINTS)
     parser.add_argument("--feasibility", type=Path, default=DEFAULT_FEASIBILITY)
     parser.add_argument("--algorithm", type=Path, default=DEFAULT_ALGORITHM)
+    parser.add_argument(
+        "--source-checkpoint", type=Path, default=DEFAULT_SOURCE_CHECKPOINT
+    )
     parser.add_argument("--inventory", type=Path, default=DEFAULT_INVENTORY)
     parser.add_argument("--s4-3-index", type=Path, default=DEFAULT_S43_INDEX)
     parser.add_argument("--initialize-access-state", action="store_true")
+    parser.add_argument("--freeze-source-checkpoint", action="store_true")
     args = parser.parse_args()
     try:
+        if args.freeze_source_checkpoint:
+            branch = _git_output(ROOT, "branch", "--show-current")
+            commit = _git_output(ROOT, "rev-parse", "HEAD")
+            checkpoint = build_source_checkpoint_contract(
+                repo_root=ROOT,
+                branch=branch,
+                commit=commit,
+                source_paths=_SOURCE_PATHS,
+                frozen_input_paths=_FROZEN_INPUT_PATHS,
+            )
+            if args.source_checkpoint.is_file() and load_json(
+                args.source_checkpoint
+            ) != checkpoint:
+                raise S44Error(
+                    "refusing to replace a different immutable source checkpoint"
+                )
+            _write_json(args.source_checkpoint, checkpoint)
+            print(json.dumps(checkpoint, indent=2, sort_keys=True))
+            return 0
         result = build(
             output=args.output,
             constraints_path=args.constraints,
@@ -475,6 +526,7 @@ def main() -> int:
             algorithm_path=args.algorithm,
             inventory_path=args.inventory,
             s43_index_path=args.s4_3_index,
+            source_checkpoint_path=args.source_checkpoint,
             initialize_access_state=args.initialize_access_state,
         )
     except (OSError, S44Error, ValueError, subprocess.CalledProcessError) as exc:

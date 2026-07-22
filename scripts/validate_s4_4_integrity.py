@@ -18,9 +18,12 @@ from isaac_audio_sensors.acquisition.s4_4 import (
     load_json,
     sha256_file,
     validate_adapter_contract,
+    validate_holdout_manifest_content,
     validate_holdout_seal,
     validate_ledger,
     validate_preseed_contract,
+    validate_provenance_source_checkpoint,
+    validate_source_checkpoint_contract,
 )
 from isaac_audio_sensors.core.dataset.atomic import write_json_atomic
 from isaac_audio_sensors.core.dataset.splits import SplitPlan, verify_no_leakage
@@ -29,6 +32,20 @@ ROOT = Path(__file__).resolve().parents[1]
 CANONICAL_OUTPUT = Path("outputs/isaac_audio_sensors/S4/S4.4")
 DEFAULT_INDEX = ROOT / CANONICAL_OUTPUT / "evidence_index.json"
 MEDIA_SUFFIXES = {".wav", ".svo", ".svo2", ".png", ".jpg", ".jpeg", ".mp4"}
+SOURCE_PATHS = (
+    "scripts/build_s4_4_evidence.py",
+    "scripts/validate_s4_4_integrity.py",
+    "src/isaac_audio_sensors/acquisition/s4_4.py",
+    "tests/test_s4_4_holdout_freeze.py",
+)
+FROZEN_INPUT_PATHS = (
+    "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+    "constraint_adapter_algorithm.v1.json",
+    "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+    "preseed_coverage_constraints.json",
+    "outputs/isaac_audio_sensors/S4/S4.4/freeze/"
+    "s2_5_constraint_feasibility.json",
+)
 
 
 def _problem(code: str, path: str, message: str) -> dict[str, str]:
@@ -65,26 +82,6 @@ def _git_tracked(repo_root: Path, relative: str) -> bool:
         text=True,
     )
     return result.returncode == 0
-
-
-def _git_source_checkpoint_valid(repo_root: Path, commit: str) -> bool:
-    exists = subprocess.run(
-        ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
-        cwd=repo_root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if exists.returncode != 0:
-        return False
-    ancestry = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
-        cwd=repo_root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return ancestry.returncode == 0
 
 
 def validate(
@@ -203,6 +200,7 @@ def validate(
         "freeze/constraint_adapter_algorithm.v1.json",
         "freeze/preseed_coverage_constraints.json",
         "freeze/s2_5_constraint_feasibility.json",
+        "freeze/source_checkpoint.v1.json",
         "validation/adapter_validation.json",
     }
     for relative in sorted(required):
@@ -293,25 +291,32 @@ def validate(
         issues.append(_problem("failures_not_retained", "trial_census.json", "invalid"))
 
     provenance = load_json(evidence_root / "provenance.json")
-    source_checkpoint = provenance.get("source_checkpoint_commit")
-    if (
-        provenance.get("status") != "frozen_source_checkpoint"
-        or provenance.get("final_source_commit_pending") is not False
-        or not isinstance(source_checkpoint, str)
-        or len(source_checkpoint) != 40
-        or any(character not in "0123456789abcdef" for character in source_checkpoint)
-    ):
-        issues.append(
-            _problem("provenance_invalid", "provenance.json", "checkpoint invalid")
+    source_checkpoint_path = evidence_root / "freeze/source_checkpoint.v1.json"
+    try:
+        source_checkpoint = load_json(source_checkpoint_path)
+        validate_source_checkpoint_contract(
+            source_checkpoint,
+            repo_root=repo_root,
+            expected_source_paths=SOURCE_PATHS,
+            expected_frozen_input_paths=FROZEN_INPUT_PATHS,
         )
-    elif (repo_root / ".git").exists() and not _git_source_checkpoint_valid(
-        repo_root, source_checkpoint
-    ):
+        validate_provenance_source_checkpoint(
+            provenance,
+            source_checkpoint,
+            checkpoint_path=(
+                f"{CANONICAL_OUTPUT}/freeze/source_checkpoint.v1.json"
+            ),
+            checkpoint_file_sha256=sha256_file(source_checkpoint_path),
+        )
+        if (
+            provenance.get("status") != "frozen_source_checkpoint"
+            or provenance.get("final_source_commit_pending") is not False
+        ):
+            raise S44Error("provenance checkpoint status is invalid")
+    except (OSError, S44Error, ValueError) as exc:
         issues.append(
             _problem(
-                "provenance_checkpoint_invalid",
-                "provenance.json",
-                "commit missing or not an ancestor of HEAD",
+                "provenance_checkpoint_invalid", "provenance.json", str(exc)
             )
         )
 
@@ -363,6 +368,17 @@ def validate(
     ):
         issues.append(
             _problem("access_policy_invalid", "access_policy.json", "invalid")
+        )
+    holdout_manifest = load_json(evidence_root / "holdout_manifest.json")
+    try:
+        validate_holdout_manifest_content(holdout_manifest)
+    except S44Error as exc:
+        issues.append(
+            _problem(
+                "holdout_manifest_content_invalid",
+                "holdout_manifest.json",
+                str(exc),
+            )
         )
     seal = load_json(evidence_root / "holdout_seal.json")
     if plan is not None:
