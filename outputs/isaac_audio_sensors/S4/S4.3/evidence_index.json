@@ -386,6 +386,13 @@
       "sha256": "bd81077d1339ddcac9351565d529f7eb0489f7a1c8c4c0b08fd39fedffeb57ef"
     },
     {
+      "byte_size": 6520,
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_provenance_correction_02.json",
+      "retention": "git_tracked",
+      "role": "tracked_s4_3_evidence",
+      "sha256": "35a34fba47d902c5fdddd5b78b68d802bb0cb65d0709c192125e09966d554c75"
+    },
+    {
       "byte_size": 179936,
       "path": "src/isaac_audio_sensors/acquisition/s4_3.py",
       "retention": "git_tracked",
@@ -393,11 +400,11 @@
       "sha256": "d2d2217674dd949c09c60ea9bcca6ad3792d5421c75428a626bfb81279d8c293"
     },
     {
-      "byte_size": 7112,
+      "byte_size": 27023,
       "path": "src/isaac_audio_sensors/acquisition/s4_3_postcapture.py",
       "retention": "git_tracked",
       "role": "tracked_s4_3_evidence",
-      "sha256": "5af1b78427c82068442e11f3a2e922edbe437c87e5ef8414cf05c259bd4e0afe"
+      "sha256": "64a8f4b375adacd8116848f1ef1d52c3f9ace186ea7f2ec8650581f314bac97e"
     },
     {
       "byte_size": 27518,
@@ -421,25 +428,25 @@
       "sha256": "9b43aa3e7c4fe265d8a69586ba6d308d781720ea77696da7fd415cf7eaef399c"
     },
     {
-      "byte_size": 28246,
+      "byte_size": 28338,
       "path": "scripts/build_s4_3_evidence.py",
       "retention": "git_tracked",
       "role": "tracked_s4_3_evidence",
-      "sha256": "ed8556a2d69a5b47eba9d8c5fe8524b50614c72088b215661f904bf06f9603ad"
+      "sha256": "514c83694b341cc550d6e224340f3deae828ed6a735dd3dc67cec0e2785874e6"
     },
     {
-      "byte_size": 17550,
+      "byte_size": 17671,
       "path": "scripts/validate_s4_3_integrity.py",
       "retention": "git_tracked",
       "role": "tracked_s4_3_evidence",
-      "sha256": "51930c1499aaadde75ac33c752e5d5cd3a72c45dbb5f724916a7b5af74fa4d88"
+      "sha256": "fbb24150c6ddedf4e182ab82c6e38863453e6a28580b864dbaa27576b7b2d4ec"
     },
     {
-      "byte_size": 52967,
+      "byte_size": 56049,
       "path": "tests/test_s4_3_pilot.py",
       "retention": "git_tracked",
       "role": "tracked_s4_3_evidence",
-      "sha256": "0860af5acc2691e89ce3b99543828cc7b324e961a91846a2d0b6ba4800f9be63"
+      "sha256": "53b4346d4af833aaae06c8dccb514ce914ec05038883853e2812850287453d49"
     },
     {
       "byte_size": 16702,
@@ -2480,5 +2487,5 @@
   "s4_4_started": false,
   "schema": "ias.s4_3.evidence_index.v1",
   "status": "passed",
-  "tracked_artifact_count": 77
+  "tracked_artifact_count": 78
 }
