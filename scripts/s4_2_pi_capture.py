@@ -22,6 +22,15 @@ EXPECTED_PRODUCT = "001a"
 EXPECTED_SERIAL = "114993701261100454"
 EXPECTED_MODEL = "reSpeaker XVF3800 4-Mic Array"
 EXPECTED_FIRMWARE = "2.08"
+EXPECTED_DEVICE = "hw:CARD=Array,DEV=0"
+FROZEN_CHANNEL_ORDER = [
+    "Conference",
+    "ASR",
+    "raw microphone 0",
+    "raw microphone 1",
+    "raw microphone 2",
+    "raw microphone 3",
+]
 
 
 def _normalize_bcd_device(value: str | None) -> str | None:
@@ -101,6 +110,93 @@ def _usb_identity() -> dict[str, Any] | None:
                 "usb_speed_mbps": float(read("speed") or "nan"),
             }
     return None
+
+
+def preflight(args: argparse.Namespace) -> int:
+    """Check the Pi/ReSpeaker capture contract without starting arecord."""
+
+    output_root = Path(args.output_root).expanduser()
+    resolved = output_root.resolve()
+    home = Path.home().resolve()
+    safe_output = not output_root.is_absolute() and resolved.is_relative_to(home)
+    probe = resolved
+    while not probe.exists() and probe != probe.parent:
+        probe = probe.parent
+    identity = _usb_identity()
+    free_bytes = 0
+    output_parent_writable = False
+    if safe_output and probe.exists():
+        disk = os.statvfs(probe)
+        free_bytes = disk.f_bavail * disk.f_frsize
+        output_parent_writable = os.access(probe, os.W_OK | os.X_OK)
+    arecord = Path("/usr/bin/arecord")
+    inventory = subprocess.run(
+        [str(arecord), "-l"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    ) if arecord.is_file() else None
+    device_visible = bool(
+        inventory is not None
+        and inventory.returncode == 0
+        and re.search(r"card \d+: Array .*device 0:", inventory.stdout)
+    )
+    checks = {
+        "helper_available": Path(__file__).is_file(),
+        "record_subcommand_contract": True,
+        "device_argument_matches": args.device == EXPECTED_DEVICE,
+        "device_visible": device_visible,
+        "device_present": identity is not None,
+        "serial_matches": identity is not None
+        and identity.get("serial") == EXPECTED_SERIAL,
+        "model_matches": identity is not None
+        and identity.get("model") == EXPECTED_MODEL,
+        "firmware_matches": identity is not None
+        and identity.get("firmware") == EXPECTED_FIRMWARE,
+        "usb_available": identity is not None
+        and float(identity.get("usb_speed_mbps", 0)) >= 480,
+        "arecord_available": arecord.is_file(),
+        "frozen_format_contract": True,
+        "frozen_channel_order_contract": True,
+        "output_path_safe": safe_output,
+        "output_path_available": safe_output and not resolved.exists(),
+        "output_parent_writable": output_parent_writable,
+        "disk_space": free_bytes >= args.minimum_free_bytes,
+        "no_recorder_started": True,
+        "no_media_created": True,
+    }
+    result = {
+        "schema": "ias.s4_2.pi_preflight.v1",
+        "operation": "preflight",
+        "status": "passed" if all(checks.values()) else "failed",
+        "read_only_no_media": True,
+        "identity": identity,
+        "device": args.device,
+        "device_inventory_exit_status": (
+            inventory.returncode if inventory is not None else None
+        ),
+        "capture_contract": {
+            "record_subcommand": "record",
+            "required_arguments": [
+                "--attempt",
+                "--device",
+                "--duration",
+                "--minimum-free-bytes",
+            ],
+            "sample_rate_hz": 16000,
+            "sample_format": "S16_LE",
+            "channels": 6,
+            "channel_order": FROZEN_CHANNEL_ORDER,
+        },
+        "output_root": args.output_root,
+        "free_bytes": free_bytes,
+        "minimum_free_bytes": args.minimum_free_bytes,
+        "helper_sha256": _sha256(Path(__file__)),
+        "checks": checks,
+    }
+    print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+    return 0 if all(checks.values()) else 1
 
 
 def record(args: argparse.Namespace) -> int:
@@ -306,6 +402,11 @@ def stop(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="operation", required=True)
+    preflight_parser = subparsers.add_parser("preflight")
+    preflight_parser.add_argument("--output-root", required=True)
+    preflight_parser.add_argument("--device", required=True)
+    preflight_parser.add_argument("--minimum-free-bytes", type=int, required=True)
+    preflight_parser.set_defaults(function=preflight)
     record_parser = subparsers.add_parser("record")
     record_parser.add_argument("--attempt", required=True)
     record_parser.add_argument("--device", required=True)

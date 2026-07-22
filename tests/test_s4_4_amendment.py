@@ -2,13 +2,19 @@ from __future__ import annotations
 
 import copy
 import json
+from argparse import Namespace
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 import pytest
 
+import scripts.run_s4_4_amendment_readiness as readiness_runner
+import scripts.run_s4_4_amendment_take as take_runner
 from isaac_audio_sensors.acquisition.s4_4_amendment import (
     PREFLIGHT_SCHEMA,
+    READINESS_SCHEMA,
+    REQUIRED_READINESS_CHECKS,
     S44AmendmentError,
     append_ledger_event,
     authorize_and_record_access,
@@ -21,6 +27,8 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     combined_partition_manifest,
     hash_only_holdout_integrity,
     initialize_access_ledger,
+    load_amendment_configuration,
+    load_json,
     require_evidence_access,
     sanitize_holdout_technical_qa,
     sha256_file,
@@ -32,14 +40,17 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     validate_manifests,
     validate_precollection_seal,
     validate_session_preflight,
+    validate_session_readiness,
 )
 from scripts.build_s4_4_amendment import build
 from scripts.execute_s4_4_amendment_attempt import _argument
+from scripts.run_s4_4_amendment_readiness import _dynamic_passed, _mac_full_passed
 from scripts.run_s4_4_amendment_take import _capture_plan
-from scripts.validate_s4_4_amendment import validate
+from scripts.validate_s4_4_amendment import _validate_historical_no_go, validate
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "configs/s4_4_data_expansion_amendment_01.v1.json"
+CONFIG_02_PATH = ROOT / "configs/s4_4_data_expansion_amendment_02.v1.json"
 
 
 @pytest.fixture
@@ -86,6 +97,32 @@ def _qa_input(planned_id: str, **extra: object) -> dict:
         "full_svo2_replay_pass": True,
         **extra,
     }
+
+
+def _readiness(
+    config: dict,
+    preflight: dict,
+    seal_sha256: str,
+    *,
+    status: str = "passed",
+) -> dict:
+    payload = {
+        "schema": READINESS_SCHEMA,
+        "status": status,
+        "amendment_id": config["amendment_id"],
+        "session_id": "fit_a",
+        "session_date_local": date.today().isoformat(),
+        "precollection_seal_sha256": seal_sha256,
+        "inherited_preflight_sha256": preflight["preflight_sha256"],
+        "checks": {
+            key: "passed" if status == "passed" else "failed"
+            for key in REQUIRED_READINESS_CHECKS
+        },
+        "attempt_allocated": False,
+        "recorder_started": False,
+        "media_created": False,
+    }
+    return {**payload, "readiness_sha256": canonical_sha256(payload)}
 
 
 def test_configuration_preserves_original_s4_4_and_scope(config: dict) -> None:
@@ -609,3 +646,226 @@ def test_capture_plan_uses_attempt_scoped_executable_pi_command(
     assert _argument(command, "--minimum-free-bytes") == "1073741824"
     assert _argument(command, "--duration") == "15"
     assert _argument(command, "--device") == "hw:CARD=Array,DEV=0"
+
+
+def test_amendment_02_preserves_scientific_matrix_with_new_identities() -> None:
+    first_config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    second_config = load_amendment_configuration(CONFIG_02_PATH, ROOT)
+    first = build_manifests(first_config)
+    second = build_manifests(second_config)
+    assert sum(len(value["takes"]) for value in second.values()) == 149
+    assert all(
+        take["planned_take_id"].startswith("s44a02_") for take in _takes(second)
+    )
+    assert set(take["planned_take_id"] for take in _takes(first)).isdisjoint(
+        take["planned_take_id"] for take in _takes(second)
+    )
+
+    identity_fields = {
+        "planned_take_id",
+        "predecessor_planned_take_id",
+        "successor_planned_take_id",
+        "expected_artifact_paths",
+        "take_definition_sha256",
+        "group_id",
+    }
+    for session_id in first:
+        first_science = [
+            {key: value for key, value in take.items() if key not in identity_fields}
+            for take in first[session_id]["takes"]
+        ]
+        second_science = [
+            {key: value for key, value in take.items() if key not in identity_fields}
+            for take in second[session_id]["takes"]
+        ]
+        assert second_science == first_science
+    aggregate = build_aggregate_index(
+        second_config,
+        fit_manifest_sha256="1" * 64,
+        holdout_manifest_sha256="2" * 64,
+    )
+    assert [record["record_id"] for record in aggregate["records"]] == [
+        "original_s4_4_freeze",
+        "s4_4_data_expansion_amendment_01",
+        "s4_4_data_expansion_amendment_02",
+    ]
+    assert aggregate["access_histories_merged"] is False
+    assert aggregate["blindness_claims_merged"] is False
+
+
+def test_invalid_or_empty_mac_json_fails_readiness_helpers() -> None:
+    inherited = {
+        "observations": {
+            "mac": {
+                "work_focus_active_operator_confirmed": True,
+                "notifications_suppressed_operator_confirmed": True,
+            }
+        }
+    }
+    assert _dynamic_passed(None) is False
+    assert _dynamic_passed({}) is False
+    assert _mac_full_passed(None, inherited) is False
+    assert _mac_full_passed({}, inherited) is False
+
+
+def test_sandbox_ssh_denial_is_a_failed_readiness_observation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        readiness_runner,
+        "_run",
+        lambda *_a, **_k: {
+            "argv": ["ssh", "patrizios-macbook"],
+            "return_code": 255,
+            "stdout": "",
+            "stderr": "socket: Operation not permitted\n",
+            "timed_out": False,
+            "execution_error": None,
+        },
+    )
+    observation = readiness_runner._json_observation(
+        ["ssh", "patrizios-macbook", "/usr/bin/true"]
+    )
+    assert observation["return_code"] == 255
+    assert observation["payload"] is None
+    assert _dynamic_passed(observation["payload"]) is False
+    assert not (tmp_path / "attempts").exists()
+
+
+def test_attempt_creation_requires_hash_bound_passed_readiness() -> None:
+    config = load_amendment_configuration(CONFIG_02_PATH, ROOT)
+    preflight = _preflight(config, "fit_a", date.today().isoformat())
+    readiness = _readiness(config, preflight, "1" * 64)
+    validate_session_readiness(
+        readiness,
+        config,
+        precollection_seal_sha256="1" * 64,
+        inherited_preflight_sha256=preflight["preflight_sha256"],
+    )
+    changed = copy.deepcopy(readiness)
+    changed["precollection_seal_sha256"] = "2" * 64
+    changed_payload = {
+        key: value for key, value in changed.items() if key != "readiness_sha256"
+    }
+    changed["readiness_sha256"] = canonical_sha256(changed_payload)
+    with pytest.raises(S44AmendmentError, match="seal binding"):
+        validate_session_readiness(
+            changed,
+            config,
+            precollection_seal_sha256="1" * 64,
+            inherited_preflight_sha256=preflight["preflight_sha256"],
+        )
+
+
+def _prepare_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, readiness_status: str
+) -> tuple[Namespace, Path]:
+    config = load_amendment_configuration(CONFIG_02_PATH, ROOT)
+    monkeypatch.setattr(take_runner, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        take_runner, "load_amendment_configuration", lambda *_args: config
+    )
+    monkeypatch.setattr(
+        take_runner, "validate_precollection_seal", lambda *_a, **_k: None
+    )
+    evidence_root = tmp_path / config["retention"]["tracked_evidence_root"]
+    (evidence_root / "manifests/sessions").mkdir(parents=True)
+    seal_path = evidence_root / "precollection_seal.v1.json"
+    seal_path.write_text("{}\n", encoding="utf-8")
+    manifests = build_manifests(config)
+    (evidence_root / "manifests/sessions/fit_a.json").write_text(
+        json.dumps(manifests["fit_a"]), encoding="utf-8"
+    )
+    preflight = _preflight(config, "fit_a", date.today().isoformat())
+    preflight_path = tmp_path / "inherited_preflight.json"
+    preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+    readiness = _readiness(
+        config, preflight, sha256_file(seal_path), status=readiness_status
+    )
+    readiness_path = tmp_path / "readiness.json"
+    readiness_path.write_text(json.dumps(readiness), encoding="utf-8")
+    first_take = manifests["fit_a"]["takes"][0]
+    args = Namespace(
+        config=CONFIG_02_PATH,
+        session_id="fit_a",
+        planned_take_id=first_take["planned_take_id"],
+        attempt_number=1,
+        preflight=preflight_path,
+        readiness=readiness_path,
+        recorded_position=None,
+        recorded_bearing=None,
+        recorded_distance=None,
+        placement_basis="operator_recorded_measurement",
+        reposition_confirmed=False,
+        pre_recording_failure=None,
+    )
+    attempt_root = tmp_path / config["retention"]["attempt_root"]
+    return args, attempt_root
+
+
+def test_readiness_failure_cannot_create_or_consume_attempt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    args, attempt_root = _prepare_fixture(
+        tmp_path, monkeypatch, readiness_status="failed"
+    )
+    with pytest.raises(S44AmendmentError, match="schema/status"):
+        take_runner.prepare(args)
+    assert not attempt_root.exists()
+
+
+def test_passed_readiness_is_validated_before_attempt_allocation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    args, attempt_root = _prepare_fixture(
+        tmp_path, monkeypatch, readiness_status="passed"
+    )
+    result = take_runner.prepare(args)
+    assert result["status"] == "awaiting_physical_operator_action"
+    manifest = load_json(
+        attempt_root
+        / result["attempt_id"].split("__attempt_")[0]
+        / result["attempt_id"]
+        / "manifest.json"
+    )
+    assert manifest["recorder_started"] is False
+
+
+def test_amendment_01_no_go_closure_preserves_all_current_bytes() -> None:
+    config = load_amendment_configuration(CONFIG_02_PATH, ROOT)
+    assert _validate_historical_no_go(
+        config,
+        repo_root=ROOT,
+        require_tracked=False,
+        require_committed=False,
+    ) == []
+
+
+def test_amendment_02_build_is_byte_identical_and_capture_locked(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first_summary = build(output=first, config_path=CONFIG_02_PATH)
+    second_summary = build(output=second, config_path=CONFIG_02_PATH)
+    assert first_summary == second_summary
+    assert first_summary["planned_total"] == 149
+    assert first_summary["collection_allowed"] is False
+    assert {
+        path.relative_to(first).as_posix(): path.read_bytes()
+        for path in first.rglob("*")
+        if path.is_file()
+    } == {
+        path.relative_to(second).as_posix(): path.read_bytes()
+        for path in second.rglob("*")
+        if path.is_file()
+    }
+    result = validate(
+        first / "evidence_index.v1.json",
+        repo_root=ROOT,
+        config_path=CONFIG_02_PATH,
+        require_tracked=False,
+        require_committed=False,
+        require_machine_local=False,
+    )
+    assert result["status"] == "passed", result["issues"]

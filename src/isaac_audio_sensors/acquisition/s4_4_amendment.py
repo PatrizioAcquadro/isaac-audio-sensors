@@ -19,15 +19,33 @@ from typing import Any
 
 CONFIG_SCHEMA = "ias.s4_4.data_expansion_amendment_config.v1"
 MANIFEST_SCHEMA = "ias.s4_4.data_expansion_manifest.v1"
+MANIFEST_SCHEMA_V2 = "ias.s4_4.data_expansion_manifest.v2"
 PREFLIGHT_SCHEMA = "ias.s4_4.amendment_session_preflight.v1"
+READINESS_SCHEMA = "ias.s4_4.amendment_session_readiness.v1"
 ATTEMPT_SCHEMA = "ias.s4_4.amendment_attempt.v1"
 CENSUS_SCHEMA = "ias.s4_4.amendment_attempt_census.v1"
 QA_SCHEMA = "ias.s4_4.amendment_technical_qa.v1"
 PRECOLLECTION_SEAL_SCHEMA = "ias.s4_4.amendment_precollection_seal.v1"
+PRECOLLECTION_SEAL_SCHEMA_V2 = "ias.s4_4.amendment_precollection_seal.v2"
 HOLDOUT_SEAL_SCHEMA = "ias.s4_4.amendment_holdout_seal.v1"
 AGGREGATE_SCHEMA = "ias.s4_4.aggregate_index.v1"
+AGGREGATE_SCHEMA_V2 = "ias.s4_4.aggregate_index.v2"
 LEDGER_EVENT_SCHEMA = "ias.s4_4.amendment_access_ledger_event.v1"
 ZERO_SHA256 = "0" * 64
+REQUIRED_READINESS_CHECKS = {
+    "network_permission_confirmed",
+    "mac_ssh_connectivity",
+    "mac_full_preflight_json",
+    "mac_dynamic_preflight_json",
+    "mac_identity_volume_mute_power_and_reference",
+    "pi_ssh_connectivity",
+    "pi_nonrecording_preflight_json",
+    "pi_identity_device_format_disk_and_output",
+    "zed_nonrecording_preflight",
+    "clocks",
+    "privacy_and_environment",
+    "output_and_access_paths",
+}
 
 EXPECTED_SESSION_COUNTS = {"fit_a": 51, "fit_b": 51, "prospective_holdout": 47}
 EXPECTED_PARTITION_COUNTS = {"fit": 102, "prospective_holdout": 47}
@@ -132,6 +150,42 @@ def _require_sha256(value: object, label: str) -> str:
     return value
 
 
+def load_amendment_configuration(path: Path, repo_root: Path) -> dict[str, Any]:
+    """Load a full v1 config or the narrow version-2 overlay on its frozen base."""
+
+    payload = load_json(path)
+    inherited = payload.get("inherits_config")
+    if inherited is None:
+        return payload
+    if not isinstance(inherited, Mapping) or set(inherited) != {"path", "sha256"}:
+        raise S44AmendmentError("inherited config binding invalid")
+    relative = _safe_relative(inherited["path"], "inherits_config.path")
+    base_path = repo_root / relative
+    expected = _require_sha256(inherited["sha256"], "inherits_config.sha256")
+    if not base_path.is_file() or sha256_file(base_path) != expected:
+        raise S44AmendmentError("inherited config changed or is absent")
+    base = load_json(base_path)
+    allowed = {
+        "schema",
+        "amendment_id",
+        "version",
+        "status",
+        "inherits_config",
+        "historical_no_go_amendment_01",
+        "retention",
+    }
+    if set(payload) != allowed:
+        raise S44AmendmentError("amendment_02 config overlay field set invalid")
+    merged = json.loads(json.dumps(base))
+    for key in ("schema", "amendment_id", "version", "status"):
+        merged[key] = payload[key]
+    merged["historical_no_go_amendment_01"] = payload[
+        "historical_no_go_amendment_01"
+    ]
+    merged["retention"] = payload["retention"]
+    return merged
+
+
 def _require_commit(value: object, label: str) -> str:
     if (
         not isinstance(value, str)
@@ -194,8 +248,14 @@ def validate_configuration(config: Mapping[str, Any], repo_root: Path) -> None:
 
     if config.get("schema") != CONFIG_SCHEMA:
         raise S44AmendmentError(f"config schema: expected {CONFIG_SCHEMA}")
-    if config.get("amendment_id") != "s4_4_data_expansion_amendment_01":
-        raise S44AmendmentError("amendment id is not the approved version")
+    amendment_id = config.get("amendment_id")
+    version = config.get("version")
+    approved = {
+        "s4_4_data_expansion_amendment_01": 1,
+        "s4_4_data_expansion_amendment_02": 2,
+    }
+    if amendment_id not in approved or version != approved[amendment_id]:
+        raise S44AmendmentError("amendment id/version is not approved")
     scope = config.get("scope", {})
     if (
         scope.get("phase") != "S4.4"
@@ -230,6 +290,33 @@ def validate_configuration(config: Mapping[str, Any], repo_root: Path) -> None:
         or retention.get("clean_checkout_requires_raw_media") is not False
     ):
         raise S44AmendmentError("retention boundary changed")
+    expected_suffix = str(amendment_id)
+    if any(
+        not str(retention.get(field, "")).endswith(expected_suffix)
+        for field in ("machine_local_root", "tracked_evidence_root")
+    ) or any(
+        f"/{expected_suffix}/" not in str(retention.get(field, "")) + "/"
+        for field in ("attempt_root", "session_root", "access_root")
+    ):
+        raise S44AmendmentError("amendment retention identities are not isolated")
+    if version == 2:
+        historical = config.get("historical_no_go_amendment_01")
+        if not isinstance(historical, Mapping) or historical != {
+            "amendment_id": "s4_4_data_expansion_amendment_01",
+            "status": "no_go",
+            "closure_record_path": (
+                "outputs/isaac_audio_sensors/S4/S4.4/closures/"
+                "s4_4_data_expansion_amendment_01_no_go.v1.json"
+            ),
+            "closure_seal_path": (
+                "outputs/isaac_audio_sensors/S4/S4.4/closures/"
+                "s4_4_data_expansion_amendment_01_no_go_seal.v1.json"
+            ),
+            "assignments_reused": False,
+            "access_histories_merged": False,
+            "blindness_claims_merged": False,
+        }:
+            raise S44AmendmentError("amendment_02 historical NO-GO reference invalid")
     validate_historical_freeze(config, repo_root)
 
 
@@ -319,7 +406,8 @@ def _planned_take(
             else "unobstructed_reference"
         ),
     }
-    group_id = "s44a_grp_" + canonical_sha256(condition)[:20]
+    group_prefix = "s44a_grp_" if int(config["version"]) == 1 else "s44a02_grp_"
+    group_id = group_prefix + canonical_sha256(condition)[:20]
     return {
         "partition": partition,
         "session_id": session_id,
@@ -547,7 +635,10 @@ def build_manifests(config: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
                 "silence": "sil",
                 "audio_video": "av",
             }[take["category"]]
-            planned_id = f"s44a01_{session_id}_{sequence:03d}_{condition_tag}"
+            planned_id = (
+                f"s44a{int(config['version']):02d}_"
+                f"{session_id}_{sequence:03d}_{condition_tag}"
+            )
             take["planned_take_id"] = planned_id
             take["sequence_index"] = sequence
         for sequence, take in enumerate(takes, 1):
@@ -577,7 +668,9 @@ def build_manifests(config: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
             )
         partition = takes[0]["partition"]
         payload = {
-            "schema": MANIFEST_SCHEMA,
+            "schema": (
+                MANIFEST_SCHEMA_V2 if int(config["version"]) == 2 else MANIFEST_SCHEMA
+            ),
             "status": "frozen_before_collection",
             "amendment_id": config["amendment_id"],
             "partition": partition,
@@ -623,7 +716,10 @@ def validate_manifests(
     groups: dict[str, set[str]] = defaultdict(set)
     bounds = config["room_bounds_m"]
     for session_id, manifest in manifests.items():
-        if manifest.get("schema") != MANIFEST_SCHEMA:
+        expected_manifest_schema = (
+            MANIFEST_SCHEMA_V2 if int(config["version"]) == 2 else MANIFEST_SCHEMA
+        )
+        if manifest.get("schema") != expected_manifest_schema:
             raise S44AmendmentError(f"{session_id}: wrong manifest schema")
         _validate_self_hash(manifest, "manifest_sha256", session_id)
         takes = manifest.get("takes")
@@ -728,38 +824,61 @@ def build_aggregate_index(
 ) -> dict[str, Any]:
     """Reference legacy and amendment records without merging blindness claims."""
 
+    records = [
+        {
+            "record_id": "original_s4_4_freeze",
+            "role": "historically_analyzed_legacy_evidence",
+            "split_plan_path": (
+                "outputs/isaac_audio_sensors/S4/S4.4/split_plan.json"
+            ),
+            "split_plan_payload_sha256": config["historical_freeze"][
+                "split_plan_payload_sha256"
+            ],
+            "holdout_manifest_path": (
+                "outputs/isaac_audio_sensors/S4/S4.4/holdout_manifest.json"
+            ),
+            "holdout_seal_path": (
+                "outputs/isaac_audio_sensors/S4/S4.4/holdout_seal.json"
+            ),
+            "historically_unopened_claim": False,
+            "access_history": "dataset/S4.4/access/access_ledger.jsonl",
+        }
+    ]
+    if int(config["version"]) == 2:
+        historical = config["historical_no_go_amendment_01"]
+        records.append(
+            {
+                "record_id": historical["amendment_id"],
+                "role": "immutable_historical_no_go_evidence",
+                "status": "no_go",
+                "closure_record_path": historical["closure_record_path"],
+                "closure_seal_path": historical["closure_seal_path"],
+                "assignments_reused": False,
+                "access_history": (
+                    "dataset/S4.4/amendments/"
+                    "s4_4_data_expansion_amendment_01/access/access_ledger.jsonl"
+                ),
+                "access_history_existed_at_closure": False,
+                "blindness_claim_inherited": False,
+            }
+        )
+    records.append(
+        {
+            "record_id": config["amendment_id"],
+            "role": "primary_unopened_prospective_holdout_for_future_evaluation",
+            "fit_manifest_sha256": fit_manifest_sha256,
+            "prospective_holdout_manifest_sha256": holdout_manifest_sha256,
+            "scientifically_opened": False,
+            "access_history": config["retention"]["access_root"]
+            + "/access_ledger.jsonl",
+        }
+    )
     payload = {
-        "schema": AGGREGATE_SCHEMA,
+        "schema": (
+            AGGREGATE_SCHEMA_V2 if int(config["version"]) == 2 else AGGREGATE_SCHEMA
+        ),
         "status": "frozen_before_collection",
-        "records": [
-            {
-                "record_id": "original_s4_4_freeze",
-                "role": "historically_analyzed_legacy_evidence",
-                "split_plan_path": (
-                    "outputs/isaac_audio_sensors/S4/S4.4/split_plan.json"
-                ),
-                "split_plan_payload_sha256": config["historical_freeze"][
-                    "split_plan_payload_sha256"
-                ],
-                "holdout_manifest_path": (
-                    "outputs/isaac_audio_sensors/S4/S4.4/holdout_manifest.json"
-                ),
-                "holdout_seal_path": (
-                    "outputs/isaac_audio_sensors/S4/S4.4/holdout_seal.json"
-                ),
-                "historically_unopened_claim": False,
-                "access_history": "dataset/S4.4/access/access_ledger.jsonl",
-            },
-            {
-                "record_id": config["amendment_id"],
-                "role": "primary_unopened_prospective_holdout_for_future_evaluation",
-                "fit_manifest_sha256": fit_manifest_sha256,
-                "prospective_holdout_manifest_sha256": holdout_manifest_sha256,
-                "scientifically_opened": False,
-                "access_history": config["retention"]["access_root"]
-                + "/access_ledger.jsonl",
-            },
-        ],
+        "records": records,
         "assignments_merged": False,
         "access_histories_merged": False,
         "blindness_claims_merged": False,
@@ -780,7 +899,11 @@ def build_precollection_seal(
         _require_sha256(digest, f"precollection binding {label}")
     status = "committed" if checkpoint is not None else "awaiting_commit_authorization"
     payload = {
-        "schema": PRECOLLECTION_SEAL_SCHEMA,
+        "schema": (
+            PRECOLLECTION_SEAL_SCHEMA_V2
+            if int(config["version"]) == 2
+            else PRECOLLECTION_SEAL_SCHEMA
+        ),
         "status": status,
         "amendment_id": config["amendment_id"],
         "bindings": dict(sorted(bindings.items())),
@@ -845,8 +968,18 @@ def validate_precollection_seal(
 ) -> None:
     """Validate the preregistration seal; capture requires committed state."""
 
-    if seal.get("schema") != PRECOLLECTION_SEAL_SCHEMA:
+    if seal.get("schema") not in {
+        PRECOLLECTION_SEAL_SCHEMA,
+        PRECOLLECTION_SEAL_SCHEMA_V2,
+    }:
         raise S44AmendmentError("precollection seal schema mismatch")
+    expected_id = (
+        "s4_4_data_expansion_amendment_02"
+        if seal.get("schema") == PRECOLLECTION_SEAL_SCHEMA_V2
+        else "s4_4_data_expansion_amendment_01"
+    )
+    if seal.get("amendment_id") != expected_id:
+        raise S44AmendmentError("precollection seal amendment/schema mismatch")
     _validate_self_hash(seal, "seal_payload_sha256", "precollection seal")
     checkpoint = seal.get("source_checkpoint")
     if require_committed:
@@ -917,8 +1050,57 @@ def validate_session_preflight(
     _validate_self_hash(record, "preflight_sha256", "session preflight")
 
 
+def validate_session_readiness(
+    record: Mapping[str, Any],
+    config: Mapping[str, Any],
+    *,
+    precollection_seal_sha256: str,
+    inherited_preflight_sha256: str,
+    require_today: bool = True,
+) -> None:
+    """Validate the no-media gate that must pass before attempt allocation."""
+
+    if record.get("schema") != READINESS_SCHEMA or record.get("status") != "passed":
+        raise S44AmendmentError("session readiness schema/status invalid")
+    if record.get("amendment_id") != config.get("amendment_id"):
+        raise S44AmendmentError("session readiness amendment mismatch")
+    if record.get("session_id") not in EXPECTED_SESSION_COUNTS:
+        raise S44AmendmentError("session readiness session id invalid")
+    session_date = str(record.get("session_date_local"))
+    try:
+        parsed = date.fromisoformat(session_date)
+    except ValueError as exc:
+        raise S44AmendmentError("session readiness date invalid") from exc
+    if require_today and parsed != date.today():
+        raise S44AmendmentError("session readiness is not for today's local date")
+    if record.get("precollection_seal_sha256") != _require_sha256(
+        precollection_seal_sha256, "session readiness seal"
+    ):
+        raise S44AmendmentError("session readiness seal binding mismatch")
+    if record.get("inherited_preflight_sha256") != _require_sha256(
+        inherited_preflight_sha256, "session readiness inherited preflight"
+    ):
+        raise S44AmendmentError("session readiness preflight binding mismatch")
+    checks = record.get("checks")
+    if not isinstance(checks, Mapping) or set(checks) != REQUIRED_READINESS_CHECKS:
+        raise S44AmendmentError("session readiness exact check set mismatch")
+    if any(value != "passed" for value in checks.values()):
+        raise S44AmendmentError("session readiness contains a non-passing gate")
+    if (
+        record.get("attempt_allocated") is not False
+        or record.get("recorder_started") is not False
+        or record.get("media_created") is not False
+    ):
+        raise S44AmendmentError("session readiness crossed the attempt/media boundary")
+    _validate_self_hash(record, "readiness_sha256", "session readiness")
+
+
 def build_attempt_contract(
-    take: Mapping[str, Any], *, attempt_number: int, precollection_seal_sha256: str
+    take: Mapping[str, Any],
+    *,
+    attempt_number: int,
+    precollection_seal_sha256: str,
+    session_readiness_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Create one deterministic attempt identity; only attempt 2 is a replacement."""
 
@@ -941,6 +1123,10 @@ def build_attempt_contract(
         "technical_failure_reason": None,
         "scientific_outcome_used_for_replacement": False,
     }
+    if session_readiness_sha256 is not None:
+        payload["session_readiness_sha256"] = _require_sha256(
+            session_readiness_sha256, "attempt session readiness"
+        )
     return _self_hashed(payload, "attempt_contract_sha256")
 
 

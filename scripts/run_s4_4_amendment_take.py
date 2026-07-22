@@ -18,10 +18,12 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     S44AmendmentError,
     build_attempt_contract,
     canonical_sha256,
+    load_amendment_configuration,
     load_json,
     sha256_file,
     validate_precollection_seal,
     validate_session_preflight,
+    validate_session_readiness,
 )
 from isaac_audio_sensors.core.dataset.atomic import write_json_atomic
 
@@ -63,6 +65,16 @@ def _require_sequence(take: dict[str, Any], attempt_root: Path) -> None:
     existing = _latest_outcome(attempt_root, take["planned_take_id"])
     if existing == "valid":
         raise S44AmendmentError("capture denied: planned cell is already valid")
+
+
+def _require_attempt_number(
+    take: dict[str, Any], attempt_root: Path, attempt_number: int
+) -> None:
+    existing = _latest_outcome(attempt_root, take["planned_take_id"])
+    if attempt_number == 1 and existing is not None:
+        raise S44AmendmentError("attempt 01 requires an unallocated planned cell")
+    if attempt_number == 2 and existing not in {"pre_recording_failure", "invalid"}:
+        raise S44AmendmentError("replacement requires retained attempt-01 failure")
 
 
 def _validate_recorded_placement(
@@ -113,7 +125,9 @@ def _capture_plan(
     take: dict[str, Any], config: dict[str, Any], attempt_dir: Path
 ) -> dict[str, Any]:
     duration = int(take["duration_s"])
-    pi_remote = f"S4.4/amendments/{AMENDMENT_ID}/captures/{attempt_dir.name}"
+    pi_remote = (
+        f"S4.4/amendments/{config['amendment_id']}/captures/{attempt_dir.name}"
+    )
     commands: dict[str, Any] = {
         "respeaker": [
             "ssh",
@@ -130,15 +144,19 @@ def _capture_plan(
             "--minimum-free-bytes",
             "1073741824",
         ],
-        "mac_dynamic_preflight": [
-            "ssh",
-            config["identities"]["mac"]["ssh_alias"],
-            "/usr/bin/python3",
-            "S4.2/bin/s4_2_mac_preflight.py",
-            "--dynamic-only",
-            "--expected-volume-percent",
-            "40",
-        ],
+        "mac_dynamic_preflight": (
+            None
+            if int(config["version"]) == 2
+            else [
+                "ssh",
+                config["identities"]["mac"]["ssh_alias"],
+                "/usr/bin/python3",
+                "S4.2/bin/s4_2_mac_preflight.py",
+                "--dynamic-only",
+                "--expected-volume-percent",
+                "40",
+            ]
+        ),
         "reference_playback": (
             [
                 "ssh",
@@ -204,15 +222,24 @@ def _capture_plan(
             "impact_target_elapsed_times_s": take.get("impact_target_elapsed_times_s"),
         },
         "automatic_execution_performed": False,
+        "session_readiness_completed_before_attempt_allocation": (
+            int(config["version"]) == 2
+        ),
     }
 
 
 def prepare(args: argparse.Namespace) -> dict[str, Any]:
-    config = load_json(CONFIG_PATH)
-    seal_path = CURRENT_SEAL_PATH
+    config_path = args.config or CONFIG_PATH
+    config = load_amendment_configuration(config_path, ROOT)
+    evidence_root = ROOT / config["retention"]["tracked_evidence_root"]
+    seal_path = (
+        evidence_root / "precollection_seal.v1.json"
+        if int(config["version"]) == 2
+        else evidence_root / "freeze/precollection_seal.execution_corrective_01.v1.json"
+    )
     seal = load_json(seal_path)
     validate_precollection_seal(seal, repo_root=ROOT, require_committed=True)
-    manifest = load_json(EVIDENCE_ROOT / f"manifests/sessions/{args.session_id}.json")
+    manifest = load_json(evidence_root / f"manifests/sessions/{args.session_id}.json")
     take = _find_take(manifest, args.planned_take_id)
     if take["session_id"] != args.session_id:
         raise S44AmendmentError("planned take/session mismatch")
@@ -227,13 +254,32 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     validate_session_preflight(preflight, config, other_dates=other_dates)
     if preflight["session_id"] != args.session_id:
         raise S44AmendmentError("preflight/session mismatch")
+    readiness = None
+    if int(config["version"]) == 2:
+        if args.readiness is None:
+            raise S44AmendmentError(
+                "amendment_02 attempt allocation requires passed session readiness"
+            )
+        readiness = load_json(args.readiness)
+        validate_session_readiness(
+            readiness,
+            config,
+            precollection_seal_sha256=sha256_file(seal_path),
+            inherited_preflight_sha256=preflight["preflight_sha256"],
+        )
+        if readiness.get("session_id") != args.session_id:
+            raise S44AmendmentError("readiness/session mismatch")
     attempt_root = ROOT / config["retention"]["attempt_root"]
     _require_sequence(take, attempt_root)
+    _require_attempt_number(take, attempt_root, args.attempt_number)
     placement = _validate_recorded_placement(args, take, config)
     contract = build_attempt_contract(
         take,
         attempt_number=args.attempt_number,
         precollection_seal_sha256=sha256_file(seal_path),
+        session_readiness_sha256=(
+            readiness["readiness_sha256"] if readiness is not None else None
+        ),
     )
     attempt_dir = attempt_root / take["planned_take_id"] / contract["attempt_id"]
     if attempt_dir.exists():
@@ -245,6 +291,14 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         {
             **contract,
             "session_preflight_sha256": preflight["preflight_sha256"],
+            "session_preflight_path": args.preflight.resolve()
+            .relative_to(ROOT)
+            .as_posix(),
+            "session_readiness_path": (
+                args.readiness.resolve().relative_to(ROOT).as_posix()
+                if readiness is not None
+                else None
+            ),
             "placement": placement,
         },
     )
@@ -286,12 +340,14 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=Path, default=None)
     parser.add_argument(
         "--session-id", choices=("fit_a", "fit_b", "prospective_holdout"), required=True
     )
     parser.add_argument("--planned-take-id", required=True)
     parser.add_argument("--attempt-number", type=int, choices=(1, 2), required=True)
     parser.add_argument("--preflight", type=Path, required=True)
+    parser.add_argument("--readiness", type=Path, default=None)
     parser.add_argument("--recorded-position", type=float, nargs=3)
     parser.add_argument("--recorded-bearing", type=float)
     parser.add_argument("--recorded-distance", type=float)

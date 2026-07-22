@@ -1,0 +1,29 @@
+{
+  "schema": "ias.s4_4.data_expansion_amendment_config.v1",
+  "amendment_id": "s4_4_data_expansion_amendment_02",
+  "version": 2,
+  "status": "prospective_precollection",
+  "inherits_config": {
+    "path": "configs/s4_4_data_expansion_amendment_01.v1.json",
+    "sha256": "f4b98b894e10da5a679dcf3d5e2e8a6562a9d1aa3bfb8ce6f6a7644e38940a31"
+  },
+  "historical_no_go_amendment_01": {
+    "amendment_id": "s4_4_data_expansion_amendment_01",
+    "status": "no_go",
+    "closure_record_path": "outputs/isaac_audio_sensors/S4/S4.4/closures/s4_4_data_expansion_amendment_01_no_go.v1.json",
+    "closure_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/closures/s4_4_data_expansion_amendment_01_no_go_seal.v1.json",
+    "assignments_reused": false,
+    "access_histories_merged": false,
+    "blindness_claims_merged": false
+  },
+  "retention": {
+    "machine_local_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02",
+    "attempt_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts",
+    "session_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/sessions",
+    "access_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/access",
+    "tracked_evidence_root": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_02",
+    "raw_gitignored": true,
+    "private_machine_local_records_gitignored": true,
+    "clean_checkout_requires_raw_media": false
+  }
+}

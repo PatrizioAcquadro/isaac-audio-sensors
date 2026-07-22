@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -19,6 +18,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     build_source_checkpoint,
     canonical_sha256,
     combined_partition_manifest,
+    load_amendment_configuration,
     load_json,
     sha256_file,
     validate_configuration,
@@ -62,6 +62,31 @@ SOURCE_PATHS = (
 )
 DELIVERY_PATHS = ("docs/development/closeouts/S4/s4_4_data_expansion_amendment_01.md",)
 SCHEMA_PATHS = tuple(path for path in SOURCE_PATHS if path.startswith("docs/schemas/"))
+AMENDMENT_02_SCHEMA_PATHS = (
+    *SCHEMA_PATHS,
+    "docs/schemas/s4_4_amendment_aggregate_index.v2.schema.json",
+    "docs/schemas/s4_4_amendment_manifest.v2.schema.json",
+    "docs/schemas/s4_4_amendment_precollection_seal.v2.schema.json",
+    "docs/schemas/s4_4_amendment_session_readiness.v1.schema.json",
+)
+AMENDMENT_02_SOURCE_PATHS = (
+    "configs/s4_4_data_expansion_amendment_01.v1.json",
+    "configs/s4_4_data_expansion_amendment_02.v1.json",
+    "docs/development/specs/s4_4_data_expansion_amendment_02.md",
+    *AMENDMENT_02_SCHEMA_PATHS,
+    "scripts/build_s4_4_amendment.py",
+    "scripts/build_s4_4_amendment_01_no_go_closure.py",
+    "scripts/execute_s4_4_amendment_attempt.py",
+    "scripts/run_s4_4_amendment_readiness.py",
+    "scripts/run_s4_4_amendment_take.py",
+    "scripts/s4_2_pi_capture.py",
+    "scripts/validate_s4_4_amendment.py",
+    "src/isaac_audio_sensors/acquisition/s4_4_amendment.py",
+    "tests/test_s4_4_amendment.py",
+)
+AMENDMENT_02_DELIVERY_PATHS = (
+    "docs/development/closeouts/S4/s4_4_data_expansion_amendment_02.md",
+)
 
 
 def _write(path: Path, payload: dict[str, Any]) -> None:
@@ -268,15 +293,29 @@ def build(
     """Build all deterministic precollection metadata."""
 
     repo_root = repo_root.resolve()
-    config = load_json(config_path)
+    config = load_amendment_configuration(config_path, repo_root)
     validate_configuration(config, repo_root)
+    amendment_id = str(config["amendment_id"])
+    canonical_output = (
+        Path("outputs/isaac_audio_sensors/S4/S4.4/amendments") / amendment_id
+    )
+    source_paths = (
+        AMENDMENT_02_SOURCE_PATHS if int(config["version"]) == 2 else SOURCE_PATHS
+    )
+    delivery_paths = (
+        AMENDMENT_02_DELIVERY_PATHS if int(config["version"]) == 2 else DELIVERY_PATHS
+    )
+    schema_paths = (
+        AMENDMENT_02_SCHEMA_PATHS
+        if int(config["version"]) == 2
+        else SCHEMA_PATHS
+    )
     manifests = build_manifests(config)
     validate_manifests(manifests, config)
 
     output.mkdir(parents=True, exist_ok=True)
     (output / "freeze").mkdir(parents=True, exist_ok=True)
-    if config_path.resolve() != (output / "freeze/config.v1.json").resolve():
-        shutil.copyfile(config_path, output / "freeze/config.v1.json")
+    _write(output / "freeze/config.v1.json", config)
     for session_id, manifest in manifests.items():
         _write(output / f"manifests/sessions/{session_id}.json", manifest)
 
@@ -340,9 +379,19 @@ def build(
             "schema_" + Path(relative).stem.replace(".", "_") + "_sha256": sha256_file(
                 repo_root / relative
             )
-            for relative in SCHEMA_PATHS
+            for relative in schema_paths
         },
     }
+    if int(config["version"]) == 2:
+        historical = config["historical_no_go_amendment_01"]
+        for label, key in (
+            ("amendment_01_no_go_closure_file_sha256", "closure_record_path"),
+            ("amendment_01_no_go_seal_file_sha256", "closure_seal_path"),
+        ):
+            path = repo_root / historical[key]
+            if not path.is_file():
+                raise S44AmendmentError(f"historical NO-GO evidence absent: {path}")
+            bindings[label] = sha256_file(path)
     seal = build_precollection_seal(config, bindings=bindings, checkpoint=checkpoint)
     validate_precollection_seal(
         seal, repo_root=repo_root, require_committed=checkpoint is not None
@@ -392,23 +441,31 @@ def build(
     artifacts = [
         _artifact(
             output / relative,
-            f"{CANONICAL_OUTPUT}/{relative}",
+            f"{canonical_output}/{relative}",
             role,
         )
         for relative, role in sorted(generated_roles.items())
     ]
-    for relative in SOURCE_PATHS:
+    for relative in source_paths:
         path = repo_root / relative
         if not path.is_file():
             raise S44AmendmentError(f"required amendment source absent: {relative}")
         artifacts.append(_artifact(path, relative, "amendment_source"))
-    for relative in DELIVERY_PATHS:
+    for relative in delivery_paths:
         path = repo_root / relative
         if not path.is_file():
             raise S44AmendmentError(
                 f"required amendment delivery document absent: {relative}"
             )
         artifacts.append(_artifact(path, relative, "amendment_closeout"))
+    if int(config["version"]) == 2:
+        historical = config["historical_no_go_amendment_01"]
+        for key, role in (
+            ("closure_record_path", "historical_no_go_closeout"),
+            ("closure_seal_path", "historical_no_go_seal"),
+        ):
+            relative = historical[key]
+            artifacts.append(_artifact(repo_root / relative, relative, role))
     evidence_index = {
         "schema": "ias.s4_4.amendment_evidence_index.v1",
         "status": "precollection_frozen",
@@ -454,27 +511,38 @@ def build(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--freeze-source-checkpoint", action="store_true")
     parser.add_argument("--freeze-execution-corrective-01", action="store_true")
     args = parser.parse_args()
     try:
+        config = load_amendment_configuration(args.config, ROOT)
+        output = args.output or ROOT / config["retention"]["tracked_evidence_root"]
+        source_paths = (
+            AMENDMENT_02_SOURCE_PATHS
+            if int(config["version"]) == 2
+            else SOURCE_PATHS
+        )
         if args.freeze_execution_corrective_01:
+            if int(config["version"]) != 1:
+                raise S44AmendmentError(
+                    "execution corrective 01 belongs only to amendment_01"
+                )
             summary = freeze_execution_corrective(
-                output=args.output, config_path=args.config
+                output=output, config_path=args.config
             )
             print(json.dumps(summary, indent=2, sort_keys=True))
             return 0
         if args.freeze_source_checkpoint:
-            checkpoint_path = args.output / CHECKPOINT_PATH
-            checkpoint = build_source_checkpoint(ROOT, _git_head(), SOURCE_PATHS)
+            checkpoint_path = output / CHECKPOINT_PATH
+            checkpoint = build_source_checkpoint(ROOT, _git_head(), source_paths)
             if checkpoint_path.is_file() and load_json(checkpoint_path) != checkpoint:
                 raise S44AmendmentError(
                     "refusing to replace a different immutable source checkpoint"
                 )
             _write(checkpoint_path, checkpoint)
-        summary = build(output=args.output, config_path=args.config)
+        summary = build(output=output, config_path=args.config)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         print(f"S4.4 amendment build failed: {exc}", file=sys.stderr)
         return 1

@@ -22,11 +22,13 @@ from isaac_audio_sensors.acquisition.s4_2 import (
 from isaac_audio_sensors.acquisition.s4_4_amendment import (
     S44AmendmentError,
     canonical_sha256,
+    load_amendment_configuration,
     load_json,
     sanitize_holdout_technical_qa,
     sha256_file,
     validate_precollection_seal,
     validate_session_preflight,
+    validate_session_readiness,
 )
 from isaac_audio_sensors.core.dataset.atomic import write_json_atomic
 
@@ -38,6 +40,7 @@ CURRENT_SEAL_PATH = EVIDENCE_ROOT / (
     "freeze/precollection_seal.execution_corrective_01.v1.json"
 )
 ZED_REPLAY = ROOT / "scripts/validate_s4_2_zed_svo.py"
+NETWORK_CONFIRMATION = "I_CONFIRM_EXTERNAL_NETWORK_PERMISSION"
 
 
 def _utc() -> str:
@@ -132,12 +135,21 @@ def _argument(command: list[str], name: str) -> str:
 
 
 def _load_preconditions(args: argparse.Namespace) -> tuple[dict[str, Any], ...]:
-    config = load_json(CONFIG_PATH)
-    seal = load_json(CURRENT_SEAL_PATH)
+    config_path = args.config or CONFIG_PATH
+    config = load_amendment_configuration(config_path, ROOT)
+    evidence_root = ROOT / config["retention"]["tracked_evidence_root"]
+    seal_path = (
+        evidence_root / "precollection_seal.v1.json"
+        if int(config["version"]) == 2
+        else evidence_root / "freeze/precollection_seal.execution_corrective_01.v1.json"
+    )
+    seal = load_json(seal_path)
     validate_precollection_seal(seal, repo_root=ROOT, require_committed=True)
-    if sha256_file(CURRENT_SEAL_PATH) != args.expected_corrective_seal_sha256:
-        raise S44AmendmentError("execution corrective seal hash mismatch")
-    manifest_path = EVIDENCE_ROOT / f"manifests/sessions/{args.session_id}.json"
+    if sha256_file(seal_path) != args.expected_precollection_seal_sha256:
+        raise S44AmendmentError("execution precollection seal hash mismatch")
+    if args.network_permission_confirmation != NETWORK_CONFIRMATION:
+        raise S44AmendmentError("external-network permission confirmation absent")
+    manifest_path = evidence_root / f"manifests/sessions/{args.session_id}.json"
     session_manifest = load_json(manifest_path)
     matches = [
         take
@@ -161,12 +173,17 @@ def _load_preconditions(args: argparse.Namespace) -> tuple[dict[str, Any], ...]:
         or attempt_manifest.get("recorder_started") is not False
     ):
         raise S44AmendmentError("prepared attempt is not executable")
-    if contract.get("precollection_seal_sha256") != sha256_file(CURRENT_SEAL_PATH):
+    if contract.get("precollection_seal_sha256") != sha256_file(seal_path):
         raise S44AmendmentError("attempt is not bound to execution corrective")
     if attempt_manifest.get("capture_plan_sha256") != canonical_sha256(capture_plan):
         raise S44AmendmentError("capture plan hash mismatch")
-    preflight_path = (
-        ROOT / config["retention"]["session_root"] / args.session_id / "preflight.json"
+    preflight_path = ROOT / str(
+        contract.get(
+            "session_preflight_path",
+            Path(config["retention"]["session_root"])
+            / args.session_id
+            / "preflight.json",
+        )
     )
     preflight = load_json(preflight_path)
     other_dates = [
@@ -181,6 +198,21 @@ def _load_preconditions(args: argparse.Namespace) -> tuple[dict[str, Any], ...]:
         raise S44AmendmentError("session preflight is not for today's local date")
     if args.operator_confirmation != "I_CONFIRM_S4_4_AMENDMENT_CAPTURE":
         raise S44AmendmentError("exact operator capture confirmation absent")
+    if int(config["version"]) == 2:
+        readiness_path_value = contract.get("session_readiness_path")
+        if not isinstance(readiness_path_value, str):
+            raise S44AmendmentError("attempt lacks session readiness path")
+        readiness = load_json(ROOT / readiness_path_value)
+        validate_session_readiness(
+            readiness,
+            config,
+            precollection_seal_sha256=sha256_file(seal_path),
+            inherited_preflight_sha256=preflight["preflight_sha256"],
+        )
+        if contract.get("session_readiness_sha256") != readiness.get(
+            "readiness_sha256"
+        ):
+            raise S44AmendmentError("attempt/readiness hash mismatch")
     return config, take, contract, attempt_manifest, capture_plan, attempt_root
 
 
@@ -397,7 +429,8 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
     processes: dict[str, subprocess.Popen[str]] = {}
     recorder_started = False
     try:
-        _dynamic_mac(plan, attempt_root)
+        if int(config["version"]) == 1:
+            _dynamic_mac(plan, attempt_root)
         producer_root = attempt_root / "_producer"
         producer_root.mkdir(exist_ok=False)
         pi = subprocess.Popen(  # noqa: S603 - frozen exact argv
@@ -479,12 +512,19 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=Path, default=None)
     parser.add_argument(
         "--session-id", choices=("fit_a", "fit_b", "prospective_holdout"), required=True
     )
     parser.add_argument("--planned-take-id", required=True)
     parser.add_argument("--attempt-number", type=int, choices=(1, 2), required=True)
-    parser.add_argument("--expected-corrective-seal-sha256", required=True)
+    parser.add_argument(
+        "--expected-precollection-seal-sha256",
+        "--expected-corrective-seal-sha256",
+        dest="expected_precollection_seal_sha256",
+        required=True,
+    )
+    parser.add_argument("--network-permission-confirmation", required=True)
     parser.add_argument("--operator-confirmation", required=True)
     args = parser.parse_args()
     try:

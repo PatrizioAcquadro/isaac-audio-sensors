@@ -18,6 +18,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     canonical_sha256,
     combined_partition_manifest,
     hash_only_integrity_and_record,
+    load_amendment_configuration,
     load_json,
     sha256_file,
     validate_attempt_census,
@@ -27,6 +28,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     validate_manifests,
     validate_precollection_seal,
     validate_session_preflight,
+    validate_source_checkpoint,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,14 +45,27 @@ EXECUTION_CORRECTIVE_SEAL_PATH = (
     "freeze/precollection_seal.execution_corrective_01.v1.json"
 )
 SUPERSEDED_DELIVERY_ROLES = {"amendment_source", "amendment_closeout"}
+NO_GO_RECORD_PATH = Path(
+    "outputs/isaac_audio_sensors/S4/S4.4/closures/"
+    "s4_4_data_expansion_amendment_01_no_go.v1.json"
+)
+NO_GO_SEAL_PATH = Path(
+    "outputs/isaac_audio_sensors/S4/S4.4/closures/"
+    "s4_4_data_expansion_amendment_01_no_go_seal.v1.json"
+)
 
 
 def _issue(code: str, path: str, message: str) -> dict[str, str]:
     return {"code": code, "path": path, "message": message}
 
 
-def _resolve(relative: str, repo_root: Path, evidence_root: Path) -> Path:
-    prefix = CANONICAL_OUTPUT.as_posix() + "/"
+def _resolve(
+    relative: str,
+    repo_root: Path,
+    evidence_root: Path,
+    canonical_output: Path,
+) -> Path:
+    prefix = canonical_output.as_posix() + "/"
     return (
         evidence_root / relative[len(prefix) :]
         if relative.startswith(prefix)
@@ -80,12 +95,145 @@ def _checksums(path: Path) -> dict[str, str]:
     return result
 
 
+def _validate_historical_no_go(
+    config: dict[str, Any],
+    *,
+    repo_root: Path,
+    require_tracked: bool,
+    require_committed: bool,
+) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    historical = config["historical_no_go_amendment_01"]
+    record_path = repo_root / historical["closure_record_path"]
+    seal_path = repo_root / historical["closure_seal_path"]
+    try:
+        record = load_json(record_path)
+        seal = load_json(seal_path)
+        record_payload = {
+            key: value for key, value in record.items() if key != "closeout_sha256"
+        }
+        seal_payload = {
+            key: value for key, value in seal.items() if key != "seal_sha256"
+        }
+        if (
+            record.get("schema") != "ias.s4_4.amendment_no_go_closeout.v1"
+            or record.get("status") != "no_go"
+            or canonical_sha256(record_payload) != record.get("closeout_sha256")
+        ):
+            raise S44AmendmentError("amendment_01 NO-GO closeout invalid")
+        if (
+            seal.get("schema") != "ias.s4_4.amendment_no_go_seal.v1"
+            or seal.get("disposition") != "irreversible_no_go"
+            or canonical_sha256(seal_payload) != seal.get("seal_sha256")
+            or seal.get("closeout_record_sha256") != sha256_file(record_path)
+            or seal.get("collection_allowed") is not False
+            or seal.get("attempt_retry_allowed") is not False
+        ):
+            raise S44AmendmentError("amendment_01 NO-GO seal invalid")
+        if require_committed:
+            checkpoint = seal.get("source_checkpoint")
+            if seal.get("status") != "committed" or not isinstance(checkpoint, dict):
+                raise S44AmendmentError("amendment_01 NO-GO seal is not committed")
+            validate_source_checkpoint(checkpoint, repo_root)
+        closeout = repo_root / record["existing_closeout"]["path"]
+        if sha256_file(closeout) != record["existing_closeout"]["sha256"]:
+            raise S44AmendmentError("amendment_01 closeout changed")
+        for collection, label in (
+            (record["tracked_amendment_records"], "tracked"),
+            (record["machine_local_amendment_records"], "machine-local"),
+        ):
+            for item in collection:
+                path = repo_root / item["path"]
+                if label == "machine-local" and not path.exists():
+                    continue
+                if (
+                    not path.is_file()
+                    or path.stat().st_size != item["byte_size"]
+                    or sha256_file(path) != item["sha256"]
+                ):
+                    raise S44AmendmentError(
+                        f"amendment_01 {label} byte changed: {item['path']}"
+                    )
+        if require_tracked:
+            for path in (record_path, seal_path):
+                relative = path.relative_to(repo_root).as_posix()
+                if not _tracked(repo_root, relative):
+                    raise S44AmendmentError(
+                        f"amendment_01 NO-GO evidence not tracked: {relative}"
+                    )
+    except (KeyError, OSError, S44AmendmentError) as exc:
+        issues.append(_issue("historical_no_go_invalid", str(record_path), str(exc)))
+    return issues
+
+
+def _committed_no_go_closure_active(
+    repo_root: Path, *, require_tracked: bool
+) -> tuple[bool, list[dict[str, str]]]:
+    """Recognize the additive closure without rebinding amendment_01 evidence.
+
+    Once committed, the closure freezes the exact amendment_01 bytes and its
+    corrective source checkpoint becomes historical. Forward amendment_02 work
+    must therefore not invalidate amendment_01 merely because shared tooling has
+    advanced in the current checkout.
+    """
+
+    record_path = repo_root / NO_GO_RECORD_PATH
+    seal_path = repo_root / NO_GO_SEAL_PATH
+    if not record_path.is_file() and not seal_path.is_file():
+        return False, []
+    issues: list[dict[str, str]] = []
+    try:
+        record = load_json(record_path)
+        seal = load_json(seal_path)
+        if seal.get("status") == "awaiting_commit_authorization":
+            return False, []
+        record_payload = {
+            key: value for key, value in record.items() if key != "closeout_sha256"
+        }
+        seal_payload = {
+            key: value for key, value in seal.items() if key != "seal_sha256"
+        }
+        if (
+            record.get("schema") != "ias.s4_4.amendment_no_go_closeout.v1"
+            or record.get("amendment_id") != AMENDMENT_ID
+            or record.get("status") != "no_go"
+            or canonical_sha256(record_payload) != record.get("closeout_sha256")
+        ):
+            raise S44AmendmentError("amendment_01 NO-GO closeout invalid")
+        checkpoint = seal.get("source_checkpoint")
+        if (
+            seal.get("schema") != "ias.s4_4.amendment_no_go_seal.v1"
+            or seal.get("amendment_id") != AMENDMENT_ID
+            or seal.get("status") != "committed"
+            or seal.get("disposition") != "irreversible_no_go"
+            or seal.get("collection_allowed") is not False
+            or seal.get("attempt_retry_allowed") is not False
+            or canonical_sha256(seal_payload) != seal.get("seal_sha256")
+            or seal.get("closeout_record_sha256") != sha256_file(record_path)
+            or not isinstance(checkpoint, dict)
+        ):
+            raise S44AmendmentError("amendment_01 NO-GO seal invalid or uncommitted")
+        validate_source_checkpoint(checkpoint, repo_root)
+        if require_tracked:
+            for relative in (NO_GO_RECORD_PATH, NO_GO_SEAL_PATH):
+                if not _tracked(repo_root, relative.as_posix()):
+                    raise S44AmendmentError(
+                        f"amendment_01 NO-GO evidence not tracked: {relative}"
+                    )
+    except (KeyError, OSError, S44AmendmentError) as exc:
+        issues.append(_issue("no_go_closure_invalid", str(record_path), str(exc)))
+        return False, issues
+    return True, issues
+
+
 def _validate_execution_corrective(
     *,
     evidence_root: Path,
     repo_root: Path,
     require_tracked: bool,
     require_machine_local: bool,
+    canonical_output: Path,
+    historical_no_go_active: bool,
 ) -> tuple[bool, list[dict[str, str]]]:
     """Validate the additive execution corrective without mutating its predecessor."""
 
@@ -124,7 +272,11 @@ def _validate_execution_corrective(
             or canonical_sha256(payload) != evidence.get("corrective_evidence_sha256")
         ):
             raise S44AmendmentError("execution corrective evidence invalid")
-        validate_precollection_seal(seal, repo_root=repo_root, require_committed=True)
+        validate_precollection_seal(
+            seal,
+            repo_root=repo_root,
+            require_committed=not historical_no_go_active,
+        )
         if seal.get("source_checkpoint") != checkpoint:
             raise S44AmendmentError("corrective checkpoint/seal mismatch")
         if evidence.get("source_commit") != checkpoint.get("commit"):
@@ -172,7 +324,7 @@ def _validate_execution_corrective(
                 )
         if require_tracked:
             for relative in relative_paths:
-                repo_relative = (CANONICAL_OUTPUT / relative).as_posix()
+                repo_relative = (canonical_output / relative).as_posix()
                 if not _tracked(repo_root, repo_relative):
                     raise S44AmendmentError(
                         f"execution corrective artifact not tracked: {repo_relative}"
@@ -299,6 +451,7 @@ def validate(
     index_path: Path,
     *,
     repo_root: Path,
+    config_path: Path = DEFAULT_CONFIG,
     require_tracked: bool,
     require_committed: bool,
     require_machine_local: bool,
@@ -308,15 +461,21 @@ def validate(
     issues: list[dict[str, str]] = []
     repo_root = repo_root.resolve()
     evidence_root = index_path.resolve().parent
-    config = load_json(
-        DEFAULT_CONFIG
-        if repo_root == ROOT
-        else repo_root / DEFAULT_CONFIG.relative_to(ROOT)
+    resolved_config_path = (
+        repo_root / DEFAULT_CONFIG.relative_to(ROOT)
+        if config_path == DEFAULT_CONFIG and repo_root != ROOT
+        else config_path
+        if config_path.is_absolute()
+        else repo_root / config_path
     )
+    config = load_amendment_configuration(resolved_config_path, repo_root)
+    canonical_output = Path(config["retention"]["tracked_evidence_root"])
     try:
         validate_configuration(config, repo_root)
     except S44AmendmentError as exc:
-        issues.append(_issue("configuration_invalid", str(DEFAULT_CONFIG), str(exc)))
+        issues.append(
+            _issue("configuration_invalid", str(resolved_config_path), str(exc))
+        )
 
     index = load_json(index_path)
     if index.get("schema") != "ias.s4_4.amendment_evidence_index.v1":
@@ -332,12 +491,30 @@ def validate(
     if index.get("S4.5_or_later_started") is not False:
         issues.append(_issue("later_phase_started", str(index_path), "forbidden"))
 
-    corrective_active, corrective_issues = _validate_execution_corrective(
-        evidence_root=evidence_root,
-        repo_root=repo_root,
-        require_tracked=require_tracked,
-        require_machine_local=require_machine_local,
-    )
+    corrective_active = False
+    corrective_issues: list[dict[str, str]] = []
+    if int(config["version"]) == 1:
+        no_go_active, no_go_issues = _committed_no_go_closure_active(
+            repo_root, require_tracked=require_tracked
+        )
+        issues.extend(no_go_issues)
+        corrective_active, corrective_issues = _validate_execution_corrective(
+            evidence_root=evidence_root,
+            repo_root=repo_root,
+            require_tracked=require_tracked,
+            require_machine_local=require_machine_local,
+            canonical_output=canonical_output,
+            historical_no_go_active=no_go_active,
+        )
+    else:
+        issues.extend(
+            _validate_historical_no_go(
+                config,
+                repo_root=repo_root,
+                require_tracked=require_tracked,
+                require_committed=require_committed,
+            )
+        )
     issues.extend(corrective_issues)
 
     artifacts = (
@@ -363,7 +540,9 @@ def validate(
             f"/S4/{phase}/" in relative for phase in ("S4.5", "S4.6", "S4.7", "S4.8")
         ):
             issues.append(_issue("later_phase_artifact", relative, "forbidden"))
-        candidate = _resolve(relative, repo_root, evidence_root).resolve()
+        candidate = _resolve(
+            relative, repo_root, evidence_root, canonical_output
+        ).resolve()
         if not candidate.is_file():
             issues.append(_issue("missing_artifact", relative, "file absent"))
             continue
@@ -504,6 +683,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--index", type=Path, default=DEFAULT_INDEX)
     parser.add_argument("--repo-root", type=Path, default=ROOT)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--require-tracked", action="store_true")
     parser.add_argument("--require-committed", action="store_true")
     parser.add_argument("--require-machine-local", action="store_true")
@@ -512,6 +692,7 @@ def main() -> int:
         result = validate(
             args.index,
             repo_root=args.repo_root,
+            config_path=args.config,
             require_tracked=args.require_tracked,
             require_committed=args.require_committed,
             require_machine_local=args.require_machine_local,
