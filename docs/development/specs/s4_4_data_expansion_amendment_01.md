@@ -126,7 +126,33 @@ Precollection reproduction:
 .venv/bin/python -m pytest -q tests/test_s4_4_amendment.py tests/test_s4_4_holdout_freeze.py tests/test_s4_4_canonical_evidence.py
 ```
 
-The builder remains `awaiting_commit_authorization` and `collection_allowed:
-false` until an explicitly authorized source commit exists. Only then may the
-immutable checkpoint be frozen and the committed package rebuilt. No physical
-capture may begin before that committed package passes validation.
+The original precollection source checkpoint and evidence package were
+committed before any attempt was prepared. Capture remains fail-closed whenever
+the current required checkpoint or seal is absent, uncommitted, or changed.
+
+## Execution corrective 01
+
+The first Fit A silence attempt was prepared but its recorder was not started:
+the frozen capture plan omitted the Pi helper's required `record` subcommand,
+the mandatory minimum-free-space argument, and an attempt-scoped remote path.
+That attempt is retained as a technical pre-recording failure and consumes
+attempt 01 for its planned cell. It contains no recording or scientific result.
+
+The correction changes only executable acquisition orchestration. It does not
+change any manifest, condition, count, order, group, partition, identity,
+placement, replacement rule, or original/amendment blindness claim. A new
+versioned source checkpoint and corrective precollection seal must bind the
+corrected plan and executor before replacement attempt 02 may start. The
+original committed precollection checkpoint and seal remain byte-for-byte
+historical predecessors.
+
+The corrective executor reuses the S4.2 Pi, Mac, ZED, transfer, atomic
+promotion, WAV inspection, and full-SVO2 replay contracts. It requires the
+exact corrective-seal hash and operator confirmation, reruns the Mac dynamic
+gate, records producer readiness before declaring recorder start, retains
+failures, transfers by checksum, and decides replacement validity solely from
+technical quality. Fit QA may retain technical WAV properties. Prospective
+holdout QA is passed through the existing field allowlist and suppresses all
+non-allowlisted output. The executor performs no bearing, confidence,
+abstention, gain, delay, polarity, audio-video performance, parameter, or
+comparative analysis.

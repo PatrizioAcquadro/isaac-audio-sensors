@@ -15,6 +15,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     S44AmendmentError,
     build_aggregate_index,
     build_manifests,
+    canonical_sha256,
     combined_partition_manifest,
     hash_only_integrity_and_record,
     load_json,
@@ -34,6 +35,14 @@ CANONICAL_OUTPUT = Path("outputs/isaac_audio_sensors/S4/S4.4/amendments") / AMEN
 DEFAULT_INDEX = ROOT / CANONICAL_OUTPUT / "evidence_index.v1.json"
 DEFAULT_CONFIG = ROOT / "configs/s4_4_data_expansion_amendment_01.v1.json"
 MEDIA_SUFFIXES = {".wav", ".svo", ".svo2", ".png", ".jpg", ".jpeg", ".mp4"}
+EXECUTION_CORRECTIVE_PATH = "freeze/execution_corrective_01.v1.json"
+EXECUTION_CORRECTIVE_CHECKPOINT_PATH = (
+    "freeze/source_checkpoint.execution_corrective_01.v1.json"
+)
+EXECUTION_CORRECTIVE_SEAL_PATH = (
+    "freeze/precollection_seal.execution_corrective_01.v1.json"
+)
+SUPERSEDED_DELIVERY_ROLES = {"amendment_source", "amendment_closeout"}
 
 
 def _issue(code: str, path: str, message: str) -> dict[str, str]:
@@ -69,6 +78,110 @@ def _checksums(path: Path) -> dict[str, str]:
             raise S44AmendmentError(f"{path}:{number}: duplicate path")
         result[relative] = digest
     return result
+
+
+def _validate_execution_corrective(
+    *,
+    evidence_root: Path,
+    repo_root: Path,
+    require_tracked: bool,
+    require_machine_local: bool,
+) -> tuple[bool, list[dict[str, str]]]:
+    """Validate the additive execution corrective without mutating its predecessor."""
+
+    issues: list[dict[str, str]] = []
+    relative_paths = (
+        EXECUTION_CORRECTIVE_PATH,
+        EXECUTION_CORRECTIVE_CHECKPOINT_PATH,
+        EXECUTION_CORRECTIVE_SEAL_PATH,
+    )
+    paths = [evidence_root / relative for relative in relative_paths]
+    present = [path.is_file() for path in paths]
+    if not any(present):
+        return False, issues
+    if not all(present):
+        issues.append(
+            _issue(
+                "execution_corrective_incomplete",
+                str(evidence_root / "freeze"),
+                "corrective record, checkpoint, and seal must all exist",
+            )
+        )
+        return True, issues
+    evidence_path, checkpoint_path, seal_path = paths
+    try:
+        evidence = load_json(evidence_path)
+        checkpoint = load_json(checkpoint_path)
+        seal = load_json(seal_path)
+        payload = {
+            key: value
+            for key, value in evidence.items()
+            if key != "corrective_evidence_sha256"
+        }
+        if (
+            evidence.get("schema") != "ias.s4_4.amendment_execution_corrective.v1"
+            or evidence.get("status") != "committed"
+            or canonical_sha256(payload) != evidence.get("corrective_evidence_sha256")
+        ):
+            raise S44AmendmentError("execution corrective evidence invalid")
+        validate_precollection_seal(seal, repo_root=repo_root, require_committed=True)
+        if seal.get("source_checkpoint") != checkpoint:
+            raise S44AmendmentError("corrective checkpoint/seal mismatch")
+        if evidence.get("source_commit") != checkpoint.get("commit"):
+            raise S44AmendmentError("corrective source commit mismatch")
+        predecessor_path = evidence_root / "precollection_seal.v1.json"
+        if (
+            evidence.get("predecessor_precollection_seal_sha256")
+            != sha256_file(predecessor_path)
+            or evidence.get("corrective_precollection_seal_sha256")
+            != sha256_file(seal_path)
+            or evidence.get("corrective_delivery_sha256")
+            != sha256_file(repo_root / str(evidence["corrective_delivery_path"]))
+        ):
+            raise S44AmendmentError("execution corrective hash binding mismatch")
+        scope = evidence.get("scope")
+        if not isinstance(scope, dict) or any(
+            scope.get(field) is not False
+            for field in (
+                "assignment_changed",
+                "matrix_changed",
+                "ordering_changed",
+                "grouping_changed",
+                "replacement_policy_changed",
+                "S4.5_or_later_started",
+            )
+        ):
+            raise S44AmendmentError("execution corrective scope expanded")
+        fit = load_json(evidence_root / "manifests/fit_manifest.v1.json")
+        holdout = load_json(
+            evidence_root / "manifests/prospective_holdout_manifest.v1.json"
+        )
+        if evidence.get("fit_manifest_payload_sha256") != fit.get(
+            "partition_manifest_sha256"
+        ) or evidence.get("prospective_holdout_manifest_payload_sha256") != holdout.get(
+            "partition_manifest_sha256"
+        ):
+            raise S44AmendmentError("execution corrective assignment hash changed")
+        if require_machine_local:
+            failure_path = repo_root / str(evidence["retained_failure_path"])
+            if not failure_path.is_file() or sha256_file(failure_path) != evidence.get(
+                "retained_failure_sha256"
+            ):
+                raise S44AmendmentError(
+                    "retained pre-recording failure is absent or changed"
+                )
+        if require_tracked:
+            for relative in relative_paths:
+                repo_relative = (CANONICAL_OUTPUT / relative).as_posix()
+                if not _tracked(repo_root, repo_relative):
+                    raise S44AmendmentError(
+                        f"execution corrective artifact not tracked: {repo_relative}"
+                    )
+    except (KeyError, OSError, S44AmendmentError) as exc:
+        issues.append(
+            _issue("execution_corrective_invalid", str(evidence_path), str(exc))
+        )
+    return True, issues
 
 
 def _validate_machine_local(
@@ -219,6 +332,14 @@ def validate(
     if index.get("S4.5_or_later_started") is not False:
         issues.append(_issue("later_phase_started", str(index_path), "forbidden"))
 
+    corrective_active, corrective_issues = _validate_execution_corrective(
+        evidence_root=evidence_root,
+        repo_root=repo_root,
+        require_tracked=require_tracked,
+        require_machine_local=require_machine_local,
+    )
+    issues.extend(corrective_issues)
+
     artifacts = (
         index.get("artifacts") if isinstance(index.get("artifacts"), list) else []
     )
@@ -246,9 +367,16 @@ def validate(
         if not candidate.is_file():
             issues.append(_issue("missing_artifact", relative, "file absent"))
             continue
-        if candidate.stat().st_size != record.get("byte_size"):
+        superseded_by_corrective = (
+            corrective_active and record.get("role") in SUPERSEDED_DELIVERY_ROLES
+        )
+        if not superseded_by_corrective and candidate.stat().st_size != record.get(
+            "byte_size"
+        ):
             issues.append(_issue("artifact_size_mismatch", relative, "size differs"))
-        if sha256_file(candidate) != record.get("sha256"):
+        if not superseded_by_corrective and sha256_file(candidate) != record.get(
+            "sha256"
+        ):
             issues.append(_issue("artifact_hash_mismatch", relative, "hash differs"))
         if require_tracked and candidate.is_relative_to(repo_root):
             repo_relative = candidate.relative_to(repo_root).as_posix()
@@ -317,7 +445,9 @@ def validate(
     try:
         seal = load_json(seal_path)
         validate_precollection_seal(
-            seal, repo_root=repo_root, require_committed=require_committed
+            seal,
+            repo_root=repo_root,
+            require_committed=require_committed and not corrective_active,
         )
     except S44AmendmentError as exc:
         issues.append(_issue("precollection_seal_invalid", str(seal_path), str(exc)))
@@ -355,7 +485,8 @@ def validate(
         "require_tracked": require_tracked,
         "require_committed": require_committed,
         "require_machine_local": require_machine_local,
-        "checked_artifact_count": len(artifacts),
+        "checked_artifact_count": len(artifacts) + (3 if corrective_active else 0),
+        "execution_corrective_active": corrective_active,
         "planned_counts": {"fit": 102, "prospective_holdout": 47, "total": 149},
         "machine_local_hash_only": machine_integrity,
         "access_ledger": ledger_report,

@@ -33,6 +33,17 @@ CANONICAL_OUTPUT = Path("outputs/isaac_audio_sensors/S4/S4.4/amendments") / AMEN
 DEFAULT_OUTPUT = ROOT / CANONICAL_OUTPUT
 DEFAULT_CONFIG = ROOT / "configs/s4_4_data_expansion_amendment_01.v1.json"
 CHECKPOINT_PATH = "freeze/source_checkpoint.v1.json"
+EXECUTION_CORRECTIVE_CHECKPOINT_PATH = (
+    "freeze/source_checkpoint.execution_corrective_01.v1.json"
+)
+EXECUTION_CORRECTIVE_SEAL_PATH = (
+    "freeze/precollection_seal.execution_corrective_01.v1.json"
+)
+EXECUTION_CORRECTIVE_EVIDENCE_PATH = "freeze/execution_corrective_01.v1.json"
+EXECUTION_FAILURE_PATH = Path(
+    "dataset/S4.4/amendments/s4_4_data_expansion_amendment_01/attempts/"
+    "s44a01_fit_a_001_sil/s44a01_fit_a_001_sil__attempt_01/manifest.json"
+)
 SOURCE_PATHS = (
     "configs/s4_4_data_expansion_amendment_01.v1.json",
     "docs/development/specs/s4_4_data_expansion_amendment_01.md",
@@ -43,6 +54,7 @@ SOURCE_PATHS = (
     "docs/schemas/s4_4_amendment_session_preflight.v1.schema.json",
     "docs/schemas/s4_4_amendment_technical_qa.v1.schema.json",
     "scripts/build_s4_4_amendment.py",
+    "scripts/execute_s4_4_amendment_attempt.py",
     "scripts/run_s4_4_amendment_take.py",
     "scripts/validate_s4_4_amendment.py",
     "src/isaac_audio_sensors/acquisition/s4_4_amendment.py",
@@ -115,6 +127,135 @@ def _access_policy(config: dict[str, Any]) -> dict[str, Any]:
         + "/access_ledger.jsonl",
         "future_S4.7_or_S4.8_opening_workflow_implemented": False,
         "S4.5_or_later_started": False,
+    }
+
+
+def freeze_execution_corrective(
+    *, output: Path, config_path: Path, repo_root: Path = ROOT
+) -> dict[str, Any]:
+    """Add a versioned executable-capture corrective without changing assignments."""
+
+    predecessor_seal_path = output / "precollection_seal.v1.json"
+    predecessor_checkpoint_path = output / CHECKPOINT_PATH
+    failure_path = repo_root / EXECUTION_FAILURE_PATH
+    delivery_path = repo_root / DELIVERY_PATHS[0]
+    for required in (
+        predecessor_seal_path,
+        predecessor_checkpoint_path,
+        failure_path,
+        delivery_path,
+    ):
+        if not required.is_file():
+            raise S44AmendmentError(f"execution corrective input absent: {required}")
+    predecessor_seal = load_json(predecessor_seal_path)
+    # The predecessor is immutable historical evidence. Validate its structure
+    # and bindings without requiring the corrected checkout to equal the old
+    # source checkpoint; the corrective checkpoint below binds the new HEAD.
+    validate_precollection_seal(
+        predecessor_seal, repo_root=repo_root, require_committed=False
+    )
+    if predecessor_seal.get("collection_allowed") is not True:
+        raise S44AmendmentError("predecessor precollection seal is not committed")
+    failure = load_json(failure_path)
+    if (
+        failure.get("attempt_id") != "s44a01_fit_a_001_sil__attempt_01"
+        or failure.get("outcome") != "pre_recording_failure"
+        or failure.get("recorder_started") is not False
+    ):
+        raise S44AmendmentError("execution corrective failure record mismatch")
+    correction_scope = {
+        "correction_id": "execution_corrective_01",
+        "reason": (
+            "capture plan omitted the Pi record subcommand, minimum-free-bytes, "
+            "and attempt-scoped remote path"
+        ),
+        "assignment_changed": False,
+        "matrix_changed": False,
+        "ordering_changed": False,
+        "grouping_changed": False,
+        "replacement_policy_changed": False,
+        "first_attempt_retained_as_pre_recording_failure": True,
+        "replacement_attempt_required": True,
+        "S4.5_or_later_started": False,
+    }
+    checkpoint = build_source_checkpoint(repo_root, _git_head(), SOURCE_PATHS)
+    checkpoint_path = output / EXECUTION_CORRECTIVE_CHECKPOINT_PATH
+    if checkpoint_path.is_file() and load_json(checkpoint_path) != checkpoint:
+        raise S44AmendmentError(
+            "refusing to replace a different execution-corrective checkpoint"
+        )
+    _write(checkpoint_path, checkpoint)
+    bindings = {
+        **dict(predecessor_seal["bindings"]),
+        "predecessor_precollection_seal_file_sha256": sha256_file(
+            predecessor_seal_path
+        ),
+        "predecessor_source_checkpoint_file_sha256": sha256_file(
+            predecessor_checkpoint_path
+        ),
+        "execution_corrective_source_checkpoint_file_sha256": sha256_file(
+            checkpoint_path
+        ),
+        "retained_pre_recording_failure_file_sha256": sha256_file(failure_path),
+        "corrective_delivery_file_sha256": sha256_file(delivery_path),
+        "execution_correction_scope_sha256": canonical_sha256(correction_scope),
+    }
+    config = load_json(config_path)
+    validate_configuration(config, repo_root)
+    seal = build_precollection_seal(config, bindings=bindings, checkpoint=checkpoint)
+    validate_precollection_seal(seal, repo_root=repo_root, require_committed=True)
+    seal_path = output / EXECUTION_CORRECTIVE_SEAL_PATH
+    if seal_path.is_file() and load_json(seal_path) != seal:
+        raise S44AmendmentError("refusing to replace a different corrective seal")
+    _write(seal_path, seal)
+    evidence_payload = {
+        "schema": "ias.s4_4.amendment_execution_corrective.v1",
+        "status": "committed",
+        "amendment_id": AMENDMENT_ID,
+        "scope": correction_scope,
+        "source_commit": checkpoint["commit"],
+        "predecessor_precollection_seal_path": (
+            f"{CANONICAL_OUTPUT}/precollection_seal.v1.json"
+        ),
+        "predecessor_precollection_seal_sha256": sha256_file(predecessor_seal_path),
+        "corrective_precollection_seal_path": (
+            f"{CANONICAL_OUTPUT}/{EXECUTION_CORRECTIVE_SEAL_PATH}"
+        ),
+        "corrective_precollection_seal_sha256": sha256_file(seal_path),
+        "retained_failure_path": EXECUTION_FAILURE_PATH.as_posix(),
+        "retained_failure_sha256": sha256_file(failure_path),
+        "corrective_delivery_path": DELIVERY_PATHS[0],
+        "corrective_delivery_sha256": sha256_file(delivery_path),
+        "fit_manifest_payload_sha256": (
+            "239edcc25dc08adfb6a15de619d836d7a4776f5c0390f42a4cc03de7f6eb11f2"
+        ),
+        "prospective_holdout_manifest_payload_sha256": (
+            "2306264d3d1258ec86d73883e87d1c1ac841d1e15c7d5d4301660a8d28fec5e8"
+        ),
+        "original_split_plan_payload_sha256": (
+            "1569c00cbaec57e5625e0876fd243e17a2a67b287b3edf9865e41bb7ce8c0ce3"
+        ),
+        "collection_allowed_after_evidence_commit": True,
+    }
+    evidence = {
+        **evidence_payload,
+        "corrective_evidence_sha256": canonical_sha256(evidence_payload),
+    }
+    evidence_path = output / EXECUTION_CORRECTIVE_EVIDENCE_PATH
+    if evidence_path.is_file() and load_json(evidence_path) != evidence:
+        raise S44AmendmentError(
+            "refusing to replace different execution-corrective evidence"
+        )
+    _write(evidence_path, evidence)
+    return {
+        "status": "passed",
+        "correction_id": "execution_corrective_01",
+        "source_commit": checkpoint["commit"],
+        "corrective_seal_file_sha256": sha256_file(seal_path),
+        "corrective_evidence_file_sha256": sha256_file(evidence_path),
+        "assignment_changed": False,
+        "replacement_attempt_required": True,
+        "collection_allowed": True,
     }
 
 
@@ -316,8 +457,15 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--freeze-source-checkpoint", action="store_true")
+    parser.add_argument("--freeze-execution-corrective-01", action="store_true")
     args = parser.parse_args()
     try:
+        if args.freeze_execution_corrective_01:
+            summary = freeze_execution_corrective(
+                output=args.output, config_path=args.config
+            )
+            print(json.dumps(summary, indent=2, sort_keys=True))
+            return 0
         if args.freeze_source_checkpoint:
             checkpoint_path = args.output / CHECKPOINT_PATH
             checkpoint = build_source_checkpoint(ROOT, _git_head(), SOURCE_PATHS)

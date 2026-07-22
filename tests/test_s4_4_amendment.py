@@ -34,6 +34,8 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     validate_session_preflight,
 )
 from scripts.build_s4_4_amendment import build
+from scripts.execute_s4_4_amendment_attempt import _argument
+from scripts.run_s4_4_amendment_take import _capture_plan
 from scripts.validate_s4_4_amendment import validate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -585,3 +587,25 @@ def test_schema_files_are_valid_json() -> None:
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["$schema"] == "https://json-schema.org/draft/2020-12/schema"
         assert payload["additionalProperties"] is False
+
+
+def test_capture_plan_uses_attempt_scoped_executable_pi_command(
+    config: dict, manifests: dict, tmp_path: Path
+) -> None:
+    take = manifests["fit_a"]["takes"][0]
+    attempt_dir = tmp_path / "s44a01_fit_a_001_sil__attempt_02"
+    plan = _capture_plan(take, config, attempt_dir)
+    command = plan["commands"]["respeaker"]
+    assert command[:5] == [
+        "ssh",
+        "elab-raspberrypi5",
+        "/usr/bin/python3",
+        "S4.2/bin/s4_2_pi_capture.py",
+        "record",
+    ]
+    assert _argument(command, "--attempt").endswith(
+        "/captures/s44a01_fit_a_001_sil__attempt_02"
+    )
+    assert _argument(command, "--minimum-free-bytes") == "1073741824"
+    assert _argument(command, "--duration") == "15"
+    assert _argument(command, "--device") == "hw:CARD=Array,DEV=0"

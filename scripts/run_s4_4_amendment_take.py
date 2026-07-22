@@ -29,6 +29,9 @@ ROOT = Path(__file__).resolve().parents[1]
 AMENDMENT_ID = "s4_4_data_expansion_amendment_01"
 EVIDENCE_ROOT = ROOT / "outputs/isaac_audio_sensors/S4/S4.4/amendments" / AMENDMENT_ID
 CONFIG_PATH = ROOT / "configs/s4_4_data_expansion_amendment_01.v1.json"
+CURRENT_SEAL_PATH = EVIDENCE_ROOT / (
+    "freeze/precollection_seal.execution_corrective_01.v1.json"
+)
 
 
 def _find_take(manifest: dict[str, Any], planned_id: str) -> dict[str, Any]:
@@ -110,19 +113,22 @@ def _capture_plan(
     take: dict[str, Any], config: dict[str, Any], attempt_dir: Path
 ) -> dict[str, Any]:
     duration = int(take["duration_s"])
-    pi_remote = f"S4.4/amendments/{AMENDMENT_ID}/{take['planned_take_id']}"
+    pi_remote = f"S4.4/amendments/{AMENDMENT_ID}/captures/{attempt_dir.name}"
     commands: dict[str, Any] = {
         "respeaker": [
             "ssh",
             "elab-raspberrypi5",
             "/usr/bin/python3",
             "S4.2/bin/s4_2_pi_capture.py",
+            "record",
             "--attempt",
             pi_remote,
             "--duration",
             str(duration),
             "--device",
             config["identities"]["respeaker"]["device"],
+            "--minimum-free-bytes",
+            "1073741824",
         ],
         "mac_dynamic_preflight": [
             "ssh",
@@ -203,7 +209,7 @@ def _capture_plan(
 
 def prepare(args: argparse.Namespace) -> dict[str, Any]:
     config = load_json(CONFIG_PATH)
-    seal_path = EVIDENCE_ROOT / "precollection_seal.v1.json"
+    seal_path = CURRENT_SEAL_PATH
     seal = load_json(seal_path)
     validate_precollection_seal(seal, repo_root=ROOT, require_committed=True)
     manifest = load_json(EVIDENCE_ROOT / f"manifests/sessions/{args.session_id}.json")
