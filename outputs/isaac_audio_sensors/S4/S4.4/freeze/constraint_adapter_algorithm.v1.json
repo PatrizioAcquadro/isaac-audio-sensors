@@ -1,0 +1,107 @@
+{
+  "schema": "ias.s4_4.constraint_adapter_algorithm.v1",
+  "status": "frozen_before_seed_enumeration",
+  "frozen_at_utc": "2026-07-22T01:24:06Z",
+  "adapter": {
+    "id": "ias.s4_4.constraint_aware_group_adapter.v1",
+    "scope": "S4.4 only",
+    "standard_s2_5_builder_modified": false,
+    "standard_s2_5_builder_reproduces_assignment": false,
+    "assignment_producer": "S4.4 constraint-aware adapter",
+    "output_contract": "ias.dataset_split_plan.v1"
+  },
+  "bindings": {
+    "preseed_coverage_constraints": {
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/preseed_coverage_constraints.json",
+      "sha256": "07586f4790c3cd9260dee17c644abe1208b962b6cced45a6023d2f7407afd728"
+    },
+    "s2_5_constraint_feasibility": {
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/s2_5_constraint_feasibility.json",
+      "sha256": "610ace09cfb13df44b538c95b1067d1fe70d19ffe2963b7992eca24c995d5aae"
+    },
+    "eligible_population_group_mapping_canonical_sha256": "1621463003e3076a87586e685c69d0e5175d0ace2583eeaecf6625d0495eaa37",
+    "s2_5_split_implementation": {
+      "path": "src/isaac_audio_sensors/core/dataset/splits.py",
+      "sha256": "38fa191e37d5fe8e13856c8f1eef5fa1a01d95550a86c44c63e341cb409f47cd"
+    }
+  },
+  "fixed_inputs": {
+    "dataset_id": "s4_3_pilot_condition_freeze",
+    "grouping_key": "s4_4_condition_group_id",
+    "kind": "fit_holdout",
+    "ratios": {
+      "fit": 0.75,
+      "holdout": 0.25
+    },
+    "nominal_condition_cell_targets": {
+      "fit": 12,
+      "holdout": 4
+    },
+    "group_weights_source": "preseed_coverage_constraints.group_mapping[*].condition_cell_weight",
+    "coverage_eligibility_source": "preseed_coverage_constraints.group_mapping[*].quality_eligible_condition_cells",
+    "required_repeatability_group_source": "preseed_coverage_constraints.preseed_holdout_constraints.required_complete_repeatability_group",
+    "outcome_metrics_available_to_adapter": false
+  },
+  "candidate_generation": {
+    "method": "exhaustive_holdout_subset_enumeration",
+    "group_order_before_subset_enumeration": "lexical group_id order",
+    "candidate_count_before_filtering": 512,
+    "fit_assignment": "lexical complement of the holdout subset",
+    "reject_empty_fit": true,
+    "reject_empty_holdout": true,
+    "groups_indivisible": true
+  },
+  "hard_filter_order": [
+    "holdout contains the complete required repeatability group",
+    "holdout quality-eligible controlled condition-cell count is at least one",
+    "holdout quality-eligible robustness condition-cell count is at least one",
+    "fit and holdout are a disjoint cover of all known groups"
+  ],
+  "candidate_ranking": {
+    "group_score": "first 64 bits interpreted as an unsigned big-endian integer from sha256(f'{dataset_id}:{seed}:{grouping_key}:{group_id}')",
+    "score_order": "all group IDs sorted by (group_score, group_id)",
+    "score_rank": "zero-based position in score_order",
+    "ranking_key_in_ascending_priority_order": [
+      "absolute value of holdout condition-cell weight minus nominal holdout target",
+      "underfill penalty: 1 when holdout condition-cell weight is below target, otherwise 0",
+      "holdout group count",
+      "sum of selected holdout score ranks",
+      "ascending tuple of selected holdout score ranks",
+      "lexical tuple of selected holdout group IDs"
+    ],
+    "selected_candidate": "unique minimum lexicographic ranking key",
+    "post_selection_adjustment_allowed": false
+  },
+  "seed_enumeration": {
+    "order": "ascending non-negative integers beginning at zero",
+    "valid_seed_definition": "the selected feasible subset constructs an ias.dataset_split_plan.v1 that passes unchanged SplitPlan construction, canonical serialization and from_dict round-trip integrity, exact object equality after round-trip, and verify_no_leakage",
+    "selection": "first valid seed",
+    "maximum_seed": null
+  },
+  "split_plan_construction": {
+    "constructor": "isaac_audio_sensors.core.dataset.splits.SplitPlan",
+    "plan_schema": "ias.dataset_split_plan.v1",
+    "manifest_configuration_sha256_binding": "preseed coverage constraints SHA-256",
+    "round_trip": "SplitPlan.serialize JSON parsed then SplitPlan.from_dict",
+    "integrity": "constructor and from_dict must accept the self-verifying plan_sha256 unchanged",
+    "leakage": "isaac_audio_sensors.core.dataset.splits.verify_no_leakage must return true",
+    "verify_plan_against_manifest_claimed": false,
+    "standard_build_split_plan_reproduction_claimed": false
+  },
+  "exhaustive_optimality_proof": {
+    "require_all_512_subsets_evaluated": true,
+    "require_every_feasible_candidate_ranked": true,
+    "require_selected_ranking_key_equal_global_minimum": true
+  },
+  "forbidden_selection_inputs": [
+    "bearing or TDOA error",
+    "sector or candidate coverage",
+    "confidence, ambiguity, or abstention values",
+    "RMS, spectrum, delay, polarity, latency, noise, echo, decay, or AV results",
+    "favorable or unfavorable metric direction"
+  ],
+  "seed": null,
+  "selected_groups": null,
+  "split_plan_sha256": null,
+  "s4_5_started": false
+}

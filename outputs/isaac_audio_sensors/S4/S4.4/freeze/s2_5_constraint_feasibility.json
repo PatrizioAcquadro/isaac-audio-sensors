@@ -1,0 +1,57 @@
+{
+  "schema": "ias.s4_4.s2_5_constraint_feasibility.v1",
+  "status": "no_satisfying_unadapted_assignment",
+  "evaluated_after_constraints_frozen": true,
+  "preseed_coverage_constraints": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/preseed_coverage_constraints.json",
+    "sha256": "07586f4790c3cd9260dee17c644abe1208b962b6cced45a6023d2f7407afd728"
+  },
+  "planner": {
+    "contract": "ias.dataset_split_plan.v1",
+    "implementation_path": "src/isaac_audio_sensors/core/dataset/splits.py",
+    "implementation_sha256": "38fa191e37d5fe8e13856c8f1eef5fa1a01d95550a86c44c63e341cb409f47cd",
+    "nominal_condition_cell_targets": {
+      "fit": 12,
+      "holdout": 4
+    },
+    "algorithm_changed_for_feasibility_check": false
+  },
+  "exhaustive_ordering_check": {
+    "leakage_group_count": 9,
+    "possible_score_orderings_checked": 362880,
+    "orderings_assigning_complete_repeatability_group_to_holdout": 65520,
+    "orderings_satisfying_all_frozen_holdout_constraints": 0,
+    "outcome_metrics_read_or_used": false
+  },
+  "structural_reason": "The complete repeatability group weighs four condition cells, exactly the nominal holdout target. Under the unchanged S2.5 greedy remaining-target assignment, holdout can receive at most one additional group after or before that four-cell group. The additional group can provide controlled or robustness coverage, but not both.",
+  "representative_possible_holdouts": [
+    {
+      "groups": ["g01_mac_reference_left_baseline"],
+      "condition_cell_count": 4,
+      "controlled_coverage": false,
+      "robustness_coverage": false
+    },
+    {
+      "groups": [
+        "g01_mac_reference_left_baseline",
+        "g03_mac_reference_opposite"
+      ],
+      "condition_cell_count": 5,
+      "controlled_coverage": true,
+      "robustness_coverage": false
+    },
+    {
+      "groups": [
+        "g01_mac_reference_left_baseline",
+        "g07_reference_voice_overlap_left"
+      ],
+      "condition_cell_count": 5,
+      "controlled_coverage": false,
+      "robustness_coverage": true
+    }
+  ],
+  "seed_selected": false,
+  "assignments_frozen": false,
+  "required_next_decision": "authorize a minimal deterministic constraint-aware S4.4 assignment adapter or revise a frozen coverage constraint",
+  "s4_5_started": false
+}
