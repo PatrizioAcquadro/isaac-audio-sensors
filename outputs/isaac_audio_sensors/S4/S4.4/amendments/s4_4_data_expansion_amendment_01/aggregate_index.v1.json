@@ -1,0 +1,29 @@
+{
+  "access_histories_merged": false,
+  "aggregate_index_sha256": "b88079b4a60e273d96ce7156bd0c78105c243f2d7ae78ff59c7d131c6dbc8bed",
+  "assignments_merged": false,
+  "blindness_claims_merged": false,
+  "original_assignment_changed": false,
+  "records": [
+    {
+      "access_history": "dataset/S4.4/access/access_ledger.jsonl",
+      "historically_unopened_claim": false,
+      "holdout_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/holdout_manifest.json",
+      "holdout_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/holdout_seal.json",
+      "record_id": "original_s4_4_freeze",
+      "role": "historically_analyzed_legacy_evidence",
+      "split_plan_path": "outputs/isaac_audio_sensors/S4/S4.4/split_plan.json",
+      "split_plan_payload_sha256": "1569c00cbaec57e5625e0876fd243e17a2a67b287b3edf9865e41bb7ce8c0ce3"
+    },
+    {
+      "access_history": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_01/access/access_ledger.jsonl",
+      "fit_manifest_sha256": "239edcc25dc08adfb6a15de619d836d7a4776f5c0390f42a4cc03de7f6eb11f2",
+      "prospective_holdout_manifest_sha256": "2306264d3d1258ec86d73883e87d1c1ac841d1e15c7d5d4301660a8d28fec5e8",
+      "record_id": "s4_4_data_expansion_amendment_01",
+      "role": "primary_unopened_prospective_holdout_for_future_evaluation",
+      "scientifically_opened": false
+    }
+  ],
+  "schema": "ias.s4_4.aggregate_index.v1",
+  "status": "frozen_before_collection"
+}

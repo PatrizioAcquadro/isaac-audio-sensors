@@ -1,0 +1,58 @@
+{
+  "checkpoint_sha256": "70368560f4b1400bc50f2d7f43be1beeea264bb8798072f5359a7cf509ace662",
+  "commit": "f1a45cfcbfe991cf92de605270004c93b08fbeb2",
+  "source_records": [
+    {
+      "path": "configs/s4_4_data_expansion_amendment_01.v1.json",
+      "sha256": "f4b98b894e10da5a679dcf3d5e2e8a6562a9d1aa3bfb8ce6f6a7644e38940a31"
+    },
+    {
+      "path": "docs/development/specs/s4_4_data_expansion_amendment_01.md",
+      "sha256": "fd3c5387872d67ff8de0484d725b716bc643b4c6462cfdce3770bfa008984493"
+    },
+    {
+      "path": "docs/schemas/s4_4_amendment_aggregate_index.v1.schema.json",
+      "sha256": "6077dcc080a1e07083a940fa4b1c489d1a6bcaa0b075e96fdd8502e5125f7d10"
+    },
+    {
+      "path": "docs/schemas/s4_4_amendment_attempt_census.v1.schema.json",
+      "sha256": "e999c8cc2403a5c9280b65c3ef49e0b9bb912916a598b8328185c3db0f1018e5"
+    },
+    {
+      "path": "docs/schemas/s4_4_amendment_manifest.v1.schema.json",
+      "sha256": "232bcf2aa9516ce7bec0f0a5538bfb6e6d524636e82fabecb0ac3aa261663e3e"
+    },
+    {
+      "path": "docs/schemas/s4_4_amendment_precollection_seal.v1.schema.json",
+      "sha256": "e0618a7646a8d47d7bf4054dd1e756886889f382b3adc78735bfa7ffe4cd2ca3"
+    },
+    {
+      "path": "docs/schemas/s4_4_amendment_session_preflight.v1.schema.json",
+      "sha256": "213d64aac5925af7b36f7bb9f363fe253bf38d1b5f69cebe7ce70f3da4eae115"
+    },
+    {
+      "path": "docs/schemas/s4_4_amendment_technical_qa.v1.schema.json",
+      "sha256": "089e90fc0f805927f06f3e80e034e1bb4e389aa6e9763e629d1a576ec7eab57d"
+    },
+    {
+      "path": "scripts/build_s4_4_amendment.py",
+      "sha256": "2402da39fb6fd759814cd5bdd5933eb9e3629aadf6211990d424f46f702a979f"
+    },
+    {
+      "path": "scripts/run_s4_4_amendment_take.py",
+      "sha256": "1d0fca50b2abdd5c9bbd784c5d10c9d24feabc14a903e671a5afe0376b31992b"
+    },
+    {
+      "path": "scripts/validate_s4_4_amendment.py",
+      "sha256": "4c6f3c3c523dbbf05a234f9608529d7da6b2c7d72ebef05b29ddd514a1f3668d"
+    },
+    {
+      "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment.py",
+      "sha256": "614fd287dbf85cc60a1782b21ed9cde5f3690c14c8722ab2d968024612c5e272"
+    },
+    {
+      "path": "tests/test_s4_4_amendment.py",
+      "sha256": "03cd24550dfafcc3f667fcccf0702dc18e284c23b43c246e5eb178ff88fce89d"
+    }
+  ]
+}

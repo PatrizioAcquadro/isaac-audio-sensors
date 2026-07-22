@@ -1,0 +1,37 @@
+{
+  "S4.5_or_later_started": false,
+  "enforcement_boundary": {
+    "filesystem_owner_direct_reads_prevented_or_detected": false,
+    "mechanism": "repository_tooling",
+    "os_level_protection": false
+  },
+  "fit_access": {
+    "S4.5_facing_tools_expose_fit_only": true,
+    "prospective_holdout_allowed": false
+  },
+  "future_S4.7_or_S4.8_opening_workflow_implemented": false,
+  "missing_or_altered_manifest_seal_ledger_or_hash": "deny",
+  "prospective_holdout_technical_qa": {
+    "allowed": [
+      "identity_and_assigned_metadata",
+      "duration",
+      "channel_order_and_health",
+      "clipping",
+      "timestamps",
+      "required_reference_presence",
+      "file_integrity_and_checksums",
+      "privacy",
+      "full_svo2_replay"
+    ],
+    "scientific_outputs_suppressed": true,
+    "scientifically_opened": false
+  },
+  "schema": "ias.s4_4.amendment_access_policy.v1",
+  "sealed_integrity": {
+    "hash_only": true,
+    "returns_media_analysis_or_scientific_outcomes": false
+  },
+  "separate_access_ledger": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_01/access/access_ledger.jsonl",
+  "status": "precollection_locked",
+  "unknown_path_purpose_group_grant_or_record": "deny"
+}
