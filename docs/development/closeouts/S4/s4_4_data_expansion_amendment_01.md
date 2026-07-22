@@ -63,6 +63,35 @@ original S4.4 byte set remains unchanged, the prospective holdout is
 scientifically unopened, and no S4.5, S4.6, S4.7, or S4.8
 directory/workflow/grant exists.
 
+## Fit A execution corrective checkpoint
+
+On 2026-07-22, the Fit A session preflight passed after the operator confirmed
+the manual room, privacy, mount, Mac, and safety checks. Automatic checks passed
+the ZED 2i, ReSpeaker, GPU, USB, disk, clocks, Mac identity, exact 40% unmuted
+output, AC power, and reference-WAV checksum. The Mac helper's automatic Focus
+observation remained false; the inherited protocol makes the operator's Work
+Focus and notification-suppression confirmation authoritative, so both the
+warning and confirmation are retained.
+
+Before recorder start, prepared attempt
+`s44a01_fit_a_001_sil__attempt_01` exposed an invalid frozen capture command:
+the Pi helper's `record` subcommand, required minimum-free-space argument, and
+attempt-scoped remote path were absent. No recorder, playback, ZED capture, or
+scientific analysis started. The attempt is retained as a technical
+pre-recording failure. Replacement attempt 02 is the only remaining attempt
+for that planned cell.
+
+The execution-corrective source was committed on branch `main` as exact source
+checkpoint `329b275` (`329b275078d029534cbd906b9ec15d7972c0d2c4`). The
+additive corrective checkpoint, seal, and correction record are delivered
+alongside this document in the separately authorized local evidence commit.
+The correction is limited to technical capture/finalization orchestration and
+preserves every assignment and predecessor artifact byte-for-byte. It adds an
+explicit Pi `record` subcommand, minimum-free-space gate, attempt-scoped remote
+path, exact-seal enforcement, readiness gating, retained failure handling, and
+technical-only fit/holdout QA. Replacement attempt 02 remains prohibited until
+the evidence-delivery commit and all commit-bound validation gates succeed.
+
 ## Required completion evidence
 
 PASS requires two distinct-day fit sessions containing 102 valid planned cells,
