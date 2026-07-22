@@ -1,0 +1,40 @@
+{
+  "access_histories_merged": false,
+  "aggregate_index_sha256": "d18e30b2a4077a07013d6592f57f2076bf0a712c76c25af2e44d0fe2a62031e6",
+  "assignments_merged": false,
+  "blindness_claims_merged": false,
+  "original_assignment_changed": false,
+  "records": [
+    {
+      "access_history": "dataset/S4.4/access/access_ledger.jsonl",
+      "historically_unopened_claim": false,
+      "holdout_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/holdout_manifest.json",
+      "holdout_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/holdout_seal.json",
+      "record_id": "original_s4_4_freeze",
+      "role": "historically_analyzed_legacy_evidence",
+      "split_plan_path": "outputs/isaac_audio_sensors/S4/S4.4/split_plan.json",
+      "split_plan_payload_sha256": "1569c00cbaec57e5625e0876fd243e17a2a67b287b3edf9865e41bb7ce8c0ce3"
+    },
+    {
+      "access_history": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_01/access/access_ledger.jsonl",
+      "access_history_existed_at_closure": false,
+      "assignments_reused": false,
+      "blindness_claim_inherited": false,
+      "closure_record_path": "outputs/isaac_audio_sensors/S4/S4.4/closures/s4_4_data_expansion_amendment_01_no_go.v1.json",
+      "closure_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/closures/s4_4_data_expansion_amendment_01_no_go_seal.v1.json",
+      "record_id": "s4_4_data_expansion_amendment_01",
+      "role": "immutable_historical_no_go_evidence",
+      "status": "no_go"
+    },
+    {
+      "access_history": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/access/access_ledger.jsonl",
+      "fit_manifest_sha256": "0966ca977a0f43ef6f988e287f26c95a35737f94f8ed87c2d1645699ac44c344",
+      "prospective_holdout_manifest_sha256": "0e7ee49781f61ab698dc749f366a8de48759bf2de006eb846a63297d2dc3ee87",
+      "record_id": "s4_4_data_expansion_amendment_02",
+      "role": "primary_unopened_prospective_holdout_for_future_evaluation",
+      "scientifically_opened": false
+    }
+  ],
+  "schema": "ias.s4_4.aggregate_index.v2",
+  "status": "frozen_before_collection"
+}

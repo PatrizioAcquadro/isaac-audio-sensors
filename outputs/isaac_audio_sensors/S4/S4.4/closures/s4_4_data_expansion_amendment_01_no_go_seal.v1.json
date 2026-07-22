@@ -1,0 +1,39 @@
+{
+  "S4.5_or_later_started": false,
+  "amendment_id": "s4_4_data_expansion_amendment_01",
+  "attempt_census_sha256": "2623db24f37ca007b0497e9417633c9b0578996b99307bd244c473c68d594f80",
+  "attempt_retry_allowed": false,
+  "closeout_record_path": "outputs/isaac_audio_sensors/S4/S4.4/closures/s4_4_data_expansion_amendment_01_no_go.v1.json",
+  "closeout_record_sha256": "5be9d6b1fee0df5ca6ab3c99945f99ca2139fab6ad938a0772bc56ac9c9a0cec",
+  "collection_allowed": false,
+  "disposition": "irreversible_no_go",
+  "existing_closeout_sha256": "bf9d1ce974d3dab94728c519fb23cb3686d1df0c697a5c1b3900b723043eaae1",
+  "machine_local_record_set_sha256": "0f7044090e6b1d33d26c3a165e5e449511b616200ff14e6417802ff2f67246c3",
+  "schema": "ias.s4_4.amendment_no_go_seal.v1",
+  "seal_sha256": "8c4674ff508f5270e1f75e73524332f139dad55875656bc61c75585e1a367e92",
+  "source_checkpoint": {
+    "checkpoint_sha256": "7d064d705fbda822d68260d22c333e2926f0b9973cba496c3661bd1d3c0b3fae",
+    "commit": "d3e1d22b914c33a95a47ebc611984c87ca525617",
+    "source_records": [
+      {
+        "path": "scripts/build_s4_4_amendment_01_no_go_closure.py",
+        "sha256": "abf582ce1934ecd080a85cddf09af721edad5a06cb2ed01a7edf3e9a315d6157"
+      },
+      {
+        "path": "scripts/validate_s4_4_amendment.py",
+        "sha256": "335b5eeb632dcdba946b056490247749e04528e34c4184f229a48fdc80816637"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment.py",
+        "sha256": "4473cd77561d41101870a508b8f6980a0f3082f00042ab010f6d7002a7aa15c7"
+      },
+      {
+        "path": "tests/test_s4_4_amendment.py",
+        "sha256": "8088efec08cad83df7a0d512c9ed0c5c3506805e4e67beac39825a5a99db8583"
+      }
+    ]
+  },
+  "status": "committed",
+  "superseded_in_place": false,
+  "tracked_record_set_sha256": "cdf025ab3c3366ac211c1d6e490827b2203641e8f31f5e52e6946c93a236d74c"
+}
