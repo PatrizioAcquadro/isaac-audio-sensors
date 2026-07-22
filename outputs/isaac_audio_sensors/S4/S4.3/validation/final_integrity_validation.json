@@ -1,8 +1,8 @@
 {
-  "checked_artifact_count": 318,
-  "indexed_artifact_count": 318,
+  "checked_artifact_count": 353,
+  "indexed_artifact_count": 353,
   "issues": [],
-  "machine_local_record_count": 258,
+  "machine_local_record_count": 276,
   "require_final": true,
   "require_machine_local": true,
   "schema": "ias.s4_3.integrity_validation.v1",

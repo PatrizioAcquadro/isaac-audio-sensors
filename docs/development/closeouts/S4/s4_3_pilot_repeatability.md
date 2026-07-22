@@ -4,25 +4,30 @@
 
 **S4.3: PASS. S4.4 readiness: GO.** S4.4 was not started.
 
-The clipping/noise corrective science, prospective silence acquisition, all 22
-metric contracts, retained-raw reanalysis, clean-source release gate, Kit
+The clipping/noise corrective science, both prospectively frozen silence
+acquisitions, the corrective-02 boundary-support rule, all 22 metric contracts,
+retained-raw reanalysis, clean-source release gate, Kit
 build/audit, controlled-wheelhouse acoustic-pack build/audit, and final
 integrity validation pass at checkpoint
-`628e9bb98e1331de68b21c08e528d8ff15a6ebaf`. This remains functional
+`c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543`. This remains functional
 engineering characterization, not acoustic metrology.
 
-The remediation baseline is clean commit
-`91baa3a03742f4efd21e0a145e59774c18952c1c` on `main`; the corrected
-implementation and corrective pre-capture freeze were committed as checkpoint
-`ac05849191647bca152edf13e0251e4a29840be3`; the prospective silence evidence
-and regenerated analysis were committed as clean validation checkpoint
-`628e9bb98e1331de68b21c08e528d8ff15a6ebaf`. The active immutable
+The corrective-02 baseline was clean commit
+`1d0b93d95860bc88450d925f98d58d229e59c552` on `main`. The exact boundary
+defect was reproduced before the fix; the corrective-02 specification,
+implementation, and pre-capture freeze were committed as
+`c6bfc002a5b7a8656797cd308b710489860517cc`. The bounded one-replacement
+authorization and retained first failure were committed as
+`a7df16ebd214bfe9af65a699b3850ffe09ee6e45`. The accepted replacement,
+post-capture provenance binding, and regenerated analysis were committed as
+clean validation checkpoint
+`c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543`. The active immutable
 preregistration is
-`outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_corrective_01.json`
+`outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_corrective_02.json`
 (SHA-256
-`114887e8464390349988c7202464f834cb8e59f9582d0774a70c19ecf5cf72c6`).
+`59e3bb8652c9a40df01a2290ac9f9e9602e325721a228247a165243b9aeb1cce`).
 The frozen matrix SHA-256 is
-`22087bea3eb0fed1d0ffd50542443f71189c981792ceb933a0f98d14d189720a`.
+`0a8910e341a0d9fc2d41f3ba04164ad2f8703e0c97ab77dc9efb1843d28394dc`.
 The post-trial provenance-only review record is
 `outputs/isaac_audio_sensors/S4/S4.3/freeze/review_remediation_manifest.json`.
 It binds the corrected implementation while recording that the matrix,
@@ -52,7 +57,8 @@ numeric for those windows. The repeatability gate now enforces the frozen
 Regression coverage includes a positive complete 22-metric fixture and one
 negative missing-output case for every metric, plus dedicated abstention,
 partial-pair, raw-channel-health, noise-transient, immutable-freeze, and
-provenance-manifest tests. No scientific threshold was changed.
+provenance-manifest tests. No frozen scientific threshold was changed by
+corrective-02.
 
 ## Sustained-clipping and noise corrective provenance
 
@@ -74,6 +80,26 @@ trial was required. The accepted attempt
 `s4_3_rob_silence_02_prospective_events_01_20260721T225816Z_4b67afd5`
 binds the corrected effective configuration, preregistration, and trial
 definition. No overlap or unrelated trial was repeated.
+
+Corrective-02 preserves every corrective-01 artifact and fixes only a verified
+boundary-censoring defect. For the 320-sample even centered RMS window, center
+sample `j` uses raw support `[j-160,j+160)`. A center is complete only for
+`160 <= j < N-159`; a bridged excursion `[start,stop)` is boundary-censored
+when `start < 160` or `stop > N-159`. No arbitrary fixed-time guard is used.
+The four-channel 0.0021 and 0.0025 full-scale regression cases first reproduced
+the defect at both recording boundaries, then passed after the support-aware
+fix. The frozen detector contract is
+`outputs/isaac_audio_sensors/S4/S4.3/freeze/transient_event_contract_02.json`
+(SHA-256
+`bbc46e2091d5a872a093e59ca788a76137c042a2fb66758db3bd73d22be7b90a`).
+The first corrective-02 attempt failed before recording when the restricted
+process could not verify the existing Pi helper. The user's separately frozen
+one-replacement authorization retained that attempt and permitted the unchanged
+trial to run once. Accepted attempt
+`s4_3_rob_silence_03_boundary_support_01_20260722T000035Z_a6e524d2`
+measured zero complete events and zero boundary-censored excursions in 15
+seconds. The post-capture evidence binding is
+`outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_evidence_manifest.json`.
 
 ## Coordinate and analysis frames
 
@@ -98,16 +124,19 @@ uncertainty; it is not precision extrinsic calibration.
 | --- | ---: | ---: | ---: | ---: |
 | Repeatability | 4 | 4 | 4 | 1 preflight failure before accepted retry |
 | Controlled | 2 | 2 | 2 | 0 |
-| Robustness | 9 | 9 | 8 | 1 failed occlusion confirmation |
-| **Total** | **15** | **15** | **14** | **2** |
+| Robustness | 10 | 10 | 9 | 1 failed occlusion confirmation and 1 pre-recording corrective-02 failure |
+| **Total** | **16** | **16** | **15** | **3** |
 
-There were 16 attempts, including 15 physical acquisitions and one retained
-pre-recorder failure. Every planned, accepted, failed,
+There were 18 attempts, including 16 captures and two retained pre-recorder
+failures. Every planned, accepted, failed,
 unfavorable, and superseded record remains in the inventory. No result was
 removed because it was inconvenient. The three original expansions were the
 array-frame confirmation, one occlusion confirmation, and one voice-timing
 confirmation. The separately authorized corrective addition was one
-prospective silence trial. Its stopping rule is terminal.
+prospective silence trial. Corrective-02 added exactly one further prospective
+silence cell after freezing the support-aware boundary rule. Its first attempt
+failed before recording and its one authorized unchanged replacement was
+accepted; the cell is terminal.
 
 ## Main results
 
@@ -143,6 +172,11 @@ results for this exact Mac/WAV/volume/pose/room/rig/mount setup.
   overlap-independent detector measured 0 de-duplicated transient events in 15
   seconds, or 0 events/s. This is one functional room-plus-fixture-plus-sensor
   interval, not microphone self-noise SPL or a population event rate.
+- Corrective-02 prospective silence: all 103 windows abstained. The
+  support-aware contract independently measured 0 complete events, 0
+  boundary-censored excursions, and 0 events/s in a new 15-second interval.
+  The corrective-01 result is retained as its original prospective result and
+  is not retroactively promoted as confirmation of corrective-02.
 - Occlusion: the accepted two-box take had 39 windows, 2 degree median error,
   76 degree p95/worst error, 56.41 percent sector/candidate coverage, one
   abstention, and median confidence 0.0179. The operator reported possible
@@ -185,21 +219,24 @@ frame-to-adapter round trips were about 0.0218 to 0.0310 ms and the worst was
 declared order, device identity, raw-channel presence/health, channel-relative
 RMS/delay, TDOA, spectra, confidence, ambiguity, abstention, and polarity data
 are reported with complete counts, medians, MAD, nearest-rank p95, and worst
-cases in the category reports. All 15 captured attempts had complete
-six-channel evidence; the retained pre-recorder failure is explicitly not
+cases in the category reports. All 16 captured attempts had complete
+six-channel evidence; both retained pre-recorder failures are explicitly not
 applicable, and the failed occlusion confirmation retains its quality failure.
 Captured raw-channel health failures were 0 and the largest clip run was 15
 samples, below the corrected 4,000-sample sustained-clipping rule. No
 major persistent polarity anomaly was observed.
 
-The intended-silence raw interval had 119 complete frozen windows and all 119
-exceeded the already frozen 0.002 full-scale median-RMS detector threshold,
+Each intended-silence raw interval had 119 complete frozen reporting windows.
+For the legacy interval, all 119 exceeded the already frozen 0.002 full-scale
+median-RMS detector threshold,
 while all 103 central SRP analysis windows still abstained on confidence. This
 is an unfavorable but retained legacy result: the overlapping-window RMS
 exceedance rate was 7.933 windows/s. It is not a distinct-event count. The
-legacy distinct-event rate is `Unmeasured`. The prospectively frozen detector
-measured 0 de-duplicated events, or 0 events/s, in the new 15-second silence
-trial. That single interval is not an absolute self-noise, SPL, or population
+legacy distinct-event rate is `Unmeasured`. The corrective-01 prospective
+detector measured 0 de-duplicated events, or 0 events/s, in its 15-second
+silence trial. The corrective-02 support-aware detector also measured 0
+complete events and 0 boundary-censored excursions in its independent new
+15-second trial. Neither interval is an absolute self-noise, SPL, or population
 event-rate measurement.
 
 ## Evidence classification and claim boundary
@@ -209,7 +246,7 @@ event-rate measurement.
 | Device serials, channel contract, formats, hashes, complete SVO2 replay | Verified | Applies to retained evidence and declared hardware only. |
 | DOA/TDOA, relative level/spectrum/delay, confidence, abstention, latency, noise, decay, and coarse AV results | Measured | Functional results in the tested pilot; no calibrated absolute reference. |
 | Legacy distinct-event transient rate | Unmeasured | Inspected S4.3 data cannot confirm the later prospective detector. |
-| Prospective de-duplicated transient event rate | Measured | 0 events in one prospectively frozen 15 s intended-silence interval only. |
+| Prospective de-duplicated transient event rate | Measured | Corrective-01 and corrective-02 each measured 0 events in a separate prospectively frozen 15 s intended-silence interval; neither is a population estimate. |
 | Array-to-project 180 degree correction | Measured functional correction | Supported by retained directional evidence; acoustic-axis uncertainty remains Unmeasured. |
 | Rig frame geometry inherited from S4.1 | CAD-derived or Measured as labeled in the frame lock | Not precision optical/acoustic extrinsics. |
 | Nominal microphone geometry and 343 m/s propagation speed | Nominal | Used only for functional expected-TDOA comparison. |
@@ -234,6 +271,10 @@ placement, audio quality, hardware identity, and privacy remained hard gates.
    analysis because only one raw channel contained the complete reference above
    the frozen correlation threshold; two were required. No third take was
    collected.
+3. `s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb`
+   failed before recording because the restricted process could not verify the
+   existing Pi capture helper. The failure, diagnosis, bounded authorization,
+   and the single accepted unchanged replacement are all retained.
 
 The original unfavorable pre-amendment 280 degree baseline analysis, the voice
 timing failure, the operator's possible-noise report, every amendment, and all
@@ -244,25 +285,25 @@ superseded coordinate records are preserved.
 The corrective implementation and checkpoint-bound regenerated evidence
 produce:
 
-- targeted S4.3 tests: 70 passed;
-- S4.3 evidence build: 15/15 terminal, 14 accepted analyses, 2 retained failed
+- targeted S4.3 tests: 81 passed;
+- S4.3 evidence build: 16/16 terminal, 15 accepted analyses, 3 retained failed
   attempts, repeatability PASS;
-- deterministic replay: 14/14 accepted analyses passed;
-- machine-local validation: 16/16 attempts passed;
+- deterministic replay: 15/15 accepted analyses passed;
+- machine-local validation: 18/18 attempts passed;
 - raw-independent validation and metric-specific 22-metric evidence coverage:
   PASS;
 - pre-capture fail-closed evidence: 21/22 contracts passed and noise alone was
   missing before the new trial;
 - `make lint` and `git diff --check`: PASS during corrective implementation;
-- `make test`: 1277 passed and 80 documented optional-dependency or
+- `make test`: 1288 passed and 80 documented optional-dependency or
   hardware-gated skips;
 - `make lint`: PASS;
 - `make build`, `make check-version`, `make check-release-source`, and
   `make audit-dist`: PASS; version 1.10.0, clean source checkpoint
-  `628e9bb98e1331de68b21c08e528d8ff15a6ebaf`, sdist 409 files, wheel 133 files;
-- Kit build/audit: PASS, 134 files;
+  `c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543`, sdist 410 files, wheel 134 files;
+- Kit build/audit: PASS, 135 files;
 - controlled five-wheel wheelhouse acoustic-pack build/audit: PASS, 8 files;
-- final integrity: PASS, 318 checked artifacts including 258 machine-local
+- final integrity: PASS, 353 checked artifacts including 276 machine-local
   records and zero issues;
 - `git diff --check`: PASS.
 
@@ -286,7 +327,7 @@ outcomes remain explicitly retained as superseded provenance in
   repository validation:
   `outputs/isaac_audio_sensors/S4/S4.3/validation/`
 
-All 258 raw/privacy-sensitive files (191 MiB at corrective closeout) remain machine-local
+All 276 raw/privacy-sensitive files (197 MiB at corrective-02 closeout) remain machine-local
 under gitignored `dataset/S4.3/`; `git ls-files dataset/S4.3` is empty. The
 tracked evidence contains manifests, results, hashes, validation records, and
 reports, not raw WAV or SVO2 media. The machine-local dataset is the only copy
