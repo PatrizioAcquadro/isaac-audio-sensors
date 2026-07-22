@@ -1,0 +1,38 @@
+{
+  "schema": "ias.s4_3.failed_attempt_diagnosis.v1",
+  "status": "retained_terminal_preflight_failure",
+  "trial_id": "s4_3_rob_silence_03_boundary_support_01",
+  "attempt_id": "s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb",
+  "failure": {
+    "path": "dataset/S4.3/attempts/s4_3_rob_silence_03_boundary_support_01/s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb/failure.json",
+    "sha256": "23cedc3edb7a0b0783b93ad836739c161129c454b0afda400bbd015cb0938579",
+    "error": "existing Pi capture helper is unavailable"
+  },
+  "lifecycle": {
+    "path": "dataset/S4.3/attempts/s4_3_rob_silence_03_boundary_support_01/s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb/lifecycle.json",
+    "sha256": "6912a56c17cae95b4ffd1c157ed2a630a53d5275f91cc695feffdbee3e414ac5",
+    "terminal_state": "failed"
+  },
+  "contract": {
+    "path": "dataset/S4.3/attempts/s4_3_rob_silence_03_boundary_support_01/s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb/contract.json",
+    "sha256": "d53ce75750498b3a7b2a3453e25e72701c3fe8807a83f4fa996563cf297a781f"
+  },
+  "capture_started": false,
+  "raw_media_created": false,
+  "sandbox_reproduction": {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=8 elab-raspberrypi5 test-and-sha256-existing-helper",
+    "exit_code": 255,
+    "error": "Could not resolve hostname elab-raspberrypi5.taild9b732.ts.net: Name or service not known"
+  },
+  "authorized_read_only_external_verification": {
+    "exit_code": 0,
+    "helper_path": "S4.2/bin/s4_2_pi_capture.py",
+    "helper_sha256": "cf83e2be027667d289f335e54ec63db778a29622472ba95e02ce561c387cfc44",
+    "matches_retained_s4_2_helper_sha256": true
+  },
+  "cause": "sandbox DNS prevented the in-process SSH helper check; the existing Pi helper is present and unchanged",
+  "automatic_retry_permitted_by_frozen_stopping_rule": false,
+  "required_before_retry": "explicit user authorization plus a prospectively frozen failure-handling record permitting one replacement attempt",
+  "retained": true,
+  "s4_4_started": false
+}

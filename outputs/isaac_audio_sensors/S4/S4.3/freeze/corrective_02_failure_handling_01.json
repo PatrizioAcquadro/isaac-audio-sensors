@@ -1,0 +1,56 @@
+{
+  "schema": "ias.s4_3.corrective_failure_handling.v1",
+  "id": "S4.3-CORRECTIVE-02-FAILURE-HANDLING-01",
+  "status": "frozen_before_replacement_attempt",
+  "frozen_at_utc": "2026-07-21T23:59:33Z",
+  "authorization": {
+    "source": "user chat instruction",
+    "exact_text": "AUTHORIZE CORRECTIVE-02 REPLACEMENT — SILENCE READY.",
+    "replacement_attempt_count_authorized": 1,
+    "silence_ready_confirmed": true,
+    "device_setting_change_authorized": false,
+    "push_authorized": false
+  },
+  "frozen_scientific_contract": {
+    "configuration_path": "configs/s4_3_pilot_corrective_02.v1.json",
+    "configuration_sha256": "af1a557c6f9504c4468515d2d1f1d1acb55e4bc13ba45adc30e0efad603ad311",
+    "preregistration_path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_corrective_02.json",
+    "preregistration_sha256": "59e3bb8652c9a40df01a2290ac9f9e9602e325721a228247a165243b9aeb1cce",
+    "detector_contract_path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/transient_event_contract_02.json",
+    "detector_contract_sha256": "bbc46e2091d5a872a093e59ca788a76137c042a2fb66758db3bd73d22be7b90a",
+    "trial_id": "s4_3_rob_silence_03_boundary_support_01"
+  },
+  "retained_pre_acquisition_command_failure": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/corrective_02_pre_acquisition_confirmation_rejection.json",
+    "sha256": "bf2993065ddce198029b918bdbc9ec25ba2d9ed271f00a892f39391dd34456e4",
+    "attempt_created": false
+  },
+  "retained_terminal_failure": {
+    "attempt_id": "s4_3_rob_silence_03_boundary_support_01_20260721T235653Z_00f536eb",
+    "diagnosis_path": "outputs/isaac_audio_sensors/S4/S4.3/diagnostics/corrective_02_failed_attempt_diagnosis.json",
+    "diagnosis_sha256": "6493ab2ef72bd60fb68ef183146240f8c8d7586b5778f855ba326cc3526dbd17",
+    "capture_started": false,
+    "raw_media_created": false,
+    "cause": "sandbox DNS blocked the in-process SSH helper check while external read-only verification confirmed the helper unchanged"
+  },
+  "replacement_rule": {
+    "same_trial_definition_required": true,
+    "same_detector_contract_required": true,
+    "same_configuration_required": true,
+    "same_preregistration_required": true,
+    "maximum_replacement_attempts": 1,
+    "external_network_permission_may_be_used": true,
+    "every_outcome_retained": true,
+    "any_further_failure_stops_collection": true
+  },
+  "scientific_changes": {
+    "detector_changed": false,
+    "matrix_changed": false,
+    "threshold_changed": false,
+    "trial_definition_changed": false,
+    "supported_claim_changed": false,
+    "unrelated_failure_handling_changed": false
+  },
+  "overlap_or_unrelated_trial_repetition_authorized": false,
+  "s4_4_started": false
+}
