@@ -9,7 +9,7 @@ acquisitions, the corrective-02 boundary-support rule, all 22 metric contracts,
 retained-raw reanalysis, clean-source release gate, Kit
 build/audit, controlled-wheelhouse acoustic-pack build/audit, and final
 integrity validation pass at checkpoint
-`c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543`. This remains functional
+`02399187fd447883f2e488f7013a5e078fcc5575`. This remains functional
 engineering characterization, not acoustic metrology.
 
 The corrective-02 baseline was clean commit
@@ -21,7 +21,10 @@ authorization and retained first failure were committed as
 `a7df16ebd214bfe9af65a699b3850ffe09ee6e45`. The accepted replacement,
 post-capture provenance binding, and regenerated analysis were committed as
 clean validation checkpoint
-`c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543`. The active immutable
+`c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543`. The fail-closed Git provenance
+implementation was committed as `3991948354044fa20b301841c1c6329a7809f995`,
+and its versioned corrective record plus regenerated evidence were committed as
+clean checkpoint `02399187fd447883f2e488f7013a5e078fcc5575`. The active immutable
 preregistration is
 `outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_corrective_02.json`
 (SHA-256
@@ -98,8 +101,36 @@ one-replacement authorization retained that attempt and permitted the unchanged
 trial to run once. Accepted attempt
 `s4_3_rob_silence_03_boundary_support_01_20260722T000035Z_a6e524d2`
 measured zero complete events and zero boundary-censored excursions in 15
-seconds. The post-capture evidence binding is
+seconds. The original post-capture evidence binding remains byte-identical at
 `outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_evidence_manifest.json`.
+
+## Post-capture provenance correction
+
+The original post-capture validator accepted commit fields based only on
+40-character lowercase hexadecimal syntax. Before changing production code,
+regression tests reproduced acceptance of a nonexistent all-`f` object and the
+real freeze/authorization commits in reverse order. Versioned record
+`outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_provenance_correction_02.json`
+preserves and supersedes the original record for commit validation.
+
+The active validator now fails closed unless Git is available, the supplied
+root is the exact repository top-level, every bound object exists and is a
+commit, and ancestry is ordered from freeze to replacement authorization to
+the validated checkpoint and current `HEAD`. It reads only fixed
+repository-relative paths using validated object IDs and Git plumbing. At the
+freeze commit it verifies exact specification, configuration, preregistration,
+detector-contract, defect-reproduction, supersession, precollection-inventory,
+and preregistered-implementation hashes. At authorization it verifies the
+failure-handling and failed-attempt-diagnosis hashes. Blob identity checks prove
+that detector, corrective configurations, matrix preregistration, transient
+contract, and 4,000-sample clipping threshold did not change between those
+commits. Tests retain the valid real chain and reject nonexistent commits,
+reversed/broken ancestry, real commits missing frozen content, non-repositories,
+and unavailable Git.
+
+This correction changes provenance validation only. It does not change the
+detector, configuration, matrix, thresholds, trials, results, claims, or raw
+evidence, and it requires no new acquisition.
 
 ## Coordinate and analysis frames
 
@@ -285,7 +316,7 @@ superseded coordinate records are preserved.
 The corrective implementation and checkpoint-bound regenerated evidence
 produce:
 
-- targeted S4.3 tests: 81 passed;
+- targeted S4.3 tests: 86 passed;
 - S4.3 evidence build: 16/16 terminal, 15 accepted analyses, 3 retained failed
   attempts, repeatability PASS;
 - deterministic replay: 15/15 accepted analyses passed;
@@ -295,15 +326,15 @@ produce:
 - pre-capture fail-closed evidence: 21/22 contracts passed and noise alone was
   missing before the new trial;
 - `make lint` and `git diff --check`: PASS during corrective implementation;
-- `make test`: 1288 passed and 80 documented optional-dependency or
+- `make test`: 1293 passed and 80 documented optional-dependency or
   hardware-gated skips;
 - `make lint`: PASS;
 - `make build`, `make check-version`, `make check-release-source`, and
   `make audit-dist`: PASS; version 1.10.0, clean source checkpoint
-  `c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543`, sdist 410 files, wheel 134 files;
+  `02399187fd447883f2e488f7013a5e078fcc5575`, sdist 410 files, wheel 134 files;
 - Kit build/audit: PASS, 135 files;
 - controlled five-wheel wheelhouse acoustic-pack build/audit: PASS, 8 files;
-- final integrity: PASS, 353 checked artifacts including 276 machine-local
+- final integrity: PASS, 354 checked artifacts including 276 machine-local
   records and zero issues;
 - `git diff --check`: PASS.
 

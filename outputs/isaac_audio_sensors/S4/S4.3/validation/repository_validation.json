@@ -2,14 +2,15 @@
   "schema": "ias.s4_3.repository_validation.v1",
   "status": "passed",
   "corrective_02_baseline_revision": "1d0b93d95860bc88450d925f98d58d229e59c552",
-  "validated_checkpoint_revision": "c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543",
+  "provenance_validation_implementation_revision": "3991948354044fa20b301841c1c6329a7809f995",
+  "validated_checkpoint_revision": "02399187fd447883f2e488f7013a5e078fcc5575",
   "branch": "main",
   "working_tree_clean_at_release_validation": true,
   "commands": [
     {
       "command": "PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_s4_3_pilot.py",
       "result": "passed",
-      "summary": "81 passed"
+      "summary": "86 passed, including positive real-chain and negative nonexistent, reversed, missing-artifact, invalid-repository, and Git-unavailable provenance cases"
     },
     {
       "command": "PYTHONPATH=src .venv/bin/python scripts/build_s4_3_evidence.py",
@@ -19,12 +20,12 @@
     {
       "command": "PYTHONPATH=src .venv/bin/python scripts/validate_s4_3_integrity.py --require-machine-local",
       "result": "passed",
-      "summary": "353 indexed artifacts checked; 276 machine-local records; zero issues"
+      "summary": "354 indexed artifacts checked; 276 machine-local records; zero issues"
     },
     {
       "command": "make test",
       "result": "passed",
-      "summary": "1288 passed, 80 documented optional-dependency or hardware-gated skips"
+      "summary": "1293 passed, 80 documented optional-dependency or hardware-gated skips"
     },
     {
       "command": "make lint",
@@ -44,7 +45,7 @@
     {
       "command": "make check-release-source",
       "result": "passed",
-      "summary": "clean release source c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543"
+      "summary": "clean release source 02399187fd447883f2e488f7013a5e078fcc5575"
     },
     {
       "command": "make audit-dist",
@@ -54,7 +55,7 @@
     {
       "command": "make build-kit",
       "result": "passed",
-      "summary": "Kit archive built at clean revision c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543; embedded audit passed for 135 files"
+      "summary": "Kit archive built at clean revision 02399187fd447883f2e488f7013a5e078fcc5575; embedded audit passed for 135 files"
     },
     {
       "command": "make audit-kit",
@@ -64,7 +65,7 @@
     {
       "command": "make build-pack WHEELHOUSE=/tmp/ias-s4-3-wheelhouse-Yqs1Oh",
       "result": "passed",
-      "summary": "acoustic pack built from the controlled five-wheel wheelhouse at clean revision c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543"
+      "summary": "acoustic pack built from the controlled five-wheel wheelhouse at clean revision 02399187fd447883f2e488f7013a5e078fcc5575"
     },
     {
       "command": "make audit-pack",
@@ -79,7 +80,7 @@
     {
       "command": "PYTHONPATH=src .venv/bin/python scripts/validate_s4_3_integrity.py --require-machine-local --require-final --output outputs/isaac_audio_sensors/S4/S4.3/validation/final_integrity_validation.json",
       "result": "passed",
-      "summary": "353 artifacts checked including 276 machine-local records; zero issues"
+      "summary": "354 artifacts checked including 276 machine-local records; zero issues"
     }
   ],
   "s4_3_validation_artifacts": {
@@ -110,10 +111,18 @@
       "raw_channel_health_failure_count": 0,
       "raw_channel_health_failure_count_max": 0
     },
+    "corrective_02_postcapture_provenance": {
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_provenance_correction_02.json",
+      "status": "passed",
+      "commit_objects_verified": true,
+      "ordered_ancestry_verified": true,
+      "exact_commit_content_verified": true,
+      "scientific_content_unchanged": true
+    },
     "final_integrity_validation": {
       "path": "outputs/isaac_audio_sensors/S4/S4.3/validation/final_integrity_validation.json",
       "status": "passed",
-      "checked_artifact_count": 353,
+      "checked_artifact_count": 354,
       "issue_count": 0
     }
   },

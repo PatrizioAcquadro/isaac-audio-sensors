@@ -8,7 +8,8 @@
   "corrective_02_baseline_revision": "1d0b93d95860bc88450d925f98d58d229e59c552",
   "pre_capture_freeze_revision": "c6bfc002a5b7a8656797cd308b710489860517cc",
   "replacement_authorization_revision": "a7df16ebd214bfe9af65a699b3850ffe09ee6e45",
-  "validated_checkpoint_revision": "c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543",
+  "provenance_validation_implementation_revision": "3991948354044fa20b301841c1c6329a7809f995",
+  "validated_checkpoint_revision": "02399187fd447883f2e488f7013a5e078fcc5575",
   "working_tree_state": "clean_at_release_validation; finalization evidence pending separate commit",
   "active_configuration": {
     "path": "configs/s4_3_pilot_corrective_02.v1.json",
@@ -55,11 +56,22 @@
       "replacement_attempts_authorized": 1,
       "replacement_attempts_used": 1
     },
-    "postcapture_evidence_binding": {
+    "superseded_postcapture_evidence_binding": {
       "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_evidence_manifest.json",
       "sha256": "bd81077d1339ddcac9351565d529f7eb0489f7a1c8c4c0b08fd39fedffeb57ef",
+      "preserved_unchanged": true,
+      "superseded_for_commit_validation": true
+    },
+    "active_postcapture_provenance_correction": {
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/corrective_02_postcapture_provenance_correction_02.json",
+      "sha256": "35a34fba47d902c5fdddd5b78b68d802bb0cb65d0709c192125e09966d554c75",
+      "commit_objects_verified": true,
+      "ordered_ancestry_verified": true,
+      "freeze_and_authorization_content_verified": true,
+      "scientific_content_unchanged": true,
       "detector_changed_after_capture": false,
-      "raw_evidence_modified": false
+      "raw_evidence_modified": false,
+      "new_acquisition_required": false
     }
   },
   "matrix": {
@@ -87,6 +99,10 @@
     "interior_event_count_and_overlap_invariance_tested": true,
     "stationary_short_concurrence_duration_and_gap_semantics_preserved": true,
     "corrective_02_provenance_fail_closed": true,
+    "corrective_02_commit_objects_exist": true,
+    "corrective_02_commit_ancestry_ordered": true,
+    "corrective_02_commit_content_exact": true,
+    "corrective_02_invalid_or_inconclusive_git_fails_closed": true,
     "all_planned_trials_terminal": true,
     "all_attempts_and_failures_retained": true,
     "repeatability_gate_passed": true,
@@ -133,7 +149,7 @@
     "the legacy overlapping-window RMS exceedance rate is not a distinct-event rate and the legacy distinct-event rate remains Unmeasured",
     "corrective-01 and corrective-02 each measured zero events in one separate 15-second intended-silence interval; neither establishes a population event rate",
     "small-sample nearest-rank tails describe this pilot only",
-    "the PASS/GO evidence is provenance-bound to checkpoint c52a205c4a3b9f1cfc91a2cc56cfe533af7d5543; later source changes require revalidation"
+    "the PASS/GO evidence is provenance-bound to checkpoint 02399187fd447883f2e488f7013a5e078fcc5575; later source changes require revalidation"
   ],
   "scientific_scope": {
     "classification": "functional engineering characterization",
