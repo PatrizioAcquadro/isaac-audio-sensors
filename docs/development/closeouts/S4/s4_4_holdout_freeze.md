@@ -2,19 +2,19 @@
 
 ## Verdict
 
-**S4.4: NO-GO. S4.5 remains unstarted.**
+**S4.4: PASS. S4.5 remains unstarted.**
 
 The scientific freeze, exact assignment, tracked metadata package, machine-local
-hash-only seal state, access controls, and focused validation are complete and
-passing in the working tree. The remaining blocker is provenance and tracked
-delivery: the user prohibited a commit, the new implementation and closeout are
-uncommitted, and the gitignored S4.4 evidence has not been added to Git. The
-clean-source and require-tracked gates therefore cannot truthfully pass. No
-commit, push, S4.8 grant, fitting, calibration, threshold change, parameter
-tuning, or held-out evaluation was performed.
+hash-only seal state, access controls, focused validation, clean-source build,
+rebuilt Kit, clean-consumer validation, and tracked-delivery validation pass.
+The immutable implementation/source checkpoint is
+`cecc932aeca454d3e1dd49611da847f9c49ab3ae`. The evidence delivery commit is
+the Git commit containing this closeout and is intentionally not embedded in
+its own hash-bound artifacts. No push, S4.8 grant, fitting, calibration,
+threshold change, parameter tuning, or held-out evaluation was performed.
 
-This is a delivery/provenance NO-GO, not a scientific assignment failure. The
-approved assignment must not be changed in response to later outcome metrics.
+The approved assignment is final and must not be changed in response to later
+outcome metrics.
 
 ## Prerequisite and boundary
 
@@ -211,8 +211,9 @@ The companion binds the S4.3 evidence index SHA-256
 and trial inventory SHA-256
 `b2837699ecd1d7ab6ac0c71f773bcc2fd97b1e05d9e1d7e0af65b1d0b7a6555f`.
 The provenance records baseline branch `main` at
-`92578d6bff624a04971710d1ce1b6453d70e7109` and truthfully declares the final
-commit pending.
+`92578d6bff624a04971710d1ce1b6453d70e7109` and the immutable source checkpoint
+`cecc932aeca454d3e1dd49611da847f9c49ab3ae`. The delivery commit is resolved
+from Git rather than embedded self-referentially.
 
 ## Reproduction and validation
 
@@ -253,11 +254,12 @@ repository-gate results are recorded below.
 | `make lint` | PASS |
 | `make build` | PASS; sdist and wheel built and audited |
 | `make check-version` | PASS, version 1.10.0 |
-| `make check-release-source` | **FAIL as expected blocker**: the five new S4.4 source/doc/test files are uncommitted |
+| `make check-release-source` | PASS at source checkpoint `cecc932aeca454d3e1dd49611da847f9c49ab3ae` and after evidence delivery |
 | `make audit-dist` | PASS; sdist 414 files, wheel 135 files |
-| `make audit-kit` | **FAIL as expected blocker**: the existing Kit archive source-tree hash predates new `s4_4.py`; rebuilding is clean-source gated |
+| `make audit-kit` | PASS after clean-source rebuild, 136 files |
 | `make audit-pack` | PASS, 8 files |
 | `git diff --check` | PASS |
+| final validator with `--require-tracked` | PASS, all 19 indexed artifacts tracked |
 
 A clean-consumer copy excluding repository-root `dataset/` passes the final
 raw-independent validator for all 19 artifacts. Enabling machine-local mode in
@@ -268,8 +270,5 @@ content-derived values. The initial clean-copy harness accidentally excluded
 exclusion to repository-root `/dataset` corrected the harness before the
 recorded validation.
 
-The require-tracked validator remains a deliberate failure until the S4.4
-files and gitignored evidence package are added and committed. The user has not
-authorized that checkpoint. Consequently the clean-source, rebuilt Kit, final
-tracked provenance, and require-tracked gates remain unchecked blockers and
-the defensible phase verdict is NO-GO.
+All clean-source, rebuilt Kit, tracked provenance, and require-tracked gates
+pass. S4.4 is closed as PASS without opening the holdout or starting S4.5.

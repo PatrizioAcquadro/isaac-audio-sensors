@@ -1,0 +1,100 @@
+{
+  "achieved_condition_cell_counts": {
+    "fit": 10,
+    "holdout": 6
+  },
+  "achieved_condition_cell_proportions": {
+    "fit": 0.625,
+    "holdout": 0.375
+  },
+  "adapter": {
+    "assignment_producer": "S4.4 constraint-aware adapter",
+    "id": "ias.s4_4.constraint_aware_group_adapter.v1",
+    "standard_s2_5_builder_modified": false,
+    "standard_s2_5_builder_reproduction_claimed": false
+  },
+  "assignments": {
+    "fit": [
+      "g02_mac_reference_front",
+      "g04_silence",
+      "g05_mac_reference_occluded",
+      "g06_standardized_voice_left",
+      "g07_reference_voice_overlap_left",
+      "g09_ordinary_object_impact_front"
+    ],
+    "holdout": [
+      "g01_mac_reference_left_baseline",
+      "g03_mac_reference_opposite",
+      "g08_mac_reference_rear_near"
+    ]
+  },
+  "bindings": {
+    "adapter_algorithm_canonical_sha256": "7a868e2ce04a0cb19a676496b48353cb33b35d0f3aef54c8731d73045415ad4e",
+    "adapter_algorithm_file_sha256": "049ffd50c09c65bb47af24835154de030a68dc506dedbe91c51565612df9d9dc",
+    "eligible_population_group_mapping_canonical_sha256": "1621463003e3076a87586e685c69d0e5175d0ace2583eeaecf6625d0495eaa37",
+    "preseed_coverage_constraints_sha256": "07586f4790c3cd9260dee17c644abe1208b962b6cced45a6023d2f7407afd728",
+    "s4_3_evidence_index_sha256": "59a397976ca786c38bf983764c2feb27ffa7f49b731a59ebce62fb660fe29c66",
+    "s4_3_trial_inventory_sha256": "b2837699ecd1d7ab6ac0c71f773bcc2fd97b1e05d9e1d7e0af65b1d0b7a6555f"
+  },
+  "nominal_condition_cell_counts": {
+    "fit": 12,
+    "holdout": 4
+  },
+  "nominal_ratios": {
+    "fit": 0.75,
+    "holdout": 0.25
+  },
+  "optimization": {
+    "feasible_subsets_ranked": 188,
+    "global_optimum_verified": true,
+    "objective": {
+      "group_score": "first 64 bits interpreted as an unsigned big-endian integer from sha256(f'{dataset_id}:{seed}:{grouping_key}:{group_id}')",
+      "post_selection_adjustment_allowed": false,
+      "ranking_key_in_ascending_priority_order": [
+        "absolute value of holdout condition-cell weight minus nominal holdout target",
+        "underfill penalty: 1 when holdout condition-cell weight is below target, otherwise 0",
+        "holdout group count",
+        "sum of selected holdout score ranks",
+        "ascending tuple of selected holdout score ranks",
+        "lexical tuple of selected holdout group IDs"
+      ],
+      "score_order": "all group IDs sorted by (group_score, group_id)",
+      "score_rank": "zero-based position in score_order",
+      "selected_candidate": "unique minimum lexicographic ranking key"
+    },
+    "selected_ranking_key": [
+      2,
+      0,
+      3,
+      9,
+      [
+        1,
+        2,
+        6
+      ],
+      [
+        "g01_mac_reference_left_baseline",
+        "g03_mac_reference_opposite",
+        "g08_mac_reference_rear_near"
+      ]
+    ],
+    "subsets_enumerated": 512
+  },
+  "outcome_metrics_used": false,
+  "s4_5_started": false,
+  "schema": "ias.s4_4.assignment_companion.v1",
+  "score_order": [
+    "g05_mac_reference_occluded",
+    "g08_mac_reference_rear_near",
+    "g03_mac_reference_opposite",
+    "g07_reference_voice_overlap_left",
+    "g09_ordinary_object_impact_front",
+    "g02_mac_reference_front",
+    "g01_mac_reference_left_baseline",
+    "g04_silence",
+    "g06_standardized_voice_left"
+  ],
+  "seed": 0,
+  "split_plan_sha256": "1569c00cbaec57e5625e0876fd243e17a2a67b287b3edf9865e41bb7ce8c0ce3",
+  "status": "frozen"
+}

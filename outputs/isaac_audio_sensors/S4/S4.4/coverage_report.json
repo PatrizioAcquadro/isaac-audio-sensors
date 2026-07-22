@@ -1,0 +1,528 @@
+{
+  "achieved_condition_cell_counts": {
+    "fit": 10,
+    "holdout": 6
+  },
+  "achieved_condition_cell_proportions": {
+    "fit": 0.625,
+    "holdout": 0.375
+  },
+  "achieved_group_counts": {
+    "fit": 6,
+    "holdout": 3
+  },
+  "achieved_group_proportions": {
+    "fit": 0.6666666666666666,
+    "holdout": 0.3333333333333333
+  },
+  "axes": {
+    "acoustic_condition": {
+      "fit_values": [
+        "no_deliberate_source",
+        "overlapping_sources_unobstructed",
+        "same_two_stacked_rigid_cardboard_boxes_fully_blocking_direct_path",
+        "unobstructed"
+      ],
+      "holdout_values": [
+        "near_rear_boundary",
+        "unobstructed"
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        "unobstructed"
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 0,
+          "fit_proportion": 0.0,
+          "holdout_condition_cells": 1,
+          "holdout_proportion": 1.0,
+          "total_condition_cells": 1,
+          "value": "near_rear_boundary"
+        },
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 3,
+          "value": "no_deliberate_source"
+        },
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": "overlapping_sources_unobstructed"
+        },
+        {
+          "fit_condition_cells": 2,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 2,
+          "value": "same_two_stacked_rigid_cardboard_boxes_fully_blocking_direct_path"
+        },
+        {
+          "fit_condition_cells": 4,
+          "fit_proportion": 0.4444444444444444,
+          "holdout_condition_cells": 5,
+          "holdout_proportion": 0.5555555555555556,
+          "total_condition_cells": 9,
+          "value": "unobstructed"
+        }
+      ]
+    },
+    "bearing_deg_f_project": {
+      "fit_values": [
+        "not_applicable",
+        0.0,
+        90.0
+      ],
+      "holdout_values": [
+        180.0,
+        270.0,
+        90.0
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        90.0
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 3,
+          "value": "not_applicable"
+        },
+        {
+          "fit_condition_cells": 2,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 2,
+          "value": 0.0
+        },
+        {
+          "fit_condition_cells": 0,
+          "fit_proportion": 0.0,
+          "holdout_condition_cells": 1,
+          "holdout_proportion": 1.0,
+          "total_condition_cells": 1,
+          "value": 180.0
+        },
+        {
+          "fit_condition_cells": 0,
+          "fit_proportion": 0.0,
+          "holdout_condition_cells": 1,
+          "holdout_proportion": 1.0,
+          "total_condition_cells": 1,
+          "value": 270.0
+        },
+        {
+          "fit_condition_cells": 5,
+          "fit_proportion": 0.5555555555555556,
+          "holdout_condition_cells": 4,
+          "holdout_proportion": 0.4444444444444444,
+          "total_condition_cells": 9,
+          "value": 90.0
+        }
+      ]
+    },
+    "distance_m": {
+      "fit_values": [
+        "not_applicable",
+        0.91,
+        1.22
+      ],
+      "holdout_values": [
+        0.42,
+        0.91
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        0.91
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 3,
+          "value": "not_applicable"
+        },
+        {
+          "fit_condition_cells": 0,
+          "fit_proportion": 0.0,
+          "holdout_condition_cells": 1,
+          "holdout_proportion": 1.0,
+          "total_condition_cells": 1,
+          "value": 0.42
+        },
+        {
+          "fit_condition_cells": 6,
+          "fit_proportion": 0.5454545454545454,
+          "holdout_condition_cells": 5,
+          "holdout_proportion": 0.45454545454545453,
+          "total_condition_cells": 11,
+          "value": 0.91
+        },
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": 1.22
+        }
+      ]
+    },
+    "mounting_condition": {
+      "fit_values": [
+        "S4_TEMP_DESKTOP_FIXTURE_REV0"
+      ],
+      "holdout_values": [
+        "S4_TEMP_DESKTOP_FIXTURE_REV0"
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        "S4_TEMP_DESKTOP_FIXTURE_REV0"
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 10,
+          "fit_proportion": 0.625,
+          "holdout_condition_cells": 6,
+          "holdout_proportion": 0.375,
+          "total_condition_cells": 16,
+          "value": "S4_TEMP_DESKTOP_FIXTURE_REV0"
+        }
+      ]
+    },
+    "position_m_f_project": {
+      "fit_values": [
+        "[0.0,0.9,-0.135]",
+        "[0.9,0.0,-0.135]",
+        "[1.15,0.0,-0.4]",
+        "not_applicable"
+      ],
+      "holdout_values": [
+        "[-0.4,0.0,-0.135]",
+        "[0.0,-0.9,-0.135]",
+        "[0.0,0.9,-0.135]"
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        "[0.0,0.9,-0.135]"
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 0,
+          "fit_proportion": 0.0,
+          "holdout_condition_cells": 1,
+          "holdout_proportion": 1.0,
+          "total_condition_cells": 1,
+          "value": "[-0.4,0.0,-0.135]"
+        },
+        {
+          "fit_condition_cells": 0,
+          "fit_proportion": 0.0,
+          "holdout_condition_cells": 1,
+          "holdout_proportion": 1.0,
+          "total_condition_cells": 1,
+          "value": "[0.0,-0.9,-0.135]"
+        },
+        {
+          "fit_condition_cells": 5,
+          "fit_proportion": 0.5555555555555556,
+          "holdout_condition_cells": 4,
+          "holdout_proportion": 0.4444444444444444,
+          "total_condition_cells": 9,
+          "value": "[0.0,0.9,-0.135]"
+        },
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": "[0.9,0.0,-0.135]"
+        },
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": "[1.15,0.0,-0.4]"
+        },
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 3,
+          "value": "not_applicable"
+        }
+      ]
+    },
+    "room_id": {
+      "fit_values": [
+        "WANG_2022_DESK_NEAR_ENTRANCE"
+      ],
+      "holdout_values": [
+        "WANG_2022_DESK_NEAR_ENTRANCE"
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        "WANG_2022_DESK_NEAR_ENTRANCE"
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 10,
+          "fit_proportion": 0.625,
+          "holdout_condition_cells": 6,
+          "holdout_proportion": 0.375,
+          "total_condition_cells": 16,
+          "value": "WANG_2022_DESK_NEAR_ENTRANCE"
+        }
+      ]
+    },
+    "scientific_session_id": {
+      "fit_values": [
+        "s4_3_pilot_physical_session_20260721_20260722"
+      ],
+      "holdout_values": [
+        "s4_3_pilot_physical_session_20260721_20260722"
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        "s4_3_pilot_physical_session_20260721_20260722"
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 10,
+          "fit_proportion": 0.625,
+          "holdout_condition_cells": 6,
+          "holdout_proportion": 0.375,
+          "total_condition_cells": 16,
+          "value": "s4_3_pilot_physical_session_20260721_20260722"
+        }
+      ]
+    },
+    "source_device": {
+      "fit_values": [
+        "MacBookPro18,1 built-in speakers plus human voice",
+        "MacBookPro18,1 built-in speakers",
+        "human_voice",
+        "not_applicable_no_deliberate_source",
+        "ordinary_object_impact"
+      ],
+      "holdout_values": [
+        "MacBookPro18,1 built-in speakers"
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        "MacBookPro18,1 built-in speakers"
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": "MacBookPro18,1 built-in speakers plus human voice"
+        },
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 0.3333333333333333,
+          "holdout_condition_cells": 6,
+          "holdout_proportion": 0.6666666666666666,
+          "total_condition_cells": 9,
+          "value": "MacBookPro18,1 built-in speakers"
+        },
+        {
+          "fit_condition_cells": 2,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 2,
+          "value": "human_voice"
+        },
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 3,
+          "value": "not_applicable_no_deliberate_source"
+        },
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": "ordinary_object_impact"
+        }
+      ]
+    },
+    "source_identity": {
+      "fit_values": [
+        "Audio pilot check, one two three, direction test.",
+        "blue_wastebasket_plain_paper_roll_strike",
+        "not_applicable",
+        "sha256:27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468 plus frozen standardized phrase",
+        "sha256:27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+      ],
+      "holdout_values": [
+        "sha256:27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        "sha256:27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 2,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 2,
+          "value": "Audio pilot check, one two three, direction test."
+        },
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": "blue_wastebasket_plain_paper_roll_strike"
+        },
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 3,
+          "value": "not_applicable"
+        },
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": "sha256:27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468 plus frozen standardized phrase"
+        },
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 0.3333333333333333,
+          "holdout_condition_cells": 6,
+          "holdout_proportion": 0.6666666666666666,
+          "total_condition_cells": 9,
+          "value": "sha256:27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+        }
+      ]
+    },
+    "source_type": {
+      "fit_values": [
+        "reference_wav",
+        "reference_wav_plus_standardized_voice",
+        "silence",
+        "standardized_voice_phrase",
+        "visible_audible_ordinary_object_impact"
+      ],
+      "holdout_values": [
+        "reference_wav"
+      ],
+      "overlap_permitted_by": "approved full composite-condition leakage identity; equality on one axis alone does not merge groups",
+      "overlap_values": [
+        "reference_wav"
+      ],
+      "values": [
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 0.3333333333333333,
+          "holdout_condition_cells": 6,
+          "holdout_proportion": 0.6666666666666666,
+          "total_condition_cells": 9,
+          "value": "reference_wav"
+        },
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": "reference_wav_plus_standardized_voice"
+        },
+        {
+          "fit_condition_cells": 3,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 3,
+          "value": "silence"
+        },
+        {
+          "fit_condition_cells": 2,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 2,
+          "value": "standardized_voice_phrase"
+        },
+        {
+          "fit_condition_cells": 1,
+          "fit_proportion": 1.0,
+          "holdout_condition_cells": 0,
+          "holdout_proportion": 0.0,
+          "total_condition_cells": 1,
+          "value": "visible_audible_ordinary_object_impact"
+        }
+      ]
+    }
+  },
+  "claim_limits": {
+    "fit_only_conditions": [
+      "occlusion",
+      "silence",
+      "voice",
+      "overlap",
+      "impact"
+    ],
+    "fit_only_source_types": [
+      "silence",
+      "standardized_voice_phrase",
+      "reference_wav_plus_standardized_voice",
+      "visible_audible_ordinary_object_impact"
+    ],
+    "heldout_cross_device_generalization": false,
+    "heldout_cross_source_generalization": false,
+    "historical_s4_3_outcomes_already_analyzed": true,
+    "holdout_source_devices": [
+      "MacBookPro18,1 built-in speakers"
+    ],
+    "holdout_source_types": [
+      "reference_wav"
+    ]
+  },
+  "nominal_condition_cell_counts": {
+    "fit": 12,
+    "holdout": 4
+  },
+  "nominal_ratios": {
+    "fit": 0.75,
+    "holdout": 0.25
+  },
+  "outcome_metrics_used_for_selection": false,
+  "quality_ineligible_cells_counted_as_usable_coverage": false,
+  "schema": "ias.s4_4.coverage_report.v1",
+  "status": "passed"
+}

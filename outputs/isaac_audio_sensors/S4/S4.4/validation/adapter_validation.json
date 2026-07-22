@@ -1,0 +1,21 @@
+{
+  "coverage": {
+    "quality_eligible_controlled_cells": 1,
+    "quality_eligible_repeatability_cells": 4,
+    "quality_eligible_robustness_cells": 1,
+    "quality_ineligible_cells": 0,
+    "retained_failed_attempts": 1
+  },
+  "feasible_subsets": 188,
+  "global_optimum_verified": true,
+  "no_group_crossing": true,
+  "outcome_metrics_used": false,
+  "schema": "ias.s4_4.adapter_validation.v1",
+  "seed": 0,
+  "split_plan_integrity": "passed",
+  "split_plan_round_trip": "passed",
+  "standard_s2_5_builder_modified": false,
+  "standard_s2_5_builder_reproduction_claimed": false,
+  "status": "passed",
+  "subsets_enumerated": 512
+}

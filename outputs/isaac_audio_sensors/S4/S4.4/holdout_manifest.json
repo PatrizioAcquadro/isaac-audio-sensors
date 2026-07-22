@@ -1,0 +1,178 @@
+{
+  "attempts": [
+    {
+      "attempt_id": "s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83",
+      "attempt_root": "dataset/S4.3/attempts/s4_3_ctl_opposite_side_01/s4_3_ctl_opposite_side_01_20260721T195311Z_1bc0be83",
+      "category": "controlled",
+      "eligibility_reason": "quality_passed",
+      "group_id": "g03_mac_reference_opposite",
+      "lifecycle_state": "accepted",
+      "outcome": "accepted",
+      "partition": "holdout",
+      "quality_status": "passed",
+      "retained": true,
+      "trial_id": "s4_3_ctl_opposite_side_01",
+      "usable_coverage": true
+    },
+    {
+      "attempt_id": "s4_3_rob_rear_near_01_20260721T202327Z_305daa70",
+      "attempt_root": "dataset/S4.3/attempts/s4_3_rob_rear_near_01/s4_3_rob_rear_near_01_20260721T202327Z_305daa70",
+      "category": "robustness",
+      "eligibility_reason": "quality_passed",
+      "group_id": "g08_mac_reference_rear_near",
+      "lifecycle_state": "accepted",
+      "outcome": "accepted",
+      "partition": "holdout",
+      "quality_status": "passed",
+      "retained": true,
+      "trial_id": "s4_3_rob_rear_near_01",
+      "usable_coverage": true
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0",
+      "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185113Z_b8ad55a0",
+      "category": "repeatability",
+      "eligibility_reason": "pre_recording_failure_no_usable_capture",
+      "group_id": "g01_mac_reference_left_baseline",
+      "lifecycle_state": "failed",
+      "outcome": "failed",
+      "partition": "holdout",
+      "quality_status": "missing",
+      "retained": true,
+      "trial_id": "s4_3_rpt_baseline_01",
+      "usable_coverage": false
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
+      "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_01/s4_3_rpt_baseline_01_20260721T185209Z_84d9fa83",
+      "category": "repeatability",
+      "eligibility_reason": "quality_passed",
+      "group_id": "g01_mac_reference_left_baseline",
+      "lifecycle_state": "accepted",
+      "outcome": "accepted",
+      "partition": "holdout",
+      "quality_status": "passed",
+      "retained": true,
+      "trial_id": "s4_3_rpt_baseline_01",
+      "usable_coverage": true
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78",
+      "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_01_confirm_array_frame_01/s4_3_rpt_baseline_01_confirm_array_frame_01_20260721T191732Z_c6870a78",
+      "category": "repeatability",
+      "eligibility_reason": "quality_passed",
+      "group_id": "g01_mac_reference_left_baseline",
+      "lifecycle_state": "accepted",
+      "outcome": "accepted",
+      "partition": "holdout",
+      "quality_status": "passed",
+      "retained": true,
+      "trial_id": "s4_3_rpt_baseline_01_confirm_array_frame_01",
+      "usable_coverage": true
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_02_20260721T191817Z_b080d747",
+      "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_02/s4_3_rpt_baseline_02_20260721T191817Z_b080d747",
+      "category": "repeatability",
+      "eligibility_reason": "quality_passed",
+      "group_id": "g01_mac_reference_left_baseline",
+      "lifecycle_state": "accepted",
+      "outcome": "accepted",
+      "partition": "holdout",
+      "quality_status": "passed",
+      "retained": true,
+      "trial_id": "s4_3_rpt_baseline_02",
+      "usable_coverage": true
+    },
+    {
+      "attempt_id": "s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd",
+      "attempt_root": "dataset/S4.3/attempts/s4_3_rpt_baseline_03/s4_3_rpt_baseline_03_20260721T191902Z_bf39f2dd",
+      "category": "repeatability",
+      "eligibility_reason": "quality_passed",
+      "group_id": "g01_mac_reference_left_baseline",
+      "lifecycle_state": "accepted",
+      "outcome": "accepted",
+      "partition": "holdout",
+      "quality_status": "passed",
+      "retained": true,
+      "trial_id": "s4_3_rpt_baseline_03",
+      "usable_coverage": true
+    }
+  ],
+  "condition_cells": [
+    {
+      "attempt_count": 1,
+      "category": "controlled",
+      "eligibility_reason": "terminal_quality_accepted",
+      "group_id": "g03_mac_reference_opposite",
+      "partition": "holdout",
+      "quality_eligible": true,
+      "trial_id": "s4_3_ctl_opposite_side_01"
+    },
+    {
+      "attempt_count": 1,
+      "category": "robustness",
+      "eligibility_reason": "terminal_quality_accepted",
+      "group_id": "g08_mac_reference_rear_near",
+      "partition": "holdout",
+      "quality_eligible": true,
+      "trial_id": "s4_3_rob_rear_near_01"
+    },
+    {
+      "attempt_count": 2,
+      "category": "repeatability",
+      "eligibility_reason": "terminal_quality_accepted",
+      "group_id": "g01_mac_reference_left_baseline",
+      "partition": "holdout",
+      "quality_eligible": true,
+      "trial_id": "s4_3_rpt_baseline_01"
+    },
+    {
+      "attempt_count": 1,
+      "category": "repeatability",
+      "eligibility_reason": "terminal_quality_accepted",
+      "group_id": "g01_mac_reference_left_baseline",
+      "partition": "holdout",
+      "quality_eligible": true,
+      "trial_id": "s4_3_rpt_baseline_01_confirm_array_frame_01"
+    },
+    {
+      "attempt_count": 1,
+      "category": "repeatability",
+      "eligibility_reason": "terminal_quality_accepted",
+      "group_id": "g01_mac_reference_left_baseline",
+      "partition": "holdout",
+      "quality_eligible": true,
+      "trial_id": "s4_3_rpt_baseline_02"
+    },
+    {
+      "attempt_count": 1,
+      "category": "repeatability",
+      "eligibility_reason": "terminal_quality_accepted",
+      "group_id": "g01_mac_reference_left_baseline",
+      "partition": "holdout",
+      "quality_eligible": true,
+      "trial_id": "s4_3_rpt_baseline_03"
+    }
+  ],
+  "contains_analysis_content": false,
+  "contains_derived_outcomes": false,
+  "counts": {
+    "attempts": 7,
+    "condition_cells": 6,
+    "groups": 3,
+    "quality_eligible_condition_cells": 6,
+    "quality_ineligible_condition_cells": 0,
+    "retained_failed_attempts": 1,
+    "usable_attempts": 6
+  },
+  "failed_or_ineligible_counted_as_usable_coverage": false,
+  "group_ids": [
+    "g01_mac_reference_left_baseline",
+    "g03_mac_reference_opposite",
+    "g08_mac_reference_rear_near"
+  ],
+  "partition": "holdout",
+  "schema": "ias.s4_4.holdout_manifest.v1",
+  "status": "frozen"
+}

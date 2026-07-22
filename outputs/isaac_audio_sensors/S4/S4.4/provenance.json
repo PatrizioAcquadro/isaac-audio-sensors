@@ -1,0 +1,78 @@
+{
+  "baseline_branch": "main",
+  "baseline_commit": "92578d6bff624a04971710d1ce1b6453d70e7109",
+  "delivery_documents": [
+    {
+      "path": "docs/development/closeouts/S4/s4_4_holdout_freeze.md",
+      "sha256": "fec87d69c32ac6b38254b24ac9a19ee28220cb017d8eefd4870e0a56acbedb68"
+    }
+  ],
+  "evidence_delivery_commit": "the Git commit containing this artifact; intentionally not self-referenced",
+  "final_source_commit_pending": false,
+  "holdout_opened": false,
+  "holdout_seal_sha256": "e0758b9820dac2f8ba0d07e2a17ad14a107abf1a11d408e813b034cfa03c13ec",
+  "implementation": [
+    {
+      "path": "scripts/build_s4_4_evidence.py",
+      "sha256": "7e47bd4a79030f383393d70be20e0b7bc3b24fd8abfc497819ab17ae3a0ff743"
+    },
+    {
+      "path": "scripts/validate_s4_4_integrity.py",
+      "sha256": "7b46fcbb65927e1cc37a9bec896f93ad5d36ca9d1c7697b155c90982812e3ec3"
+    },
+    {
+      "path": "src/isaac_audio_sensors/acquisition/s4_4.py",
+      "sha256": "64f10737d031bbf71d05dc3d788ce73605d50c0d2ff42c7001c40a29a4064f50"
+    },
+    {
+      "path": "tests/test_s4_4_holdout_freeze.py",
+      "sha256": "18052b65050eb653fb19e181b943a8ee0af41d512c316106cac5c114da1e0ed5"
+    }
+  ],
+  "raw_media_copied_to_tracked_outputs": false,
+  "s4_5_started": false,
+  "s4_8_grant_created": false,
+  "schema": "ias.s4_4.provenance.v1",
+  "source_checkpoint_branch": "main",
+  "source_checkpoint_commit": "cecc932aeca454d3e1dd49611da847f9c49ab3ae",
+  "source_identities": [
+    {
+      "path": "docs/final_sensor_development_plan.md",
+      "sha256": "fc3a5b2ea982450d71bbd9b8d1276d260da84972d0bf9c6c74a57e8e327481b2"
+    },
+    {
+      "path": "docs/development/specs/s0_squadbot_readiness_acceptance.md",
+      "sha256": "c9b6d4c8b012d96b81bb25916a9357b567f9a90d6b0b7e0a9530c3d25a1f14e0"
+    },
+    {
+      "path": "docs/development/closeouts/S4/s4_3_pilot_repeatability.md",
+      "sha256": "f8e737cb75ee82e180dc2f3fa3df55f7053b0fe8f4002bdefb398a18bd03e537"
+    },
+    {
+      "path": "docs/development/closeouts/S2/s2_5_grouped_splits.md",
+      "sha256": "3b64b55db7e2aaacc83eaf1ed8c0cfecc2ce9aecfe64b422bb21b5c1070289c9"
+    },
+    {
+      "path": "src/isaac_audio_sensors/core/dataset/splits.py",
+      "sha256": "38fa191e37d5fe8e13856c8f1eef5fa1a01d95550a86c44c63e341cb409f47cd"
+    },
+    {
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/evidence_index.json",
+      "sha256": "59a397976ca786c38bf983764c2feb27ffa7f49b731a59ebce62fb660fe29c66"
+    },
+    {
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/trial_inventory.json",
+      "sha256": "b2837699ecd1d7ab6ac0c71f773bcc2fd97b1e05d9e1d7e0af65b1d0b7a6555f"
+    },
+    {
+      "path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/preregistration_corrective_02.json",
+      "sha256": "59e3bb8652c9a40df01a2290ac9f9e9602e325721a228247a165243b9aeb1cce"
+    },
+    {
+      "path": "configs/s4_3_pilot_corrective_02.v1.json",
+      "sha256": "af1a557c6f9504c4468515d2d1f1d1acb55e4bc13ba45adc30e0efad603ad311"
+    }
+  ],
+  "split_plan_sha256": "1569c00cbaec57e5625e0876fd243e17a2a67b287b3edf9865e41bb7ce8c0ce3",
+  "status": "frozen_source_checkpoint"
+}

@@ -1,0 +1,147 @@
+{
+  "artifacts": [
+    {
+      "byte_size": 14257,
+      "path": "docs/development/closeouts/S4/s4_4_holdout_freeze.md",
+      "retention": "tracked_metadata_only",
+      "role": "closeout",
+      "sha256": "fec87d69c32ac6b38254b24ac9a19ee28220cb017d8eefd4870e0a56acbedb68"
+    },
+    {
+      "byte_size": 1767,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/access_policy.json",
+      "retention": "tracked_metadata_only",
+      "role": "access_policy",
+      "sha256": "99b4298a1a50cb00bb9b71bdd5668e489a15b9d4cea62496135c443b498718dd"
+    },
+    {
+      "byte_size": 3412,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/assignment_companion.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "assignment_companion",
+      "sha256": "909c7e67682aed9c56adbf53718d8db400ea44bb079603997b4b794992830d77"
+    },
+    {
+      "byte_size": 16093,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/coverage_report.json",
+      "retention": "tracked_metadata_only",
+      "role": "coverage_report",
+      "sha256": "5d57d85f18f32c4c5cd40f516eb9430d2a28f5a73a49a896a8bd290ba3dfc839"
+    },
+    {
+      "byte_size": 9909,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/fit_manifest.json",
+      "retention": "tracked_metadata_only",
+      "role": "fit_manifest",
+      "sha256": "1f015d1862f8a5984ff23bca7a133fe9e0786eb8be95498b48f4178a5e983652"
+    },
+    {
+      "byte_size": 5095,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/constraint_adapter_algorithm.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "frozen_adapter_algorithm",
+      "sha256": "049ffd50c09c65bb47af24835154de030a68dc506dedbe91c51565612df9d9dc"
+    },
+    {
+      "byte_size": 11934,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/preseed_coverage_constraints.json",
+      "retention": "tracked_metadata_only",
+      "role": "frozen_coverage_constraints",
+      "sha256": "07586f4790c3cd9260dee17c644abe1208b962b6cced45a6023d2f7407afd728"
+    },
+    {
+      "byte_size": 2284,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/s2_5_constraint_feasibility.json",
+      "retention": "tracked_metadata_only",
+      "role": "s2_5_feasibility",
+      "sha256": "610ace09cfb13df44b538c95b1067d1fe70d19ffe2963b7992eca24c995d5aae"
+    },
+    {
+      "byte_size": 7947,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/group_manifest.json",
+      "retention": "tracked_metadata_only",
+      "role": "group_manifest",
+      "sha256": "4dc4ec9b8c65e94f95c24eee02374f38312a8a7c5029cedd65aeb6fe988497f6"
+    },
+    {
+      "byte_size": 6402,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/holdout_manifest.json",
+      "retention": "tracked_metadata_only",
+      "role": "holdout_manifest",
+      "sha256": "d7fee101f6c5b885b2d34c36a8dcbb34fb1ed8c25366c9bf6ec8603c45bae03e"
+    },
+    {
+      "byte_size": 44297,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/holdout_seal.json",
+      "retention": "tracked_metadata_only",
+      "role": "holdout_seal",
+      "sha256": "e0758b9820dac2f8ba0d07e2a17ad14a107abf1a11d408e813b034cfa03c13ec"
+    },
+    {
+      "byte_size": 3101,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/provenance.json",
+      "retention": "tracked_metadata_only",
+      "role": "provenance",
+      "sha256": "68fe2f388133afc5109473e389116b71c186afa647d3ff2bd7bd2b88a6233d77"
+    },
+    {
+      "byte_size": 966,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/split_plan.json",
+      "retention": "tracked_metadata_only",
+      "role": "split_plan",
+      "sha256": "5d7cc1c5dfc6cb781710fa748742f5c8be70e1937ec38ac09f3b438013e5f1ef"
+    },
+    {
+      "byte_size": 15414,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/trial_census.json",
+      "retention": "tracked_metadata_only",
+      "role": "trial_census",
+      "sha256": "a06bfa4b841c2a358fb99a560e37d7853f43ca45ea0056295395f8aafdfa63d0"
+    },
+    {
+      "byte_size": 633,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/validation/adapter_validation.json",
+      "retention": "tracked_metadata_only",
+      "role": "adapter_validation",
+      "sha256": "d246ef1a9f9aca0c9b4336d4194bd17920b6ab9ee601eadb2603ac58dc66e768"
+    },
+    {
+      "byte_size": 18512,
+      "path": "scripts/build_s4_4_evidence.py",
+      "retention": "tracked_metadata_only",
+      "role": "evidence_builder",
+      "sha256": "7e47bd4a79030f383393d70be20e0b7bc3b24fd8abfc497819ab17ae3a0ff743"
+    },
+    {
+      "byte_size": 20066,
+      "path": "scripts/validate_s4_4_integrity.py",
+      "retention": "tracked_metadata_only",
+      "role": "integrity_validator",
+      "sha256": "7b46fcbb65927e1cc37a9bec896f93ad5d36ca9d1c7697b155c90982812e3ec3"
+    },
+    {
+      "byte_size": 45745,
+      "path": "src/isaac_audio_sensors/acquisition/s4_4.py",
+      "retention": "tracked_metadata_only",
+      "role": "s4_4_implementation",
+      "sha256": "64f10737d031bbf71d05dc3d788ce73605d50c0d2ff42c7001c40a29a4064f50"
+    },
+    {
+      "byte_size": 22858,
+      "path": "tests/test_s4_4_holdout_freeze.py",
+      "retention": "tracked_metadata_only",
+      "role": "focused_tests",
+      "sha256": "18052b65050eb653fb19e181b943a8ee0af41d512c316106cac5c114da1e0ed5"
+    }
+  ],
+  "holdout_opened": false,
+  "holdout_raw_artifact_count": 98,
+  "holdout_seal_sha256": "e0758b9820dac2f8ba0d07e2a17ad14a107abf1a11d408e813b034cfa03c13ec",
+  "raw_validation_mode": "separate_machine_local_hash_only",
+  "s4_5_started": false,
+  "s4_8_grant_created": false,
+  "schema": "ias.s4_4.evidence_index.v1",
+  "split_plan_sha256": "1569c00cbaec57e5625e0876fd243e17a2a67b287b3edf9865e41bb7ce8c0ce3",
+  "status": "passed",
+  "tracked_artifact_count": 19
+}
