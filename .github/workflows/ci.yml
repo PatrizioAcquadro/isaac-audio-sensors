@@ -21,5 +21,7 @@ jobs:
         run: python -m ruff check .
       - name: Test
         run: python -m pytest
+      - name: Validate committed S4.4 evidence
+        run: python scripts/validate_s4_4_integrity.py --require-final --require-tracked
       - name: Build
         run: python -m build

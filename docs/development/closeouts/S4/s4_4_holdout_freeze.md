@@ -8,7 +8,7 @@ The scientific freeze, exact assignment, tracked metadata package, machine-local
 hash-only seal state, access controls, focused validation, clean-source build,
 rebuilt Kit, clean-consumer validation, and tracked-delivery validation pass.
 The immutable implementation/source checkpoint is
-`cecc932aeca454d3e1dd49611da847f9c49ab3ae`. The evidence delivery commit is
+`6de1c71767752a92a4b65e4b8824c09a51081aa3`. The evidence delivery commit is
 the Git commit containing this closeout and is intentionally not embedded in
 its own hash-bound artifacts. No push, S4.8 grant, fitting, calibration,
 threshold change, parameter tuning, or held-out evaluation was performed.
@@ -162,6 +162,14 @@ analysis content, or derived holdout outcomes. Its current file SHA-256 is
 `e0758b9820dac2f8ba0d07e2a17ad14a107abf1a11d408e813b034cfa03c13ec`.
 Recording the machine-local integrity event did not change this tracked hash.
 
+`holdout_manifest.json` separately and explicitly declares that it contains
+historical S4.3 per-attempt quality and lifecycle metadata: `outcome`,
+`quality_status`, `lifecycle_state`, `eligibility_reason`, and
+`usable_coverage`. These fields preserve whether an attempt completed, failed,
+or was usable; they are not held-out performance measurements. The manifest
+declares and the validator enforces that no performance metric, raw/analysis
+payload, or outcome metric used for assignment is included.
+
 Machine-local seal state, future grants, and the append-only access ledger live
 under gitignored `dataset/S4.4/access/`. No S4.8 grant exists. The ledger has a
 hash-chained seal-initialization event and hash-only integrity-validation
@@ -198,6 +206,9 @@ Tracked-package source paths are under
   `610ace09cfb13df44b538c95b1067d1fe70d19ffe2963b7992eca24c995d5aae`;
 - `freeze/constraint_adapter_algorithm.v1.json`, SHA-256
   `049ffd50c09c65bb47af24835154de030a68dc506dedbe91c51565612df9d9dc`;
+- `freeze/source_checkpoint.v1.json`, binding the exact implementation commit,
+  source files, frozen inputs, and contract SHA-256
+  `47c49096caecedf95eafc681aae93b47663f542a82e93a4002def3876e575a7f`;
 - `assignment_companion.v1.json`, binding constraints, eligible population,
   adapter/version, objective, seed, selection, achieved ratio, and SplitPlan;
 - `split_plan.json`, `group_manifest.json`, `fit_manifest.json`,
@@ -212,7 +223,7 @@ and trial inventory SHA-256
 `b2837699ecd1d7ab6ac0c71f773bcc2fd97b1e05d9e1d7e0af65b1d0b7a6555f`.
 The provenance records baseline branch `main` at
 `92578d6bff624a04971710d1ce1b6453d70e7109` and the immutable source checkpoint
-`cecc932aeca454d3e1dd49611da847f9c49ab3ae`. The delivery commit is resolved
+`6de1c71767752a92a4b65e4b8824c09a51081aa3`. The delivery commit is resolved
 from Git rather than embedded self-referentially.
 
 ## Reproduction and validation
@@ -220,10 +231,13 @@ from Git rather than embedded self-referentially.
 From the repository root:
 
 ```bash
-.venv/bin/python scripts/build_s4_4_evidence.py --initialize-access-state
-.venv/bin/python scripts/validate_s4_4_integrity.py --require-final
-.venv/bin/python scripts/validate_s4_4_integrity.py --require-final --require-machine-local --record-integrity-event
-.venv/bin/python -m pytest -q tests/test_s4_4_holdout_freeze.py tests/test_dataset_splits.py
+git checkout 6de1c71767752a92a4b65e4b8824c09a51081aa3
+.venv/bin/python scripts/build_s4_4_evidence.py --freeze-source-checkpoint
+git checkout <evidence-delivery-commit>
+.venv/bin/python scripts/build_s4_4_evidence.py
+.venv/bin/python scripts/validate_s4_4_integrity.py --require-final --require-tracked
+.venv/bin/python scripts/validate_s4_4_integrity.py --require-final --require-machine-local
+.venv/bin/python -m pytest -q tests/test_s4_4_holdout_freeze.py tests/test_s4_4_canonical_evidence.py tests/test_dataset_splits.py
 make test
 make lint
 make check-version
@@ -238,6 +252,13 @@ make audit-pack
 git diff --check
 ```
 
+The freeze command is run at the clean implementation checkpoint exactly once.
+The versioned contract is then committed unchanged with the evidence delivery.
+At the later delivery checkout, the builder consumes that contract rather than
+deriving provenance from the delivery `HEAD`; repeated builds are byte-identical.
+The build omits `--initialize-access-state` so reproduction does not rewrite the
+existing machine-local seal state or ledger.
+
 `make build` clears `dist/`, so Kit and acoustic-pack archives must be rebuilt
 after it and before their audits. The only authorized wheelhouse for this
 closeout is the existing controlled five-wheel directory
@@ -247,7 +268,7 @@ matching `packs/acoustics/requirements.lock`. If that exact directory is
 unavailable, pack rebuild/audit is a blocker; no substitute wheelhouse may be
 invented or downloaded for this closeout.
 
-Focused tests pass 33/33. The raw-independent validator passes 19 indexed
+Focused tests pass 37/37. The raw-independent validator passes 20 indexed
 tracked-metadata artifacts. The machine-local hash-only validator
 passes 98 holdout artifact records, returns no content-derived value, and does
 not open the holdout. A second isolated build is byte-identical. Final full
@@ -257,24 +278,25 @@ repository-gate results are recorded below.
 
 | Command | Result |
 | --- | --- |
-| `.venv/bin/python -m pytest -q tests/test_s4_4_holdout_freeze.py tests/test_dataset_splits.py` | PASS, 33 passed |
-| `.venv/bin/python scripts/build_s4_4_evidence.py --initialize-access-state` | PASS, seed 0, 10/6 cells, 6/3 groups, holdout unopened |
-| `.venv/bin/python scripts/validate_s4_4_integrity.py --require-final` | PASS, 19 artifacts, no raw dependency |
-| `.venv/bin/python scripts/validate_s4_4_integrity.py --require-final --require-machine-local --record-integrity-event` | PASS, 98 hash-only artifacts, no content-derived values, holdout unopened |
+| `.venv/bin/python -m pytest -q tests/test_s4_4_holdout_freeze.py tests/test_s4_4_canonical_evidence.py tests/test_dataset_splits.py` | PASS, 37 passed |
+| `.venv/bin/python scripts/build_s4_4_evidence.py` | PASS, seed 0, 10/6 cells, 6/3 groups, existing seal state preserved |
+| `.venv/bin/python scripts/validate_s4_4_integrity.py --require-final --require-tracked` | PASS, 20 artifacts, no raw dependency |
+| `.venv/bin/python scripts/validate_s4_4_integrity.py --require-final --require-machine-local` | PASS, 98 hash-only artifacts, no content-derived values, holdout unopened |
 | two isolated builder runs plus `diff -qr` | PASS, byte-identical trees and summaries |
-| `make test` | PASS, 1,311 passed and 80 optional dependency/hardware skips |
+| `make test` | PASS, 1,315 passed and 80 optional dependency/hardware skips |
 | `make lint` | PASS |
 | `make build` | PASS; sdist and wheel built and audited |
 | `make check-version` | PASS, version 1.10.0 |
-| `make check-release-source` | PASS at source checkpoint `cecc932aeca454d3e1dd49611da847f9c49ab3ae` and after evidence delivery |
-| `make audit-dist` | PASS; sdist 414 files, wheel 135 files |
+| `make check-release-source` | PASS at source checkpoint `6de1c71767752a92a4b65e4b8824c09a51081aa3` and after evidence delivery |
+| `make audit-dist` | PASS; sdist 415 files, wheel 135 files |
 | `make audit-kit` | PASS after clean-source rebuild, 136 files |
 | `make audit-pack` | PASS, 8 files |
+| CI canonical-evidence gate | PASS; clean checkout runs final tracked validation |
 | `git diff --check` | PASS |
-| final validator with `--require-tracked` | PASS, all 19 indexed artifacts tracked |
+| final validator with `--require-tracked` | PASS, all 20 indexed artifacts tracked |
 
 A clean-consumer copy excluding repository-root `dataset/` passes the final
-raw-independent validator for all 19 artifacts. Enabling machine-local mode in
+raw-independent validator for all 20 artifacts. Enabling machine-local mode in
 that copy fails honestly with 98 `missing_file` findings plus missing seal state
 and access ledger; it still reports `holdout_opened: false` and no
 content-derived values. The initial clean-copy harness accidentally excluded

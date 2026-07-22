@@ -155,8 +155,19 @@
       "trial_id": "s4_3_rpt_baseline_03"
     }
   ],
-  "contains_analysis_content": false,
-  "contains_derived_outcomes": false,
+  "content_declarations": {
+    "assignment_used_outcome_metrics": false,
+    "historical_s4_3_quality_and_lifecycle_metadata_included": true,
+    "included_attempt_metadata_fields": [
+      "eligibility_reason",
+      "lifecycle_state",
+      "outcome",
+      "quality_status",
+      "usable_coverage"
+    ],
+    "performance_metrics_included": false,
+    "raw_or_analysis_payload_included": false
+  },
   "counts": {
     "attempts": 7,
     "condition_cells": 6,
