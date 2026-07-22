@@ -1,0 +1,48 @@
+{
+  "access_histories_merged": false,
+  "aggregate_index_sha256": "2975075d070e635a72796195edd8cd7ee5444186a1c41161fb43a06d3bd307cb",
+  "assignments_merged": false,
+  "blindness_claims_merged": false,
+  "fit_holdout_group_leakage": false,
+  "logical_counts": {
+    "inherited_fit_a": 51,
+    "new_fit_b": 51,
+    "new_prospective_holdout": 47,
+    "total": 149
+  },
+  "records": [
+    {
+      "access_history": "dataset/S4.4/access/access_ledger.jsonl",
+      "historically_unopened_claim": false,
+      "record_id": "original_s4_4_freeze",
+      "role": "historically_analyzed_legacy_evidence"
+    },
+    {
+      "access_history_merged": false,
+      "blindness_claim_inherited": false,
+      "record_id": "s4_4_data_expansion_amendment_01",
+      "role": "immutable_historical_no_go_evidence",
+      "status": "no_go"
+    },
+    {
+      "access_history": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/access/access_ledger.jsonl",
+      "access_history_merged": false,
+      "blindness_claim_inherited": false,
+      "future_fit_b_or_holdout_reused": false,
+      "inherited_fit_a_sha256": "9d3473085eba5b3693da0cfa0822db81e9d3b3d58610d78214a59363ab02b1e7",
+      "logical_cell_count": 51,
+      "record_id": "s4_4_data_expansion_amendment_02",
+      "role": "immutable_predecessor_with_inherited_complete_fit_a"
+    },
+    {
+      "access_history": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/access/access_ledger.jsonl",
+      "fit_b_manifest_sha256": "cf8cd5137ab8ac64708ca10fc0efe7f6ce43fa6fc421e255596e8770431e0eaf",
+      "prospective_holdout_manifest_sha256": "1b60f3a2707cbe5cd996a6d246e056f8b18c663c6c92c01db5721bb712433e4b",
+      "record_id": "s4_4_data_expansion_amendment_03",
+      "role": "prospective_future_fit_b_and_unopened_holdout",
+      "scientifically_opened": false
+    }
+  ],
+  "schema": "ias.s4_4.aggregate_index.v3",
+  "status": "frozen_before_collection"
+}

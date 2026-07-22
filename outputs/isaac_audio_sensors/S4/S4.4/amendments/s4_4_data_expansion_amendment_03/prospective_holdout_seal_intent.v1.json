@@ -1,0 +1,12 @@
+{
+  "future_opening_workflow_implemented": false,
+  "planned_take_count": 47,
+  "prospective_holdout_manifest_sha256": "867b7799bf1fadbd0ff8abb9bdb7e5236c0cab0c23f8646f057024c7ad4464e6",
+  "repository_tool_enforcement_only": true,
+  "schema": "ias.s4_4.amendment_03_holdout_seal_intent.v1",
+  "scientific_outputs_allowed": false,
+  "scientifically_opened": false,
+  "seal_intent_sha256": "503b7ade81e08ce2d9bec403df8885a73d38e243bb1a9819f86a30d3d8801634",
+  "status": "awaiting_collection_and_technical_QA",
+  "technical_qa_only": true
+}

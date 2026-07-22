@@ -1,0 +1,17 @@
+{
+  "access_histories_merged": false,
+  "assignments_merged": false,
+  "blindness_claims_merged": false,
+  "continuation_amendment_id": "s4_4_data_expansion_amendment_03",
+  "continuation_reference_sha256": "b65774bc13acbaf812e66cc7425f2f7c57da4c348c000e611a317585d2e071cb",
+  "future_amendment_02_identities_reused": false,
+  "inherited_fit_a_sha256": "9d3473085eba5b3693da0cfa0822db81e9d3b3d58610d78214a59363ab02b1e7",
+  "inherited_logical_cells": 51,
+  "new_fit_b_cells": 51,
+  "new_prospective_holdout_cells": 47,
+  "predecessor_amendment_id": "s4_4_data_expansion_amendment_02",
+  "predecessor_modified_or_reclassified": false,
+  "predecessor_precollection_seal_file_sha256": "89c308cc69704c7a55d336d210b4137d863cf6ae701b76683f73a3f194155757",
+  "schema": "ias.s4_4.amendment_continuation_reference.v1",
+  "status": "prospective_continuation"
+}

@@ -1,0 +1,493 @@
+{
+  "amendment_id": "s4_4_data_expansion_amendment_03",
+  "continuation": {
+    "access_histories_merged": false,
+    "assignments_merged": false,
+    "blindness_claims_merged": false,
+    "inherit_completed_fit_a": true,
+    "inherit_future_fit_b_or_holdout_identities": false,
+    "mode": "prospective_continuation_without_predecessor_mutation",
+    "predecessor_amendment_id": "s4_4_data_expansion_amendment_02"
+  },
+  "durations_s": {
+    "audio_video": 20,
+    "confidence": 20,
+    "controlled": 20,
+    "silence": 15
+  },
+  "grouping": {
+    "attempt_id_participates": false,
+    "canonical_fields": [
+      "session_id",
+      "room_id",
+      "source_device",
+      "source_identity",
+      "source_type",
+      "target_position_m_f_project",
+      "target_bearing_deg_f_project",
+      "target_radius_m",
+      "mounting_condition",
+      "acoustic_condition"
+    ],
+    "no_group_crosses_fit_and_prospective_holdout": true,
+    "outcome_participates": false
+  },
+  "historical_freeze": {
+    "legacy_holdout_classification": "historically_analyzed_legacy_evidence",
+    "records": [
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/SHA256SUMS",
+        "sha256": "57299f225dbef9f4d50b2a1b0ca1acb7dffd1a4cfd0f4ff097b5786ef6bc7021"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/access_policy.json",
+        "sha256": "99b4298a1a50cb00bb9b71bdd5668e489a15b9d4cea62496135c443b498718dd"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/assignment_companion.v1.json",
+        "sha256": "909c7e67682aed9c56adbf53718d8db400ea44bb079603997b4b794992830d77"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/coverage_report.json",
+        "sha256": "5d57d85f18f32c4c5cd40f516eb9430d2a28f5a73a49a896a8bd290ba3dfc839"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/evidence_index.json",
+        "sha256": "d8c59035d1fef3cdb3f857b2b7e776356fad1a4f4855f3493713087e1a1e41c3"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/fit_manifest.json",
+        "sha256": "1f015d1862f8a5984ff23bca7a133fe9e0786eb8be95498b48f4178a5e983652"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/constraint_adapter_algorithm.v1.json",
+        "sha256": "049ffd50c09c65bb47af24835154de030a68dc506dedbe91c51565612df9d9dc"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/preseed_coverage_constraints.json",
+        "sha256": "07586f4790c3cd9260dee17c644abe1208b962b6cced45a6023d2f7407afd728"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/s2_5_constraint_feasibility.json",
+        "sha256": "610ace09cfb13df44b538c95b1067d1fe70d19ffe2963b7992eca24c995d5aae"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/freeze/source_checkpoint.v1.json",
+        "sha256": "4f71be5b43a07cb266b8dc85cb9bce98a89bc72dc70cfacc6b371177548ba645"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/group_manifest.json",
+        "sha256": "4dc4ec9b8c65e94f95c24eee02374f38312a8a7c5029cedd65aeb6fe988497f6"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/holdout_manifest.json",
+        "sha256": "52efd164abf6b3e18f97a5b0ae7e2bb7ede42c69e87e6141bef9af51c0b3b748"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/holdout_seal.json",
+        "sha256": "e0758b9820dac2f8ba0d07e2a17ad14a107abf1a11d408e813b034cfa03c13ec"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/provenance.json",
+        "sha256": "5ef1ff2023545864e31506d9ef728a9683b0825cd7c31facfee948d80bbdbadd"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/split_plan.json",
+        "sha256": "5d7cc1c5dfc6cb781710fa748742f5c8be70e1937ec38ac09f3b438013e5f1ef"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/trial_census.json",
+        "sha256": "a06bfa4b841c2a358fb99a560e37d7853f43ca45ea0056295395f8aafdfa63d0"
+      },
+      {
+        "path": "outputs/isaac_audio_sensors/S4/S4.4/validation/adapter_validation.json",
+        "sha256": "d246ef1a9f9aca0c9b4336d4194bd17920b6ab9ee601eadb2603ac58dc66e768"
+      }
+    ],
+    "root": "outputs/isaac_audio_sensors/S4/S4.4",
+    "split_plan_payload_sha256": "1569c00cbaec57e5625e0876fd243e17a2a67b287b3edf9865e41bb7ce8c0ce3"
+  },
+  "historical_no_go_amendment_01": {
+    "access_histories_merged": false,
+    "amendment_id": "s4_4_data_expansion_amendment_01",
+    "assignments_reused": false,
+    "blindness_claims_merged": false,
+    "closure_record_path": "outputs/isaac_audio_sensors/S4/S4.4/closures/s4_4_data_expansion_amendment_01_no_go.v1.json",
+    "closure_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/closures/s4_4_data_expansion_amendment_01_no_go_seal.v1.json",
+    "status": "no_go"
+  },
+  "identities": {
+    "bearing_convention": "positive_clockwise_from_+X_toward_+Y_viewed_from_above",
+    "fixture_id": "S4_TEMP_DESKTOP_FIXTURE_REV0",
+    "impact": {
+      "action": "paper_roll_strike_on_blue_wastebasket",
+      "event_confirmation_path": "dataset/S4.3/attempts/s4_3_rob_impact_av_01/s4_3_rob_impact_av_01_20260721T203052Z_blue_wastebasket_plain_paper_roll_strike/event_observation_confirmation.json",
+      "event_confirmation_sha256": "528207b2522550400589ce0365b87fdb2ebcc46df9e82b5c8151897a3982b7e",
+      "object": "plain_paper_roll",
+      "privacy_clean": true,
+      "s4_3_attempt_id": "s4_3_rob_impact_av_01_20260721T203052Z_blue_wastebasket_plain_paper_roll_strike",
+      "surface": "blue_wastebasket",
+      "three_target_elapsed_times_s": [
+        5.0,
+        10.0,
+        15.0
+      ]
+    },
+    "mac": {
+      "afplay_gain": 1.0,
+      "complete_removal_and_fresh_reposition_before_every_repetition": true,
+      "keyboard_plane": "level",
+      "lid_angle_deg": 90,
+      "model": "MacBookPro18,1",
+      "orientation": "speaker_midpoint_radially_toward_microphone_rig",
+      "output_device": "MacBook Pro Speakers",
+      "source_height_m": -0.135,
+      "ssh_alias": "patrizios-macbook",
+      "system_volume_percent": 40
+    },
+    "project_frame": "F_project",
+    "reference_wav": {
+      "duration_s": 9.5,
+      "local_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+      "mac_path": "S4.2/reference/s4_2_reference_v1.0.0.wav",
+      "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+    },
+    "respeaker": {
+      "channel_order": [
+        "Conference",
+        "ASR",
+        "raw microphone 0",
+        "raw microphone 1",
+        "raw microphone 2",
+        "raw microphone 3"
+      ],
+      "channels": 6,
+      "device": "hw:CARD=Array,DEV=0",
+      "firmware": "2.08",
+      "layout": "interleaved_pcm",
+      "model": "reSpeaker XVF3800 4-Mic Array",
+      "sample_format": "S16_LE",
+      "sample_rate_hz": 16000,
+      "serial": "114993701261100454"
+    },
+    "room_id": "WANG_2022_DESK_NEAR_ENTRANCE",
+    "zed": {
+      "camera_firmware_reference": "1523",
+      "full_replay_required": true,
+      "mode": "HD720_30FPS_PERFORMANCE_DEPTH_METERS_RIGHT_HANDED_Y_UP",
+      "model": "ZED 2i",
+      "recording_format": "SVO2_plus_frame_JSONL",
+      "sdk_version_reference": "5.4.0",
+      "sensor_firmware_reference": "777",
+      "serial": "39011785"
+    }
+  },
+  "immutable_predecessors": {
+    "amendment_01": {
+      "machine_local_tree_sha256": "da36fdacc53d5f040bbc549fa03bdc8f17e58582a6209b7987441a7592c47f68",
+      "no_go_closeout_file_sha256": "5be9d6b1fee0df5ca6ab3c99945f99ca2139fab6ad938a0772bc56ac9c9a0cec",
+      "no_go_seal_file_sha256": "14a4ac909f1988334f6c2da6541b9e6dac983e2f7841895790101b796694ce45",
+      "precollection_seal_file_sha256": "bec44c6c4968c7043f03e3fdc15771e979e2ae6a6534eb71a577797ac76434a2",
+      "tracked_tree_sha256": "ac10c42268d927952433c4205f98c9d5e73c36b022749045cff8a026acba2552"
+    },
+    "amendment_02": {
+      "fit_a_in_progress_census_sha256": "c908a5a0b1def250ec90b786190d7da0a6dcf72b3e2763dea9a94a4abccfccf3",
+      "fit_a_preflight_file_sha256": "cccf6c73a19d366e9450343b1f13d3737309fc32f5f7c88bcc7bd3a1ec0a5a4b",
+      "fit_a_preflight_payload_sha256": "96da4abd25b7a9be7190a544fe18a050ec278cd13cf4feec516b4546f631402c",
+      "fit_a_readiness_file_sha256": "4f313026d945581ec7ae446b3a7176a5f7411227f3581254614404d511899510",
+      "fit_a_readiness_payload_sha256": "190a2a7986c90256c54a5e78be8d3c131cb4881ede846a9837057eb5f304489c",
+      "fit_a_session_manifest_file_sha256": "f938c46b6ad6ad002c7da6c556d3eb0b555a24499f8da63d15b83664a423e35f",
+      "fit_a_session_manifest_payload_sha256": "bf96cd6256cac28a7d54cc050af5676049f66cfcb88ecfacd84634aab114f7de",
+      "machine_local_tree_sha256": "05ad188516a4cb66d25cd370db50f8547aeef46d631677b5b05bdd19554940be",
+      "precollection_seal_file_sha256": "89c308cc69704c7a55d336d210b4137d863cf6ae701b76683f73a3f194155757",
+      "tracked_tree_sha256": "1a79193a645083d50729ae0dfa4b794e2197e1a2005e1e7c632492ae5d60160a"
+    }
+  },
+  "inherited_fit_a": {
+    "additional_attempts_allowed_for_inherited_cells": 0,
+    "attempt_count": 52,
+    "attempt_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts",
+    "category_counts": {
+      "audio_video": 4,
+      "confidence": 12,
+      "controlled": 32,
+      "silence": 3
+    },
+    "failed_attempt_id": "s44a02_fit_a_048_av__attempt_01",
+    "failure_count": 1,
+    "logical_cell_count": 51,
+    "preflight_path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_01/sessions/fit_a/preflight.json",
+    "readiness_path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/sessions/fit_a/readiness/readiness_20260722T190919780607Z.json",
+    "replacement_attempt_id": "s44a02_fit_a_048_av__attempt_02",
+    "replacement_count": 1,
+    "session_id": "fit_a",
+    "session_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_02/manifests/sessions/fit_a.json",
+    "valid_cell_count": 51
+  },
+  "inherits_config": {
+    "path": "configs/s4_4_data_expansion_amendment_02.v1.json",
+    "sha256": "8c9cde6088135e4715dd8ef041c8289e871e9ddcf10e7b612e2ae86613bc9208"
+  },
+  "matrix": {
+    "fit": {
+      "audio_video_positions_m": [
+        [
+          1.0,
+          -0.3,
+          -0.135
+        ],
+        [
+          1.0,
+          0.3,
+          -0.135
+        ]
+      ],
+      "audio_video_repetitions_per_session": 2,
+      "confidence_bearings_deg": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "confidence_playback_gains": [
+        1.0,
+        0.5,
+        0.25
+      ],
+      "confidence_radius_m": 1.0,
+      "confidence_repetitions_per_session": 1,
+      "controlled_bearings_deg": [
+        0,
+        45,
+        90,
+        135,
+        180,
+        225,
+        270,
+        315
+      ],
+      "controlled_playback_gain": 1.0,
+      "controlled_radii_m": [
+        0.6,
+        1.0
+      ],
+      "controlled_repetitions_per_session": 2,
+      "silence_per_session": 3
+    },
+    "prospective_holdout": {
+      "audio_video_positions_m": [
+        [
+          0.8,
+          -0.2,
+          -0.135
+        ],
+        [
+          0.8,
+          0.2,
+          -0.135
+        ]
+      ],
+      "audio_video_repetitions": 2,
+      "confidence_bearings_deg": [
+        45,
+        135,
+        225,
+        315
+      ],
+      "confidence_playback_gains": [
+        0.75,
+        0.35
+      ],
+      "confidence_radius_m": 0.8,
+      "confidence_repetitions": 2,
+      "controlled_bearings_deg": [
+        22.5,
+        67.5,
+        112.5,
+        157.5,
+        202.5,
+        247.5,
+        292.5,
+        337.5
+      ],
+      "controlled_playback_gain": 0.75,
+      "controlled_radius_m": 0.8,
+      "controlled_repetitions": 3,
+      "silence": 3
+    }
+  },
+  "ordering": {
+    "fit_a": {
+      "audio_video_last": true,
+      "confidence_gain_order": "high_to_low",
+      "controlled_directions": [
+        "clockwise",
+        "counterclockwise"
+      ],
+      "controlled_radius_order_m": [
+        0.6,
+        1.0
+      ],
+      "silence_slots": [
+        "beginning",
+        "middle",
+        "end"
+      ]
+    },
+    "fit_b": {
+      "audio_video_last": true,
+      "confidence_gain_order": "low_to_high",
+      "controlled_directions": [
+        "clockwise",
+        "counterclockwise"
+      ],
+      "controlled_radius_order_m": [
+        1.0,
+        0.6
+      ],
+      "silence_slots": [
+        "beginning",
+        "middle",
+        "end"
+      ]
+    },
+    "prospective_holdout": {
+      "audio_video_last": true,
+      "confidence_counterbalance": "bearing_and_repetition_parity",
+      "controlled_sweep_directions": [
+        "clockwise",
+        "counterclockwise",
+        "clockwise"
+      ],
+      "silence_slots": [
+        "beginning",
+        "middle",
+        "end"
+      ]
+    }
+  },
+  "preflight_required_checks": [
+    "live_connectivity_and_readiness",
+    "device_and_firmware_identity",
+    "channel_order_health_sample_rate_and_format",
+    "timestamps_and_clocks",
+    "room_and_environment_record",
+    "mount_coordinate_frame_origin_and_bounds",
+    "mac_identity_volume_mute_power_keyboard_and_lid",
+    "reference_wav_checksum",
+    "camera_identity_and_readiness",
+    "privacy",
+    "disk_space_and_output_path",
+    "gitignore_and_access_ledger_state"
+  ],
+  "prospective_rule_changes": {
+    "calendar_day_separation": {
+      "distinct_calendar_dates_required": false,
+      "distinct_session_ids_required": true,
+      "same_local_calendar_date_permitted": true,
+      "scientific_limitation": "Removing day separation reduces protection against day and environment confounding.",
+      "separate_fit_b_and_holdout_preflight_and_readiness_required": true,
+      "truthful_dates_and_timestamps_required": true
+    },
+    "device_state": {
+      "live_connectivity_and_readiness_required": true,
+      "power_cycle_required": false,
+      "protocol_only_state_change_forbidden": true,
+      "reboot_required": false,
+      "restart_required": false,
+      "ssh_reconnect_required": false,
+      "usb_disconnect_reconnect_required": false
+    }
+  },
+  "replacement_policy": {
+    "maximum_replacements_per_planned_take": 1,
+    "preserve_exact_condition_and_partition": true,
+    "retain_every_attempt_and_pre_recording_failure": true,
+    "scientific_outcomes_may_drive_replacement": false,
+    "second_failure_status": "no_go"
+  },
+  "retention": {
+    "access_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/access",
+    "attempt_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts",
+    "clean_checkout_requires_raw_media": false,
+    "machine_local_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03",
+    "private_machine_local_records_gitignored": true,
+    "raw_gitignored": true,
+    "session_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/sessions",
+    "tracked_evidence_root": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03"
+  },
+  "room_bounds_m": {
+    "x": [
+      -1.2,
+      2.4
+    ],
+    "y": [
+      -5.0,
+      8.0
+    ],
+    "z": [
+      -0.47,
+      1.42
+    ]
+  },
+  "schema": "ias.s4_4.data_expansion_amendment_config.v3",
+  "scope": {
+    "excluded_work": [
+      "parameter_fitting",
+      "parameter_thresholds",
+      "profile_application",
+      "S4.7_criteria",
+      "S4.8_evaluation",
+      "precision_geometry",
+      "frequency_response_isolation",
+      "absolute_SPL",
+      "sensitivity",
+      "self_noise_SPL",
+      "certified_room_acoustic_characterization"
+    ],
+    "later_phases_started": false,
+    "phase": "S4.4",
+    "planned_fit_takes": 102,
+    "planned_prospective_holdout_takes": 47,
+    "planned_total_takes": 149,
+    "supported_future_uses": [
+      "bearing_correction",
+      "relative_channel_gain_delay_and_polarity",
+      "confidence_and_abstention_behavior",
+      "coarse_audio_video_timing"
+    ]
+  },
+  "sessions": [
+    {
+      "logical_cell_count": 51,
+      "new_planned_take_count": 0,
+      "origin": "inherited_amendment_02",
+      "partition": "fit",
+      "same_calendar_date_permitted": true,
+      "session_id": "fit_a"
+    },
+    {
+      "logical_cell_count": 51,
+      "new_planned_take_count": 51,
+      "origin": "new_amendment_03",
+      "partition": "fit",
+      "same_calendar_date_permitted": true,
+      "session_id": "fit_b"
+    },
+    {
+      "logical_cell_count": 47,
+      "new_planned_take_count": 47,
+      "origin": "new_amendment_03",
+      "partition": "prospective_holdout",
+      "same_calendar_date_permitted": true,
+      "session_id": "prospective_holdout"
+    }
+  ],
+  "status": "prospective_precollection",
+  "timing": {
+    "coarse_audio_video_only": true,
+    "inherit": "S4.2_and_S4.3_lead_in_tail_playback_synchronization_and_safety_margins",
+    "ssh_timing_is_synchronization": false
+  },
+  "version": 3
+}

@@ -1,0 +1,45 @@
+{
+  "S4.5_or_later_started": false,
+  "collection_allowed": true,
+  "commit_status": "committed",
+  "holdout_scientifically_opened": false,
+  "inherited_fit_a_census": {
+    "attempts": 52,
+    "failures": 1,
+    "logical_cells": 51,
+    "replacements": 1,
+    "valid_cells": 51
+  },
+  "live_readiness_required": true,
+  "logical_counts": {
+    "inherited_fit_a": 51,
+    "new_fit_b": 51,
+    "new_prospective_holdout": 47,
+    "total": 149
+  },
+  "new_planned_counts": {
+    "fit_b": 51,
+    "prospective_holdout": 47
+  },
+  "no_fit_holdout_group_crossing": true,
+  "predecessor_bytes_unchanged": true,
+  "predecessor_validation": {
+    "amendment_01": {
+      "machine_local_record_count": 10,
+      "machine_local_tree_sha256": "da36fdacc53d5f040bbc549fa03bdc8f17e58582a6209b7987441a7592c47f68",
+      "tracked_record_count": 20,
+      "tracked_tree_sha256": "ac10c42268d927952433c4205f98c9d5e73c36b022749045cff8a026acba2552"
+    },
+    "amendment_02": {
+      "machine_local_record_count": 718,
+      "machine_local_tree_sha256": "05ad188516a4cb66d25cd370db50f8547aeef46d631677b5b05bdd19554940be",
+      "tracked_record_count": 17,
+      "tracked_tree_sha256": "1a79193a645083d50729ae0dfa4b794e2197e1a2005e1e7c632492ae5d60160a"
+    }
+  },
+  "restart_or_reconnection_required": false,
+  "same_calendar_date_permitted": true,
+  "schema": "ias.s4_4.amendment_03_precollection_validation.v1",
+  "status": "passed",
+  "truthful_dates_timestamps_and_distinct_session_ids_required": true
+}

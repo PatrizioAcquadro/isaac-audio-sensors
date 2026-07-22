@@ -1,0 +1,119 @@
+{
+  "amendment_id": "s4_4_data_expansion_amendment_03",
+  "bindings": {
+    "access_policy_file_sha256": "11919c3c40a41e2334fb1673d3cf80d3b7596a3cc53ba0b91279dd175dd7773c",
+    "aggregate_index_file_sha256": "3cd01680fed7be5483d3d11e49216ff6f02b03fb21058188e453646ea314bd81",
+    "amendment_01_machine_local_tree_sha256": "da36fdacc53d5f040bbc549fa03bdc8f17e58582a6209b7987441a7592c47f68",
+    "amendment_01_tracked_tree_sha256": "ac10c42268d927952433c4205f98c9d5e73c36b022749045cff8a026acba2552",
+    "amendment_02_machine_local_tree_sha256": "05ad188516a4cb66d25cd370db50f8547aeef46d631677b5b05bdd19554940be",
+    "amendment_02_precollection_seal_file_sha256": "89c308cc69704c7a55d336d210b4137d863cf6ae701b76683f73a3f194155757",
+    "amendment_02_tracked_tree_sha256": "1a79193a645083d50729ae0dfa4b794e2197e1a2005e1e7c632492ae5d60160a",
+    "config_file_sha256": "0574db845e9c0d07779a440b468eb4eb73056e88b8fba04814f409b4e4e25c52",
+    "continuation_reference_file_sha256": "4efb3dc183fdbd760f77573b497dbc756c09698283aeeb62b146d30bafda3d6c",
+    "fit_b_partition_manifest_file_sha256": "6bead6134592cbe9f784a0eb8657533b74cf90e5d215f3005e8c3fdf02a22bb0",
+    "fit_b_session_manifest_file_sha256": "5f06c4b51583516a4a96d96d7230231f2437c784d253d158d6c061387194a74a",
+    "holdout_partition_manifest_file_sha256": "377c53d868dea4a89329a925763734da6a38920c7246821c902807c1667e0320",
+    "holdout_seal_intent_file_sha256": "34b6bc2fe49c493809b55902da93d7e0d5973d8dd941c94955894627b76f46a3",
+    "holdout_session_manifest_file_sha256": "587c7ff093f086f304e12a7e55459bf8b19d326132cd0550c7218b6cf38c84d3",
+    "inherited_fit_a_file_sha256": "2b9cb2a91a7c0a9a7af208631b9d3370e8cee887f842769e77fae417e3db9212",
+    "schema_s4_4_amendment_aggregate_index_v3_schema_sha256": "ffbea5519b0dcc40939c3c0e2ad1ae40dab29232854f0bcc1b5c2ca33496b2f7",
+    "schema_s4_4_amendment_inherited_fit_a_v1_schema_sha256": "80303fc47a24e1a46c978b112f634c61de6960dc112fc00af4ed7b98dcc94d4e",
+    "schema_s4_4_amendment_manifest_v3_schema_sha256": "6b524de442719ea150a93379ec22e36371aad691f900bc3a2790d91e82f35926",
+    "schema_s4_4_amendment_precollection_seal_v3_schema_sha256": "48ea9e6539217ad46fe214abb179d298e7cacf4231802a7520a9b3e9a0546916",
+    "schema_s4_4_amendment_session_preflight_v2_schema_sha256": "9a304090c1041f77217b4ee1a62f40ff18a7184be19a5e0d722f229d3f0df204",
+    "schema_s4_4_amendment_session_readiness_v2_schema_sha256": "bcd631d7431a45a4cd89a030733ca5b295a817c47067dadd459b6c4955d010b8"
+  },
+  "capture_prohibited_until_committed_and_sealed": true,
+  "collection_allowed": true,
+  "holdout_scientifically_opened": false,
+  "s4_5_or_later_started": false,
+  "schema": "ias.s4_4.amendment_precollection_seal.v3",
+  "seal_payload_sha256": "7fd2fbdea8c7d783d3759f15a670c72f5df7763de08eb4de3a708835f25061fd",
+  "source_checkpoint": {
+    "checkpoint_sha256": "6445ee4080824c2da09c4c3853308dcb368948c33f3fe845b3f3d04b751528aa",
+    "commit": "8662056bde2d2ad818d57c80625badc2d38794a9",
+    "source_records": [
+      {
+        "path": "configs/s4_4_data_expansion_amendment_03.v1.json",
+        "sha256": "47922f194c3ba8fa642b2537bb5530efc24f2e3f180ff2f6201765489874ec2a"
+      },
+      {
+        "path": "docs/development/specs/s4_4_data_expansion_amendment_03.md",
+        "sha256": "4980431965ea07075647363de2dc81a1c93007b3b88dec9a71a2ae17ac3e0b5f"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_aggregate_index.v3.schema.json",
+        "sha256": "ffbea5519b0dcc40939c3c0e2ad1ae40dab29232854f0bcc1b5c2ca33496b2f7"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_inherited_fit_a.v1.schema.json",
+        "sha256": "80303fc47a24e1a46c978b112f634c61de6960dc112fc00af4ed7b98dcc94d4e"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_manifest.v3.schema.json",
+        "sha256": "6b524de442719ea150a93379ec22e36371aad691f900bc3a2790d91e82f35926"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_precollection_seal.v3.schema.json",
+        "sha256": "48ea9e6539217ad46fe214abb179d298e7cacf4231802a7520a9b3e9a0546916"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_session_preflight.v2.schema.json",
+        "sha256": "9a304090c1041f77217b4ee1a62f40ff18a7184be19a5e0d722f229d3f0df204"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_session_readiness.v2.schema.json",
+        "sha256": "bcd631d7431a45a4cd89a030733ca5b295a817c47067dadd459b6c4955d010b8"
+      },
+      {
+        "path": "scripts/build_s4_4_amendment_03.py",
+        "sha256": "9c2f12782f5356c918fea5ae0ab09ecf91c55c91d9008116e80d7771c58b9576"
+      },
+      {
+        "path": "scripts/execute_s4_4_amendment_03_attempt.py",
+        "sha256": "c07f4cb92ea32eeb1096b41fb65a5d77a00ae6d18c3906a4e4b04409915d4a94"
+      },
+      {
+        "path": "scripts/execute_s4_4_amendment_attempt.py",
+        "sha256": "27a08306c9080d31f54b02383d2c1ade97fa3e3ef785d30931a2ce37f6ce39dd"
+      },
+      {
+        "path": "scripts/preflight_s4_2_zed.py",
+        "sha256": "4a4ca08aca2d51f57fa69bffe079633d3d22953cea28485748c91ec2c76c57d9"
+      },
+      {
+        "path": "scripts/run_s4_4_amendment_03_readiness.py",
+        "sha256": "e8953f5c7d728434e38553699d587ede3c25fe01654121f2d662a270f10d349f"
+      },
+      {
+        "path": "scripts/run_s4_4_amendment_03_take.py",
+        "sha256": "9f4efbed4f8991a19a6b6c0190a380e9ae515a00c8a727b986ad55af88cdce16"
+      },
+      {
+        "path": "scripts/s4_2_mac_preflight.py",
+        "sha256": "693b731219c846d0ccde308a152641c1c9a71c94ffb046f0fcb2e413b204202f"
+      },
+      {
+        "path": "scripts/s4_2_pi_capture.py",
+        "sha256": "af9a18fe855da034d062c4b50eddf559b7d57c0241324f77b8d13381d69da997"
+      },
+      {
+        "path": "scripts/validate_s4_4_amendment_03.py",
+        "sha256": "a4fa2b653cd8c8ba09aa04c99bfa95d631cb6041c8b8f05e07f624c2a965eeba"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment.py",
+        "sha256": "4473cd77561d41101870a508b8f6980a0f3082f00042ab010f6d7002a7aa15c7"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment_03.py",
+        "sha256": "8236c2f63e693d6567e4a62b5dda5fd9351881155b2f719857bc72681e126175"
+      },
+      {
+        "path": "tests/test_s4_4_amendment_03.py",
+        "sha256": "7609ed318dd108d5abda3f90a5247677ce81c0ead272f98b4b295199407c281f"
+      }
+    ]
+  },
+  "status": "committed"
+}
