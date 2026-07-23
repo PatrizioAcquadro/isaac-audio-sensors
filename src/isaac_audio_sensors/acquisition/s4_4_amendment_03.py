@@ -68,6 +68,24 @@ REQUIRED_READINESS_CHECKS = {
     "access_policy_and_ledger_state",
 }
 
+
+def active_precollection_package(evidence_root: Path) -> tuple[Path, Path]:
+    """Return the active same-amendment index and seal, failing closed on partial v2."""
+
+    index_v2 = evidence_root / "evidence_index.v2.json"
+    seal_v2 = evidence_root / "precollection_seal.v2.json"
+    checksum_v2 = evidence_root / "SHA256SUMS.v2"
+    if any(path.exists() for path in (index_v2, seal_v2, checksum_v2)):
+        if not all(path.is_file() for path in (index_v2, seal_v2, checksum_v2)):
+            raise S44AmendmentError(
+                "amendment_03 multiday continuation package is incomplete"
+            )
+        return index_v2, seal_v2
+    return evidence_root / "evidence_index.v1.json", evidence_root / (
+        "precollection_seal.v1.json"
+    )
+
+
 _TRACKED_PATHS = {
     "amendment_01": (
         "configs/s4_4_data_expansion_amendment_01.v1.json",
@@ -908,10 +926,13 @@ def validate_session_preflight(
     _parse_timestamp(record.get("collected_at_utc"), "collected_at_utc")
     if recorded_at.date() != session_date:
         raise S44AmendmentError("session date and truthful local timestamp disagree")
-    if any(
-        other.get("session_id") == record.get("session_id") for other in other_records
-    ):
-        raise S44AmendmentError("session IDs must remain distinct")
+    for other in other_records:
+        if other.get("session_id") == record.get("session_id") and other.get(
+            "session_date_local"
+        ) == record.get("session_date_local"):
+            raise S44AmendmentError(
+                "only one preflight is permitted per session and local-date segment"
+            )
     checks = record.get("checks")
     required = set(config["preflight_required_checks"])
     if not isinstance(checks, Mapping) or set(checks) != required:

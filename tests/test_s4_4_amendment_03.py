@@ -25,6 +25,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     PREFLIGHT_SCHEMA,
     READINESS_SCHEMA,
     REQUIRED_READINESS_CHECKS,
+    active_precollection_package,
     build_aggregate_index,
     build_future_manifests,
     build_inherited_fit_a,
@@ -39,6 +40,12 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     validate_session_readiness,
 )
 from scripts.build_s4_4_amendment_03 import build
+from scripts.build_s4_4_amendment_03_multiday import (
+    V1_PACKAGE_SHA256,
+)
+from scripts.build_s4_4_amendment_03_multiday import (
+    build as build_multiday,
+)
 from scripts.validate_s4_4_amendment import validate as validate_predecessor_amendment
 from scripts.validate_s4_4_amendment_03 import validate
 
@@ -295,16 +302,26 @@ def test_aggregate_logical_counts_and_no_group_leakage(
     assert all(len(values) == 1 for values in partitions.values())
 
 
-def test_same_calendar_date_sessions_are_accepted_but_ids_stay_distinct(
+def test_same_date_sessions_and_multiday_session_segments_are_accepted(
     config: dict,
 ) -> None:
     fit_b = _preflight(config, "fit_b", "2026-07-22")
     holdout = _preflight(config, "prospective_holdout", "2026-07-22")
+    fit_b_next_date = _preflight(config, "fit_b", "2026-07-23")
     validate_session_preflight(fit_b, config, other_records=[])
     validate_session_preflight(holdout, config, other_records=[fit_b])
-    duplicate_id = _preflight(config, "fit_b", "2026-07-22")
-    with pytest.raises(S44AmendmentError, match="session IDs"):
-        validate_session_preflight(duplicate_id, config, other_records=[fit_b])
+    validate_session_preflight(fit_b_next_date, config, other_records=[fit_b, holdout])
+    duplicate_segment = _preflight(config, "fit_b", "2026-07-22")
+    with pytest.raises(S44AmendmentError, match="local-date segment"):
+        validate_session_preflight(
+            duplicate_segment, config, other_records=[fit_b, holdout]
+        )
+
+
+def test_partial_multiday_package_fails_closed(tmp_path: Path) -> None:
+    (tmp_path / "precollection_seal.v2.json").write_text("{}\n", encoding="utf-8")
+    with pytest.raises(S44AmendmentError, match="incomplete"):
+        active_precollection_package(tmp_path)
 
 
 def test_truthful_exact_dates_and_timezone_aware_timestamps_required(
@@ -622,6 +639,44 @@ def test_builder_is_byte_identical_and_validator_passes(
         require_final=False,
     )
     assert result["status"] == "passed", result["issues"]
+    assert result["prospective_holdout_scientifically_opened"] is False
+
+
+def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "multiday-first"
+    second = tmp_path / "multiday-second"
+    first_summary = build_multiday(output=first, config_path=CONFIG_PATH)
+    second_summary = build_multiday(output=second, config_path=CONFIG_PATH)
+    assert first_summary == second_summary
+    assert first_summary["new_amendment_created"] is False
+    assert first_summary["collection_allowed"] is False
+    first_files = {
+        path.relative_to(first).as_posix(): path.read_bytes()
+        for path in first.rglob("*")
+        if path.is_file()
+    }
+    second_files = {
+        path.relative_to(second).as_posix(): path.read_bytes()
+        for path in second.rglob("*")
+        if path.is_file()
+    }
+    assert first_files == second_files
+    assert {
+        relative: sha256_file(first / relative) for relative in V1_PACKAGE_SHA256
+    } == V1_PACKAGE_SHA256
+    result = validate(
+        first / "evidence_index.v2.json",
+        repo_root=ROOT,
+        config_path=CONFIG_PATH,
+        require_tracked=False,
+        require_committed=False,
+        require_machine_local=True,
+        require_final=False,
+    )
+    assert result["status"] == "passed", result["issues"]
+    assert result["attempt_census"]["valid_cells_total"] == 85
     assert result["prospective_holdout_scientifically_opened"] is False
 
 

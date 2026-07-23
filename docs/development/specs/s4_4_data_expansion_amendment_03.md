@@ -43,10 +43,14 @@ S4.5-S4.8 work is part of this amendment.
 
 Fit A, Fit B, and prospective holdout may share the same truthful local
 calendar date. Dates and timezone-aware local/UTC timestamps remain mandatory,
-and session IDs remain distinct. Fit B and holdout remain separate acquisition
-sessions, each with a separate preflight and separate hash-bound no-media
-readiness record. The holdout remains a separate protected partition even if
-collected on the same date.
+and Fit B and holdout session IDs remain distinct. A single acquisition session
+may also continue across more than one local calendar date without changing its
+session ID. Each active local-date segment requires its own truthful preflight
+and separate hash-bound no-media readiness record before any attempt is
+allocated on that date; an earlier segment's records remain retained and must
+not be overwritten or re-dated. Fit B and holdout remain separate acquisition
+sessions with separate preflight/readiness histories. The holdout remains a
+separate protected partition even if collected on the same date.
 
 Removing distinct-day separation reduces protection against day and
 environment confounding. This limitation must remain in later reporting and
@@ -102,10 +106,14 @@ protection. No future holdout-opening workflow is implemented.
 
 The deterministic builder emits the inherited Fit A inventory, future Fit B
 and holdout manifests, aggregate logical index, access policy, evidence index,
-source checkpoint, and precollection seal. Two isolated builds must be
-byte-identical. Before Fit B capture, the implementation owner reports all
-amendment_03 and inherited hashes and proves both predecessors unchanged, then
-stops for explicit authorization before the source commit and again before the
+source checkpoint, and precollection seal. If source enforcement is corrected
+after collection begins, the same amendment may add a new evidence-package
+version that binds the earlier package and every retained attempt at an exact
+cutoff; it must not replace the earlier package, change planned identities, or
+create a new amendment. Two isolated builds must be byte-identical. Before Fit
+B capture, the implementation owner reports all amendment_03 and inherited
+hashes and proves both predecessors unchanged, then stops for explicit
+authorization before the source commit and again before the
 precollection-evidence commit. No push is authorized.
 
 Only after both commits and all post-commit validators/build/audits pass may

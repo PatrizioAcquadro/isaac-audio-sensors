@@ -10,7 +10,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.acquisition.s4_4_amendment import load_json, sha256_file
+from isaac_audio_sensors.acquisition.s4_4_amendment import (
+    canonical_sha256,
+    load_json,
+    sha256_file,
+)
 from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     LOGICAL_COUNTS,
     S44AmendmentError,
@@ -26,6 +30,17 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     validate_inherited_fit_a,
     validate_precollection_seal,
     validate_predecessor_bytes,
+)
+from scripts.build_s4_4_amendment_03_multiday import (
+    CHECKSUM_PATH as CHECKSUM_PATH_V2,
+)
+from scripts.build_s4_4_amendment_03_multiday import (
+    CONTINUATION_PATH,
+    V1_PACKAGE_SHA256,
+    build_cutoff_inventory,
+)
+from scripts.build_s4_4_amendment_03_multiday import (
+    SEAL_PATH as SEAL_PATH_V2,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -125,8 +140,13 @@ def validate(
         )
     canonical_output = Path(config["retention"]["tracked_evidence_root"])
     index = load_json(index_path)
+    index_schema = index.get("schema")
     if (
-        index.get("schema") != "ias.s4_4.amendment_03_evidence_index.v1"
+        index_schema
+        not in {
+            "ias.s4_4.amendment_03_evidence_index.v1",
+            "ias.s4_4.amendment_03_evidence_index.v2",
+        }
         or index.get("logical_counts") != LOGICAL_COUNTS
         or index.get("new_planned_counts") != {"fit_b": 51, "prospective_holdout": 47}
         or index.get("prospective_holdout_scientifically_opened") is not False
@@ -137,6 +157,18 @@ def validate(
     ):
         issues.append(
             _issue("evidence_index_invalid", str(index_path), "contract mismatch")
+        )
+    if index_schema == "ias.s4_4.amendment_03_evidence_index.v2" and (
+        index.get("amendment_id") != "s4_4_data_expansion_amendment_03"
+        or index.get("new_amendment_created") is not False
+        or index.get("v1_package_sha256") != V1_PACKAGE_SHA256
+    ):
+        issues.append(
+            _issue(
+                "multiday_evidence_index_invalid",
+                str(index_path),
+                "same-amendment continuation contract mismatch",
+            )
         )
 
     artifacts = (
@@ -176,15 +208,22 @@ def validate(
             repo_relative = candidate.resolve().relative_to(repo_root).as_posix()
             if not _tracked(repo_root, repo_relative):
                 issues.append(_issue("artifact_not_tracked", relative, "not in Git"))
+    checksum_path = evidence_root / (
+        CHECKSUM_PATH_V2
+        if index_schema == "ias.s4_4.amendment_03_evidence_index.v2"
+        else "SHA256SUMS"
+    )
     try:
-        if _checksums(evidence_root / "SHA256SUMS") != expected_checksums:
+        if _checksums(checksum_path) != expected_checksums:
             issues.append(
-                _issue("checksum_coverage_mismatch", "SHA256SUMS", "index differs")
+                _issue(
+                    "checksum_coverage_mismatch", str(checksum_path), "index differs"
+                )
             )
     except (OSError, S44AmendmentError) as exc:
-        issues.append(_issue("checksums_invalid", "SHA256SUMS", str(exc)))
+        issues.append(_issue("checksums_invalid", str(checksum_path), str(exc)))
     if require_tracked:
-        for metadata_path in (index_path, evidence_root / "SHA256SUMS"):
+        for metadata_path in (index_path, checksum_path):
             if not _committed_exact(repo_root, metadata_path):
                 issues.append(
                     _issue(
@@ -237,7 +276,52 @@ def validate(
             _issue("amendment_03_contract_invalid", str(evidence_root), str(exc))
         )
 
-    seal_path = evidence_root / "precollection_seal.v1.json"
+    if index_schema == "ias.s4_4.amendment_03_evidence_index.v2":
+        try:
+            continuation = load_json(evidence_root / CONTINUATION_PATH)
+            expected_cutoff = build_cutoff_inventory(config, repo_root)
+            if (
+                continuation.get("schema")
+                != "ias.s4_4.amendment_03_multiday_continuation.v2"
+                or continuation.get("amendment_id")
+                != "s4_4_data_expansion_amendment_03"
+                or continuation.get("new_amendment_created") is not False
+                or continuation.get("scientific_condition_matrix_changed") is not False
+                or continuation.get("future_take_identities_changed") is not False
+                or continuation.get("immutable_v1_package_sha256") != V1_PACKAGE_SHA256
+                or continuation.get("cutoff") != expected_cutoff
+                or continuation.get("calendar_policy", {}).get(
+                    "one_session_may_span_multiple_local_dates"
+                )
+                is not True
+                or continuation.get("calendar_policy", {}).get(
+                    "one_preflight_per_session_and_local_date_segment"
+                )
+                is not True
+                or continuation.get("continuation_sha256")
+                != canonical_sha256(
+                    {
+                        key: value
+                        for key, value in continuation.items()
+                        if key != "continuation_sha256"
+                    }
+                )
+            ):
+                raise S44AmendmentError("same-amendment multiday continuation differs")
+        except (OSError, KeyError, S44AmendmentError) as exc:
+            issues.append(
+                _issue(
+                    "multiday_continuation_invalid",
+                    str(evidence_root / CONTINUATION_PATH),
+                    str(exc),
+                )
+            )
+
+    seal_path = evidence_root / (
+        SEAL_PATH_V2
+        if index_schema == "ias.s4_4.amendment_03_evidence_index.v2"
+        else "precollection_seal.v1.json"
+    )
     try:
         seal = load_json(seal_path)
         validate_precollection_seal(

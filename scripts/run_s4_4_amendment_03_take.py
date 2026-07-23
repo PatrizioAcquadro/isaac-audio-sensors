@@ -17,6 +17,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
 )
 from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     S44AmendmentError,
+    active_precollection_package,
     load_configuration,
     validate_configuration,
     validate_inherited_fit_a,
@@ -52,14 +53,14 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     config = load_configuration((args.config or DEFAULT_CONFIG).resolve(), ROOT)
     validate_configuration(config)
     evidence_root = ROOT / config["retention"]["tracked_evidence_root"]
+    index_path, seal_path = active_precollection_package(evidence_root)
     require_capture_ready_package(
-        evidence_root / "evidence_index.v1.json",
+        index_path,
         repo_root=ROOT,
         config_path=(args.config or DEFAULT_CONFIG).resolve(),
     )
     inherited = load_json(evidence_root / "inheritance/inherited_fit_a.v1.json")
     validate_inherited_fit_a(inherited, config)
-    seal_path = evidence_root / "precollection_seal.v1.json"
     seal = load_json(seal_path)
     validate_precollection_seal(seal, repo_root=ROOT, require_committed=True)
     manifest = load_json(evidence_root / f"manifests/sessions/{args.session_id}.json")
@@ -72,7 +73,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     session_root = ROOT / config["retention"]["session_root"]
     other_records = [
         load_json(path)
-        for path in sorted(session_root.glob("*/preflight.json"))
+        for path in sorted(session_root.rglob("preflight.json"))
         if path.resolve() != args.preflight.resolve()
     ]
     validate_session_preflight(preflight, config, other_records=other_records)

@@ -16,6 +16,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     READINESS_SCHEMA,
     REQUIRED_READINESS_CHECKS,
     S44AmendmentError,
+    active_precollection_package,
     canonical_sha256,
     load_configuration,
     validate_configuration,
@@ -87,19 +88,25 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if args.network_permission_confirmation != NETWORK_CONFIRMATION:
         raise S44AmendmentError("external-network permission confirmation absent")
     evidence_root = ROOT / config["retention"]["tracked_evidence_root"]
+    index_path, seal_path = active_precollection_package(evidence_root)
     require_capture_ready_package(
-        evidence_root / "evidence_index.v1.json",
+        index_path,
         repo_root=ROOT,
         config_path=args.config.resolve(),
     )
-    seal_path = evidence_root / "precollection_seal.v1.json"
     seal = load_json(seal_path)
     validate_precollection_seal(seal, repo_root=ROOT, require_committed=True)
     seal_sha256 = sha256_file(seal_path)
     if seal_sha256 != args.expected_precollection_seal_sha256:
         raise S44AmendmentError("amendment_03 precollection seal hash mismatch")
     preflight = load_json(args.session_preflight)
-    validate_session_preflight(preflight, config, other_records=[])
+    session_root = ROOT / config["retention"]["session_root"]
+    other_records = [
+        load_json(path)
+        for path in sorted(session_root.rglob("preflight.json"))
+        if path.resolve() != args.session_preflight.resolve()
+    ]
+    validate_session_preflight(preflight, config, other_records=other_records)
     if preflight.get("session_id") != args.session_id:
         raise S44AmendmentError("amendment_03 preflight/session mismatch")
     if preflight.get("session_date_local") != date.today().isoformat():
@@ -262,7 +269,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         ),
     }
     record = {**payload, "readiness_sha256": canonical_sha256(payload)}
-    session_root = ROOT / config["retention"]["session_root"] / args.session_id
+    session_root = args.session_preflight.resolve().parent
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     destination = (
         session_root / "readiness" / f"readiness_{stamp}.json"

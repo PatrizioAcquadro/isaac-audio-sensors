@@ -2,14 +2,24 @@
 
 ## Current verdict
 
-**PRECOMMIT IMPLEMENTATION COMPLETE / SOURCE-COMMIT AUTHORIZATION REQUIRED /
-CAPTURE PROHIBITED. S4.5 and later phases remain unstarted.**
+**FIT B IN PROGRESS / SAME-AMENDMENT MULTIDAY ENFORCEMENT CORRECTION IN
+PROGRESS / CAPTURE PROHIBITED UNTIL THE CORRECTED SOURCE AND ADDITIVE EVIDENCE
+PACKAGE ARE COMMITTED AND VALIDATED. S4.5 and later phases remain unstarted.**
 
-Amendment 03 prospectively permits same-calendar-date sessions and removes any
-protocol-only restart/reconnection requirement while retaining truthful
-dates/timestamps, distinct session IDs, separate Fit B/holdout preflight and
-readiness gates, and all live device, identity, format, storage, privacy,
-clock, path, and access checks.
+Amendment 03 prospectively permits same-calendar-date sessions, permits one
+session to continue across multiple truthful local-date segments, and removes
+any protocol-only restart/reconnection requirement. Each active date segment
+still requires a separate truthful preflight and hash-bound no-media readiness
+record. Fit B and holdout retain distinct session IDs, separate
+preflight/readiness histories, and all live device, identity, format, storage,
+privacy, clock, path, and access checks.
+
+The original committed v1 package and Fit B takes 1-34 remain immutable. The
+multiday correction stays within
+`s4_4_data_expansion_amendment_03`: it adds a v2 source/evidence checkpoint
+that binds the complete v1 package and the exact first-34-attempt cutoff. It
+does not create amendment_04, alter any planned take identity or condition, or
+overwrite the 2026-07-22 Fit B preflight/readiness records.
 
 The logical matrix is 51 immutable inherited amendment_02 Fit A cells, 51 new
 amendment_03 Fit B cells, and 47 new amendment_03 prospective-holdout cells,
