@@ -1,0 +1,112 @@
+{
+  "amendment_id": "s4_4_data_expansion_amendment_03",
+  "bindings": {
+    "fit_b_manifest_file_sha256": "5f06c4b51583516a4a96d96d7230231f2437c784d253d158d6c061387194a74a",
+    "immutable_v1_package_map_sha256": "bd5d8a0a355247533ba40af0190d4050ef635f0b93c80d05e257bf495e6a0749",
+    "immutable_v2_package_map_sha256": "bf35012f8abe4e926c7d748b75f802fe1cb009acfba20cf05a60897b2ddd72be",
+    "immutable_v3_package_map_sha256": "cb0f879bfa73ba306a7aa9b74ac9c13f5a39340831152fa6f26a60417b54ad92",
+    "immutable_v4_package_map_sha256": "8560b4dfd1e539f75c4ebfd9751f087c52482a8d4ddd18cf1d6846002e647375",
+    "multiday_continuation_file_sha256": "c35682e67d475d1aed661c26c6e607887d5f95445929c9e43c32f3e8cdd655dd",
+    "prospective_holdout_manifest_file_sha256": "587c7ff093f086f304e12a7e55459bf8b19d326132cd0550c7218b6cf38c84d3",
+    "v1_evidence_index_file_sha256": "5b3bd0b2bf720e8e6d1ff6cef1ebfaf7f40f21184451df9b98296c5af6c90f6a",
+    "v1_precollection_seal_file_sha256": "10e0513a7893cd241fa05d99b29daa46264e9d852c1864c2dbdcf3be70ffbf6d",
+    "v1_sha256sums_file_sha256": "c804c3697f8d015c10ad9589e544f155aeedac0fabaa6d500072ae8bea94de2a"
+  },
+  "capture_prohibited_until_committed_and_sealed": true,
+  "collection_allowed": true,
+  "holdout_scientifically_opened": false,
+  "s4_5_or_later_started": false,
+  "schema": "ias.s4_4.amendment_precollection_seal.v3",
+  "seal_payload_sha256": "ec0e11d8e5e8f63460e82bc228aa1b104e56f688f466e3bb9893dea07e33b34c",
+  "source_checkpoint": {
+    "checkpoint_sha256": "e95f97951b20c19e6712d88d64ee27a169f9b938bc28a71276b765fe539f91c1",
+    "commit": "d86710df72c0ad782420b05135b3371cd9e0048f",
+    "source_records": [
+      {
+        "path": "configs/s4_4_data_expansion_amendment_03.v1.json",
+        "sha256": "2364bf8ff9af925bd245db7250ee3a5aaf471ec0baa8978ab5db2d1ddce11350"
+      },
+      {
+        "path": "docs/development/specs/s4_4_data_expansion_amendment_03.md",
+        "sha256": "f51ba5ceabcc668a4fff4269718f2f37be93380171490bb2e539c0f52d7c3cf9"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_aggregate_index.v3.schema.json",
+        "sha256": "ffbea5519b0dcc40939c3c0e2ad1ae40dab29232854f0bcc1b5c2ca33496b2f7"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_inherited_fit_a.v1.schema.json",
+        "sha256": "80303fc47a24e1a46c978b112f634c61de6960dc112fc00af4ed7b98dcc94d4e"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_manifest.v3.schema.json",
+        "sha256": "6b524de442719ea150a93379ec22e36371aad691f900bc3a2790d91e82f35926"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_precollection_seal.v3.schema.json",
+        "sha256": "48ea9e6539217ad46fe214abb179d298e7cacf4231802a7520a9b3e9a0546916"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_session_preflight.v2.schema.json",
+        "sha256": "9a304090c1041f77217b4ee1a62f40ff18a7184be19a5e0d722f229d3f0df204"
+      },
+      {
+        "path": "docs/schemas/s4_4_amendment_session_readiness.v2.schema.json",
+        "sha256": "bcd631d7431a45a4cd89a030733ca5b295a817c47067dadd459b6c4955d010b8"
+      },
+      {
+        "path": "scripts/build_s4_4_amendment_03.py",
+        "sha256": "9c2f12782f5356c918fea5ae0ab09ecf91c55c91d9008116e80d7771c58b9576"
+      },
+      {
+        "path": "scripts/build_s4_4_amendment_03_multiday.py",
+        "sha256": "f77984811692627d829ea172ff8c4a565c28ee66d53d6510c7c5935f0e50bed4"
+      },
+      {
+        "path": "scripts/execute_s4_4_amendment_03_attempt.py",
+        "sha256": "dadaaa0a3ae6fce599c6fb3019e7fd83a0b0fb4a5d3d50cc50755b36956c4cca"
+      },
+      {
+        "path": "scripts/execute_s4_4_amendment_attempt.py",
+        "sha256": "27a08306c9080d31f54b02383d2c1ade97fa3e3ef785d30931a2ce37f6ce39dd"
+      },
+      {
+        "path": "scripts/preflight_s4_2_zed.py",
+        "sha256": "4a4ca08aca2d51f57fa69bffe079633d3d22953cea28485748c91ec2c76c57d9"
+      },
+      {
+        "path": "scripts/run_s4_4_amendment_03_readiness.py",
+        "sha256": "1fb470ba0f75d2543e87b2bf6d7502f7fe7e3517adf63420b91852a313875cc2"
+      },
+      {
+        "path": "scripts/run_s4_4_amendment_03_take.py",
+        "sha256": "4d1973abf32a2421754654b74dfc8a9bb6946efe83251ef055058af06db93e01"
+      },
+      {
+        "path": "scripts/s4_2_mac_preflight.py",
+        "sha256": "693b731219c846d0ccde308a152641c1c9a71c94ffb046f0fcb2e413b204202f"
+      },
+      {
+        "path": "scripts/s4_2_pi_capture.py",
+        "sha256": "af9a18fe855da034d062c4b50eddf559b7d57c0241324f77b8d13381d69da997"
+      },
+      {
+        "path": "scripts/validate_s4_4_amendment_03.py",
+        "sha256": "87e48c3b6308db483f92539d1ad8e5ee2f82c9d1b55ffbcaf83b9df6b8b25707"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment.py",
+        "sha256": "4473cd77561d41101870a508b8f6980a0f3082f00042ab010f6d7002a7aa15c7"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment_03.py",
+        "sha256": "76d7a34587269f94720a0f43fc813a1d628aac8b8fd5d0e4b10fba299e416103"
+      },
+      {
+        "path": "tests/test_s4_4_amendment_03.py",
+        "sha256": "921395f47c2b2c187ea9067939a94870bdad3d0c71c8ae3f361e208f0e97dcfd"
+      }
+    ]
+  },
+  "status": "committed"
+}
