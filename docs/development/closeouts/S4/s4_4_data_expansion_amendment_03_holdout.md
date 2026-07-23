@@ -49,7 +49,23 @@ remain unstarted. No push is authorized.
 
 ## Final acceptance
 
-The final gate report is recorded separately after the additive closeout
-evidence commit. Amendment PASS requires every repository gate to pass while
-the final amendment_03 census remains 149 valid cells and the prospective
-holdout remains sealed and scientifically unopened.
+**PASS.** The exact active amendment_03 validator passes with 152 retained
+attempts, 149 valid logical cells, three failures, three replacements, zero
+incomplete cells, and no second failure. Amendment_02 and original S4.4
+validators pass without exposing scientific outcomes or opening a holdout.
+
+All 152 attempt checksum sets and the additive closeout checksum manifest pass.
+The active v5 checksum set passes for all 55 bound files; the validator and
+byte-identical deterministic-generation test prove the immutable v1-v5 package
+chain.
+
+Full tests pass in the isolated frozen amendment_03 precollection-cutoff
+fixture: 1,374 passed and 82 documented optional/hardware skips. Lint passes.
+Version 1.10.0 and release-source checks pass at
+`c432d9848d1c1498914ed1a2aad6c78baefc6519`. Distribution audit passes for a
+447-file sdist and 137-file wheel; Kit audit passes for 138 files; the
+controlled-wheelhouse acoustic-pack audit passes for 8 files.
+
+`git diff --check`, ignore checks, raw-media tracking checks, and later-phase
+absence checks pass. `dataset/` and `TODO.md` remain ignored, no dataset path is
+tracked, S4.5-S4.8 remain unstarted, and no push was performed.
