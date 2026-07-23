@@ -41,6 +41,7 @@ try:
         V1_PACKAGE_SHA256,
         V2_PACKAGE_SHA256,
         V3_PACKAGE_SHA256,
+        V4_PACKAGE_SHA256,
     )
     from scripts.build_s4_4_amendment_03_multiday import (
         SEAL_PATH as SEAL_PATH_V2,
@@ -54,6 +55,7 @@ except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
         V1_PACKAGE_SHA256,
         V2_PACKAGE_SHA256,
         V3_PACKAGE_SHA256,
+        V4_PACKAGE_SHA256,
     )
     from build_s4_4_amendment_03_multiday import SEAL_PATH as SEAL_PATH_V2
 
@@ -228,6 +230,7 @@ def validate(
             "ias.s4_4.amendment_03_evidence_index.v2",
             "ias.s4_4.amendment_03_evidence_index.v3",
             "ias.s4_4.amendment_03_evidence_index.v4",
+            "ias.s4_4.amendment_03_evidence_index.v5",
         }
         or index.get("logical_counts") != LOGICAL_COUNTS
         or index.get("new_planned_counts") != {"fit_b": 51, "prospective_holdout": 47}
@@ -244,6 +247,7 @@ def validate(
         "ias.s4_4.amendment_03_evidence_index.v2",
         "ias.s4_4.amendment_03_evidence_index.v3",
         "ias.s4_4.amendment_03_evidence_index.v4",
+        "ias.s4_4.amendment_03_evidence_index.v5",
     } and (
         index.get("amendment_id") != "s4_4_data_expansion_amendment_03"
         or index.get("new_amendment_created") is not False
@@ -257,6 +261,14 @@ def validate(
             and (
                 index.get("v2_package_sha256") != V2_PACKAGE_SHA256
                 or index.get("v3_package_sha256") != V3_PACKAGE_SHA256
+            )
+        )
+        or (
+            index_schema == "ias.s4_4.amendment_03_evidence_index.v5"
+            and (
+                index.get("v2_package_sha256") != V2_PACKAGE_SHA256
+                or index.get("v3_package_sha256") != V3_PACKAGE_SHA256
+                or index.get("v4_package_sha256") != V4_PACKAGE_SHA256
             )
         )
     ):
@@ -308,7 +320,8 @@ def validate(
     checksum_name = {
         "ias.s4_4.amendment_03_evidence_index.v2": "SHA256SUMS.v2",
         "ias.s4_4.amendment_03_evidence_index.v3": "SHA256SUMS.v3",
-        "ias.s4_4.amendment_03_evidence_index.v4": CHECKSUM_PATH_V2,
+        "ias.s4_4.amendment_03_evidence_index.v4": "SHA256SUMS.v4",
+        "ias.s4_4.amendment_03_evidence_index.v5": CHECKSUM_PATH_V2,
     }.get(index_schema, "SHA256SUMS")
     checksum_path = evidence_root / checksum_name
     try:
@@ -378,6 +391,7 @@ def validate(
         "ias.s4_4.amendment_03_evidence_index.v2",
         "ias.s4_4.amendment_03_evidence_index.v3",
         "ias.s4_4.amendment_03_evidence_index.v4",
+        "ias.s4_4.amendment_03_evidence_index.v5",
     }:
         try:
             active_continuation_path = {
@@ -387,7 +401,10 @@ def validate(
                 "ias.s4_4.amendment_03_evidence_index.v3": (
                     "freeze/multiday_session_continuation.v3.json"
                 ),
-                "ias.s4_4.amendment_03_evidence_index.v4": CONTINUATION_PATH,
+                "ias.s4_4.amendment_03_evidence_index.v4": (
+                    "freeze/multiday_session_continuation.v4.json"
+                ),
+                "ias.s4_4.amendment_03_evidence_index.v5": CONTINUATION_PATH,
             }[index_schema]
             continuation = load_json(evidence_root / active_continuation_path)
             expected_schema = {
@@ -399,6 +416,9 @@ def validate(
                 ),
                 "ias.s4_4.amendment_03_evidence_index.v4": (
                     "ias.s4_4.amendment_03_multiday_continuation.v4"
+                ),
+                "ias.s4_4.amendment_03_evidence_index.v5": (
+                    "ias.s4_4.amendment_03_multiday_continuation.v5"
                 ),
             }[index_schema]
             if (
@@ -421,6 +441,25 @@ def validate(
                         != V2_PACKAGE_SHA256
                         or continuation.get("immutable_v3_package_sha256")
                         != V3_PACKAGE_SHA256
+                    )
+                )
+                or (
+                    index_schema == "ias.s4_4.amendment_03_evidence_index.v5"
+                    and (
+                        continuation.get("immutable_v2_package_sha256")
+                        != V2_PACKAGE_SHA256
+                        or continuation.get("immutable_v3_package_sha256")
+                        != V3_PACKAGE_SHA256
+                        or continuation.get("immutable_v4_package_sha256")
+                        != V4_PACKAGE_SHA256
+                        or continuation.get("mac_power_policy")
+                        != {
+                            "ac_power_required": False,
+                            "battery_operation_permitted": True,
+                            "truthful_power_source_required": True,
+                            "truthful_charging_state_required": True,
+                            "truthful_battery_percentage_required": True,
+                        }
                     )
                 )
                 or continuation.get("calendar_policy", {}).get(
@@ -454,7 +493,8 @@ def validate(
     seal_name = {
         "ias.s4_4.amendment_03_evidence_index.v2": "precollection_seal.v2.json",
         "ias.s4_4.amendment_03_evidence_index.v3": "precollection_seal.v3.json",
-        "ias.s4_4.amendment_03_evidence_index.v4": SEAL_PATH_V2,
+        "ias.s4_4.amendment_03_evidence_index.v4": "precollection_seal.v4.json",
+        "ias.s4_4.amendment_03_evidence_index.v5": SEAL_PATH_V2,
     }.get(index_schema, "precollection_seal.v1.json")
     seal_path = evidence_root / seal_name
     try:

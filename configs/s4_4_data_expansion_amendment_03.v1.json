@@ -75,6 +75,13 @@
       "ssh_reconnect_required": false,
       "live_connectivity_and_readiness_required": true,
       "protocol_only_state_change_forbidden": true
+    },
+    "mac_power_state": {
+      "ac_power_required": false,
+      "battery_operation_permitted": true,
+      "truthful_power_source_required": true,
+      "truthful_charging_state_required": true,
+      "truthful_battery_percentage_required": true
     }
   },
   "sessions": [

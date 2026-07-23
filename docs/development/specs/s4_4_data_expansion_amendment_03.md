@@ -73,8 +73,8 @@ Before attempt allocation, a no-media readiness gate still verifies:
 - deliberate external-network permission plus live SSH connectivity to the
   Mac and Raspberry Pi;
 - valid full and dynamic Mac JSON; exact Mac identity, built-in stereo 48 kHz
-  output, 40% unmuted volume, AC power, reference WAV, level keyboard, and
-  90-degree lid;
+  output, 40% unmuted volume, truthful AC-or-battery power state, reference
+  WAV, level keyboard, and 90-degree lid;
 - Pi helper availability and hash plus its exact `record` subcommand and
   required-argument contract;
 - ReSpeaker identity, firmware, device, six-channel 16 kHz S16_LE format,
@@ -96,6 +96,11 @@ SSH-dependent readiness and capture commands require deliberate external
 network permission. Every passed readiness record is hash-bound to the exact
 next attempt ID, and attempt allocation rejects a stale or differently bound
 readiness record.
+
+Battery operation is prospectively permitted. Readiness must still collect and
+retain the truthful power source, charging state, and battery percentage; a
+missing, malformed, or fabricated power report fails closed. This does not
+change any scientific condition, take identity, ordering, or replacement rule.
 
 ## Holdout and access boundary
 

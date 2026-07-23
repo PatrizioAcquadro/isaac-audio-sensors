@@ -45,6 +45,7 @@ from scripts.build_s4_4_amendment_03_multiday import (
     V1_PACKAGE_SHA256,
     V2_PACKAGE_SHA256,
     V3_PACKAGE_SHA256,
+    V4_PACKAGE_SHA256,
     build_cutoff_inventory,
 )
 from scripts.build_s4_4_amendment_03_multiday import (
@@ -182,6 +183,14 @@ def test_configuration_changes_only_prospective_date_and_device_state_rules(
     )
     assert "device_restart_or_reconnection" not in config["preflight_required_checks"]
     assert "live_connectivity_and_readiness" in config["preflight_required_checks"]
+    power = config["prospective_rule_changes"]["mac_power_state"]
+    assert power == {
+        "ac_power_required": False,
+        "battery_operation_permitted": True,
+        "truthful_power_source_required": True,
+        "truthful_charging_state_required": True,
+        "truthful_battery_percentage_required": True,
+    }
 
 
 def test_amendment_01_and_02_immutable_tree_hashes_pass(config: dict) -> None:
@@ -370,6 +379,59 @@ def test_restart_reconnection_field_is_rejected_and_no_claim_is_fabricated(
     live = truthful["observations"]["live_connectivity_and_readiness"]
     assert live == {"protocol_mandated_device_state_change": False}
     assert all("restart" not in key and "reconnect" not in key for key in live)
+
+
+def test_battery_power_is_accepted_but_truthful_power_metadata_is_mandatory(
+    config: dict,
+) -> None:
+    preflight = _preflight(config, "fit_b", date.today().isoformat())
+    power = {
+        "status": "collected",
+        "source": "Battery Power",
+        "on_ac_power": False,
+        "charging": False,
+        "battery_percent": 73,
+    }
+    full = {
+        "power": power,
+        "frozen_checks": {
+            "ac_power": False,
+            "model_identifier_matches": True,
+            "notifications_suppressed": True,
+            "os_build_matches": True,
+            "os_version_matches": True,
+            "output_channels_match": True,
+            "output_device_matches": True,
+            "output_sample_rate_matches": True,
+            "reference_format_matches": True,
+            "reference_hash_matches": True,
+            "unmuted": True,
+            "volume_matches": True,
+            "work_focus_active": True,
+        },
+    }
+    dynamic = {
+        "status": "failed",
+        "power": power,
+        "checks": {
+            "ac_power": False,
+            "output_channels_match": True,
+            "output_device_matches": True,
+            "output_sample_rate_matches": True,
+            "unmuted": True,
+            "volume_matches": True,
+        },
+    }
+    assert readiness_runner._mac_full_passed_03(full, preflight)
+    assert readiness_runner._dynamic_passed_03(dynamic)
+
+    for field in ("source", "on_ac_power", "charging", "battery_percent"):
+        changed = copy.deepcopy(full)
+        changed["power"].pop(field)
+        assert not readiness_runner._mac_full_passed_03(changed, preflight)
+    malformed = copy.deepcopy(dynamic)
+    malformed["power"]["battery_percent"] = "73"
+    assert not readiness_runner._dynamic_passed_03(malformed)
 
 
 def test_every_live_readiness_check_is_mandatory_and_media_boundary_is_closed(
@@ -724,8 +786,11 @@ def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
     assert {
         relative: sha256_file(first / relative) for relative in V3_PACKAGE_SHA256
     } == V3_PACKAGE_SHA256
+    assert {
+        relative: sha256_file(first / relative) for relative in V4_PACKAGE_SHA256
+    } == V4_PACKAGE_SHA256
     result = validate(
-        first / "evidence_index.v4.json",
+        first / "evidence_index.v5.json",
         repo_root=ROOT,
         config_path=CONFIG_PATH,
         require_tracked=False,

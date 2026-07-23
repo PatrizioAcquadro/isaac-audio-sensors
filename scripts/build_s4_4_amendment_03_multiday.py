@@ -39,12 +39,12 @@ ROOT = Path(__file__).resolve().parents[1]
 AMENDMENT_ID = "s4_4_data_expansion_amendment_03"
 DEFAULT_CONFIG = ROOT / "configs/s4_4_data_expansion_amendment_03.v1.json"
 DEFAULT_OUTPUT = ROOT / "outputs/isaac_audio_sensors/S4/S4.4/amendments" / AMENDMENT_ID
-CHECKPOINT_PATH = "freeze/source_checkpoint.v4.json"
-CONTINUATION_PATH = "freeze/multiday_session_continuation.v4.json"
-SEAL_PATH = "precollection_seal.v4.json"
-INDEX_PATH = "evidence_index.v4.json"
-CHECKSUM_PATH = "SHA256SUMS.v4"
-SOURCE_PATHS_V4 = (*SOURCE_PATHS, "scripts/build_s4_4_amendment_03_multiday.py")
+CHECKPOINT_PATH = "freeze/source_checkpoint.v5.json"
+CONTINUATION_PATH = "freeze/multiday_session_continuation.v5.json"
+SEAL_PATH = "precollection_seal.v5.json"
+INDEX_PATH = "evidence_index.v5.json"
+CHECKSUM_PATH = "SHA256SUMS.v5"
+SOURCE_PATHS_V5 = (*SOURCE_PATHS, "scripts/build_s4_4_amendment_03_multiday.py")
 V1_PACKAGE_SHA256 = {
     "SHA256SUMS": "c804c3697f8d015c10ad9589e544f155aeedac0fabaa6d500072ae8bea94de2a",
     "access_policy.v1.json": (
@@ -124,6 +124,23 @@ V3_PACKAGE_SHA256 = {
         "05672bc2c1fc7ee75d2a7a5cb24a7fe34e45f344fda82f0bab3411363f815c4e"
     ),
 }
+V4_PACKAGE_SHA256 = {
+    "SHA256SUMS.v4": (
+        "d8584a594f6160141224c020d73e6ce37630acd713172375fef73869261d2601"
+    ),
+    "evidence_index.v4.json": (
+        "3cc1e184b376a601c8a268c62bbece3d1b2e1bd0f4e2e303089591e06bd80f3d"
+    ),
+    "freeze/multiday_session_continuation.v4.json": (
+        "6b3f53e46bad53d6628d2135f29cd59a35688103958e5198aa5cfbc3daab5d59"
+    ),
+    "freeze/source_checkpoint.v4.json": (
+        "0ea1821eb5f985402a05f4c101c6b5f1bafe3a35ff49197992b7ca8a9788b168"
+    ),
+    "precollection_seal.v4.json": (
+        "9b28b760bbe15b292a2b516e087cc8328c59f0d6d87d23afa3a69fa8a5f6c78d"
+    ),
+}
 
 
 def _git_head(repo_root: Path) -> str:
@@ -152,7 +169,12 @@ def _canonical_path(config: dict[str, Any], relative: str) -> str:
 
 
 def _materialize_prior_packages(output: Path, canonical_root: Path) -> None:
-    prior = {**V1_PACKAGE_SHA256, **V2_PACKAGE_SHA256, **V3_PACKAGE_SHA256}
+    prior = {
+        **V1_PACKAGE_SHA256,
+        **V2_PACKAGE_SHA256,
+        **V3_PACKAGE_SHA256,
+        **V4_PACKAGE_SHA256,
+    }
     for relative, expected in sorted(prior.items()):
         source = canonical_root / relative
         if not source.is_file() or sha256_file(source) != expected:
@@ -270,7 +292,7 @@ def build_cutoff_inventory(
 def _continuation(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     cutoff = build_cutoff_inventory(config, repo_root)
     payload = {
-        "schema": "ias.s4_4.amendment_03_multiday_continuation.v4",
+        "schema": "ias.s4_4.amendment_03_multiday_continuation.v5",
         "status": "prospective_continuation_within_same_amendment",
         "amendment_id": AMENDMENT_ID,
         "new_amendment_created": False,
@@ -279,6 +301,7 @@ def _continuation(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
         "immutable_v1_package_sha256": dict(sorted(V1_PACKAGE_SHA256.items())),
         "immutable_v2_package_sha256": dict(sorted(V2_PACKAGE_SHA256.items())),
         "immutable_v3_package_sha256": dict(sorted(V3_PACKAGE_SHA256.items())),
+        "immutable_v4_package_sha256": dict(sorted(V4_PACKAGE_SHA256.items())),
         "cutoff": cutoff,
         "calendar_policy": {
             "same_local_calendar_date_permitted": True,
@@ -292,6 +315,13 @@ def _continuation(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
             "fit_b_and_holdout_preflight_and_readiness_remain_separate": True,
         },
         "device_restart_or_reconnection_required": False,
+        "mac_power_policy": {
+            "ac_power_required": False,
+            "battery_operation_permitted": True,
+            "truthful_power_source_required": True,
+            "truthful_charging_state_required": True,
+            "truthful_battery_percentage_required": True,
+        },
         "live_readiness_required_before_attempt_allocation": True,
         "replacement_limit_changed": False,
         "holdout_scientifically_opened": False,
@@ -316,6 +346,7 @@ def build(*, output: Path, config_path: Path, repo_root: Path = ROOT) -> dict[st
         "immutable_v1_package_map_sha256": canonical_sha256(V1_PACKAGE_SHA256),
         "immutable_v2_package_map_sha256": canonical_sha256(V2_PACKAGE_SHA256),
         "immutable_v3_package_map_sha256": canonical_sha256(V3_PACKAGE_SHA256),
+        "immutable_v4_package_map_sha256": canonical_sha256(V4_PACKAGE_SHA256),
         "v1_evidence_index_file_sha256": V1_PACKAGE_SHA256["evidence_index.v1.json"],
         "v1_precollection_seal_file_sha256": V1_PACKAGE_SHA256[
             "precollection_seal.v1.json"
@@ -337,7 +368,12 @@ def build(*, output: Path, config_path: Path, repo_root: Path = ROOT) -> dict[st
 
     artifacts: list[dict[str, Any]] = []
     for relative in sorted(
-        {**V1_PACKAGE_SHA256, **V2_PACKAGE_SHA256, **V3_PACKAGE_SHA256}
+        {
+            **V1_PACKAGE_SHA256,
+            **V2_PACKAGE_SHA256,
+            **V3_PACKAGE_SHA256,
+            **V4_PACKAGE_SHA256,
+        }
     ):
         artifacts.append(
             _artifact(
@@ -356,7 +392,7 @@ def build(*, output: Path, config_path: Path, repo_root: Path = ROOT) -> dict[st
         artifacts.append(
             _artifact(output / relative, _canonical_path(config, relative), role)
         )
-    for relative in SOURCE_PATHS_V4:
+    for relative in SOURCE_PATHS_V5:
         artifacts.append(_artifact(repo_root / relative, relative, "amendment_source"))
     for relative in DELIVERY_PATHS:
         artifacts.append(
@@ -364,7 +400,7 @@ def build(*, output: Path, config_path: Path, repo_root: Path = ROOT) -> dict[st
         )
     artifacts.sort(key=lambda item: item["path"])
     index = {
-        "schema": "ias.s4_4.amendment_03_evidence_index.v4",
+        "schema": "ias.s4_4.amendment_03_evidence_index.v5",
         "status": "precollection_frozen",
         "commit_status": seal["status"],
         "collection_allowed": seal["collection_allowed"],
@@ -379,6 +415,7 @@ def build(*, output: Path, config_path: Path, repo_root: Path = ROOT) -> dict[st
         "v1_package_sha256": dict(sorted(V1_PACKAGE_SHA256.items())),
         "v2_package_sha256": dict(sorted(V2_PACKAGE_SHA256.items())),
         "v3_package_sha256": dict(sorted(V3_PACKAGE_SHA256.items())),
+        "v4_package_sha256": dict(sorted(V4_PACKAGE_SHA256.items())),
         "prospective_holdout_scientifically_opened": False,
         "amendment_01_unchanged": True,
         "amendment_02_unchanged": True,
@@ -415,10 +452,10 @@ def main() -> int:
     try:
         if args.freeze_source_checkpoint:
             checkpoint_path = args.output / CHECKPOINT_PATH
-            checkpoint = build_source_checkpoint(ROOT, _git_head(ROOT), SOURCE_PATHS_V4)
+            checkpoint = build_source_checkpoint(ROOT, _git_head(ROOT), SOURCE_PATHS_V5)
             if checkpoint_path.is_file() and load_json(checkpoint_path) != checkpoint:
                 raise S44AmendmentError(
-                    "refusing to replace a different amendment_03 v4 checkpoint"
+                    "refusing to replace a different amendment_03 v5 checkpoint"
                 )
             write_json_atomic(checkpoint_path, checkpoint)
         summary = build(output=args.output, config_path=args.config)

@@ -3,7 +3,7 @@
 ## Current verdict
 
 **FIT B IN PROGRESS / TAKE 35 NOT ALLOCATED / CAPTURE PROHIBITED UNTIL THE
-EXACT-NEXT-ATTEMPT READINESS CORRECTION AND ADDITIVE V4 EVIDENCE PACKAGE ARE
+PROSPECTIVE BATTERY-POWER CORRECTION AND ADDITIVE V5 EVIDENCE PACKAGE ARE
 COMMITTED, VALIDATED, AND READINESS PASSES. S4.5 and later phases remain
 unstarted.**
 
@@ -16,8 +16,8 @@ record. Fit B and holdout retain distinct session IDs, separate
 preflight/readiness histories, and all live device, identity, format, storage,
 privacy, clock, path, and access checks.
 
-The committed v1, v2, and v3 packages and Fit B takes 1-34 remain immutable.
-This correction stays within `s4_4_data_expansion_amendment_03`: additive v4
+The committed v1 through v4 packages and Fit B takes 1-34 remain immutable.
+This correction stays within `s4_4_data_expansion_amendment_03`: additive v5
 binds every prior package and the exact first-34-attempt cutoff. That cutoff is
 based on the 34 retained Fit B attempts and includes every Fit B date-segment,
 preflight, readiness, and retained readiness-failure record present before
@@ -32,6 +32,13 @@ SSH also timed out. The corrected no-media gate probes only
 and binds the passed readiness hash to that exact next attempt. Attempt 35
 remains absent and cannot be allocated from a stale or differently bound
 readiness record.
+
+Mac battery operation is now permitted prospectively, while readiness still
+requires and retains the truthful power source, charging state, and battery
+percentage. Missing or malformed power metadata remains fail-closed. The
+operator explicitly authorized this narrow change after the v4 readiness
+truthfully reported battery operation. Output volume was set to and verified
+at the unchanged required 40%.
 
 The logical matrix is 51 immutable inherited amendment_02 Fit A cells, 51 new
 amendment_03 Fit B cells, and 47 new amendment_03 prospective-holdout cells,

@@ -72,7 +72,7 @@ REQUIRED_READINESS_CHECKS = {
 def active_precollection_package(evidence_root: Path) -> tuple[Path, Path]:
     """Return the newest complete same-amendment package, failing closed if partial."""
 
-    for version in (4, 3, 2):
+    for version in (5, 4, 3, 2):
         index = evidence_root / f"evidence_index.v{version}.json"
         seal = evidence_root / f"precollection_seal.v{version}.json"
         checksum = evidence_root / f"SHA256SUMS.v{version}"
@@ -263,7 +263,8 @@ def validate_configuration(config: Mapping[str, Any]) -> None:
         is not True
     ):
         raise S44AmendmentError("amendment_03 same-day session policy invalid")
-    device = config.get("prospective_rule_changes", {}).get("device_state", {})
+    prospective = config.get("prospective_rule_changes", {})
+    device = prospective.get("device_state", {})
     for key in (
         "restart_required",
         "reboot_required",
@@ -278,6 +279,15 @@ def validate_configuration(config: Mapping[str, Any]) -> None:
         or device.get("protocol_only_state_change_forbidden") is not True
     ):
         raise S44AmendmentError("amendment_03 live-readiness policy weakened")
+    power = prospective.get("mac_power_state", {})
+    if power != {
+        "ac_power_required": False,
+        "battery_operation_permitted": True,
+        "truthful_power_source_required": True,
+        "truthful_charging_state_required": True,
+        "truthful_battery_percentage_required": True,
+    }:
+        raise S44AmendmentError("amendment_03 Mac power-state policy invalid")
     checks = config.get("preflight_required_checks")
     if (
         not isinstance(checks, list)

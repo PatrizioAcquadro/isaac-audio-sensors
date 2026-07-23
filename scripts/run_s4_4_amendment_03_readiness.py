@@ -26,9 +26,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
 )
 from isaac_audio_sensors.core.dataset.atomic import write_json_atomic
 from scripts.run_s4_4_amendment_readiness import (
-    _dynamic_passed,
     _json_observation,
-    _mac_full_passed,
     _pi_passed,
     _run,
     _zed_passed,
@@ -122,6 +120,60 @@ def _operator_observations_pass(
         is True
         and storage.get("output_root_gitignored") is True
         and access.get("prospective_holdout_scientifically_opened") is False
+    )
+
+
+def _truthful_power_state(report: dict[str, Any]) -> bool:
+    power = report.get("power")
+    if not isinstance(power, dict):
+        return False
+    battery_percent = power.get("battery_percent")
+    return bool(
+        power.get("status") == "collected"
+        and power.get("source") in {"AC Power", "Battery Power"}
+        and isinstance(power.get("on_ac_power"), bool)
+        and isinstance(power.get("charging"), bool)
+        and isinstance(battery_percent, int)
+        and not isinstance(battery_percent, bool)
+        and 0 <= battery_percent <= 100
+    )
+
+
+def _mac_full_passed_03(report: object, preflight: dict[str, Any]) -> bool:
+    if not isinstance(report, dict) or not _truthful_power_state(report):
+        return False
+    checks = report.get("frozen_checks")
+    if not isinstance(checks, dict):
+        return False
+    allowed_non_gate_fields = {
+        "ac_power",
+        "work_focus_active",
+        "notifications_suppressed",
+    }
+    if any(
+        value is not True
+        for key, value in checks.items()
+        if key not in allowed_non_gate_fields
+    ):
+        return False
+    mac = preflight.get("observations", {}).get("mac", {})
+    return all(
+        mac.get(field) is True
+        for field in (
+            "work_focus_active_operator_confirmed",
+            "notifications_suppressed_operator_confirmed",
+        )
+    )
+
+
+def _dynamic_passed_03(report: object) -> bool:
+    if not isinstance(report, dict) or not _truthful_power_state(report):
+        return False
+    checks = report.get("checks")
+    return bool(
+        isinstance(checks, dict)
+        and checks
+        and all(value is True for key, value in checks.items() if key != "ac_power")
     )
 
 
@@ -261,9 +313,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "network_permission_confirmed": True,
         "mac_ssh_connectivity": mac_connectivity["return_code"] == 0,
         "mac_full_preflight_json": isinstance(mac_full.get("payload"), dict),
-        "mac_dynamic_preflight_json": _dynamic_passed(mac_dynamic.get("payload")),
+        "mac_dynamic_preflight_json": _dynamic_passed_03(
+            mac_dynamic.get("payload")
+        ),
         "mac_identity_volume_mute_power_reference_keyboard_and_lid": (
-            _mac_full_passed(mac_full.get("payload"), preflight) and operator_pass
+            _mac_full_passed_03(mac_full.get("payload"), preflight)
+            and operator_pass
         ),
         "pi_ssh_connectivity": pi_connectivity["return_code"] == 0,
         "pi_helper_and_record_command_contract": pi_contract_pass,
