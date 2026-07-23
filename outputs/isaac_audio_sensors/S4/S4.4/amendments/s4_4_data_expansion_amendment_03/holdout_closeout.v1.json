@@ -1,0 +1,40 @@
+{
+  "amendment_03_active_index": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/evidence_index.v5.json",
+  "amendment_03_active_index_sha256": "50234b46050dd459eb19db706e19633fbbc40af9c61e038b6d41f721a9b9f729",
+  "closed_at_utc": "2026-07-23T23:00:00.769107+00:00",
+  "closeout_payload_sha256": "9204d92131cf41dd4c99d719c920e971f4a90eef4fc146c5c459a1a048a24854",
+  "future_holdout_opening_workflow_implemented": false,
+  "holdout": {
+    "access_histories_merged": false,
+    "access_ledger_path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/access/access_ledger.jsonl",
+    "access_ledger_sha256": "f9724a422c1b61e16f56721335afac6cfddcafa1778f4ac459c44285c9dcf3de",
+    "blindness_claims_merged": false,
+    "holdout_seal_path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/access/holdout_seal.json",
+    "holdout_seal_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+    "scientific_outputs_exposed": false,
+    "scientifically_opened": false,
+    "sealed": true,
+    "technical_qa_only": true
+  },
+  "logical_census": {
+    "census_sha256": "b621011464a018021a6157f74e4b7a3def9b1d1805b49f33222aa2b86d537a00",
+    "failures_total": 3,
+    "fit_b_valid_cells": 51,
+    "incomplete_logical_cells": 0,
+    "inherited_fit_a_valid_cells": 51,
+    "prospective_holdout_valid_cells": 47,
+    "replacements_total": 3,
+    "retained_attempts_total": 152,
+    "valid_cells_total": 149
+  },
+  "push_performed": false,
+  "records": {
+    "evidence_index_path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/closeout/evidence_index.json",
+    "evidence_index_sha256": "64eb73923f6f4d0e7f1bdeac9a03400c7b488062dacd67587ccc411806c5160c",
+    "hash_only_integrity_sha256": "687ef2b35b377249b3010a2229f8c4377aaba893209740d78fbfd087a4108e06",
+    "immutable_predecessor_proof_sha256": "91e058b84695928da5610600d8351e83a013703f1ca96addbf2898b359c5ad10"
+  },
+  "s4_5_or_later_started": false,
+  "schema": "ias.s4_4.amendment_03_holdout_closeout.v1",
+  "status": "passed"
+}
