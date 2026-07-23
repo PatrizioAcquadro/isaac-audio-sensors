@@ -70,17 +70,19 @@ REQUIRED_READINESS_CHECKS = {
 
 
 def active_precollection_package(evidence_root: Path) -> tuple[Path, Path]:
-    """Return the active same-amendment index and seal, failing closed on partial v2."""
+    """Return the newest complete same-amendment package, failing closed if partial."""
 
-    index_v2 = evidence_root / "evidence_index.v2.json"
-    seal_v2 = evidence_root / "precollection_seal.v2.json"
-    checksum_v2 = evidence_root / "SHA256SUMS.v2"
-    if any(path.exists() for path in (index_v2, seal_v2, checksum_v2)):
-        if not all(path.is_file() for path in (index_v2, seal_v2, checksum_v2)):
+    for version in (3, 2):
+        index = evidence_root / f"evidence_index.v{version}.json"
+        seal = evidence_root / f"precollection_seal.v{version}.json"
+        checksum = evidence_root / f"SHA256SUMS.v{version}"
+        if not any(path.exists() for path in (index, seal, checksum)):
+            continue
+        if not all(path.is_file() for path in (index, seal, checksum)):
             raise S44AmendmentError(
-                "amendment_03 multiday continuation package is incomplete"
+                f"amendment_03 v{version} continuation package is incomplete"
             )
-        return index_v2, seal_v2
+        return index, seal
     return evidence_root / "evidence_index.v1.json", evidence_root / (
         "precollection_seal.v1.json"
     )

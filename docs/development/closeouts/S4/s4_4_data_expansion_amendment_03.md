@@ -6,8 +6,9 @@
 PROGRESS / CAPTURE PROHIBITED UNTIL THE CORRECTED SOURCE AND ADDITIVE EVIDENCE
 PACKAGE ARE COMMITTED AND VALIDATED. S4.5 and later phases remain unstarted.**
 
-Amendment 03 prospectively permits same-calendar-date sessions, permits one
-session to continue across multiple truthful local-date segments, and removes
+Amendment 03 prospectively permits same-calendar-date sessions and permits the
+same Fit A, Fit B, or holdout session/group to continue across multiple
+truthful local-date segments without creating a new session/group. It removes
 any protocol-only restart/reconnection requirement. Each active date segment
 still requires a separate truthful preflight and hash-bound no-media readiness
 record. Fit B and holdout retain distinct session IDs, separate

@@ -42,12 +42,14 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
 from scripts.build_s4_4_amendment_03 import build
 from scripts.build_s4_4_amendment_03_multiday import (
     V1_PACKAGE_SHA256,
+    V2_PACKAGE_SHA256,
+    build_cutoff_inventory,
 )
 from scripts.build_s4_4_amendment_03_multiday import (
     build as build_multiday,
 )
 from scripts.validate_s4_4_amendment import validate as validate_predecessor_amendment
-from scripts.validate_s4_4_amendment_03 import validate
+from scripts.validate_s4_4_amendment_03 import _validate_cutoff_inventory, validate
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "configs/s4_4_data_expansion_amendment_03.v1.json"
@@ -666,8 +668,11 @@ def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
     assert {
         relative: sha256_file(first / relative) for relative in V1_PACKAGE_SHA256
     } == V1_PACKAGE_SHA256
+    assert {
+        relative: sha256_file(first / relative) for relative in V2_PACKAGE_SHA256
+    } == V2_PACKAGE_SHA256
     result = validate(
-        first / "evidence_index.v2.json",
+        first / "evidence_index.v3.json",
         repo_root=ROOT,
         config_path=CONFIG_PATH,
         require_tracked=False,
@@ -678,6 +683,19 @@ def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
     assert result["status"] == "passed", result["issues"]
     assert result["attempt_census"]["valid_cells_total"] == 85
     assert result["prospective_holdout_scientifically_opened"] is False
+
+
+def test_cutoff_binds_listed_records_but_allows_later_date_segment_records(
+    config: dict,
+) -> None:
+    cutoff = build_cutoff_inventory(config, ROOT)
+    assert len(cutoff["session_records"]) >= 3
+    omitted = copy.deepcopy(cutoff)
+    omitted["session_records"] = omitted["session_records"][:-1]
+    omitted["cutoff_sha256"] = canonical_sha256(
+        {key: value for key, value in omitted.items() if key != "cutoff_sha256"}
+    )
+    _validate_cutoff_inventory(omitted, config, ROOT)
 
 
 def test_tampered_future_manifest_fails_closed(tmp_path: Path) -> None:

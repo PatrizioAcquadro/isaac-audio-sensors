@@ -39,7 +39,7 @@ try:
     from scripts.build_s4_4_amendment_03_multiday import (
         CONTINUATION_PATH,
         V1_PACKAGE_SHA256,
-        build_cutoff_inventory,
+        V2_PACKAGE_SHA256,
     )
     from scripts.build_s4_4_amendment_03_multiday import (
         SEAL_PATH as SEAL_PATH_V2,
@@ -51,7 +51,7 @@ except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
     from build_s4_4_amendment_03_multiday import (
         CONTINUATION_PATH,
         V1_PACKAGE_SHA256,
-        build_cutoff_inventory,
+        V2_PACKAGE_SHA256,
     )
     from build_s4_4_amendment_03_multiday import SEAL_PATH as SEAL_PATH_V2
 
@@ -126,6 +126,69 @@ def _future_attempts(config: dict[str, Any], repo_root: Path) -> list[dict[str, 
     ]
 
 
+def _validate_cutoff_inventory(
+    cutoff: dict[str, Any], config: dict[str, Any], repo_root: Path
+) -> None:
+    payload = {key: value for key, value in cutoff.items() if key != "cutoff_sha256"}
+    if cutoff.get("cutoff_sha256") != canonical_sha256(payload):
+        raise S44AmendmentError("multiday cutoff self-hash mismatch")
+    evidence_root = repo_root / config["retention"]["tracked_evidence_root"]
+    manifest = load_json(evidence_root / "manifests/sessions/fit_b.json")
+    expected_ids = [take["planned_take_id"] for take in manifest["takes"][:34]]
+    if (
+        cutoff.get("status") != "immutable_cutoff_after_fit_b_take_034"
+        or cutoff.get("completed_fit_b_cells") != 34
+        or cutoff.get("fit_b_attempts") != 34
+        or cutoff.get("fit_b_failures") != 0
+        or cutoff.get("fit_b_replacements") != 0
+        or cutoff.get("planned_take_ids") != expected_ids
+        or cutoff.get("last_completed_planned_take_id") != expected_ids[-1]
+        or cutoff.get("next_planned_take_id")
+        != manifest["takes"][34]["planned_take_id"]
+        or cutoff.get("v1_precollection_seal_sha256")
+        != V1_PACKAGE_SHA256["precollection_seal.v1.json"]
+    ):
+        raise S44AmendmentError("multiday cutoff identity/census mismatch")
+    attempt_records = cutoff.get("attempt_records")
+    if not isinstance(attempt_records, list) or len(attempt_records) != 34:
+        raise S44AmendmentError("multiday cutoff attempt records mismatch")
+    if [record.get("planned_take_id") for record in attempt_records] != expected_ids:
+        raise S44AmendmentError("multiday cutoff planned-attempt order mismatch")
+    for attempt_record in attempt_records:
+        files = attempt_record.get("files")
+        if (
+            not isinstance(files, list)
+            or attempt_record.get("file_count") != len(files)
+            or attempt_record.get("attempt_tree_sha256") != canonical_sha256(files)
+        ):
+            raise S44AmendmentError("multiday cutoff attempt tree mismatch")
+        for record in files:
+            path = repo_root / str(record.get("path"))
+            if (
+                not path.is_file()
+                or path.stat().st_size != record.get("byte_size")
+                or sha256_file(path) != record.get("sha256")
+            ):
+                raise S44AmendmentError(
+                    f"multiday cutoff file mismatch: {record.get('path')}"
+                )
+    session_records = cutoff.get("session_records")
+    if not isinstance(session_records, list) or not session_records:
+        raise S44AmendmentError("multiday cutoff session records absent")
+    for record in session_records:
+        relative = str(record.get("path"))
+        path = repo_root / relative
+        if (
+            "/sessions/fit_b/" not in f"/{relative}"
+            or not path.is_file()
+            or path.stat().st_size != record.get("byte_size")
+            or sha256_file(path) != record.get("sha256")
+        ):
+            raise S44AmendmentError(
+                f"multiday cutoff session record mismatch: {relative}"
+            )
+
+
 def validate(
     index_path: Path,
     *,
@@ -158,6 +221,7 @@ def validate(
         not in {
             "ias.s4_4.amendment_03_evidence_index.v1",
             "ias.s4_4.amendment_03_evidence_index.v2",
+            "ias.s4_4.amendment_03_evidence_index.v3",
         }
         or index.get("logical_counts") != LOGICAL_COUNTS
         or index.get("new_planned_counts") != {"fit_b": 51, "prospective_holdout": 47}
@@ -170,10 +234,17 @@ def validate(
         issues.append(
             _issue("evidence_index_invalid", str(index_path), "contract mismatch")
         )
-    if index_schema == "ias.s4_4.amendment_03_evidence_index.v2" and (
+    if index_schema in {
+        "ias.s4_4.amendment_03_evidence_index.v2",
+        "ias.s4_4.amendment_03_evidence_index.v3",
+    } and (
         index.get("amendment_id") != "s4_4_data_expansion_amendment_03"
         or index.get("new_amendment_created") is not False
         or index.get("v1_package_sha256") != V1_PACKAGE_SHA256
+        or (
+            index_schema == "ias.s4_4.amendment_03_evidence_index.v3"
+            and index.get("v2_package_sha256") != V2_PACKAGE_SHA256
+        )
     ):
         issues.append(
             _issue(
@@ -220,11 +291,11 @@ def validate(
             repo_relative = candidate.resolve().relative_to(repo_root).as_posix()
             if not _tracked(repo_root, repo_relative):
                 issues.append(_issue("artifact_not_tracked", relative, "not in Git"))
-    checksum_path = evidence_root / (
-        CHECKSUM_PATH_V2
-        if index_schema == "ias.s4_4.amendment_03_evidence_index.v2"
-        else "SHA256SUMS"
-    )
+    checksum_name = {
+        "ias.s4_4.amendment_03_evidence_index.v2": "SHA256SUMS.v2",
+        "ias.s4_4.amendment_03_evidence_index.v3": CHECKSUM_PATH_V2,
+    }.get(index_schema, "SHA256SUMS")
+    checksum_path = evidence_root / checksum_name
     try:
         if _checksums(checksum_path) != expected_checksums:
             issues.append(
@@ -288,20 +359,35 @@ def validate(
             _issue("amendment_03_contract_invalid", str(evidence_root), str(exc))
         )
 
-    if index_schema == "ias.s4_4.amendment_03_evidence_index.v2":
+    if index_schema in {
+        "ias.s4_4.amendment_03_evidence_index.v2",
+        "ias.s4_4.amendment_03_evidence_index.v3",
+    }:
         try:
-            continuation = load_json(evidence_root / CONTINUATION_PATH)
-            expected_cutoff = build_cutoff_inventory(config, repo_root)
+            active_continuation_path = (
+                CONTINUATION_PATH
+                if index_schema == "ias.s4_4.amendment_03_evidence_index.v3"
+                else "freeze/multiday_session_continuation.v2.json"
+            )
+            continuation = load_json(evidence_root / active_continuation_path)
+            expected_schema = (
+                "ias.s4_4.amendment_03_multiday_continuation.v3"
+                if index_schema == "ias.s4_4.amendment_03_evidence_index.v3"
+                else "ias.s4_4.amendment_03_multiday_continuation.v2"
+            )
             if (
-                continuation.get("schema")
-                != "ias.s4_4.amendment_03_multiday_continuation.v2"
+                continuation.get("schema") != expected_schema
                 or continuation.get("amendment_id")
                 != "s4_4_data_expansion_amendment_03"
                 or continuation.get("new_amendment_created") is not False
                 or continuation.get("scientific_condition_matrix_changed") is not False
                 or continuation.get("future_take_identities_changed") is not False
                 or continuation.get("immutable_v1_package_sha256") != V1_PACKAGE_SHA256
-                or continuation.get("cutoff") != expected_cutoff
+                or (
+                    index_schema == "ias.s4_4.amendment_03_evidence_index.v3"
+                    and continuation.get("immutable_v2_package_sha256")
+                    != V2_PACKAGE_SHA256
+                )
                 or continuation.get("calendar_policy", {}).get(
                     "one_session_may_span_multiple_local_dates"
                 )
@@ -320,20 +406,21 @@ def validate(
                 )
             ):
                 raise S44AmendmentError("same-amendment multiday continuation differs")
+            _validate_cutoff_inventory(continuation["cutoff"], config, repo_root)
         except (OSError, KeyError, S44AmendmentError) as exc:
             issues.append(
                 _issue(
                     "multiday_continuation_invalid",
-                    str(evidence_root / CONTINUATION_PATH),
+                    str(evidence_root / active_continuation_path),
                     str(exc),
                 )
             )
 
-    seal_path = evidence_root / (
-        SEAL_PATH_V2
-        if index_schema == "ias.s4_4.amendment_03_evidence_index.v2"
-        else "precollection_seal.v1.json"
-    )
+    seal_name = {
+        "ias.s4_4.amendment_03_evidence_index.v2": "precollection_seal.v2.json",
+        "ias.s4_4.amendment_03_evidence_index.v3": SEAL_PATH_V2,
+    }.get(index_schema, "precollection_seal.v1.json")
+    seal_path = evidence_root / seal_name
     try:
         seal = load_json(seal_path)
         validate_precollection_seal(

@@ -43,13 +43,16 @@ S4.5-S4.8 work is part of this amendment.
 
 Fit A, Fit B, and prospective holdout may share the same truthful local
 calendar date. Dates and timezone-aware local/UTC timestamps remain mandatory,
-and Fit B and holdout session IDs remain distinct. A single acquisition session
-may also continue across more than one local calendar date without changing its
-session ID. Each active local-date segment requires its own truthful preflight
+and Fit B and holdout session IDs remain distinct. Fit A, Fit B, or prospective
+holdout may each continue across more than one local calendar date without
+changing its session or group identity. A date segment is not a new session or
+group. Each active local-date segment requires its own truthful preflight
 and separate hash-bound no-media readiness record before any attempt is
 allocated on that date; an earlier segment's records remain retained and must
 not be overwritten or re-dated. Fit B and holdout remain separate acquisition
-sessions with separate preflight/readiness histories. The holdout remains a
+sessions/groups with separate preflight/readiness histories. Amendment_03 Fit A
+is already complete and inherited, so this policy creates no new Fit A
+preflight, path, or attempt. The holdout remains a
 separate protected partition even if collected on the same date.
 
 Removing distinct-day separation reduces protection against day and
