@@ -40,6 +40,7 @@ try:
         CONTINUATION_PATH,
         V1_PACKAGE_SHA256,
         V2_PACKAGE_SHA256,
+        V3_PACKAGE_SHA256,
     )
     from scripts.build_s4_4_amendment_03_multiday import (
         SEAL_PATH as SEAL_PATH_V2,
@@ -52,6 +53,7 @@ except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
         CONTINUATION_PATH,
         V1_PACKAGE_SHA256,
         V2_PACKAGE_SHA256,
+        V3_PACKAGE_SHA256,
     )
     from build_s4_4_amendment_03_multiday import SEAL_PATH as SEAL_PATH_V2
 
@@ -141,6 +143,9 @@ def _validate_cutoff_inventory(
         or cutoff.get("fit_b_attempts") != 34
         or cutoff.get("fit_b_failures") != 0
         or cutoff.get("fit_b_replacements") != 0
+        or cutoff.get("cutoff_basis") != "fit_b_retained_attempt_count"
+        or cutoff.get("date_segments_remain_within_same_fit_b_session") is not True
+        or cutoff.get("all_session_records_present_at_cutoff_included") is not True
         or cutoff.get("planned_take_ids") != expected_ids
         or cutoff.get("last_completed_planned_take_id") != expected_ids[-1]
         or cutoff.get("next_planned_take_id")
@@ -222,6 +227,7 @@ def validate(
             "ias.s4_4.amendment_03_evidence_index.v1",
             "ias.s4_4.amendment_03_evidence_index.v2",
             "ias.s4_4.amendment_03_evidence_index.v3",
+            "ias.s4_4.amendment_03_evidence_index.v4",
         }
         or index.get("logical_counts") != LOGICAL_COUNTS
         or index.get("new_planned_counts") != {"fit_b": 51, "prospective_holdout": 47}
@@ -237,6 +243,7 @@ def validate(
     if index_schema in {
         "ias.s4_4.amendment_03_evidence_index.v2",
         "ias.s4_4.amendment_03_evidence_index.v3",
+        "ias.s4_4.amendment_03_evidence_index.v4",
     } and (
         index.get("amendment_id") != "s4_4_data_expansion_amendment_03"
         or index.get("new_amendment_created") is not False
@@ -244,6 +251,13 @@ def validate(
         or (
             index_schema == "ias.s4_4.amendment_03_evidence_index.v3"
             and index.get("v2_package_sha256") != V2_PACKAGE_SHA256
+        )
+        or (
+            index_schema == "ias.s4_4.amendment_03_evidence_index.v4"
+            and (
+                index.get("v2_package_sha256") != V2_PACKAGE_SHA256
+                or index.get("v3_package_sha256") != V3_PACKAGE_SHA256
+            )
         )
     ):
         issues.append(
@@ -293,7 +307,8 @@ def validate(
                 issues.append(_issue("artifact_not_tracked", relative, "not in Git"))
     checksum_name = {
         "ias.s4_4.amendment_03_evidence_index.v2": "SHA256SUMS.v2",
-        "ias.s4_4.amendment_03_evidence_index.v3": CHECKSUM_PATH_V2,
+        "ias.s4_4.amendment_03_evidence_index.v3": "SHA256SUMS.v3",
+        "ias.s4_4.amendment_03_evidence_index.v4": CHECKSUM_PATH_V2,
     }.get(index_schema, "SHA256SUMS")
     checksum_path = evidence_root / checksum_name
     try:
@@ -362,19 +377,30 @@ def validate(
     if index_schema in {
         "ias.s4_4.amendment_03_evidence_index.v2",
         "ias.s4_4.amendment_03_evidence_index.v3",
+        "ias.s4_4.amendment_03_evidence_index.v4",
     }:
         try:
-            active_continuation_path = (
-                CONTINUATION_PATH
-                if index_schema == "ias.s4_4.amendment_03_evidence_index.v3"
-                else "freeze/multiday_session_continuation.v2.json"
-            )
+            active_continuation_path = {
+                "ias.s4_4.amendment_03_evidence_index.v2": (
+                    "freeze/multiday_session_continuation.v2.json"
+                ),
+                "ias.s4_4.amendment_03_evidence_index.v3": (
+                    "freeze/multiday_session_continuation.v3.json"
+                ),
+                "ias.s4_4.amendment_03_evidence_index.v4": CONTINUATION_PATH,
+            }[index_schema]
             continuation = load_json(evidence_root / active_continuation_path)
-            expected_schema = (
-                "ias.s4_4.amendment_03_multiday_continuation.v3"
-                if index_schema == "ias.s4_4.amendment_03_evidence_index.v3"
-                else "ias.s4_4.amendment_03_multiday_continuation.v2"
-            )
+            expected_schema = {
+                "ias.s4_4.amendment_03_evidence_index.v2": (
+                    "ias.s4_4.amendment_03_multiday_continuation.v2"
+                ),
+                "ias.s4_4.amendment_03_evidence_index.v3": (
+                    "ias.s4_4.amendment_03_multiday_continuation.v3"
+                ),
+                "ias.s4_4.amendment_03_evidence_index.v4": (
+                    "ias.s4_4.amendment_03_multiday_continuation.v4"
+                ),
+            }[index_schema]
             if (
                 continuation.get("schema") != expected_schema
                 or continuation.get("amendment_id")
@@ -387,6 +413,15 @@ def validate(
                     index_schema == "ias.s4_4.amendment_03_evidence_index.v3"
                     and continuation.get("immutable_v2_package_sha256")
                     != V2_PACKAGE_SHA256
+                )
+                or (
+                    index_schema == "ias.s4_4.amendment_03_evidence_index.v4"
+                    and (
+                        continuation.get("immutable_v2_package_sha256")
+                        != V2_PACKAGE_SHA256
+                        or continuation.get("immutable_v3_package_sha256")
+                        != V3_PACKAGE_SHA256
+                    )
                 )
                 or continuation.get("calendar_policy", {}).get(
                     "one_session_may_span_multiple_local_dates"
@@ -418,7 +453,8 @@ def validate(
 
     seal_name = {
         "ias.s4_4.amendment_03_evidence_index.v2": "precollection_seal.v2.json",
-        "ias.s4_4.amendment_03_evidence_index.v3": SEAL_PATH_V2,
+        "ias.s4_4.amendment_03_evidence_index.v3": "precollection_seal.v3.json",
+        "ias.s4_4.amendment_03_evidence_index.v4": SEAL_PATH_V2,
     }.get(index_schema, "precollection_seal.v1.json")
     seal_path = evidence_root / seal_name
     try:

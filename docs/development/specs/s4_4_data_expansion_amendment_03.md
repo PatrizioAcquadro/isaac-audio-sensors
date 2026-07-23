@@ -78,7 +78,8 @@ Before attempt allocation, a no-media readiness gate still verifies:
 - Pi helper availability and hash plus its exact `record` subcommand and
   required-argument contract;
 - ReSpeaker identity, firmware, device, six-channel 16 kHz S16_LE format,
-  channel order/health, disk space, and unused safe output path;
+  channel order/health, disk space, and the exact unused safe output path for
+  the next planned-cell attempt;
 - ZED identity, firmware, USB, image, depth, IMU, and tracking readiness where
   applicable;
 - clocks and truthful session timestamps;
@@ -92,7 +93,9 @@ failure is retained under the session readiness-failure root before allocation
 and consumes no planned-cell attempt. Once allocated, every attempt and
 failure remains retained and no cell may exceed one replacement. All
 SSH-dependent readiness and capture commands require deliberate external
-network permission.
+network permission. Every passed readiness record is hash-bound to the exact
+next attempt ID, and attempt allocation rejects a stale or differently bound
+readiness record.
 
 ## Holdout and access boundary
 

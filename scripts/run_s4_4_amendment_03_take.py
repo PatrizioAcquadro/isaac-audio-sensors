@@ -88,6 +88,11 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     )
     if readiness["session_id"] != args.session_id:
         raise S44AmendmentError("readiness/session mismatch")
+    expected_attempt_id = (
+        f"{take['planned_take_id']}__attempt_{args.attempt_number:02d}"
+    )
+    if readiness.get("expected_next_attempt_id") != expected_attempt_id:
+        raise S44AmendmentError("readiness/next-attempt binding mismatch")
     attempt_root = ROOT / config["retention"]["attempt_root"]
     _require_sequence(take, attempt_root)
     _require_attempt_number(take, attempt_root, args.attempt_number)

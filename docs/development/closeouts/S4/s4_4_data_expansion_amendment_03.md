@@ -2,9 +2,10 @@
 
 ## Current verdict
 
-**FIT B IN PROGRESS / SAME-AMENDMENT MULTIDAY ENFORCEMENT CORRECTION IN
-PROGRESS / CAPTURE PROHIBITED UNTIL THE CORRECTED SOURCE AND ADDITIVE EVIDENCE
-PACKAGE ARE COMMITTED AND VALIDATED. S4.5 and later phases remain unstarted.**
+**FIT B IN PROGRESS / TAKE 35 NOT ALLOCATED / CAPTURE PROHIBITED UNTIL THE
+EXACT-NEXT-ATTEMPT READINESS CORRECTION AND ADDITIVE V4 EVIDENCE PACKAGE ARE
+COMMITTED, VALIDATED, AND READINESS PASSES. S4.5 and later phases remain
+unstarted.**
 
 Amendment 03 prospectively permits same-calendar-date sessions and permits the
 same Fit A, Fit B, or holdout session/group to continue across multiple
@@ -15,12 +16,22 @@ record. Fit B and holdout retain distinct session IDs, separate
 preflight/readiness histories, and all live device, identity, format, storage,
 privacy, clock, path, and access checks.
 
-The original committed v1 package and Fit B takes 1-34 remain immutable. The
-multiday correction stays within
-`s4_4_data_expansion_amendment_03`: it adds a v2 source/evidence checkpoint
-that binds the complete v1 package and the exact first-34-attempt cutoff. It
-does not create amendment_04, alter any planned take identity or condition, or
-overwrite the 2026-07-22 Fit B preflight/readiness records.
+The committed v1, v2, and v3 packages and Fit B takes 1-34 remain immutable.
+This correction stays within `s4_4_data_expansion_amendment_03`: additive v4
+binds every prior package and the exact first-34-attempt cutoff. That cutoff is
+based on the 34 retained Fit B attempts and includes every Fit B date-segment,
+preflight, readiness, and retained readiness-failure record present before
+take 35; these records remain part of the single `fit_b` session/group. No
+amendment_04, planned identity, scientific condition, or replacement rule is
+created or changed.
+
+The retained 2026-07-23 readiness failure consumed no attempt because its Pi
+probe incorrectly targeted the already-used session capture root while Mac
+SSH also timed out. The corrected no-media gate probes only
+`S4.4/amendments/s4_4_data_expansion_amendment_03/captures/s44a03_fit_b_035_conf__attempt_01`
+and binds the passed readiness hash to that exact next attempt. Attempt 35
+remains absent and cannot be allocated from a stale or differently bound
+readiness record.
 
 The logical matrix is 51 immutable inherited amendment_02 Fit A cells, 51 new
 amendment_03 Fit B cells, and 47 new amendment_03 prospective-holdout cells,
@@ -29,22 +40,19 @@ cells, one invalid protocol-quality attempt, and one valid replacement. The
 failed and replacement attempts remain retained and no inherited replacement
 allowance is reset.
 
-This checkpoint is not a PASS. It becomes capture-eligible only after explicit
-authorization for the separate local source and precollection-evidence
-commits, successful post-commit gates, a real no-media Fit B readiness pass
-outside the restricted sandbox, and physical operator confirmation. No push
-is authorized. Removing day separation reduces protection against day and
-environment confounding and must remain a reported scientific limitation.
+This checkpoint is not a PASS. It becomes capture-eligible only after the
+already-authorized local source and precollection-evidence commits, successful
+post-commit gates, a real no-media Fit B readiness pass outside the restricted
+sandbox, and physical operator confirmation. No push is authorized. Removing
+day separation reduces protection against day and environment confounding and
+must remain a reported scientific limitation.
 
 ## Precommit validation checkpoint
 
-The focused amendment_03 suite passes 19 tests. The full repository suite
-passes 1,370 tests with 80 expected optional/hardware skips. Lint, version
-sync, deterministic double-generation, JSON Schema instance validation,
-amendment_03 live inherited-inventory validation, frozen amendment_01 and
-amendment_02 validation, original final S4.4 validation, distribution build
-and audit, and whitespace checks pass. The built distribution contains a
-446-file sdist and 137-file wheel.
+The focused amendment_03 suite passes 24 tests and focused lint passes before
+the v4 source commit. Full repository, predecessor, build, release-source,
+distribution, Kit, pack, ignore, raw-tracking, and deterministic v4 generation
+gates must be rerun after the source and evidence commits.
 
 Readiness, attempt allocation, and execution additionally require the complete
 precollection package validator to pass with the evidence index and
@@ -52,10 +60,5 @@ precollection package validator to pass with the evidence index and
 between the source commit and the separately authorized evidence commit and
 rejects altered future manifests before any network or attempt action.
 
-The clean release-source check remains intentionally fail-closed because the
-new amendment_03 sources have not been committed. The Kit and acoustic-pack
-builders enforce the same clean-source boundary; after the distribution build
-cleared `dist/`, their audits truthfully report that no post-build archives
-exist. Those gates must be rerun only after explicit source-commit
-authorization. No readiness command, device state change, recorder, playback,
-ZED capture, scientific media, attempt allocation, commit, or push occurred.
+No recorder, playback, ZED capture, scientific media, new attempt allocation,
+restart, reconnect, or push occurred during this correction.

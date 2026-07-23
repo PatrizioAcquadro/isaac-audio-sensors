@@ -72,7 +72,7 @@ REQUIRED_READINESS_CHECKS = {
 def active_precollection_package(evidence_root: Path) -> tuple[Path, Path]:
     """Return the newest complete same-amendment package, failing closed if partial."""
 
-    for version in (3, 2):
+    for version in (4, 3, 2):
         index = evidence_root / f"evidence_index.v{version}.json"
         seal = evidence_root / f"precollection_seal.v{version}.json"
         checksum = evidence_root / f"SHA256SUMS.v{version}"
@@ -998,6 +998,15 @@ def validate_session_readiness(
         "preflight_sha256"
     ):
         raise S44AmendmentError("amendment_03 readiness preflight binding mismatch")
+    expected_attempt_id = record.get("expected_next_attempt_id")
+    if (
+        not isinstance(expected_attempt_id, str)
+        or not expected_attempt_id.startswith(
+            f"s44a03_{record['session_id']}_"
+        )
+        or not expected_attempt_id.endswith(("__attempt_01", "__attempt_02"))
+    ):
+        raise S44AmendmentError("amendment_03 readiness next-attempt binding invalid")
     checks = record.get("checks")
     if not isinstance(checks, Mapping) or set(checks) != REQUIRED_READINESS_CHECKS:
         raise S44AmendmentError("amendment_03 readiness exact check set mismatch")

@@ -40,6 +40,49 @@ DEFAULT_CONFIG = ROOT / "configs/s4_4_data_expansion_amendment_03.v1.json"
 NETWORK_CONFIRMATION = "I_CONFIRM_EXTERNAL_NETWORK_PERMISSION"
 
 
+def _next_unallocated_attempt_id(
+    manifest: dict[str, Any], attempt_root: Path
+) -> str:
+    """Resolve the next attempt without creating an attempt directory."""
+
+    for take in manifest["takes"]:
+        planned_id = take["planned_take_id"]
+        planned_root = attempt_root / planned_id
+        attempt_dirs = (
+            sorted(path for path in planned_root.iterdir() if path.is_dir())
+            if planned_root.is_dir()
+            else []
+        )
+        expected_names = [
+            f"{planned_id}__attempt_{number:02d}"
+            for number in range(1, len(attempt_dirs) + 1)
+        ]
+        if [path.name for path in attempt_dirs] != expected_names:
+            raise S44AmendmentError(
+                f"{planned_id}: retained attempt sequence is malformed"
+            )
+        if not attempt_dirs:
+            return f"{planned_id}__attempt_01"
+        outcomes = [
+            load_json(path / "manifest.json").get("outcome") for path in attempt_dirs
+        ]
+        if outcomes[-1] == "valid":
+            continue
+        if outcomes == ["pre_recording_failure"] or outcomes == ["invalid"]:
+            return f"{planned_id}__attempt_02"
+        if outcomes == ["planned"]:
+            raise S44AmendmentError(
+                f"{planned_id}: attempt already allocated before readiness"
+            )
+        if len(outcomes) == 2 and outcomes[-1] in {
+            "pre_recording_failure",
+            "invalid",
+        }:
+            raise S44AmendmentError(f"{planned_id}: replacement allowance exhausted")
+        raise S44AmendmentError(f"{planned_id}: retained attempt outcome is malformed")
+    raise S44AmendmentError(f"{manifest['session_id']}: session is already complete")
+
+
 def _gitignored(path: Path) -> bool:
     result = subprocess.run(
         ["git", "check-ignore", "-q", "--", str(path)],
@@ -113,6 +156,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise S44AmendmentError("amendment_03 preflight is not for today")
 
     identities = config["identities"]
+    manifest = load_json(evidence_root / f"manifests/sessions/{args.session_id}.json")
+    attempt_root = ROOT / config["retention"]["attempt_root"]
+    expected_next_attempt_id = _next_unallocated_attempt_id(manifest, attempt_root)
     mac_alias = identities["mac"]["ssh_alias"]
     pi_alias = "elab-raspberrypi5"
     mac_connectivity = _run(["ssh", mac_alias, "/usr/bin/true"], timeout=20)
@@ -142,7 +188,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             str(identities["mac"]["system_volume_percent"]),
         ]
     )
-    pi_output_root = f"S4.4/amendments/{config['amendment_id']}/captures"
+    pi_output_root = (
+        f"S4.4/amendments/{config['amendment_id']}/captures/"
+        f"{expected_next_attempt_id}"
+    )
     pi_preflight = _json_observation(
         [
             "ssh",
@@ -243,6 +292,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         .relative_to(ROOT)
         .as_posix(),
         "session_preflight_sha256": preflight["preflight_sha256"],
+        "expected_next_attempt_id": expected_next_attempt_id,
         "checks": {
             key: "passed" if value else "failed"
             for key, value in sorted(checks_bool.items())
@@ -253,6 +303,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "mac_dynamic_preflight": mac_dynamic,
             "pi_connectivity": pi_connectivity,
             "pi_preflight": pi_preflight,
+            "pi_output_root_probed": pi_output_root,
             "zed_preflight": zed,
             "mac_date": mac_date,
             "pi_date": pi_date,
@@ -288,6 +339,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "status": record["status"],
         "readiness_path": destination.relative_to(ROOT).as_posix(),
         "readiness_sha256": record["readiness_sha256"],
+        "expected_next_attempt_id": expected_next_attempt_id,
         "attempt_allocated": False,
         "recorder_started": False,
         "playback_started": False,

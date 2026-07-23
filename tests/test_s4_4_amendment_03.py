@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import scripts.run_s4_4_amendment_03_readiness as readiness_runner
 import scripts.run_s4_4_amendment_03_take as take_runner
 from isaac_audio_sensors.acquisition.s4_4_amendment import (
     S44AmendmentError,
@@ -43,6 +44,7 @@ from scripts.build_s4_4_amendment_03 import build
 from scripts.build_s4_4_amendment_03_multiday import (
     V1_PACKAGE_SHA256,
     V2_PACKAGE_SHA256,
+    V3_PACKAGE_SHA256,
     build_cutoff_inventory,
 )
 from scripts.build_s4_4_amendment_03_multiday import (
@@ -129,6 +131,7 @@ def _readiness(
     seal_sha256: str,
     *,
     status: str = "passed",
+    expected_next_attempt_id: str = "s44a03_fit_b_001_sil__attempt_01",
 ) -> dict:
     payload = {
         "schema": READINESS_SCHEMA,
@@ -140,6 +143,7 @@ def _readiness(
         "precollection_seal_sha256": seal_sha256,
         "session_preflight_path": "dataset/test/preflight.json",
         "session_preflight_sha256": preflight["preflight_sha256"],
+        "expected_next_attempt_id": expected_next_attempt_id,
         "checks": {
             key: "passed" if status == "passed" else "failed"
             for key in REQUIRED_READINESS_CHECKS
@@ -443,10 +447,17 @@ def _prepare_fixture(
     preflight = _preflight(config, "fit_b", today)
     preflight_path = tmp_path / "preflight.json"
     preflight_path.write_text(json.dumps(preflight))
-    readiness = _readiness(config, preflight, sha256_file(seal_path), status=status)
+    take = manifest["takes"][0]
+    expected_attempt_id = f"{take['planned_take_id']}__attempt_01"
+    readiness = _readiness(
+        config,
+        preflight,
+        sha256_file(seal_path),
+        status=status,
+        expected_next_attempt_id=expected_attempt_id,
+    )
     readiness_path = tmp_path / "readiness.json"
     readiness_path.write_text(json.dumps(readiness))
-    take = manifest["takes"][0]
     args = Namespace(
         config=CONFIG_PATH,
         session_id="fit_b",
@@ -500,6 +511,45 @@ def test_attempt_creation_requires_passed_hash_bound_readiness(
         contract["session_readiness_sha256"]
         == load_json(args.readiness)["readiness_sha256"]
     )
+    assert load_json(args.readiness)["expected_next_attempt_id"] == result["attempt_id"]
+
+
+def test_readiness_is_bound_to_exact_next_attempt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    config: dict,
+    future: dict,
+) -> None:
+    args, attempt_root = _prepare_fixture(
+        tmp_path, monkeypatch, config, future, status="passed"
+    )
+    readiness = load_json(args.readiness)
+    readiness["expected_next_attempt_id"] = "s44a03_fit_b_002_ctl__attempt_01"
+    readiness["readiness_sha256"] = canonical_sha256(
+        {key: value for key, value in readiness.items() if key != "readiness_sha256"}
+    )
+    args.readiness.write_text(json.dumps(readiness), encoding="utf-8")
+    with pytest.raises(S44AmendmentError, match="next-attempt binding"):
+        take_runner.prepare(args)
+    assert not attempt_root.exists()
+
+
+def test_readiness_probes_next_unused_attempt_path_within_same_session(
+    tmp_path: Path, future: dict
+) -> None:
+    manifest = future["fit_b"]
+    attempt_root = tmp_path / "attempts"
+    for take in manifest["takes"][:34]:
+        planned_id = take["planned_take_id"]
+        attempt_dir = attempt_root / planned_id / f"{planned_id}__attempt_01"
+        attempt_dir.mkdir(parents=True)
+        (attempt_dir / "manifest.json").write_text(
+            json.dumps({"outcome": "valid"}), encoding="utf-8"
+        )
+    assert readiness_runner._next_unallocated_attempt_id(
+        manifest, attempt_root
+    ) == "s44a03_fit_b_035_conf__attempt_01"
+    assert not (attempt_root / "s44a03_fit_b_035_conf").exists()
 
 
 def test_capture_is_prohibited_until_amendment_03_is_committed_and_sealed() -> None:
@@ -671,8 +721,11 @@ def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
     assert {
         relative: sha256_file(first / relative) for relative in V2_PACKAGE_SHA256
     } == V2_PACKAGE_SHA256
+    assert {
+        relative: sha256_file(first / relative) for relative in V3_PACKAGE_SHA256
+    } == V3_PACKAGE_SHA256
     result = validate(
-        first / "evidence_index.v3.json",
+        first / "evidence_index.v4.json",
         repo_root=ROOT,
         config_path=CONFIG_PATH,
         require_tracked=False,
@@ -685,17 +738,20 @@ def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
     assert result["prospective_holdout_scientifically_opened"] is False
 
 
-def test_cutoff_binds_listed_records_but_allows_later_date_segment_records(
+def test_cutoff_includes_every_date_segment_record_in_same_fit_b_session(
     config: dict,
 ) -> None:
     cutoff = build_cutoff_inventory(config, ROOT)
-    assert len(cutoff["session_records"]) >= 3
-    omitted = copy.deepcopy(cutoff)
-    omitted["session_records"] = omitted["session_records"][:-1]
-    omitted["cutoff_sha256"] = canonical_sha256(
-        {key: value for key, value in omitted.items() if key != "cutoff_sha256"}
-    )
-    _validate_cutoff_inventory(omitted, config, ROOT)
+    session_root = ROOT / config["retention"]["session_root"] / "fit_b"
+    expected_paths = [
+        path.relative_to(ROOT).as_posix()
+        for path in sorted(session_root.rglob("*.json"))
+        if path.is_file()
+    ]
+    assert [record["path"] for record in cutoff["session_records"]] == expected_paths
+    assert cutoff["cutoff_basis"] == "fit_b_retained_attempt_count"
+    assert cutoff["date_segments_remain_within_same_fit_b_session"] is True
+    _validate_cutoff_inventory(cutoff, config, ROOT)
 
 
 def test_tampered_future_manifest_fails_closed(tmp_path: Path) -> None:
