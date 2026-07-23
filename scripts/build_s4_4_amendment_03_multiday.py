@@ -29,7 +29,11 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     validate_predecessor_bytes,
 )
 from isaac_audio_sensors.core.dataset.atomic import write_json_atomic
-from scripts.build_s4_4_amendment_03 import DELIVERY_PATHS, SOURCE_PATHS
+
+try:
+    from scripts.build_s4_4_amendment_03 import DELIVERY_PATHS, SOURCE_PATHS
+except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
+    from build_s4_4_amendment_03 import DELIVERY_PATHS, SOURCE_PATHS
 
 ROOT = Path(__file__).resolve().parents[1]
 AMENDMENT_ID = "s4_4_data_expansion_amendment_03"

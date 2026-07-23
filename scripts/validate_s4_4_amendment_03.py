@@ -31,17 +31,29 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     validate_precollection_seal,
     validate_predecessor_bytes,
 )
-from scripts.build_s4_4_amendment_03_multiday import (
-    CHECKSUM_PATH as CHECKSUM_PATH_V2,
-)
-from scripts.build_s4_4_amendment_03_multiday import (
-    CONTINUATION_PATH,
-    V1_PACKAGE_SHA256,
-    build_cutoff_inventory,
-)
-from scripts.build_s4_4_amendment_03_multiday import (
-    SEAL_PATH as SEAL_PATH_V2,
-)
+
+try:
+    from scripts.build_s4_4_amendment_03_multiday import (
+        CHECKSUM_PATH as CHECKSUM_PATH_V2,
+    )
+    from scripts.build_s4_4_amendment_03_multiday import (
+        CONTINUATION_PATH,
+        V1_PACKAGE_SHA256,
+        build_cutoff_inventory,
+    )
+    from scripts.build_s4_4_amendment_03_multiday import (
+        SEAL_PATH as SEAL_PATH_V2,
+    )
+except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
+    from build_s4_4_amendment_03_multiday import (
+        CHECKSUM_PATH as CHECKSUM_PATH_V2,
+    )
+    from build_s4_4_amendment_03_multiday import (
+        CONTINUATION_PATH,
+        V1_PACKAGE_SHA256,
+        build_cutoff_inventory,
+    )
+    from build_s4_4_amendment_03_multiday import SEAL_PATH as SEAL_PATH_V2
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "configs/s4_4_data_expansion_amendment_03.v1.json"
