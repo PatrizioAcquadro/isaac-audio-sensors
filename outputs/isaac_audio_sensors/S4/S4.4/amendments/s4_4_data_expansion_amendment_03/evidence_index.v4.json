@@ -1,0 +1,409 @@
+{
+  "S4.5_or_later_started": false,
+  "amendment_01_unchanged": true,
+  "amendment_02_unchanged": true,
+  "amendment_id": "s4_4_data_expansion_amendment_03",
+  "artifact_count": 50,
+  "artifacts": [
+    {
+      "byte_size": 5958,
+      "path": "configs/s4_4_data_expansion_amendment_03.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "47922f194c3ba8fa642b2537bb5530efc24f2e3f180ff2f6201765489874ec2a"
+    },
+    {
+      "byte_size": 3588,
+      "path": "docs/development/closeouts/S4/s4_4_data_expansion_amendment_03.md",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_closeout",
+      "sha256": "ee5a5a1765b60167f94b0b7419dc8a7b559ae6db4f9c9ae7a65d24ddc736ce57"
+    },
+    {
+      "byte_size": 7511,
+      "path": "docs/development/specs/s4_4_data_expansion_amendment_03.md",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "1183f33c8664c1224a33f4266cea7d9fe58198a7bcee298e3db2016e7623ecfd"
+    },
+    {
+      "byte_size": 1095,
+      "path": "docs/schemas/s4_4_amendment_aggregate_index.v3.schema.json",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "ffbea5519b0dcc40939c3c0e2ad1ae40dab29232854f0bcc1b5c2ca33496b2f7"
+    },
+    {
+      "byte_size": 1958,
+      "path": "docs/schemas/s4_4_amendment_inherited_fit_a.v1.schema.json",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "80303fc47a24e1a46c978b112f634c61de6960dc112fc00af4ed7b98dcc94d4e"
+    },
+    {
+      "byte_size": 1181,
+      "path": "docs/schemas/s4_4_amendment_manifest.v3.schema.json",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "6b524de442719ea150a93379ec22e36371aad691f900bc3a2790d91e82f35926"
+    },
+    {
+      "byte_size": 1232,
+      "path": "docs/schemas/s4_4_amendment_precollection_seal.v3.schema.json",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "48ea9e6539217ad46fe214abb179d298e7cacf4231802a7520a9b3e9a0546916"
+    },
+    {
+      "byte_size": 1278,
+      "path": "docs/schemas/s4_4_amendment_session_preflight.v2.schema.json",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "9a304090c1041f77217b4ee1a62f40ff18a7184be19a5e0d722f229d3f0df204"
+    },
+    {
+      "byte_size": 1718,
+      "path": "docs/schemas/s4_4_amendment_session_readiness.v2.schema.json",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "bcd631d7431a45a4cd89a030733ca5b295a817c47067dadd459b6c4955d010b8"
+    },
+    {
+      "byte_size": 4723,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/SHA256SUMS",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "c804c3697f8d015c10ad9589e544f155aeedac0fabaa6d500072ae8bea94de2a"
+    },
+    {
+      "byte_size": 5702,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/SHA256SUMS.v2",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "59f870e092180a9a6694fc222e2fe3863fc18e614444cf32128a5c87688bb27b"
+    },
+    {
+      "byte_size": 6574,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/SHA256SUMS.v3",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "20affdbed55473a1879d253e36f8a1d971af9c977df37764d51732e88848dd44"
+    },
+    {
+      "byte_size": 1371,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/access_policy.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "11919c3c40a41e2334fb1673d3cf80d3b7596a3cc53ba0b91279dd175dd7773c"
+    },
+    {
+      "byte_size": 1912,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/aggregate_index.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "3cd01680fed7be5483d3d11e49216ff6f02b03fb21058188e453646ea314bd81"
+    },
+    {
+      "byte_size": 10819,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/evidence_index.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "5b3bd0b2bf720e8e6d1ff6cef1ebfaf7f40f21184451df9b98296c5af6c90f6a"
+    },
+    {
+      "byte_size": 14514,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/evidence_index.v2.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "c17f806bf82184e5f3cb761b4a4efe9434293667c8c06148305066178079da28"
+    },
+    {
+      "byte_size": 16830,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/evidence_index.v3.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "851c23e29ad4d73b1186951bcbb1c70745fb91459a01cbf3c27a7024a2fd6996"
+    },
+    {
+      "byte_size": 850,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/freeze/amendment_02_continuation.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "4efb3dc183fdbd760f77573b497dbc756c09698283aeeb62b146d30bafda3d6c"
+    },
+    {
+      "byte_size": 16861,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/freeze/config.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "0574db845e9c0d07779a440b468eb4eb73056e88b8fba04814f409b4e4e25c52"
+    },
+    {
+      "byte_size": 140836,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/freeze/multiday_session_continuation.v2.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "2f64253183e94e56b025805adefbad7516bc3b57097a1ea6770a9614bf93e405"
+    },
+    {
+      "byte_size": 141791,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/freeze/multiday_session_continuation.v3.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "1ee6014494a19606636a59df34844a1480a5a8a49647e6b4cee76c5cd0df7e16"
+    },
+    {
+      "byte_size": 142822,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/freeze/multiday_session_continuation.v4.json",
+      "retention": "tracked_metadata_only",
+      "role": "same_amendment_multiday_continuation",
+      "sha256": "6b3f53e46bad53d6628d2135f29cd59a35688103958e5198aa5cfbc3daab5d59"
+    },
+    {
+      "byte_size": 3369,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/freeze/source_checkpoint.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "6dd5b010dcc33b72ab1bd99459056d6965abc35bfdbb565499bba980c7816c20"
+    },
+    {
+      "byte_size": 3526,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/freeze/source_checkpoint.v2.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "c3c58347697841fc871656df36e595be5fe233d28459862a8ba95a24846b1019"
+    },
+    {
+      "byte_size": 3526,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/freeze/source_checkpoint.v3.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "f9a509f14e5317048953f8c7121b5dc763a261c89cc8589f741d96c332d1cbab"
+    },
+    {
+      "byte_size": 3526,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/freeze/source_checkpoint.v4.json",
+      "retention": "tracked_metadata_only",
+      "role": "active_source_checkpoint",
+      "sha256": "0ea1821eb5f985402a05f4c101c6b5f1bafe3a35ff49197992b7ca8a9788b168"
+    },
+    {
+      "byte_size": 271514,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/inheritance/inherited_fit_a.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "2b9cb2a91a7c0a9a7af208631b9d3370e8cee887f842769e77fae417e3db9212"
+    },
+    {
+      "byte_size": 2600,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/fit_b_manifest.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "6bead6134592cbe9f784a0eb8657533b74cf90e5d215f3005e8c3fdf02a22bb0"
+    },
+    {
+      "byte_size": 3024,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/prospective_holdout_manifest.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "377c53d868dea4a89329a925763734da6a38920c7246821c902807c1667e0320"
+    },
+    {
+      "byte_size": 146969,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/sessions/fit_b.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "5f06c4b51583516a4a96d96d7230231f2437c784d253d158d6c061387194a74a"
+    },
+    {
+      "byte_size": 145915,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/sessions/prospective_holdout.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "587c7ff093f086f304e12a7e55459bf8b19d326132cd0550c7218b6cf38c84d3"
+    },
+    {
+      "byte_size": 6386,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/precollection_seal.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "10e0513a7893cd241fa05d99b29daa46264e9d852c1864c2dbdcf3be70ffbf6d"
+    },
+    {
+      "byte_size": 4891,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/precollection_seal.v2.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "57e62aa6294a55e8b31ffb35846f3c92d1c2161795f9fe029e7b6b1b0a3c1c70"
+    },
+    {
+      "byte_size": 4998,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/precollection_seal.v3.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "05672bc2c1fc7ee75d2a7a5cb24a7fe34e45f344fda82f0bab3411363f815c4e"
+    },
+    {
+      "byte_size": 5105,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/precollection_seal.v4.json",
+      "retention": "tracked_metadata_only",
+      "role": "active_precollection_seal",
+      "sha256": "9b28b760bbe15b292a2b516e087cc8328c59f0d6d87d23afa3a69fa8a5f6c78d"
+    },
+    {
+      "byte_size": 538,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/prospective_holdout_seal_intent.v1.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "34b6bc2fe49c493809b55902da93d7e0d5973d8dd941c94955894627b76f46a3"
+    },
+    {
+      "byte_size": 1487,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/validation/precollection_validation.json",
+      "retention": "tracked_metadata_only",
+      "role": "immutable_amendment_03_prior_package",
+      "sha256": "efd777a7867fd40b92569c540fe690113f0cae888327d2773a89f4e2e582dbad"
+    },
+    {
+      "byte_size": 16058,
+      "path": "scripts/build_s4_4_amendment_03.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "9c2f12782f5356c918fea5ae0ab09ecf91c55c91d9008116e80d7771c58b9576"
+    },
+    {
+      "byte_size": 18058,
+      "path": "scripts/build_s4_4_amendment_03_multiday.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "d4afabd551f98e008963319f0c13fc8625acce13609986b6479241843ee7c303"
+    },
+    {
+      "byte_size": 9479,
+      "path": "scripts/execute_s4_4_amendment_03_attempt.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "dadaaa0a3ae6fce599c6fb3019e7fd83a0b0fb4a5d3d50cc50755b36956c4cca"
+    },
+    {
+      "byte_size": 21412,
+      "path": "scripts/execute_s4_4_amendment_attempt.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "27a08306c9080d31f54b02383d2c1ade97fa3e3ef785d30931a2ce37f6ce39dd"
+    },
+    {
+      "byte_size": 6481,
+      "path": "scripts/preflight_s4_2_zed.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "4a4ca08aca2d51f57fa69bffe079633d3d22953cea28485748c91ec2c76c57d9"
+    },
+    {
+      "byte_size": 15130,
+      "path": "scripts/run_s4_4_amendment_03_readiness.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "a1cabae3ae6d46fcccb2c588e0fb51ec382d2449d710e0715028a4f4a8ff3e6c"
+    },
+    {
+      "byte_size": 7422,
+      "path": "scripts/run_s4_4_amendment_03_take.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "4d1973abf32a2421754654b74dfc8a9bb6946efe83251ef055058af06db93e01"
+    },
+    {
+      "byte_size": 14726,
+      "path": "scripts/s4_2_mac_preflight.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "693b731219c846d0ccde308a152641c1c9a71c94ffb046f0fcb2e413b204202f"
+    },
+    {
+      "byte_size": 15673,
+      "path": "scripts/s4_2_pi_capture.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "af9a18fe855da034d062c4b50eddf559b7d57c0241324f77b8d13381d69da997"
+    },
+    {
+      "byte_size": 23845,
+      "path": "scripts/validate_s4_4_amendment_03.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "0ecff6d93fcf4559449dfea2fc937cee373b240eb5b741b5fca6037f1e5a110c"
+    },
+    {
+      "byte_size": 62710,
+      "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "4473cd77561d41101870a508b8f6980a0f3082f00042ab010f6d7002a7aa15c7"
+    },
+    {
+      "byte_size": 47615,
+      "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment_03.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "c3e290fc3a4b039ad7cd4a837ee98cd448c5e06807b8e8823d2b01e4afc82947"
+    },
+    {
+      "byte_size": 29733,
+      "path": "tests/test_s4_4_amendment_03.py",
+      "retention": "tracked_metadata_only",
+      "role": "amendment_source",
+      "sha256": "2bb65a435511ee94307805eb516ed648b94250b437d06b2ec8f3e87662a67b0e"
+    }
+  ],
+  "collection_allowed": true,
+  "commit_status": "committed",
+  "continuation_sha256": "4112df745f0adc9a30e9489dc46c9bd26e747b4066f724314ecfd52004255db2",
+  "logical_counts": {
+    "inherited_fit_a": 51,
+    "new_fit_b": 51,
+    "new_prospective_holdout": 47,
+    "total": 149
+  },
+  "new_amendment_created": false,
+  "new_planned_counts": {
+    "fit_b": 51,
+    "prospective_holdout": 47
+  },
+  "precollection_seal_sha256": "9b28b760bbe15b292a2b516e087cc8328c59f0d6d87d23afa3a69fa8a5f6c78d",
+  "prospective_holdout_scientifically_opened": false,
+  "raw_media_tracked": false,
+  "schema": "ias.s4_4.amendment_03_evidence_index.v4",
+  "status": "precollection_frozen",
+  "v1_package_sha256": {
+    "SHA256SUMS": "c804c3697f8d015c10ad9589e544f155aeedac0fabaa6d500072ae8bea94de2a",
+    "access_policy.v1.json": "11919c3c40a41e2334fb1673d3cf80d3b7596a3cc53ba0b91279dd175dd7773c",
+    "aggregate_index.v1.json": "3cd01680fed7be5483d3d11e49216ff6f02b03fb21058188e453646ea314bd81",
+    "evidence_index.v1.json": "5b3bd0b2bf720e8e6d1ff6cef1ebfaf7f40f21184451df9b98296c5af6c90f6a",
+    "freeze/amendment_02_continuation.v1.json": "4efb3dc183fdbd760f77573b497dbc756c09698283aeeb62b146d30bafda3d6c",
+    "freeze/config.v1.json": "0574db845e9c0d07779a440b468eb4eb73056e88b8fba04814f409b4e4e25c52",
+    "freeze/source_checkpoint.v1.json": "6dd5b010dcc33b72ab1bd99459056d6965abc35bfdbb565499bba980c7816c20",
+    "inheritance/inherited_fit_a.v1.json": "2b9cb2a91a7c0a9a7af208631b9d3370e8cee887f842769e77fae417e3db9212",
+    "manifests/fit_b_manifest.v1.json": "6bead6134592cbe9f784a0eb8657533b74cf90e5d215f3005e8c3fdf02a22bb0",
+    "manifests/prospective_holdout_manifest.v1.json": "377c53d868dea4a89329a925763734da6a38920c7246821c902807c1667e0320",
+    "manifests/sessions/fit_b.json": "5f06c4b51583516a4a96d96d7230231f2437c784d253d158d6c061387194a74a",
+    "manifests/sessions/prospective_holdout.json": "587c7ff093f086f304e12a7e55459bf8b19d326132cd0550c7218b6cf38c84d3",
+    "precollection_seal.v1.json": "10e0513a7893cd241fa05d99b29daa46264e9d852c1864c2dbdcf3be70ffbf6d",
+    "prospective_holdout_seal_intent.v1.json": "34b6bc2fe49c493809b55902da93d7e0d5973d8dd941c94955894627b76f46a3",
+    "validation/precollection_validation.json": "efd777a7867fd40b92569c540fe690113f0cae888327d2773a89f4e2e582dbad"
+  },
+  "v2_package_sha256": {
+    "SHA256SUMS.v2": "59f870e092180a9a6694fc222e2fe3863fc18e614444cf32128a5c87688bb27b",
+    "evidence_index.v2.json": "c17f806bf82184e5f3cb761b4a4efe9434293667c8c06148305066178079da28",
+    "freeze/multiday_session_continuation.v2.json": "2f64253183e94e56b025805adefbad7516bc3b57097a1ea6770a9614bf93e405",
+    "freeze/source_checkpoint.v2.json": "c3c58347697841fc871656df36e595be5fe233d28459862a8ba95a24846b1019",
+    "precollection_seal.v2.json": "57e62aa6294a55e8b31ffb35846f3c92d1c2161795f9fe029e7b6b1b0a3c1c70"
+  },
+  "v3_package_sha256": {
+    "SHA256SUMS.v3": "20affdbed55473a1879d253e36f8a1d971af9c977df37764d51732e88848dd44",
+    "evidence_index.v3.json": "851c23e29ad4d73b1186951bcbb1c70745fb91459a01cbf3c27a7024a2fd6996",
+    "freeze/multiday_session_continuation.v3.json": "1ee6014494a19606636a59df34844a1480a5a8a49647e6b4cee76c5cd0df7e16",
+    "freeze/source_checkpoint.v3.json": "f9a509f14e5317048953f8c7121b5dc763a261c89cc8589f741d96c332d1cbab",
+    "precollection_seal.v3.json": "05672bc2c1fc7ee75d2a7a5cb24a7fe34e45f344fda82f0bab3411363f815c4e"
+  }
+}
