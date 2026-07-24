@@ -16,6 +16,13 @@ binding. This is required by the unchanged public profile contract and changes
 no hypothesis, coordinate value, threshold, decision rule, or scientific
 result.
 
+The additive package-location amendment
+`configs/s4_5_corrective_01_package_location_amendment.v1.json` places the
+superseding package at
+`outputs/isaac_audio_sensors/S4/S4.5_corrective_01/`. Keeping it outside the
+immutable original `S4.5/` root preserves the original validator's exact
+non-recursive tracked-file contract. This changes no scientific content.
+
 Only the already authorized Fit A and Fit B evidence may be opened through the
 existing S4.5 accessor. Fit A is the development and hypothesis-selection
 partition. Fit B is locked validation and cannot select a hypothesis, tune a
@@ -142,7 +149,7 @@ checksums. Tests must mutate and re-checksum each of these and still fail:
 ## Additive outputs and acceptance
 
 The package root is
-`outputs/isaac_audio_sensors/S4/S4.5/correctives/s4_5_corrective_01/`.
+`outputs/isaac_audio_sensors/S4/S4.5_corrective_01/`.
 It contains the corrective contract record, authorized census, corrected
 measurements and groups, physical hypothesis comparison, decisions,
 uncertainty/sensitivity, clipping results, semantic validation report,

@@ -18,6 +18,7 @@ from isaac_audio_sensors.acquisition.s4_5 import (
 from isaac_audio_sensors.acquisition.s4_5_corrective import (
     CORRECTIVE_CONFIG,
     CORRECTIVE_FRAME_AMENDMENT,
+    CORRECTIVE_LOCATION_AMENDMENT,
     CORRECTIVE_OUTPUT,
     HYPOTHESIS_IDS,
     SELECTED_HYPOTHESIS,
@@ -27,6 +28,7 @@ from isaac_audio_sensors.acquisition.s4_5_corrective import (
     _synthetic_report,
     endpoint_clipping_counts,
     load_corrective_contract,
+    load_package_location_amendment,
     load_profile_frame_amendment,
     refresh_package_integrity,
     validate_corrective_package,
@@ -66,6 +68,10 @@ def test_corrective_contract_freezes_physical_hypotheses_and_fit_roles() -> None
     assert amendment["profile_source_frame"] == "F_project"
     assert amendment["scientific_binding_changed"] is False
     assert (ROOT / CORRECTIVE_FRAME_AMENDMENT).is_file()
+    location = load_package_location_amendment(ROOT)
+    assert location["package_root"] == CORRECTIVE_OUTPUT.as_posix()
+    assert location["scientific_binding_changed"] is False
+    assert (ROOT / CORRECTIVE_LOCATION_AMENDMENT).is_file()
 
 
 def test_pcm16_endpoint_clipping_excludes_only_exact_endpoints() -> None:

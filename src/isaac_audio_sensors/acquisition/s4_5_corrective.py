@@ -56,10 +56,11 @@ CORRECTIVE_CONFIG = Path("configs/s4_5_corrective_01.v1.json")
 CORRECTIVE_FRAME_AMENDMENT = Path(
     "configs/s4_5_corrective_01_profile_frame_amendment.v1.json"
 )
-CORRECTIVE_SPEC = Path("docs/development/specs/s4_5_corrective_01.md")
-CORRECTIVE_OUTPUT = Path(
-    "outputs/isaac_audio_sensors/S4/S4.5/correctives/s4_5_corrective_01"
+CORRECTIVE_LOCATION_AMENDMENT = Path(
+    "configs/s4_5_corrective_01_package_location_amendment.v1.json"
 )
+CORRECTIVE_SPEC = Path("docs/development/specs/s4_5_corrective_01.md")
+CORRECTIVE_OUTPUT = Path("outputs/isaac_audio_sensors/S4/S4.5_corrective_01")
 CORRECTIVE_MODULE = Path("src/isaac_audio_sensors/acquisition/s4_5_corrective.py")
 CORRECTIVE_RUNNER = Path("scripts/run_s4_5_corrective.py")
 CORRECTIVE_VALIDATOR = Path("scripts/validate_s4_5_corrective.py")
@@ -182,6 +183,26 @@ def load_profile_frame_amendment(repo_root: Path) -> dict[str, Any]:
     for key, value in expected.items():
         if amendment.get(key) != value:
             raise S45Error(f"profile-frame amendment changed {key}")
+    return amendment
+
+
+def load_package_location_amendment(repo_root: Path) -> dict[str, Any]:
+    """Load the additive package-location compatibility amendment."""
+
+    amendment = load_json(
+        repo_root / CORRECTIVE_LOCATION_AMENDMENT,
+        label="S4.5 corrective package-location amendment",
+    )
+    expected = {
+        "schema": "ias.s4_5.corrective_package_location_amendment.v1",
+        "package_root": CORRECTIVE_OUTPUT.as_posix(),
+        "scientific_binding_changed": False,
+        "scientific_thresholds_changed": False,
+        "selected_hypothesis_changed": False,
+    }
+    for key, value in expected.items():
+        if amendment.get(key) != value:
+            raise S45Error(f"package-location amendment changed {key}")
     return amendment
 
 
@@ -1266,6 +1287,7 @@ def source_commit_is_valid_corrective(repo_root: Path, source_commit: str) -> No
     for relative in (
         CORRECTIVE_CONFIG,
         CORRECTIVE_FRAME_AMENDMENT,
+        CORRECTIVE_LOCATION_AMENDMENT,
         CORRECTIVE_SPEC,
         CORRECTIVE_MODULE,
         CORRECTIVE_RUNNER,
@@ -1336,6 +1358,7 @@ def build_corrective_package(
     source_commit_is_valid_corrective(repo_root, source_commit)
     corrective = load_corrective_contract(config_path, repo_root)
     frame_amendment = load_profile_frame_amendment(repo_root)
+    location_amendment = load_package_location_amendment(repo_root)
     if output.exists():
         if any(output.iterdir()):
             raise S45Error(f"corrective output must be empty: {output}")
@@ -1477,6 +1500,10 @@ def build_corrective_package(
         "profile_frame_amendment_sha256": sha256_file(
             repo_root / CORRECTIVE_FRAME_AMENDMENT
         ),
+        "package_location_amendment_path": CORRECTIVE_LOCATION_AMENDMENT.as_posix(),
+        "package_location_amendment_sha256": sha256_file(
+            repo_root / CORRECTIVE_LOCATION_AMENDMENT
+        ),
         "contract_commit": CONTRACT_COMMIT,
         "source_commit": source_commit,
     }
@@ -1494,6 +1521,14 @@ def build_corrective_package(
             "path": CORRECTIVE_FRAME_AMENDMENT.as_posix(),
             "sha256": sha256_file(repo_root / CORRECTIVE_FRAME_AMENDMENT),
             "scientific_binding_changed": frame_amendment["scientific_binding_changed"],
+        },
+        "package_location_amendment": {
+            "path": CORRECTIVE_LOCATION_AMENDMENT.as_posix(),
+            "sha256": sha256_file(repo_root / CORRECTIVE_LOCATION_AMENDMENT),
+            "package_root": location_amendment["package_root"],
+            "scientific_binding_changed": location_amendment[
+                "scientific_binding_changed"
+            ],
         },
         "input_records": [
             {"name": name, **record}
@@ -1516,8 +1551,7 @@ def build_corrective_package(
             ),
             (
                 ".venv/bin/python scripts/validate_s4_5_corrective.py "
-                "--evidence outputs/isaac_audio_sensors/S4/S4.5/correctives/"
-                "s4_5_corrective_01"
+                "--evidence outputs/isaac_audio_sensors/S4/S4.5_corrective_01"
             ),
             ".venv/bin/python -m pytest -q tests/test_s4_5_corrective.py",
             "make test",

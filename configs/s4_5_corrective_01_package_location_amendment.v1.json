@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-07-24T02:00:00Z",
+  "package_root": "outputs/isaac_audio_sensors/S4/S4.5_corrective_01",
+  "reason": "preserve the original S4.5 validator's exact non-recursive tracked-file contract by keeping the additive corrective outside the immutable original evidence root",
+  "schema": "ias.s4_5.corrective_package_location_amendment.v1",
+  "scientific_binding_changed": false,
+  "scientific_thresholds_changed": false,
+  "selected_hypothesis_changed": false,
+  "supersedes_field": "docs/development/specs/s4_5_corrective_01.md package root only"
+}
