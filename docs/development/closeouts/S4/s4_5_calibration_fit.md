@@ -1,5 +1,19 @@
 # S4.5 supported functional fitting closeout
 
+## Authoritative active-profile routing amendment
+
+<!-- S4.5_ACTIVE_HANDOFF_AUTHORITY: outputs/isaac_audio_sensors/S4/S4.5_active_profile.v1.json -->
+
+The historical closeout below is preserved, but its v1 profile routing is
+scientifically superseded. The authoritative S4.5 closeout is
+`docs/development/closeouts/S4/s4_5_calibration_fit_amendment_01.md`.
+The only S4.6 input authorized by S4.5 is the v2 profile together with the
+active handoff resolved through
+`outputs/isaac_audio_sensors/S4/S4.5_active_profile.v1.json`. S4.6 has not
+started.
+That pointer binds
+`outputs/isaac_audio_sensors/S4/S4.5_corrective_01/calibration_profile.v2.json`.
+
 ## Final status
 
 **PASS.** S4.5 retained three scientifically useful relative channel-gain

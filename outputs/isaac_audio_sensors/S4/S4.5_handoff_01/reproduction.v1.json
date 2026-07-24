@@ -1,0 +1,11 @@
+{
+  "clean_checkout_supported": true,
+  "command": "python3 scripts/replay_s4_5_handoff.py --canonical outputs/isaac_audio_sensors/S4/S4.5_handoff_01",
+  "comparison": "byte_for_byte_complete_package",
+  "deterministic": true,
+  "requires_historical_detached_checkout": false,
+  "requires_holdout_or_raw_media": false,
+  "schema": "ias.s4_5.active_handoff_reproduction.v1",
+  "source_commit": "4e23d816eb4b6f66a5becc1ca22e422130a35cd9",
+  "status": "passed"
+}

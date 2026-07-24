@@ -1,0 +1,33 @@
+{
+  "active_handoff_path": "outputs/isaac_audio_sensors/S4/S4.5_handoff_01/active_handoff.v1.json",
+  "active_profile_path": "outputs/isaac_audio_sensors/S4/S4.5_corrective_01/calibration_profile.v2.json",
+  "active_profile_sha256": "944dda1df3a2de720ab86a3f07f0ea545aa9abca676a003423b29221ca0d47c8",
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "records": [
+    {
+      "byte_size": 4853,
+      "path": "active_handoff.v1.json",
+      "sha256": "8f0731b3cde2e699b73f3832d9c70d97614b772be43ceff8922e20cf2462e0e6"
+    },
+    {
+      "byte_size": 1308,
+      "path": "closeout_amendment.v1.json",
+      "sha256": "70e46be7324ed2e87e41004ac02a0265d0ffda0c63923382b52aeedabfbfb1ef"
+    },
+    {
+      "byte_size": 5728,
+      "path": "provenance.v1.json",
+      "sha256": "173935f59036ef6985111a8f9c6b73f0f2fd5c2af0159a5ea00f9c3c2d26ace8"
+    },
+    {
+      "byte_size": 460,
+      "path": "reproduction.v1.json",
+      "sha256": "90fce50f0bb25b0de8ddd97a6a6e934004c8b9f5f23601d9b1b6a5a457657d07"
+    }
+  ],
+  "schema": "ias.s4_5.active_handoff_evidence_index.v1",
+  "source_commit": "4e23d816eb4b6f66a5becc1ca22e422130a35cd9",
+  "status": "passed",
+  "tool_version": "ias_s4_5_handoff/1.0.0"
+}
