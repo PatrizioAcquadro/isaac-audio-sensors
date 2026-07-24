@@ -299,6 +299,10 @@ def _simulate_from_args(args: argparse.Namespace):
             "speed_of_sound_mps": config.speed_of_sound_mps,
             "ambiguity_policy": config.tdoa_ambiguity_policy,
         }
+    backend_kwargs.update(
+        effects=config.effects,
+        runtime_profile=config.runtime_profile,
+    )
     backend = get_backend(backend_id, **backend_kwargs)
     return backend.simulate(scene, sensor, time_window)
 

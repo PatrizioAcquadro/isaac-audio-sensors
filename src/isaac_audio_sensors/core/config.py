@@ -67,7 +67,57 @@ def load_audio_config(path: str | Path) -> AudioSensorConfig:
     config_path = Path(path)
     with config_path.open("rb") as config_file:
         raw = tomllib.load(config_file)
-    return validate_audio_config(raw)
+    config = validate_audio_config(raw)
+    audio = _required_table(raw, "audio")
+    application = audio.get("profile_application")
+    if application is None:
+        return config
+    if not isinstance(application, dict):
+        raise ConfigValidationError("audio.profile_application must be a table.")
+    unknown = set(application) - {"mode", "config_path"}
+    if unknown:
+        raise ConfigValidationError(
+            "audio.profile_application contains unknown keys "
+            f"{sorted(unknown)!r}."
+        )
+    mode = str(application.get("mode", "off"))
+    config_contract = str(
+        application.get(
+            "config_path",
+            "configs/s4_6_profile_application.v1.json",
+        )
+    )
+    from isaac_audio_sensors.core.profile_application import (
+        ProfileApplicationError,
+        apply_profile_application,
+    )
+
+    try:
+        result = apply_profile_application(
+            config,
+            repo_root=_find_repository_root(config_path),
+            mode=mode,
+            application_config_path=config_contract,
+        )
+    except ProfileApplicationError as exc:
+        raise ConfigValidationError(f"audio.profile_application: {exc}") from exc
+    return result.config
+
+
+def _find_repository_root(config_path: Path) -> Path:
+    """Find the repository containing the fixed S4.6 active pointer."""
+
+    resolved = config_path.resolve()
+    for parent in (resolved.parent, *resolved.parents):
+        if (
+            parent
+            / "outputs/isaac_audio_sensors/S4/S4.5_active_profile.v1.json"
+        ).is_file():
+            return parent
+    raise ConfigValidationError(
+        "audio.profile_application requires a repository containing the fixed "
+        "S4.5 active profile pointer."
+    )
 
 
 def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
