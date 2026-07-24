@@ -65,6 +65,7 @@ CORRECTIVE_RUNNER = Path("scripts/run_s4_5_corrective.py")
 CORRECTIVE_VALIDATOR = Path("scripts/validate_s4_5_corrective.py")
 CORRECTIVE_TEST = Path("tests/test_s4_5_corrective.py")
 TOOL_VERSION = "ias_s4_5_corrective/1.0.0"
+CONTRACT_COMMIT = "26903338da1f91bc8843fd1b093b07482fe4cd9a"
 HYPOTHESIS_IDS = (
     "H0_identity_nominal",
     "H1_s4_3_rz180_omitted",
@@ -1476,14 +1477,14 @@ def build_corrective_package(
         "profile_frame_amendment_sha256": sha256_file(
             repo_root / CORRECTIVE_FRAME_AMENDMENT
         ),
-        "contract_commit": "2690333",
+        "contract_commit": CONTRACT_COMMIT,
         "source_commit": source_commit,
     }
     provenance = {
         "schema": "ias.s4_5.corrective_provenance.v1",
         "status": "passed",
         "source_commit": source_commit,
-        "contract_commit": "2690333",
+        "contract_commit": CONTRACT_COMMIT,
         "tool_version": TOOL_VERSION,
         "config_path": CORRECTIVE_CONFIG.as_posix(),
         "config_sha256": sha256_file(repo_root / CORRECTIVE_CONFIG),
