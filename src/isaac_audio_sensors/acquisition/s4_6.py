@@ -4,13 +4,10 @@ from __future__ import annotations
 
 import copy
 import hashlib
-import io
 import json
-import os
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -525,27 +522,29 @@ def _mutate_identity_bypass(root: Path) -> None:
 
 
 def _entry_s45_validation(repo_root: Path) -> dict[str, Any]:
-    archive = subprocess.run(
-        ["git", "archive", "--format=tar", ENTRY_COMMIT],
-        cwd=repo_root,
-        check=True,
-        capture_output=True,
-    ).stdout
     with tempfile.TemporaryDirectory(prefix="ias-s4-6-entry-validator-") as temp:
         checkout = Path(temp) / "checkout"
-        checkout.mkdir()
-        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as stream:
-            stream.extractall(checkout)
-        environment = os.environ.copy()
-        environment.update(
-            GIT_DIR=str(repo_root / ".git"),
-            GIT_WORK_TREE=str(checkout),
-            GIT_INDEX_FILE=str(Path(temp) / "entry.index"),
+        clone = subprocess.run(
+            [
+                "git",
+                "clone",
+                "--shared",
+                "--no-checkout",
+                "--quiet",
+                str(repo_root),
+                str(checkout),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
         )
+        if clone.returncode != 0:
+            raise S46EvidenceError(
+                f"could not clone entry validation checkout: {clone.stderr.strip()}"
+            )
         subprocess.run(
-            ["git", "read-tree", ENTRY_COMMIT],
+            ["git", "checkout", "--detach", "--quiet", ENTRY_COMMIT],
             cwd=checkout,
-            env=environment,
             check=True,
             capture_output=True,
         )
@@ -559,7 +558,6 @@ def _entry_s45_validation(repo_root: Path) -> dict[str, Any]:
                 "--require-committed",
             ],
             cwd=checkout,
-            env=environment,
             check=False,
             capture_output=True,
             text=True,
