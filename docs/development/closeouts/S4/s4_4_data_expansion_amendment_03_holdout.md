@@ -4,11 +4,12 @@
 
 Fit B is complete. The prospective holdout is complete, technically sealed,
 and scientifically unopened. Acquisition is closed; no recollection is
-required. The corrective software source is committed at
-`ea043e962a54bdec8cc87e6913ff4162a1ee1dc5`; the additive corrective index,
-source checkpoint, checksum manifest, and final-gate record bind that source
-without rewriting the frozen v1-v5 packages or `SHA256SUMS.closeout`. S4.4
-Amendment 03 is complete. S4.5-S4.8 remain unstarted.
+required. The superseding corrective software source is committed at
+`1b0f5402d7bdca8383e5e94551cb4116f58759c5`; the additive `corrective_02`
+index, source checkpoint, checksum manifest, and final-gate record bind that
+source and the immutable `corrective_01` predecessor without rewriting the
+frozen v1-v5 packages or `SHA256SUMS.closeout`. S4.4 Amendment 03 is complete.
+S4.5-S4.8 remain unstarted.
 
 ## Acquisition and seal
 
@@ -45,10 +46,11 @@ The tracked additive closeout records are:
 - `immutable_predecessor_proof.v1.json`, SHA-256
   `91e058b84695928da5610600d8351e83a013703f1ca96addbf2898b359c5ad10`.
 
-The current corrected bytes are bound separately by
-`corrective_01/source_checkpoint.v1.json`,
-`corrective_01/corrective_index.v1.json`, `corrective_01/SHA256SUMS`, and
-`validation/final_closeout_corrective_01.v1.json`. These records are additive;
+The first corrective remains immutable historical provenance. The current
+corrected bytes are bound separately by
+`corrective_02/source_checkpoint.v1.json`,
+`corrective_02/corrective_index.v1.json`, `corrective_02/SHA256SUMS`, and
+`validation/final_closeout_corrective_02.v1.json`. These records are additive;
 they do not replace or reinterpret any historical checksum manifest.
 
 The machine-local access ledger remains separate from the original S4.4,
@@ -77,17 +79,22 @@ The outcome-blind final-closeout validator passes all 152 attempt-local
 checksum sets (52 Fit A, 52 Fit B, and 48 holdout), all 47 holdout
 technical-QA records, both holdout seals and their bindings, the access-ledger
 hash chain, all 360 evidence-index records, closeout records, immutable
-predecessors, and the exact final census. Its 20 focused tamper tests pass.
+predecessors, and the exact final census. The focused closeout matrix has 19
+negative/tamper cases and one positive end-to-end final-closeout test; separate
+regressions cover strict CLI defaults, incomplete modes, missing corrective
+evidence, cutoff hermeticity, readiness projection, and later-phase detection.
 Historical Git-blob verification passes 230 v1-v5 and closeout checksum
-records. The additive corrective checksum/index binds corrected current files
-separately; no frozen checksum manifest was rewritten.
+records. The additive `corrective_02` checksum/index binds corrected current
+files and immutable `corrective_01` separately; no frozen checksum manifest was
+rewritten.
 
-The historical 85-valid-cell cutoff test uses an isolated fixture, while the
-completed-state test verifies 149 valid cells and 152 retained attempts from
-the explicit machine-local final gate. Full tests pass with 1,397 passed and 80
+The historical 85-valid-cell cutoff test reconstructs from the immutable v5
+snapshot, while the completed-state test verifies 149 valid cells and 152
+retained attempts from the explicit machine-local final gate. Full tests pass
+with 1,404 passed and 80
 documented optional/hardware skips. Lint passes. Version 1.10.0 and
 release-source checks pass at
-`ea043e962a54bdec8cc87e6913ff4162a1ee1dc5`. Distribution audit passes for a
+`1b0f5402d7bdca8383e5e94551cb4116f58759c5`. Distribution audit passes for a
 453-file sdist and 137-file wheel; Kit audit passes for 138 files. The
 lock-matching `/tmp/ias-s4-3-wheelhouse-Yqs1Oh` acoustic-pack build and 8-file
 audit pass.
