@@ -24,6 +24,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     build_future_manifests,
     build_inherited_fit_a,
     combined_future_manifest,
+    detect_later_phase_artifacts,
     load_configuration,
     validate_configuration,
     validate_future_attempt_census,
@@ -132,7 +133,11 @@ def _future_attempts(config: dict[str, Any], repo_root: Path) -> list[dict[str, 
 
 
 def _validate_cutoff_inventory(
-    cutoff: dict[str, Any], config: dict[str, Any], repo_root: Path
+    cutoff: dict[str, Any],
+    config: dict[str, Any],
+    repo_root: Path,
+    *,
+    verify_files: bool,
 ) -> None:
     payload = {key: value for key, value in cutoff.items() if key != "cutoff_sha256"}
     if cutoff.get("cutoff_sha256") != canonical_sha256(payload):
@@ -173,9 +178,12 @@ def _validate_cutoff_inventory(
         for record in files:
             path = repo_root / str(record.get("path"))
             if (
-                not path.is_file()
-                or path.stat().st_size != record.get("byte_size")
-                or sha256_file(path) != record.get("sha256")
+                verify_files
+                and (
+                    not path.is_file()
+                    or path.stat().st_size != record.get("byte_size")
+                    or sha256_file(path) != record.get("sha256")
+                )
             ):
                 raise S44AmendmentError(
                     f"multiday cutoff file mismatch: {record.get('path')}"
@@ -188,9 +196,14 @@ def _validate_cutoff_inventory(
         path = repo_root / relative
         if (
             "/sessions/fit_b/" not in f"/{relative}"
-            or not path.is_file()
-            or path.stat().st_size != record.get("byte_size")
-            or sha256_file(path) != record.get("sha256")
+            or (
+                verify_files
+                and (
+                    not path.is_file()
+                    or path.stat().st_size != record.get("byte_size")
+                    or sha256_file(path) != record.get("sha256")
+                )
+            )
         ):
             raise S44AmendmentError(
                 f"multiday cutoff session record mismatch: {relative}"
@@ -209,6 +222,12 @@ def validate(
     cutoff_root: Path | None = None,
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
+    if require_final:
+        require_tracked = True
+        require_committed = True
+        require_machine_local = True
+    elif require_committed:
+        require_tracked = True
     evidence_root = index_path.resolve().parent
     issues: list[dict[str, str]] = []
     config = load_configuration(config_path, repo_root)
@@ -519,7 +538,10 @@ def validate(
             ):
                 raise S44AmendmentError("same-amendment multiday continuation differs")
             _validate_cutoff_inventory(
-                continuation["cutoff"], config, cutoff_root or repo_root
+                continuation["cutoff"],
+                config,
+                cutoff_root or repo_root,
+                verify_files=require_machine_local,
             )
         except (OSError, KeyError, S44AmendmentError) as exc:
             issues.append(
@@ -584,9 +606,15 @@ def validate(
     ).stdout.strip()
     if tracked_dataset:
         issues.append(_issue("raw_dataset_tracked", "dataset", tracked_dataset))
-    for phase in ("S4.5", "S4.6", "S4.7", "S4.8"):
-        if (repo_root / f"outputs/isaac_audio_sensors/S4/{phase}").exists():
-            issues.append(_issue("later_phase_directory_present", phase, "forbidden"))
+    later_phase_artifacts = detect_later_phase_artifacts(repo_root)
+    for relative in later_phase_artifacts:
+        issues.append(_issue("later_phase_artifact_present", relative, "forbidden"))
+    holdout_state = (
+        False
+        if index.get("prospective_holdout_scientifically_opened") is False
+        and not any(issue["code"] == "evidence_index_invalid" for issue in issues)
+        else None
+    )
     return {
         "schema": "ias.s4_4.amendment_03_integrity_validation.v1",
         "status": "passed" if not issues else "failed",
@@ -600,9 +628,10 @@ def validate(
         "attempt_census": census,
         "same_calendar_date_permitted": True,
         "restart_or_reconnection_required": False,
-        "prospective_holdout_scientifically_opened": False,
+        "prospective_holdout_scientifically_opened": holdout_state,
         "scientific_outcomes_returned": False,
-        "S4.5_or_later_started": False,
+        "S4.5_or_later_started": bool(later_phase_artifacts),
+        "later_phase_artifacts": later_phase_artifacts,
         "issues": issues,
     }
 

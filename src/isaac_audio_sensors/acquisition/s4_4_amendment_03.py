@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import os
+import re
 import subprocess
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
@@ -82,6 +84,11 @@ LEGACY_REQUIRED_READINESS_CHECKS = {
     "gitignore_and_output_paths",
     "access_policy_and_ledger_state",
 }
+LEGACY_INERT_MAC_CHECKS = {
+    "mac_full_preflight_json",
+    "mac_dynamic_preflight_json",
+    "mac_identity_volume_mute_power_reference_keyboard_and_lid",
+}
 REDUCED_MAC_READINESS_FIELDS = {
     "schema",
     "collector_version",
@@ -99,6 +106,52 @@ REDUCED_MAC_POWER_FIELDS = {
     "charging",
     "battery_percent",
 }
+_LATER_PHASE_NAME = re.compile(
+    r"(?:^|[^a-z0-9])s4[._-]?[5-8](?:[^0-9]|$)", re.IGNORECASE
+)
+_LATER_PHASE_ROOTS = (
+    "configs",
+    "dataset",
+    "examples",
+    "exts",
+    "outputs",
+    "scripts",
+    "src",
+    "tests",
+)
+_SCAN_IGNORES = {"__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
+
+
+def detect_later_phase_artifacts(repo_root: Path) -> list[str]:
+    """Return phase-owned S4.5-S4.8 artifact paths, excluding documentation."""
+
+    found: list[str] = []
+    resolved_root = repo_root.resolve()
+    for root_name in _LATER_PHASE_ROOTS:
+        scan_root = resolved_root / root_name
+        if not scan_root.exists():
+            continue
+        for current, directories, files in os.walk(scan_root):
+            directories[:] = sorted(
+                name for name in directories if name not in _SCAN_IGNORES
+            )
+            current_path = Path(current)
+            matching_directories = [
+                name for name in directories if _LATER_PHASE_NAME.search(name)
+            ]
+            for name in matching_directories:
+                found.append(
+                    (current_path / name).relative_to(resolved_root).as_posix()
+                )
+            directories[:] = [
+                name for name in directories if name not in matching_directories
+            ]
+            for name in sorted(files):
+                if _LATER_PHASE_NAME.search(name):
+                    found.append(
+                        (current_path / name).relative_to(resolved_root).as_posix()
+                    )
+    return sorted(found)
 
 
 def active_precollection_package(evidence_root: Path) -> tuple[Path, Path]:
@@ -1064,7 +1117,12 @@ def validate_session_readiness(
     )
     if not isinstance(checks, Mapping) or set(checks) != expected_checks:
         raise S44AmendmentError("amendment_03 readiness exact check set mismatch")
-    if any(value != "passed" for value in checks.values()):
+    acceptance_checks = (
+        set(checks)
+        if schema == READINESS_SCHEMA
+        else set(checks) - LEGACY_INERT_MAC_CHECKS
+    )
+    if any(checks[key] != "passed" for key in acceptance_checks):
         raise S44AmendmentError("amendment_03 readiness contains failed checks")
     observations = record.get("observations")
     if not isinstance(observations, Mapping):

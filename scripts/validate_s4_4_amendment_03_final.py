@@ -9,7 +9,7 @@ import json
 import re
 import subprocess
 from collections import Counter, defaultdict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -23,6 +23,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     validate_ledger,
 )
 from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
+    detect_later_phase_artifacts,
     validate_predecessor_bytes,
 )
 
@@ -39,6 +40,7 @@ SOURCE_CHECKPOINT_COMMIT = "d86710df72c0ad782420b05135b3371cd9e0048f"
 PRECOLLECTION_COMMIT = "9e1d0eb46c60f7bb8714cb182c6fd99f76232d4d"
 HOLDOUT_CLOSEOUT_COMMIT = "c432d9848d1c1498914ed1a2aad6c78baefc6519"
 RECORDED_FINAL_GATE_COMMIT = "322afa08c4276e42a3f69182695f7227a67b9c9d"
+CORRECTIVE_01_PACKAGE_COMMIT = "78f09d7e4bb95f3f821a70d14f333760b917742a"
 EXPECTED_CENSUS = {
     "valid_cells_total": 149,
     "retained_attempts_total": 152,
@@ -661,15 +663,33 @@ def _committed_exact(repo_root: Path, relative: str) -> bool:
     return result.returncode == 0
 
 
-def validate_corrective_records(
-    repo_root: Path, *, require_tracked: bool, require_committed: bool
+def _git_head(repo_root: Path) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def _validate_corrective_package(
+    repo_root: Path,
+    *,
+    correction_id: str,
+    require_tracked: bool,
+    require_committed: bool,
+    verify_current_sources: bool,
 ) -> dict[str, Any]:
-    root = repo_root / EVIDENCE_REL / "corrective_01"
+    root = repo_root / EVIDENCE_REL / correction_id
     checkpoint_path = root / "source_checkpoint.v1.json"
     index_path = root / "corrective_index.v1.json"
     checksum_path = root / "SHA256SUMS"
     gate_path = (
-        repo_root / EVIDENCE_REL / "validation/final_closeout_corrective_01.v1.json"
+        repo_root
+        / EVIDENCE_REL
+        / f"validation/final_closeout_{correction_id}.v1.json"
     )
     for path in (checkpoint_path, index_path, checksum_path, gate_path):
         _require(path.is_file(), f"corrective record missing: {path}")
@@ -692,17 +712,23 @@ def validate_corrective_records(
     _git_commit_exists(repo_root, source_commit)
     _git_ancestor(repo_root, RECORDED_FINAL_GATE_COMMIT, source_commit)
     _git_ancestor(repo_root, source_commit, "HEAD")
-    for record in checkpoint.get("source_records", []):
+    source_records = checkpoint.get("source_records", [])
+    _require(isinstance(source_records, list), "corrective source records invalid")
+    source_paths: set[str] = set()
+    for record in source_records:
         relative = _safe_relative(record.get("path"), "corrective source checkpoint")
+        _require(relative not in source_paths, "duplicate corrective source path")
+        source_paths.add(relative)
         blob = _git_blob(repo_root, source_commit, relative)
         _require(
             hashlib.sha256(blob).hexdigest() == record.get("sha256"),
             f"corrective source Git blob mismatch: {relative}",
         )
-        _require(
-            sha256_file(repo_root / relative) == record.get("sha256"),
-            f"corrective source checkout mismatch: {relative}",
-        )
+        if verify_current_sources:
+            _require(
+                sha256_file(repo_root / relative) == record.get("sha256"),
+                f"corrective source checkout mismatch: {relative}",
+            )
     records = index.get("records")
     _require(
         isinstance(records, list) and index.get("record_count") == len(records),
@@ -712,16 +738,38 @@ def validate_corrective_records(
     for record in records:
         relative = _safe_relative(record.get("path"), "corrective record")
         _require(relative not in expected, f"duplicate corrective path: {relative}")
-        target = repo_root / relative
-        _require(target.is_file(), f"corrected file missing: {relative}")
-        _require(
-            target.stat().st_size == record.get("byte_size"),
-            f"corrected file size mismatch: {relative}",
-        )
-        _require(
-            sha256_file(target) == record.get("sha256"),
-            f"corrected file hash mismatch: {relative}",
-        )
+        if relative in source_paths or record.get("role") == "corrected_source":
+            source_blob = _git_blob(repo_root, source_commit, relative)
+            _require(
+                len(source_blob) == record.get("byte_size")
+                and hashlib.sha256(source_blob).hexdigest() == record.get("sha256"),
+                f"corrective historical source mismatch: {relative}",
+            )
+            if verify_current_sources:
+                _require(
+                    sha256_file(repo_root / relative) == record.get("sha256"),
+                    f"corrected file checkout mismatch: {relative}",
+                )
+        elif (
+            correction_id == "corrective_01"
+            and record.get("role") == "authoritative_final_closeout"
+        ):
+            source_blob = _git_blob(
+                repo_root, CORRECTIVE_01_PACKAGE_COMMIT, relative
+            )
+            _require(
+                len(source_blob) == record.get("byte_size")
+                and hashlib.sha256(source_blob).hexdigest() == record.get("sha256"),
+                f"corrective historical closeout mismatch: {relative}",
+            )
+        else:
+            target = repo_root / relative
+            _require(target.is_file(), f"corrective file missing: {relative}")
+            _require(
+                target.stat().st_size == record.get("byte_size")
+                and sha256_file(target) == record.get("sha256"),
+                f"corrective file mismatch: {relative}",
+            )
         expected[relative] = str(record["sha256"])
     checksums = parse_checksum_manifest(
         checksum_path.read_text(encoding="utf-8"), label=str(checksum_path)
@@ -736,7 +784,8 @@ def validate_corrective_records(
         "corrective final-gate binding mismatch",
     )
     _require(
-        index.get("census") == EXPECTED_CENSUS
+        index.get("correction_id") == correction_id
+        and index.get("census") == EXPECTED_CENSUS
         and index.get("reduced_mac_readiness_authoritative") is True
         and index.get("legacy_readiness_extra_fields_optional") is True
         and index.get("historical_v1_v5_rewritten") is False
@@ -753,11 +802,52 @@ def validate_corrective_records(
         gate.get("census") == EXPECTED_CENSUS and gate.get("status") == "passed",
         "corrective final gate census/status invalid",
     )
+    holdout_opened = (
+        gate.get("holdout", {}).get("scientifically_opened")
+        if correction_id == "corrective_01"
+        else gate.get("holdout_scientifically_opened")
+    )
+    outcomes_exposed = (
+        gate.get("holdout", {}).get("scientific_outputs_exposed")
+        if correction_id == "corrective_01"
+        else gate.get("scientific_outcomes_returned")
+    )
     _require(
-        gate.get("holdout", {}).get("scientifically_opened") is False
-        and gate.get("holdout", {}).get("scientific_outputs_exposed") is False,
+        holdout_opened is False and outcomes_exposed is False,
         "corrective final gate opened holdout",
     )
+    if correction_id == "corrective_02":
+        previous_paths = {
+            "corrective_01/SHA256SUMS": (
+                repo_root / EVIDENCE_REL / "corrective_01/SHA256SUMS"
+            ),
+            "corrective_01/corrective_index.v1.json": (
+                repo_root
+                / EVIDENCE_REL
+                / "corrective_01/corrective_index.v1.json"
+            ),
+            "corrective_01/source_checkpoint.v1.json": (
+                repo_root
+                / EVIDENCE_REL
+                / "corrective_01/source_checkpoint.v1.json"
+            ),
+            "validation/final_closeout_corrective_01.v1.json": (
+                repo_root
+                / EVIDENCE_REL
+                / "validation/final_closeout_corrective_01.v1.json"
+            ),
+        }
+        expected_previous = {
+            relative: sha256_file(path)
+            for relative, path in sorted(previous_paths.items())
+        }
+        _require(
+            checkpoint.get("supersedes_correction_id") == "corrective_01"
+            and index.get("supersedes_correction_id") == "corrective_01"
+            and checkpoint.get("previous_corrective_sha256") == expected_previous
+            and index.get("previous_corrective_sha256") == expected_previous,
+            "corrective-02 predecessor binding mismatch",
+        )
     if require_tracked or require_committed:
         for path in (checkpoint_path, index_path, checksum_path, gate_path):
             relative = path.relative_to(repo_root).as_posix()
@@ -772,8 +862,35 @@ def validate_corrective_records(
                 )
     return {
         "status": "passed",
+        "correction_id": correction_id,
         "record_count": len(records),
         "source_commit": source_commit,
+    }
+
+
+def validate_corrective_records(
+    repo_root: Path, *, require_tracked: bool, require_committed: bool
+) -> dict[str, Any]:
+    historical = _validate_corrective_package(
+        repo_root,
+        correction_id="corrective_01",
+        require_tracked=require_tracked,
+        require_committed=require_committed,
+        verify_current_sources=False,
+    )
+    current = _validate_corrective_package(
+        repo_root,
+        correction_id="corrective_02",
+        require_tracked=require_tracked,
+        require_committed=require_committed,
+        verify_current_sources=True,
+    )
+    return {
+        "status": "passed",
+        "correction_id": "corrective_02",
+        "record_count": historical["record_count"] + current["record_count"],
+        "source_commit": current["source_commit"],
+        "immutable_predecessor": historical,
     }
 
 
@@ -786,6 +903,16 @@ def validate(
     require_corrective: bool,
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
+    if require_committed:
+        require_tracked = True
+    authoritative_final = all(
+        (
+            require_tracked,
+            require_committed,
+            require_machine_local,
+            require_corrective,
+        )
+    )
     issues: list[dict[str, str]] = []
     results: dict[str, Any] = {}
 
@@ -803,7 +930,9 @@ def validate(
             return None
         return value
 
-    run("historical_provenance_invalid", validate_historical_provenance, repo_root)
+    results["historical_provenance"] = run(
+        "historical_provenance_invalid", validate_historical_provenance, repo_root
+    )
     census_and_paths = None
     if require_machine_local:
         census_and_paths = run(
@@ -846,7 +975,7 @@ def validate(
             ledger_sha256=sha256_file(ledger_path),
         )
     if index is not None and seal_value is not None:
-        run(
+        results["closeout_records"] = run(
             "closeout_record_invalid",
             validate_closeout_records,
             repo_root,
@@ -859,7 +988,7 @@ def validate(
             ),
         )
     if require_corrective:
-        run(
+        results["corrective_records"] = run(
             "corrective_record_invalid",
             validate_corrective_records,
             repo_root,
@@ -886,31 +1015,60 @@ def validate(
     ).stdout.strip()
     if tracked_dataset:
         issues.append(_issue("dataset_tracked", "dataset", tracked_dataset))
-    for phase in ("S4.5", "S4.6", "S4.7", "S4.8"):
-        if (repo_root / f"outputs/isaac_audio_sensors/S4/{phase}").exists():
-            issues.append(_issue("later_phase_present", phase, "must remain unstarted"))
+    later_phase_artifacts = detect_later_phase_artifacts(repo_root)
+    for relative in later_phase_artifacts:
+        issues.append(
+            _issue(
+                "later_phase_artifact_present",
+                relative,
+                "phase-owned S4.5-S4.8 artifact present",
+            )
+        )
+    holdout_validated = (
+        index is not None
+        and seal_value is not None
+        and ledger is not None
+        and results.get("closeout_records") is not None
+    )
+    status = (
+        "failed"
+        if issues
+        else "passed"
+        if authoritative_final
+        else "incomplete"
+    )
     return {
         "schema": "ias.s4_4.amendment_03_final_closeout_validation.v1",
-        "status": "passed" if not issues else "failed",
+        "source_commit": _git_head(repo_root),
+        "status": status,
+        "validation_scope": (
+            "authoritative_final" if authoritative_final else "diagnostic_incomplete"
+        ),
+        "authoritative_final": authoritative_final and not issues,
+        "require_tracked": require_tracked,
+        "require_committed": require_committed,
+        "require_machine_local": require_machine_local,
+        "require_corrective": require_corrective,
         "census": census_and_paths[0] if census_and_paths else None,
         "attempt_checksum_sets": EXPECTED_ATTEMPTS if census_and_paths else None,
         "holdout_technical_qa_records": len(canonical_qa) if canonical_qa else None,
-        "holdout_scientifically_opened": False,
+        "holdout_scientifically_opened": False if holdout_validated else None,
         "scientific_outcomes_returned": False,
-        "S4.5_or_later_started": False,
+        "S4.5_or_later_started": bool(later_phase_artifacts),
+        "later_phase_artifacts": later_phase_artifacts,
         "results": results,
         "issues": issues,
     }
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", type=Path, default=ROOT)
-    parser.add_argument("--require-tracked", action="store_true")
-    parser.add_argument("--require-committed", action="store_true")
-    parser.add_argument("--require-machine-local", action="store_true")
-    parser.add_argument("--require-corrective", action="store_true")
-    args = parser.parse_args()
+    parser.add_argument("--require-tracked", action="store_true", default=True)
+    parser.add_argument("--require-committed", action="store_true", default=True)
+    parser.add_argument("--require-machine-local", action="store_true", default=True)
+    parser.add_argument("--require-corrective", action="store_true", default=True)
+    args = parser.parse_args(argv)
     result = validate(
         repo_root=args.repo_root,
         require_tracked=args.require_tracked,

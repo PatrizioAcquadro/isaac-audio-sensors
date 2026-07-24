@@ -8,9 +8,8 @@ This specification was the prospective acquisition contract frozen at the v5
 source checkpoint. Its precollection and capture-boundary wording below is
 historical. The authoritative current state is
 `docs/development/closeouts/S4/s4_4_data_expansion_amendment_03_holdout.md`.
-Amendment 03 awaits only the additive corrective software and final-gate
-closeout; no capture or holdout scientific opening is authorized by that
-corrective.
+The completed additive corrective and final-gate closeout authorize no capture
+or holdout scientific opening.
 
 Amendment 03 is an additive continuation of immutable
 `s4_4_data_expansion_amendment_02`. It does not edit, regenerate, delete,

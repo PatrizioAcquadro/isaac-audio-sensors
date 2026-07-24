@@ -31,6 +31,9 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     validate_session_preflight,
     validate_source_checkpoint,
 )
+from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
+    detect_later_phase_artifacts,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 AMENDMENT_ID = "s4_4_data_expansion_amendment_01"
@@ -690,9 +693,9 @@ def validate(
     ).stdout.strip()
     if tracked_dataset:
         issues.append(_issue("raw_dataset_tracked", "dataset", tracked_dataset))
-    for phase in ("S4.5", "S4.6", "S4.7", "S4.8"):
-        if (repo_root / f"outputs/isaac_audio_sensors/S4/{phase}").exists():
-            issues.append(_issue("later_phase_directory_present", phase, "forbidden"))
+    later_phase_artifacts = detect_later_phase_artifacts(repo_root)
+    for relative in later_phase_artifacts:
+        issues.append(_issue("later_phase_artifact_present", relative, "forbidden"))
 
     machine_integrity = None
     ledger_report = None
@@ -717,7 +720,8 @@ def validate(
         "original_s4_4_unchanged": not any(
             issue["code"] == "configuration_invalid" for issue in issues
         ),
-        "S4.5_or_later_started": False,
+        "S4.5_or_later_started": bool(later_phase_artifacts),
+        "later_phase_artifacts": later_phase_artifacts,
         "issues": issues,
     }
 

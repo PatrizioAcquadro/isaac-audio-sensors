@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import shutil
 import subprocess
@@ -23,8 +24,6 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
     build_precollection_seal,
     load_configuration,
     validate_configuration,
-    validate_future_attempt_census,
-    validate_inherited_fit_a,
     validate_precollection_seal,
     validate_predecessor_bytes,
 )
@@ -44,6 +43,10 @@ CONTINUATION_PATH = "freeze/multiday_session_continuation.v5.json"
 SEAL_PATH = "precollection_seal.v5.json"
 INDEX_PATH = "evidence_index.v5.json"
 CHECKSUM_PATH = "SHA256SUMS.v5"
+DEFAULT_CUTOFF_SNAPSHOT = DEFAULT_OUTPUT / CONTINUATION_PATH
+EXPECTED_CUTOFF_SHA256 = (
+    "f1d46b57033b278bd09e0195b9fbc8bcd8df64f2f9bdc4ec94d04e92949b0c29"
+)
 SOURCE_PATHS_V5 = (*SOURCE_PATHS, "scripts/build_s4_4_amendment_03_multiday.py")
 V1_PACKAGE_SHA256 = {
     "SHA256SUMS": "c804c3697f8d015c10ad9589e544f155aeedac0fabaa6d500072ae8bea94de2a",
@@ -193,104 +196,45 @@ def _materialize_prior_packages(output: Path, canonical_root: Path) -> None:
             shutil.copyfile(source, destination)
 
 
-def _file_record(path: Path, repo_root: Path) -> dict[str, Any]:
-    return {
-        "path": path.resolve().relative_to(repo_root.resolve()).as_posix(),
-        "byte_size": path.stat().st_size,
-        "sha256": sha256_file(path),
-    }
-
-
 def build_cutoff_inventory(
-    config: dict[str, Any], repo_root: Path = ROOT
+    config: dict[str, Any], snapshot_path: Path = DEFAULT_CUTOFF_SNAPSHOT
 ) -> dict[str, Any]:
-    evidence_root = repo_root / config["retention"]["tracked_evidence_root"]
-    attempt_root = repo_root / config["retention"]["attempt_root"]
-    manifest = load_json(evidence_root / "manifests/sessions/fit_b.json")
-    planned_ids = [take["planned_take_id"] for take in manifest["takes"][:34]]
-    attempt_records: list[dict[str, Any]] = []
-    attempts: list[dict[str, Any]] = []
-    for planned_id in planned_ids:
-        planned_root = attempt_root / planned_id
-        directories = sorted(path for path in planned_root.iterdir() if path.is_dir())
-        if [path.name for path in directories] != [f"{planned_id}__attempt_01"]:
-            raise S44AmendmentError(
-                f"multiday cutoff attempt identity mismatch: {planned_id}"
-            )
-        attempt_dir = directories[0]
-        attempt = load_json(attempt_dir / "manifest.json")
-        if (
-            attempt.get("planned_take_id") != planned_id
-            or attempt.get("attempt_id") != attempt_dir.name
-            or attempt.get("outcome") != "valid"
-            or attempt.get("retained") is not True
-            or attempt.get("precollection_seal_sha256")
-            != V1_PACKAGE_SHA256["precollection_seal.v1.json"]
-        ):
-            raise S44AmendmentError(
-                f"multiday cutoff retained-attempt contract mismatch: {planned_id}"
-            )
-        attempts.append(attempt)
-        files = [
-            _file_record(path, repo_root)
-            for path in sorted(attempt_dir.rglob("*"))
-            if path.is_file()
-        ]
-        attempt_records.append(
-            {
-                "planned_take_id": planned_id,
-                "attempt_id": attempt_dir.name,
-                "files": files,
-                "file_count": len(files),
-                "attempt_tree_sha256": canonical_sha256(files),
-            }
-        )
-    inherited = load_json(evidence_root / "inheritance/inherited_fit_a.v1.json")
-    validate_inherited_fit_a(inherited, config)
-    manifests = {
-        "fit_b": manifest,
-        "prospective_holdout": load_json(
-            evidence_root / "manifests/sessions/prospective_holdout.json"
-        ),
-    }
-    census = validate_future_attempt_census(inherited, manifests, attempts)
+    """Load the exact take-34 cutoff from an explicit frozen snapshot."""
+
+    snapshot = load_json(snapshot_path)
+    cutoff = snapshot.get("cutoff") if "cutoff" in snapshot else snapshot
+    if not isinstance(cutoff, dict):
+        raise S44AmendmentError("multiday cutoff snapshot has no cutoff object")
+    payload = {key: value for key, value in cutoff.items() if key != "cutoff_sha256"}
     if (
-        census["attempts_total"] != 86
-        or census["valid_cells_total"] != 85
-        or census["failures_total"] != 1
-        or census["replacements_total"] != 1
+        cutoff.get("cutoff_sha256") != EXPECTED_CUTOFF_SHA256
+        or canonical_sha256(payload) != EXPECTED_CUTOFF_SHA256
+        or cutoff.get("amendment_id") != AMENDMENT_ID
+        or cutoff.get("completed_fit_b_cells") != 34
+        or cutoff.get("fit_b_attempts") != 34
+        or len(cutoff.get("attempt_records", [])) != 34
+        or len(cutoff.get("session_records", [])) != 6
     ):
-        raise S44AmendmentError("multiday cutoff census mismatch")
-    session_root = repo_root / config["retention"]["session_root"] / "fit_b"
-    session_records = [
-        _file_record(path, repo_root)
-        for path in sorted(session_root.rglob("*.json"))
-        if path.is_file()
-    ]
-    payload = {
-        "schema": "ias.s4_4.amendment_03_multiday_cutoff.v1",
-        "amendment_id": AMENDMENT_ID,
-        "status": "immutable_cutoff_after_fit_b_take_034",
-        "last_completed_planned_take_id": planned_ids[-1],
-        "next_planned_take_id": manifest["takes"][34]["planned_take_id"],
-        "completed_fit_b_cells": 34,
-        "fit_b_attempts": 34,
-        "fit_b_failures": 0,
-        "fit_b_replacements": 0,
-        "cutoff_basis": "fit_b_retained_attempt_count",
-        "date_segments_remain_within_same_fit_b_session": True,
-        "all_session_records_present_at_cutoff_included": True,
-        "aggregate_census": census,
-        "planned_take_ids": planned_ids,
-        "attempt_records": attempt_records,
-        "session_records": session_records,
-        "v1_precollection_seal_sha256": V1_PACKAGE_SHA256["precollection_seal.v1.json"],
-    }
-    return {**payload, "cutoff_sha256": canonical_sha256(payload)}
+        raise S44AmendmentError("multiday cutoff frozen snapshot identity mismatch")
+    census = cutoff.get("aggregate_census", {})
+    if (
+        census.get("attempts_total") != 86
+        or census.get("valid_cells_total") != 85
+        or census.get("failures_total") != 1
+        or census.get("replacements_total") != 1
+    ):
+        raise S44AmendmentError("multiday cutoff frozen snapshot census mismatch")
+    session_prefix = config["retention"]["session_root"].rstrip("/") + "/fit_b/"
+    if any(
+        not str(record.get("path", "")).startswith(session_prefix)
+        for record in cutoff["session_records"]
+    ):
+        raise S44AmendmentError("multiday cutoff snapshot session path mismatch")
+    return copy.deepcopy(cutoff)
 
 
-def _continuation(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
-    cutoff = build_cutoff_inventory(config, repo_root)
+def _continuation(config: dict[str, Any], cutoff_snapshot: Path) -> dict[str, Any]:
+    cutoff = build_cutoff_inventory(config, cutoff_snapshot)
     payload = {
         "schema": "ias.s4_4.amendment_03_multiday_continuation.v5",
         "status": "prospective_continuation_within_same_amendment",
@@ -335,7 +279,7 @@ def build(
     output: Path,
     config_path: Path,
     repo_root: Path = ROOT,
-    cutoff_root: Path | None = None,
+    cutoff_snapshot: Path = DEFAULT_CUTOFF_SNAPSHOT,
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
     config = load_configuration(config_path, repo_root)
@@ -344,9 +288,7 @@ def build(
     canonical_root = repo_root / config["retention"]["tracked_evidence_root"]
     output.mkdir(parents=True, exist_ok=True)
     _materialize_prior_packages(output, canonical_root)
-    continuation = _continuation(
-        config, cutoff_root.resolve() if cutoff_root is not None else repo_root
-    )
+    continuation = _continuation(config, cutoff_snapshot.resolve())
     write_json_atomic(output / CONTINUATION_PATH, continuation)
     checkpoint_path = output / CHECKPOINT_PATH
     checkpoint = load_json(checkpoint_path) if checkpoint_path.is_file() else None
@@ -455,6 +397,9 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument(
+        "--cutoff-snapshot", type=Path, default=DEFAULT_CUTOFF_SNAPSHOT
+    )
     parser.add_argument("--freeze-source-checkpoint", action="store_true")
     args = parser.parse_args()
     try:
@@ -466,7 +411,11 @@ def main() -> int:
                     "refusing to replace a different amendment_03 v5 checkpoint"
                 )
             write_json_atomic(checkpoint_path, checkpoint)
-        summary = build(output=args.output, config_path=args.config)
+        summary = build(
+            output=args.output,
+            config_path=args.config,
+            cutoff_snapshot=args.cutoff_snapshot,
+        )
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         print(
             f"S4.4 amendment-03 multiday continuation build failed: {exc}",

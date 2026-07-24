@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import scripts.validate_s4_4_amendment_03_final as final_validator
 from isaac_audio_sensors.acquisition.s4_4_amendment import (
     S44AmendmentError,
     canonical_sha256,
@@ -16,6 +17,7 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
 from scripts.validate_s4_4_amendment_03_final import (
     EVIDENCE_REL,
     MACHINE_REL,
+    detect_later_phase_artifacts,
     parse_checksum_manifest,
     validate,
     validate_access_ledger_events,
@@ -55,11 +57,12 @@ def test_explicit_machine_local_final_closeout_validation_passes() -> None:
     result = validate(
         repo_root=ROOT,
         require_tracked=True,
-        require_committed=False,
+        require_committed=True,
         require_machine_local=True,
-        require_corrective=False,
+        require_corrective=True,
     )
     assert result["status"] == "passed", result["issues"]
+    assert result["authoritative_final"] is True
     assert result["census"] == {
         "valid_cells_total": 149,
         "retained_attempts_total": 152,
@@ -74,6 +77,75 @@ def test_explicit_machine_local_final_closeout_validation_passes() -> None:
     }
     assert result["holdout_technical_qa_records"] == 47
     assert result["scientific_outcomes_returned"] is False
+
+
+def test_no_argument_cli_enables_every_final_requirement(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_validate(**kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return {"status": "passed"}
+
+    monkeypatch.setattr(final_validator, "validate", fake_validate)
+    assert final_validator.main([]) == 0
+    assert captured["require_tracked"] is True
+    assert captured["require_committed"] is True
+    assert captured["require_machine_local"] is True
+    assert captured["require_corrective"] is True
+    assert json.loads(capsys.readouterr().out) == {"status": "passed"}
+
+
+def test_incomplete_flag_combination_cannot_return_authoritative_pass() -> None:
+    result = validate(
+        repo_root=ROOT,
+        require_tracked=False,
+        require_committed=False,
+        require_machine_local=False,
+        require_corrective=False,
+    )
+    assert result["status"] == "incomplete", result["issues"]
+    assert result["authoritative_final"] is False
+    assert result["census"] is None
+    assert result["holdout_scientifically_opened"] is None
+
+
+def test_missing_corrective_evidence_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def missing(*_args: object, **_kwargs: object) -> dict[str, object]:
+        raise S44AmendmentError("corrective record missing")
+
+    monkeypatch.setattr(final_validator, "validate_corrective_records", missing)
+    result = validate(
+        repo_root=ROOT,
+        require_tracked=False,
+        require_committed=False,
+        require_machine_local=False,
+        require_corrective=True,
+    )
+    assert result["status"] == "failed"
+    assert {issue["code"] for issue in result["issues"]} >= {
+        "corrective_record_invalid"
+    }
+
+
+def test_later_phase_owned_artifacts_are_detected(tmp_path: Path) -> None:
+    phase_script = tmp_path / "scripts/run_s4_5_fit.py"
+    phase_script.parent.mkdir(parents=True)
+    phase_script.write_text("# phase-owned implementation\n", encoding="utf-8")
+    phase_config = tmp_path / "configs/s4_6_training.v1.json"
+    phase_config.parent.mkdir(parents=True)
+    phase_config.write_text("{}\n", encoding="utf-8")
+    roadmap = tmp_path / "docs/development/roadmap.md"
+    roadmap.parent.mkdir(parents=True)
+    roadmap.write_text("S4.5 remains future work.\n", encoding="utf-8")
+    assert detect_later_phase_artifacts(tmp_path) == [
+        "configs/s4_6_training.v1.json",
+        "scripts/run_s4_5_fit.py",
+    ]
 
 
 @pytest.mark.parametrize(

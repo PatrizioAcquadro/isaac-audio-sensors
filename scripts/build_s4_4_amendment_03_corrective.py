@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the additive Amendment 03 corrective index and final-gate records."""
+"""Build the additive Amendment 03 corrective-02 provenance records."""
 
 from __future__ import annotations
 
@@ -22,23 +22,20 @@ ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE_ROOT = ROOT / (
     "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03"
 )
-CORRECTIVE_ROOT = EVIDENCE_ROOT / "corrective_01"
-GATE_PATH = EVIDENCE_ROOT / "validation/final_closeout_corrective_01.v1.json"
+CORRECTION_ID = "corrective_02"
+CORRECTIVE_ROOT = EVIDENCE_ROOT / CORRECTION_ID
+GATE_PATH = EVIDENCE_ROOT / "validation/final_closeout_corrective_02.v1.json"
+PREVIOUS_CORRECTIVE_ROOT = EVIDENCE_ROOT / "corrective_01"
+PREVIOUS_GATE_PATH = (
+    EVIDENCE_ROOT / "validation/final_closeout_corrective_01.v1.json"
+)
 SOURCE_PATHS = (
-    "docs/development/closeouts/S4/s4_4_data_expansion_amendment_03.md",
     "docs/development/specs/s4_4_data_expansion_amendment_03.md",
-    "docs/schemas/s4_4_amendment_mac_readiness.v1.schema.json",
-    "docs/schemas/s4_4_amendment_session_readiness.v3.schema.json",
-    "docs/schemas/s4_4_amendment_technical_qa.v2.schema.json",
     "scripts/build_s4_4_amendment_03_corrective.py",
     "scripts/build_s4_4_amendment_03_multiday.py",
-    "scripts/execute_s4_4_amendment_attempt.py",
-    "scripts/run_s4_4_amendment_03_readiness.py",
-    "scripts/s4_2_mac_preflight.py",
     "scripts/validate_s4_4_amendment.py",
     "scripts/validate_s4_4_amendment_03.py",
     "scripts/validate_s4_4_amendment_03_final.py",
-    "src/isaac_audio_sensors/acquisition/s4_4_amendment.py",
     "src/isaac_audio_sensors/acquisition/s4_4_amendment_03.py",
     "tests/test_s4_4_amendment_03.py",
     "tests/test_s4_4_amendment_03_final.py",
@@ -82,14 +79,23 @@ def _record(relative: str, role: str) -> dict[str, Any]:
 def build(*, source_commit: str, gate_results_path: Path) -> dict[str, Any]:
     gate_results = load_json(gate_results_path)
     if (
-        gate_results.get("status") != "passed"
+        gate_results.get("status") != "incomplete"
+        or gate_results.get("validation_scope") != "diagnostic_incomplete"
+        or gate_results.get("authoritative_final") is not False
+        or gate_results.get("require_tracked") is not True
+        or gate_results.get("require_committed") is not True
+        or gate_results.get("require_machine_local") is not True
+        or gate_results.get("require_corrective") is not False
+        or gate_results.get("issues") != []
         or gate_results.get("source_commit") != source_commit
         or gate_results.get("census") != EXPECTED_CENSUS
-        or gate_results.get("holdout", {}).get("scientifically_opened") is not False
-        or gate_results.get("holdout", {}).get("scientific_outputs_exposed")
-        is not False
+        or gate_results.get("holdout_scientifically_opened") is not False
+        or gate_results.get("scientific_outcomes_returned") is not False
+        or gate_results.get("S4.5_or_later_started") is not False
     ):
-        raise S44AmendmentError("corrective gate-results contract is not PASS")
+        raise S44AmendmentError(
+            "corrective pre-provenance validation contract is incomplete or invalid"
+        )
     source_records = []
     for relative in SOURCE_PATHS:
         digest = _git_blob_sha256(source_commit, relative)
@@ -109,6 +115,21 @@ def build(*, source_commit: str, gate_results_path: Path) -> dict[str, Any]:
             "c432d9848d1c1498914ed1a2aad6c78baefc6519"
         ),
         "historical_final_gate_commit": ("322afa08c4276e42a3f69182695f7227a67b9c9d"),
+        "supersedes_correction_id": "corrective_01",
+        "previous_corrective_sha256": {
+            "corrective_01/SHA256SUMS": sha256_file(
+                PREVIOUS_CORRECTIVE_ROOT / "SHA256SUMS"
+            ),
+            "corrective_01/corrective_index.v1.json": sha256_file(
+                PREVIOUS_CORRECTIVE_ROOT / "corrective_index.v1.json"
+            ),
+            "corrective_01/source_checkpoint.v1.json": sha256_file(
+                PREVIOUS_CORRECTIVE_ROOT / "source_checkpoint.v1.json"
+            ),
+            "validation/final_closeout_corrective_01.v1.json": sha256_file(
+                PREVIOUS_GATE_PATH
+            ),
+        },
         "source_records": source_records,
     }
     checkpoint = {
@@ -122,6 +143,10 @@ def build(*, source_commit: str, gate_results_path: Path) -> dict[str, Any]:
     gate_payload = {
         "schema": "ias.s4_4.amendment_03_final_closeout_corrective.v1",
         **gate_results,
+        "status": "passed",
+        "validation_scope": "corrective_02_source_and_scientific_evidence",
+        "pre_corrective_validation_status": "incomplete",
+        "incomplete_only_because_corrective_02_was_not_yet_materialized": True,
         "historical_records_rewritten": False,
         "scientific_holdout_outcomes_inspected": False,
         "S4.5_or_later_started": False,
@@ -146,7 +171,11 @@ def build(*, source_commit: str, gate_results_path: Path) -> dict[str, Any]:
         "schema": "ias.s4_4.amendment_03_corrective_index.v1",
         "status": "passed",
         "amendment_id": "s4_4_data_expansion_amendment_03",
-        "correction_id": "corrective_01",
+        "correction_id": CORRECTION_ID,
+        "supersedes_correction_id": "corrective_01",
+        "previous_corrective_sha256": checkpoint_payload[
+            "previous_corrective_sha256"
+        ],
         "source_checkpoint_sha256": sha256_file(checkpoint_path),
         "final_gate_sha256": sha256_file(GATE_PATH),
         "record_count": len(records),

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import json
-import shutil
 from argparse import Namespace
 from collections import Counter
 from datetime import date
@@ -25,6 +24,8 @@ from isaac_audio_sensors.acquisition.s4_4_amendment import (
     validate_holdout_technical_qa,
 )
 from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
+    LEGACY_READINESS_SCHEMA,
+    LEGACY_REQUIRED_READINESS_CHECKS,
     PREFLIGHT_SCHEMA,
     READINESS_SCHEMA,
     REQUIRED_READINESS_CHECKS,
@@ -44,6 +45,8 @@ from isaac_audio_sensors.acquisition.s4_4_amendment_03 import (
 )
 from scripts.build_s4_4_amendment_03 import build
 from scripts.build_s4_4_amendment_03_multiday import (
+    DEFAULT_CUTOFF_SNAPSHOT,
+    EXPECTED_CUTOFF_SHA256,
     V1_PACKAGE_SHA256,
     V2_PACKAGE_SHA256,
     V3_PACKAGE_SHA256,
@@ -188,51 +191,6 @@ def _readiness(
         ),
     }
     return {**payload, "readiness_sha256": canonical_sha256(payload)}
-
-
-@pytest.fixture
-def historical_cutoff_root(tmp_path: Path, config: dict) -> Path:
-    """Materialize only the frozen take-34 state, independent of live dataset."""
-
-    root = tmp_path / "historical-cutoff"
-    tracked = Path(config["retention"]["tracked_evidence_root"])
-    for relative in (
-        "inheritance/inherited_fit_a.v1.json",
-        "manifests/sessions/fit_b.json",
-        "manifests/sessions/prospective_holdout.json",
-    ):
-        source = ROOT / tracked / relative
-        destination = root / tracked / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
-    manifest = load_json(root / tracked / "manifests/sessions/fit_b.json")
-    attempt_root = root / config["retention"]["attempt_root"]
-    for take in manifest["takes"][:34]:
-        planned_id = take["planned_take_id"]
-        attempt_id = f"{planned_id}__attempt_01"
-        directory = attempt_root / planned_id / attempt_id
-        directory.mkdir(parents=True)
-        payload = {
-            "planned_take_id": planned_id,
-            "attempt_id": attempt_id,
-            "attempt_number": 1,
-            "outcome": "valid",
-            "retained": True,
-            "partition": take["partition"],
-            "session_id": take["session_id"],
-            "take_definition_sha256": take["take_definition_sha256"],
-            "precollection_seal_sha256": V1_PACKAGE_SHA256[
-                "precollection_seal.v1.json"
-            ],
-            "scientific_outcome_used_for_replacement": False,
-        }
-        (directory / "manifest.json").write_text(
-            json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8"
-        )
-    session = root / config["retention"]["session_root"] / "fit_b"
-    session.mkdir(parents=True)
-    (session / "preflight.json").write_text("{}\n", encoding="utf-8")
-    return root
 
 
 def test_configuration_changes_only_prospective_date_and_device_state_rules(
@@ -501,6 +459,42 @@ def test_battery_power_is_accepted_but_truthful_power_metadata_is_mandatory(
     inconsistent = copy.deepcopy(reduced)
     inconsistent["power"]["on_ac_power"] = True
     assert not readiness_runner._mac_readiness_passed(inconsistent)
+
+
+def test_legacy_readiness_ignores_failed_obsolete_mac_check(
+    config: dict,
+) -> None:
+    today = date.today().isoformat()
+    preflight = _preflight(config, "fit_b", today)
+    readiness = _readiness(config, preflight, "1" * 64)
+    readiness["schema"] = LEGACY_READINESS_SCHEMA
+    readiness["checks"] = {
+        key: "passed" for key in LEGACY_REQUIRED_READINESS_CHECKS
+    }
+    readiness["checks"]["mac_dynamic_preflight_json"] = "failed"
+    power = readiness["observations"]["mac_readiness"]["payload"]["power"]
+    readiness["observations"] = {
+        "mac_full_preflight": {
+            "payload": {
+                "read_only": True,
+                "power": power,
+                "frozen_checks": {
+                    "model_identifier_matches": False,
+                    "output_device_matches": False,
+                    "reference_hash_matches": False,
+                },
+            }
+        }
+    }
+    readiness["readiness_sha256"] = canonical_sha256(
+        {key: value for key, value in readiness.items() if key != "readiness_sha256"}
+    )
+    validate_session_readiness(
+        readiness,
+        config,
+        precollection_seal_sha256="1" * 64,
+        session_preflight=preflight,
+    )
 
 
 def test_every_live_readiness_check_is_mandatory_and_media_boundary_is_closed(
@@ -862,19 +856,18 @@ def test_builder_is_byte_identical_and_validator_passes(
 
 def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
     tmp_path: Path,
-    historical_cutoff_root: Path,
 ) -> None:
     first = tmp_path / "multiday-first"
     second = tmp_path / "multiday-second"
     first_summary = build_multiday(
         output=first,
         config_path=CONFIG_PATH,
-        cutoff_root=historical_cutoff_root,
+        cutoff_snapshot=DEFAULT_CUTOFF_SNAPSHOT,
     )
     second_summary = build_multiday(
         output=second,
         config_path=CONFIG_PATH,
-        cutoff_root=historical_cutoff_root,
+        cutoff_snapshot=DEFAULT_CUTOFF_SNAPSHOT,
     )
     assert first_summary == second_summary
     assert first_summary["new_amendment_created"] is False
@@ -908,32 +901,68 @@ def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
         config_path=CONFIG_PATH,
         require_tracked=False,
         require_committed=False,
-        require_machine_local=True,
+        require_machine_local=False,
         require_final=False,
-        cutoff_root=historical_cutoff_root,
     )
     assert result["status"] == "passed", result["issues"]
-    assert result["attempt_census"]["valid_cells_total"] == 149
+    assert result["attempt_census"] is None
     continuation = load_json(first / "freeze/multiday_session_continuation.v5.json")
+    assert len(continuation["cutoff"]["session_records"]) == 6
+    assert len(continuation["cutoff"]["attempt_records"]) == 34
     assert continuation["cutoff"]["aggregate_census"]["valid_cells_total"] == 85
     assert continuation["cutoff"]["aggregate_census"]["attempts_total"] == 86
+    assert continuation["cutoff"]["cutoff_sha256"] == EXPECTED_CUTOFF_SHA256
     assert result["prospective_holdout_scientifically_opened"] is False
 
 
-def test_cutoff_includes_every_date_segment_record_in_same_fit_b_session(
+def test_cutoff_reconstruction_exactly_matches_frozen_v5_snapshot(
     config: dict,
 ) -> None:
-    cutoff = build_cutoff_inventory(config, ROOT)
-    session_root = ROOT / config["retention"]["session_root"] / "fit_b"
-    expected_paths = [
-        path.relative_to(ROOT).as_posix()
-        for path in sorted(session_root.rglob("*.json"))
-        if path.is_file()
-    ]
-    assert [record["path"] for record in cutoff["session_records"]] == expected_paths
+    cutoff = build_cutoff_inventory(config, DEFAULT_CUTOFF_SNAPSHOT)
+    assert cutoff == load_json(DEFAULT_CUTOFF_SNAPSHOT)["cutoff"]
+    assert len(cutoff["session_records"]) == 6
+    assert len(cutoff["attempt_records"]) == 34
+    assert cutoff["aggregate_census"]["valid_cells_total"] == 85
+    assert cutoff["aggregate_census"]["attempts_total"] == 86
+    assert cutoff["cutoff_sha256"] == EXPECTED_CUTOFF_SHA256
     assert cutoff["cutoff_basis"] == "fit_b_retained_attempt_count"
     assert cutoff["date_segments_remain_within_same_fit_b_session"] is True
-    _validate_cutoff_inventory(cutoff, config, ROOT)
+    _validate_cutoff_inventory(cutoff, config, ROOT, verify_files=False)
+
+
+def test_completed_census_is_separate_and_machine_local() -> None:
+    result = validate(
+        DEFAULT_INDEX,
+        repo_root=ROOT,
+        config_path=CONFIG_PATH,
+        require_tracked=True,
+        require_committed=True,
+        require_machine_local=True,
+        require_final=True,
+    )
+    assert result["status"] == "passed", result["issues"]
+    assert result["attempt_census"]["valid_cells_total"] == 149
+    assert result["attempt_census"]["attempts_total"] == 152
+    assert result["attempt_census"]["failures_total"] == 3
+    assert result["attempt_census"]["replacements_total"] == 3
+    assert result["attempt_census"]["incomplete_logical_cells"] == 0
+
+
+def test_require_final_implies_complete_enforcement_and_non_null_census() -> None:
+    result = validate(
+        DEFAULT_INDEX,
+        repo_root=ROOT,
+        config_path=CONFIG_PATH,
+        require_tracked=False,
+        require_committed=False,
+        require_machine_local=False,
+        require_final=True,
+    )
+    assert result["status"] == "passed", result["issues"]
+    assert result["require_tracked"] is True
+    assert result["require_committed"] is True
+    assert result["require_machine_local"] is True
+    assert result["attempt_census"] is not None
 
 
 def test_tampered_future_manifest_fails_closed(tmp_path: Path) -> None:
