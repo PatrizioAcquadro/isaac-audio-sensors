@@ -92,6 +92,14 @@
     "inherited_fit_a": {
       "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/inheritance/inherited_fit_a.v1.json",
       "sha256": "2b9cb2a91a7c0a9a7af208631b9d3370e8cee887f842769e77fae417e3db9212"
+    },
+    "s3_model_contract": {
+      "path": "configs/s4_3_pilot.v1.json",
+      "sha256": "3bfbd3a7f472d5a264a24336f0976d53eeb24420ea52a0dbc68a23817579dff5"
+    },
+    "source_reference_wav": {
+      "path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+      "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
     }
   },
   "fit_sessions": [
@@ -115,6 +123,28 @@
       "ch1",
       "ch2",
       "ch3"
+    ],
+    "profile_nominal_microphone_positions_m": [
+      [
+        0.033,
+        -0.033,
+        0.0
+      ],
+      [
+        0.033,
+        0.033,
+        0.0
+      ],
+      [
+        -0.033,
+        0.033,
+        0.0
+      ],
+      [
+        -0.033,
+        -0.033,
+        0.0
+      ]
     ],
     "raw_channel_indices": [
       2,
