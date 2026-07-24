@@ -72,6 +72,9 @@ SOURCE_BOUND_FILES = (
     Path("tests/test_s4_6_contract.py"),
     Path("tests/test_s4_6_evidence.py"),
     Path("tests/test_s4_6_profile_application.py"),
+    Path("tests/conftest.py"),
+    Path("tests/test_s4_5_corrective.py"),
+    Path("tests/test_s4_5_fitting.py"),
 )
 PRESERVED_PATHS = (
     Path("outputs/isaac_audio_sensors/S4/S4.4"),

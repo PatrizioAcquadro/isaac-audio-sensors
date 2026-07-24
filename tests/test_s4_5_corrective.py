@@ -199,8 +199,10 @@ def test_profile_uses_semantically_correct_counts_and_binding() -> None:
     ]
 
 
-def test_semantic_validator_accepts_canonical_package() -> None:
-    result = validate_corrective_package(ROOT, _canonical_package())
+def test_semantic_validator_accepts_canonical_package(
+    pre_s4_6_root: Path,
+) -> None:
+    result = validate_corrective_package(pre_s4_6_root, _canonical_package())
     assert result["status"] == "passed", result
     assert result["semantic_regeneration"] is True
     assert result["semantic_regenerated_file_count"] == 12
@@ -315,13 +317,15 @@ def _mutate_source_commit(package: Path) -> None:
     ),
 )
 def test_semantic_validator_rejects_rechecksummed_scientific_tampering(
-    tmp_path: Path, mutator: Callable[[Path], None]
+    tmp_path: Path,
+    mutator: Callable[[Path], None],
+    pre_s4_6_root: Path,
 ) -> None:
     package = tmp_path / "package"
     shutil.copytree(_canonical_package(), package)
     mutator(package)
     refresh_package_integrity(package)
-    result = validate_corrective_package(ROOT, package)
+    result = validate_corrective_package(pre_s4_6_root, package)
     assert result["status"] == "failed"
     assert not any("checksum mismatch" in issue for issue in result["issues"])
     assert any("semantic regeneration" in issue for issue in result["issues"])

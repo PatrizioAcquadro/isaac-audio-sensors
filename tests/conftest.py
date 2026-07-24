@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +49,50 @@ _UNSTARTED_TEST = (
     "tests/test_s4_4_holdout_freeze.py::"
     "test_s4_5_and_s4_8_are_unstarted_and_no_real_grant_exists"
 )
+_PRE_S4_6_COMMIT = "c92ebddcf0eef9254954b96388943fb167150b9d"
+
+
+@pytest.fixture(scope="session")
+def pre_s4_6_root() -> Iterator[Path]:
+    """Expose the authoritative S4.5 state without legitimate S4.6 artifacts."""
+
+    cache = ROOT / ".pytest_cache"
+    cache.mkdir(exist_ok=True)
+    container = Path(tempfile.mkdtemp(prefix="pre-s4-6-", dir=cache))
+    snapshot = container / "repository"
+    try:
+        subprocess.run(
+            [
+                "git",
+                "clone",
+                "--shared",
+                "--no-checkout",
+                "--quiet",
+                str(ROOT),
+                str(snapshot),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "checkout", "--detach", "--quiet", _PRE_S4_6_COMMIT],
+            cwd=snapshot,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        source_s4_4 = ROOT / "dataset/S4.4"
+        if source_s4_4.exists():
+            (snapshot / "dataset").mkdir()
+            shutil.copytree(
+                source_s4_4,
+                snapshot / "dataset/S4.4",
+                copy_function=os.link,
+            )
+        yield snapshot
+    finally:
+        shutil.rmtree(container)
 
 
 @pytest.fixture(autouse=True)

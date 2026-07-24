@@ -289,10 +289,10 @@ def test_s4_6_or_later_artifact_detection(tmp_path: Path) -> None:
     ]
 
 
-def test_s4_4_preservation_and_holdout_unopened() -> None:
+def test_s4_4_preservation_and_holdout_unopened(pre_s4_6_root: Path) -> None:
     if not MACHINE_FIT_A.is_dir():
         pytest.skip("machine-local sealed S4.4 evidence is unavailable")
-    result = validate_s4_4_preservation(ROOT)
+    result = validate_s4_4_preservation(pre_s4_6_root)
     assert result["status"] == "passed", result
     assert result["holdout_scientifically_opened"] is False
     assert result["s4_8_grants"] == []
