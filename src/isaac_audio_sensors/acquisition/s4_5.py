@@ -1662,7 +1662,12 @@ def validate_s4_4_preservation(repo_root: Path) -> dict[str, Any]:
         issue
         for issue in historical["issues"]
         if issue.get("code") != "later_phase_artifact_present"
-        or "s4_5" not in str(issue.get("path", "")).lower()
+        or re.search(
+            r"(?:^|[^a-z0-9])s4[._-]?5(?:[^0-9]|$)",
+            str(issue.get("path", "")),
+            re.IGNORECASE,
+        )
+        is None
     ]
     later = detect_later_phase_artifacts(repo_root)
     grants = [
