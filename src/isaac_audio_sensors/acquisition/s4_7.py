@@ -447,10 +447,15 @@ def _configuration_rejections(repo_root: Path) -> list[dict[str, Any]]:
 
 
 def _path_rejections(repo_root: Path) -> list[dict[str, Any]]:
-    """Execute the path-safety cases that guard the frozen configuration."""
+    """Execute the path-safety cases that guard the frozen configuration.
+
+    The absolute case uses a fixed literal rather than the real repository
+    root, so that the recorded rejection message stays machine independent and
+    the package replays byte-for-byte from a clean checkout.
+    """
 
     cases = (
-        ("absolute_config_path", (repo_root / CRITERIA_CONFIG_PATH)),
+        ("absolute_config_path", Path("/configs/s4_7_holdout_acceptance.v1.json")),
         ("parent_traversal_config_path", Path("../configs/s4_7.json")),
         ("missing_config_path", Path("configs/s4_7_absent.v1.json")),
     )

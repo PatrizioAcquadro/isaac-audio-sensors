@@ -98,6 +98,17 @@ def test_fail_closed_matrix_records_executed_outcomes(tmp_path: Path) -> None:
     } <= set(identifiers)
 
 
+def test_no_evidence_file_embeds_a_machine_specific_path(tmp_path: Path) -> None:
+    target = tmp_path / "package"
+    _build(target)
+    machine_paths = (str(ROOT), str(tmp_path), "/tmp/", "/home/")
+
+    for path in sorted(target.iterdir()):
+        text = path.read_text(encoding="utf-8")
+        for fragment in machine_paths:
+            assert fragment not in text, f"{path.name} embeds {fragment}"
+
+
 def test_interlock_artifact_matches_the_frozen_grant_contract(tmp_path: Path) -> None:
     target = tmp_path / "package"
     _build(target)
