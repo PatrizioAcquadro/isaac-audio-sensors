@@ -141,8 +141,8 @@ def build(*, source_commit: str, gate_results_path: Path) -> dict[str, Any]:
     write_json_atomic(checkpoint_path, checkpoint)
 
     gate_payload = {
-        "schema": "ias.s4_4.amendment_03_final_closeout_corrective.v1",
         **gate_results,
+        "schema": "ias.s4_4.amendment_03_final_closeout_corrective.v1",
         "status": "passed",
         "validation_scope": "corrective_02_source_and_scientific_evidence",
         "pre_corrective_validation_status": "incomplete",
