@@ -54,7 +54,11 @@ from scripts.build_s4_4_amendment_03_multiday import (
     build as build_multiday,
 )
 from scripts.validate_s4_4_amendment import validate as validate_predecessor_amendment
-from scripts.validate_s4_4_amendment_03 import _validate_cutoff_inventory, validate
+from scripts.validate_s4_4_amendment_03 import (
+    DEFAULT_INDEX,
+    _validate_cutoff_inventory,
+    validate,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "configs/s4_4_data_expansion_amendment_03.v1.json"
@@ -817,6 +821,10 @@ def test_amendment_02_validator_continues_to_pass() -> None:
         require_machine_local=False,
     )
     assert result["status"] == "passed", result["issues"]
+
+
+def test_active_validator_defaults_to_frozen_v5_package() -> None:
+    assert DEFAULT_INDEX.name == "evidence_index.v5.json"
 
 
 def test_builder_is_byte_identical_and_validator_passes(

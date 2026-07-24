@@ -64,7 +64,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "configs/s4_4_data_expansion_amendment_03.v1.json"
 DEFAULT_INDEX = (
     ROOT / "outputs/isaac_audio_sensors/S4/S4.4/amendments/"
-    "s4_4_data_expansion_amendment_03/evidence_index.v1.json"
+    "s4_4_data_expansion_amendment_03/evidence_index.v5.json"
 )
 MEDIA_SUFFIXES = {".wav", ".svo", ".svo2", ".png", ".jpg", ".jpeg", ".mp4"}
 
