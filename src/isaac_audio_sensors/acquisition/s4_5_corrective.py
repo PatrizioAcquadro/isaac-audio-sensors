@@ -5,9 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import platform
 import re
 import subprocess
+import sys
 import tempfile
 from collections import Counter
 from collections.abc import Mapping, Sequence
@@ -67,6 +69,19 @@ CORRECTIVE_VALIDATOR = Path("scripts/validate_s4_5_corrective.py")
 CORRECTIVE_TEST = Path("tests/test_s4_5_corrective.py")
 TOOL_VERSION = "ias_s4_5_corrective/1.0.0"
 CONTRACT_COMMIT = "26903338da1f91bc8843fd1b093b07482fe4cd9a"
+PACKAGE_COMMIT = "d59c7cbfbfe858d34d2e5689f0516b8201dcdc21"
+HISTORICAL_CORRECTIVE_OUTPUT = Path(
+    "outputs/isaac_audio_sensors/S4/S4.5/correctives/s4_5_corrective_01"
+)
+HISTORICAL_METADATA_FILES = frozenset(
+    {
+        "SHA256SUMS",
+        "corrective_contract.json",
+        "evidence_index.json",
+        "preservation_validation.json",
+        "provenance.json",
+    }
+)
 HYPOTHESIS_IDS = (
     "H0_identity_nominal",
     "H1_s4_3_rz180_omitted",
@@ -1703,14 +1718,111 @@ def _expected_package_bytes(repo_root: Path, source_commit: str) -> dict[str, by
     if cached is not None:
         return cached
     with tempfile.TemporaryDirectory(prefix="ias-s4-5-corrective-semantic-") as tmp:
-        output = Path(tmp) / "package"
-        build_corrective_package(
-            repo_root=repo_root,
-            output=output,
-            config_path=repo_root / CORRECTIVE_CONFIG,
-            source_commit=source_commit,
+        temporary_root = Path(tmp)
+        historical_root = temporary_root / "source"
+        output = temporary_root / "package"
+        clone = subprocess.run(
+            [
+                "git",
+                "clone",
+                "--shared",
+                "--no-checkout",
+                "--quiet",
+                str(repo_root),
+                str(historical_root),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
         )
+        if clone.returncode != 0:
+            raise S45Error(
+                "could not create isolated historical replay checkout: "
+                f"{clone.stderr.strip()}"
+            )
+        checkout = subprocess.run(
+            ["git", "checkout", "--detach", "--quiet", source_commit],
+            cwd=historical_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if checkout.returncode != 0:
+            raise S45Error(
+                "could not check out corrective source commit for replay: "
+                f"{checkout.stderr.strip()}"
+            )
+        environment = dict(os.environ)
+        python_path = [
+            str(historical_root / "src"),
+            str(historical_root),
+        ]
+        if environment.get("PYTHONPATH"):
+            python_path.append(environment["PYTHONPATH"])
+        environment["PYTHONPATH"] = os.pathsep.join(python_path)
+        replay_program = """
+import sys
+from pathlib import Path
+from isaac_audio_sensors.acquisition import s4_5_corrective as corrective
+
+historical_root = Path(sys.argv[1])
+evidence_root = Path(sys.argv[2])
+source_commit = sys.argv[3]
+output = Path(sys.argv[4])
+validate_historical_source = corrective.source_commit_is_valid_corrective
+
+def validate_bound_source(_evidence_root, commit):
+    validate_historical_source(historical_root, commit)
+
+corrective.source_commit_is_valid_corrective = validate_bound_source
+corrective.build_corrective_package(
+    repo_root=evidence_root,
+    output=output,
+    config_path=evidence_root / corrective.CORRECTIVE_CONFIG,
+    source_commit=source_commit,
+)
+"""
+        replay = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                replay_program,
+                str(historical_root),
+                str(repo_root),
+                source_commit,
+                str(output),
+            ],
+            cwd=historical_root,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if replay.returncode != 0:
+            raise S45Error(
+                "historical corrective replay failed: "
+                f"{replay.stderr.strip() or replay.stdout.strip()}"
+            )
         expected = {path.name: path.read_bytes() for path in output.iterdir()}
+        for name in HISTORICAL_METADATA_FILES:
+            historical = subprocess.run(
+                [
+                    "git",
+                    "show",
+                    (
+                        f"{PACKAGE_COMMIT}:"
+                        f"{(HISTORICAL_CORRECTIVE_OUTPUT / name).as_posix()}"
+                    ),
+                ],
+                cwd=repo_root,
+                check=False,
+                capture_output=True,
+            )
+            if historical.returncode != 0:
+                raise S45Error(
+                    f"historical corrective metadata is unavailable: {name}"
+                )
+            expected[name] = historical.stdout
     _EXPECTED_PACKAGE_CACHE[key] = expected
     return expected
 
@@ -1806,6 +1918,10 @@ def validate_corrective_package(
         "semantic_regeneration": not any(
             "semantic regeneration" in issue for issue in issues
         ),
+        "semantic_regenerated_file_count": len(
+            REQUIRED_FILES - HISTORICAL_METADATA_FILES
+        ),
+        "historical_metadata_file_count": len(HISTORICAL_METADATA_FILES),
         "checksum_record_count": (
             len((output / "SHA256SUMS").read_text(encoding="utf-8").splitlines())
             if (output / "SHA256SUMS").is_file()

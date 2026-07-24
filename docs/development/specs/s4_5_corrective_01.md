@@ -146,6 +146,16 @@ checksums. Tests must mutate and re-checksum each of these and still fail:
 - the selected channel/frame mapping; and
 - an unsupported candidate changed to supported.
 
+After the evidence package is committed, semantic validation replays its
+recorded source commit in an isolated clean source checkout against the
+authorized fit evidence. The 12 science-producing payloads must reproduce
+byte-for-byte. Five history-dependent records (`SHA256SUMS`, contract record,
+evidence index, preservation snapshot, and provenance) are instead required
+to match the immutable package commit byte-for-byte, while preservation is
+also recomputed live. This separation permits a pure Git relocation without
+rewriting historical metadata and does not substitute checksums for
+scientific replay.
+
 ## Additive outputs and acceptance
 
 The package root is
