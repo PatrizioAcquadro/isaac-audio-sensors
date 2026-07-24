@@ -649,8 +649,13 @@ def _expected_package(repo_root: Path, source_commit: str) -> dict[str, bytes]:
 
 
 def active_surface_paths(repo_root: Path, output: Path) -> list[str]:
+    package_paths = (
+        [path.relative_to(repo_root).as_posix() for path in output.iterdir()]
+        if output.is_relative_to(repo_root)
+        else []
+    )
     paths = [
-        *(path.relative_to(repo_root).as_posix() for path in output.iterdir()),
+        *package_paths,
         ACTIVE_POINTER_PATH.as_posix(),
         AUTHORITATIVE_CLOSEOUT_PATH.as_posix(),
         *[path.as_posix() for path in SOURCE_BOUND_FILES],
