@@ -1,0 +1,9 @@
+{
+  "applied_field_count": 0,
+  "bundle_resolved": false,
+  "configuration_equal": true,
+  "off_state_drift": false,
+  "same_object_returned": true,
+  "schema": "ias.s4_6.off_state_equivalence_report.v1",
+  "status": "passed"
+}

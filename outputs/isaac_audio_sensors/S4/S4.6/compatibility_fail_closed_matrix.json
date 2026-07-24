@@ -1,0 +1,242 @@
+{
+  "case_count": 34,
+  "cases": [
+    {
+      "actual": "accepted",
+      "case_id": "valid_authoritative_bundle",
+      "expected": "accepted",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "swapped_channel_order",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['channel_order']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_channel_count",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['channel_order']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_device_identity",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['device_id']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_array_identity",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['array_id']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_sample_rate",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['sample_rate_hz']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_array_frame",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['array_frame']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_source_frame",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['source_frame']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_coordinate_convention",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['coordinate_convention']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_mount_fixture",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['mount_fixture_id']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_geometry_identity",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['functional_association_sha256']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "wrong_environment",
+      "expected": "rejected",
+      "reason": "runtime identity context mismatch: ['environment_tags']",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "historical_v1_selection",
+      "expected": "rejected",
+      "reason": "S4.6 application configuration hash mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "inactive_configuration",
+      "expected": "rejected",
+      "reason": "S4.6 application configuration hash mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "unknown_mode",
+      "expected": "rejected",
+      "reason": "S4.6 application configuration hash mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "unsafe_parent_path",
+      "expected": "rejected",
+      "reason": "S4.6 application configuration hash mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "unsafe_absolute_path",
+      "expected": "rejected",
+      "reason": "S4.6 application configuration hash mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "runtime_swapped_channel_order",
+      "expected": "rejected",
+      "reason": "runtime channel order mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "runtime_wrong_channel_count",
+      "expected": "rejected",
+      "reason": "runtime channel count mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "runtime_wrong_sample_rate",
+      "expected": "rejected",
+      "reason": "global sample rate mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "runtime_wrong_array_identity",
+      "expected": "rejected",
+      "reason": "S4.6 requires exactly the compatible target array",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "unsupported_batched_runtime",
+      "expected": "rejected",
+      "reason": "S4.6 active channel response is unsupported by Isaac Lab batched mode",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "double_application",
+      "expected": "rejected",
+      "reason": "channel response is already active; double application rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "altered_content",
+      "expected": "rejected",
+      "reason": "active profile hash mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "rechecksummed_tampering",
+      "expected": "rejected",
+      "reason": "active pointer is malformed, stale, inactive, or superseded",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "malformed_json_or_schema",
+      "expected": "rejected",
+      "reason": "active profile hash mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "missing_bundle_member",
+      "expected": "rejected",
+      "reason": "required bundle member is missing: 'outputs/isaac_audio_sensors/S4/S4.5_corrective_01/calibration_profile.v2.json'",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "unsupported_or_partial_fields",
+      "expected": "rejected",
+      "reason": "active profile hash mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "unknown_fitted_parameters",
+      "expected": "rejected",
+      "reason": "active profile hash mismatch",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "retained_count_semantic_misuse",
+      "expected": "rejected",
+      "reason": "active pointer is malformed, stale, inactive, or superseded",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "identity_bypass",
+      "expected": "rejected",
+      "reason": "active pointer is malformed, stale, inactive, or superseded",
+      "status": "passed"
+    },
+    {
+      "actual": "proven_absent",
+      "case_id": "partial_application",
+      "expected": "proven_absent",
+      "status": "passed"
+    },
+    {
+      "actual": "proven_absent",
+      "case_id": "off_state_drift",
+      "expected": "proven_absent",
+      "status": "passed"
+    },
+    {
+      "actual": "proven_absent",
+      "case_id": "nondeterministic_output",
+      "expected": "proven_absent",
+      "status": "passed"
+    }
+  ],
+  "partial_application_observed": false,
+  "schema": "ias.s4_6.compatibility_fail_closed_matrix.v1",
+  "status": "passed"
+}

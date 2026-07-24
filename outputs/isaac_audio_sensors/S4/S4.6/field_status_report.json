@@ -1,0 +1,151 @@
+{
+  "records": [
+    {
+      "field": "channels.ch1.gain_db",
+      "reason": "measured supported S4.5 correction",
+      "status": "applied"
+    },
+    {
+      "field": "channels.ch1.polarity",
+      "reason": "measured supported S4.5 unity polarity",
+      "status": "applied"
+    },
+    {
+      "field": "channels.ch2.gain_db",
+      "reason": "measured supported S4.5 correction",
+      "status": "applied"
+    },
+    {
+      "field": "channels.ch2.polarity",
+      "reason": "measured supported S4.5 unity polarity",
+      "status": "applied"
+    },
+    {
+      "field": "channels.ch3.gain_db",
+      "reason": "measured supported S4.5 correction",
+      "status": "applied"
+    },
+    {
+      "field": "channels.ch3.polarity",
+      "reason": "measured supported S4.5 unity polarity",
+      "status": "applied"
+    },
+    {
+      "field": "functional_channel_position_association",
+      "reason": "fitted functional association; coordinates remain nominal",
+      "status": "applied"
+    },
+    {
+      "field": "channels.ch0.gain_db",
+      "reason": "reference or nominal value is not a correction",
+      "status": "nominal"
+    },
+    {
+      "field": "channels.ch0.delay_s",
+      "reason": "reference or nominal value is not a correction",
+      "status": "nominal"
+    },
+    {
+      "field": "channels.ch0.polarity",
+      "reason": "reference or nominal value is not a correction",
+      "status": "nominal"
+    },
+    {
+      "field": "microphone_geometry.*.position_m",
+      "reason": "reference or nominal value is not a correction",
+      "status": "nominal"
+    },
+    {
+      "field": "channels.ch1.delay_s",
+      "reason": "no measured value is authorized to apply",
+      "status": "unmeasured"
+    },
+    {
+      "field": "channels.ch2.delay_s",
+      "reason": "no measured value is authorized to apply",
+      "status": "unmeasured"
+    },
+    {
+      "field": "channels.ch3.delay_s",
+      "reason": "no measured value is authorized to apply",
+      "status": "unmeasured"
+    },
+    {
+      "field": "microphone_geometry.*.uncertainty_m",
+      "reason": "no measured value is authorized to apply",
+      "status": "unmeasured"
+    },
+    {
+      "field": "temperature_c",
+      "reason": "no measured value is authorized to apply",
+      "status": "unmeasured"
+    },
+    {
+      "field": "relative_delay",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "scalar_bearing_correction",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "confidence_calibration",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "relative_audio_video_timing",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "functional_noise_or_self_noise",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "frequency_dependent_channel_response",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "playback_level_linearity",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "agc_or_compression",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "sector_thresholds_or_confusion_matrices",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "abstention_thresholds",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "absolute_spl",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "absolute_microphone_sensitivity",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    },
+    {
+      "field": "precision_optical_acoustic_extrinsics",
+      "reason": "S4.5 handoff forbids application",
+      "status": "unsupported"
+    }
+  ],
+  "schema": "ias.s4_6.field_status_report.v1",
+  "status": "passed"
+}

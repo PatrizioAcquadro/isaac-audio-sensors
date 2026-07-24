@@ -1,0 +1,85 @@
+{
+  "atomic": true,
+  "complete_before_application": true,
+  "component_count": 7,
+  "plan": [
+    {
+      "field": "channels.ch1.gain_db",
+      "operation": "set_channel_response_gain_db",
+      "unit": "dB",
+      "value": -1.6020864972841506
+    },
+    {
+      "field": "channels.ch1.polarity",
+      "operation": "set_channel_response_polarity",
+      "unit": "multiplier",
+      "value": 1
+    },
+    {
+      "field": "channels.ch2.gain_db",
+      "operation": "set_channel_response_gain_db",
+      "unit": "dB",
+      "value": -1.2795753710282032
+    },
+    {
+      "field": "channels.ch2.polarity",
+      "operation": "set_channel_response_polarity",
+      "unit": "multiplier",
+      "value": 1
+    },
+    {
+      "field": "channels.ch3.gain_db",
+      "operation": "set_channel_response_gain_db",
+      "unit": "dB",
+      "value": -1.2135862725210074
+    },
+    {
+      "field": "channels.ch3.polarity",
+      "operation": "set_channel_response_polarity",
+      "unit": "multiplier",
+      "value": 1
+    },
+    {
+      "field": "functional_channel_position_association",
+      "frame": "F_project",
+      "geometry_measurement_status": "nominal_not_measured",
+      "mapping": [
+        {
+          "channel_id": "ch0",
+          "position_m": [
+            -0.033,
+            -0.033,
+            0.0
+          ]
+        },
+        {
+          "channel_id": "ch1",
+          "position_m": [
+            -0.033,
+            0.033,
+            0.0
+          ]
+        },
+        {
+          "channel_id": "ch2",
+          "position_m": [
+            0.033,
+            0.033,
+            0.0
+          ]
+        },
+        {
+          "channel_id": "ch3",
+          "position_m": [
+            0.033,
+            -0.033,
+            0.0
+          ]
+        }
+      ],
+      "operation": "replace_runtime_functional_positions"
+    }
+  ],
+  "schema": "ias.s4_6.application_plan_report.v1",
+  "status": "passed"
+}
