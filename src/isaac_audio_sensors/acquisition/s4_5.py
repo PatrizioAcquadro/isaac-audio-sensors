@@ -618,15 +618,7 @@ class FitEvidenceAccessor:
     ) -> tuple[np.ndarray, int]:
         """Return one already-inventoried fit WAV after reauthorization/recheck."""
 
-        decision = self.authorize(record.planned_take_id, purpose)
-        if decision != {"allowed": True, "mode": "fit_only", "holdout_opened": False}:
-            raise S45Error(f"{record.planned_take_id}: non-fit access decision")
-        path = _resolved_file(self.repo_root, record.wav_path, "fit WAV")
-        if (
-            path.stat().st_size != record.wav_byte_size
-            or sha256_file(path) != record.wav_sha256
-        ):
-            raise S45Error(f"{record.attempt_id}: WAV changed after inventory")
+        path = self.validated_wave_path(record, purpose=purpose)
         try:
             with wave.open(str(path), "rb") as reader:
                 if (
@@ -643,6 +635,20 @@ class FitEvidenceAccessor:
         if values.size % 6:
             raise S45Error(f"{record.attempt_id}: truncated interleaved PCM")
         return values.reshape(-1, 6).astype(np.float64) / 32768.0, 16_000
+
+    def validated_wave_path(self, record: FitEvidenceRecord, *, purpose: str) -> Path:
+        """Reauthorize and recheck a fit WAV before a repository tool opens it."""
+
+        decision = self.authorize(record.planned_take_id, purpose)
+        if decision != {"allowed": True, "mode": "fit_only", "holdout_opened": False}:
+            raise S45Error(f"{record.planned_take_id}: non-fit access decision")
+        path = _resolved_file(self.repo_root, record.wav_path, "fit WAV")
+        if (
+            path.stat().st_size != record.wav_byte_size
+            or sha256_file(path) != record.wav_sha256
+        ):
+            raise S45Error(f"{record.attempt_id}: WAV changed after inventory")
+        return path
 
 
 def _reference_start(report: Any, minimum: float = 0.03) -> int | None:
@@ -690,17 +696,18 @@ def extract_fit_observations(
         mic_id: tuple(float(value) for value in position)
         for mic_id, position in zip(mic_ids, positions, strict=True)
     }
-    observations: list[FitObservation] = []
+    attempt_observations: list[FitObservation] = []
     exclusions: Counter[str] = Counter()
     for record in records:
         if record.category not in {"controlled", "confidence"}:
             exclusions[f"category_{record.category}"] += 1
             continue
-        path = accessor.repo_root / record.wav_path
+        path = accessor.validated_wave_path(record, purpose="S4.5_fit")
         report = validate_reference_capture(
             path,
             reference_path,
             minimum_normalized_correlation=0.03,
+            minimum_correlated_raw_channels=2,
         )
         if report.issues:
             exclusions["reference_validation_failed"] += 1
@@ -747,7 +754,7 @@ def extract_fit_observations(
             max_delay_s=16.0 / rate,
             interp=8,
         )
-        observations.append(
+        attempt_observations.append(
             FitObservation(
                 planned_take_id=record.planned_take_id,
                 session_id=record.session_id,
@@ -761,14 +768,80 @@ def extract_fit_observations(
                 srp_confidence=float(srp_phat_confidence(srp)),
             )
         )
+    by_group: dict[str, list[FitObservation]] = {}
+    for item in attempt_observations:
+        by_group.setdefault(item.group_id, []).append(item)
+    observations: list[FitObservation] = []
+    repeated_attempts_collapsed = 0
+    for group_id in sorted(by_group):
+        rows = by_group[group_id]
+        repeated_attempts_collapsed += len(rows) - 1
+        sessions = {item.session_id for item in rows}
+        categories = {item.category for item in rows}
+        targets = {item.target_bearing_deg for item in rows}
+        if len(sessions) != 1 or len(targets) != 1:
+            raise S45Error(f"{group_id}: leakage group metadata changed")
+        channel_gain = tuple(
+            float(np.median([item.gain_db[channel] for item in rows]))
+            for channel in range(4)
+        )
+        channel_delay = tuple(
+            float(np.median([item.delay_samples[channel] for item in rows]))
+            for channel in range(4)
+        )
+        channel_sign = tuple(
+            (
+                1
+                if sum(item.correlation_sign[channel] > 0 for item in rows)
+                >= sum(item.correlation_sign[channel] < 0 for item in rows)
+                else -1
+            )
+            for channel in range(4)
+        )
+        bearings = [
+            float(item.srp_bearing_deg)
+            for item in rows
+            if item.srp_bearing_deg is not None
+        ]
+        confidences = [
+            float(item.srp_confidence)
+            for item in rows
+            if item.srp_confidence is not None
+        ]
+        observations.append(
+            FitObservation(
+                planned_take_id=group_id,
+                session_id=rows[0].session_id,
+                group_id=group_id,
+                category=(
+                    rows[0].category
+                    if len(categories) == 1
+                    else "mixed_controlled_confidence"
+                ),
+                target_bearing_deg=rows[0].target_bearing_deg,
+                gain_db=channel_gain,
+                delay_samples=channel_delay,
+                correlation_sign=channel_sign,
+                srp_bearing_deg=(
+                    None if not bearings else _circular_location(bearings) % 360.0
+                ),
+                srp_confidence=(
+                    None
+                    if not confidences
+                    else float(np.median(np.asarray(confidences)))
+                ),
+            )
+        )
     groups = [item.group_id for item in observations]
     if len(groups) != len(set(groups)):
         raise S45Error("repeated observations from one leakage group detected")
     payload = {
         "schema": MEASUREMENTS_SCHEMA,
         "status": "passed",
+        "attempt_observation_count": len(attempt_observations),
         "observation_count": len(observations),
         "group_count": len(set(groups)),
+        "repeated_attempts_collapsed_within_group": repeated_attempts_collapsed,
         "session_counts": dict(
             sorted(Counter(item.session_id for item in observations).items())
         ),

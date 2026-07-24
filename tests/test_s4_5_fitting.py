@@ -17,6 +17,7 @@ from isaac_audio_sensors.acquisition.s4_5 import (
     _validate_attempt,
     build_partial_profile,
     detect_later_phase_artifacts,
+    extract_fit_observations,
     fit_parameter_decisions,
     load_fitting_contract,
     load_json,
@@ -199,6 +200,17 @@ def test_fit_inventory_is_complete_grouped_and_holdout_free() -> None:
     assert inventory["holdout_attempts_accessed"] == 0
     assert len(records) == 102
     assert {record.session_id for record in records} == {"fit_a", "fit_b"}
+
+
+def test_fit_observation_extraction_is_grouped_and_holdout_free() -> None:
+    accessor = _accessor()
+    _inventory, records = accessor.inventory(purpose="S4.5_validation")
+    measurements, observations = extract_fit_observations(accessor, records)
+    assert measurements["status"] == "passed"
+    assert measurements["holdout_observations"] == 0
+    assert measurements["observation_count"] == len(observations)
+    assert measurements["group_count"] == len(observations)
+    assert {item.session_id for item in observations} == {"fit_a", "fit_b"}
 
 
 def _copied_attempt(
