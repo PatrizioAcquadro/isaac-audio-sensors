@@ -1,0 +1,963 @@
+{
+  "fit_b_used_for_selection": false,
+  "hypotheses": [
+    {
+      "hypothesis_id": "H0_identity_nominal",
+      "selected_using_fit_a": false,
+      "splits": {
+        "fit_a": {
+          "front_back": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 174.00015235511614,
+              "predicted_bearings_deg": [
+                171.0,
+                182.9996952897677
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 177.00030471023229
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 179.60015599908854,
+              "predicted_bearings_deg": [
+                0.0,
+                359.2003119981771
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 180.0
+            }
+          ],
+          "group_count": 16,
+          "linear_p95_angular_error_deg": 179.4002339986328,
+          "median_angular_error_deg": 81.5,
+          "median_improvement_fraction_vs_identity": 0.0,
+          "nearest_rank_p95_angular_error_deg": 180.0,
+          "per_bearing": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 174.00015235511614,
+              "predicted_bearings_deg": [
+                171.0,
+                182.9996952897677
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 177.00030471023229
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 89.50000000000001,
+              "predicted_bearings_deg": [
+                140.00000000000003,
+                129.0
+              ],
+              "target_bearing_deg": 45.0,
+              "worst_angular_error_deg": 95.00000000000003
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.7000292487131645,
+              "predicted_bearings_deg": [
+                92.40005849742633,
+                89.0
+              ],
+              "target_bearing_deg": 90.0,
+              "worst_angular_error_deg": 2.400058497426329
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 85.0,
+              "predicted_bearings_deg": [
+                41.99999999999999,
+                58.00000000000001
+              ],
+              "target_bearing_deg": 135.0,
+              "worst_angular_error_deg": 93.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 179.60015599908854,
+              "predicted_bearings_deg": [
+                0.0,
+                359.2003119981771
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 180.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 77.0,
+              "predicted_bearings_deg": [
+                304.0,
+                300.0
+              ],
+              "target_bearing_deg": 225.0,
+              "worst_angular_error_deg": 79.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 9.996333801922333,
+              "predicted_bearings_deg": [
+                274.99266760384467,
+                285.0
+              ],
+              "target_bearing_deg": 270.0,
+              "worst_angular_error_deg": 15.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 87.0,
+              "predicted_bearings_deg": [
+                238.0,
+                217.99999999999997
+              ],
+              "target_bearing_deg": 315.0,
+              "worst_angular_error_deg": 97.0
+            }
+          ],
+          "worst_angular_error_deg": 180.0
+        },
+        "fit_b": {
+          "front_back": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.1013274987722,
+              "predicted_bearings_deg": [
+                183.0,
+                180.7973450024556
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 179.2026549975444
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.60000974887404,
+              "predicted_bearings_deg": [
+                358.0,
+                359.2000194977481
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 179.2000194977481
+            }
+          ],
+          "group_count": 16,
+          "linear_p95_angular_error_deg": 179.20067837269715,
+          "median_angular_error_deg": 85.0,
+          "median_improvement_fraction_vs_identity": 0.0,
+          "nearest_rank_p95_angular_error_deg": 179.2026549975444,
+          "per_bearing": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.1013274987722,
+              "predicted_bearings_deg": [
+                183.0,
+                180.7973450024556
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 179.2026549975444
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 81.0,
+              "predicted_bearings_deg": [
+                126.99999999999999,
+                125.00000000000001
+              ],
+              "target_bearing_deg": 45.0,
+              "worst_angular_error_deg": 81.99999999999999
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 2.7485699648242985,
+              "predicted_bearings_deg": [
+                91.49713992964858,
+                94.0
+              ],
+              "target_bearing_deg": 90.0,
+              "worst_angular_error_deg": 4.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 94.5,
+              "predicted_bearings_deg": [
+                45.0,
+                36.00000000000001
+              ],
+              "target_bearing_deg": 135.0,
+              "worst_angular_error_deg": 99.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.60000974887404,
+              "predicted_bearings_deg": [
+                358.0,
+                359.2000194977481
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 179.2000194977481
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 80.0,
+              "predicted_bearings_deg": [
+                306.0,
+                304.0
+              ],
+              "target_bearing_deg": 225.0,
+              "worst_angular_error_deg": 81.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 5.2861615432165365,
+              "predicted_bearings_deg": [
+                277.0,
+                273.5723230864331
+              ],
+              "target_bearing_deg": 270.0,
+              "worst_angular_error_deg": 7.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 92.0,
+              "predicted_bearings_deg": [
+                219.0,
+                226.99999999999997
+              ],
+              "target_bearing_deg": 315.0,
+              "worst_angular_error_deg": 96.0
+            }
+          ],
+          "worst_angular_error_deg": 179.2026549975444
+        }
+      }
+    },
+    {
+      "hypothesis_id": "H1_s4_3_rz180_omitted",
+      "selected_using_fit_a": false,
+      "splits": {
+        "fit_a": {
+          "front_back": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 5.999847644883857,
+              "predicted_bearings_deg": [
+                351.0,
+                2.9996952897677116
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 9.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 0.39984400091144323,
+              "predicted_bearings_deg": [
+                180.0,
+                179.2003119981771
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 0.7996880018228865
+            }
+          ],
+          "group_count": 16,
+          "linear_p95_angular_error_deg": 177.94995612693026,
+          "median_angular_error_deg": 98.5,
+          "median_improvement_fraction_vs_identity": -0.2085889570552147,
+          "nearest_rank_p95_angular_error_deg": 179.0,
+          "per_bearing": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 5.999847644883857,
+              "predicted_bearings_deg": [
+                351.0,
+                2.9996952897677116
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 9.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 90.5,
+              "predicted_bearings_deg": [
+                320.0,
+                309.0
+              ],
+              "target_bearing_deg": 45.0,
+              "worst_angular_error_deg": 96.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.29997075128685,
+              "predicted_bearings_deg": [
+                272.4000584974263,
+                269.0
+              ],
+              "target_bearing_deg": 90.0,
+              "worst_angular_error_deg": 179.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 95.0,
+              "predicted_bearings_deg": [
+                222.0,
+                238.0
+              ],
+              "target_bearing_deg": 135.0,
+              "worst_angular_error_deg": 103.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 0.39984400091144323,
+              "predicted_bearings_deg": [
+                180.0,
+                179.2003119981771
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 0.7996880018228865
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 103.0,
+              "predicted_bearings_deg": [
+                124.0,
+                120.00000000000001
+              ],
+              "target_bearing_deg": 225.0,
+              "worst_angular_error_deg": 105.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 170.00366619807767,
+              "predicted_bearings_deg": [
+                94.99266760384468,
+                105.0
+              ],
+              "target_bearing_deg": 270.0,
+              "worst_angular_error_deg": 175.00733239615533
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 93.0,
+              "predicted_bearings_deg": [
+                58.00000000000001,
+                38.00000000000001
+              ],
+              "target_bearing_deg": 315.0,
+              "worst_angular_error_deg": 103.0
+            }
+          ],
+          "worst_angular_error_deg": 179.0
+        },
+        "fit_b": {
+          "front_back": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.898672501227793,
+              "predicted_bearings_deg": [
+                3.0000000000000004,
+                0.7973450024555868
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 3.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.3999902511259705,
+              "predicted_bearings_deg": [
+                178.0,
+                179.20001949774806
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 2.0
+            }
+          ],
+          "group_count": 16,
+          "linear_p95_angular_error_deg": 176.94647270276306,
+          "median_angular_error_deg": 95.0,
+          "median_improvement_fraction_vs_identity": -0.11764705882352941,
+          "nearest_rank_p95_angular_error_deg": 178.5028600703514,
+          "per_bearing": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.898672501227793,
+              "predicted_bearings_deg": [
+                3.0000000000000004,
+                0.7973450024555868
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 3.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 99.0,
+              "predicted_bearings_deg": [
+                307.0,
+                305.0
+              ],
+              "target_bearing_deg": 45.0,
+              "worst_angular_error_deg": 100.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 177.2514300351757,
+              "predicted_bearings_deg": [
+                271.4971399296486,
+                274.0
+              ],
+              "target_bearing_deg": 90.0,
+              "worst_angular_error_deg": 178.5028600703514
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 85.49999999999997,
+              "predicted_bearings_deg": [
+                224.99999999999997,
+                215.99999999999997
+              ],
+              "target_bearing_deg": 135.0,
+              "worst_angular_error_deg": 89.99999999999997
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.3999902511259705,
+              "predicted_bearings_deg": [
+                178.0,
+                179.20001949774806
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 2.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 100.0,
+              "predicted_bearings_deg": [
+                126.0,
+                124.0
+              ],
+              "target_bearing_deg": 225.0,
+              "worst_angular_error_deg": 101.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 174.71383845678346,
+              "predicted_bearings_deg": [
+                97.0,
+                93.57232308643307
+              ],
+              "target_bearing_deg": 270.0,
+              "worst_angular_error_deg": 176.42767691356693
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 88.0,
+              "predicted_bearings_deg": [
+                39.00000000000001,
+                46.99999999999999
+              ],
+              "target_bearing_deg": 315.0,
+              "worst_angular_error_deg": 92.0
+            }
+          ],
+          "worst_angular_error_deg": 178.5028600703514
+        }
+      }
+    },
+    {
+      "hypothesis_id": "H2_x_reflection_front_back_position_binding",
+      "selected_using_fit_a": true,
+      "splits": {
+        "fit_a": {
+          "front_back": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 5.999847644883857,
+              "predicted_bearings_deg": [
+                9.0,
+                357.0003047102323
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 9.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 0.39984400091144323,
+              "predicted_bearings_deg": [
+                180.0,
+                180.7996880018229
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 0.7996880018228865
+            }
+          ],
+          "group_count": 16,
+          "linear_p95_angular_error_deg": 15.0,
+          "median_angular_error_deg": 5.5,
+          "median_improvement_fraction_vs_identity": 0.9325153374233128,
+          "nearest_rank_p95_angular_error_deg": 15.0,
+          "per_bearing": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 5.999847644883857,
+              "predicted_bearings_deg": [
+                9.0,
+                357.0003047102323
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 9.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 5.5,
+              "predicted_bearings_deg": [
+                40.0,
+                51.0
+              ],
+              "target_bearing_deg": 45.0,
+              "worst_angular_error_deg": 6.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.7000292487131503,
+              "predicted_bearings_deg": [
+                87.59994150257369,
+                91.0
+              ],
+              "target_bearing_deg": 90.0,
+              "worst_angular_error_deg": 2.4000584974263006
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 8.0,
+              "predicted_bearings_deg": [
+                138.0,
+                122.0
+              ],
+              "target_bearing_deg": 135.0,
+              "worst_angular_error_deg": 13.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 0.39984400091144323,
+              "predicted_bearings_deg": [
+                180.0,
+                180.7996880018229
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 0.7996880018228865
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 12.999999999999986,
+              "predicted_bearings_deg": [
+                235.99999999999997,
+                240.0
+              ],
+              "target_bearing_deg": 225.0,
+              "worst_angular_error_deg": 15.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 9.996333801922333,
+              "predicted_bearings_deg": [
+                265.00733239615533,
+                255.0
+              ],
+              "target_bearing_deg": 270.0,
+              "worst_angular_error_deg": 15.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 10.0,
+              "predicted_bearings_deg": [
+                302.0,
+                322.0
+              ],
+              "target_bearing_deg": 315.0,
+              "worst_angular_error_deg": 13.0
+            }
+          ],
+          "worst_angular_error_deg": 15.0
+        },
+        "fit_b": {
+          "front_back": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.898672501227793,
+              "predicted_bearings_deg": [
+                357.0,
+                359.2026549975444
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 3.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.399990251125942,
+              "predicted_bearings_deg": [
+                181.99999999999997,
+                180.7999805022519
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 1.9999999999999716
+            }
+          ],
+          "group_count": 16,
+          "linear_p95_angular_error_deg": 10.249999999999993,
+          "median_angular_error_deg": 3.7861615432165365,
+          "median_improvement_fraction_vs_identity": 0.955456923020982,
+          "nearest_rank_p95_angular_error_deg": 10.999999999999972,
+          "per_bearing": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.898672501227793,
+              "predicted_bearings_deg": [
+                357.0,
+                359.2026549975444
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 3.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 9.0,
+              "predicted_bearings_deg": [
+                53.00000000000001,
+                54.99999999999999
+              ],
+              "target_bearing_deg": 45.0,
+              "worst_angular_error_deg": 10.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 2.7485699648242985,
+              "predicted_bearings_deg": [
+                88.50286007035142,
+                86.0
+              ],
+              "target_bearing_deg": 90.0,
+              "worst_angular_error_deg": 4.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 4.5,
+              "predicted_bearings_deg": [
+                135.0,
+                144.0
+              ],
+              "target_bearing_deg": 135.0,
+              "worst_angular_error_deg": 9.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 1.399990251125942,
+              "predicted_bearings_deg": [
+                181.99999999999997,
+                180.7999805022519
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 1.9999999999999716
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 9.999999999999986,
+              "predicted_bearings_deg": [
+                234.0,
+                235.99999999999997
+              ],
+              "target_bearing_deg": 225.0,
+              "worst_angular_error_deg": 10.999999999999972
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 5.2861615432165365,
+              "predicted_bearings_deg": [
+                263.0,
+                266.4276769135669
+              ],
+              "target_bearing_deg": 270.0,
+              "worst_angular_error_deg": 7.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 4.0,
+              "predicted_bearings_deg": [
+                321.0,
+                313.0
+              ],
+              "target_bearing_deg": 315.0,
+              "worst_angular_error_deg": 6.0
+            }
+          ],
+          "worst_angular_error_deg": 10.999999999999972
+        }
+      }
+    },
+    {
+      "hypothesis_id": "H3_y_reflection_handedness_mismatch",
+      "selected_using_fit_a": false,
+      "splits": {
+        "fit_a": {
+          "front_back": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 174.00015235511614,
+              "predicted_bearings_deg": [
+                188.99999999999997,
+                177.00030471023229
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 177.00030471023229
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 179.60015599908854,
+              "predicted_bearings_deg": [
+                0.0,
+                0.7996880018228905
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 180.0
+            }
+          ],
+          "group_count": 16,
+          "linear_p95_angular_error_deg": 179.4002339986328,
+          "median_angular_error_deg": 174.5,
+          "median_improvement_fraction_vs_identity": -1.1411042944785277,
+          "nearest_rank_p95_angular_error_deg": 180.0,
+          "per_bearing": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 174.00015235511614,
+              "predicted_bearings_deg": [
+                188.99999999999997,
+                177.00030471023229
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 177.00030471023229
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 174.5,
+              "predicted_bearings_deg": [
+                219.99999999999997,
+                231.0
+              ],
+              "target_bearing_deg": 45.0,
+              "worst_angular_error_deg": 174.99999999999997
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.29997075128682,
+              "predicted_bearings_deg": [
+                267.59994150257364,
+                271.0
+              ],
+              "target_bearing_deg": 90.0,
+              "worst_angular_error_deg": 179.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 172.0,
+              "predicted_bearings_deg": [
+                318.0,
+                302.0
+              ],
+              "target_bearing_deg": 135.0,
+              "worst_angular_error_deg": 177.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 179.60015599908854,
+              "predicted_bearings_deg": [
+                0.0,
+                0.7996880018228905
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 180.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 167.0,
+              "predicted_bearings_deg": [
+                56.0,
+                59.99999999999999
+              ],
+              "target_bearing_deg": 225.0,
+              "worst_angular_error_deg": 169.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 170.00366619807767,
+              "predicted_bearings_deg": [
+                85.00733239615533,
+                75.0
+              ],
+              "target_bearing_deg": 270.0,
+              "worst_angular_error_deg": 175.00733239615533
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 170.0,
+              "predicted_bearings_deg": [
+                122.0,
+                142.0
+              ],
+              "target_bearing_deg": 315.0,
+              "worst_angular_error_deg": 173.0
+            }
+          ],
+          "worst_angular_error_deg": 180.0
+        },
+        "fit_b": {
+          "front_back": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.1013274987722,
+              "predicted_bearings_deg": [
+                176.99999999999997,
+                179.2026549975444
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 179.2026549975444
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.60000974887402,
+              "predicted_bearings_deg": [
+                2.0,
+                0.7999805022519395
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 179.20001949774803
+            }
+          ],
+          "group_count": 16,
+          "linear_p95_angular_error_deg": 179.4019912481583,
+          "median_angular_error_deg": 176.21383845678346,
+          "median_improvement_fraction_vs_identity": -1.0731039818445114,
+          "nearest_rank_p95_angular_error_deg": 180.0,
+          "per_bearing": [
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.1013274987722,
+              "predicted_bearings_deg": [
+                176.99999999999997,
+                179.2026549975444
+              ],
+              "target_bearing_deg": 0.0,
+              "worst_angular_error_deg": 179.2026549975444
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 171.0,
+              "predicted_bearings_deg": [
+                233.0,
+                235.0
+              ],
+              "target_bearing_deg": 45.0,
+              "worst_angular_error_deg": 172.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 177.2514300351757,
+              "predicted_bearings_deg": [
+                268.5028600703514,
+                266.0
+              ],
+              "target_bearing_deg": 90.0,
+              "worst_angular_error_deg": 178.5028600703514
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 175.5,
+              "predicted_bearings_deg": [
+                315.0,
+                324.0
+              ],
+              "target_bearing_deg": 135.0,
+              "worst_angular_error_deg": 180.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 178.60000974887402,
+              "predicted_bearings_deg": [
+                2.0,
+                0.7999805022519395
+              ],
+              "target_bearing_deg": 180.0,
+              "worst_angular_error_deg": 179.20001949774803
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 170.0,
+              "predicted_bearings_deg": [
+                54.0,
+                55.99999999999999
+              ],
+              "target_bearing_deg": 225.0,
+              "worst_angular_error_deg": 171.0
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 174.71383845678346,
+              "predicted_bearings_deg": [
+                83.0,
+                86.42767691356693
+              ],
+              "target_bearing_deg": 270.0,
+              "worst_angular_error_deg": 176.42767691356693
+            },
+            {
+              "group_count": 2,
+              "median_angular_error_deg": 176.0,
+              "predicted_bearings_deg": [
+                141.0,
+                133.00000000000003
+              ],
+              "target_bearing_deg": 315.0,
+              "worst_angular_error_deg": 178.0
+            }
+          ],
+          "worst_angular_error_deg": 180.0
+        }
+      }
+    }
+  ],
+  "hypothesis_selection_partition": "fit_a",
+  "rejected_hypotheses": {
+    "H0_identity_nominal": "systematic all-bearing Fit A failure",
+    "H1_s4_3_rz180_omitted": "proper 180-degree rotation alone fails non-front/back Fit A bearings",
+    "H3_y_reflection_handedness_mismatch": "mirrored project-frame alternative contradicts the declared right-handed frame and fails Fit A"
+  },
+  "residual_limitations": [
+    "The binding is a fit-supported functional association, not measured acoustic-center geometry.",
+    "S4.3 limited-direction 180-degree evidence remains immutable historical context.",
+    "Fit B validates the frozen binding but did not select it or tune any threshold."
+  ],
+  "schema": "ias.s4_5.physical_hypothesis_comparison.v1",
+  "selected_binding": {
+    "ch0": [
+      -0.033,
+      -0.033,
+      0.0
+    ],
+    "ch1": [
+      -0.033,
+      0.033,
+      0.0
+    ],
+    "ch2": [
+      0.033,
+      0.033,
+      0.0
+    ],
+    "ch3": [
+      0.033,
+      -0.033,
+      0.0
+    ],
+    "frame": "F_project",
+    "interpretation": "raw-channel-to-position front/back assignment correction; F_project remains right-handed"
+  },
+  "selected_hypothesis_id": "H2_x_reflection_front_back_position_binding",
+  "status": "passed"
+}

@@ -1,0 +1,775 @@
+{
+  "acquisition_procedure": "Sealed S4.4 fit-only access; Fit A selected the frozen physical binding, Fit B validated it unchanged; exact S16_LE endpoint clipping excluded before indivisible group aggregation.",
+  "applicability_limits": {
+    "environment_tags": [
+      "S4_TEMP_DESKTOP_FIXTURE_REV0",
+      "WANG_2022_DESK_NEAR_ENTRANCE",
+      "respeaker_xvf3800_16kHz",
+      "macbook_reference_source",
+      "fit_only"
+    ],
+    "frequency_max_hz": null,
+    "frequency_min_hz": null,
+    "temperature_max_c": null,
+    "temperature_min_c": null
+  },
+  "array_frame": "xvf3800_array_corrective_01",
+  "array_id": "xvf3800_array",
+  "channel_order": [
+    "ch0",
+    "ch1",
+    "ch2",
+    "ch3"
+  ],
+  "channels": [
+    {
+      "channel_id": "ch0",
+      "delay_s": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "frequency_response": {
+        "points": [],
+        "status": "unsupported",
+        "uncertainty_db": null
+      },
+      "gain_db": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 0.0
+      },
+      "polarity": {
+        "status": "nominal_not_measured",
+        "uncertainty": null,
+        "value": 1.0
+      },
+      "self_noise_db_spl": {
+        "status": "unsupported",
+        "uncertainty": null,
+        "value": null
+      },
+      "usable_frequency_range": {
+        "maximum_hz": null,
+        "minimum_hz": null,
+        "status": "unsupported"
+      }
+    },
+    {
+      "channel_id": "ch1",
+      "delay_s": {
+        "status": "unmeasured",
+        "uncertainty": null,
+        "value": null
+      },
+      "frequency_response": {
+        "points": [],
+        "status": "unsupported",
+        "uncertainty_db": null
+      },
+      "gain_db": {
+        "status": "measured",
+        "uncertainty": 0.18151275499856445,
+        "value": -1.6020864972841506
+      },
+      "polarity": {
+        "status": "measured",
+        "uncertainty": 0.0,
+        "value": 1.0
+      },
+      "self_noise_db_spl": {
+        "status": "unsupported",
+        "uncertainty": null,
+        "value": null
+      },
+      "usable_frequency_range": {
+        "maximum_hz": null,
+        "minimum_hz": null,
+        "status": "unsupported"
+      }
+    },
+    {
+      "channel_id": "ch2",
+      "delay_s": {
+        "status": "unmeasured",
+        "uncertainty": null,
+        "value": null
+      },
+      "frequency_response": {
+        "points": [],
+        "status": "unsupported",
+        "uncertainty_db": null
+      },
+      "gain_db": {
+        "status": "measured",
+        "uncertainty": 0.2487171062760518,
+        "value": -1.2795753710282032
+      },
+      "polarity": {
+        "status": "measured",
+        "uncertainty": 0.0,
+        "value": 1.0
+      },
+      "self_noise_db_spl": {
+        "status": "unsupported",
+        "uncertainty": null,
+        "value": null
+      },
+      "usable_frequency_range": {
+        "maximum_hz": null,
+        "minimum_hz": null,
+        "status": "unsupported"
+      }
+    },
+    {
+      "channel_id": "ch3",
+      "delay_s": {
+        "status": "unmeasured",
+        "uncertainty": null,
+        "value": null
+      },
+      "frequency_response": {
+        "points": [],
+        "status": "unsupported",
+        "uncertainty_db": null
+      },
+      "gain_db": {
+        "status": "measured",
+        "uncertainty": 0.15343170808601259,
+        "value": -1.2135862725210074
+      },
+      "polarity": {
+        "status": "measured",
+        "uncertainty": 0.0,
+        "value": 1.0
+      },
+      "self_noise_db_spl": {
+        "status": "unsupported",
+        "uncertainty": null,
+        "value": null
+      },
+      "usable_frequency_range": {
+        "maximum_hz": null,
+        "minimum_hz": null,
+        "status": "unsupported"
+      }
+    }
+  ],
+  "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+  "created_at": "2026-07-24T02:00:00Z",
+  "device_id": "respeaker_xvf3800_114993701261100454",
+  "device_model": "ReSpeaker XVF3800 USB 4-Mic Array",
+  "environment_description": "Superseding S4.5 corrective-01 functional fit for S4_TEMP_DESKTOP_FIXTURE_REV0 in WANG_2022_DESK_NEAR_ENTRANCE; authorized Fit A and locked Fit B only.",
+  "evidence_status": "measured",
+  "fit_metrics": [
+    {
+      "name": "authorized_fit_cell_count",
+      "unit": "cell",
+      "value": 102.0
+    },
+    {
+      "name": "eligible_attempt_measurement_count",
+      "unit": "attempt",
+      "value": 85.0
+    },
+    {
+      "name": "scientific_leakage_group_count",
+      "unit": "group",
+      "value": 32.0
+    },
+    {
+      "name": "fit_a_scientific_leakage_group_count",
+      "unit": "group",
+      "value": 16.0
+    },
+    {
+      "name": "fit_b_scientific_leakage_group_count",
+      "unit": "group",
+      "value": 16.0
+    },
+    {
+      "name": "retained_parameter_count",
+      "unit": "parameter",
+      "value": 7.0
+    },
+    {
+      "name": "validation_gain_median_absolute_residual_db",
+      "unit": "dB",
+      "value": 0.46910560178927607
+    },
+    {
+      "name": "fit_b_bearing_median_angular_error_deg",
+      "unit": "deg",
+      "value": 3.7861615432165365
+    }
+  ],
+  "fitted_model_parameters": [
+    {
+      "estimate": {
+        "status": "measured",
+        "uncertainty": 0.18151275499856445,
+        "value": -1.6020864972841506
+      },
+      "name": "relative_gain_db.ch1",
+      "unit": "dB"
+    },
+    {
+      "estimate": {
+        "status": "measured",
+        "uncertainty": 0.0,
+        "value": 1.0
+      },
+      "name": "polarity.ch1",
+      "unit": "multiplier"
+    },
+    {
+      "estimate": {
+        "status": "measured",
+        "uncertainty": 0.2487171062760518,
+        "value": -1.2795753710282032
+      },
+      "name": "relative_gain_db.ch2",
+      "unit": "dB"
+    },
+    {
+      "estimate": {
+        "status": "measured",
+        "uncertainty": 0.0,
+        "value": 1.0
+      },
+      "name": "polarity.ch2",
+      "unit": "multiplier"
+    },
+    {
+      "estimate": {
+        "status": "measured",
+        "uncertainty": 0.15343170808601259,
+        "value": -1.2135862725210074
+      },
+      "name": "relative_gain_db.ch3",
+      "unit": "dB"
+    },
+    {
+      "estimate": {
+        "status": "measured",
+        "uncertainty": 0.0,
+        "value": 1.0
+      },
+      "name": "polarity.ch3",
+      "unit": "multiplier"
+    }
+  ],
+  "holdout_metrics": [],
+  "microphone_geometry": [
+    {
+      "channel_id": "ch0",
+      "frame": "xvf3800_array_corrective_01",
+      "position_m": [
+        -0.033,
+        -0.033,
+        0.0
+      ],
+      "status": "nominal_not_measured",
+      "uncertainty_m": null
+    },
+    {
+      "channel_id": "ch1",
+      "frame": "xvf3800_array_corrective_01",
+      "position_m": [
+        -0.033,
+        0.033,
+        0.0
+      ],
+      "status": "nominal_not_measured",
+      "uncertainty_m": null
+    },
+    {
+      "channel_id": "ch2",
+      "frame": "xvf3800_array_corrective_01",
+      "position_m": [
+        0.033,
+        0.033,
+        0.0
+      ],
+      "status": "nominal_not_measured",
+      "uncertainty_m": null
+    },
+    {
+      "channel_id": "ch3",
+      "frame": "xvf3800_array_corrective_01",
+      "position_m": [
+        0.033,
+        -0.033,
+        0.0
+      ],
+      "status": "nominal_not_measured",
+      "uncertainty_m": null
+    }
+  ],
+  "pose_measurement_method": "S4.4 project-frame source placements with corrective-01 functional raw-channel-to-nominal-position binding; acoustic centers remain nominal.",
+  "profile_id": "respeaker_xvf3800_s4_5_functional_corrective_01",
+  "profile_version": "v2",
+  "raw_measurements": [
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_001_sil/s44a02_fit_a_001_sil__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "02cf6e92df9806937ccfec6c8c197095bd45fa1800b8f8778aae9bd153bc79e9"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_002_ctl/s44a02_fit_a_002_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "4a8986a5e134571811b315adc1dd72269bf8da1c685fa5134335808d23f423c6"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_003_ctl/s44a02_fit_a_003_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "996584944aa038c29e47e76e4d2fd2c0417f8439a482a7ecab024a3bff1c8e28"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_004_ctl/s44a02_fit_a_004_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "4aa193086695a88f6b04b78ea09d16385ecdb76dfdfa203b257e1f75779922d9"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_005_ctl/s44a02_fit_a_005_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "e3d9cbd0f7eecce060e73a6f67be099e3b69a77db36ccae4b7024a27cb47fa29"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_006_ctl/s44a02_fit_a_006_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "ddbd804d29adac85ddb022144a294ce8c5d99493e02031c110ab9f1e0943c528"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_007_ctl/s44a02_fit_a_007_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "db73e803a871be6df4242b28b499fd99e4afcccdadca8a777030e6c811d52b0b"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_008_ctl/s44a02_fit_a_008_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "6129f1a4957f77c10a7229bb804d166a3be8e7fb4682f7685cfc3205851a9e94"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_009_ctl/s44a02_fit_a_009_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "b4855d6a9c25282278608d730d7351dc13f9d98cd04af6468be6582823f28f04"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_010_ctl/s44a02_fit_a_010_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "0709b2a031410201c12e8f228f0fec76d03788ee12437f6f431bc816da5452af"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_011_ctl/s44a02_fit_a_011_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "4710879ec29d0c948dd9b35316615bed824ee689d18f6764a1d7f75a22d57c00"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_012_ctl/s44a02_fit_a_012_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "f7a6d06470876980d092a36da1ac860049aff46818a8be26a82ee34c9b4c752c"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_013_ctl/s44a02_fit_a_013_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "f6449e286028495e8af7d7ba25022a0b87c2d6ecb62a0948c310332dfa913f4d"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_014_ctl/s44a02_fit_a_014_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "30adadec17ac946bbf6da17cc03f34dde5994c22879c06d3165680abb55e66ba"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_015_ctl/s44a02_fit_a_015_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "9ac3231520a03075e33a2d8430e0b7599e74cfb3098a0a244d33d74f49a46ca0"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_016_ctl/s44a02_fit_a_016_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "2e2bd03cdb8a479d00a34a05fab629490cdd3f6c79ce3c4d089b59fa74de8d21"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_017_ctl/s44a02_fit_a_017_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "c6c66f7105b2b5a9f867225573c474cc18a6536a9354bb8d92a8a1a3af67761f"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_018_ctl/s44a02_fit_a_018_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "f13b0b2cca38785aa80ac66919ac6315b0e029751c8ffc5bd8cb49751b0f386c"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_019_ctl/s44a02_fit_a_019_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "d1ee74dfe48a2d002cefc41b4c0f7f76793ac8b377916cdc7a2bd5015fd6937a"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_020_ctl/s44a02_fit_a_020_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "fcfe24927f00351687491da667e2ce7646bd332a1777fed09895f25cbf0658a0"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_021_ctl/s44a02_fit_a_021_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "ec64bc8bbea17a57674f3eff6bcfbab373bd3ec4dcbf64a2cd27c427e96acdbe"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_022_ctl/s44a02_fit_a_022_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "bc77964cc9123fc942f9673496d7531ea7627d843c6c1212e85b4099b9e04ce1"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_023_ctl/s44a02_fit_a_023_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "8150add3ad70b177ac08a1d0ee475babd11bd7c5fa8934a2f95e0695929cde11"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_024_ctl/s44a02_fit_a_024_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "f36a1d3fed63f2c130853125fb55ae7f0c6618ba6c3e740ec32ad2eafd6389e5"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_025_ctl/s44a02_fit_a_025_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "bbc1735b12105b28764afed280b1c24efca6a5f5dbea1ff520316ccd58b282bf"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_026_sil/s44a02_fit_a_026_sil__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "d786f2c5d0b4a5d3db7e241bed9813c2be5cf408950d90729f1618fd7efff90a"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_027_ctl/s44a02_fit_a_027_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "6c7f1b3c5c82866d79ada9f285e6671b1e0a6727c065750e9934e3001095926b"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_028_ctl/s44a02_fit_a_028_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "8f60d308f3bca05029494f2b6f685688df19a0d6159330e92a96ee4744f1ac28"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_029_ctl/s44a02_fit_a_029_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "4fc10060a0c3461458f99511b2ce94a75ba76d8d857dbc05a11f896a9821f90b"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_030_ctl/s44a02_fit_a_030_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "7b94727e36213a65584b558735cf5a8185c68d01eb3ff7e4ea6c74c71f26932d"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_031_ctl/s44a02_fit_a_031_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "49bd99dae91431dbde4941e8a61d6a56ea2869b96c46510d44f692cf614ba764"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_032_ctl/s44a02_fit_a_032_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "73022bcefc715b0ed5980b4fab111d63fdebcb8456f50ec04f9a2446fcc16803"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_033_ctl/s44a02_fit_a_033_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "88212757a95f3190b60072161a6bc86c6c1bba3009f76fd438e042bf002c67fc"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_034_ctl/s44a02_fit_a_034_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "ed66793de96b4ba494da9255a78aec72a1bad7001961e4d52afb07a8d16a432d"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_035_conf/s44a02_fit_a_035_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "b563a2f1f9481cad7d19e7d2b7c9ca6feb282bfa24a8f0144ede2a906fb718fa"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_036_conf/s44a02_fit_a_036_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "50ff906dc2bf1c7afbcc9c9324bdcf3551695c1d4b67c26c5eaec0b9c2150ea6"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_037_conf/s44a02_fit_a_037_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "fd660b0d7c039a97bd57b19031fb62cddc3bd98dbad211dd11ed74f292cad8d3"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_038_conf/s44a02_fit_a_038_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "618337707fa283dedc74730c95fd45231c033d84aa87a56944c5290f5ddcc3c8"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_039_conf/s44a02_fit_a_039_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "a502dc55914a08db5580d3b34b7d0ac90c621ba1b97a45055dee271a684a0c8c"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_040_conf/s44a02_fit_a_040_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "0f0cdd4bf06bdf1d6b2a3c043451d92686cf9fc95a25f47e3d5e1dcad7c88c6a"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_041_conf/s44a02_fit_a_041_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "3b5c273b827e69ba929fc14456ad2e7be34a9eb8bd34022b3ac57a0bfbbc4c27"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_042_conf/s44a02_fit_a_042_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "e3b1de400421f77f5dd2eb96875c2bd41f5bf90c242d26e26de5cbb280210a95"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_043_conf/s44a02_fit_a_043_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "6b7b321445e7c305a5f65c5a5aebb75a59e7086103b6153af5cd0eb7f92711e8"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_044_conf/s44a02_fit_a_044_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "f2052579efa90e08652dd760796b6be97e8d47c6d7ddd3692484a1a293aa2fba"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_045_conf/s44a02_fit_a_045_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "ce7807c5c5d5640fe21790da1055e733278e174c1182bb4b92040335cbc455a5"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_046_conf/s44a02_fit_a_046_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "039d3fc4f236b50f4234291cefb6740d69ba8522eb75ecd93673491a96d30bcd"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_047_sil/s44a02_fit_a_047_sil__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "13f9c3b0c9f581744d605b2b45b20889abc3e27aaf957c09824fce2b4afb9727"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_048_av/s44a02_fit_a_048_av__attempt_02/raw/respeaker_audio.wav",
+      "sha256": "23cf7df2de8414a6940ce40273c9cb2d565a96d6b2aad787c42eeca977f4c698"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_049_av/s44a02_fit_a_049_av__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "ee4d084a045130efa4912e1a33f041e4f8683717f7f607d4535bf1693b46dc7f"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_050_av/s44a02_fit_a_050_av__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "01bd8cddde4f7c62b4ec830107fad68e798d78a641c3abce1bd4ad30e235f110"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_02/attempts/s44a02_fit_a_051_av/s44a02_fit_a_051_av__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "3e9518e9f79145a6012a08d8c4117edecdc134b6580ab52d4df0539c92b69042"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_001_sil/s44a03_fit_b_001_sil__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "0b79825a0c43e394f4969f78e1ce04bbaac4eb2870851df07cf0081cb0cbf304"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_002_ctl/s44a03_fit_b_002_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "cac7497bd1a6be95f802658cdd7b2ece8cf13ed845ac67a57176f5607771226b"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_003_ctl/s44a03_fit_b_003_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "0c5b6edbd9e84e730fbd21dcc558d80219c171bdab5803e581e154d67da37ffb"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_004_ctl/s44a03_fit_b_004_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "329d1ab78733ea1a66a9121f15a83dfe4417d4417cd34a2c8f1b49e098f58142"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_005_ctl/s44a03_fit_b_005_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "89a0ef4bc7fdb63e8669a2d571f2ec93365bb0e337017416fa44f153b05221cc"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_006_ctl/s44a03_fit_b_006_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "355cf9d3d2a32504d3574f4f96f3863700e2cdccd36762ab8ec529f48dd74db4"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_007_ctl/s44a03_fit_b_007_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "3089ce82a239b8340cafbb672497f1cf68e3b2397595f2aa8ee8691dc772b694"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_008_ctl/s44a03_fit_b_008_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "b980e7abb3354ead800b122d8ca021b6b2b50ddfc7647200788497c18df50490"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_009_ctl/s44a03_fit_b_009_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "9f9b819d58be5293e6cf0aebed299c52e480dd7fc138071186a8bddd16733be7"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_010_ctl/s44a03_fit_b_010_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "6f79d6fd4d1166dbe07c18a770c9c375102318b550fc9da1c67e34212984ccc5"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_011_ctl/s44a03_fit_b_011_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "7404fb1b1cb2e02094002f11e9f29fbee99325f6ff46b48dc4935c8900442908"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_012_ctl/s44a03_fit_b_012_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "c8065b3e4d26e7843dd6a86848beb4490dc543d7e23db664659aad616e5a11f2"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_013_ctl/s44a03_fit_b_013_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "5c692a90c5aeb119715c0129bd2fd0540d968b9e278be2a5480db562ff46ebb8"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_014_ctl/s44a03_fit_b_014_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "e614c5aa33ec6ac52759cf430a35e5e404955e2a1421f31e63f3107d1f854ca8"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_015_ctl/s44a03_fit_b_015_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "0f602a32bc96c41337ec0468347ef933da91ee2a5adadbbbceb7e526faebd96c"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_016_ctl/s44a03_fit_b_016_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "b87f9f370f6ac284c482eb60df93dd60227d3efcb202f4b0ce33fdaaa5851fbe"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_017_ctl/s44a03_fit_b_017_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "e7ef04525bf72d35faafe37a1a9410c2bbe2e20532f211fc1287f9a69cbb1696"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_018_ctl/s44a03_fit_b_018_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "a7431133cb52450e2e70185e61c870a244d6f24f79c98faf22c94fce847f1c9e"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_019_ctl/s44a03_fit_b_019_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "5810d772c697ce1874dca5df9dbe72ae901bbf3ed4fdc5e1dd4316e1be3e2dc4"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_020_ctl/s44a03_fit_b_020_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "11afc78a688640eea7c295c077fa18250fa05480b35b5e1856a11b7c95b603af"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_021_ctl/s44a03_fit_b_021_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "67a5e7eea449ef02e0f103d6887417506e5bc51748a17847b3e9cef4bf62cf58"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_022_ctl/s44a03_fit_b_022_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "cfffd0cd6cbbd928b3f8443b5989af234eb7e708f6a05d64ef17470cab4d375d"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_023_ctl/s44a03_fit_b_023_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "88632309a503674ab1b4c713924d7271b89c156d3f66a48fbfe0e4f40be7fc4e"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_024_ctl/s44a03_fit_b_024_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "0bd07e808c56c962a3137e16ed9df74da9816b841e06360cc893bf53ae74eae1"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_025_ctl/s44a03_fit_b_025_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "244e50ad56135a7f456152015dfe10ee72a966ce175b46bc230dc299d8886f06"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_026_sil/s44a03_fit_b_026_sil__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "786450796d8f8a72342042f6fd9d619def8ed346241ee2946b4e6e67d8015ba1"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_027_ctl/s44a03_fit_b_027_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "4a8b5c30f23aed677598f51758fa3a49aaa6f225f68874aa2b50bfdd16f79b1e"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_028_ctl/s44a03_fit_b_028_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "566d9d3cfc7421cd5be46177d3157e13c9dfa7d8fe1ec2ce00824482a2c85120"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_029_ctl/s44a03_fit_b_029_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "403ed83076792d78ac410917eacb6045306c4ea245a9ed9cb056c9db51bb5e5b"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_030_ctl/s44a03_fit_b_030_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "99da92106b38b6f17675ca9dc074a585f41782c481aec55a6c6280818ea0b539"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_031_ctl/s44a03_fit_b_031_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "20559179e71cb9438e22d25ab4fa55219e2cf931f819f540a5a5b8c1ef76ebbf"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_032_ctl/s44a03_fit_b_032_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "868e857dc0f7eb5ef9457003cf0bf245cb6e8f0c38a1531dcff313df6c36779f"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_033_ctl/s44a03_fit_b_033_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "8ad20fc8c254eb5bae3ad200feb1adcc443557bd3a2fe0c476204b1c1e5363ba"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_034_ctl/s44a03_fit_b_034_ctl__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "d48242670b0b8ca1fed4422ed57ba8e13d9d35f9b46d2294a5e8f5837a9bd381"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_035_conf/s44a03_fit_b_035_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "9c7e83be713578c172b83d59df4878e89305aaf7974fc6e4b6bbdf4d1ad83752"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_036_conf/s44a03_fit_b_036_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "e06e11aaa121e00b5d00f85223f6dda95933d6272c2ca5b55b278b2a0a9dd87e"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_037_conf/s44a03_fit_b_037_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "f9371245230afde164bb37eb8666ce039d3e787a2a84ffdabd978eb6191b37ad"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_038_conf/s44a03_fit_b_038_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "61c9a72d11108a3759667e759c63c3609c8cc412aa6044a5dc6043d5fdb3beee"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_039_conf/s44a03_fit_b_039_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "4ada552a0547082138c784e1e35a7642667769b21e62fd8edfeb3eab931dc553"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_040_conf/s44a03_fit_b_040_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "b029eab70ff101b69dbcfc80583fcde51252551dc56aa3c59ab90a216a8ec24b"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_041_conf/s44a03_fit_b_041_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "a9608aa8381b8ed354741060869e0d9ba6171796029eb87b53754878e425f00c"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_042_conf/s44a03_fit_b_042_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "fb5dd4a0b0ecbe65d099bfbc52c23e08abb65df91772912b548ba201004052f5"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_043_conf/s44a03_fit_b_043_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "d94d2997fd874b1c74aede3541ab59a123caa70f02a8e3755de8cbcc38db7082"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_044_conf/s44a03_fit_b_044_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "dfb62744b9d6f8233660f44aa2262d6940ff32d0d40c5b4dc985a69c927149ea"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_045_conf/s44a03_fit_b_045_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "cf6281937a30545a66b0dc843509d0fd74c3bfe69acf2938975d7f4946335b05"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_046_conf/s44a03_fit_b_046_conf__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "0d103872f0a91c52bedc093faf2c2c0a929d48cd8818d43e39dbacf8f61b2a6b"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_047_sil/s44a03_fit_b_047_sil__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "2af8cb4a7001bda363fd411c4a190e1575b5b24c2ffac3ae13ed3a792d0bb4f3"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_048_av/s44a03_fit_b_048_av__attempt_02/raw/respeaker_audio.wav",
+      "sha256": "a19ead9aa2dab4eb3a0dbb4d571c8feb1043f04219e40af092aeb0bdd1b640ec"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_049_av/s44a03_fit_b_049_av__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "05a72fce2739a45b86adf0705a0e986f2578a25d28c56df89872a9b641bc70fa"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_050_av/s44a03_fit_b_050_av__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "7072cb9668e476fa69d7861fefffd7dbc84100f81a31f95c550e58ad917cf86b"
+    },
+    {
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts/s44a03_fit_b_051_av/s44a03_fit_b_051_av__attempt_01/raw/respeaker_audio.wav",
+      "sha256": "0d25c27d5634ecd1c532b812241d6237c4e42ec5fb34552ab605e392904fb7e6"
+    }
+  ],
+  "reference_rig_bom_path": "outputs/isaac_audio_sensors/S4/S4.1/rig_frame_lock.json",
+  "reference_signal": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav sha256=27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468",
+  "sample_rate_hz": 16000,
+  "schema_version": "ias.audio_calibration_profile.v1",
+  "source_frame": "F_project",
+  "source_id": "s4_2_reference_wav",
+  "speaker_id": "macbook_pro_speakers_fit_only",
+  "speed_of_sound_mps": {
+    "status": "nominal_not_measured",
+    "uncertainty": null,
+    "value": 343.0
+  },
+  "speed_of_sound_policy": "fixed",
+  "temperature_c": {
+    "status": "unmeasured",
+    "uncertainty": null,
+    "value": null
+  },
+  "tool_version": "ias_s4_5_corrective/1.0.0",
+  "uncertainty_notes": "Gain and bearing-binding uncertainty use deterministic grouped bootstrap. The channel-position association is functional, while the position values remain nominal_not_measured. Positive scalar gains are not claimed to improve SRP-PHAT bearing or confidence.",
+  "units": {
+    "delay": "s",
+    "frequency": "Hz",
+    "gain": "dB",
+    "position": "m",
+    "position_uncertainty": "m",
+    "self_noise": "dB_SPL",
+    "speed_of_sound": "m/s",
+    "temperature": "deg_C"
+  },
+  "unmeasured_fields": [
+    "absolute_microphone_sensitivity",
+    "absolute_spl",
+    "abstention_thresholds",
+    "agc_or_compression",
+    "certified_room_acoustics",
+    "channels.*.frequency_response",
+    "channels.*.self_noise_db_spl",
+    "channels.*.usable_frequency_range",
+    "confidence_calibration",
+    "frequency_dependent_channel_response",
+    "functional_noise_or_self_noise",
+    "holdout_metrics",
+    "isolated_microphone_response",
+    "isolated_speaker_response",
+    "microphone_geometry.*.uncertainty_m",
+    "playback_level_linearity",
+    "precision_optical_acoustic_extrinsics",
+    "relative_audio_video_timing",
+    "sector_thresholds_or_confusion_matrices",
+    "temperature_c",
+    "traceable_acoustic_calibration"
+  ]
+}

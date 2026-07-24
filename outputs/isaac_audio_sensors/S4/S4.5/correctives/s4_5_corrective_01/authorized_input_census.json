@@ -1,0 +1,17 @@
+{
+  "authorized_valid_cell_count": 102,
+  "eligible_attempt_measurement_count": 85,
+  "fit_a_role": "development_and_hypothesis_selection",
+  "fit_a_scientific_leakage_group_count": 16,
+  "fit_a_valid_cell_count": 51,
+  "fit_b_role": "locked_validation_only",
+  "fit_b_scientific_leakage_group_count": 16,
+  "fit_b_valid_cell_count": 51,
+  "holdout_observations_accessed": 0,
+  "replacement_count": 2,
+  "retained_attempt_count": 104,
+  "retained_failure_count": 2,
+  "schema": "ias.s4_5.corrective_authorized_input_census.v1",
+  "scientific_leakage_group_count": 32,
+  "status": "passed"
+}

@@ -1,0 +1,75 @@
+{
+  "confidence_calibration_recovered": false,
+  "estimator_recovery": {
+    "channel_position_binding_srp": {
+      "bearing_count": 8,
+      "maximum_absolute_error_deg": 1.0,
+      "status": "passed",
+      "tolerance_deg": 2.0
+    },
+    "polarity": {
+      "recovered": [
+        -1,
+        1
+      ],
+      "status": "passed",
+      "truth": [
+        -1,
+        1
+      ]
+    },
+    "relative_delay": {
+      "maximum_absolute_error_samples": 0.0,
+      "status": "passed",
+      "tolerance_samples": 0.1
+    },
+    "relative_gain": {
+      "maximum_absolute_error_db": 1.7763568394002505e-15,
+      "status": "passed",
+      "tolerance_db": 0.05
+    },
+    "relative_timing": {
+      "absolute_error_ms": 0.0,
+      "recovered_ms": 12.5,
+      "status": "passed",
+      "truth_ms": 12.5
+    }
+  },
+  "non_calibration_smoke_tests": {
+    "confidence_ordering": {
+      "claim_type": "ordering_smoke_only_not_calibration_recovery",
+      "fixture": {
+        "labels": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "probabilities": [
+          0.1,
+          0.2,
+          0.8,
+          0.9
+        ]
+      },
+      "status": "passed"
+    },
+    "phat_positive_scalar_gain_invariance": {
+      "claim": "positive scalar channel gains do not improve SRP-PHAT bearing or confidence",
+      "maximum_bearing_delta_deg": 0.0,
+      "maximum_confidence_delta": 1.3877787807814457e-17,
+      "status": "passed"
+    }
+  },
+  "omission_gate_testing": {
+    "confidence_insufficient_outcome_diversity": {
+      "correct_count": 24,
+      "incorrect_or_abstained_count": 0,
+      "reason": "outcome diversity requirement fails deterministically",
+      "retained": false,
+      "status": "passed"
+    }
+  },
+  "schema": "ias.s4_5.corrective_synthetic_recovery.v1",
+  "status": "passed"
+}

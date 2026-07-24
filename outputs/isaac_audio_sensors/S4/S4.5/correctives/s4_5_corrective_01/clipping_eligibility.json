@@ -1,0 +1,20 @@
+{
+  "clipping_excluded_attempt_count": 0,
+  "decoded_representation": "S16_LE",
+  "eligible_attempt_count_before_clipping": 85,
+  "eligible_attempt_measurement_count": 85,
+  "exclusions": [],
+  "maximum_clipped_code": 32767,
+  "maximum_retained_positive_code": 32766,
+  "minimum_clipped_code": -32768,
+  "minimum_retained_negative_code": -32767,
+  "relevant_raw_channel_indices": [
+    2,
+    3,
+    4,
+    5
+  ],
+  "schema": "ias.s4_5.clipping_eligibility.v1",
+  "status": "passed",
+  "threshold_tuned_from_outcomes": false
+}

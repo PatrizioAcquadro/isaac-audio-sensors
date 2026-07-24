@@ -1,0 +1,42 @@
+{
+  "corrective_required_for": [
+    "systematic channel-position/frame defect",
+    "bearing uncertainty and sensitivity",
+    "count semantics",
+    "clipping eligibility",
+    "semantic validation",
+    "truthful synthetic confidence claims"
+  ],
+  "gain_improves_srp_phat_bearing_or_confidence_claimed": false,
+  "gain_only_partial_profiles_allowed_in_principle": true,
+  "holdout_used": false,
+  "intentionally_not_moved_into_s4_5": [
+    "confidence_calibration",
+    "relative_audio_video_timing",
+    "microphone_geometry_fit",
+    "functional_noise_or_self_noise",
+    "frequency_dependent_channel_response",
+    "playback_level_linearity",
+    "agc_or_compression",
+    "abstention_thresholds",
+    "sector_thresholds_or_confusion_matrices",
+    "absolute_spl",
+    "absolute_microphone_sensitivity",
+    "isolated_speaker_response",
+    "isolated_microphone_response",
+    "certified_room_acoustics",
+    "traceable_acoustic_calibration",
+    "universal_hardware_or_room_transfer",
+    "precision_optical_acoustic_extrinsics"
+  ],
+  "later_required_phases": [
+    "S4.6",
+    "S4.7",
+    "S4.8",
+    "S4.9"
+  ],
+  "original_s4_5_status": "packaging_valid_but_scientifically_superseded",
+  "s4_squadbot_ready": false,
+  "schema": "ias.s4_5.corrective_limitations.v1",
+  "status": "passed"
+}

@@ -1,0 +1,87 @@
+{
+  "holdout_opened": false,
+  "index_payload_sha256": "d8a33385d629f5e831c175406c1b1cc1f4518a717a8daf7954293df8f910807c",
+  "later_phases_started": [],
+  "profile_path": "calibration_profile.v2.json",
+  "records": [
+    {
+      "byte_size": 591,
+      "path": "authorized_input_census.json",
+      "sha256": "1b06d5d47265ae8275eeb68c8bdcd65f5eff9ea739b903806bb3019baf36467d"
+    },
+    {
+      "byte_size": 35888,
+      "path": "calibration_profile.v2.json",
+      "sha256": "944dda1df3a2de720ab86a3f07f0ea545aa9abca676a003423b29221ca0d47c8"
+    },
+    {
+      "byte_size": 527,
+      "path": "clipping_eligibility.json",
+      "sha256": "d7dbf1d1d82d08f2f81422eb1f14812e830deaf2b7f32604f4256875437997a0"
+    },
+    {
+      "byte_size": 18340,
+      "path": "corrected_measurements.json",
+      "sha256": "deb697cf463b03c7b8e26a0861941dffb753728801b6fc8803092617376276e4"
+    },
+    {
+      "byte_size": 809,
+      "path": "corrective_closeout.json",
+      "sha256": "9c039dab7a8cdef495740e08a04968f102fa074aa3ac37358a76f4e76a1d9bd8"
+    },
+    {
+      "byte_size": 9333,
+      "path": "corrective_contract.json",
+      "sha256": "246306d7e61dd5debc53c285e722035491cfdd6c1e6fb405e5e215b26085127f"
+    },
+    {
+      "byte_size": 1301,
+      "path": "limitations.json",
+      "sha256": "4c21a6dc232421169dd5530da27bd4ac8dd903e604539a62d5b5eef5c1c61f13"
+    },
+    {
+      "byte_size": 14050,
+      "path": "parameter_decisions.json",
+      "sha256": "52041ccb804c72b0f6b93d50806bd1b70be28733b49152d1fcefed4f6a8692ad"
+    },
+    {
+      "byte_size": 31398,
+      "path": "physical_hypothesis_comparison.json",
+      "sha256": "02215d39c36810d8025090b2b25b1f599b2c7140d28c8cb76a9bd6c773923925"
+    },
+    {
+      "byte_size": 3404,
+      "path": "preservation_validation.json",
+      "sha256": "8a79123825c7cda8a5056d503bcad118b85f054de50299f2d4ffff5757a19960"
+    },
+    {
+      "byte_size": 2458,
+      "path": "provenance.json",
+      "sha256": "ca249f8d6704541618707b880229d7a74b0d4ef56bb80df1053fe28a52dfcb29"
+    },
+    {
+      "byte_size": 735,
+      "path": "reproduction.json",
+      "sha256": "a24091a2c423443d07a1243ebd7cef9674517ac51d3250c2cfeda0a757d9c4d1"
+    },
+    {
+      "byte_size": 768,
+      "path": "semantic_validation.json",
+      "sha256": "aa8d5bcf114b5a926755455b65d36b07be563eddfb8b15e851f85861250aac5c"
+    },
+    {
+      "byte_size": 1814,
+      "path": "synthetic_recovery.json",
+      "sha256": "d8ad99da0d144bead046b88615caf4a337ac08b3d72d1a04bb6f30d50f5978c9"
+    },
+    {
+      "byte_size": 2536,
+      "path": "uncertainty_sensitivity.json",
+      "sha256": "e03637628719e7366a33a6d408bf1251b53847f448ff160e5834404de7162cb1"
+    }
+  ],
+  "schema": "ias.s4_5.corrective_evidence_index.v1",
+  "source_commit": "cd66fde24afa5202265ea79aa7da4fd48468fd63",
+  "status": "passed",
+  "tool_version": "ias_s4_5_corrective/1.0.0"
+}
