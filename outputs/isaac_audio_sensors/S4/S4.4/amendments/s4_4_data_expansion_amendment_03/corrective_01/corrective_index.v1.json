@@ -1,0 +1,148 @@
+{
+  "S4.5_or_later_started": false,
+  "amendment_id": "s4_4_data_expansion_amendment_03",
+  "census": {
+    "failures_total": 3,
+    "incomplete_logical_cells": 0,
+    "replacements_total": 3,
+    "retained_attempts_total": 152,
+    "valid_cells_total": 149
+  },
+  "correction_id": "corrective_01",
+  "corrective_index_sha256": "a6a0dfe1e8b9826197e40ba5b627515a3147c4aceabad7c90bdefc96fe50d7b1",
+  "final_gate_sha256": "67e372aa3ae90f81becc4acc04673f868544c4674278772c474649bc30a2523f",
+  "fit_b_complete": true,
+  "historical_closeout_checksums_rewritten": false,
+  "historical_v1_v5_rewritten": false,
+  "legacy_readiness_extra_fields_optional": true,
+  "prospective_holdout_complete": true,
+  "prospective_holdout_scientifically_opened": false,
+  "record_count": 20,
+  "records": [
+    {
+      "byte_size": 4412,
+      "path": "docs/development/closeouts/S4/s4_4_data_expansion_amendment_03.md",
+      "role": "corrected_source",
+      "sha256": "653cff91043970a80e00430e705923237bcbe4b43900bd47ee99024a85f77fdb"
+    },
+    {
+      "byte_size": 5077,
+      "path": "docs/development/closeouts/S4/s4_4_data_expansion_amendment_03_holdout.md",
+      "role": "authoritative_final_closeout",
+      "sha256": "4f47646b6de8e63aeace79405aebcf3105d4f6b84b9b1b526837aa76b1bdee6b"
+    },
+    {
+      "byte_size": 9027,
+      "path": "docs/development/specs/s4_4_data_expansion_amendment_03.md",
+      "role": "corrected_source",
+      "sha256": "4f62c920a2b394859a8c70defd7aab6101601aba18f8e726466425c7d2d69acd"
+    },
+    {
+      "byte_size": 1274,
+      "path": "docs/schemas/s4_4_amendment_mac_readiness.v1.schema.json",
+      "role": "corrected_source",
+      "sha256": "963c3fa33c54a4c2ff741984b6836cd8c1c0b711c77c8b4ce0aed34672dfeb5f"
+    },
+    {
+      "byte_size": 3464,
+      "path": "docs/schemas/s4_4_amendment_session_readiness.v3.schema.json",
+      "role": "corrected_source",
+      "sha256": "391a56fa4cf6675972d1968ee5e291d6bb4e5b62fb627b40334b4ae84bcfb828"
+    },
+    {
+      "byte_size": 1848,
+      "path": "docs/schemas/s4_4_amendment_technical_qa.v2.schema.json",
+      "role": "corrected_source",
+      "sha256": "d551e6e0c436cd0ffe345e167fa9735d540fef3a78bbcdc199a4024fbc45b366"
+    },
+    {
+      "byte_size": 3303,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/corrective_01/source_checkpoint.v1.json",
+      "role": "corrective_source_checkpoint",
+      "sha256": "78c594dfb9654182f5f22ad88af2db9fabeb8ec7eeb0bcc633f9edd19a5805a2"
+    },
+    {
+      "byte_size": 1318,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/validation/final_closeout_corrective_01.v1.json",
+      "role": "corrective_final_gate",
+      "sha256": "67e372aa3ae90f81becc4acc04673f868544c4674278772c474649bc30a2523f"
+    },
+    {
+      "byte_size": 7725,
+      "path": "scripts/build_s4_4_amendment_03_corrective.py",
+      "role": "corrected_source",
+      "sha256": "c88333bfb9e7dc866a9d40948249a0557aebd496d121251e09ee094c8d370047"
+    },
+    {
+      "byte_size": 19467,
+      "path": "scripts/build_s4_4_amendment_03_multiday.py",
+      "role": "corrected_source",
+      "sha256": "d9faaee4508c1ca2f43be4f7e3d68eb2965d7ded29d9edb37c2a96f982f3cb3b"
+    },
+    {
+      "byte_size": 21531,
+      "path": "scripts/execute_s4_4_amendment_attempt.py",
+      "role": "corrected_source",
+      "sha256": "9bba64abafe5fe2346113690a8a51e5381d593ddc51a6c70f0bd2a29154f0d9d"
+    },
+    {
+      "byte_size": 15704,
+      "path": "scripts/run_s4_4_amendment_03_readiness.py",
+      "role": "corrected_source",
+      "sha256": "5e0dfa7ce5e4472f900038fcb27309543a5ebd11fd1c10ec33e5fa46ccb74331"
+    },
+    {
+      "byte_size": 16714,
+      "path": "scripts/s4_2_mac_preflight.py",
+      "role": "corrected_source",
+      "sha256": "b983287852824561704a059251e5e3501a6cb3c775a3c3d9335a2f3ab93fd2d6"
+    },
+    {
+      "byte_size": 30303,
+      "path": "scripts/validate_s4_4_amendment.py",
+      "role": "corrected_source",
+      "sha256": "84f6798b045431c0f1da6eb9c1bfc7bb9f53a15c5601d2630688378718d5632e"
+    },
+    {
+      "byte_size": 27261,
+      "path": "scripts/validate_s4_4_amendment_03.py",
+      "role": "corrected_source",
+      "sha256": "c1f19cafea42051a2e83ee43b9c35593a8c47f61a3a8cf9f0c85f2da1d02fe19"
+    },
+    {
+      "byte_size": 35356,
+      "path": "scripts/validate_s4_4_amendment_03_final.py",
+      "role": "corrected_source",
+      "sha256": "bc92e74e34a3fadc7476ca4425f817ed3c5ca4610968b199657daf94808779d6"
+    },
+    {
+      "byte_size": 65952,
+      "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment.py",
+      "role": "corrected_source",
+      "sha256": "5da216f5c63235333157b22d66695f7722265fc8d9b72e3908816113d30b08b7"
+    },
+    {
+      "byte_size": 52657,
+      "path": "src/isaac_audio_sensors/acquisition/s4_4_amendment_03.py",
+      "role": "corrected_source",
+      "sha256": "d438162683be274d16e4d301dd390dff19fa51d2a1b4f6e1f78602fff5ef4c68"
+    },
+    {
+      "byte_size": 36714,
+      "path": "tests/test_s4_4_amendment_03.py",
+      "role": "corrected_source",
+      "sha256": "69198551ee0c5e97f9dae589aa44c6e6e1ec6769e66e4358752a86378165989b"
+    },
+    {
+      "byte_size": 8160,
+      "path": "tests/test_s4_4_amendment_03_final.py",
+      "role": "corrected_source",
+      "sha256": "f2fe5cf77df180044e2227eef6c4e4635ed8af6c1fcd80fe2d38afa0d2b2678c"
+    }
+  ],
+  "reduced_mac_readiness_authoritative": true,
+  "schema": "ias.s4_4.amendment_03_corrective_index.v1",
+  "source_checkpoint_sha256": "78c594dfb9654182f5f22ad88af2db9fabeb8ec7eeb0bcc633f9edd19a5805a2",
+  "status": "passed",
+  "technical_qa_canonical_projection": "ias.s4_4.amendment_technical_qa.v2"
+}
