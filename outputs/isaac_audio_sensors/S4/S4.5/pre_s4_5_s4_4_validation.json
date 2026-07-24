@@ -1,0 +1,16 @@
+{
+  "census": {
+    "failures_total": 3,
+    "incomplete_logical_cells": 0,
+    "replacements_total": 3,
+    "retained_attempts_total": 152,
+    "valid_cells_total": 149
+  },
+  "command": ".venv/bin/python scripts/validate_s4_4_amendment_03_final.py --repo-root . --require-tracked --require-committed --require-machine-local --require-corrective",
+  "holdout_scientifically_opened": false,
+  "issues": [],
+  "schema": "ias.s4_5.pre_s4_4_validation_record.v1",
+  "scientific_outcomes_returned": false,
+  "source_commit": "45ec248296370de9be90a90cc01b74a484667380",
+  "status": "passed"
+}

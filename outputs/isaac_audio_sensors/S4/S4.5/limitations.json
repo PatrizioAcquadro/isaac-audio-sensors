@@ -1,0 +1,60 @@
+{
+  "applicability": [
+    "Exact ReSpeaker serial 114993701261100454 at 16 kHz.",
+    "S4_TEMP_DESKTOP_FIXTURE_REV0 in WANG_2022_DESK_NEAR_ENTRANCE.",
+    "MacBook reference WAV/source placements represented by Fit A and Fit B.",
+    "Functional relative correction only; tested source-room-sensor path."
+  ],
+  "holdout_used": false,
+  "microphone_geometry_status": "nominal_not_measured",
+  "omitted_candidates": [
+    {
+      "candidate": "relative_delay",
+      "channel_id": "ch1",
+      "reason": "failed frozen criteria: median_improvement, uncertainty_bounded"
+    },
+    {
+      "candidate": "relative_delay",
+      "channel_id": "ch2",
+      "reason": "failed frozen criteria: median_improvement, p95_not_worse, signed_median_not_farther, uncertainty_bounded"
+    },
+    {
+      "candidate": "relative_delay",
+      "channel_id": "ch3",
+      "reason": "failed frozen criteria: median_improvement, signed_median_not_farther, uncertainty_bounded"
+    },
+    {
+      "candidate": "bearing_correction",
+      "channel_id": null,
+      "reason": "failed frozen criteria: median_improvement, stable_between_sessions"
+    },
+    {
+      "candidate": "confidence_calibration",
+      "channel_id": null,
+      "reason": "omitted: a one-observation-per-group S3 confidence sample does not establish an independently validated probability model without outcome-diverse grouped calibration evidence"
+    },
+    {
+      "candidate": "relative_timing",
+      "channel_id": null,
+      "reason": "omitted: fit manifests do not expose independently synchronized visible-impact timestamps through the S4.5 fit accessor"
+    },
+    {
+      "candidate": "microphone_geometry",
+      "channel_id": null,
+      "reason": "No independently identified full-rank geometry model is authorized by this contract."
+    }
+  ],
+  "repository_tooling_not_os_level_protection": true,
+  "schema": "ias.s4_5.limitations.v1",
+  "status": "declared",
+  "unsupported_claims": [
+    "absolute_spl",
+    "absolute_microphone_sensitivity",
+    "isolated_speaker_response",
+    "isolated_microphone_response",
+    "certified_room_acoustics",
+    "traceable_acoustic_calibration",
+    "universal_hardware_or_room_transfer",
+    "precision_optical_acoustic_extrinsics"
+  ]
+}

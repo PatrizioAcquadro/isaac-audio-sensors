@@ -1,0 +1,50 @@
+{
+  "config_path": "configs/s4_5_fitting.v1.json",
+  "config_sha256": "627ff83e454dd8cfe44b7029a0af406f9ce01f0433f1c52e5c7c78b950f116ac",
+  "entry_commit": "45ec248296370de9be90a90cc01b74a484667380",
+  "input_records": [
+    {
+      "name": "fit_a_manifest",
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_02/manifests/sessions/fit_a.json",
+      "sha256": "f938c46b6ad6ad002c7da6c556d3eb0b555a24499f8da63d15b83664a423e35f"
+    },
+    {
+      "name": "fit_b_manifest",
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/sessions/fit_b.json",
+      "sha256": "5f06c4b51583516a4a96d96d7230231f2437c784d253d158d6c061387194a74a"
+    },
+    {
+      "name": "holdout_closeout",
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/holdout_closeout.v1.json",
+      "sha256": "70f7b762c4d131533403d18fae1a1e2cc32db6ba79701740532d88b3781b38fc"
+    },
+    {
+      "name": "holdout_seal",
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/holdout_seal.v1.json",
+      "sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c"
+    },
+    {
+      "name": "inherited_fit_a",
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/inheritance/inherited_fit_a.v1.json",
+      "sha256": "2b9cb2a91a7c0a9a7af208631b9d3370e8cee887f842769e77fae417e3db9212"
+    },
+    {
+      "name": "s3_model_contract",
+      "path": "configs/s4_3_pilot.v1.json",
+      "sha256": "3bfbd3a7f472d5a264a24336f0976d53eeb24420ea52a0dbc68a23817579dff5"
+    },
+    {
+      "name": "source_reference_wav",
+      "path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+      "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+    }
+  ],
+  "push_performed": false,
+  "raw_media_tracked": false,
+  "schema": "ias.s4_5.provenance.v1",
+  "source_commit": "32fedd1991df650606fc0b44b35d906fc28fe330",
+  "spec_path": "docs/development/specs/s4_5_supported_functional_fitting.md",
+  "spec_sha256": "3d17d09ce0f4f1e81d98b33ab2f5e7cc4666ef6a8246004f0730c1a76c5892d7",
+  "status": "passed",
+  "tool_version": "ias_s4_5_fitter/1.0.0"
+}

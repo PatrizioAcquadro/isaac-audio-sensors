@@ -1,0 +1,42 @@
+{
+  "bearing_correction": {
+    "absolute_error_deg": 0.0,
+    "recovered_deg": 17.5,
+    "status": "passed",
+    "truth_deg": 17.5
+  },
+  "confidence_calibration": {
+    "deterministic": true,
+    "fixture_brier_score": 0.024999999999999998,
+    "status": "passed"
+  },
+  "polarity": {
+    "recovered": [
+      -1,
+      1
+    ],
+    "status": "passed",
+    "truth": [
+      -1,
+      1
+    ]
+  },
+  "relative_delay": {
+    "maximum_absolute_error_samples": 0.0,
+    "status": "passed",
+    "tolerance_samples": 0.1
+  },
+  "relative_gain": {
+    "maximum_absolute_error_db": 1.7763568394002505e-15,
+    "status": "passed",
+    "tolerance_db": 0.05
+  },
+  "relative_timing": {
+    "absolute_error_ms": 0.0,
+    "recovered_ms": 12.5,
+    "status": "passed",
+    "truth_ms": 12.5
+  },
+  "schema": "ias.s4_5.synthetic_recovery.v1",
+  "status": "passed"
+}

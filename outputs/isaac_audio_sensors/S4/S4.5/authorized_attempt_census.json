@@ -1,0 +1,16 @@
+{
+  "fit_a_valid": 51,
+  "fit_b_valid": 51,
+  "holdout_attempts_accessed": 0,
+  "planned_fit_cells": 102,
+  "purposes": [
+    "S4.5_fit",
+    "S4.5_validation"
+  ],
+  "replacements": 2,
+  "retained_attempts": 104,
+  "retained_failures": 2,
+  "schema": "ias.s4_5.authorized_attempt_census.v1",
+  "status": "passed",
+  "valid_fit_cells": 102
+}
