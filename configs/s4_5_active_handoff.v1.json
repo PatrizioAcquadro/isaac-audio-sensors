@@ -1,0 +1,137 @@
+{
+  "active_pointer_path": "outputs/isaac_audio_sensors/S4/S4.5_active_profile.v1.json",
+  "active_profile": {
+    "array_frame": "xvf3800_array_corrective_01",
+    "array_id": "xvf3800_array",
+    "channel_order": [
+      "ch0",
+      "ch1",
+      "ch2",
+      "ch3"
+    ],
+    "device_id": "respeaker_xvf3800_114993701261100454",
+    "device_model": "ReSpeaker XVF3800 USB 4-Mic Array",
+    "path": "outputs/isaac_audio_sensors/S4/S4.5_corrective_01/calibration_profile.v2.json",
+    "profile_id": "respeaker_xvf3800_s4_5_functional_corrective_01",
+    "profile_version": "v2",
+    "sample_rate_hz": 16000,
+    "sha256": "944dda1df3a2de720ab86a3f07f0ea545aa9abca676a003423b29221ca0d47c8",
+    "source_frame": "F_project"
+  },
+  "applicability": {
+    "environment_tags": [
+      "S4_TEMP_DESKTOP_FIXTURE_REV0",
+      "WANG_2022_DESK_NEAR_ENTRANCE",
+      "respeaker_xvf3800_16kHz",
+      "macbook_reference_source",
+      "fit_only"
+    ],
+    "identity_match_policy": "exact_all_guards_required",
+    "profile_application_outside_guards": "forbidden_fail_closed"
+  },
+  "corrective_evidence": {
+    "evidence_index_path": "outputs/isaac_audio_sensors/S4/S4.5_corrective_01/evidence_index.json",
+    "evidence_index_sha256": "720936f4c19cd0f05a164c03b522ca0823aa6034eb073401237027e408d047cb",
+    "immutable_package_commit": "ad94ea4d91790d60a2177b74df6b008e76b8fda8",
+    "package_checksum_path": "outputs/isaac_audio_sensors/S4/S4.5_corrective_01/SHA256SUMS",
+    "package_checksum_sha256": "c29e0dd8f38d32d5ac18092229e3f05d21a9defe49c157992635d0f437a1c9f5",
+    "parameter_decisions_path": "outputs/isaac_audio_sensors/S4/S4.5_corrective_01/parameter_decisions.json",
+    "parameter_decisions_sha256": "52041ccb804c72b0f6b93d50806bd1b70be28733b49152d1fcefed4f6a8692ad",
+    "selected_binding_source_path": "outputs/isaac_audio_sensors/S4/S4.5_corrective_01/physical_hypothesis_comparison.json",
+    "selected_binding_source_sha256": "02215d39c36810d8025090b2b25b1f599b2c7140d28c8cb76a9bd6c773923925"
+  },
+  "created_at": "2026-07-24T12:00:00Z",
+  "functional_channel_position_association": {
+    "association_kind": "retained_functional_channel_position_association",
+    "evidence_status": "supported_fitted_functional_evidence",
+    "frame": "F_project",
+    "geometry_measurement_status": "nominal_not_measured",
+    "mapping": [
+      {
+        "channel_id": "ch0",
+        "position_m": [
+          -0.033,
+          -0.033,
+          0.0
+        ]
+      },
+      {
+        "channel_id": "ch1",
+        "position_m": [
+          -0.033,
+          0.033,
+          0.0
+        ]
+      },
+      {
+        "channel_id": "ch2",
+        "position_m": [
+          0.033,
+          0.033,
+          0.0
+        ]
+      },
+      {
+        "channel_id": "ch3",
+        "position_m": [
+          0.033,
+          -0.033,
+          0.0
+        ]
+      }
+    ],
+    "not_measured_geometry": true,
+    "not_mirrored_f_project": true,
+    "not_physically_traced_wiring": true,
+    "not_scalar_bearing_correction": true,
+    "selected_hypothesis_id": "H2_x_reflection_front_back_position_binding",
+    "selection_partition": "fit_a",
+    "validation_partition": "fit_b"
+  },
+  "handoff_package_root": "outputs/isaac_audio_sensors/S4/S4.5_handoff_01",
+  "historical_profile": {
+    "active_for_s4_6": false,
+    "path": "outputs/isaac_audio_sensors/S4/S4.5/calibration_profile.v1.json",
+    "profile_version": "v1",
+    "scientific_status": "historically_preserved_scientifically_superseded",
+    "sha256": "32dfcbb90a95c342226b81a9ed94a8b4fa6550a1bfab783e1f27538b548bb622"
+  },
+  "package_location_amendment": {
+    "path": "configs/s4_5_corrective_01_package_location_amendment.v1.json",
+    "sha256": "cc5cd9579a456f7479038853bdaa041ad932a72a0d1d0c528ea8da1203fcf1fa"
+  },
+  "retained_count_semantics": {
+    "legacy_profile_metric_name": "retained_parameter_count",
+    "legacy_profile_metric_status": "superseded_ambiguous_total_do_not_apply",
+    "legacy_profile_metric_value": 7,
+    "retained_functional_association_count": 1,
+    "retained_scalar_profile_parameter_count": 6,
+    "retained_scientific_component_count": 7
+  },
+  "schema": "ias.s4_5.active_handoff_contract.v1",
+  "status": "frozen",
+  "supported_for_later_application": [
+    "channels.ch1.gain_db",
+    "channels.ch2.gain_db",
+    "channels.ch3.gain_db",
+    "channels.ch1.polarity",
+    "channels.ch2.polarity",
+    "channels.ch3.polarity",
+    "functional_channel_position_association"
+  ],
+  "unsupported_or_omitted": [
+    "relative_delay",
+    "scalar_bearing_correction",
+    "confidence_calibration",
+    "relative_audio_video_timing",
+    "functional_noise_or_self_noise",
+    "frequency_dependent_channel_response",
+    "playback_level_linearity",
+    "agc_or_compression",
+    "sector_thresholds_or_confusion_matrices",
+    "abstention_thresholds",
+    "absolute_spl",
+    "absolute_microphone_sensitivity",
+    "precision_optical_acoustic_extrinsics"
+  ]
+}
