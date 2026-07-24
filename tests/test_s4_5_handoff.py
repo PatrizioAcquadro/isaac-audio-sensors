@@ -331,13 +331,15 @@ def test_validator_rejects_rechecksummed_handoff_tampering(
     assert any("semantic regeneration" in issue for issue in result["issues"])
 
 
-def test_exact_recorded_replay_command_is_byte_identical() -> None:
-    _canonical()
-    reproduction = load_json(CANONICAL / "reproduction.v1.json")
+def test_exact_recorded_replay_command_is_byte_identical(
+    pre_s4_6_root: Path,
+) -> None:
+    canonical = pre_s4_6_root / OUTPUT_PATH
+    reproduction = load_json(canonical / "reproduction.v1.json")
     assert reproduction["command"] == EXACT_REPLAY_COMMAND
     result = subprocess.run(
         EXACT_REPLAY_COMMAND.split(),
-        cwd=ROOT,
+        cwd=pre_s4_6_root,
         check=False,
         capture_output=True,
         text=True,
