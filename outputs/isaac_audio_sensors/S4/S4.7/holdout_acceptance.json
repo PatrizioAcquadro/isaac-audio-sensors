@@ -1,0 +1,23 @@
+{
+  "authorizes_holdout_opening": false,
+  "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+  "claimed_envelope": "controlled_source_single_room_single_mount",
+  "criteria_config_path": "configs/s4_7_holdout_acceptance.v1.json",
+  "criteria_config_sha256": "94579e534dba0dfe421499d236c5f8ded077a402fc2ded289da1c55d3169fa1b",
+  "frozen_at_utc": "2026-07-24T00:00:00+00:00",
+  "grant_still_required_for_s4_8": true,
+  "holdout_access_grant_created": false,
+  "holdout_observations_accessed": 0,
+  "meaning": "the S4.7 preregistration is complete, frozen, and hash-bound to the sealed holdout; it asserts nothing about any S4.8 result",
+  "planned_take_count": 47,
+  "readiness_criterion_count": 23,
+  "readiness_pass_rule": "S4.8 passes for the claimed envelope only when every readiness criterion passes",
+  "schema": "ias.s4_7.holdout_acceptance.v1",
+  "seal_file_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+  "seal_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/holdout_seal.v1.json",
+  "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+  "spec_path": "docs/development/specs/s4_holdout_acceptance.md",
+  "spec_sha256": "76e8c27400fd0ae4643ac85f36d87dd5a18cb1baa0430a5e3691371ef29dcb8a",
+  "status": "passed",
+  "stretch_criterion_count": 6
+}

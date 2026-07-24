@@ -1,0 +1,985 @@
+{
+  "criteria": [
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "bearing_median_absolute_error_stratum_a",
+      "decision_rationale": "the adjusted Fit-B development median was 3.79 deg and the weaker Fit-A median was 5.5 deg; 15 deg keeps a bearing usable for SquadBot orientation and Alex sector turning while leaving margin for an unseen session",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "bearing_doa_error",
+      "metric_contract": {
+        "aggregation": "per-take median, then the named statistic across takes",
+        "applicability": "bearing-referenced controlled takes inside the frozen envelope",
+        "exclusions": "abstained windows are excluded from the numeric error and counted separately by the abstention criteria; no take is excluded",
+        "limitations": "functional bearing accuracy of the exact tested rig, room, source, and analysis path; not a calibrated or transferable angular accuracy",
+        "method": "SRP-PHAT primary estimator on frozen raw-channel analysis windows, reduced to one median absolute bearing error per take",
+        "missing": "a take with no valid bearing window is a criterion failure, never a silent drop",
+        "reference": "planned target bearing in F_project recorded before collection",
+        "uncertainty": "5 deg placement reference plus 2 deg azimuth grid; acoustic-axis alignment unmeasured",
+        "units": "deg"
+      },
+      "observable": "stratum_a_take_median_bearing_absolute_error_deg",
+      "sample_kind": "series",
+      "statistic": "median",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ],
+      "threshold": 15.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "bearing_p95_absolute_error_stratum_a",
+      "decision_rationale": "Fit-A p95 was 15 deg; 30 deg is one full 8-sector width and is the largest tail error that still leaves a turn decision in the correct half-plane",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "bearing_doa_error",
+      "metric_contract": {
+        "aggregation": "per-take median, then the named statistic across takes",
+        "applicability": "bearing-referenced controlled takes inside the frozen envelope",
+        "exclusions": "abstained windows are excluded from the numeric error and counted separately by the abstention criteria; no take is excluded",
+        "limitations": "functional bearing accuracy of the exact tested rig, room, source, and analysis path; not a calibrated or transferable angular accuracy",
+        "method": "SRP-PHAT primary estimator on frozen raw-channel analysis windows, reduced to one median absolute bearing error per take",
+        "missing": "a take with no valid bearing window is a criterion failure, never a silent drop",
+        "reference": "planned target bearing in F_project recorded before collection",
+        "uncertainty": "5 deg placement reference plus 2 deg azimuth grid; acoustic-axis alignment unmeasured",
+        "units": "deg"
+      },
+      "observable": "stratum_a_take_median_bearing_absolute_error_deg",
+      "sample_kind": "series",
+      "statistic": "p95_nearest_rank",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ],
+      "threshold": 30.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "bearing_worst_absolute_error_stratum_a",
+      "decision_rationale": "bounds the single worst take away from the front-back confusion regime that the S4.5 corrective resolved; the S4.3 pilot worst of 82 deg would fail this bound",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "bearing_doa_error",
+      "metric_contract": {
+        "aggregation": "per-take median, then the named statistic across takes",
+        "applicability": "bearing-referenced controlled takes inside the frozen envelope",
+        "exclusions": "abstained windows are excluded from the numeric error and counted separately by the abstention criteria; no take is excluded",
+        "limitations": "functional bearing accuracy of the exact tested rig, room, source, and analysis path; not a calibrated or transferable angular accuracy",
+        "method": "SRP-PHAT primary estimator on frozen raw-channel analysis windows, reduced to one median absolute bearing error per take",
+        "missing": "a take with no valid bearing window is a criterion failure, never a silent drop",
+        "reference": "planned target bearing in F_project recorded before collection",
+        "uncertainty": "5 deg placement reference plus 2 deg azimuth grid; acoustic-axis alignment unmeasured",
+        "units": "deg"
+      },
+      "observable": "stratum_a_take_median_bearing_absolute_error_deg",
+      "sample_kind": "series",
+      "statistic": "worst",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ],
+      "threshold": 60.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "bearing_median_absolute_error_stratum_b",
+      "decision_rationale": "the same decision-relevant bound applied to the sector-center family so that bearing quality is not claimed only on the boundary sweep",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "bearing_doa_error",
+      "metric_contract": {
+        "aggregation": "per-take median, then the named statistic across takes",
+        "applicability": "bearing-referenced controlled takes inside the frozen envelope",
+        "exclusions": "abstained windows are excluded from the numeric error and counted separately by the abstention criteria; no take is excluded",
+        "limitations": "functional bearing accuracy of the exact tested rig, room, source, and analysis path; not a calibrated or transferable angular accuracy",
+        "method": "SRP-PHAT primary estimator on frozen raw-channel analysis windows, reduced to one median absolute bearing error per take",
+        "missing": "a take with no valid bearing window is a criterion failure, never a silent drop",
+        "reference": "planned target bearing in F_project recorded before collection",
+        "uncertainty": "5 deg placement reference plus 2 deg azimuth grid; acoustic-axis alignment unmeasured",
+        "units": "deg"
+      },
+      "observable": "stratum_b_take_median_bearing_absolute_error_deg",
+      "sample_kind": "series",
+      "statistic": "median",
+      "strata": [
+        "B_center_nominal_level"
+      ],
+      "threshold": 15.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "greater_than_or_equal",
+      "criterion_id": "sector_accuracy_stratum_b",
+      "decision_rationale": "six of eight sector-center takes must land in the correct sector; this exceeds the 0.667 S4.3 pilot gate and is the directly decision-relevant quantity for an 8-sector display",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "sector_accuracy",
+      "metric_contract": {
+        "aggregation": "correct take count divided by the frozen take denominator",
+        "applicability": "sector-center bearings only; boundary-family bearings are excluded because a sub-degree error flips the sector by construction",
+        "exclusions": "none; abstained takes count as incorrect",
+        "limitations": "an eight-sector functional display decision, not a continuous angular accuracy claim",
+        "method": "per-take majority sector from bearing_deg_to_sector_name compared against the sector containing the planned bearing",
+        "missing": "a take with no majority sector counts as incorrect",
+        "reference": "planned target bearing in F_project mapped to the 8-sector display",
+        "uncertainty": "sector assignment is exact given a bearing; the underlying bearing carries the frozen 5 deg placement and 2 deg grid uncertainty",
+        "units": "fraction"
+      },
+      "observable": "stratum_b_sector_correct_take_count",
+      "sample_kind": "counter",
+      "statistic": "rate",
+      "strata": [
+        "B_center_nominal_level"
+      ],
+      "threshold": 0.75,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "greater_than_or_equal",
+      "criterion_id": "candidate_coverage_strata_ab",
+      "decision_rationale": "the candidate set is the ambiguity-aware output consumed downstream; coverage must exceed the 0.667 S4.3 pilot gate without demanding the 0.974 controlled-pilot value on unseen data",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 32
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "candidate_bearing",
+      "metric_contract": {
+        "aggregation": "covered take count divided by the frozen take denominator",
+        "applicability": "bearing-referenced controlled takes inside the frozen envelope",
+        "exclusions": "none; abstained takes count as uncovered",
+        "limitations": "coverage is not a calibrated probability and not an exhaustive multipath solution",
+        "method": "candidate set emitted by the existing estimators; a take counts as covered when any candidate is within the frozen 20 deg tolerance of the planned bearing",
+        "missing": "a missing candidate set counts the take as uncovered",
+        "reference": "planned target bearing in F_project",
+        "uncertainty": "same placement and grid uncertainty as the bearing reference",
+        "units": "fraction"
+      },
+      "observable": "strata_ab_candidate_covered_take_count",
+      "sample_kind": "counter",
+      "statistic": "rate",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ],
+      "threshold": 0.75,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "within_cell_bearing_circular_range_stratum_a",
+      "decision_rationale": "reuses the frozen S4.3 repeatability bound of 20 deg so that within-configuration repeatability is judged by an already preregistered number rather than a new one",
+      "denominator": {
+        "basis": "bearing_cells",
+        "expected_count": 8
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "bearing_doa_error",
+      "metric_contract": {
+        "aggregation": "circular range of the per-take medians within a cell, then the maximum across the eight frozen cells",
+        "applicability": "controlled boundary-sweep takes only",
+        "exclusions": "abstained windows are excluded from the take median",
+        "limitations": "within-configuration repeatability of the tested rig; it is not a reproducibility claim across rigs or rooms",
+        "method": "per-take median bearing within a fixed bearing cell",
+        "missing": "a cell with fewer than three usable takes is a criterion failure",
+        "reference": "the other repetitions of the same frozen cell",
+        "uncertainty": "same placement and grid uncertainty as the bearing reference",
+        "units": "deg"
+      },
+      "observable": "stratum_a_cell_take_median_bearing_deg",
+      "sample_kind": "grouped_series",
+      "statistic": "max_group_circular_range",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ],
+      "threshold": 20.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "within_cell_pair_tdoa_range_stratum_a",
+      "decision_rationale": "reuses the frozen S4.3 pair-TDOA repeatability bound of 125 us across the six unique non-self channel pairs of each cell",
+      "denominator": {
+        "basis": "bearing_cell_pair_groups",
+        "expected_count": 48
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "tdoa",
+      "metric_contract": {
+        "aggregation": "per-take median, then the maximum plain range across the repetitions of any frozen bearing cell and pair group",
+        "applicability": "controlled boundary-sweep takes with three repetitions per cell",
+        "exclusions": "abstained and quality-invalid windows are excluded from the take median",
+        "limitations": "a relative repeatability measurement; it is not a calibrated inter-microphone delay or a geometry measurement",
+        "method": "GCC-PHAT relative delay per unique non-self raw-channel pair, reduced to one median per take",
+        "missing": "a missing pair group in any cell is a criterion failure",
+        "reference": "repetition-to-repetition agreement within a fixed bearing cell",
+        "uncertainty": "16 kHz sampling with interpolation; relative only, no absolute time-of-flight reference",
+        "units": "us"
+      },
+      "observable": "stratum_a_cell_pair_tdoa_take_median_us",
+      "sample_kind": "grouped_series",
+      "statistic": "max_group_range",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ],
+      "threshold": 125.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "frame_to_adapter_latency_p95",
+      "decision_rationale": "the S4.3 pilot p95 was about 0.05 ms; 5 ms bounds the adapter boundary far below one 16 kHz analysis window and detects a real regression without asserting a live latency claim",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 47
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "frame_to_adapter_latency",
+      "metric_contract": {
+        "aggregation": "named statistic across all analysis frames in the holdout",
+        "applicability": "every holdout take that produces analysis frames",
+        "exclusions": "none",
+        "limitations": "an offline, relative processing quantity; live end-to-end capture latency remains an unsupported claim",
+        "method": "offline analysis timestamps recorded by the existing S4.3 analysis path",
+        "missing": "a missing latency record is a criterion failure",
+        "reference": "relative offline processing stages only",
+        "uncertainty": "host scheduler jitter; no hardware timestamping",
+        "units": "ms"
+      },
+      "observable": "all_takes_frame_to_adapter_round_trip_ms",
+      "sample_kind": "series",
+      "statistic": "p95_nearest_rank",
+      "strata": [
+        "all"
+      ],
+      "threshold": 5.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "capture_to_frame_offline_spread",
+      "decision_rationale": "the pilot spread was under 10 ms around a 254 ms offline value; this bounds determinism of the offline path and is deliberately a spread rather than an absolute latency claim",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 47
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "capture_to_frame_latency",
+      "metric_contract": {
+        "aggregation": "named statistic across all analysis frames in the holdout",
+        "applicability": "every holdout take that produces analysis frames",
+        "exclusions": "none",
+        "limitations": "an offline, relative processing quantity; live end-to-end capture latency remains an unsupported claim",
+        "method": "offline analysis timestamps recorded by the existing S4.3 analysis path",
+        "missing": "a missing latency record is a criterion failure",
+        "reference": "relative offline processing stages only",
+        "uncertainty": "host scheduler jitter; no hardware timestamping",
+        "units": "ms"
+      },
+      "observable": "all_takes_capture_to_frame_offline_ms",
+      "sample_kind": "series",
+      "statistic": "range",
+      "strata": [
+        "all"
+      ],
+      "threshold": 25.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "equal",
+      "criterion_id": "raw_channel_health_failure_count",
+      "decision_rationale": "reuses the frozen S4.3 zero-tolerance gate; a missing, silent, or misordered channel invalidates every other metric",
+      "denominator": {
+        "basis": "raw_channel_take_records",
+        "expected_count": 188
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "channel_presence_order_health",
+      "metric_contract": {
+        "aggregation": "total count across every raw channel of every holdout take",
+        "applicability": "all 47 holdout takes",
+        "exclusions": "none",
+        "limitations": "channel integrity only; not a calibrated level or sensitivity claim",
+        "method": "existing build_channel_evidence presence, health, and clipping checks",
+        "missing": "an unreadable take counts as a failure, never as absent",
+        "reference": "the frozen six-channel order and full-scale PCM range",
+        "uncertainty": "none; these are deterministic integer counts",
+        "units": "count"
+      },
+      "observable": "all_takes_raw_channel_health_failure_count",
+      "sample_kind": "scalar",
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ],
+      "threshold": 0.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "equal",
+      "criterion_id": "major_polarity_anomaly_count",
+      "decision_rationale": "reuses the frozen S4.3 zero-tolerance gate; S4.5 fitted every channel polarity to +1, so any anomaly contradicts the applied profile",
+      "denominator": {
+        "basis": "raw_channel_take_records",
+        "expected_count": 188
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "major_polarity_anomaly",
+      "metric_contract": {
+        "aggregation": "total anomaly count across every raw channel of every take",
+        "applicability": "all 47 holdout takes",
+        "exclusions": "none",
+        "limitations": "gross inversion detection only, not a phase-response measurement",
+        "method": "existing major polarity anomaly detection on raw channel pairs",
+        "missing": "an unreadable take counts as an anomaly",
+        "reference": "the frozen channel order and the fitted +1 polarity convention",
+        "uncertainty": "major anomalies only; small phase deviations are not detected",
+        "units": "count"
+      },
+      "observable": "all_takes_major_polarity_anomaly_count",
+      "sample_kind": "scalar",
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ],
+      "threshold": 0.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "equal",
+      "criterion_id": "sustained_clipping_take_count",
+      "decision_rationale": "sustained clipping destroys level, spectral, and bearing evidence; the existing 4000-sample run definition is reused unchanged",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 47
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "channel_presence_order_health",
+      "metric_contract": {
+        "aggregation": "total count across every raw channel of every holdout take",
+        "applicability": "all 47 holdout takes",
+        "exclusions": "none",
+        "limitations": "channel integrity only; not a calibrated level or sensitivity claim",
+        "method": "existing build_channel_evidence presence, health, and clipping checks",
+        "missing": "an unreadable take counts as a failure, never as absent",
+        "reference": "the frozen six-channel order and full-scale PCM range",
+        "uncertainty": "none; these are deterministic integer counts",
+        "units": "count"
+      },
+      "observable": "all_takes_sustained_clipping_take_count",
+      "sample_kind": "scalar",
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ],
+      "threshold": 0.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "maximum_clip_run_samples",
+      "decision_rationale": "reuses the frozen S4.3 quality bound so that brief endpoint clipping is bounded even when it is not sustained",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 47
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "channel_presence_order_health",
+      "metric_contract": {
+        "aggregation": "total count across every raw channel of every holdout take",
+        "applicability": "all 47 holdout takes",
+        "exclusions": "none",
+        "limitations": "channel integrity only; not a calibrated level or sensitivity claim",
+        "method": "existing build_channel_evidence presence, health, and clipping checks",
+        "missing": "an unreadable take counts as a failure, never as absent",
+        "reference": "the frozen six-channel order and full-scale PCM range",
+        "uncertainty": "none; these are deterministic integer counts",
+        "units": "count"
+      },
+      "observable": "all_takes_maximum_clip_run_samples",
+      "sample_kind": "scalar",
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ],
+      "threshold": 8.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "take_failure_rate",
+      "decision_rationale": "at most four of the 47 planned takes may fail terminally; the denominator is the planned count so that removing an unfavorable take cannot improve the rate",
+      "denominator": {
+        "basis": "planned_takes",
+        "expected_count": 47
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "acquisition_analysis_failures",
+      "metric_contract": {
+        "aggregation": "failed take count divided by 47 planned takes; the denominator is the planned count and never shrinks to the successful count",
+        "applicability": "all 47 planned holdout takes",
+        "exclusions": "none; no unfavorable take may be removed from the denominator",
+        "limitations": "an acquisition and analysis completeness measure",
+        "method": "terminal outcome of every planned holdout take",
+        "missing": "an unreported planned take counts as a failure",
+        "reference": "the 47 planned take identifiers frozen in the sealed manifest",
+        "uncertainty": "none; a deterministic inventory count",
+        "units": "fraction"
+      },
+      "observable": "all_takes_failed_take_count",
+      "sample_kind": "counter",
+      "statistic": "rate",
+      "strata": [
+        "all"
+      ],
+      "threshold": 0.1,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "greater_than_or_equal",
+      "criterion_id": "silence_abstention_rate_stratum_d",
+      "decision_rationale": "reuses the frozen S4.3 silence gate; inventing a direction from room silence is the most damaging failure mode for SquadBot",
+      "denominator": {
+        "basis": "analysis_windows",
+        "expected_count": null
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "abstention",
+      "metric_contract": {
+        "aggregation": "abstained window count divided by the frozen window denominator",
+        "applicability": "the named stratum only",
+        "exclusions": "none",
+        "limitations": "policy behavior, not a calibrated detector operating point",
+        "method": "existing abstention policy: median raw RMS above 0.002 full scale and SRP confidence at or above 0.015",
+        "missing": "a take with no windows is a criterion failure",
+        "reference": "the frozen S4.3 abstention policy",
+        "uncertainty": "none; a deterministic policy applied to recorded windows",
+        "units": "fraction"
+      },
+      "observable": "stratum_d_abstained_window_count",
+      "sample_kind": "counter",
+      "statistic": "rate",
+      "strata": [
+        "D_silence"
+      ],
+      "threshold": 0.95,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "active_abstention_rate_strata_ab",
+      "decision_rationale": "the controlled pilot abstained on 1.3 percent of windows; 10 percent bounds over-abstention on a clearly audible reference source without demanding the pilot value on unseen data",
+      "denominator": {
+        "basis": "analysis_windows",
+        "expected_count": null
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "abstention",
+      "metric_contract": {
+        "aggregation": "abstained window count divided by the frozen window denominator",
+        "applicability": "the named stratum only",
+        "exclusions": "none",
+        "limitations": "policy behavior, not a calibrated detector operating point",
+        "method": "existing abstention policy: median raw RMS above 0.002 full scale and SRP confidence at or above 0.015",
+        "missing": "a take with no windows is a criterion failure",
+        "reference": "the frozen S4.3 abstention policy",
+        "uncertainty": "none; a deterministic policy applied to recorded windows",
+        "units": "fraction"
+      },
+      "observable": "strata_ab_abstained_window_count",
+      "sample_kind": "counter",
+      "statistic": "rate",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ],
+      "threshold": 0.1,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "greater_than_or_equal",
+      "criterion_id": "confidence_median_stratum_b",
+      "decision_rationale": "the nominal-level sector-center stratum must clear the frozen 0.015 detection floor; the pilot controlled median was 0.0297",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "confidence",
+      "metric_contract": {
+        "aggregation": "per-take median, then the named statistic across takes",
+        "applicability": "active bearing-referenced takes inside the frozen envelope",
+        "exclusions": "none",
+        "limitations": "relative estimator behavior only, not a calibrated detection probability",
+        "method": "SRP-PHAT confidence from the existing estimator",
+        "missing": "a missing confidence value is a criterion failure",
+        "reference": "the frozen 0.015 detection floor and 0.05 ambiguity threshold",
+        "uncertainty": "a relative estimator score; it is not a calibrated probability and has no traceable reference",
+        "units": "dimensionless"
+      },
+      "observable": "stratum_b_take_median_confidence",
+      "sample_kind": "series",
+      "statistic": "median",
+      "strata": [
+        "B_center_nominal_level"
+      ],
+      "threshold": 0.015,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "equal",
+      "criterion_id": "sub_floor_direction_emission_count",
+      "decision_rationale": "no window may emit a direction while its confidence is below the frozen 0.015 floor; this is the ambiguity contract the external orientation adapter depends on",
+      "denominator": {
+        "basis": "analysis_windows",
+        "expected_count": null
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "ambiguity",
+      "metric_contract": {
+        "aggregation": "per-take median, then the named statistic across takes",
+        "applicability": "active bearing-referenced takes inside the frozen envelope",
+        "exclusions": "none",
+        "limitations": "relative estimator behavior only, not a calibrated detection probability",
+        "method": "SRP-PHAT confidence from the existing estimator",
+        "missing": "a missing confidence value is a criterion failure",
+        "reference": "the frozen 0.015 detection floor and 0.05 ambiguity threshold",
+        "uncertainty": "a relative estimator score; it is not a calibrated probability and has no traceable reference",
+        "units": "dimensionless"
+      },
+      "observable": "all_takes_sub_floor_direction_emission_count",
+      "sample_kind": "scalar",
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ],
+      "threshold": 0.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "low_level_confidence_monotonicity",
+      "decision_rationale": "reducing playback gain from 0.75 to 0.35 must not raise the median confidence; a violation means the confidence score does not track signal level and cannot gate abstention",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "confidence",
+      "metric_contract": {
+        "aggregation": "per-take median, then the named statistic across takes",
+        "applicability": "active bearing-referenced takes inside the frozen envelope",
+        "exclusions": "none",
+        "limitations": "relative estimator behavior only, not a calibrated detection probability",
+        "method": "SRP-PHAT confidence from the existing estimator",
+        "missing": "a missing confidence value is a criterion failure",
+        "reference": "the frozen 0.015 detection floor and 0.05 ambiguity threshold",
+        "uncertainty": "a relative estimator score; it is not a calibrated probability and has no traceable reference",
+        "units": "dimensionless"
+      },
+      "observable": [
+        "stratum_c_take_median_confidence",
+        "stratum_b_take_median_confidence"
+      ],
+      "sample_kind": "paired_series",
+      "statistic": "median_difference",
+      "strata": [
+        "C_center_low_level",
+        "B_center_nominal_level"
+      ],
+      "threshold": 0.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "coarse_av_association_residual_stratum_e",
+      "decision_rationale": "reuses the frozen 50 ms coarse association budget measured at 37.3 ms total uncertainty in the pilot; this is the sector-level audio-visual join SquadBot needs and nothing finer",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 4
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "coarse_audio_video_association",
+      "metric_contract": {
+        "aggregation": "worst absolute residual across the four impact takes",
+        "applicability": "impact takes only; no bearing claim is made from them",
+        "exclusions": "none",
+        "limitations": "coarse sector-level association only; not sample-accurate synchronization, acoustic time-of-flight, or calibrated extrinsics",
+        "method": "visible-audible impact alignment between the ZED observation and the audio onset, as in the existing S4.3 coarse association",
+        "missing": "a missing impact observation is a criterion failure",
+        "reference": "the frozen 50 ms coarse association uncertainty budget",
+        "uncertainty": "ZED visual localization and half-frame terms dominate; measured at 37.3 ms total in the S4.3 pilot",
+        "units": "ms"
+      },
+      "observable": "stratum_e_av_association_absolute_residual_ms",
+      "sample_kind": "series",
+      "statistic": "worst",
+      "strata": [
+        "E_impact_audio_video"
+      ],
+      "threshold": 50.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "sim_adjusted_bearing_median_delta_vs_real",
+      "decision_rationale": "the adjusted simulation must land within one 8-sector width of the real median error, which is the level of agreement a bench user needs before trusting a simulated scenario",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 32
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "sim_versus_real",
+      "metric_contract": {
+        "aggregation": "per-condition comparison classified against the frozen preserve bands, then the named statistic",
+        "applicability": "the 40 bearing-referenced holdout conditions",
+        "exclusions": "none; every condition is compared and reported",
+        "limitations": "functional sim-versus-real agreement for the tested envelope; not a validated room-acoustic model or a transferable simulation claim",
+        "method": "the same frozen analysis path applied to real holdout audio, unadjusted simulation, and S4.6-adjusted simulation of the identical geometric condition",
+        "missing": "a missing simulated or real counterpart is a criterion failure",
+        "reference": "the real holdout result for the same condition",
+        "uncertainty": "inherits every underlying metric uncertainty plus unmodelled room-response error",
+        "units": "metric-dependent"
+      },
+      "observable": [
+        "sim_adjusted_take_median_bearing_absolute_error_deg",
+        "real_take_median_bearing_absolute_error_deg"
+      ],
+      "sample_kind": "paired_series",
+      "statistic": "absolute_median_difference",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ],
+      "threshold": 20.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "equal",
+      "criterion_id": "sim_adjustment_worsened_gating_metric_count",
+      "decision_rationale": "applying the S4.6 profile must not make any gating metric worse than the unadjusted path by more than its frozen preserve band; an adjustment that degrades a gating metric is not readiness evidence",
+      "denominator": {
+        "basis": "compared_gating_metrics",
+        "expected_count": null
+      },
+      "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+      "gating": true,
+      "metric": "sim_versus_real",
+      "metric_contract": {
+        "aggregation": "per-condition comparison classified against the frozen preserve bands, then the named statistic",
+        "applicability": "the 40 bearing-referenced holdout conditions",
+        "exclusions": "none; every condition is compared and reported",
+        "limitations": "functional sim-versus-real agreement for the tested envelope; not a validated room-acoustic model or a transferable simulation claim",
+        "method": "the same frozen analysis path applied to real holdout audio, unadjusted simulation, and S4.6-adjusted simulation of the identical geometric condition",
+        "missing": "a missing simulated or real counterpart is a criterion failure",
+        "reference": "the real holdout result for the same condition",
+        "uncertainty": "inherits every underlying metric uncertainty plus unmodelled room-response error",
+        "units": "metric-dependent"
+      },
+      "observable": "sim_vs_real_comparisons",
+      "sample_kind": "comparison_set",
+      "statistic": "worsened_gating_metric_count",
+      "strata": [
+        "all"
+      ],
+      "threshold": 0.0,
+      "tier": "readiness"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "bearing_median_absolute_error_stratum_a_stretch",
+      "decision_rationale": "reproducing the Fit-B development median on unseen data would support a materially stronger bearing claim",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+      "gating": false,
+      "metric": "bearing_doa_error",
+      "metric_contract": {
+        "aggregation": "per-take median, then the named statistic across takes",
+        "applicability": "bearing-referenced controlled takes inside the frozen envelope",
+        "exclusions": "abstained windows are excluded from the numeric error and counted separately by the abstention criteria; no take is excluded",
+        "limitations": "functional bearing accuracy of the exact tested rig, room, source, and analysis path; not a calibrated or transferable angular accuracy",
+        "method": "SRP-PHAT primary estimator on frozen raw-channel analysis windows, reduced to one median absolute bearing error per take",
+        "missing": "a take with no valid bearing window is a criterion failure, never a silent drop",
+        "reference": "planned target bearing in F_project recorded before collection",
+        "uncertainty": "5 deg placement reference plus 2 deg azimuth grid; acoustic-axis alignment unmeasured",
+        "units": "deg"
+      },
+      "observable": "stratum_a_take_median_bearing_absolute_error_deg",
+      "sample_kind": "series",
+      "statistic": "median",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ],
+      "threshold": 5.0,
+      "tier": "stretch"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "bearing_p95_absolute_error_stratum_a_stretch",
+      "decision_rationale": "matches the Fit-B development p95 of 11 deg",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+      "gating": false,
+      "metric": "bearing_doa_error",
+      "metric_contract": {
+        "aggregation": "per-take median, then the named statistic across takes",
+        "applicability": "bearing-referenced controlled takes inside the frozen envelope",
+        "exclusions": "abstained windows are excluded from the numeric error and counted separately by the abstention criteria; no take is excluded",
+        "limitations": "functional bearing accuracy of the exact tested rig, room, source, and analysis path; not a calibrated or transferable angular accuracy",
+        "method": "SRP-PHAT primary estimator on frozen raw-channel analysis windows, reduced to one median absolute bearing error per take",
+        "missing": "a take with no valid bearing window is a criterion failure, never a silent drop",
+        "reference": "planned target bearing in F_project recorded before collection",
+        "uncertainty": "5 deg placement reference plus 2 deg azimuth grid; acoustic-axis alignment unmeasured",
+        "units": "deg"
+      },
+      "observable": "stratum_a_take_median_bearing_absolute_error_deg",
+      "sample_kind": "series",
+      "statistic": "p95_nearest_rank",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ],
+      "threshold": 12.0,
+      "tier": "stretch"
+    },
+    {
+      "comparator": "greater_than_or_equal",
+      "criterion_id": "sector_accuracy_stratum_b_stretch",
+      "decision_rationale": "an eight-of-eight sector result would support a sector display claim with no caveat inside this envelope",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+      "gating": false,
+      "metric": "sector_accuracy",
+      "metric_contract": {
+        "aggregation": "correct take count divided by the frozen take denominator",
+        "applicability": "sector-center bearings only; boundary-family bearings are excluded because a sub-degree error flips the sector by construction",
+        "exclusions": "none; abstained takes count as incorrect",
+        "limitations": "an eight-sector functional display decision, not a continuous angular accuracy claim",
+        "method": "per-take majority sector from bearing_deg_to_sector_name compared against the sector containing the planned bearing",
+        "missing": "a take with no majority sector counts as incorrect",
+        "reference": "planned target bearing in F_project mapped to the 8-sector display",
+        "uncertainty": "sector assignment is exact given a bearing; the underlying bearing carries the frozen 5 deg placement and 2 deg grid uncertainty",
+        "units": "fraction"
+      },
+      "observable": "stratum_b_sector_correct_take_count",
+      "sample_kind": "counter",
+      "statistic": "rate",
+      "strata": [
+        "B_center_nominal_level"
+      ],
+      "threshold": 0.9,
+      "tier": "stretch"
+    },
+    {
+      "comparator": "greater_than_or_equal",
+      "criterion_id": "candidate_coverage_strata_ab_stretch",
+      "decision_rationale": "matches the 0.974 controlled coverage seen in the S4.3 pilot",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 32
+      },
+      "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+      "gating": false,
+      "metric": "candidate_bearing",
+      "metric_contract": {
+        "aggregation": "covered take count divided by the frozen take denominator",
+        "applicability": "bearing-referenced controlled takes inside the frozen envelope",
+        "exclusions": "none; abstained takes count as uncovered",
+        "limitations": "coverage is not a calibrated probability and not an exhaustive multipath solution",
+        "method": "candidate set emitted by the existing estimators; a take counts as covered when any candidate is within the frozen 20 deg tolerance of the planned bearing",
+        "missing": "a missing candidate set counts the take as uncovered",
+        "reference": "planned target bearing in F_project",
+        "uncertainty": "same placement and grid uncertainty as the bearing reference",
+        "units": "fraction"
+      },
+      "observable": "strata_ab_candidate_covered_take_count",
+      "sample_kind": "counter",
+      "statistic": "rate",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ],
+      "threshold": 0.95,
+      "tier": "stretch"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "active_abstention_rate_strata_ab_stretch",
+      "decision_rationale": "matches the 1.3 percent controlled abstention seen in the pilot",
+      "denominator": {
+        "basis": "analysis_windows",
+        "expected_count": null
+      },
+      "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+      "gating": false,
+      "metric": "abstention",
+      "metric_contract": {
+        "aggregation": "abstained window count divided by the frozen window denominator",
+        "applicability": "the named stratum only",
+        "exclusions": "none",
+        "limitations": "policy behavior, not a calibrated detector operating point",
+        "method": "existing abstention policy: median raw RMS above 0.002 full scale and SRP confidence at or above 0.015",
+        "missing": "a take with no windows is a criterion failure",
+        "reference": "the frozen S4.3 abstention policy",
+        "uncertainty": "none; a deterministic policy applied to recorded windows",
+        "units": "fraction"
+      },
+      "observable": "strata_ab_abstained_window_count",
+      "sample_kind": "counter",
+      "statistic": "rate",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ],
+      "threshold": 0.02,
+      "tier": "stretch"
+    },
+    {
+      "comparator": "less_than_or_equal",
+      "criterion_id": "sim_adjusted_bearing_median_delta_vs_real_stretch",
+      "decision_rationale": "agreement inside one sector-center tolerance would support using the adjusted simulation as a stand-in for bench rehearsal",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 32
+      },
+      "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+      "gating": false,
+      "metric": "sim_versus_real",
+      "metric_contract": {
+        "aggregation": "per-condition comparison classified against the frozen preserve bands, then the named statistic",
+        "applicability": "the 40 bearing-referenced holdout conditions",
+        "exclusions": "none; every condition is compared and reported",
+        "limitations": "functional sim-versus-real agreement for the tested envelope; not a validated room-acoustic model or a transferable simulation claim",
+        "method": "the same frozen analysis path applied to real holdout audio, unadjusted simulation, and S4.6-adjusted simulation of the identical geometric condition",
+        "missing": "a missing simulated or real counterpart is a criterion failure",
+        "reference": "the real holdout result for the same condition",
+        "uncertainty": "inherits every underlying metric uncertainty plus unmodelled room-response error",
+        "units": "metric-dependent"
+      },
+      "observable": [
+        "sim_adjusted_take_median_bearing_absolute_error_deg",
+        "real_take_median_bearing_absolute_error_deg"
+      ],
+      "sample_kind": "paired_series",
+      "statistic": "absolute_median_difference",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ],
+      "threshold": 5.0,
+      "tier": "stretch"
+    }
+  ],
+  "criterion_count": 29,
+  "failure_logic": {
+    "narrower_envelope_rule": "a narrower envelope proposed after a failure requires new preregistered criteria and a new, previously unseen holdout; the original failed evidence is retained",
+    "on_failure": "any failed readiness criterion keeps S4.8 and S4 failed for the claimed envelope; the failed evidence is archived and remains useful for diagnosis",
+    "prohibited_after_freeze": [
+      "selecting or changing any threshold from held-out results",
+      "refitting any S4.5 parameter",
+      "removing, replacing, or reweighting a scenario or take",
+      "shrinking a denominator to the successful count",
+      "reclassifying a failed criterion as not_evaluable",
+      "narrowing the envelope to convert a failure into a pass"
+    ],
+    "readiness_pass_rule": "S4.8 passes for the claimed envelope only when every readiness criterion passes",
+    "stretch_rule": "stretch criteria are computed and reported but never change the gate"
+  },
+  "gating_rule": "S4.8 passes for the claimed envelope only when every readiness criterion passes",
+  "metrics_covered": [
+    "abstention",
+    "acquisition_analysis_failures",
+    "ambiguity",
+    "bearing_doa_error",
+    "candidate_bearing",
+    "capture_to_frame_latency",
+    "channel_presence_order_health",
+    "coarse_audio_video_association",
+    "confidence",
+    "frame_to_adapter_latency",
+    "major_polarity_anomaly",
+    "sector_accuracy",
+    "sim_versus_real",
+    "tdoa"
+  ],
+  "missing_and_unsupported_treatment": {
+    "denominator_mismatch": "fail_closed_criterion_failure",
+    "extra_observable": "fail_closed_configuration_error",
+    "missing_observable": "fail_closed_criterion_failure",
+    "non_finite_value": "fail_closed_criterion_failure",
+    "not_evaluable_condition": "reported_as_not_evaluable_never_as_pass",
+    "rationale": "a missing or malformed result must never read as a pass; every absence is a failure or an explicit not_evaluable declaration",
+    "unsupported_quantity": "never_thresholded_and_never_claimed"
+  },
+  "readiness_criterion_count": 23,
+  "schema": "ias.s4_7.criteria_register.v1",
+  "statistics": {
+    "absolute_median_difference": "absolute value of the median difference",
+    "identity": "the scalar value itself",
+    "max_group_circular_range": "the maximum circular range taken over every declared group, using the frozen S4.3 largest-gap convention on bearings modulo 360",
+    "max_group_range": "the maximum plain range taken over every declared group",
+    "median": "arithmetic median of the finite sample values; the mean of the two central values for an even sample count",
+    "median_difference": "median of the first named series minus the median of the second",
+    "p95_nearest_rank": "deterministic nearest rank: the value at index max(1, ceil(0.95 * n)) of the ascending finite sample, one-indexed, matching the frozen S4.3 convention",
+    "range": "maximum minus minimum of the finite sample values",
+    "rate": "numerator divided by denominator; the denominator must equal the frozen expected count when one is declared",
+    "reported_alongside_every_criterion": [
+      "count",
+      "median",
+      "p95_nearest_rank",
+      "worst"
+    ],
+    "small_sample_labeling": "any statistic computed from fewer than eight samples is labeled small_sample in the report; the threshold comparison is unchanged",
+    "worsened_gating_metric_count": "the number of gating metrics whose adjusted-versus-unadjusted comparison classifies as worsens under the frozen preserve bands",
+    "worst": "maximum of the finite sample values"
+  },
+  "status": "passed",
+  "stretch_criterion_count": 6,
+  "thresholds_selected_from_holdout": false
+}

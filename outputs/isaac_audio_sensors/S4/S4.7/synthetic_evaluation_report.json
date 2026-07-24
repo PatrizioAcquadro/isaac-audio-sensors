@@ -1,0 +1,1505 @@
+{
+  "conforming_evaluation": {
+    "comparison_classifications": [
+      {
+        "adjusted_simulation": 0.0167,
+        "band": 0.05,
+        "band_key": "rate_fraction",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_05",
+        "lower_is_better": true,
+        "metric": "abstention",
+        "raw_change": -0.0040999999999999995,
+        "real": 0.0167,
+        "signed_change": -0.0040999999999999995,
+        "unadjusted_simulation": 0.0208
+      },
+      {
+        "adjusted_simulation": 7.1,
+        "band": 2.0,
+        "band_key": "bearing_deg",
+        "classification": "improves",
+        "condition_id": "synthetic_condition_01",
+        "lower_is_better": true,
+        "metric": "bearing_doa_error",
+        "raw_change": -5.700000000000001,
+        "real": 9.4,
+        "signed_change": -5.700000000000001,
+        "unadjusted_simulation": 12.8
+      },
+      {
+        "adjusted_simulation": 0.9375,
+        "band": 0.05,
+        "band_key": "rate_fraction",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_03",
+        "lower_is_better": false,
+        "metric": "candidate_bearing",
+        "raw_change": 0.031200000000000006,
+        "real": 0.9375,
+        "signed_change": -0.031200000000000006,
+        "unadjusted_simulation": 0.9063
+      },
+      {
+        "adjusted_simulation": 32.4,
+        "band": 5.0,
+        "band_key": "association_ms",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_07",
+        "lower_is_better": true,
+        "metric": "coarse_audio_video_association",
+        "raw_change": -0.6000000000000014,
+        "real": 31.6,
+        "signed_change": -0.6000000000000014,
+        "unadjusted_simulation": 33.0
+      },
+      {
+        "adjusted_simulation": 0.0298,
+        "band": 0.005,
+        "band_key": "confidence_dimensionless",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_06",
+        "lower_is_better": false,
+        "metric": "confidence",
+        "raw_change": 0.002700000000000001,
+        "real": 0.0295,
+        "signed_change": -0.002700000000000001,
+        "unadjusted_simulation": 0.0271
+      },
+      {
+        "adjusted_simulation": 0.875,
+        "band": 0.05,
+        "band_key": "rate_fraction",
+        "classification": "improves",
+        "condition_id": "synthetic_condition_02",
+        "lower_is_better": false,
+        "metric": "sector_accuracy",
+        "raw_change": 0.125,
+        "real": 0.875,
+        "signed_change": -0.125,
+        "unadjusted_simulation": 0.75
+      },
+      {
+        "adjusted_simulation": 33.0,
+        "band": 25.0,
+        "band_key": "tdoa_us",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_04",
+        "lower_is_better": true,
+        "metric": "tdoa",
+        "raw_change": -11.5,
+        "real": 31.2,
+        "signed_change": -11.5,
+        "unadjusted_simulation": 44.5
+      }
+    ],
+    "config_identity": {
+      "baseline_commit": "08c8009814dd2bc2cc1dc4d2d49ddebc96852371",
+      "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+      "claimed_envelope": "controlled_source_single_room_single_mount",
+      "frozen_at_utc": "2026-07-24T00:00:00+00:00",
+      "schema": "ias.s4_7.holdout_acceptance_config.v1",
+      "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+      "status": "frozen"
+    },
+    "criteria": [
+      {
+        "criterion_id": "bearing_median_absolute_error_stratum_a",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "median=7.5 less_than_or_equal 15.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 7.5,
+        "passed": true,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 7.5,
+          "p95_nearest_rank": 18.0,
+          "worst": 22.0
+        },
+        "small_sample": false,
+        "statistic": "median",
+        "status": "evaluated",
+        "threshold": 15.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "bearing_p95_absolute_error_stratum_a",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "p95_nearest_rank=18.0 less_than_or_equal 30.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 18.0,
+        "passed": true,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 7.5,
+          "p95_nearest_rank": 18.0,
+          "worst": 22.0
+        },
+        "small_sample": false,
+        "statistic": "p95_nearest_rank",
+        "status": "evaluated",
+        "threshold": 30.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "bearing_worst_absolute_error_stratum_a",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "worst=22.0 less_than_or_equal 60.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 22.0,
+        "passed": true,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 7.5,
+          "p95_nearest_rank": 18.0,
+          "worst": 22.0
+        },
+        "small_sample": false,
+        "statistic": "worst",
+        "status": "evaluated",
+        "threshold": 60.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "bearing_median_absolute_error_stratum_b",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "median=5.5 less_than_or_equal 15.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 5.5,
+        "passed": true,
+        "sample_count": 8,
+        "sample_summary": {
+          "count": 8,
+          "median": 5.5,
+          "p95_nearest_rank": 12.0,
+          "worst": 12.0
+        },
+        "small_sample": false,
+        "statistic": "median",
+        "status": "evaluated",
+        "threshold": 15.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sector_accuracy_stratum_b",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "rate=0.875 greater_than_or_equal 0.75",
+        "gating": true,
+        "metric": "sector_accuracy",
+        "observed": 0.875,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.75,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "candidate_coverage_strata_ab",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "detail": "rate=0.9375 greater_than_or_equal 0.75",
+        "gating": true,
+        "metric": "candidate_bearing",
+        "observed": 0.9375,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.75,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "within_cell_bearing_circular_range_stratum_a",
+        "denominator": {
+          "basis": "bearing_cells",
+          "expected_count": 8
+        },
+        "detail": "max_group_circular_range=8.0 less_than_or_equal 20.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 8.0,
+        "passed": true,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 180.0,
+          "p95_nearest_rank": 354.5,
+          "worst": 357.5
+        },
+        "small_sample": false,
+        "statistic": "max_group_circular_range",
+        "status": "evaluated",
+        "threshold": 20.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "within_cell_pair_tdoa_range_stratum_a",
+        "denominator": {
+          "basis": "bearing_cell_pair_groups",
+          "expected_count": 48
+        },
+        "detail": "max_group_range=45.0 less_than_or_equal 125.0",
+        "gating": true,
+        "metric": "tdoa",
+        "observed": 45.0,
+        "passed": true,
+        "sample_count": 144,
+        "sample_summary": {
+          "count": 144,
+          "median": 20.0,
+          "p95_nearest_rank": 235.0,
+          "worst": 290.0
+        },
+        "small_sample": false,
+        "statistic": "max_group_range",
+        "status": "evaluated",
+        "threshold": 125.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "frame_to_adapter_latency_p95",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "detail": "p95_nearest_rank=0.0402 less_than_or_equal 5.0",
+        "gating": true,
+        "metric": "frame_to_adapter_latency",
+        "observed": 0.0402,
+        "passed": true,
+        "sample_count": 47,
+        "sample_summary": {
+          "count": 47,
+          "median": 0.0318,
+          "p95_nearest_rank": 0.0402,
+          "worst": 0.0402
+        },
+        "small_sample": false,
+        "statistic": "p95_nearest_rank",
+        "status": "evaluated",
+        "threshold": 5.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "capture_to_frame_offline_spread",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "detail": "range=6.399999999999977 less_than_or_equal 25.0",
+        "gating": true,
+        "metric": "capture_to_frame_latency",
+        "observed": 6.399999999999977,
+        "passed": true,
+        "sample_count": 47,
+        "sample_summary": {
+          "count": 47,
+          "median": 254.1,
+          "p95_nearest_rank": 258.2,
+          "worst": 258.2
+        },
+        "small_sample": false,
+        "statistic": "range",
+        "status": "evaluated",
+        "threshold": 25.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "raw_channel_health_failure_count",
+        "denominator": {
+          "basis": "raw_channel_take_records",
+          "expected_count": 188
+        },
+        "detail": "identity=0.0 equal 0.0",
+        "gating": true,
+        "metric": "channel_presence_order_health",
+        "observed": 0.0,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "major_polarity_anomaly_count",
+        "denominator": {
+          "basis": "raw_channel_take_records",
+          "expected_count": 188
+        },
+        "detail": "identity=0.0 equal 0.0",
+        "gating": true,
+        "metric": "major_polarity_anomaly",
+        "observed": 0.0,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sustained_clipping_take_count",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "detail": "identity=0.0 equal 0.0",
+        "gating": true,
+        "metric": "channel_presence_order_health",
+        "observed": 0.0,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "maximum_clip_run_samples",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "detail": "identity=3.0 less_than_or_equal 8.0",
+        "gating": true,
+        "metric": "channel_presence_order_health",
+        "observed": 3.0,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 8.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "take_failure_rate",
+        "denominator": {
+          "basis": "planned_takes",
+          "expected_count": 47
+        },
+        "detail": "rate=0.0425531914893617 less_than_or_equal 0.1",
+        "gating": true,
+        "metric": "acquisition_analysis_failures",
+        "observed": 0.0425531914893617,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.1,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "silence_abstention_rate_stratum_d",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "detail": "rate=0.9833333333333333 greater_than_or_equal 0.95",
+        "gating": true,
+        "metric": "abstention",
+        "observed": 0.9833333333333333,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.95,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "active_abstention_rate_strata_ab",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "detail": "rate=0.016666666666666666 less_than_or_equal 0.1",
+        "gating": true,
+        "metric": "abstention",
+        "observed": 0.016666666666666666,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.1,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "confidence_median_stratum_b",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "median=0.029449999999999997 greater_than_or_equal 0.015",
+        "gating": true,
+        "metric": "confidence",
+        "observed": 0.029449999999999997,
+        "passed": true,
+        "sample_count": 8,
+        "sample_summary": {
+          "count": 8,
+          "median": 0.029449999999999997,
+          "p95_nearest_rank": 0.0359,
+          "worst": 0.0359
+        },
+        "small_sample": false,
+        "statistic": "median",
+        "status": "evaluated",
+        "threshold": 0.015,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sub_floor_direction_emission_count",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "detail": "identity=0.0 equal 0.0",
+        "gating": true,
+        "metric": "ambiguity",
+        "observed": 0.0,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "low_level_confidence_monotonicity",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "median_difference=-0.011299999999999998 less_than_or_equal 0.0",
+        "gating": true,
+        "metric": "confidence",
+        "observed": -0.011299999999999998,
+        "passed": true,
+        "sample_count": 16,
+        "sample_summary": {
+          "count": 16,
+          "median": 0.023100000000000002,
+          "p95_nearest_rank": 0.0359,
+          "worst": 0.0359
+        },
+        "small_sample": false,
+        "statistic": "median_difference",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "coarse_av_association_residual_stratum_e",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 4
+        },
+        "detail": "worst=44.2 less_than_or_equal 50.0",
+        "gating": true,
+        "metric": "coarse_audio_video_association",
+        "observed": 44.2,
+        "passed": true,
+        "sample_count": 4,
+        "sample_summary": {
+          "count": 4,
+          "median": 26.85,
+          "p95_nearest_rank": 44.2,
+          "worst": 44.2
+        },
+        "small_sample": true,
+        "statistic": "worst",
+        "status": "evaluated",
+        "threshold": 50.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sim_adjusted_bearing_median_delta_vs_real",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "detail": "absolute_median_difference=1.5 less_than_or_equal 20.0",
+        "gating": true,
+        "metric": "sim_versus_real",
+        "observed": 1.5,
+        "passed": true,
+        "sample_count": 64,
+        "sample_summary": {
+          "count": 64,
+          "median": 7.5,
+          "p95_nearest_rank": 18.0,
+          "worst": 23.5
+        },
+        "small_sample": false,
+        "statistic": "absolute_median_difference",
+        "status": "evaluated",
+        "threshold": 20.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sim_adjustment_worsened_gating_metric_count",
+        "denominator": {
+          "basis": "compared_gating_metrics",
+          "expected_count": null
+        },
+        "detail": "worsened_gating_metric_count=0.0 equal 0.0",
+        "gating": true,
+        "metric": "sim_versus_real",
+        "observed": 0.0,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "worsened_gating_metric_count",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "bearing_median_absolute_error_stratum_a_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "median=7.5 less_than_or_equal 5.0",
+        "gating": false,
+        "metric": "bearing_doa_error",
+        "observed": 7.5,
+        "passed": false,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 7.5,
+          "p95_nearest_rank": 18.0,
+          "worst": 22.0
+        },
+        "small_sample": false,
+        "statistic": "median",
+        "status": "evaluated",
+        "threshold": 5.0,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "bearing_p95_absolute_error_stratum_a_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "p95_nearest_rank=18.0 less_than_or_equal 12.0",
+        "gating": false,
+        "metric": "bearing_doa_error",
+        "observed": 18.0,
+        "passed": false,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 7.5,
+          "p95_nearest_rank": 18.0,
+          "worst": 22.0
+        },
+        "small_sample": false,
+        "statistic": "p95_nearest_rank",
+        "status": "evaluated",
+        "threshold": 12.0,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "sector_accuracy_stratum_b_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "rate=0.875 greater_than_or_equal 0.9",
+        "gating": false,
+        "metric": "sector_accuracy",
+        "observed": 0.875,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.9,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "candidate_coverage_strata_ab_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "detail": "rate=0.9375 greater_than_or_equal 0.95",
+        "gating": false,
+        "metric": "candidate_bearing",
+        "observed": 0.9375,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.95,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "active_abstention_rate_strata_ab_stretch",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "detail": "rate=0.016666666666666666 less_than_or_equal 0.02",
+        "gating": false,
+        "metric": "abstention",
+        "observed": 0.016666666666666666,
+        "passed": true,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.02,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "sim_adjusted_bearing_median_delta_vs_real_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "detail": "absolute_median_difference=1.5 less_than_or_equal 5.0",
+        "gating": false,
+        "metric": "sim_versus_real",
+        "observed": 1.5,
+        "passed": true,
+        "sample_count": 64,
+        "sample_summary": {
+          "count": 64,
+          "median": 7.5,
+          "p95_nearest_rank": 18.0,
+          "worst": 23.5
+        },
+        "small_sample": false,
+        "statistic": "absolute_median_difference",
+        "status": "evaluated",
+        "threshold": 5.0,
+        "tier": "stretch"
+      }
+    ],
+    "failed_gating_criteria": [],
+    "gating_criterion_count": 23,
+    "holdout_observations_accessed": 0,
+    "readiness_passed": true,
+    "schema": "ias.s4_7.criteria_evaluation_result.v1",
+    "status": "passed",
+    "stretch_criterion_count": 6
+  },
+  "conforming_fixture": "examples/s4_7/synthetic_pass_metrics.v1.json",
+  "fixtures_are_synthetic": true,
+  "gate_bites": true,
+  "holdout_observations_accessed": 0,
+  "schema": "ias.s4_7.synthetic_evaluation_report.v1",
+  "status": "passed",
+  "stretch_tier_is_independent": true,
+  "violating_evaluation": {
+    "comparison_classifications": [
+      {
+        "adjusted_simulation": 0.0167,
+        "band": 0.05,
+        "band_key": "rate_fraction",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_05",
+        "lower_is_better": true,
+        "metric": "abstention",
+        "raw_change": -0.0040999999999999995,
+        "real": 0.0167,
+        "signed_change": -0.0040999999999999995,
+        "unadjusted_simulation": 0.0208
+      },
+      {
+        "adjusted_simulation": 19.6,
+        "band": 2.0,
+        "band_key": "bearing_deg",
+        "classification": "worsens",
+        "condition_id": "synthetic_condition_01",
+        "lower_is_better": true,
+        "metric": "bearing_doa_error",
+        "raw_change": 6.800000000000001,
+        "real": 9.4,
+        "signed_change": 6.800000000000001,
+        "unadjusted_simulation": 12.8
+      },
+      {
+        "adjusted_simulation": 0.9375,
+        "band": 0.05,
+        "band_key": "rate_fraction",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_03",
+        "lower_is_better": false,
+        "metric": "candidate_bearing",
+        "raw_change": 0.031200000000000006,
+        "real": 0.9375,
+        "signed_change": -0.031200000000000006,
+        "unadjusted_simulation": 0.9063
+      },
+      {
+        "adjusted_simulation": 32.4,
+        "band": 5.0,
+        "band_key": "association_ms",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_07",
+        "lower_is_better": true,
+        "metric": "coarse_audio_video_association",
+        "raw_change": -0.6000000000000014,
+        "real": 31.6,
+        "signed_change": -0.6000000000000014,
+        "unadjusted_simulation": 33.0
+      },
+      {
+        "adjusted_simulation": 0.0298,
+        "band": 0.005,
+        "band_key": "confidence_dimensionless",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_06",
+        "lower_is_better": false,
+        "metric": "confidence",
+        "raw_change": 0.002700000000000001,
+        "real": 0.0295,
+        "signed_change": -0.002700000000000001,
+        "unadjusted_simulation": 0.0271
+      },
+      {
+        "adjusted_simulation": 0.5625,
+        "band": 0.05,
+        "band_key": "rate_fraction",
+        "classification": "worsens",
+        "condition_id": "synthetic_condition_02",
+        "lower_is_better": false,
+        "metric": "sector_accuracy",
+        "raw_change": -0.1875,
+        "real": 0.875,
+        "signed_change": 0.1875,
+        "unadjusted_simulation": 0.75
+      },
+      {
+        "adjusted_simulation": 33.0,
+        "band": 25.0,
+        "band_key": "tdoa_us",
+        "classification": "preserves",
+        "condition_id": "synthetic_condition_04",
+        "lower_is_better": true,
+        "metric": "tdoa",
+        "raw_change": -11.5,
+        "real": 31.2,
+        "signed_change": -11.5,
+        "unadjusted_simulation": 44.5
+      }
+    ],
+    "config_identity": {
+      "baseline_commit": "08c8009814dd2bc2cc1dc4d2d49ddebc96852371",
+      "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+      "claimed_envelope": "controlled_source_single_room_single_mount",
+      "frozen_at_utc": "2026-07-24T00:00:00+00:00",
+      "schema": "ias.s4_7.holdout_acceptance_config.v1",
+      "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+      "status": "frozen"
+    },
+    "criteria": [
+      {
+        "criterion_id": "bearing_median_absolute_error_stratum_a",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "median=21.5 less_than_or_equal 15.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 21.5,
+        "passed": false,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 21.5,
+          "p95_nearest_rank": 32.0,
+          "worst": 36.0
+        },
+        "small_sample": false,
+        "statistic": "median",
+        "status": "evaluated",
+        "threshold": 15.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "bearing_p95_absolute_error_stratum_a",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "p95_nearest_rank=32.0 less_than_or_equal 30.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 32.0,
+        "passed": false,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 21.5,
+          "p95_nearest_rank": 32.0,
+          "worst": 36.0
+        },
+        "small_sample": false,
+        "statistic": "p95_nearest_rank",
+        "status": "evaluated",
+        "threshold": 30.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "bearing_worst_absolute_error_stratum_a",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "worst=36.0 less_than_or_equal 60.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 36.0,
+        "passed": true,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 21.5,
+          "p95_nearest_rank": 32.0,
+          "worst": 36.0
+        },
+        "small_sample": false,
+        "statistic": "worst",
+        "status": "evaluated",
+        "threshold": 60.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "bearing_median_absolute_error_stratum_b",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "median=5.5 less_than_or_equal 15.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 5.5,
+        "passed": true,
+        "sample_count": 8,
+        "sample_summary": {
+          "count": 8,
+          "median": 5.5,
+          "p95_nearest_rank": 12.0,
+          "worst": 12.0
+        },
+        "small_sample": false,
+        "statistic": "median",
+        "status": "evaluated",
+        "threshold": 15.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sector_accuracy_stratum_b",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "rate=0.625 greater_than_or_equal 0.75",
+        "gating": true,
+        "metric": "sector_accuracy",
+        "observed": 0.625,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.75,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "candidate_coverage_strata_ab",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "detail": "rate=0.625 greater_than_or_equal 0.75",
+        "gating": true,
+        "metric": "candidate_bearing",
+        "observed": 0.625,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.75,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "within_cell_bearing_circular_range_stratum_a",
+        "denominator": {
+          "basis": "bearing_cells",
+          "expected_count": 8
+        },
+        "detail": "max_group_circular_range=8.0 less_than_or_equal 20.0",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "observed": 8.0,
+        "passed": true,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 180.0,
+          "p95_nearest_rank": 354.5,
+          "worst": 357.5
+        },
+        "small_sample": false,
+        "statistic": "max_group_circular_range",
+        "status": "evaluated",
+        "threshold": 20.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "within_cell_pair_tdoa_range_stratum_a",
+        "denominator": {
+          "basis": "bearing_cell_pair_groups",
+          "expected_count": 48
+        },
+        "detail": "max_group_range=45.0 less_than_or_equal 125.0",
+        "gating": true,
+        "metric": "tdoa",
+        "observed": 45.0,
+        "passed": true,
+        "sample_count": 144,
+        "sample_summary": {
+          "count": 144,
+          "median": 20.0,
+          "p95_nearest_rank": 235.0,
+          "worst": 290.0
+        },
+        "small_sample": false,
+        "statistic": "max_group_range",
+        "status": "evaluated",
+        "threshold": 125.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "frame_to_adapter_latency_p95",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "detail": "p95_nearest_rank=0.0402 less_than_or_equal 5.0",
+        "gating": true,
+        "metric": "frame_to_adapter_latency",
+        "observed": 0.0402,
+        "passed": true,
+        "sample_count": 47,
+        "sample_summary": {
+          "count": 47,
+          "median": 0.0318,
+          "p95_nearest_rank": 0.0402,
+          "worst": 0.0402
+        },
+        "small_sample": false,
+        "statistic": "p95_nearest_rank",
+        "status": "evaluated",
+        "threshold": 5.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "capture_to_frame_offline_spread",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "detail": "range=6.399999999999977 less_than_or_equal 25.0",
+        "gating": true,
+        "metric": "capture_to_frame_latency",
+        "observed": 6.399999999999977,
+        "passed": true,
+        "sample_count": 47,
+        "sample_summary": {
+          "count": 47,
+          "median": 254.1,
+          "p95_nearest_rank": 258.2,
+          "worst": 258.2
+        },
+        "small_sample": false,
+        "statistic": "range",
+        "status": "evaluated",
+        "threshold": 25.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "raw_channel_health_failure_count",
+        "denominator": {
+          "basis": "raw_channel_take_records",
+          "expected_count": 188
+        },
+        "detail": "identity=2.0 equal 0.0",
+        "gating": true,
+        "metric": "channel_presence_order_health",
+        "observed": 2.0,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "major_polarity_anomaly_count",
+        "denominator": {
+          "basis": "raw_channel_take_records",
+          "expected_count": 188
+        },
+        "detail": "identity=1.0 equal 0.0",
+        "gating": true,
+        "metric": "major_polarity_anomaly",
+        "observed": 1.0,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sustained_clipping_take_count",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "detail": "identity=3.0 equal 0.0",
+        "gating": true,
+        "metric": "channel_presence_order_health",
+        "observed": 3.0,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "maximum_clip_run_samples",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "detail": "identity=4096.0 less_than_or_equal 8.0",
+        "gating": true,
+        "metric": "channel_presence_order_health",
+        "observed": 4096.0,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 8.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "take_failure_rate",
+        "denominator": {
+          "basis": "planned_takes",
+          "expected_count": 47
+        },
+        "detail": "rate=0.19148936170212766 less_than_or_equal 0.1",
+        "gating": true,
+        "metric": "acquisition_analysis_failures",
+        "observed": 0.19148936170212766,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.1,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "silence_abstention_rate_stratum_d",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "detail": "rate=0.6166666666666667 greater_than_or_equal 0.95",
+        "gating": true,
+        "metric": "abstention",
+        "observed": 0.6166666666666667,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.95,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "active_abstention_rate_strata_ab",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "detail": "rate=0.2 less_than_or_equal 0.1",
+        "gating": true,
+        "metric": "abstention",
+        "observed": 0.2,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.1,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "confidence_median_stratum_b",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "median=0.029449999999999997 greater_than_or_equal 0.015",
+        "gating": true,
+        "metric": "confidence",
+        "observed": 0.029449999999999997,
+        "passed": true,
+        "sample_count": 8,
+        "sample_summary": {
+          "count": 8,
+          "median": 0.029449999999999997,
+          "p95_nearest_rank": 0.0359,
+          "worst": 0.0359
+        },
+        "small_sample": false,
+        "statistic": "median",
+        "status": "evaluated",
+        "threshold": 0.015,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sub_floor_direction_emission_count",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "detail": "identity=17.0 equal 0.0",
+        "gating": true,
+        "metric": "ambiguity",
+        "observed": 17.0,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "identity",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "low_level_confidence_monotonicity",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "median_difference=0.008700000000000006 less_than_or_equal 0.0",
+        "gating": true,
+        "metric": "confidence",
+        "observed": 0.008700000000000006,
+        "passed": false,
+        "sample_count": 16,
+        "sample_summary": {
+          "count": 16,
+          "median": 0.03585,
+          "p95_nearest_rank": 0.0421,
+          "worst": 0.0421
+        },
+        "small_sample": false,
+        "statistic": "median_difference",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "coarse_av_association_residual_stratum_e",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 4
+        },
+        "detail": "worst=73.5 less_than_or_equal 50.0",
+        "gating": true,
+        "metric": "coarse_audio_video_association",
+        "observed": 73.5,
+        "passed": false,
+        "sample_count": 4,
+        "sample_summary": {
+          "count": 4,
+          "median": 26.85,
+          "p95_nearest_rank": 73.5,
+          "worst": 73.5
+        },
+        "small_sample": true,
+        "statistic": "worst",
+        "status": "evaluated",
+        "threshold": 50.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sim_adjusted_bearing_median_delta_vs_real",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "detail": "absolute_median_difference=26.0 less_than_or_equal 20.0",
+        "gating": true,
+        "metric": "sim_versus_real",
+        "observed": 26.0,
+        "passed": false,
+        "sample_count": 64,
+        "sample_summary": {
+          "count": 64,
+          "median": 25.0,
+          "p95_nearest_rank": 40.0,
+          "worst": 48.0
+        },
+        "small_sample": false,
+        "statistic": "absolute_median_difference",
+        "status": "evaluated",
+        "threshold": 20.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "sim_adjustment_worsened_gating_metric_count",
+        "denominator": {
+          "basis": "compared_gating_metrics",
+          "expected_count": null
+        },
+        "detail": "worsened_gating_metric_count=2.0 equal 0.0",
+        "gating": true,
+        "metric": "sim_versus_real",
+        "observed": 2.0,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "worsened_gating_metric_count",
+        "status": "evaluated",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "criterion_id": "bearing_median_absolute_error_stratum_a_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "median=21.5 less_than_or_equal 5.0",
+        "gating": false,
+        "metric": "bearing_doa_error",
+        "observed": 21.5,
+        "passed": false,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 21.5,
+          "p95_nearest_rank": 32.0,
+          "worst": 36.0
+        },
+        "small_sample": false,
+        "statistic": "median",
+        "status": "evaluated",
+        "threshold": 5.0,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "bearing_p95_absolute_error_stratum_a_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "detail": "p95_nearest_rank=32.0 less_than_or_equal 12.0",
+        "gating": false,
+        "metric": "bearing_doa_error",
+        "observed": 32.0,
+        "passed": false,
+        "sample_count": 24,
+        "sample_summary": {
+          "count": 24,
+          "median": 21.5,
+          "p95_nearest_rank": 32.0,
+          "worst": 36.0
+        },
+        "small_sample": false,
+        "statistic": "p95_nearest_rank",
+        "status": "evaluated",
+        "threshold": 12.0,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "sector_accuracy_stratum_b_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "detail": "rate=0.625 greater_than_or_equal 0.9",
+        "gating": false,
+        "metric": "sector_accuracy",
+        "observed": 0.625,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.9,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "candidate_coverage_strata_ab_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "detail": "rate=0.625 greater_than_or_equal 0.95",
+        "gating": false,
+        "metric": "candidate_bearing",
+        "observed": 0.625,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.95,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "active_abstention_rate_strata_ab_stretch",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "detail": "rate=0.2 less_than_or_equal 0.02",
+        "gating": false,
+        "metric": "abstention",
+        "observed": 0.2,
+        "passed": false,
+        "sample_count": null,
+        "sample_summary": null,
+        "small_sample": false,
+        "statistic": "rate",
+        "status": "evaluated",
+        "threshold": 0.02,
+        "tier": "stretch"
+      },
+      {
+        "criterion_id": "sim_adjusted_bearing_median_delta_vs_real_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "detail": "absolute_median_difference=26.0 less_than_or_equal 5.0",
+        "gating": false,
+        "metric": "sim_versus_real",
+        "observed": 26.0,
+        "passed": false,
+        "sample_count": 64,
+        "sample_summary": {
+          "count": 64,
+          "median": 25.0,
+          "p95_nearest_rank": 40.0,
+          "worst": 48.0
+        },
+        "small_sample": false,
+        "statistic": "absolute_median_difference",
+        "status": "evaluated",
+        "threshold": 5.0,
+        "tier": "stretch"
+      }
+    ],
+    "failed_gating_criteria": [
+      "bearing_median_absolute_error_stratum_a",
+      "bearing_p95_absolute_error_stratum_a",
+      "sector_accuracy_stratum_b",
+      "candidate_coverage_strata_ab",
+      "raw_channel_health_failure_count",
+      "major_polarity_anomaly_count",
+      "sustained_clipping_take_count",
+      "maximum_clip_run_samples",
+      "take_failure_rate",
+      "silence_abstention_rate_stratum_d",
+      "active_abstention_rate_strata_ab",
+      "sub_floor_direction_emission_count",
+      "low_level_confidence_monotonicity",
+      "coarse_av_association_residual_stratum_e",
+      "sim_adjusted_bearing_median_delta_vs_real",
+      "sim_adjustment_worsened_gating_metric_count"
+    ],
+    "gating_criterion_count": 23,
+    "holdout_observations_accessed": 0,
+    "readiness_passed": false,
+    "schema": "ias.s4_7.criteria_evaluation_result.v1",
+    "status": "failed",
+    "stretch_criterion_count": 6
+  },
+  "violating_fixture": "examples/s4_7/synthetic_fail_metrics.v1.json"
+}

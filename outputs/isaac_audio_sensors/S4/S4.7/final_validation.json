@@ -1,0 +1,19 @@
+{
+  "blindness_attested": true,
+  "conforming_fixture_passes_gate": true,
+  "criteria_config_sha256": "94579e534dba0dfe421499d236c5f8ded077a402fc2ded289da1c55d3169fa1b",
+  "criteria_frozen": true,
+  "deterministic": true,
+  "fail_closed_matrix_passed": true,
+  "holdout_binding_consistent": true,
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "preservation_passed": true,
+  "readiness_criterion_count": 23,
+  "schema": "ias.s4_7.final_validation.v1",
+  "status": "passed",
+  "strata_cover_planned_takes": true,
+  "stretch_criterion_count": 6,
+  "thresholds_selected_from_holdout": false,
+  "violating_fixture_fails_gate": true
+}

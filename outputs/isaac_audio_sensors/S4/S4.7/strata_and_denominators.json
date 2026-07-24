@@ -1,0 +1,468 @@
+{
+  "denominators": [
+    {
+      "criterion_id": "bearing_median_absolute_error_stratum_a",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "statistic": "median",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ]
+    },
+    {
+      "criterion_id": "bearing_p95_absolute_error_stratum_a",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "statistic": "p95_nearest_rank",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ]
+    },
+    {
+      "criterion_id": "bearing_worst_absolute_error_stratum_a",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "statistic": "worst",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ]
+    },
+    {
+      "criterion_id": "bearing_median_absolute_error_stratum_b",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "statistic": "median",
+      "strata": [
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "sector_accuracy_stratum_b",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "statistic": "rate",
+      "strata": [
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "candidate_coverage_strata_ab",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 32
+      },
+      "statistic": "rate",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "within_cell_bearing_circular_range_stratum_a",
+      "denominator": {
+        "basis": "bearing_cells",
+        "expected_count": 8
+      },
+      "statistic": "max_group_circular_range",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ]
+    },
+    {
+      "criterion_id": "within_cell_pair_tdoa_range_stratum_a",
+      "denominator": {
+        "basis": "bearing_cell_pair_groups",
+        "expected_count": 48
+      },
+      "statistic": "max_group_range",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ]
+    },
+    {
+      "criterion_id": "frame_to_adapter_latency_p95",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 47
+      },
+      "statistic": "p95_nearest_rank",
+      "strata": [
+        "all"
+      ]
+    },
+    {
+      "criterion_id": "capture_to_frame_offline_spread",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 47
+      },
+      "statistic": "range",
+      "strata": [
+        "all"
+      ]
+    },
+    {
+      "criterion_id": "raw_channel_health_failure_count",
+      "denominator": {
+        "basis": "raw_channel_take_records",
+        "expected_count": 188
+      },
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ]
+    },
+    {
+      "criterion_id": "major_polarity_anomaly_count",
+      "denominator": {
+        "basis": "raw_channel_take_records",
+        "expected_count": 188
+      },
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ]
+    },
+    {
+      "criterion_id": "sustained_clipping_take_count",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 47
+      },
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ]
+    },
+    {
+      "criterion_id": "maximum_clip_run_samples",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 47
+      },
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ]
+    },
+    {
+      "criterion_id": "take_failure_rate",
+      "denominator": {
+        "basis": "planned_takes",
+        "expected_count": 47
+      },
+      "statistic": "rate",
+      "strata": [
+        "all"
+      ]
+    },
+    {
+      "criterion_id": "silence_abstention_rate_stratum_d",
+      "denominator": {
+        "basis": "analysis_windows",
+        "expected_count": null
+      },
+      "statistic": "rate",
+      "strata": [
+        "D_silence"
+      ]
+    },
+    {
+      "criterion_id": "active_abstention_rate_strata_ab",
+      "denominator": {
+        "basis": "analysis_windows",
+        "expected_count": null
+      },
+      "statistic": "rate",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "confidence_median_stratum_b",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "statistic": "median",
+      "strata": [
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "sub_floor_direction_emission_count",
+      "denominator": {
+        "basis": "analysis_windows",
+        "expected_count": null
+      },
+      "statistic": "identity",
+      "strata": [
+        "all"
+      ]
+    },
+    {
+      "criterion_id": "low_level_confidence_monotonicity",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "statistic": "median_difference",
+      "strata": [
+        "C_center_low_level",
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "coarse_av_association_residual_stratum_e",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 4
+      },
+      "statistic": "worst",
+      "strata": [
+        "E_impact_audio_video"
+      ]
+    },
+    {
+      "criterion_id": "sim_adjusted_bearing_median_delta_vs_real",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 32
+      },
+      "statistic": "absolute_median_difference",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "sim_adjustment_worsened_gating_metric_count",
+      "denominator": {
+        "basis": "compared_gating_metrics",
+        "expected_count": null
+      },
+      "statistic": "worsened_gating_metric_count",
+      "strata": [
+        "all"
+      ]
+    },
+    {
+      "criterion_id": "bearing_median_absolute_error_stratum_a_stretch",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "statistic": "median",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ]
+    },
+    {
+      "criterion_id": "bearing_p95_absolute_error_stratum_a_stretch",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 24
+      },
+      "statistic": "p95_nearest_rank",
+      "strata": [
+        "A_controlled_boundary_sweep"
+      ]
+    },
+    {
+      "criterion_id": "sector_accuracy_stratum_b_stretch",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 8
+      },
+      "statistic": "rate",
+      "strata": [
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "candidate_coverage_strata_ab_stretch",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 32
+      },
+      "statistic": "rate",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "active_abstention_rate_strata_ab_stretch",
+      "denominator": {
+        "basis": "analysis_windows",
+        "expected_count": null
+      },
+      "statistic": "rate",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ]
+    },
+    {
+      "criterion_id": "sim_adjusted_bearing_median_delta_vs_real_stretch",
+      "denominator": {
+        "basis": "takes",
+        "expected_count": 32
+      },
+      "statistic": "absolute_median_difference",
+      "strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ]
+    }
+  ],
+  "envelope": {
+    "claimed_envelope": "controlled_source_single_room_single_mount",
+    "controlled_versus_robustness": "every gating criterion is a controlled-source criterion; the sealed holdout contains no robustness cell, so no robustness result is produced, claimed, or gated",
+    "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+    "device_id": "respeaker_xvf3800_114993701261100454",
+    "mount_fixture_ids": [
+      "S4_TEMP_DESKTOP_FIXTURE_REV0"
+    ],
+    "playback_gains": [
+      0.35,
+      0.75
+    ],
+    "raw_channel_order": [
+      "raw_microphone_0",
+      "raw_microphone_1",
+      "raw_microphone_2",
+      "raw_microphone_3"
+    ],
+    "room_ids": [
+      "WANG_2022_DESK_NEAR_ENTRANCE"
+    ],
+    "sample_rate_hz": 16000,
+    "source_devices": [
+      "MacBookPro18,1 built-in speakers",
+      "plain_paper_roll",
+      "not_applicable"
+    ],
+    "source_frame": "F_project",
+    "take_duration_s": [
+      15,
+      20
+    ],
+    "target_radius_m": [
+      0.8
+    ]
+  },
+  "planned_take_count": 47,
+  "primary_gating_statistic": "per_take_median",
+  "schema": "ias.s4_7.strata_and_denominators.v1",
+  "sector_accuracy_gated_strata": [
+    "B_center_nominal_level"
+  ],
+  "sector_boundary_strata": [
+    "A_controlled_boundary_sweep"
+  ],
+  "status": "passed",
+  "strata": [
+    {
+      "bearing_cell_count": 8,
+      "bearing_reference_available": true,
+      "category": "controlled",
+      "note": "these bearings fall exactly on the boundaries of the eight 45 deg sectors, so a sub-degree bearing error flips the sector by construction; sector accuracy is therefore not a meaningful measurement here and is not gated on this stratum",
+      "playback_gain": 0.75,
+      "repetitions_per_bearing": 3,
+      "sector_accuracy_gated": false,
+      "sector_geometry": "sector_boundary",
+      "stratum_id": "A_controlled_boundary_sweep",
+      "take_count": 24,
+      "target_bearings_deg_f_project": [
+        22.5,
+        67.5,
+        112.5,
+        157.5,
+        202.5,
+        247.5,
+        292.5,
+        337.5
+      ],
+      "target_radius_m": 0.8
+    },
+    {
+      "bearing_cell_count": 4,
+      "bearing_reference_available": true,
+      "category": "confidence",
+      "note": "these bearings sit at sector centers with a full 22.5 deg margin, which is the only geometry in the sealed holdout where sector accuracy is a meaningful decision",
+      "playback_gain": 0.75,
+      "repetitions_per_bearing": 2,
+      "sector_accuracy_gated": true,
+      "sector_geometry": "sector_center",
+      "stratum_id": "B_center_nominal_level",
+      "take_count": 8,
+      "target_bearings_deg_f_project": [
+        45.0,
+        135.0,
+        225.0,
+        315.0
+      ],
+      "target_radius_m": 0.8
+    },
+    {
+      "bearing_cell_count": 4,
+      "bearing_reference_available": true,
+      "category": "confidence",
+      "note": "the reduced-level probe; it gates confidence behavior relative to stratum B and makes no independent bearing claim",
+      "playback_gain": 0.35,
+      "repetitions_per_bearing": 2,
+      "sector_accuracy_gated": false,
+      "sector_geometry": "sector_center",
+      "stratum_id": "C_center_low_level",
+      "take_count": 8,
+      "target_bearings_deg_f_project": [
+        45.0,
+        135.0,
+        225.0,
+        315.0
+      ],
+      "target_radius_m": 0.8
+    },
+    {
+      "bearing_cell_count": 0,
+      "bearing_reference_available": false,
+      "category": "silence",
+      "note": "ambient room silence; gates abstention only",
+      "playback_gain": null,
+      "repetitions_per_bearing": null,
+      "sector_accuracy_gated": false,
+      "sector_geometry": "not_applicable",
+      "stratum_id": "D_silence",
+      "take_count": 3,
+      "target_bearings_deg_f_project": [],
+      "target_radius_m": null
+    },
+    {
+      "bearing_cell_count": 0,
+      "bearing_reference_available": false,
+      "category": "audio_video",
+      "note": "visible-audible paper-roll impacts with no planned bearing reference; gates coarse audio-video association only and supports no bearing claim",
+      "playback_gain": null,
+      "repetitions_per_bearing": null,
+      "sector_accuracy_gated": false,
+      "sector_geometry": "not_applicable",
+      "stratum_id": "E_impact_audio_video",
+      "take_count": 4,
+      "target_bearings_deg_f_project": [],
+      "target_radius_m": null
+    }
+  ],
+  "total_take_count": 47
+}

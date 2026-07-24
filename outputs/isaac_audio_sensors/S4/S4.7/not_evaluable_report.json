@@ -1,0 +1,35 @@
+{
+  "claimed_envelope": "controlled_source_single_room_single_mount",
+  "controlled_versus_robustness": "every gating criterion is a controlled-source criterion; the sealed holdout contains no robustness cell, so no robustness result is produced, claimed, or gated",
+  "not_evaluable": {
+    "conditions": [
+      "alternate rooms",
+      "alternate mount fixtures",
+      "phone and voice sources",
+      "occlusion",
+      "source overlap",
+      "elevated background noise",
+      "distance and radius variation",
+      "angle families other than the two frozen sweeps",
+      "moving sources or a moving array",
+      "long-duration endurance sessions"
+    ],
+    "declaration": "these quantities have a zero holdout denominator; S4.8 reports them as not_evaluable and may not compute, threshold, or claim them for this envelope",
+    "future_requirement": "any robustness or wider-envelope claim requires a new, previously unseen holdout under a new preregistration; it may never be obtained by reinterpreting this holdout"
+  },
+  "robustness_gating_criterion_count": 0,
+  "robustness_holdout_cell_count": 0,
+  "schema": "ias.s4_7.not_evaluable_report.v1",
+  "status": "passed",
+  "unsupported_quantities": [
+    "absolute SPL",
+    "absolute microphone sensitivity",
+    "isolated speaker response",
+    "isolated microphone response",
+    "certified reverberation",
+    "traceable calibration",
+    "precision optical-acoustic extrinsics",
+    "live end-to-end capture latency",
+    "universal transfer"
+  ]
+}

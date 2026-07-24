@@ -1,0 +1,8 @@
+{
+  "evaluation_reports_identical": true,
+  "randomness_used": false,
+  "run_count": 2,
+  "schema": "ias.s4_7.determinism_report.v1",
+  "status": "passed",
+  "wall_clock_input_used": false
+}

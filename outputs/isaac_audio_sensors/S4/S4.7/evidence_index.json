@@ -1,0 +1,80 @@
+{
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "records": [
+    {
+      "byte_size": 1093,
+      "path": "blindness_attestation.json",
+      "sha256": "d51bd9e587d3f14235a971a021bbd84d02d92ee45e270b9ad0ac14df768dcb36"
+    },
+    {
+      "byte_size": 51220,
+      "path": "criteria_register.json",
+      "sha256": "df563754565ee4bbfb6652f200b517773d6ebfe0610e35681f5af6bcb4bbb906"
+    },
+    {
+      "byte_size": 191,
+      "path": "determinism_report.json",
+      "sha256": "c3cc181273611fc72b4091804c7e52cf1c0c05995f68ad83ab1c72553a265c89"
+    },
+    {
+      "byte_size": 9375,
+      "path": "fail_closed_matrix.json",
+      "sha256": "0057331a541db8ef9f0f2e04d0be5ae9bfb9100516ae35eb92aa59256004b8ca"
+    },
+    {
+      "byte_size": 653,
+      "path": "final_validation.json",
+      "sha256": "fb0a96438bb435cc10e5a5ea3c8999c3e704d46d55e0e79afdb539f0a93239e0"
+    },
+    {
+      "byte_size": 1386,
+      "path": "holdout_acceptance.json",
+      "sha256": "55db5b1b2ced088d0f8517274c0fbb17018e78f0dc210b6db2cf127534196794"
+    },
+    {
+      "byte_size": 1486,
+      "path": "holdout_binding_report.json",
+      "sha256": "806ff90a9b7e1240849f9b432049a0ce8bd09d6c3dd2cd0ffbf8f1037e6162a4"
+    },
+    {
+      "byte_size": 1517,
+      "path": "not_evaluable_report.json",
+      "sha256": "9518f8323546558d4e9dd18f170b9a9116093da4d14d4bd3a3f42b033ad42f9d"
+    },
+    {
+      "byte_size": 918,
+      "path": "preservation_phase_boundary_report.json",
+      "sha256": "5fc26aad1b767ef313501a8505cb5085fcf8ebaba393112c07b861859ba488c2"
+    },
+    {
+      "byte_size": 2638,
+      "path": "provenance.json",
+      "sha256": "2abec5f4d28f96b5cf7aa176c25d27e9fceba5ed01fae04226cdd079480e3be9"
+    },
+    {
+      "byte_size": 372,
+      "path": "reproduction.json",
+      "sha256": "41906f7902f589eb6f5c078dafcbfa7397e3da13e6a3c67cd4962f90a5a7e40d"
+    },
+    {
+      "byte_size": 1531,
+      "path": "sim_vs_real_criteria.json",
+      "sha256": "726599f977330394bf89c5a46a7e91fb11be47b5c466f5c5f8913abc4fd1cbdf"
+    },
+    {
+      "byte_size": 12027,
+      "path": "strata_and_denominators.json",
+      "sha256": "4f2af1d3e49bc2f309ad04ddec7b41dea9b825b99eb2f5f340f1fe8d0f2c358d"
+    },
+    {
+      "byte_size": 45244,
+      "path": "synthetic_evaluation_report.json",
+      "sha256": "72b5d6e13df2879d52a936d2c0f4a5945c76e106ded88f1fef6e6b5efe137672"
+    }
+  ],
+  "schema": "ias.s4_7.evidence_index.v1",
+  "source_commit": "e4be6b1ff610b0353f7301d3da98c946f052caa6",
+  "status": "passed",
+  "tool_version": "ias_s4_7_evidence/1.0.0"
+}

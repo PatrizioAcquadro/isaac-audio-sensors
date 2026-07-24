@@ -1,0 +1,250 @@
+{
+  "case_count": 30,
+  "cases": [
+    {
+      "actual": "criterion_failure",
+      "case_id": "missing_observable",
+      "criterion_id": "bearing_median_absolute_error_stratum_a",
+      "detail": "missing_observable: observable 'stratum_a_take_median_bearing_absolute_error_deg' is absent from the payload",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "non_finite_value",
+      "criterion_id": "bearing_median_absolute_error_stratum_b",
+      "detail": "non_finite_value: observable 'stratum_b_take_median_bearing_absolute_error_deg': non-finite value nan",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "series_denominator_mismatch",
+      "criterion_id": "bearing_median_absolute_error_stratum_a",
+      "detail": "denominator_mismatch: denominator: expected 24 takes, found 23",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "counter_denominator_mismatch",
+      "criterion_id": "sector_accuracy_stratum_b",
+      "detail": "denominator_mismatch: denominator: expected 8 takes, found 9",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "counter_missing_field",
+      "criterion_id": "sector_accuracy_stratum_b",
+      "detail": "malformed_observable: observable 'stratum_b_sector_correct_take_count': expected fields ['denominator', 'numerator']",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "counter_numerator_exceeds_denominator",
+      "criterion_id": "sector_accuracy_stratum_b",
+      "detail": "malformed_observable: observable 'stratum_b_sector_correct_take_count': numerator 9 outside 0..8",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "series_non_numeric_member",
+      "criterion_id": "coarse_av_association_residual_stratum_e",
+      "detail": "malformed_observable: observable 'stratum_e_av_association_absolute_residual_ms': expected numbers, found '18.4'",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "empty_series",
+      "criterion_id": "coarse_av_association_residual_stratum_e",
+      "detail": "empty_observable: observable 'stratum_e_av_association_absolute_residual_ms': sample is empty",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "grouped_series_group_count_mismatch",
+      "criterion_id": "within_cell_bearing_circular_range_stratum_a",
+      "detail": "denominator_mismatch: denominator: expected 8 bearing_cells, found 7",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "grouped_series_not_a_mapping",
+      "criterion_id": "within_cell_bearing_circular_range_stratum_a",
+      "detail": "malformed_observable: observable 'stratum_a_cell_take_median_bearing_deg': expected a non-empty mapping of groups",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "scalar_not_a_number",
+      "criterion_id": "raw_channel_health_failure_count",
+      "detail": "malformed_observable: observable 'all_takes_raw_channel_health_failure_count': expected a number",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "missing_comparison_set",
+      "criterion_id": "sim_adjustment_worsened_gating_metric_count",
+      "detail": "missing_observable: observable 'sim_vs_real_comparisons' is absent from the payload",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "criterion_failure",
+      "case_id": "empty_comparison_set",
+      "criterion_id": "sim_adjustment_worsened_gating_metric_count",
+      "detail": "missing_observable: observable 'sim_vs_real_comparisons' is absent from the payload",
+      "expected": "criterion_failure",
+      "readiness_passed": false,
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "unexpected_observable",
+      "criterion_id": null,
+      "detail": "metrics payload declares observables the frozen criteria do not define: ['invented_observable']",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "comparison_record_field_set_mismatch",
+      "criterion_id": null,
+      "detail": "sim_vs_real_comparisons[0]: expected exactly the fields ['adjusted_simulation', 'band_key', 'condition_id', 'lower_is_better', 'metric', 'real', 'unadjusted_simulation']",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "comparison_unknown_band_key",
+      "criterion_id": null,
+      "detail": "sim_vs_real_comparisons[0]: unknown band_key 'invented_band'",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "comparison_non_boolean_direction",
+      "criterion_id": null,
+      "detail": "sim_vs_real_comparisons[0]: lower_is_better must be boolean",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "comparison_non_finite_value",
+      "criterion_id": null,
+      "detail": "sim_vs_real_comparisons[0]: adjusted_simulation must be finite",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "comparison_set_not_a_sequence",
+      "criterion_id": null,
+      "detail": "sim_vs_real_comparisons: expected a sequence of comparison records",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "config_status_not_frozen",
+      "detail": "s4_7_holdout_acceptance.v1.json: schema validation failed: 'frozen' was expected",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "config_schema_mismatch",
+      "detail": "s4_7_holdout_acceptance.v1.json: schema validation failed: 'ias.s4_7.holdout_acceptance_config.v1' was expected",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "config_duplicate_criterion_id",
+      "detail": "criteria contain a duplicate criterion_id",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "config_unknown_statistic",
+      "detail": "s4_7_holdout_acceptance.v1.json: schema validation failed: 'mean' is not one of ['median', 'p95_nearest_rank', 'worst', 'range', 'identity', 'rate', 'max_group_range', 'max_group_circular_range', 'median_difference', 'absolute_median_difference', 'worsened_gating_metric_count']",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "config_incomplete_metric_contract",
+      "detail": "s4_7_holdout_acceptance.v1.json: schema validation failed: 'exclusions' is a required property",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "config_holdout_declared_open",
+      "detail": "s4_7_holdout_acceptance.v1.json: schema validation failed: False was expected",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "config_declares_holdout_access",
+      "detail": "s4_7_holdout_acceptance.v1.json: schema validation failed: 0 was expected",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "config_declares_opening_workflow",
+      "detail": "s4_7_holdout_acceptance.v1.json: schema validation failed: False was expected",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "absolute_config_path",
+      "detail": "path must be repository relative: /configs/s4_7_holdout_acceptance.v1.json",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "parent_traversal_config_path",
+      "detail": "path escapes the repository: ../configs/s4_7.json",
+      "expected": "rejected",
+      "status": "passed"
+    },
+    {
+      "actual": "rejected",
+      "case_id": "missing_config_path",
+      "detail": "missing repository file: configs/s4_7_absent.v1.json",
+      "expected": "rejected",
+      "status": "passed"
+    }
+  ],
+  "schema": "ias.s4_7.fail_closed_matrix.v1",
+  "silent_pass_observed": false,
+  "status": "passed"
+}

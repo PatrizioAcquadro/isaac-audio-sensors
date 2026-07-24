@@ -1,0 +1,39 @@
+{
+  "adjusted_simulation_definition": "the S4.6 profile application in mode apply over the identical geometric condition; the unadjusted path is the same run in mode off",
+  "classification": [
+    "improves",
+    "preserves",
+    "worsens"
+  ],
+  "classification_rule": "compute the adjusted minus unadjusted change in the metric, signed so that a negative change is better; classify as preserves when the absolute change is at or below the frozen preserve band, improves when the change is better than the band, and worsens when it is worse than the band",
+  "gating_criteria": [
+    "sim_adjusted_bearing_median_delta_vs_real",
+    "sim_adjustment_worsened_gating_metric_count"
+  ],
+  "gating_metric_ids": [
+    "bearing_doa_error",
+    "sector_accuracy",
+    "candidate_bearing",
+    "tdoa",
+    "abstention",
+    "confidence",
+    "coarse_audio_video_association"
+  ],
+  "harness_status": "no sim-versus-real comparison harness exists in the repository at freeze time; S4.8 builds it against these frozen criteria",
+  "paths": [
+    "real",
+    "unadjusted_simulation",
+    "adjusted_simulation"
+  ],
+  "preserve_bands": {
+    "association_ms": 5.0,
+    "bearing_deg": 2.0,
+    "confidence_dimensionless": 0.005,
+    "latency_ms": 1.0,
+    "rate_fraction": 0.05,
+    "tdoa_us": 25.0
+  },
+  "reporting_requirement": "every condition, sample, repetition, and failure is reported for all three paths with median, p95, and worst; no scenario may be removed",
+  "schema": "ias.s4_7.sim_vs_real_criteria.v1",
+  "status": "passed"
+}

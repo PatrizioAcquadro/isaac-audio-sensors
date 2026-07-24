@@ -1,0 +1,19 @@
+{
+  "dataset_accessed": false,
+  "entry_commit": "08c8009814dd2bc2cc1dc4d2d49ddebc96852371",
+  "expected_public_profile_schema_sha256": "fb56c9024bfa16ce25a999ed8e2552ab19189459f44801f33edd9f0d75d1ff46",
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "public_profile_schema_sha256": "fb56c9024bfa16ce25a999ed8e2552ab19189459f44801f33edd9f0d75d1ff46",
+  "raw_media_accessed": false,
+  "s4_4_tracked_tree_sha256": "b079f2441f8c1a9c66d7d6fa9180b01a34ceb7a1be750c47db165afd2dc06caa",
+  "s4_5_tracked_tree_sha256": "165c49b2f483a4ba9d258f86f368323ffbbee8389553b57b5cbe993f3b70b234",
+  "s4_6_tracked_tree_sha256": "3ce8e3075a2d7acd9dd78b380bb1af269cb7539d314131d2f62cd59d20320dc6",
+  "s4_8_access_grant_created": false,
+  "s4_8_started": false,
+  "s4_9_started": false,
+  "s5_started": false,
+  "s6_started": false,
+  "schema": "ias.s4_7.preservation_phase_boundary_report.v1",
+  "status": "passed"
+}

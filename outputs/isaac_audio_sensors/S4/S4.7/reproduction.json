@@ -1,0 +1,10 @@
+{
+  "clean_source_archive": true,
+  "command": "python3 scripts/replay_s4_7.py --canonical outputs/isaac_audio_sensors/S4/S4.7",
+  "comparison": "byte_for_byte_complete_package",
+  "deterministic": true,
+  "requires_holdout_or_raw_media": false,
+  "schema": "ias.s4_7.reproduction.v1",
+  "source_commit": "e4be6b1ff610b0353f7301d3da98c946f052caa6",
+  "status": "passed"
+}
