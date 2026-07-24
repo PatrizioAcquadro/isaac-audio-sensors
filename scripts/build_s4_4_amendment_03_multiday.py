@@ -330,7 +330,13 @@ def _continuation(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     return {**payload, "continuation_sha256": canonical_sha256(payload)}
 
 
-def build(*, output: Path, config_path: Path, repo_root: Path = ROOT) -> dict[str, Any]:
+def build(
+    *,
+    output: Path,
+    config_path: Path,
+    repo_root: Path = ROOT,
+    cutoff_root: Path | None = None,
+) -> dict[str, Any]:
     repo_root = repo_root.resolve()
     config = load_configuration(config_path, repo_root)
     validate_configuration(config)
@@ -338,7 +344,9 @@ def build(*, output: Path, config_path: Path, repo_root: Path = ROOT) -> dict[st
     canonical_root = repo_root / config["retention"]["tracked_evidence_root"]
     output.mkdir(parents=True, exist_ok=True)
     _materialize_prior_packages(output, canonical_root)
-    continuation = _continuation(config, repo_root)
+    continuation = _continuation(
+        config, cutoff_root.resolve() if cutoff_root is not None else repo_root
+    )
     write_json_atomic(output / CONTINUATION_PATH, continuation)
     checkpoint_path = output / CHECKPOINT_PATH
     checkpoint = load_json(checkpoint_path) if checkpoint_path.is_file() else None

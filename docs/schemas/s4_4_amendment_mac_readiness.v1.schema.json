@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PatrizioAcquadro/isaac-audio-sensors/schemas/s4_4_amendment_mac_readiness.v1.schema.json",
+  "title": "S4.4 reduced Mac readiness report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","collector_version","read_only","scope","collected_at","timezone","power","legacy_identity_output_reference_fields_required"],
+  "properties": {
+    "schema": {"const": "ias.s4_4.mac_readiness.v1"},
+    "collector_version": {"type": "string"},
+    "read_only": {"const": true},
+    "scope": {"const": "s4_4_reduced_readiness"},
+    "collected_at": {"type": "string", "format": "date-time"},
+    "timezone": {"type": "string"},
+    "power": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status","source","on_ac_power","charging","battery_percent"],
+      "properties": {
+        "status": {"const": "collected"},
+        "source": {"enum": ["AC Power","Battery Power"]},
+        "on_ac_power": {"type": "boolean"},
+        "charging": {"type": "boolean"},
+        "battery_percent": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    },
+    "legacy_identity_output_reference_fields_required": {"const": false}
+  }
+}

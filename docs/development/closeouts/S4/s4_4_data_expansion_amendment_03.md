@@ -1,6 +1,13 @@
-# S4.4 data-expansion amendment 03 checkpoint
+# S4.4 data-expansion amendment 03 historical v5 checkpoint
 
-## Current verdict
+This document is a superseded pre-take-35 checkpoint. It is retained for
+historical accuracy and does not state current phase status. Fit B is complete;
+the prospective holdout is complete, technically sealed, and scientifically
+unopened. The authoritative current closeout is
+`docs/development/closeouts/S4/s4_4_data_expansion_amendment_03_holdout.md`.
+S4.5-S4.8 remain unstarted.
+
+## Historical verdict at the v5 checkpoint
 
 **FIT B IN PROGRESS / TAKE 35 NOT ALLOCATED / CAPTURE PROHIBITED UNTIL THE
 PROSPECTIVE BATTERY-POWER CORRECTION AND ADDITIVE V5 EVIDENCE PACKAGE ARE

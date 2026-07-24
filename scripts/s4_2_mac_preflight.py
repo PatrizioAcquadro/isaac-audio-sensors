@@ -362,6 +362,28 @@ def collect_dynamic(expected_volume_percent: int) -> dict[str, Any]:
     }
 
 
+def collect_s4_4_readiness() -> dict[str, Any]:
+    """Collect the intentionally reduced S4.4 Mac readiness report.
+
+    Identity, output-device, volume, mute, OS, and reference-WAV checks belonged
+    to the superseded larger report.  S4.4 retains only read-only collection
+    metadata and truthful power state; physical declarations remain in the
+    separately hash-bound session preflight.
+    """
+
+    now = datetime.now().astimezone()
+    return {
+        "schema": "ias.s4_4.mac_readiness.v1",
+        "collector_version": COLLECTOR_VERSION,
+        "read_only": True,
+        "scope": "s4_4_reduced_readiness",
+        "collected_at": now.isoformat(timespec="seconds"),
+        "timezone": str(now.tzinfo),
+        "power": _power_state(),
+        "legacy_identity_output_reference_fields_required": False,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--wav", type=Path, default=None)
@@ -370,14 +392,23 @@ def main() -> int:
         "--expected-volume-percent",
         type=int,
         choices=range(0, 101),
-        required=True,
+        default=None,
     )
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--dynamic-only", action="store_true")
+    parser.add_argument("--s4-4-readiness-only", action="store_true")
     args = parser.parse_args()
-    if args.dynamic_only:
+    if args.s4_4_readiness_only:
+        if args.dynamic_only:
+            parser.error("--dynamic-only and --s4-4-readiness-only are exclusive")
+        report = collect_s4_4_readiness()
+    elif args.dynamic_only:
+        if args.expected_volume_percent is None:
+            parser.error("--expected-volume-percent is required with --dynamic-only")
         report = collect_dynamic(args.expected_volume_percent)
     else:
+        if args.expected_volume_percent is None:
+            parser.error("--expected-volume-percent is required for the full report")
         if args.wav is None:
             parser.error("--wav is required unless --dynamic-only is used")
         if args.expected_sha256 is None or not re.fullmatch(
@@ -391,6 +422,19 @@ def main() -> int:
     else:
         args.output.write_text(encoded, encoding="utf-8")
         sys.stdout.write(encoded)
+    if args.s4_4_readiness_only:
+        power = report["power"]
+        valid_power = bool(
+            power.get("status") == "collected"
+            and power.get("source") in {"AC Power", "Battery Power"}
+            and isinstance(power.get("on_ac_power"), bool)
+            and power.get("on_ac_power") is (power.get("source") == "AC Power")
+            and isinstance(power.get("charging"), bool)
+            and isinstance(power.get("battery_percent"), int)
+            and not isinstance(power.get("battery_percent"), bool)
+            and 0 <= power["battery_percent"] <= 100
+        )
+        return 0 if valid_power else 1
     checks = report.get("frozen_checks", report.get("checks", {}))
     return 0 if all(checks.values()) else 1
 

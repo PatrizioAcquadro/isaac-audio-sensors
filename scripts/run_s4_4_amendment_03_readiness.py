@@ -38,9 +38,7 @@ DEFAULT_CONFIG = ROOT / "configs/s4_4_data_expansion_amendment_03.v1.json"
 NETWORK_CONFIRMATION = "I_CONFIRM_EXTERNAL_NETWORK_PERMISSION"
 
 
-def _next_unallocated_attempt_id(
-    manifest: dict[str, Any], attempt_root: Path
-) -> str:
+def _next_unallocated_attempt_id(manifest: dict[str, Any], attempt_root: Path) -> str:
     """Resolve the next attempt without creating an attempt directory."""
 
     for take in manifest["takes"]:
@@ -128,10 +126,13 @@ def _truthful_power_state(report: dict[str, Any]) -> bool:
     if not isinstance(power, dict):
         return False
     battery_percent = power.get("battery_percent")
+    source = power.get("source")
+    on_ac_power = power.get("on_ac_power")
     return bool(
         power.get("status") == "collected"
-        and power.get("source") in {"AC Power", "Battery Power"}
-        and isinstance(power.get("on_ac_power"), bool)
+        and source in {"AC Power", "Battery Power"}
+        and isinstance(on_ac_power, bool)
+        and on_ac_power is (source == "AC Power")
         and isinstance(power.get("charging"), bool)
         and isinstance(battery_percent, int)
         and not isinstance(battery_percent, bool)
@@ -139,42 +140,25 @@ def _truthful_power_state(report: dict[str, Any]) -> bool:
     )
 
 
-def _mac_full_passed_03(report: object, preflight: dict[str, Any]) -> bool:
+def canonical_mac_readiness(report: object) -> dict[str, Any]:
+    """Project reduced or legacy Mac reports to the authoritative small contract."""
+
     if not isinstance(report, dict) or not _truthful_power_state(report):
-        return False
-    checks = report.get("frozen_checks")
-    if not isinstance(checks, dict):
-        return False
-    allowed_non_gate_fields = {
-        "ac_power",
-        "work_focus_active",
-        "notifications_suppressed",
+        raise S44AmendmentError("Mac readiness power metadata is missing or malformed")
+    return {
+        "schema": "ias.s4_4.mac_readiness.v1",
+        "read_only": report.get("read_only") is True,
+        "power": dict(report["power"]),
+        "legacy_identity_output_reference_fields_required": False,
     }
-    if any(
-        value is not True
-        for key, value in checks.items()
-        if key not in allowed_non_gate_fields
-    ):
-        return False
-    mac = preflight.get("observations", {}).get("mac", {})
-    return all(
-        mac.get(field) is True
-        for field in (
-            "work_focus_active_operator_confirmed",
-            "notifications_suppressed_operator_confirmed",
-        )
-    )
 
 
-def _dynamic_passed_03(report: object) -> bool:
-    if not isinstance(report, dict) or not _truthful_power_state(report):
+def _mac_readiness_passed(report: object) -> bool:
+    try:
+        projected = canonical_mac_readiness(report)
+    except S44AmendmentError:
         return False
-    checks = report.get("checks")
-    return bool(
-        isinstance(checks, dict)
-        and checks
-        and all(value is True for key, value in checks.items() if key != "ac_power")
-    )
+    return projected["read_only"] is True
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
@@ -215,34 +199,17 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     pi_alias = "elab-raspberrypi5"
     mac_connectivity = _run(["ssh", mac_alias, "/usr/bin/true"], timeout=20)
     pi_connectivity = _run(["ssh", pi_alias, "/usr/bin/true"], timeout=20)
-    mac_full = _json_observation(
+    mac_readiness = _json_observation(
         [
             "ssh",
             mac_alias,
             "/usr/bin/python3",
             "S4.2/bin/s4_2_mac_preflight.py",
-            "--wav",
-            identities["reference_wav"]["mac_path"],
-            "--expected-sha256",
-            identities["reference_wav"]["sha256"],
-            "--expected-volume-percent",
-            str(identities["mac"]["system_volume_percent"]),
-        ]
-    )
-    mac_dynamic = _json_observation(
-        [
-            "ssh",
-            mac_alias,
-            "/usr/bin/python3",
-            "S4.2/bin/s4_2_mac_preflight.py",
-            "--dynamic-only",
-            "--expected-volume-percent",
-            str(identities["mac"]["system_volume_percent"]),
+            "--s4-4-readiness-only",
         ]
     )
     pi_output_root = (
-        f"S4.4/amendments/{config['amendment_id']}/captures/"
-        f"{expected_next_attempt_id}"
+        f"S4.4/amendments/{config['amendment_id']}/captures/{expected_next_attempt_id}"
     )
     pi_preflight = _json_observation(
         [
@@ -312,13 +279,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     checks_bool = {
         "network_permission_confirmed": True,
         "mac_ssh_connectivity": mac_connectivity["return_code"] == 0,
-        "mac_full_preflight_json": isinstance(mac_full.get("payload"), dict),
-        "mac_dynamic_preflight_json": _dynamic_passed_03(
-            mac_dynamic.get("payload")
-        ),
-        "mac_identity_volume_mute_power_reference_keyboard_and_lid": (
-            _mac_full_passed_03(mac_full.get("payload"), preflight)
-            and operator_pass
+        "mac_reduced_readiness_power_metadata": _mac_readiness_passed(
+            mac_readiness.get("payload")
         ),
         "pi_ssh_connectivity": pi_connectivity["return_code"] == 0,
         "pi_helper_and_record_command_contract": pi_contract_pass,
@@ -354,8 +316,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         },
         "observations": {
             "mac_connectivity": mac_connectivity,
-            "mac_full_preflight": mac_full,
-            "mac_dynamic_preflight": mac_dynamic,
+            "mac_readiness": mac_readiness,
             "pi_connectivity": pi_connectivity,
             "pi_preflight": pi_preflight,
             "pi_output_root_probed": pi_output_root,

@@ -372,24 +372,26 @@ def _finalize(
         "planned_take_id": take["planned_take_id"],
         "attempt_id": contract["attempt_id"],
         "identity_pass": all(producer.get("startup_checks", {}).values()),
-        "assigned_metadata_pass": True,
+        "assigned_metadata_declaration_carried_forward": True,
         "duration_pass": not any(
             i["code"] == "wav_duration_mismatch" for i in issue_records
         ),
-        "channel_order_pass": wav.get("channel_count") == 6,
-        "channel_health_pass": not any(
+        "six_channel_count_pass": wav.get("channel_count") == 6,
+        "no_detected_silent_channel_issue": not any(
             i["code"] == "silent_channel" for i in issue_records
         ),
         "clipping_pass": not any(
             i["code"] == "sustained_clipping" for i in issue_records
         ),
-        "timestamps_pass": bool(producer.get("started_wall_time_utc"))
+        "producer_timestamps_present": bool(producer.get("started_wall_time_utc"))
         and bool(producer.get("completed_wall_time_utc")),
-        "reference_presence_pass": take["category"] not in {"controlled", "confidence"}
-        or (attempt_root / "playback.json").is_file(),
+        "playback_record_present_or_not_required": (
+            take["category"] not in {"controlled", "confidence"}
+            or (attempt_root / "playback.json").is_file()
+        ),
         "integrity_pass": sha256_file(raw / "respeaker_audio.wav")
         == producer.get("sha256"),
-        "privacy_pass": True,
+        "privacy_declaration_carried_forward": True,
         "full_svo2_replay_pass": replay_pass,
     }
     technical_pass = not issue_records and all(
@@ -403,7 +405,7 @@ def _finalize(
         )
     else:
         qa = {
-            "schema": "ias.s4_4.amendment_fit_technical_qa.v1",
+            "schema": "ias.s4_4.amendment_fit_technical_qa.v2",
             **qa_input,
             "overall_technical_pass": technical_pass,
             "wav_technical_properties": wav,

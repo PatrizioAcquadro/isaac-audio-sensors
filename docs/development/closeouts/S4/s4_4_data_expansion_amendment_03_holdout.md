@@ -1,5 +1,14 @@
 # S4.4 amendment 03 prospective-holdout closeout
 
+## Current corrective status
+
+Fit B is complete. The prospective holdout is complete, technically sealed,
+and scientifically unopened. Acquisition is closed; no recollection is
+required. S4.4 Amendment 03 awaits only the additive corrective software and
+final-gate record that reconcile test isolation, the intentionally reduced Mac
+readiness contract, honest technical-QA names, and end-to-end validation.
+S4.5-S4.8 remain unstarted.
+
 ## Acquisition and seal
 
 The frozen amendment_03 prospective-holdout manifest was collected in its
@@ -49,7 +58,8 @@ remain unstarted. No push is authorized.
 
 ## Final acceptance
 
-**PASS.** The exact active amendment_03 validator passes with 152 retained
+**HISTORICAL ACQUISITION PASS; CORRECTIVE SOFTWARE/GATE CLOSEOUT PENDING.**
+The exact active amendment_03 validator passes with 152 retained
 attempts, 149 valid logical cells, three failures, three replacements, zero
 incomplete cells, and no second failure. Amendment_02 and original S4.4
 validators pass without exposing scientific outcomes or opening a holdout.

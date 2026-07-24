@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import shutil
 from argparse import Namespace
 from collections import Counter
 from datetime import date
@@ -14,6 +15,7 @@ import scripts.run_s4_4_amendment_03_take as take_runner
 from isaac_audio_sensors.acquisition.s4_4_amendment import (
     S44AmendmentError,
     canonical_sha256,
+    canonicalize_holdout_technical_qa,
     combined_partition_manifest,
     load_amendment_configuration,
     load_json,
@@ -149,7 +151,29 @@ def _readiness(
             key: "passed" if status == "passed" else "failed"
             for key in REQUIRED_READINESS_CHECKS
         },
-        "observations": {"protocol_mandated_device_state_change": False},
+        "observations": {
+            "protocol_mandated_device_state_change": False,
+            "mac_readiness": {
+                "payload": {
+                    "schema": "ias.s4_4.mac_readiness.v1",
+                    "collector_version": "test",
+                    "read_only": True,
+                    "scope": "s4_4_reduced_readiness",
+                    "collected_at": (
+                        f"{preflight['session_date_local']}T16:00:00+00:00"
+                    ),
+                    "timezone": "UTC",
+                    "power": {
+                        "status": "collected",
+                        "source": "Battery Power",
+                        "on_ac_power": False,
+                        "charging": False,
+                        "battery_percent": 73,
+                    },
+                    "legacy_identity_output_reference_fields_required": False,
+                }
+            },
+        },
         "attempt_allocated": False,
         "recorder_started": False,
         "playback_started": False,
@@ -160,6 +184,51 @@ def _readiness(
         ),
     }
     return {**payload, "readiness_sha256": canonical_sha256(payload)}
+
+
+@pytest.fixture
+def historical_cutoff_root(tmp_path: Path, config: dict) -> Path:
+    """Materialize only the frozen take-34 state, independent of live dataset."""
+
+    root = tmp_path / "historical-cutoff"
+    tracked = Path(config["retention"]["tracked_evidence_root"])
+    for relative in (
+        "inheritance/inherited_fit_a.v1.json",
+        "manifests/sessions/fit_b.json",
+        "manifests/sessions/prospective_holdout.json",
+    ):
+        source = ROOT / tracked / relative
+        destination = root / tracked / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+    manifest = load_json(root / tracked / "manifests/sessions/fit_b.json")
+    attempt_root = root / config["retention"]["attempt_root"]
+    for take in manifest["takes"][:34]:
+        planned_id = take["planned_take_id"]
+        attempt_id = f"{planned_id}__attempt_01"
+        directory = attempt_root / planned_id / attempt_id
+        directory.mkdir(parents=True)
+        payload = {
+            "planned_take_id": planned_id,
+            "attempt_id": attempt_id,
+            "attempt_number": 1,
+            "outcome": "valid",
+            "retained": True,
+            "partition": take["partition"],
+            "session_id": take["session_id"],
+            "take_definition_sha256": take["take_definition_sha256"],
+            "precollection_seal_sha256": V1_PACKAGE_SHA256[
+                "precollection_seal.v1.json"
+            ],
+            "scientific_outcome_used_for_replacement": False,
+        }
+        (directory / "manifest.json").write_text(
+            json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8"
+        )
+    session = root / config["retention"]["session_root"] / "fit_b"
+    session.mkdir(parents=True)
+    (session / "preflight.json").write_text("{}\n", encoding="utf-8")
+    return root
 
 
 def test_configuration_changes_only_prospective_date_and_device_state_rules(
@@ -384,7 +453,6 @@ def test_restart_reconnection_field_is_rejected_and_no_claim_is_fabricated(
 def test_battery_power_is_accepted_but_truthful_power_metadata_is_mandatory(
     config: dict,
 ) -> None:
-    preflight = _preflight(config, "fit_b", date.today().isoformat())
     power = {
         "status": "collected",
         "source": "Battery Power",
@@ -392,46 +460,43 @@ def test_battery_power_is_accepted_but_truthful_power_metadata_is_mandatory(
         "charging": False,
         "battery_percent": 73,
     }
-    full = {
+    reduced = {
+        "schema": "ias.s4_4.mac_readiness.v1",
+        "read_only": True,
+        "power": power,
+        "legacy_identity_output_reference_fields_required": False,
+    }
+    legacy = {
+        "read_only": True,
         "power": power,
         "frozen_checks": {
             "ac_power": False,
-            "model_identifier_matches": True,
-            "notifications_suppressed": True,
-            "os_build_matches": True,
-            "os_version_matches": True,
-            "output_channels_match": True,
-            "output_device_matches": True,
-            "output_sample_rate_matches": True,
-            "reference_format_matches": True,
-            "reference_hash_matches": True,
-            "unmuted": True,
-            "volume_matches": True,
-            "work_focus_active": True,
+            "model_identifier_matches": False,
+            "output_device_matches": False,
+            "reference_hash_matches": False,
         },
     }
-    dynamic = {
-        "status": "failed",
-        "power": power,
-        "checks": {
-            "ac_power": False,
-            "output_channels_match": True,
-            "output_device_matches": True,
-            "output_sample_rate_matches": True,
-            "unmuted": True,
-            "volume_matches": True,
-        },
+    assert readiness_runner._mac_readiness_passed(reduced)
+    assert readiness_runner._mac_readiness_passed(legacy)
+    projection = readiness_runner.canonical_mac_readiness(legacy)
+    assert set(projection) == {
+        "schema",
+        "read_only",
+        "power",
+        "legacy_identity_output_reference_fields_required",
     }
-    assert readiness_runner._mac_full_passed_03(full, preflight)
-    assert readiness_runner._dynamic_passed_03(dynamic)
+    assert projection["legacy_identity_output_reference_fields_required"] is False
 
     for field in ("source", "on_ac_power", "charging", "battery_percent"):
-        changed = copy.deepcopy(full)
+        changed = copy.deepcopy(reduced)
         changed["power"].pop(field)
-        assert not readiness_runner._mac_full_passed_03(changed, preflight)
-    malformed = copy.deepcopy(dynamic)
+        assert not readiness_runner._mac_readiness_passed(changed)
+    malformed = copy.deepcopy(reduced)
     malformed["power"]["battery_percent"] = "73"
-    assert not readiness_runner._dynamic_passed_03(malformed)
+    assert not readiness_runner._mac_readiness_passed(malformed)
+    inconsistent = copy.deepcopy(reduced)
+    inconsistent["power"]["on_ac_power"] = True
+    assert not readiness_runner._mac_readiness_passed(inconsistent)
 
 
 def test_every_live_readiness_check_is_mandatory_and_media_boundary_is_closed(
@@ -474,6 +539,18 @@ def test_every_live_readiness_check_is_mandatory_and_media_boundary_is_closed(
     with pytest.raises(S44AmendmentError, match="check set"):
         validate_session_readiness(
             missing,
+            config,
+            precollection_seal_sha256="1" * 64,
+            session_preflight=preflight,
+        )
+    oversized = copy.deepcopy(readiness)
+    oversized["observations"]["mac_readiness"]["payload"]["output_device"] = "legacy"
+    oversized["readiness_sha256"] = canonical_sha256(
+        {key: value for key, value in oversized.items() if key != "readiness_sha256"}
+    )
+    with pytest.raises(S44AmendmentError, match="reduced Mac"):
+        validate_session_readiness(
+            oversized,
             config,
             precollection_seal_sha256="1" * 64,
             session_preflight=preflight,
@@ -608,9 +685,10 @@ def test_readiness_probes_next_unused_attempt_path_within_same_session(
         (attempt_dir / "manifest.json").write_text(
             json.dumps({"outcome": "valid"}), encoding="utf-8"
         )
-    assert readiness_runner._next_unallocated_attempt_id(
-        manifest, attempt_root
-    ) == "s44a03_fit_b_035_conf__attempt_01"
+    assert (
+        readiness_runner._next_unallocated_attempt_id(manifest, attempt_root)
+        == "s44a03_fit_b_035_conf__attempt_01"
+    )
     assert not (attempt_root / "s44a03_fit_b_035_conf").exists()
 
 
@@ -684,6 +762,24 @@ def test_holdout_technical_qa_suppression_and_s4_5_fit_only_access_remain(
     validate_holdout_technical_qa(qa)
     assert qa["scientific_outputs_exposed"] is False
     assert "bearing_error_deg" not in qa and "confidence" not in qa
+    assert qa["schema"] == "ias.s4_4.amendment_technical_qa.v2"
+    assert qa["six_channel_count_pass"] is True
+    assert qa["no_detected_silent_channel_issue"] is True
+    assert "channel_order_pass" not in qa
+    legacy = {
+        "schema": "ias.s4_4.amendment_technical_qa.v1",
+        "partition": "prospective_holdout",
+        **_qa_input(holdout_id),
+        "overall_technical_pass": True,
+        "scientific_outputs_exposed": False,
+        "suppressed_field_count": 0,
+    }
+    projected = canonicalize_holdout_technical_qa(legacy)
+    assert projected["source_schema"] == legacy["schema"]
+    assert projected["assigned_metadata_declaration_carried_forward"] is True
+    assert projected["producer_timestamps_present"] is True
+    assert projected["playback_record_present_or_not_required"] is True
+    assert projected["privacy_declaration_carried_forward"] is True
     fit_ids = {cell["planned_take_id"] for cell in inherited["logical_cells"]} | {
         take["planned_take_id"] for take in future["fit_b"]["takes"]
     }
@@ -758,11 +854,20 @@ def test_builder_is_byte_identical_and_validator_passes(
 
 def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
     tmp_path: Path,
+    historical_cutoff_root: Path,
 ) -> None:
     first = tmp_path / "multiday-first"
     second = tmp_path / "multiday-second"
-    first_summary = build_multiday(output=first, config_path=CONFIG_PATH)
-    second_summary = build_multiday(output=second, config_path=CONFIG_PATH)
+    first_summary = build_multiday(
+        output=first,
+        config_path=CONFIG_PATH,
+        cutoff_root=historical_cutoff_root,
+    )
+    second_summary = build_multiday(
+        output=second,
+        config_path=CONFIG_PATH,
+        cutoff_root=historical_cutoff_root,
+    )
     assert first_summary == second_summary
     assert first_summary["new_amendment_created"] is False
     assert first_summary["collection_allowed"] is False
@@ -797,9 +902,13 @@ def test_multiday_continuation_is_same_amendment_byte_identical_and_valid(
         require_committed=False,
         require_machine_local=True,
         require_final=False,
+        cutoff_root=historical_cutoff_root,
     )
     assert result["status"] == "passed", result["issues"]
-    assert result["attempt_census"]["valid_cells_total"] == 85
+    assert result["attempt_census"]["valid_cells_total"] == 149
+    continuation = load_json(first / "freeze/multiday_session_continuation.v5.json")
+    assert continuation["cutoff"]["aggregate_census"]["valid_cells_total"] == 85
+    assert continuation["cutoff"]["aggregate_census"]["attempts_total"] == 86
     assert result["prospective_holdout_scientifically_opened"] is False
 
 

@@ -39,7 +39,8 @@ CONFIG_SCHEMA = "ias.s4_4.data_expansion_amendment_config.v3"
 MANIFEST_SCHEMA = "ias.s4_4.data_expansion_manifest.v3"
 INHERITED_FIT_A_SCHEMA = "ias.s4_4.amendment_03_inherited_fit_a.v1"
 PREFLIGHT_SCHEMA = "ias.s4_4.amendment_session_preflight.v2"
-READINESS_SCHEMA = "ias.s4_4.amendment_session_readiness.v2"
+LEGACY_READINESS_SCHEMA = "ias.s4_4.amendment_session_readiness.v2"
+READINESS_SCHEMA = "ias.s4_4.amendment_session_readiness.v3"
 PRECOLLECTION_SEAL_SCHEMA = "ias.s4_4.amendment_precollection_seal.v3"
 AGGREGATE_SCHEMA = "ias.s4_4.aggregate_index.v3"
 AMENDMENT_ID = "s4_4_data_expansion_amendment_03"
@@ -54,6 +55,20 @@ LOGICAL_COUNTS = {
 REQUIRED_READINESS_CHECKS = {
     "network_permission_confirmed",
     "mac_ssh_connectivity",
+    "mac_reduced_readiness_power_metadata",
+    "pi_ssh_connectivity",
+    "pi_helper_and_record_command_contract",
+    "respeaker_identity_device_format_channel_health_disk_and_output",
+    "zed_identity_and_readiness",
+    "clocks_and_truthful_session_timestamps",
+    "room_environment_mount_frame_origin_and_bounds",
+    "privacy",
+    "gitignore_and_output_paths",
+    "access_policy_and_ledger_state",
+}
+LEGACY_REQUIRED_READINESS_CHECKS = {
+    "network_permission_confirmed",
+    "mac_ssh_connectivity",
     "mac_full_preflight_json",
     "mac_dynamic_preflight_json",
     "mac_identity_volume_mute_power_reference_keyboard_and_lid",
@@ -66,6 +81,23 @@ REQUIRED_READINESS_CHECKS = {
     "privacy",
     "gitignore_and_output_paths",
     "access_policy_and_ledger_state",
+}
+REDUCED_MAC_READINESS_FIELDS = {
+    "schema",
+    "collector_version",
+    "read_only",
+    "scope",
+    "collected_at",
+    "timezone",
+    "power",
+    "legacy_identity_output_reference_fields_required",
+}
+REDUCED_MAC_POWER_FIELDS = {
+    "status",
+    "source",
+    "on_ac_power",
+    "charging",
+    "battery_percent",
 }
 
 
@@ -879,7 +911,11 @@ def build_precollection_seal(
 
 
 def validate_precollection_seal(
-    seal: Mapping[str, Any], *, repo_root: Path, require_committed: bool
+    seal: Mapping[str, Any],
+    *,
+    repo_root: Path,
+    require_committed: bool,
+    require_current_source: bool = True,
 ) -> None:
     _validate_self_hash(seal, "seal_payload_sha256", "amendment_03 seal")
     checkpoint = seal.get("source_checkpoint")
@@ -900,7 +936,11 @@ def validate_precollection_seal(
             raise S44AmendmentError(
                 "capture denied: amendment_03 is not committed and sealed"
             )
-        validate_source_checkpoint(checkpoint, repo_root)
+        validate_source_checkpoint(
+            checkpoint,
+            repo_root,
+            require_current_checkout=require_current_source,
+        )
     elif seal.get("collection_allowed") is not (checkpoint is not None):
         raise S44AmendmentError("amendment_03 seal collection flag inconsistent")
 
@@ -989,8 +1029,9 @@ def validate_session_readiness(
     session_preflight: Mapping[str, Any],
     require_today: bool = True,
 ) -> None:
+    schema = record.get("schema")
     if (
-        record.get("schema") != READINESS_SCHEMA
+        schema not in {READINESS_SCHEMA, LEGACY_READINESS_SCHEMA}
         or record.get("status") != "passed"
         or record.get("amendment_id") != AMENDMENT_ID
         or record.get("session_id") != session_preflight.get("session_id")
@@ -1011,17 +1052,89 @@ def validate_session_readiness(
     expected_attempt_id = record.get("expected_next_attempt_id")
     if (
         not isinstance(expected_attempt_id, str)
-        or not expected_attempt_id.startswith(
-            f"s44a03_{record['session_id']}_"
-        )
+        or not expected_attempt_id.startswith(f"s44a03_{record['session_id']}_")
         or not expected_attempt_id.endswith(("__attempt_01", "__attempt_02"))
     ):
         raise S44AmendmentError("amendment_03 readiness next-attempt binding invalid")
     checks = record.get("checks")
-    if not isinstance(checks, Mapping) or set(checks) != REQUIRED_READINESS_CHECKS:
+    expected_checks = (
+        REQUIRED_READINESS_CHECKS
+        if schema == READINESS_SCHEMA
+        else LEGACY_REQUIRED_READINESS_CHECKS
+    )
+    if not isinstance(checks, Mapping) or set(checks) != expected_checks:
         raise S44AmendmentError("amendment_03 readiness exact check set mismatch")
     if any(value != "passed" for value in checks.values()):
         raise S44AmendmentError("amendment_03 readiness contains failed checks")
+    observations = record.get("observations")
+    if not isinstance(observations, Mapping):
+        raise S44AmendmentError("readiness observations absent")
+    if schema == READINESS_SCHEMA:
+        wrapped = observations.get("mac_readiness")
+        report = wrapped.get("payload") if isinstance(wrapped, Mapping) else None
+        if (
+            not isinstance(report, Mapping)
+            or set(report) != REDUCED_MAC_READINESS_FIELDS
+            or report.get("schema") != "ias.s4_4.mac_readiness.v1"
+            or report.get("read_only") is not True
+            or report.get("scope") != "s4_4_reduced_readiness"
+            or report.get("legacy_identity_output_reference_fields_required")
+            is not False
+            or not isinstance(report.get("collector_version"), str)
+            or not report.get("collector_version")
+            or not isinstance(report.get("timezone"), str)
+            or not report.get("timezone")
+        ):
+            raise S44AmendmentError("reduced Mac readiness report invalid")
+        _parse_timestamp(report.get("collected_at"), "Mac readiness collected_at")
+        power = report.get("power")
+        percentage = (
+            power.get("battery_percent") if isinstance(power, Mapping) else None
+        )
+        source = power.get("source") if isinstance(power, Mapping) else None
+        on_ac_power = power.get("on_ac_power") if isinstance(power, Mapping) else None
+        if not (
+            isinstance(power, Mapping)
+            and set(power) == REDUCED_MAC_POWER_FIELDS
+            and power.get("status") == "collected"
+            and source in {"AC Power", "Battery Power"}
+            and isinstance(on_ac_power, bool)
+            and on_ac_power is (source == "AC Power")
+            and isinstance(power.get("charging"), bool)
+            and isinstance(percentage, int)
+            and not isinstance(percentage, bool)
+            and 0 <= percentage <= 100
+        ):
+            raise S44AmendmentError("reduced Mac readiness power metadata is invalid")
+    else:
+        reports = [
+            observations.get("mac_full_preflight"),
+            observations.get("mac_dynamic_preflight"),
+        ]
+        truthful_power = False
+        for wrapped in reports:
+            payload = wrapped.get("payload") if isinstance(wrapped, Mapping) else None
+            power = payload.get("power") if isinstance(payload, Mapping) else None
+            percentage = (
+                power.get("battery_percent") if isinstance(power, Mapping) else None
+            )
+            truthful_power = truthful_power or bool(
+                isinstance(payload, Mapping)
+                and payload.get("read_only") is True
+                and isinstance(power, Mapping)
+                and power.get("status") == "collected"
+                and power.get("source") in {"AC Power", "Battery Power"}
+                and isinstance(power.get("on_ac_power"), bool)
+                and power.get("on_ac_power") is (power.get("source") == "AC Power")
+                and isinstance(power.get("charging"), bool)
+                and isinstance(percentage, int)
+                and not isinstance(percentage, bool)
+                and 0 <= percentage <= 100
+            )
+        if not truthful_power:
+            raise S44AmendmentError(
+                "legacy readiness cannot project truthful reduced Mac power metadata"
+            )
     for field in (
         "attempt_allocated",
         "recorder_started",

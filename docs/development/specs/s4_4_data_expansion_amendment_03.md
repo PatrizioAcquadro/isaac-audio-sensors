@@ -1,8 +1,16 @@
 # S4.4 prospective data-expansion amendment 03
 
-Status: **prospective precollection; capture prohibited until the exact
-amendment_03 source checkpoint and precollection evidence are separately
-committed and all post-commit gates pass**.
+Status: **acquisition complete; Fit B is complete and the prospective holdout
+is complete, technically sealed, and scientifically unopened. S4.5-S4.8
+remain unstarted.**
+
+This specification was the prospective acquisition contract frozen at the v5
+source checkpoint. Its precollection and capture-boundary wording below is
+historical. The authoritative current state is
+`docs/development/closeouts/S4/s4_4_data_expansion_amendment_03_holdout.md`.
+Amendment 03 awaits only the additive corrective software and final-gate
+closeout; no capture or holdout scientific opening is authorized by that
+corrective.
 
 Amendment 03 is an additive continuation of immutable
 `s4_4_data_expansion_amendment_02`. It does not edit, regenerate, delete,
@@ -18,8 +26,8 @@ The aggregate logical matrix remains exactly 149 cells:
 
 - 51 completed amendment_02 Fit A cells, inherited without copying, renaming,
   reassigning, regenerating, or allocating new paths;
-- 51 future amendment_03 Fit B cells with new `s44a03` identities and paths;
-- 47 future amendment_03 prospective-holdout cells with new `s44a03`
+- 51 completed amendment_03 Fit B cells with new `s44a03` identities and paths;
+- 47 completed amendment_03 prospective-holdout cells with new `s44a03`
   identities and paths.
 
 Inherited Fit A contains 52 retained attempts for 51 valid logical cells: 32
@@ -68,13 +76,18 @@ solely to satisfy protocol. Its exact preflight check is
 `live_connectivity_and_readiness`; the historical
 `device_restart_or_reconnection` field is neither required nor accepted.
 
-Before attempt allocation, a no-media readiness gate still verifies:
+For the historical acquisition, a no-media readiness gate verified:
 
 - deliberate external-network permission plus live SSH connectivity to the
   Mac and Raspberry Pi;
-- valid full and dynamic Mac JSON; exact Mac identity, built-in stereo 48 kHz
-  output, 40% unmuted volume, truthful AC-or-battery power state, reference
-  WAV, level keyboard, and 90-degree lid;
+- the intentionally reduced Mac readiness report: read-only collection and
+  truthful AC-or-battery power source, charging state, and battery percentage;
+  legacy reports may retain extra identity, output, volume, mute, OS, focus,
+  notification, or reference-WAV fields, but those fields are optional
+  historical data and are not readiness gates;
+- separately hash-bound operator declarations, including the recorded physical
+  setup observations, without treating those declarations as Mac-generated
+  identity/output/reference checks;
 - Pi helper availability and hash plus its exact `record` subcommand and
   required-argument contract;
 - ReSpeaker identity, firmware, device, six-channel 16 kHz S16_LE format,
@@ -104,16 +117,22 @@ change any scientific condition, take identity, ordering, or replacement rule.
 
 ## Holdout and access boundary
 
-Prospective-holdout technical QA remains restricted to assigned identity and
-metadata, duration, channels/health, clipping, timestamps, reference presence,
-integrity/checksums, privacy, and full SVO2 replay. Scientific outputs remain
-suppressed. Unknown paths, records, purposes, grants, groups, missing or
-altered hashes, malformed data, and seal or ledger mismatches fail closed.
+Prospective-holdout technical QA remains restricted to identity; the
+carried-forward assigned-metadata declaration; duration; six-channel count;
+absence of a detected silent-channel issue where that predicate applies;
+clipping; producer timestamp presence; playback-record presence or a
+not-required state; integrity/checksums; the carried-forward privacy
+declaration; and full SVO2 replay. These names describe the existing
+predicates and do not add stronger acquisition or scientific criteria. Legacy
+v1 QA records remain immutable and are validated through the documented v2
+canonical projection. Scientific outputs remain suppressed. Unknown paths,
+records, purposes, grants, groups, missing or altered hashes, malformed data,
+and seal or ledger mismatches fail closed.
 S4.5-facing access remains fit-only. Access histories and blindness claims are
 not merged. Enforcement remains repository-tool-only and is not OS-level
 protection. No future holdout-opening workflow is implemented.
 
-## Commit and collection boundary
+## Historical commit and collection boundary
 
 The deterministic builder emits the inherited Fit A inventory, future Fit B
 and holdout manifests, aggregate logical index, access policy, evidence index,
@@ -133,8 +152,8 @@ checks only and is followed by a separate physical operator confirmation.
 Attempt allocation remains prohibited until committed, sealed, validated,
 readiness-passed, and explicitly confirmed.
 
-Overall amendment PASS requires inherited Fit A, new Fit B, and new holdout to
-be complete and valid under the unchanged replacement rules; the holdout to be
-technically sealed and scientifically unopened; all evidence retained; and
-every final validator and repository gate passing. Until then this is an
-incomplete prospective checkpoint and S4.5 remains unstarted.
+The acquisition conditions are now satisfied: inherited Fit A, Fit B, and the
+prospective holdout are complete under the unchanged replacement rules; the
+holdout is technically sealed and scientifically unopened; and all 152
+attempts remain retained. Final S4.4 PASS additionally requires the additive
+corrective validator and repository gates to pass. S4.5-S4.8 remain unstarted.

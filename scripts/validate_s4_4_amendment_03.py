@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -205,6 +206,7 @@ def validate(
     require_committed: bool,
     require_machine_local: bool,
     require_final: bool,
+    cutoff_root: Path | None = None,
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
     evidence_root = index_path.resolve().parent
@@ -283,6 +285,9 @@ def validate(
     artifacts = (
         index.get("artifacts") if isinstance(index.get("artifacts"), list) else []
     )
+    canonical_package = (
+        evidence_root.resolve() == (repo_root / canonical_output).resolve()
+    )
     expected_checksums: dict[str, str] = {}
     seen: set[str] = set()
     for number, record in enumerate(artifacts):
@@ -306,13 +311,46 @@ def validate(
         candidate = _resolve_artifact(
             relative, repo_root, evidence_root, canonical_output
         )
+        historical_bound = canonical_package and record.get("role") in {
+            "amendment_source",
+            "amendment_closeout",
+        }
         if not candidate.is_file():
             issues.append(_issue("missing_artifact", relative, "file absent"))
             continue
-        if candidate.stat().st_size != record.get("byte_size"):
-            issues.append(_issue("artifact_size_mismatch", relative, "size differs"))
-        if sha256_file(candidate) != record.get("sha256"):
-            issues.append(_issue("artifact_hash_mismatch", relative, "hash differs"))
+        if historical_bound:
+            commit = (
+                "d86710df72c0ad782420b05135b3371cd9e0048f"
+                if record.get("role") == "amendment_source"
+                else "9e1d0eb46c60f7bb8714cb182c6fd99f76232d4d"
+            )
+            blob = subprocess.run(
+                ["git", "show", "--no-ext-diff", f"{commit}:{relative}"],
+                cwd=repo_root,
+                check=False,
+                capture_output=True,
+            )
+            if (
+                blob.returncode != 0
+                or len(blob.stdout) != record.get("byte_size")
+                or hashlib.sha256(blob.stdout).hexdigest() != record.get("sha256")
+            ):
+                issues.append(
+                    _issue(
+                        "historical_artifact_mismatch",
+                        relative,
+                        "pinned Git blob differs",
+                    )
+                )
+        else:
+            if candidate.stat().st_size != record.get("byte_size"):
+                issues.append(
+                    _issue("artifact_size_mismatch", relative, "size differs")
+                )
+            if sha256_file(candidate) != record.get("sha256"):
+                issues.append(
+                    _issue("artifact_hash_mismatch", relative, "hash differs")
+                )
         if require_tracked and candidate.resolve().is_relative_to(repo_root):
             repo_relative = candidate.resolve().relative_to(repo_root).as_posix()
             if not _tracked(repo_root, repo_relative):
@@ -480,7 +518,9 @@ def validate(
                 )
             ):
                 raise S44AmendmentError("same-amendment multiday continuation differs")
-            _validate_cutoff_inventory(continuation["cutoff"], config, repo_root)
+            _validate_cutoff_inventory(
+                continuation["cutoff"], config, cutoff_root or repo_root
+            )
         except (OSError, KeyError, S44AmendmentError) as exc:
             issues.append(
                 _issue(
@@ -500,7 +540,10 @@ def validate(
     try:
         seal = load_json(seal_path)
         validate_precollection_seal(
-            seal, repo_root=repo_root, require_committed=require_committed
+            seal,
+            repo_root=repo_root,
+            require_committed=require_committed,
+            require_current_source=False,
         )
         if sha256_file(seal_path) != index.get("precollection_seal_sha256"):
             raise S44AmendmentError("precollection seal/index hash mismatch")

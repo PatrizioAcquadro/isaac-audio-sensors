@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -134,7 +135,9 @@ def _validate_historical_no_go(
             checkpoint = seal.get("source_checkpoint")
             if seal.get("status") != "committed" or not isinstance(checkpoint, dict):
                 raise S44AmendmentError("amendment_01 NO-GO seal is not committed")
-            validate_source_checkpoint(checkpoint, repo_root)
+            validate_source_checkpoint(
+                checkpoint, repo_root, require_current_checkout=False
+            )
         closeout = repo_root / record["existing_closeout"]["path"]
         if sha256_file(closeout) != record["existing_closeout"]["sha256"]:
             raise S44AmendmentError("amendment_01 closeout changed")
@@ -213,7 +216,9 @@ def _committed_no_go_closure_active(
             or not isinstance(checkpoint, dict)
         ):
             raise S44AmendmentError("amendment_01 NO-GO seal invalid or uncommitted")
-        validate_source_checkpoint(checkpoint, repo_root)
+        validate_source_checkpoint(
+            checkpoint, repo_root, require_current_checkout=False
+        )
         if require_tracked:
             for relative in (NO_GO_RECORD_PATH, NO_GO_SEAL_PATH):
                 if not _tracked(repo_root, relative.as_posix()):
@@ -276,6 +281,7 @@ def _validate_execution_corrective(
             seal,
             repo_root=repo_root,
             require_committed=not historical_no_go_active,
+            require_current_source=False,
         )
         if seal.get("source_checkpoint") != checkpoint:
             raise S44AmendmentError("corrective checkpoint/seal mismatch")
@@ -520,6 +526,14 @@ def validate(
     artifacts = (
         index.get("artifacts") if isinstance(index.get("artifacts"), list) else []
     )
+    historical_source_commit = None
+    if int(config["version"]) == 2:
+        try:
+            historical_source_commit = load_json(
+                evidence_root / "precollection_seal.v1.json"
+            )["source_checkpoint"]["commit"]
+        except (KeyError, OSError, TypeError):
+            historical_source_commit = None
     expected_checksums: dict[str, str] = {}
     seen: set[str] = set()
     for number, record in enumerate(artifacts):
@@ -549,14 +563,42 @@ def validate(
         superseded_by_corrective = (
             corrective_active and record.get("role") in SUPERSEDED_DELIVERY_ROLES
         )
-        if not superseded_by_corrective and candidate.stat().st_size != record.get(
-            "byte_size"
-        ):
-            issues.append(_issue("artifact_size_mismatch", relative, "size differs"))
-        if not superseded_by_corrective and sha256_file(candidate) != record.get(
-            "sha256"
-        ):
-            issues.append(_issue("artifact_hash_mismatch", relative, "hash differs"))
+        historical_source = bool(
+            historical_source_commit and record.get("role") == "amendment_source"
+        )
+        if historical_source:
+            blob = subprocess.run(
+                [
+                    "git",
+                    "show",
+                    "--no-ext-diff",
+                    f"{historical_source_commit}:{relative}",
+                ],
+                cwd=repo_root,
+                check=False,
+                capture_output=True,
+            )
+            if (
+                blob.returncode != 0
+                or len(blob.stdout) != record.get("byte_size")
+                or hashlib.sha256(blob.stdout).hexdigest() != record.get("sha256")
+            ):
+                issues.append(
+                    _issue(
+                        "historical_artifact_mismatch",
+                        relative,
+                        "pinned Git blob differs",
+                    )
+                )
+        elif not superseded_by_corrective:
+            if candidate.stat().st_size != record.get("byte_size"):
+                issues.append(
+                    _issue("artifact_size_mismatch", relative, "size differs")
+                )
+            if sha256_file(candidate) != record.get("sha256"):
+                issues.append(
+                    _issue("artifact_hash_mismatch", relative, "hash differs")
+                )
         if require_tracked and candidate.is_relative_to(repo_root):
             repo_relative = candidate.relative_to(repo_root).as_posix()
             if not _tracked(repo_root, repo_relative):
@@ -627,6 +669,7 @@ def validate(
             seal,
             repo_root=repo_root,
             require_committed=require_committed and not corrective_active,
+            require_current_source=False,
         )
     except S44AmendmentError as exc:
         issues.append(_issue("precollection_seal_invalid", str(seal_path), str(exc)))

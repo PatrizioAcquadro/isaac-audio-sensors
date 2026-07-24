@@ -25,6 +25,7 @@ READINESS_SCHEMA = "ias.s4_4.amendment_session_readiness.v1"
 ATTEMPT_SCHEMA = "ias.s4_4.amendment_attempt.v1"
 CENSUS_SCHEMA = "ias.s4_4.amendment_attempt_census.v1"
 QA_SCHEMA = "ias.s4_4.amendment_technical_qa.v1"
+QA_SCHEMA_V2 = "ias.s4_4.amendment_technical_qa.v2"
 PRECOLLECTION_SEAL_SCHEMA = "ias.s4_4.amendment_precollection_seal.v1"
 PRECOLLECTION_SEAL_SCHEMA_V2 = "ias.s4_4.amendment_precollection_seal.v2"
 HOLDOUT_SEAL_SCHEMA = "ias.s4_4.amendment_holdout_seal.v1"
@@ -63,7 +64,7 @@ EXPECTED_CATEGORY_COUNTS = {
     ("prospective_holdout", "silence"): 3,
     ("prospective_holdout", "audio_video"): 4,
 }
-TECHNICAL_QA_INPUT_FIELDS = {
+LEGACY_TECHNICAL_QA_INPUT_FIELDS = {
     "planned_take_id",
     "attempt_id",
     "identity_pass",
@@ -78,8 +79,28 @@ TECHNICAL_QA_INPUT_FIELDS = {
     "privacy_pass",
     "full_svo2_replay_pass",
 }
+TECHNICAL_QA_FIELD_PROJECTION = {
+    "assigned_metadata_pass": "assigned_metadata_declaration_carried_forward",
+    "channel_order_pass": "six_channel_count_pass",
+    "channel_health_pass": "no_detected_silent_channel_issue",
+    "timestamps_pass": "producer_timestamps_present",
+    "reference_presence_pass": "playback_record_present_or_not_required",
+    "privacy_pass": "privacy_declaration_carried_forward",
+}
+TECHNICAL_QA_INPUT_FIELDS = {
+    TECHNICAL_QA_FIELD_PROJECTION.get(field, field)
+    for field in LEGACY_TECHNICAL_QA_INPUT_FIELDS
+}
+LEGACY_TECHNICAL_QA_OUTPUT_FIELDS = LEGACY_TECHNICAL_QA_INPUT_FIELDS | {
+    "schema",
+    "partition",
+    "overall_technical_pass",
+    "scientific_outputs_exposed",
+    "suppressed_field_count",
+}
 TECHNICAL_QA_OUTPUT_FIELDS = TECHNICAL_QA_INPUT_FIELDS | {
     "schema",
+    "source_schema",
     "partition",
     "overall_technical_pass",
     "scientific_outputs_exposed",
@@ -179,9 +200,7 @@ def load_amendment_configuration(path: Path, repo_root: Path) -> dict[str, Any]:
     merged = json.loads(json.dumps(base))
     for key in ("schema", "amendment_id", "version", "status"):
         merged[key] = payload[key]
-    merged["historical_no_go_amendment_01"] = payload[
-        "historical_no_go_amendment_01"
-    ]
+    merged["historical_no_go_amendment_01"] = payload["historical_no_go_amendment_01"]
     merged["retention"] = payload["retention"]
     return merged
 
@@ -828,9 +847,7 @@ def build_aggregate_index(
         {
             "record_id": "original_s4_4_freeze",
             "role": "historically_analyzed_legacy_evidence",
-            "split_plan_path": (
-                "outputs/isaac_audio_sensors/S4/S4.4/split_plan.json"
-            ),
+            "split_plan_path": ("outputs/isaac_audio_sensors/S4/S4.4/split_plan.json"),
             "split_plan_payload_sha256": config["historical_freeze"][
                 "split_plan_payload_sha256"
             ],
@@ -924,8 +941,13 @@ def build_precollection_seal(
     return _self_hashed(payload, "seal_payload_sha256")
 
 
-def validate_source_checkpoint(checkpoint: Mapping[str, Any], repo_root: Path) -> None:
-    """Require an exact committed source checkpoint and exact current blobs."""
+def validate_source_checkpoint(
+    checkpoint: Mapping[str, Any],
+    repo_root: Path,
+    *,
+    require_current_checkout: bool = True,
+) -> None:
+    """Require exact Git bytes and optionally require the current checkout bytes."""
 
     if set(checkpoint) != {"commit", "source_records", "checkpoint_sha256"}:
         raise S44AmendmentError("source checkpoint field set mismatch")
@@ -958,13 +980,20 @@ def validate_source_checkpoint(checkpoint: Mapping[str, Any], repo_root: Path) -
             or hashlib.sha256(result.stdout).hexdigest() != expected
         ):
             raise S44AmendmentError(f"source checkpoint Git blob mismatch: {relative}")
-        path = repo_root / relative
-        if not path.is_file() or sha256_file(path) != expected:
-            raise S44AmendmentError(f"source checkpoint checkout mismatch: {relative}")
+        if require_current_checkout:
+            path = repo_root / relative
+            if not path.is_file() or sha256_file(path) != expected:
+                raise S44AmendmentError(
+                    f"source checkpoint checkout mismatch: {relative}"
+                )
 
 
 def validate_precollection_seal(
-    seal: Mapping[str, Any], *, repo_root: Path, require_committed: bool
+    seal: Mapping[str, Any],
+    *,
+    repo_root: Path,
+    require_committed: bool,
+    require_current_source: bool = True,
 ) -> None:
     """Validate the preregistration seal; capture requires committed state."""
 
@@ -991,7 +1020,11 @@ def validate_precollection_seal(
             raise S44AmendmentError(
                 "capture denied: precollection freeze is not committed"
             )
-        validate_source_checkpoint(checkpoint, repo_root)
+        validate_source_checkpoint(
+            checkpoint,
+            repo_root,
+            require_current_checkout=require_current_source,
+        )
     elif seal.get("collection_allowed") is not (checkpoint is not None):
         raise S44AmendmentError("precollection seal collection flag inconsistent")
 
@@ -1214,20 +1247,35 @@ def validate_attempt_census(
 def sanitize_holdout_technical_qa(
     report: Mapping[str, Any], *, known_holdout_take_ids: set[str]
 ) -> dict[str, Any]:
-    """Return only permitted technical fields and suppress every other output."""
+    """Project technical predicates to the honest v2 names and suppress science."""
 
     planned_id = report.get("planned_take_id")
     if planned_id not in known_holdout_take_ids:
         raise S44AmendmentError("holdout QA references unknown holdout take")
-    missing = TECHNICAL_QA_INPUT_FIELDS - set(report)
-    if missing:
-        raise S44AmendmentError(f"holdout QA missing fields: {sorted(missing)}")
-    permitted = {key: report[key] for key in TECHNICAL_QA_INPUT_FIELDS}
+    if set(report) >= LEGACY_TECHNICAL_QA_INPUT_FIELDS:
+        permitted = {
+            TECHNICAL_QA_FIELD_PROJECTION.get(key, key): report[key]
+            for key in LEGACY_TECHNICAL_QA_INPUT_FIELDS
+        }
+        consumed = LEGACY_TECHNICAL_QA_INPUT_FIELDS
+        source_schema = str(report.get("schema", "producer_legacy_field_set"))
+    elif set(report) >= TECHNICAL_QA_INPUT_FIELDS:
+        permitted = {key: report[key] for key in TECHNICAL_QA_INPUT_FIELDS}
+        consumed = TECHNICAL_QA_INPUT_FIELDS
+        source_schema = str(report.get("schema", "producer_canonical_field_set"))
+    else:
+        missing_legacy = LEGACY_TECHNICAL_QA_INPUT_FIELDS - set(report)
+        missing_canonical = TECHNICAL_QA_INPUT_FIELDS - set(report)
+        raise S44AmendmentError(
+            "holdout QA missing fields: "
+            f"legacy={sorted(missing_legacy)}, canonical={sorted(missing_canonical)}"
+        )
     for key in TECHNICAL_QA_INPUT_FIELDS - {"planned_take_id", "attempt_id"}:
         if not isinstance(permitted[key], bool):
             raise S44AmendmentError(f"holdout QA {key}: expected boolean")
     output = {
-        "schema": QA_SCHEMA,
+        "schema": QA_SCHEMA_V2,
+        "source_schema": source_schema,
         "partition": "prospective_holdout",
         **permitted,
         "overall_technical_pass": all(
@@ -1235,23 +1283,54 @@ def sanitize_holdout_technical_qa(
             for key in TECHNICAL_QA_INPUT_FIELDS - {"planned_take_id", "attempt_id"}
         ),
         "scientific_outputs_exposed": False,
-        "suppressed_field_count": len(set(report) - TECHNICAL_QA_INPUT_FIELDS),
+        "suppressed_field_count": len(set(report) - consumed - {"schema"}),
     }
     return output
 
 
-def validate_holdout_technical_qa(record: Mapping[str, Any]) -> None:
-    """Reject any scientific or unexpected field in persisted QA evidence."""
+def canonicalize_holdout_technical_qa(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the v2 canonical projection of legacy or current technical QA."""
 
-    if set(record) != TECHNICAL_QA_OUTPUT_FIELDS:
-        raise S44AmendmentError("persisted holdout QA field set is not allowlisted")
-    if (
-        record.get("schema") != QA_SCHEMA
-        or record.get("partition") != "prospective_holdout"
-    ):
+    schema = record.get("schema")
+    if schema == QA_SCHEMA:
+        if set(record) != LEGACY_TECHNICAL_QA_OUTPUT_FIELDS:
+            raise S44AmendmentError(
+                "persisted legacy holdout QA field set is not allowlisted"
+            )
+        projected = sanitize_holdout_technical_qa(
+            record, known_holdout_take_ids={str(record.get("planned_take_id"))}
+        )
+        projected["source_schema"] = QA_SCHEMA
+        projected["suppressed_field_count"] = int(record["suppressed_field_count"])
+        if projected["overall_technical_pass"] is not record.get(
+            "overall_technical_pass"
+        ):
+            raise S44AmendmentError("legacy holdout QA overall predicate mismatch")
+    elif schema == QA_SCHEMA_V2:
+        if set(record) != TECHNICAL_QA_OUTPUT_FIELDS:
+            raise S44AmendmentError(
+                "persisted canonical holdout QA field set is not allowlisted"
+            )
+        projected = dict(record)
+        expected_overall = all(
+            bool(projected[key])
+            for key in TECHNICAL_QA_INPUT_FIELDS - {"planned_take_id", "attempt_id"}
+        )
+        if projected.get("overall_technical_pass") is not expected_overall:
+            raise S44AmendmentError("canonical holdout QA overall predicate mismatch")
+    else:
         raise S44AmendmentError("holdout QA schema/partition invalid")
-    if record.get("scientific_outputs_exposed") is not False:
+    if projected.get("partition") != "prospective_holdout":
+        raise S44AmendmentError("holdout QA schema/partition invalid")
+    if projected.get("scientific_outputs_exposed") is not False:
         raise S44AmendmentError("holdout scientific output exposure is forbidden")
+    return projected
+
+
+def validate_holdout_technical_qa(record: Mapping[str, Any]) -> None:
+    """Reject scientific fields and validate the legacy-to-v2 projection."""
+
+    canonicalize_holdout_technical_qa(record)
 
 
 def build_holdout_seal(
