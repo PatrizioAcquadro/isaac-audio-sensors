@@ -8,6 +8,14 @@ artifact. Its machine contract is
 `configs/s4_5_corrective_01.v1.json`, schema
 `ias.s4_5.corrective_contract.v1`.
 
+The additive serialization-only amendment
+`configs/s4_5_corrective_01_profile_frame_amendment.v1.json` assigns the
+distinct public profile array-frame id `xvf3800_array_corrective_01`, whose
+axes are functionally aligned to source frame `F_project` under the selected
+binding. This is required by the unchanged public profile contract and changes
+no hypothesis, coordinate value, threshold, decision rule, or scientific
+result.
+
 Only the already authorized Fit A and Fit B evidence may be opened through the
 existing S4.5 accessor. Fit A is the development and hypothesis-selection
 partition. Fit B is locked validation and cannot select a hypothesis, tune a

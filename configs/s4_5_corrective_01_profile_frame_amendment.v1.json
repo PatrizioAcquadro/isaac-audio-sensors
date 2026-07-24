@@ -1,0 +1,13 @@
+{
+  "axis_relationship": "xvf3800_array_corrective_01 is functionally aligned to F_project under the selected channel-position binding; this is not a precision extrinsic claim",
+  "created_at": "2026-07-24T02:00:00Z",
+  "geometry_frame": "xvf3800_array_corrective_01",
+  "profile_array_frame": "xvf3800_array_corrective_01",
+  "profile_source_frame": "F_project",
+  "reason": "ias.audio_calibration_profile.v1 requires array_frame and source_frame to be distinct identifiers",
+  "schema": "ias.s4_5.corrective_profile_frame_amendment.v1",
+  "scientific_binding_changed": false,
+  "scientific_thresholds_changed": false,
+  "selected_hypothesis_changed": false,
+  "supersedes_field": "configs/s4_5_corrective_01.v1.json profile.array_frame only"
+}

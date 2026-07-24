@@ -53,6 +53,9 @@ from isaac_audio_sensors.core.schema import audio_calibration_profile_json_schem
 
 CORRECTIVE_SCHEMA = "ias.s4_5.corrective_contract.v1"
 CORRECTIVE_CONFIG = Path("configs/s4_5_corrective_01.v1.json")
+CORRECTIVE_FRAME_AMENDMENT = Path(
+    "configs/s4_5_corrective_01_profile_frame_amendment.v1.json"
+)
 CORRECTIVE_SPEC = Path("docs/development/specs/s4_5_corrective_01.md")
 CORRECTIVE_OUTPUT = Path(
     "outputs/isaac_audio_sensors/S4/S4.5/correctives/s4_5_corrective_01"
@@ -157,6 +160,28 @@ def load_corrective_contract(path: Path, repo_root: Path) -> dict[str, Any]:
             raise S45Error(f"evidence.{name}: binding must be an object")
         _verify_bound_file(repo_root, record, f"evidence.{name}")
     return contract
+
+
+def load_profile_frame_amendment(repo_root: Path) -> dict[str, Any]:
+    """Load the serialization-only distinct-frame amendment."""
+
+    amendment = load_json(
+        repo_root / CORRECTIVE_FRAME_AMENDMENT,
+        label="S4.5 corrective profile-frame amendment",
+    )
+    expected = {
+        "schema": "ias.s4_5.corrective_profile_frame_amendment.v1",
+        "profile_array_frame": "xvf3800_array_corrective_01",
+        "geometry_frame": "xvf3800_array_corrective_01",
+        "profile_source_frame": "F_project",
+        "scientific_binding_changed": False,
+        "scientific_thresholds_changed": False,
+        "selected_hypothesis_changed": False,
+    }
+    for key, value in expected.items():
+        if amendment.get(key) != value:
+            raise S45Error(f"profile-frame amendment changed {key}")
+    return amendment
 
 
 def _hypothesis_position_maps(
@@ -1071,6 +1096,7 @@ def _parameter_decisions(
 
 
 def _build_profile(
+    repo_root: Path,
     original_contract: Mapping[str, Any],
     corrective: Mapping[str, Any],
     inventory: Mapping[str, Any],
@@ -1079,17 +1105,18 @@ def _build_profile(
 ) -> dict[str, Any]:
     profile = build_partial_profile(original_contract, inventory, decisions)
     profile_config = corrective["profile"]
+    frame_amendment = load_profile_frame_amendment(repo_root)
     profile["profile_id"] = profile_config["profile_id"]
     profile["profile_version"] = profile_config["profile_version"]
-    profile["array_frame"] = profile_config["array_frame"]
-    profile["source_frame"] = "F_project"
+    profile["array_frame"] = frame_amendment["profile_array_frame"]
+    profile["source_frame"] = frame_amendment["profile_source_frame"]
     profile["microphone_geometry"] = [
         {
             "channel_id": channel_id,
             "status": "nominal_not_measured",
             "position_m": list(position),
             "uncertainty_m": None,
-            "frame": "F_project",
+            "frame": frame_amendment["geometry_frame"],
         }
         for channel_id, position in corrective["bearing_binding"][
             "selected_profile_channel_positions_f_project_m"
@@ -1237,6 +1264,7 @@ def source_commit_is_valid_corrective(repo_root: Path, source_commit: str) -> No
         raise S45Error("corrective source commit is not an ancestor of HEAD")
     for relative in (
         CORRECTIVE_CONFIG,
+        CORRECTIVE_FRAME_AMENDMENT,
         CORRECTIVE_SPEC,
         CORRECTIVE_MODULE,
         CORRECTIVE_RUNNER,
@@ -1306,6 +1334,7 @@ def build_corrective_package(
     config_path = config_path if config_path.is_absolute() else repo_root / config_path
     source_commit_is_valid_corrective(repo_root, source_commit)
     corrective = load_corrective_contract(config_path, repo_root)
+    frame_amendment = load_profile_frame_amendment(repo_root)
     if output.exists():
         if any(output.iterdir()):
             raise S45Error(f"corrective output must be empty: {output}")
@@ -1357,7 +1386,12 @@ def build_corrective_package(
     if decisions["status"] != "passed":
         raise S45Error("corrective scientific decisions are NO-GO")
     profile = _build_profile(
-        accessor.contract, corrective, inventory, measurements, decisions
+        repo_root,
+        accessor.contract,
+        corrective,
+        inventory,
+        measurements,
+        decisions,
     )
     census = _canonical_census(inventory, measurements)
     binding = next(
@@ -1438,6 +1472,10 @@ def build_corrective_package(
         "config_sha256": sha256_file(config_path),
         "spec_path": CORRECTIVE_SPEC.as_posix(),
         "spec_sha256": sha256_file(repo_root / CORRECTIVE_SPEC),
+        "profile_frame_amendment_path": CORRECTIVE_FRAME_AMENDMENT.as_posix(),
+        "profile_frame_amendment_sha256": sha256_file(
+            repo_root / CORRECTIVE_FRAME_AMENDMENT
+        ),
         "contract_commit": "2690333",
         "source_commit": source_commit,
     }
@@ -1451,6 +1489,11 @@ def build_corrective_package(
         "config_sha256": sha256_file(repo_root / CORRECTIVE_CONFIG),
         "spec_path": CORRECTIVE_SPEC.as_posix(),
         "spec_sha256": sha256_file(repo_root / CORRECTIVE_SPEC),
+        "profile_frame_amendment": {
+            "path": CORRECTIVE_FRAME_AMENDMENT.as_posix(),
+            "sha256": sha256_file(repo_root / CORRECTIVE_FRAME_AMENDMENT),
+            "scientific_binding_changed": frame_amendment["scientific_binding_changed"],
+        },
         "input_records": [
             {"name": name, **record}
             for name, record in sorted(corrective["evidence"].items())

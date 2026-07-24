@@ -17,6 +17,7 @@ from isaac_audio_sensors.acquisition.s4_5 import (
 )
 from isaac_audio_sensors.acquisition.s4_5_corrective import (
     CORRECTIVE_CONFIG,
+    CORRECTIVE_FRAME_AMENDMENT,
     CORRECTIVE_OUTPUT,
     HYPOTHESIS_IDS,
     SELECTED_HYPOTHESIS,
@@ -26,6 +27,7 @@ from isaac_audio_sensors.acquisition.s4_5_corrective import (
     _synthetic_report,
     endpoint_clipping_counts,
     load_corrective_contract,
+    load_profile_frame_amendment,
     refresh_package_integrity,
     validate_corrective_package,
 )
@@ -59,6 +61,11 @@ def test_corrective_contract_freezes_physical_hypotheses_and_fit_roles() -> None
     assert contract["phase_boundary"]["fit_a_role"].startswith("development")
     assert contract["phase_boundary"]["fit_b_role"] == "locked validation only"
     assert contract["phase_boundary"]["holdout_access_forbidden"] is True
+    amendment = load_profile_frame_amendment(ROOT)
+    assert amendment["profile_array_frame"] == "xvf3800_array_corrective_01"
+    assert amendment["profile_source_frame"] == "F_project"
+    assert amendment["scientific_binding_changed"] is False
+    assert (ROOT / CORRECTIVE_FRAME_AMENDMENT).is_file()
 
 
 def test_pcm16_endpoint_clipping_excludes_only_exact_endpoints() -> None:
@@ -175,7 +182,8 @@ def test_profile_uses_semantically_correct_counts_and_binding() -> None:
     assert metrics["scientific_leakage_group_count"]["value"] == 32.0
     assert metrics["fit_a_scientific_leakage_group_count"]["value"] == 16.0
     assert metrics["fit_b_scientific_leakage_group_count"]["value"] == 16.0
-    assert profile["array_frame"] == "F_project"
+    assert profile["array_frame"] == "xvf3800_array_corrective_01"
+    assert profile["source_frame"] == "F_project"
     assert [item["position_m"] for item in profile["microphone_geometry"]] == [
         [-0.033, -0.033, 0.0],
         [-0.033, 0.033, 0.0],
