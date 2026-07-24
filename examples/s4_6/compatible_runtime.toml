@@ -1,0 +1,46 @@
+[scene]
+scene_id = "s4_6_compatible_runtime"
+stage_units = "meters"
+up_axis = "z"
+
+[audio]
+sample_rate_hz = 16000
+default_backend = "room_acoustics"
+runtime_profile = "waveform_fidelity"
+write_waveforms = false
+
+[audio.profile_application]
+mode = "apply"
+config_path = "configs/s4_6_profile_application.v1.json"
+
+[[sources]]
+source_id = "macbook_reference_source"
+prim_path = "/World/Sources/MacBookReference"
+class_label = "Reference"
+audio_asset_path = "generated://impulse"
+position_world = [1.0, 0.0, 0.0]
+gain_db = 0.0
+start_time_s = 0.0
+duration_s = 1.0
+
+[arrays.xvf3800_array]
+array_id = "xvf3800_array"
+prim_path = "/World/Rig/XVF3800"
+sample_rate_hz = 16000
+coordinate_convention = "x_forward_y_right_z_up_clockwise_bearing"
+
+[[arrays.xvf3800_array.microphones]]
+mic_id = "ch0"
+relative_position_m = [-0.033, -0.033, 0.0]
+
+[[arrays.xvf3800_array.microphones]]
+mic_id = "ch1"
+relative_position_m = [-0.033, 0.033, 0.0]
+
+[[arrays.xvf3800_array.microphones]]
+mic_id = "ch2"
+relative_position_m = [0.033, 0.033, 0.0]
+
+[[arrays.xvf3800_array.microphones]]
+mic_id = "ch3"
+relative_position_m = [0.033, -0.033, 0.0]

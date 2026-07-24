@@ -1,0 +1,33 @@
+{
+  "active_pointer_path": "outputs/isaac_audio_sensors/S4/S4.5_active_profile.v1.json",
+  "application_context": {
+    "array_frame": "xvf3800_array_corrective_01",
+    "array_id": "xvf3800_array",
+    "channel_order": [
+      "ch0",
+      "ch1",
+      "ch2",
+      "ch3"
+    ],
+    "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+    "device_id": "respeaker_xvf3800_114993701261100454",
+    "device_model": "ReSpeaker XVF3800 USB 4-Mic Array",
+    "environment_tags": [
+      "S4_TEMP_DESKTOP_FIXTURE_REV0",
+      "WANG_2022_DESK_NEAR_ENTRANCE",
+      "respeaker_xvf3800_16kHz",
+      "macbook_reference_source",
+      "fit_only"
+    ],
+    "functional_association_frame": "F_project",
+    "functional_association_id": "H2_x_reflection_front_back_position_binding",
+    "functional_association_sha256": "32ef116f6603639292569a53b590bd56a9ee871363e6a928ea59f5aed6d8db50",
+    "geometry_measurement_status": "nominal_not_measured",
+    "mount_fixture_id": "S4_TEMP_DESKTOP_FIXTURE_REV0",
+    "sample_rate_hz": 16000,
+    "source_frame": "F_project"
+  },
+  "mode": "apply",
+  "schema": "ias.s4_6.profile_application_config.v1",
+  "status": "frozen"
+}

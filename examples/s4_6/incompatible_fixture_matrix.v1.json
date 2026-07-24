@@ -1,0 +1,86 @@
+{
+  "cases": [
+    {
+      "case_id": "swapped_channel_order",
+      "target": "application_context.channel_order",
+      "value": ["ch1", "ch0", "ch2", "ch3"]
+    },
+    {
+      "case_id": "wrong_channel_count",
+      "target": "application_context.channel_order",
+      "value": ["ch0", "ch1", "ch2"]
+    },
+    {
+      "case_id": "wrong_device_identity",
+      "target": "application_context.device_id",
+      "value": "other_device"
+    },
+    {
+      "case_id": "wrong_array_identity",
+      "target": "application_context.array_id",
+      "value": "other_array"
+    },
+    {
+      "case_id": "wrong_sample_rate",
+      "target": "application_context.sample_rate_hz",
+      "value": 48000
+    },
+    {
+      "case_id": "wrong_array_frame",
+      "target": "application_context.array_frame",
+      "value": "wrong_array_frame"
+    },
+    {
+      "case_id": "wrong_source_frame",
+      "target": "application_context.source_frame",
+      "value": "wrong_source_frame"
+    },
+    {
+      "case_id": "wrong_coordinate_convention",
+      "target": "application_context.coordinate_convention",
+      "value": "legacy"
+    },
+    {
+      "case_id": "wrong_mount_fixture",
+      "target": "application_context.mount_fixture_id",
+      "value": "other_fixture"
+    },
+    {
+      "case_id": "wrong_geometry_identity",
+      "target": "application_context.functional_association_sha256",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "case_id": "wrong_environment",
+      "target": "application_context.environment_tags",
+      "value": ["other_environment"]
+    },
+    {
+      "case_id": "historical_v1_selection",
+      "target": "active_pointer_path",
+      "value": "outputs/isaac_audio_sensors/S4/S4.5/calibration_profile.v1.json"
+    },
+    {
+      "case_id": "inactive_configuration",
+      "target": "status",
+      "value": "inactive"
+    },
+    {
+      "case_id": "unknown_mode",
+      "target": "mode",
+      "value": "automatic"
+    },
+    {
+      "case_id": "unsafe_parent_path",
+      "target": "active_pointer_path",
+      "value": "../S4.5_active_profile.v1.json"
+    },
+    {
+      "case_id": "unsafe_absolute_path",
+      "target": "active_pointer_path",
+      "value": "/tmp/S4.5_active_profile.v1.json"
+    }
+  ],
+  "schema": "ias.s4_6.incompatible_fixture_matrix.v1",
+  "status": "frozen"
+}
