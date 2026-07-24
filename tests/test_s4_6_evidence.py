@@ -82,3 +82,36 @@ def test_reproduction_command_and_phase_boundary_are_exact(tmp_path: Path) -> No
     assert preservation["holdout_observations_accessed"] == 0
     assert preservation["s4_8_access_grant_created"] is False
     assert preservation["later_phases_started"] == []
+
+
+def test_fail_closed_matrix_contains_executed_outcomes(tmp_path: Path) -> None:
+    output = tmp_path / "package"
+    build_evidence_package(
+        repo_root=ROOT,
+        output=output,
+        source_commit=DUMMY_COMMIT,
+        source_tree_replay=True,
+    )
+    matrix = json.loads(
+        (output / "compatibility_fail_closed_matrix.json").read_text()
+    )
+    records = matrix["cases"]
+    assert records
+    assert all(record["status"] == "passed" for record in records)
+    assert all(
+        record["actual"] != "covered_by_focused_executable_tests"
+        for record in records
+    )
+    assert {
+        "altered_content",
+        "rechecksummed_tampering",
+        "malformed_json_or_schema",
+        "missing_bundle_member",
+        "unsupported_or_partial_fields",
+        "unknown_fitted_parameters",
+        "retained_count_semantic_misuse",
+        "identity_bypass",
+        "partial_application",
+        "off_state_drift",
+        "nondeterministic_output",
+    } <= {record["case_id"] for record in records}

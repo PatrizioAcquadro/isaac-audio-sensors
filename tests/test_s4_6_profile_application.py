@@ -91,6 +91,19 @@ def _config():
     return validate_audio_config(_raw_config())
 
 
+def _context(root: Path = ROOT) -> dict[str, Any]:
+    return _json(root / APPLICATION_CONFIG_PATH)["application_context"]
+
+
+def _apply(config=None, *, root: Path = ROOT):
+    return apply_profile_application(
+        _config() if config is None else config,
+        repo_root=root,
+        mode="apply",
+        runtime_context=_context(root),
+    )
+
+
 def _copy_bundle(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
     for relative in (
@@ -117,7 +130,7 @@ def _write(path: Path, payload: dict[str, Any]) -> None:
 
 def test_authoritative_bundle_applies_exact_seven_components() -> None:
     original = _config()
-    result = apply_profile_application(original, repo_root=ROOT, mode="apply")
+    result = _apply(original)
     adjusted = result.config
     response = adjusted.effects.channel_response
 
@@ -165,7 +178,7 @@ def test_load_audio_config_integrates_application_into_real_runtime_path() -> No
 
 
 def test_applied_gain_and_polarity_reach_the_existing_waveform_runtime() -> None:
-    config = apply_profile_application(_config(), repo_root=ROOT, mode="apply").config
+    config = _apply().config
     samples = np.ones((4, 8), dtype=np.float64)
     output, diagnostics = ChannelEffectsChain(config.effects).apply(
         samples,
@@ -198,10 +211,35 @@ def test_off_mode_returns_exact_input_object_without_bundle_io(tmp_path: Path) -
     assert result.report()["applied_field_count"] == 0
 
 
+def test_loader_off_mode_requires_no_repository_or_pointer(tmp_path: Path) -> None:
+    path = tmp_path / "off.toml"
+    path.write_text(
+        """
+[scene]
+scene_id = "off"
+[audio]
+sample_rate_hz = 16000
+default_backend = "geometry_only"
+[audio.profile_application]
+mode = "off"
+[arrays.array]
+prim_path = "/World/Array"
+[[arrays.array.microphones]]
+mic_id = "mic0"
+relative_position_m = [0.0, 0.0, 0.0]
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    config = load_audio_config(path)
+    assert config.effects == EffectsConfig()
+    assert tuple(config.arrays) == ("array",)
+
+
 def test_repeated_application_fails_before_second_configuration() -> None:
-    first = apply_profile_application(_config(), repo_root=ROOT, mode="apply")
+    first = _apply()
     with pytest.raises(ProfileApplicationError, match="double application"):
-        apply_profile_application(first.config, repo_root=ROOT, mode="apply")
+        _apply(first.config)
 
 
 @pytest.mark.parametrize(
@@ -259,7 +297,7 @@ def test_runtime_compatibility_mismatches_fail_closed(
     config = validate_audio_config(raw)
     before = copy.deepcopy(config)
     with pytest.raises(ProfileApplicationError, match=message):
-        apply_profile_application(config, repo_root=ROOT, mode="apply")
+        _apply(config)
     assert config == before
     assert config.effects.channel_response == ChannelResponseConfig()
 
@@ -317,7 +355,7 @@ def test_pointer_tampering_is_stale_and_fails_before_application(
     _write(root / POINTER, pointer)
     config = _config()
     with pytest.raises(ProfileApplicationError, match=message):
-        apply_profile_application(config, repo_root=root, mode="apply")
+        _apply(config, root=root)
     assert config.effects.channel_response == ChannelResponseConfig()
 
 
@@ -336,7 +374,7 @@ def test_malformed_json_fails_closed(
     root = _copy_bundle(tmp_path)
     (root / relative).write_text(payload)
     with pytest.raises(ProfileApplicationError):
-        apply_profile_application(_config(), repo_root=root, mode="apply")
+        _apply(root=root)
 
 
 @pytest.mark.parametrize(
@@ -383,7 +421,38 @@ def test_rechecksummed_configuration_identity_bypass_is_rejected(
     mutate(contract)
     _write(root / APPLICATION_CONFIG_PATH, contract)
     with pytest.raises(ProfileApplicationError, match="configuration hash"):
-        apply_profile_application(_config(), repo_root=root, mode="apply")
+        _apply(root=root)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("device_id", "other_device"),
+        ("device_model", "Other Device"),
+        ("array_frame", "other_array_frame"),
+        ("source_frame", "other_source_frame"),
+        ("mount_fixture_id", "other_fixture"),
+        ("environment_tags", ["other_environment"]),
+        ("functional_association_id", "other_association"),
+        ("functional_association_frame", "other_frame"),
+        ("functional_association_sha256", "0" * 64),
+        ("geometry_measurement_status", "measured"),
+    ),
+)
+def test_runtime_identity_context_mismatches_fail_before_plan(
+    field: str, value: Any
+) -> None:
+    context = _context()
+    context[field] = value
+    config = _config()
+    with pytest.raises(ProfileApplicationError, match="runtime identity context"):
+        apply_profile_application(
+            config,
+            repo_root=ROOT,
+            mode="apply",
+            runtime_context=context,
+        )
+    assert config.effects == EffectsConfig()
 
 
 def test_rechecksummed_profile_tampering_and_unknown_parameter_fail(
@@ -401,7 +470,7 @@ def test_rechecksummed_profile_tampering_and_unknown_parameter_fail(
     handoff["active_profile"]["sha256"] = digest
     _write(root / HANDOFF, handoff)
     with pytest.raises(ProfileApplicationError, match="pointer|hash"):
-        apply_profile_application(_config(), repo_root=root, mode="apply")
+        _apply(root=root)
 
 
 def test_rechecksummed_handoff_count_and_supported_field_tampering_fail(
@@ -419,7 +488,7 @@ def test_rechecksummed_handoff_count_and_supported_field_tampering_fail(
     pointer["active_handoff_sha256"] = digest
     _write(root / POINTER, pointer)
     with pytest.raises(ProfileApplicationError, match="pointer|hash"):
-        apply_profile_application(_config(), repo_root=root, mode="apply")
+        _apply(root=root)
 
 
 @pytest.mark.parametrize(
@@ -437,6 +506,7 @@ def test_unsafe_or_escaping_application_paths_fail(unsafe: str) -> None:
             repo_root=ROOT,
             mode="apply",
             application_config_path=unsafe,
+            runtime_context=_context(),
         )
 
 
@@ -444,11 +514,11 @@ def test_missing_bundle_member_fails_closed(tmp_path: Path) -> None:
     root = _copy_bundle(tmp_path)
     (root / PROFILE).unlink()
     with pytest.raises(ProfileApplicationError, match="missing"):
-        apply_profile_application(_config(), repo_root=root, mode="apply")
+        _apply(root=root)
 
 
 def test_field_status_distinguishes_all_evidence_classes() -> None:
-    result = apply_profile_application(_config(), repo_root=ROOT, mode="apply")
+    result = _apply()
     statuses = {row["status"] for row in result.field_status}
     assert {"applied", "nominal", "unmeasured", "unsupported"} <= statuses
     assert all(row["reason"] for row in result.field_status)
@@ -459,8 +529,8 @@ def test_field_status_distinguishes_all_evidence_classes() -> None:
 
 
 def test_application_and_report_are_deterministic() -> None:
-    first = apply_profile_application(_config(), repo_root=ROOT, mode="apply")
-    second = apply_profile_application(_config(), repo_root=ROOT, mode="apply")
+    first = _apply()
+    second = _apply()
     assert first.config == second.config
     assert first.report() == second.report()
     assert json.dumps(first.report(), sort_keys=True) == json.dumps(
@@ -471,7 +541,7 @@ def test_application_and_report_are_deterministic() -> None:
 def test_cli_simulation_forwards_applied_effects_and_runtime_profile(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config = apply_profile_application(_config(), repo_root=ROOT, mode="apply").config
+    config = _apply().config
     captured: dict[str, Any] = {}
 
     class Backend:

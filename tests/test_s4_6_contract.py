@@ -6,6 +6,11 @@ import hashlib
 import json
 from pathlib import Path
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10
+    import tomli as tomllib
+
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "configs/s4_6_profile_application.v1.json"
 MATRIX = ROOT / "examples/s4_6/incompatible_fixture_matrix.v1.json"
@@ -133,3 +138,11 @@ def test_public_profile_schema_is_unchanged() -> None:
     assert hashlib.sha256(schema.read_bytes()).hexdigest() == (
         "fb56c9024bfa16ce25a999ed8e2552ab19189459f44801f33edd9f0d75d1ff46"
     )
+
+
+def test_compatible_runtime_declares_independent_complete_identity() -> None:
+    with (ROOT / "examples/s4_6/compatible_runtime.toml").open("rb") as stream:
+        runtime = tomllib.load(stream)
+    application = runtime["audio"]["profile_application"]
+    assert application["mode"] == "apply"
+    assert application["context"] == _json(CONFIG)["application_context"]

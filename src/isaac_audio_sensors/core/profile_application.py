@@ -107,6 +107,7 @@ def apply_profile_application(
     repo_root: str | Path,
     mode: str,
     application_config_path: str | Path = APPLICATION_CONFIG_PATH,
+    runtime_context: Mapping[str, Any] | None = None,
 ) -> ProfileApplicationResult:
     """Apply the complete active bundle, or preserve exact behavior in off mode."""
 
@@ -127,6 +128,10 @@ def apply_profile_application(
     if mode != "apply":
         raise ProfileApplicationError(
             "profile application mode must be 'apply' or 'off'"
+        )
+    if not isinstance(runtime_context, Mapping):
+        raise ProfileApplicationError(
+            "enabled application requires a complete runtime identity context"
         )
 
     root = Path(repo_root).resolve()
@@ -182,7 +187,7 @@ def apply_profile_application(
 
     context = contract["application_context"]
     _validate_complete_bundle(pointer, handoff, profile_payload, context)
-    _validate_runtime_context(config, context)
+    _validate_runtime_context(config, context, runtime_context)
     plan, statuses = _compute_plan(profile_payload, handoff)
 
     target_array = config.arrays[context["array_id"]]
@@ -475,8 +480,20 @@ def _validate_profile_fields(profile: Mapping[str, Any]) -> None:
 
 
 def _validate_runtime_context(
-    config: AudioSensorConfig, context: Mapping[str, Any]
+    config: AudioSensorConfig,
+    expected_context: Mapping[str, Any],
+    runtime_context: Mapping[str, Any],
 ) -> None:
+    if dict(runtime_context) != dict(expected_context):
+        differing = sorted(
+            key
+            for key in set(runtime_context) | set(expected_context)
+            if runtime_context.get(key) != expected_context.get(key)
+        )
+        raise ProfileApplicationError(
+            f"runtime identity context mismatch: {differing}"
+        )
+    context = runtime_context
     if set(config.arrays) != {context["array_id"]}:
         raise ProfileApplicationError(
             "S4.6 requires exactly the compatible target array"

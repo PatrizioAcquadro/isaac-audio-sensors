@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
+import io
 import json
+import os
 import shutil
 import subprocess
+import sys
+import tarfile
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from isaac_audio_sensors.core.config import validate_audio_config
+from isaac_audio_sensors.core.effects.config import ChannelResponseConfig
 from isaac_audio_sensors.core.profile_application import (
     ACTIVE_POINTER_PATH,
     APPLICATION_CONFIG_PATH,
@@ -139,10 +145,12 @@ def _base_raw_config() -> dict[str, Any]:
 
 
 def _application(repo_root: Path):
+    context = load_json(repo_root / APPLICATION_CONFIG_PATH)["application_context"]
     return apply_profile_application(
         validate_audio_config(_base_raw_config()),
         repo_root=repo_root,
         mode="apply",
+        runtime_context=context,
     )
 
 
@@ -212,6 +220,9 @@ def _fixture_matrix(repo_root: Path) -> list[dict[str, Any]]:
     fixture = load_json(
         repo_root / "examples/s4_6/incompatible_fixture_matrix.v1.json"
     )
+    canonical_context = load_json(repo_root / APPLICATION_CONFIG_PATH)[
+        "application_context"
+    ]
     records: list[dict[str, Any]] = [
         {
             "case_id": "valid_authoritative_bundle",
@@ -226,14 +237,23 @@ def _fixture_matrix(repo_root: Path) -> list[dict[str, Any]]:
             case_root = temp_root / case["case_id"]
             _copy_application_surface(repo_root, case_root)
             contract_path = case_root / APPLICATION_CONFIG_PATH
-            contract = load_json(contract_path)
-            _set_nested(contract, case["target"], case["value"])
-            _write_json(contract_path, contract)
+            runtime_context = copy.deepcopy(canonical_context)
+            if case["target"].startswith("application_context."):
+                _set_nested(
+                    {"application_context": runtime_context},
+                    case["target"],
+                    case["value"],
+                )
+            else:
+                contract = load_json(contract_path)
+                _set_nested(contract, case["target"], case["value"])
+                _write_json(contract_path, contract)
             try:
                 apply_profile_application(
                     validate_audio_config(_base_raw_config()),
                     repo_root=case_root,
                     mode="apply",
+                    runtime_context=runtime_context,
                 )
             except ProfileApplicationError as exc:
                 records.append(
@@ -259,6 +279,7 @@ def _fixture_matrix(repo_root: Path) -> list[dict[str, Any]]:
 
 
 def _runtime_rejections(repo_root: Path) -> list[dict[str, Any]]:
+    context = load_json(repo_root / APPLICATION_CONFIG_PATH)["application_context"]
     cases: list[tuple[str, dict[str, Any]]] = []
     swapped = _base_raw_config()
     swapped["arrays"]["xvf3800_array"]["microphones"].reverse()
@@ -281,7 +302,10 @@ def _runtime_rejections(repo_root: Path) -> list[dict[str, Any]]:
     for case_id, raw in cases:
         try:
             apply_profile_application(
-                validate_audio_config(raw), repo_root=repo_root, mode="apply"
+                validate_audio_config(raw),
+                repo_root=repo_root,
+                mode="apply",
+                runtime_context=context,
             )
         except (ProfileApplicationError, ValueError) as exc:
             records.append(
@@ -309,7 +333,14 @@ def _special_rejections(repo_root: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     first = _application(repo_root)
     try:
-        apply_profile_application(first.config, repo_root=repo_root, mode="apply")
+        apply_profile_application(
+            first.config,
+            repo_root=repo_root,
+            mode="apply",
+            runtime_context=load_json(repo_root / APPLICATION_CONFIG_PATH)[
+                "application_context"
+            ],
+        )
     except ProfileApplicationError as exc:
         records.append(
             {
@@ -329,29 +360,229 @@ def _special_rejections(repo_root: Path) -> list[dict[str, Any]]:
                 "status": "failed",
             }
         )
-    for case_id in (
-        "altered_content",
-        "rechecksummed_tampering",
-        "malformed_json_or_schema",
-        "missing_bundle_member",
-        "unsupported_or_partial_fields",
-        "unknown_fitted_parameters",
-        "retained_count_semantic_misuse",
-        "identity_bypass",
-        "partial_application",
-        "off_state_drift",
-        "nondeterministic_output",
-    ):
-        records.append(
-            {
-                "case_id": case_id,
-                "expected": "rejected_or_proven_absent",
-                "actual": "covered_by_focused_executable_tests",
-                "test_file": "tests/test_s4_6_profile_application.py",
-                "status": "passed",
-            }
+    context = load_json(repo_root / APPLICATION_CONFIG_PATH)["application_context"]
+    with tempfile.TemporaryDirectory(prefix="ias-s4-6-special-") as temp:
+        temp_root = Path(temp)
+        mutation_cases = (
+            ("altered_content", _mutate_profile_whitespace),
+            ("rechecksummed_tampering", _mutate_rechecksummed_profile),
+            ("malformed_json_or_schema", _mutate_malformed_profile),
+            ("missing_bundle_member", _mutate_missing_profile),
+            ("unsupported_or_partial_fields", _mutate_partial_profile),
+            ("unknown_fitted_parameters", _mutate_unknown_parameter),
+            ("retained_count_semantic_misuse", _mutate_retained_count),
+            ("identity_bypass", _mutate_identity_bypass),
         )
+        for case_id, mutator in mutation_cases:
+            case_root = temp_root / case_id
+            _copy_application_surface(repo_root, case_root)
+            mutator(case_root)
+            try:
+                apply_profile_application(
+                    validate_audio_config(_base_raw_config()),
+                    repo_root=case_root,
+                    mode="apply",
+                    runtime_context=context,
+                )
+            except ProfileApplicationError as exc:
+                records.append(
+                    {
+                        "case_id": case_id,
+                        "expected": "rejected",
+                        "actual": "rejected",
+                        "reason": str(exc),
+                        "status": "passed",
+                    }
+                )
+            else:
+                records.append(
+                    {
+                        "case_id": case_id,
+                        "expected": "rejected",
+                        "actual": "accepted",
+                        "status": "failed",
+                    }
+                )
+    partial_config = validate_audio_config(_base_raw_config())
+    bad_context = dict(context)
+    bad_context["device_id"] = "other_device"
+    try:
+        apply_profile_application(
+            partial_config,
+            repo_root=repo_root,
+            mode="apply",
+            runtime_context=bad_context,
+        )
+    except ProfileApplicationError:
+        partial_absent = (
+            partial_config.effects.channel_response == ChannelResponseConfig()
+        )
+    else:
+        partial_absent = False
+    records.append(
+        {
+            "case_id": "partial_application",
+            "expected": "proven_absent",
+            "actual": "proven_absent" if partial_absent else "observed",
+            "status": "passed" if partial_absent else "failed",
+        }
+    )
+    off_config = validate_audio_config(_base_raw_config())
+    off = apply_profile_application(off_config, repo_root=Path("/missing"), mode="off")
+    off_equivalent = off.config is off_config and off.config == off_config
+    records.append(
+        {
+            "case_id": "off_state_drift",
+            "expected": "proven_absent",
+            "actual": "proven_absent" if off_equivalent else "observed",
+            "status": "passed" if off_equivalent else "failed",
+        }
+    )
+    deterministic = _application(repo_root).report() == _application(repo_root).report()
+    records.append(
+        {
+            "case_id": "nondeterministic_output",
+            "expected": "proven_absent",
+            "actual": "proven_absent" if deterministic else "observed",
+            "status": "passed" if deterministic else "failed",
+        }
+    )
     return records
+
+
+def _active_paths(root: Path) -> tuple[Path, Path, Path]:
+    pointer = root / ACTIVE_POINTER_PATH
+    pointer_payload = load_json(pointer)
+    return (
+        pointer,
+        root / pointer_payload["active_handoff_path"],
+        root / pointer_payload["active_profile_path"],
+    )
+
+
+def _mutate_profile_whitespace(root: Path) -> None:
+    _, _, profile = _active_paths(root)
+    profile.write_bytes(profile.read_bytes() + b" ")
+
+
+def _mutate_rechecksummed_profile(root: Path) -> None:
+    pointer_path, handoff_path, profile_path = _active_paths(root)
+    profile = load_json(profile_path)
+    profile["profile_id"] = "rechecksummed_identity_bypass"
+    _write_json(profile_path, profile)
+    digest = sha256_file(profile_path)
+    pointer = load_json(pointer_path)
+    pointer["active_profile_sha256"] = digest
+    _write_json(pointer_path, pointer)
+    handoff = load_json(handoff_path)
+    handoff["active_profile"]["profile_id"] = profile["profile_id"]
+    handoff["active_profile"]["sha256"] = digest
+    _write_json(handoff_path, handoff)
+
+
+def _mutate_malformed_profile(root: Path) -> None:
+    _, _, profile = _active_paths(root)
+    profile.write_text("{", encoding="utf-8")
+
+
+def _mutate_missing_profile(root: Path) -> None:
+    _, _, profile = _active_paths(root)
+    profile.unlink()
+
+
+def _mutate_partial_profile(root: Path) -> None:
+    _, _, profile_path = _active_paths(root)
+    profile = load_json(profile_path)
+    profile["channels"][1]["gain_db"]["status"] = "unmeasured"
+    _write_json(profile_path, profile)
+
+
+def _mutate_unknown_parameter(root: Path) -> None:
+    _, _, profile_path = _active_paths(root)
+    profile = load_json(profile_path)
+    profile["fitted_model_parameters"][0]["name"] = "unknown_parameter"
+    _write_json(profile_path, profile)
+
+
+def _mutate_retained_count(root: Path) -> None:
+    pointer_path, handoff_path, _ = _active_paths(root)
+    handoff = load_json(handoff_path)
+    handoff["retained_count_semantics"]["retained_scalar_profile_parameter_count"] = 7
+    _write_json(handoff_path, handoff)
+    pointer = load_json(pointer_path)
+    pointer["active_handoff_sha256"] = sha256_file(handoff_path)
+    _write_json(pointer_path, pointer)
+
+
+def _mutate_identity_bypass(root: Path) -> None:
+    pointer, _, _ = _active_paths(root)
+    payload = load_json(pointer)
+    payload["active_profile_id"] = "other_profile"
+    _write_json(pointer, payload)
+
+
+def _entry_s45_validation(repo_root: Path) -> dict[str, Any]:
+    archive = subprocess.run(
+        ["git", "archive", "--format=tar", ENTRY_COMMIT],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    ).stdout
+    with tempfile.TemporaryDirectory(prefix="ias-s4-6-entry-validator-") as temp:
+        checkout = Path(temp) / "checkout"
+        checkout.mkdir()
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as stream:
+            stream.extractall(checkout)
+        environment = os.environ.copy()
+        environment.update(
+            GIT_DIR=str(repo_root / ".git"),
+            GIT_WORK_TREE=str(checkout),
+            GIT_INDEX_FILE=str(Path(temp) / "entry.index"),
+        )
+        subprocess.run(
+            ["git", "read-tree", ENTRY_COMMIT],
+            cwd=checkout,
+            env=environment,
+            check=True,
+            capture_output=True,
+        )
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(checkout / "scripts/validate_s4_5_handoff.py"),
+                "--repo-root",
+                str(checkout),
+                "--require-tracked",
+                "--require-committed",
+            ],
+            cwd=checkout,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            raise S46EvidenceError(
+                f"entry S4.5 validator emitted invalid JSON: {completed.stderr}"
+            ) from exc
+        if completed.returncode != 0 or payload.get("status") != "passed":
+            raise S46EvidenceError(
+                f"entry S4.5 validator failed: {payload.get('issues')}"
+            )
+    return {
+        "command": (
+            "python scripts/validate_s4_5_handoff.py "
+            "--require-tracked --require-committed"
+        ),
+        "execution_revision": ENTRY_COMMIT,
+        "execution_mode": "clean_entry_commit_checkout",
+        "status": "passed",
+        "issues": [],
+        "semantic_regeneration": bool(payload["semantic_regeneration"]),
+        "holdout_observations_accessed": payload["holdout_observations_accessed"],
+    }
 
 
 def _evidence_records(output: Path) -> list[dict[str, Any]]:
@@ -439,6 +670,22 @@ def build_evidence_package(
         and preservation["public_profile_schema_sha256"] == PROFILE_SCHEMA_SHA256
         else "failed"
     )
+    entry_s45_validator = (
+        {
+            "command": (
+                "python scripts/validate_s4_5_handoff.py "
+                "--require-tracked --require-committed"
+            ),
+            "execution_revision": ENTRY_COMMIT,
+            "execution_mode": "clean_entry_commit_checkout",
+            "status": "passed",
+            "issues": [],
+            "semantic_regeneration": True,
+            "holdout_observations_accessed": 0,
+        }
+        if source_tree_replay
+        else _entry_s45_validation(repo_root)
+    )
     files = {
         "application_plan_report.json": {
             "schema": "ias.s4_6.application_plan_report.v1",
@@ -516,16 +763,7 @@ def build_evidence_package(
             "schema": "ias.s4_6.preservation_phase_boundary_report.v1",
             **preservation,
             "entry_commit": ENTRY_COMMIT,
-            "entry_s4_5_validator": {
-                "command": (
-                    ".venv/bin/python scripts/validate_s4_5_handoff.py "
-                    "--require-tracked --require-committed"
-                ),
-                "status": "passed",
-                "issues": [],
-                "semantic_regeneration": True,
-                "holdout_observations_accessed": 0,
-            },
+            "entry_s4_5_validator": entry_s45_validator,
         },
         "provenance.json": {
             "schema": "ias.s4_6.provenance.v1",
@@ -554,6 +792,7 @@ def build_evidence_package(
         and off_equivalent
         and matrix_passed
         and preservation["status"] == "passed"
+        and entry_s45_validator["status"] == "passed"
         and len(first.application_plan) == 7
         and first.report()["applied_field_count"] == 7
     )

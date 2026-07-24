@@ -38,7 +38,10 @@ def main() -> int:
         checkout = Path(temp) / "checkout"
         checkout.mkdir()
         with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as stream:
-            stream.extractall(checkout, filter="data")
+            try:
+                stream.extractall(checkout, filter="data")
+            except TypeError:  # pragma: no cover - Python 3.10/3.11
+                stream.extractall(checkout)
         replay = Path(temp) / "replay"
         command = [
             sys.executable,

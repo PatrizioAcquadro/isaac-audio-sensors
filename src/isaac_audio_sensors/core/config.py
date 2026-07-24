@@ -74,13 +74,15 @@ def load_audio_config(path: str | Path) -> AudioSensorConfig:
         return config
     if not isinstance(application, dict):
         raise ConfigValidationError("audio.profile_application must be a table.")
-    unknown = set(application) - {"mode", "config_path"}
+    unknown = set(application) - {"mode", "config_path", "context"}
     if unknown:
         raise ConfigValidationError(
             "audio.profile_application contains unknown keys "
             f"{sorted(unknown)!r}."
         )
     mode = str(application.get("mode", "off"))
+    if mode == "off":
+        return config
     config_contract = str(
         application.get(
             "config_path",
@@ -98,6 +100,7 @@ def load_audio_config(path: str | Path) -> AudioSensorConfig:
             repo_root=_find_repository_root(config_path),
             mode=mode,
             application_config_path=config_contract,
+            runtime_context=application.get("context"),
         )
     except ProfileApplicationError as exc:
         raise ConfigValidationError(f"audio.profile_application: {exc}") from exc

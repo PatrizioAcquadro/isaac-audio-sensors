@@ -49,12 +49,15 @@ def main() -> int:
     try:
         with runtime_path.open("rb") as stream:
             raw = tomllib.load(stream)
-        raw.get("audio", {}).pop("profile_application", None)
+        application = raw.get("audio", {}).pop("profile_application", {})
         result = apply_profile_application(
             validate_audio_config(raw),
             repo_root=args.repo_root,
             mode=args.mode,
             application_config_path=args.application_config,
+            runtime_context=(
+                application.get("context") if args.mode == "apply" else None
+            ),
         )
     except (OSError, ValueError, ProfileApplicationError) as exc:
         print(
