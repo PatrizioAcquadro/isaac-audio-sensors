@@ -21,6 +21,7 @@ from isaac_audio_sensors.acquisition.s4_5_corrective import (
     CORRECTIVE_LOCATION_AMENDMENT,
     CORRECTIVE_OUTPUT,
     HYPOTHESIS_IDS,
+    PACKAGE_COMMIT,
     SELECTED_HYPOTHESIS,
     _bearing_report,
     _extract_corrective_observations,
@@ -281,6 +282,13 @@ def _support_unsupported_candidate(package: Path) -> None:
     path.write_text(pretty_json(payload), encoding="utf-8")
 
 
+def _mutate_source_commit(package: Path) -> None:
+    path = package / "provenance.json"
+    payload = load_json(path)
+    payload["source_commit"] = PACKAGE_COMMIT
+    path.write_text(pretty_json(payload), encoding="utf-8")
+
+
 @pytest.mark.parametrize(
     "mutator",
     (
@@ -292,6 +300,7 @@ def _support_unsupported_candidate(package: Path) -> None:
         _fail_bearing_leave_one_group,
         _mutate_binding,
         _support_unsupported_candidate,
+        _mutate_source_commit,
     ),
     ids=(
         "gain_plus_99_db",
@@ -302,6 +311,7 @@ def _support_unsupported_candidate(package: Path) -> None:
         "failing_bearing_leave_one_group",
         "selected_mapping",
         "unsupported_promoted",
+        "source_commit_binding",
     ),
 )
 def test_semantic_validator_rejects_rechecksummed_scientific_tampering(
@@ -314,7 +324,7 @@ def test_semantic_validator_rejects_rechecksummed_scientific_tampering(
     result = validate_corrective_package(ROOT, package)
     assert result["status"] == "failed"
     assert not any("checksum mismatch" in issue for issue in result["issues"])
-    assert any("semantic regeneration mismatch" in issue for issue in result["issues"])
+    assert any("semantic regeneration" in issue for issue in result["issues"])
 
 
 def test_mutating_copies_does_not_change_canonical_package() -> None:

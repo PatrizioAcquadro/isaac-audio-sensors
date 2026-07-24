@@ -69,6 +69,7 @@ CORRECTIVE_VALIDATOR = Path("scripts/validate_s4_5_corrective.py")
 CORRECTIVE_TEST = Path("tests/test_s4_5_corrective.py")
 TOOL_VERSION = "ias_s4_5_corrective/1.0.0"
 CONTRACT_COMMIT = "26903338da1f91bc8843fd1b093b07482fe4cd9a"
+PACKAGE_SOURCE_COMMIT = "cd66fde24afa5202265ea79aa7da4fd48468fd63"
 PACKAGE_COMMIT = "d59c7cbfbfe858d34d2e5689f0516b8201dcdc21"
 HISTORICAL_CORRECTIVE_OUTPUT = Path(
     "outputs/isaac_audio_sensors/S4/S4.5/correctives/s4_5_corrective_01"
@@ -1713,6 +1714,8 @@ def _checksum_issues(output: Path) -> list[str]:
 
 
 def _expected_package_bytes(repo_root: Path, source_commit: str) -> dict[str, bytes]:
+    if source_commit != PACKAGE_SOURCE_COMMIT:
+        raise S45Error("corrective source commit does not match the package binding")
     key = (str(repo_root.resolve()), source_commit)
     cached = _EXPECTED_PACKAGE_CACHE.get(key)
     if cached is not None:
