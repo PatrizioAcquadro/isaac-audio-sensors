@@ -23,6 +23,7 @@ from isaac_audio_sensors.acquisition.s4_5_handoff import (
     load_contract,
     load_json,
     refresh_package_integrity,
+    validate_active_pointer_payload,
     validate_closeout_routing_text,
     validate_handoff_package,
     validate_handoff_payload,
@@ -62,6 +63,29 @@ def test_v1_is_rejected_as_active_s4_6_input() -> None:
     handoff["active_profile"]["profile_version"] = "v1"
     with pytest.raises(S45HandoffError, match="v1"):
         validate_handoff_payload(_profile(), handoff)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        (
+            "active_profile_path",
+            "outputs/isaac_audio_sensors/S4/S4.5/calibration_profile.v1.json",
+        ),
+        ("active_profile_sha256", "0" * 64),
+        ("active_profile_version", "v1"),
+        ("active_profile_count", 2),
+        ("status", "historical"),
+    ),
+)
+def test_active_pointer_path_hash_identity_and_status_tampering_fails(
+    field: str, value: Any
+) -> None:
+    package = _canonical()
+    pointer = active_pointer_payload(ROOT, package)
+    pointer[field] = value
+    with pytest.raises(S45HandoffError, match="active pointer"):
+        validate_active_pointer_payload(ROOT, package, pointer)
 
 
 def test_v2_exposes_gains_polarities_and_separate_functional_binding() -> None:
@@ -173,7 +197,9 @@ def test_relocation_amendment_and_closeout_routing_tampering_fail() -> None:
     with pytest.raises(S45HandoffError, match="package-location"):
         validate_package_location_amendment_payload(amendment)
     validate_closeout_routing_text(
-        "# S4.5 supported functional fitting closeout\n\n" + ROUTING_TEXT
+        "# S4.5 supported functional fitting closeout\n\n"
+        + ROUTING_TEXT
+        + "\n## Final status\n"
     )
     with pytest.raises(S45HandoffError, match="routing"):
         validate_closeout_routing_text(
@@ -226,6 +252,45 @@ def _stale_replay(package: Path) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
+def _change_profile_hash(package: Path) -> None:
+    path = package / "active_handoff.v1.json"
+    payload = load_json(path)
+    payload["active_profile"]["sha256"] = "0" * 64
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def _change_binding_status(package: Path) -> None:
+    path = package / "active_handoff.v1.json"
+    payload = load_json(path)
+    payload["functional_channel_position_association"]["evidence_status"] = (
+        "unsupported"
+    )
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def _change_channel_order(package: Path) -> None:
+    path = package / "active_handoff.v1.json"
+    payload = load_json(path)
+    payload["active_profile"]["channel_order"] = ["ch1", "ch0", "ch2", "ch3"]
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def _remove_relocation_provenance(package: Path) -> None:
+    path = package / "provenance.v1.json"
+    payload = load_json(path)
+    del payload["package_location_amendment"]
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def _change_closeout_profile(package: Path) -> None:
+    path = package / "closeout_amendment.v1.json"
+    payload = load_json(path)
+    payload["active_profile_path"] = (
+        "outputs/isaac_audio_sensors/S4/S4.5/calibration_profile.v1.json"
+    )
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
 @pytest.mark.parametrize(
     "mutator",
     (
@@ -234,8 +299,24 @@ def _stale_replay(package: Path) -> None:
         _swap_mapping,
         _change_count,
         _stale_replay,
+        _change_profile_hash,
+        _change_binding_status,
+        _change_channel_order,
+        _remove_relocation_provenance,
+        _change_closeout_profile,
     ),
-    ids=("v1", "missing_binding", "swapped_mapping", "count", "stale_replay"),
+    ids=(
+        "v1",
+        "missing_binding",
+        "swapped_mapping",
+        "count",
+        "stale_replay",
+        "profile_hash",
+        "binding_status",
+        "channel_order",
+        "relocation_provenance",
+        "closeout_profile",
+    ),
 )
 def test_validator_rejects_rechecksummed_handoff_tampering(
     tmp_path: Path, mutator: Callable[[Path], None]

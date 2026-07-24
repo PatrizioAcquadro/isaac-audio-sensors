@@ -78,6 +78,8 @@ ROUTING_TEXT = "\n".join(
         "active handoff resolved through",
         "`outputs/isaac_audio_sensors/S4/S4.5_active_profile.v1.json`. S4.6 has not",
         "started.",
+        "That pointer binds",
+        "`outputs/isaac_audio_sensors/S4/S4.5_corrective_01/calibration_profile.v2.json`.",
         "",
     )
 )
@@ -560,6 +562,13 @@ def active_pointer_payload(repo_root: Path, package: Path) -> dict[str, Any]:
     }
 
 
+def validate_active_pointer_payload(
+    repo_root: Path, package: Path, pointer: Mapping[str, Any]
+) -> None:
+    if dict(pointer) != active_pointer_payload(repo_root, package):
+        raise S45HandoffError("active pointer does not resolve exact v2 handoff")
+
+
 def write_active_pointer(repo_root: Path, package: Path) -> Path:
     path = repo_root / ACTIVE_POINTER_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -568,17 +577,15 @@ def write_active_pointer(repo_root: Path, package: Path) -> Path:
 
 
 def validate_closeout_routing_text(text: str) -> None:
-    if text.count(ROUTING_MARKER) != 1:
-        raise S45HandoffError(
-            "authoritative closeout routing marker is absent/duplicated"
-        )
-    required = (
-        CLOSEOUT_AMENDMENT_PATH.as_posix(),
-        ACTIVE_POINTER_PATH.as_posix(),
-        "only S4.6 input authorized by S4.5",
-        "S4.6 has not",
+    expected_prefix = (
+        "# S4.5 supported functional fitting closeout\n\n" + ROUTING_TEXT + "\n"
     )
-    if any(value not in text for value in required):
+    if (
+        not text.startswith(expected_prefix)
+        or text.count(ROUTING_MARKER) != 1
+        or text.count(CLOSEOUT_AMENDMENT_PATH.as_posix()) != 1
+        or text.count(ACTIVE_POINTER_PATH.as_posix()) != 2
+    ):
         raise S45HandoffError("authoritative closeout routing changed")
 
 
@@ -586,6 +593,12 @@ def route_authoritative_closeout(repo_root: Path) -> None:
     path = repo_root / AUTHORITATIVE_CLOSEOUT_PATH
     text = path.read_text(encoding="utf-8")
     if ROUTING_MARKER in text:
+        routing_start = text.find("## Authoritative active-profile routing amendment")
+        historical_start = text.find("## Final status")
+        if routing_start < 0 or historical_start <= routing_start:
+            raise S45HandoffError("existing closeout routing block is malformed")
+        text = text[:routing_start] + ROUTING_TEXT + "\n" + text[historical_start:]
+        path.write_text(text, encoding="utf-8")
         validate_closeout_routing_text(text)
         return
     header = text.splitlines(keepends=True)[0]
@@ -709,8 +722,7 @@ def validate_handoff_package(
         handoff = load_json(output / "active_handoff.v1.json", label="active handoff")
         validate_handoff_payload(profile, handoff)
         pointer = load_json(repo_root / ACTIVE_POINTER_PATH, label="active pointer")
-        if pointer != active_pointer_payload(repo_root, output):
-            raise S45HandoffError("active pointer does not resolve exact v2 handoff")
+        validate_active_pointer_payload(repo_root, output, pointer)
         validate_closeout_routing_text(
             (repo_root / AUTHORITATIVE_CLOSEOUT_PATH).read_text(encoding="utf-8")
         )
