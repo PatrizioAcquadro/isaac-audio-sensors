@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/isaac-audio-sensors/s4_7_holdout_acceptance.corrective_03.v4.schema.json",
+  "title": "S4.7 corrective_03 exact-window contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "corrective_id",
+    "title",
+    "frozen_at_utc",
+    "supersedes",
+    "inherited_contract",
+    "window_observation_contract",
+    "bearing_derivation",
+    "repeatability_derivation",
+    "sector_derivation",
+    "scientific_semantics_authentication",
+    "preserved_contract",
+    "phase_boundary"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ias.s4_7.holdout_acceptance_corrective_config.v4"
+    },
+    "status": {
+      "const": "frozen"
+    },
+    "corrective_id": {
+      "const": "s4_7_corrective_03"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "frozen_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedes": {
+      "$ref": "#/$defs/supersedes"
+    },
+    "inherited_contract": {
+      "$ref": "#/$defs/inheritedContract"
+    },
+    "window_observation_contract": {
+      "$ref": "#/$defs/windowContract"
+    },
+    "bearing_derivation": {
+      "$ref": "#/$defs/exactObject"
+    },
+    "repeatability_derivation": {
+      "$ref": "#/$defs/exactObject"
+    },
+    "sector_derivation": {
+      "$ref": "#/$defs/exactObject"
+    },
+    "scientific_semantics_authentication": {
+      "$ref": "#/$defs/exactObject"
+    },
+    "preserved_contract": {
+      "$ref": "#/$defs/preservedContract"
+    },
+    "phase_boundary": {
+      "$ref": "#/$defs/phaseBoundary"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "exactObject": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "supersedes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_path",
+        "config_sha256",
+        "schema_path",
+        "schema_sha256",
+        "spec_path",
+        "spec_sha256",
+        "package_path",
+        "package_sha256_manifest",
+        "thresholds_changed",
+        "claimed_envelope_changed",
+        "scientific_eligibility_changed"
+      ],
+      "properties": {
+        "config_path": {"type": "string"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "schema_path": {"type": "string"},
+        "schema_sha256": {"$ref": "#/$defs/sha256"},
+        "spec_path": {"type": "string"},
+        "spec_sha256": {"$ref": "#/$defs/sha256"},
+        "package_path": {"type": "string"},
+        "package_sha256_manifest": {"$ref": "#/$defs/sha256"},
+        "thresholds_changed": {"const": false},
+        "claimed_envelope_changed": {"const": false},
+        "scientific_eligibility_changed": {"const": false}
+      }
+    },
+    "inheritedContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "criteria_config_path",
+        "criteria_config_sha256",
+        "criteria_spec_path",
+        "criteria_spec_sha256",
+        "readiness_criterion_count",
+        "stretch_criterion_count"
+      ],
+      "properties": {
+        "criteria_config_path": {"type": "string"},
+        "criteria_config_sha256": {"$ref": "#/$defs/sha256"},
+        "criteria_spec_path": {"type": "string"},
+        "criteria_spec_sha256": {"$ref": "#/$defs/sha256"},
+        "readiness_criterion_count": {"const": 23},
+        "stretch_criterion_count": {"const": 6}
+      }
+    },
+    "windowContract": {
+      "type": "object",
+      "required": [
+        "applicable_strata",
+        "source_config_path",
+        "source_config_sha256",
+        "sample_rate_hz",
+        "window_duration_ms",
+        "window_samples",
+        "window_overlap_percent",
+        "hop_samples",
+        "index_origin",
+        "window_id_format",
+        "start_sample_formula",
+        "count_formula",
+        "expected_count_by_duration_s",
+        "exact_contiguous_window_index_set_required",
+        "exact_window_id_and_start_sample_required",
+        "valid_state",
+        "abstained_state",
+        "missing_duplicate_unknown_non_finite_out_of_domain_or_inconsistent",
+        "no_valid_bearing_window"
+      ],
+      "properties": {
+        "applicable_strata": {
+          "const": [
+            "A_controlled_boundary_sweep",
+            "B_center_nominal_level"
+          ]
+        },
+        "source_config_path": {"type": "string"},
+        "source_config_sha256": {"$ref": "#/$defs/sha256"},
+        "sample_rate_hz": {"const": 16000},
+        "window_duration_ms": {"const": 250},
+        "window_samples": {"const": 4000},
+        "window_overlap_percent": {"const": 50},
+        "hop_samples": {"const": 2000},
+        "index_origin": {"const": 0},
+        "window_id_format": {"const": "window_{window_index:03d}"},
+        "start_sample_formula": {"const": "window_index * hop_samples"},
+        "count_formula": {
+          "const": "1 + floor((duration_samples - window_samples) / hop_samples)"
+        },
+        "expected_count_by_duration_s": {
+          "const": {"15": 119, "20": 159}
+        },
+        "exact_contiguous_window_index_set_required": {"const": true},
+        "exact_window_id_and_start_sample_required": {"const": true},
+        "valid_state": {"type": "object"},
+        "abstained_state": {"type": "object"},
+        "missing_duplicate_unknown_non_finite_out_of_domain_or_inconsistent": {
+          "const": "fail_closed"
+        },
+        "no_valid_bearing_window": {"const": "take_failure"}
+      },
+      "additionalProperties": false
+    },
+    "preservedContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planned_take_count",
+        "bearing_sim_real_condition_count",
+        "raw_microphone_channel_count",
+        "maximum_clip_run_readiness_threshold_samples",
+        "sustained_clipping_minimum_consecutive_samples",
+        "thresholds_changed",
+        "claimed_envelope_changed",
+        "scientific_eligibility_changed",
+        "holdout_identity_changed"
+      ],
+      "properties": {
+        "planned_take_count": {"const": 47},
+        "bearing_sim_real_condition_count": {"const": 32},
+        "raw_microphone_channel_count": {"const": 4},
+        "maximum_clip_run_readiness_threshold_samples": {"const": 8},
+        "sustained_clipping_minimum_consecutive_samples": {"const": 4000},
+        "thresholds_changed": {"const": false},
+        "claimed_envelope_changed": {"const": false},
+        "scientific_eligibility_changed": {"const": false},
+        "holdout_identity_changed": {"const": false}
+      }
+    },
+    "phaseBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holdout_observations_accessed",
+        "holdout_access_grant_created",
+        "holdout_access_grant_consumed",
+        "s4_8_started",
+        "later_phases_started",
+        "corrective_evidence_path",
+        "interlock_artifact_path",
+        "grant_still_required_for_s4_8"
+      ],
+      "properties": {
+        "holdout_observations_accessed": {"const": 0},
+        "holdout_access_grant_created": {"const": false},
+        "holdout_access_grant_consumed": {"const": false},
+        "s4_8_started": {"const": false},
+        "later_phases_started": {"const": []},
+        "corrective_evidence_path": {
+          "const": "outputs/isaac_audio_sensors/S4/S4.7_corrective_03"
+        },
+        "interlock_artifact_path": {
+          "const": "outputs/isaac_audio_sensors/S4/S4.7_corrective_03/holdout_acceptance.json"
+        },
+        "grant_still_required_for_s4_8": {"const": true}
+      }
+    }
+  }
+}

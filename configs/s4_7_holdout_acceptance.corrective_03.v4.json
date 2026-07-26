@@ -1,0 +1,150 @@
+{
+  "schema": "ias.s4_7.holdout_acceptance_corrective_config.v4",
+  "status": "frozen",
+  "corrective_id": "s4_7_corrective_03",
+  "title": "S4.7 exact-window and scientific-semantic acceptance corrective",
+  "frozen_at_utc": "2026-07-26T19:09:06Z",
+  "supersedes": {
+    "config_path": "configs/s4_7_holdout_acceptance.corrective_02.v3.json",
+    "config_sha256": "0794945fe0ff2e1c7b043d95d8e3b81cedc37fc72e59f05d79998855564010b8",
+    "schema_path": "docs/schemas/s4_7_holdout_acceptance.corrective_02.v3.schema.json",
+    "schema_sha256": "9fd518381c825e448cea5ee0e4dca5e639c47b85d7da62408633b49d89407d12",
+    "spec_path": "docs/development/specs/s4_holdout_acceptance_corrective_02.md",
+    "spec_sha256": "581d1671d435af65cfc10faa72250ab48d463d2d86863d3d618a1414a786f5ad",
+    "package_path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_02",
+    "package_sha256_manifest": "79ce288bd60c38b25b611ce7921c5dcbb9462427dba2be13e71fbacc86f1b6a1",
+    "thresholds_changed": false,
+    "claimed_envelope_changed": false,
+    "scientific_eligibility_changed": false
+  },
+  "inherited_contract": {
+    "criteria_config_path": "configs/s4_7_holdout_acceptance.v1.json",
+    "criteria_config_sha256": "94579e534dba0dfe421499d236c5f8ded077a402fc2ded289da1c55d3169fa1b",
+    "criteria_spec_path": "docs/development/specs/s4_holdout_acceptance.md",
+    "criteria_spec_sha256": "76e8c27400fd0ae4643ac85f36d87dd5a18cb1baa0430a5e3691371ef29dcb8a",
+    "readiness_criterion_count": 23,
+    "stretch_criterion_count": 6
+  },
+  "window_observation_contract": {
+    "applicable_strata": [
+      "A_controlled_boundary_sweep",
+      "B_center_nominal_level"
+    ],
+    "source_config_path": "configs/s4_3_pilot.v1.json",
+    "source_config_sha256": "3bfbd3a7f472d5a264a24336f0976d53eeb24420ea52a0dbc68a23817579dff5",
+    "sample_rate_hz": 16000,
+    "window_duration_ms": 250,
+    "window_samples": 4000,
+    "window_overlap_percent": 50,
+    "hop_samples": 2000,
+    "index_origin": 0,
+    "window_id_format": "window_{window_index:03d}",
+    "start_sample_formula": "window_index * hop_samples",
+    "count_formula": "1 + floor((duration_samples - window_samples) / hop_samples)",
+    "expected_count_by_duration_s": {
+      "15": 119,
+      "20": 159
+    },
+    "exact_contiguous_window_index_set_required": true,
+    "exact_window_id_and_start_sample_required": true,
+    "valid_state": {
+      "abstained": false,
+      "srp_bearing_deg_f_project": "finite number in [0, 360)"
+    },
+    "abstained_state": {
+      "abstained": true,
+      "srp_bearing_deg_f_project": null
+    },
+    "missing_duplicate_unknown_non_finite_out_of_domain_or_inconsistent": "fail_closed",
+    "no_valid_bearing_window": "take_failure"
+  },
+  "bearing_derivation": {
+    "window_estimator": "SRP-PHAT primary estimator on frozen raw-channel analysis windows",
+    "window_error": "circular_absolute_difference(authenticated_target_bearing_deg_f_project, valid_window_srp_bearing_deg_f_project)",
+    "per_take_error": "median(valid_window_circular_absolute_errors_deg)",
+    "abstained_windows": "excluded_from_numeric_error_and_counted_by_abstention_criteria",
+    "reported_per_take_error": "optional_but_if_present_must_equal_derived_value_exactly",
+    "readiness_and_sim_real_source": "derived_per_take_error"
+  },
+  "repeatability_derivation": {
+    "per_take_representative_bearing": "statistics.median(valid_window_srp_bearing_deg_f_project)",
+    "method_source": "src/isaac_audio_sensors/acquisition/s4_3.py:summarize_windows",
+    "within_cell_aggregation": "frozen_largest_gap_circular_range_of_three_per_take_representative_bearings_then_maximum_across_eight_cells",
+    "separate_from_per_take_error": true,
+    "wraparound": "representative uses the existing linear median; only the within-cell range uses the frozen circular largest-gap convention"
+  },
+  "sector_derivation": {
+    "applicable_stratum": "B_center_nominal_level",
+    "window_mapping": "bearing_deg_to_sector_name(valid_window_srp_bearing_deg_f_project)",
+    "per_take_sector": "unique_strict_majority_of_valid_window_sector_names",
+    "correctness": "derived_majority_sector_equals_bearing_deg_to_sector_name(authenticated_target_bearing_deg_f_project)",
+    "no_valid_windows": "incorrect_and_take_failure",
+    "no_strict_majority": "incorrect",
+    "unresolved_tie": "incorrect",
+    "abstained_take": "incorrect",
+    "reported_sector_correct": "optional_but_if_present_must_equal_derived_value_exactly",
+    "readiness_and_sim_real_source": "derived_sector_correct"
+  },
+  "scientific_semantics_authentication": {
+    "register_schema": "ias.s4_7.effective_criteria_register.v4",
+    "resolution": "corrective_03_exact_machine_readable_semantics",
+    "criterion_identity_fields": [
+      "criterion_id",
+      "tier",
+      "gating",
+      "metric",
+      "statistic",
+      "comparator",
+      "threshold",
+      "denominator",
+      "strata",
+      "sample_kind",
+      "observable",
+      "failure_logic",
+      "scientific_contract",
+      "resolution"
+    ],
+    "default_resolution": {
+      "resolution_id": "inherit_frozen_v1_exactly",
+      "changes_scientific_eligibility": false
+    },
+    "bearing_resolution": {
+      "resolution_id": "exact_window_error_then_per_take_median",
+      "applies_to_metric": "bearing_doa_error",
+      "changes_scientific_eligibility": false
+    },
+    "sector_resolution": {
+      "resolution_id": "valid_window_sector_strict_majority",
+      "applies_to_metric": "sector_accuracy",
+      "changes_scientific_eligibility": false
+    },
+    "repeatability_resolution": {
+      "resolution_id": "existing_window_bearing_median_then_frozen_circular_range",
+      "applies_to_criterion": "within_cell_bearing_circular_range_stratum_a",
+      "changes_scientific_eligibility": false
+    },
+    "arbitrary_effective_semantics_prose_permitted": false,
+    "exact_register_equality_required": true
+  },
+  "preserved_contract": {
+    "planned_take_count": 47,
+    "bearing_sim_real_condition_count": 32,
+    "raw_microphone_channel_count": 4,
+    "maximum_clip_run_readiness_threshold_samples": 8,
+    "sustained_clipping_minimum_consecutive_samples": 4000,
+    "thresholds_changed": false,
+    "claimed_envelope_changed": false,
+    "scientific_eligibility_changed": false,
+    "holdout_identity_changed": false
+  },
+  "phase_boundary": {
+    "holdout_observations_accessed": 0,
+    "holdout_access_grant_created": false,
+    "holdout_access_grant_consumed": false,
+    "s4_8_started": false,
+    "later_phases_started": [],
+    "corrective_evidence_path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_03",
+    "interlock_artifact_path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_03/holdout_acceptance.json",
+    "grant_still_required_for_s4_8": true
+  }
+}
