@@ -1,0 +1,455 @@
+{
+  "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+  "details": {
+    "criteria": [
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "bearing_median_absolute_error_stratum_a",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "effective_semantics": "derive circular absolute error from authenticated target and estimated bearing on the exact keyed take set",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "statistic": "median",
+        "threshold": 15.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "bearing_p95_absolute_error_stratum_a",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "effective_semantics": "derive circular absolute error from authenticated target and estimated bearing on the exact keyed take set",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "statistic": "p95_nearest_rank",
+        "threshold": 30.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "bearing_worst_absolute_error_stratum_a",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "effective_semantics": "derive circular absolute error from authenticated target and estimated bearing on the exact keyed take set",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "statistic": "worst",
+        "threshold": 60.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "bearing_median_absolute_error_stratum_b",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "effective_semantics": "derive circular absolute error from authenticated target and estimated bearing on the exact keyed take set",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "statistic": "median",
+        "threshold": 15.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "greater_than_or_equal",
+        "criterion_id": "sector_accuracy_stratum_b",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "effective_semantics": "derive exact 0-or-1 B-take sector correctness by applying bearing_deg_to_sector_name to authenticated target and estimate",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "sector_accuracy",
+        "statistic": "rate",
+        "threshold": 0.75,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "greater_than_or_equal",
+        "criterion_id": "candidate_coverage_strata_ab",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "effective_semantics": "derive exact 0-or-1 A+B coverage from emitted candidate bearings within the frozen 20 degree circular target tolerance",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "candidate_bearing",
+        "statistic": "rate",
+        "threshold": 0.75,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "within_cell_bearing_circular_range_stratum_a",
+        "denominator": {
+          "basis": "bearing_cells",
+          "expected_count": 8
+        },
+        "effective_semantics": "derive from authenticated A-take estimated bearings across eight exact three-repetition cells",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "bearing_doa_error",
+        "statistic": "max_group_circular_range",
+        "threshold": 20.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "within_cell_pair_tdoa_range_stratum_a",
+        "denominator": {
+          "basis": "bearing_cell_pair_groups",
+          "expected_count": 48
+        },
+        "effective_semantics": "derive from 144 authenticated A-take microphone-pair TDOA observations grouped into 48 exact three-repetition groups",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "tdoa",
+        "statistic": "max_group_range",
+        "threshold": 125.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "frame_to_adapter_latency_p95",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "effective_semantics": "derive from exactly one keyed latency summary per each of 47 takes",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "frame_to_adapter_latency",
+        "statistic": "p95_nearest_rank",
+        "threshold": 5.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "capture_to_frame_offline_spread",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "effective_semantics": "derive from exactly one keyed latency summary per each of 47 takes",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "capture_to_frame_latency",
+        "statistic": "range",
+        "threshold": 25.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "equal",
+        "criterion_id": "raw_channel_health_failure_count",
+        "denominator": {
+          "basis": "raw_channel_take_records",
+          "expected_count": 188
+        },
+        "effective_semantics": "derive from exactly 188 four-raw-microphone take-channel records",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "channel_presence_order_health",
+        "statistic": "identity",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "equal",
+        "criterion_id": "major_polarity_anomaly_count",
+        "denominator": {
+          "basis": "raw_channel_take_records",
+          "expected_count": 188
+        },
+        "effective_semantics": "derive from exactly 188 four-raw-microphone take-channel records",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "major_polarity_anomaly",
+        "statistic": "identity",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "equal",
+        "criterion_id": "sustained_clipping_take_count",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "effective_semantics": "classify a take only when any raw-channel run is at least 4000 consecutive samples; denominator is exactly 47 takes",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "channel_presence_order_health",
+        "statistic": "identity",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "maximum_clip_run_samples",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 47
+        },
+        "effective_semantics": "take the maximum over 188 raw-channel take records, never a total; the unchanged readiness threshold is 8 samples",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "channel_presence_order_health",
+        "statistic": "identity",
+        "threshold": 8.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "take_failure_rate",
+        "denominator": {
+          "basis": "planned_takes",
+          "expected_count": 47
+        },
+        "effective_semantics": "derive failed from a non-empty terminal failure-reason list for every one of 47 planned takes",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "acquisition_analysis_failures",
+        "statistic": "rate",
+        "threshold": 0.1,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "greater_than_or_equal",
+        "criterion_id": "silence_abstention_rate_stratum_d",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "effective_semantics": "derive from exact per-take source and abstained window counts; active uses abstained fraction and silence uses non-abstained fraction",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "abstention",
+        "statistic": "rate",
+        "threshold": 0.95,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "active_abstention_rate_strata_ab",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "effective_semantics": "derive from exact per-take source and abstained window counts; active uses abstained fraction and silence uses non-abstained fraction",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "abstention",
+        "statistic": "rate",
+        "threshold": 0.1,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "greater_than_or_equal",
+        "criterion_id": "confidence_median_stratum_b",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "effective_semantics": "derive from the matching exact keyed B or C take confidence",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "confidence",
+        "statistic": "median",
+        "threshold": 0.015,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "equal",
+        "criterion_id": "sub_floor_direction_emission_count",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "effective_semantics": "sum exact keyed per-take below-floor direction-emission counts",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "ambiguity",
+        "statistic": "identity",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "low_level_confidence_monotonicity",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "effective_semantics": "derive from the matching exact keyed B or C take confidence",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "confidence",
+        "statistic": "median_difference",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "coarse_av_association_residual_stratum_e",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 4
+        },
+        "effective_semantics": "derive each E-take residual as the absolute difference between matching audio and video event times",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "coarse_audio_video_association",
+        "statistic": "worst",
+        "threshold": 50.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "sim_adjusted_bearing_median_delta_vs_real",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "effective_semantics": "derive every real comparison value from its authenticated keyed take observation; accept only keyed simulation values",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "sim_versus_real",
+        "statistic": "absolute_median_difference",
+        "threshold": 20.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "equal",
+        "criterion_id": "sim_adjustment_worsened_gating_metric_count",
+        "denominator": {
+          "basis": "compared_gating_metrics",
+          "expected_count": null
+        },
+        "effective_semantics": "derive every real comparison value from its authenticated keyed take observation; accept only keyed simulation values",
+        "failure_logic": "a violated readiness criterion keeps S4.8 and S4 failed for the claimed envelope and may not be relaxed, rescoped, or removed",
+        "gating": true,
+        "metric": "sim_versus_real",
+        "statistic": "worsened_gating_metric_count",
+        "threshold": 0.0,
+        "tier": "readiness"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "bearing_median_absolute_error_stratum_a_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "effective_semantics": "derive circular absolute error from authenticated target and estimated bearing on the exact keyed take set",
+        "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+        "gating": false,
+        "metric": "bearing_doa_error",
+        "statistic": "median",
+        "threshold": 5.0,
+        "tier": "stretch"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "bearing_p95_absolute_error_stratum_a_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 24
+        },
+        "effective_semantics": "derive circular absolute error from authenticated target and estimated bearing on the exact keyed take set",
+        "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+        "gating": false,
+        "metric": "bearing_doa_error",
+        "statistic": "p95_nearest_rank",
+        "threshold": 12.0,
+        "tier": "stretch"
+      },
+      {
+        "comparator": "greater_than_or_equal",
+        "criterion_id": "sector_accuracy_stratum_b_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 8
+        },
+        "effective_semantics": "derive exact 0-or-1 B-take sector correctness by applying bearing_deg_to_sector_name to authenticated target and estimate",
+        "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+        "gating": false,
+        "metric": "sector_accuracy",
+        "statistic": "rate",
+        "threshold": 0.9,
+        "tier": "stretch"
+      },
+      {
+        "comparator": "greater_than_or_equal",
+        "criterion_id": "candidate_coverage_strata_ab_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "effective_semantics": "derive exact 0-or-1 A+B coverage from emitted candidate bearings within the frozen 20 degree circular target tolerance",
+        "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+        "gating": false,
+        "metric": "candidate_bearing",
+        "statistic": "rate",
+        "threshold": 0.95,
+        "tier": "stretch"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "active_abstention_rate_strata_ab_stretch",
+        "denominator": {
+          "basis": "analysis_windows",
+          "expected_count": null
+        },
+        "effective_semantics": "derive from exact per-take source and abstained window counts; active uses abstained fraction and silence uses non-abstained fraction",
+        "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+        "gating": false,
+        "metric": "abstention",
+        "statistic": "rate",
+        "threshold": 0.02,
+        "tier": "stretch"
+      },
+      {
+        "comparator": "less_than_or_equal",
+        "criterion_id": "sim_adjusted_bearing_median_delta_vs_real_stretch",
+        "denominator": {
+          "basis": "takes",
+          "expected_count": 32
+        },
+        "effective_semantics": "derive every real comparison value from its authenticated keyed take observation; accept only keyed simulation values",
+        "failure_logic": "a violated stretch criterion is reported and never changes the gate",
+        "gating": false,
+        "metric": "sim_versus_real",
+        "statistic": "absolute_median_difference",
+        "threshold": 5.0,
+        "tier": "stretch"
+      }
+    ],
+    "criterion_count": 29,
+    "inherited_config_sha256": "94579e534dba0dfe421499d236c5f8ded077a402fc2ded289da1c55d3169fa1b",
+    "readiness_criterion_count": 23,
+    "resolution": "corrective_02_effective_semantics",
+    "stretch_criterion_count": 6
+  },
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "planned_take_count": 47,
+  "schema": "ias.s4_7.corrective_criteria_register.v3",
+  "seal_file_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+  "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+  "source_commit": "dec2f31d4868a79f3484da3e0d2d424ae14efd5f",
+  "status": "passed"
+}

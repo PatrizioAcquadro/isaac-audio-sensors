@@ -1,0 +1,197 @@
+{
+  "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+  "details": {
+    "case_count": 30,
+    "cases": [
+      {
+        "case": "only_one_of_seven_comparisons",
+        "detail": "exact sim-real registry mismatch: missing=['abstention_abd', 'candidate_bearing_ab', 'coarse_audio_video_association_e', 'confidence_bc', 'sector_accuracy_b', 'tdoa_a'], extra=[]",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "payload_flips_direction",
+        "detail": "sim_vs_real[0] fields must be exactly ['comparison_id', 'conditions']",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "payload_selects_other_band",
+        "detail": "sim_vs_real[0] fields must be exactly ['comparison_id', 'conditions']",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "missing_take",
+        "detail": "exact take set mismatch: missing=['s44a03_prospective_holdout_047_av'], extra=[]",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "duplicate_take",
+        "detail": "duplicate take identity: s44a03_prospective_holdout_001_sil",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "misstratified_take",
+        "detail": "take identity mismatch: s44a03_prospective_holdout_001_sil",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "wrong_group",
+        "detail": "take identity mismatch: s44a03_prospective_holdout_001_sil",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "wrong_pair",
+        "detail": "take identity mismatch: s44a03_prospective_holdout_027_conf",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "one_window_for_stratum",
+        "detail": "s44a03_prospective_holdout_001_sil window coverage mismatch: expected 119, found 1",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "one_real_counterpart_for_32",
+        "detail": "bearing_doa_error_ab condition identity mismatch: missing=['s44a03_prospective_holdout_003_ctl', 's44a03_prospective_holdout_004_ctl', 's44a03_prospective_holdout_005_ctl', 's44a03_prospective_holdout_006_ctl', 's44a03_prospective_holdout_007_ctl', 's44a03_prospective_holdout_008_ctl', 's44a03_prospective_holdout_009_ctl', 's44a03_prospective_holdout_010_ctl', 's44a03_prospective_holdout_011_ctl', 's44a03_prospective_holdout_012_ctl', 's44a03_prospective_holdout_013_ctl', 's44a03_prospective_holdout_014_ctl', 's44a03_prospective_holdout_015_ctl', 's44a03_prospective_holdout_016_ctl', 's44a03_prospective_holdout_017_ctl', 's44a03_prospective_holdout_018_ctl', 's44a03_prospective_holdout_019_ctl', 's44a03_prospective_holdout_020_ctl', 's44a03_prospective_holdout_021_ctl', 's44a03_prospective_holdout_022_ctl', 's44a03_prospective_holdout_023_ctl', 's44a03_prospective_holdout_024_ctl', 's44a03_prospective_holdout_025_ctl', 's44a03_prospective_holdout_027_conf', 's44a03_prospective_holdout_030_conf', 's44a03_prospective_holdout_031_conf', 's44a03_prospective_holdout_034_conf', 's44a03_prospective_holdout_036_conf', 's44a03_prospective_holdout_037_conf', 's44a03_prospective_holdout_040_conf', 's44a03_prospective_holdout_041_conf'], extra=[]",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "duplicate_tdoa_pair",
+        "detail": "s44a03_prospective_holdout_002_ctl duplicate TDOA pair: raw_microphone_0->raw_microphone_1",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "negative_absolute_error",
+        "detail": "s44a03_prospective_holdout_002_ctl.bearing_absolute_error_deg must be >= 0.0",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "negative_latency",
+        "detail": "s44a03_prospective_holdout_001_sil.frame_to_adapter_round_trip_ms must be >= 0.0",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "negative_clip_run",
+        "detail": "s44a03_prospective_holdout_001_sil.raw_microphone_0.maximum_clip_run_samples must be >= 0",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "negative_av_residual",
+        "detail": "s44a03_prospective_holdout_044_av.av_absolute_residual_ms must be >= 0.0",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "tdoa_outside_physical_domain",
+        "detail": "s44a03_prospective_holdout_002_ctl.raw_microphone_0->raw_microphone_1.tdoa_us must be <= 272.1227262875343",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "confidence_above_one",
+        "detail": "s44a03_prospective_holdout_027_conf.confidence must be <= 1.0",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "caller_supplied_real_100_for_four_degree_bearing",
+        "detail": "bearing_doa_error_ab condition fields must be exactly ['adjusted_simulation', 'condition_id', 'unadjusted_simulation']",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "estimated_bearing_contradicts_reported_error",
+        "detail": "s44a03_prospective_holdout_002_ctl.bearing_absolute_error_deg contradicts target and estimate",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "target_bearing_contradicts_authenticated_identity",
+        "detail": "take identity mismatch: s44a03_prospective_holdout_027_conf",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "sector_result_contradicts_bearings",
+        "detail": "s44a03_prospective_holdout_027_conf.sector_correct contradicts target and estimate",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "candidate_result_contradicts_candidates",
+        "detail": "s44a03_prospective_holdout_002_ctl.candidate_covered contradicts candidate bearings",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "failure_status_contradicts_reasons",
+        "detail": "s44a03_prospective_holdout_001_sil.failed contradicts failure_reasons",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "tdoa_error_contradicts_source_observations",
+        "detail": "s44a03_prospective_holdout_002_ctl.raw_microphone_0->raw_microphone_1.absolute_error_us contradicts measured and reference TDOA",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "av_residual_contradicts_event_times",
+        "detail": "s44a03_prospective_holdout_044_av.av_absolute_residual_ms contradicts event times",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "sector_condition_fraction",
+        "detail": "sector_accuracy_b.s44a03_prospective_holdout_027_conf.adjusted_simulation must be exactly 0 or 1",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "candidate_condition_fraction",
+        "detail": "candidate_bearing_ab.s44a03_prospective_holdout_002_ctl.adjusted_simulation must be exactly 0 or 1",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "nine_sample_run_reported_sustained",
+        "detail": "s44a03_prospective_holdout_001_sil.raw_microphone_0.sustained_clipping contradicts maximum_clip_run_samples",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "3999_sample_run_reported_sustained",
+        "detail": "s44a03_prospective_holdout_001_sil.raw_microphone_0.sustained_clipping contradicts maximum_clip_run_samples",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "4000_sample_run_reported_not_sustained",
+        "detail": "s44a03_prospective_holdout_001_sil.raw_microphone_0.sustained_clipping contradicts maximum_clip_run_samples",
+        "fail_closed": true,
+        "status": "passed"
+      }
+    ],
+    "silent_pass_observed": false
+  },
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "planned_take_count": 47,
+  "schema": "ias.s4_7.corrective_fail_closed_matrix.v3",
+  "seal_file_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+  "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+  "source_commit": "dec2f31d4868a79f3484da3e0d2d424ae14efd5f",
+  "status": "passed"
+}

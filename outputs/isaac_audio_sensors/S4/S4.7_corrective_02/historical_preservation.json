@@ -1,0 +1,27 @@
+{
+  "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+  "details": {
+    "packages": [
+      {
+        "file_count": 16,
+        "manifest_valid": true,
+        "path": "outputs/isaac_audio_sensors/S4/S4.7",
+        "sha256_manifest_sha256": "795ce0b263326b99f9c551dd2ce6b2f3682913a23a73c4449dc7d08f5656ce53"
+      },
+      {
+        "file_count": 18,
+        "manifest_valid": true,
+        "path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_01",
+        "sha256_manifest_sha256": "de6b4f8ee8721d48deed51b177688f91b3d40f133bcabb3a7ea201dc157bc676"
+      }
+    ]
+  },
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "planned_take_count": 47,
+  "schema": "ias.s4_7.corrective_historical_preservation.v3",
+  "seal_file_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+  "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+  "source_commit": "dec2f31d4868a79f3484da3e0d2d424ae14efd5f",
+  "status": "passed"
+}

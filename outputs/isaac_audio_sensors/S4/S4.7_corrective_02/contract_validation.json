@@ -1,0 +1,20 @@
+{
+  "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+  "details": {
+    "claimed_envelope_changed": false,
+    "corrective_spec_sha256": "581d1671d435af65cfc10faa72250ab48d463d2d86863d3d618a1414a786f5ad",
+    "criteria_config_sha256": "0794945fe0ff2e1c7b043d95d8e3b81cedc37fc72e59f05d79998855564010b8",
+    "criteria_schema_sha256": "9fd518381c825e448cea5ee0e4dca5e639c47b85d7da62408633b49d89407d12",
+    "criteria_validation_status": "passed",
+    "scientific_eligibility_changed": false,
+    "thresholds_changed": false
+  },
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "planned_take_count": 47,
+  "schema": "ias.s4_7.corrective_contract_validation.v3",
+  "seal_file_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+  "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+  "source_commit": "dec2f31d4868a79f3484da3e0d2d424ae14efd5f",
+  "status": "passed"
+}
