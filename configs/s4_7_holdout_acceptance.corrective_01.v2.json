@@ -196,6 +196,7 @@
         "metric": "bearing_doa_error",
         "unit": "deg",
         "direction": "lower_is_better",
+        "value_semantics": "per-take absolute bearing error",
         "preserve_band": 2.0,
         "aggregation": "median",
         "applicable_strata": [
@@ -210,6 +211,7 @@
         "metric": "sector_accuracy",
         "unit": "fraction",
         "direction": "higher_is_better",
+        "value_semantics": "per-take sector-correct indicator encoded as 0 or 1",
         "preserve_band": 0.05,
         "aggregation": "mean",
         "applicable_strata": [
@@ -223,6 +225,7 @@
         "metric": "candidate_bearing",
         "unit": "fraction",
         "direction": "higher_is_better",
+        "value_semantics": "per-take candidate-covered indicator encoded as 0 or 1",
         "preserve_band": 0.05,
         "aggregation": "mean",
         "applicable_strata": [
@@ -237,6 +240,7 @@
         "metric": "tdoa",
         "unit": "us_absolute_error",
         "direction": "lower_is_better",
+        "value_semantics": "per-take-per-pair absolute TDOA error",
         "preserve_band": 25.0,
         "aggregation": "median",
         "applicable_strata": [
@@ -250,6 +254,7 @@
         "metric": "abstention",
         "unit": "fraction",
         "direction": "lower_is_better",
+        "value_semantics": "per-take decision-error fraction: abstained fraction for active A+B takes and non-abstained fraction for silence D takes",
         "preserve_band": 0.05,
         "aggregation": "mean",
         "applicable_strata": [
@@ -265,6 +270,7 @@
         "metric": "confidence",
         "unit": "dimensionless",
         "direction": "higher_is_better",
+        "value_semantics": "per-take median confidence",
         "preserve_band": 0.005,
         "aggregation": "median",
         "applicable_strata": [
@@ -279,6 +285,7 @@
         "metric": "coarse_audio_video_association",
         "unit": "ms_absolute_residual",
         "direction": "lower_is_better",
+        "value_semantics": "per-take absolute audio-video association residual",
         "preserve_band": 5.0,
         "aggregation": "worst",
         "applicable_strata": [

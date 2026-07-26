@@ -365,6 +365,7 @@
         "metric",
         "unit",
         "direction",
+        "value_semantics",
         "preserve_band",
         "aggregation",
         "applicable_strata",
@@ -389,6 +390,10 @@
             "lower_is_better",
             "higher_is_better"
           ]
+        },
+        "value_semantics": {
+          "type": "string",
+          "minLength": 1
         },
         "preserve_band": {
           "type": "number",

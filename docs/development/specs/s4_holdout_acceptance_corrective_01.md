@@ -77,6 +77,11 @@ All three paths therefore have the identical expected condition set.
 | confidence | B+C takes | 16 |
 | coarse AV residual | E takes | 4 |
 
+For the mixed active/silence abstention comparison, each condition is a
+decision-error fraction: abstained fraction for active A+B takes and
+non-abstained fraction for silence D takes. Lower is therefore consistently
+better without reversing the meaning of silence.
+
 The bearing sim-real readiness criterion uses 32 A+B takes. There are 40
 bearing-referenced takes only when C is included for the confidence comparison;
 C is not silently added to the bearing-error criterion.
