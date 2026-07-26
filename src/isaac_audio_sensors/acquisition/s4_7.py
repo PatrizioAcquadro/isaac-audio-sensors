@@ -14,6 +14,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -907,19 +908,25 @@ def validate_evidence_package(
     try:
         provenance = load_json(output / "provenance.json")
         source_commit = str(provenance["source_commit"])
-        with tempfile.TemporaryDirectory(prefix="ias-s4-7-validate-") as temp:
-            expected = Path(temp) / "package"
-            build_evidence_package(
-                repo_root=repo_root,
-                output=expected,
-                source_commit=source_commit,
+        replay = subprocess.run(
+            [
+                sys.executable,
+                str(repo_root / "scripts/replay_s4_7.py"),
+                "--repo-root",
+                str(repo_root),
+                "--canonical",
+                str(output),
+            ],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if replay.returncode != 0:
+            issues.append(
+                "semantic historical replay failed: "
+                f"{replay.stderr.strip() or replay.stdout.strip()}"
             )
-            for name in REQUIRED_FILES:
-                if (
-                    not (output / name).is_file()
-                    or (output / name).read_bytes() != (expected / name).read_bytes()
-                ):
-                    issues.append(f"semantic regeneration mismatch: {name}")
     except (KeyError, OSError, S47EvidenceError, AcceptanceCriteriaError) as exc:
         issues.append(f"semantic regeneration failed: {exc}")
     if require_tracked and output.is_dir():

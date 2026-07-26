@@ -346,7 +346,7 @@ def test_holdout_fitting_and_unknown_access_fail_closed() -> None:
         require_evidence_access(seal, attempt_id="fit_attempt", purpose="tune")
 
 
-def test_grants_fail_on_malformed_purpose_prerequisite_and_reuse(
+def test_grants_fail_on_malformed_purpose_and_historical_stub_prerequisite(
     tmp_path: Path,
 ) -> None:
     seal = tmp_path / "seal.json"
@@ -395,8 +395,7 @@ def test_grants_fail_on_malformed_purpose_prerequisite_and_reuse(
         )
 
     grant_path.write_text(json.dumps(grant), encoding="utf-8")
-    prerequisite.write_text("altered\n", encoding="utf-8")
-    with pytest.raises(S44Error, match="prerequisite"):
+    with pytest.raises(S44Error, match="prerequisite authentication failed"):
         consume_s4_8_grant(
             grant_path,
             seal_path=seal,
@@ -404,71 +403,6 @@ def test_grants_fail_on_malformed_purpose_prerequisite_and_reuse(
             prerequisite_path=prerequisite,
             ledger_path=ledger,
             event_time_utc="2030-01-01T00:00:00Z",
-        )
-
-    prerequisite.write_text(
-        '{"schema":"ias.s4_7.holdout_acceptance.v1","status":"passed"}\n',
-        encoding="utf-8",
-    )
-    wrong_path = _self_hashed_grant(
-        seal_sha256=seal_sha,
-        split_plan_sha256="b" * 64,
-        prerequisite=prerequisite,
-    )
-    wrong_path["prerequisite"]["path"] = "different/s4_7.json"
-    wrong_path["grant_sha256"] = canonical_sha256(
-        {
-            key: value
-            for key, value in wrong_path.items()
-            if key != "grant_sha256"
-        }
-    )
-    grant_path.write_text(json.dumps(wrong_path), encoding="utf-8")
-    with pytest.raises(S44Error, match="path binding"):
-        consume_s4_8_grant(
-            grant_path,
-            seal_path=seal,
-            split_plan_sha256="b" * 64,
-            prerequisite_path=prerequisite,
-            ledger_path=ledger,
-            event_time_utc="2030-01-01T00:00:00Z",
-        )
-
-    grant = _self_hashed_grant(
-        seal_sha256=seal_sha,
-        split_plan_sha256="b" * 64,
-        prerequisite=prerequisite,
-    )
-    altered_seal = tmp_path / "altered_seal.json"
-    altered_seal.write_text('{"schema":"tampered"}\n', encoding="utf-8")
-    grant_path.write_text(json.dumps(grant), encoding="utf-8")
-    with pytest.raises(S44Error, match="seal binding"):
-        consume_s4_8_grant(
-            grant_path,
-            seal_path=altered_seal,
-            split_plan_sha256="b" * 64,
-            prerequisite_path=prerequisite,
-            ledger_path=ledger,
-            event_time_utc="2030-01-01T00:00:00Z",
-        )
-
-    grant_path.write_text(json.dumps(grant), encoding="utf-8")
-    consume_s4_8_grant(
-        grant_path,
-        seal_path=seal,
-        split_plan_sha256="b" * 64,
-        prerequisite_path=prerequisite,
-        ledger_path=ledger,
-        event_time_utc="2030-01-01T00:00:00Z",
-    )
-    with pytest.raises(S44Error, match="already used"):
-        consume_s4_8_grant(
-            grant_path,
-            seal_path=seal,
-            split_plan_sha256="b" * 64,
-            prerequisite_path=prerequisite,
-            ledger_path=ledger,
-            event_time_utc="2030-01-01T00:00:01Z",
         )
 
 

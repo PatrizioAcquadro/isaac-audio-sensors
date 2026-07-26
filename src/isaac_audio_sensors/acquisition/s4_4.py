@@ -1351,29 +1351,29 @@ def consume_s4_8_grant(
         raise S44Error("grant seal binding mismatch")
     if grant["split_plan_sha256"] != split_plan_sha256:
         raise S44Error("grant SplitPlan binding mismatch")
-    prerequisite = grant.get("prerequisite")
-    if not isinstance(prerequisite, dict):
-        raise S44Error("grant prerequisite: expected object")
-    expected_prerequisite_fields = {"path", "sha256", "schema", "status"}
-    if set(prerequisite) != expected_prerequisite_fields:
-        raise S44Error(
-            "grant prerequisite fields: expected "
-            f"{sorted(expected_prerequisite_fields)}, found {sorted(prerequisite)}"
+    from isaac_audio_sensors.acquisition.s4_7_prerequisite import (
+        S47PrerequisiteError,
+        validate_grant_prerequisite_binding,
+        validate_s4_7_corrective_prerequisite,
+    )
+
+    try:
+        authenticated = validate_s4_7_corrective_prerequisite(
+            prerequisite_path,
+            seal_path=seal_path,
+            require_committed=True,
         )
-    if prerequisite.get("path") != prerequisite_path.as_posix():
-        raise S44Error("grant prerequisite path binding mismatch")
-    if prerequisite.get("schema") != "ias.s4_7.holdout_acceptance.v1":
-        raise S44Error("grant prerequisite schema binding mismatch")
-    if prerequisite.get("status") != "passed":
-        raise S44Error("grant prerequisite status binding mismatch")
-    actual_prerequisite_sha = sha256_file(prerequisite_path)
-    if prerequisite.get("sha256") != actual_prerequisite_sha:
-        raise S44Error("grant prerequisite hash mismatch")
-    prerequisite_payload = load_json(prerequisite_path)
-    if prerequisite_payload.get("schema") != prerequisite.get("schema"):
-        raise S44Error("grant prerequisite schema mismatch")
-    if prerequisite_payload.get("status") != prerequisite.get("status"):
-        raise S44Error("grant prerequisite status mismatch")
+        validate_grant_prerequisite_binding(
+            grant.get("prerequisite"), authenticated
+        )
+    except S47PrerequisiteError as exc:
+        raise S44Error(f"grant prerequisite authentication failed: {exc}") from exc
+    prerequisite = grant["prerequisite"]
+    actual_prerequisite_sha = authenticated["sha256"]
+    if prerequisite["seal_file_sha256"] != grant["seal_sha256"]:
+        raise S44Error("grant and prerequisite seal binding mismatch")
+    if authenticated["seal_file_sha256"] != seal_sha:
+        raise S44Error("authenticated prerequisite seal binding mismatch")
     ledger = validate_ledger(ledger_path, expected_seal_sha256=seal_sha)
     if ledger["status"] != "passed":
         raise S44Error("access ledger chain invalid")

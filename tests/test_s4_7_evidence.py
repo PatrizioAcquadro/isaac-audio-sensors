@@ -129,7 +129,9 @@ def test_interlock_artifact_matches_the_frozen_grant_contract(tmp_path: Path) ->
     )
 
 
-def test_a_future_grant_can_bind_to_the_interlock_artifact(tmp_path: Path) -> None:
+def test_historical_v1_artifact_cannot_satisfy_corrective_interlock(
+    tmp_path: Path,
+) -> None:
     from isaac_audio_sensors.acquisition.s4_4 import (
         S44Error,
         canonical_sha256,
@@ -165,27 +167,13 @@ def test_a_future_grant_can_bind_to_the_interlock_artifact(tmp_path: Path) -> No
         encoding="utf-8",
     )
 
-    accepted = consume_s4_8_grant(
-        grant,
-        seal_path=seal,
-        split_plan_sha256="0" * 64,
-        prerequisite_path=prerequisite,
-        ledger_path=ledger,
-        event_time_utc="2026-07-24T00:00:00+00:00",
-    )
-    assert accepted["allowed"] is True
-    assert accepted["mode"] == "S4.8_evaluation"
-
-    tampered = json.loads(prerequisite.read_text(encoding="utf-8"))
-    tampered["status"] = "failed"
-    prerequisite.write_text(json.dumps(tampered), encoding="utf-8")
-    with pytest.raises(S44Error, match="prerequisite hash mismatch"):
+    with pytest.raises(S44Error, match="prerequisite authentication failed"):
         consume_s4_8_grant(
             grant,
             seal_path=seal,
             split_plan_sha256="0" * 64,
             prerequisite_path=prerequisite,
-            ledger_path=tmp_path / "other_ledger.jsonl",
+            ledger_path=ledger,
             event_time_utc="2026-07-24T00:00:00+00:00",
         )
 
