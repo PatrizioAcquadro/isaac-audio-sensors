@@ -1,0 +1,91 @@
+{
+  "schema": "ias.s4_8.heldout_evaluation_config.v1",
+  "status": "frozen_before_holdout_opening",
+  "phase": "S4.8",
+  "claimed_envelope": "controlled_source_single_room_single_mount",
+  "prerequisite": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_03/holdout_acceptance.json",
+    "sha256": "9f266432f2045e858b8f52ba6dd1f69f401bfd445df73e4ab25775ad59ecefd9",
+    "package_manifest_path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_03/SHA256SUMS",
+    "package_manifest_sha256": "6cfbb31bd4d96fb1138aa7ecb09156b550eadeed247fafb24d4e555d6361112f",
+    "scientific_semantics_sha256": "91c12a090102c7b1de6c250f5edd654620d845c5f1044c8ca466961f8756539d",
+    "corrective_id": "s4_7_corrective_03",
+    "older_prerequisites_accepted": false
+  },
+  "holdout": {
+    "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+    "seal_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/holdout_seal.v1.json",
+    "seal_file_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+    "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+    "partition_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/prospective_holdout_manifest.v1.json",
+    "partition_manifest_sha256": "377c53d868dea4a89329a925763734da6a38920c7246821c902807c1667e0320",
+    "session_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/sessions/prospective_holdout.json",
+    "session_manifest_sha256": "587c7ff093f086f304e12a7e55459bf8b19d326132cd0550c7218b6cf38c84d3",
+    "dataset_attempt_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts",
+    "planned_take_count": 47,
+    "leakage_group_count": 15,
+    "sealed_artifact_count": 160,
+    "planned_denominator_policy": "all_47_planned_takes_retained"
+  },
+  "profile_application": {
+    "config_path": "configs/s4_6_profile_application.v1.json",
+    "config_sha256": "82db6a2222765abddaed4a89d540ff99b586aa926534641833608330e7e45c52",
+    "active_pointer_path": "outputs/isaac_audio_sensors/S4/S4.5_active_profile.v1.json",
+    "active_pointer_sha256": "f2b6fa782d12fb94d1188fbb52c783445685fdd4b1413953c2f865f4b6fca621",
+    "unadjusted_mode": "off",
+    "adjusted_mode": "apply",
+    "required_adjusted_application_count": 7
+  },
+  "criteria": {
+    "v1_config_path": "configs/s4_7_holdout_acceptance.v1.json",
+    "v1_config_sha256": "94579e534dba0dfe421499d236c5f8ded077a402fc2ded289da1c55d3169fa1b",
+    "corrective_config_path": "configs/s4_7_holdout_acceptance.corrective_03.v4.json",
+    "corrective_config_sha256": "45a806773a19ca8b1eec6bbd2aeb2fec902b33ec4af2d0bd8c04f41bdc72a20b",
+    "corrective_schema_path": "docs/schemas/s4_7_holdout_acceptance.corrective_03.v4.schema.json",
+    "corrective_schema_sha256": "60a87f1e8b9c4171ffde151a5d4ceebd816a2fe02c2830f044c6ee97405a80fd",
+    "readiness_count": 23,
+    "stretch_count": 6,
+    "readiness_pass_rule": "all_23_readiness_criteria_pass",
+    "stretch_gating": false,
+    "robustness_status": "not_evaluable",
+    "robustness_denominator": 0
+  },
+  "window_contract": {
+    "sample_rate_hz": 16000,
+    "window_samples": 4000,
+    "hop_samples": 2000,
+    "expected_count_by_duration_s": {
+      "15": 119,
+      "20": 159
+    },
+    "exact_contiguous_indices": true,
+    "exact_window_identity": true
+  },
+  "grant": {
+    "schema": "ias.s4_4.holdout_access_grant.v1",
+    "path": "dataset/S4.8/access/holdout_access_grant.corrective_03.v1.json",
+    "ledger_path": "dataset/S4.8/access/access_ledger.jsonl",
+    "purpose": "S4.8_evaluation",
+    "grant_id_template": "s4_8_corrective_03_{source_commit}",
+    "authorization": "explicit_user_authorization_required",
+    "single_use": true,
+    "consume_function": "isaac_audio_sensors.acquisition.s4_4.consume_s4_8_grant",
+    "serial_no_retry": true
+  },
+  "evidence": {
+    "derived_input_path": "dataset/S4.8/derived/heldout_evaluation_input.v1.json",
+    "output_path": "outputs/isaac_audio_sensors/S4/S4.8",
+    "closeout_path": "docs/development/closeouts/S4/s4_8_heldout_evaluation.md",
+    "deterministic_replay_required": true,
+    "raw_data_tracked": false,
+    "grant_tracked": false,
+    "ledger_tracked": false
+  },
+  "phase_boundary": {
+    "s4_9_started": false,
+    "s5_started": false,
+    "s6_started": false,
+    "s4_complete_after_s4_8": false,
+    "push_tag_release_authorized": false
+  }
+}
