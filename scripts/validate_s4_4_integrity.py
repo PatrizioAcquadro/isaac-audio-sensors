@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -84,6 +85,20 @@ def _git_tracked(repo_root: Path, relative: str) -> bool:
     return result.returncode == 0
 
 
+def _git_blob(repo_root: Path, commit: str, relative: str) -> bytes:
+    result = subprocess.run(
+        ["git", "show", "--no-ext-diff", f"{commit}:{relative}"],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        raise S44Error(
+            f"historical source artifact absent from {commit}: {relative}"
+        )
+    return result.stdout
+
+
 def validate(
     index_path: Path,
     *,
@@ -103,6 +118,11 @@ def validate(
     ).resolve():
         raise S44Error("final S4.4 index must use the canonical repository path")
     index = load_json(index_path)
+    source_checkpoint_path = evidence_root / "freeze/source_checkpoint.v1.json"
+    source_checkpoint = load_json(source_checkpoint_path)
+    historical_source_commit = str(
+        source_checkpoint.get("source_checkpoint_commit", "")
+    )
     if index.get("schema") != "ias.s4_4.evidence_index.v1":
         issues.append(_problem("wrong_index_schema", str(index_path), "unexpected"))
     if index.get("status") != "passed":
@@ -159,9 +179,24 @@ def validate(
         if not candidate.is_file():
             issues.append(_problem("missing_artifact", relative, "file absent"))
             continue
-        if candidate.stat().st_size != record.get("byte_size"):
+        if relative in SOURCE_PATHS:
+            try:
+                historical_bytes = _git_blob(
+                    repo_root, historical_source_commit, relative
+                )
+            except S44Error as exc:
+                issues.append(
+                    _problem("historical_source_missing", relative, str(exc))
+                )
+                continue
+            observed_size = len(historical_bytes)
+            observed_sha256 = hashlib.sha256(historical_bytes).hexdigest()
+        else:
+            observed_size = candidate.stat().st_size
+            observed_sha256 = sha256_file(candidate)
+        if observed_size != record.get("byte_size"):
             issues.append(_problem("artifact_size_mismatch", relative, "size differs"))
-        if sha256_file(candidate) != record.get("sha256"):
+        if observed_sha256 != record.get("sha256"):
             issues.append(_problem("artifact_hash_mismatch", relative, "hash differs"))
         if require_tracked and candidate.is_relative_to(repo_root):
             repo_relative = candidate.relative_to(repo_root).as_posix()
@@ -291,14 +326,13 @@ def validate(
         issues.append(_problem("failures_not_retained", "trial_census.json", "invalid"))
 
     provenance = load_json(evidence_root / "provenance.json")
-    source_checkpoint_path = evidence_root / "freeze/source_checkpoint.v1.json"
     try:
-        source_checkpoint = load_json(source_checkpoint_path)
         validate_source_checkpoint_contract(
             source_checkpoint,
             repo_root=repo_root,
             expected_source_paths=SOURCE_PATHS,
             expected_frozen_input_paths=FROZEN_INPUT_PATHS,
+            require_working_checkout_match=False,
         )
         validate_provenance_source_checkpoint(
             provenance,

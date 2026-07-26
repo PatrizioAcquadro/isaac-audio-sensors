@@ -1,0 +1,86 @@
+{
+  "bearing_referenced_take_count": 40,
+  "bearing_sim_real_condition_count": 32,
+  "exact_take_set_required": true,
+  "holdout_observations_accessed": 0,
+  "latency_contract": {
+    "aggregation": {
+      "capture_to_frame_offline_ms": "range_over_47_take_summaries",
+      "frame_to_adapter_round_trip_ms": "p95_nearest_rank_over_47_take_summaries"
+    },
+    "capture_to_frame_field": "capture_to_frame_offline_ms",
+    "frame_to_adapter_field": "frame_to_adapter_round_trip_ms",
+    "interpretation": "one per-take summary for each of 47 planned takes"
+  },
+  "per_take_window_coverage_required": true,
+  "physical_domains": {
+    "absolute_error_deg": {
+      "maximum": 180.0,
+      "minimum": 0.0
+    },
+    "absolute_residual_ms": {
+      "minimum": 0.0
+    },
+    "bearing_deg_f_project": {
+      "maximum_exclusive": 360.0,
+      "minimum_inclusive": 0.0
+    },
+    "boolean_count_inputs": {
+      "allowed_values": [
+        false,
+        true
+      ]
+    },
+    "clip_run_samples": {
+      "aggregation": "maximum_over_all_four_raw_microphone_take_records",
+      "integer": true,
+      "minimum": 0
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0
+    },
+    "latency_ms": {
+      "minimum": 0.0
+    },
+    "rate_fraction": {
+      "maximum": 1.0,
+      "minimum": 0.0
+    },
+    "sample_count": {
+      "integer": true,
+      "minimum": 0
+    },
+    "tdoa_absolute_error_us": {
+      "minimum": 0.0
+    },
+    "tdoa_us": {
+      "basis": "nominal maximum 0.09333809511662428 m raw-microphone pair spacing divided by the frozen 343 m/s propagation speed",
+      "maximum": 272.1227262875343,
+      "minimum": -272.1227262875343
+    }
+  },
+  "raw_channel_record_count": 188,
+  "schema": "ias.s4_7.corrective_input_contract.v2",
+  "status": "passed",
+  "tdoa_take_pair_record_count": 144,
+  "unique_identity_required": true,
+  "window_contract": {
+    "complete_per_take_coverage_required": true,
+    "count_formula": "1 + floor((duration_samples - window_samples) / hop_samples)",
+    "expected_count_by_duration_s": {
+      "15": 119,
+      "20": 159
+    },
+    "per_take_summary_fields": [
+      "source_window_count",
+      "abstained_window_count",
+      "sub_floor_direction_emission_count"
+    ],
+    "sample_rate_hz": 16000,
+    "source_config_path": "configs/s4_3_pilot.v1.json",
+    "source_config_sha256": "3bfbd3a7f472d5a264a24336f0976d53eeb24420ea52a0dbc68a23817579dff5",
+    "window_duration_ms": 250,
+    "window_overlap_percent": 50
+  }
+}

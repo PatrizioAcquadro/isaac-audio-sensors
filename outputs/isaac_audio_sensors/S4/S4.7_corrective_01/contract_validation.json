@@ -1,0 +1,26 @@
+{
+  "claimed_envelope_changed": false,
+  "corrective_spec_sha256": "10f91d3bd411582669e9a9640952665e3015a2244cdb7cb115b87b6f27c31e9e",
+  "criteria_config_sha256": "0a6a28b096f98ffd14ecb6332ed32e2a9b1f6aa632eb157230b6269f448244c3",
+  "criteria_schema_sha256": "01e726a0d418399e715118109d5fdf1f39d38344af9fcebda6818ba4ad1b8d34",
+  "criteria_validation": {
+    "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+    "corrective_spec_sha256": "10f91d3bd411582669e9a9640952665e3015a2244cdb7cb115b87b6f27c31e9e",
+    "criteria_config_sha256": "0a6a28b096f98ffd14ecb6332ed32e2a9b1f6aa632eb157230b6269f448244c3",
+    "criteria_schema_sha256": "01e726a0d418399e715118109d5fdf1f39d38344af9fcebda6818ba4ad1b8d34",
+    "deterministic": true,
+    "holdout_observations_accessed": 0,
+    "issues": [],
+    "later_phases_started": [],
+    "readiness_passed": true,
+    "schema": "ias.s4_7.corrective_criteria_validation.v2",
+    "status": "passed",
+    "take_count": 47,
+    "violating_fixture_failed": true
+  },
+  "holdout_observations_accessed": 0,
+  "schema": "ias.s4_7.corrective_contract_validation.v2",
+  "scientific_eligibility_changed": false,
+  "status": "passed",
+  "thresholds_changed": false
+}

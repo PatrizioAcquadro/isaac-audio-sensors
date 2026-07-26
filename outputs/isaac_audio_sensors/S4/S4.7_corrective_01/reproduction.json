@@ -1,0 +1,11 @@
+{
+  "clean_source_archive": true,
+  "command": "python3 scripts/replay_s4_7_corrective.py --canonical outputs/isaac_audio_sensors/S4/S4.7_corrective_01",
+  "comparison": "byte_for_byte_complete_package",
+  "historical_v1_replay_command": "python3 scripts/replay_s4_7.py --canonical outputs/isaac_audio_sensors/S4/S4.7",
+  "holdout_observations_accessed": 0,
+  "requires_holdout_observations": false,
+  "schema": "ias.s4_7.corrective_reproduction.v2",
+  "source_commit": "cbcf656f4550875d8937d909197f7efb67a53820",
+  "status": "passed"
+}

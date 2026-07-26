@@ -175,6 +175,7 @@ def validate_source_checkpoint_contract(
     repo_root: Path,
     expected_source_paths: tuple[str, ...],
     expected_frozen_input_paths: tuple[str, ...],
+    require_working_checkout_match: bool = True,
 ) -> None:
     """Validate one immutable checkpoint against exact files and Git blobs."""
 
@@ -231,7 +232,10 @@ def validate_source_checkpoint_contract(
                 record["sha256"], f"source checkpoint {field}.sha256"
             )
             candidate = repo_root / relative
-            if not candidate.is_file() or sha256_file(candidate) != expected_sha256:
+            if require_working_checkout_match and (
+                not candidate.is_file()
+                or sha256_file(candidate) != expected_sha256
+            ):
                 raise S44Error(
                     "source checkpoint: working checkout hash mismatch for "
                     f"{relative}"

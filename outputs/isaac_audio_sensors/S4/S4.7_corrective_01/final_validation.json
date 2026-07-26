@@ -1,0 +1,16 @@
+{
+  "comparison_registry_complete": true,
+  "criteria_only_validation_passed": true,
+  "deterministic": true,
+  "fail_closed_matrix_passed": true,
+  "freeze_ordering_valid": true,
+  "historical_v1_preserved": true,
+  "holdout_binding_valid": true,
+  "holdout_observations_accessed": 0,
+  "identity_registry_complete": true,
+  "later_phases_started": [],
+  "readiness_criterion_count": 23,
+  "schema": "ias.s4_7.corrective_final_validation.v2",
+  "status": "passed",
+  "stretch_criterion_count": 6
+}

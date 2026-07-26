@@ -1,0 +1,121 @@
+{
+  "bearing_referenced_take_count": 40,
+  "bearing_referenced_take_note": "stratum C is bearing-referenced only where confidence comparison is applicable; it is excluded from the A+B bearing-error criterion",
+  "bearing_sim_real_condition_count": 32,
+  "classification_rule": "aggregate each path over the exact condition set, compute adjusted minus unadjusted, sign by the frozen direction, preserve inside the inclusive band, improve beyond the favorable edge, otherwise worsen",
+  "comparison_registry": [
+    {
+      "aggregation": "median",
+      "applicable_strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ],
+      "comparison_id": "bearing_doa_error_ab",
+      "condition_kind": "take",
+      "direction": "lower_is_better",
+      "expected_count": 32,
+      "metric": "bearing_doa_error",
+      "preserve_band": 2.0,
+      "unit": "deg",
+      "value_semantics": "per-take absolute bearing error"
+    },
+    {
+      "aggregation": "mean",
+      "applicable_strata": [
+        "B_center_nominal_level"
+      ],
+      "comparison_id": "sector_accuracy_b",
+      "condition_kind": "take",
+      "direction": "higher_is_better",
+      "expected_count": 8,
+      "metric": "sector_accuracy",
+      "preserve_band": 0.05,
+      "unit": "fraction",
+      "value_semantics": "per-take sector-correct indicator encoded as 0 or 1"
+    },
+    {
+      "aggregation": "mean",
+      "applicable_strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ],
+      "comparison_id": "candidate_bearing_ab",
+      "condition_kind": "take",
+      "direction": "higher_is_better",
+      "expected_count": 32,
+      "metric": "candidate_bearing",
+      "preserve_band": 0.05,
+      "unit": "fraction",
+      "value_semantics": "per-take candidate-covered indicator encoded as 0 or 1"
+    },
+    {
+      "aggregation": "median",
+      "applicable_strata": [
+        "A_controlled_boundary_sweep"
+      ],
+      "comparison_id": "tdoa_a",
+      "condition_kind": "take_microphone_pair",
+      "direction": "lower_is_better",
+      "expected_count": 144,
+      "metric": "tdoa",
+      "preserve_band": 25.0,
+      "unit": "us_absolute_error",
+      "value_semantics": "per-take-per-pair absolute TDOA error"
+    },
+    {
+      "aggregation": "mean",
+      "applicable_strata": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level",
+        "D_silence"
+      ],
+      "comparison_id": "abstention_abd",
+      "condition_kind": "take",
+      "direction": "lower_is_better",
+      "expected_count": 35,
+      "metric": "abstention",
+      "preserve_band": 0.05,
+      "unit": "fraction",
+      "value_semantics": "per-take decision-error fraction: abstained fraction for active A+B takes and non-abstained fraction for silence D takes"
+    },
+    {
+      "aggregation": "median",
+      "applicable_strata": [
+        "B_center_nominal_level",
+        "C_center_low_level"
+      ],
+      "comparison_id": "confidence_bc",
+      "condition_kind": "take",
+      "direction": "higher_is_better",
+      "expected_count": 16,
+      "metric": "confidence",
+      "preserve_band": 0.005,
+      "unit": "dimensionless",
+      "value_semantics": "per-take median confidence"
+    },
+    {
+      "aggregation": "worst",
+      "applicable_strata": [
+        "E_impact_audio_video"
+      ],
+      "comparison_id": "coarse_audio_video_association_e",
+      "condition_kind": "take",
+      "direction": "lower_is_better",
+      "expected_count": 4,
+      "metric": "coarse_audio_video_association",
+      "preserve_band": 5.0,
+      "unit": "ms_absolute_residual",
+      "value_semantics": "per-take absolute audio-video association residual"
+    }
+  ],
+  "exact_registry_required": true,
+  "holdout_observations_accessed": 0,
+  "paths": [
+    "real",
+    "unadjusted_simulation",
+    "adjusted_simulation"
+  ],
+  "payload_may_supply_direction_or_band": false,
+  "schema": "ias.s4_7.corrective_sim_vs_real_registry.v2",
+  "status": "passed"
+}

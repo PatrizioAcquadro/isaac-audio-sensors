@@ -1,0 +1,503 @@
+{
+  "group_count": 15,
+  "holdout_observations_accessed": 0,
+  "microphone_pair_ids": [
+    "raw_microphone_0->raw_microphone_1",
+    "raw_microphone_0->raw_microphone_2",
+    "raw_microphone_0->raw_microphone_3",
+    "raw_microphone_1->raw_microphone_2",
+    "raw_microphone_1->raw_microphone_3",
+    "raw_microphone_2->raw_microphone_3"
+  ],
+  "raw_microphone_ids": [
+    "raw_microphone_0",
+    "raw_microphone_1",
+    "raw_microphone_2",
+    "raw_microphone_3"
+  ],
+  "registry_source": "tracked_session_manifest_projection",
+  "schema": "ias.s4_7.corrective_identity_registry.v2",
+  "session_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/sessions/prospective_holdout.json",
+  "session_manifest_sha256": "587c7ff093f086f304e12a7e55459bf8b19d326132cd0550c7218b6cf38c84d3",
+  "status": "passed",
+  "stratum_counts": {
+    "A_controlled_boundary_sweep": 24,
+    "B_center_nominal_level": 8,
+    "C_center_low_level": 8,
+    "D_silence": 3,
+    "E_impact_audio_video": 4
+  },
+  "take_count": 47,
+  "takes": [
+    {
+      "bearing_cell_id": null,
+      "condition_id": "s44a03_prospective_holdout_001_sil",
+      "duration_s": 15,
+      "group_id": "s44a03_grp_163388fbb42d2f3d8a11",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_001_sil",
+      "repetition": 1,
+      "stratum_id": "D_silence"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|22.5",
+      "condition_id": "s44a03_prospective_holdout_002_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_214227e66c771868dc0a",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_002_ctl",
+      "repetition": 1,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|67.5",
+      "condition_id": "s44a03_prospective_holdout_003_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_da39807b70c4b4cdbbb1",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_003_ctl",
+      "repetition": 1,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|112.5",
+      "condition_id": "s44a03_prospective_holdout_004_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_2833ff74c85b6ad1bfed",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_004_ctl",
+      "repetition": 1,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|157.5",
+      "condition_id": "s44a03_prospective_holdout_005_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_aa6664abbf80e98ee079",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_005_ctl",
+      "repetition": 1,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|202.5",
+      "condition_id": "s44a03_prospective_holdout_006_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_0e535a11a21391bc4b7e",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_006_ctl",
+      "repetition": 1,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|247.5",
+      "condition_id": "s44a03_prospective_holdout_007_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_57153fb8b430d8d53e53",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_007_ctl",
+      "repetition": 1,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|292.5",
+      "condition_id": "s44a03_prospective_holdout_008_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_20dd7083ef8990a9ba28",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_008_ctl",
+      "repetition": 1,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|337.5",
+      "condition_id": "s44a03_prospective_holdout_009_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_25287f0a52d0a6c061e1",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_009_ctl",
+      "repetition": 1,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|22.5",
+      "condition_id": "s44a03_prospective_holdout_010_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_214227e66c771868dc0a",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_010_ctl",
+      "repetition": 2,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|337.5",
+      "condition_id": "s44a03_prospective_holdout_011_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_25287f0a52d0a6c061e1",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_011_ctl",
+      "repetition": 2,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|292.5",
+      "condition_id": "s44a03_prospective_holdout_012_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_20dd7083ef8990a9ba28",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_012_ctl",
+      "repetition": 2,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|247.5",
+      "condition_id": "s44a03_prospective_holdout_013_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_57153fb8b430d8d53e53",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_013_ctl",
+      "repetition": 2,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|202.5",
+      "condition_id": "s44a03_prospective_holdout_014_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_0e535a11a21391bc4b7e",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_014_ctl",
+      "repetition": 2,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|157.5",
+      "condition_id": "s44a03_prospective_holdout_015_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_aa6664abbf80e98ee079",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_015_ctl",
+      "repetition": 2,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|112.5",
+      "condition_id": "s44a03_prospective_holdout_016_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_2833ff74c85b6ad1bfed",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_016_ctl",
+      "repetition": 2,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|67.5",
+      "condition_id": "s44a03_prospective_holdout_017_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_da39807b70c4b4cdbbb1",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_017_ctl",
+      "repetition": 2,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|22.5",
+      "condition_id": "s44a03_prospective_holdout_018_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_214227e66c771868dc0a",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_018_ctl",
+      "repetition": 3,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|67.5",
+      "condition_id": "s44a03_prospective_holdout_019_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_da39807b70c4b4cdbbb1",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_019_ctl",
+      "repetition": 3,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|112.5",
+      "condition_id": "s44a03_prospective_holdout_020_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_2833ff74c85b6ad1bfed",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_020_ctl",
+      "repetition": 3,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|157.5",
+      "condition_id": "s44a03_prospective_holdout_021_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_aa6664abbf80e98ee079",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_021_ctl",
+      "repetition": 3,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|202.5",
+      "condition_id": "s44a03_prospective_holdout_022_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_0e535a11a21391bc4b7e",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_022_ctl",
+      "repetition": 3,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|247.5",
+      "condition_id": "s44a03_prospective_holdout_023_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_57153fb8b430d8d53e53",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_023_ctl",
+      "repetition": 3,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|292.5",
+      "condition_id": "s44a03_prospective_holdout_024_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_20dd7083ef8990a9ba28",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_024_ctl",
+      "repetition": 3,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": "A_controlled_boundary_sweep|337.5",
+      "condition_id": "s44a03_prospective_holdout_025_ctl",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_25287f0a52d0a6c061e1",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_025_ctl",
+      "repetition": 3,
+      "stratum_id": "A_controlled_boundary_sweep"
+    },
+    {
+      "bearing_cell_id": null,
+      "condition_id": "s44a03_prospective_holdout_026_sil",
+      "duration_s": 15,
+      "group_id": "s44a03_grp_163388fbb42d2f3d8a11",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_026_sil",
+      "repetition": 2,
+      "stratum_id": "D_silence"
+    },
+    {
+      "bearing_cell_id": "B_center_nominal_level|45.0",
+      "condition_id": "s44a03_prospective_holdout_027_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_50efd8b885cae869b54c",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_028_conf",
+      "planned_take_id": "s44a03_prospective_holdout_027_conf",
+      "repetition": 1,
+      "stratum_id": "B_center_nominal_level"
+    },
+    {
+      "bearing_cell_id": "C_center_low_level|45.0",
+      "condition_id": "s44a03_prospective_holdout_028_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_50efd8b885cae869b54c",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_027_conf",
+      "planned_take_id": "s44a03_prospective_holdout_028_conf",
+      "repetition": 1,
+      "stratum_id": "C_center_low_level"
+    },
+    {
+      "bearing_cell_id": "C_center_low_level|135.0",
+      "condition_id": "s44a03_prospective_holdout_029_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_0a645b7187e68e816fd1",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_030_conf",
+      "planned_take_id": "s44a03_prospective_holdout_029_conf",
+      "repetition": 1,
+      "stratum_id": "C_center_low_level"
+    },
+    {
+      "bearing_cell_id": "B_center_nominal_level|135.0",
+      "condition_id": "s44a03_prospective_holdout_030_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_0a645b7187e68e816fd1",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_029_conf",
+      "planned_take_id": "s44a03_prospective_holdout_030_conf",
+      "repetition": 1,
+      "stratum_id": "B_center_nominal_level"
+    },
+    {
+      "bearing_cell_id": "B_center_nominal_level|225.0",
+      "condition_id": "s44a03_prospective_holdout_031_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_80747c5adb1f533c6411",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_032_conf",
+      "planned_take_id": "s44a03_prospective_holdout_031_conf",
+      "repetition": 1,
+      "stratum_id": "B_center_nominal_level"
+    },
+    {
+      "bearing_cell_id": "C_center_low_level|225.0",
+      "condition_id": "s44a03_prospective_holdout_032_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_80747c5adb1f533c6411",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_031_conf",
+      "planned_take_id": "s44a03_prospective_holdout_032_conf",
+      "repetition": 1,
+      "stratum_id": "C_center_low_level"
+    },
+    {
+      "bearing_cell_id": "C_center_low_level|315.0",
+      "condition_id": "s44a03_prospective_holdout_033_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_c4673aa558af65c3f466",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_034_conf",
+      "planned_take_id": "s44a03_prospective_holdout_033_conf",
+      "repetition": 1,
+      "stratum_id": "C_center_low_level"
+    },
+    {
+      "bearing_cell_id": "B_center_nominal_level|315.0",
+      "condition_id": "s44a03_prospective_holdout_034_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_c4673aa558af65c3f466",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_033_conf",
+      "planned_take_id": "s44a03_prospective_holdout_034_conf",
+      "repetition": 1,
+      "stratum_id": "B_center_nominal_level"
+    },
+    {
+      "bearing_cell_id": "C_center_low_level|45.0",
+      "condition_id": "s44a03_prospective_holdout_035_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_50efd8b885cae869b54c",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_036_conf",
+      "planned_take_id": "s44a03_prospective_holdout_035_conf",
+      "repetition": 2,
+      "stratum_id": "C_center_low_level"
+    },
+    {
+      "bearing_cell_id": "B_center_nominal_level|45.0",
+      "condition_id": "s44a03_prospective_holdout_036_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_50efd8b885cae869b54c",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_035_conf",
+      "planned_take_id": "s44a03_prospective_holdout_036_conf",
+      "repetition": 2,
+      "stratum_id": "B_center_nominal_level"
+    },
+    {
+      "bearing_cell_id": "B_center_nominal_level|135.0",
+      "condition_id": "s44a03_prospective_holdout_037_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_0a645b7187e68e816fd1",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_038_conf",
+      "planned_take_id": "s44a03_prospective_holdout_037_conf",
+      "repetition": 2,
+      "stratum_id": "B_center_nominal_level"
+    },
+    {
+      "bearing_cell_id": "C_center_low_level|135.0",
+      "condition_id": "s44a03_prospective_holdout_038_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_0a645b7187e68e816fd1",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_037_conf",
+      "planned_take_id": "s44a03_prospective_holdout_038_conf",
+      "repetition": 2,
+      "stratum_id": "C_center_low_level"
+    },
+    {
+      "bearing_cell_id": "C_center_low_level|225.0",
+      "condition_id": "s44a03_prospective_holdout_039_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_80747c5adb1f533c6411",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_040_conf",
+      "planned_take_id": "s44a03_prospective_holdout_039_conf",
+      "repetition": 2,
+      "stratum_id": "C_center_low_level"
+    },
+    {
+      "bearing_cell_id": "B_center_nominal_level|225.0",
+      "condition_id": "s44a03_prospective_holdout_040_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_80747c5adb1f533c6411",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_039_conf",
+      "planned_take_id": "s44a03_prospective_holdout_040_conf",
+      "repetition": 2,
+      "stratum_id": "B_center_nominal_level"
+    },
+    {
+      "bearing_cell_id": "B_center_nominal_level|315.0",
+      "condition_id": "s44a03_prospective_holdout_041_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_c4673aa558af65c3f466",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_042_conf",
+      "planned_take_id": "s44a03_prospective_holdout_041_conf",
+      "repetition": 2,
+      "stratum_id": "B_center_nominal_level"
+    },
+    {
+      "bearing_cell_id": "C_center_low_level|315.0",
+      "condition_id": "s44a03_prospective_holdout_042_conf",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_c4673aa558af65c3f466",
+      "paired_counterpart_take_id": "s44a03_prospective_holdout_041_conf",
+      "planned_take_id": "s44a03_prospective_holdout_042_conf",
+      "repetition": 2,
+      "stratum_id": "C_center_low_level"
+    },
+    {
+      "bearing_cell_id": null,
+      "condition_id": "s44a03_prospective_holdout_043_sil",
+      "duration_s": 15,
+      "group_id": "s44a03_grp_163388fbb42d2f3d8a11",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_043_sil",
+      "repetition": 3,
+      "stratum_id": "D_silence"
+    },
+    {
+      "bearing_cell_id": null,
+      "condition_id": "s44a03_prospective_holdout_044_av",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_ce556ddceff999230f46",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_044_av",
+      "repetition": 1,
+      "stratum_id": "E_impact_audio_video"
+    },
+    {
+      "bearing_cell_id": null,
+      "condition_id": "s44a03_prospective_holdout_045_av",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_ce556ddceff999230f46",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_045_av",
+      "repetition": 2,
+      "stratum_id": "E_impact_audio_video"
+    },
+    {
+      "bearing_cell_id": null,
+      "condition_id": "s44a03_prospective_holdout_046_av",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_725505f79585726a5df4",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_046_av",
+      "repetition": 1,
+      "stratum_id": "E_impact_audio_video"
+    },
+    {
+      "bearing_cell_id": null,
+      "condition_id": "s44a03_prospective_holdout_047_av",
+      "duration_s": 20,
+      "group_id": "s44a03_grp_725505f79585726a5df4",
+      "paired_counterpart_take_id": null,
+      "planned_take_id": "s44a03_prospective_holdout_047_av",
+      "repetition": 2,
+      "stratum_id": "E_impact_audio_video"
+    }
+  ]
+}

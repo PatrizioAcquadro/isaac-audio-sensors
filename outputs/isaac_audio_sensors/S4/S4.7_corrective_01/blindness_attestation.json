@@ -1,0 +1,15 @@
+{
+  "holdout_access_grant_consumed": false,
+  "holdout_access_grant_created": false,
+  "holdout_derived_outcomes_accessed": 0,
+  "holdout_observations_accessed": 0,
+  "raw_dataset_content_accessed": false,
+  "schema": "ias.s4_7.corrective_blindness_attestation.v2",
+  "status": "passed",
+  "thresholds_selected_from_holdout": false,
+  "tracked_technical_manifests_used": [
+    "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/sessions/prospective_holdout.json",
+    "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/prospective_holdout_manifest.v1.json",
+    "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/holdout_seal.v1.json"
+  ]
+}

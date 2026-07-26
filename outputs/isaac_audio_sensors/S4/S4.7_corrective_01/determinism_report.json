@@ -1,0 +1,9 @@
+{
+  "evaluation_reports_identical": true,
+  "holdout_observations_accessed": 0,
+  "randomness_used": false,
+  "run_count": 2,
+  "schema": "ias.s4_7.corrective_determinism.v2",
+  "status": "passed",
+  "wall_clock_input_used": false
+}
