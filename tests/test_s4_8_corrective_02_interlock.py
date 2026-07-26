@@ -496,7 +496,7 @@ def _consume(
     )
 
 
-def test_complete_committed_corrective_prerequisite_authenticates(
+def test_complete_committed_corrective_02_is_stale_for_current_consumer(
     tmp_path: Path,
 ) -> None:
     state = _build_repo(tmp_path)
@@ -505,9 +505,8 @@ def test_complete_committed_corrective_prerequisite_authenticates(
     )
     assert authenticated["status"] == "passed"
     assert authenticated["package_file_count"] == 18
-    accepted = _consume(state, _grant(state, authenticated))
-    assert accepted["allowed"] is True
-    assert accepted["mode"] == "S4.8_evaluation"
+    with pytest.raises(S44Error, match="path must be canonical"):
+        _consume(state, _grant(state, authenticated))
 
 
 def test_fabricated_two_field_prerequisite_is_rejected(tmp_path: Path) -> None:
@@ -520,7 +519,7 @@ def test_fabricated_two_field_prerequisite_is_rejected(tmp_path: Path) -> None:
     grant["grant_sha256"] = canonical_sha256(
         {key: value for key, value in grant.items() if key != "grant_sha256"}
     )
-    with pytest.raises(S44Error, match="prerequisite fields mismatch"):
+    with pytest.raises(S44Error, match="path must be canonical"):
         _consume(state, grant)
 
 
@@ -539,7 +538,7 @@ def test_wrong_prerequisite_paths_are_rejected(tmp_path: Path) -> None:
     grant["grant_sha256"] = canonical_sha256(
         {key: value for key, value in grant.items() if key != "grant_sha256"}
     )
-    with pytest.raises(S44Error, match="identity binding mismatch"):
+    with pytest.raises(S44Error, match="path must be canonical"):
         _consume(state, grant)
 
 
@@ -569,7 +568,7 @@ def test_wrong_grant_and_prerequisite_seals_are_rejected(tmp_path: Path) -> None
             if key != "grant_sha256"
         }
     )
-    with pytest.raises(S44Error, match="identity binding mismatch"):
+    with pytest.raises(S44Error, match="path must be canonical"):
         _consume(state, wrong_prerequisite, suffix="_prerequisite")
 
 
@@ -583,7 +582,7 @@ def test_stale_hash_and_incomplete_package_are_rejected(tmp_path: Path) -> None:
     stale["grant_sha256"] = canonical_sha256(
         {key: value for key, value in stale.items() if key != "grant_sha256"}
     )
-    with pytest.raises(S44Error, match="identity binding mismatch"):
+    with pytest.raises(S44Error, match="path must be canonical"):
         _consume(stale_state, stale)
 
     incomplete = _build_repo(tmp_path / "incomplete")

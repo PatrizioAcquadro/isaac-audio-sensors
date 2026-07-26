@@ -212,6 +212,41 @@ def build_synthetic_payload(
     return payload
 
 
+def build_semantic_bypass_regression_payload(
+    repo_root: Path,
+) -> dict[str, Any]:
+    """Build the exact four-affected/four-conforming B-take regression."""
+
+    payload = build_synthetic_payload(repo_root)
+    offsets = (-45.0, -35.0, -25.0, -5.0, 5.0, 55.0, 65.0)
+    for take in payload["takes"]:
+        identity = take["identity"]
+        if (
+            identity["stratum_id"] != "B_center_nominal_level"
+            or identity["target_bearing_deg_f_project"] not in {45.0, 135.0}
+        ):
+            continue
+        target = float(identity["target_bearing_deg_f_project"])
+        count = len(take["bearing_windows"])
+        bearings = [
+            (target + offsets[index % len(offsets)]) % 360.0
+            for index in range(count)
+        ]
+        take["bearing_windows"] = [
+            _window_record(index, bearing)
+            for index, bearing in enumerate(bearings)
+        ]
+        take["window_summary"] = {
+            "source_window_count": count,
+            "abstained_window_count": 0,
+            "sub_floor_direction_emission_count": 0,
+        }
+        take["bearing_absolute_error_deg"] = None
+        take["estimated_bearing_deg_f_project"] = None
+        take["sector_correct"] = None
+    return payload
+
+
 def evaluate_corrective(
     payload: Mapping[str, Any], *, repo_root: Path
 ) -> CorrectiveAcceptanceResult:
@@ -649,6 +684,7 @@ __all__ = [
     "CorrectiveAcceptanceResult",
     "TakeIdentity",
     "build_identity_registry",
+    "build_semantic_bypass_regression_payload",
     "build_synthetic_payload",
     "evaluate_corrective",
     "load_corrective_config",

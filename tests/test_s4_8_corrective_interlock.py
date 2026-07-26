@@ -234,7 +234,7 @@ def test_complete_committed_corrective_prerequisite_authenticates(
     assert authenticated["package_file_count"] == 18
     with pytest.raises(
         S44Error,
-        match="prerequisite path must be canonical.*S4.7_corrective_02",
+        match="prerequisite path must be canonical.*S4.7_corrective_03",
     ):
         _consume(state, _grant(state, authenticated))
 
