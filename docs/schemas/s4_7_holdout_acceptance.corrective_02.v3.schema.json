@@ -1,0 +1,598 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ias/s4_7_holdout_acceptance.corrective_02.v3.schema.json",
+  "title": "S4.7 corrective 02 acceptance configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "corrective_id",
+    "title",
+    "frozen_at_utc",
+    "baseline",
+    "supersedes",
+    "holdout_binding",
+    "identity_contract",
+    "window_contract",
+    "latency_contract",
+    "physical_domains",
+    "source_observation_contract",
+    "clipping_contract",
+    "sim_vs_real",
+    "phase_boundary"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ias.s4_7.holdout_acceptance_corrective_config.v3"
+    },
+    "status": {
+      "const": "frozen"
+    },
+    "corrective_id": {
+      "const": "s4_7_corrective_02"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "frozen_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "baseline": {
+      "$ref": "#/$defs/baseline"
+    },
+    "supersedes": {
+      "$ref": "#/$defs/supersedes"
+    },
+    "holdout_binding": {
+      "$ref": "#/$defs/holdoutBinding"
+    },
+    "identity_contract": {
+      "$ref": "#/$defs/identityContract"
+    },
+    "window_contract": {
+      "$ref": "#/$defs/windowContract"
+    },
+    "latency_contract": {
+      "$ref": "#/$defs/latencyContract"
+    },
+    "physical_domains": {
+      "type": "object",
+      "minProperties": 10
+    },
+    "source_observation_contract": {
+      "$ref": "#/$defs/sourceObservationContract"
+    },
+    "clipping_contract": {
+      "$ref": "#/$defs/clippingContract"
+    },
+    "sim_vs_real": {
+      "$ref": "#/$defs/simVsReal"
+    },
+    "phase_boundary": {
+      "$ref": "#/$defs/phaseBoundary"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "committed_at_utc",
+        "historical_package_path",
+        "historical_package_file_count",
+        "historical_package_sha256_manifest"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "committed_at_utc": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "historical_package_path": {
+          "const": "outputs/isaac_audio_sensors/S4/S4.7"
+        },
+        "historical_package_file_count": {
+          "const": 16
+        },
+        "historical_package_sha256_manifest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "supersedes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_path",
+        "config_sha256",
+        "spec_path",
+        "spec_sha256",
+        "thresholds_changed",
+        "claimed_envelope_changed",
+        "scientific_eligibility_changed"
+      ],
+      "properties": {
+        "config_path": {
+          "const": "configs/s4_7_holdout_acceptance.corrective_01.v2.json"
+        },
+        "config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "spec_path": {
+          "const": "docs/development/specs/s4_holdout_acceptance_corrective_01.md"
+        },
+        "spec_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "thresholds_changed": {
+          "const": false
+        },
+        "claimed_envelope_changed": {
+          "const": false
+        },
+        "scientific_eligibility_changed": {
+          "const": false
+        }
+      }
+    },
+    "holdoutBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bound_holdout_id",
+        "seal_path",
+        "seal_file_sha256",
+        "seal_payload_sha256",
+        "partition_manifest_path",
+        "partition_manifest_sha256",
+        "session_manifest_path",
+        "session_manifest_sha256",
+        "planned_take_count",
+        "group_count",
+        "scientifically_opened",
+        "technical_qa_only"
+      ],
+      "properties": {
+        "bound_holdout_id": {
+          "const": "s4_4_data_expansion_amendment_03_prospective_holdout"
+        },
+        "seal_path": {
+          "type": "string"
+        },
+        "seal_file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "seal_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "partition_manifest_path": {
+          "type": "string"
+        },
+        "partition_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "session_manifest_path": {
+          "type": "string"
+        },
+        "session_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planned_take_count": {
+          "const": 47
+        },
+        "group_count": {
+          "const": 15
+        },
+        "scientifically_opened": {
+          "const": false
+        },
+        "technical_qa_only": {
+          "const": true
+        }
+      }
+    },
+    "identityContract": {
+      "type": "object",
+      "required": [
+        "registry_source",
+        "take_identity_fields",
+        "exact_take_set_required",
+        "unique_take_identities_required",
+        "exact_group_keys_required",
+        "exact_pair_keys_required",
+        "missing_duplicate_unknown_or_misstratified",
+        "raw_microphone_ids",
+        "microphone_pair_ids",
+        "stratum_rules"
+      ],
+      "properties": {
+        "registry_source": {
+          "const": "tracked_session_manifest_projection"
+        },
+        "take_identity_fields": {
+          "type": "array",
+          "minItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "exact_take_set_required": {
+          "const": true
+        },
+        "unique_take_identities_required": {
+          "const": true
+        },
+        "exact_group_keys_required": {
+          "const": true
+        },
+        "exact_pair_keys_required": {
+          "const": true
+        },
+        "missing_duplicate_unknown_or_misstratified": {
+          "const": "fail_closed"
+        },
+        "raw_microphone_ids": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "microphone_pair_ids": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "stratum_rules": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "required": [
+              "stratum_id",
+              "category",
+              "playback_gain",
+              "take_count",
+              "bearing_cell_count",
+              "repetitions_per_bearing"
+            ]
+          }
+        }
+      }
+    },
+    "windowContract": {
+      "type": "object",
+      "required": [
+        "source_config_path",
+        "source_config_sha256",
+        "sample_rate_hz",
+        "window_duration_ms",
+        "window_overlap_percent",
+        "count_formula",
+        "expected_count_by_duration_s",
+        "per_take_summary_fields",
+        "complete_per_take_coverage_required"
+      ],
+      "properties": {
+        "source_config_path": {
+          "type": "string"
+        },
+        "source_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sample_rate_hz": {
+          "const": 16000
+        },
+        "window_duration_ms": {
+          "const": 250
+        },
+        "window_overlap_percent": {
+          "const": 50
+        },
+        "count_formula": {
+          "type": "string"
+        },
+        "expected_count_by_duration_s": {
+          "type": "object",
+          "required": [
+            "15",
+            "20"
+          ],
+          "properties": {
+            "15": {
+              "const": 119
+            },
+            "20": {
+              "const": 159
+            }
+          }
+        },
+        "per_take_summary_fields": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "complete_per_take_coverage_required": {
+          "const": true
+        }
+      }
+    },
+    "latencyContract": {
+      "type": "object",
+      "required": [
+        "interpretation",
+        "frame_to_adapter_field",
+        "capture_to_frame_field",
+        "aggregation"
+      ],
+      "properties": {
+        "interpretation": {
+          "type": "string"
+        },
+        "frame_to_adapter_field": {
+          "const": "frame_to_adapter_round_trip_ms"
+        },
+        "capture_to_frame_field": {
+          "const": "capture_to_frame_offline_ms"
+        },
+        "aggregation": {
+          "type": "object"
+        }
+      }
+    },
+    "sourceObservationContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bearing_error",
+        "sector_correct",
+        "candidate_covered",
+        "tdoa_absolute_error",
+        "abstention_error",
+        "confidence",
+        "av_absolute_residual",
+        "failure_status",
+        "reported_derived_values_must_match_exactly",
+        "non_finite_missing_duplicate_unknown_mismatched_or_inconsistent"
+      ],
+      "properties": {
+        "bearing_error": {"type": "string", "minLength": 1},
+        "sector_correct": {"type": "string", "minLength": 1},
+        "candidate_covered": {"type": "string", "minLength": 1},
+        "tdoa_absolute_error": {"type": "string", "minLength": 1},
+        "abstention_error": {"type": "string", "minLength": 1},
+        "confidence": {"type": "string", "minLength": 1},
+        "av_absolute_residual": {"type": "string", "minLength": 1},
+        "failure_status": {"type": "string", "minLength": 1},
+        "reported_derived_values_must_match_exactly": {"const": true},
+        "non_finite_missing_duplicate_unknown_mismatched_or_inconsistent": {
+          "const": "fail_closed"
+        }
+      }
+    },
+    "clippingContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_clip_run_aggregation",
+        "maximum_clip_run_readiness_threshold_samples",
+        "sustained_clipping_minimum_consecutive_samples",
+        "sustained_clipping_rule",
+        "sustained_clipping_take_denominator",
+        "maximum_clip_run_record_denominator"
+      ],
+      "properties": {
+        "maximum_clip_run_aggregation": {
+          "const": "maximum_over_188_four_raw_microphone_take_records"
+        },
+        "maximum_clip_run_readiness_threshold_samples": {"const": 8},
+        "sustained_clipping_minimum_consecutive_samples": {"const": 4000},
+        "sustained_clipping_rule": {
+          "const": "maximum_clip_run_samples >= 4000"
+        },
+        "sustained_clipping_take_denominator": {"const": 47},
+        "maximum_clip_run_record_denominator": {"const": 188}
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comparison_id",
+        "metric",
+        "unit",
+        "direction",
+        "value_semantics",
+        "preserve_band",
+        "aggregation",
+        "applicable_strata",
+        "condition_kind",
+        "expected_count"
+      ],
+      "properties": {
+        "comparison_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "metric": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "direction": {
+          "enum": [
+            "lower_is_better",
+            "higher_is_better"
+          ]
+        },
+        "value_semantics": {
+          "type": "string",
+          "minLength": 1
+        },
+        "preserve_band": {
+          "type": "number",
+          "minimum": 0
+        },
+        "aggregation": {
+          "enum": [
+            "median",
+            "mean",
+            "worst"
+          ]
+        },
+        "applicable_strata": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "condition_kind": {
+          "enum": [
+            "take",
+            "take_microphone_pair"
+          ]
+        },
+        "expected_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "simVsReal": {
+      "type": "object",
+      "required": [
+        "reported_paths",
+        "payload_paths",
+        "real_values",
+        "payload_may_supply_real",
+        "payload_may_supply_direction_or_band",
+        "exact_registry_required",
+        "classification_rule",
+        "comparison_registry",
+        "bearing_sim_real_condition_count",
+        "bearing_referenced_take_count",
+        "bearing_referenced_take_note"
+      ],
+      "properties": {
+        "reported_paths": {
+          "const": [
+            "real",
+            "unadjusted_simulation",
+            "adjusted_simulation"
+          ]
+        },
+        "payload_paths": {
+          "const": [
+            "unadjusted_simulation",
+            "adjusted_simulation"
+          ]
+        },
+        "real_values": {
+          "const": "derived_from_authenticated_keyed_take_source_observations"
+        },
+        "payload_may_supply_real": {
+          "const": false
+        },
+        "payload_may_supply_direction_or_band": {
+          "const": false
+        },
+        "exact_registry_required": {
+          "const": true
+        },
+        "classification_rule": {
+          "type": "string"
+        },
+        "comparison_registry": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "$ref": "#/$defs/comparison"
+          }
+        },
+        "bearing_sim_real_condition_count": {
+          "const": 32
+        },
+        "bearing_referenced_take_count": {
+          "const": 40
+        },
+        "bearing_referenced_take_note": {
+          "type": "string"
+        }
+      }
+    },
+    "phaseBoundary": {
+      "type": "object",
+      "required": [
+        "holdout_observations_accessed",
+        "holdout_access_grant_created",
+        "s4_8_started",
+        "s4_9_started",
+        "s5_started",
+        "s6_started",
+        "corrective_evidence_path",
+        "interlock_artifact_path",
+        "interlock_artifact_schema"
+      ],
+      "properties": {
+        "holdout_observations_accessed": {
+          "const": 0
+        },
+        "holdout_access_grant_created": {
+          "const": false
+        },
+        "s4_8_started": {
+          "const": false
+        },
+        "s4_9_started": {
+          "const": false
+        },
+        "s5_started": {
+          "const": false
+        },
+        "s6_started": {
+          "const": false
+        },
+        "corrective_evidence_path": {
+          "const": "outputs/isaac_audio_sensors/S4/S4.7_corrective_02"
+        },
+        "interlock_artifact_path": {
+          "const": "outputs/isaac_audio_sensors/S4/S4.7_corrective_02/holdout_acceptance.json"
+        },
+        "interlock_artifact_schema": {
+          "const": "ias.s4_7.holdout_acceptance_corrective.v3"
+        }
+      }
+    }
+  }
+}

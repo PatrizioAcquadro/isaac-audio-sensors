@@ -1,0 +1,340 @@
+{
+  "schema": "ias.s4_7.holdout_acceptance_corrective_config.v3",
+  "status": "frozen",
+  "corrective_id": "s4_7_corrective_02",
+  "title": "S4.7 observation-bound held-out functional acceptance corrective",
+  "frozen_at_utc": "2026-07-26T17:29:47Z",
+  "baseline": {
+    "commit": "f2230128fd02294892282b5809abe71092f19013",
+    "committed_at_utc": "2026-07-24T23:13:44Z",
+    "historical_package_path": "outputs/isaac_audio_sensors/S4/S4.7",
+    "historical_package_file_count": 16,
+    "historical_package_sha256_manifest": "795ce0b263326b99f9c551dd2ce6b2f3682913a23a73c4449dc7d08f5656ce53"
+  },
+  "supersedes": {
+    "config_path": "configs/s4_7_holdout_acceptance.corrective_01.v2.json",
+    "config_sha256": "0a6a28b096f98ffd14ecb6332ed32e2a9b1f6aa632eb157230b6269f448244c3",
+    "spec_path": "docs/development/specs/s4_holdout_acceptance_corrective_01.md",
+    "spec_sha256": "10f91d3bd411582669e9a9640952665e3015a2244cdb7cb115b87b6f27c31e9e",
+    "thresholds_changed": false,
+    "claimed_envelope_changed": false,
+    "scientific_eligibility_changed": false
+  },
+  "holdout_binding": {
+    "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+    "seal_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/holdout_seal.v1.json",
+    "seal_file_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+    "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+    "partition_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/prospective_holdout_manifest.v1.json",
+    "partition_manifest_sha256": "377c53d868dea4a89329a925763734da6a38920c7246821c902807c1667e0320",
+    "session_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/sessions/prospective_holdout.json",
+    "session_manifest_sha256": "587c7ff093f086f304e12a7e55459bf8b19d326132cd0550c7218b6cf38c84d3",
+    "planned_take_count": 47,
+    "group_count": 15,
+    "scientifically_opened": false,
+    "technical_qa_only": true
+  },
+  "identity_contract": {
+    "registry_source": "tracked_session_manifest_projection",
+    "take_identity_fields": [
+      "planned_take_id",
+      "stratum_id",
+      "group_id",
+      "bearing_cell_id",
+      "repetition",
+      "condition_id",
+      "paired_counterpart_take_id",
+      "target_bearing_deg_f_project"
+    ],
+    "exact_take_set_required": true,
+    "unique_take_identities_required": true,
+    "exact_group_keys_required": true,
+    "exact_pair_keys_required": true,
+    "missing_duplicate_unknown_or_misstratified": "fail_closed",
+    "raw_microphone_ids": [
+      "raw_microphone_0",
+      "raw_microphone_1",
+      "raw_microphone_2",
+      "raw_microphone_3"
+    ],
+    "microphone_pair_ids": [
+      "raw_microphone_0->raw_microphone_1",
+      "raw_microphone_0->raw_microphone_2",
+      "raw_microphone_0->raw_microphone_3",
+      "raw_microphone_1->raw_microphone_2",
+      "raw_microphone_1->raw_microphone_3",
+      "raw_microphone_2->raw_microphone_3"
+    ],
+    "stratum_rules": [
+      {
+        "stratum_id": "A_controlled_boundary_sweep",
+        "category": "controlled",
+        "playback_gain": 0.75,
+        "take_count": 24,
+        "bearing_cell_count": 8,
+        "repetitions_per_bearing": 3
+      },
+      {
+        "stratum_id": "B_center_nominal_level",
+        "category": "confidence",
+        "playback_gain": 0.75,
+        "take_count": 8,
+        "bearing_cell_count": 4,
+        "repetitions_per_bearing": 2
+      },
+      {
+        "stratum_id": "C_center_low_level",
+        "category": "confidence",
+        "playback_gain": 0.35,
+        "take_count": 8,
+        "bearing_cell_count": 4,
+        "repetitions_per_bearing": 2
+      },
+      {
+        "stratum_id": "D_silence",
+        "category": "silence",
+        "playback_gain": null,
+        "take_count": 3,
+        "bearing_cell_count": 0,
+        "repetitions_per_bearing": null
+      },
+      {
+        "stratum_id": "E_impact_audio_video",
+        "category": "audio_video",
+        "playback_gain": null,
+        "take_count": 4,
+        "bearing_cell_count": 0,
+        "repetitions_per_bearing": null
+      }
+    ]
+  },
+  "window_contract": {
+    "source_config_path": "configs/s4_3_pilot.v1.json",
+    "source_config_sha256": "3bfbd3a7f472d5a264a24336f0976d53eeb24420ea52a0dbc68a23817579dff5",
+    "sample_rate_hz": 16000,
+    "window_duration_ms": 250,
+    "window_overlap_percent": 50,
+    "count_formula": "1 + floor((duration_samples - window_samples) / hop_samples)",
+    "expected_count_by_duration_s": {
+      "15": 119,
+      "20": 159
+    },
+    "per_take_summary_fields": [
+      "source_window_count",
+      "abstained_window_count",
+      "sub_floor_direction_emission_count"
+    ],
+    "complete_per_take_coverage_required": true
+  },
+  "latency_contract": {
+    "interpretation": "one per-take summary for each of 47 planned takes",
+    "frame_to_adapter_field": "frame_to_adapter_round_trip_ms",
+    "capture_to_frame_field": "capture_to_frame_offline_ms",
+    "aggregation": {
+      "frame_to_adapter_round_trip_ms": "p95_nearest_rank_over_47_take_summaries",
+      "capture_to_frame_offline_ms": "range_over_47_take_summaries"
+    }
+  },
+  "physical_domains": {
+    "absolute_error_deg": {
+      "minimum": 0.0,
+      "maximum": 180.0
+    },
+    "bearing_deg_f_project": {
+      "minimum_inclusive": 0.0,
+      "maximum_exclusive": 360.0
+    },
+    "confidence": {
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "rate_fraction": {
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "latency_ms": {
+      "minimum": 0.0
+    },
+    "absolute_residual_ms": {
+      "minimum": 0.0
+    },
+    "sample_count": {
+      "integer": true,
+      "minimum": 0
+    },
+    "clip_run_samples": {
+      "integer": true,
+      "minimum": 0,
+      "aggregation": "maximum_over_all_four_raw_microphone_take_records"
+    },
+    "tdoa_us": {
+      "minimum": -272.1227262875343,
+      "maximum": 272.1227262875343,
+      "basis": "nominal maximum 0.09333809511662428 m raw-microphone pair spacing divided by the frozen 343 m/s propagation speed"
+    },
+    "tdoa_absolute_error_us": {
+      "minimum": 0.0
+    },
+    "boolean_count_inputs": {
+      "allowed_values": [
+        false,
+        true
+      ]
+    }
+  },
+  "source_observation_contract": {
+    "bearing_error": "circular_absolute_difference(target_bearing_deg_f_project, estimated_bearing_deg_f_project)",
+    "sector_correct": "bearing_deg_to_sector_name(estimated_bearing_deg_f_project) equals bearing_deg_to_sector_name(target_bearing_deg_f_project)",
+    "candidate_covered": "any candidate bearing has circular absolute difference at most 20 degrees from target_bearing_deg_f_project",
+    "tdoa_absolute_error": "absolute(tdoa_us - reference_tdoa_us)",
+    "abstention_error": "active A+B uses abstained_window_count/source_window_count; silence D uses (source_window_count-abstained_window_count)/source_window_count",
+    "confidence": "matching keyed B/C take confidence",
+    "av_absolute_residual": "absolute(audio_event_time_ms - video_event_time_ms)",
+    "failure_status": "failed equals whether failure_reasons is non-empty",
+    "reported_derived_values_must_match_exactly": true,
+    "non_finite_missing_duplicate_unknown_mismatched_or_inconsistent": "fail_closed"
+  },
+  "clipping_contract": {
+    "maximum_clip_run_aggregation": "maximum_over_188_four_raw_microphone_take_records",
+    "maximum_clip_run_readiness_threshold_samples": 8,
+    "sustained_clipping_minimum_consecutive_samples": 4000,
+    "sustained_clipping_rule": "maximum_clip_run_samples >= 4000",
+    "sustained_clipping_take_denominator": 47,
+    "maximum_clip_run_record_denominator": 188
+  },
+  "sim_vs_real": {
+    "reported_paths": [
+      "real",
+      "unadjusted_simulation",
+      "adjusted_simulation"
+    ],
+    "payload_paths": [
+      "unadjusted_simulation",
+      "adjusted_simulation"
+    ],
+    "real_values": "derived_from_authenticated_keyed_take_source_observations",
+    "payload_may_supply_real": false,
+    "payload_may_supply_direction_or_band": false,
+    "exact_registry_required": true,
+    "classification_rule": "aggregate each path over the exact condition set, compute adjusted minus unadjusted, sign by the frozen direction, preserve inside the inclusive band, improve beyond the favorable edge, otherwise worsen",
+    "comparison_registry": [
+      {
+        "comparison_id": "bearing_doa_error_ab",
+        "metric": "bearing_doa_error",
+        "unit": "deg",
+        "direction": "lower_is_better",
+        "value_semantics": "per-take absolute bearing error",
+        "preserve_band": 2.0,
+        "aggregation": "median",
+        "applicable_strata": [
+          "A_controlled_boundary_sweep",
+          "B_center_nominal_level"
+        ],
+        "condition_kind": "take",
+        "expected_count": 32
+      },
+      {
+        "comparison_id": "sector_accuracy_b",
+        "metric": "sector_accuracy",
+        "unit": "fraction",
+        "direction": "higher_is_better",
+        "value_semantics": "per-take sector-correct indicator encoded as 0 or 1",
+        "preserve_band": 0.05,
+        "aggregation": "mean",
+        "applicable_strata": [
+          "B_center_nominal_level"
+        ],
+        "condition_kind": "take",
+        "expected_count": 8
+      },
+      {
+        "comparison_id": "candidate_bearing_ab",
+        "metric": "candidate_bearing",
+        "unit": "fraction",
+        "direction": "higher_is_better",
+        "value_semantics": "per-take candidate-covered indicator encoded as 0 or 1",
+        "preserve_band": 0.05,
+        "aggregation": "mean",
+        "applicable_strata": [
+          "A_controlled_boundary_sweep",
+          "B_center_nominal_level"
+        ],
+        "condition_kind": "take",
+        "expected_count": 32
+      },
+      {
+        "comparison_id": "tdoa_a",
+        "metric": "tdoa",
+        "unit": "us_absolute_error",
+        "direction": "lower_is_better",
+        "value_semantics": "per-take-per-pair absolute TDOA error",
+        "preserve_band": 25.0,
+        "aggregation": "median",
+        "applicable_strata": [
+          "A_controlled_boundary_sweep"
+        ],
+        "condition_kind": "take_microphone_pair",
+        "expected_count": 144
+      },
+      {
+        "comparison_id": "abstention_abd",
+        "metric": "abstention",
+        "unit": "fraction",
+        "direction": "lower_is_better",
+        "value_semantics": "per-take decision-error fraction: abstained fraction for active A+B takes and non-abstained fraction for silence D takes",
+        "preserve_band": 0.05,
+        "aggregation": "mean",
+        "applicable_strata": [
+          "A_controlled_boundary_sweep",
+          "B_center_nominal_level",
+          "D_silence"
+        ],
+        "condition_kind": "take",
+        "expected_count": 35
+      },
+      {
+        "comparison_id": "confidence_bc",
+        "metric": "confidence",
+        "unit": "dimensionless",
+        "direction": "higher_is_better",
+        "value_semantics": "per-take median confidence",
+        "preserve_band": 0.005,
+        "aggregation": "median",
+        "applicable_strata": [
+          "B_center_nominal_level",
+          "C_center_low_level"
+        ],
+        "condition_kind": "take",
+        "expected_count": 16
+      },
+      {
+        "comparison_id": "coarse_audio_video_association_e",
+        "metric": "coarse_audio_video_association",
+        "unit": "ms_absolute_residual",
+        "direction": "lower_is_better",
+        "value_semantics": "per-take absolute audio-video association residual",
+        "preserve_band": 5.0,
+        "aggregation": "worst",
+        "applicable_strata": [
+          "E_impact_audio_video"
+        ],
+        "condition_kind": "take",
+        "expected_count": 4
+      }
+    ],
+    "bearing_sim_real_condition_count": 32,
+    "bearing_referenced_take_count": 40,
+    "bearing_referenced_take_note": "stratum C is bearing-referenced only where confidence comparison is applicable; it is excluded from the A+B bearing-error criterion"
+  },
+  "phase_boundary": {
+    "holdout_observations_accessed": 0,
+    "holdout_access_grant_created": false,
+    "s4_8_started": false,
+    "s4_9_started": false,
+    "s5_started": false,
+    "s6_started": false,
+    "corrective_evidence_path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_02",
+    "interlock_artifact_path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_02/holdout_acceptance.json",
+    "interlock_artifact_schema": "ias.s4_7.holdout_acceptance_corrective.v3"
+  }
+}
