@@ -70,6 +70,8 @@ def test_s4_8_contract_preserves_scientific_semantics_and_counts() -> None:
     assert criteria["robustness_denominator"] == 0
     assert holdout["planned_take_count"] == 47
     assert holdout["leakage_group_count"] == 15
+    seal = _load(ROOT / str(holdout["seal_path"]))
+    assert holdout["split_plan_sha256"] == seal["partition_manifest_sha256"]
 
 
 def test_s4_8_contract_uses_ignored_single_use_access_paths() -> None:

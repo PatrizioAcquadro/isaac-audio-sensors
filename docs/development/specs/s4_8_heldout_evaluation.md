@@ -24,6 +24,11 @@ register, source and evidence commits, seal, partition and session manifests,
 and deterministic replay. Older S4.7 prerequisites are stale for the active
 consumer.
 
+The partition-manifest file SHA and its embedded canonical split-plan SHA are
+distinct authenticated identities. The grant binds `split_plan_sha256` to the
+embedded canonical value; it does not relabel the manifest file SHA as the
+split-plan identity.
+
 The only holdout is the 47-take, 15-group
 `s4_4_data_expansion_amendment_03_prospective_holdout` sealed by:
 

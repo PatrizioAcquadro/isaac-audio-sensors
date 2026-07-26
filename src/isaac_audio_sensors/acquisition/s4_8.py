@@ -195,6 +195,11 @@ def preopen_validate(
     ):
         raise S48Error("scientific-semantics identity mismatch")
     seal = load_json(seal_path)
+    if (
+        seal.get("partition_manifest_sha256")
+        != config["holdout"]["split_plan_sha256"]
+    ):
+        raise S48Error("holdout seal split-plan identity mismatch")
     integrity = hash_only_holdout_integrity(seal, repo_root=root)
     if integrity != {
         "schema": "ias.s4_4.hash_only_integrity.v1",
@@ -245,6 +250,7 @@ def preopen_validate(
         "partition_manifest_sha256": sha256_file(
             _repo_file(root, config["holdout"]["partition_manifest_path"])
         ),
+        "split_plan_sha256": config["holdout"]["split_plan_sha256"],
         "session_manifest_sha256": sha256_file(
             _repo_file(root, config["holdout"]["session_manifest_path"])
         ),
@@ -292,7 +298,7 @@ def create_grant(
         "grant_id": grant_id,
         "purpose": "S4.8_evaluation",
         "seal_sha256": preopen["seal_file_sha256"],
-        "split_plan_sha256": preopen["partition_manifest_sha256"],
+        "split_plan_sha256": preopen["split_plan_sha256"],
         "prerequisite": preopen["prerequisite"],
         "single_use": True,
         "authorization": "explicit_user_authorization_required",
@@ -339,7 +345,7 @@ def consume_grant_once(
     result = consume_s4_8_grant(
         grant_path,
         seal_path=_repo_file(root, config["holdout"]["seal_path"]),
-        split_plan_sha256=config["holdout"]["partition_manifest_sha256"],
+        split_plan_sha256=config["holdout"]["split_plan_sha256"],
         prerequisite_path=_repo_file(root, config["prerequisite"]["path"]),
         ledger_path=root / config["grant"]["ledger_path"],
         event_time_utc=event_time_utc,
@@ -698,6 +704,7 @@ def build_evidence_package(
             "partition_manifest_sha256": contract["holdout"][
                 "partition_manifest_sha256"
             ],
+            "split_plan_sha256": contract["holdout"]["split_plan_sha256"],
             "session_manifest_sha256": contract["holdout"][
                 "session_manifest_sha256"
             ],

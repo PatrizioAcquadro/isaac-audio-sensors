@@ -198,6 +198,7 @@ def test_grant_creation_is_source_identified_and_does_not_consume(
         lambda _root, source_commit: {
             "seal_file_sha256": "b" * 64,
             "partition_manifest_sha256": "c" * 64,
+            "split_plan_sha256": "d" * 64,
             "prerequisite": {
                 key: f"value-{key}"
                 for key in s4_8.PREREQUISITE_BINDING_FIELDS
@@ -213,6 +214,7 @@ def test_grant_creation_is_source_identified_and_does_not_consume(
     ledger_path = tmp_path / config["grant"]["ledger_path"]
     assert grant_path.is_file()
     assert result["grant"]["grant_id"] == f"s4_8_corrective_03_{source_commit}"
+    assert result["grant"]["split_plan_sha256"] == "d" * 64
     assert result["grant"]["single_use"] is True
     assert not ledger_path.exists()
     with pytest.raises(S48Error, match="already exists"):
