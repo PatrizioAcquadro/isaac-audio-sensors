@@ -14,6 +14,7 @@ from isaac_audio_sensors.core.acceptance_criteria_corrective_03 import (
     CONFIG_PATH,
     SCHEMA_PATH,
     V1_CONFIG_PATH,
+    build_identity_registry,
     load_corrective_config,
 )
 
@@ -154,13 +155,8 @@ SOURCE_BOUND_FILES = (
     Path(
         "src/isaac_audio_sensors/acquisition/s4_7_corrective_03.py"
     ),
-    Path(
-        "src/isaac_audio_sensors/acquisition/"
-        "s4_7_prerequisite_corrective_03.py"
-    ),
     Path("src/isaac_audio_sensors/acquisition/s4_4.py"),
     Path("scripts/generate_s4_7_corrective_03_evidence.py"),
-    Path("scripts/replay_s4_7_corrective_03.py"),
     Path("scripts/run_s4_7_corrective_03_evaluation.py"),
     Path("scripts/validate_s4_7_corrective_03.py"),
     Path("tests/test_s4_7_corrective_03_acceptance.py"),
@@ -507,6 +503,113 @@ def _validate_reports(
         "requires_holdout_observations": False,
     }:
         raise S47PrerequisiteError("reproduction semantics mismatch")
+    c2 = _load_json(repo_root / CORRECTIVE_02_CONFIG_PATH)
+    preservation = reports["historical_preservation.json"]["details"]
+    if preservation != {
+        "packages": [
+            {
+                "path": "outputs/isaac_audio_sensors/S4/S4.7",
+                "file_count": 16,
+                "sha256_manifest_sha256": (
+                    "795ce0b263326b99f9c551dd2ce6b2f3682913a23a73c4449dc7d08f5656ce53"
+                ),
+                "manifest_valid": True,
+            },
+            {
+                "path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_01",
+                "file_count": 18,
+                "sha256_manifest_sha256": (
+                    "de6b4f8ee8721d48deed51b177688f91b3d40f133bcabb3a7ea201dc157bc676"
+                ),
+                "manifest_valid": True,
+            },
+            {
+                "path": "outputs/isaac_audio_sensors/S4/S4.7_corrective_02",
+                "file_count": 18,
+                "sha256_manifest_sha256": (
+                    "79ce288bd60c38b25b611ce7921c5dcbb9462427dba2be13e71fbacc86f1b6a1"
+                ),
+                "manifest_valid": True,
+            },
+        ]
+    }:
+        raise S47PrerequisiteError("historical preservation semantics mismatch")
+    holdout = reports["holdout_binding_report.json"]["details"]
+    if holdout != {
+        key: c2["holdout_binding"][key]
+        for key in (
+            "seal_path",
+            "partition_manifest_path",
+            "partition_manifest_sha256",
+            "session_manifest_path",
+            "session_manifest_sha256",
+            "group_count",
+            "scientifically_opened",
+            "technical_qa_only",
+        )
+    }:
+        raise S47PrerequisiteError("holdout binding report semantics mismatch")
+    registry = build_identity_registry(repo_root)
+    stratum_counts: dict[str, int] = {}
+    for identity in registry.values():
+        stratum_counts[identity.stratum_id] = (
+            stratum_counts.get(identity.stratum_id, 0) + 1
+        )
+    identity = reports["identity_registry.json"]["details"]
+    if identity != {
+        "take_count": 47,
+        "take_ids_sha256": canonical_sha256(sorted(registry)),
+        "group_count": 15,
+        "stratum_counts": dict(sorted(stratum_counts.items())),
+        "raw_microphone_ids": c2["identity_contract"]["raw_microphone_ids"],
+        "microphone_pair_ids": c2["identity_contract"]["microphone_pair_ids"],
+    }:
+        raise S47PrerequisiteError("identity registry semantics mismatch")
+    input_contract = reports["input_contract_report.json"]["details"]
+    if input_contract != {
+        "exact_take_set_required": True,
+        "unique_identity_required": True,
+        "exact_bearing_window_identity_required": True,
+        "bearing_window_record_count": 5088,
+        "latency_take_count": 47,
+        "raw_channel_record_count": 188,
+        "tdoa_take_pair_record_count": 144,
+        "bearing_sim_real_condition_count": 32,
+        "maximum_clip_run_threshold_samples": 8,
+        "sustained_clipping_minimum_samples": 4000,
+        "real_values_derived_from_exact_windows": True,
+    }:
+        raise S47PrerequisiteError("input contract report semantics mismatch")
+    freeze = reports["freeze_ordering.json"]["details"]
+    if freeze != {
+        "baseline_commit": "f2230128fd02294892282b5809abe71092f19013",
+        "corrective_01_closeout_commit": (
+            "6b0e8387a3c04fa4b513ab1bbe8514ef1f6b11d3"
+        ),
+        "corrective_02_closeout_commit": (
+            "ca6c2f01316cd87c4a9835ccafe8eeb85f8b0804"
+        ),
+        "source_commit": acceptance["source_commit"],
+        "baseline_ancestry_valid": True,
+        "corrective_01_ancestry_valid": True,
+        "corrective_02_ancestry_valid": True,
+    }:
+        raise S47PrerequisiteError("freeze ordering semantics mismatch")
+    sim_registry = reports["sim_vs_real_registry.json"]["details"]
+    if sim_registry != {
+        "comparison_registry": c2["sim_vs_real"]["comparison_registry"],
+        "comparison_count": 7,
+        "bearing_sim_real_condition_count": 32,
+        "bearing_referenced_take_count": 40,
+        "payload_may_supply_real": False,
+        "bearing_real_source": (
+            "median_valid_window_circular_absolute_error"
+        ),
+        "sector_real_source": (
+            "valid_window_sector_unique_majority_correctness"
+        ),
+    }:
+        raise S47PrerequisiteError("sim-real registry semantics mismatch")
     synthetic = reports["synthetic_evaluation_report.json"]["details"]
     conforming = synthetic.get("conforming_evaluation", {})
     bypass = synthetic.get("semantic_bypass_evaluation", {})
@@ -518,6 +621,10 @@ def _validate_reports(
         or conforming.get("status") != "passed"
         or bypass.get("schema") != "ias.s4_7.criteria_evaluation_result.v4"
         or bypass.get("status") != "failed"
+        or synthetic.get("incorrect_corrective_02_b_median_error_deg") != 4.5
+        or synthetic.get("incorrect_corrective_02_b_sector_accuracy") != 1.0
+        or synthetic.get("frozen_b_median_error_deg") != 19.5
+        or synthetic.get("frozen_b_sector_accuracy") != 0.5
     ):
         raise S47PrerequisiteError("synthetic evaluation semantics mismatch")
 
@@ -585,7 +692,7 @@ def _validate_holdout_binding(
     if sha256_file(seal_path) != acceptance["seal_file_sha256"]:
         raise S47PrerequisiteError("prerequisite seal file hash mismatch")
     seal = _load_json(seal_path)
-    if seal.get("payload_sha256") != acceptance["seal_payload_sha256"]:
+    if seal.get("seal_payload_sha256") != acceptance["seal_payload_sha256"]:
         raise S47PrerequisiteError("prerequisite seal payload hash mismatch")
     if seal.get("scientifically_opened") is not False:
         raise S47PrerequisiteError("prerequisite holdout is not sealed")

@@ -4,11 +4,9 @@
 from __future__ import annotations
 
 import argparse
-import io
 import json
 import subprocess
 import sys
-import tarfile
 import tempfile
 from pathlib import Path
 
@@ -28,22 +26,26 @@ def main() -> int:
         (canonical / "holdout_acceptance.json").read_text(encoding="utf-8")
     )
     source_commit = str(acceptance["source_commit"])
-    archive = subprocess.run(
-        ["git", "archive", "--format=tar", source_commit],
-        cwd=repo_root,
-        check=True,
-        capture_output=True,
-    ).stdout
     with tempfile.TemporaryDirectory(
         prefix="ias-s4-7-corrective-03-replay-"
     ) as temp:
         checkout = Path(temp) / "checkout"
-        checkout.mkdir()
-        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as stream:
-            try:
-                stream.extractall(checkout, filter="data")
-            except TypeError:  # pragma: no cover
-                stream.extractall(checkout)
+        subprocess.run(
+            [
+                "git",
+                "clone",
+                "--no-hardlinks",
+                "--quiet",
+                str(repo_root),
+                str(checkout),
+            ],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "checkout", "--quiet", "--detach", source_commit],
+            cwd=checkout,
+            check=True,
+        )
         replay = Path(temp) / "replay"
         completed = subprocess.run(
             [

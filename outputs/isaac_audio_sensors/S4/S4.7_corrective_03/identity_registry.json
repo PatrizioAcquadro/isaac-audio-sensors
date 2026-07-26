@@ -1,0 +1,37 @@
+{
+  "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+  "details": {
+    "group_count": 15,
+    "microphone_pair_ids": [
+      "raw_microphone_0->raw_microphone_1",
+      "raw_microphone_0->raw_microphone_2",
+      "raw_microphone_0->raw_microphone_3",
+      "raw_microphone_1->raw_microphone_2",
+      "raw_microphone_1->raw_microphone_3",
+      "raw_microphone_2->raw_microphone_3"
+    ],
+    "raw_microphone_ids": [
+      "raw_microphone_0",
+      "raw_microphone_1",
+      "raw_microphone_2",
+      "raw_microphone_3"
+    ],
+    "stratum_counts": {
+      "A_controlled_boundary_sweep": 24,
+      "B_center_nominal_level": 8,
+      "C_center_low_level": 8,
+      "D_silence": 3,
+      "E_impact_audio_video": 4
+    },
+    "take_count": 47,
+    "take_ids_sha256": "54b334871b0429d56e607560a557f3ab02bd2c47e7fca553fcf7351a7743ea28"
+  },
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "planned_take_count": 47,
+  "schema": "ias.s4_7.corrective_identity_registry.v4",
+  "seal_file_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+  "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+  "source_commit": "93bb3a5fe9c1c903e5037c277995fb419b75df00",
+  "status": "passed"
+}

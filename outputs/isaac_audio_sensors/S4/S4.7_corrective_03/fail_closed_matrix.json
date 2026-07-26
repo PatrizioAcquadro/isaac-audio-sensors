@@ -1,0 +1,53 @@
+{
+  "bound_holdout_id": "s4_4_data_expansion_amendment_03_prospective_holdout",
+  "details": {
+    "case_count": 6,
+    "cases": [
+      {
+        "case": "missing_window",
+        "detail": "s44a03_prospective_holdout_002_ctl exact bearing window count mismatch: expected 159, found 158",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "duplicate_window_index",
+        "detail": "s44a03_prospective_holdout_002_ctl duplicate bearing window index: 0",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "non_finite_window_bearing",
+        "detail": "s44a03_prospective_holdout_002_ctl.bearing_windows[0].srp_bearing_deg_f_project must be finite",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "contradictory_reported_error",
+        "detail": "s44a03_prospective_holdout_002_ctl.bearing_absolute_error_deg contradicts exact bearing windows",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "caller_supplied_real",
+        "detail": "bearing_doa_error_ab condition fields must be exactly ['adjusted_simulation', 'condition_id', 'unadjusted_simulation']",
+        "fail_closed": true,
+        "status": "passed"
+      },
+      {
+        "case": "no_valid_bearing_window",
+        "detail": "s44a03_prospective_holdout_002_ctl has no valid bearing window",
+        "fail_closed": true,
+        "status": "passed"
+      }
+    ],
+    "silent_pass_observed": false
+  },
+  "holdout_observations_accessed": 0,
+  "later_phases_started": [],
+  "planned_take_count": 47,
+  "schema": "ias.s4_7.corrective_fail_closed_matrix.v4",
+  "seal_file_sha256": "dff1a520fd35bff4bdd0b9e1023d474544b7685360d087a32498757f8269528c",
+  "seal_payload_sha256": "e83e2a0c392850d581f7487423afa9a8844e1e4e595c47020f9b5b9bf3231024",
+  "source_commit": "93bb3a5fe9c1c903e5037c277995fb419b75df00",
+  "status": "passed"
+}
