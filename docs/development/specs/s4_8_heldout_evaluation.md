@@ -62,6 +62,12 @@ Every planned take maps to its tracked corrective_03 identity. The analyzer
 reads only the seal-declared attempt root matching that planned identity and
 verifies every accessed file against the seal before interpreting it.
 
+If a planned take has multiple sealed attempts, the unique selected attempt is
+fixed before opening by hash identity with the amendment-03 machine-local
+`access/technical_qa/<planned_take_id>.json` projection. Every sealed attempt
+remains archived in the evidence inventory; selecting the projected attempt
+does not remove the planned take from the denominator.
+
 The analyzer reuses the frozen S4.3 waveform implementation with the S4.6
 functional channel-position association and supported channel response. It
 emits exactly 119 windows for a 15-second take and 159 windows for a 20-second
@@ -85,6 +91,15 @@ Missing, duplicate, unknown, altered, inconsistent, non-finite,
 out-of-domain, wrong-identity, wrong-profile, wrong-mode, wrong-condition,
 incomplete-window, or denominator-mismatched inputs reject the evaluation or
 fail the applicable take/criterion exactly as frozen.
+
+For stratum E, the frozen S4.3 corrective-02 transient detector supplies audio
+event candidates. Exactly three ordered events are selected by minimum
+deviation from the prospectively scheduled five-second spacing. Each event is
+associated with the maximum mean absolute finite depth-grid change inside the
+frozen one-second UTC search half-width. Audio producer UTC and ZED host UTC
+are the comparison clock basis. All audio candidates, visual candidates, and
+the three associations are retained; the per-take value is the worst absolute
+residual.
 
 ## Simulation contract
 

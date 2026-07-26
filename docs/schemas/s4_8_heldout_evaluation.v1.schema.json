@@ -14,6 +14,7 @@
     "profile_application",
     "criteria",
     "window_contract",
+    "analysis",
     "grant",
     "evidence",
     "phase_boundary"
@@ -30,6 +31,7 @@
     "profile_application": {"$ref": "#/$defs/profile"},
     "criteria": {"$ref": "#/$defs/criteria"},
     "window_contract": {"$ref": "#/$defs/windows"},
+    "analysis": {"$ref": "#/$defs/analysis"},
     "grant": {"$ref": "#/$defs/grant"},
     "evidence": {"$ref": "#/$defs/evidence"},
     "phase_boundary": {"$ref": "#/$defs/phaseBoundary"}
@@ -129,6 +131,10 @@
         "corrective_config_sha256",
         "corrective_schema_path",
         "corrective_schema_sha256",
+        "delegated_config_path",
+        "delegated_config_sha256",
+        "delegated_schema_path",
+        "delegated_schema_sha256",
         "readiness_count",
         "stretch_count",
         "readiness_pass_rule",
@@ -143,6 +149,10 @@
         "corrective_config_sha256": {"$ref": "#/$defs/sha256"},
         "corrective_schema_path": {"$ref": "#/$defs/path"},
         "corrective_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "delegated_config_path": {"$ref": "#/$defs/path"},
+        "delegated_config_sha256": {"$ref": "#/$defs/sha256"},
+        "delegated_schema_path": {"$ref": "#/$defs/path"},
+        "delegated_schema_sha256": {"$ref": "#/$defs/sha256"},
         "readiness_count": {"const": 23},
         "stretch_count": {"const": 6},
         "readiness_pass_rule": {
@@ -173,6 +183,36 @@
         },
         "exact_contiguous_indices": {"const": true},
         "exact_window_identity": {"const": true}
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "s4_3_effective_config_path",
+        "s4_3_effective_config_sha256",
+        "transient_contract_path",
+        "transient_contract_sha256",
+        "av_expected_event_count",
+        "av_expected_interval_s",
+        "av_visual_search_half_width_ms",
+        "av_visual_observable",
+        "av_clock_basis"
+      ],
+      "properties": {
+        "s4_3_effective_config_path": {"$ref": "#/$defs/path"},
+        "s4_3_effective_config_sha256": {"$ref": "#/$defs/sha256"},
+        "transient_contract_path": {"$ref": "#/$defs/path"},
+        "transient_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "av_expected_event_count": {"const": 3},
+        "av_expected_interval_s": {"const": 5.0},
+        "av_visual_search_half_width_ms": {"const": 1000.0},
+        "av_visual_observable": {
+          "const": "mean_absolute_finite_depth_grid_delta"
+        },
+        "av_clock_basis": {
+          "const": "audio_producer_and_zed_host_utc"
+        }
       }
     },
     "grant": {
@@ -212,6 +252,7 @@
       "additionalProperties": false,
       "required": [
         "derived_input_path",
+        "run_journal_path",
         "output_path",
         "closeout_path",
         "deterministic_replay_required",
@@ -221,6 +262,9 @@
       ],
       "properties": {
         "derived_input_path": {"$ref": "#/$defs/path"},
+        "run_journal_path": {
+          "const": "dataset/S4.8/derived/first_run_journal.jsonl"
+        },
         "output_path": {"const": "outputs/isaac_audio_sensors/S4/S4.8"},
         "closeout_path": {
           "const": "docs/development/closeouts/S4/s4_8_heldout_evaluation.md"

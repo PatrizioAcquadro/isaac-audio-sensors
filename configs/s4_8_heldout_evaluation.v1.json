@@ -43,6 +43,10 @@
     "corrective_config_sha256": "45a806773a19ca8b1eec6bbd2aeb2fec902b33ec4af2d0bd8c04f41bdc72a20b",
     "corrective_schema_path": "docs/schemas/s4_7_holdout_acceptance.corrective_03.v4.schema.json",
     "corrective_schema_sha256": "60a87f1e8b9c4171ffde151a5d4ceebd816a2fe02c2830f044c6ee97405a80fd",
+    "delegated_config_path": "configs/s4_7_holdout_acceptance.corrective_02.v3.json",
+    "delegated_config_sha256": "0794945fe0ff2e1c7b043d95d8e3b81cedc37fc72e59f05d79998855564010b8",
+    "delegated_schema_path": "docs/schemas/s4_7_holdout_acceptance.corrective_02.v3.schema.json",
+    "delegated_schema_sha256": "9fd518381c825e448cea5ee0e4dca5e639c47b85d7da62408633b49d89407d12",
     "readiness_count": 23,
     "stretch_count": 6,
     "readiness_pass_rule": "all_23_readiness_criteria_pass",
@@ -61,6 +65,17 @@
     "exact_contiguous_indices": true,
     "exact_window_identity": true
   },
+  "analysis": {
+    "s4_3_effective_config_path": "configs/s4_3_pilot_corrective_02.v1.json",
+    "s4_3_effective_config_sha256": "af1a557c6f9504c4468515d2d1f1d1acb55e4bc13ba45adc30e0efad603ad311",
+    "transient_contract_path": "outputs/isaac_audio_sensors/S4/S4.3/freeze/transient_event_contract_02.json",
+    "transient_contract_sha256": "bbc46e2091d5a872a093e59ca788a76137c042a2fb66758db3bd73d22be7b90a",
+    "av_expected_event_count": 3,
+    "av_expected_interval_s": 5.0,
+    "av_visual_search_half_width_ms": 1000.0,
+    "av_visual_observable": "mean_absolute_finite_depth_grid_delta",
+    "av_clock_basis": "audio_producer_and_zed_host_utc"
+  },
   "grant": {
     "schema": "ias.s4_4.holdout_access_grant.v1",
     "path": "dataset/S4.8/access/holdout_access_grant.corrective_03.v1.json",
@@ -74,6 +89,7 @@
   },
   "evidence": {
     "derived_input_path": "dataset/S4.8/derived/heldout_evaluation_input.v1.json",
+    "run_journal_path": "dataset/S4.8/derived/first_run_journal.jsonl",
     "output_path": "outputs/isaac_audio_sensors/S4/S4.8",
     "closeout_path": "docs/development/closeouts/S4/s4_8_heldout_evaluation.md",
     "deterministic_replay_required": true,

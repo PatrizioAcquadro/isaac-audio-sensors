@@ -39,6 +39,10 @@ def test_s4_8_contract_schema_and_frozen_bindings() -> None:
         ("criteria", "v1_config_path", "v1_config_sha256"),
         ("criteria", "corrective_config_path", "corrective_config_sha256"),
         ("criteria", "corrective_schema_path", "corrective_schema_sha256"),
+        ("criteria", "delegated_config_path", "delegated_config_sha256"),
+        ("criteria", "delegated_schema_path", "delegated_schema_sha256"),
+        ("analysis", "s4_3_effective_config_path", "s4_3_effective_config_sha256"),
+        ("analysis", "transient_contract_path", "transient_contract_sha256"),
     )
     for section, path_key, digest_key in bindings:
         record = config[section]
