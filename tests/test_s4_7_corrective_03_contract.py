@@ -79,7 +79,7 @@ def test_window_contract_is_exact_and_scientifically_separates_derivations() -> 
         "per_take_representative_bearing"
     ] == "statistics.median(valid_window_srp_bearing_deg_f_project)"
     assert config["sector_derivation"]["per_take_sector"] == (
-        "unique_strict_majority_of_valid_window_sector_names"
+        "unique_most_frequent_valid_window_sector_name"
     )
 
 

@@ -76,10 +76,10 @@
   "sector_derivation": {
     "applicable_stratum": "B_center_nominal_level",
     "window_mapping": "bearing_deg_to_sector_name(valid_window_srp_bearing_deg_f_project)",
-    "per_take_sector": "unique_strict_majority_of_valid_window_sector_names",
+    "per_take_sector": "unique_most_frequent_valid_window_sector_name",
     "correctness": "derived_majority_sector_equals_bearing_deg_to_sector_name(authenticated_target_bearing_deg_f_project)",
     "no_valid_windows": "incorrect_and_take_failure",
-    "no_strict_majority": "incorrect",
+    "no_unique_most_frequent_sector": "incorrect",
     "unresolved_tie": "incorrect",
     "abstained_take": "incorrect",
     "reported_sector_correct": "optional_but_if_present_must_equal_derived_value_exactly",

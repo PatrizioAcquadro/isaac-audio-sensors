@@ -46,9 +46,10 @@ three representatives in each A cell and maximized across the eight cells.
 Only the circular range, not the representative median, applies wraparound.
 
 For each B take, valid window bearings are mapped with
-`bearing_deg_to_sector_name`. A correct take requires one unique sector with a
-strict majority of valid windows and equality to the target sector. No valid
-windows, no strict majority, an unresolved tie, or an abstained take is
+`bearing_deg_to_sector_name`. The per-take majority is the unique most frequent
+sector among valid windows, matching the existing majority-vote meaning. A
+correct take requires that sector to equal the target sector. No valid windows,
+no unique most-frequent sector, an unresolved tie, or an abstained take is
 incorrect; no valid windows additionally fails the take. A reported
 `sector_correct`, when retained, must agree exactly. The sector of the
 representative median is never substituted for the window-sector majority.
