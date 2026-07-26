@@ -1355,14 +1355,14 @@ def consume_s4_8_grant(
         raise S44Error("grant seal binding mismatch")
     if grant["split_plan_sha256"] != split_plan_sha256:
         raise S44Error("grant SplitPlan binding mismatch")
-    from isaac_audio_sensors.acquisition.s4_7_prerequisite import (
+    from isaac_audio_sensors.acquisition.s4_7_prerequisite_corrective_02 import (
         S47PrerequisiteError,
         validate_grant_prerequisite_binding,
-        validate_s4_7_corrective_prerequisite,
+        validate_s4_7_corrective_02_prerequisite,
     )
 
     try:
-        authenticated = validate_s4_7_corrective_prerequisite(
+        authenticated = validate_s4_7_corrective_02_prerequisite(
             prerequisite_path,
             seal_path=seal_path,
             require_committed=True,

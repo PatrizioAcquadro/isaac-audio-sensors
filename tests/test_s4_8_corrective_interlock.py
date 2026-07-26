@@ -19,6 +19,7 @@ from isaac_audio_sensors.acquisition.s4_7_prerequisite import (
     REQUIRED_PACKAGE_FILES,
     S47PrerequisiteError,
     sha256_file,
+    validate_grant_prerequisite_binding,
     validate_s4_7_corrective_prerequisite,
 )
 
@@ -231,23 +232,29 @@ def test_complete_committed_corrective_prerequisite_authenticates(
     )
     assert authenticated["status"] == "passed"
     assert authenticated["package_file_count"] == 18
-    accepted = _consume(state, _grant(state, authenticated))
-    assert accepted["allowed"] is True
-    assert accepted["mode"] == "S4.8_evaluation"
+    with pytest.raises(
+        S44Error,
+        match="prerequisite path must be canonical.*S4.7_corrective_02",
+    ):
+        _consume(state, _grant(state, authenticated))
 
 
 def test_fabricated_two_field_prerequisite_is_rejected(tmp_path: Path) -> None:
     state = _build_repo(tmp_path)
-    authenticated = validate_s4_7_corrective_prerequisite(
-        state["prerequisite"], seal_path=state["seal"]
+    _write_json(
+        state["prerequisite"],
+        {
+            "schema": "ias.s4_7.holdout_acceptance_corrective.v2",
+            "status": "passed",
+        },
     )
-    grant = _grant(state, authenticated)
-    grant["prerequisite"] = {"schema": authenticated["schema"], "status": "passed"}
-    grant["grant_sha256"] = canonical_sha256(
-        {key: value for key, value in grant.items() if key != "grant_sha256"}
-    )
-    with pytest.raises(S44Error, match="prerequisite fields mismatch"):
-        _consume(state, grant)
+    with pytest.raises(
+        S47PrerequisiteError,
+        match="acceptance fields mismatch|SHA256SUMS mismatch",
+    ):
+        validate_s4_7_corrective_prerequisite(
+            state["prerequisite"], seal_path=state["seal"]
+        )
 
 
 def test_wrong_prerequisite_paths_are_rejected(tmp_path: Path) -> None:
@@ -260,13 +267,12 @@ def test_wrong_prerequisite_paths_are_rejected(tmp_path: Path) -> None:
     authenticated = validate_s4_7_corrective_prerequisite(
         state["prerequisite"], seal_path=state["seal"]
     )
-    grant = _grant(state, authenticated)
-    grant["prerequisite"]["path"] = "caller/selected.json"
-    grant["grant_sha256"] = canonical_sha256(
-        {key: value for key, value in grant.items() if key != "grant_sha256"}
-    )
-    with pytest.raises(S44Error, match="identity binding mismatch"):
-        _consume(state, grant)
+    binding = {
+        key: authenticated[key] for key in PREREQUISITE_BINDING_FIELDS
+    }
+    binding["path"] = "caller/selected.json"
+    with pytest.raises(S47PrerequisiteError, match="identity binding mismatch"):
+        validate_grant_prerequisite_binding(binding, authenticated)
 
 
 def test_wrong_grant_and_prerequisite_seals_are_rejected(tmp_path: Path) -> None:
@@ -286,17 +292,12 @@ def test_wrong_grant_and_prerequisite_seals_are_rejected(tmp_path: Path) -> None
     with pytest.raises(S44Error, match="grant seal binding mismatch"):
         _consume(state, wrong_grant, suffix="_grant")
 
-    wrong_prerequisite = _grant(state, authenticated)
-    wrong_prerequisite["prerequisite"]["seal_file_sha256"] = "0" * 64
-    wrong_prerequisite["grant_sha256"] = canonical_sha256(
-        {
-            key: value
-            for key, value in wrong_prerequisite.items()
-            if key != "grant_sha256"
-        }
-    )
-    with pytest.raises(S44Error, match="identity binding mismatch"):
-        _consume(state, wrong_prerequisite, suffix="_prerequisite")
+    binding = {
+        key: authenticated[key] for key in PREREQUISITE_BINDING_FIELDS
+    }
+    binding["seal_file_sha256"] = "0" * 64
+    with pytest.raises(S47PrerequisiteError, match="identity binding mismatch"):
+        validate_grant_prerequisite_binding(binding, authenticated)
 
 
 def test_stale_hash_and_incomplete_package_are_rejected(tmp_path: Path) -> None:
@@ -304,13 +305,12 @@ def test_stale_hash_and_incomplete_package_are_rejected(tmp_path: Path) -> None:
     authenticated = validate_s4_7_corrective_prerequisite(
         stale_state["prerequisite"], seal_path=stale_state["seal"]
     )
-    stale = _grant(stale_state, authenticated)
-    stale["prerequisite"]["criteria_config_sha256"] = "0" * 64
-    stale["grant_sha256"] = canonical_sha256(
-        {key: value for key, value in stale.items() if key != "grant_sha256"}
-    )
-    with pytest.raises(S44Error, match="identity binding mismatch"):
-        _consume(stale_state, stale)
+    binding = {
+        key: authenticated[key] for key in PREREQUISITE_BINDING_FIELDS
+    }
+    binding["criteria_config_sha256"] = "0" * 64
+    with pytest.raises(S47PrerequisiteError, match="identity binding mismatch"):
+        validate_grant_prerequisite_binding(binding, authenticated)
 
     incomplete = _build_repo(tmp_path / "incomplete")
     (incomplete["package"] / "determinism_report.json").unlink()
