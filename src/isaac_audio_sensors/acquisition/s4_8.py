@@ -4134,7 +4134,9 @@ def _analyze_real_take(
         },
         "channels": channels,
         "bearing_absolute_error_deg": (float(median(errors)) if errors else None),
-        "estimated_bearing_deg_f_project": representative,
+        "estimated_bearing_deg_f_project": (
+            representative if applicable_bearing else None
+        ),
         "sector_correct": (
             _sector_majority_correct(valid_bearings, float(target))
             if identity.stratum_id == "B_center_nominal_level"
