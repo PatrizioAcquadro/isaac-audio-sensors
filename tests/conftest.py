@@ -49,6 +49,7 @@ _UNSTARTED_TEST = (
     "tests/test_s4_4_holdout_freeze.py::"
     "test_s4_5_and_s4_8_are_unstarted_and_no_real_grant_exists"
 )
+_HISTORICAL_S4_7_EVIDENCE_PREFIX = "tests/test_s4_7_evidence.py::"
 _PRE_S4_6_COMMIT = "c92ebddcf0eef9254954b96388943fb167150b9d"
 
 
@@ -128,6 +129,8 @@ def frozen_s4_4_phase_snapshot(
         _patch_canonical_subprocess(monkeypatch)
     elif nodeid == _UNSTARTED_TEST:
         _patch_historical_path_existence(monkeypatch)
+    elif nodeid.startswith(_HISTORICAL_S4_7_EVIDENCE_PREFIX):
+        _patch_historical_s4_7_path_existence(monkeypatch)
 
 
 def _patch_historical_path_existence(
@@ -142,6 +145,22 @@ def _patch_historical_path_existence(
 
     def historical_exists(path: Path) -> bool:
         if path in historically_absent:
+            return False
+        return original_exists(path)
+
+    monkeypatch.setattr(Path, "exists", historical_exists)
+
+
+def _patch_historical_s4_7_path_existence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Evaluate the immutable S4.7-v1 builder at its pre-S4.8 boundary."""
+
+    original_exists = Path.exists
+    historically_absent = ROOT / "outputs/isaac_audio_sensors/S4/S4.8"
+
+    def historical_exists(path: Path) -> bool:
+        if path == historically_absent:
             return False
         return original_exists(path)
 
