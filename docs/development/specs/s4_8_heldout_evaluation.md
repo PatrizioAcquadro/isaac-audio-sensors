@@ -79,6 +79,32 @@ in a same-filesystem staging directory, validated there, and atomically renamed
 to the canonical output only when complete; partial canonical output is never
 valid.
 
+Every authorization record must contain exactly the versioned schema,
+nonempty authorization ID, source commit, grant ID, grant path, grant hash,
+ledger path, and irreversible-scientific-action acknowledgement. Those values
+must match the active contract, grant, and consumed ledger event exactly.
+Authorization is authenticated before grant consumption and again during
+evidence construction, validation, and replay; empty, partial, mismatched, or
+tampered records fail closed.
+
+Post-consumption recovery distinguishes `not_evaluated`, `evaluation_failed`,
+and `evaluation_completed`. A completed evaluation includes the exact
+scientific payload, payload hash, evaluation, evaluation hash, PASS/FAIL
+decision, and failed-criteria list. It is durably published before runtime
+provenance, derived-state persistence, packaging, evidence publication, or
+journal finalization begins. A later operational failure makes the overall run
+terminal FAILED without replacing or relabeling that scientific result.
+Failures before evaluation do not claim input rejection; input rejection is a
+completed scientific FAIL only when the frozen evaluator actually returned it.
+
+Observation progress and every completed post-consumption stage are stored in
+content-addressed snapshots. Each snapshot is source-bound, hash-bound to the
+atomic opening-journal head and prior progress state, and anchored by a
+monotonic journal transition. Recovery uses only the highest authenticated
+stage. Altered, stale, source-mismatched, rolled-back, reordered, or
+unjournaled progress is ineligible for recovery. Recovery never reopens an
+observation or reconsumes the grant.
+
 ## Exact real-observation contract
 
 Every planned take maps to its tracked corrective_03 identity. The analyzer
