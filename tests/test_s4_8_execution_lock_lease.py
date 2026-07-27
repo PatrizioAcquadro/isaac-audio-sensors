@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import fcntl
 import multiprocessing
 from pathlib import Path
 
@@ -32,6 +33,7 @@ def test_fabricated_lease_fails_before_contract_loading(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    assert not hasattr(s4_8, "_REGISTERED_EXECUTION_LEASES")
     lock_path = tmp_path / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
     lock_path.parent.mkdir(parents=True)
     contract_loaded = False
@@ -62,7 +64,75 @@ def test_fabricated_lease_fails_before_contract_loading(
                 )
         finally:
             s4_8._ACTIVE_EXECUTION_LEASE.reset(token)
+        with lock_path.open("a+b") as owner:
+            fcntl.flock(owner.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(owner.fileno(), fcntl.LOCK_UN)
     assert not contract_loaded
+
+
+def test_lost_flock_with_competitor_fails_before_contract_loading(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lock_path = tmp_path / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
+    contract_loaded = False
+
+    def forbidden_contract(_root: Path):
+        nonlocal contract_loaded
+        contract_loaded = True
+        raise AssertionError("contract loaded after execution flock was lost")
+
+    monkeypatch.setattr(s4_8, "load_contract", forbidden_contract)
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    release = context.Event()
+    owner = context.Process(
+        target=_execution_lock_owner,
+        args=(tmp_path.as_posix(), ready, release),
+    )
+    with s4_8._exclusive_execution_lock(lock_path):
+        lease = s4_8._ACTIVE_EXECUTION_LEASE.get()
+        assert lease is not None
+        fcntl.flock(lease._descriptor, fcntl.LOCK_UN)
+        owner.start()
+        assert ready.wait(timeout=15)
+        try:
+            with pytest.raises(
+                s4_8.S48Error,
+                match="requires the authorized execution lock",
+            ):
+                s4_8._consume_grant_once(
+                    tmp_path,
+                    source_commit="a" * 40,
+                    event_time_utc="2030-01-01T00:00:00Z",
+                    recovery_context={},
+                )
+        finally:
+            release.set()
+            owner.join(timeout=15)
+    assert not owner.is_alive()
+    assert not contract_loaded
+
+
+def test_lost_flock_without_competitor_is_safely_reestablished(
+    tmp_path: Path,
+) -> None:
+    lock_path = tmp_path / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
+    with s4_8._exclusive_execution_lock(lock_path):
+        lease = s4_8._ACTIVE_EXECUTION_LEASE.get()
+        assert lease is not None
+        fcntl.flock(lease._descriptor, fcntl.LOCK_UN)
+
+        s4_8._require_execution_lock(tmp_path)
+
+        with (
+            lock_path.open("a+b") as competitor,
+            pytest.raises(BlockingIOError),
+        ):
+            fcntl.flock(
+                competitor.fileno(),
+                fcntl.LOCK_EX | fcntl.LOCK_NB,
+            )
 
 
 def test_copied_context_observes_revoked_lease_after_release(

@@ -120,6 +120,7 @@ class _ExecutionLockLease:
 
     __slots__ = (
         "_active",
+        "_authority",
         "_descriptor",
         "_lock_path",
         "_pid",
@@ -133,8 +134,10 @@ class _ExecutionLockLease:
         repo_root: Path,
         lock_path: Path,
         stream: BinaryIO,
+        authority: object | None = None,
     ) -> None:
         self._active = True
+        self._authority = authority
         self._descriptor = stream.fileno()
         self._lock_path = lock_path
         self._pid = os.getpid()
@@ -145,11 +148,42 @@ class _ExecutionLockLease:
         self._active = False
 
 
+def _make_execution_lease_authority() -> tuple[
+    Callable[..., _ExecutionLockLease],
+    Callable[[_ExecutionLockLease], bool],
+]:
+    authority = object()
+
+    def issue(
+        *,
+        repo_root: Path,
+        lock_path: Path,
+        stream: BinaryIO,
+    ) -> _ExecutionLockLease:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return _ExecutionLockLease(
+            repo_root=repo_root,
+            lock_path=lock_path,
+            stream=stream,
+            authority=authority,
+        )
+
+    def validates(lease: _ExecutionLockLease) -> bool:
+        return lease._authority is authority
+
+    return issue, validates
+
+
+(
+    _issue_execution_lock_lease,
+    _is_issued_execution_lock_lease,
+) = _make_execution_lease_authority()
+del _make_execution_lease_authority
+
 _ACTIVE_EXECUTION_LEASE: ContextVar[_ExecutionLockLease | None] = ContextVar(
     "s4_8_active_execution_lease",
     default=None,
 )
-_REGISTERED_EXECUTION_LEASES: dict[int, _ExecutionLockLease] = {}
 AUTHORIZATION_RECORD_SCHEMA = "ias.s4_8.authorization_record.v1"
 AUTHORIZATION_RECORD_FIELDS = frozenset(
     {
@@ -5009,27 +5043,22 @@ def _exclusive_execution_lock(path: Path) -> Iterator[None]:
     )
     with path.open("a+b") as stream:
         try:
-            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            lock_path = path.resolve()
+            lease = _issue_execution_lock_lease(
+                repo_root=lock_path.parent.parent,
+                lock_path=lock_path,
+                stream=stream,
+            )
         except BlockingIOError as exc:
             raise S48Error(
                 "S4.8 authorized execution is already active; state unchanged"
             ) from exc
-        lock_path = path.resolve()
-        lease = _ExecutionLockLease(
-            repo_root=lock_path.parent.parent,
-            lock_path=lock_path,
-            stream=stream,
-        )
-        lease_id = id(lease)
-        _REGISTERED_EXECUTION_LEASES[lease_id] = lease
         token = _ACTIVE_EXECUTION_LEASE.set(lease)
         try:
             _fsync_directory(path.parent)
             yield
         finally:
             lease._revoke()
-            if _REGISTERED_EXECUTION_LEASES.get(lease_id) is lease:
-                del _REGISTERED_EXECUTION_LEASES[lease_id]
             try:
                 _ACTIVE_EXECUTION_LEASE.reset(token)
             finally:
@@ -5043,7 +5072,7 @@ def _require_execution_lock(repo_root: Path) -> None:
     expected_lock = (expected_root / AUTHORIZED_EXECUTION_LOCK_PATH).resolve()
     valid = (
         lease is not None
-        and _REGISTERED_EXECUTION_LEASES.get(id(lease)) is lease
+        and _is_issued_execution_lock_lease(lease)
         and lease._active
         and lease._pid == pid
         and lease._repo_root == expected_root
@@ -5063,6 +5092,14 @@ def _require_execution_lock(repo_root: Path) -> None:
                 and descriptor_stat.st_dev == lock_stat.st_dev
                 and descriptor_stat.st_ino == lock_stat.st_ino
             )
+            if valid:
+                try:
+                    fcntl.flock(
+                        descriptor,
+                        fcntl.LOCK_EX | fcntl.LOCK_NB,
+                    )
+                except OSError:
+                    valid = False
     if not valid:
         raise S48Error(
             "S4.8 irreversible operation requires the authorized execution lock"

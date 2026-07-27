@@ -100,11 +100,15 @@ later executor may acquire it and perform journal-authoritative recovery.
 Grant consumption and real-observation derivation are private implementation
 steps that require an opaque, revocable live lease for the exact acquired lock
 descriptor. The lease is bound to the current PID and canonical repository and
-lock paths, registered by identity, and valid only while its descriptor is open
-and still refers to the persistent lock file. It is revoked and unregistered
-before the descriptor is unlocked or closed, so fabricated, copied, inherited,
-stale, wrong-process, wrong-repository, closed-descriptor, and replaced-file
-markers fail before contract loading, ledger mutation, or holdout access.
+lock paths, issued only after its exact descriptor successfully acquires the
+kernel lock, and valid only while that descriptor remains open and refers to
+the persistent lock file. Validation nonblockingly reasserts exclusive
+ownership on that descriptor, which is a no-op for the current owner, safely
+reacquires an uncontended lost lock, and fails if another process owns it. The
+lease is revoked before the descriptor is unlocked or closed, so fabricated,
+copied, inherited, stale, wrong-process, wrong-repository, closed-descriptor,
+replaced-file, and lost-ownership markers fail before contract loading, ledger
+mutation, or holdout access.
 
 The S4.8 consumer serializes grant claim, canonical ledger append, first-run
 journal initialization, and observation-opening authorization under one
