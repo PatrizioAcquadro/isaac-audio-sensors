@@ -28,6 +28,10 @@ from isaac_audio_sensors.core.acceptance_criteria_corrective_03 import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class _SimulatedProcessCrash(BaseException):
+    pass
+
+
 def _git(repo: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", *args],
@@ -255,9 +259,7 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
     grant_path.parent.mkdir(parents=True)
     grant_id = f"s4_8_corrective_03_{source_commit}"
     grant_path.write_text(
-        s4_8.pretty_json(
-            {"grant_id": grant_id, "grant_sha256": "c" * 64}
-        ),
+        s4_8.pretty_json({"grant_id": grant_id, "grant_sha256": "c" * 64}),
         encoding="utf-8",
     )
     authorization = _authorization_record(config)
@@ -329,9 +331,7 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
         "evaluation_sha256": s4_8.canonical_sha256(recovery_evaluation),
         "runtime_provenance": s4_8._runtime_dependency_provenance(),
     }
-    recovery_context["context_sha256"] = s4_8.canonical_sha256(
-        recovery_context
-    )
+    recovery_context["context_sha256"] = s4_8.canonical_sha256(recovery_context)
     monkeypatch.setattr(
         s4_8,
         "_build_preconsumption_recovery_context",
@@ -833,9 +833,7 @@ def _install_authorized_run_harness(
     grant_path.parent.mkdir(parents=True)
     grant_id = f"s4_8_corrective_03_{source_commit}"
     grant_path.write_text(
-        s4_8.pretty_json(
-            {"grant_id": grant_id, "grant_sha256": "c" * 64}
-        ),
+        s4_8.pretty_json({"grant_id": grant_id, "grant_sha256": "c" * 64}),
         encoding="utf-8",
     )
     authorization = _authorization_record(config)
@@ -1085,9 +1083,7 @@ def test_scientific_fail_and_exact_criteria_survive_later_operational_failure(
     assert expected["failed_gating_criteria"] == ["confidence_median_stratum_b"]
     assert result["failed_gating_criteria"] == expected["failed_gating_criteria"]
     derived = s4_8.load_json(
-        tmp_path
-        / config["evidence"]["output_path"]
-        / "derived_evaluation_input.json"
+        tmp_path / config["evidence"]["output_path"] / "derived_evaluation_input.json"
     )
     assert derived["evaluation_state"] == "evaluation_completed"
     assert derived["evaluation"] == expected
@@ -1119,9 +1115,7 @@ def test_evaluator_exception_is_evaluation_failed_not_input_rejection(
     assert result["evaluation"]["status"] == "evaluation_failed"
     assert result["evaluation"]["evaluation_error"] == "injected evaluator failure"
     derived = s4_8.load_json(
-        tmp_path
-        / config["evidence"]["output_path"]
-        / "derived_evaluation_input.json"
+        tmp_path / config["evidence"]["output_path"] / "derived_evaluation_input.json"
     )
     assert derived["evaluation_state"] == "evaluation_failed"
     assert derived["evaluation"]["failed_gating_criteria"] == []
@@ -1243,14 +1237,12 @@ def test_progress_rejects_stale_rollback_and_reordered_state(
     first = {
         key: value
         for key, value in reordered[-2].items()
-        if key
-        not in {"schema", "sequence", "previous_event_sha256", "event_sha256"}
+        if key not in {"schema", "sequence", "previous_event_sha256", "event_sha256"}
     }
     second = {
         key: value
         for key, value in reordered[-1].items()
-        if key
-        not in {"schema", "sequence", "previous_event_sha256", "event_sha256"}
+        if key not in {"schema", "sequence", "previous_event_sha256", "event_sha256"}
     }
     reordered[-2] = first | second
     reordered[-1] = second | first
@@ -1284,6 +1276,206 @@ def test_progress_rejects_stale_rollback_and_reordered_state(
     )
     with pytest.raises(s4_8.S48Error, match="progress chain"):
         s4_8._load_partial_progress(
+            tmp_path,
+            config=config,
+            source_commit=source_commit,
+        )
+
+
+@pytest.mark.parametrize(
+    ("fault_step", "occurrence", "expected_state", "residue_expected"),
+    [
+        ("before_snapshot_persistence", 1, "not_evaluated", False),
+        ("snapshot_persisted", 1, "not_evaluated", True),
+        ("snapshot_fsynced", 3, "not_evaluated", True),
+        ("before_journal_append", 3, "not_evaluated", True),
+        ("journal_appended", 3, "evaluation_completed", False),
+        ("before_old_snapshot_pruning", 2, "evaluation_completed", False),
+        ("old_snapshot_pruned", 2, "evaluation_completed", False),
+        ("pruning_fsynced", 2, "evaluation_completed", False),
+    ],
+)
+def test_progress_crash_boundaries_restart_from_highest_authenticated_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault_step: str,
+    occurrence: int,
+    expected_state: str,
+    residue_expected: bool,
+) -> None:
+    config, source_commit, _context, expected = _install_authorized_run_harness(
+        tmp_path,
+        monkeypatch,
+    )
+    seen = 0
+
+    def crash_at(step: str) -> None:
+        nonlocal seen
+        if step == fault_step:
+            seen += 1
+            if seen == occurrence:
+                raise _SimulatedProcessCrash(step)
+
+    monkeypatch.setattr(s4_8, "_progress_persistence_step", crash_at)
+    with pytest.raises(_SimulatedProcessCrash):
+        s4_8.run_authorized_evaluation_once(
+            tmp_path,
+            source_commit=source_commit,
+            event_time_utc="2030-01-01T00:00:00Z",
+        )
+    assert seen == occurrence
+
+    monkeypatch.setattr(s4_8, "_progress_persistence_step", lambda _step: None)
+    monkeypatch.setattr(
+        s4_8,
+        "consume_grant_once",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("restart reconsumed the grant")
+        ),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "build_real_payload",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("restart reopened observations")
+        ),
+    )
+    result = s4_8.run_authorized_evaluation_once(
+        tmp_path,
+        source_commit=source_commit,
+        event_time_utc="2099-12-31T23:59:59Z",
+    )
+    assert result["status"] == "failed"
+    assert result["readiness_passed"] is False
+    assert result["automatic_retry_forbidden"] is True
+    derived = s4_8.load_json(
+        tmp_path / config["evidence"]["output_path"] / "derived_evaluation_input.json"
+    )
+    assert derived["evaluation_state"] == expected_state
+    if expected_state == "evaluation_completed":
+        assert derived["evaluation"] == expected
+        assert derived["evaluation_sha256"] == canonical_sha256(expected)
+    else:
+        assert derived["evaluation"]["status"] == "not_evaluated"
+    journal = s4_8._load_run_journal(tmp_path / config["evidence"]["run_journal_path"])
+    assert [record["event"] for record in journal].count("grant_consumed") == 1
+    assert journal[-1]["event"] == "first_run_terminal"
+    quarantine = (tmp_path / config["evidence"]["run_journal_path"]).with_name(
+        s4_8.POST_CONSUMPTION_PROGRESS_QUARANTINE_NAME
+    )
+    assert quarantine.exists() is residue_expected
+
+
+def test_progress_recovery_rejects_tampered_unjournaled_residue(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, source_commit, journal, progress_root = _progress_fixture(tmp_path)
+    progress = {
+        "observation_inventory": [],
+        "payload": {"takes": [], "sim_vs_real": []},
+        "current_take": None,
+    }
+    monkeypatch.setattr(
+        s4_8,
+        "_progress_persistence_step",
+        lambda step: (
+            (_ for _ in ()).throw(_SimulatedProcessCrash(step))
+            if step == "snapshot_fsynced"
+            else None
+        ),
+    )
+    with pytest.raises(_SimulatedProcessCrash):
+        s4_8._persist_post_consumption_progress(
+            progress_root,
+            journal_path=journal,
+            source_commit=source_commit,
+            stage="evaluation_completed",
+            progress=progress,
+            evaluation_state="evaluation_completed",
+            evaluation={"readiness_passed": True},
+        )
+    residue = next(
+        path for path in progress_root.iterdir() if path.name.startswith("000002.")
+    )
+    snapshot = s4_8.load_json(residue)
+    snapshot["source_commit"] = "b" * 40
+    snapshot_payload = {
+        key: value for key, value in snapshot.items() if key != "snapshot_sha256"
+    }
+    snapshot["snapshot_sha256"] = canonical_sha256(snapshot_payload)
+    replacement = residue.with_name(f"000002.{snapshot['snapshot_sha256']}.json")
+    residue.rename(replacement)
+    replacement.write_text(s4_8.pretty_json(snapshot), encoding="utf-8")
+    with pytest.raises(s4_8.S48Error, match="progress chain"):
+        s4_8._reconcile_progress_crash_residues(
+            tmp_path,
+            config=config,
+            source_commit=source_commit,
+        )
+
+
+def test_progress_recovery_quarantines_incomplete_atomic_staging_residue(
+    tmp_path: Path,
+) -> None:
+    config, source_commit, _journal, progress_root = _progress_fixture(tmp_path)
+    residue = progress_root / ".000002.interrupted.staging"
+    residue.write_text('{"partial":', encoding="utf-8")
+    residue_sha256 = sha256_file(residue)
+    s4_8._reconcile_progress_crash_residues(
+        tmp_path,
+        config=config,
+        source_commit=source_commit,
+    )
+    assert not residue.exists()
+    quarantine = progress_root.with_name(
+        s4_8.POST_CONSUMPTION_PROGRESS_QUARANTINE_NAME
+    )
+    assert (quarantine / f"{residue_sha256}.crash-residue").is_file()
+    recovered = s4_8._load_partial_progress(
+        tmp_path,
+        config=config,
+        source_commit=source_commit,
+    )
+    assert recovered is not None
+    assert recovered["sequence"] == 1
+
+
+def test_progress_recovery_rejects_replaced_authenticated_old_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, source_commit, journal, progress_root = _progress_fixture(tmp_path)
+    progress = {
+        "observation_inventory": [],
+        "payload": {"takes": [], "sim_vs_real": []},
+        "current_take": None,
+    }
+    monkeypatch.setattr(
+        s4_8,
+        "_progress_persistence_step",
+        lambda step: (
+            (_ for _ in ()).throw(_SimulatedProcessCrash(step))
+            if step == "before_old_snapshot_pruning"
+            else None
+        ),
+    )
+    with pytest.raises(_SimulatedProcessCrash):
+        s4_8._persist_post_consumption_progress(
+            progress_root,
+            journal_path=journal,
+            source_commit=source_commit,
+            stage="evaluation_completed",
+            progress=progress,
+            evaluation_state="evaluation_completed",
+            evaluation={"readiness_passed": True},
+        )
+    oldest = next(
+        path for path in progress_root.iterdir() if path.name.startswith("000001.")
+    )
+    oldest.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(s4_8.S48Error, match="progress chain"):
+        s4_8._reconcile_progress_crash_residues(
             tmp_path,
             config=config,
             source_commit=source_commit,

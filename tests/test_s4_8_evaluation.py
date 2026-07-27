@@ -25,6 +25,10 @@ from isaac_audio_sensors.core.acceptance_criteria_corrective_03 import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class _SimulatedGrantCreationCrash(BaseException):
+    pass
+
+
 def _synthetic_attempt_inventory(
     payload: dict[str, object],
 ) -> list[dict[str, object]]:
@@ -72,9 +76,7 @@ def _authorization_evidence(
     grant_sha256: str = "c" * 64,
 ) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
     config = load_contract(ROOT)
-    grant_id = config["grant"]["grant_id_template"].format(
-        source_commit=source_commit
-    )
+    grant_id = config["grant"]["grant_id_template"].format(source_commit=source_commit)
     authorization = {
         "schema": s4_8.AUTHORIZATION_RECORD_SCHEMA,
         "authorization_id": "synthetic",
@@ -90,9 +92,13 @@ def _authorization_evidence(
         "file_sha256": "b" * 64,
         "grant_sha256": grant_sha256,
     }
-    return authorization, grant, _synthetic_ledger_event(
-        source_commit,
-        grant_sha256,
+    return (
+        authorization,
+        grant,
+        _synthetic_ledger_event(
+            source_commit,
+            grant_sha256,
+        ),
     )
 
 
@@ -120,9 +126,7 @@ def test_preopen_attempt_selection_uses_frozen_technical_projection() -> None:
         seal,
         set(registry),
     )
-    assert selected["s44a03_prospective_holdout_027_conf"].name.endswith(
-        "__attempt_02"
-    )
+    assert selected["s44a03_prospective_holdout_027_conf"].name.endswith("__attempt_02")
     assert len(selected) == 47
 
 
@@ -133,8 +137,7 @@ def test_first_run_journal_is_hash_chained_and_tamper_evident(
     s4_8._append_run_journal(journal, {"event": "one"})
     s4_8._append_run_journal(journal, {"event": "two"})
     records = [
-        json.loads(line)
-        for line in journal.read_text(encoding="utf-8").splitlines()
+        json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines()
     ]
     assert [record["sequence"] for record in records] == [0, 1]
     assert records[1]["previous_event_sha256"] == records[0]["event_sha256"]
@@ -214,9 +217,7 @@ def test_malformed_or_incomplete_input_fails_closed(mutate) -> None:
     mutate(payload)
     result = evaluate_payload(payload, repo_root=ROOT)
     assert result["readiness_passed"] is False
-    assert result["failed_gating_criteria"] == [
-        "evaluation_input_contract_rejected"
-    ]
+    assert result["failed_gating_criteria"] == ["evaluation_input_contract_rejected"]
     assert result["evaluation_error"]
 
 
@@ -229,13 +230,12 @@ def test_grant_creation_is_source_identified_and_does_not_consume(
     monkeypatch.setattr(
         s4_8,
         "preopen_validate",
-        lambda _root, source_commit: {
+        lambda _root, source_commit, **_kwargs: {
             "seal_file_sha256": "b" * 64,
             "partition_manifest_sha256": "c" * 64,
             "split_plan_sha256": "d" * 64,
             "prerequisite": {
-                key: f"value-{key}"
-                for key in s4_8.PREREQUISITE_BINDING_FIELDS
+                key: f"value-{key}" for key in s4_8.PREREQUISITE_BINDING_FIELDS
             },
         },
     )
@@ -251,11 +251,153 @@ def test_grant_creation_is_source_identified_and_does_not_consume(
     assert result["grant"]["split_plan_sha256"] == "d" * 64
     assert result["grant"]["single_use"] is True
     assert not ledger_path.exists()
-    with pytest.raises(S48Error, match="already exists"):
+    retried = create_grant(
+        tmp_path,
+        source_commit=source_commit,
+        authorization_id="user-message-test",
+    )
+    assert retried == result
+
+
+@pytest.mark.parametrize(
+    "fault_step",
+    [
+        "staging_created",
+        "before_grant_write",
+        "grant_written",
+        "before_authorization_write",
+        "authorization_written",
+        "before_staging_fsync",
+        "staging_fsynced",
+        "before_final_publication",
+        "final_published",
+        "publication_fsynced",
+    ],
+)
+def test_grant_creation_crash_boundaries_are_atomic_and_retryable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault_step: str,
+) -> None:
+    config = copy.deepcopy(load_contract(ROOT))
+    source_commit = "a" * 40
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
+    monkeypatch.setattr(
+        s4_8,
+        "preopen_validate",
+        lambda _root, source_commit, **_kwargs: {
+            "seal_file_sha256": "b" * 64,
+            "split_plan_sha256": "d" * 64,
+            "prerequisite": {
+                key: f"value-{key}" for key in s4_8.PREREQUISITE_BINDING_FIELDS
+            },
+        },
+    )
+
+    def crash_at(step: str) -> None:
+        if step == fault_step:
+            raise _SimulatedGrantCreationCrash(step)
+
+    monkeypatch.setattr(s4_8, "_grant_creation_step", crash_at)
+    with pytest.raises(_SimulatedGrantCreationCrash):
         create_grant(
             tmp_path,
             source_commit=source_commit,
-            authorization_id="user-message-test",
+            authorization_id="atomic-retry",
+        )
+    grant_path = tmp_path / config["grant"]["path"]
+    authorization_path = grant_path.with_name(s4_8.AUTHORIZATION_RECORD_NAME)
+    if fault_step in {"final_published", "publication_fsynced"}:
+        assert grant_path.is_file()
+        assert authorization_path.is_file()
+    else:
+        assert not grant_path.exists()
+        assert not authorization_path.exists()
+
+    monkeypatch.setattr(s4_8, "_grant_creation_step", lambda _step: None)
+    result = create_grant(
+        tmp_path,
+        source_commit=source_commit,
+        authorization_id="atomic-retry",
+    )
+    assert s4_8.load_json(grant_path) == result["grant"]
+    assert s4_8.load_json(authorization_path) == result["authorization_record"]
+    assert not (grant_path.parent.parent / s4_8.GRANT_PUBLICATION_STAGING_NAME).exists()
+    assert not (tmp_path / config["grant"]["ledger_path"]).exists()
+
+
+def test_grant_creation_recovers_exact_legacy_partial_and_rejects_tampering(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = copy.deepcopy(load_contract(ROOT))
+    source_commit = "a" * 40
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
+    monkeypatch.setattr(
+        s4_8,
+        "preopen_validate",
+        lambda _root, source_commit, **_kwargs: {
+            "seal_file_sha256": "b" * 64,
+            "split_plan_sha256": "d" * 64,
+            "prerequisite": {
+                key: f"value-{key}" for key in s4_8.PREREQUISITE_BINDING_FIELDS
+            },
+        },
+    )
+    result = create_grant(
+        tmp_path,
+        source_commit=source_commit,
+        authorization_id="legacy-retry",
+    )
+    grant_path = tmp_path / config["grant"]["path"]
+    authorization_path = grant_path.with_name(s4_8.AUTHORIZATION_RECORD_NAME)
+    authorization_path.unlink()
+    retried = create_grant(
+        tmp_path,
+        source_commit=source_commit,
+        authorization_id="legacy-retry",
+    )
+    assert retried == result
+    authorization_path.unlink()
+    tampered = s4_8.load_json(grant_path)
+    tampered["purpose"] = "tampered"
+    grant_path.write_text(s4_8.pretty_json(tampered), encoding="utf-8")
+    with pytest.raises(S48Error, match="interrupted grant publication"):
+        create_grant(
+            tmp_path,
+            source_commit=source_commit,
+            authorization_id="legacy-retry",
+        )
+
+
+def test_grant_creation_rejects_mismatched_retry_authorization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = copy.deepcopy(load_contract(ROOT))
+    source_commit = "a" * 40
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
+    monkeypatch.setattr(
+        s4_8,
+        "preopen_validate",
+        lambda _root, source_commit, **_kwargs: {
+            "seal_file_sha256": "b" * 64,
+            "split_plan_sha256": "d" * 64,
+            "prerequisite": {
+                key: f"value-{key}" for key in s4_8.PREREQUISITE_BINDING_FIELDS
+            },
+        },
+    )
+    create_grant(
+        tmp_path,
+        source_commit=source_commit,
+        authorization_id="original",
+    )
+    with pytest.raises(S48Error, match="publication validation"):
+        create_grant(
+            tmp_path,
+            source_commit=source_commit,
+            authorization_id="replacement",
         )
 
 
@@ -355,12 +497,8 @@ def test_evidence_manifest_rejects_tamper(
         output=package,
         source_commit="a" * 40,
     )
-    report = json.loads(
-        (package / "robustness.json").read_text(encoding="utf-8")
-    )
+    report = json.loads((package / "robustness.json").read_text(encoding="utf-8"))
     report["status"] = "passed"
-    (package / "robustness.json").write_text(
-        json.dumps(report), encoding="utf-8"
-    )
+    (package / "robustness.json").write_text(json.dumps(report), encoding="utf-8")
     with pytest.raises(S48Error, match="manifest mismatch"):
         validate_evidence_package(package, repo_root=ROOT)
