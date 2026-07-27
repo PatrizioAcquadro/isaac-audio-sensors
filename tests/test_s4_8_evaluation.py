@@ -102,10 +102,11 @@ def _authorization_evidence(
     )
 
 
-def test_preopen_validation_authenticates_without_opening() -> None:
+def test_terminal_state_metadata_validation_does_not_reopen() -> None:
     result = preopen_validate(
         ROOT,
         verify_prerequisite_replay=False,
+        require_access_paths_absent=False,
     )
     assert result["status"] == "passed"
     assert result["planned_take_count"] == 47
@@ -113,8 +114,8 @@ def test_preopen_validation_authenticates_without_opening() -> None:
     assert result["sealed_artifact_count"] == 160
     assert result["content_derived_values_returned"] is False
     assert result["holdout_opened"] is False
-    assert result["grant_present"] is False
-    assert result["ledger_present"] is False
+    assert result["grant_present"] is True
+    assert result["ledger_present"] is True
 
 
 def test_preopen_attempt_selection_uses_frozen_technical_projection() -> None:

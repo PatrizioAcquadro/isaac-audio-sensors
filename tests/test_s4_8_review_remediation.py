@@ -1009,6 +1009,254 @@ def _install_authorized_run_harness(
     return config, source_commit, context, expected_evaluation
 
 
+def test_full_authorized_path_accepts_unbound_post_consumption_record(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exercise the real consumed-ledger check and real payload builder."""
+
+    source_commit = "a" * 40
+    event_time = "2030-01-01T00:00:00Z"
+    config = copy.deepcopy(s4_8.load_contract(ROOT))
+    config["holdout"]["seal_path"] = "seal.json"
+    config["grant"]["path"] = "access/grant.json"
+    config["grant"]["ledger_path"] = "state/ledger.jsonl"
+    config["evidence"]["derived_input_path"] = "state/derived.json"
+    config["evidence"]["run_journal_path"] = "state/journal.jsonl"
+    config["evidence"]["output_path"] = "output/S4.8"
+    (tmp_path / "seal.json").write_text("{}\n", encoding="utf-8")
+
+    grant_id = config["grant"]["grant_id_template"].format(
+        source_commit=source_commit
+    )
+    grant_payload = {
+        "schema": s4_8.GRANT_SCHEMA,
+        "grant_id": grant_id,
+        "purpose": "S4.8_evaluation",
+        "seal_sha256": "b" * 64,
+        "split_plan_sha256": "c" * 64,
+        "prerequisite": {},
+        "single_use": True,
+        "authorization": "explicit_user_authorization_required",
+    }
+    grant = {
+        **grant_payload,
+        "grant_sha256": canonical_sha256(grant_payload),
+    }
+    grant_path = tmp_path / config["grant"]["path"]
+    grant_path.parent.mkdir(parents=True)
+    grant_path.write_text(s4_8.pretty_json(grant), encoding="utf-8")
+    authorization = _authorization_record(
+        config,
+        source_commit=source_commit,
+        grant_sha256=grant["grant_sha256"],
+    )
+    grant_path.with_name(s4_8.AUTHORIZATION_RECORD_NAME).write_text(
+        s4_8.pretty_json(authorization),
+        encoding="utf-8",
+    )
+    ledger_event = _ledger_event(
+        source_commit=source_commit,
+        grant_sha256=grant["grant_sha256"],
+    )
+
+    payload = build_synthetic_payload(ROOT)
+    payload["sim_vs_real"] = s4_8.build_simulation_comparisons(ROOT)
+    inventory = _inventory(payload)
+    registry = s4_8.build_identity_registry(ROOT)
+    takes = {
+        take["identity"]["planned_take_id"]: take for take in payload["takes"]
+    }
+    selected_records = {
+        record["planned_take_id"]: record
+        for record in inventory
+        if record["selected_for_evaluation"] is True
+    }
+    attempt_roots = {
+        take_id: tmp_path / selected_records[take_id]["attempt_root"]
+        for take_id in registry
+    }
+    rejection_payload = s4_8._input_rejection_payload(ROOT)
+    rejection_evaluation = s4_8._evaluation_placeholder("not_evaluated")
+    context = {
+        "schema": "ias.s4_8.post_consumption_recovery_context.v1",
+        "source_commit": source_commit,
+        "event_time_utc": event_time,
+        "authorization_record": authorization,
+        "grant": {
+            "path": config["grant"]["path"],
+            "file_sha256": s4_8.sha256_file(grant_path),
+            "grant_sha256": grant["grant_sha256"],
+        },
+        "observation_inventory": _closed_inventory(),
+        "payload": rejection_payload,
+        "payload_sha256": canonical_sha256(rejection_payload),
+        "evaluation_state": "not_evaluated",
+        "evaluation": rejection_evaluation,
+        "evaluation_sha256": canonical_sha256(rejection_evaluation),
+        "runtime_provenance": s4_8._runtime_dependency_provenance(),
+    }
+    context["context_sha256"] = canonical_sha256(context)
+
+    def consume(
+        repo_root: Path,
+        *,
+        source_commit: str,
+        event_time_utc: str,
+        recovery_context,
+    ) -> dict[str, object]:
+        del recovery_context
+        journal = repo_root / config["evidence"]["run_journal_path"]
+        records = s4_8._opening_journal_records(
+            source_commit=source_commit,
+            event_time_utc=event_time_utc,
+            ledger_event=ledger_event,
+        )
+        journal.parent.mkdir(parents=True, exist_ok=True)
+        journal.write_text(
+            "".join(
+                json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+                for record in records
+            ),
+            encoding="utf-8",
+        )
+        journal.with_name(s4_8.RECOVERY_CONTEXT_NAME).write_text(
+            s4_8.pretty_json(context),
+            encoding="utf-8",
+        )
+        ledger = repo_root / config["grant"]["ledger_path"]
+        ledger.write_text(
+            json.dumps(ledger_event, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        return {
+            "allowed": True,
+            "mode": "S4.8_evaluation",
+            "ledger_event": ledger_event,
+            "journal_records": records,
+        }
+
+    def analyze(
+        root: Path,
+        attempt_root: Path,
+        identity,
+        **_kwargs,
+    ):
+        take = copy.deepcopy(takes[identity.planned_take_id])
+        return take, {
+            "planned_take_id": identity.planned_take_id,
+            "attempt_root": attempt_root.relative_to(root).as_posix(),
+            "window_count": len(take["bearing_windows"]),
+            "failed": take["failed"],
+            "failure_reasons": take["failure_reasons"],
+            "rejected": False,
+            "excluded": False,
+            "av_analysis": None,
+        }
+
+    original_evaluate = s4_8.evaluate_payload
+    original_full = s4_8._build_evidence_package_in_place
+    original_failure = s4_8._build_terminal_failure_package_in_place
+    original_validate = s4_8.validate_evidence_package
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
+    monkeypatch.setattr(s4_8, "preopen_validate", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(
+        s4_8,
+        "_build_preconsumption_recovery_context",
+        lambda *_args, **_kwargs: context,
+    )
+    monkeypatch.setattr(s4_8, "_consume_grant_once", consume)
+    monkeypatch.setattr(
+        s4_8,
+        "hash_only_holdout_integrity",
+        lambda *_args, **_kwargs: {"status": "passed"},
+    )
+    monkeypatch.setattr(s4_8, "build_identity_registry", lambda _root: registry)
+    monkeypatch.setattr(
+        s4_8,
+        "_sealed_attempt_candidates",
+        lambda *_args: {
+            take_id: {
+                attempt_roots[take_id].relative_to(tmp_path)
+            }
+            for take_id in registry
+        },
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_sealed_attempt_roots",
+        lambda *_args: attempt_roots,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_initial_observation_inventory",
+        lambda *_args, **_kwargs: copy.deepcopy(inventory),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_profile_runtime",
+        lambda _root: {"application_report": {}},
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "build_simulation_comparisons",
+        lambda _root: copy.deepcopy(payload["sim_vs_real"]),
+    )
+    monkeypatch.setattr(s4_8, "_analyze_real_take", analyze)
+    monkeypatch.setattr(
+        s4_8,
+        "evaluate_payload",
+        lambda value, *, repo_root: original_evaluate(value, repo_root=ROOT),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_source_commit",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_result_dependency_records",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "preservation_report",
+        lambda _root: {
+            "schema": "ias.s4_8.historical_preservation.v1",
+            "status": "passed",
+            "packages": [],
+        },
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_build_evidence_package_in_place",
+        lambda _root, value, **kwargs: original_full(ROOT, value, **kwargs),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_build_terminal_failure_package_in_place",
+        lambda _root, value, **kwargs: original_failure(ROOT, value, **kwargs),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "validate_evidence_package",
+        lambda package, *, repo_root: original_validate(package, repo_root=ROOT),
+    )
+
+    result = s4_8.run_authorized_evaluation_once(
+        tmp_path,
+        source_commit=source_commit,
+        event_time_utc=event_time,
+    )
+    assert result["status"] == "passed"
+    journal = s4_8._load_run_journal(
+        tmp_path / config["evidence"]["run_journal_path"]
+    )
+    assert journal[2]["event"] == "post_consumption_started"
+    assert "ledger_event_sha256" not in journal[2]
+    assert journal[-1]["event"] == "first_run_terminal"
+
+
 def _spawned_execution_lock_owner(
     repo_root: str,
     ready,

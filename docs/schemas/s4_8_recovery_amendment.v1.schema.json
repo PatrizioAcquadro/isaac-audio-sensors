@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/isaac-audio-sensors/s4_8_recovery_amendment.v1.schema.json",
+  "title": "S4.8 forward-only recovery amendment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "amendment_id", "status", "original_run", "future_attempt"],
+  "properties": {
+    "schema": {"const": "ias.s4_8.recovery_amendment.v1"},
+    "amendment_id": {"const": "s4_8_recovery_amendment_01"},
+    "status": {"const": "preopen_candidate_only"},
+    "original_run": {"$ref": "#/$defs/originalRun"},
+    "future_attempt": {"$ref": "#/$defs/futureAttempt"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "path": {"type": "string", "minLength": 1, "pattern": "^[^/].*"},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "originalRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_commit",
+        "grant_id",
+        "ledger_event_sha256",
+        "failure_stage",
+        "failure_type",
+        "failure_message",
+        "evaluation_state",
+        "terminal_status",
+        "artifacts"
+      ],
+      "properties": {
+        "source_commit": {"const": "b0d5575feded9f37316bff8ed4b62483084587bd"},
+        "grant_id": {"const": "s4_8_corrective_03_b0d5575feded9f37316bff8ed4b62483084587bd"},
+        "ledger_event_sha256": {"$ref": "#/$defs/sha256"},
+        "failure_stage": {"const": "observation_analysis"},
+        "failure_type": {"const": "S48Error"},
+        "failure_message": {"const": "S4.8 opening transition ledger binding mismatch"},
+        "evaluation_state": {"const": "not_evaluated"},
+        "terminal_status": {"const": "failed"},
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "grant",
+            "authorization",
+            "ledger",
+            "journal",
+            "recovery_context",
+            "derived_terminal_state",
+            "terminal_manifest",
+            "final_validation"
+          ],
+          "properties": {
+            "grant": {"$ref": "#/$defs/artifact"},
+            "authorization": {"$ref": "#/$defs/artifact"},
+            "ledger": {"$ref": "#/$defs/artifact"},
+            "journal": {"$ref": "#/$defs/artifact"},
+            "recovery_context": {"$ref": "#/$defs/artifact"},
+            "derived_terminal_state": {"$ref": "#/$defs/artifact"},
+            "terminal_manifest": {"$ref": "#/$defs/artifact"},
+            "final_validation": {"$ref": "#/$defs/artifact"}
+          }
+        }
+      }
+    },
+    "futureAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id_template",
+        "grant_path",
+        "ledger_path",
+        "journal_path",
+        "derived_input_path",
+        "output_path",
+        "closeout_path",
+        "independent_review_path",
+        "independent_review_required",
+        "new_explicit_authorization_required",
+        "grant_creation_authorized",
+        "grant_consumption_authorized",
+        "automatic_retry_of_original"
+      ],
+      "properties": {
+        "grant_id_template": {"const": "s4_8_recovery_amendment_01_corrective_03_{source_commit}"},
+        "grant_path": {"$ref": "#/$defs/path"},
+        "ledger_path": {"$ref": "#/$defs/path"},
+        "journal_path": {"$ref": "#/$defs/path"},
+        "derived_input_path": {"$ref": "#/$defs/path"},
+        "output_path": {"$ref": "#/$defs/path"},
+        "closeout_path": {"$ref": "#/$defs/path"},
+        "independent_review_path": {"$ref": "#/$defs/path"},
+        "independent_review_required": {"const": true},
+        "new_explicit_authorization_required": {"const": true},
+        "grant_creation_authorized": {"const": false},
+        "grant_consumption_authorized": {"const": false},
+        "automatic_retry_of_original": {"const": false}
+      }
+    }
+  }
+}

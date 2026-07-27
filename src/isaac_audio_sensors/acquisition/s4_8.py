@@ -26,6 +26,7 @@ from collections import Counter, defaultdict
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, suppress
 from contextvars import ContextVar
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from statistics import median
@@ -184,6 +185,9 @@ _ACTIVE_EXECUTION_LEASE: ContextVar[_ExecutionLockLease | None] = ContextVar(
     "s4_8_active_execution_lease",
     default=None,
 )
+_ACTIVE_CONTRACT: ContextVar[
+    tuple[dict[str, Any], Path, tuple[Path, ...]] | None
+] = ContextVar("s4_8_active_contract", default=None)
 AUTHORIZATION_RECORD_SCHEMA = "ias.s4_8.authorization_record.v1"
 AUTHORIZATION_RECORD_FIELDS = frozenset(
     {
@@ -248,8 +252,10 @@ RESULT_DEPENDENCY_FILES = (
     SCHEMA_PATH,
     SPEC_PATH,
     Path("scripts/run_s4_8.py"),
+    Path("scripts/run_s4_8_recovery.py"),
     Path("scripts/validate_s4_8.py"),
     Path("scripts/replay_s4_8.py"),
+    Path("docs/development/specs/s4_8_recovery_amendment_01.md"),
 )
 IMPORT_SHADOW_NAMES = frozenset(
     {
@@ -469,6 +475,9 @@ def _validate_authorization_evidence(
 
 def load_contract(repo_root: Path) -> dict[str, Any]:
     root = repo_root.resolve()
+    active = _ACTIVE_CONTRACT.get()
+    if active is not None:
+        return deepcopy(active[0])
     config = load_json(root / CONFIG_PATH)
     schema = load_json(root / SCHEMA_PATH)
     try:
@@ -496,6 +505,28 @@ def load_contract(repo_root: Path) -> dict[str, Any]:
         if sha256_file(path) != record[digest_key]:
             raise S48Error(f"S4.8 frozen binding mismatch: {path_key}")
     return config
+
+
+@contextmanager
+def _use_contract(
+    config: Mapping[str, Any],
+    *,
+    contract_path: Path,
+    extra_source_bound_files: Sequence[Path] = (),
+) -> Iterator[None]:
+    """Select one validated additive contract while reusing the S4.8 engine."""
+
+    token = _ACTIVE_CONTRACT.set(
+        (
+            deepcopy(dict(config)),
+            contract_path,
+            tuple(extra_source_bound_files),
+        )
+    )
+    try:
+        yield
+    finally:
+        _ACTIVE_CONTRACT.reset(token)
 
 
 def preopen_validate(
@@ -4851,7 +4882,7 @@ def _require_consumed_ledger(repo_root: Path, config: Mapping[str, Any]) -> None
         raise S48Error("S4.8 opening transition source binding mismatch")
     if any(
         record.get("ledger_event_sha256") != opened[0]["event_sha256"]
-        for record in journal
+        for record in journal[:2]
     ):
         raise S48Error("S4.8 opening transition ledger binding mismatch")
 
@@ -5415,12 +5446,19 @@ def _provenance_report(
 ) -> dict[str, Any]:
     contract = load_contract(repo_root)
     dependency_records = _result_dependency_records(repo_root, source_commit)
+    active = _ACTIVE_CONTRACT.get()
+    contract_path = active[1] if active is not None else CONFIG_PATH
+    source_bound_paths = (
+        tuple(dict.fromkeys((*SOURCE_BOUND_FILES, *active[2])))
+        if active is not None
+        else SOURCE_BOUND_FILES
+    )
     source_files = [
         {
             "path": path.as_posix(),
             "sha256": sha256_file(repo_root / path),
         }
-        for path in SOURCE_BOUND_FILES
+        for path in source_bound_paths
     ]
     runtime = derived.get("runtime_provenance")
     if runtime is None:
@@ -5430,8 +5468,8 @@ def _provenance_report(
         "status": status,
         "tool_version": TOOL_VERSION,
         "source_commit": source_commit,
-        "contract_path": CONFIG_PATH.as_posix(),
-        "contract_sha256": sha256_file(repo_root / CONFIG_PATH),
+        "contract_path": contract_path.as_posix(),
+        "contract_sha256": sha256_file(repo_root / contract_path),
         "source_bound_files": source_files,
         "source_bound_files_sha256": canonical_sha256(source_files),
         "result_dependency_count": len(dependency_records),

@@ -1,0 +1,64 @@
+{
+  "schema": "ias.s4_8.recovery_amendment.v1",
+  "amendment_id": "s4_8_recovery_amendment_01",
+  "status": "preopen_candidate_only",
+  "original_run": {
+    "source_commit": "b0d5575feded9f37316bff8ed4b62483084587bd",
+    "grant_id": "s4_8_corrective_03_b0d5575feded9f37316bff8ed4b62483084587bd",
+    "ledger_event_sha256": "234a6ba12faebf5494ee56a57393bdb816272cf797871203ccbc48b270e6a7b8",
+    "failure_stage": "observation_analysis",
+    "failure_type": "S48Error",
+    "failure_message": "S4.8 opening transition ledger binding mismatch",
+    "evaluation_state": "not_evaluated",
+    "terminal_status": "failed",
+    "artifacts": {
+      "grant": {
+        "path": "dataset/S4.8/access/holdout_access_grant.corrective_03.v1.json",
+        "sha256": "22c8636944ee5d62f7f89e6d8557319c73775244f7d49e0f3a5af4e8b3fbba34"
+      },
+      "authorization": {
+        "path": "dataset/S4.8/access/authorization_record.v1.json",
+        "sha256": "4ab7e70466217a8541d44f7071d62b3bc1be24580e9b3b56eb6f9d1d90643c1d"
+      },
+      "ledger": {
+        "path": "dataset/S4.8/access/opening_transition.v1/access_ledger.jsonl",
+        "sha256": "20f0decb2286be4c295a3afe46319e44bb53341b4f3b2a0a1c027176694c96dc"
+      },
+      "journal": {
+        "path": "dataset/S4.8/access/opening_transition.v1/first_run_journal.jsonl",
+        "sha256": "0eab13440bd997bf7a79f85d8581bd62ce41ca1254681b75d22de938bd7b39ea"
+      },
+      "recovery_context": {
+        "path": "dataset/S4.8/access/opening_transition.v1/recovery_context.v1.json",
+        "sha256": "b01f4d7b006404ddc81321f6de43306b850b178625d9c065c136f7712a2eea75"
+      },
+      "derived_terminal_state": {
+        "path": "dataset/S4.8/derived/heldout_evaluation_input.v1.json",
+        "sha256": "d68fbecedc6c15367675d0ea7e8f11fcb04beabe5bfb32d56253c0cd8a1f9a0f"
+      },
+      "terminal_manifest": {
+        "path": "outputs/isaac_audio_sensors/S4/S4.8/SHA256SUMS",
+        "sha256": "bb3e57bdac2cdf545f9adf39e867db3bf5b35831892c66b101e57913af9e59e2"
+      },
+      "final_validation": {
+        "path": "outputs/isaac_audio_sensors/S4/S4.8/final_validation.json",
+        "sha256": "fb5dc23ccb6e86987695b9b59a3beea8c7c0dd7d9458b93304aadb2e6aeae3ae"
+      }
+    }
+  },
+  "future_attempt": {
+    "grant_id_template": "s4_8_recovery_amendment_01_corrective_03_{source_commit}",
+    "grant_path": "dataset/S4.8/recovery_amendment_01/access/holdout_access_grant.corrective_03.v1.json",
+    "ledger_path": "dataset/S4.8/recovery_amendment_01/access/opening_transition.v1/access_ledger.jsonl",
+    "journal_path": "dataset/S4.8/recovery_amendment_01/access/opening_transition.v1/first_run_journal.jsonl",
+    "derived_input_path": "dataset/S4.8/recovery_amendment_01/derived/heldout_evaluation_input.v1.json",
+    "output_path": "outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_01",
+    "closeout_path": "docs/development/closeouts/S4/s4_8_recovery_amendment_01.md",
+    "independent_review_path": "dataset/S4.8/recovery_amendment_01/review/independent_review.v1.json",
+    "independent_review_required": true,
+    "new_explicit_authorization_required": true,
+    "grant_creation_authorized": false,
+    "grant_consumption_authorized": false,
+    "automatic_retry_of_original": false
+  }
+}

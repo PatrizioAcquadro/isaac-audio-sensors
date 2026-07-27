@@ -237,6 +237,13 @@ The first opened result is immutable. If a result-affecting implementation
 defect is discovered after opening, the original run is preserved and work
 stops for explicit direction; no silent patch or rerun is permitted.
 
+The first authorized run at
+`b0d5575feded9f37316bff8ed4b62483084587bd` is therefore permanently retained
+as `FAILED/NOT_EVALUATED`. The additive, forward-only recovery rules and
+separate candidate identities are defined by
+`docs/development/specs/s4_8_recovery_amendment_01.md`; they do not alter this
+original contract or authorize another grant.
+
 The candidate source commit binds the complete tracked result dependency
 inventory: all package implementation modules, frozen configuration and schema
 inputs, authenticated S4 evidence dependencies, CLI entry points, and project
