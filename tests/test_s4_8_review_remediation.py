@@ -541,12 +541,15 @@ def test_concurrent_consumers_have_exactly_one_success(
     grant = {**payload, "grant_sha256": canonical_sha256(payload)}
     grant_path = tmp_path / "grant.json"
     grant_path.write_text(s4_8.pretty_json(grant), encoding="utf-8")
-    ledger = tmp_path / "ledger.jsonl"
-    journal = tmp_path / "journal.jsonl"
+    transition = tmp_path / "opening_transition.v1"
+    ledger = transition / "ledger.jsonl"
+    journal = transition / "journal.jsonl"
     config = copy.deepcopy(s4_8.load_contract(ROOT))
     config["grant"]["path"] = grant_path.name
-    config["grant"]["ledger_path"] = ledger.name
-    config["evidence"]["run_journal_path"] = journal.name
+    config["grant"]["ledger_path"] = ledger.relative_to(tmp_path).as_posix()
+    config["evidence"]["run_journal_path"] = (
+        journal.relative_to(tmp_path).as_posix()
+    )
     config["holdout"]["seal_path"] = seal.name
     config["holdout"]["split_plan_sha256"] = "c" * 64
     config["prerequisite"]["path"] = prerequisite.name

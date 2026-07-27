@@ -234,7 +234,9 @@
       "properties": {
         "schema": {"const": "ias.s4_4.holdout_access_grant.v1"},
         "path": {"const": "dataset/S4.8/access/holdout_access_grant.corrective_03.v1.json"},
-        "ledger_path": {"const": "dataset/S4.8/access/access_ledger.jsonl"},
+        "ledger_path": {
+          "const": "dataset/S4.8/access/opening_transition.v1/access_ledger.jsonl"
+        },
         "purpose": {"const": "S4.8_evaluation"},
         "grant_id_template": {
           "const": "s4_8_corrective_03_{source_commit}"
@@ -265,7 +267,7 @@
       "properties": {
         "derived_input_path": {"$ref": "#/$defs/path"},
         "run_journal_path": {
-          "const": "dataset/S4.8/derived/first_run_journal.jsonl"
+          "const": "dataset/S4.8/access/opening_transition.v1/first_run_journal.jsonl"
         },
         "output_path": {"const": "outputs/isaac_audio_sensors/S4/S4.8"},
         "closeout_path": {

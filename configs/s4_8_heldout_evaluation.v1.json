@@ -80,7 +80,7 @@
   "grant": {
     "schema": "ias.s4_4.holdout_access_grant.v1",
     "path": "dataset/S4.8/access/holdout_access_grant.corrective_03.v1.json",
-    "ledger_path": "dataset/S4.8/access/access_ledger.jsonl",
+    "ledger_path": "dataset/S4.8/access/opening_transition.v1/access_ledger.jsonl",
     "purpose": "S4.8_evaluation",
     "grant_id_template": "s4_8_corrective_03_{source_commit}",
     "authorization": "explicit_user_authorization_required",
@@ -90,7 +90,7 @@
   },
   "evidence": {
     "derived_input_path": "dataset/S4.8/derived/heldout_evaluation_input.v1.json",
-    "run_journal_path": "dataset/S4.8/derived/first_run_journal.jsonl",
+    "run_journal_path": "dataset/S4.8/access/opening_transition.v1/first_run_journal.jsonl",
     "output_path": "outputs/isaac_audio_sensors/S4/S4.8",
     "closeout_path": "docs/development/closeouts/S4/s4_8_heldout_evaluation.md",
     "deterministic_replay_required": true,

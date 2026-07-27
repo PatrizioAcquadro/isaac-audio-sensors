@@ -55,7 +55,7 @@ It is consumed exactly once by
 `isaac_audio_sensors.acquisition.s4_4.consume_s4_8_grant`, using the append-only
 ledger:
 
-`dataset/S4.8/access/access_ledger.jsonl`
+`dataset/S4.8/access/opening_transition.v1/access_ledger.jsonl`
 
 Grant consumption and observation opening run serially and are never
 automatically retried. Raw data, grant, and ledger remain ignored under
@@ -63,11 +63,13 @@ automatically retried. Raw data, grant, and ledger remain ignored under
 
 The S4.8 consumer serializes grant claim, canonical ledger append, first-run
 journal initialization, and observation-opening authorization under one
-machine-local exclusive transition lock. Observation code requires both the
-single authenticated ledger event and the matching two-event journal prefix.
-A concurrent caller can never acquire a second successful claim. A transition
-that cannot initialize both records rolls back before observations are
-eligible to open.
+machine-local exclusive transition lock. The canonical consumer writes the
+ledger and matching two-event journal prefix into a same-filesystem staging
+directory, then one atomic directory rename publishes the complete
+`opening_transition.v1` state. Observation code requires both records from
+that finalized directory. A concurrent caller can never acquire a second
+successful claim. An incomplete staged transition is never eligible to open
+observations.
 
 The journal has exactly one terminal event after the first package is
 finalized. It never records scientific completion before package finalization.

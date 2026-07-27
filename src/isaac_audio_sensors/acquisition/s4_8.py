@@ -374,7 +374,12 @@ def consume_grant_once(
     grant_path = root / config["grant"]["path"]
     ledger_path = root / config["grant"]["ledger_path"]
     journal_path = root / config["evidence"]["run_journal_path"]
-    lock_path = ledger_path.with_name(".s4_8_opening_transition.lock")
+    transition = ledger_path.parent
+    if journal_path.parent != transition:
+        raise S48Error(
+            "S4.8 ledger and journal must share one atomic transition directory"
+        )
+    lock_path = transition.parent / ".s4_8_opening_transition.lock"
     with _exclusive_transition_lock(lock_path):
         grant = load_json(grant_path)
         expected_id = config["grant"]["grant_id_template"].format(
@@ -384,36 +389,60 @@ def consume_grant_once(
             raise S48Error(
                 "grant is not bound to the exact evaluator source commit"
             )
-        if ledger_path.exists() or journal_path.exists():
+        if transition.exists():
             raise S48Error(
                 "S4.8 opening transition already claimed; retry forbidden"
             )
-        result = consume_s4_8_grant(
-            grant_path,
-            seal_path=_repo_file(root, config["holdout"]["seal_path"]),
-            split_plan_sha256=config["holdout"]["split_plan_sha256"],
-            prerequisite_path=_repo_file(root, config["prerequisite"]["path"]),
-            ledger_path=ledger_path,
-            event_time_utc=event_time_utc,
-        )
-        if (
-            result.get("allowed") is not True
-            or result.get("mode") != "S4.8_evaluation"
-        ):
-            raise S48Error("canonical interlock did not authorize S4.8")
-        records = _opening_journal_records(
-            source_commit=source_commit,
-            event_time_utc=event_time_utc,
-            ledger_event=result["ledger_event"],
-        )
-        encoded = "".join(
-            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
-            for record in records
+        transition.parent.mkdir(parents=True, exist_ok=True)
+        staging = Path(
+            tempfile.mkdtemp(
+                prefix=".opening_transition.",
+                suffix=".staging",
+                dir=transition.parent,
+            )
         )
         try:
-            _atomic_write_text(journal_path, encoded)
+            staged_ledger = staging / ledger_path.name
+            staged_journal = staging / journal_path.name
+            result = consume_s4_8_grant(
+                grant_path,
+                seal_path=_repo_file(root, config["holdout"]["seal_path"]),
+                split_plan_sha256=config["holdout"]["split_plan_sha256"],
+                prerequisite_path=_repo_file(
+                    root, config["prerequisite"]["path"]
+                ),
+                ledger_path=staged_ledger,
+                event_time_utc=event_time_utc,
+            )
+            if (
+                result.get("allowed") is not True
+                or result.get("mode") != "S4.8_evaluation"
+            ):
+                raise S48Error("canonical interlock did not authorize S4.8")
+            records = _opening_journal_records(
+                source_commit=source_commit,
+                event_time_utc=event_time_utc,
+                ledger_event=result["ledger_event"],
+            )
+            encoded = "".join(
+                json.dumps(record, sort_keys=True, separators=(",", ":"))
+                + "\n"
+                for record in records
+            )
+            _atomic_write_text(staged_journal, encoded)
+            directory_fd = os.open(staging, os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+            os.replace(staging, transition)
+            parent_fd = os.open(transition.parent, os.O_RDONLY)
+            try:
+                os.fsync(parent_fd)
+            finally:
+                os.close(parent_fd)
         except Exception:
-            ledger_path.unlink(missing_ok=True)
+            shutil.rmtree(staging, ignore_errors=True)
             raise
     return {**result, "journal_records": records}
 
