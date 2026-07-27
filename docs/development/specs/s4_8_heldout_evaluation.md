@@ -61,6 +61,22 @@ Grant consumption and observation opening run serially and are never
 automatically retried. Raw data, grant, and ledger remain ignored under
 `dataset/`.
 
+The S4.8 consumer serializes grant claim, canonical ledger append, first-run
+journal initialization, and observation-opening authorization under one
+machine-local exclusive transition lock. Observation code requires both the
+single authenticated ledger event and the matching two-event journal prefix.
+A concurrent caller can never acquire a second successful claim. A transition
+that cannot initialize both records rolls back before observations are
+eligible to open.
+
+The journal has exactly one terminal event after the first package is
+finalized. It never records scientific completion before package finalization.
+Input rejection, failed readiness, or an evidence-construction failure
+produces a terminal failed record and forbids retry. Package files are written
+in a same-filesystem staging directory, validated there, and atomically renamed
+to the canonical output only when complete; partial canonical output is never
+valid.
+
 ## Exact real-observation contract
 
 Every planned take maps to its tracked corrective_03 identity. The analyzer
@@ -140,3 +156,18 @@ derived input must reproduce all applicable package bytes.
 The first opened result is immutable. If a result-affecting implementation
 defect is discovered after opening, the original run is preserved and work
 stops for explicit direction; no silent patch or rerun is permitted.
+
+The candidate source commit binds the complete tracked result dependency
+inventory: all package implementation modules, frozen configuration and schema
+inputs, authenticated S4 evidence dependencies, CLI entry points, and project
+dependency declaration. Candidate validation rejects any dependency whose
+worktree bytes differ from the commit, any untracked Python code, and any
+repository file that shadows a runtime import.
+
+Package construction, package validation, and replay independently run the
+corrective_03 evaluator from the preserved derived payload. The recomputed
+evaluation must exactly equal the preserved criteria, pass flags, comparison
+classifications, and terminal scientific status. Validation also regenerates
+the complete package in a temporary directory and compares every file byte for
+byte, so a checksum-consistent alteration to observations or any derived
+report remains invalid.

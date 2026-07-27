@@ -253,6 +253,11 @@ def test_deterministic_evidence_package_and_replay(
     )
     monkeypatch.setattr(
         s4_8,
+        "_result_dependency_records",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        s4_8,
         "preservation_report",
         lambda _root: {
             "schema": "ias.s4_8.historical_preservation.v1",
@@ -297,6 +302,11 @@ def test_evidence_manifest_rejects_tamper(
         s4_8,
         "_validate_source_commit",
         lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_result_dependency_records",
+        lambda *_args, **_kwargs: [],
     )
     monkeypatch.setattr(
         s4_8,

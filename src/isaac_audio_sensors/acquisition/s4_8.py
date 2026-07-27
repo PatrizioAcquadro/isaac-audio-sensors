@@ -7,15 +7,21 @@ require an already-consumed purpose-bound grant.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
+import importlib
 import itertools
 import json
 import math
+import os
+import shutil
 import subprocess
+import tempfile
 import time
 import wave
 from collections import Counter, defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from statistics import median
@@ -36,6 +42,7 @@ from isaac_audio_sensors.acquisition.s4_4 import (
     canonical_sha256,
     consume_s4_8_grant,
     hash_only_holdout_integrity,
+    validate_ledger,
 )
 from isaac_audio_sensors.acquisition.s4_7_prerequisite_corrective_03 import (
     PREREQUISITE_BINDING_FIELDS,
@@ -104,6 +111,35 @@ SOURCE_BOUND_FILES = (
     Path("scripts/replay_s4_8.py"),
     Path("tests/test_s4_8_contract.py"),
     Path("tests/test_s4_8_evaluation.py"),
+)
+RESULT_DEPENDENCY_ROOTS = (
+    Path("src/isaac_audio_sensors"),
+    Path("configs"),
+    Path("outputs/isaac_audio_sensors/S4"),
+    Path("docs/schemas"),
+)
+RESULT_DEPENDENCY_FILES = (
+    Path("pyproject.toml"),
+    CONFIG_PATH,
+    SCHEMA_PATH,
+    SPEC_PATH,
+    Path("scripts/run_s4_8.py"),
+    Path("scripts/validate_s4_8.py"),
+    Path("scripts/replay_s4_8.py"),
+)
+IMPORT_SHADOW_NAMES = frozenset(
+    {
+        "hashlib",
+        "importlib",
+        "itertools",
+        "json",
+        "jsonschema",
+        "math",
+        "numpy",
+        "subprocess",
+        "time",
+        "wave",
+    }
 )
 PRESERVATION_BASELINE_COMMIT = "ab81af2e521661294d107d3ca28c7b30c581065c"
 PRESERVATION_ROOT = Path("outputs/isaac_audio_sensors/S4")
@@ -336,23 +372,50 @@ def consume_grant_once(
     root = repo_root.resolve()
     config = load_contract(root)
     grant_path = root / config["grant"]["path"]
-    grant = load_json(grant_path)
-    expected_id = config["grant"]["grant_id_template"].format(
-        source_commit=source_commit
-    )
-    if grant.get("grant_id") != expected_id:
-        raise S48Error("grant is not bound to the exact evaluator source commit")
-    result = consume_s4_8_grant(
-        grant_path,
-        seal_path=_repo_file(root, config["holdout"]["seal_path"]),
-        split_plan_sha256=config["holdout"]["split_plan_sha256"],
-        prerequisite_path=_repo_file(root, config["prerequisite"]["path"]),
-        ledger_path=root / config["grant"]["ledger_path"],
-        event_time_utc=event_time_utc,
-    )
-    if result.get("allowed") is not True or result.get("mode") != "S4.8_evaluation":
-        raise S48Error("canonical interlock did not authorize S4.8")
-    return result
+    ledger_path = root / config["grant"]["ledger_path"]
+    journal_path = root / config["evidence"]["run_journal_path"]
+    lock_path = ledger_path.with_name(".s4_8_opening_transition.lock")
+    with _exclusive_transition_lock(lock_path):
+        grant = load_json(grant_path)
+        expected_id = config["grant"]["grant_id_template"].format(
+            source_commit=source_commit
+        )
+        if grant.get("grant_id") != expected_id:
+            raise S48Error(
+                "grant is not bound to the exact evaluator source commit"
+            )
+        if ledger_path.exists() or journal_path.exists():
+            raise S48Error(
+                "S4.8 opening transition already claimed; retry forbidden"
+            )
+        result = consume_s4_8_grant(
+            grant_path,
+            seal_path=_repo_file(root, config["holdout"]["seal_path"]),
+            split_plan_sha256=config["holdout"]["split_plan_sha256"],
+            prerequisite_path=_repo_file(root, config["prerequisite"]["path"]),
+            ledger_path=ledger_path,
+            event_time_utc=event_time_utc,
+        )
+        if (
+            result.get("allowed") is not True
+            or result.get("mode") != "S4.8_evaluation"
+        ):
+            raise S48Error("canonical interlock did not authorize S4.8")
+        records = _opening_journal_records(
+            source_commit=source_commit,
+            event_time_utc=event_time_utc,
+            ledger_event=result["ledger_event"],
+        )
+        encoded = "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        )
+        try:
+            _atomic_write_text(journal_path, encoded)
+        except Exception:
+            ledger_path.unlink(missing_ok=True)
+            raise
+    return {**result, "journal_records": records}
 
 
 def run_authorized_evaluation_once(
@@ -378,51 +441,18 @@ def run_authorized_evaluation_once(
     consumption = consume_grant_once(
         root, source_commit=source_commit, event_time_utc=event_time_utc
     )
-    _append_run_journal(
-        journal_path,
-        {
-            "event": "grant_consumed",
-            "event_time_utc": event_time_utc,
-            "source_commit": source_commit,
-            "ledger_event_sha256": consumption["ledger_event"]["event_sha256"],
-        },
-    )
-    _append_run_journal(
-        journal_path,
-        {
-            "event": "observation_opening_started",
-            "event_time_utc": event_time_utc,
-            "source_commit": source_commit,
-        },
-    )
+    run_failure: dict[str, Any] | None = None
     try:
         payload, observation_inventory = build_real_payload(root)
         evaluation = evaluate_payload(payload, repo_root=root)
-        _append_run_journal(
-            journal_path,
-            {
-                "event": "first_evaluation_completed",
-                "event_time_utc": event_time_utc,
-                "source_commit": source_commit,
-                "readiness_passed": evaluation["readiness_passed"],
-                "failed_gating_criteria": evaluation[
-                    "failed_gating_criteria"
-                ],
-            },
-        )
     except Exception as exc:
-        _append_run_journal(
-            journal_path,
-            {
-                "event": "first_evaluation_interrupted",
-                "event_time_utc": event_time_utc,
-                "source_commit": source_commit,
-                "error_type": type(exc).__name__,
-                "error": str(exc),
-                "automatic_retry_forbidden": True,
-            },
+        payload = _input_rejection_payload(root)
+        observation_inventory = _input_rejection_inventory(root, exc)
+        evaluation = evaluate_payload(payload, repo_root=root)
+        run_failure = _run_failure_record(
+            stage="observation_input",
+            error=exc,
         )
-        raise
     grant_path = root / config["grant"]["path"]
     authorization_record = load_json(
         grant_path.with_name("authorization_record.v1.json")
@@ -443,20 +473,67 @@ def run_authorized_evaluation_once(
         "ledger_event": consumption["ledger_event"],
         "run_journal": {
             "path": config["evidence"]["run_journal_path"],
-            "file_sha256": sha256_file(journal_path),
-            "event_count": 3,
+            "opening_event_count": len(consumption["journal_records"]),
+            "opening_head_sha256": consumption["journal_records"][-1][
+                "event_sha256"
+            ],
+            "terminal_event_required": True,
         },
         "observation_inventory": observation_inventory,
         "payload": payload,
+        "payload_sha256": canonical_sha256(payload),
         "evaluation": evaluation,
+        "run_failure": run_failure,
     }
-    derived_path.parent.mkdir(parents=True, exist_ok=True)
-    derived_path.write_text(pretty_json(derived), encoding="utf-8")
-    build_evidence_package(
-        root,
-        derived,
-        output=output,
+    _atomic_write_text(derived_path, pretty_json(derived))
+    try:
+        package_result = build_evidence_package(
+            root,
+            derived,
+            output=output,
+            source_commit=source_commit,
+        )
+    except Exception as exc:
+        run_failure = _run_failure_record(
+            stage="evidence_packaging",
+            error=exc,
+        )
+        derived = {**derived, "run_failure": run_failure}
+        _atomic_write_text(derived_path, pretty_json(derived))
+        package_result = _build_evidence_package_atomic(
+            root,
+            derived,
+            output=output,
+            source_commit=source_commit,
+            require_current_head=True,
+        )
+    terminal_status = (
+        "passed"
+        if run_failure is None and evaluation["readiness_passed"] is True
+        else "failed"
+    )
+    _append_run_journal(
+        journal_path,
+        {
+            "event": "first_run_terminal",
+            "event_time_utc": event_time_utc,
+            "source_commit": source_commit,
+            "terminal_status": terminal_status,
+            "readiness_passed": evaluation["readiness_passed"],
+            "failed_gating_criteria": evaluation["failed_gating_criteria"],
+            "run_failure": run_failure,
+            "derived_input_sha256": sha256_file(derived_path),
+            "evidence_manifest_sha256": package_result["manifest_sha256"],
+            "automatic_retry_forbidden": True,
+        },
+    )
+    _validate_terminal_journal(
+        journal_path,
         source_commit=source_commit,
+        expected_status=terminal_status,
+        expected_ledger_event_sha256=consumption["ledger_event"][
+            "event_sha256"
+        ],
     )
     return evaluation
 
@@ -568,6 +645,85 @@ def evaluate_payload(
     return report
 
 
+def _input_rejection_payload(repo_root: Path) -> dict[str, Any]:
+    """Create a frozen-identity payload that the evaluator rejects closed."""
+
+    config = load_contract(repo_root)
+    return {
+        "schema": "ias.s4_7.corrective_metrics.v4",
+        "contract": {
+            "config_sha256": config["criteria"]["corrective_config_sha256"],
+            "bound_holdout_id": config["holdout"]["bound_holdout_id"],
+            "seal_payload_sha256": config["holdout"]["seal_payload_sha256"],
+            "planned_take_count": 47,
+        },
+        "takes": [],
+        "sim_vs_real": [],
+    }
+
+
+def _input_rejection_inventory(
+    repo_root: Path, error: Exception
+) -> list[dict[str, Any]]:
+    """Retain all sealed attempts when observation derivation rejects input."""
+
+    config = load_contract(repo_root)
+    seal = load_json(_repo_file(repo_root, config["holdout"]["seal_path"]))
+    registry = build_identity_registry(repo_root)
+    candidates = _sealed_attempt_candidates(seal, set(registry))
+    selected = _sealed_attempt_roots(repo_root, seal, set(registry))
+    records: list[dict[str, Any]] = []
+    for take_id in sorted(candidates):
+        for candidate in sorted(candidates[take_id]):
+            records.append(
+                {
+                    "planned_take_id": take_id,
+                    "attempt_root": candidate.as_posix(),
+                    "selected_for_evaluation": (
+                        repo_root / candidate == selected[take_id]
+                    ),
+                    "rejected": True,
+                    "excluded": False,
+                    "failed": True,
+                    "failure_reasons": [
+                        "evaluation_input_contract_rejected"
+                    ],
+                    "scientific_observations_derived": False,
+                    "terminal_error_type": type(error).__name__,
+                    "terminal_error": str(error),
+                }
+            )
+    return records
+
+
+def _run_failure_record(*, stage: str, error: Exception) -> dict[str, Any]:
+    return {
+        "stage": stage,
+        "error_type": type(error).__name__,
+        "error": str(error),
+        "terminal": True,
+        "automatic_retry_forbidden": True,
+    }
+
+
+def _recomputed_evaluation(
+    repo_root: Path, derived: Mapping[str, Any]
+) -> dict[str, Any]:
+    payload = derived.get("payload")
+    if not isinstance(payload, Mapping):
+        raise S48Error("S4.8 derived payload is missing or invalid")
+    expected_payload_sha = derived.get("payload_sha256")
+    actual_payload_sha = canonical_sha256(payload)
+    if expected_payload_sha is not None and expected_payload_sha != actual_payload_sha:
+        raise S48Error("S4.8 preserved observation payload hash mismatch")
+    recomputed = evaluate_payload(payload, repo_root=repo_root)
+    if derived.get("evaluation") != recomputed:
+        raise S48Error(
+            "S4.8 preserved evaluation contradicts recomputation from payload"
+        )
+    return recomputed
+
+
 def build_simulation_comparisons(repo_root: Path) -> list[dict[str, Any]]:
     """Run the deterministic core simulator with S4.6 off and apply modes."""
 
@@ -615,8 +771,25 @@ def build_evidence_package(
     source_commit: str,
     require_current_head: bool = True,
 ) -> dict[str, Any]:
-    """Build the deterministic tracked package from the preserved first input."""
+    """Atomically build the package from a recomputed preserved input."""
 
+    return _build_evidence_package_atomic(
+        repo_root,
+        derived,
+        output=output,
+        source_commit=source_commit,
+        require_current_head=require_current_head,
+    )
+
+
+def _build_evidence_package_atomic(
+    repo_root: Path,
+    derived: Mapping[str, Any],
+    *,
+    output: Path,
+    source_commit: str,
+    require_current_head: bool,
+) -> dict[str, Any]:
     root = repo_root.resolve()
     _validate_source_commit(
         root,
@@ -626,10 +799,53 @@ def build_evidence_package(
     destination = output if output.is_absolute() else root / output
     if destination.exists():
         raise S48Error(f"refusing to overwrite S4.8 package: {destination}")
-    destination.mkdir(parents=True)
-    evaluation = dict(derived["evaluation"])
+    _recomputed_evaluation(root, derived)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(
+        tempfile.mkdtemp(
+            prefix=f".{destination.name}.",
+            suffix=".staging",
+            dir=destination.parent,
+        )
+    )
+    try:
+        result = _build_evidence_package_in_place(
+            root,
+            derived,
+            destination=staging,
+            source_commit=source_commit,
+        )
+        os.replace(staging, destination)
+        directory_fd = os.open(destination.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except Exception as exc:
+        shutil.rmtree(staging, ignore_errors=True)
+        if destination.exists():
+            raise S48Error(
+                f"atomic S4.8 finalization left an unexpected destination: "
+                f"{destination}"
+            ) from exc
+        raise
+    return {**result, "output": destination.as_posix()}
+
+
+def _build_evidence_package_in_place(
+    repo_root: Path,
+    derived: Mapping[str, Any],
+    *,
+    destination: Path,
+    source_commit: str,
+    validate_result: bool = True,
+) -> dict[str, Any]:
+    root = repo_root.resolve()
+    evaluation = _recomputed_evaluation(root, derived)
     payload = dict(derived["payload"])
-    takes = payload["takes"]
+    takes = payload.get("takes", [])
+    if not isinstance(takes, list):
+        raise S48Error("S4.8 payload takes must be a list")
     windows = [
         {
             "planned_take_id": take["identity"]["planned_take_id"],
@@ -650,6 +866,7 @@ def build_evidence_package(
     ]
     preservation = preservation_report(root)
     contract = load_contract(root)
+    dependency_records = _result_dependency_records(root, source_commit)
     source_files = [
         {
             "path": path.as_posix(),
@@ -676,6 +893,7 @@ def build_evidence_package(
             "planned_take_count": 47,
             "failed_take_count": len(failures),
             "failures": failures,
+            "run_failure": derived.get("run_failure"),
             "rejected_attempts": [
                 record
                 for record in derived.get("observation_inventory", [])
@@ -693,6 +911,11 @@ def build_evidence_package(
             "contract_sha256": sha256_file(root / CONFIG_PATH),
             "source_bound_files": source_files,
             "source_bound_files_sha256": canonical_sha256(source_files),
+            "result_dependency_count": len(dependency_records),
+            "result_dependencies": dependency_records,
+            "result_dependencies_sha256": canonical_sha256(
+                dependency_records
+            ),
             "prerequisite_sha256": contract["prerequisite"]["sha256"],
             "prerequisite_manifest_sha256": contract["prerequisite"][
                 "package_manifest_sha256"
@@ -746,6 +969,7 @@ def build_evidence_package(
             ),
             "source_commit": source_commit,
             "input": "canonical package reports",
+            "scientific_recomputation": "required_exact_from_derived_payload",
             "opens_raw_holdout": False,
             "consumes_grant": False,
         },
@@ -772,7 +996,7 @@ def build_evidence_package(
             "comparison_classifications": evaluation[
                 "comparison_classifications"
             ],
-            "condition_inputs": payload["sim_vs_real"],
+            "condition_inputs": payload.get("sim_vs_real", []),
             "paths": ["real", "unadjusted_simulation", "adjusted_simulation"],
             "unadjusted_profile_mode": "off",
             "adjusted_profile_mode": "apply",
@@ -854,12 +1078,21 @@ def build_evidence_package(
         },
     }
     final_status = (
-        "passed" if evaluation.get("readiness_passed") is True else "failed"
+        "passed"
+        if (
+            evaluation.get("readiness_passed") is True
+            and derived.get("run_failure") is None
+        )
+        else "failed"
     )
     reports["final_validation.json"] = {
         "schema": "ias.s4_8.final_validation.v1",
         "status": final_status,
         "readiness_passed": evaluation.get("readiness_passed") is True,
+        "scientific_evaluation_status": evaluation.get("status"),
+        "run_failure": derived.get("run_failure"),
+        "terminal": True,
+        "automatic_retry_forbidden": True,
         "readiness_criterion_count": len(
             [item for item in evaluation.get("criteria", []) if item["gating"]]
         ),
@@ -887,13 +1120,14 @@ def build_evidence_package(
         "canonical_file_count": len(PACKAGE_FILES),
         "raw_holdout_reopened": False,
         "grant_reconsumed": False,
-        "replay_method": "validate_and_copy_canonical_derived_reports",
+        "replay_method": "recompute_scientific_evaluation_and_regenerate",
     }
     (destination / "determinism_report.json").write_text(
         pretty_json(deterministic), encoding="utf-8"
     )
     _write_index_and_manifest(destination, source_commit)
-    validate_evidence_package(destination, repo_root=root)
+    if validate_result:
+        validate_evidence_package(destination, repo_root=root)
     return {
         "status": final_status,
         "output": destination.as_posix(),
@@ -922,12 +1156,33 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
             or sha256_file(path) != record["sha256"]
         ):
             raise S48Error(f"S4.8 evidence index mismatch: {record['path']}")
+    derived = load_json(package / "derived_evaluation_input.json")
+    recomputed = _recomputed_evaluation(repo_root, derived)
     criteria = load_json(package / "criteria_results.json")
+    if criteria != recomputed:
+        raise S48Error(
+            "S4.8 criteria results contradict scientific recomputation"
+        )
     final = load_json(package / "final_validation.json")
     if final["readiness_passed"] is not (
         criteria.get("readiness_passed") is True
     ):
         raise S48Error("S4.8 final status contradicts criteria")
+    expected_final_status = (
+        "passed"
+        if (
+            recomputed.get("readiness_passed") is True
+            and derived.get("run_failure") is None
+        )
+        else "failed"
+    )
+    if (
+        final.get("status") != expected_final_status
+        or final.get("run_failure") != derived.get("run_failure")
+        or final.get("terminal") is not True
+        or final.get("automatic_retry_forbidden") is not True
+    ):
+        raise S48Error("S4.8 terminal final status is contradictory")
     if load_json(package / "robustness.json")["status"] != "not_evaluable":
         raise S48Error("S4.8 robustness must be not_evaluable")
     gating = [
@@ -936,8 +1191,16 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
     stretch = [
         item for item in criteria.get("criteria", []) if item.get("gating") is False
     ]
-    if len(gating) != 23 or len(stretch) != 6:
-        raise S48Error("S4.8 criteria count is not exactly 23 readiness and 6 stretch")
+    input_rejected = criteria.get("failed_gating_criteria") == [
+        "evaluation_input_contract_rejected"
+    ]
+    if input_rejected:
+        if gating or stretch or criteria.get("evaluation_error") in (None, ""):
+            raise S48Error("S4.8 input-rejection evidence is incomplete")
+    elif len(gating) != 23 or len(stretch) != 6:
+        raise S48Error(
+            "S4.8 criteria count is not exactly 23 readiness and 6 stretch"
+        )
     inventory = load_json(package / "take_inventory.json")
     attempt_records = inventory.get("attempt_records")
     if (
@@ -959,15 +1222,23 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
         raise S48Error("S4.8 selected attempt identities are incomplete or duplicate")
     sim = load_json(package / "sim_vs_real.json")
     conditions = sim.get("condition_inputs")
-    if (
-        not isinstance(conditions, list)
-        or len(conditions) != 7
-        or sum(len(item.get("conditions", [])) for item in conditions) != 271
-    ):
+    if not isinstance(conditions, list):
+        raise S48Error("S4.8 sim-versus-real condition inventory invalid")
+    condition_count = sum(len(item.get("conditions", [])) for item in conditions)
+    if input_rejected:
+        if (
+            conditions
+            and (len(conditions) != 7 or condition_count != 271)
+        ) or sim.get("comparison_classifications"):
+            raise S48Error(
+                "S4.8 rejected input has inconsistent sim-versus-real records"
+            )
+    elif len(conditions) != 7 or condition_count != 271:
         raise S48Error("S4.8 sim-versus-real condition inventory mismatch")
-    derived = load_json(package / "derived_evaluation_input.json")
-    if derived.get("evaluation") != criteria:
-        raise S48Error("S4.8 derived input and criteria result disagree")
+    if sim.get("comparison_classifications") != recomputed.get(
+        "comparison_classifications"
+    ):
+        raise S48Error("S4.8 comparison classifications contradict recomputation")
     authorization = load_json(package / "authorization_access.json")
     ledger_event = authorization.get("ledger_event")
     if (
@@ -987,14 +1258,57 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
     }
     if ledger_event.get("event_sha256") != canonical_sha256(event_payload):
         raise S48Error("S4.8 ledger event hash mismatch")
+    provenance = load_json(package / "provenance.json")
+    source_commit = provenance.get("source_commit")
+    if not isinstance(source_commit, str):
+        raise S48Error("S4.8 provenance source commit is invalid")
+    _validate_source_commit(
+        repo_root,
+        source_commit,
+        require_current_head=False,
+    )
+    dependency_records = _result_dependency_records(
+        repo_root.resolve(), source_commit
+    )
+    if (
+        provenance.get("result_dependencies") != dependency_records
+        or provenance.get("result_dependency_count") != len(dependency_records)
+        or provenance.get("result_dependencies_sha256")
+        != canonical_sha256(dependency_records)
+    ):
+        raise S48Error("S4.8 result dependency provenance mismatch")
     if preservation_report(repo_root)["status"] != "passed":
         raise S48Error("historical S4 packages changed")
+    with tempfile.TemporaryDirectory(
+        prefix="ias-s4-8-validation-regeneration-"
+    ) as temporary:
+        regenerated = Path(temporary)
+        _build_evidence_package_in_place(
+            repo_root.resolve(),
+            derived,
+            destination=regenerated,
+            source_commit=source_commit,
+            validate_result=False,
+        )
+        mismatched = [
+            name
+            for name in sorted(PACKAGE_FILES)
+            if (package / name).read_bytes()
+            != (regenerated / name).read_bytes()
+        ]
+        if mismatched:
+            raise S48Error(
+                "S4.8 reports contradict regeneration from preserved payload: "
+                + ", ".join(mismatched)
+            )
     return {
         "schema": "ias.s4_8.package_validation.v1",
         "status": "passed",
         "file_count": len(present),
         "manifest_sha256": sha256_file(package / "SHA256SUMS"),
         "readiness_passed": final["readiness_passed"],
+        "final_status": final["status"],
+        "scientific_recomputed": True,
     }
 
 
@@ -1950,11 +2264,21 @@ def _require_consumed_ledger(
     ledger_path = repo_root / config["grant"]["ledger_path"]
     if not ledger_path.is_file():
         raise S48Error("S4.8 ledger is absent; observations remain closed")
+    grant = load_json(repo_root / config["grant"]["path"])
+    expected_id = grant["grant_id"]
+    ledger_validation = validate_ledger(
+        ledger_path,
+        expected_seal_sha256=grant["seal_sha256"],
+    )
+    if (
+        ledger_validation["status"] != "passed"
+        or ledger_validation["event_count"] != 1
+    ):
+        raise S48Error("S4.8 access ledger is not one valid event")
     records = [
         json.loads(line, parse_constant=_reject_json_constant)
         for line in ledger_path.read_text(encoding="utf-8").splitlines()
     ]
-    expected_id = load_json(repo_root / config["grant"]["path"])["grant_id"]
     opened = [
         record
         for record in records
@@ -1964,13 +2288,66 @@ def _require_consumed_ledger(
     ]
     if len(opened) != 1 or len(records) != 1:
         raise S48Error("S4.8 grant was not consumed exactly once")
+    authorization = load_json(
+        (repo_root / config["grant"]["path"]).with_name(
+            "authorization_record.v1.json"
+        )
+    )
+    journal = _load_run_journal(
+        repo_root / config["evidence"]["run_journal_path"]
+    )
+    if [record.get("event") for record in journal] != [
+        "grant_consumed",
+        "observation_opening_authorized",
+    ]:
+        raise S48Error(
+            "S4.8 atomic opening transition journal is incomplete"
+        )
+    if any(
+        record.get("source_commit") != authorization.get("source_commit")
+        for record in journal
+    ):
+        raise S48Error("S4.8 opening transition source binding mismatch")
+    if any(
+        record.get("ledger_event_sha256") != opened[0]["event_sha256"]
+        for record in journal
+    ):
+        raise S48Error("S4.8 opening transition ledger binding mismatch")
 
 
 def _append_run_journal(path: Path, event: Mapping[str, Any]) -> None:
-    records = []
+    records = _load_run_journal(path)
+    if records and records[-1].get("event") == "first_run_terminal":
+        raise S48Error("S4.8 run journal is terminal; retry forbidden")
+    previous = records[-1]["event_sha256"] if records else "0" * 64
+    payload = {
+        "schema": "ias.s4_8.first_run_journal_event.v1",
+        "sequence": len(records),
+        "previous_event_sha256": previous,
+        **event,
+    }
+    record = {**payload, "event_sha256": canonical_sha256(payload)}
+    encoded = "".join(
+        json.dumps(item, sort_keys=True, separators=(",", ":")) + "\n"
+        for item in [*records, record]
+    )
+    _atomic_write_text(path, encoded)
+
+
+def _load_run_journal(path: Path) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
     if path.exists():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            record = json.loads(line, parse_constant=_reject_json_constant)
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError) as exc:
+            raise S48Error(f"cannot read S4.8 run journal: {exc}") from exc
+        for line in lines:
+            try:
+                record = json.loads(
+                    line, parse_constant=_reject_json_constant
+                )
+            except (ValueError, json.JSONDecodeError) as exc:
+                raise S48Error(f"S4.8 run journal JSON is invalid: {exc}") from exc
             if not isinstance(record, dict):
                 raise S48Error("S4.8 run journal contains a non-object")
             records.append(record)
@@ -1989,18 +2366,96 @@ def _append_run_journal(path: Path, event: Mapping[str, Any]) -> None:
         ):
             raise S48Error("S4.8 run journal chain is invalid")
         previous = str(supplied)
-    payload = {
-        "schema": "ias.s4_8.first_run_journal_event.v1",
-        "sequence": len(records),
-        "previous_event_sha256": previous,
-        **event,
-    }
-    record = {**payload, "event_sha256": canonical_sha256(payload)}
+    return records
+
+
+def _validate_terminal_journal(
+    path: Path,
+    *,
+    source_commit: str,
+    expected_status: str,
+    expected_ledger_event_sha256: str,
+) -> dict[str, Any]:
+    records = _load_run_journal(path)
+    if [record.get("event") for record in records] != [
+        "grant_consumed",
+        "observation_opening_authorized",
+        "first_run_terminal",
+    ]:
+        raise S48Error("S4.8 run journal is not one complete terminal chain")
+    if any(record.get("source_commit") != source_commit for record in records):
+        raise S48Error("S4.8 run journal source commit mismatch")
+    if any(
+        record.get("ledger_event_sha256") != expected_ledger_event_sha256
+        for record in records[:2]
+    ):
+        raise S48Error("S4.8 run journal ledger binding mismatch")
+    terminal = records[-1]
+    if (
+        terminal.get("terminal_status") != expected_status
+        or terminal.get("automatic_retry_forbidden") is not True
+    ):
+        raise S48Error("S4.8 run journal terminal status mismatch")
+    return terminal
+
+
+def _opening_journal_records(
+    *,
+    source_commit: str,
+    event_time_utc: str,
+    ledger_event: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    previous = "0" * 64
+    records: list[dict[str, Any]] = []
+    for event in ("grant_consumed", "observation_opening_authorized"):
+        payload = {
+            "schema": "ias.s4_8.first_run_journal_event.v1",
+            "sequence": len(records),
+            "previous_event_sha256": previous,
+            "event": event,
+            "event_time_utc": event_time_utc,
+            "source_commit": source_commit,
+            "ledger_event_sha256": ledger_event["event_sha256"],
+        }
+        record = {**payload, "event_sha256": canonical_sha256(payload)}
+        records.append(record)
+        previous = record["event_sha256"]
+    return records
+
+
+@contextmanager
+def _exclusive_transition_lock(path: Path) -> Iterator[None]:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as stream:
-        stream.write(
-            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
-        )
+    with path.open("a+b") as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".staging",
+        dir=path.parent,
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def _validate_source_commit(
@@ -2020,16 +2475,112 @@ def _validate_source_commit(
         repo_root, "rev-parse", "--verify", f"{source_commit}^{{commit}}"
     ) != source_commit:
         raise S48Error("source commit is not available")
+    dependencies = _result_dependency_paths(repo_root, source_commit)
+    for path in dependencies:
+        current = repo_root / path
+        if not current.is_file():
+            raise S48Error(f"S4.8 result dependency is missing: {path}")
+        committed = _git_blob(repo_root, source_commit, path)
+        if current.read_bytes() != committed:
+            raise S48Error(
+                f"S4.8 result dependency differs from source commit: {path}"
+            )
+    untracked_python = _git_lines(
+        repo_root,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "--",
+        "*.py",
+    )
+    if untracked_python:
+        raise S48Error(
+            "uncommitted Python code could shadow result dependencies: "
+            + ", ".join(sorted(untracked_python))
+        )
+    for name in sorted(IMPORT_SHADOW_NAMES):
+        for candidate in (
+            repo_root / f"{name}.py",
+            repo_root / name / "__init__.py",
+        ):
+            if candidate.is_file():
+                raise S48Error(f"import-shadowing file is forbidden: {candidate}")
+    _validate_import_origins(repo_root)
+
+
+def _result_dependency_paths(
+    repo_root: Path, source_commit: str
+) -> tuple[Path, ...]:
+    names = _git_lines(
+        repo_root,
+        "ls-tree",
+        "-r",
+        "--name-only",
+        source_commit,
+    )
+    roots = tuple(f"{path.as_posix()}/" for path in RESULT_DEPENDENCY_ROOTS)
+    exact = {path.as_posix() for path in RESULT_DEPENDENCY_FILES}
+    output_prefix = f"{OUTPUT_PATH.as_posix()}/"
+    selected = [
+        Path(name)
+        for name in names
+        if (
+            name in exact
+            or any(name.startswith(prefix) for prefix in roots)
+        )
+        and not name.startswith(output_prefix)
+    ]
+    if not selected:
+        raise S48Error("S4.8 result dependency inventory is empty")
+    return tuple(sorted(selected))
+
+
+def _result_dependency_records(
+    repo_root: Path, source_commit: str
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "path": path.as_posix(),
+            "sha256": hashlib.sha256(
+                _git_blob(repo_root, source_commit, path)
+            ).hexdigest(),
+        }
+        for path in _result_dependency_paths(repo_root, source_commit)
+    ]
+
+
+def _git_blob(repo_root: Path, commit: str, path: Path) -> bytes:
     result = subprocess.run(
-        ["git", "diff", "--quiet", source_commit, "--", *SOURCE_BOUND_FILES],
+        ["git", "show", f"{commit}:{path.as_posix()}"],
         cwd=repo_root,
         check=False,
+        capture_output=True,
     )
     if result.returncode != 0:
-        raise S48Error("S4.8 source-bound files differ from source commit")
-    for path in SOURCE_BOUND_FILES:
-        if not _git_lines(repo_root, "ls-files", path.as_posix()):
-            raise S48Error(f"S4.8 source-bound file is uncommitted: {path}")
+        raise S48Error(
+            f"S4.8 result dependency is absent from {commit}: {path}"
+        )
+    return result.stdout
+
+
+def _validate_import_origins(repo_root: Path) -> None:
+    package_root = (repo_root / "src" / "isaac_audio_sensors").resolve()
+    local_module = importlib.import_module("isaac_audio_sensors")
+    local_origin = Path(str(local_module.__file__)).resolve()
+    try:
+        local_origin.relative_to(package_root)
+    except ValueError as exc:
+        raise S48Error(
+            f"isaac_audio_sensors import is shadowed by {local_origin}"
+        ) from exc
+    for name in ("jsonschema", "numpy"):
+        module = importlib.import_module(name)
+        origin = Path(str(module.__file__)).resolve()
+        try:
+            origin.relative_to(repo_root)
+        except ValueError:
+            continue
+        raise S48Error(f"{name} import is shadowed by repository file {origin}")
 
 
 def _write_index_and_manifest(package: Path, source_commit: str) -> None:
