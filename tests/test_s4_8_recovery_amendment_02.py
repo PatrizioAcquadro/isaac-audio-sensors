@@ -24,7 +24,7 @@ def test_amendment_02_preregistration_is_schema_valid_and_frozen() -> None:
     ]
     preregistration = amendment["scientific_preregistration"]
     assert preregistration["producer_fix_commit"] == (
-        "eea0059049ac780107394bb4edcf733def5a9bd1"
+        "3738554f1fcfcf906eefcf26871d56ece21f11e4"
     )
     assert preregistration["criteria_unchanged"] is True
     assert preregistration["readiness_criterion_count"] == 23

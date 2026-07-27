@@ -123,7 +123,7 @@
         "post_hoc_threshold_or_scenario_change_forbidden"
       ],
       "properties": {
-        "producer_fix_commit": {"const": "eea0059049ac780107394bb4edcf733def5a9bd1"},
+        "producer_fix_commit": {"const": "3738554f1fcfcf906eefcf26871d56ece21f11e4"},
         "producer_source_path": {"$ref": "#/$defs/path"},
         "producer_source_sha256": {"$ref": "#/$defs/sha256"},
         "criteria_config_path": {"$ref": "#/$defs/path"},

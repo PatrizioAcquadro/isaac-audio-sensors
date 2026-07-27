@@ -32,7 +32,11 @@ holdout observations or derive additional scientific knowledge.
 ## Frozen scientific preregistration
 
 The producer correction is fixed at
-`eea0059049ac780107394bb4edcf733def5a9bd1`. The corrective_03 criteria,
+`3738554f1fcfcf906eefcf26871d56ece21f11e4`. It preserves the prior
+bearing-applicability correction, excludes already-abstained windows from the
+TDOA take median as required by the frozen metric contract, and selects the
+nearest significant local visual-motion peak using the existing frozen robust
+transient threshold. The corrective_03 criteria,
 thresholds, exact-window semantics, 23 readiness criteria, six non-gating
 stretch criteria, and `all_23_readiness_criteria_pass` rule are unchanged.
 There is no post-hoc threshold, scenario, denominator, applicability, or

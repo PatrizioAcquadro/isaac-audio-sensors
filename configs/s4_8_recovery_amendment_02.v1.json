@@ -99,9 +99,9 @@
     }
   ],
   "scientific_preregistration": {
-    "producer_fix_commit": "eea0059049ac780107394bb4edcf733def5a9bd1",
+    "producer_fix_commit": "3738554f1fcfcf906eefcf26871d56ece21f11e4",
     "producer_source_path": "src/isaac_audio_sensors/acquisition/s4_8.py",
-    "producer_source_sha256": "e655aa230e1e72984d0c9090360679427c2a545ea98abde03375a2e2ef6c181e",
+    "producer_source_sha256": "229e20f6dc3484b9a17afca6c3f063cd9b037174d06e288e63f00ecc8defc916",
     "criteria_config_path": "configs/s4_7_holdout_acceptance.corrective_03.v4.json",
     "criteria_config_sha256": "45a806773a19ca8b1eec6bbd2aeb2fec902b33ec4af2d0bd8c04f41bdc72a20b",
     "criteria_schema_path": "docs/schemas/s4_7_holdout_acceptance.corrective_03.v4.schema.json",
