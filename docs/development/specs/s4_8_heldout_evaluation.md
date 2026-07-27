@@ -55,6 +55,16 @@ Grant creation stages the grant and complete authorization record together in
 a private same-filesystem directory, validates their exact schemas and mutual
 bindings, fsyncs both files and the staging directory, and publishes the pair
 with one atomic directory rename followed by a parent-directory fsync.
+Before any file is written into a newly created one-shot state directory, that
+directory entry is made durable by fsyncing its containing directory. This
+applies recursively when `dataset/S4.8` is initially absent: creation of
+`dataset/S4.8` is followed by an fsync of `dataset` before `access`, grant
+staging, or any dependent state is published. The same containing-directory
+rule applies to opening-transition staging, progress and quarantine roots,
+derived state, provisional evidence, evidence-package staging, and replay or
+canonical output directories. Restart re-anchors a directory that may have
+survived a process crash between `mkdir` and the containing-directory fsync
+before treating dependent state as published.
 Interrupted private stages are deterministically cleaned on retry. A
 grant-only residue from the earlier non-atomic creator is retryable only when
 the grant exactly matches the requested source and frozen contract; malformed,
@@ -69,6 +79,20 @@ ledger:
 Grant consumption and observation opening run serially and are never
 automatically retried. Raw data, grant, and ledger remain ignored under
 `dataset/`.
+
+The complete authorized execution is guarded by the persistent advisory lock
+`dataset/.s4_8_authorized_execution.lock`. The lock file is outside
+`dataset/S4.8` and every directory that the one-shot protocol atomically
+replaces. An executor acquires the kernel-backed exclusive lock, without
+waiting, before it inspects any journal, derived result, recovery state, or
+output. It holds the same lock through grant consumption, observation access,
+evaluation, progress persistence, recovery, downgrade, evidence publication,
+journal finalization, and terminal validation. Contention fails immediately
+without inspecting or changing one-shot state, consuming the grant, opening an
+observation, entering recovery, publishing output, or terminalizing the live
+owner. The persistent lock file is never unlinked. Process termination closes
+the owning descriptor and releases the kernel lock, after which exactly one
+later executor may acquire it and perform journal-authoritative recovery.
 
 The S4.8 consumer serializes grant claim, canonical ledger append, first-run
 journal initialization, and observation-opening authorization under one
