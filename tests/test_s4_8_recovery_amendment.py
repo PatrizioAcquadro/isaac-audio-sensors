@@ -16,6 +16,16 @@ from isaac_audio_sensors.core.acceptance_criteria_corrective_03 import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+ORIGINAL_ARTIFACT_NAMES = (
+    "grant",
+    "authorization",
+    "ledger",
+    "journal",
+    "recovery_context",
+    "derived_terminal_state",
+    "terminal_manifest",
+    "final_validation",
+)
 
 
 def _synthetic_attempt_inventory(
@@ -91,6 +101,59 @@ def _spawned_validate_and_replay(
         outcome.put(("error", type(exc).__name__, str(exc)))
 
 
+def _spawned_create_recovery_grant(
+    repo_root: str,
+    source_commit: str,
+    authorization_id: str,
+    start: multiprocessing.Event,
+    outcome: multiprocessing.Queue,
+) -> None:
+    root = Path(repo_root)
+    amendment = copy.deepcopy(recovery.load_amendment(ROOT))
+    contract = recovery._recovery_contract(ROOT, amendment)
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(recovery, "load_amendment", lambda _root: amendment)
+    monkeypatch.setattr(
+        recovery,
+        "_recovery_contract",
+        lambda _root, _amendment: copy.deepcopy(contract),
+    )
+    monkeypatch.setattr(
+        recovery,
+        "validate_original_failure",
+        lambda _root: {"status": "passed"},
+    )
+    monkeypatch.setattr(
+        recovery,
+        "_validate_independent_review",
+        lambda *_args, **_kwargs: {"decision": "approved"},
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "preopen_validate",
+        lambda _root, *, source_commit, **_kwargs: {
+            "seal_file_sha256": "b" * 64,
+            "split_plan_sha256": "d" * 64,
+            "prerequisite": {
+                key: f"value-{key}"
+                for key in s4_8.PREREQUISITE_BINDING_FIELDS
+            },
+        },
+    )
+    try:
+        start.wait()
+        result = recovery.create_recovery_grant(
+            root,
+            source_commit=source_commit,
+            authorization_id=authorization_id,
+        )
+        outcome.put(("result", result))
+    except Exception as exc:  # pragma: no cover - surfaced in the parent
+        outcome.put(("error", type(exc).__name__, str(exc)))
+    finally:
+        monkeypatch.undo()
+
+
 def _configure_synthetic_grant_creation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -117,26 +180,23 @@ def _configure_synthetic_grant_creation(
     )
     monkeypatch.setattr(
         recovery,
-        "recovery_preopen_validate",
-        lambda _root, *, source_commit, **_kwargs: (
-            preopen_calls.append(source_commit) or {"status": "passed"}
-        ),
-    )
-    monkeypatch.setattr(
-        recovery,
         "_validate_independent_review",
         lambda *_args, **_kwargs: {"decision": "approved"},
     )
     monkeypatch.setattr(
         s4_8,
         "preopen_validate",
-        lambda _root, *, source_commit, **_kwargs: {
-            "seal_file_sha256": "b" * 64,
-            "split_plan_sha256": "d" * 64,
-            "prerequisite": {
-                key: f"value-{key}" for key in s4_8.PREREQUISITE_BINDING_FIELDS
-            },
-        },
+        lambda _root, *, source_commit, **_kwargs: (
+            preopen_calls.append(source_commit)
+            or {
+                "seal_file_sha256": "b" * 64,
+                "split_plan_sha256": "d" * 64,
+                "prerequisite": {
+                    key: f"value-{key}"
+                    for key in s4_8.PREREQUISITE_BINDING_FIELDS
+                },
+            }
+        ),
     )
     return amendment, contract, preopen_calls
 
@@ -192,25 +252,41 @@ def original_failure_root(
 
 @pytest.mark.parametrize(
     "artifact",
-    [
-        "grant",
-        "authorization",
-        "ledger",
-        "journal",
-        "derived_terminal_state",
-        "terminal_manifest",
-        "final_validation",
-    ],
+    ORIGINAL_ARTIFACT_NAMES,
 )
-def test_recovery_gate_rejects_original_artifact_tampering(
+@pytest.mark.parametrize("mutation", ["missing", "tampered"])
+@pytest.mark.parametrize("operation", ["validate", "replay"])
+def test_recovery_validation_and_replay_reject_original_artifact_drift(
     original_failure_root: tuple[Path, dict[str, object]],
     artifact: str,
+    mutation: str,
+    operation: str,
 ) -> None:
     root, amendment = original_failure_root
     path = root / amendment["original_run"]["artifacts"][artifact]["path"]
-    path.write_bytes(path.read_bytes() + b"\n")
+    if mutation == "missing":
+        path.unlink()
+    else:
+        path.write_bytes(path.read_bytes() + b"\n")
+
+    if operation == "validate":
+
+        def call() -> None:
+            recovery.validate_recovery_evidence_package(
+                repo_root=root,
+            )
+
+    else:
+
+        def call() -> None:
+            recovery.replay_recovery_evidence_package(
+                output=root / "replay",
+                repo_root=root,
+            )
+
     with pytest.raises(s4_8.S48Error, match="original artifact mismatch"):
-        recovery.validate_original_failure(root)
+        call()
+    assert not (root / "replay").exists()
 
 
 @pytest.mark.parametrize(
@@ -469,7 +545,87 @@ def test_recovery_grant_exact_pair_retry_reconciles_idempotently(
         authorization_id="exact-retry",
     )
     assert retried == created
-    assert preopen_calls == [source_commit]
+    assert preopen_calls == [source_commit, source_commit]
+
+
+def test_standalone_recovery_preopen_remains_strict(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_synthetic_grant_creation(tmp_path, monkeypatch)
+    strict_values: list[bool] = []
+
+    def preopen(
+        _root: Path,
+        *,
+        source_commit: str,
+        verify_prerequisite_replay: bool,
+        require_access_paths_absent: bool = True,
+    ) -> dict[str, Any]:
+        del source_commit, verify_prerequisite_replay
+        strict_values.append(require_access_paths_absent)
+        return {
+            "planned_take_count": 47,
+            "sealed_artifact_count": 160,
+            "grant_present": False,
+            "ledger_present": False,
+        }
+
+    monkeypatch.setattr(s4_8, "preopen_validate", preopen)
+    result = recovery.recovery_preopen_validate(
+        tmp_path,
+        source_commit="a" * 40,
+    )
+    assert result["status"] == "passed"
+    assert strict_values == [True]
+
+
+def test_spawned_concurrent_identical_recovery_grant_creation_is_idempotent(
+    tmp_path: Path,
+) -> None:
+    amendment = recovery.load_amendment(ROOT)
+    original_authorization = amendment["original_run"]["artifacts"][
+        "authorization"
+    ]["path"]
+    destination = tmp_path / original_authorization
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / original_authorization, destination)
+
+    context = multiprocessing.get_context("spawn")
+    start = context.Event()
+    outcome = context.Queue()
+    source_commit = "a" * 40
+    workers = [
+        context.Process(
+            target=_spawned_create_recovery_grant,
+            args=(
+                tmp_path.as_posix(),
+                source_commit,
+                "concurrent-exact-pair",
+                start,
+                outcome,
+            ),
+        )
+        for _ in range(2)
+    ]
+    for worker in workers:
+        worker.start()
+    start.set()
+    for worker in workers:
+        worker.join(timeout=30)
+        assert not worker.is_alive()
+
+    results = [outcome.get(timeout=5) for _ in workers]
+    assert [item[0] for item in results] == ["result", "result"]
+    assert results[0][1] == results[1][1]
+    grant_path = tmp_path / amendment["future_attempt"]["grant_path"]
+    assert {path.name for path in grant_path.parent.iterdir()} == {
+        grant_path.name,
+        s4_8.AUTHORIZATION_RECORD_NAME,
+    }
+    assert not (
+        tmp_path / amendment["future_attempt"]["ledger_path"]
+    ).exists()
 
 
 @pytest.mark.parametrize(

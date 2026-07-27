@@ -345,6 +345,7 @@ def validate_recovery_evidence_package(
 
     root = repo_root.resolve()
     amendment = load_amendment(root)
+    validate_original_failure(root)
     selected = _recovery_package_path(root, amendment, package).resolve()
     with _use_recovery_contract(root, amendment):
         result = s4_8.validate_evidence_package(selected, repo_root=root)
@@ -362,6 +363,7 @@ def replay_recovery_evidence_package(
 
     root = repo_root.resolve()
     amendment = load_amendment(root)
+    validate_original_failure(root)
     selected = _recovery_package_path(root, amendment, canonical).resolve()
     destination = output if output.is_absolute() else root / output
     with _use_recovery_contract(root, amendment):
@@ -465,13 +467,7 @@ def create_recovery_grant(
 
     root = repo_root.resolve()
     amendment = load_amendment(root)
-    future = amendment["future_attempt"]
-    grant_path = root / future["grant_path"]
-    authorization_path = grant_path.with_name(s4_8.AUTHORIZATION_RECORD_NAME)
-    if not grant_path.exists() and not authorization_path.exists():
-        recovery_preopen_validate(root, source_commit=source_commit)
-    else:
-        validate_original_failure(root)
+    validate_original_failure(root)
     review = _validate_independent_review(
         root,
         amendment=amendment,
