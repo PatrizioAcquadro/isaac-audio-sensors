@@ -39,7 +39,11 @@ def _git(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def _ledger_event() -> dict[str, object]:
+def _ledger_event(
+    *,
+    source_commit: str = "a" * 40,
+    grant_sha256: str = "c" * 64,
+) -> dict[str, object]:
     payload: dict[str, object] = {
         "schema": "ias.s4_4.access_ledger_event.v1",
         "sequence": 0,
@@ -48,13 +52,33 @@ def _ledger_event() -> dict[str, object]:
         "event_time_utc": "2030-01-01T00:00:00Z",
         "seal_sha256": "b" * 64,
         "split_plan_sha256": "c" * 64,
-        "grant_id": "synthetic",
-        "grant_sha256": "d" * 64,
+        "grant_id": f"s4_8_corrective_03_{source_commit}",
+        "grant_sha256": grant_sha256,
         "prerequisite_sha256": "e" * 64,
         "purpose": "S4.8_evaluation",
         "holdout_opened": True,
     }
     return {**payload, "event_sha256": canonical_sha256(payload)}
+
+
+def _authorization_record(
+    config: dict[str, object],
+    *,
+    source_commit: str = "a" * 40,
+    grant_sha256: str = "c" * 64,
+) -> dict[str, object]:
+    grant = config["grant"]
+    assert isinstance(grant, dict)
+    return {
+        "schema": s4_8.AUTHORIZATION_RECORD_SCHEMA,
+        "authorization_id": "synthetic",
+        "source_commit": source_commit,
+        "grant_id": f"s4_8_corrective_03_{source_commit}",
+        "grant_path": grant["path"],
+        "grant_sha256": grant_sha256,
+        "ledger_path": grant["ledger_path"],
+        "irreversible_scientific_action_acknowledged": True,
+    }
 
 
 def _inventory(payload: dict[str, object]) -> list[dict[str, object]]:
@@ -92,17 +116,16 @@ def _derived(
     run_failure: dict[str, object] | None = None,
 ) -> dict[str, object]:
     evaluation = s4_8.evaluate_payload(payload, repo_root=ROOT)
+    config = s4_8.load_contract(ROOT)
+    grant_path = config["grant"]["path"]
     return {
         "schema": s4_8.DERIVED_INPUT_SCHEMA,
         "tool_version": s4_8.TOOL_VERSION,
         "source_commit": "a" * 40,
         "event_time_utc": "2030-01-01T00:00:00Z",
-        "authorization_record": {
-            "authorization_id": "synthetic",
-            "source_commit": "a" * 40,
-        },
+        "authorization_record": _authorization_record(config),
         "grant": {
-            "path": "dataset/S4.8/access/grant.json",
+            "path": grant_path,
             "file_sha256": "b" * 64,
             "grant_sha256": "c" * 64,
         },
@@ -116,6 +139,8 @@ def _derived(
         "payload": payload,
         "payload_sha256": canonical_sha256(payload),
         "evaluation": evaluation,
+        "evaluation_state": "evaluation_completed",
+        "evaluation_sha256": canonical_sha256(evaluation),
         "run_failure": run_failure,
     }
 
@@ -228,17 +253,16 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
     source_commit = "a" * 40
     grant_path = tmp_path / config["grant"]["path"]
     grant_path.parent.mkdir(parents=True)
+    grant_id = f"s4_8_corrective_03_{source_commit}"
     grant_path.write_text(
-        s4_8.pretty_json({"grant_sha256": "c" * 64}),
+        s4_8.pretty_json(
+            {"grant_id": grant_id, "grant_sha256": "c" * 64}
+        ),
         encoding="utf-8",
     )
+    authorization = _authorization_record(config)
     grant_path.with_name("authorization_record.v1.json").write_text(
-        s4_8.pretty_json(
-            {
-                "authorization_id": "synthetic",
-                "source_commit": source_commit,
-            }
-        ),
+        s4_8.pretty_json(authorization),
         encoding="utf-8",
     )
     ledger_event = _ledger_event()
@@ -286,31 +310,32 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
     )
     monkeypatch.setattr(s4_8, "preopen_validate", lambda *_args, **_kwargs: {})
     rejection_payload = s4_8._input_rejection_payload(ROOT)
+    recovery_evaluation = s4_8._evaluation_placeholder("not_evaluated")
+    recovery_context = {
+        "schema": "ias.s4_8.post_consumption_recovery_context.v1",
+        "source_commit": source_commit,
+        "event_time_utc": "2030-01-01T00:00:00Z",
+        "authorization_record": authorization,
+        "grant": {
+            "path": config["grant"]["path"],
+            "file_sha256": s4_8.sha256_file(grant_path),
+            "grant_sha256": "c" * 64,
+        },
+        "observation_inventory": _inventory(payload),
+        "payload": rejection_payload,
+        "payload_sha256": s4_8.canonical_sha256(rejection_payload),
+        "evaluation_state": "not_evaluated",
+        "evaluation": recovery_evaluation,
+        "evaluation_sha256": s4_8.canonical_sha256(recovery_evaluation),
+        "runtime_provenance": s4_8._runtime_dependency_provenance(),
+    }
+    recovery_context["context_sha256"] = s4_8.canonical_sha256(
+        recovery_context
+    )
     monkeypatch.setattr(
         s4_8,
         "_build_preconsumption_recovery_context",
-        lambda *_args, **_kwargs: {
-            "schema": "ias.s4_8.post_consumption_recovery_context.v1",
-            "source_commit": source_commit,
-            "event_time_utc": "2030-01-01T00:00:00Z",
-            "authorization_record": {
-                "authorization_id": "synthetic",
-                "source_commit": source_commit,
-            },
-            "grant": {
-                "path": config["grant"]["path"],
-                "file_sha256": s4_8.sha256_file(grant_path),
-                "grant_sha256": "c" * 64,
-            },
-            "observation_inventory": _inventory(payload),
-            "payload": rejection_payload,
-            "payload_sha256": s4_8.canonical_sha256(rejection_payload),
-            "evaluation": original_evaluate(
-                rejection_payload,
-                repo_root=ROOT,
-            ),
-            "runtime_provenance": s4_8._runtime_dependency_provenance(),
-        },
+        lambda *_args, **_kwargs: recovery_context,
     )
     monkeypatch.setattr(s4_8, "consume_grant_once", fake_consume)
     monkeypatch.setattr(
@@ -371,6 +396,10 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
         "grant_consumed",
         "observation_opening_authorized",
         "post_consumption_started",
+        "post_consumption_progress",
+        "post_consumption_progress",
+        "post_consumption_progress",
+        "post_consumption_progress",
         "first_run_finalization_prepared",
         "first_run_terminal",
     ]
@@ -441,6 +470,49 @@ def test_validation_rejects_checksum_consistent_contradictions(
     mutation(package)
     s4_8._write_index_and_manifest(package, "a" * 40)
     with pytest.raises(s4_8.S48Error):
+        s4_8.validate_evidence_package(package, repo_root=ROOT)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda record: record.clear(),
+        lambda record: record.pop("authorization_id"),
+        lambda record: record.__setitem__("source_commit", "f" * 40),
+        lambda record: record.__setitem__("grant_sha256", "0" * 64),
+        lambda record: record.__setitem__(
+            "irreversible_scientific_action_acknowledged",
+            False,
+        ),
+    ],
+    ids=[
+        "empty",
+        "malformed",
+        "source_mismatch",
+        "tampered_grant_hash",
+        "missing_acknowledgement",
+    ],
+)
+def test_evidence_validation_rejects_invalid_authorization_records(
+    tmp_path: Path,
+    mutation,
+    package_test_stubs: None,
+) -> None:
+    payload = build_synthetic_payload(ROOT)
+    payload["sim_vs_real"] = s4_8.build_simulation_comparisons(ROOT)
+    package = tmp_path / "S4.8"
+    s4_8.build_evidence_package(
+        ROOT,
+        _derived(payload),
+        output=package,
+        source_commit="a" * 40,
+    )
+    derived_path = package / "derived_evaluation_input.json"
+    derived = s4_8.load_json(derived_path)
+    mutation(derived["authorization_record"])
+    derived_path.write_text(s4_8.pretty_json(derived), encoding="utf-8")
+    s4_8._write_index_and_manifest(package, "a" * 40)
+    with pytest.raises(s4_8.S48Error, match="authorization"):
         s4_8.validate_evidence_package(package, repo_root=ROOT)
 
 
@@ -611,10 +683,19 @@ def test_concurrent_consumers_have_exactly_one_success(
     config["prerequisite"]["path"] = prerequisite.name
     monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
     recovery_payload: dict[str, object] = {}
+    authorization = _authorization_record(
+        config,
+        grant_sha256=str(grant["grant_sha256"]),
+    )
+    grant_path.with_name("authorization_record.v1.json").write_text(
+        s4_8.pretty_json(authorization),
+        encoding="utf-8",
+    )
+    evaluation = s4_8._evaluation_placeholder("not_evaluated")
     recovery_context = {
         "schema": "ias.s4_8.post_consumption_recovery_context.v1",
         "source_commit": source_commit,
-        "authorization_record": {},
+        "authorization_record": authorization,
         "grant": {
             "path": config["grant"]["path"],
             "file_sha256": s4_8.sha256_file(grant_path),
@@ -623,8 +704,9 @@ def test_concurrent_consumers_have_exactly_one_success(
         "observation_inventory": [],
         "payload": recovery_payload,
         "payload_sha256": s4_8.canonical_sha256(recovery_payload),
-        "evaluation": {},
-        "evaluation_sha256": s4_8.canonical_sha256({}),
+        "evaluation_state": "not_evaluated",
+        "evaluation": evaluation,
+        "evaluation_sha256": s4_8.canonical_sha256(evaluation),
         "runtime_provenance": {},
     }
     recovery_context["context_sha256"] = s4_8.canonical_sha256(recovery_context)
@@ -659,6 +741,60 @@ def test_concurrent_consumers_have_exactly_one_success(
     ]
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda record: record.clear(),
+        lambda record: record.__setitem__("authorization_id", ""),
+        lambda record: record.__setitem__("grant_path", "tampered.json"),
+        lambda record: record.__setitem__("ledger_path", "tampered.jsonl"),
+        lambda record: record.__setitem__("source_commit", "f" * 40),
+    ],
+    ids=["empty", "empty_id", "grant_path", "ledger_path", "source_commit"],
+)
+def test_consumption_rejects_authorization_before_irreversible_transition(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation,
+) -> None:
+    source_commit = "a" * 40
+    config = copy.deepcopy(s4_8.load_contract(ROOT))
+    config["grant"]["path"] = "grant.json"
+    config["grant"]["ledger_path"] = "transition/ledger.jsonl"
+    config["evidence"]["run_journal_path"] = "transition/journal.jsonl"
+    grant_id = f"s4_8_corrective_03_{source_commit}"
+    grant = {
+        "grant_id": grant_id,
+        "grant_sha256": "c" * 64,
+    }
+    grant_path = tmp_path / config["grant"]["path"]
+    grant_path.write_text(s4_8.pretty_json(grant), encoding="utf-8")
+    authorization = _authorization_record(config)
+    mutation(authorization)
+    grant_path.with_name("authorization_record.v1.json").write_text(
+        s4_8.pretty_json(authorization),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
+    called = False
+
+    def forbidden_consume(*_args, **_kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("authorization failure reached grant consumption")
+
+    monkeypatch.setattr(s4_8, "consume_s4_8_grant", forbidden_consume)
+    with pytest.raises(s4_8.S48Error, match="authorization"):
+        s4_8.consume_grant_once(
+            tmp_path,
+            source_commit=source_commit,
+            event_time_utc="2030-01-01T00:00:00Z",
+            recovery_context={},
+        )
+    assert called is False
+    assert not (tmp_path / "transition").exists()
+
+
 def _closed_inventory() -> list[dict[str, object]]:
     payload = build_synthetic_payload(ROOT)
     inventory = _inventory(payload)
@@ -677,7 +813,14 @@ def _closed_inventory() -> list[dict[str, object]]:
 def _install_authorized_run_harness(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-) -> tuple[dict[str, object], str, dict[str, object]]:
+    *,
+    scientific_pass: bool = True,
+) -> tuple[
+    dict[str, object],
+    str,
+    dict[str, object],
+    dict[str, object],
+]:
     source_commit = "a" * 40
     event_time = "2030-01-01T00:00:00Z"
     config = copy.deepcopy(s4_8.load_contract(ROOT))
@@ -688,23 +831,28 @@ def _install_authorized_run_harness(
     config["evidence"]["output_path"] = "output/S4.8"
     grant_path = tmp_path / config["grant"]["path"]
     grant_path.parent.mkdir(parents=True)
+    grant_id = f"s4_8_corrective_03_{source_commit}"
     grant_path.write_text(
-        s4_8.pretty_json({"grant_sha256": "c" * 64}),
+        s4_8.pretty_json(
+            {"grant_id": grant_id, "grant_sha256": "c" * 64}
+        ),
         encoding="utf-8",
     )
-    authorization = {
-        "authorization_id": "synthetic",
-        "source_commit": source_commit,
-    }
+    authorization = _authorization_record(config)
     grant_path.with_name("authorization_record.v1.json").write_text(
         s4_8.pretty_json(authorization),
         encoding="utf-8",
     )
     payload = build_synthetic_payload(ROOT)
     payload["sim_vs_real"] = s4_8.build_simulation_comparisons(ROOT)
+    if not scientific_pass:
+        for take in payload["takes"]:
+            if take["confidence"] is not None:
+                take["confidence"] = 0.0
     inventory = _inventory(payload)
+    expected_evaluation = s4_8.evaluate_payload(payload, repo_root=ROOT)
     rejection_payload = s4_8._input_rejection_payload(ROOT)
-    rejection_evaluation = s4_8.evaluate_payload(rejection_payload, repo_root=ROOT)
+    rejection_evaluation = s4_8._evaluation_placeholder("not_evaluated")
     context = {
         "schema": "ias.s4_8.post_consumption_recovery_context.v1",
         "source_commit": source_commit,
@@ -718,12 +866,13 @@ def _install_authorized_run_harness(
         "observation_inventory": _closed_inventory(),
         "payload": rejection_payload,
         "payload_sha256": s4_8.canonical_sha256(rejection_payload),
+        "evaluation_state": "not_evaluated",
         "evaluation": rejection_evaluation,
         "evaluation_sha256": s4_8.canonical_sha256(rejection_evaluation),
         "runtime_provenance": s4_8._runtime_dependency_provenance(),
     }
     context["context_sha256"] = s4_8.canonical_sha256(context)
-    ledger_event = _ledger_event()
+    ledger_event = _ledger_event(source_commit=source_commit)
     original_evaluate = s4_8.evaluate_payload
     original_full = s4_8._build_evidence_package_in_place
     original_failure = s4_8._build_terminal_failure_package_in_place
@@ -829,7 +978,7 @@ def _install_authorized_run_harness(
 
     monkeypatch.setattr(s4_8, "consume_grant_once", fake_consume)
     monkeypatch.setattr(s4_8, "build_real_payload", fake_payload)
-    return config, source_commit, context
+    return config, source_commit, context, expected_evaluation
 
 
 @pytest.mark.parametrize(
@@ -852,7 +1001,7 @@ def test_every_post_consumption_stage_exception_terminalizes_failed(
     monkeypatch: pytest.MonkeyPatch,
     stage: str,
 ) -> None:
-    config, source_commit, _context = _install_authorized_run_harness(
+    config, source_commit, _context, _expected = _install_authorized_run_harness(
         tmp_path, monkeypatch
     )
     injected = False
@@ -875,16 +1024,277 @@ def test_every_post_consumption_stage_exception_terminalizes_failed(
     assert result["automatic_retry_forbidden"] is True
     output = tmp_path / config["evidence"]["output_path"]
     assert s4_8.load_json(output / "final_validation.json")["status"] == "failed"
+    preserved = s4_8.load_json(output / "derived_evaluation_input.json")
+    completed_stages = {
+        "runtime_provenance",
+        "derived_state_persistence",
+        "evidence_packaging",
+        "evidence_publication",
+        "journal_finalization",
+    }
+    if stage in completed_stages:
+        assert preserved["evaluation_state"] == "evaluation_completed"
+        assert preserved["evaluation"] == _expected
+        assert preserved["evaluation_sha256"] == canonical_sha256(_expected)
+    else:
+        assert preserved["evaluation_state"] == "not_evaluated"
+        assert preserved["evaluation"]["status"] == "not_evaluated"
+        assert preserved["evaluation"]["failed_gating_criteria"] == []
     journal = s4_8._load_run_journal(tmp_path / config["evidence"]["run_journal_path"])
     assert journal[-1]["event"] == "first_run_terminal"
     assert journal[-1]["terminal_status"] == "failed"
+
+
+@pytest.mark.parametrize(
+    "stage",
+    [
+        "runtime_provenance",
+        "derived_state_persistence",
+        "evidence_packaging",
+        "evidence_publication",
+        "journal_finalization",
+    ],
+)
+def test_scientific_fail_and_exact_criteria_survive_later_operational_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stage: str,
+) -> None:
+    config, source_commit, _context, expected = _install_authorized_run_harness(
+        tmp_path,
+        monkeypatch,
+        scientific_pass=False,
+    )
+    injected = False
+
+    def inject(current: str) -> None:
+        nonlocal injected
+        if current == stage and not injected:
+            injected = True
+            raise RuntimeError(f"injected {stage}")
+
+    monkeypatch.setattr(s4_8, "_post_consumption_stage", inject)
+    result = s4_8.run_authorized_evaluation_once(
+        tmp_path,
+        source_commit=source_commit,
+        event_time_utc="2030-01-01T00:00:00Z",
+    )
+    assert injected
+    assert result["status"] == "failed"
+    assert result["scientific_readiness_passed"] is False
+    assert expected["failed_gating_criteria"] == ["confidence_median_stratum_b"]
+    assert result["failed_gating_criteria"] == expected["failed_gating_criteria"]
+    derived = s4_8.load_json(
+        tmp_path
+        / config["evidence"]["output_path"]
+        / "derived_evaluation_input.json"
+    )
+    assert derived["evaluation_state"] == "evaluation_completed"
+    assert derived["evaluation"] == expected
+    assert derived["evaluation_sha256"] == canonical_sha256(expected)
+
+
+def test_evaluator_exception_is_evaluation_failed_not_input_rejection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, source_commit, _context, _expected = _install_authorized_run_harness(
+        tmp_path,
+        monkeypatch,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "evaluate_payload",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("injected evaluator failure")
+        ),
+    )
+    result = s4_8.run_authorized_evaluation_once(
+        tmp_path,
+        source_commit=source_commit,
+        event_time_utc="2030-01-01T00:00:00Z",
+    )
+    assert result["status"] == "failed"
+    assert result["failed_gating_criteria"] == []
+    assert result["evaluation"]["status"] == "evaluation_failed"
+    assert result["evaluation"]["evaluation_error"] == "injected evaluator failure"
+    derived = s4_8.load_json(
+        tmp_path
+        / config["evidence"]["output_path"]
+        / "derived_evaluation_input.json"
+    )
+    assert derived["evaluation_state"] == "evaluation_failed"
+    assert derived["evaluation"]["failed_gating_criteria"] == []
+
+
+def _progress_fixture(
+    tmp_path: Path,
+) -> tuple[dict[str, object], str, Path, Path]:
+    source_commit = "a" * 40
+    config = copy.deepcopy(s4_8.load_contract(ROOT))
+    config["evidence"]["run_journal_path"] = "state/journal.jsonl"
+    journal = tmp_path / config["evidence"]["run_journal_path"]
+    journal.parent.mkdir(parents=True)
+    opening = s4_8._opening_journal_records(
+        source_commit=source_commit,
+        event_time_utc="2030-01-01T00:00:00Z",
+        ledger_event=_ledger_event(),
+    )
+    journal.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in opening
+        ),
+        encoding="utf-8",
+    )
+    s4_8._append_run_journal(
+        journal,
+        {
+            "event": "post_consumption_started",
+            "source_commit": source_commit,
+        },
+    )
+    progress_root = s4_8._progress_path(tmp_path, config)
+    progress = {
+        "observation_inventory": [],
+        "payload": {"takes": [], "sim_vs_real": []},
+        "current_take": None,
+    }
+    s4_8._persist_post_consumption_progress(
+        progress_root,
+        journal_path=journal,
+        source_commit=source_commit,
+        stage="observation_analysis",
+        progress=progress,
+        evaluation_state="not_evaluated",
+    )
+    s4_8._persist_post_consumption_progress(
+        progress_root,
+        journal_path=journal,
+        source_commit=source_commit,
+        stage="observation_analysis_completed",
+        progress=progress,
+        evaluation_state="not_evaluated",
+    )
+    return config, source_commit, journal, progress_root
+
+
+def test_progress_rejects_checksum_consistent_snapshot_tampering(
+    tmp_path: Path,
+) -> None:
+    config, source_commit, _journal, progress_root = _progress_fixture(tmp_path)
+    snapshot_path = sorted(progress_root.iterdir())[-1]
+    snapshot = s4_8.load_json(snapshot_path)
+    snapshot["payload"]["takes"].append({"tampered": True})
+    snapshot["payload_sha256"] = canonical_sha256(snapshot["payload"])
+    snapshot_payload = {
+        key: value for key, value in snapshot.items() if key != "snapshot_sha256"
+    }
+    snapshot["snapshot_sha256"] = canonical_sha256(snapshot_payload)
+    snapshot_path.write_text(s4_8.pretty_json(snapshot), encoding="utf-8")
+    with pytest.raises(s4_8.S48Error, match="progress chain"):
+        s4_8._load_partial_progress(
+            tmp_path,
+            config=config,
+            source_commit=source_commit,
+        )
+
+
+def test_progress_rejects_stale_rollback_and_reordered_state(
+    tmp_path: Path,
+) -> None:
+    config, source_commit, journal, progress_root = _progress_fixture(tmp_path)
+    records = s4_8._load_run_journal(journal)
+    journal.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records[:-1]
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(s4_8.S48Error, match="unjournaled progress"):
+        s4_8._load_partial_progress(
+            tmp_path,
+            config=config,
+            source_commit=source_commit,
+        )
+    journal.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+    progress = {
+        "observation_inventory": [],
+        "payload": {"takes": [], "sim_vs_real": []},
+        "current_take": None,
+    }
+    with pytest.raises(s4_8.S48Error, match="rollback"):
+        s4_8._persist_post_consumption_progress(
+            progress_root,
+            journal_path=journal,
+            source_commit=source_commit,
+            stage="observation_analysis",
+            progress=progress,
+            evaluation_state="not_evaluated",
+        )
+    reordered = [dict(record) for record in records]
+    first = {
+        key: value
+        for key, value in reordered[-2].items()
+        if key
+        not in {"schema", "sequence", "previous_event_sha256", "event_sha256"}
+    }
+    second = {
+        key: value
+        for key, value in reordered[-1].items()
+        if key
+        not in {"schema", "sequence", "previous_event_sha256", "event_sha256"}
+    }
+    reordered[-2] = first | second
+    reordered[-1] = second | first
+    previous = "0" * 64
+    rebuilt = []
+    for sequence, record in enumerate(reordered):
+        event = {
+            key: value
+            for key, value in record.items()
+            if key
+            not in {"schema", "sequence", "previous_event_sha256", "event_sha256"}
+        }
+        payload = {
+            "schema": "ias.s4_8.first_run_journal_event.v1",
+            "sequence": sequence,
+            "previous_event_sha256": previous,
+            **event,
+        }
+        rebuilt_record = {
+            **payload,
+            "event_sha256": canonical_sha256(payload),
+        }
+        rebuilt.append(rebuilt_record)
+        previous = rebuilt_record["event_sha256"]
+    journal.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in rebuilt
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(s4_8.S48Error, match="progress chain"):
+        s4_8._load_partial_progress(
+            tmp_path,
+            config=config,
+            source_commit=source_commit,
+        )
 
 
 def test_opening_only_journal_recovers_without_reopening(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config, source_commit, context = _install_authorized_run_harness(
+    config, source_commit, context, _expected = _install_authorized_run_harness(
         tmp_path, monkeypatch
     )
     consumption = s4_8.consume_grant_once(
@@ -901,6 +1311,13 @@ def test_opening_only_journal_recovers_without_reopening(
         "build_real_payload",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("opening-only recovery reopened observations")
+        ),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "consume_grant_once",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("opening-only recovery reconsumed the grant")
         ),
     )
     result = s4_8.run_authorized_evaluation_once(
@@ -932,7 +1349,7 @@ def test_downgrade_recovers_from_every_interruption_boundary(
     monkeypatch: pytest.MonkeyPatch,
     fault_step: str,
 ) -> None:
-    config, source_commit, _context = _install_authorized_run_harness(
+    config, source_commit, _context, _expected = _install_authorized_run_harness(
         tmp_path, monkeypatch
     )
     payload = build_synthetic_payload(ROOT)

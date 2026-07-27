@@ -50,16 +50,50 @@ def _synthetic_attempt_inventory(
     return records
 
 
-def _synthetic_ledger_event() -> dict[str, object]:
+def _synthetic_ledger_event(
+    source_commit: str = "a" * 40,
+    grant_sha256: str = "c" * 64,
+) -> dict[str, object]:
     payload: dict[str, object] = {
         "schema": "ias.s4_4.access_ledger_event.v1",
         "sequence": 0,
         "previous_event_sha256": "0" * 64,
         "event": "holdout_open_authorized",
+        "grant_id": f"s4_8_corrective_03_{source_commit}",
+        "grant_sha256": grant_sha256,
         "purpose": "S4.8_evaluation",
         "holdout_opened": True,
     }
     return {**payload, "event_sha256": s4_8.canonical_sha256(payload)}
+
+
+def _authorization_evidence(
+    source_commit: str = "a" * 40,
+    grant_sha256: str = "c" * 64,
+) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    config = load_contract(ROOT)
+    grant_id = config["grant"]["grant_id_template"].format(
+        source_commit=source_commit
+    )
+    authorization = {
+        "schema": s4_8.AUTHORIZATION_RECORD_SCHEMA,
+        "authorization_id": "synthetic",
+        "source_commit": source_commit,
+        "grant_id": grant_id,
+        "grant_path": config["grant"]["path"],
+        "grant_sha256": grant_sha256,
+        "ledger_path": config["grant"]["ledger_path"],
+        "irreversible_scientific_action_acknowledged": True,
+    }
+    grant = {
+        "path": config["grant"]["path"],
+        "file_sha256": "b" * 64,
+        "grant_sha256": grant_sha256,
+    }
+    return authorization, grant, _synthetic_ledger_event(
+        source_commit,
+        grant_sha256,
+    )
 
 
 def test_preopen_validation_authenticates_without_opening() -> None:
@@ -231,17 +265,12 @@ def test_deterministic_evidence_package_and_replay(
     payload = build_synthetic_payload(ROOT)
     payload["sim_vs_real"] = build_simulation_comparisons(ROOT)
     evaluation = evaluate_payload(payload, repo_root=ROOT)
+    authorization, grant, ledger_event = _authorization_evidence()
     derived = {
-        "authorization_record": {
-            "authorization_id": "synthetic",
-            "source_commit": "a" * 40,
-        },
-        "grant": {
-            "path": "dataset/S4.8/access/grant.json",
-            "file_sha256": "b" * 64,
-            "grant_sha256": "c" * 64,
-        },
-        "ledger_event": _synthetic_ledger_event(),
+        "source_commit": "a" * 40,
+        "authorization_record": authorization,
+        "grant": grant,
+        "ledger_event": ledger_event,
         "observation_inventory": _synthetic_attempt_inventory(payload),
         "payload": payload,
         "evaluation": evaluation,
@@ -290,10 +319,12 @@ def test_evidence_manifest_rejects_tamper(
 ) -> None:
     payload = build_synthetic_payload(ROOT)
     evaluation = evaluate_payload(payload, repo_root=ROOT)
+    authorization, grant, ledger_event = _authorization_evidence()
     derived = {
-        "authorization_record": {},
-        "grant": {},
-        "ledger_event": _synthetic_ledger_event(),
+        "source_commit": "a" * 40,
+        "authorization_record": authorization,
+        "grant": grant,
+        "ledger_event": ledger_event,
         "observation_inventory": _synthetic_attempt_inventory(payload),
         "payload": payload,
         "evaluation": evaluation,

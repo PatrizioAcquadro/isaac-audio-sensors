@@ -24,7 +24,7 @@ import time
 import wave
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from statistics import median
@@ -107,7 +107,43 @@ PACKAGE_FILES = frozenset(
 TERMINAL_FAILURE_PROFILE = "terminal_failure.v1"
 FULL_EVIDENCE_PROFILE = "full_evidence.v1"
 RECOVERY_CONTEXT_NAME = "recovery_context.v1.json"
-POST_CONSUMPTION_PROGRESS_NAME = "post_consumption_progress.v1.json"
+POST_CONSUMPTION_PROGRESS_NAME = "post_consumption_progress.v2"
+AUTHORIZATION_RECORD_SCHEMA = "ias.s4_8.authorization_record.v1"
+AUTHORIZATION_RECORD_FIELDS = frozenset(
+    {
+        "schema",
+        "authorization_id",
+        "source_commit",
+        "grant_id",
+        "grant_path",
+        "grant_sha256",
+        "ledger_path",
+        "irreversible_scientific_action_acknowledged",
+    }
+)
+EVALUATION_STATES = frozenset(
+    {
+        "not_evaluated",
+        "evaluation_failed",
+        "evaluation_completed",
+    }
+)
+PROGRESS_STAGE_ORDER = {
+    "observation_analysis": 10,
+    "observation_analysis_completed": 20,
+    "evaluation_failed": 30,
+    "evaluation_completed": 30,
+    "runtime_provenance_completed": 40,
+    "derived_state_persisted": 50,
+}
+PROGRESS_STAGE_EVALUATION_STATE = {
+    "observation_analysis": "not_evaluated",
+    "observation_analysis_completed": "not_evaluated",
+    "evaluation_failed": "evaluation_failed",
+    "evaluation_completed": "evaluation_completed",
+    "runtime_provenance_completed": "evaluation_completed",
+    "derived_state_persisted": "evaluation_completed",
+}
 RUNTIME_DISTRIBUTIONS = (
     ("isaac-audio-sensors", "isaac_audio_sensors"),
     ("jsonschema", "jsonschema"),
@@ -223,6 +259,136 @@ def load_json(path: Path) -> dict[str, Any]:
 
 def _reject_json_constant(value: str) -> None:
     raise ValueError(f"non-finite JSON constant: {value}")
+
+
+def _evaluation_placeholder(
+    state: str,
+    *,
+    error: Exception | None = None,
+) -> dict[str, Any]:
+    if state not in {"not_evaluated", "evaluation_failed"}:
+        raise S48Error(f"invalid incomplete evaluation state: {state}")
+    return {
+        "schema": RESULT_SCHEMA,
+        "status": state,
+        "readiness_passed": False,
+        "failed_gating_criteria": [],
+        "criteria": [],
+        "comparison_classifications": [],
+        "identity_summary": {},
+        "config_identity": {},
+        "evaluation_error": None if error is None else str(error),
+        "robustness": {
+            "status": "not_evaluable",
+            "denominator": 0,
+        },
+    }
+
+
+def _validate_authorization_record(
+    record: Mapping[str, Any],
+    *,
+    config: Mapping[str, Any],
+    source_commit: str,
+    grant: Mapping[str, Any],
+    grant_record: Mapping[str, Any] | None = None,
+    ledger_event: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Require the complete authorization schema and every frozen binding."""
+
+    expected_grant_id = config["grant"]["grant_id_template"].format(
+        source_commit=source_commit
+    )
+    authorization_id = record.get("authorization_id")
+    grant_sha256 = record.get("grant_sha256")
+    if (
+        set(record) != AUTHORIZATION_RECORD_FIELDS
+        or record.get("schema") != AUTHORIZATION_RECORD_SCHEMA
+        or not isinstance(authorization_id, str)
+        or not authorization_id.strip()
+        or authorization_id != authorization_id.strip()
+        or len(source_commit) != 40
+        or any(character not in "0123456789abcdef" for character in source_commit)
+        or not isinstance(grant_sha256, str)
+        or len(grant_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in grant_sha256)
+        or record.get("source_commit") != source_commit
+        or record.get("grant_id") != expected_grant_id
+        or record.get("grant_path") != config["grant"]["path"]
+        or record.get("grant_sha256") != grant.get("grant_sha256")
+        or record.get("ledger_path") != config["grant"]["ledger_path"]
+        or record.get("irreversible_scientific_action_acknowledged") is not True
+    ):
+        raise S48Error("S4.8 authorization record schema or binding mismatch")
+    if grant.get("grant_id") not in (None, expected_grant_id):
+        raise S48Error("S4.8 authorization grant identity mismatch")
+    if grant_record is not None and (
+        grant_record.get("path") != config["grant"]["path"]
+        or grant_record.get("grant_sha256") != record["grant_sha256"]
+    ):
+        raise S48Error("S4.8 authorization grant evidence mismatch")
+    if ledger_event is not None and (
+        ledger_event.get("grant_id") != record["grant_id"]
+        or ledger_event.get("grant_sha256") != record["grant_sha256"]
+    ):
+        raise S48Error("S4.8 authorization ledger evidence mismatch")
+    return dict(record)
+
+
+def _validate_authorization_evidence(
+    derived: Mapping[str, Any],
+    *,
+    config: Mapping[str, Any],
+) -> None:
+    authorization = derived.get("authorization_record")
+    grant_record = derived.get("grant")
+    ledger_event = derived.get("ledger_event")
+    source_commit = derived.get("source_commit")
+    if (
+        not isinstance(authorization, Mapping)
+        or not isinstance(grant_record, Mapping)
+        or not isinstance(ledger_event, Mapping)
+        or not isinstance(source_commit, str)
+        or len(source_commit) != 40
+        or any(character not in "0123456789abcdef" for character in source_commit)
+        or set(grant_record) != {"path", "file_sha256", "grant_sha256"}
+        or not isinstance(grant_record.get("file_sha256"), str)
+        or len(grant_record["file_sha256"]) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in grant_record["file_sha256"]
+        )
+        or not isinstance(grant_record.get("grant_sha256"), str)
+        or len(grant_record["grant_sha256"]) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in grant_record["grant_sha256"]
+        )
+    ):
+        raise S48Error("S4.8 authorization evidence is malformed")
+    _validate_authorization_record(
+        authorization,
+        config=config,
+        source_commit=source_commit,
+        grant={
+            "grant_id": authorization.get("grant_id"),
+            "grant_sha256": grant_record.get("grant_sha256"),
+        },
+        grant_record=grant_record,
+        ledger_event=ledger_event,
+    )
+    event_payload = {
+        key: value for key, value in ledger_event.items() if key != "event_sha256"
+    }
+    if (
+        ledger_event.get("schema") != "ias.s4_4.access_ledger_event.v1"
+        or ledger_event.get("sequence") != 0
+        or ledger_event.get("event") != "holdout_open_authorized"
+        or ledger_event.get("purpose") != "S4.8_evaluation"
+        or ledger_event.get("holdout_opened") is not True
+        or ledger_event.get("event_sha256") != canonical_sha256(event_payload)
+    ):
+        raise S48Error("S4.8 authorization ledger evidence mismatch")
 
 
 def load_contract(repo_root: Path) -> dict[str, Any]:
@@ -361,7 +527,11 @@ def create_grant(
     """Create, but do not consume, the exact real single-use grant."""
 
     root = repo_root.resolve()
-    if not authorization_id.strip():
+    if (
+        not isinstance(authorization_id, str)
+        or not authorization_id.strip()
+        or authorization_id != authorization_id.strip()
+    ):
         raise S48Error("authorization_id must be non-empty")
     preopen = preopen_validate(root, source_commit=source_commit)
     config = load_contract(root)
@@ -384,7 +554,7 @@ def create_grant(
     grant_path.parent.mkdir(parents=True, exist_ok=False)
     grant_path.write_text(pretty_json(grant), encoding="utf-8")
     authorization_record = {
-        "schema": "ias.s4_8.authorization_record.v1",
+        "schema": AUTHORIZATION_RECORD_SCHEMA,
         "authorization_id": authorization_id,
         "source_commit": source_commit,
         "grant_id": grant_id,
@@ -429,6 +599,15 @@ def consume_grant_once(
         )
         if grant.get("grant_id") != expected_id:
             raise S48Error("grant is not bound to the exact evaluator source commit")
+        authorization_record = load_json(
+            grant_path.with_name("authorization_record.v1.json")
+        )
+        _validate_authorization_record(
+            authorization_record,
+            config=config,
+            source_commit=source_commit,
+            grant=grant,
+        )
         _validate_recovery_context_for_consumption(
             recovery_context,
             config=config,
@@ -503,19 +682,22 @@ def _validate_recovery_context_for_consumption(
     source_commit: str,
 ) -> None:
     context_grant = context.get("grant")
+    authorization = context.get("authorization_record")
     context_payload = {
         key: value for key, value in context.items() if key != "context_sha256"
     }
     if (
         context.get("schema") != "ias.s4_8.post_consumption_recovery_context.v1"
         or context.get("source_commit") != source_commit
-        or not isinstance(context.get("authorization_record"), Mapping)
+        or not isinstance(authorization, Mapping)
         or not isinstance(context.get("observation_inventory"), list)
         or not isinstance(context.get("payload"), Mapping)
         or context.get("payload_sha256") != canonical_sha256(context.get("payload"))
+        or context.get("evaluation_state") != "not_evaluated"
         or not isinstance(context.get("evaluation"), Mapping)
         or context.get("evaluation_sha256")
         != canonical_sha256(context.get("evaluation"))
+        or context.get("evaluation") != _evaluation_placeholder("not_evaluated")
         or not isinstance(context.get("runtime_provenance"), Mapping)
         or not isinstance(context_grant, Mapping)
         or context_grant.get("path") != config["grant"]["path"]
@@ -524,6 +706,13 @@ def _validate_recovery_context_for_consumption(
         or context.get("context_sha256") != canonical_sha256(context_payload)
     ):
         raise S48Error("S4.8 recovery context is not bound to this grant consumption")
+    _validate_authorization_record(
+        authorization,
+        config=config,
+        source_commit=source_commit,
+        grant=grant,
+        grant_record=context_grant,
+    )
 
 
 def _build_preconsumption_recovery_context(
@@ -540,12 +729,18 @@ def _build_preconsumption_recovery_context(
         grant_path.with_name("authorization_record.v1.json")
     )
     grant = load_json(grant_path)
+    _validate_authorization_record(
+        authorization_record,
+        config=config,
+        source_commit=source_commit,
+        grant=grant,
+    )
     payload = _input_rejection_payload(repo_root)
     inventory = _input_rejection_inventory(
         repo_root,
         S48Error("no scientific observation was derived"),
     )
-    evaluation = evaluate_payload(payload, repo_root=repo_root)
+    evaluation = _evaluation_placeholder("not_evaluated")
     runtime = _runtime_dependency_provenance()
     context = {
         "schema": "ias.s4_8.post_consumption_recovery_context.v1",
@@ -560,6 +755,7 @@ def _build_preconsumption_recovery_context(
         "observation_inventory": inventory,
         "payload": payload,
         "payload_sha256": canonical_sha256(payload),
+        "evaluation_state": "not_evaluated",
         "evaluation": evaluation,
         "evaluation_sha256": canonical_sha256(evaluation),
         "runtime_provenance": runtime,
@@ -694,17 +890,67 @@ def run_authorized_evaluation_once(
             root,
             progress_callback=lambda progress: _persist_post_consumption_progress(
                 _progress_path(root, config),
+                journal_path=journal_path,
                 source_commit=source_commit,
                 stage="observation_analysis",
                 progress=progress,
+                evaluation_state="not_evaluated",
             ),
+        )
+        completed_progress = {
+            "observation_inventory": observation_inventory,
+            "payload": payload,
+            "current_take": None,
+        }
+        _persist_post_consumption_progress(
+            _progress_path(root, config),
+            journal_path=journal_path,
+            source_commit=source_commit,
+            stage="observation_analysis_completed",
+            progress=completed_progress,
+            evaluation_state="not_evaluated",
         )
         active_stage = "scientific_evaluation"
         _post_consumption_stage("scientific_evaluation")
-        evaluation = evaluate_payload(payload, repo_root=root)
+        try:
+            evaluation = evaluate_payload(payload, repo_root=root)
+        except Exception as exc:
+            failed_evaluation = _evaluation_placeholder(
+                "evaluation_failed",
+                error=exc,
+            )
+            _persist_post_consumption_progress(
+                _progress_path(root, config),
+                journal_path=journal_path,
+                source_commit=source_commit,
+                stage="evaluation_failed",
+                progress=completed_progress,
+                evaluation_state="evaluation_failed",
+                evaluation=failed_evaluation,
+            )
+            raise
+        _persist_post_consumption_progress(
+            _progress_path(root, config),
+            journal_path=journal_path,
+            source_commit=source_commit,
+            stage="evaluation_completed",
+            progress=completed_progress,
+            evaluation_state="evaluation_completed",
+            evaluation=evaluation,
+        )
         active_stage = "runtime_provenance"
         _post_consumption_stage("runtime_provenance")
         runtime_provenance = _runtime_dependency_provenance()
+        _persist_post_consumption_progress(
+            _progress_path(root, config),
+            journal_path=journal_path,
+            source_commit=source_commit,
+            stage="runtime_provenance_completed",
+            progress=completed_progress,
+            evaluation_state="evaluation_completed",
+            evaluation=evaluation,
+            runtime_provenance=runtime_provenance,
+        )
         derived = {
             "schema": DERIVED_INPUT_SCHEMA,
             "tool_version": TOOL_VERSION,
@@ -724,13 +970,25 @@ def run_authorized_evaluation_once(
             "observation_inventory": observation_inventory,
             "payload": payload,
             "payload_sha256": canonical_sha256(payload),
+            "evaluation_state": "evaluation_completed",
             "evaluation": evaluation,
+            "evaluation_sha256": canonical_sha256(evaluation),
             "run_failure": None,
             "runtime_provenance": runtime_provenance,
         }
         active_stage = "derived_state_persistence"
         _post_consumption_stage("derived_state_persistence")
         _atomic_write_text(derived_path, pretty_json(derived))
+        _persist_post_consumption_progress(
+            _progress_path(root, config),
+            journal_path=journal_path,
+            source_commit=source_commit,
+            stage="derived_state_persisted",
+            progress=completed_progress,
+            evaluation_state="evaluation_completed",
+            evaluation=evaluation,
+            runtime_provenance=runtime_provenance,
+        )
         active_stage = "finalization"
         derived, package_result = _finalize_first_run(
             root,
@@ -989,21 +1247,118 @@ def _emit_observation_progress(
 def _persist_post_consumption_progress(
     path: Path,
     *,
+    journal_path: Path,
     source_commit: str,
     stage: str,
     progress: Mapping[str, Any],
+    evaluation_state: str,
+    evaluation: Mapping[str, Any] | None = None,
+    runtime_provenance: Mapping[str, Any] | None = None,
 ) -> None:
-    _atomic_write_text(
-        path,
-        pretty_json(
-            {
-                "schema": "ias.s4_8.post_consumption_progress.v1",
-                "source_commit": source_commit,
-                "stage": stage,
-                **dict(progress),
-            }
-        ),
+    if (
+        stage not in PROGRESS_STAGE_ORDER
+        or evaluation_state not in EVALUATION_STATES
+        or PROGRESS_STAGE_EVALUATION_STATE.get(stage) != evaluation_state
+    ):
+        raise S48Error("S4.8 post-consumption progress stage is invalid")
+    if (
+        evaluation_state in {"evaluation_completed", "evaluation_failed"}
+        and not isinstance(evaluation, Mapping)
+    ):
+        raise S48Error("S4.8 completed evaluation progress is incomplete")
+    records = _load_run_journal(journal_path)
+    if len(records) < 3 or records[:3][-1].get("event") != "post_consumption_started":
+        raise S48Error("S4.8 progress has no authenticated journal start")
+    progress_events = [
+        record
+        for record in records
+        if record.get("event") == "post_consumption_progress"
+    ]
+    sequence = len(progress_events)
+    previous = (
+        progress_events[-1]["progress_snapshot_sha256"]
+        if progress_events
+        else records[1]["event_sha256"]
     )
+    previous_order = (
+        progress_events[-1]["stage_order"] if progress_events else -1
+    )
+    stage_order = PROGRESS_STAGE_ORDER[stage]
+    if stage_order < previous_order:
+        raise S48Error("S4.8 progress stage rollback is forbidden")
+    if (
+        progress_events
+        and progress_events[-1].get("evaluation_state") == "evaluation_completed"
+        and evaluation_state != "evaluation_completed"
+    ):
+        raise S48Error("S4.8 completed evaluation cannot be downgraded")
+    if (
+        progress_events
+        and progress_events[-1].get("evaluation_state") == "evaluation_failed"
+    ):
+        raise S48Error("S4.8 failed evaluation cannot advance")
+    payload = progress.get("payload")
+    inventory = progress.get("observation_inventory")
+    current_take = progress.get("current_take")
+    if not isinstance(payload, Mapping) or not isinstance(inventory, list):
+        raise S48Error("S4.8 post-consumption progress payload is invalid")
+    snapshot_payload = {
+        "schema": "ias.s4_8.post_consumption_progress.v2",
+        "sequence": sequence,
+        "previous_progress_sha256": previous,
+        "opening_journal_head_sha256": records[1]["event_sha256"],
+        "source_commit": source_commit,
+        "stage": stage,
+        "stage_order": stage_order,
+        "evaluation_state": evaluation_state,
+        "observation_inventory": [dict(item) for item in inventory],
+        "observation_inventory_sha256": canonical_sha256(inventory),
+        "payload": dict(payload),
+        "payload_sha256": canonical_sha256(payload),
+        "current_take": None if current_take is None else dict(current_take),
+        "current_take_sha256": canonical_sha256(current_take),
+        "evaluation": None if evaluation is None else dict(evaluation),
+        "evaluation_sha256": canonical_sha256(evaluation),
+        "runtime_provenance": (
+            None if runtime_provenance is None else dict(runtime_provenance)
+        ),
+        "runtime_provenance_sha256": canonical_sha256(runtime_provenance),
+    }
+    snapshot = {
+        **snapshot_payload,
+        "snapshot_sha256": canonical_sha256(snapshot_payload),
+    }
+    path.mkdir(parents=True, exist_ok=True)
+    snapshot_name = (
+        f"{sequence:06d}.{snapshot['snapshot_sha256']}.json"
+    )
+    snapshot_path = path / snapshot_name
+    if snapshot_path.exists():
+        raise S48Error("S4.8 progress snapshot already exists")
+    _atomic_write_text(snapshot_path, pretty_json(snapshot))
+    _fsync_directory(path)
+    _append_run_journal(
+        journal_path,
+        {
+            "event": "post_consumption_progress",
+            "source_commit": source_commit,
+            "progress_sequence": sequence,
+            "progress_snapshot_path": snapshot_path.relative_to(
+                journal_path.parent
+            ).as_posix(),
+            "progress_snapshot_sha256": snapshot["snapshot_sha256"],
+            "stage": stage,
+            "stage_order": stage_order,
+            "evaluation_state": evaluation_state,
+        },
+    )
+    if progress_events:
+        previous_path = journal_path.parent / _safe_relative(
+            progress_events[-1]["progress_snapshot_path"]
+        )
+        with suppress(FileNotFoundError):
+            previous_path.unlink()
+        _fsync_directory(path)
 
 
 def _initial_observation_inventory(
@@ -1174,6 +1529,7 @@ def _load_recovery_context(
         context.get("schema") != "ias.s4_8.post_consumption_recovery_context.v1"
         or context.get("source_commit") != source_commit
         or context.get("payload_sha256") != canonical_sha256(context.get("payload"))
+        or context.get("evaluation_state") != "not_evaluated"
         or context.get("context_sha256") != canonical_sha256(context_payload)
     ):
         raise S48Error("S4.8 post-consumption recovery context is invalid")
@@ -1184,9 +1540,21 @@ def _load_recovery_context(
     if (
         not grant_path.is_file()
         or sha256_file(grant_path) != grant.get("file_sha256")
-        or load_json(grant_path).get("grant_sha256") != grant.get("grant_sha256")
     ):
         raise S48Error("S4.8 recovery grant authentication failed")
+    grant_payload = load_json(grant_path)
+    if grant_payload.get("grant_sha256") != grant.get("grant_sha256"):
+        raise S48Error("S4.8 recovery grant authentication failed")
+    authorization = context.get("authorization_record")
+    if not isinstance(authorization, Mapping):
+        raise S48Error("S4.8 recovery authorization record is invalid")
+    _validate_authorization_record(
+        authorization,
+        config=config,
+        source_commit=source_commit,
+        grant=grant_payload,
+        grant_record=grant,
+    )
     if context.get("evaluation_sha256") != canonical_sha256(context.get("evaluation")):
         raise S48Error("S4.8 recovery evaluation hash is invalid")
     return context
@@ -1219,18 +1587,105 @@ def _load_partial_progress(
     config: Mapping[str, Any],
     source_commit: str,
 ) -> dict[str, Any] | None:
-    path = _progress_path(repo_root, config)
-    if not path.exists():
+    progress_root = _progress_path(repo_root, config)
+    journal_path = repo_root / config["evidence"]["run_journal_path"]
+    journal = _load_run_journal(journal_path)
+    progress_events = [
+        record
+        for record in journal
+        if record.get("event") == "post_consumption_progress"
+    ]
+    if not progress_events:
+        if progress_root.exists() and any(progress_root.iterdir()):
+            raise S48Error("S4.8 progress snapshots are not journal-authenticated")
         return None
-    progress = load_json(path)
+    if len(journal) < 3 or journal[2].get("event") != "post_consumption_started":
+        raise S48Error("S4.8 progress journal start is invalid")
+    opening_head = journal[1]["event_sha256"]
+    previous_order = -1
+    completed = False
+    failed = False
+    authenticated_paths: set[Path] = set()
+    for sequence, event in enumerate(progress_events):
+        relative = _safe_relative(event.get("progress_snapshot_path"))
+        snapshot_path = journal_path.parent / relative
+        supplied = event.get("progress_snapshot_sha256")
+        stage = event.get("stage")
+        stage_order = event.get("stage_order")
+        evaluation_state = event.get("evaluation_state")
+        authenticated_paths.add(snapshot_path.resolve())
+        if (
+            event.get("source_commit") != source_commit
+            or event.get("progress_sequence") != sequence
+            or stage not in PROGRESS_STAGE_ORDER
+            or stage_order != PROGRESS_STAGE_ORDER[stage]
+            or evaluation_state != PROGRESS_STAGE_EVALUATION_STATE[stage]
+            or stage_order < previous_order
+            or evaluation_state not in EVALUATION_STATES
+            or snapshot_path.name != f"{sequence:06d}.{supplied}.json"
+            or failed
+            or completed
+            and evaluation_state != "evaluation_completed"
+        ):
+            raise S48Error("S4.8 post-consumption progress chain is invalid")
+        completed = completed or evaluation_state == "evaluation_completed"
+        failed = failed or evaluation_state == "evaluation_failed"
+        previous_order = int(stage_order)
+    if progress_root.is_dir():
+        unexpected = {
+            candidate.resolve()
+            for candidate in progress_root.iterdir()
+            if candidate.is_file()
+        } - authenticated_paths
+        if unexpected:
+            raise S48Error("S4.8 unjournaled progress snapshot detected")
+    latest_event = progress_events[-1]
+    latest_path = journal_path.parent / _safe_relative(
+        latest_event["progress_snapshot_path"]
+    )
+    if not latest_path.is_file():
+        raise S48Error("S4.8 post-consumption progress chain is invalid")
+    snapshot = load_json(latest_path)
+    supplied = snapshot.get("snapshot_sha256")
+    payload = {
+        key: value for key, value in snapshot.items() if key != "snapshot_sha256"
+    }
+    expected_previous = (
+        progress_events[-2]["progress_snapshot_sha256"]
+        if len(progress_events) > 1
+        else opening_head
+    )
     if (
-        progress.get("schema") != "ias.s4_8.post_consumption_progress.v1"
-        or progress.get("source_commit") != source_commit
-        or not isinstance(progress.get("observation_inventory"), list)
-        or not isinstance(progress.get("payload"), Mapping)
+        snapshot.get("schema") != "ias.s4_8.post_consumption_progress.v2"
+        or snapshot.get("sequence") != latest_event["progress_sequence"]
+        or snapshot.get("previous_progress_sha256") != expected_previous
+        or snapshot.get("opening_journal_head_sha256") != opening_head
+        or snapshot.get("source_commit") != source_commit
+        or snapshot.get("stage") != latest_event["stage"]
+        or snapshot.get("stage_order") != latest_event["stage_order"]
+        or snapshot.get("evaluation_state") != latest_event["evaluation_state"]
+        or snapshot.get("observation_inventory_sha256")
+        != canonical_sha256(snapshot.get("observation_inventory"))
+        or snapshot.get("payload_sha256")
+        != canonical_sha256(snapshot.get("payload"))
+        or snapshot.get("current_take_sha256")
+        != canonical_sha256(snapshot.get("current_take"))
+        or snapshot.get("evaluation_sha256")
+        != canonical_sha256(snapshot.get("evaluation"))
+        or snapshot.get("runtime_provenance_sha256")
+        != canonical_sha256(snapshot.get("runtime_provenance"))
+        or supplied != canonical_sha256(payload)
+        or supplied != latest_event["progress_snapshot_sha256"]
+        or not isinstance(snapshot.get("observation_inventory"), list)
+        or not isinstance(snapshot.get("payload"), Mapping)
+        or (
+            snapshot.get("evaluation_state")
+            in {"evaluation_completed", "evaluation_failed"}
+            and not isinstance(snapshot.get("evaluation"), Mapping)
+        )
     ):
-        raise S48Error("S4.8 post-consumption progress is invalid")
-    return progress
+        raise S48Error("S4.8 post-consumption progress chain is invalid")
+    return snapshot
 
 
 def _recover_post_consumption_run(
@@ -1276,11 +1731,15 @@ def _recover_post_consumption_run(
                 "automatic_retry_forbidden": True,
             },
         )
-    elif events != [
-        "grant_consumed",
-        "observation_opening_authorized",
-        "post_consumption_started",
-    ]:
+    elif not (
+        events[:3]
+        == [
+            "grant_consumed",
+            "observation_opening_authorized",
+            "post_consumption_started",
+        ]
+        and all(event == "post_consumption_progress" for event in events[3:])
+    ):
         if any(
             event
             in {
@@ -1324,6 +1783,32 @@ def _recover_post_consumption_run(
         else _consumed_ledger_event(repo_root, config)
     )
     opening_records = _load_run_journal(journal_path)[:2]
+    evaluation_state = (
+        context["evaluation_state"]
+        if progress is None
+        else progress["evaluation_state"]
+    )
+    recovered_payload = context["payload"] if progress is None else progress["payload"]
+    recovered_evaluation = (
+        context["evaluation"] if progress is None else progress["evaluation"]
+    )
+    if evaluation_state == "not_evaluated":
+        recovered_evaluation = _evaluation_placeholder("not_evaluated")
+    elif evaluation_state == "evaluation_failed":
+        if not isinstance(recovered_evaluation, Mapping):
+            recovered_evaluation = _evaluation_placeholder(
+                "evaluation_failed",
+                error=error,
+            )
+    elif evaluation_state != "evaluation_completed":
+        raise S48Error("S4.8 recovered evaluation state is invalid")
+    recovered_runtime = (
+        progress.get("runtime_provenance")
+        if progress is not None
+        else None
+    )
+    if not isinstance(recovered_runtime, Mapping):
+        recovered_runtime = context["runtime_provenance"]
     derived = {
         "schema": DERIVED_INPUT_SCHEMA,
         "tool_version": TOOL_VERSION,
@@ -1344,11 +1829,13 @@ def _recover_post_consumption_run(
             else progress["observation_inventory"]
         ),
         "partial_progress": progress,
-        "payload": context["payload"],
-        "payload_sha256": context["payload_sha256"],
-        "evaluation": context["evaluation"],
+        "payload": recovered_payload,
+        "payload_sha256": canonical_sha256(recovered_payload),
+        "evaluation_state": evaluation_state,
+        "evaluation": recovered_evaluation,
+        "evaluation_sha256": canonical_sha256(recovered_evaluation),
         "run_failure": failure,
-        "runtime_provenance": context["runtime_provenance"],
+        "runtime_provenance": recovered_runtime,
     }
     derived_path = repo_root / config["evidence"]["derived_input_path"]
     _atomic_write_text(derived_path, pretty_json(derived))
@@ -1370,6 +1857,17 @@ def _recover_post_consumption_run(
 def _recomputed_evaluation(
     repo_root: Path, derived: Mapping[str, Any]
 ) -> dict[str, Any]:
+    evaluation_state = derived.get("evaluation_state", "evaluation_completed")
+    evaluation = derived.get("evaluation")
+    if evaluation_state not in EVALUATION_STATES or not isinstance(
+        evaluation, Mapping
+    ):
+        raise S48Error("S4.8 evaluation state is missing or invalid")
+    if (
+        derived.get("evaluation_sha256") is not None
+        and derived.get("evaluation_sha256") != canonical_sha256(evaluation)
+    ):
+        raise S48Error("S4.8 preserved evaluation hash mismatch")
     payload = derived.get("payload")
     if not isinstance(payload, Mapping):
         raise S48Error("S4.8 derived payload is missing or invalid")
@@ -1377,8 +1875,28 @@ def _recomputed_evaluation(
     actual_payload_sha = canonical_sha256(payload)
     if expected_payload_sha is not None and expected_payload_sha != actual_payload_sha:
         raise S48Error("S4.8 preserved observation payload hash mismatch")
+    if evaluation_state != "evaluation_completed":
+        expected_status = evaluation_state
+        if (
+            evaluation.get("schema") != RESULT_SCHEMA
+            or evaluation.get("status") != expected_status
+            or evaluation.get("readiness_passed") is not False
+            or evaluation.get("failed_gating_criteria") != []
+            or evaluation.get("criteria") != []
+            or evaluation.get("comparison_classifications") != []
+            or (
+                evaluation_state == "not_evaluated"
+                and evaluation.get("evaluation_error") is not None
+            )
+            or (
+                evaluation_state == "evaluation_failed"
+                and not isinstance(evaluation.get("evaluation_error"), str)
+            )
+        ):
+            raise S48Error("S4.8 incomplete evaluation state is contradictory")
+        return dict(evaluation)
     recomputed = evaluate_payload(payload, repo_root=repo_root)
-    if derived.get("evaluation") != recomputed:
+    if evaluation != recomputed:
         raise S48Error(
             "S4.8 preserved evaluation contradicts recomputation from payload"
         )
@@ -1844,6 +2362,7 @@ def _build_terminal_failure_package_in_place(
     run_failure = derived.get("run_failure")
     if not isinstance(run_failure, Mapping):
         raise S48Error("terminal-failure package requires a run failure")
+    _validate_authorization_evidence(derived, config=load_contract(root))
     evaluation = _recomputed_evaluation(root, derived)
     payload = dict(derived["payload"])
     partial_progress = derived.get("partial_progress")
@@ -1903,6 +2422,9 @@ def _build_terminal_failure_package_in_place(
             "status": "failed",
             "readiness_passed": False,
             "scientific_readiness_passed": (evaluation.get("readiness_passed") is True),
+            "scientific_evaluation_state": derived.get(
+                "evaluation_state", "evaluation_completed"
+            ),
             "scientific_evaluation_status": evaluation.get("status"),
             "run_failure": dict(run_failure),
             "terminal": True,
@@ -2105,6 +2627,7 @@ def _build_evidence_package_in_place(
     validate_result: bool = True,
 ) -> dict[str, Any]:
     root = repo_root.resolve()
+    _validate_authorization_evidence(derived, config=load_contract(root))
     evaluation = _recomputed_evaluation(root, derived)
     payload = dict(derived["payload"])
     takes = payload.get("takes", [])
@@ -2290,6 +2813,9 @@ def _build_evidence_package_in_place(
         "status": final_status,
         "readiness_passed": final_status == "passed",
         "scientific_readiness_passed": (evaluation.get("readiness_passed") is True),
+        "scientific_evaluation_state": derived.get(
+            "evaluation_state", "evaluation_completed"
+        ),
         "scientific_evaluation_status": evaluation.get("status"),
         "run_failure": derived.get("run_failure"),
         "terminal": True,
@@ -2355,6 +2881,10 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
         ):
             raise S48Error(f"S4.8 evidence index mismatch: {record['path']}")
     derived = load_json(package / "derived_evaluation_input.json")
+    _validate_authorization_evidence(
+        derived,
+        config=load_contract(repo_root.resolve()),
+    )
     recomputed = _recomputed_evaluation(repo_root, derived)
     criteria = load_json(package / "criteria_results.json")
     if criteria != recomputed:
@@ -2374,6 +2904,8 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
         or final["readiness_passed"] is not expected_overall_readiness
         or final.get("scientific_readiness_passed")
         is not (criteria.get("readiness_passed") is True)
+        or final.get("scientific_evaluation_state")
+        != derived.get("evaluation_state", "evaluation_completed")
     ):
         raise S48Error("S4.8 final status contradicts criteria")
     expected_final_status = (
@@ -2558,6 +3090,10 @@ def _validate_terminal_failure_package(
         ):
             raise S48Error(f"S4.8 terminal-failure index mismatch: {record['path']}")
     derived = load_json(package / "derived_evaluation_input.json")
+    _validate_authorization_evidence(
+        derived,
+        config=load_contract(repo_root.resolve()),
+    )
     evaluation = _recomputed_evaluation(repo_root, derived)
     criteria = load_json(package / "criteria_results.json")
     final = load_json(package / "final_validation.json")
@@ -2570,6 +3106,8 @@ def _validate_terminal_failure_package(
         or final.get("readiness_passed") is not False
         or final.get("scientific_readiness_passed")
         is not (evaluation.get("readiness_passed") is True)
+        or final.get("scientific_evaluation_state")
+        != derived.get("evaluation_state", "evaluation_completed")
         or final.get("run_failure") != run_failure
         or final.get("terminal") is not True
         or final.get("automatic_retry_forbidden") is not True
@@ -3733,6 +4271,13 @@ def _require_consumed_ledger(repo_root: Path, config: Mapping[str, Any]) -> None
     authorization = load_json(
         (repo_root / config["grant"]["path"]).with_name("authorization_record.v1.json")
     )
+    _validate_authorization_record(
+        authorization,
+        config=config,
+        source_commit=str(authorization.get("source_commit")),
+        grant=grant,
+        ledger_event=opened[0],
+    )
     journal = _load_run_journal(repo_root / config["evidence"]["run_journal_path"])
     journal_events = [record.get("event") for record in journal]
     if journal_events[:2] != [
@@ -3765,7 +4310,14 @@ def _append_run_journal(path: Path, event: Mapping[str, Any]) -> None:
             "post_consumption_started",
             "first_run_finalization_prepared",
         },
-        "post_consumption_started": {"first_run_finalization_prepared"},
+        "post_consumption_started": {
+            "post_consumption_progress",
+            "first_run_finalization_prepared",
+        },
+        "post_consumption_progress": {
+            "post_consumption_progress",
+            "first_run_finalization_prepared",
+        },
         "first_run_finalization_prepared": {
             "first_run_downgrade_intent",
             "first_run_terminal",
@@ -3834,24 +4386,15 @@ def _validate_terminal_journal(
 ) -> dict[str, Any]:
     records = _load_run_journal(path)
     events = [record.get("event") for record in records]
-    if events not in (
+    prefix = ["grant_consumed", "observation_opening_authorized"]
+    remainder = events[2:]
+    if remainder[:1] == ["post_consumption_started"]:
+        remainder = remainder[1:]
+        while remainder[:1] == ["post_consumption_progress"]:
+            remainder = remainder[1:]
+    if events[:2] != prefix or remainder not in (
+        ["first_run_finalization_prepared", "first_run_terminal"],
         [
-            "grant_consumed",
-            "observation_opening_authorized",
-            "first_run_finalization_prepared",
-            "first_run_terminal",
-        ],
-        [
-            "grant_consumed",
-            "observation_opening_authorized",
-            "post_consumption_started",
-            "first_run_finalization_prepared",
-            "first_run_terminal",
-        ],
-        [
-            "grant_consumed",
-            "observation_opening_authorized",
-            "post_consumption_started",
             "first_run_finalization_prepared",
             "first_run_downgrade_intent",
             "first_run_finalization_failed",

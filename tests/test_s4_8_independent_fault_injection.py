@@ -66,17 +66,31 @@ def test_recovery_capsule_hash_covers_inventory_and_runtime(
     source_commit = "a" * 40
     config = copy.deepcopy(s4_8.load_contract(ROOT))
     config["grant"]["path"] = "candidate.json"
+    config["grant"]["ledger_path"] = "ledger.jsonl"
     candidate = tmp_path / "candidate.json"
+    grant_id = f"s4_8_corrective_03_{source_commit}"
     candidate.write_text(
-        s4_8.pretty_json({"grant_sha256": "b" * 64}),
+        s4_8.pretty_json(
+            {"grant_id": grant_id, "grant_sha256": "b" * 64}
+        ),
         encoding="utf-8",
     )
     payload: dict[str, object] = {}
-    evaluation: dict[str, object] = {}
+    evaluation = s4_8._evaluation_placeholder("not_evaluated")
+    authorization = {
+        "schema": s4_8.AUTHORIZATION_RECORD_SCHEMA,
+        "authorization_id": "synthetic",
+        "source_commit": source_commit,
+        "grant_id": grant_id,
+        "grant_path": config["grant"]["path"],
+        "grant_sha256": "b" * 64,
+        "ledger_path": config["grant"]["ledger_path"],
+        "irreversible_scientific_action_acknowledged": True,
+    }
     context: dict[str, object] = {
         "schema": "ias.s4_8.post_consumption_recovery_context.v1",
         "source_commit": source_commit,
-        "authorization_record": {},
+        "authorization_record": authorization,
         "grant": {
             "path": config["grant"]["path"],
             "file_sha256": s4_8.sha256_file(candidate),
@@ -85,6 +99,7 @@ def test_recovery_capsule_hash_covers_inventory_and_runtime(
         "observation_inventory": [{"planned_take_id": "synthetic"}],
         "payload": payload,
         "payload_sha256": s4_8.canonical_sha256(payload),
+        "evaluation_state": "not_evaluated",
         "evaluation": evaluation,
         "evaluation_sha256": s4_8.canonical_sha256(evaluation),
         "runtime_provenance": {"python": "synthetic"},
@@ -93,7 +108,7 @@ def test_recovery_capsule_hash_covers_inventory_and_runtime(
     s4_8._validate_recovery_context_for_consumption(
         context,
         config=config,
-        grant={"grant_sha256": "b" * 64},
+        grant={"grant_id": grant_id, "grant_sha256": "b" * 64},
         grant_path=candidate,
         source_commit=source_commit,
     )
@@ -102,7 +117,7 @@ def test_recovery_capsule_hash_covers_inventory_and_runtime(
         s4_8._validate_recovery_context_for_consumption(
             context,
             config=config,
-            grant={"grant_sha256": "b" * 64},
+            grant={"grant_id": grant_id, "grant_sha256": "b" * 64},
             grant_path=candidate,
             source_commit=source_commit,
         )

@@ -236,16 +236,47 @@ def _synthetic_inventory(
     return records
 
 
-def _ledger_event() -> dict[str, object]:
+def _ledger_event(
+    source_commit: str = "a" * 40,
+    grant_sha256: str = "b" * 64,
+) -> dict[str, object]:
     payload: dict[str, object] = {
         "schema": "ias.s4_4.access_ledger_event.v1",
         "sequence": 0,
         "previous_event_sha256": "0" * 64,
         "event": "holdout_open_authorized",
+        "grant_id": f"s4_8_corrective_03_{source_commit}",
+        "grant_sha256": grant_sha256,
         "purpose": "S4.8_evaluation",
         "holdout_opened": True,
     }
     return {**payload, "event_sha256": s4_8.canonical_sha256(payload)}
+
+
+def _authorization_evidence(
+    config: dict[str, object],
+    *,
+    source_commit: str = "a" * 40,
+    grant_sha256: str = "b" * 64,
+) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    grant_config = config["grant"]
+    assert isinstance(grant_config, dict)
+    authorization = {
+        "schema": s4_8.AUTHORIZATION_RECORD_SCHEMA,
+        "authorization_id": "synthetic",
+        "source_commit": source_commit,
+        "grant_id": f"s4_8_corrective_03_{source_commit}",
+        "grant_path": grant_config["path"],
+        "grant_sha256": grant_sha256,
+        "ledger_path": grant_config["ledger_path"],
+        "irreversible_scientific_action_acknowledged": True,
+    }
+    grant = {
+        "path": grant_config["path"],
+        "file_sha256": "c" * 64,
+        "grant_sha256": grant_sha256,
+    }
+    return authorization, grant, _ledger_event(source_commit, grant_sha256)
 
 
 @pytest.mark.parametrize("already_published", [False, True])
@@ -261,6 +292,10 @@ def test_prepared_finalization_recovers_at_publication_journal_boundaries(
     payload = build_synthetic_payload(ROOT)
     payload["sim_vs_real"] = s4_8.build_simulation_comparisons(ROOT)
     evaluation = s4_8.evaluate_payload(payload, repo_root=ROOT)
+    authorization, grant, ledger_event = _authorization_evidence(
+        config,
+        source_commit=source_commit,
+    )
     failure = {
         "stage": "finalization_publication",
         "error_type": "RuntimeError",
@@ -273,14 +308,16 @@ def test_prepared_finalization_recovers_at_publication_journal_boundaries(
         "tool_version": s4_8.TOOL_VERSION,
         "source_commit": source_commit,
         "event_time_utc": "2030-01-01T00:00:00Z",
-        "authorization_record": {"source_commit": source_commit},
-        "grant": {"grant_sha256": "b" * 64},
-        "ledger_event": _ledger_event(),
+        "authorization_record": authorization,
+        "grant": grant,
+        "ledger_event": ledger_event,
         "run_journal": {"terminal_event_required": True},
         "observation_inventory": _synthetic_inventory(payload),
         "payload": payload,
         "payload_sha256": s4_8.canonical_sha256(payload),
+        "evaluation_state": "evaluation_completed",
         "evaluation": evaluation,
+        "evaluation_sha256": s4_8.canonical_sha256(evaluation),
         "run_failure": failure,
         "runtime_provenance": s4_8._runtime_dependency_provenance(),
     }
@@ -408,19 +445,25 @@ def test_terminal_journal_write_failure_downgrades_same_run_to_failed(
     payload = build_synthetic_payload(ROOT)
     payload["sim_vs_real"] = s4_8.build_simulation_comparisons(ROOT)
     evaluation = s4_8.evaluate_payload(payload, repo_root=ROOT)
+    authorization, grant, ledger_event = _authorization_evidence(
+        config,
+        source_commit=source_commit,
+    )
     derived = {
         "schema": s4_8.DERIVED_INPUT_SCHEMA,
         "tool_version": s4_8.TOOL_VERSION,
         "source_commit": source_commit,
         "event_time_utc": "2030-01-01T00:00:00Z",
-        "authorization_record": {"source_commit": source_commit},
-        "grant": {"grant_sha256": "b" * 64},
-        "ledger_event": _ledger_event(),
+        "authorization_record": authorization,
+        "grant": grant,
+        "ledger_event": ledger_event,
         "run_journal": {"terminal_event_required": True},
         "observation_inventory": _synthetic_inventory(payload),
         "payload": payload,
         "payload_sha256": s4_8.canonical_sha256(payload),
+        "evaluation_state": "evaluation_completed",
         "evaluation": evaluation,
+        "evaluation_sha256": s4_8.canonical_sha256(evaluation),
         "run_failure": None,
         "runtime_provenance": s4_8._runtime_dependency_provenance(),
     }
