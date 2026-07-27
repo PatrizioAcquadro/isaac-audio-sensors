@@ -25,6 +25,7 @@ import wave
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, suppress
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from statistics import median
@@ -112,6 +113,10 @@ POST_CONSUMPTION_PROGRESS_QUARANTINE_NAME = "post_consumption_progress_quarantin
 AUTHORIZATION_RECORD_NAME = "authorization_record.v1.json"
 GRANT_PUBLICATION_STAGING_NAME = ".s4_8_grant_publication.v1.staging"
 AUTHORIZED_EXECUTION_LOCK_PATH = Path("dataset/.s4_8_authorized_execution.lock")
+_ACTIVE_EXECUTION_LOCK: ContextVar[tuple[int, str] | None] = ContextVar(
+    "s4_8_active_execution_lock",
+    default=None,
+)
 AUTHORIZATION_RECORD_SCHEMA = "ias.s4_8.authorization_record.v1"
 AUTHORIZATION_RECORD_FIELDS = frozenset(
     {
@@ -645,14 +650,20 @@ def create_grant(
     publication_parent = publication_root.parent
     ledger_path = root / config["grant"]["ledger_path"]
     stage = publication_parent / GRANT_PUBLICATION_STAGING_NAME
-    lock_path = publication_parent / ".s4_8_grant_creation.lock"
+    lock_path = root / "dataset/.s4_8_grant_creation.lock"
     _ensure_durable_directory(
-        publication_parent,
+        lock_path.parent,
         parents=True,
         exist_ok=True,
-        boundary="grant_publication_parent",
+        boundary="grant_creation_lock_parent",
     )
     with _exclusive_transition_lock(lock_path):
+        _ensure_durable_directory(
+            publication_parent,
+            parents=True,
+            exist_ok=True,
+            boundary="grant_publication_parent",
+        )
         preopen = preopen_validate(
             root,
             source_commit=source_commit,
@@ -747,7 +758,7 @@ def create_grant(
         }
 
 
-def consume_grant_once(
+def _consume_grant_once(
     repo_root: Path,
     *,
     source_commit: str,
@@ -757,6 +768,7 @@ def consume_grant_once(
     """Consume the exact source-identified grant through the canonical interlock."""
 
     root = repo_root.resolve()
+    _require_execution_lock(root)
     config = load_contract(root)
     grant_path = root / config["grant"]["path"]
     ledger_path = root / config["grant"]["ledger_path"]
@@ -1093,7 +1105,7 @@ def _run_authorized_evaluation_once_locked(
         source_commit=source_commit,
         event_time_utc=event_time_utc,
     )
-    consumption = consume_grant_once(
+    consumption = _consume_grant_once(
         root,
         source_commit=source_commit,
         event_time_utc=event_time_utc,
@@ -1127,7 +1139,7 @@ def _run_authorized_evaluation_once_locked(
         }
         active_stage = "observation_analysis"
         _post_consumption_stage("observation_analysis")
-        payload, observation_inventory = build_real_payload(
+        payload, observation_inventory = _build_real_payload(
             root,
             progress_callback=lambda progress: _persist_post_consumption_progress(
                 _progress_path(root, config),
@@ -1264,7 +1276,7 @@ def _run_authorized_evaluation_once_locked(
     )
 
 
-def build_real_payload(
+def _build_real_payload(
     repo_root: Path,
     *,
     progress_callback: Callable[[Mapping[str, Any]], None] | None = None,
@@ -1272,6 +1284,7 @@ def build_real_payload(
     """Open and derive the real payload. Caller must have consumed the grant."""
 
     root = repo_root.resolve()
+    _require_execution_lock(root)
     config = load_contract(root)
     _require_consumed_ledger(root, config)
     seal = load_json(_repo_file(root, config["holdout"]["seal_path"]))
@@ -4967,11 +4980,24 @@ def _exclusive_execution_lock(path: Path) -> Iterator[None]:
             raise S48Error(
                 "S4.8 authorized execution is already active; state unchanged"
             ) from exc
+        token = _ACTIVE_EXECUTION_LOCK.set((os.getpid(), str(path.resolve())))
         try:
             _fsync_directory(path.parent)
             yield
         finally:
+            _ACTIVE_EXECUTION_LOCK.reset(token)
             fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+def _require_execution_lock(repo_root: Path) -> None:
+    expected = (
+        os.getpid(),
+        str((repo_root / AUTHORIZED_EXECUTION_LOCK_PATH).resolve()),
+    )
+    if _ACTIVE_EXECUTION_LOCK.get() != expected:
+        raise S48Error(
+            "S4.8 irreversible operation requires the authorized execution lock"
+        )
 
 
 def _ensure_durable_directory(
@@ -5458,9 +5484,7 @@ __all__ = [
     "OUTPUT_PATH",
     "S48Error",
     "build_evidence_package",
-    "build_real_payload",
     "build_simulation_comparisons",
-    "consume_grant_once",
     "create_grant",
     "evaluate_payload",
     "load_contract",

@@ -6,6 +6,7 @@ import json
 import multiprocessing
 import os
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
@@ -357,10 +358,10 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
         "_build_preconsumption_recovery_context",
         lambda *_args, **_kwargs: recovery_context,
     )
-    monkeypatch.setattr(s4_8, "consume_grant_once", fake_consume)
+    monkeypatch.setattr(s4_8, "_consume_grant_once", fake_consume)
     monkeypatch.setattr(
         s4_8,
-        "build_real_payload",
+        "_build_real_payload",
         lambda _root, **_kwargs: (payload, _inventory(payload)),
     )
     original_failure_builder = s4_8._build_terminal_failure_package_in_place
@@ -731,15 +732,19 @@ def test_concurrent_consumers_have_exactly_one_success(
     }
     recovery_context["context_sha256"] = s4_8.canonical_sha256(recovery_context)
     errors: list[str] = []
+    (tmp_path / "dataset").mkdir()
 
     def consume() -> bool:
         try:
-            s4_8.consume_grant_once(
-                tmp_path,
-                source_commit=source_commit,
-                event_time_utc="2030-01-01T00:00:00Z",
-                recovery_context=recovery_context,
-            )
+            with s4_8._exclusive_execution_lock(
+                tmp_path / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
+            ):
+                s4_8._consume_grant_once(
+                    tmp_path,
+                    source_commit=source_commit,
+                    event_time_utc="2030-01-01T00:00:00Z",
+                    recovery_context=recovery_context,
+                )
         except (S44Error, s4_8.S48Error) as exc:
             errors.append(str(exc))
             return False
@@ -804,8 +809,13 @@ def test_consumption_rejects_authorization_before_irreversible_transition(
         raise AssertionError("authorization failure reached grant consumption")
 
     monkeypatch.setattr(s4_8, "consume_s4_8_grant", forbidden_consume)
-    with pytest.raises(s4_8.S48Error, match="authorization"):
-        s4_8.consume_grant_once(
+    with (
+        s4_8._exclusive_execution_lock(
+            tmp_path / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
+        ),
+        pytest.raises(s4_8.S48Error, match="authorization"),
+    ):
+        s4_8._consume_grant_once(
             tmp_path,
             source_commit=source_commit,
             event_time_utc="2030-01-01T00:00:00Z",
@@ -850,7 +860,7 @@ def _install_authorized_run_harness(
     config["evidence"]["run_journal_path"] = "state/journal.jsonl"
     config["evidence"]["output_path"] = "output/S4.8"
     grant_path = tmp_path / config["grant"]["path"]
-    grant_path.parent.mkdir(parents=True)
+    grant_path.parent.mkdir(parents=True, exist_ok=True)
     grant_id = f"s4_8_corrective_03_{source_commit}"
     grant_path.write_text(
         s4_8.pretty_json({"grant_id": grant_id, "grant_sha256": "c" * 64}),
@@ -994,9 +1004,307 @@ def _install_authorized_run_harness(
             )
         return payload, inventory
 
-    monkeypatch.setattr(s4_8, "consume_grant_once", fake_consume)
-    monkeypatch.setattr(s4_8, "build_real_payload", fake_payload)
+    monkeypatch.setattr(s4_8, "_consume_grant_once", fake_consume)
+    monkeypatch.setattr(s4_8, "_build_real_payload", fake_payload)
     return config, source_commit, context, expected_evaluation
+
+
+def _spawned_execution_lock_owner(
+    repo_root: str,
+    ready,
+    release,
+) -> None:
+    root = Path(repo_root)
+    with s4_8._exclusive_execution_lock(
+        root / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
+    ):
+        ready.set()
+        release.wait(timeout=120)
+
+
+def _spawned_irreversible_helper(
+    repo_root: str,
+    helper_name: str,
+    touched_path: str,
+    outcome,
+) -> None:
+    root = Path(repo_root)
+    touched = Path(touched_path)
+
+    def forbidden_contract(_root: Path):
+        touched.write_text("state inspected\n", encoding="utf-8")
+        raise AssertionError("irreversible helper inspected state before lock check")
+
+    s4_8.load_contract = forbidden_contract
+    try:
+        if helper_name == "_consume_grant_once":
+            s4_8._consume_grant_once(
+                root,
+                source_commit="a" * 40,
+                event_time_utc="2030-01-01T00:00:00Z",
+                recovery_context={},
+            )
+        else:
+            s4_8._build_real_payload(root)
+    except BaseException as exc:
+        outcome.put((type(exc).__name__, str(exc)))
+    else:
+        outcome.put(("result", "unexpected success"))
+
+
+def _spawned_create_grant(
+    repo_root: str,
+    authorization_id: str,
+    start,
+    outcome,
+) -> None:
+    root = Path(repo_root)
+    config = copy.deepcopy(s4_8.load_contract(ROOT))
+    s4_8.load_contract = lambda _root: config
+    s4_8.preopen_validate = lambda *_args, **_kwargs: {
+        "seal_file_sha256": "b" * 64,
+        "split_plan_sha256": "d" * 64,
+        "prerequisite": {
+            key: f"value-{key}" for key in PREREQUISITE_BINDING_FIELDS
+        },
+    }
+    start.wait(timeout=30)
+    try:
+        result = s4_8.create_grant(
+            root,
+            source_commit="a" * 40,
+            authorization_id=authorization_id,
+        )
+    except BaseException as exc:
+        outcome.put(("error", type(exc).__name__, str(exc)))
+    else:
+        outcome.put(("result", result))
+
+
+def _spawned_recovery_run(
+    repo_root: str,
+    *,
+    owner: bool,
+    ready,
+    outcome,
+) -> None:
+    root = Path(repo_root)
+    monkeypatch = pytest.MonkeyPatch()
+    config, source_commit, _context, _expected = _install_authorized_run_harness(
+        root,
+        monkeypatch,
+    )
+    consume_count = root / "consume.count"
+    observation_count = root / "observation.count"
+    original_consume = s4_8._consume_grant_once
+    original_payload = s4_8._build_real_payload
+
+    def counted_consume(*args, **kwargs):
+        with consume_count.open("a", encoding="utf-8") as stream:
+            stream.write("consume\n")
+        return original_consume(*args, **kwargs)
+
+    def counted_payload(*args, **kwargs):
+        with observation_count.open("a", encoding="utf-8") as stream:
+            stream.write("observe\n")
+        return original_payload(*args, **kwargs)
+
+    monkeypatch.setattr(s4_8, "_consume_grant_once", counted_consume)
+    monkeypatch.setattr(s4_8, "_build_real_payload", counted_payload)
+    if owner:
+
+        def stop_before_observation(stage: str) -> None:
+            if stage == "observation_analysis":
+                ready.set()
+                while True:
+                    time.sleep(1)
+
+        monkeypatch.setattr(
+            s4_8,
+            "_post_consumption_stage",
+            stop_before_observation,
+        )
+    try:
+        result = s4_8.run_authorized_evaluation_once(
+            root,
+            source_commit=source_commit,
+            event_time_utc=(
+                "2030-01-01T00:00:00Z"
+                if owner
+                else "2099-12-31T23:59:59Z"
+            ),
+        )
+    except BaseException as exc:
+        outcome.put(("error", type(exc).__name__, str(exc)))
+    else:
+        outcome.put(("result", result, config))
+    finally:
+        monkeypatch.undo()
+
+
+def test_irreversible_helpers_are_private_and_lock_scoped_in_spawned_processes(
+    tmp_path: Path,
+) -> None:
+    assert "consume_grant_once" not in s4_8.__all__
+    assert "build_real_payload" not in s4_8.__all__
+    assert not hasattr(s4_8, "consume_grant_once")
+    assert not hasattr(s4_8, "build_real_payload")
+
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    release = context.Event()
+    owner = context.Process(
+        target=_spawned_execution_lock_owner,
+        args=(tmp_path.as_posix(), ready, release),
+    )
+    owner.start()
+    assert ready.wait(timeout=15)
+
+    for helper_name in ("_consume_grant_once", "_build_real_payload"):
+        touched = tmp_path / f"{helper_name}.state-touched"
+        outcome = context.Queue()
+        contender = context.Process(
+            target=_spawned_irreversible_helper,
+            args=(
+                tmp_path.as_posix(),
+                helper_name,
+                touched.as_posix(),
+                outcome,
+            ),
+        )
+        contender.start()
+        contender.join(timeout=15)
+        assert not contender.is_alive()
+        result = outcome.get(timeout=5)
+        assert result[0] == "S48Error"
+        assert "requires the authorized execution lock" in result[1]
+        assert not touched.exists()
+
+    assert not (tmp_path / "dataset/S4.8").exists()
+    assert not (tmp_path / "outputs/isaac_audio_sensors/S4/S4.8").exists()
+    release.set()
+    owner.join(timeout=15)
+    assert not owner.is_alive()
+
+
+def test_spawned_concurrent_identical_pristine_grant_creation_is_idempotent(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "dataset").mkdir()
+    context = multiprocessing.get_context("spawn")
+    start = context.Event()
+    outcome = context.Queue()
+    workers = [
+        context.Process(
+            target=_spawned_create_grant,
+            args=(tmp_path.as_posix(), "same-authorization", start, outcome),
+        )
+        for _ in range(2)
+    ]
+    for worker in workers:
+        worker.start()
+    start.set()
+    for worker in workers:
+        worker.join(timeout=30)
+        assert not worker.is_alive()
+    results = [outcome.get(timeout=5) for _ in workers]
+    assert [item[0] for item in results] == ["result", "result"]
+    assert results[0][1] == results[1][1]
+    publication = tmp_path / "dataset/S4.8/access"
+    assert {path.name for path in publication.iterdir()} == {
+        "authorization_record.v1.json",
+        "holdout_access_grant.corrective_03.v1.json",
+    }
+    config = s4_8.load_contract(ROOT)
+    assert not (tmp_path / config["grant"]["ledger_path"]).exists()
+    assert not (tmp_path / "dataset/S4.8/.s4_8_grant_publication.v1.staging").exists()
+
+
+def test_spawned_concurrent_mismatched_grant_creation_fails_without_partial_state(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "dataset").mkdir()
+    context = multiprocessing.get_context("spawn")
+    start = context.Event()
+    outcome = context.Queue()
+    workers = [
+        context.Process(
+            target=_spawned_create_grant,
+            args=(tmp_path.as_posix(), authorization_id, start, outcome),
+        )
+        for authorization_id in ("authorization-a", "authorization-b")
+    ]
+    for worker in workers:
+        worker.start()
+    start.set()
+    for worker in workers:
+        worker.join(timeout=30)
+        assert not worker.is_alive()
+    results = [outcome.get(timeout=5) for _ in workers]
+    assert [item[0] for item in results].count("result") == 1
+    error = next(item for item in results if item[0] == "error")
+    assert error[1] == "S48Error"
+    assert "publication validation failed" in error[2]
+    publication = tmp_path / "dataset/S4.8/access"
+    assert {path.name for path in publication.iterdir()} == {
+        "authorization_record.v1.json",
+        "holdout_access_grant.corrective_03.v1.json",
+    }
+    config = s4_8.load_contract(ROOT)
+    assert not (tmp_path / config["grant"]["ledger_path"]).exists()
+    assert not (tmp_path / "dataset/S4.8/.s4_8_grant_publication.v1.staging").exists()
+
+
+def test_spawned_owner_termination_recovers_without_reconsumption_or_reopening(
+    tmp_path: Path,
+) -> None:
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    owner_outcome = context.Queue()
+    owner = context.Process(
+        target=_spawned_recovery_run,
+        kwargs={
+            "repo_root": tmp_path.as_posix(),
+            "owner": True,
+            "ready": ready,
+            "outcome": owner_outcome,
+        },
+    )
+    owner.start()
+    assert ready.wait(timeout=30)
+    owner.terminate()
+    owner.join(timeout=15)
+    assert not owner.is_alive()
+
+    recovery_outcome = context.Queue()
+    recovery_ready = context.Event()
+    recovery = context.Process(
+        target=_spawned_recovery_run,
+        kwargs={
+            "repo_root": tmp_path.as_posix(),
+            "owner": False,
+            "ready": recovery_ready,
+            "outcome": recovery_outcome,
+        },
+    )
+    recovery.start()
+    recovery.join(timeout=60)
+    assert not recovery.is_alive()
+    recovered = recovery_outcome.get(timeout=5)
+    assert recovered[0] == "result"
+    assert recovered[1]["status"] == "failed"
+    config = recovered[2]
+    assert (tmp_path / "consume.count").read_text(encoding="utf-8").splitlines() == [
+        "consume"
+    ]
+    assert not (tmp_path / "observation.count").exists()
+    ledger = tmp_path / config["grant"]["ledger_path"]
+    assert len(ledger.read_text(encoding="utf-8").splitlines()) == 1
+    journal = s4_8._load_run_journal(
+        tmp_path / config["evidence"]["run_journal_path"]
+    )
+    assert [record["event"] for record in journal].count("grant_consumed") == 1
+    assert [record["event"] for record in journal].count("first_run_terminal") == 1
 
 
 def test_independent_process_contention_cannot_touch_active_run(
@@ -1092,8 +1400,8 @@ def test_owner_process_termination_releases_lock_for_exact_once_recovery(
     first_outcome = context.Queue()
     contender_outcome = context.Queue()
     recovery_outcome = context.Queue()
-    original_consume = s4_8.consume_grant_once
-    original_payload = s4_8.build_real_payload
+    original_consume = s4_8._consume_grant_once
+    original_payload = s4_8._build_real_payload
 
     def counted_consume(*args, **kwargs):
         with consumption_count.get_lock():
@@ -1110,8 +1418,8 @@ def test_owner_process_termination_releases_lock_for_exact_once_recovery(
             owner_active.set()
             never_release.wait(timeout=120)
 
-    monkeypatch.setattr(s4_8, "consume_grant_once", counted_consume)
-    monkeypatch.setattr(s4_8, "build_real_payload", counted_payload)
+    monkeypatch.setattr(s4_8, "_consume_grant_once", counted_consume)
+    monkeypatch.setattr(s4_8, "_build_real_payload", counted_payload)
     monkeypatch.setattr(s4_8, "_post_consumption_stage", block_live_owner)
     owner = context.Process(
         target=_authorized_run_process,
@@ -1542,14 +1850,14 @@ def test_progress_crash_boundaries_restart_from_highest_authenticated_state(
     monkeypatch.setattr(s4_8, "_progress_persistence_step", lambda _step: None)
     monkeypatch.setattr(
         s4_8,
-        "consume_grant_once",
+        "_consume_grant_once",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("restart reconsumed the grant")
         ),
     )
     monkeypatch.setattr(
         s4_8,
-        "build_real_payload",
+        "_build_real_payload",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("restart reopened observations")
         ),
@@ -1703,25 +2011,28 @@ def test_opening_only_journal_recovers_without_reopening(
     config, source_commit, context, _expected = _install_authorized_run_harness(
         tmp_path, monkeypatch
     )
-    consumption = s4_8.consume_grant_once(
-        tmp_path,
-        source_commit=source_commit,
-        event_time_utc="2030-01-01T00:00:00Z",
-        recovery_context=context,
-    )
+    with s4_8._exclusive_execution_lock(
+        tmp_path / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
+    ):
+        consumption = s4_8._consume_grant_once(
+            tmp_path,
+            source_commit=source_commit,
+            event_time_utc="2030-01-01T00:00:00Z",
+            recovery_context=context,
+        )
     assert consumption["journal_records"][-1]["event"] == (
         "observation_opening_authorized"
     )
     monkeypatch.setattr(
         s4_8,
-        "build_real_payload",
+        "_build_real_payload",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("opening-only recovery reopened observations")
         ),
     )
     monkeypatch.setattr(
         s4_8,
-        "consume_grant_once",
+        "_consume_grant_once",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("opening-only recovery reconsumed the grant")
         ),
@@ -1987,14 +2298,14 @@ def test_finalization_directory_boundary_crash_recovers_exactly_once(
     )
     monkeypatch.setattr(
         s4_8,
-        "consume_grant_once",
+        "_consume_grant_once",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("recovery reconsumed the grant")
         ),
     )
     monkeypatch.setattr(
         s4_8,
-        "build_real_payload",
+        "_build_real_payload",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("recovery reopened observations")
         ),
@@ -2054,14 +2365,14 @@ def test_progress_directory_boundary_crash_recovers_without_reopening(
     )
     monkeypatch.setattr(
         s4_8,
-        "consume_grant_once",
+        "_consume_grant_once",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("progress recovery reconsumed the grant")
         ),
     )
     monkeypatch.setattr(
         s4_8,
-        "build_real_payload",
+        "_build_real_payload",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("progress recovery reopened observations")
         ),

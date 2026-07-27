@@ -172,8 +172,13 @@ def test_analysis_failure_preserves_exact_n_take_progress(
     )
     monkeypatch.setattr(s4_8, "_analyze_real_take", analyze)
 
-    with pytest.raises(s4_8.S48PartialAnalysisError) as raised:
-        s4_8.build_real_payload(tmp_path)
+    with (
+        s4_8._exclusive_execution_lock(
+            tmp_path / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
+        ),
+        pytest.raises(s4_8.S48PartialAnalysisError) as raised,
+    ):
+        s4_8._build_real_payload(tmp_path)
     error = raised.value
     assert len(error.payload["takes"]) == completed_before_failure
     selected = [
