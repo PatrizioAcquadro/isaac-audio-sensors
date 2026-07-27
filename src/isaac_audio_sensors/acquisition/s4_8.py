@@ -111,6 +111,7 @@ POST_CONSUMPTION_PROGRESS_NAME = "post_consumption_progress.v2"
 POST_CONSUMPTION_PROGRESS_QUARANTINE_NAME = "post_consumption_progress_quarantine.v1"
 AUTHORIZATION_RECORD_NAME = "authorization_record.v1.json"
 GRANT_PUBLICATION_STAGING_NAME = ".s4_8_grant_publication.v1.staging"
+AUTHORIZED_EXECUTION_LOCK_PATH = Path("dataset/.s4_8_authorized_execution.lock")
 AUTHORIZATION_RECORD_SCHEMA = "ias.s4_8.authorization_record.v1"
 AUTHORIZATION_RECORD_FIELDS = frozenset(
     {
@@ -645,7 +646,12 @@ def create_grant(
     ledger_path = root / config["grant"]["ledger_path"]
     stage = publication_parent / GRANT_PUBLICATION_STAGING_NAME
     lock_path = publication_parent / ".s4_8_grant_creation.lock"
-    publication_parent.mkdir(parents=True, exist_ok=True)
+    _ensure_durable_directory(
+        publication_parent,
+        parents=True,
+        exist_ok=True,
+        boundary="grant_publication_parent",
+    )
     with _exclusive_transition_lock(lock_path):
         preopen = preopen_validate(
             root,
@@ -697,7 +703,12 @@ def create_grant(
         if existing is not None:
             return existing
 
-        stage.mkdir(parents=False, exist_ok=False)
+        _ensure_durable_directory(
+            stage,
+            parents=False,
+            exist_ok=False,
+            boundary="grant_staging",
+        )
         _grant_creation_step("staging_created")
         staged_grant = stage / grant_path.name
         staged_authorization = stage / AUTHORIZATION_RECORD_NAME
@@ -757,6 +768,11 @@ def consume_grant_once(
         )
     lock_path = transition.parent / ".s4_8_opening_transition.lock"
     with _exclusive_transition_lock(lock_path):
+        _cleanup_opening_transition_staging(
+            transition.parent,
+            ledger_name=ledger_path.name,
+            journal_name=journal_path.name,
+        )
         grant = load_json(grant_path)
         expected_id = config["grant"]["grant_id_template"].format(
             source_commit=source_commit
@@ -780,14 +796,18 @@ def consume_grant_once(
             source_commit=source_commit,
         )
         if transition.exists():
-            raise S48Error("S4.8 opening transition already claimed; retry forbidden")
-        transition.parent.mkdir(parents=True, exist_ok=True)
-        staging = Path(
-            tempfile.mkdtemp(
-                prefix=".opening_transition.",
-                suffix=".staging",
-                dir=transition.parent,
+            _ensure_durable_directory(
+                transition,
+                parents=False,
+                exist_ok=True,
+                boundary="opening_transition",
             )
+            raise S48Error("S4.8 opening transition already claimed; retry forbidden")
+        staging = _durable_mkdtemp(
+            parent=transition.parent,
+            prefix=".opening_transition.",
+            suffix=".staging",
+            boundary="opening_transition_staging",
         )
         try:
             staged_ledger = staging / ledger_path.name
@@ -832,9 +852,40 @@ def consume_grant_once(
             finally:
                 os.close(parent_fd)
         except Exception:
-            shutil.rmtree(staging, ignore_errors=True)
+            if staging.exists():
+                _remove_directory_durably(staging)
             raise
     return {**result, "journal_records": records}
+
+
+def _cleanup_opening_transition_staging(
+    parent: Path,
+    *,
+    ledger_name: str,
+    journal_name: str,
+) -> None:
+    """Remove only private transition stages left by a terminated owner."""
+
+    for path in sorted(parent.glob(".opening_transition.*.staging")):
+        if path.is_symlink() or not path.is_dir():
+            raise S48Error("S4.8 opening-transition staging path is invalid")
+        allowed = {
+            ledger_name,
+            journal_name,
+            RECOVERY_CONTEXT_NAME,
+        }
+        for item in path.iterdir():
+            if item.is_symlink() or not item.is_file():
+                raise S48Error("S4.8 opening-transition staging contains invalid state")
+            if item.name not in allowed and not any(
+                item.name.startswith(f".{name}.")
+                and item.name.endswith(".staging")
+                for name in allowed
+            ):
+                raise S48Error(
+                    "S4.8 opening-transition staging contains unexpected state"
+                )
+        _remove_directory_durably(path)
 
 
 def _validate_recovery_context_for_consumption(
@@ -949,6 +1000,10 @@ def _progress_persistence_step(_step: str) -> None:
     """Fault-injection boundary for journal-anchored progress persistence."""
 
 
+def _directory_creation_step(_step: str, _path: Path) -> None:
+    """Fault-injection boundary for durable one-shot directory creation."""
+
+
 def run_authorized_evaluation_once(
     repo_root: Path,
     *,
@@ -958,7 +1013,25 @@ def run_authorized_evaluation_once(
     """Consume once, open once, evaluate once, and preserve the first input."""
 
     root = repo_root.resolve()
+    lock_path = root / AUTHORIZED_EXECUTION_LOCK_PATH
+    with _exclusive_execution_lock(lock_path):
+        return _run_authorized_evaluation_once_locked(
+            root,
+            source_commit=source_commit,
+            event_time_utc=event_time_utc,
+        )
+
+
+def _run_authorized_evaluation_once_locked(
+    root: Path,
+    *,
+    source_commit: str,
+    event_time_utc: str,
+) -> dict[str, Any]:
+    """Run or recover while holding the process-scoped execution lock."""
+
     config = load_contract(root)
+    _anchor_existing_one_shot_directories(root, config)
     derived_path = root / config["evidence"]["derived_input_path"]
     journal_path = root / config["evidence"]["run_journal_path"]
     output = root / config["evidence"]["output_path"]
@@ -1146,7 +1219,7 @@ def run_authorized_evaluation_once(
         }
         active_stage = "derived_state_persistence"
         _post_consumption_stage("derived_state_persistence")
-        _atomic_write_text(derived_path, pretty_json(derived))
+        _persist_derived_state(derived_path, derived)
         _persist_post_consumption_progress(
             _progress_path(root, config),
             journal_path=journal_path,
@@ -1494,7 +1567,12 @@ def _persist_post_consumption_progress(
         **snapshot_payload,
         "snapshot_sha256": canonical_sha256(snapshot_payload),
     }
-    path.mkdir(parents=True, exist_ok=True)
+    _ensure_durable_directory(
+        path,
+        parents=True,
+        exist_ok=True,
+        boundary="progress_snapshot_root",
+    )
     snapshot_name = f"{sequence:06d}.{snapshot['snapshot_sha256']}.json"
     snapshot_path = path / snapshot_name
     if snapshot_path.exists():
@@ -1872,7 +1950,12 @@ def _quarantine_progress_residue(progress_root: Path, residue: Path) -> None:
     if not residue.is_file() or residue.is_symlink():
         raise S48Error("S4.8 progress residue is not a regular file")
     quarantine = progress_root.with_name(POST_CONSUMPTION_PROGRESS_QUARANTINE_NAME)
-    quarantine.mkdir(parents=False, exist_ok=True)
+    _ensure_durable_directory(
+        quarantine,
+        parents=False,
+        exist_ok=True,
+        boundary="progress_quarantine",
+    )
     digest = sha256_file(residue)
     destination = quarantine / f"{digest}.crash-residue"
     if destination.exists():
@@ -2188,7 +2271,7 @@ def _recover_post_consumption_run(
         "runtime_provenance": recovered_runtime,
     }
     derived_path = repo_root / config["evidence"]["derived_input_path"]
-    _atomic_write_text(derived_path, pretty_json(derived))
+    _persist_derived_state(derived_path, derived)
     finalized, package_result = _finalize_first_run(
         repo_root,
         config=config,
@@ -2330,11 +2413,28 @@ def _finalize_first_run(
     derived_path = root / config["evidence"]["derived_input_path"]
     journal_path = root / config["evidence"]["run_journal_path"]
     staging = _finalization_staging_path(output)
-    if output.exists() or staging.exists():
+    if output.exists():
         raise S48Error("S4.8 finalization destination already exists")
+    if staging.exists():
+        records = _load_run_journal(journal_path)
+        if any(
+            record.get("event")
+            in {
+                "first_run_finalization_prepared",
+                "first_run_downgrade_intent",
+                "first_run_finalization_failed",
+            }
+            for record in records
+        ):
+            raise S48Error("S4.8 finalization destination already exists")
+        _remove_directory_durably(staging)
     _validate_source_commit(root, source_commit, require_current_head=True)
-    staging.parent.mkdir(parents=True, exist_ok=True)
-    staging.mkdir()
+    _ensure_durable_directory(
+        staging,
+        parents=True,
+        exist_ok=False,
+        boundary="finalization_staging",
+    )
     prepared: dict[str, Any] | None = None
     try:
         try:
@@ -2356,7 +2456,8 @@ def _finalize_first_run(
         except Exception as exc:
             if failure_only:
                 raise
-            shutil.rmtree(staging, ignore_errors=True)
+            if staging.exists():
+                _remove_directory_durably(staging)
             derived = {
                 **derived,
                 "run_failure": _run_failure_record(
@@ -2364,8 +2465,13 @@ def _finalize_first_run(
                     error=exc,
                 ),
             }
-            _atomic_write_text(derived_path, pretty_json(derived))
-            staging.mkdir()
+            _persist_derived_state(derived_path, derived)
+            _ensure_durable_directory(
+                staging,
+                parents=True,
+                exist_ok=False,
+                boundary="terminal_failure_staging",
+            )
             package_result = _build_terminal_failure_package_in_place(
                 root,
                 derived,
@@ -2417,7 +2523,8 @@ def _finalize_first_run(
                 event_time_utc=event_time_utc,
                 error=exc,
             )
-        shutil.rmtree(staging, ignore_errors=True)
+        if staging.exists():
+            _remove_directory_durably(staging)
         raise
     return (
         derived,
@@ -2512,20 +2619,34 @@ def _continue_failure_downgrade(
         raise S48Error("S4.8 provisional evidence authentication failed")
     _validate_manifest(candidate)
     if candidate != archive:
-        archive.parent.mkdir(parents=True, exist_ok=True)
+        _ensure_durable_directory(
+            archive.parent,
+            parents=True,
+            exist_ok=True,
+            boundary="provisional_archive_parent",
+        )
+        if archive.exists():
+            if archive.is_symlink() or not archive.is_dir() or any(archive.iterdir()):
+                raise S48Error("S4.8 provisional evidence archive is invalid")
+            _remove_directory_durably(archive)
         os.replace(candidate, archive)
         _fsync_directory(archive.parent)
     _downgrade_step("provisional_archived")
     failure = dict(intent["run_failure"])
     derived = {**derived, "run_failure": failure}
-    _atomic_write_text(derived_path, pretty_json(derived))
+    _persist_derived_state(derived_path, derived)
     _downgrade_step("failure_derived_persisted")
     if staging.exists():
         if output.exists():
             raise S48Error("S4.8 downgrade has two failure packages")
-        shutil.rmtree(staging)
+        _remove_directory_durably(staging)
     if not output.exists():
-        staging.mkdir(parents=True)
+        _ensure_durable_directory(
+            staging,
+            parents=True,
+            exist_ok=False,
+            boundary="downgraded_failure_staging",
+        )
         package_result = _build_terminal_failure_package_in_place(
             repo_root,
             derived,
@@ -2677,7 +2798,12 @@ def _recover_pending_finalization(
             "evidence_manifest_sha256"
         ):
             raise S48Error("S4.8 staged finalization manifest mismatch")
-        output.parent.mkdir(parents=True, exist_ok=True)
+        _ensure_durable_directory(
+            output.parent,
+            parents=True,
+            exist_ok=True,
+            boundary="recovered_output_parent",
+        )
         _fsync_package_tree(staging)
         os.replace(staging, output)
         _fsync_directory(output.parent)
@@ -2936,13 +3062,11 @@ def _build_evidence_package_atomic(
     if destination.exists():
         raise S48Error(f"refusing to overwrite S4.8 package: {destination}")
     _recomputed_evaluation(root, derived)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    staging = Path(
-        tempfile.mkdtemp(
-            prefix=f".{destination.name}.",
-            suffix=".staging",
-            dir=destination.parent,
-        )
+    staging = _durable_mkdtemp(
+        parent=destination.parent,
+        prefix=f".{destination.name}.",
+        suffix=".staging",
+        boundary="evidence_package_staging",
     )
     try:
         result = _build_evidence_package_in_place(
@@ -2955,7 +3079,8 @@ def _build_evidence_package_atomic(
         os.replace(staging, destination)
         _fsync_directory(destination.parent)
     except Exception as exc:
-        shutil.rmtree(staging, ignore_errors=True)
+        if staging.exists():
+            _remove_directory_durably(staging)
         if destination.exists():
             raise S48Error(
                 f"atomic S4.8 finalization left an unexpected destination: "
@@ -3619,7 +3744,12 @@ def replay_evidence_package(
     source_commit = load_json(canonical / "provenance.json")["source_commit"]
     final = load_json(canonical / "final_validation.json")
     if final.get("package_profile") == TERMINAL_FAILURE_PROFILE:
-        output.mkdir(parents=True)
+        _ensure_durable_directory(
+            output,
+            parents=True,
+            exist_ok=False,
+            boundary="replay_output",
+        )
         try:
             _build_terminal_failure_package_in_place(
                 repo_root.resolve(),
@@ -3628,7 +3758,8 @@ def replay_evidence_package(
                 source_commit=source_commit,
             )
         except Exception:
-            shutil.rmtree(output, ignore_errors=True)
+            if output.exists():
+                _remove_directory_durably(output)
             raise
     else:
         build_evidence_package(
@@ -4805,7 +4936,12 @@ def _opening_journal_records(
 
 @contextmanager
 def _exclusive_transition_lock(path: Path) -> Iterator[None]:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_durable_directory(
+        path.parent,
+        parents=True,
+        exist_ok=True,
+        boundary="transition_lock_parent",
+    )
     with path.open("a+b") as stream:
         fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
         try:
@@ -4814,8 +4950,145 @@ def _exclusive_transition_lock(path: Path) -> Iterator[None]:
             fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
+@contextmanager
+def _exclusive_execution_lock(path: Path) -> Iterator[None]:
+    """Acquire the persistent nonblocking lock for the whole authorized run."""
+
+    _ensure_durable_directory(
+        path.parent,
+        parents=True,
+        exist_ok=True,
+        boundary="execution_lock_parent",
+    )
+    with path.open("a+b") as stream:
+        try:
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise S48Error(
+                "S4.8 authorized execution is already active; state unchanged"
+            ) from exc
+        try:
+            _fsync_directory(path.parent)
+            yield
+        finally:
+            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+def _ensure_durable_directory(
+    path: Path,
+    *,
+    parents: bool,
+    exist_ok: bool,
+    boundary: str,
+) -> bool:
+    """Create directories one at a time and durably publish each entry."""
+
+    if path.is_symlink():
+        raise S48Error(f"S4.8 state directory may not be a symlink: {path}")
+    if path.exists():
+        if not path.is_dir():
+            raise S48Error(f"S4.8 state directory is invalid: {path}")
+        if not exist_ok:
+            raise FileExistsError(path)
+        _directory_creation_step(f"{boundary}:before_parent_fsync", path)
+        _fsync_directory(path.parent)
+        _directory_creation_step(f"{boundary}:after_parent_fsync", path)
+        return False
+
+    missing = [path]
+    if parents:
+        ancestor = path.parent
+        while not ancestor.exists() and not ancestor.is_symlink():
+            missing.append(ancestor)
+            if ancestor == ancestor.parent:
+                break
+            ancestor = ancestor.parent
+        if ancestor.is_symlink() or not ancestor.is_dir():
+            raise S48Error(f"S4.8 state directory ancestor is invalid: {ancestor}")
+    elif not path.parent.is_dir() or path.parent.is_symlink():
+        raise S48Error(f"S4.8 state directory parent is invalid: {path.parent}")
+
+    for directory in reversed(missing):
+        _directory_creation_step(f"{boundary}:before_mkdir", directory)
+        directory.mkdir()
+        _directory_creation_step(f"{boundary}:after_mkdir", directory)
+        _directory_creation_step(f"{boundary}:before_parent_fsync", directory)
+        _fsync_directory(directory.parent)
+        _directory_creation_step(f"{boundary}:after_parent_fsync", directory)
+    return True
+
+
+def _durable_mkdtemp(
+    *,
+    parent: Path,
+    prefix: str,
+    suffix: str,
+    boundary: str,
+) -> Path:
+    """Create and durably anchor one private same-filesystem directory."""
+
+    _ensure_durable_directory(
+        parent,
+        parents=True,
+        exist_ok=True,
+        boundary=f"{boundary}_parent",
+    )
+    _directory_creation_step(f"{boundary}:before_mkdir", parent)
+    path = Path(tempfile.mkdtemp(prefix=prefix, suffix=suffix, dir=parent))
+    _directory_creation_step(f"{boundary}:after_mkdir", path)
+    _directory_creation_step(f"{boundary}:before_parent_fsync", path)
+    _fsync_directory(parent)
+    _directory_creation_step(f"{boundary}:after_parent_fsync", path)
+    return path
+
+
+def _remove_directory_durably(path: Path) -> None:
+    if path.is_symlink() or not path.is_dir():
+        raise S48Error(f"S4.8 crash directory is invalid: {path}")
+    shutil.rmtree(path)
+    _fsync_directory(path.parent)
+
+
+def _anchor_existing_one_shot_directories(
+    repo_root: Path,
+    config: Mapping[str, Any],
+) -> None:
+    """Repair a possible crash gap between mkdir and containing-dir fsync."""
+
+    grant_path = repo_root / config["grant"]["path"]
+    journal_path = repo_root / config["evidence"]["run_journal_path"]
+    derived_path = repo_root / config["evidence"]["derived_input_path"]
+    output = repo_root / config["evidence"]["output_path"]
+    candidates = {
+        grant_path.parent.parent,
+        grant_path.parent,
+        journal_path.parent,
+        _progress_path(repo_root, config),
+        _progress_path(repo_root, config).with_name(
+            POST_CONSUMPTION_PROGRESS_QUARANTINE_NAME
+        ),
+        derived_path.parent,
+        derived_path.parent / "provisional_evidence.v1",
+        output,
+        _finalization_staging_path(output),
+    }
+    for path in sorted(candidates, key=lambda item: len(item.parts)):
+        if path.exists() or path.is_symlink():
+            _ensure_durable_directory(
+                path,
+                parents=False,
+                exist_ok=True,
+                boundary="existing_one_shot_state",
+            )
+
+
 def _atomic_write_text(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_durable_directory(
+        path.parent,
+        parents=True,
+        exist_ok=True,
+        boundary="atomic_write_parent",
+    )
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{path.name}.",
         suffix=".staging",
@@ -4836,6 +5109,16 @@ def _atomic_write_text(path: Path, content: str) -> None:
     except Exception:
         temporary.unlink(missing_ok=True)
         raise
+
+
+def _persist_derived_state(path: Path, derived: Mapping[str, Any]) -> None:
+    _ensure_durable_directory(
+        path.parent,
+        parents=True,
+        exist_ok=True,
+        boundary="derived_state_parent",
+    )
+    _atomic_write_text(path, pretty_json(dict(derived)))
 
 
 def _fsync_directory(path: Path) -> None:

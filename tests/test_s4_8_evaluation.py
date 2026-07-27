@@ -326,6 +326,72 @@ def test_grant_creation_crash_boundaries_are_atomic_and_retryable(
     assert not (tmp_path / config["grant"]["ledger_path"]).exists()
 
 
+@pytest.mark.parametrize(
+    ("boundary", "fault_step"),
+    [
+        (boundary, fault_step)
+        for boundary in ("grant_publication_parent", "grant_staging")
+        for fault_step in (
+            "before_mkdir",
+            "after_mkdir",
+            "before_parent_fsync",
+            "after_parent_fsync",
+        )
+    ],
+)
+def test_grant_directory_creation_crash_boundaries_are_retryable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    boundary: str,
+    fault_step: str,
+) -> None:
+    config = copy.deepcopy(load_contract(ROOT))
+    source_commit = "a" * 40
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
+    monkeypatch.setattr(
+        s4_8,
+        "preopen_validate",
+        lambda _root, source_commit, **_kwargs: {
+            "seal_file_sha256": "b" * 64,
+            "split_plan_sha256": "d" * 64,
+            "prerequisite": {
+                key: f"value-{key}" for key in s4_8.PREREQUISITE_BINDING_FIELDS
+            },
+        },
+    )
+    injected = False
+
+    def crash_at(step: str, _path: Path) -> None:
+        nonlocal injected
+        if step == f"{boundary}:{fault_step}" and not injected:
+            injected = True
+            raise _SimulatedGrantCreationCrash(step)
+
+    monkeypatch.setattr(s4_8, "_directory_creation_step", crash_at)
+    with pytest.raises(_SimulatedGrantCreationCrash):
+        create_grant(
+            tmp_path,
+            source_commit=source_commit,
+            authorization_id="directory-retry",
+        )
+    assert injected
+
+    monkeypatch.setattr(
+        s4_8,
+        "_directory_creation_step",
+        lambda _step, _path: None,
+    )
+    result = create_grant(
+        tmp_path,
+        source_commit=source_commit,
+        authorization_id="directory-retry",
+    )
+    grant_path = tmp_path / config["grant"]["path"]
+    assert s4_8.load_json(grant_path) == result["grant"]
+    assert not (grant_path.parent.parent / s4_8.GRANT_PUBLICATION_STAGING_NAME).exists()
+    assert not (tmp_path / config["grant"]["ledger_path"]).exists()
+
+
 def test_grant_creation_recovers_exact_legacy_partial_and_rejects_tampering(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

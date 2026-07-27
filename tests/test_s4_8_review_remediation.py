@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import copy
+import inspect
 import json
+import multiprocessing
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
@@ -30,6 +32,24 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class _SimulatedProcessCrash(BaseException):
     pass
+
+
+def _authorized_run_process(
+    repo_root: str,
+    source_commit: str,
+    event_time_utc: str,
+    outcomes,
+) -> None:
+    try:
+        result = s4_8.run_authorized_evaluation_once(
+            Path(repo_root),
+            source_commit=source_commit,
+            event_time_utc=event_time_utc,
+        )
+    except BaseException as exc:
+        outcomes.put(("error", type(exc).__name__, str(exc)))
+    else:
+        outcomes.put(("result", result))
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -979,6 +999,200 @@ def _install_authorized_run_harness(
     return config, source_commit, context, expected_evaluation
 
 
+def test_independent_process_contention_cannot_touch_active_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = multiprocessing.get_context("fork")
+    started = context.Event()
+    release = context.Event()
+    entered = context.Value("i", 0)
+    first_outcome = context.Queue()
+    second_outcome = context.Queue()
+    journal = (
+        tmp_path
+        / "dataset/S4.8/access/opening_transition.v1/first_run_journal.jsonl"
+    )
+
+    def active_owner(
+        root: Path,
+        *,
+        source_commit: str,
+        event_time_utc: str,
+    ) -> dict[str, object]:
+        del source_commit, event_time_utc
+        with entered.get_lock():
+            entered.value += 1
+        journal.parent.mkdir(parents=True, exist_ok=True)
+        journal.write_text("active-owner\n", encoding="utf-8")
+        started.set()
+        assert release.wait(timeout=30)
+        journal.write_text("owner-completed\n", encoding="utf-8")
+        return {"status": "passed", "owner": root.as_posix()}
+
+    monkeypatch.setattr(
+        s4_8,
+        "_run_authorized_evaluation_once_locked",
+        active_owner,
+    )
+    first = context.Process(
+        target=_authorized_run_process,
+        args=(
+            tmp_path.as_posix(),
+            "a" * 40,
+            "2030-01-01T00:00:00Z",
+            first_outcome,
+        ),
+    )
+    first.start()
+    assert started.wait(timeout=10)
+    active_bytes = journal.read_bytes()
+
+    second = context.Process(
+        target=_authorized_run_process,
+        args=(
+            tmp_path.as_posix(),
+            "a" * 40,
+            "2030-01-01T00:00:01Z",
+            second_outcome,
+        ),
+    )
+    second.start()
+    second.join(timeout=10)
+    assert not second.is_alive()
+    second_result = second_outcome.get(timeout=5)
+    assert second_result[:2] == ("error", "S48Error")
+    assert "already active; state unchanged" in second_result[2]
+    assert first.is_alive()
+    assert entered.value == 1
+    assert journal.read_bytes() == active_bytes
+    assert not (tmp_path / "dataset/S4.8/derived").exists()
+    assert not (tmp_path / "outputs/isaac_audio_sensors/S4/S4.8").exists()
+
+    release.set()
+    first.join(timeout=10)
+    assert not first.is_alive()
+    assert first_outcome.get(timeout=5)[0] == "result"
+    assert journal.read_text(encoding="utf-8") == "owner-completed\n"
+
+
+def test_owner_process_termination_releases_lock_for_exact_once_recovery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, source_commit, _context, _expected = _install_authorized_run_harness(
+        tmp_path,
+        monkeypatch,
+    )
+    context = multiprocessing.get_context("fork")
+    owner_active = context.Event()
+    never_release = context.Event()
+    consumption_count = context.Value("i", 0)
+    observation_count = context.Value("i", 0)
+    first_outcome = context.Queue()
+    contender_outcome = context.Queue()
+    recovery_outcome = context.Queue()
+    original_consume = s4_8.consume_grant_once
+    original_payload = s4_8.build_real_payload
+
+    def counted_consume(*args, **kwargs):
+        with consumption_count.get_lock():
+            consumption_count.value += 1
+        return original_consume(*args, **kwargs)
+
+    def counted_payload(*args, **kwargs):
+        with observation_count.get_lock():
+            observation_count.value += 1
+        return original_payload(*args, **kwargs)
+
+    def block_live_owner(stage: str) -> None:
+        if stage == "observation_analysis":
+            owner_active.set()
+            never_release.wait(timeout=120)
+
+    monkeypatch.setattr(s4_8, "consume_grant_once", counted_consume)
+    monkeypatch.setattr(s4_8, "build_real_payload", counted_payload)
+    monkeypatch.setattr(s4_8, "_post_consumption_stage", block_live_owner)
+    owner = context.Process(
+        target=_authorized_run_process,
+        args=(
+            tmp_path.as_posix(),
+            source_commit,
+            "2030-01-01T00:00:00Z",
+            first_outcome,
+        ),
+    )
+    owner.start()
+    assert owner_active.wait(timeout=15)
+    journal_path = tmp_path / config["evidence"]["run_journal_path"]
+    journal_before = s4_8._load_run_journal(journal_path)
+    assert [record["event"] for record in journal_before] == [
+        "grant_consumed",
+        "observation_opening_authorized",
+        "post_consumption_started",
+    ]
+    assert consumption_count.value == 1
+    assert observation_count.value == 0
+
+    contender = context.Process(
+        target=_authorized_run_process,
+        args=(
+            tmp_path.as_posix(),
+            source_commit,
+            "2030-01-01T00:00:01Z",
+            contender_outcome,
+        ),
+    )
+    contender.start()
+    contender.join(timeout=10)
+    assert not contender.is_alive()
+    contention = contender_outcome.get(timeout=5)
+    assert contention[:2] == ("error", "S48Error")
+    assert "already active; state unchanged" in contention[2]
+    assert s4_8._load_run_journal(journal_path) == journal_before
+    assert consumption_count.value == 1
+    assert observation_count.value == 0
+    assert not (tmp_path / config["evidence"]["derived_input_path"]).exists()
+    assert not (tmp_path / config["evidence"]["output_path"]).exists()
+
+    owner.terminate()
+    owner.join(timeout=10)
+    assert not owner.is_alive()
+
+    recovery = context.Process(
+        target=_authorized_run_process,
+        args=(
+            tmp_path.as_posix(),
+            source_commit,
+            "2099-12-31T23:59:59Z",
+            recovery_outcome,
+        ),
+    )
+    recovery.start()
+    recovery.join(timeout=60)
+    assert not recovery.is_alive()
+    recovered = recovery_outcome.get(timeout=5)
+    assert recovered[0] == "result"
+    assert recovered[1]["status"] == "failed"
+    assert consumption_count.value == 1
+    assert observation_count.value == 0
+
+    journal = s4_8._load_run_journal(journal_path)
+    assert [record["event"] for record in journal].count("grant_consumed") == 1
+    assert [record["event"] for record in journal].count("first_run_terminal") == 1
+    ledger = tmp_path / config["grant"]["ledger_path"]
+    assert len(ledger.read_text(encoding="utf-8").splitlines()) == 1
+    output = tmp_path / config["evidence"]["output_path"]
+    assert output.is_dir()
+    assert not list(output.parent.glob(".S4.8.*"))
+    with pytest.raises(s4_8.S48Error, match="automatic retry forbidden"):
+        s4_8.run_authorized_evaluation_once(
+            tmp_path,
+            source_commit=source_commit,
+            event_time_utc="2100-01-01T00:00:00Z",
+        )
+
+
 @pytest.mark.parametrize(
     "stage",
     [
@@ -1649,6 +1863,228 @@ def test_package_tree_fsyncs_files_before_directory(
     ]
 
 
+def test_new_s4_8_directory_is_anchored_in_dataset_before_publication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    target = dataset / "S4.8"
+    events: list[tuple[str, str]] = []
+
+    def record_step(step: str, path: Path) -> None:
+        events.append((step, path.as_posix()))
+
+    monkeypatch.setattr(s4_8, "_directory_creation_step", record_step)
+    monkeypatch.setattr(
+        s4_8,
+        "_fsync_directory",
+        lambda path: events.append(("fsync", path.as_posix())),
+    )
+    assert s4_8._ensure_durable_directory(
+        target,
+        parents=True,
+        exist_ok=True,
+        boundary="dataset_s4_8",
+    )
+    assert events == [
+        ("dataset_s4_8:before_mkdir", target.as_posix()),
+        ("dataset_s4_8:after_mkdir", target.as_posix()),
+        ("dataset_s4_8:before_parent_fsync", target.as_posix()),
+        ("fsync", dataset.as_posix()),
+        ("dataset_s4_8:after_parent_fsync", target.as_posix()),
+    ]
+
+
+@pytest.mark.parametrize(
+    "fault_step",
+    [
+        "before_mkdir",
+        "after_mkdir",
+        "before_parent_fsync",
+        "after_parent_fsync",
+    ],
+)
+def test_directory_boundary_crash_is_recoverable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault_step: str,
+) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    target = dataset / "S4.8"
+    injected = False
+
+    def crash(step: str, _path: Path) -> None:
+        nonlocal injected
+        if step == f"durable_state:{fault_step}" and not injected:
+            injected = True
+            raise _SimulatedProcessCrash(step)
+
+    monkeypatch.setattr(s4_8, "_directory_creation_step", crash)
+    with pytest.raises(_SimulatedProcessCrash):
+        s4_8._ensure_durable_directory(
+            target,
+            parents=True,
+            exist_ok=True,
+            boundary="durable_state",
+        )
+    assert injected
+
+    monkeypatch.setattr(
+        s4_8,
+        "_directory_creation_step",
+        lambda _step, _path: None,
+    )
+    s4_8._ensure_durable_directory(
+        target,
+        parents=True,
+        exist_ok=True,
+        boundary="durable_state",
+    )
+    assert target.is_dir()
+
+
+@pytest.mark.parametrize(
+    "fault_step",
+    [
+        "before_mkdir",
+        "after_mkdir",
+        "before_parent_fsync",
+        "after_parent_fsync",
+    ],
+)
+def test_finalization_directory_boundary_crash_recovers_exactly_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault_step: str,
+) -> None:
+    config, source_commit, _context, _expected = _install_authorized_run_harness(
+        tmp_path,
+        monkeypatch,
+    )
+    injected = False
+
+    def crash(step: str, _path: Path) -> None:
+        nonlocal injected
+        if step == f"finalization_staging:{fault_step}" and not injected:
+            injected = True
+            raise _SimulatedProcessCrash(step)
+
+    monkeypatch.setattr(s4_8, "_directory_creation_step", crash)
+    with pytest.raises(_SimulatedProcessCrash):
+        s4_8.run_authorized_evaluation_once(
+            tmp_path,
+            source_commit=source_commit,
+            event_time_utc="2030-01-01T00:00:00Z",
+        )
+    assert injected
+
+    monkeypatch.setattr(
+        s4_8,
+        "_directory_creation_step",
+        lambda _step, _path: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "consume_grant_once",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("recovery reconsumed the grant")
+        ),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "build_real_payload",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("recovery reopened observations")
+        ),
+    )
+    result = s4_8.run_authorized_evaluation_once(
+        tmp_path,
+        source_commit=source_commit,
+        event_time_utc="2099-12-31T23:59:59Z",
+    )
+    assert result["status"] == "failed"
+    journal = s4_8._load_run_journal(
+        tmp_path / config["evidence"]["run_journal_path"]
+    )
+    assert [record["event"] for record in journal].count("grant_consumed") == 1
+    assert [record["event"] for record in journal].count("first_run_terminal") == 1
+
+
+@pytest.mark.parametrize(
+    "fault_step",
+    [
+        "before_mkdir",
+        "after_mkdir",
+        "before_parent_fsync",
+        "after_parent_fsync",
+    ],
+)
+def test_progress_directory_boundary_crash_recovers_without_reopening(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault_step: str,
+) -> None:
+    config, source_commit, _context, _expected = _install_authorized_run_harness(
+        tmp_path,
+        monkeypatch,
+    )
+    injected = False
+
+    def crash(step: str, _path: Path) -> None:
+        nonlocal injected
+        if step == f"progress_snapshot_root:{fault_step}" and not injected:
+            injected = True
+            raise _SimulatedProcessCrash(step)
+
+    monkeypatch.setattr(s4_8, "_directory_creation_step", crash)
+    with pytest.raises(_SimulatedProcessCrash):
+        s4_8.run_authorized_evaluation_once(
+            tmp_path,
+            source_commit=source_commit,
+            event_time_utc="2030-01-01T00:00:00Z",
+        )
+    assert injected
+
+    monkeypatch.setattr(
+        s4_8,
+        "_directory_creation_step",
+        lambda _step, _path: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "consume_grant_once",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("progress recovery reconsumed the grant")
+        ),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "build_real_payload",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("progress recovery reopened observations")
+        ),
+    )
+    result = s4_8.run_authorized_evaluation_once(
+        tmp_path,
+        source_commit=source_commit,
+        event_time_utc="2099-12-31T23:59:59Z",
+    )
+    assert result["status"] == "failed"
+    journal = s4_8._load_run_journal(
+        tmp_path / config["evidence"]["run_journal_path"]
+    )
+    assert [record["event"] for record in journal].count("grant_consumed") == 1
+    assert [record["event"] for record in journal].count("first_run_terminal") == 1
+
+
+def test_one_shot_directory_creation_uses_durable_helpers_only() -> None:
+    source = inspect.getsource(s4_8)
+    assert source.count(".mkdir(") == 1
+    assert source.count("tempfile.mkdtemp(") == 1
+
+
 def test_atomic_publication_orders_tree_flush_replace_parent_flush(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1701,7 +2137,13 @@ def test_atomic_publication_orders_tree_flush_replace_parent_flush(
         source_commit="a" * 40,
         require_current_head=False,
     )
-    assert events == ["tree_fsync", "replace", "parent_fsync"]
+    assert events == [
+        "parent_fsync",
+        "parent_fsync",
+        "tree_fsync",
+        "replace",
+        "parent_fsync",
+    ]
 
 
 def test_late_intra_take_failure_preserves_exact_completed_windows(
