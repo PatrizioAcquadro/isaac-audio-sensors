@@ -51,6 +51,15 @@ source-commit-identified, single-use grant at:
 
 `dataset/S4.8/access/holdout_access_grant.corrective_03.v1.json`
 
+Grant creation stages the grant and complete authorization record together in
+a private same-filesystem directory, validates their exact schemas and mutual
+bindings, fsyncs both files and the staging directory, and publishes the pair
+with one atomic directory rename followed by a parent-directory fsync.
+Interrupted private stages are deterministically cleaned on retry. A
+grant-only residue from the earlier non-atomic creator is retryable only when
+the grant exactly matches the requested source and frozen contract; malformed,
+mismatched, or already-consumed state is never replaced.
+
 It is consumed exactly once by
 `isaac_audio_sensors.acquisition.s4_4.consume_s4_8_grant`, using the append-only
 ledger:
@@ -101,9 +110,12 @@ Observation progress and every completed post-consumption stage are stored in
 content-addressed snapshots. Each snapshot is source-bound, hash-bound to the
 atomic opening-journal head and prior progress state, and anchored by a
 monotonic journal transition. Recovery uses only the highest authenticated
-stage. Altered, stale, source-mismatched, rolled-back, reordered, or
-unjournaled progress is ineligible for recovery. Recovery never reopens an
-observation or reconsumes the grant.
+stage. The journal is authoritative: a structurally valid next snapshot that
+was durably written but never acquired its journal event is quarantined as a
+crash residue and never promoted. If no progress event exists, recovery uses
+the authenticated pre-consumption recovery context. Altered, stale,
+source-mismatched, rolled-back, reordered, replaced, or malformed progress
+fails closed. Recovery never reopens an observation or reconsumes the grant.
 
 ## Exact real-observation contract
 
