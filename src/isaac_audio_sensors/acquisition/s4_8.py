@@ -3348,8 +3348,15 @@ def _runtime_dependency_provenance() -> dict[str, Any]:
         distributions.append(
             {
                 "distribution": distribution_name,
-                "version": importlib.metadata.version(distribution_name),
+                "distribution_metadata_version": (
+                    importlib.metadata.version(distribution_name)
+                ),
                 "module": module_name,
+                "module_runtime_version": (
+                    getattr(module, "__version__", None)
+                    if module_name == "isaac_audio_sensors"
+                    else None
+                ),
                 "module_file_name": origin.name,
                 "module_file_sha256": sha256_file(origin),
             }

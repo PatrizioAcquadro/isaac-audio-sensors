@@ -391,7 +391,7 @@ def test_prepared_finalization_recovers_at_publication_journal_boundaries(
 def test_runtime_provenance_declares_jsonschema() -> None:
     provenance = s4_8._runtime_dependency_provenance()
     versions = {
-        item["distribution"]: item["version"]
+        item["distribution"]: item["distribution_metadata_version"]
         for item in provenance["distributions"]
     }
     assert "jsonschema" in versions
@@ -400,6 +400,12 @@ def test_runtime_provenance_declares_jsonschema() -> None:
     assert '"jsonschema>=4.10"' in (ROOT / "pyproject.toml").read_text(
         encoding="utf-8"
     )
+    project = next(
+        item
+        for item in provenance["distributions"]
+        if item["distribution"] == "isaac-audio-sensors"
+    )
+    assert project["module_runtime_version"] == "1.10.0"
 
 
 def test_terminal_journal_write_failure_downgrades_same_run_to_failed(
