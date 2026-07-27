@@ -32,6 +32,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+    "jsonschema>=4.10",
     "numpy>=1.26",
     "tomli>=2; python_version < '3.11'",
 ]

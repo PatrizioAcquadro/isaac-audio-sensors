@@ -63,6 +63,8 @@ def main() -> int:
         print(f"S4.8 failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2, sort_keys=True))
+    if args.execute and result.get("status") != "passed":
+        return 1
     return 0
 
 

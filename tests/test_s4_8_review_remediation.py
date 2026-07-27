@@ -63,6 +63,9 @@ def _inventory(payload: dict[str, object]) -> list[dict[str, object]]:
             "attempt_root": f"dataset/test/{index:03d}/attempt_01",
             "selected_for_evaluation": True,
             "rejected": False,
+            "scientific_observation_opened": True,
+            "scientific_observations_derived": True,
+            "analysis_completed": True,
         }
         for index, take in enumerate(takes)
     ]
@@ -72,6 +75,9 @@ def _inventory(payload: dict[str, object]) -> list[dict[str, object]]:
             "attempt_root": "dataset/test/026/attempt_00",
             "selected_for_evaluation": False,
             "rejected": True,
+            "scientific_observation_opened": False,
+            "scientific_observations_derived": False,
+            "analysis_completed": False,
         }
     )
     return records
@@ -284,45 +290,64 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
         "build_real_payload",
         lambda _root: (payload, _inventory(payload)),
     )
-    original_atomic = s4_8._build_evidence_package_atomic
+    original_failure_builder = (
+        s4_8._build_terminal_failure_package_in_place
+    )
 
-    def fallback(
+    def terminal_failure_builder(
         _repo_root: Path,
         derived,
         *,
-        output: Path,
+        destination: Path,
         source_commit: str,
-        require_current_head: bool,
+        validate_result: bool = True,
     ):
-        return original_atomic(
+        return original_failure_builder(
             ROOT,
             derived,
-            output=output,
+            destination=destination,
             source_commit=source_commit,
-            require_current_head=require_current_head,
+            validate_result=validate_result,
         )
 
-    monkeypatch.setattr(s4_8, "_build_evidence_package_atomic", fallback)
     monkeypatch.setattr(
         s4_8,
-        "build_evidence_package",
+        "_build_evidence_package_in_place",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             RuntimeError("injected packaging failure")
         ),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_build_terminal_failure_package_in_place",
+        terminal_failure_builder,
     )
     result = s4_8.run_authorized_evaluation_once(
         tmp_path,
         source_commit=source_commit,
         event_time_utc="2030-01-01T00:00:00Z",
     )
-    assert result["readiness_passed"] is True
+    assert result["status"] == "failed"
+    assert result["readiness_passed"] is False
+    assert result["scientific_readiness_passed"] is True
+    assert result["run_failure"]["stage"] == "evidence_packaging"
     output = tmp_path / config["evidence"]["output_path"]
     assert {path.name for path in output.iterdir()} == s4_8.PACKAGE_FILES
     final = s4_8.load_json(output / "final_validation.json")
     assert final["status"] == "failed"
+    assert final["readiness_passed"] is False
+    assert final["scientific_readiness_passed"] is True
+    assert final["package_profile"] == s4_8.TERMINAL_FAILURE_PROFILE
     assert final["run_failure"]["stage"] == "evidence_packaging"
     journal = tmp_path / config["evidence"]["run_journal_path"]
-    terminal = s4_8._load_run_journal(journal)[-1]
+    journal_records = s4_8._load_run_journal(journal)
+    assert [record["event"] for record in journal_records] == [
+        "grant_consumed",
+        "observation_opening_authorized",
+        "first_run_finalization_prepared",
+        "first_run_terminal",
+    ]
+    terminal = journal_records[-1]
     assert terminal["event"] == "first_run_terminal"
     assert terminal["terminal_status"] == "failed"
     with pytest.raises(s4_8.S48Error, match="automatic retry forbidden"):
@@ -450,14 +475,23 @@ def test_terminal_journal_rejects_any_retry(tmp_path: Path) -> None:
                 "ledger_event_sha256": ledger_sha,
             },
         )
+    prepared = {
+        "event": "first_run_finalization_prepared",
+        "event_time_utc": "2030-01-01T00:00:00Z",
+        "source_commit": source_commit,
+        "terminal_status": "failed",
+        "readiness_passed": False,
+        "scientific_readiness_passed": False,
+        "failed_gating_criteria": ["synthetic"],
+        "run_failure": {"stage": "synthetic"},
+        "derived_input_sha256": "c" * 64,
+        "evidence_manifest_sha256": "d" * 64,
+        "automatic_retry_forbidden": True,
+    }
+    s4_8._append_run_journal(journal, prepared)
     s4_8._append_run_journal(
         journal,
-        {
-            "event": "first_run_terminal",
-            "source_commit": source_commit,
-            "terminal_status": "failed",
-            "automatic_retry_forbidden": True,
-        },
+        s4_8._terminal_event_from_prepared(prepared),
     )
     s4_8._validate_terminal_journal(
         journal,
