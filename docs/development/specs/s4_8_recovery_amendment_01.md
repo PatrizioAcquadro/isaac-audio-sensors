@@ -54,5 +54,20 @@ then delegates grant creation, consumption, observation analysis, evaluation,
 recovery, finalization, and evidence publication to the existing S4.8
 implementation; it does not duplicate scientific logic or the state machine.
 
+After evaluation, package validation and deterministic replay run in a fresh
+process through the recovery wrapper so the amendment contract remains active
+for the complete operation. Both authenticate the recovery grant and ledger
+path bindings and require `provenance.json` to bind the exact amendment
+contract and recovery source files. Their default canonical package is
+`outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_01`:
+
+```bash
+python scripts/run_s4_8_recovery.py --validate
+python scripts/run_s4_8_recovery.py --replay
+```
+
+`--package` selects another canonical recovery package, and replay accepts an
+optional persistent `--output`; without it, replay uses a temporary directory.
+
 This amendment remains S4.8-only. It does not start S4.9, S5, or S6 and does
 not authorize a push, tag, or release.

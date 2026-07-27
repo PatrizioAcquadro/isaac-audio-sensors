@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +18,9 @@ from isaac_audio_sensors.acquisition.s4_8 import S48Error  # noqa: E402
 from isaac_audio_sensors.acquisition.s4_8_recovery import (  # noqa: E402
     create_recovery_grant,
     recovery_preopen_validate,
+    replay_recovery_evidence_package,
     run_recovery_evaluation_once,
+    validate_recovery_evidence_package,
 )
 
 
@@ -27,10 +30,21 @@ def main() -> int:
     action.add_argument("--preopen", action="store_true")
     action.add_argument("--create-grant", action="store_true")
     action.add_argument("--execute", action="store_true")
+    action.add_argument("--validate", action="store_true")
+    action.add_argument("--replay", action="store_true")
     parser.add_argument("--repo-root", type=Path, default=ROOT)
     parser.add_argument("--source-commit")
     parser.add_argument("--authorization-id")
     parser.add_argument("--event-time-utc")
+    parser.add_argument(
+        "--package",
+        type=Path,
+        help=(
+            "recovery package to validate/replay; defaults to "
+            "outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_01"
+        ),
+    )
+    parser.add_argument("--output", type=Path, help="persistent replay output")
     args = parser.parse_args()
     try:
         if args.preopen:
@@ -49,7 +63,7 @@ def main() -> int:
                 source_commit=args.source_commit,
                 authorization_id=args.authorization_id,
             )
-        else:
+        elif args.execute:
             if (
                 args.source_commit is None
                 or args.authorization_id is None
@@ -65,6 +79,26 @@ def main() -> int:
                 authorization_id=args.authorization_id,
                 event_time_utc=args.event_time_utc,
             )
+        elif args.validate:
+            result = validate_recovery_evidence_package(
+                args.package,
+                repo_root=args.repo_root,
+            )
+        elif args.output is not None:
+            result = replay_recovery_evidence_package(
+                args.package,
+                output=args.output,
+                repo_root=args.repo_root,
+            )
+        else:
+            with tempfile.TemporaryDirectory(
+                prefix="ias-s4-8-recovery-replay-"
+            ) as temporary:
+                result = replay_recovery_evidence_package(
+                    args.package,
+                    output=Path(temporary) / "S4.8_recovery_amendment_01",
+                    repo_root=args.repo_root,
+                )
     except (OSError, S48Error, ValueError) as exc:
         print(f"S4.8 recovery failed: {exc}", file=sys.stderr)
         return 1

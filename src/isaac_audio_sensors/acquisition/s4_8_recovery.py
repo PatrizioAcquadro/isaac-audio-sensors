@@ -25,6 +25,14 @@ RECOVERY_TEST_PATH = Path("tests/test_s4_8_recovery_amendment.py")
 RECOVERY_MODULE_PATH = Path(
     "src/isaac_audio_sensors/acquisition/s4_8_recovery.py"
 )
+RECOVERY_SOURCE_BOUND_FILES = (
+    AMENDMENT_PATH,
+    AMENDMENT_SCHEMA_PATH,
+    AMENDMENT_SPEC_PATH,
+    RECOVERY_MODULE_PATH,
+    RECOVERY_SCRIPT_PATH,
+    RECOVERY_TEST_PATH,
+)
 REVIEW_FIELDS = frozenset(
     {
         "schema",
@@ -287,16 +295,83 @@ def _use_recovery_contract(
     with s4_8._use_contract(
         contract,
         contract_path=AMENDMENT_PATH,
-        extra_source_bound_files=(
-            AMENDMENT_PATH,
-            AMENDMENT_SCHEMA_PATH,
-            AMENDMENT_SPEC_PATH,
-            RECOVERY_MODULE_PATH,
-            RECOVERY_SCRIPT_PATH,
-            RECOVERY_TEST_PATH,
-        ),
+        extra_source_bound_files=RECOVERY_SOURCE_BOUND_FILES,
     ):
         yield
+
+
+def _recovery_package_path(
+    repo_root: Path,
+    amendment: Mapping[str, Any],
+    package: Path | None,
+) -> Path:
+    selected = package or Path(amendment["future_attempt"]["output_path"])
+    return selected if selected.is_absolute() else repo_root / selected
+
+
+def _validate_recovery_provenance(
+    package: Path,
+    *,
+    repo_root: Path,
+) -> None:
+    provenance = s4_8.load_json(package / "provenance.json")
+    source_paths = tuple(
+        dict.fromkeys((*s4_8.SOURCE_BOUND_FILES, *RECOVERY_SOURCE_BOUND_FILES))
+    )
+    source_files = [
+        {
+            "path": path.as_posix(),
+            "sha256": s4_8.sha256_file(repo_root / path),
+        }
+        for path in source_paths
+    ]
+    if (
+        provenance.get("contract_path") != AMENDMENT_PATH.as_posix()
+        or provenance.get("contract_sha256")
+        != s4_8.sha256_file(repo_root / AMENDMENT_PATH)
+        or provenance.get("source_bound_files") != source_files
+        or provenance.get("source_bound_files_sha256")
+        != s4_8.canonical_sha256(source_files)
+    ):
+        raise s4_8.S48Error("S4.8 recovery amendment provenance mismatch")
+
+
+def validate_recovery_evidence_package(
+    package: Path | None = None,
+    *,
+    repo_root: Path,
+) -> dict[str, Any]:
+    """Validate one recovery package under the amendment contract."""
+
+    root = repo_root.resolve()
+    amendment = load_amendment(root)
+    selected = _recovery_package_path(root, amendment, package).resolve()
+    with _use_recovery_contract(root, amendment):
+        result = s4_8.validate_evidence_package(selected, repo_root=root)
+        _validate_recovery_provenance(selected, repo_root=root)
+    return {**result, "amendment_id": amendment["amendment_id"]}
+
+
+def replay_recovery_evidence_package(
+    canonical: Path | None = None,
+    *,
+    output: Path,
+    repo_root: Path,
+) -> dict[str, Any]:
+    """Byte-replay one recovery package under the amendment contract."""
+
+    root = repo_root.resolve()
+    amendment = load_amendment(root)
+    selected = _recovery_package_path(root, amendment, canonical).resolve()
+    destination = output if output.is_absolute() else root / output
+    with _use_recovery_contract(root, amendment):
+        _validate_recovery_provenance(selected, repo_root=root)
+        result = s4_8.replay_evidence_package(
+            selected,
+            output=destination,
+            repo_root=root,
+        )
+    return {**result, "amendment_id": amendment["amendment_id"]}
 
 
 def recovery_preopen_validate(
@@ -390,7 +465,13 @@ def create_recovery_grant(
 
     root = repo_root.resolve()
     amendment = load_amendment(root)
-    recovery_preopen_validate(root, source_commit=source_commit)
+    future = amendment["future_attempt"]
+    grant_path = root / future["grant_path"]
+    authorization_path = grant_path.with_name(s4_8.AUTHORIZATION_RECORD_NAME)
+    if not grant_path.exists() and not authorization_path.exists():
+        recovery_preopen_validate(root, source_commit=source_commit)
+    else:
+        validate_original_failure(root)
     review = _validate_independent_review(
         root,
         amendment=amendment,
@@ -453,7 +534,9 @@ __all__ = [
     "AMENDMENT_PATH",
     "create_recovery_grant",
     "load_amendment",
+    "replay_recovery_evidence_package",
     "recovery_preopen_validate",
     "run_recovery_evaluation_once",
+    "validate_recovery_evidence_package",
     "validate_original_failure",
 ]
