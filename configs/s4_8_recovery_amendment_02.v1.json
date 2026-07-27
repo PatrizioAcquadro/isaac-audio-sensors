@@ -1,0 +1,168 @@
+{
+  "schema": "ias.s4_8.recovery_amendment_02.v1",
+  "amendment_id": "s4_8_recovery_amendment_02",
+  "status": "preregistered_awaiting_unseen_holdout",
+  "prior_terminal_runs": [
+    {
+      "run_id": "original_s4_8",
+      "source_commit": "b0d5575feded9f37316bff8ed4b62483084587bd",
+      "grant_id": "s4_8_corrective_03_b0d5575feded9f37316bff8ed4b62483084587bd",
+      "terminal_status": "failed",
+      "evaluation_state": "not_evaluated",
+      "scientific_status": "not_evaluated",
+      "failure_gate": null,
+      "artifacts": {
+        "grant": {
+          "path": "dataset/S4.8/access/holdout_access_grant.corrective_03.v1.json",
+          "sha256": "22c8636944ee5d62f7f89e6d8557319c73775244f7d49e0f3a5af4e8b3fbba34"
+        },
+        "authorization": {
+          "path": "dataset/S4.8/access/authorization_record.v1.json",
+          "sha256": "4ab7e70466217a8541d44f7071d62b3bc1be24580e9b3b56eb6f9d1d90643c1d"
+        },
+        "ledger": {
+          "path": "dataset/S4.8/access/opening_transition.v1/access_ledger.jsonl",
+          "sha256": "20f0decb2286be4c295a3afe46319e44bb53341b4f3b2a0a1c027176694c96dc"
+        },
+        "journal": {
+          "path": "dataset/S4.8/access/opening_transition.v1/first_run_journal.jsonl",
+          "sha256": "0eab13440bd997bf7a79f85d8581bd62ce41ca1254681b75d22de938bd7b39ea"
+        },
+        "recovery_context": {
+          "path": "dataset/S4.8/access/opening_transition.v1/recovery_context.v1.json",
+          "sha256": "b01f4d7b006404ddc81321f6de43306b850b178625d9c065c136f7712a2eea75"
+        },
+        "derived_terminal_state": {
+          "path": "dataset/S4.8/derived/heldout_evaluation_input.v1.json",
+          "sha256": "d68fbecedc6c15367675d0ea7e8f11fcb04beabe5bfb32d56253c0cd8a1f9a0f"
+        },
+        "terminal_manifest": {
+          "path": "outputs/isaac_audio_sensors/S4/S4.8/SHA256SUMS",
+          "sha256": "bb3e57bdac2cdf545f9adf39e867db3bf5b35831892c66b101e57913af9e59e2"
+        },
+        "final_validation": {
+          "path": "outputs/isaac_audio_sensors/S4/S4.8/final_validation.json",
+          "sha256": "fb5dc23ccb6e86987695b9b59a3beea8c7c0dd7d9458b93304aadb2e6aeae3ae"
+        }
+      }
+    },
+    {
+      "run_id": "recovery_amendment_01",
+      "source_commit": "9d02c14f4b0b2b21f3f38ce468d4cbcde14c08b8",
+      "grant_id": "s4_8_recovery_amendment_01_corrective_03_9d02c14f4b0b2b21f3f38ce468d4cbcde14c08b8",
+      "terminal_status": "failed",
+      "evaluation_state": "evaluation_completed",
+      "scientific_status": "failed",
+      "failure_gate": "evaluation_input_contract_rejected",
+      "artifacts": {
+        "grant": {
+          "path": "dataset/S4.8/recovery_amendment_01/access/holdout_access_grant.corrective_03.v1.json",
+          "sha256": "73c095e7ed0b713a4a32330435331da08d5ca6d74d7f7b446e02eb0748079216"
+        },
+        "authorization": {
+          "path": "dataset/S4.8/recovery_amendment_01/access/authorization_record.v1.json",
+          "sha256": "16e415df2e1ab77d72587f922f3298f5eeaa40db13fba91331d7a4511b0ad06d"
+        },
+        "ledger": {
+          "path": "dataset/S4.8/recovery_amendment_01/access/opening_transition.v1/access_ledger.jsonl",
+          "sha256": "85e451d71406a3dd89754b42f2d4f1e1bfa53f5555553d131f8eabfc4a09932b"
+        },
+        "journal": {
+          "path": "dataset/S4.8/recovery_amendment_01/access/opening_transition.v1/first_run_journal.jsonl",
+          "sha256": "308ca53b166e0f4a8115ea544d0b969a341641b313ccfb7937e323d6f674fe32"
+        },
+        "post_consumption_progress": {
+          "path": "dataset/S4.8/recovery_amendment_01/access/opening_transition.v1/post_consumption_progress.v2/007451.e68bb5aaa8411f64db154aa0850a86cfd2955b2c7c8acd4985c809f7a1c7b839.json",
+          "sha256": "dc59917aa70cc892d499302aa2d264b3cb7542f174ff4afeac7b35292bed745f"
+        },
+        "recovery_context": {
+          "path": "dataset/S4.8/recovery_amendment_01/access/opening_transition.v1/recovery_context.v1.json",
+          "sha256": "141421fdf727a0382576ec5313d370e4edd271fd9ade62f323780db6b7c6ad13"
+        },
+        "derived_terminal_state": {
+          "path": "dataset/S4.8/recovery_amendment_01/derived/heldout_evaluation_input.v1.json",
+          "sha256": "b8b243afb08bad0a12dfbae2881b68650f50c6d40921a035f2e4b2ac11e5c30d"
+        },
+        "independent_review": {
+          "path": "dataset/S4.8/recovery_amendment_01/review/independent_review.v1.json",
+          "sha256": "1cabcc2af83288446fffd378a287f5b7bd1ca9746ec9ba88b14c1ffda19e12cb"
+        },
+        "terminal_manifest": {
+          "path": "outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_01/SHA256SUMS",
+          "sha256": "3ebcaf1070f5d8d53f878ea666cb8c63a4b9f1350d84e70ae68405a9652e3cbb"
+        },
+        "final_validation": {
+          "path": "outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_01/final_validation.json",
+          "sha256": "87603dcb4dc496bca5c4a3c3eeffbf55e59ece6aeab9289060f204779088c5b0"
+        }
+      }
+    }
+  ],
+  "scientific_preregistration": {
+    "producer_fix_commit": "eea0059049ac780107394bb4edcf733def5a9bd1",
+    "producer_source_path": "src/isaac_audio_sensors/acquisition/s4_8.py",
+    "producer_source_sha256": "e655aa230e1e72984d0c9090360679427c2a545ea98abde03375a2e2ef6c181e",
+    "criteria_config_path": "configs/s4_7_holdout_acceptance.corrective_03.v4.json",
+    "criteria_config_sha256": "45a806773a19ca8b1eec6bbd2aeb2fec902b33ec4af2d0bd8c04f41bdc72a20b",
+    "criteria_schema_path": "docs/schemas/s4_7_holdout_acceptance.corrective_03.v4.schema.json",
+    "criteria_schema_sha256": "60a87f1e8b9c4171ffde151a5d4ceebd816a2fe02c2830f044c6ee97405a80fd",
+    "criteria_spec_path": "docs/development/specs/s4_holdout_acceptance_corrective_03.md",
+    "criteria_spec_sha256": "d1bdd0f3a8715abfb81817c0fc6f0af65c3e899fc4bdc840ecc9b115e62c938a",
+    "design_template_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/sessions/prospective_holdout.json",
+    "design_template_sha256": "587c7ff093f086f304e12a7e55459bf8b19d326132cd0550c7218b6cf38c84d3",
+    "design_template_metadata_only": true,
+    "criteria_unchanged": true,
+    "readiness_criterion_count": 23,
+    "stretch_criterion_count": 6,
+    "readiness_pass_rule": "all_23_readiness_criteria_pass",
+    "planned_take_count": 47,
+    "leakage_group_count": 15,
+    "stratum_counts": {
+      "A_controlled_boundary_sweep": 24,
+      "B_center_nominal_level": 8,
+      "C_center_low_level": 8,
+      "D_silence": 3,
+      "E_impact_audio_video": 4
+    },
+    "consumed_observations_reuse_forbidden": true,
+    "post_hoc_threshold_or_scenario_change_forbidden": true
+  },
+  "unseen_holdout": {
+    "holdout_id": "s4_8_recovery_amendment_02_unseen_holdout",
+    "status": "not_collected",
+    "planned_take_id_prefix": "s48r02_unseen_holdout_",
+    "namespace_root": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04",
+    "observation_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts",
+    "precollection_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/precollection_seal.v1.json",
+    "partition_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/manifests/prospective_holdout_recovery_02_manifest.v1.json",
+    "session_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/manifests/sessions/prospective_holdout_recovery_02.json",
+    "holdout_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/holdout_seal.v1.json",
+    "binding_path": "configs/s4_8_recovery_amendment_02_holdout_binding.v1.json",
+    "binding_schema_path": "docs/schemas/s4_8_recovery_unseen_holdout_binding.v1.schema.json",
+    "consumed_observation_roots": [
+      "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts"
+    ],
+    "new_capture_required": true,
+    "captured_after_preregistration_required": true,
+    "observation_roots_must_be_disjoint": true,
+    "holdout_must_remain_unopened_until_grant_consumption": true
+  },
+  "future_attempt": {
+    "grant_id_template": "s4_8_recovery_amendment_02_corrective_03_{source_commit}",
+    "grant_path": "dataset/S4.8/recovery_amendment_02/access/holdout_access_grant.corrective_03.v1.json",
+    "ledger_path": "dataset/S4.8/recovery_amendment_02/access/opening_transition.v1/access_ledger.jsonl",
+    "journal_path": "dataset/S4.8/recovery_amendment_02/access/opening_transition.v1/first_run_journal.jsonl",
+    "derived_input_path": "dataset/S4.8/recovery_amendment_02/derived/heldout_evaluation_input.v1.json",
+    "output_path": "outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_02",
+    "closeout_path": "docs/development/closeouts/S4/s4_8_recovery_amendment_02.md",
+    "independent_review_path": "dataset/S4.8/recovery_amendment_02/review/independent_review.v1.json",
+    "new_holdout_binding_required": true,
+    "independent_review_required": true,
+    "new_explicit_authorization_required": true,
+    "grant_creation_authorized": false,
+    "grant_consumption_authorized": false,
+    "evaluation_execution_authorized": false,
+    "automatic_retry_of_prior_runs": false,
+    "evaluation_implementation_status": "blocked_until_unseen_holdout_binding"
+  }
+}
