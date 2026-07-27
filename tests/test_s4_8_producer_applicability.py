@@ -246,6 +246,104 @@ def test_applicable_strata_preserve_representative_and_window_semantics(
     assert len(take["tdoa"]) == expected_tdoa_count
 
 
+def test_tdoa_take_median_excludes_abstained_windows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = SimpleNamespace(
+        planned_take_id="synthetic_tdoa_abstention",
+        stratum_id="A_controlled_boundary_sweep",
+        duration_s=15,
+        target_bearing_deg_f_project=0.0,
+        payload_identity=lambda: {
+            "planned_take_id": "synthetic_tdoa_abstention",
+            "stratum_id": "A_controlled_boundary_sweep",
+            "duration_s": 15,
+            "target_bearing_deg_f_project": 0.0,
+        },
+    )
+    monkeypatch.setattr(s4_8, "_verify_sealed_file", lambda *_args: None)
+    monkeypatch.setattr(
+        s4_8,
+        "inspect_six_channel_wav",
+        lambda *_args, **_kwargs: (
+            {
+                "per_channel_rms_pcm16": [1.0] * 6,
+                "per_channel_maximum_clip_run_samples": [0] * 6,
+            },
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_read_pcm16",
+        lambda _path: (np.zeros((240000, 6), dtype=float), 16000),
+    )
+    pair_ids = s4_8._pair_ids()
+
+    def analyze_window(*_args, index: int, start: int, **_kwargs):
+        abstained = index >= 10
+        tdoa_s = 200e-6 if abstained else 10e-6
+        return (
+            {
+                "window_id": f"window_{index:03d}",
+                "window_index": index,
+                "start_sample": start,
+                "abstained": abstained,
+                "srp_bearing_deg_f_project": None if abstained else 0.0,
+                "sub_floor_direction_emitted": False,
+            },
+            0.0 if abstained else 0.1,
+            dict.fromkeys(pair_ids, tdoa_s),
+            dict.fromkeys(pair_ids, 1.0),
+            0.0,
+            0.0,
+        )
+
+    monkeypatch.setattr(s4_8, "_analyze_window", analyze_window)
+    monkeypatch.setattr(
+        s4_8,
+        "load_json",
+        lambda _path: {"overall_technical_pass": True},
+    )
+    monkeypatch.setattr(s4_8, "sha256_file", lambda _path: "0" * 64)
+
+    take, _inventory = s4_8._analyze_real_take(
+        ROOT,
+        ROOT / "synthetic/attempt_01",
+        identity,
+        profile={
+            "gain_multipliers": [1.0] * 4,
+            "positions": [
+                [0.0, 0.0, 0.0],
+                [0.1, 0.0, 0.0],
+                [0.0, 0.1, 0.0],
+                [0.1, 0.1, 0.0],
+            ],
+        },
+        seal={},
+    )
+
+    assert take["window_summary"]["abstained_window_count"] == 109
+    assert {item["tdoa_us"] for item in take["tdoa"]} == {10.0}
+
+
+def test_visual_association_selects_nearest_significant_local_peak() -> None:
+    host_times_ms = [float(index * 20) for index in range(101)]
+    motion = [0.01] * 101
+    motion[20] = 0.8
+    motion[51] = 0.2
+
+    selected = s4_8._select_significant_visual_peak(
+        host_times_ms,
+        motion,
+        audio_event_time_ms=1000.0,
+        search_half_width_ms=1000.0,
+        robust_sigma_multiplier=8.0,
+    )
+
+    assert selected == 51
+
+
 def test_non_applicable_representative_still_fails_closed() -> None:
     payload = build_synthetic_payload(ROOT)
     silence = next(

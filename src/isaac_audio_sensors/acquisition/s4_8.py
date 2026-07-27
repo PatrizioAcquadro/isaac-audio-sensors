@@ -4028,8 +4028,9 @@ def _analyze_real_take(
         confidences.append(confidence)
         runtime_ms.append(250.0 + elapsed_ms)
         adapter_ms.append(adapter_elapsed_ms)
-        for key, value in measured_tdoa.items():
-            tdoa_by_pair[key].append(value * 1_000_000.0)
+        if not record["abstained"]:
+            for key, value in measured_tdoa.items():
+                tdoa_by_pair[key].append(value * 1_000_000.0)
         for key, value in correlations.items():
             correlation_by_pair[key].append(value)
         windows.append(record)
@@ -4325,21 +4326,18 @@ def _derive_av_association(
     )
     depth_motion = _depth_grid_motion(frames)
     search_half_width = float(contract["analysis"]["av_visual_search_half_width_ms"])
+    robust_sigma_multiplier = float(
+        detector_config["noise_event_detector"]["robust_sigma_multiplier"]
+    )
     associations = []
     for event_index, sample in enumerate(audio_samples):
         audio_ms = audio_start_ms + 1000.0 * sample / 16000.0
-        candidates = [
-            index
-            for index in range(1, len(frames))
-            if abs(host_times_ms[index] - audio_ms) <= search_half_width
-        ]
-        if not candidates:
-            raise S48Error(
-                f"{attempt_root.name}: no visual candidate for event {event_index}"
-            )
-        video_index = max(
-            candidates,
-            key=lambda index: (depth_motion[index], -index),
+        video_index = _select_significant_visual_peak(
+            host_times_ms,
+            depth_motion,
+            audio_event_time_ms=audio_ms,
+            search_half_width_ms=search_half_width,
+            robust_sigma_multiplier=robust_sigma_multiplier,
         )
         video_ms = host_times_ms[video_index]
         associations.append(
@@ -4361,6 +4359,44 @@ def _derive_av_association(
         "events": associations,
         "audio_candidates": transient,
     }
+
+
+def _select_significant_visual_peak(
+    host_times_ms: Sequence[float],
+    depth_motion: Sequence[float],
+    *,
+    audio_event_time_ms: float,
+    search_half_width_ms: float,
+    robust_sigma_multiplier: float,
+) -> int:
+    if (
+        len(host_times_ms) != len(depth_motion)
+        or len(depth_motion) < 3
+        or search_half_width_ms <= 0.0
+        or robust_sigma_multiplier <= 0.0
+    ):
+        raise S48Error("invalid visual-motion association inputs")
+    baseline = float(median(depth_motion))
+    mad = float(median(abs(value - baseline) for value in depth_motion))
+    threshold = baseline + robust_sigma_multiplier * 1.4826 * mad
+    candidates = [
+        index
+        for index in range(1, len(depth_motion) - 1)
+        if abs(host_times_ms[index] - audio_event_time_ms) <= search_half_width_ms
+        and depth_motion[index] >= threshold
+        and depth_motion[index] >= depth_motion[index - 1]
+        and depth_motion[index] > depth_motion[index + 1]
+    ]
+    if not candidates:
+        raise S48Error("no significant local visual-motion peak for audio event")
+    return min(
+        candidates,
+        key=lambda index: (
+            abs(host_times_ms[index] - audio_event_time_ms),
+            -depth_motion[index],
+            index,
+        ),
+    )
 
 
 def _select_three_spaced_events(
