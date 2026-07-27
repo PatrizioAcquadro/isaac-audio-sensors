@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 from isaac_audio_sensors.acquisition import s4_8
@@ -109,9 +112,7 @@ def _derived(
             "opening_head_sha256": "f" * 64,
             "terminal_event_required": True,
         },
-        "observation_inventory": _inventory(
-            build_synthetic_payload(ROOT)
-        ),
+        "observation_inventory": _inventory(build_synthetic_payload(ROOT)),
         "payload": payload,
         "payload_sha256": canonical_sha256(payload),
         "evaluation": evaluation,
@@ -150,15 +151,12 @@ def _all_window_abstention_payload() -> dict[str, object]:
     take = next(
         item
         for item in takes
-        if item["identity"]["stratum_id"]
-        == "A_controlled_boundary_sweep"
+        if item["identity"]["stratum_id"] == "A_controlled_boundary_sweep"
     )
     for window in take["bearing_windows"]:
         window["abstained"] = True
         window["srp_bearing_deg_f_project"] = None
-    take["window_summary"]["abstained_window_count"] = len(
-        take["bearing_windows"]
-    )
+    take["window_summary"]["abstained_window_count"] = len(take["bearing_windows"])
     take["bearing_absolute_error_deg"] = None
     take["estimated_bearing_deg_f_project"] = None
     take["candidate_covered"] = False
@@ -250,6 +248,7 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
         *,
         source_commit: str,
         event_time_utc: str,
+        recovery_context=None,
     ) -> dict[str, object]:
         journal = repo_root / config["evidence"]["run_journal_path"]
         records = s4_8._opening_journal_records(
@@ -260,12 +259,16 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
         journal.parent.mkdir(parents=True, exist_ok=True)
         journal.write_text(
             "".join(
-                json.dumps(record, sort_keys=True, separators=(",", ":"))
-                + "\n"
+                json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
                 for record in records
             ),
             encoding="utf-8",
         )
+        if recovery_context is not None:
+            (journal.parent / s4_8.RECOVERY_CONTEXT_NAME).write_text(
+                s4_8.pretty_json(recovery_context),
+                encoding="utf-8",
+            )
         return {
             "allowed": True,
             "mode": "S4.8_evaluation",
@@ -279,20 +282,43 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
     monkeypatch.setattr(
         s4_8,
         "evaluate_payload",
-        lambda value, *, repo_root: original_evaluate(
-            value, repo_root=ROOT
-        ),
+        lambda value, *, repo_root: original_evaluate(value, repo_root=ROOT),
     )
     monkeypatch.setattr(s4_8, "preopen_validate", lambda *_args, **_kwargs: {})
+    rejection_payload = s4_8._input_rejection_payload(ROOT)
+    monkeypatch.setattr(
+        s4_8,
+        "_build_preconsumption_recovery_context",
+        lambda *_args, **_kwargs: {
+            "schema": "ias.s4_8.post_consumption_recovery_context.v1",
+            "source_commit": source_commit,
+            "event_time_utc": "2030-01-01T00:00:00Z",
+            "authorization_record": {
+                "authorization_id": "synthetic",
+                "source_commit": source_commit,
+            },
+            "grant": {
+                "path": config["grant"]["path"],
+                "file_sha256": s4_8.sha256_file(grant_path),
+                "grant_sha256": "c" * 64,
+            },
+            "observation_inventory": _inventory(payload),
+            "payload": rejection_payload,
+            "payload_sha256": s4_8.canonical_sha256(rejection_payload),
+            "evaluation": original_evaluate(
+                rejection_payload,
+                repo_root=ROOT,
+            ),
+            "runtime_provenance": s4_8._runtime_dependency_provenance(),
+        },
+    )
     monkeypatch.setattr(s4_8, "consume_grant_once", fake_consume)
     monkeypatch.setattr(
         s4_8,
         "build_real_payload",
-        lambda _root: (payload, _inventory(payload)),
+        lambda _root, **_kwargs: (payload, _inventory(payload)),
     )
-    original_failure_builder = (
-        s4_8._build_terminal_failure_package_in_place
-    )
+    original_failure_builder = s4_8._build_terminal_failure_package_in_place
 
     def terminal_failure_builder(
         _repo_root: Path,
@@ -344,6 +370,7 @@ def test_first_run_packaging_failure_finalizes_failed_evidence_and_journal(
     assert [record["event"] for record in journal_records] == [
         "grant_consumed",
         "observation_opening_authorized",
+        "post_consumption_started",
         "first_run_finalization_prepared",
         "first_run_terminal",
     ]
@@ -543,9 +570,7 @@ def test_concurrent_consumers_have_exactly_one_success(
     prerequisite = tmp_path / "prerequisite.json"
     prerequisite.write_text("{}\n", encoding="utf-8")
     seal_sha = sha256_file(seal)
-    authenticated = {
-        key: f"value-{key}" for key in PREREQUISITE_BINDING_FIELDS
-    }
+    authenticated = {key: f"value-{key}" for key in PREREQUISITE_BINDING_FIELDS}
     authenticated["sha256"] = "e" * 64
     authenticated["seal_file_sha256"] = seal_sha
     monkeypatch.setattr(
@@ -566,8 +591,7 @@ def test_concurrent_consumers_have_exactly_one_success(
         "seal_sha256": seal_sha,
         "split_plan_sha256": "c" * 64,
         "prerequisite": {
-            key: authenticated[key]
-            for key in PREREQUISITE_BINDING_FIELDS
+            key: authenticated[key] for key in PREREQUISITE_BINDING_FIELDS
         },
         "single_use": True,
         "authorization": "explicit_user_authorization_required",
@@ -581,13 +605,29 @@ def test_concurrent_consumers_have_exactly_one_success(
     config = copy.deepcopy(s4_8.load_contract(ROOT))
     config["grant"]["path"] = grant_path.name
     config["grant"]["ledger_path"] = ledger.relative_to(tmp_path).as_posix()
-    config["evidence"]["run_journal_path"] = (
-        journal.relative_to(tmp_path).as_posix()
-    )
+    config["evidence"]["run_journal_path"] = journal.relative_to(tmp_path).as_posix()
     config["holdout"]["seal_path"] = seal.name
     config["holdout"]["split_plan_sha256"] = "c" * 64
     config["prerequisite"]["path"] = prerequisite.name
     monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
+    recovery_payload: dict[str, object] = {}
+    recovery_context = {
+        "schema": "ias.s4_8.post_consumption_recovery_context.v1",
+        "source_commit": source_commit,
+        "authorization_record": {},
+        "grant": {
+            "path": config["grant"]["path"],
+            "file_sha256": s4_8.sha256_file(grant_path),
+            "grant_sha256": grant["grant_sha256"],
+        },
+        "observation_inventory": [],
+        "payload": recovery_payload,
+        "payload_sha256": s4_8.canonical_sha256(recovery_payload),
+        "evaluation": {},
+        "evaluation_sha256": s4_8.canonical_sha256({}),
+        "runtime_provenance": {},
+    }
+    recovery_context["context_sha256"] = s4_8.canonical_sha256(recovery_context)
     errors: list[str] = []
 
     def consume() -> bool:
@@ -596,6 +636,7 @@ def test_concurrent_consumers_have_exactly_one_success(
                 tmp_path,
                 source_commit=source_commit,
                 event_time_utc="2030-01-01T00:00:00Z",
+                recovery_context=recovery_context,
             )
         except (S44Error, s4_8.S48Error) as exc:
             errors.append(str(exc))
@@ -616,3 +657,511 @@ def test_concurrent_consumers_have_exactly_one_success(
         "grant_consumed",
         "observation_opening_authorized",
     ]
+
+
+def _closed_inventory() -> list[dict[str, object]]:
+    payload = build_synthetic_payload(ROOT)
+    inventory = _inventory(payload)
+    for record in inventory:
+        record.update(
+            {
+                "rejected": True,
+                "scientific_observation_opened": False,
+                "scientific_observations_derived": False,
+                "analysis_completed": False,
+            }
+        )
+    return inventory
+
+
+def _install_authorized_run_harness(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[dict[str, object], str, dict[str, object]]:
+    source_commit = "a" * 40
+    event_time = "2030-01-01T00:00:00Z"
+    config = copy.deepcopy(s4_8.load_contract(ROOT))
+    config["grant"]["path"] = "access/grant.json"
+    config["grant"]["ledger_path"] = "state/ledger.jsonl"
+    config["evidence"]["derived_input_path"] = "state/derived.json"
+    config["evidence"]["run_journal_path"] = "state/journal.jsonl"
+    config["evidence"]["output_path"] = "output/S4.8"
+    grant_path = tmp_path / config["grant"]["path"]
+    grant_path.parent.mkdir(parents=True)
+    grant_path.write_text(
+        s4_8.pretty_json({"grant_sha256": "c" * 64}),
+        encoding="utf-8",
+    )
+    authorization = {
+        "authorization_id": "synthetic",
+        "source_commit": source_commit,
+    }
+    grant_path.with_name("authorization_record.v1.json").write_text(
+        s4_8.pretty_json(authorization),
+        encoding="utf-8",
+    )
+    payload = build_synthetic_payload(ROOT)
+    payload["sim_vs_real"] = s4_8.build_simulation_comparisons(ROOT)
+    inventory = _inventory(payload)
+    rejection_payload = s4_8._input_rejection_payload(ROOT)
+    rejection_evaluation = s4_8.evaluate_payload(rejection_payload, repo_root=ROOT)
+    context = {
+        "schema": "ias.s4_8.post_consumption_recovery_context.v1",
+        "source_commit": source_commit,
+        "event_time_utc": event_time,
+        "authorization_record": authorization,
+        "grant": {
+            "path": config["grant"]["path"],
+            "file_sha256": s4_8.sha256_file(grant_path),
+            "grant_sha256": "c" * 64,
+        },
+        "observation_inventory": _closed_inventory(),
+        "payload": rejection_payload,
+        "payload_sha256": s4_8.canonical_sha256(rejection_payload),
+        "evaluation": rejection_evaluation,
+        "evaluation_sha256": s4_8.canonical_sha256(rejection_evaluation),
+        "runtime_provenance": s4_8._runtime_dependency_provenance(),
+    }
+    context["context_sha256"] = s4_8.canonical_sha256(context)
+    ledger_event = _ledger_event()
+    original_evaluate = s4_8.evaluate_payload
+    original_full = s4_8._build_evidence_package_in_place
+    original_failure = s4_8._build_terminal_failure_package_in_place
+    original_validate = s4_8.validate_evidence_package
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_source_commit",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_result_dependency_records",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "preservation_report",
+        lambda _root: {
+            "schema": "ias.s4_8.historical_preservation.v1",
+            "status": "passed",
+            "packages": [],
+        },
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "evaluate_payload",
+        lambda value, *, repo_root: original_evaluate(value, repo_root=ROOT),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_build_preconsumption_recovery_context",
+        lambda *_args, **_kwargs: context,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_build_evidence_package_in_place",
+        lambda _root, value, **kwargs: original_full(ROOT, value, **kwargs),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_build_terminal_failure_package_in_place",
+        lambda _root, value, **kwargs: original_failure(ROOT, value, **kwargs),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "validate_evidence_package",
+        lambda package, *, repo_root: original_validate(package, repo_root=ROOT),
+    )
+    monkeypatch.setattr(s4_8, "preopen_validate", lambda *_args, **_kwargs: {})
+
+    def fake_consume(
+        repo_root: Path,
+        *,
+        source_commit: str,
+        event_time_utc: str,
+        recovery_context,
+    ) -> dict[str, object]:
+        journal = repo_root / config["evidence"]["run_journal_path"]
+        records = s4_8._opening_journal_records(
+            source_commit=source_commit,
+            event_time_utc=event_time_utc,
+            ledger_event=ledger_event,
+        )
+        journal.parent.mkdir(parents=True, exist_ok=True)
+        journal.write_text(
+            "".join(
+                json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+                for record in records
+            ),
+            encoding="utf-8",
+        )
+        (journal.parent / s4_8.RECOVERY_CONTEXT_NAME).write_text(
+            s4_8.pretty_json(recovery_context),
+            encoding="utf-8",
+        )
+        ledger = repo_root / config["grant"]["ledger_path"]
+        ledger.write_text(
+            json.dumps(ledger_event, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        return {
+            "allowed": True,
+            "mode": "S4.8_evaluation",
+            "ledger_event": ledger_event,
+            "journal_records": records,
+        }
+
+    def fake_payload(
+        _root: Path,
+        *,
+        progress_callback=None,
+    ):
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "observation_inventory": inventory,
+                    "payload": payload,
+                    "current_take": None,
+                }
+            )
+        return payload, inventory
+
+    monkeypatch.setattr(s4_8, "consume_grant_once", fake_consume)
+    monkeypatch.setattr(s4_8, "build_real_payload", fake_payload)
+    return config, source_commit, context
+
+
+@pytest.mark.parametrize(
+    "stage",
+    [
+        "journal_initialization",
+        "authorization_loading",
+        "grant_loading",
+        "observation_analysis",
+        "scientific_evaluation",
+        "runtime_provenance",
+        "derived_state_persistence",
+        "evidence_packaging",
+        "evidence_publication",
+        "journal_finalization",
+    ],
+)
+def test_every_post_consumption_stage_exception_terminalizes_failed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stage: str,
+) -> None:
+    config, source_commit, _context = _install_authorized_run_harness(
+        tmp_path, monkeypatch
+    )
+    injected = False
+
+    def inject(current: str) -> None:
+        nonlocal injected
+        if current == stage and not injected:
+            injected = True
+            raise RuntimeError(f"injected {stage}")
+
+    monkeypatch.setattr(s4_8, "_post_consumption_stage", inject)
+    result = s4_8.run_authorized_evaluation_once(
+        tmp_path,
+        source_commit=source_commit,
+        event_time_utc="2030-01-01T00:00:00Z",
+    )
+    assert injected
+    assert result["status"] == "failed"
+    assert result["readiness_passed"] is False
+    assert result["automatic_retry_forbidden"] is True
+    output = tmp_path / config["evidence"]["output_path"]
+    assert s4_8.load_json(output / "final_validation.json")["status"] == "failed"
+    journal = s4_8._load_run_journal(tmp_path / config["evidence"]["run_journal_path"])
+    assert journal[-1]["event"] == "first_run_terminal"
+    assert journal[-1]["terminal_status"] == "failed"
+
+
+def test_opening_only_journal_recovers_without_reopening(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, source_commit, context = _install_authorized_run_harness(
+        tmp_path, monkeypatch
+    )
+    consumption = s4_8.consume_grant_once(
+        tmp_path,
+        source_commit=source_commit,
+        event_time_utc="2030-01-01T00:00:00Z",
+        recovery_context=context,
+    )
+    assert consumption["journal_records"][-1]["event"] == (
+        "observation_opening_authorized"
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "build_real_payload",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("opening-only recovery reopened observations")
+        ),
+    )
+    result = s4_8.run_authorized_evaluation_once(
+        tmp_path,
+        source_commit=source_commit,
+        event_time_utc="2099-12-31T23:59:59Z",
+    )
+    assert result["status"] == "failed"
+    journal = s4_8._load_run_journal(tmp_path / config["evidence"]["run_journal_path"])
+    assert journal[-1]["event"] == "first_run_terminal"
+    assert journal[2]["recovered_from_opening_only"] is True
+    assert journal[2]["event_time_utc"] == "2030-01-01T00:00:00Z"
+
+
+@pytest.mark.parametrize(
+    "fault_step",
+    [
+        "intent_recorded",
+        "provisional_archived",
+        "failure_derived_persisted",
+        "failure_package_ready",
+        "failure_prepared",
+        "failure_published",
+        "failure_terminal",
+    ],
+)
+def test_downgrade_recovers_from_every_interruption_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault_step: str,
+) -> None:
+    config, source_commit, _context = _install_authorized_run_harness(
+        tmp_path, monkeypatch
+    )
+    payload = build_synthetic_payload(ROOT)
+    payload["sim_vs_real"] = s4_8.build_simulation_comparisons(ROOT)
+    derived = _derived(payload)
+    derived["runtime_provenance"] = s4_8._runtime_dependency_provenance()
+    derived_path = tmp_path / config["evidence"]["derived_input_path"]
+    derived_path.parent.mkdir(parents=True, exist_ok=True)
+    derived_path.write_text(s4_8.pretty_json(derived), encoding="utf-8")
+    journal = tmp_path / config["evidence"]["run_journal_path"]
+    opening = s4_8._opening_journal_records(
+        source_commit=source_commit,
+        event_time_utc="2030-01-01T00:00:00Z",
+        ledger_event=derived["ledger_event"],
+    )
+    journal.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in opening
+        ),
+        encoding="utf-8",
+    )
+    original_append = s4_8._append_run_journal
+    terminal_injected = False
+
+    def fail_first_terminal(path: Path, event) -> None:
+        nonlocal terminal_injected
+        if event.get("event") == "first_run_terminal" and not terminal_injected:
+            terminal_injected = True
+            raise OSError("injected terminal publication boundary")
+        original_append(path, event)
+
+    boundary_injected = False
+
+    def stop_at_boundary(step: str) -> None:
+        nonlocal boundary_injected
+        if step == fault_step and not boundary_injected:
+            boundary_injected = True
+            raise OSError(f"injected downgrade interruption: {step}")
+
+    monkeypatch.setattr(s4_8, "_append_run_journal", fail_first_terminal)
+    monkeypatch.setattr(s4_8, "_downgrade_step", stop_at_boundary)
+    with pytest.raises(OSError, match="injected downgrade interruption"):
+        s4_8._finalize_first_run(
+            tmp_path,
+            config=config,
+            derived=derived,
+            source_commit=source_commit,
+            event_time_utc="2030-01-01T00:00:00Z",
+        )
+    assert terminal_injected and boundary_injected
+    monkeypatch.setattr(s4_8, "_append_run_journal", original_append)
+    monkeypatch.setattr(s4_8, "_downgrade_step", lambda _step: None)
+    validation = s4_8._recover_pending_finalization(
+        tmp_path,
+        config=config,
+        source_commit=source_commit,
+    )
+    assert validation["final_status"] == "failed"
+    output = tmp_path / config["evidence"]["output_path"]
+    assert output.is_dir()
+    archive = derived_path.parent / "provisional_evidence.v1"
+    assert archive.is_dir()
+    intent = next(
+        record
+        for record in s4_8._load_run_journal(journal)
+        if record["event"] == "first_run_downgrade_intent"
+    )
+    assert (
+        s4_8.sha256_file(archive / "SHA256SUMS")
+        == intent["provisional_manifest_sha256"]
+    )
+    assert s4_8._load_run_journal(journal)[-1]["event"] == ("first_run_terminal")
+
+
+def test_package_tree_fsyncs_files_before_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = tmp_path / "package"
+    package.mkdir()
+    (package / "b.json").write_text("{}\n", encoding="utf-8")
+    (package / "a.json").write_text("{}\n", encoding="utf-8")
+    opened: dict[int, Path] = {}
+    events: list[tuple[str, str]] = []
+    descriptor = 100
+
+    def fake_open(path, _flags):
+        nonlocal descriptor
+        descriptor += 1
+        opened[descriptor] = Path(path)
+        return descriptor
+
+    def fake_fsync(fd: int) -> None:
+        events.append(("fsync", opened[fd].as_posix()))
+
+    monkeypatch.setattr(s4_8.os, "open", fake_open)
+    monkeypatch.setattr(s4_8.os, "fsync", fake_fsync)
+    monkeypatch.setattr(s4_8.os, "close", lambda _fd: None)
+    s4_8._fsync_package_tree(package)
+    assert events == [
+        ("fsync", (package / "a.json").as_posix()),
+        ("fsync", (package / "b.json").as_posix()),
+        ("fsync", package.as_posix()),
+    ]
+
+
+def test_atomic_publication_orders_tree_flush_replace_parent_flush(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination = tmp_path / "published"
+    events: list[str] = []
+    original_replace = os.replace
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_source_commit",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_recomputed_evaluation",
+        lambda *_args, **_kwargs: {},
+    )
+
+    def fake_builder(
+        _root: Path,
+        _derived,
+        *,
+        destination: Path,
+        source_commit: str,
+    ):
+        del source_commit
+        (destination / "marker").write_text("ready\n", encoding="utf-8")
+        return {"status": "failed"}
+
+    def replace(source, target) -> None:
+        events.append("replace")
+        original_replace(source, target)
+
+    monkeypatch.setattr(s4_8, "_build_evidence_package_in_place", fake_builder)
+    monkeypatch.setattr(
+        s4_8,
+        "_fsync_package_tree",
+        lambda _path: events.append("tree_fsync"),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_fsync_directory",
+        lambda _path: events.append("parent_fsync"),
+    )
+    monkeypatch.setattr(s4_8.os, "replace", replace)
+    s4_8._build_evidence_package_atomic(
+        tmp_path,
+        {},
+        output=destination,
+        source_commit="a" * 40,
+        require_current_head=False,
+    )
+    assert events == ["tree_fsync", "replace", "parent_fsync"]
+
+
+def test_late_intra_take_failure_preserves_exact_completed_windows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = SimpleNamespace(
+        planned_take_id="synthetic_take",
+        stratum_id="A_controlled_boundary_sweep",
+        duration_s=15,
+        target_bearing_deg_f_project=0.0,
+    )
+    attempt = tmp_path / "attempt_01"
+    monkeypatch.setattr(s4_8, "_verify_sealed_file", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        s4_8,
+        "inspect_six_channel_wav",
+        lambda *_args, **_kwargs: (SimpleNamespace(), []),
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_read_pcm16",
+        lambda _path: (np.zeros((240000, 6), dtype=float), 16000),
+    )
+    completed = 4
+
+    def analyze_window(*_args, index: int, start: int, **_kwargs):
+        if index == completed:
+            raise RuntimeError("late injected window failure")
+        return (
+            {
+                "window_id": f"window_{index:03d}",
+                "window_index": index,
+                "start_sample": start,
+                "abstained": True,
+                "srp_bearing_deg_f_project": None,
+                "sub_floor_direction_emitted": False,
+            },
+            0.0,
+            {},
+            {},
+            0.0,
+            0.0,
+        )
+
+    monkeypatch.setattr(s4_8, "_analyze_window", analyze_window)
+    snapshots: list[dict[str, object]] = []
+    with pytest.raises(s4_8.S48PartialTakeError) as raised:
+        s4_8._analyze_real_take(
+            tmp_path,
+            attempt,
+            identity,
+            profile={
+                "gain_multipliers": [1.0, 1.0, 1.0, 1.0],
+                "positions": [
+                    [0.0, 0.0, 0.0],
+                    [0.1, 0.0, 0.0],
+                    [0.0, 0.1, 0.0],
+                    [0.1, 0.1, 0.0],
+                ],
+            },
+            seal={},
+            window_progress_callback=lambda value: snapshots.append(dict(value)),
+        )
+    error = raised.value
+    assert error.expected_window_count == 119
+    assert error.failed_window_index == completed
+    assert len(error.completed_windows) == completed
+    assert [item["window_index"] for item in error.completed_windows] == (
+        list(range(completed))
+    )
+    assert snapshots[-1]["completed_window_count"] == completed

@@ -23,7 +23,7 @@ import tempfile
 import time
 import wave
 from collections import Counter, defaultdict
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -106,6 +106,8 @@ PACKAGE_FILES = frozenset(
 )
 TERMINAL_FAILURE_PROFILE = "terminal_failure.v1"
 FULL_EVIDENCE_PROFILE = "full_evidence.v1"
+RECOVERY_CONTEXT_NAME = "recovery_context.v1.json"
+POST_CONSUMPTION_PROGRESS_NAME = "post_consumption_progress.v1.json"
 RUNTIME_DISTRIBUTIONS = (
     ("isaac-audio-sensors", "isaac_audio_sensors"),
     ("jsonschema", "jsonschema"),
@@ -176,10 +178,30 @@ class S48PartialAnalysisError(S48Error):
         self.cause = cause
 
 
+class S48PartialTakeError(S48Error):
+    """A take-level failure retaining every completed window exactly."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        expected_window_count: int,
+        failed_window_index: int,
+        completed_windows: list[dict[str, Any]],
+        cause: Exception,
+    ) -> None:
+        super().__init__(message)
+        self.expected_window_count = expected_window_count
+        self.failed_window_index = failed_window_index
+        self.completed_windows = completed_windows
+        self.cause = cause
+
+
 def pretty_json(value: Any) -> str:
-    return json.dumps(
-        value, indent=2, sort_keys=True, allow_nan=False, ensure_ascii=True
-    ) + "\n"
+    return (
+        json.dumps(value, indent=2, sort_keys=True, allow_nan=False, ensure_ascii=True)
+        + "\n"
+    )
 
 
 def sha256_file(path: Path) -> str:
@@ -258,10 +280,7 @@ def preopen_validate(
     ):
         raise S48Error("scientific-semantics identity mismatch")
     seal = load_json(seal_path)
-    if (
-        seal.get("partition_manifest_sha256")
-        != config["holdout"]["split_plan_sha256"]
-    ):
+    if seal.get("partition_manifest_sha256") != config["holdout"]["split_plan_sha256"]:
         raise S48Error("holdout seal split-plan identity mismatch")
     integrity = hash_only_holdout_integrity(seal, repo_root=root)
     if integrity != {
@@ -305,8 +324,7 @@ def preopen_validate(
         "status": "passed",
         "source_commit": resolved_commit,
         "prerequisite": {
-            key: prerequisite[key]
-            for key in sorted(PREREQUISITE_BINDING_FIELDS)
+            key: prerequisite[key] for key in sorted(PREREQUISITE_BINDING_FIELDS)
         },
         "seal_file_sha256": sha256_file(seal_path),
         "seal_payload_sha256": seal["seal_payload_sha256"],
@@ -317,9 +335,7 @@ def preopen_validate(
         "session_manifest_sha256": sha256_file(
             _repo_file(root, config["holdout"]["session_manifest_path"])
         ),
-        "scientific_semantics_sha256": prerequisite[
-            "scientific_semantics_sha256"
-        ],
+        "scientific_semantics_sha256": prerequisite["scientific_semantics_sha256"],
         "planned_take_count": len(registry),
         "leakage_group_count": len(groups),
         "sealed_artifact_count": integrity["checked_artifact_count"],
@@ -353,9 +369,7 @@ def create_grant(
     ledger_path = root / config["grant"]["ledger_path"]
     if grant_path.exists() or ledger_path.exists():
         raise S48Error("grant or ledger already exists; refusing overwrite")
-    grant_id = config["grant"]["grant_id_template"].format(
-        source_commit=source_commit
-    )
+    grant_id = config["grant"]["grant_id_template"].format(source_commit=source_commit)
     payload = {
         "schema": GRANT_SCHEMA,
         "grant_id": grant_id,
@@ -393,6 +407,7 @@ def consume_grant_once(
     *,
     source_commit: str,
     event_time_utc: str,
+    recovery_context: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Consume the exact source-identified grant through the canonical interlock."""
 
@@ -413,13 +428,16 @@ def consume_grant_once(
             source_commit=source_commit
         )
         if grant.get("grant_id") != expected_id:
-            raise S48Error(
-                "grant is not bound to the exact evaluator source commit"
-            )
+            raise S48Error("grant is not bound to the exact evaluator source commit")
+        _validate_recovery_context_for_consumption(
+            recovery_context,
+            config=config,
+            grant=grant,
+            grant_path=grant_path,
+            source_commit=source_commit,
+        )
         if transition.exists():
-            raise S48Error(
-                "S4.8 opening transition already claimed; retry forbidden"
-            )
+            raise S48Error("S4.8 opening transition already claimed; retry forbidden")
         transition.parent.mkdir(parents=True, exist_ok=True)
         staging = Path(
             tempfile.mkdtemp(
@@ -431,13 +449,12 @@ def consume_grant_once(
         try:
             staged_ledger = staging / ledger_path.name
             staged_journal = staging / journal_path.name
+            staged_recovery = staging / RECOVERY_CONTEXT_NAME
             result = consume_s4_8_grant(
                 grant_path,
                 seal_path=_repo_file(root, config["holdout"]["seal_path"]),
                 split_plan_sha256=config["holdout"]["split_plan_sha256"],
-                prerequisite_path=_repo_file(
-                    root, config["prerequisite"]["path"]
-                ),
+                prerequisite_path=_repo_file(root, config["prerequisite"]["path"]),
                 ledger_path=staged_ledger,
                 event_time_utc=event_time_utc,
             )
@@ -452,11 +469,14 @@ def consume_grant_once(
                 ledger_event=result["ledger_event"],
             )
             encoded = "".join(
-                json.dumps(record, sort_keys=True, separators=(",", ":"))
-                + "\n"
+                json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
                 for record in records
             )
             _atomic_write_text(staged_journal, encoded)
+            _atomic_write_text(
+                staged_recovery,
+                pretty_json(dict(recovery_context)),
+            )
             directory_fd = os.open(staging, os.O_RDONLY)
             try:
                 os.fsync(directory_fd)
@@ -474,6 +494,97 @@ def consume_grant_once(
     return {**result, "journal_records": records}
 
 
+def _validate_recovery_context_for_consumption(
+    context: Mapping[str, Any],
+    *,
+    config: Mapping[str, Any],
+    grant: Mapping[str, Any],
+    grant_path: Path,
+    source_commit: str,
+) -> None:
+    context_grant = context.get("grant")
+    context_payload = {
+        key: value for key, value in context.items() if key != "context_sha256"
+    }
+    if (
+        context.get("schema") != "ias.s4_8.post_consumption_recovery_context.v1"
+        or context.get("source_commit") != source_commit
+        or not isinstance(context.get("authorization_record"), Mapping)
+        or not isinstance(context.get("observation_inventory"), list)
+        or not isinstance(context.get("payload"), Mapping)
+        or context.get("payload_sha256") != canonical_sha256(context.get("payload"))
+        or not isinstance(context.get("evaluation"), Mapping)
+        or context.get("evaluation_sha256")
+        != canonical_sha256(context.get("evaluation"))
+        or not isinstance(context.get("runtime_provenance"), Mapping)
+        or not isinstance(context_grant, Mapping)
+        or context_grant.get("path") != config["grant"]["path"]
+        or context_grant.get("file_sha256") != sha256_file(grant_path)
+        or context_grant.get("grant_sha256") != grant.get("grant_sha256")
+        or context.get("context_sha256") != canonical_sha256(context_payload)
+    ):
+        raise S48Error("S4.8 recovery context is not bound to this grant consumption")
+
+
+def _build_preconsumption_recovery_context(
+    repo_root: Path,
+    *,
+    config: Mapping[str, Any],
+    source_commit: str,
+    event_time_utc: str,
+) -> dict[str, Any]:
+    """Freeze enough non-scientific state to terminalize after consumption."""
+
+    grant_path = repo_root / config["grant"]["path"]
+    authorization_record = load_json(
+        grant_path.with_name("authorization_record.v1.json")
+    )
+    grant = load_json(grant_path)
+    payload = _input_rejection_payload(repo_root)
+    inventory = _input_rejection_inventory(
+        repo_root,
+        S48Error("no scientific observation was derived"),
+    )
+    evaluation = evaluate_payload(payload, repo_root=repo_root)
+    runtime = _runtime_dependency_provenance()
+    context = {
+        "schema": "ias.s4_8.post_consumption_recovery_context.v1",
+        "source_commit": source_commit,
+        "event_time_utc": event_time_utc,
+        "authorization_record": authorization_record,
+        "grant": {
+            "path": config["grant"]["path"],
+            "file_sha256": sha256_file(grant_path),
+            "grant_sha256": grant["grant_sha256"],
+        },
+        "observation_inventory": inventory,
+        "payload": payload,
+        "payload_sha256": canonical_sha256(payload),
+        "evaluation": evaluation,
+        "evaluation_sha256": canonical_sha256(evaluation),
+        "runtime_provenance": runtime,
+    }
+    return {**context, "context_sha256": canonical_sha256(context)}
+
+
+def _recovery_context_path(repo_root: Path, config: Mapping[str, Any]) -> Path:
+    journal = repo_root / config["evidence"]["run_journal_path"]
+    return journal.with_name(RECOVERY_CONTEXT_NAME)
+
+
+def _progress_path(repo_root: Path, config: Mapping[str, Any]) -> Path:
+    journal = repo_root / config["evidence"]["run_journal_path"]
+    return journal.with_name(POST_CONSUMPTION_PROGRESS_NAME)
+
+
+def _post_consumption_stage(_stage: str) -> None:
+    """Fault-injection boundary for the irreversible authorized run."""
+
+
+def _downgrade_step(_step: str) -> None:
+    """Fault-injection boundary for crash-consistent failure downgrade."""
+
+
 def run_authorized_evaluation_once(
     repo_root: Path,
     *,
@@ -489,22 +600,49 @@ def run_authorized_evaluation_once(
     output = root / config["evidence"]["output_path"]
     if journal_path.exists():
         records = _load_run_journal(journal_path)
-        if (
-            any(
-                record.get("event") == "first_run_finalization_prepared"
-                for record in records
+        events = [record.get("event") for record in records]
+        if events[-1:] == ["first_run_terminal"]:
+            raise S48Error(
+                "first S4.8 result already exists; automatic retry forbidden"
             )
-            and not any(
-                record.get("event") == "first_run_terminal"
-                for record in records
-            )
+        if any(
+            event
+            in {
+                "first_run_finalization_prepared",
+                "first_run_downgrade_intent",
+                "first_run_finalization_failed",
+            }
+            for event in events
         ):
-            _recover_pending_finalization(
+            validation = _recover_pending_finalization(
                 root,
                 config=config,
                 source_commit=source_commit,
             )
-        raise S48Error("first S4.8 result already exists; automatic retry forbidden")
+            derived = load_json(derived_path)
+            return _run_outcome(
+                evaluation=derived["evaluation"],
+                run_failure=derived.get("run_failure"),
+                package_result={
+                    **validation,
+                    "output": output.as_posix(),
+                },
+            )
+        if events[:2] == [
+            "grant_consumed",
+            "observation_opening_authorized",
+        ]:
+            return _recover_post_consumption_run(
+                root,
+                config=config,
+                source_commit=source_commit,
+                event_time_utc=event_time_utc,
+                error=S48Error(
+                    "recovered interrupted post-consumption run before "
+                    "scientific evaluation could resume"
+                ),
+            )
+        raise S48Error("S4.8 run journal state is invalid")
     if derived_path.exists() or output.exists():
         raise S48Error("first S4.8 result already exists; automatic retry forbidden")
     preopen_validate(
@@ -512,68 +650,105 @@ def run_authorized_evaluation_once(
         source_commit=source_commit,
         require_access_paths_absent=False,
     )
-    consumption = consume_grant_once(
-        root, source_commit=source_commit, event_time_utc=event_time_utc
-    )
-    run_failure: dict[str, Any] | None = None
-    try:
-        payload, observation_inventory = build_real_payload(root)
-    except S48PartialAnalysisError as exc:
-        payload = exc.payload
-        observation_inventory = exc.observation_inventory
-        run_failure = _run_failure_record(
-            stage="observation_analysis",
-            error=exc.cause,
-        )
-    except Exception as exc:
-        payload = _input_rejection_payload(root)
-        observation_inventory = _input_rejection_inventory(root, exc)
-        run_failure = _run_failure_record(
-            stage="observation_input",
-            error=exc,
-        )
-    evaluation = evaluate_payload(payload, repo_root=root)
-    grant_path = root / config["grant"]["path"]
-    authorization_record = load_json(
-        grant_path.with_name("authorization_record.v1.json")
-    )
-    derived = {
-        "schema": DERIVED_INPUT_SCHEMA,
-        "tool_version": TOOL_VERSION,
-        "source_commit": source_commit,
-        "event_time_utc": event_time_utc,
-        "authorization_record": authorization_record,
-        "grant": {
-            "path": config["grant"]["path"],
-            "file_sha256": sha256_file(root / config["grant"]["path"]),
-            "grant_sha256": load_json(root / config["grant"]["path"])[
-                "grant_sha256"
-            ],
-        },
-        "ledger_event": consumption["ledger_event"],
-        "run_journal": {
-            "path": config["evidence"]["run_journal_path"],
-            "opening_event_count": len(consumption["journal_records"]),
-            "opening_head_sha256": consumption["journal_records"][-1][
-                "event_sha256"
-            ],
-            "terminal_event_required": True,
-        },
-        "observation_inventory": observation_inventory,
-        "payload": payload,
-        "payload_sha256": canonical_sha256(payload),
-        "evaluation": evaluation,
-        "run_failure": run_failure,
-        "runtime_provenance": _runtime_dependency_provenance(),
-    }
-    _atomic_write_text(derived_path, pretty_json(derived))
-    derived, package_result = _finalize_first_run(
+    recovery_context = _build_preconsumption_recovery_context(
         root,
         config=config,
-        derived=derived,
         source_commit=source_commit,
         event_time_utc=event_time_utc,
     )
+    consumption = consume_grant_once(
+        root,
+        source_commit=source_commit,
+        event_time_utc=event_time_utc,
+        recovery_context=recovery_context,
+    )
+    active_stage = "journal_initialization"
+    try:
+        _post_consumption_stage("journal_initialization")
+        _append_run_journal(
+            journal_path,
+            {
+                "event": "post_consumption_started",
+                "event_time_utc": event_time_utc,
+                "source_commit": source_commit,
+                "automatic_retry_forbidden": True,
+            },
+        )
+        active_stage = "authorization_loading"
+        _post_consumption_stage("authorization_loading")
+        grant_path = root / config["grant"]["path"]
+        authorization_record = load_json(
+            grant_path.with_name("authorization_record.v1.json")
+        )
+        active_stage = "grant_loading"
+        _post_consumption_stage("grant_loading")
+        grant = load_json(grant_path)
+        grant_record = {
+            "path": config["grant"]["path"],
+            "file_sha256": sha256_file(grant_path),
+            "grant_sha256": grant["grant_sha256"],
+        }
+        active_stage = "observation_analysis"
+        _post_consumption_stage("observation_analysis")
+        payload, observation_inventory = build_real_payload(
+            root,
+            progress_callback=lambda progress: _persist_post_consumption_progress(
+                _progress_path(root, config),
+                source_commit=source_commit,
+                stage="observation_analysis",
+                progress=progress,
+            ),
+        )
+        active_stage = "scientific_evaluation"
+        _post_consumption_stage("scientific_evaluation")
+        evaluation = evaluate_payload(payload, repo_root=root)
+        active_stage = "runtime_provenance"
+        _post_consumption_stage("runtime_provenance")
+        runtime_provenance = _runtime_dependency_provenance()
+        derived = {
+            "schema": DERIVED_INPUT_SCHEMA,
+            "tool_version": TOOL_VERSION,
+            "source_commit": source_commit,
+            "event_time_utc": event_time_utc,
+            "authorization_record": authorization_record,
+            "grant": grant_record,
+            "ledger_event": consumption["ledger_event"],
+            "run_journal": {
+                "path": config["evidence"]["run_journal_path"],
+                "opening_event_count": len(consumption["journal_records"]),
+                "opening_head_sha256": consumption["journal_records"][-1][
+                    "event_sha256"
+                ],
+                "terminal_event_required": True,
+            },
+            "observation_inventory": observation_inventory,
+            "payload": payload,
+            "payload_sha256": canonical_sha256(payload),
+            "evaluation": evaluation,
+            "run_failure": None,
+            "runtime_provenance": runtime_provenance,
+        }
+        active_stage = "derived_state_persistence"
+        _post_consumption_stage("derived_state_persistence")
+        _atomic_write_text(derived_path, pretty_json(derived))
+        active_stage = "finalization"
+        derived, package_result = _finalize_first_run(
+            root,
+            config=config,
+            derived=derived,
+            source_commit=source_commit,
+            event_time_utc=event_time_utc,
+        )
+    except Exception as exc:
+        return _recover_post_consumption_run(
+            root,
+            config=config,
+            source_commit=source_commit,
+            event_time_utc=event_time_utc,
+            error=exc,
+            ledger_event=consumption["ledger_event"],
+            failure_stage=active_stage,
+        )
     evaluation = dict(derived["evaluation"])
     run_failure = derived.get("run_failure")
     terminal_status = package_result["status"]
@@ -581,9 +756,7 @@ def run_authorized_evaluation_once(
         journal_path,
         source_commit=source_commit,
         expected_status=terminal_status,
-        expected_ledger_event_sha256=consumption["ledger_event"][
-            "event_sha256"
-        ],
+        expected_ledger_event_sha256=consumption["ledger_event"]["event_sha256"],
     )
     return _run_outcome(
         evaluation=evaluation,
@@ -594,6 +767,8 @@ def run_authorized_evaluation_once(
 
 def build_real_payload(
     repo_root: Path,
+    *,
+    progress_callback: Callable[[Mapping[str, Any]], None] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Open and derive the real payload. Caller must have consumed the grant."""
 
@@ -616,32 +791,135 @@ def build_real_payload(
         attempt_candidates=attempt_candidates,
         attempt_roots=attempt_roots,
     )
-    records_by_root = {
-        record["attempt_root"]: record for record in inventory
-    }
+    records_by_root = {record["attempt_root"]: record for record in inventory}
     simulation = build_simulation_comparisons(root)
+    _emit_observation_progress(
+        progress_callback,
+        inventory=inventory,
+        payload=_partial_payload(config, takes=takes, simulation=simulation),
+        current_take=None,
+    )
     for take_id in sorted(registry):
         identity = registry[take_id]
         attempt_root = attempt_roots[take_id]
         relative_root = attempt_root.relative_to(root).as_posix()
         progress_record = records_by_root[relative_root]
         progress_record["scientific_observation_opened"] = True
+        _emit_observation_progress(
+            progress_callback,
+            inventory=inventory,
+            payload=_partial_payload(config, takes=takes, simulation=simulation),
+            current_take={
+                "planned_take_id": take_id,
+                "attempt_root": relative_root,
+                "expected_window_count": {
+                    15: 119,
+                    20: 159,
+                }[identity.duration_s],
+                "completed_window_count": 0,
+                "completed_windows": [],
+                "failed_window_index": None,
+            },
+        )
+        latest_window_progress: dict[str, Any] = {
+            "expected_window_count": {
+                15: 119,
+                20: 159,
+            }[identity.duration_s],
+            "completed_window_count": 0,
+            "completed_windows": [],
+            "failed_window_index": None,
+        }
         try:
+            analyze_kwargs: dict[str, Any] = {
+                "profile": profile,
+                "seal": seal,
+            }
+            if progress_callback is not None:
+
+                def record_window_progress(
+                    window_progress: Mapping[str, Any],
+                    current_take_id: str = take_id,
+                    current_attempt_root: str = relative_root,
+                ) -> None:
+                    nonlocal latest_window_progress
+                    latest_window_progress = dict(window_progress)
+                    _emit_observation_progress(
+                        progress_callback,
+                        inventory=inventory,
+                        payload=_partial_payload(
+                            config, takes=takes, simulation=simulation
+                        ),
+                        current_take={
+                            "planned_take_id": current_take_id,
+                            "attempt_root": current_attempt_root,
+                            **dict(window_progress),
+                        },
+                    )
+
+                analyze_kwargs["window_progress_callback"] = record_window_progress
             take, record = _analyze_real_take(
-                root,
-                attempt_root,
-                identity,
-                profile=profile,
-                seal=seal,
+                root, attempt_root, identity, **analyze_kwargs
             )
-        except Exception as exc:
+        except S48PartialTakeError as exc:
             progress_record.update(
                 {
                     "analysis_completed": False,
                     "failed": True,
                     "failure_reasons": ["observation_analysis_failed"],
                     "rejected": True,
-                    "scientific_observations_derived": False,
+                    "scientific_observations_derived": bool(exc.completed_windows),
+                    "partial_window_count": len(exc.completed_windows),
+                    "expected_window_count": exc.expected_window_count,
+                    "failed_window_index": exc.failed_window_index,
+                    "terminal_error_type": type(exc.cause).__name__,
+                    "terminal_error": str(exc.cause),
+                }
+            )
+            partial_payload = _partial_payload(
+                config,
+                takes=takes,
+                simulation=simulation,
+            )
+            current_take = {
+                "planned_take_id": take_id,
+                "attempt_root": relative_root,
+                "expected_window_count": exc.expected_window_count,
+                "completed_window_count": len(exc.completed_windows),
+                "completed_windows": exc.completed_windows,
+                "failed_window_index": exc.failed_window_index,
+            }
+            _emit_observation_progress(
+                progress_callback,
+                inventory=inventory,
+                payload=partial_payload,
+                current_take=current_take,
+            )
+            inventory.sort(key=lambda item: item["attempt_root"])
+            raise S48PartialAnalysisError(
+                f"{take_id}: observation analysis failed after "
+                f"{len(takes)} completed takes and "
+                f"{len(exc.completed_windows)} completed windows",
+                payload=partial_payload,
+                observation_inventory=inventory,
+                cause=exc.cause,
+            ) from exc
+        except Exception as exc:
+            completed_windows = latest_window_progress["completed_windows"]
+            progress_record.update(
+                {
+                    "analysis_completed": False,
+                    "failed": True,
+                    "failure_reasons": ["observation_analysis_failed"],
+                    "rejected": True,
+                    "scientific_observations_derived": bool(completed_windows),
+                    "partial_window_count": len(completed_windows),
+                    "expected_window_count": latest_window_progress[
+                        "expected_window_count"
+                    ],
+                    "failed_window_index": latest_window_progress[
+                        "failed_window_index"
+                    ],
                     "terminal_error_type": type(exc).__name__,
                     "terminal_error": str(exc),
                 }
@@ -650,6 +928,16 @@ def build_real_payload(
                 config,
                 takes=takes,
                 simulation=simulation,
+            )
+            _emit_observation_progress(
+                progress_callback,
+                inventory=inventory,
+                payload=partial_payload,
+                current_take={
+                    "planned_take_id": take_id,
+                    "attempt_root": relative_root,
+                    **latest_window_progress,
+                },
             )
             inventory.sort(key=lambda item: item["attempt_root"])
             raise S48PartialAnalysisError(
@@ -669,9 +957,53 @@ def build_real_payload(
                 "analysis_completed": True,
             }
         )
+        _emit_observation_progress(
+            progress_callback,
+            inventory=inventory,
+            payload=_partial_payload(config, takes=takes, simulation=simulation),
+            current_take=None,
+        )
     payload = _partial_payload(config, takes=takes, simulation=simulation)
     inventory.sort(key=lambda record: record["attempt_root"])
     return payload, inventory
+
+
+def _emit_observation_progress(
+    callback: Callable[[Mapping[str, Any]], None] | None,
+    *,
+    inventory: Sequence[Mapping[str, Any]],
+    payload: Mapping[str, Any],
+    current_take: Mapping[str, Any] | None,
+) -> None:
+    if callback is None:
+        return
+    callback(
+        {
+            "observation_inventory": [dict(record) for record in inventory],
+            "payload": dict(payload),
+            "current_take": (None if current_take is None else dict(current_take)),
+        }
+    )
+
+
+def _persist_post_consumption_progress(
+    path: Path,
+    *,
+    source_commit: str,
+    stage: str,
+    progress: Mapping[str, Any],
+) -> None:
+    _atomic_write_text(
+        path,
+        pretty_json(
+            {
+                "schema": "ias.s4_8.post_consumption_progress.v1",
+                "source_commit": source_commit,
+                "stage": stage,
+                **dict(progress),
+            }
+        ),
+    )
 
 
 def _initial_observation_inventory(
@@ -689,9 +1021,7 @@ def _initial_observation_inventory(
         selected = attempt_roots[take_id]
         for candidate in sorted(attempt_candidates[take_id]):
             is_selected = repo_root / candidate == selected
-            wav_record = _seal_record(
-                seal, candidate / "raw/respeaker_audio.wav"
-            )
+            wav_record = _seal_record(seal, candidate / "raw/respeaker_audio.wav")
             qa_record = _seal_record(seal, candidate / "technical_qa.json")
             records.append(
                 {
@@ -737,9 +1067,7 @@ def _partial_payload(
     }
 
 
-def evaluate_payload(
-    payload: Mapping[str, Any], *, repo_root: Path
-) -> dict[str, Any]:
+def evaluate_payload(payload: Mapping[str, Any], *, repo_root: Path) -> dict[str, Any]:
     """Return a truthful result, including an explicit failed rejection."""
 
     try:
@@ -812,9 +1140,7 @@ def _input_rejection_inventory(
                     "rejected": True,
                     "excluded": False,
                     "failed": True,
-                    "failure_reasons": [
-                        "evaluation_input_contract_rejected"
-                    ],
+                    "failure_reasons": ["evaluation_input_contract_rejected"],
                     "scientific_observations_derived": False,
                     "terminal_error_type": type(error).__name__,
                     "terminal_error": str(error),
@@ -831,6 +1157,214 @@ def _run_failure_record(*, stage: str, error: Exception) -> dict[str, Any]:
         "terminal": True,
         "automatic_retry_forbidden": True,
     }
+
+
+def _load_recovery_context(
+    repo_root: Path,
+    *,
+    config: Mapping[str, Any],
+    source_commit: str,
+) -> dict[str, Any]:
+    path = _recovery_context_path(repo_root, config)
+    context = load_json(path)
+    context_payload = {
+        key: value for key, value in context.items() if key != "context_sha256"
+    }
+    if (
+        context.get("schema") != "ias.s4_8.post_consumption_recovery_context.v1"
+        or context.get("source_commit") != source_commit
+        or context.get("payload_sha256") != canonical_sha256(context.get("payload"))
+        or context.get("context_sha256") != canonical_sha256(context_payload)
+    ):
+        raise S48Error("S4.8 post-consumption recovery context is invalid")
+    grant = context.get("grant")
+    if not isinstance(grant, Mapping):
+        raise S48Error("S4.8 recovery grant record is invalid")
+    grant_path = repo_root / _safe_relative(grant.get("path"))
+    if (
+        not grant_path.is_file()
+        or sha256_file(grant_path) != grant.get("file_sha256")
+        or load_json(grant_path).get("grant_sha256") != grant.get("grant_sha256")
+    ):
+        raise S48Error("S4.8 recovery grant authentication failed")
+    if context.get("evaluation_sha256") != canonical_sha256(context.get("evaluation")):
+        raise S48Error("S4.8 recovery evaluation hash is invalid")
+    return context
+
+
+def _consumed_ledger_event(
+    repo_root: Path,
+    config: Mapping[str, Any],
+) -> dict[str, Any]:
+    ledger_path = repo_root / config["grant"]["ledger_path"]
+    if not ledger_path.is_file():
+        raise S48Error("S4.8 consumed ledger event is unavailable")
+    lines = ledger_path.read_text(encoding="utf-8").splitlines()
+    if len(lines) != 1:
+        raise S48Error("S4.8 consumed ledger must contain exactly one event")
+    try:
+        event = json.loads(lines[0], parse_constant=_reject_json_constant)
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise S48Error("S4.8 consumed ledger JSON is invalid") from exc
+    if not isinstance(event, dict) or event.get("event_sha256") != canonical_sha256(
+        {key: value for key, value in event.items() if key != "event_sha256"}
+    ):
+        raise S48Error("S4.8 consumed ledger event is invalid")
+    return event
+
+
+def _load_partial_progress(
+    repo_root: Path,
+    *,
+    config: Mapping[str, Any],
+    source_commit: str,
+) -> dict[str, Any] | None:
+    path = _progress_path(repo_root, config)
+    if not path.exists():
+        return None
+    progress = load_json(path)
+    if (
+        progress.get("schema") != "ias.s4_8.post_consumption_progress.v1"
+        or progress.get("source_commit") != source_commit
+        or not isinstance(progress.get("observation_inventory"), list)
+        or not isinstance(progress.get("payload"), Mapping)
+    ):
+        raise S48Error("S4.8 post-consumption progress is invalid")
+    return progress
+
+
+def _recover_post_consumption_run(
+    repo_root: Path,
+    *,
+    config: Mapping[str, Any],
+    source_commit: str,
+    event_time_utc: str,
+    error: Exception,
+    ledger_event: Mapping[str, Any] | None = None,
+    failure_stage: str = "post_consumption_recovery",
+) -> dict[str, Any]:
+    """Terminalize one consumed run without reopening scientific content."""
+
+    journal_path = repo_root / config["evidence"]["run_journal_path"]
+    records = _load_run_journal(journal_path)
+    events = [record.get("event") for record in records]
+    original_event_time = (
+        records[0].get("event_time_utc") if records else event_time_utc
+    )
+    if events[-1:] == ["first_run_terminal"]:
+        derived = load_json(repo_root / config["evidence"]["derived_input_path"])
+        validation = validate_evidence_package(
+            repo_root / config["evidence"]["output_path"],
+            repo_root=repo_root,
+        )
+        return _run_outcome(
+            evaluation=derived["evaluation"],
+            run_failure=derived.get("run_failure"),
+            package_result={
+                **validation,
+                "output": (repo_root / config["evidence"]["output_path"]).as_posix(),
+            },
+        )
+    if events == ["grant_consumed", "observation_opening_authorized"]:
+        _append_run_journal(
+            journal_path,
+            {
+                "event": "post_consumption_started",
+                "event_time_utc": original_event_time,
+                "source_commit": source_commit,
+                "recovered_from_opening_only": True,
+                "automatic_retry_forbidden": True,
+            },
+        )
+    elif events != [
+        "grant_consumed",
+        "observation_opening_authorized",
+        "post_consumption_started",
+    ]:
+        if any(
+            event
+            in {
+                "first_run_finalization_prepared",
+                "first_run_downgrade_intent",
+                "first_run_finalization_failed",
+            }
+            for event in events
+        ):
+            validation = _recover_pending_finalization(
+                repo_root,
+                config=config,
+                source_commit=source_commit,
+            )
+            derived = load_json(repo_root / config["evidence"]["derived_input_path"])
+            return _run_outcome(
+                evaluation=derived["evaluation"],
+                run_failure=derived.get("run_failure"),
+                package_result={
+                    **validation,
+                    "output": (
+                        repo_root / config["evidence"]["output_path"]
+                    ).as_posix(),
+                },
+            )
+        raise S48Error("S4.8 interrupted post-consumption state is invalid")
+    context = _load_recovery_context(
+        repo_root,
+        config=config,
+        source_commit=source_commit,
+    )
+    progress = _load_partial_progress(
+        repo_root,
+        config=config,
+        source_commit=source_commit,
+    )
+    failure = _run_failure_record(stage=failure_stage, error=error)
+    event = (
+        dict(ledger_event)
+        if ledger_event is not None
+        else _consumed_ledger_event(repo_root, config)
+    )
+    opening_records = _load_run_journal(journal_path)[:2]
+    derived = {
+        "schema": DERIVED_INPUT_SCHEMA,
+        "tool_version": TOOL_VERSION,
+        "source_commit": source_commit,
+        "event_time_utc": context["event_time_utc"],
+        "authorization_record": context["authorization_record"],
+        "grant": context["grant"],
+        "ledger_event": event,
+        "run_journal": {
+            "path": config["evidence"]["run_journal_path"],
+            "opening_event_count": 2,
+            "opening_head_sha256": opening_records[-1]["event_sha256"],
+            "terminal_event_required": True,
+        },
+        "observation_inventory": (
+            context["observation_inventory"]
+            if progress is None
+            else progress["observation_inventory"]
+        ),
+        "partial_progress": progress,
+        "payload": context["payload"],
+        "payload_sha256": context["payload_sha256"],
+        "evaluation": context["evaluation"],
+        "run_failure": failure,
+        "runtime_provenance": context["runtime_provenance"],
+    }
+    derived_path = repo_root / config["evidence"]["derived_input_path"]
+    _atomic_write_text(derived_path, pretty_json(derived))
+    finalized, package_result = _finalize_first_run(
+        repo_root,
+        config=config,
+        derived=derived,
+        source_commit=source_commit,
+        event_time_utc=context["event_time_utc"],
+        failure_only=True,
+    )
+    return _run_outcome(
+        evaluation=finalized["evaluation"],
+        run_failure=finalized.get("run_failure"),
+        package_result=package_result,
+    )
 
 
 def _recomputed_evaluation(
@@ -857,10 +1391,7 @@ def build_simulation_comparisons(repo_root: Path) -> list[dict[str, Any]]:
     root = repo_root.resolve()
     config = load_contract(root)
     registry = build_identity_registry(root)
-    paths = {
-        mode: _simulate_path(root, registry, mode)
-        for mode in ("off", "apply")
-    }
+    paths = {mode: _simulate_path(root, registry, mode) for mode in ("off", "apply")}
     corrective = load_json(
         _repo_file(root, config["criteria"]["delegated_config_path"])
     )
@@ -873,12 +1404,12 @@ def build_simulation_comparisons(repo_root: Path) -> list[dict[str, Any]]:
             conditions.append(
                 {
                     "condition_id": condition_id,
-                    "unadjusted_simulation": paths["off"][
-                        entry["comparison_id"]
-                    ][condition_id],
-                    "adjusted_simulation": paths["apply"][
-                        entry["comparison_id"]
-                    ][condition_id],
+                    "unadjusted_simulation": paths["off"][entry["comparison_id"]][
+                        condition_id
+                    ],
+                    "adjusted_simulation": paths["apply"][entry["comparison_id"]][
+                        condition_id
+                    ],
                 }
             )
         comparisons.append(
@@ -905,12 +1436,8 @@ def _run_outcome(
         "schema": "ias.s4_8.authorized_run_outcome.v1",
         "status": "passed" if passed else "failed",
         "readiness_passed": passed,
-        "scientific_readiness_passed": (
-            evaluation.get("readiness_passed") is True
-        ),
-        "failed_gating_criteria": evaluation.get(
-            "failed_gating_criteria", []
-        ),
+        "scientific_readiness_passed": (evaluation.get("readiness_passed") is True),
+        "failed_gating_criteria": evaluation.get("failed_gating_criteria", []),
         "run_failure": None if run_failure is None else dict(run_failure),
         "evaluation": dict(evaluation),
         "evidence": dict(package_result),
@@ -929,6 +1456,7 @@ def _finalize_first_run(
     derived: dict[str, Any],
     source_commit: str,
     event_time_utc: str,
+    failure_only: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Stage one package, prepare the journal, then publish and terminalize."""
 
@@ -945,13 +1473,24 @@ def _finalize_first_run(
     prepared: dict[str, Any] | None = None
     try:
         try:
-            package_result = _build_evidence_package_in_place(
-                root,
-                derived,
-                destination=staging,
-                source_commit=source_commit,
-            )
+            if failure_only:
+                package_result = _build_terminal_failure_package_in_place(
+                    root,
+                    derived,
+                    destination=staging,
+                    source_commit=source_commit,
+                )
+            else:
+                _post_consumption_stage("evidence_packaging")
+                package_result = _build_evidence_package_in_place(
+                    root,
+                    derived,
+                    destination=staging,
+                    source_commit=source_commit,
+                )
         except Exception as exc:
+            if failure_only:
+                raise
             shutil.rmtree(staging, ignore_errors=True)
             derived = {
                 **derived,
@@ -968,6 +1507,7 @@ def _finalize_first_run(
                 destination=staging,
                 source_commit=source_commit,
             )
+        _fsync_package_tree(staging)
         prepared = {
             "event": "first_run_finalization_prepared",
             "event_time_utc": event_time_utc,
@@ -988,8 +1528,13 @@ def _finalize_first_run(
             "automatic_retry_forbidden": True,
         }
         _append_run_journal(journal_path, prepared)
+        if not failure_only:
+            _post_consumption_stage("evidence_publication")
+        _fsync_package_tree(staging)
         os.replace(staging, output)
         _fsync_directory(output.parent)
+        if not failure_only:
+            _post_consumption_stage("journal_finalization")
         _append_run_journal(
             journal_path,
             _terminal_event_from_prepared(prepared),
@@ -997,8 +1542,7 @@ def _finalize_first_run(
     except Exception as exc:
         records = _load_run_journal(journal_path)
         if prepared is not None and any(
-            item.get("event") == "first_run_finalization_prepared"
-            for item in records
+            item.get("event") == "first_run_finalization_prepared" for item in records
         ):
             return _finalize_transition_failure(
                 root,
@@ -1035,64 +1579,157 @@ def _finalize_transition_failure(
     journal_path = repo_root / config["evidence"]["run_journal_path"]
     staging = _finalization_staging_path(output)
     archive = derived_path.parent / "provisional_evidence.v1"
-    if archive.exists():
-        raise S48Error("S4.8 provisional evidence archive already exists")
     candidates = [path for path in (output, staging) if path.exists()]
     if len(candidates) != 1:
-        raise S48Error(
-            "S4.8 finalization failure has no unique provisional package"
-        )
-    archive.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(candidates[0], archive)
-    _fsync_directory(archive.parent)
+        raise S48Error("S4.8 finalization failure has no unique provisional package")
     failure = _run_failure_record(
         stage="finalization_publication",
         error=error,
     )
     if derived.get("run_failure") is not None:
         failure["prior_run_failure"] = derived["run_failure"]
-    derived = {**derived, "run_failure": failure}
-    _atomic_write_text(derived_path, pretty_json(derived))
-    staging.mkdir()
-    package_result = _build_terminal_failure_package_in_place(
-        repo_root,
-        derived,
-        destination=staging,
-        source_commit=source_commit,
-    )
-    replacement = {
-        "event": "first_run_finalization_failed",
+    intent = {
+        "event": "first_run_downgrade_intent",
         "event_time_utc": event_time_utc,
         "source_commit": source_commit,
-        "terminal_status": "failed",
-        "readiness_passed": False,
-        "scientific_readiness_passed": (
-            derived["evaluation"].get("readiness_passed") is True
-        ),
-        "failed_gating_criteria": derived["evaluation"].get(
-            "failed_gating_criteria", []
-        ),
         "run_failure": failure,
-        "derived_input_sha256": sha256_file(derived_path),
-        "evidence_manifest_sha256": package_result["manifest_sha256"],
-        "staging_path": staging.relative_to(repo_root).as_posix(),
+        "provisional_path": candidates[0].relative_to(repo_root).as_posix(),
+        "provisional_manifest_sha256": sha256_file(candidates[0] / "SHA256SUMS"),
+        "provisional_evidence_path": archive.relative_to(repo_root).as_posix(),
         "output_path": output.relative_to(repo_root).as_posix(),
-        "provisional_evidence_path": archive.relative_to(
-            repo_root
-        ).as_posix(),
+        "staging_path": staging.relative_to(repo_root).as_posix(),
         "automatic_retry_forbidden": True,
     }
-    _append_run_journal(journal_path, replacement)
-    os.replace(staging, output)
-    _fsync_directory(output.parent)
-    _append_run_journal(
-        journal_path,
-        _terminal_event_from_prepared(replacement),
+    _append_run_journal(journal_path, intent)
+    _downgrade_step("intent_recorded")
+    return _continue_failure_downgrade(
+        repo_root,
+        config=config,
+        derived=derived,
+        source_commit=source_commit,
+        intent=intent,
     )
+
+
+def _continue_failure_downgrade(
+    repo_root: Path,
+    *,
+    config: Mapping[str, Any],
+    derived: dict[str, Any],
+    source_commit: str,
+    intent: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Idempotently continue a journaled downgrade from provisional evidence."""
+
+    output = repo_root / _safe_relative(intent["output_path"])
+    staging = repo_root / _safe_relative(intent["staging_path"])
+    provisional = repo_root / _safe_relative(intent["provisional_path"])
+    archive = repo_root / _safe_relative(intent["provisional_evidence_path"])
+    journal_path = repo_root / config["evidence"]["run_journal_path"]
+    derived_path = repo_root / config["evidence"]["derived_input_path"]
+    expected_provisional = intent["provisional_manifest_sha256"]
+    existing = [
+        path
+        for path in (provisional, archive)
+        if path.is_dir()
+        and (path / "SHA256SUMS").is_file()
+        and sha256_file(path / "SHA256SUMS") == expected_provisional
+    ]
+    if archive.exists() and provisional == archive:
+        existing = [archive]
+    if len(existing) != 1:
+        raise S48Error("S4.8 downgrade has no unique provisional evidence package")
+    candidate = existing[0]
+    if (
+        not candidate.is_dir()
+        or sha256_file(candidate / "SHA256SUMS") != expected_provisional
+    ):
+        raise S48Error("S4.8 provisional evidence authentication failed")
+    _validate_manifest(candidate)
+    if candidate != archive:
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(candidate, archive)
+        _fsync_directory(archive.parent)
+    _downgrade_step("provisional_archived")
+    failure = dict(intent["run_failure"])
+    derived = {**derived, "run_failure": failure}
+    _atomic_write_text(derived_path, pretty_json(derived))
+    _downgrade_step("failure_derived_persisted")
+    if staging.exists():
+        if output.exists():
+            raise S48Error("S4.8 downgrade has two failure packages")
+        shutil.rmtree(staging)
+    if not output.exists():
+        staging.mkdir(parents=True)
+        package_result = _build_terminal_failure_package_in_place(
+            repo_root,
+            derived,
+            destination=staging,
+            source_commit=source_commit,
+        )
+        _fsync_package_tree(staging)
+    else:
+        package_result = validate_evidence_package(output, repo_root=repo_root)
+        package_result = {
+            **package_result,
+            "manifest_sha256": sha256_file(output / "SHA256SUMS"),
+        }
+    _downgrade_step("failure_package_ready")
+    records = _load_run_journal(journal_path)
+    failed = next(
+        (
+            record
+            for record in records
+            if record.get("event") == "first_run_finalization_failed"
+        ),
+        None,
+    )
+    if failed is None:
+        failed = {
+            "event": "first_run_finalization_failed",
+            "event_time_utc": intent["event_time_utc"],
+            "source_commit": source_commit,
+            "terminal_status": "failed",
+            "readiness_passed": False,
+            "scientific_readiness_passed": (
+                derived["evaluation"].get("readiness_passed") is True
+            ),
+            "failed_gating_criteria": derived["evaluation"].get(
+                "failed_gating_criteria", []
+            ),
+            "run_failure": failure,
+            "derived_input_sha256": sha256_file(derived_path),
+            "evidence_manifest_sha256": package_result["manifest_sha256"],
+            "staging_path": staging.relative_to(repo_root).as_posix(),
+            "output_path": output.relative_to(repo_root).as_posix(),
+            "provisional_evidence_path": archive.relative_to(repo_root).as_posix(),
+            "automatic_retry_forbidden": True,
+        }
+        _append_run_journal(journal_path, failed)
+    _downgrade_step("failure_prepared")
+    if staging.exists():
+        _fsync_package_tree(staging)
+        os.replace(staging, output)
+        _fsync_directory(output.parent)
+    if not output.is_dir():
+        raise S48Error("S4.8 downgraded failure package is unavailable")
+    if sha256_file(output / "SHA256SUMS") != failed.get("evidence_manifest_sha256"):
+        raise S48Error("S4.8 downgraded failure manifest mismatch")
+    _downgrade_step("failure_published")
+    if not any(
+        record.get("event") == "first_run_terminal"
+        for record in _load_run_journal(journal_path)
+    ):
+        _append_run_journal(
+            journal_path,
+            _terminal_event_from_prepared(failed),
+        )
+    _downgrade_step("failure_terminal")
     return (
         derived,
         {
             **package_result,
+            "status": "failed",
             "output": output.as_posix(),
         },
     )
@@ -1107,15 +1744,11 @@ def _terminal_event_from_prepared(
         "source_commit": prepared["source_commit"],
         "terminal_status": prepared["terminal_status"],
         "readiness_passed": prepared["readiness_passed"],
-        "scientific_readiness_passed": prepared[
-            "scientific_readiness_passed"
-        ],
+        "scientific_readiness_passed": prepared["scientific_readiness_passed"],
         "failed_gating_criteria": prepared["failed_gating_criteria"],
         "run_failure": prepared["run_failure"],
         "derived_input_sha256": prepared["derived_input_sha256"],
-        "evidence_manifest_sha256": prepared[
-            "evidence_manifest_sha256"
-        ],
+        "evidence_manifest_sha256": prepared["evidence_manifest_sha256"],
         "automatic_retry_forbidden": True,
     }
 
@@ -1131,6 +1764,31 @@ def _recover_pending_finalization(
     root = repo_root.resolve()
     journal_path = root / config["evidence"]["run_journal_path"]
     records = _load_run_journal(journal_path)
+    if records and records[-1].get("event") == "first_run_terminal":
+        output = root / config["evidence"]["output_path"]
+        if not output.is_dir():
+            raise S48Error("S4.8 terminal journal has no evidence package")
+        return validate_evidence_package(output, repo_root=root)
+    intents = [
+        record
+        for record in records
+        if record.get("event") == "first_run_downgrade_intent"
+    ]
+    if intents and not any(
+        record.get("event") == "first_run_finalization_failed" for record in records
+    ):
+        derived = load_json(root / config["evidence"]["derived_input_path"])
+        _, result = _continue_failure_downgrade(
+            root,
+            config=config,
+            derived=derived,
+            source_commit=source_commit,
+            intent=intents[-1],
+        )
+        return validate_evidence_package(
+            Path(result["output"]),
+            repo_root=root,
+        )
     prepared_records = [
         record
         for record in records
@@ -1155,13 +1813,12 @@ def _recover_pending_finalization(
         ):
             raise S48Error("S4.8 staged finalization manifest mismatch")
         output.parent.mkdir(parents=True, exist_ok=True)
+        _fsync_package_tree(staging)
         os.replace(staging, output)
         _fsync_directory(output.parent)
     if not output.is_dir():
         raise S48Error("S4.8 prepared finalization package is unavailable")
-    if sha256_file(output / "SHA256SUMS") != prepared.get(
-        "evidence_manifest_sha256"
-    ):
+    if sha256_file(output / "SHA256SUMS") != prepared.get("evidence_manifest_sha256"):
         raise S48Error("S4.8 published finalization manifest mismatch")
     validation = validate_evidence_package(output, repo_root=root)
     if validation["final_status"] != prepared.get("terminal_status"):
@@ -1189,9 +1846,24 @@ def _build_terminal_failure_package_in_place(
         raise S48Error("terminal-failure package requires a run failure")
     evaluation = _recomputed_evaluation(root, derived)
     payload = dict(derived["payload"])
-    takes = payload.get("takes", [])
+    partial_progress = derived.get("partial_progress")
+    progress_payload = (
+        partial_progress.get("payload")
+        if isinstance(partial_progress, Mapping)
+        else payload
+    )
+    if not isinstance(progress_payload, Mapping):
+        raise S48Error("terminal-failure partial payload is invalid")
+    takes = progress_payload.get("takes", [])
     if not isinstance(takes, list):
         raise S48Error("terminal-failure payload takes must be a list")
+    current_take = (
+        partial_progress.get("current_take")
+        if isinstance(partial_progress, Mapping)
+        else None
+    )
+    if current_take is not None and not isinstance(current_take, Mapping):
+        raise S48Error("terminal-failure current take progress is invalid")
     inventory = derived.get("observation_inventory", [])
     if not isinstance(inventory, list):
         raise S48Error("terminal-failure observation inventory is invalid")
@@ -1220,6 +1892,7 @@ def _build_terminal_failure_package_in_place(
             "status": "complete",
             "planned_take_count": 47,
             "completed_take_count": len(takes),
+            "partial_current_take": current_take,
             "run_failure": dict(run_failure),
             "attempt_records": inventory,
             "all_planned_takes_retained": True,
@@ -1229,18 +1902,15 @@ def _build_terminal_failure_package_in_place(
             "package_profile": TERMINAL_FAILURE_PROFILE,
             "status": "failed",
             "readiness_passed": False,
-            "scientific_readiness_passed": (
-                evaluation.get("readiness_passed") is True
-            ),
+            "scientific_readiness_passed": (evaluation.get("readiness_passed") is True),
             "scientific_evaluation_status": evaluation.get("status"),
             "run_failure": dict(run_failure),
             "terminal": True,
             "automatic_retry_forbidden": True,
             "planned_take_count": 47,
             "completed_take_count": len(takes),
-            "historical_preservation_passed": (
-                preservation["status"] == "passed"
-            ),
+            "partial_current_take": current_take,
+            "historical_preservation_passed": (preservation["status"] == "passed"),
             "robustness_status": "not_evaluable",
             "s4_complete": False,
             "s4_9_started": False,
@@ -1270,7 +1940,7 @@ def _build_terminal_failure_package_in_place(
             "comparison_classifications": evaluation.get(
                 "comparison_classifications", []
             ),
-            "condition_inputs": payload.get("sim_vs_real", []),
+            "condition_inputs": progress_payload.get("sim_vs_real", []),
             "paths": [
                 "real",
                 "unadjusted_simulation",
@@ -1292,16 +1962,13 @@ def _build_terminal_failure_package_in_place(
             "leakage_group_count": 15,
             "sealed_attempt_count": len(inventory),
             "selected_attempt_count": sum(
-                item.get("selected_for_evaluation") is True
-                for item in inventory
+                item.get("selected_for_evaluation") is True for item in inventory
             ),
             "unselected_attempt_count": sum(
-                item.get("selected_for_evaluation") is False
-                for item in inventory
+                item.get("selected_for_evaluation") is False for item in inventory
             ),
             "opened_attempt_count": sum(
-                item.get("scientific_observation_opened") is True
-                for item in inventory
+                item.get("scientific_observation_opened") is True for item in inventory
             ),
             "derived_attempt_count": sum(
                 item.get("scientific_observations_derived") is True
@@ -1315,12 +1982,16 @@ def _build_terminal_failure_package_in_place(
             ),
             "attempt_records": inventory,
             "records": takes,
+            "partial_current_take": current_take,
         },
         "window_results.json": {
             "schema": "ias.s4_8.window_results.v1",
             "status": "partial" if len(takes) < 47 else "complete",
-            "record_count": sum(
-                len(take.get("bearing_windows", [])) for take in takes
+            "record_count": sum(len(take.get("bearing_windows", [])) for take in takes)
+            + (
+                int(current_take.get("completed_window_count", 0))
+                if isinstance(current_take, Mapping)
+                else 0
             ),
             "takes": [
                 {
@@ -1331,6 +2002,7 @@ def _build_terminal_failure_package_in_place(
                 }
                 for take in takes
             ],
+            "partial_current_take": current_take,
         },
         "determinism_report.json": {
             "schema": "ias.s4_8.determinism.v1",
@@ -1348,6 +2020,7 @@ def _build_terminal_failure_package_in_place(
     _write_index_and_manifest(destination, source_commit)
     if validate_result:
         _validate_terminal_failure_package(destination, repo_root=root)
+    _fsync_package_tree(destination)
     return {
         "status": "failed",
         "output": destination.as_posix(),
@@ -1409,12 +2082,9 @@ def _build_evidence_package_atomic(
             destination=staging,
             source_commit=source_commit,
         )
+        _fsync_package_tree(staging)
         os.replace(staging, destination)
-        directory_fd = os.open(destination.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
+        _fsync_directory(destination.parent)
     except Exception as exc:
         shutil.rmtree(staging, ignore_errors=True)
         if destination.exists():
@@ -1526,9 +2196,7 @@ def _build_evidence_package_in_place(
         "sim_vs_real.json": {
             "schema": "ias.s4_8.sim_vs_real.v1",
             "status": "complete",
-            "comparison_classifications": evaluation[
-                "comparison_classifications"
-            ],
+            "comparison_classifications": evaluation["comparison_classifications"],
             "condition_inputs": payload.get("sim_vs_real", []),
             "paths": ["real", "unadjusted_simulation", "adjusted_simulation"],
             "unadjusted_profile_mode": "off",
@@ -1566,9 +2234,7 @@ def _build_evidence_package_in_place(
             "status": "complete",
             "planned_take_count": 47,
             "leakage_group_count": 15,
-            "sealed_attempt_count": len(
-                derived.get("observation_inventory", [])
-            ),
+            "sealed_attempt_count": len(derived.get("observation_inventory", [])),
             "selected_attempt_count": sum(
                 record.get("selected_for_evaluation") is True
                 for record in derived.get("observation_inventory", [])
@@ -1623,9 +2289,7 @@ def _build_evidence_package_in_place(
         "package_profile": FULL_EVIDENCE_PROFILE,
         "status": final_status,
         "readiness_passed": final_status == "passed",
-        "scientific_readiness_passed": (
-            evaluation.get("readiness_passed") is True
-        ),
+        "scientific_readiness_passed": (evaluation.get("readiness_passed") is True),
         "scientific_evaluation_status": evaluation.get("status"),
         "run_failure": derived.get("run_failure"),
         "terminal": True,
@@ -1634,11 +2298,7 @@ def _build_evidence_package_in_place(
             [item for item in evaluation.get("criteria", []) if item["gating"]]
         ),
         "stretch_criterion_count": len(
-            [
-                item
-                for item in evaluation.get("criteria", [])
-                if not item["gating"]
-            ]
+            [item for item in evaluation.get("criteria", []) if not item["gating"]]
         ),
         "planned_take_count": len(takes),
         "historical_preservation_passed": preservation["status"] == "passed",
@@ -1665,6 +2325,7 @@ def _build_evidence_package_in_place(
     _write_index_and_manifest(destination, source_commit)
     if validate_result:
         validate_evidence_package(destination, repo_root=root)
+    _fsync_package_tree(destination)
     return {
         "status": final_status,
         "output": destination.as_posix(),
@@ -1678,8 +2339,8 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
     present = {path.name for path in package.iterdir() if path.is_file()}
     if present != PACKAGE_FILES:
         raise S48Error(
-            f"S4.8 package files mismatch: missing={sorted(PACKAGE_FILES-present)}, "
-            f"extra={sorted(present-PACKAGE_FILES)}"
+            f"S4.8 package files mismatch: missing={sorted(PACKAGE_FILES - present)}, "
+            f"extra={sorted(present - PACKAGE_FILES)}"
         )
     _validate_manifest(package)
     index = load_json(package / "evidence_index.json")
@@ -1697,9 +2358,7 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
     recomputed = _recomputed_evaluation(repo_root, derived)
     criteria = load_json(package / "criteria_results.json")
     if criteria != recomputed:
-        raise S48Error(
-            "S4.8 criteria results contradict scientific recomputation"
-        )
+        raise S48Error("S4.8 criteria results contradict scientific recomputation")
     final = load_json(package / "final_validation.json")
     if final.get("package_profile") == TERMINAL_FAILURE_PROFILE:
         return _validate_terminal_failure_package(
@@ -1708,15 +2367,13 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
             regenerate=True,
         )
     expected_overall_readiness = (
-        criteria.get("readiness_passed") is True
-        and derived.get("run_failure") is None
+        criteria.get("readiness_passed") is True and derived.get("run_failure") is None
     )
     if (
         final.get("package_profile") != FULL_EVIDENCE_PROFILE
         or final["readiness_passed"] is not expected_overall_readiness
-        or final.get("scientific_readiness_passed") is not (
-            criteria.get("readiness_passed") is True
-        )
+        or final.get("scientific_readiness_passed")
+        is not (criteria.get("readiness_passed") is True)
     ):
         raise S48Error("S4.8 final status contradicts criteria")
     expected_final_status = (
@@ -1749,9 +2406,7 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
         if gating or stretch or criteria.get("evaluation_error") in (None, ""):
             raise S48Error("S4.8 input-rejection evidence is incomplete")
     elif len(gating) != 23 or len(stretch) != 6:
-        raise S48Error(
-            "S4.8 criteria count is not exactly 23 readiness and 6 stretch"
-        )
+        raise S48Error("S4.8 criteria count is not exactly 23 readiness and 6 stretch")
     inventory = load_json(package / "take_inventory.json")
     attempt_records = inventory.get("attempt_records")
     if (
@@ -1777,10 +2432,9 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
         raise S48Error("S4.8 sim-versus-real condition inventory invalid")
     condition_count = sum(len(item.get("conditions", [])) for item in conditions)
     if input_rejected:
-        if (
-            conditions
-            and (len(conditions) != 7 or condition_count != 271)
-        ) or sim.get("comparison_classifications"):
+        if (conditions and (len(conditions) != 7 or condition_count != 271)) or sim.get(
+            "comparison_classifications"
+        ):
             raise S48Error(
                 "S4.8 rejected input has inconsistent sim-versus-real records"
             )
@@ -1803,9 +2457,7 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
     ):
         raise S48Error("S4.8 authenticated grant or ledger evidence mismatch")
     event_payload = {
-        key: value
-        for key, value in ledger_event.items()
-        if key != "event_sha256"
+        key: value for key, value in ledger_event.items() if key != "event_sha256"
     }
     if ledger_event.get("event_sha256") != canonical_sha256(event_payload):
         raise S48Error("S4.8 ledger event hash mismatch")
@@ -1831,8 +2483,7 @@ def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, An
         mismatched = [
             name
             for name in sorted(PACKAGE_FILES)
-            if (package / name).read_bytes()
-            != (regenerated / name).read_bytes()
+            if (package / name).read_bytes() != (regenerated / name).read_bytes()
         ]
         if mismatched:
             raise S48Error(
@@ -1877,8 +2528,7 @@ def _validate_provenance(
         expected_runtime = _runtime_dependency_provenance()
     if (
         provenance.get("runtime") != expected_runtime
-        or provenance.get("runtime_sha256")
-        != canonical_sha256(expected_runtime)
+        or provenance.get("runtime_sha256") != canonical_sha256(expected_runtime)
         or expected_runtime != _runtime_dependency_provenance()
     ):
         raise S48Error("S4.8 runtime dependency provenance mismatch")
@@ -1906,9 +2556,7 @@ def _validate_terminal_failure_package(
             or path.stat().st_size != record["byte_size"]
             or sha256_file(path) != record["sha256"]
         ):
-            raise S48Error(
-                f"S4.8 terminal-failure index mismatch: {record['path']}"
-            )
+            raise S48Error(f"S4.8 terminal-failure index mismatch: {record['path']}")
     derived = load_json(package / "derived_evaluation_input.json")
     evaluation = _recomputed_evaluation(repo_root, derived)
     criteria = load_json(package / "criteria_results.json")
@@ -1920,9 +2568,8 @@ def _validate_terminal_failure_package(
         or final.get("package_profile") != TERMINAL_FAILURE_PROFILE
         or final.get("status") != "failed"
         or final.get("readiness_passed") is not False
-        or final.get("scientific_readiness_passed") is not (
-            evaluation.get("readiness_passed") is True
-        )
+        or final.get("scientific_readiness_passed")
+        is not (evaluation.get("readiness_passed") is True)
         or final.get("run_failure") != run_failure
         or final.get("terminal") is not True
         or final.get("automatic_retry_forbidden") is not True
@@ -1930,13 +2577,27 @@ def _validate_terminal_failure_package(
         raise S48Error("S4.8 terminal-failure result is contradictory")
     inventory = load_json(package / "take_inventory.json")
     attempt_records = derived.get("observation_inventory")
-    takes = derived.get("payload", {}).get("takes")
+    partial_progress = derived.get("partial_progress")
+    progress_payload = (
+        partial_progress.get("payload")
+        if isinstance(partial_progress, Mapping)
+        else derived.get("payload", {})
+    )
+    takes = (
+        progress_payload.get("takes") if isinstance(progress_payload, Mapping) else None
+    )
+    current_take = (
+        partial_progress.get("current_take")
+        if isinstance(partial_progress, Mapping)
+        else None
+    )
     if (
         not isinstance(attempt_records, list)
         or len(attempt_records) != 48
         or inventory.get("attempt_records") != attempt_records
         or not isinstance(takes, list)
         or inventory.get("records") != takes
+        or inventory.get("partial_current_take") != current_take
         or inventory.get("completed_take_count") != len(takes)
         or inventory.get("selected_attempt_count") != 47
         or inventory.get("unselected_attempt_count") != 1
@@ -1957,14 +2618,55 @@ def _validate_terminal_failure_package(
         for record in selected
         if record.get("scientific_observations_derived") is True
     ]
+    partial_derived = 0
+    if current_take is not None:
+        if not isinstance(current_take, Mapping):
+            raise S48Error("S4.8 current-take partial progress is invalid")
+        completed_windows = current_take.get("completed_windows")
+        completed_count = current_take.get("completed_window_count")
+        expected_count = current_take.get("expected_window_count")
+        failed_index = current_take.get("failed_window_index")
+        if (
+            not isinstance(completed_windows, list)
+            or completed_count != len(completed_windows)
+            or not isinstance(expected_count, int)
+            or expected_count <= 0
+            or not isinstance(completed_count, int)
+            or completed_count < 0
+            or completed_count > expected_count
+            or [item.get("window_index") for item in completed_windows]
+            != list(range(completed_count))
+            or (failed_index is not None and failed_index != completed_count)
+        ):
+            raise S48Error("S4.8 intra-take window progress is inconsistent")
+        partial_derived = int(completed_count > 0)
+        matching = [
+            record
+            for record in selected
+            if record.get("planned_take_id") == current_take.get("planned_take_id")
+            and record.get("scientific_observation_opened") is True
+        ]
+        if len(matching) != 1 or (
+            matching[0].get("scientific_observations_derived")
+            is not (completed_count > 0)
+        ):
+            raise S48Error("S4.8 current-take inventory progress mismatch")
     if (
         inventory.get("opened_attempt_count") != len(opened)
         or inventory.get("derived_attempt_count") != len(derived_records)
-        or inventory.get("unopened_selected_take_count")
-        != 47 - len(opened)
-        or len(derived_records) != len(takes)
+        or inventory.get("unopened_selected_take_count") != 47 - len(opened)
+        or len(derived_records) != len(takes) + partial_derived
     ):
         raise S48Error("S4.8 terminal-failure progress counts mismatch")
+    windows_report = load_json(package / "window_results.json")
+    if windows_report.get("partial_current_take") != current_take or windows_report.get(
+        "record_count"
+    ) != sum(len(take.get("bearing_windows", [])) for take in takes) + (
+        int(current_take.get("completed_window_count", 0))
+        if isinstance(current_take, Mapping)
+        else 0
+    ):
+        raise S48Error("S4.8 terminal-failure window progress mismatch")
     if load_json(package / "robustness.json").get("status") != "not_evaluable":
         raise S48Error("S4.8 robustness must be not_evaluable")
     authorization = load_json(package / "authorization_access.json")
@@ -1974,11 +2676,7 @@ def _validate_terminal_failure_package(
         or not isinstance(ledger_event, Mapping)
         or ledger_event.get("event_sha256")
         != canonical_sha256(
-            {
-                key: value
-                for key, value in ledger_event.items()
-                if key != "event_sha256"
-            }
+            {key: value for key, value in ledger_event.items() if key != "event_sha256"}
         )
     ):
         raise S48Error("S4.8 terminal-failure access evidence mismatch")
@@ -2005,13 +2703,11 @@ def _validate_terminal_failure_package(
             mismatched = [
                 name
                 for name in sorted(PACKAGE_FILES)
-                if (package / name).read_bytes()
-                != (regenerated / name).read_bytes()
+                if (package / name).read_bytes() != (regenerated / name).read_bytes()
             ]
             if mismatched:
                 raise S48Error(
-                    "S4.8 terminal-failure replay mismatch: "
-                    + ", ".join(mismatched)
+                    "S4.8 terminal-failure replay mismatch: " + ", ".join(mismatched)
                 )
     return {
         "schema": "ias.s4_8.package_validation.v1",
@@ -2058,14 +2754,10 @@ def replay_evidence_package(
             require_current_head=False,
         )
     left = {
-        path.name: path.read_bytes()
-        for path in canonical.iterdir()
-        if path.is_file()
+        path.name: path.read_bytes() for path in canonical.iterdir() if path.is_file()
     }
     right = {
-        path.name: path.read_bytes()
-        for path in output.iterdir()
-        if path.is_file()
+        path.name: path.read_bytes() for path in output.iterdir() if path.is_file()
     }
     if left != right:
         raise S48Error("S4.8 deterministic replay byte mismatch")
@@ -2131,6 +2823,7 @@ def _analyze_real_take(
     *,
     profile: Mapping[str, Any],
     seal: Mapping[str, Any],
+    window_progress_callback: (Callable[[Mapping[str, Any]], None] | None) = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     take_id = identity.planned_take_id
     wav_path = attempt_root / "raw/respeaker_audio.wav"
@@ -2151,9 +2844,7 @@ def _analyze_real_take(
     window_count = 1 + (raw.shape[1] - 4000) // 2000
     expected_count = {15: 119, 20: 159}[identity.duration_s]
     if rate != 16000 or window_count != expected_count:
-        raise S48Error(
-            f"{take_id}: expected {expected_count} exact windows at 16 kHz"
-        )
+        raise S48Error(f"{take_id}: expected {expected_count} exact windows at 16 kHz")
     positions = np.asarray(profile["positions"], dtype=float)
     ids = tuple(f"raw_microphone_{index}" for index in range(4))
     position_map = dict(zip(ids, map(tuple, positions), strict=True))
@@ -2165,9 +2856,7 @@ def _analyze_real_take(
     max_delay = aperture / 343.0 + 1.0 / rate
     target = identity.target_bearing_deg_f_project
     expected_tdoa = (
-        {}
-        if target is None
-        else _expected_tdoa(positions, ids, float(target), 343.0)
+        {} if target is None else _expected_tdoa(positions, ids, float(target), 343.0)
     )
     windows = []
     confidences = []
@@ -2179,69 +2868,61 @@ def _analyze_real_take(
     for index in range(window_count):
         start = index * 2000
         frame_raw = raw_adjusted[:, start : start + 4000]
-        started = time.perf_counter_ns()
-        per_rms = np.sqrt(np.mean(frame_raw * frame_raw, axis=1))
-        signal = float(np.median(per_rms)) > 0.002
-        bearing: float | None = None
-        confidence = 0.0
-        measured_tdoa: dict[str, float] = {}
-        if signal:
-            waveforms = {
-                mic_id: frame_raw[channel]
-                for channel, mic_id in enumerate(ids)
-            }
-            srp = srp_phat_direction(
-                waveforms,
-                mic_positions_m=position_map,
-                sample_rate_hz=rate,
-                speed_of_sound_mps=343.0,
-                azimuth_step_deg=2.0,
-                max_delay_s=max_delay,
-                interp=8,
-            )
-            confidence = float(srp_phat_confidence(srp))
-            if confidence >= 0.015:
-                bearing = float(srp.bearing_deg)
-                valid_bearings.append(bearing)
-            tdoa, _peaks = estimate_tdoa_diagnostics(
-                waveforms,
+        try:
+            (
+                record,
+                confidence,
+                measured_tdoa,
+                correlations,
+                elapsed_ms,
+                adapter_elapsed_ms,
+            ) = _analyze_window(
+                frame_raw,
+                ids=ids,
+                position_map=position_map,
                 sample_rate_hz=rate,
                 max_delay_s=max_delay,
-                interp=8,
+                index=index,
+                start=start,
+                take_id=take_id,
             )
-            measured_tdoa = {key: float(value) for key, value in tdoa.items()}
-            for key, value in measured_tdoa.items():
-                tdoa_by_pair[key].append(value * 1_000_000.0)
-            for left in range(4):
-                for right in range(left + 1, 4):
-                    key = f"{ids[left]}->{ids[right]}"
-                    correlation_by_pair[key].append(
-                        _aligned_correlation(
-                            frame_raw[left],
-                            frame_raw[right],
-                            measured_tdoa[key],
-                            rate,
-                        )
-                    )
+        except Exception as exc:
+            raise S48PartialTakeError(
+                f"{take_id}: window {index} analysis failed",
+                expected_window_count=expected_count,
+                failed_window_index=index,
+                completed_windows=[dict(item) for item in windows],
+                cause=exc,
+            ) from exc
+        bearing = record["srp_bearing_deg_f_project"]
+        if bearing is not None:
+            valid_bearings.append(float(bearing))
         confidences.append(confidence)
-        elapsed = (time.perf_counter_ns() - started) / 1_000_000.0
-        runtime_ms.append(250.0 + elapsed)
-        record = {
-            "window_id": f"window_{index:03d}",
-            "window_index": index,
-            "start_sample": start,
-            "abstained": bearing is None,
-            "srp_bearing_deg_f_project": bearing,
-            "sub_floor_direction_emitted": False,
-        }
-        adapter_started = time.perf_counter_ns()
-        restored = json.loads(json.dumps(record, sort_keys=True))
-        adapter_ms.append(
-            (time.perf_counter_ns() - adapter_started) / 1_000_000.0
-        )
-        if restored != record:
-            raise S48Error(f"{take_id}: adapter round trip changed a window")
+        runtime_ms.append(250.0 + elapsed_ms)
+        adapter_ms.append(adapter_elapsed_ms)
+        for key, value in measured_tdoa.items():
+            tdoa_by_pair[key].append(value * 1_000_000.0)
+        for key, value in correlations.items():
+            correlation_by_pair[key].append(value)
         windows.append(record)
+        if window_progress_callback is not None:
+            try:
+                window_progress_callback(
+                    {
+                        "expected_window_count": expected_count,
+                        "completed_window_count": len(windows),
+                        "completed_windows": [dict(item) for item in windows],
+                        "failed_window_index": None,
+                    }
+                )
+            except Exception as exc:
+                raise S48PartialTakeError(
+                    f"{take_id}: window {index} progress persistence failed",
+                    expected_window_count=expected_count,
+                    failed_window_index=index + 1,
+                    completed_windows=[dict(item) for item in windows],
+                    cause=exc,
+                ) from exc
     applicable_bearing = identity.stratum_id in {
         "A_controlled_boundary_sweep",
         "B_center_nominal_level",
@@ -2257,10 +2938,7 @@ def _analyze_real_take(
         ]
     representative = float(median(valid_bearings)) if valid_bearings else None
     errors = (
-        [
-            _circular_difference(float(target), value)
-            for value in valid_bearings
-        ]
+        [_circular_difference(float(target), value) for value in valid_bearings]
         if applicable_bearing
         else []
     )
@@ -2290,9 +2968,7 @@ def _analyze_real_take(
         else None
     )
     candidate_bearings = (
-        [representative]
-        if applicable_bearing and representative is not None
-        else []
+        [representative] if applicable_bearing and representative is not None else []
     )
     candidate_covered = (
         any(
@@ -2325,15 +3001,11 @@ def _analyze_real_take(
         },
         "window_summary": {
             "source_window_count": window_count,
-            "abstained_window_count": sum(
-                item["abstained"] for item in windows
-            ),
+            "abstained_window_count": sum(item["abstained"] for item in windows),
             "sub_floor_direction_emission_count": 0,
         },
         "channels": channels,
-        "bearing_absolute_error_deg": (
-            float(median(errors)) if errors else None
-        ),
+        "bearing_absolute_error_deg": (float(median(errors)) if errors else None),
         "estimated_bearing_deg_f_project": representative,
         "sector_correct": (
             _sector_majority_correct(valid_bearings, float(target))
@@ -2344,8 +3016,7 @@ def _analyze_real_take(
         "candidate_bearings_deg_f_project": candidate_bearings,
         "confidence": (
             float(median(confidences))
-            if identity.stratum_id
-            in {"B_center_nominal_level", "C_center_low_level"}
+            if identity.stratum_id in {"B_center_nominal_level", "C_center_low_level"}
             else None
         ),
         "tdoa": tdoa,
@@ -2368,6 +3039,85 @@ def _analyze_real_take(
         "excluded": False,
         "av_analysis": av,
     }
+
+
+def _analyze_window(
+    frame_raw: np.ndarray,
+    *,
+    ids: Sequence[str],
+    position_map: Mapping[str, tuple[float, ...]],
+    sample_rate_hz: int,
+    max_delay_s: float,
+    index: int,
+    start: int,
+    take_id: str,
+) -> tuple[
+    dict[str, Any],
+    float,
+    dict[str, float],
+    dict[str, float],
+    float,
+    float,
+]:
+    started = time.perf_counter_ns()
+    per_rms = np.sqrt(np.mean(frame_raw * frame_raw, axis=1))
+    signal = float(np.median(per_rms)) > 0.002
+    bearing: float | None = None
+    confidence = 0.0
+    measured_tdoa: dict[str, float] = {}
+    correlations: dict[str, float] = {}
+    if signal:
+        waveforms = {mic_id: frame_raw[channel] for channel, mic_id in enumerate(ids)}
+        srp = srp_phat_direction(
+            waveforms,
+            mic_positions_m=position_map,
+            sample_rate_hz=sample_rate_hz,
+            speed_of_sound_mps=343.0,
+            azimuth_step_deg=2.0,
+            max_delay_s=max_delay_s,
+            interp=8,
+        )
+        confidence = float(srp_phat_confidence(srp))
+        if confidence >= 0.015:
+            bearing = float(srp.bearing_deg)
+        tdoa, _peaks = estimate_tdoa_diagnostics(
+            waveforms,
+            sample_rate_hz=sample_rate_hz,
+            max_delay_s=max_delay_s,
+            interp=8,
+        )
+        measured_tdoa = {key: float(value) for key, value in tdoa.items()}
+        for left in range(4):
+            for right in range(left + 1, 4):
+                key = f"{ids[left]}->{ids[right]}"
+                correlations[key] = _aligned_correlation(
+                    frame_raw[left],
+                    frame_raw[right],
+                    measured_tdoa[key],
+                    sample_rate_hz,
+                )
+    elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000.0
+    record = {
+        "window_id": f"window_{index:03d}",
+        "window_index": index,
+        "start_sample": start,
+        "abstained": bearing is None,
+        "srp_bearing_deg_f_project": bearing,
+        "sub_floor_direction_emitted": False,
+    }
+    adapter_started = time.perf_counter_ns()
+    restored = json.loads(json.dumps(record, sort_keys=True))
+    adapter_elapsed_ms = (time.perf_counter_ns() - adapter_started) / 1_000_000.0
+    if restored != record:
+        raise S48Error(f"{take_id}: adapter round trip changed a window")
+    return (
+        record,
+        confidence,
+        measured_tdoa,
+        correlations,
+        elapsed_ms,
+        adapter_elapsed_ms,
+    )
 
 
 def _derive_av_association(
@@ -2408,12 +3158,16 @@ def _derive_av_association(
         1000.0 * _parse_utc(record["host_wall_time_utc"]).timestamp()
         for record in frames
     ]
-    if len(frames) < 2 or any(
-        later <= earlier
-        for earlier, later in zip(timestamps, timestamps[1:], strict=False)
-    ) or any(
-        later <= earlier
-        for earlier, later in zip(host_times_ms, host_times_ms[1:], strict=False)
+    if (
+        len(frames) < 2
+        or any(
+            later <= earlier
+            for earlier, later in zip(timestamps, timestamps[1:], strict=False)
+        )
+        or any(
+            later <= earlier
+            for earlier, later in zip(host_times_ms, host_times_ms[1:], strict=False)
+        )
     ):
         raise S48Error(f"{attempt_root.name}: invalid ZED timestamps")
     contract = load_contract(repo_root)
@@ -2429,24 +3183,18 @@ def _derive_av_association(
         detector_config,
         contract_sha256=contract["analysis"]["transient_contract_sha256"],
     )
-    audio_candidates = [
-        int(record["peak_sample"]) for record in transient["events"]
-    ]
+    audio_candidates = [int(record["peak_sample"]) for record in transient["events"]]
     audio_samples = _select_three_spaced_events(
         audio_candidates,
         sample_rate_hz=16000,
-        expected_interval_s=float(
-            contract["analysis"]["av_expected_interval_s"]
-        ),
+        expected_interval_s=float(contract["analysis"]["av_expected_interval_s"]),
     )
     producer = load_json(producer_path)
-    audio_start_ms = 1000.0 * _parse_utc(
-        producer.get("started_wall_time_utc")
-    ).timestamp()
-    depth_motion = _depth_grid_motion(frames)
-    search_half_width = float(
-        contract["analysis"]["av_visual_search_half_width_ms"]
+    audio_start_ms = (
+        1000.0 * _parse_utc(producer.get("started_wall_time_utc")).timestamp()
     )
+    depth_motion = _depth_grid_motion(frames)
+    search_half_width = float(contract["analysis"]["av_visual_search_half_width_ms"])
     associations = []
     for event_index, sample in enumerate(audio_samples):
         audio_ms = audio_start_ms + 1000.0 * sample / 16000.0
@@ -2457,8 +3205,7 @@ def _derive_av_association(
         ]
         if not candidates:
             raise S48Error(
-                f"{attempt_root.name}: no visual candidate for event "
-                f"{event_index}"
+                f"{attempt_root.name}: no visual candidate for event {event_index}"
             )
         video_index = max(
             candidates,
@@ -2472,9 +3219,7 @@ def _derive_av_association(
                 "audio_event_time_ms": audio_ms,
                 "video_frame_index": int(frames[video_index]["frame_index"]),
                 "video_event_time_ms": video_ms,
-                "visual_motion_mean_absolute_depth_delta_m": depth_motion[
-                    video_index
-                ],
+                "visual_motion_mean_absolute_depth_delta_m": depth_motion[video_index],
                 "av_absolute_residual_ms": abs(audio_ms - video_ms),
             }
         )
@@ -2555,9 +3300,9 @@ def _simulate_path(
     repo_root: Path, registry: Mapping[str, Any], mode: str
 ) -> dict[str, dict[str, float]]:
     raw_config = _base_sim_config()
-    context = load_json(
-        repo_root / "configs/s4_6_profile_application.v1.json"
-    )["application_context"]
+    context = load_json(repo_root / "configs/s4_6_profile_application.v1.json")[
+        "application_context"
+    ]
     application = apply_profile_application(
         validate_audio_config(raw_config),
         repo_root=repo_root,
@@ -2567,17 +3312,15 @@ def _simulate_path(
     if application.mode != mode:
         raise S48Error(f"simulation profile mode mismatch: {mode}")
     expected_applied = 7 if mode == "apply" else 0
-    if sum(
-        row["status"] == "applied" for row in application.field_status
-    ) != expected_applied:
+    if (
+        sum(row["status"] == "applied" for row in application.field_status)
+        != expected_applied
+    ):
         raise S48Error(f"simulation profile application count mismatch: {mode}")
     array = application.config.arrays["xvf3800_array"]
     simulation_ids = tuple(microphone.mic_id for microphone in array.microphones)
     simulation_positions = np.asarray(
-        [
-            microphone.relative_position_m
-            for microphone in array.microphones
-        ],
+        [microphone.relative_position_m for microphone in array.microphones],
         dtype=float,
     )
     backend = TdoaSyntheticBackend(
@@ -2621,12 +3364,7 @@ def _simulate_path(
                 * math.log10(
                     1.0
                     if identity.stratum_id == "E_impact_audio_video"
-                    else (
-                        0.75
-                        if identity.stratum_id
-                        != "C_center_low_level"
-                        else 0.35
-                    )
+                    else (0.75 if identity.stratum_id != "C_center_low_level" else 0.35)
                 ),
             )
         scene = AudioSceneSnapshot(
@@ -2695,9 +3433,7 @@ def _simulate_path(
             "C_center_low_level",
         }:
             assert detection is not None
-            result["confidence_bc"][take_id] = float(
-                detection.doa.bearing_confidence
-            )
+            result["confidence_bc"][take_id] = float(detection.doa.bearing_confidence)
         if identity.stratum_id == "E_impact_audio_video":
             result["coarse_audio_video_association_e"][take_id] = 0.0
     return result
@@ -2725,9 +3461,7 @@ def _base_sim_config() -> dict[str, Any]:
                 "array_id": "xvf3800_array",
                 "prim_path": "/World/Array",
                 "sample_rate_hz": 16000,
-                "coordinate_convention": (
-                    "x_forward_y_right_z_up_clockwise_bearing"
-                ),
+                "coordinate_convention": ("x_forward_y_right_z_up_clockwise_bearing"),
                 "microphones": [
                     {
                         "mic_id": "ch0",
@@ -2770,17 +3504,14 @@ def _profile_runtime(repo_root: Path) -> dict[str, Any]:
     ]
     return {
         "positions": [
-            list(microphone.relative_position_m)
-            for microphone in array.microphones
+            list(microphone.relative_position_m) for microphone in array.microphones
         ],
         "gain_multipliers": gains,
         "application_report": application.report(),
     }
 
 
-def _validate_profile_modes(
-    repo_root: Path, config: Mapping[str, Any]
-) -> None:
+def _validate_profile_modes(repo_root: Path, config: Mapping[str, Any]) -> None:
     context = load_json(
         _repo_file(repo_root, config["profile_application"]["config_path"])
     )["application_context"]
@@ -2794,9 +3525,10 @@ def _validate_profile_modes(
     )
     if off.config != raw or off.bundle_identity is not None:
         raise S48Error("S4.6 off mode is not unadjusted")
-    if applied.mode != "apply" or sum(
-        row["status"] == "applied" for row in applied.field_status
-    ) != 7:
+    if (
+        applied.mode != "apply"
+        or sum(row["status"] == "applied" for row in applied.field_status) != 7
+    ):
         raise S48Error("S4.6 apply mode did not apply exactly seven components")
 
 
@@ -2814,11 +3546,7 @@ def _sealed_attempt_roots(
         first = next(iter(candidates))
         amendment_root = first.parents[2]
         projection = (
-            repo_root
-            / amendment_root
-            / "access"
-            / "technical_qa"
-            / f"{take_id}.json"
+            repo_root / amendment_root / "access" / "technical_qa" / f"{take_id}.json"
         )
         if not projection.is_file():
             raise S48Error(f"missing attempt-selection projection: {take_id}")
@@ -2860,22 +3588,16 @@ def _seal_record(
     path: Path,
 ) -> Mapping[str, Any]:
     matches = [
-        record
-        for record in seal["artifacts"]
-        if record["path"] == path.as_posix()
+        record for record in seal["artifacts"] if record["path"] == path.as_posix()
     ]
     if len(matches) != 1:
         raise S48Error(f"file is not uniquely seal-declared: {path}")
     return matches[0]
 
 
-def _verify_sealed_file(
-    repo_root: Path, path: Path, seal: Mapping[str, Any]
-) -> None:
+def _verify_sealed_file(repo_root: Path, path: Path, seal: Mapping[str, Any]) -> None:
     relative = path.relative_to(repo_root).as_posix()
-    matches = [
-        record for record in seal["artifacts"] if record["path"] == relative
-    ]
+    matches = [record for record in seal["artifacts"] if record["path"] == relative]
     if len(matches) != 1:
         raise S48Error(f"file is not uniquely seal-declared: {relative}")
     record = matches[0]
@@ -2955,9 +3677,7 @@ def _comparison_condition_ids(
         output = {
             f"{take_id}|{pair_id}"
             for take_id in take_ids
-            for pair_id in corrective["identity_contract"][
-                "microphone_pair_ids"
-            ]
+            for pair_id in corrective["identity_contract"]["microphone_pair_ids"]
         }
     if len(output) != entry["expected_count"]:
         raise S48Error(f"comparison condition count mismatch: {entry['comparison_id']}")
@@ -2985,9 +3705,7 @@ def _circular_difference(first: float, second: float) -> float:
     return abs((first - second + 180.0) % 360.0 - 180.0)
 
 
-def _require_consumed_ledger(
-    repo_root: Path, config: Mapping[str, Any]
-) -> None:
+def _require_consumed_ledger(repo_root: Path, config: Mapping[str, Any]) -> None:
     ledger_path = repo_root / config["grant"]["ledger_path"]
     if not ledger_path.is_file():
         raise S48Error("S4.8 ledger is absent; observations remain closed")
@@ -2997,10 +3715,7 @@ def _require_consumed_ledger(
         ledger_path,
         expected_seal_sha256=grant["seal_sha256"],
     )
-    if (
-        ledger_validation["status"] != "passed"
-        or ledger_validation["event_count"] != 1
-    ):
+    if ledger_validation["status"] != "passed" or ledger_validation["event_count"] != 1:
         raise S48Error("S4.8 access ledger is not one valid event")
     records = [
         json.loads(line, parse_constant=_reject_json_constant)
@@ -3016,20 +3731,15 @@ def _require_consumed_ledger(
     if len(opened) != 1 or len(records) != 1:
         raise S48Error("S4.8 grant was not consumed exactly once")
     authorization = load_json(
-        (repo_root / config["grant"]["path"]).with_name(
-            "authorization_record.v1.json"
-        )
+        (repo_root / config["grant"]["path"]).with_name("authorization_record.v1.json")
     )
-    journal = _load_run_journal(
-        repo_root / config["evidence"]["run_journal_path"]
-    )
-    if [record.get("event") for record in journal] != [
+    journal = _load_run_journal(repo_root / config["evidence"]["run_journal_path"])
+    journal_events = [record.get("event") for record in journal]
+    if journal_events[:2] != [
         "grant_consumed",
         "observation_opening_authorized",
-    ]:
-        raise S48Error(
-            "S4.8 atomic opening transition journal is incomplete"
-        )
+    ] or journal_events[2:] not in ([], ["post_consumption_started"]):
+        raise S48Error("S4.8 atomic opening transition journal is incomplete")
     if any(
         record.get("source_commit") != authorization.get("source_commit")
         for record in journal
@@ -3047,33 +3757,29 @@ def _append_run_journal(path: Path, event: Mapping[str, Any]) -> None:
     if records and records[-1].get("event") == "first_run_terminal":
         raise S48Error("S4.8 run journal is terminal; retry forbidden")
     event_name = event.get("event")
-    prepared = any(
-        record.get("event") == "first_run_finalization_prepared"
-        for record in records
-    )
-    if prepared and event_name not in {
-        "first_run_finalization_failed",
-        "first_run_terminal",
-    }:
-        raise S48Error("S4.8 run journal is prepared; retry forbidden")
-    if event_name == "first_run_finalization_prepared" and [
-        record.get("event") for record in records
-    ] != ["grant_consumed", "observation_opening_authorized"]:
-        raise S48Error("S4.8 finalization preparation is out of sequence")
-    if event_name == "first_run_terminal" and (
-        not records
-        or records[-1].get("event")
-        not in {
+    last_event = records[-1].get("event") if records else None
+    allowed: dict[str | None, set[str]] = {
+        None: {"grant_consumed"},
+        "grant_consumed": {"observation_opening_authorized"},
+        "observation_opening_authorized": {
+            "post_consumption_started",
             "first_run_finalization_prepared",
-            "first_run_finalization_failed",
-        }
-    ):
-        raise S48Error("S4.8 terminal event lacks prepared finalization")
-    if event_name == "first_run_finalization_failed" and (
-        not records
-        or records[-1].get("event") != "first_run_finalization_prepared"
-    ):
-        raise S48Error("S4.8 failed finalization lacks prepared transaction")
+        },
+        "post_consumption_started": {"first_run_finalization_prepared"},
+        "first_run_finalization_prepared": {
+            "first_run_downgrade_intent",
+            "first_run_terminal",
+        },
+        "first_run_downgrade_intent": {"first_run_finalization_failed"},
+        "first_run_finalization_failed": {"first_run_terminal"},
+    }
+    domain_events = {item for choices in allowed.values() for item in choices}
+    domain_events.update(key for key in allowed if isinstance(key, str))
+    generic_chain = event_name not in domain_events and last_event not in domain_events
+    if event_name not in allowed.get(last_event, set()) and not generic_chain:
+        raise S48Error(
+            f"S4.8 journal transition {last_event!r} -> {event_name!r} is invalid"
+        )
     previous = records[-1]["event_sha256"] if records else "0" * 64
     payload = {
         "schema": "ias.s4_8.first_run_journal_event.v1",
@@ -3098,9 +3804,7 @@ def _load_run_journal(path: Path) -> list[dict[str, Any]]:
             raise S48Error(f"cannot read S4.8 run journal: {exc}") from exc
         for line in lines:
             try:
-                record = json.loads(
-                    line, parse_constant=_reject_json_constant
-                )
+                record = json.loads(line, parse_constant=_reject_json_constant)
             except (ValueError, json.JSONDecodeError) as exc:
                 raise S48Error(f"S4.8 run journal JSON is invalid: {exc}") from exc
             if not isinstance(record, dict):
@@ -3109,10 +3813,7 @@ def _load_run_journal(path: Path) -> list[dict[str, Any]]:
     previous = "0" * 64
     for sequence, record in enumerate(records):
         supplied = record.get("event_sha256")
-        payload = {
-            key: value for key, value in record.items()
-            if key != "event_sha256"
-        }
+        payload = {key: value for key, value in record.items() if key != "event_sha256"}
         if (
             record.get("schema") != "ias.s4_8.first_run_journal_event.v1"
             or record.get("sequence") != sequence
@@ -3143,7 +3844,16 @@ def _validate_terminal_journal(
         [
             "grant_consumed",
             "observation_opening_authorized",
+            "post_consumption_started",
             "first_run_finalization_prepared",
+            "first_run_terminal",
+        ],
+        [
+            "grant_consumed",
+            "observation_opening_authorized",
+            "post_consumption_started",
+            "first_run_finalization_prepared",
+            "first_run_downgrade_intent",
             "first_run_finalization_failed",
             "first_run_terminal",
         ],
@@ -3246,22 +3956,38 @@ def _fsync_directory(path: Path) -> None:
         os.close(descriptor)
 
 
+def _fsync_package_tree(path: Path) -> None:
+    """Durably flush all regular package files, then the package directory."""
+
+    if not path.is_dir():
+        raise S48Error(f"S4.8 package directory is unavailable: {path}")
+    for item in sorted(path.iterdir()):
+        if not item.is_file():
+            continue
+        descriptor = os.open(item, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    _fsync_directory(path)
+
+
 def _validate_source_commit(
     repo_root: Path,
     source_commit: str,
     *,
     require_current_head: bool = True,
 ) -> None:
-    if (
-        len(source_commit) != 40
-        or any(character not in "0123456789abcdef" for character in source_commit)
+    if len(source_commit) != 40 or any(
+        character not in "0123456789abcdef" for character in source_commit
     ):
         raise S48Error("source commit must be a full lowercase SHA-1")
     if require_current_head and _git(repo_root, "rev-parse", "HEAD") != source_commit:
         raise S48Error("source commit must be the exact current HEAD")
-    if _git(
-        repo_root, "rev-parse", "--verify", f"{source_commit}^{{commit}}"
-    ) != source_commit:
+    if (
+        _git(repo_root, "rev-parse", "--verify", f"{source_commit}^{{commit}}")
+        != source_commit
+    ):
         raise S48Error("source commit is not available")
     dependencies = _result_dependency_paths(repo_root, source_commit)
     for path in dependencies:
@@ -3270,9 +3996,7 @@ def _validate_source_commit(
             raise S48Error(f"S4.8 result dependency is missing: {path}")
         committed = _git_blob(repo_root, source_commit, path)
         if current.read_bytes() != committed:
-            raise S48Error(
-                f"S4.8 result dependency differs from source commit: {path}"
-            )
+            raise S48Error(f"S4.8 result dependency differs from source commit: {path}")
     untracked_python = _git_lines(
         repo_root,
         "ls-files",
@@ -3296,9 +4020,7 @@ def _validate_source_commit(
     _validate_import_origins(repo_root)
 
 
-def _result_dependency_paths(
-    repo_root: Path, source_commit: str
-) -> tuple[Path, ...]:
+def _result_dependency_paths(repo_root: Path, source_commit: str) -> tuple[Path, ...]:
     names = _git_lines(
         repo_root,
         "ls-tree",
@@ -3312,10 +4034,7 @@ def _result_dependency_paths(
     selected = [
         Path(name)
         for name in names
-        if (
-            name in exact
-            or any(name.startswith(prefix) for prefix in roots)
-        )
+        if (name in exact or any(name.startswith(prefix) for prefix in roots))
         and not name.startswith(output_prefix)
     ]
     if not selected:
@@ -3421,13 +4140,9 @@ def _provenance_report(
         ],
         "seal_file_sha256": contract["holdout"]["seal_file_sha256"],
         "seal_payload_sha256": contract["holdout"]["seal_payload_sha256"],
-        "partition_manifest_sha256": contract["holdout"][
-            "partition_manifest_sha256"
-        ],
+        "partition_manifest_sha256": contract["holdout"]["partition_manifest_sha256"],
         "split_plan_sha256": contract["holdout"]["split_plan_sha256"],
-        "session_manifest_sha256": contract["holdout"][
-            "session_manifest_sha256"
-        ],
+        "session_manifest_sha256": contract["holdout"]["session_manifest_sha256"],
         "scientific_semantics_sha256": contract["prerequisite"][
             "scientific_semantics_sha256"
         ],
@@ -3438,9 +4153,7 @@ def _provenance_report(
         "criteria_corrective_02_config_sha256": contract["criteria"][
             "delegated_config_sha256"
         ],
-        "s4_6_config_sha256": contract["profile_application"][
-            "config_sha256"
-        ],
+        "s4_6_config_sha256": contract["profile_application"]["config_sha256"],
         "s4_6_active_pointer_sha256": contract["profile_application"][
             "active_pointer_sha256"
         ],
@@ -3450,9 +4163,7 @@ def _provenance_report(
         "s4_3_transient_contract_sha256": contract["analysis"][
             "transient_contract_sha256"
         ],
-        "s4_6_application_report": _profile_runtime(repo_root)[
-            "application_report"
-        ],
+        "s4_6_application_report": _profile_runtime(repo_root)["application_report"],
         "raw_data_tracked": False,
     }
 
@@ -3465,9 +4176,7 @@ def _git_blob(repo_root: Path, commit: str, path: Path) -> bytes:
         capture_output=True,
     )
     if result.returncode != 0:
-        raise S48Error(
-            f"S4.8 result dependency is absent from {commit}: {path}"
-        )
+        raise S48Error(f"S4.8 result dependency is absent from {commit}: {path}")
     return result.stdout
 
 
@@ -3510,9 +4219,7 @@ def _write_index_and_manifest(package: Path, source_commit: str) -> None:
         "records": records,
         "raw_content_included": False,
     }
-    (package / "evidence_index.json").write_text(
-        pretty_json(index), encoding="utf-8"
-    )
+    (package / "evidence_index.json").write_text(pretty_json(index), encoding="utf-8")
     names = sorted(PACKAGE_FILES - {"SHA256SUMS"})
     missing = [name for name in names if not (package / name).is_file()]
     if missing:

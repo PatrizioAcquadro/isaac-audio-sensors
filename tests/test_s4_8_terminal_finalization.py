@@ -98,17 +98,12 @@ def test_analysis_failure_preserves_exact_n_take_progress(
         for take_id in take_ids
     }
     absolute_roots = {
-        take_id: tmp_path / relative
-        for take_id, relative in relative_roots.items()
+        take_id: tmp_path / relative for take_id, relative in relative_roots.items()
     }
-    candidates = {
-        take_id: {relative_roots[take_id]} for take_id in take_ids
-    }
+    candidates = {take_id: {relative_roots[take_id]} for take_id in take_ids}
     replacement_take_id = take_ids[26]
     candidates[replacement_take_id].add(
-        Path("dataset/synthetic")
-        / replacement_take_id
-        / "attempt_00"
+        Path("dataset/synthetic") / replacement_take_id / "attempt_00"
     )
     synthetic_takes = {
         take["identity"]["planned_take_id"]: take
@@ -187,9 +182,7 @@ def test_analysis_failure_preserves_exact_n_take_progress(
         if record["selected_for_evaluation"] is True
     ]
     opened = [
-        record
-        for record in selected
-        if record["scientific_observation_opened"] is True
+        record for record in selected if record["scientific_observation_opened"] is True
     ]
     derived = [
         record
@@ -208,8 +201,7 @@ def test_analysis_failure_preserves_exact_n_take_progress(
     assert failed_record["scientific_observations_derived"] is False
     assert failed_record["terminal_error"] == "injected Nth-take failure"
     assert all(
-        record["scientific_observations_derived"] is False
-        for record in unopened
+        record["scientific_observations_derived"] is False for record in unopened
     )
 
 
@@ -346,9 +338,7 @@ def test_prepared_finalization_recovers_at_publication_journal_boundaries(
         "failed_gating_criteria": [],
         "run_failure": failure,
         "derived_input_sha256": "c" * 64,
-        "evidence_manifest_sha256": s4_8.sha256_file(
-            staging / "SHA256SUMS"
-        ),
+        "evidence_manifest_sha256": s4_8.sha256_file(staging / "SHA256SUMS"),
         "staging_path": staging.relative_to(tmp_path).as_posix(),
         "output_path": output.relative_to(tmp_path).as_posix(),
         "automatic_retry_forbidden": True,
@@ -397,9 +387,7 @@ def test_runtime_provenance_declares_jsonschema() -> None:
     assert "jsonschema" in versions
     assert versions["jsonschema"]
     assert "jsonschema>=4.10" in provenance["declared_runtime_dependencies"]
-    assert '"jsonschema>=4.10"' in (ROOT / "pyproject.toml").read_text(
-        encoding="utf-8"
-    )
+    assert '"jsonschema>=4.10"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     project = next(
         item
         for item in provenance["distributions"]
@@ -477,16 +465,12 @@ def test_terminal_journal_write_failure_downgrades_same_run_to_failed(
     monkeypatch.setattr(
         s4_8,
         "_build_evidence_package_in_place",
-        lambda _root, value, **kwargs: original_full(
-            ROOT, value, **kwargs
-        ),
+        lambda _root, value, **kwargs: original_full(ROOT, value, **kwargs),
     )
     monkeypatch.setattr(
         s4_8,
         "_build_terminal_failure_package_in_place",
-        lambda _root, value, **kwargs: original_failure(
-            ROOT, value, **kwargs
-        ),
+        lambda _root, value, **kwargs: original_failure(ROOT, value, **kwargs),
     )
     original_append = s4_8._append_run_journal
     injected = False
@@ -522,6 +506,7 @@ def test_terminal_journal_write_failure_downgrades_same_run_to_failed(
         "grant_consumed",
         "observation_opening_authorized",
         "first_run_finalization_prepared",
+        "first_run_downgrade_intent",
         "first_run_finalization_failed",
         "first_run_terminal",
     ]
