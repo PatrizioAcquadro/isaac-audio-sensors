@@ -98,8 +98,13 @@ owner. The persistent lock file is never unlinked. Process termination closes
 the owning descriptor and releases the kernel lock, after which exactly one
 later executor may acquire it and perform journal-authoritative recovery.
 Grant consumption and real-observation derivation are private implementation
-steps that require the active process-and-context-bound execution-lock scope;
-calling either step outside that scope fails before ledger or holdout access.
+steps that require an opaque, revocable live lease for the exact acquired lock
+descriptor. The lease is bound to the current PID and canonical repository and
+lock paths, registered by identity, and valid only while its descriptor is open
+and still refers to the persistent lock file. It is revoked and unregistered
+before the descriptor is unlocked or closed, so fabricated, copied, inherited,
+stale, wrong-process, wrong-repository, closed-descriptor, and replaced-file
+markers fail before contract loading, ledger mutation, or holdout access.
 
 The S4.8 consumer serializes grant claim, canonical ledger append, first-run
 journal initialization, and observation-opening authorization under one

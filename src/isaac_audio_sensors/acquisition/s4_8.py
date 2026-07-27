@@ -29,7 +29,7 @@ from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from statistics import median
-from typing import Any
+from typing import Any, BinaryIO
 
 import jsonschema
 import numpy as np
@@ -113,10 +113,43 @@ POST_CONSUMPTION_PROGRESS_QUARANTINE_NAME = "post_consumption_progress_quarantin
 AUTHORIZATION_RECORD_NAME = "authorization_record.v1.json"
 GRANT_PUBLICATION_STAGING_NAME = ".s4_8_grant_publication.v1.staging"
 AUTHORIZED_EXECUTION_LOCK_PATH = Path("dataset/.s4_8_authorized_execution.lock")
-_ACTIVE_EXECUTION_LOCK: ContextVar[tuple[int, str] | None] = ContextVar(
-    "s4_8_active_execution_lock",
+
+
+class _ExecutionLockLease:
+    """Revocable capability for one acquired execution-lock descriptor."""
+
+    __slots__ = (
+        "_active",
+        "_descriptor",
+        "_lock_path",
+        "_pid",
+        "_repo_root",
+        "_stream",
+    )
+
+    def __init__(
+        self,
+        *,
+        repo_root: Path,
+        lock_path: Path,
+        stream: BinaryIO,
+    ) -> None:
+        self._active = True
+        self._descriptor = stream.fileno()
+        self._lock_path = lock_path
+        self._pid = os.getpid()
+        self._repo_root = repo_root
+        self._stream = stream
+
+    def _revoke(self) -> None:
+        self._active = False
+
+
+_ACTIVE_EXECUTION_LEASE: ContextVar[_ExecutionLockLease | None] = ContextVar(
+    "s4_8_active_execution_lease",
     default=None,
 )
+_REGISTERED_EXECUTION_LEASES: dict[int, _ExecutionLockLease] = {}
 AUTHORIZATION_RECORD_SCHEMA = "ias.s4_8.authorization_record.v1"
 AUTHORIZATION_RECORD_FIELDS = frozenset(
     {
@@ -1042,6 +1075,7 @@ def _run_authorized_evaluation_once_locked(
 ) -> dict[str, Any]:
     """Run or recover while holding the process-scoped execution lock."""
 
+    _require_execution_lock(root)
     config = load_contract(root)
     _anchor_existing_one_shot_directories(root, config)
     derived_path = root / config["evidence"]["derived_input_path"]
@@ -4980,21 +5014,56 @@ def _exclusive_execution_lock(path: Path) -> Iterator[None]:
             raise S48Error(
                 "S4.8 authorized execution is already active; state unchanged"
             ) from exc
-        token = _ACTIVE_EXECUTION_LOCK.set((os.getpid(), str(path.resolve())))
+        lock_path = path.resolve()
+        lease = _ExecutionLockLease(
+            repo_root=lock_path.parent.parent,
+            lock_path=lock_path,
+            stream=stream,
+        )
+        lease_id = id(lease)
+        _REGISTERED_EXECUTION_LEASES[lease_id] = lease
+        token = _ACTIVE_EXECUTION_LEASE.set(lease)
         try:
             _fsync_directory(path.parent)
             yield
         finally:
-            _ACTIVE_EXECUTION_LOCK.reset(token)
-            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+            lease._revoke()
+            if _REGISTERED_EXECUTION_LEASES.get(lease_id) is lease:
+                del _REGISTERED_EXECUTION_LEASES[lease_id]
+            try:
+                _ACTIVE_EXECUTION_LEASE.reset(token)
+            finally:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 def _require_execution_lock(repo_root: Path) -> None:
-    expected = (
-        os.getpid(),
-        str((repo_root / AUTHORIZED_EXECUTION_LOCK_PATH).resolve()),
+    pid = os.getpid()
+    lease = _ACTIVE_EXECUTION_LEASE.get()
+    expected_root = repo_root.resolve()
+    expected_lock = (expected_root / AUTHORIZED_EXECUTION_LOCK_PATH).resolve()
+    valid = (
+        lease is not None
+        and _REGISTERED_EXECUTION_LEASES.get(id(lease)) is lease
+        and lease._active
+        and lease._pid == pid
+        and lease._repo_root == expected_root
+        and lease._lock_path == expected_lock
+        and not lease._stream.closed
     )
-    if _ACTIVE_EXECUTION_LOCK.get() != expected:
+    if valid:
+        try:
+            descriptor = lease._stream.fileno()
+            descriptor_stat = os.fstat(descriptor)
+            lock_stat = expected_lock.stat()
+        except (OSError, ValueError):
+            valid = False
+        else:
+            valid = (
+                descriptor == lease._descriptor
+                and descriptor_stat.st_dev == lock_stat.st_dev
+                and descriptor_stat.st_ino == lock_stat.st_ino
+            )
+    if not valid:
         raise S48Error(
             "S4.8 irreversible operation requires the authorized execution lock"
         )
