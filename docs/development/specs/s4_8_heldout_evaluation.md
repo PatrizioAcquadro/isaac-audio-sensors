@@ -55,6 +55,10 @@ Grant creation stages the grant and complete authorization record together in
 a private same-filesystem directory, validates their exact schemas and mutual
 bindings, fsyncs both files and the staging directory, and publishes the pair
 with one atomic directory rename followed by a parent-directory fsync.
+Creation is serialized by the persistent
+`dataset/.s4_8_grant_creation.lock`, acquired before `dataset/S4.8` is
+created. Concurrent identical creation requests return the same authenticated
+pair; a mismatched request or existing tampered state fails closed.
 Before any file is written into a newly created one-shot state directory, that
 directory entry is made durable by fsyncing its containing directory. This
 applies recursively when `dataset/S4.8` is initially absent: creation of
@@ -93,6 +97,9 @@ observation, entering recovery, publishing output, or terminalizing the live
 owner. The persistent lock file is never unlinked. Process termination closes
 the owning descriptor and releases the kernel lock, after which exactly one
 later executor may acquire it and perform journal-authoritative recovery.
+Grant consumption and real-observation derivation are private implementation
+steps that require the active process-and-context-bound execution-lock scope;
+calling either step outside that scope fails before ledger or holdout access.
 
 The S4.8 consumer serializes grant claim, canonical ledger append, first-run
 journal initialization, and observation-opening authorization under one
