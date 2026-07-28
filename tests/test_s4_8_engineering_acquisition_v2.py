@@ -26,6 +26,8 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
     DEFAULT_PRESEALING_CONFIG_V2,
+    S48PresealingGateError,
+    normalize_reference_for_capture_rate,
 )
 
 
@@ -697,3 +699,22 @@ def _write_wav(path: Path, samples: np.ndarray, rate: int) -> None:
         stream.setsampwidth(2)
         stream.setframerate(rate)
         stream.writeframes(encoded.tobytes())
+
+
+def test_exact_48khz_reference_is_deterministically_normalized_to_16khz() -> None:
+    reference_16k = np.random.default_rng(495).normal(0.0, 0.2, size=4_096)
+    reference_48k = np.repeat(reference_16k, 3)
+
+    normalized = normalize_reference_for_capture_rate(
+        reference_48k[:, None],
+        reference_sample_rate_hz=48_000,
+        capture_sample_rate_hz=16_000,
+    )
+
+    np.testing.assert_allclose(normalized, reference_16k[:, None], atol=1e-15)
+    with pytest.raises(S48PresealingGateError, match="integer ratio"):
+        normalize_reference_for_capture_rate(
+            reference_48k[:, None],
+            reference_sample_rate_hz=44_100,
+            capture_sample_rate_hz=16_000,
+        )

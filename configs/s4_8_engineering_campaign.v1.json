@@ -1,0 +1,129 @@
+{
+  "schema": "ias.s4_8.engineering_campaign_config.v1",
+  "protocol": {
+    "identity": "s4_8_physical_engineering_rehearsal_stratum_aware_v1",
+    "specification_path": "docs/development/specs/s4_8_engineering_campaign.md"
+  },
+  "template": {
+    "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_03/manifests/sessions/prospective_holdout.json",
+    "sha256": "587c7ff093f086f304e12a7e55459bf8b19d326132cd0550c7218b6cf38c84d3"
+  },
+  "reference": {
+    "local_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+    "mac_path": "S4.2/reference/s4_2_reference_v1.0.0.wav",
+    "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468",
+    "continuous_asset_duration_s": 18.0,
+    "continuous_asset_mac_path": "S4.8/engineering_rehearsal/continuous_reference_18s.wav"
+  },
+  "gate": {
+    "configuration_canonical_sha256": "e67cfd17c56d33762d7365225a7dbd4991acfe693facfcd0af401e23ee0d0e04",
+    "detector_canonical_sha256": "c6d18d0c32a1a8c9c1253df728df017c6342170ce4be2effa4dcafc688a06680"
+  },
+  "controller": {
+    "identity": "ias.s4_8.stratum_aware_engineering_controller",
+    "version": "1.0"
+  },
+  "respeaker": {
+    "ssh_prefix": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "elab-raspberrypi5"
+    ],
+    "scp_prefix": [
+      "scp",
+      "-q",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8"
+    ],
+    "scp_target": "elab-raspberrypi5",
+    "helper_path": "S4.2/bin/s4_2_pi_capture.py",
+    "helper_sha256": "af9a18fe855da034d062c4b50eddf559b7d57c0241324f77b8d13381d69da997",
+    "remote_campaign_root": "S4.8/engineering_rehearsal",
+    "device": "hw:CARD=Array,DEV=0",
+    "profile_id": "respeaker_usb_6ch_pcm16_v1",
+    "serial": "114993701261100454",
+    "model": "reSpeaker XVF3800 4-Mic Array",
+    "firmware": "2.08",
+    "sample_rate_hz": 16000,
+    "sample_format": "S16_LE",
+    "channel_count": 6
+  },
+  "channel_map": [
+    "playback_left",
+    "playback_right",
+    "microphone_0",
+    "microphone_1",
+    "microphone_2",
+    "microphone_3"
+  ],
+  "playback": {
+    "ssh_prefix": [
+      "ssh",
+      "-i",
+      "/home/pacquadr/.ssh/id_ed25519_macbook",
+      "-o",
+      "IdentitiesOnly=yes",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "StrictHostKeyChecking=yes",
+      "-o",
+      "HostKeyAlias=10.186.115.231",
+      "patrizioacquadro@100.89.250.69"
+    ],
+    "scp_prefix": [
+      "scp",
+      "-q",
+      "-i",
+      "/home/pacquadr/.ssh/id_ed25519_macbook",
+      "-o",
+      "IdentitiesOnly=yes",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "StrictHostKeyChecking=yes",
+      "-o",
+      "HostKeyAlias=10.186.115.231"
+    ],
+    "scp_target": "patrizioacquadro@100.89.250.69",
+    "model": "MacBookPro18,1",
+    "output_device": "MacBook Pro Speakers",
+    "channel_count": 2,
+    "nominal_sample_rate_hz": 48000,
+    "system_volume_percent": 40,
+    "muted": false,
+    "mac_preflight_path": "S4.2/bin/s4_2_mac_preflight.py"
+  },
+  "zed": {
+    "model": "ZED 2i",
+    "serial": "39011785",
+    "sdk_version_reference": "5.4.0",
+    "camera_firmware_reference": "1523",
+    "sensor_firmware_reference": "777",
+    "resolution": "HD720",
+    "fps": 30,
+    "depth_mode": "PERFORMANCE",
+    "minimum_usb_speed_mbps": 5000
+  },
+  "retry_policy": {
+    "maximum_attempts_per_planned_take": 2,
+    "replacement_requires_retained_retry_required": true,
+    "sequence_advances_only_after_pass": true,
+    "configuration_change_restarts_campaign": true
+  },
+  "operational_locations": {
+    "campaign_root": "/home/pacquadr/Desktop/s4_8_engineering_rehearsal",
+    "pi_capture_root": "S4.8/engineering_rehearsal"
+  },
+  "authority": {
+    "creates_grant": false,
+    "consumes_grant": false,
+    "official_state_machine": false,
+    "publishes_official_evidence": false
+  }
+}

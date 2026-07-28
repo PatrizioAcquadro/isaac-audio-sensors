@@ -180,6 +180,46 @@ def read_pcm16_wav_strict(path: Path) -> tuple[np.ndarray, int]:
     )
 
 
+def normalize_reference_for_capture_rate(
+    reference: np.ndarray,
+    *,
+    reference_sample_rate_hz: int,
+    capture_sample_rate_hz: int,
+) -> np.ndarray:
+    """Deterministically normalize an exact higher-rate reference.
+
+    Only an exact integer downsampling ratio is supported.  Each output sample
+    is the mean of one non-overlapping source-rate block, which provides a
+    fixed boxcar anti-alias filter without adding an environment dependency.
+    The authenticated input remains the original reference file.
+    """
+
+    array = np.asarray(reference, dtype=np.float64)
+    if (
+        array.ndim not in {1, 2}
+        or array.shape[0] == 0
+        or isinstance(reference_sample_rate_hz, bool)
+        or isinstance(capture_sample_rate_hz, bool)
+        or not isinstance(reference_sample_rate_hz, int)
+        or not isinstance(capture_sample_rate_hz, int)
+        or reference_sample_rate_hz <= 0
+        or capture_sample_rate_hz <= 0
+        or reference_sample_rate_hz < capture_sample_rate_hz
+        or reference_sample_rate_hz % capture_sample_rate_hz
+        or array.shape[0]
+        % (reference_sample_rate_hz // capture_sample_rate_hz)
+    ):
+        raise S48PresealingGateError(
+            "reference/capture sample rates require an exact integer ratio"
+        )
+    ratio = reference_sample_rate_hz // capture_sample_rate_hz
+    if ratio == 1:
+        return array.copy()
+    if array.ndim == 1:
+        return array.reshape(-1, ratio).mean(axis=1)
+    return array.reshape(-1, ratio, array.shape[1]).mean(axis=1)
+
+
 def evaluate_capture_integrity_v2(
     capture: np.ndarray,
     *,

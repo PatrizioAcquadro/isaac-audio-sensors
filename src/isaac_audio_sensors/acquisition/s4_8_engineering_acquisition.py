@@ -23,6 +23,7 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha25
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
     evaluate_presealing_gate_v2,
     load_presealing_config_v2,
+    normalize_reference_for_capture_rate,
     read_pcm16_wav_strict,
 )
 
@@ -530,10 +531,11 @@ def run_presealing_gate_from_engineering_files(
         )
     capture, capture_rate = read_pcm16_wav_strict(capture_path)
     reference_channels, reference_rate = read_pcm16_wav_strict(reference_path)
-    if capture_rate != reference_rate:
-        raise S48EngineeringAcquisitionError(
-            "capture and reference sample rates differ"
-        )
+    reference_channels = normalize_reference_for_capture_rate(
+        reference_channels,
+        reference_sample_rate_hz=reference_rate,
+        capture_sample_rate_hz=capture_rate,
+    )
     capture_sha256 = _sha256_file(capture_path)
     reference_sha256 = _sha256_file(reference_path)
     capture_event = journal[_EVENT_ORDER.index("capture_authenticated")]
