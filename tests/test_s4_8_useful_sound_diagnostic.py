@@ -131,6 +131,22 @@ def test_detector_requires_basic_energy_and_consecutive_window_contract() -> Non
     assert result["exclusion_reason_counts"]["below_basic_rms_floor"] == 1
 
 
+def test_legacy_detector_loses_coverage_when_signal_dominates_capture() -> None:
+    windows = [_window(index, rms=0.001, coherence=0.015) for index in range(160)]
+    for index in range(16, 160):
+        windows[index]["rms_median"] = 0.02
+        windows[index]["srp_coherence"] = 0.06
+
+    result = detect_useful_sound_windows(
+        windows,
+        config=DEFAULT_DETECTOR_CONFIG,
+    )
+
+    assert result["applicable_window_count"] == 0
+    assert result["coherence_background_median"] == 0.06
+    assert result["coherence_threshold"] == 0.06
+
+
 def test_useful_take_aggregation_excludes_non_applicable_and_abstained_tdoa() -> None:
     pair_ids = [
         f"raw_microphone_{left}->raw_microphone_{right}"
