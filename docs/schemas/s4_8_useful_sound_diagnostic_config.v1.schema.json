@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isaac-audio-sensors.local/schemas/s4_8_useful_sound_diagnostic_config.v1.schema.json",
+  "title": "S4.8 useful-sound diagnostic configuration v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "reused_holdout",
+    "diagnostic_only",
+    "applicable_strata",
+    "detector",
+    "authority",
+    "scientific_constraints"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ias.s4_8.useful_sound_diagnostic_config.v1"
+    },
+    "status": {
+      "const": "diagnostic_development_only"
+    },
+    "reused_holdout": {
+      "const": true
+    },
+    "diagnostic_only": {
+      "const": true
+    },
+    "applicable_strata": {
+      "const": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level"
+      ]
+    },
+    "detector": {
+      "$ref": "#/$defs/detector"
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "creates_grant",
+        "consumes_grant",
+        "official_state_machine",
+        "publishes_official_evidence"
+      ],
+      "properties": {
+        "creates_grant": {
+          "const": false
+        },
+        "consumes_grant": {
+          "const": false
+        },
+        "official_state_machine": {
+          "const": false
+        },
+        "publishes_official_evidence": {
+          "const": false
+        }
+      }
+    },
+    "scientific_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uses_take_identity",
+        "uses_target_bearing",
+        "uses_final_confidence",
+        "uses_bearing_correctness",
+        "uses_acceptance_outcomes",
+        "uses_manual_window_ranges",
+        "uses_unsealed_playback_timing",
+        "thresholds_unchanged"
+      ],
+      "properties": {
+        "uses_take_identity": {
+          "const": false
+        },
+        "uses_target_bearing": {
+          "const": false
+        },
+        "uses_final_confidence": {
+          "const": false
+        },
+        "uses_bearing_correctness": {
+          "const": false
+        },
+        "uses_acceptance_outcomes": {
+          "const": false
+        },
+        "uses_manual_window_ranges": {
+          "const": false
+        },
+        "uses_unsealed_playback_timing": {
+          "const": false
+        },
+        "thresholds_unchanged": {
+          "const": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "detector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_rate_hz",
+        "window_samples",
+        "hop_samples",
+        "basic_rms_floor",
+        "background_lower_fraction",
+        "normalized_mad_scale",
+        "coherence_mad_multiplier",
+        "minimum_contiguous_windows"
+      ],
+      "properties": {
+        "sample_rate_hz": {
+          "type": "integer",
+          "const": 16000
+        },
+        "window_samples": {
+          "type": "integer",
+          "const": 4000
+        },
+        "hop_samples": {
+          "type": "integer",
+          "const": 2000
+        },
+        "basic_rms_floor": {
+          "type": "number",
+          "const": 0.002
+        },
+        "background_lower_fraction": {
+          "type": "number",
+          "const": 0.5
+        },
+        "normalized_mad_scale": {
+          "type": "number",
+          "const": 1.4826
+        },
+        "coherence_mad_multiplier": {
+          "type": "number",
+          "const": 5.0
+        },
+        "minimum_contiguous_windows": {
+          "type": "integer",
+          "const": 8
+        }
+      }
+    }
+  }
+}

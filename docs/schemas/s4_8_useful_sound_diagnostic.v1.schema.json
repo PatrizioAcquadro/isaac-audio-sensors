@@ -1,0 +1,427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isaac-audio-sensors.local/schemas/s4_8_useful_sound_diagnostic.v1.schema.json",
+  "title": "S4.8 reused-holdout useful-sound diagnostic payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "reused_holdout",
+    "diagnostic_only",
+    "useful_sound_applicability_method",
+    "complete_capture_window_count",
+    "source_window_count",
+    "applicable_useful_window_count",
+    "non_applicable_window_count",
+    "detector_configuration",
+    "detector_provenance",
+    "per_take_applicability",
+    "scientific_payload"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ias.s4_8.useful_sound_diagnostic_payload.v1"
+    },
+    "reused_holdout": {
+      "const": true
+    },
+    "diagnostic_only": {
+      "const": true
+    },
+    "useful_sound_applicability_method": {
+      "type": "string",
+      "minLength": 1
+    },
+    "complete_capture_window_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_window_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "applicable_useful_window_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "non_applicable_window_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "detector_configuration": {
+      "$ref": "#/$defs/detector"
+    },
+    "detector_provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "per_take_applicability": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/take"
+      }
+    },
+    "scientific_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "contract",
+        "takes",
+        "sim_vs_real"
+      ],
+      "properties": {
+        "schema": {
+          "const": "ias.s4_8.useful_sound_scientific_payload.v1"
+        },
+        "contract": {
+          "type": "object"
+        },
+        "takes": {
+          "type": "array"
+        },
+        "sim_vs_real": {
+          "type": "array"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "detector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_rate_hz",
+        "window_samples",
+        "hop_samples",
+        "basic_rms_floor",
+        "background_lower_fraction",
+        "normalized_mad_scale",
+        "coherence_mad_multiplier",
+        "minimum_contiguous_windows"
+      ],
+      "properties": {
+        "sample_rate_hz": {
+          "type": "integer",
+          "const": 16000
+        },
+        "window_samples": {
+          "type": "integer",
+          "const": 4000
+        },
+        "hop_samples": {
+          "type": "integer",
+          "const": 2000
+        },
+        "basic_rms_floor": {
+          "type": "number",
+          "const": 0.002
+        },
+        "background_lower_fraction": {
+          "type": "number",
+          "const": 0.5
+        },
+        "normalized_mad_scale": {
+          "type": "number",
+          "const": 1.4826
+        },
+        "coherence_mad_multiplier": {
+          "type": "number",
+          "const": 5.0
+        },
+        "minimum_contiguous_windows": {
+          "type": "integer",
+          "const": 8
+        }
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_path",
+        "config_sha256",
+        "implementation_path",
+        "implementation_sha256",
+        "holdout_seal_path",
+        "holdout_seal_sha256",
+        "source_full_capture_payload_sha256",
+        "authenticated_waveform_and_producer_status",
+        "unsealed_playback_timing_used",
+        "reference_audio_used",
+        "outcome_fields_used_for_applicability"
+      ],
+      "properties": {
+        "config_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "implementation_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "holdout_seal_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "holdout_seal_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_full_capture_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "authenticated_waveform_and_producer_status": {
+          "const": true
+        },
+        "unsealed_playback_timing_used": {
+          "const": false
+        },
+        "reference_audio_used": {
+          "const": false
+        },
+        "outcome_fields_used_for_applicability": {
+          "const": []
+        }
+      }
+    },
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "first_window_index",
+        "last_window_index",
+        "start_sample",
+        "end_sample",
+        "duration_s",
+        "window_count"
+      ],
+      "properties": {
+        "first_window_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_window_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start_sample": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_sample": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "window_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "confidence_quantiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "p25",
+        "median",
+        "p75",
+        "p90",
+        "maximum"
+      ],
+      "properties": {
+        "p25": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "median": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "p75": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "p90": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "maximum": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_index",
+        "start_sample",
+        "rms_median",
+        "srp_coherence",
+        "applicable",
+        "exclusion_reason",
+        "confidence",
+        "abstained"
+      ],
+      "properties": {
+        "window_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start_sample": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rms_median": {
+          "type": "number",
+          "minimum": 0
+        },
+        "srp_coherence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "applicable": {
+          "type": "boolean"
+        },
+        "exclusion_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "abstained": {
+          "type": "boolean"
+        }
+      }
+    },
+    "take": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "take_id",
+        "stratum",
+        "source_window_count",
+        "useful_sound_window_count",
+        "non_applicable_window_count",
+        "useful_window_coverage",
+        "abstained_useful_window_count",
+        "useful_window_abstention_rate",
+        "confidence_quantiles",
+        "longest_continuous_useful_sound_interval",
+        "coherence_background_lower_window_count",
+        "coherence_background_median",
+        "coherence_background_mad",
+        "coherence_background_normalized_mad",
+        "coherence_threshold",
+        "exclusion_reason_counts",
+        "windows"
+      ],
+      "properties": {
+        "take_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stratum": {
+          "enum": [
+            "A_controlled_boundary_sweep",
+            "B_center_nominal_level"
+          ]
+        },
+        "source_window_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "useful_sound_window_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "non_applicable_window_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "useful_window_coverage": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "abstained_useful_window_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "useful_window_abstention_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "confidence_quantiles": {
+          "$ref": "#/$defs/confidence_quantiles"
+        },
+        "longest_continuous_useful_sound_interval": {
+          "$ref": "#/$defs/interval"
+        },
+        "coherence_background_lower_window_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "coherence_background_median": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "coherence_background_mad": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "coherence_background_normalized_mad": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "coherence_threshold": {
+          "type": "number",
+          "minimum": 0
+        },
+        "exclusion_reason_counts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/window"
+          }
+        }
+      }
+    }
+  }
+}
