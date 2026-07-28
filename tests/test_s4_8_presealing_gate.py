@@ -204,6 +204,10 @@ def test_waveform_fault_matrix_requires_retry(
             {"playback_started_monotonic_ns": 2_250_000_000},
             "playback_start_outside_tolerance",
         ),
+        (
+            {"capture_stopped_monotonic_ns": 22_000_000_000},
+            "capture_stop_timing_mismatch",
+        ),
         ({"playback_exit_status": 1}, "playback_process_failed"),
         ({"recorder_started": False}, "recorder_not_started"),
         ({"producer_status": "failed"}, "producer_incomplete"),

@@ -322,6 +322,18 @@ def evaluate_presealing_gate(
                 planned_s=planned_stop_s,
                 actual_s=playback_stop_s,
             )
+        if (
+            abs(timing["capture_stop_s"] - actual_duration_s)
+            > gate["capture_duration_tolerance_s"]
+        ):
+            reject(
+                "capture_stop_timing_mismatch",
+                "integrity",
+                "capture process timing contradicts waveform duration",
+                process_duration_s=timing["capture_stop_s"],
+                waveform_duration_s=actual_duration_s,
+                tolerance_s=gate["capture_duration_tolerance_s"],
+            )
 
     detector_report: dict[str, Any] | None = None
     structural_waveform_valid = (
