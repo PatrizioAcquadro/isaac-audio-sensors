@@ -54,6 +54,37 @@ def _canonical_package() -> Path:
     return CANONICAL
 
 
+@pytest.fixture(scope="module")
+def corrective_analysis() -> dict[str, Any]:
+    """Compute the immutable 102-WAV corrective analysis once per test module."""
+
+    accessor = _accessor()
+    inventory, records = accessor.inventory(purpose="S4.5_validation")
+    measurements, observations, clipping, group_rows = (
+        _extract_corrective_observations(accessor, records)
+    )
+    comparison = _bearing_report(group_rows)
+    corrective = load_corrective_contract(ROOT / CORRECTIVE_CONFIG, ROOT)
+    decisions = _parameter_decisions(
+        observations,
+        records,
+        accessor.contract,
+        corrective,
+        comparison,
+        group_rows,
+        _synthetic_report(accessor.contract),
+    )
+    return {
+        "inventory": inventory,
+        "measurements": measurements,
+        "observations": observations,
+        "clipping": clipping,
+        "group_rows": group_rows,
+        "comparison": comparison,
+        "decisions": decisions,
+    }
+
+
 def test_corrective_contract_freezes_physical_hypotheses_and_fit_roles() -> None:
     contract = load_corrective_contract(ROOT / CORRECTIVE_CONFIG, ROOT)
     assert tuple(item["id"] for item in contract["bearing_binding"]["hypotheses"]) == (
@@ -90,12 +121,14 @@ def test_pcm16_endpoint_clipping_excludes_only_exact_endpoints() -> None:
     assert endpoint_clipping_counts(retained)["clipped_sample_count"] == 0
 
 
-def test_corrected_extraction_counts_clipping_and_groups() -> None:
-    accessor = _accessor()
-    inventory, records = accessor.inventory(purpose="S4.5_validation")
-    measurements, observations, clipping, group_rows = _extract_corrective_observations(
-        accessor, records
-    )
+def test_corrected_extraction_counts_clipping_and_groups(
+    corrective_analysis: dict[str, Any],
+) -> None:
+    inventory = corrective_analysis["inventory"]
+    measurements = corrective_analysis["measurements"]
+    observations = corrective_analysis["observations"]
+    clipping = corrective_analysis["clipping"]
+    group_rows = corrective_analysis["group_rows"]
     assert inventory["session_counts"] == {"fit_a": 51, "fit_b": 51}
     assert measurements["authorized_valid_cell_count"] == 102
     assert measurements["eligible_attempt_measurement_count"] == 85
@@ -106,13 +139,10 @@ def test_corrected_extraction_counts_clipping_and_groups() -> None:
     assert measurements["holdout_observations"] == 0
 
 
-def test_fit_a_selects_binding_and_fit_b_only_validates_it() -> None:
-    accessor = _accessor()
-    _inventory, records = accessor.inventory(purpose="S4.5_validation")
-    _measurements, _observations, _clipping, group_rows = (
-        _extract_corrective_observations(accessor, records)
-    )
-    report = _bearing_report(group_rows)
+def test_fit_a_selects_binding_and_fit_b_only_validates_it(
+    corrective_analysis: dict[str, Any],
+) -> None:
+    report = corrective_analysis["comparison"]
     assert report["hypothesis_selection_partition"] == "fit_a"
     assert report["fit_b_used_for_selection"] is False
     assert report["selected_hypothesis_id"] == SELECTED_HYPOTHESIS
@@ -128,24 +158,10 @@ def test_fit_a_selects_binding_and_fit_b_only_validates_it() -> None:
     assert summaries[HYPOTHESIS_IDS[2]]["nearest_rank_p95_angular_error_deg"] == 15.0
 
 
-def test_bearing_retention_requires_uncertainty_and_leave_one_group_stability() -> None:
-    accessor = _accessor()
-    _inventory, records = accessor.inventory(purpose="S4.5_validation")
-    _measurements, observations, _clipping, group_rows = (
-        _extract_corrective_observations(accessor, records)
-    )
-    corrective = load_corrective_contract(ROOT / CORRECTIVE_CONFIG, ROOT)
-    comparison = _bearing_report(group_rows)
-    synthetic = _synthetic_report(accessor.contract)
-    decisions = _parameter_decisions(
-        observations,
-        records,
-        accessor.contract,
-        corrective,
-        comparison,
-        group_rows,
-        synthetic,
-    )
+def test_bearing_retention_requires_uncertainty_and_leave_one_group_stability(
+    corrective_analysis: dict[str, Any],
+) -> None:
+    decisions = corrective_analysis["decisions"]
     binding = next(
         item
         for item in decisions["decisions"]
@@ -329,17 +345,3 @@ def test_semantic_validator_rejects_rechecksummed_scientific_tampering(
     assert result["status"] == "failed"
     assert not any("checksum mismatch" in issue for issue in result["issues"])
     assert any("semantic regeneration" in issue for issue in result["issues"])
-
-
-def test_mutating_copies_does_not_change_canonical_package() -> None:
-    before = {
-        path.name: path.read_bytes()
-        for path in _canonical_package().iterdir()
-        if path.is_file()
-    }
-    after = {
-        path.name: path.read_bytes()
-        for path in _canonical_package().iterdir()
-        if path.is_file()
-    }
-    assert before == after

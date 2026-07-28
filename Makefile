@@ -12,10 +12,25 @@ WHEELHOUSE ?=
 CONSUMER_USER ?= pacquadr
 CONSUMER_REPO ?= /home/$(CONSUMER_USER)/Desktop/squadbot-av-phase1
 
-.PHONY: test lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config dataset-validate-fixture export-schema regenerate-traces regenerate-manifests regenerate-reference-dataset measure-writer-memory live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-s3-1-pose-velocity live-s3-2-time-gaps live-s3-stress live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-guided-workflow live-headless-parity live-reliability live-endurance-capture live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
+.PHONY: test test-full test-fast test-current lint format build build-kit audit-kit build-pack audit-pack artifacts checksums check-version check-release-source audit-dist import-smoke validate-config dataset-validate-fixture export-schema regenerate-traces regenerate-manifests regenerate-reference-dataset measure-writer-memory live-evidence-report live-clean-install consumer-gate live-clean-install-gui live-isaac-sim-audio live-s3-1-pose-velocity live-s3-2-time-gaps live-s3-stress live-isaac-occlusion live-omniverse-extension-ux live-omniverse-extension-ux-screenshots live-guided-workflow live-headless-parity live-reliability live-endurance-capture live-isaac-lab-audio live-isaac-lab-audio-gpu diagnose-isaac alex-audio-showcase
 
-test:
+CURRENT_TESTS := \
+	tests/test_s4_8_engineering_acquisition_v2.py \
+	tests/test_s4_8_engineering_campaign.py \
+	tests/test_s4_8_engineering_rehearsal.py \
+	tests/test_s4_8_physical_backend.py
+
+# Keep the established closeout contract: `make test` always runs everything.
+test: test-full
+
+test-full:
 	$(PYTHON) -m pytest
+
+test-fast:
+	$(PYTHON) -m pytest -m "not phase_gate and not hardware"
+
+test-current:
+	$(PYTHON) -m pytest $(CURRENT_TESTS)
 
 lint:
 	$(PYTHON) -m ruff check .

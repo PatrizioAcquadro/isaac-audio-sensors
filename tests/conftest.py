@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -51,6 +52,49 @@ _UNSTARTED_TEST = (
 )
 _HISTORICAL_S4_7_EVIDENCE_PREFIX = "tests/test_s4_7_evidence.py::"
 _PRE_S4_6_COMMIT = "c92ebddcf0eef9254954b96388943fb167150b9d"
+_PHASE_GATE_FILE = re.compile(r"^test_s4_[1-8](?:_|\.py)")
+_HISTORICAL_PHASE_FILE = re.compile(r"^test_s4_[1-7](?:_|\.py)")
+_ARTIFACT_FILE_FRAGMENTS = (
+    "acoustic_pack",
+    "distribution_audit",
+    "evidence",
+    "holdout",
+    "integrity",
+    "kit_extension_package",
+    "package",
+    "provenance",
+    "replay",
+)
+_SLOW_TEST_NODEIDS = {
+    "tests/test_s4_5_corrective.py::"
+    "test_corrected_extraction_counts_clipping_and_groups",
+    "tests/test_s4_5_corrective.py::"
+    "test_fit_a_selects_binding_and_fit_b_only_validates_it",
+    "tests/test_s4_5_corrective.py::"
+    "test_bearing_retention_requires_uncertainty_and_leave_one_group_stability",
+    "tests/test_s4_5_corrective.py::"
+    "test_semantic_validator_accepts_canonical_package",
+    "tests/test_s4_5_fitting.py::"
+    "test_fit_observation_extraction_is_grouped_and_holdout_free",
+}
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Classify tests without changing the complete-suite selection."""
+
+    for item in items:
+        filename = item.path.name
+        if _PHASE_GATE_FILE.match(filename):
+            item.add_marker(pytest.mark.phase_gate)
+        if _HISTORICAL_PHASE_FILE.match(filename):
+            item.add_marker(pytest.mark.historical)
+        if any(fragment in filename for fragment in _ARTIFACT_FILE_FRAGMENTS):
+            item.add_marker(pytest.mark.artifact)
+        if item.nodeid in _SLOW_TEST_NODEIDS:
+            item.add_marker(pytest.mark.slow)
+        if item.get_closest_marker("s4_2_hardware") is not None:
+            item.add_marker(pytest.mark.hardware)
 
 
 @pytest.fixture(scope="session")

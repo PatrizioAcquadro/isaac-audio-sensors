@@ -76,6 +76,11 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
 markers = [
+  "phase_gate: phase-specific acceptance, evidence, or closeout gate",
+  "historical: frozen earlier-phase behavior retained for audit and replay",
+  "artifact: builds or validates evidence, package, replay, or distribution artifacts",
+  "slow: measured long-running test unsuitable for the default feedback loop",
+  "hardware: requires explicitly authorized physical hardware or retained hardware data",
   "s4_2_hardware: requires the live S4.2 ZED, ReSpeaker, Pi, Mac, and operator gate",
 ]
 
