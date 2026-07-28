@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import signal
+import sys
 import wave
 from copy import deepcopy
 from pathlib import Path
@@ -404,6 +406,23 @@ def test_supported_sealing_api_has_no_clearance_bypass() -> None:
         "wait_recorder_ready",
         "wait_until",
     }
+
+
+def test_subprocess_backend_preserves_authenticated_controller_termination() -> None:
+    backend = SubprocessEngineeringBackend(
+        recorder_command=[sys.executable, "-c", "import time; time.sleep(60)"],
+        playback_command=[sys.executable, "-c", "import time; time.sleep(60)"],
+        readiness_delay_s=0.01,
+    )
+    command = backend.prepare_playback(Path("reference.wav"))
+    playback = backend.start_playback(command)
+
+    status = backend.stop_playback(playback)
+
+    assert status["exit_status"] == -signal.SIGTERM
+    assert status["controller_requested_termination"] is True
+    assert status["controller_requested_signal"] == signal.SIGTERM
+    assert status["observed_termination_monotonic_ns"] > 0
 
 
 class _FakeBackend:

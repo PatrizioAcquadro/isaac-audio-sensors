@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import signal
 import subprocess
 import time
 from collections.abc import Mapping, MutableSequence, Sequence
@@ -160,11 +161,16 @@ class SubprocessEngineeringBackend:
         process = self._playback_process
         if process is None:
             raise S48EngineeringAcquisitionError("playback was not started")
-        exit_status = _terminate_process(process, self._termination_timeout_s)
+        exit_status, requested = _terminate_process(
+            process,
+            self._termination_timeout_s,
+        )
         observed = self._playback_termination_observed_ns or time.monotonic_ns()
         return {
             "pid": process.pid,
             "exit_status": exit_status,
+            "controller_requested_termination": requested,
+            "controller_requested_signal": signal.SIGTERM if requested else None,
             "observed_termination_monotonic_ns": observed,
         }
 
@@ -173,11 +179,16 @@ class SubprocessEngineeringBackend:
         process = self._recorder_process
         if process is None:
             raise S48EngineeringAcquisitionError("recorder was not started")
-        exit_status = _terminate_process(process, self._termination_timeout_s)
+        exit_status, requested = _terminate_process(
+            process,
+            self._termination_timeout_s,
+        )
         observed = self._recorder_termination_observed_ns or time.monotonic_ns()
         return {
             "pid": process.pid,
             "exit_status": exit_status,
+            "controller_requested_termination": requested,
+            "controller_requested_signal": signal.SIGTERM if requested else None,
             "observed_termination_monotonic_ns": observed,
         }
 
@@ -556,6 +567,18 @@ def run_presealing_gate_from_engineering_files(
         ],
         "recorder_exit_status": recorder_terminated["data"].get("exit_status"),
         "playback_exit_status": playback_terminated["data"].get("exit_status"),
+        "recorder_controller_requested_termination": recorder_terminated["data"].get(
+            "controller_requested_termination"
+        ),
+        "recorder_controller_requested_signal": recorder_terminated["data"].get(
+            "controller_requested_signal"
+        ),
+        "playback_controller_requested_termination": playback_terminated["data"].get(
+            "controller_requested_termination"
+        ),
+        "playback_controller_requested_signal": playback_terminated["data"].get(
+            "controller_requested_signal"
+        ),
         "device_profile_id": capture_event["data"].get("device_profile_id"),
         "channel_map": capture_event["data"].get("channel_map"),
         "process_identity_consistent": (
@@ -920,13 +943,13 @@ def _start_process(arguments: Sequence[str]) -> subprocess.Popen[bytes]:
 def _terminate_process(
     process: subprocess.Popen[bytes],
     timeout_s: float,
-) -> int:
+) -> tuple[int, bool]:
     status = process.poll()
     if status is not None:
-        return int(status)
+        return int(status), False
     process.terminate()
     try:
-        return int(process.wait(timeout=timeout_s))
+        return int(process.wait(timeout=timeout_s)), True
     except subprocess.TimeoutExpired:
         process.kill()
-        return int(process.wait(timeout=timeout_s))
+        return int(process.wait(timeout=timeout_s)), True

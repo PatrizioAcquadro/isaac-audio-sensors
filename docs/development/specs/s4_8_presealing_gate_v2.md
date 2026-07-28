@@ -143,6 +143,14 @@ reference, device/profile, channel-map, gate-configuration, and
 detector-configuration hashes. The final two events record the exact gate
 report and candidate-clearance hashes.
 
+The raw recorder/player exit status is always retained. Status zero is a
+normal success. Because the supported controller intentionally terminates the
+continuous recorder and player at their planned boundaries, the tracked
+configuration also permits only an explicitly recorded
+`controller_requested_termination=true`, signal 15, raw status -15 tuple.
+Unrequested signals, a different signal/status pair, or an early observed
+termination still fail closed; the waveform sentinels remain mandatory.
+
 Validation requires the separately supplied manifest anchor and the complete
 ordered chain. Missing, reordered, duplicated, changed, independently
 recomputed without the frozen anchor, or identity-inconsistent sequences fail

@@ -208,6 +208,25 @@ def test_v2_gate_rejects_missing_final_250_ms_despite_successful_process() -> No
     assert "acoustic_playback_stopped_early" in _reason_codes(report)
 
 
+def test_v2_gate_rejects_whole_loop_acoustic_start_delay() -> None:
+    reference = _reference()
+
+    report = evaluate_presealing_waveform_v2(
+        _capture(reference, latency_samples=reference.size),
+        reference,
+        sample_rate_hz=RATE,
+        process_playback_start_sample=PLAYBACK_START,
+        planned_playback_stop_sample=PLAYBACK_STOP,
+        evaluation_start_sample=EVALUATION_START,
+        evaluation_stop_sample=EVALUATION_STOP,
+        background_intervals=BACKGROUND_INTERVALS,
+        config=DEFAULT_ALIGNMENT_CONFIG_V2,
+    )
+
+    assert report["decision"] == "RETRY_REQUIRED"
+    assert "acoustic_playback_started_late" in _reason_codes(report)
+
+
 def test_v2_alignment_limits_are_tracked_schema_valid_and_outcome_independent() -> None:
     raw = json.loads((ROOT / PRESEALING_CONFIG_PATH_V2).read_text(encoding="utf-8"))
     schema = json.loads(

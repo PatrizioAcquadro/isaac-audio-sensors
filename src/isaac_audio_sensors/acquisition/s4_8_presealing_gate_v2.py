@@ -80,6 +80,7 @@ DEFAULT_PRESEALING_CONFIG_V2: dict[str, Any] = {
     "minimum_useful_sound_coverage": 0.90,
     "minimum_continuous_useful_s": 16.0,
     "maximum_non_applicable_gap_s": 0.5,
+    "controller_requested_termination_signal": 15,
     "maximum_clip_run_samples": 8,
     "maximum_total_clipped_samples_per_channel": 64,
     "maximum_clipped_sample_rate": 0.0002,
@@ -461,18 +462,29 @@ def evaluate_presealing_gate_v2(
                 "integrity",
                 "validated process events are not complete and monotonic",
             )
-    if observed_process.get("recorder_exit_status") != 0:
+    if not _successful_process_termination(
+        observed_process,
+        prefix="recorder",
+        configured_signal=gate["controller_requested_termination_signal"],
+    ):
         reject(
             "recorder_process_failed",
             "integrity",
-            "recorder terminated with a nonzero status",
+            (
+                "recorder termination status was not successful "
+                "or controller-authenticated"
+            ),
             exit_status=observed_process.get("recorder_exit_status"),
         )
-    if observed_process.get("playback_exit_status") != 0:
+    if not _successful_process_termination(
+        observed_process,
+        prefix="playback",
+        configured_signal=gate["controller_requested_termination_signal"],
+    ):
         reject(
             "playback_process_failed",
             "integrity",
-            "player terminated with a nonzero status",
+            "player termination status was not successful or controller-authenticated",
             exit_status=observed_process.get("playback_exit_status"),
         )
     if observed_process.get("process_identity_consistent") is not True:
@@ -679,6 +691,23 @@ def _maximum_true_run(values: np.ndarray) -> int:
         current = current + 1 if bool(value) else 0
         maximum = max(maximum, current)
     return maximum
+
+
+def _successful_process_termination(
+    observed_process: Mapping[str, Any],
+    *,
+    prefix: str,
+    configured_signal: int,
+) -> bool:
+    status = observed_process.get(f"{prefix}_exit_status")
+    if status == 0:
+        return True
+    return (
+        observed_process.get(f"{prefix}_controller_requested_termination") is True
+        and observed_process.get(f"{prefix}_controller_requested_signal")
+        == configured_signal
+        and status == -configured_signal
+    )
 
 
 def _maximum_identical_item_run(values: Sequence[bytes]) -> int:

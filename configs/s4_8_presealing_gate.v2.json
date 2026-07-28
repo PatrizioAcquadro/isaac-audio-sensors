@@ -27,6 +27,7 @@
   "minimum_useful_sound_coverage": 0.9,
   "minimum_continuous_useful_s": 16.0,
   "maximum_non_applicable_gap_s": 0.5,
+  "controller_requested_termination_signal": 15,
   "maximum_clip_run_samples": 8,
   "maximum_total_clipped_samples_per_channel": 64,
   "maximum_clipped_sample_rate": 0.0002,
