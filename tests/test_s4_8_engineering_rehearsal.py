@@ -22,8 +22,13 @@ def test_synthetic_non_holdout_rehearsal_exercises_complete_available_path() -> 
     assert report["acquisition"]["protocol_duration_s"] == 20.0
     assert report["acquisition"]["gate_execution_count"] == 2
     assert report["authentication"]["all_process_records_authenticated"] is True
+    assert report["authentication"]["process_journal_chain_valid"] is True
+    assert report["authentication"]["manifest_anchor_sha256"]
     assert report["presealing"]["all_valid_decisions"] == "PASS"
     assert report["presealing"]["retry_decision"] == "RETRY_REQUIRED"
+    assert report["presealing"]["method"].endswith("_v2")
+    assert report["presealing"]["candidate_clearance_created"] is True
+    assert report["presealing"]["candidate_seal_dry_run_only"] is True
     assert report["producer"]["status"] == "complete"
     assert report["producer"]["manually_edited_outputs"] is False
     assert report["payload"]["planned_take_count"] == 47

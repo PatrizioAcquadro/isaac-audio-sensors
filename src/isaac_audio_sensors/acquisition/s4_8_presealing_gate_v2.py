@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import json
 import math
+import struct
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from itertools import pairwise
 from pathlib import Path
 from statistics import median
 from typing import Any
@@ -21,6 +23,7 @@ import numpy as np
 
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import (
     S48PresealingGateError,
+    canonical_sha256,
 )
 
 TRACKED_DETECTOR_METHOD_V2 = "waveform_aligned_tracked_looped_reference_v2"
@@ -104,6 +107,589 @@ def load_presealing_config_v2(repo_root: Path) -> dict[str, Any]:
     if raw != DEFAULT_PRESEALING_CONFIG_V2:
         raise S48PresealingGateError("v2 configuration identity mismatch")
     return raw
+
+
+def read_pcm16_wav_strict(path: Path) -> tuple[np.ndarray, int]:
+    """Read an internally consistent, uncompressed signed PCM16 RIFF/WAV."""
+
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise S48PresealingGateError(f"{path}: WAV read failure: {exc}") from exc
+    if (
+        len(raw) < 12
+        or raw[:4] != b"RIFF"
+        or raw[8:12] != b"WAVE"
+        or struct.unpack_from("<I", raw, 4)[0] != len(raw) - 8
+    ):
+        raise S48PresealingGateError(f"{path}: malformed or inconsistent RIFF header")
+    offset = 12
+    fmt: bytes | None = None
+    audio: bytes | None = None
+    while offset < len(raw):
+        if offset + 8 > len(raw):
+            raise S48PresealingGateError(f"{path}: incomplete WAV chunk header")
+        chunk_id = raw[offset : offset + 4]
+        chunk_size = struct.unpack_from("<I", raw, offset + 4)[0]
+        start = offset + 8
+        stop = start + chunk_size
+        padded_stop = stop + (chunk_size % 2)
+        if stop > len(raw) or padded_stop > len(raw):
+            raise S48PresealingGateError(f"{path}: incomplete WAV chunk or frame")
+        chunk = raw[start:stop]
+        if chunk_id == b"fmt ":
+            if fmt is not None:
+                raise S48PresealingGateError(f"{path}: duplicate WAV fmt chunk")
+            fmt = chunk
+        elif chunk_id == b"data":
+            if audio is not None:
+                raise S48PresealingGateError(f"{path}: duplicate WAV data chunk")
+            audio = chunk
+        offset = padded_stop
+    if offset != len(raw) or fmt is None or audio is None or len(fmt) < 16:
+        raise S48PresealingGateError(f"{path}: incomplete WAV structure")
+    (
+        audio_format,
+        channel_count,
+        sample_rate,
+        byte_rate,
+        block_align,
+        bits_per_sample,
+    ) = struct.unpack_from("<HHIIHH", fmt, 0)
+    expected_align = channel_count * 2
+    if (
+        audio_format != 1
+        or bits_per_sample != 16
+        or channel_count <= 0
+        or sample_rate <= 0
+        or block_align != expected_align
+        or byte_rate != sample_rate * expected_align
+    ):
+        raise S48PresealingGateError(
+            f"{path}: expected signed 16-bit uncompressed PCM WAV"
+        )
+    if len(audio) % block_align:
+        raise S48PresealingGateError(f"{path}: incomplete or inconsistent WAV frames")
+    values = np.frombuffer(audio, dtype="<i2")
+    if values.size != (len(audio) // block_align) * channel_count:
+        raise S48PresealingGateError(f"{path}: inconsistent WAV frame count")
+    return (
+        values.reshape(-1, channel_count).astype(np.float64) / 32768.0,
+        sample_rate,
+    )
+
+
+def evaluate_capture_integrity_v2(
+    capture: np.ndarray,
+    *,
+    sample_rate_hz: int,
+    device_profile_id: str | None,
+    channel_map: Sequence[str] | None,
+    config: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Evaluate outcome-independent capture, channel, and device integrity."""
+
+    if dict(config) != DEFAULT_PRESEALING_CONFIG_V2:
+        raise S48PresealingGateError("v2 capture-integrity configuration mismatch")
+    gate = DEFAULT_PRESEALING_CONFIG_V2
+    array = np.asarray(capture, dtype=np.float64)
+    reasons: list[dict[str, Any]] = []
+
+    def reject(code: str, category: str, message: str, **details: Any) -> None:
+        reasons.append(
+            {
+                "code": code,
+                "category": category,
+                "message": message,
+                "details": details,
+            }
+        )
+
+    if array.ndim != 2 or array.shape[0] == 0:
+        reject(
+            "capture_shape_invalid",
+            "integrity",
+            "capture must be frames by channels",
+        )
+        channel_count = 0
+    else:
+        channel_count = int(array.shape[1])
+    if not np.all(np.isfinite(array)):
+        reject("capture_non_finite", "integrity", "capture contains non-finite samples")
+    if sample_rate_hz != gate["sample_rate_hz"]:
+        reject(
+            "sample_rate_mismatch",
+            "integrity",
+            "capture sample rate does not match the frozen profile",
+            expected=gate["sample_rate_hz"],
+            actual=sample_rate_hz,
+        )
+    if channel_count != gate["channel_count"]:
+        reject(
+            "channel_count_mismatch",
+            "channel_health",
+            "capture channel count does not match the frozen profile",
+            expected=gate["channel_count"],
+            actual=channel_count,
+        )
+    if device_profile_id is None:
+        reject(
+            "device_profile_identity_missing",
+            "integrity",
+            "capture device/profile identity is required",
+        )
+    elif device_profile_id != gate["expected_device_profile_id"]:
+        reject(
+            "device_profile_identity_mismatch",
+            "integrity",
+            "capture device/profile identity does not match",
+            expected=gate["expected_device_profile_id"],
+            actual=device_profile_id,
+        )
+    if channel_map is None:
+        reject(
+            "channel_map_identity_missing",
+            "channel_health",
+            "authenticated channel map is required",
+        )
+    elif list(channel_map) != gate["expected_channel_map"]:
+        reject(
+            "channel_map_identity_mismatch",
+            "channel_health",
+            "authenticated channel map does not match",
+            expected=gate["expected_channel_map"],
+            actual=list(channel_map),
+        )
+
+    metrics: dict[str, Any] = {
+        "maximum_identical_buffer_run": 0,
+        "maximum_zero_lag_channel_correlation": None,
+        "maximum_clip_run_samples_by_channel": [],
+        "total_clipped_samples_by_channel": [],
+        "clipped_sample_rate_by_channel": [],
+        "rms_by_channel": [],
+        "rms_spread_db": None,
+    }
+    structurally_valid = (
+        array.ndim == 2
+        and channel_count == gate["channel_count"]
+        and np.all(np.isfinite(array))
+        and sample_rate_hz > 0
+    )
+    if structurally_valid:
+        microphone_indices = gate["microphone_channel_indices"]
+        microphones = array[:, microphone_indices]
+        block = gate["repeated_buffer_block_samples"]
+        buffer_keys = [
+            microphones[start : start + block].tobytes(order="C")
+            for start in range(0, microphones.shape[0] - block + 1, block)
+        ]
+        identical_run = _maximum_identical_item_run(buffer_keys)
+        metrics["maximum_identical_buffer_run"] = identical_run
+        if identical_run > gate["maximum_consecutive_identical_buffers"]:
+            reject(
+                "frozen_or_repeated_capture_buffer",
+                "integrity",
+                "identical microphone buffers repeat beyond the frozen limit",
+                maximum=gate["maximum_consecutive_identical_buffers"],
+                actual=identical_run,
+            )
+
+        evaluation = microphones[
+            round(gate["evaluation_start_s"] * sample_rate_hz) : round(
+                gate["evaluation_stop_s"] * sample_rate_hz
+            )
+        ]
+        pair_correlations = [
+            abs(_signed_correlation(evaluation[:, left], evaluation[:, right]))
+            for left in range(evaluation.shape[1])
+            for right in range(left + 1, evaluation.shape[1])
+        ]
+        maximum_pair = max(pair_correlations, default=0.0)
+        metrics["maximum_zero_lag_channel_correlation"] = maximum_pair
+        if maximum_pair >= gate["maximum_zero_lag_channel_correlation"]:
+            reject(
+                "suspicious_duplicate_microphone_channels",
+                "channel_health",
+                "microphone channels are duplicated or exhibit extreme crosstalk",
+                maximum=gate["maximum_zero_lag_channel_correlation"],
+                actual=maximum_pair,
+            )
+
+        clipped = np.abs(microphones) >= (32767.0 / 32768.0)
+        clip_runs = [
+            _maximum_true_run(clipped[:, channel])
+            for channel in range(clipped.shape[1])
+        ]
+        clip_counts = [
+            int(np.count_nonzero(clipped[:, channel]))
+            for channel in range(clipped.shape[1])
+        ]
+        clip_rates = [count / microphones.shape[0] for count in clip_counts]
+        metrics["maximum_clip_run_samples_by_channel"] = clip_runs
+        metrics["total_clipped_samples_by_channel"] = clip_counts
+        metrics["clipped_sample_rate_by_channel"] = clip_rates
+        if max(clip_runs, default=0) > gate["maximum_clip_run_samples"]:
+            reject(
+                "clipping_limit_exceeded",
+                "clipping",
+                "consecutive full-scale clipping exceeds the frozen v1 limit",
+                maximum=gate["maximum_clip_run_samples"],
+                actual=max(clip_runs),
+            )
+        if any(
+            count > gate["maximum_total_clipped_samples_per_channel"]
+            or rate > gate["maximum_clipped_sample_rate"]
+            for count, rate in zip(clip_counts, clip_rates, strict=True)
+        ):
+            reject(
+                "distributed_clipping_limit_exceeded",
+                "clipping",
+                "total full-scale clipping exceeds the v2 distributed limit",
+                maximum_samples=gate["maximum_total_clipped_samples_per_channel"],
+                maximum_rate=gate["maximum_clipped_sample_rate"],
+                actual_samples=clip_counts,
+                actual_rates=clip_rates,
+            )
+
+        rms = np.sqrt(np.mean(evaluation * evaluation, axis=0))
+        positive = rms[rms > 0.0]
+        spread_db = (
+            float(20.0 * np.log10(np.max(positive) / np.min(positive)))
+            if positive.size == rms.size
+            else math.inf
+        )
+        metrics["rms_by_channel"] = [float(value) for value in rms]
+        metrics["rms_spread_db"] = spread_db
+        if spread_db > gate["maximum_channel_rms_spread_db"]:
+            reject(
+                "channel_gain_imbalance",
+                "channel_health",
+                "channel RMS spread exceeds the unchanged v1 limit",
+                maximum_db=gate["maximum_channel_rms_spread_db"],
+                actual_db=spread_db,
+            )
+    return {
+        "schema": "ias.s4_8.capture_integrity.v2",
+        "decision": "PASS" if not reasons else "RETRY_REQUIRED",
+        "reasons": reasons,
+        "metrics": metrics,
+        "device_profile_id": device_profile_id,
+        "channel_map": list(channel_map) if channel_map is not None else None,
+    }
+
+
+def evaluate_presealing_gate_v2(
+    capture: np.ndarray,
+    reference: np.ndarray,
+    *,
+    sample_rate_hz: int,
+    observed_process: Mapping[str, Any],
+    manifest_sha256: str,
+    process_journal_head_sha256: str,
+    config: Mapping[str, Any],
+    dry_run: bool,
+) -> dict[str, Any]:
+    """Evaluate the complete v2 technical gate from validated journal facts."""
+
+    if dict(config) != DEFAULT_PRESEALING_CONFIG_V2:
+        raise S48PresealingGateError("v2 gate configuration mismatch")
+    gate = DEFAULT_PRESEALING_CONFIG_V2
+    capture_array = np.asarray(capture, dtype=np.float64)
+    reference_array = np.asarray(reference, dtype=np.float64)
+    if reference_array.ndim == 2:
+        reference_array = np.mean(reference_array, axis=1)
+    integrity = evaluate_capture_integrity_v2(
+        capture_array,
+        sample_rate_hz=sample_rate_hz,
+        device_profile_id=observed_process.get("device_profile_id"),
+        channel_map=observed_process.get("channel_map"),
+        config=gate,
+    )
+    reasons = [dict(item) for item in integrity["reasons"]]
+    seen = {str(item["code"]) for item in reasons}
+
+    def reject(code: str, category: str, message: str, **details: Any) -> None:
+        if code not in seen:
+            seen.add(code)
+            reasons.append(
+                {
+                    "code": code,
+                    "category": category,
+                    "message": message,
+                    "details": details,
+                }
+            )
+
+    required_process_fields = {
+        "capture_sha256",
+        "reference_sha256",
+        "capture_started_monotonic_ns",
+        "recorder_ready_monotonic_ns",
+        "playback_started_monotonic_ns",
+        "planned_playback_stop_monotonic_ns",
+        "playback_terminated_monotonic_ns",
+        "recorder_terminated_monotonic_ns",
+        "recorder_exit_status",
+        "playback_exit_status",
+        "device_profile_id",
+        "channel_map",
+    }
+    if not required_process_fields.issubset(observed_process):
+        reject(
+            "process_journal_incomplete",
+            "integrity",
+            "validated process journal lacks required observed events",
+        )
+        timing_valid = False
+    else:
+        timing_values = [
+            observed_process["capture_started_monotonic_ns"],
+            observed_process["recorder_ready_monotonic_ns"],
+            observed_process["playback_started_monotonic_ns"],
+            observed_process["planned_playback_stop_monotonic_ns"],
+            observed_process["playback_terminated_monotonic_ns"],
+            observed_process["recorder_terminated_monotonic_ns"],
+        ]
+        timing_valid = all(
+            isinstance(value, int) and not isinstance(value, bool)
+            for value in timing_values
+        ) and all(left <= right for left, right in pairwise(timing_values))
+        if not timing_valid:
+            reject(
+                "process_timing_invalid",
+                "integrity",
+                "validated process events are not complete and monotonic",
+            )
+    if observed_process.get("recorder_exit_status") != 0:
+        reject(
+            "recorder_process_failed",
+            "integrity",
+            "recorder terminated with a nonzero status",
+            exit_status=observed_process.get("recorder_exit_status"),
+        )
+    if observed_process.get("playback_exit_status") != 0:
+        reject(
+            "playback_process_failed",
+            "integrity",
+            "player terminated with a nonzero status",
+            exit_status=observed_process.get("playback_exit_status"),
+        )
+    if observed_process.get("process_identity_consistent") is not True:
+        reject(
+            "process_identity_mismatch",
+            "integrity",
+            "recorder/player process identities changed across observed events",
+        )
+    if (
+        observed_process.get("capture_sha256") is None
+        or observed_process.get("reference_sha256") is None
+    ):
+        reject(
+            "capture_reference_authentication_missing",
+            "integrity",
+            "capture/reference hashes are absent from the process journal",
+        )
+
+    waveform: dict[str, Any] | None = None
+    if (
+        timing_valid
+        and capture_array.ndim == 2
+        and capture_array.shape[1] == gate["channel_count"]
+        and sample_rate_hz == gate["sample_rate_hz"]
+        and reference_array.ndim == 1
+        and reference_array.size > 0
+    ):
+        capture_start = int(observed_process["capture_started_monotonic_ns"])
+        process_start_s = (
+            int(observed_process["playback_started_monotonic_ns"]) - capture_start
+        ) / 1_000_000_000.0
+        planned_stop_s = (
+            int(observed_process["planned_playback_stop_monotonic_ns"]) - capture_start
+        ) / 1_000_000_000.0
+        playback_terminated_s = (
+            int(observed_process["playback_terminated_monotonic_ns"]) - capture_start
+        ) / 1_000_000_000.0
+        recorder_terminated_s = (
+            int(observed_process["recorder_terminated_monotonic_ns"]) - capture_start
+        ) / 1_000_000_000.0
+        actual_duration_s = capture_array.shape[0] / sample_rate_hz
+        if (
+            abs(process_start_s - gate["playback_start_s"])
+            > gate["playback_start_tolerance_s"]
+        ):
+            reject(
+                "playback_start_outside_tolerance",
+                "integrity",
+                "observed player start is outside the process timing boundary",
+                expected_s=gate["playback_start_s"],
+                actual_s=process_start_s,
+            )
+        if abs(planned_stop_s - gate["playback_stop_s"]) > 1e-9:
+            reject(
+                "planned_playback_stop_mismatch",
+                "integrity",
+                "planned player stop contradicts the protocol",
+                expected_s=gate["playback_stop_s"],
+                actual_s=planned_stop_s,
+            )
+        if playback_terminated_s < planned_stop_s:
+            reject(
+                "playback_stopped_early",
+                "continuity",
+                "player terminated before its planned stop",
+                planned_s=planned_stop_s,
+                actual_s=playback_terminated_s,
+            )
+        if (
+            abs(recorder_terminated_s - actual_duration_s)
+            > gate["capture_duration_tolerance_s"]
+        ):
+            reject(
+                "capture_stop_timing_mismatch",
+                "integrity",
+                "recorder termination contradicts waveform duration",
+                process_duration_s=recorder_terminated_s,
+                waveform_duration_s=actual_duration_s,
+            )
+        process_start_sample = round(process_start_s * sample_rate_hz)
+        planned_stop_sample = round(planned_stop_s * sample_rate_hz)
+        post_roll_start = max(
+            planned_stop_sample,
+            round(playback_terminated_s * sample_rate_hz),
+        )
+        try:
+            waveform = evaluate_presealing_waveform_v2(
+                capture_array[:, gate["microphone_channel_indices"]].T,
+                reference_array,
+                sample_rate_hz=sample_rate_hz,
+                process_playback_start_sample=process_start_sample,
+                planned_playback_stop_sample=planned_stop_sample,
+                evaluation_start_sample=round(
+                    gate["evaluation_start_s"] * sample_rate_hz
+                ),
+                evaluation_stop_sample=round(
+                    gate["evaluation_stop_s"] * sample_rate_hz
+                ),
+                background_intervals=(
+                    (0, process_start_sample),
+                    (post_roll_start, capture_array.shape[0]),
+                ),
+                config=gate["detector"],
+            )
+        except S48PresealingGateError as exc:
+            reject(
+                "detector_input_invalid",
+                "integrity",
+                "v2 waveform detector rejected its input",
+                error=str(exc),
+            )
+        if waveform is not None:
+            for item in waveform["reasons"]:
+                reject(
+                    str(item["code"]),
+                    str(item["category"]),
+                    str(item["message"]),
+                    **dict(item["details"]),
+                )
+            alignment = waveform["alignment"]
+            coverage = float(alignment["useful_sound_coverage"])
+            longest = alignment["longest_continuous_useful_interval"]
+            longest_s = float(longest["duration_s"]) if longest else 0.0
+            maximum_gap_s = float(alignment["maximum_non_applicable_gap_s"])
+            if coverage < gate["minimum_useful_sound_coverage"]:
+                reject(
+                    "useful_sound_coverage_below_minimum",
+                    "coverage",
+                    "useful reference coverage is below the unchanged v1 minimum",
+                    minimum=gate["minimum_useful_sound_coverage"],
+                    actual=coverage,
+                )
+            if longest_s < gate["minimum_continuous_useful_s"]:
+                reject(
+                    "continuous_useful_interval_too_short",
+                    "continuity",
+                    "continuous useful interval is below the unchanged v1 minimum",
+                    minimum_s=gate["minimum_continuous_useful_s"],
+                    actual_s=longest_s,
+                )
+            if maximum_gap_s > gate["maximum_non_applicable_gap_s"]:
+                reject(
+                    "non_applicable_gap_too_long",
+                    "continuity",
+                    "non-applicable gap exceeds the unchanged v1 maximum",
+                    maximum_s=gate["maximum_non_applicable_gap_s"],
+                    actual_s=maximum_gap_s,
+                )
+            per_channel_correlations = [
+                float(
+                    median(
+                        decision["reference_correlation_by_channel"][channel]
+                        for decision in alignment["decisions"]
+                    )
+                )
+                for channel in range(len(gate["microphone_channel_indices"]))
+            ]
+            if any(
+                value <= gate["maximum_negative_reference_correlation"]
+                for value in per_channel_correlations
+            ):
+                reject(
+                    "channel_polarity_inversion",
+                    "channel_health",
+                    "a microphone has stable negative reference correlation",
+                    correlations=per_channel_correlations,
+                )
+
+    detector_hash = canonical_sha256(gate["detector"])
+    configuration_hash = canonical_sha256(gate)
+    return {
+        "schema": "ias.s4_8.presealing_gate_report.v2",
+        "decision": "PASS" if not reasons else "RETRY_REQUIRED",
+        "reasons": reasons,
+        "dry_run": dry_run,
+        "input_provenance": {
+            "capture_sha256": observed_process.get("capture_sha256"),
+            "reference_sha256": observed_process.get("reference_sha256"),
+            "manifest_sha256": manifest_sha256,
+            "process_journal_head_sha256": process_journal_head_sha256,
+            "configuration_sha256": configuration_hash,
+            "detector_configuration_sha256": detector_hash,
+            "outcome_fields_read": [],
+        },
+        "authority": {
+            "creates_grant": False,
+            "consumes_grant": False,
+            "official_state_machine": False,
+            "publishes_official_evidence": False,
+            "official_take_seal": False,
+        },
+        "configuration": gate,
+        "configuration_sha256": configuration_hash,
+        "detector_configuration_sha256": detector_hash,
+        "capture_integrity": integrity,
+        "waveform": waveform,
+    }
+
+
+def _maximum_true_run(values: np.ndarray) -> int:
+    maximum = 0
+    current = 0
+    for value in values:
+        current = current + 1 if bool(value) else 0
+        maximum = max(maximum, current)
+    return maximum
+
+
+def _maximum_identical_item_run(values: Sequence[bytes]) -> int:
+    maximum = 0
+    current = 0
+    previous: bytes | None = None
+    for value in values:
+        current = current + 1 if value == previous else 1
+        maximum = max(maximum, current)
+        previous = value
+    return maximum
 
 
 def evaluate_presealing_waveform_v2(

@@ -4,17 +4,28 @@ from __future__ import annotations
 
 import hashlib
 import sys
+import tempfile
+import wave
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
+    append_engineering_journal_event,
+    build_engineering_precollection_manifest,
+    create_candidate_engineering_clearance,
+    run_presealing_gate_from_engineering_files,
+    seal_engineering_candidate,
+    validate_engineering_process_journal,
+)
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import (
-    DEFAULT_PRESEALING_CONFIG,
     array_sha256,
-    build_authenticated_process_record,
     canonical_sha256,
-    evaluate_presealing_gate,
+)
+from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
+    DEFAULT_PRESEALING_CONFIG_V2,
+    TRACKED_DETECTOR_METHOD_V2,
 )
 from isaac_audio_sensors.core import acceptance_criteria_corrective_03
 
@@ -40,33 +51,108 @@ def run_synthetic_engineering_rehearsal(
     root = repo_root.resolve()
     reference = _engineering_reference()
     capture = _engineering_capture(reference)
-    expected_reference_sha256 = array_sha256(reference)
-    valid_reports = []
-    for _ in range(gate_execution_count):
-        record = _process_record(capture, reference)
-        valid_reports.append(
-            evaluate_presealing_gate(
-                capture,
-                reference,
-                sample_rate_hz=RATE,
-                process_record=record,
-                expected_reference_sha256=expected_reference_sha256,
-                config=DEFAULT_PRESEALING_CONFIG,
+    valid_reports: list[dict[str, Any]] = []
+    clearances: list[dict[str, Any]] = []
+    candidate_seals: list[dict[str, Any]] = []
+    with tempfile.TemporaryDirectory(prefix="ias_s4_8_rehearsal_") as temporary:
+        temporary_root = Path(temporary)
+        capture_path = temporary_root / "capture.wav"
+        reference_path = temporary_root / "reference.wav"
+        corrupted_path = temporary_root / "corrupted.wav"
+        _write_pcm16(capture_path, capture)
+        _write_pcm16(reference_path, reference[:, None])
+        expected_reference_sha256 = _file_sha256(reference_path)
+        manifest = build_engineering_precollection_manifest(
+            code_head="0" * 40,
+            environment_identity="deterministic_synthetic_non_holdout",
+            reference_wav_sha256=expected_reference_sha256,
+            gate_configuration_sha256=canonical_sha256(DEFAULT_PRESEALING_CONFIG_V2),
+            detector_configuration_sha256=canonical_sha256(
+                DEFAULT_PRESEALING_CONFIG_V2["detector"]
+            ),
+            device_profile_id=DEFAULT_PRESEALING_CONFIG_V2[
+                "expected_device_profile_id"
+            ],
+            channel_map=DEFAULT_PRESEALING_CONFIG_V2["expected_channel_map"],
+            protocol_id="s4_8_synthetic_engineering_rehearsal_v2",
+            capture_controller_identity="ias.s4_8.engineering_controller",
+            capture_controller_version="2.0",
+        )
+        for execution in range(gate_execution_count):
+            journal = _engineering_journal(
+                manifest,
+                capture_sha256=_file_sha256(capture_path),
+            )
+            gate_report = run_presealing_gate_from_engineering_files(
+                capture_path=capture_path,
+                reference_path=reference_path,
+                manifest=manifest,
+                journal=journal,
+                expected_manifest_sha256=manifest["manifest_sha256"],
+                repo_root=root,
                 dry_run=True,
             )
-        )
+            append_engineering_journal_event(
+                journal,
+                manifest_anchor_sha256=manifest["manifest_sha256"],
+                event_type="gate_evaluated",
+                observed_monotonic_ns=21_020_000_000,
+                data={
+                    "report_sha256": canonical_sha256(gate_report),
+                    "decision": gate_report["decision"],
+                },
+            )
+            clearance = create_candidate_engineering_clearance(
+                gate_report,
+                manifest=manifest,
+                journal=journal,
+                expected_manifest_sha256=manifest["manifest_sha256"],
+            )
+            append_engineering_journal_event(
+                journal,
+                manifest_anchor_sha256=manifest["manifest_sha256"],
+                event_type="candidate_clearance_created",
+                observed_monotonic_ns=21_030_000_000,
+                data={"clearance_sha256": clearance["clearance_sha256"]},
+            )
+            candidate_seal = seal_engineering_candidate(
+                capture_path=capture_path,
+                reference_path=reference_path,
+                report=gate_report,
+                clearance=clearance,
+                manifest=manifest,
+                journal=journal,
+                expected_manifest_sha256=manifest["manifest_sha256"],
+                candidate_seal_path=temporary_root / f"candidate_{execution}.json",
+                clearance_registry_path=temporary_root / f"used_{execution}.json",
+                dry_run=True,
+            )
+            valid_reports.append(gate_report)
+            clearances.append(clearance)
+            candidate_seals.append(candidate_seal)
 
-    corrupted = capture.copy()
-    corrupted[9 * RATE : 10 * RATE, 2:6] = 0.0
-    retry_report = evaluate_presealing_gate(
-        corrupted,
-        reference,
-        sample_rate_hz=RATE,
-        process_record=_process_record(corrupted, reference),
-        expected_reference_sha256=expected_reference_sha256,
-        config=DEFAULT_PRESEALING_CONFIG,
-        dry_run=True,
-    )
+        corrupted = capture.copy()
+        corrupted[9 * RATE : 10 * RATE, 2:6] = 0.0
+        _write_pcm16(corrupted_path, corrupted)
+        retry_journal = _engineering_journal(
+            manifest,
+            capture_sha256=_file_sha256(corrupted_path),
+        )
+        retry_report = run_presealing_gate_from_engineering_files(
+            capture_path=corrupted_path,
+            reference_path=reference_path,
+            manifest=manifest,
+            journal=retry_journal,
+            expected_manifest_sha256=manifest["manifest_sha256"],
+            repo_root=root,
+            dry_run=True,
+        )
+        validate_engineering_process_journal(
+            manifest,
+            retry_journal,
+            expected_manifest_sha256=manifest["manifest_sha256"],
+            required_terminal_event="capture_authenticated",
+        )
 
     payload = acceptance_criteria_corrective_03.build_synthetic_payload(root)
     evaluation = acceptance_criteria_corrective_03.evaluate_corrective(
@@ -110,13 +196,16 @@ def run_synthetic_engineering_rehearsal(
             "reference_sha256": expected_reference_sha256,
             "capture_sha256": array_sha256(capture),
             "all_process_records_authenticated": all(
-                report["input_provenance"]["process_record_authenticated"]
+                report["input_provenance"]["process_journal_head_sha256"]
                 for report in valid_reports
             ),
+            "process_journal_chain_valid": True,
+            "manifest_anchor_sha256": manifest["manifest_sha256"],
             "configuration_sha256": gate["configuration_sha256"],
             "detector_configuration_sha256": gate["detector_configuration_sha256"],
         },
         "presealing": {
+            "method": TRACKED_DETECTOR_METHOD_V2,
             "all_valid_decisions": (
                 "PASS"
                 if all(report["decision"] == "PASS" for report in valid_reports)
@@ -125,6 +214,10 @@ def run_synthetic_engineering_rehearsal(
             "valid_execution_count": len(valid_reports),
             "retry_decision": retry_report["decision"],
             "retry_reason_codes": [item["code"] for item in retry_report["reasons"]],
+            "candidate_clearance_created": all(clearances),
+            "candidate_seal_dry_run_only": all(
+                item["dry_run"] and item["engineering_only"] for item in candidate_seals
+            ),
         },
         "producer": {
             "status": "complete",
@@ -151,11 +244,13 @@ def run_synthetic_engineering_rehearsal(
             "criteria": criteria,
         },
         "metrics": {
-            "useful_sound_coverage": gate["metrics"]["useful_sound_coverage"],
-            "longest_continuous_useful_s": gate["metrics"][
-                "longest_continuous_useful_s"
+            "useful_sound_coverage": gate["waveform"]["alignment"][
+                "useful_sound_coverage"
             ],
-            "maximum_non_applicable_gap_s": gate["metrics"][
+            "longest_continuous_useful_s": gate["waveform"]["alignment"][
+                "longest_continuous_useful_interval"
+            ]["duration_s"],
+            "maximum_non_applicable_gap_s": gate["waveform"]["alignment"][
                 "maximum_non_applicable_gap_s"
             ],
             "active_abstention_rate": active_abstention["observed"],
@@ -217,25 +312,86 @@ def _engineering_capture(reference: np.ndarray) -> np.ndarray:
     return capture
 
 
-def _process_record(
-    capture: np.ndarray,
-    reference: np.ndarray,
-) -> dict[str, Any]:
-    return build_authenticated_process_record(
-        capture_sha256=array_sha256(capture),
-        reference_sha256=array_sha256(reference),
-        capture_started_monotonic_ns=1_000_000_000,
-        recorder_ready_monotonic_ns=1_050_000_000,
-        playback_started_monotonic_ns=2_000_000_000,
-        planned_playback_stop_monotonic_ns=20_000_000_000,
-        playback_stopped_monotonic_ns=20_010_000_000,
-        capture_stopped_monotonic_ns=21_000_000_000,
-        recorder_started=True,
-        recorder_exit_status=0,
-        producer_status="complete",
-        playback_loop_enabled=True,
-        playback_exit_status=0,
+def _engineering_journal(
+    manifest: dict[str, Any],
+    *,
+    capture_sha256: str,
+) -> list[dict[str, Any]]:
+    journal: list[dict[str, Any]] = []
+    events = (
+        (
+            "capture_controller_started",
+            900_000_000,
+            {
+                "identity": manifest["capture_controller_identity"],
+                "version": manifest["capture_controller_version"],
+                "pid": 100,
+            },
+        ),
+        (
+            "recorder_started",
+            1_000_000_000,
+            {"pid": 101, "process_identity": "synthetic_recorder"},
+        ),
+        ("recorder_ready", 1_050_000_000, {"pid": 101, "ready": True}),
+        ("playback_commanded", 1_990_000_000, {"command_sha256": "d" * 64}),
+        (
+            "playback_started",
+            2_000_000_000,
+            {"pid": 102, "process_identity": "synthetic_player"},
+        ),
+        (
+            "playback_stop_planned",
+            2_000_000_000,
+            {"planned_monotonic_ns": 20_000_000_000},
+        ),
+        (
+            "playback_terminated",
+            20_010_000_000,
+            {"pid": 102, "exit_status": 0},
+        ),
+        (
+            "recorder_terminated",
+            21_000_000_000,
+            {"pid": 101, "exit_status": 0},
+        ),
+        (
+            "capture_authenticated",
+            21_010_000_000,
+            {
+                "capture_sha256": capture_sha256,
+                "reference_sha256": manifest["reference_wav_sha256"],
+                "device_profile_id": manifest["device_profile_id"],
+                "channel_map": manifest["channel_map"],
+                "gate_configuration_sha256": manifest["gate_configuration_sha256"],
+                "detector_configuration_sha256": manifest[
+                    "detector_configuration_sha256"
+                ],
+            },
+        ),
     )
+    for event_type, observed_ns, data in events:
+        append_engineering_journal_event(
+            journal,
+            manifest_anchor_sha256=manifest["manifest_sha256"],
+            event_type=event_type,
+            observed_monotonic_ns=observed_ns,
+            data=data,
+        )
+    return journal
+
+
+def _write_pcm16(path: Path, samples: np.ndarray) -> None:
+    encoded = np.rint(np.clip(samples, -1.0, 32767.0 / 32768.0) * 32768.0).astype("<i2")
+    with wave.open(str(path), "wb") as stream:
+        stream.setnchannels(samples.shape[1])
+        stream.setsampwidth(2)
+        stream.setframerate(RATE)
+        stream.writeframes(encoded.tobytes())
+
+
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _criterion(

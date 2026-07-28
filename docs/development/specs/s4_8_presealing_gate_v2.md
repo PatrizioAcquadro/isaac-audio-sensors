@@ -87,13 +87,97 @@ the sentinels.
 
 ## Remaining controls
 
-The supported v2 engineering controller additionally requires an anchored,
-hash-chained process journal, exact PCM16 WAV validation, authenticated device
-profile and channel map, frozen/repeated-buffer checks, duplicate/crosstalk
-checks, total clipping controls, and a single-use exact-input candidate
-clearance before the engineering candidate seal API can write. Those controls
-are engineering/tamper-evident only: a SHA-256 chain is not a digital
-signature and does not establish a human or hardware identity.
+### Strict capture integrity
+
+The supported file path accepts only RIFF/WAVE audio-format 1, signed
+little-endian 16-bit uncompressed PCM. It validates the RIFF length, complete
+chunk headers and padding, one `fmt` and one `data` chunk, channel count,
+sample rate, byte rate, block alignment, whole interleaved frames, and the
+derived frame count. Unsupported width/compression, malformed/truncated
+headers, incomplete frames, and inconsistent sizes fail before waveform
+interpretation.
+
+In addition to the unchanged v1 channel rules, v2 rejects:
+
+- more than two consecutive bit-identical 2,000-sample microphone buffers;
+- any microphone pair with absolute zero-lag correlation at or above 0.995,
+  covering exact duplication and extreme crosstalk;
+- more than 64 full-scale samples on any microphone or a full-scale rate over
+  0.0002, in addition to the unchanged eight-sample consecutive run;
+- a missing or non-exact
+  `respeaker_usb_6ch_pcm16_v1` device/profile identity; and
+- a missing or non-exact six-entry channel map. Channel order is never inferred
+  from bearing correctness or any other scientific result.
+
+These new integrity values are broad technical defect controls, not
+scientific limits. They were not fitted to the consumed holdout and must be
+checked on future physical non-holdout recordings.
+
+### Anchored engineering process journal
+
+Before collection, an external caller freezes
+`ias.s4_8.engineering_precollection_manifest.v2`, containing code HEAD,
+environment identity, exact reference-WAV SHA-256, gate and detector
+configuration SHA-256 values, expected device/profile, exact channel map,
+protocol identity, and controller identity/version. Its canonical SHA-256 is
+the external anchor supplied separately to validation.
+
+The controller then appends exactly this event sequence:
+
+1. `capture_controller_started`;
+2. `recorder_started`;
+3. `recorder_ready`;
+4. `playback_commanded`;
+5. `playback_started`;
+6. `playback_stop_planned`;
+7. `playback_terminated`;
+8. `recorder_terminated`;
+9. `capture_authenticated`;
+10. `gate_evaluated`;
+11. `candidate_clearance_created`.
+
+Every event records its sequence, observed monotonic time, stable process
+identity/PID where available, event data, manifest anchor, previous event hash,
+and canonical event hash. Capture authentication records exact capture,
+reference, device/profile, channel-map, gate-configuration, and
+detector-configuration hashes. The final two events record the exact gate
+report and candidate-clearance hashes.
+
+Validation requires the separately supplied manifest anchor and the complete
+ordered chain. Missing, reordered, duplicated, changed, independently
+recomputed without the frozen anchor, or identity-inconsistent sequences fail
+closed before timing is interpreted. This is tamper evidence only: SHA-256
+hash chaining is not a digital signature, provides no signer identity, and
+does not prevent a party that controls the external anchor from replacing the
+entire history.
+
+### Mandatory controller and seal interlock
+
+`scripts/run_s4_8_engineering_acquisition.py` is the one supported future
+engineering acquisition CLI. It calls
+`run_supported_engineering_acquisition()` in this mandatory order:
+
+`recorder start -> recorder ready -> playback command/start -> continuous
+capture -> planned playback stop -> observed player status -> post-roll
+capture -> observed recorder status -> capture/reference authentication ->
+v2 pre-sealing gate -> PASS clearance -> engineering candidate seal`.
+
+The controller writes the journal after every event with flush and `fsync`.
+Operational capture, journal, retry report, clearance-use registry, and
+candidate seal paths must be outside the repository. `RETRY_REQUIRED` writes
+only the structured operational retry report; it creates no clearance or
+candidate seal. Dry-run executes and validates the full path but writes no
+candidate seal or clearance-consumption record.
+
+`seal_engineering_candidate()` is the sole supported candidate-seal API. It
+requires a schema-valid PASS report and clearance bound to the exact capture,
+reference, precollection manifest, process-journal head, gate report, gate
+configuration, and detector configuration hashes. The journal must contain
+the matching clearance hash. A different capture/reference, stale or changed
+report/configuration/journal, altered clearance, existing use record, or
+second use fails closed. Its result is explicitly engineering-only and has
+false authority for grants, official state-machine activity, official
+evidence, and official take sealing.
 
 ## Physical gate
 
