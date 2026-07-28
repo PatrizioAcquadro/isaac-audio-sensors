@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ias/s4_8_presealing_gate_config.v2.schema.json",
+  "title": "S4.8 pre-sealing gate configuration v2",
+  "const": {
+    "schema": "ias.s4_8.presealing_gate_config.v2",
+    "sample_rate_hz": 16000,
+    "channel_count": 6,
+    "microphone_channel_indices": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "expected_device_profile_id": "respeaker_usb_6ch_pcm16_v1",
+    "expected_channel_map": [
+      "playback_left",
+      "playback_right",
+      "microphone_0",
+      "microphone_1",
+      "microphone_2",
+      "microphone_3"
+    ],
+    "capture_duration_s": 20.0,
+    "capture_duration_tolerance_s": 0.05,
+    "playback_start_s": 1.0,
+    "playback_start_tolerance_s": 0.1,
+    "playback_stop_s": 19.0,
+    "evaluation_start_s": 1.25,
+    "evaluation_stop_s": 18.75,
+    "minimum_useful_sound_coverage": 0.9,
+    "minimum_continuous_useful_s": 16.0,
+    "maximum_non_applicable_gap_s": 0.5,
+    "maximum_clip_run_samples": 8,
+    "maximum_total_clipped_samples_per_channel": 64,
+    "maximum_clipped_sample_rate": 0.0002,
+    "repeated_buffer_block_samples": 2000,
+    "maximum_consecutive_identical_buffers": 2,
+    "maximum_zero_lag_channel_correlation": 0.995,
+    "maximum_channel_rms_spread_db": 6.0,
+    "maximum_negative_reference_correlation": -0.2,
+    "detector": {
+      "analysis_block_samples": 2000,
+      "basic_rms_floor": 0.002,
+      "background_normalized_mad_scale": 1.4826,
+      "background_mad_multiplier": 5.0,
+      "minimum_reference_correlation": 0.2,
+      "minimum_pair_coherence": 0.1,
+      "minimum_correlated_channel_count": 3,
+      "maximum_reference_lag_samples": 16,
+      "minimum_detection_contiguous_blocks": 8,
+      "initial_alignment_search_samples": 3200,
+      "initial_alignment_probe_samples": 2000,
+      "maximum_acoustic_start_delay_samples": 2000,
+      "stop_sentinel_block_samples": 2000,
+      "tracking_search_radius_samples": 16,
+      "maximum_tracking_step_samples": 4,
+      "maximum_total_drift_ppm": 1000.0,
+      "discontinuity_search_radius_samples": 512,
+      "minimum_discontinuous_jump_samples": 64
+    }
+  }
+}
