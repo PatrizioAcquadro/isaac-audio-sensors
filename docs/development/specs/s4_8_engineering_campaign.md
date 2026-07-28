@@ -82,6 +82,17 @@ campaign manifest. The v2 gate continues to authenticate the original
 reference and requires unchanged start/stop sentinels, useful-sound coverage,
 continuity, alignment, and drift limits.
 
+The Mac playback helper is authenticated and armed before the scheduled
+playback time. It emits an actual remote `playback_started` handshake only
+after launching `afplay`, then retains the remote completion status and
+standard error. The controller therefore journals playback launch rather than
+SSH connection latency.
+
+The Pi producer's authenticated start and completion monotonic timestamps
+define the capture duration. The local recorder-ready observation anchors
+that duration in the controller journal; SSH startup and post-capture file
+transfer latency are never represented as waveform duration.
+
 ## Retry and sealing policy
 
 Every attempt is appended to one hash-chained ledger. A planned cell receives

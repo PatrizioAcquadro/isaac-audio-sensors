@@ -118,7 +118,9 @@ class RemotePhysicalEngineeringBackend:
         pi_device: str,
         capture_duration_s: float,
         mac_ssh_prefix: Sequence[str],
+        mac_playback_helper_path: str,
         mac_continuous_asset_path: str,
+        mac_continuous_asset_sha256: str,
         playback_gain: float | None,
         zed_helper_path: Path,
         zed_replay_path: Path,
@@ -133,7 +135,9 @@ class RemotePhysicalEngineeringBackend:
             pi_remote_attempt,
             pi_device,
             pi_scp_target,
+            mac_playback_helper_path,
             mac_continuous_asset_path,
+            mac_continuous_asset_sha256,
             expected_zed_serial,
             expected_zed_sdk,
             expected_zed_camera_firmware,
@@ -165,7 +169,9 @@ class RemotePhysicalEngineeringBackend:
         self._pi_device = pi_device
         self._capture_duration_s = float(capture_duration_s)
         self._mac_ssh_prefix = list(mac_ssh_prefix)
+        self._mac_helper_path = mac_playback_helper_path
         self._mac_asset_path = mac_continuous_asset_path
+        self._mac_asset_sha256 = mac_continuous_asset_sha256
         self._playback_gain = (
             None if playback_gain is None else float(playback_gain)
         )
@@ -184,6 +190,7 @@ class RemotePhysicalEngineeringBackend:
         self._playback_command: list[str] | None = None
         self._playback_termination_observed_ns: int | None = None
         self._recorder_termination_observed_ns: int | None = None
+        self._recorder_ready_observed_ns: int | None = None
 
     def monotonic_ns(self) -> int:
         return time.monotonic_ns()
@@ -235,6 +242,7 @@ class RemotePhysicalEngineeringBackend:
             expected_event="ready",
             timeout_s=20.0,
         )
+        self._recorder_ready_observed_ns = time.monotonic_ns()
         capture_format = event.get("capture_format", {})
         return (
             event.get("event") == "ready"
@@ -252,25 +260,55 @@ class RemotePhysicalEngineeringBackend:
             raise S48PhysicalBackendError("playback already prepared")
         self._playback_command = [
             *self._mac_ssh_prefix,
-            "/usr/bin/afplay",
-            "-v",
-            str(self._playback_gain),
+            "/usr/bin/python3",
+            self._mac_helper_path,
+            "--asset",
             self._mac_asset_path,
+            "--expected-sha256",
+            self._mac_asset_sha256,
+            "--gain",
+            str(self._playback_gain),
         ]
+        self._playback_process = _start_process(
+            self._playback_command,
+            stdin_pipe=True,
+        )
+        armed = _wait_json_event(
+            self._playback_process,
+            expected_event="armed",
+            timeout_s=20.0,
+        )
+        if armed.get("asset_sha256") != self._mac_asset_sha256:
+            raise S48PhysicalBackendError(
+                "armed Mac helper authenticated a different playback asset"
+            )
         return {
             "command_sha256": canonical_sha256(self._playback_command),
             "authenticated_reference_sha256": _sha256_file(reference_path),
             "continuous_asset_path": self._mac_asset_path,
+            "continuous_asset_sha256": self._mac_asset_sha256,
+            "helper_path": self._mac_helper_path,
+            "armed": True,
         }
 
     def start_playback(self, command: object) -> dict[str, Any]:
         del command
-        if self._playback_command is None or self._playback_process is not None:
+        if self._playback_command is None or self._playback_process is None:
             raise S48PhysicalBackendError("playback command was not prepared")
-        self._playback_process = _start_process(self._playback_command)
+        if self._playback_process.stdin is None:
+            raise S48PhysicalBackendError("Mac playback command stream is unavailable")
+        self._playback_process.stdin.write("START\n")
+        self._playback_process.stdin.flush()
+        started = _wait_json_event(
+            self._playback_process,
+            expected_event="playback_started",
+            timeout_s=5.0,
+        )
         return {
             "pid": self._playback_process.pid,
             "process_identity": "ssh_mac_afplay",
+            "remote_afplay_pid": started.get("afplay_pid"),
+            "remote_helper_monotonic_ns": started.get("helper_monotonic_ns"),
         }
 
     def wait_until(self, monotonic_ns: int) -> None:
@@ -305,10 +343,37 @@ class RemotePhysicalEngineeringBackend:
             requested = True
             os.killpg(process.pid, signal.SIGTERM)
             process.wait(timeout=self._termination_timeout_s)
+        remote_completed: dict[str, Any] | None = None
+        if not requested and process.returncode == 0:
+            remote_completed = _wait_json_event(
+                process,
+                expected_event="playback_completed",
+                timeout_s=1.0,
+            )
         observed = self._playback_termination_observed_ns or time.monotonic_ns()
         return {
             "pid": process.pid,
             "exit_status": process.returncode,
+            "remote_afplay_pid": (
+                None
+                if remote_completed is None
+                else remote_completed.get("afplay_pid")
+            ),
+            "remote_afplay_exit_status": (
+                None
+                if remote_completed is None
+                else remote_completed.get("afplay_exit_status")
+            ),
+            "remote_helper_monotonic_ns": (
+                None
+                if remote_completed is None
+                else remote_completed.get("helper_monotonic_ns")
+            ),
+            "remote_stderr": (
+                None
+                if remote_completed is None
+                else remote_completed.get("stderr")
+            ),
             "controller_requested_termination": requested,
             "controller_requested_signal": signal.SIGTERM if requested else None,
             "observed_termination_monotonic_ns": observed,
@@ -370,6 +435,21 @@ class RemotePhysicalEngineeringBackend:
             raise S48PhysicalBackendError(
                 "transferred capture contradicts Pi producer status"
             )
+        producer_started = status.get("started_monotonic_ns")
+        producer_completed = status.get("completed_monotonic_ns")
+        if (
+            isinstance(producer_started, bool)
+            or not isinstance(producer_started, int)
+            or isinstance(producer_completed, bool)
+            or not isinstance(producer_completed, int)
+            or producer_completed <= producer_started
+            or self._recorder_ready_observed_ns is None
+        ):
+            raise S48PhysicalBackendError(
+                "Pi producer timing evidence is incomplete"
+            )
+        producer_duration_ns = producer_completed - producer_started
+        observed = self._recorder_ready_observed_ns + producer_duration_ns
         return {
             "pid": process.pid,
             "exit_status": process.returncode,
@@ -377,6 +457,9 @@ class RemotePhysicalEngineeringBackend:
             "controller_requested_signal": signal.SIGTERM if requested else None,
             "observed_termination_monotonic_ns": observed,
             "producer_status_sha256": _sha256_file(status_path),
+            "producer_started_monotonic_ns": producer_started,
+            "producer_completed_monotonic_ns": producer_completed,
+            "producer_capture_duration_ns": producer_duration_ns,
         }
 
     def begin_silence_interval(self) -> dict[str, Any]:
@@ -604,11 +687,15 @@ def _wait_json_event(
             return event
 
 
-def _start_process(command: Sequence[str]) -> subprocess.Popen[str]:
+def _start_process(
+    command: Sequence[str],
+    *,
+    stdin_pipe: bool = False,
+) -> subprocess.Popen[str]:
     try:
         return subprocess.Popen(
             list(command),
-            stdin=subprocess.DEVNULL,
+            stdin=subprocess.PIPE if stdin_pipe else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

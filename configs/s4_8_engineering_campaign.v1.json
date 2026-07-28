@@ -21,7 +21,7 @@
   },
   "controller": {
     "identity": "ias.s4_8.stratum_aware_engineering_controller",
-    "version": "1.0"
+    "version": "1.1"
   },
   "respeaker": {
     "ssh_prefix": [
@@ -97,7 +97,10 @@
     "nominal_sample_rate_hz": 48000,
     "system_volume_percent": 40,
     "muted": false,
-    "mac_preflight_path": "S4.2/bin/s4_2_mac_preflight.py"
+    "mac_preflight_path": "S4.2/bin/s4_2_mac_preflight.py",
+    "playback_helper_local_path": "scripts/s4_8_mac_playback.py",
+    "playback_helper_mac_path": "S4.8/engineering_rehearsal/bin/s4_8_mac_playback.py",
+    "playback_helper_sha256": "988f6e79e9f7d1f039a51c9239dd1306e81725f761b144a3a1557760f75e5b9c"
   },
   "zed": {
     "model": "ZED 2i",

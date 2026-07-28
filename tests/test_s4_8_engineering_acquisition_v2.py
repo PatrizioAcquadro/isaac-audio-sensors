@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import json
 import signal
 import sys
 import wave
@@ -443,6 +444,7 @@ class _FakeBackend:
 
     def wait_recorder_ready(self, recorder: object) -> bool:
         self.operations.append("recorder_ready")
+        self.now += 250_000_000
         return True
 
     def prepare_playback(self, reference_path: Path) -> dict[str, object]:
@@ -464,7 +466,11 @@ class _FakeBackend:
     def stop_recorder(self, recorder: object) -> dict[str, object]:
         self.operations.append("recorder_stop")
         self.capture_path.write_bytes(self.capture_bytes)
-        return {"pid": 201, "exit_status": 0}
+        return {
+            "pid": 201,
+            "exit_status": 0,
+            "producer_capture_duration_ns": 20_000_000_000,
+        }
 
 
 def test_supported_controller_enforces_complete_order_and_retains_retry_only(
@@ -517,14 +523,32 @@ def test_supported_controller_enforces_complete_order_and_retains_retry_only(
     assert backend.operations == [
         "recorder_start",
         "recorder_ready",
-        "continuous_capture",
         "playback_command",
+        "continuous_capture",
         "playback_start",
         "continuous_capture",
         "playback_stop",
         "continuous_capture",
         "recorder_stop",
     ]
+    events = [
+        json.loads(line)
+        for line in (tmp_path / "journal.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    by_type = {event["event_type"]: event for event in events}
+    capture_start_ns = by_type["recorder_ready"]["observed_monotonic_ns"]
+    assert (
+        by_type["playback_stop_planned"]["data"]["planned_monotonic_ns"]
+        - capture_start_ns
+        == 19_000_000_000
+    )
+    assert (
+        by_type["recorder_terminated"]["observed_monotonic_ns"]
+        - capture_start_ns
+        == 20_000_000_000
+    )
     assert not (tmp_path / "candidate.json").exists()
     assert not (tmp_path / "used.json").exists()
 
@@ -588,21 +612,21 @@ def test_file_backed_journal_to_v2_gate_passes_complete_engineering_fixture(
         (
             "playback_stop_planned",
             2_000_000_000,
-            {"planned_monotonic_ns": 20_000_000_000},
+            {"planned_monotonic_ns": 20_050_000_000},
         ),
         (
             "playback_terminated",
-            20_010_000_000,
+            20_060_000_000,
             {"pid": 102, "exit_status": 0},
         ),
         (
             "recorder_terminated",
-            21_000_000_000,
+            21_050_000_000,
             {"pid": 101, "exit_status": 0},
         ),
         (
             "capture_authenticated",
-            21_010_000_000,
+            21_060_000_000,
             {
                 "capture_sha256": hashlib.sha256(capture_path.read_bytes()).hexdigest(),
                 "reference_sha256": hashlib.sha256(

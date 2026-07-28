@@ -555,7 +555,7 @@ def run_presealing_gate_from_engineering_files(
     observed_process = {
         "capture_sha256": capture_sha256,
         "reference_sha256": reference_sha256,
-        "capture_started_monotonic_ns": recorder_started["observed_monotonic_ns"],
+        "capture_started_monotonic_ns": recorder_ready["observed_monotonic_ns"],
         "recorder_ready_monotonic_ns": recorder_ready["observed_monotonic_ns"],
         "playback_started_monotonic_ns": playback_started["observed_monotonic_ns"],
         "planned_playback_stop_monotonic_ns": planned["data"].get(
@@ -681,15 +681,15 @@ def run_supported_engineering_acquisition(
         },
     )
     recorder = backend.start_recorder(capture_path)
-    recorder_started = observe("recorder_started", recorder)
+    observe("recorder_started", recorder)
     ready = backend.wait_recorder_ready(recorder)
-    observe(
+    recorder_ready_event = observe(
         "recorder_ready",
         {"pid": recorder.get("pid"), "ready": bool(ready)},
     )
     if ready is not True:
         raise S48EngineeringAcquisitionError("recorder did not become ready")
-    capture_start_ns = int(recorder_started["observed_monotonic_ns"])
+    capture_start_ns = int(recorder_ready_event["observed_monotonic_ns"])
     config = load_presealing_config_v2(root)
     playback_start_ns = capture_start_ns + round(
         config["playback_start_s"] * 1_000_000_000
@@ -700,9 +700,9 @@ def run_supported_engineering_acquisition(
     capture_stop_ns = capture_start_ns + round(
         config["capture_duration_s"] * 1_000_000_000
     )
-    backend.wait_until(playback_start_ns)
     command = backend.prepare_playback(reference_path)
     observe("playback_commanded", command)
+    backend.wait_until(playback_start_ns)
     playback = backend.start_playback(command)
     observe("playback_started", playback)
     observe(
@@ -726,6 +726,19 @@ def run_supported_engineering_acquisition(
         "observed_termination_monotonic_ns",
         None,
     )
+    if recorder_observed_ns is None:
+        producer_duration_ns = recorder_status.get(
+            "producer_capture_duration_ns"
+        )
+        if (
+            isinstance(producer_duration_ns, bool)
+            or not isinstance(producer_duration_ns, int)
+            or producer_duration_ns <= 0
+        ):
+            raise S48EngineeringAcquisitionError(
+                "recorder omitted authenticated producer duration"
+            )
+        recorder_observed_ns = capture_start_ns + producer_duration_ns
     observe(
         "recorder_terminated",
         recorder_status,

@@ -96,7 +96,7 @@ def run_synthetic_engineering_rehearsal(
                 journal,
                 manifest_anchor_sha256=manifest["manifest_sha256"],
                 event_type="gate_evaluated",
-                observed_monotonic_ns=21_020_000_000,
+                observed_monotonic_ns=21_070_000_000,
                 data={
                     "report_sha256": canonical_sha256(gate_report),
                     "decision": gate_report["decision"],
@@ -112,7 +112,7 @@ def run_synthetic_engineering_rehearsal(
                 journal,
                 manifest_anchor_sha256=manifest["manifest_sha256"],
                 event_type="candidate_clearance_created",
-                observed_monotonic_ns=21_030_000_000,
+                observed_monotonic_ns=21_080_000_000,
                 data={"clearance_sha256": clearance["clearance_sha256"]},
             )
             candidate_seal = seal_engineering_candidate(
@@ -343,21 +343,21 @@ def _engineering_journal(
         (
             "playback_stop_planned",
             2_000_000_000,
-            {"planned_monotonic_ns": 20_000_000_000},
+            {"planned_monotonic_ns": 20_050_000_000},
         ),
         (
             "playback_terminated",
-            20_010_000_000,
+            20_060_000_000,
             {"pid": 102, "exit_status": 0},
         ),
         (
             "recorder_terminated",
-            21_000_000_000,
+            21_050_000_000,
             {"pid": 101, "exit_status": 0},
         ),
         (
             "capture_authenticated",
-            21_010_000_000,
+            21_060_000_000,
             {
                 "capture_sha256": capture_sha256,
                 "reference_sha256": manifest["reference_wav_sha256"],

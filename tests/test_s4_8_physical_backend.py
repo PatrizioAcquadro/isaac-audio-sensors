@@ -76,6 +76,7 @@ class _CompletedProcess:
     def __init__(self, pid: int) -> None:
         self.pid = pid
         self.returncode = 0
+        self.stdin = _ProcessInput()
         self.stdout = None
         self.stderr = None
 
@@ -85,6 +86,18 @@ class _CompletedProcess:
     def wait(self, timeout: float) -> int:
         del timeout
         return self.returncode
+
+
+class _ProcessInput:
+    def __init__(self) -> None:
+        self.values: list[str] = []
+
+    def write(self, value: str) -> int:
+        self.values.append(value)
+        return len(value)
+
+    def flush(self) -> None:
+        return None
 
 
 def _backend(tmp_path: Path) -> RemotePhysicalEngineeringBackend:
@@ -97,7 +110,9 @@ def _backend(tmp_path: Path) -> RemotePhysicalEngineeringBackend:
         pi_device="hw:CARD=Array,DEV=0",
         capture_duration_s=20,
         mac_ssh_prefix=["ssh", "mac"],
+        mac_playback_helper_path="s4_8_mac_playback.py",
         mac_continuous_asset_path="continuous.wav",
+        mac_continuous_asset_sha256="a" * 64,
         playback_gain=0.5,
         zed_helper_path=tmp_path / "zed_capture.py",
         zed_replay_path=tmp_path / "zed_replay.py",
@@ -118,7 +133,7 @@ def test_pi_recorder_readiness_transfer_and_producer_hash_are_authenticated(
     monkeypatch.setattr(
         physical_backend,
         "_start_process",
-        lambda command: next(processes),
+        lambda command, **kwargs: next(processes),
     )
     monkeypatch.setattr(
         physical_backend,
@@ -146,10 +161,12 @@ def test_pi_recorder_readiness_transfer_and_producer_hash_are_authenticated(
         if command[-2].endswith("/producer_status.json"):
             local_path.write_text(
                 json.dumps(
-                    {
-                        "status": "complete",
-                        "sha256": hashlib.sha256(capture_bytes).hexdigest(),
-                    }
+                        {
+                            "status": "complete",
+                            "sha256": hashlib.sha256(capture_bytes).hexdigest(),
+                            "started_monotonic_ns": 1_000_000_000,
+                            "completed_monotonic_ns": 21_000_000_000,
+                        }
                 ),
                 encoding="utf-8",
             )
@@ -170,6 +187,7 @@ def test_pi_recorder_readiness_transfer_and_producer_hash_are_authenticated(
 
     assert status["exit_status"] == 0
     assert status["controller_requested_termination"] is False
+    assert status["producer_capture_duration_ns"] == 20_000_000_000
     assert capture_path.read_bytes() == capture_bytes
     assert len(status["producer_status_sha256"]) == 64
 
@@ -182,7 +200,23 @@ def test_mac_playback_lifecycle_binds_reference_and_observes_exit(
     monkeypatch.setattr(
         physical_backend,
         "_start_process",
-        lambda command: process,
+        lambda command, **kwargs: process,
+    )
+    events = iter(
+        (
+            {"event": "armed", "asset_sha256": "a" * 64},
+            {"event": "playback_started", "afplay_pid": 303},
+            {
+                "event": "playback_completed",
+                "afplay_pid": 303,
+                "afplay_exit_status": 0,
+            },
+        )
+    )
+    monkeypatch.setattr(
+        physical_backend,
+        "_wait_json_event",
+        lambda process, *, expected_event, timeout_s: next(events),
     )
     reference_path = tmp_path / "reference.wav"
     reference_path.write_bytes(b"exact reference")
@@ -197,5 +231,7 @@ def test_mac_playback_lifecycle_binds_reference_and_observes_exit(
     ).hexdigest()
     assert prepared["continuous_asset_path"] == "continuous.wav"
     assert playback["process_identity"] == "ssh_mac_afplay"
+    assert process.stdin.values == ["START\n"]
     assert stopped["exit_status"] == 0
+    assert stopped["remote_afplay_exit_status"] == 0
     assert stopped["controller_requested_termination"] is False

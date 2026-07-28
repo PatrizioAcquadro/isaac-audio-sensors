@@ -49,6 +49,7 @@ SOURCE_PATHS = (
     "docs/development/specs/s4_8_presealing_gate_v2.md",
     "docs/schemas/s4_8_presealing_gate_report.v2.schema.json",
     "scripts/run_s4_8_physical_rehearsal.py",
+    "scripts/s4_8_mac_playback.py",
     "scripts/s4_2_pi_capture.py",
     "scripts/s4_2_mac_preflight.py",
     "scripts/preflight_s4_2_zed.py",
@@ -146,6 +147,11 @@ def _config(path: Path) -> dict[str, Any]:
             raise S48PhysicalRehearsalError(
                 f"{section} file contradicts the campaign config"
             )
+    helper_path = ROOT / config["playback"]["playback_helper_local_path"]
+    if _sha256(helper_path) != config["playback"]["playback_helper_sha256"]:
+        raise S48PhysicalRehearsalError(
+            "Mac playback helper contradicts the campaign config"
+        )
     gate = load_presealing_config_v2(ROOT)
     if (
         canonical_sha256(gate)
@@ -165,8 +171,24 @@ def _deploy_continuous_asset(
     local_asset_path: Path,
     expected_sha256: str,
 ) -> dict[str, Any]:
+    return _deploy_mac_file(
+        config,
+        local_path=local_asset_path,
+        remote_path=config["reference"]["continuous_asset_mac_path"],
+        expected_sha256=expected_sha256,
+        label="continuous playback asset",
+    )
+
+
+def _deploy_mac_file(
+    config: dict[str, Any],
+    *,
+    local_path: Path,
+    remote_path: str,
+    expected_sha256: str,
+    label: str,
+) -> dict[str, Any]:
     playback = config["playback"]
-    remote_path = config["reference"]["continuous_asset_mac_path"]
     remote_parent = str(Path(remote_path).parent)
     mkdir = _run(
         [*playback["ssh_prefix"], "/bin/mkdir", "-p", remote_parent],
@@ -174,7 +196,7 @@ def _deploy_continuous_asset(
     )
     if mkdir["return_code"] != 0:
         raise S48PhysicalRehearsalError(
-            f"Mac asset directory creation failed: {mkdir['stderr'].strip()}"
+            f"Mac {label} directory creation failed: {mkdir['stderr'].strip()}"
         )
     existing = _run(
         [*playback["ssh_prefix"], "/usr/bin/shasum", "-a", "256", remote_path],
@@ -184,20 +206,20 @@ def _deploy_continuous_asset(
         observed = existing["stdout"].split()[0]
         if observed != expected_sha256:
             raise S48PhysicalRehearsalError(
-                "existing Mac continuous asset has a different hash"
+                f"existing Mac {label} has a different hash"
             )
         return {"action": "verified_existing", "sha256": observed}
     transfer = _run(
         [
             *playback["scp_prefix"],
-            str(local_asset_path),
+            str(local_path),
             f"{playback['scp_target']}:{remote_path}",
         ],
         timeout=120,
     )
     if transfer["return_code"] != 0:
         raise S48PhysicalRehearsalError(
-            f"Mac continuous asset transfer failed: {transfer['stderr'].strip()}"
+            f"Mac {label} transfer failed: {transfer['stderr'].strip()}"
         )
     verify = _run(
         [*playback["ssh_prefix"], "/usr/bin/shasum", "-a", "256", remote_path],
@@ -209,7 +231,7 @@ def _deploy_continuous_asset(
         or verify["stdout"].split()[0] != expected_sha256
     ):
         raise S48PhysicalRehearsalError(
-            "Mac continuous asset authentication failed after transfer"
+            f"Mac {label} authentication failed after transfer"
         )
     return {"action": "transferred_and_verified", "sha256": expected_sha256}
 
@@ -229,6 +251,13 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
         config,
         local_asset_path=asset_path,
         expected_sha256=asset["asset_sha256"],
+    )
+    helper_deployment = _deploy_mac_file(
+        config,
+        local_path=ROOT / config["playback"]["playback_helper_local_path"],
+        remote_path=config["playback"]["playback_helper_mac_path"],
+        expected_sha256=config["playback"]["playback_helper_sha256"],
+        label="playback helper",
     )
     pi = config["respeaker"]
     pi_observation = _run(
@@ -300,6 +329,7 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
         "zed_recording_started": False,
         "continuous_asset": asset,
         "continuous_asset_deployment": deployment,
+        "playback_helper_deployment": helper_deployment,
         "pi": pi_report,
         "mac": mac_report,
         "zed": zed_report,
@@ -349,6 +379,13 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         config,
         local_asset_path=asset_path,
         expected_sha256=asset["asset_sha256"],
+    )
+    helper_deployment = _deploy_mac_file(
+        config,
+        local_path=ROOT / config["playback"]["playback_helper_local_path"],
+        remote_path=config["playback"]["playback_helper_mac_path"],
+        expected_sha256=config["playback"]["playback_helper_sha256"],
+        label="playback helper",
     )
     source_hashes = {
         relative: _sha256(ROOT / relative) for relative in SOURCE_PATHS
@@ -407,6 +444,8 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
                 "nominal_sample_rate_hz",
                 "system_volume_percent",
                 "muted",
+                "playback_helper_mac_path",
+                "playback_helper_sha256",
             )
         }
         | {
@@ -472,6 +511,7 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         "preflight_report_sha256": environment["preflight_report_sha256"],
         "continuous_asset": asset,
         "continuous_asset_deployment": deployment,
+        "playback_helper_deployment": helper_deployment,
         "authority": config["authority"],
     }
     _write_new_json(freeze_root / "freeze_report.json", payload)
@@ -535,9 +575,15 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
         pi_device=config["respeaker"]["device"],
         capture_duration_s=float(take["duration_s"]),
         mac_ssh_prefix=config["playback"]["ssh_prefix"],
+        mac_playback_helper_path=config["playback"][
+            "playback_helper_mac_path"
+        ],
         mac_continuous_asset_path=config["reference"][
             "continuous_asset_mac_path"
         ],
+        mac_continuous_asset_sha256=campaign_manifest["devices"][
+            "playback"
+        ]["continuous_asset_sha256"],
         playback_gain=take["playback_gain"],
         zed_helper_path=ROOT / "scripts/run_s4_2_zed_capture.py",
         zed_replay_path=ROOT / "scripts/validate_s4_2_zed_svo.py",
