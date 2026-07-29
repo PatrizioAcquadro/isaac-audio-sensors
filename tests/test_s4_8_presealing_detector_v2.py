@@ -66,9 +66,7 @@ def _capture(
         filtered = np.convolve(stimulus, impulse, mode="full")[: stimulus.size]
         start = acoustic_start + delay
         stop = min(start + filtered.size, PLAYBACK_STOP)
-        microphones[channel, start:stop] += (
-            0.04 * polarity * filtered[: stop - start]
-        )
+        microphones[channel, start:stop] += 0.04 * polarity * filtered[: stop - start]
     return microphones
 
 
@@ -98,10 +96,7 @@ def test_v2_establishes_alignment_with_realistic_fixed_playback_latency() -> Non
         reference,
     )
 
-    assert (
-        result["method"]
-        == "polarity_separated_multichannel_lag_tracking_v2"
-    )
+    assert result["method"] == "polarity_separated_multichannel_lag_tracking_v2"
     assert result["alignment_status"] == "maintained"
     assert (
         abs(
@@ -146,23 +141,69 @@ def test_v2_separates_timing_from_fixed_channel_polarity() -> None:
             reference,
             latency_samples=640,
             drift_ppm=350.0,
-            channel_polarities=(1, -1, -1, -1),
+            channel_polarities=(1, -1, 1, 1),
         ),
         reference,
     )
 
     assert result["alignment_status"] == "maintained"
     assert result["useful_sound_coverage"] >= 0.90
-    assert [
-        item["status"] for item in result["channel_polarity_evidence"]
-    ] == ["normal", "inverted", "inverted", "inverted"]
+    assert [item["status"] for item in result["channel_polarity_evidence"]] == [
+        "normal",
+        "inverted",
+        "normal",
+        "normal",
+    ]
+
+
+def test_v2_does_not_confuse_common_acoustic_phase_with_channel_inversion() -> None:
+    reference = _reference()
+
+    result = _detect(
+        _capture(
+            reference,
+            latency_samples=640,
+            channel_polarities=(-1, -1, -1, -1),
+        ),
+        reference,
+    )
+
+    assert result["alignment_status"] == "maintained"
+    assert [item["status"] for item in result["channel_polarity_evidence"]] == [
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+    ]
+
+
+def test_v2_bridges_one_weak_reference_block_with_independent_room_evidence() -> None:
+    reference = _reference()
+    microphones = _capture(
+        reference,
+        latency_samples=640,
+        drift_ppm=350.0,
+    )
+    block = int(DEFAULT_ALIGNMENT_CONFIG_V2["analysis_block_samples"])
+    weak_start = EVALUATION_START + 81 * block
+    common_room_component = np.random.default_rng(492).normal(
+        0.0,
+        0.02,
+        size=block,
+    )
+    microphones[:, weak_start : weak_start + block] += common_room_component
+
+    result = _detect(microphones, reference)
+
+    assert result["alignment_status"] == "maintained"
+    assert result["useful_sound_coverage"] == 1.0
+    assert result["longest_continuous_useful_interval"]["duration_s"] == 17.5
+    assert result["decisions"][81]["candidate"] is True
 
 
 def test_v2_keeps_periodic_polarity_ambiguity_separate_from_presence() -> None:
     reference, reference_rate = read_pcm16_wav_strict(
-        ROOT
-        / "outputs/isaac_audio_sensors/S4/S4.2/reference/"
-        "s4_2_reference_v1.0.0.wav"
+        ROOT / "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav"
     )
     normalized = normalize_reference_for_capture_rate(
         reference[:, 0],
@@ -187,8 +228,7 @@ def test_v2_keeps_periodic_polarity_ambiguity_separate_from_presence() -> None:
     assert result["alignment_status"] == "maintained"
     assert result["useful_sound_coverage"] >= 0.90
     assert all(
-        item["status"] != "inverted"
-        for item in result["channel_polarity_evidence"]
+        item["status"] != "inverted" for item in result["channel_polarity_evidence"]
     )
 
 
@@ -327,9 +367,7 @@ def test_v2_alignment_limits_are_tracked_schema_valid_and_outcome_independent() 
 
 def test_exact_reference_active_interval_has_no_silent_detector_blocks() -> None:
     reference, reference_rate = read_pcm16_wav_strict(
-        ROOT
-        / "outputs/isaac_audio_sensors/S4/S4.2/reference/"
-        "s4_2_reference_v1.0.0.wav"
+        ROOT / "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav"
     )
     normalized = normalize_reference_for_capture_rate(
         reference[:, 0],
