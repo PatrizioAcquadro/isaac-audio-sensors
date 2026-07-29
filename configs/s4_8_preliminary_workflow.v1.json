@@ -1,0 +1,105 @@
+{
+  "schema": "ias.s4_8.preliminary_workflow_config.v1",
+  "status": "prepared_not_started",
+  "specification_path": "docs/development/specs/s4_8_preliminary_workflow.md",
+  "acquisition_contract": {
+    "path": "configs/s4_8_engineering_campaign.v1.json",
+    "sha256": "6fa942d3395f3bdee3e5d3607a6773c544c3d391037c66641c47732899e7b5d4"
+  },
+  "preliminary": {
+    "planned_take_count": 4,
+    "campaign_root": "/home/pacquadr/Desktop/s4_8_preliminary",
+    "pi_capture_root": "S4.8/preliminary",
+    "cases": [
+      {
+        "case_id": "nominal_reference",
+        "take_id": "s48prelim_001_nominal_reference",
+        "source_stratum": "B_center_nominal_level"
+      },
+      {
+        "case_id": "low_level_reference",
+        "take_id": "s48prelim_002_low_level_reference",
+        "source_stratum": "C_center_low_level"
+      },
+      {
+        "case_id": "silence",
+        "take_id": "s48prelim_003_silence",
+        "source_stratum": "D_silence"
+      },
+      {
+        "case_id": "audio_video_impact_with_zed",
+        "take_id": "s48prelim_004_audio_video_impact_with_zed",
+        "source_stratum": "E_impact_audio_video"
+      }
+    ],
+    "classification": {
+      "engineering_only": true,
+      "uncounted": true,
+      "excluded_from_official_holdout": true,
+      "safe_to_inspect_and_analyze": true,
+      "diagnostic_results_only": true,
+      "official_evidence_eligible": false
+    }
+  },
+  "processing": {
+    "required_gates": [
+      "acquisition",
+      "technical_validation",
+      "detector_processing",
+      "synchronization",
+      "metric_calculation",
+      "diagnostic_evaluator",
+      "diagnostic_packaging"
+    ],
+    "failure_classes": [
+      "acquisition",
+      "detector",
+      "synchronization",
+      "metric",
+      "evaluator",
+      "packaging"
+    ],
+    "raw_reprocessing_without_reacquisition": true,
+    "diagnostic_evaluator_uses_synthetic_completion": true
+  },
+  "reuse_policy": {
+    "downstream_only_changes_reuse_valid_raw": true,
+    "physical_invalidators": [
+      "physical_acquisition_conditions",
+      "playback_path",
+      "reference_signal",
+      "playback_gain",
+      "geometry",
+      "device_profile",
+      "channel_map",
+      "synchronization_assumptions",
+      "raw_recording_validity"
+    ],
+    "detector_or_processing_change_requires_explicit_physical_confirmation_decision": true,
+    "automatic_four_take_reacquisition_forbidden": true,
+    "decision_record_required": true
+  },
+  "official_path": {
+    "amendment_id": "s4_8_recovery_amendment_02",
+    "preliminary_readiness_required_before_protocol_freeze": true,
+    "final_protocol_status": "not_frozen",
+    "official_take_count": 47,
+    "official_holdout_count": 1,
+    "official_acquisition_status": "blocked",
+    "official_acquisition_after_final_freeze_only": true,
+    "observable_during_acquisition": "preregistered_technical_qa_only",
+    "hash_and_seal_before_evaluation": true,
+    "frozen_evaluator_binding_required": true,
+    "preopen_validation_required": true,
+    "explicit_authorization_required": true
+  },
+  "authority": {
+    "creates_grant": false,
+    "consumes_grant": false,
+    "opens_holdout": false,
+    "official_state_machine": false,
+    "publishes_official_evidence": false,
+    "freezes_final_protocol": false,
+    "starts_official_acquisition": false
+  }
+}

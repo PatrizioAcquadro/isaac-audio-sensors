@@ -1,7 +1,7 @@
 {
   "schema": "ias.s4_8.recovery_amendment_02.v1",
   "amendment_id": "s4_8_recovery_amendment_02",
-  "status": "preregistered_awaiting_unseen_holdout",
+  "status": "prepared_awaiting_preliminary_readiness",
   "prior_terminal_runs": [
     {
       "run_id": "original_s4_8",
@@ -127,9 +127,24 @@
     "consumed_observations_reuse_forbidden": true,
     "post_hoc_threshold_or_scenario_change_forbidden": true
   },
+  "preliminary_readiness": {
+    "required_before_final_protocol_freeze": true,
+    "workflow_config_path": "configs/s4_8_preliminary_workflow.v1.json",
+    "workflow_config_sha256": "407df2dc36b28e4f7644519cfbcfeb464ae0262fa26e236522c33ed6ca3347e8",
+    "workflow_schema_path": "docs/schemas/s4_8_preliminary_workflow.v1.schema.json",
+    "workflow_schema_sha256": "30817b9811e22b8c422b8b5358971dca7061eca94c1d5a9fd417b3e48077b2e2",
+    "workflow_spec_path": "docs/development/specs/s4_8_preliminary_workflow.md",
+    "workflow_spec_sha256": "60ffdd9756a0ff028a81b6ab92dbf2493d868f14f65aeac4e4626ffe185bc3c8",
+    "readiness_path": "runs/s4_8_preliminary/preliminary_readiness.v1.json",
+    "required_take_count": 4,
+    "required_gate_count": 7,
+    "required_status": "passed",
+    "diagnostic_results_are_official_evidence": false,
+    "final_protocol_status": "not_frozen"
+  },
   "unseen_holdout": {
     "holdout_id": "s4_8_recovery_amendment_02_unseen_holdout",
-    "status": "not_collected",
+    "status": "blocked_pending_preliminary_readiness_and_final_freeze",
     "planned_take_id_prefix": "s48r02_unseen_holdout_",
     "namespace_root": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04",
     "observation_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts",
@@ -163,6 +178,6 @@
     "grant_consumption_authorized": false,
     "evaluation_execution_authorized": false,
     "automatic_retry_of_prior_runs": false,
-    "evaluation_implementation_status": "blocked_until_unseen_holdout_binding"
+    "evaluation_implementation_status": "blocked_until_preliminary_readiness_final_freeze_and_unseen_holdout_binding"
   }
 }

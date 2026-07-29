@@ -5,12 +5,12 @@
 This document preregisters a forward-only S4 recovery path after two consumed
 S4.8 evaluations became permanently terminal `FAILED`.
 
-It is an implementation and collection boundary, not authority to create a
-grant, open a holdout, or execute an evaluation. The amendment remains
-`NO-GO` until a new holdout has been collected after this preregistration,
-sealed unopened, hash-bound through the declared binding schema, independently
-reviewed against the exact candidate source, and explicitly authorized by the
-operator.
+It is an implementation boundary, not collection or evaluation authority. The
+amendment remains `NO-GO` until the four-take preliminary workflow passes, the
+final protocol is subsequently frozen, one new 47-take holdout is collected
+under that freeze, sealed unopened, hash-bound through the declared binding
+schema, independently reviewed against the exact candidate source, and
+explicitly authorized by the operator.
 
 ## Immutable terminal history
 
@@ -58,14 +58,36 @@ under `s48r02_unseen_holdout_`, preserve the template's exact scientific cell
 order and pairing semantics, and be frozen before any new observation is
 captured.
 
+## Required preliminary readiness
+
+Before the final official protocol may be frozen, the active
+`s4_8_preliminary_workflow.v1` path must collect and pass exactly four
+engineering-only cases: nominal reference, low-level reference, silence, and
+audio/video impact with ZED.
+
+Those takes are uncounted, excluded from the official holdout, safe to inspect,
+and diagnostic-only. They must exercise acquisition, technical validation,
+detector processing, synchronization, metric calculation, the diagnostic
+evaluator, and diagnostic packaging. Every correction requires a recorded
+reuse or reacquisition decision. Any unresolved failure or required physical
+confirmation blocks readiness.
+
+The v9 47-take engineering campaign and its artifacts remain preserved
+historical material. They are not the active execution requirement and are not
+rewritten by this amendment.
+
 ## New unseen holdout
 
-All 47 observations must be newly captured after the amendment_02
-preregistration commit. The observation root is
+All 47 observations must be newly captured only after preliminary readiness
+passes and the final protocol is frozen. The observation root is
 `dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts`.
 It must be disjoint from the consumed amendment_03 observation root. No audio,
 video, QA result, selected attempt, window result, or derived value from either
 consumed evaluation may be copied or reused.
+
+During official acquisition, the operator may observe only preregistered
+technical QA. Scientific outputs remain unopened until the complete dataset is
+hashed, sealed, and bound to the frozen evaluator.
 
 The precollection seal, technical manifests, and final unopened holdout seal
 must live under the amendment_04 namespace declared in the machine-readable
@@ -97,11 +119,12 @@ The separate future state roots are:
 - independent review:
   `dataset/S4.8/recovery_amendment_02/review/independent_review.v1.json`.
 
-Amendment_02 currently exposes only a preregistration/pre-open validator. It
+Amendment_02 currently exposes only a preparation/pre-open validator. It
 deliberately exposes no grant-creation, grant-consumption, or evaluation
-execution function. Those surfaces remain blocked until the unseen holdout
-binding and evaluator rebinding are committed, reviewed, and separately
-authorized.
+execution function. Official acquisition is also blocked until preliminary
+readiness and the later final-protocol freeze. Evaluation surfaces remain
+blocked until the unseen holdout binding and evaluator rebinding are committed,
+reviewed, and separately authorized.
 
 This amendment is S4-only. It does not start S4.9, S5, or S6 and does not
 authorize any push, tag, release, or publication.

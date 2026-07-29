@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_amendment_02_preregistration_is_schema_valid_and_frozen() -> None:
     amendment = recovery.load_amendment(ROOT)
 
-    assert amendment["status"] == "preregistered_awaiting_unseen_holdout"
+    assert amendment["status"] == "prepared_awaiting_preliminary_readiness"
     assert [run["run_id"] for run in amendment["prior_terminal_runs"]] == [
         "original_s4_8",
         "recovery_amendment_01",
@@ -31,6 +31,13 @@ def test_amendment_02_preregistration_is_schema_valid_and_frozen() -> None:
     assert preregistration["stretch_criterion_count"] == 6
     assert preregistration["planned_take_count"] == 47
     assert preregistration["leakage_group_count"] == 15
+    assert amendment["preliminary_readiness"]["required_take_count"] == 4
+    assert (
+        amendment["preliminary_readiness"][
+            "required_before_final_protocol_freeze"
+        ]
+        is True
+    )
 
 
 def test_terminal_history_authenticates_both_failed_runs_hash_only() -> None:
@@ -172,6 +179,8 @@ def test_preopen_is_truthful_no_go_without_new_unseen_holdout(
     assert result["status"] == "passed"
     assert result["readiness"] == "no_go"
     assert result["blockers"] == [
+        "preliminary_readiness_not_established",
+        "final_official_protocol_not_frozen",
         "new_unseen_holdout_not_collected_or_bound",
         "evaluator_not_bound_to_new_holdout",
         "independent_review_not_present",
@@ -179,6 +188,10 @@ def test_preopen_is_truthful_no_go_without_new_unseen_holdout(
     ]
     assert result["criteria_unchanged"] is True
     assert result["planned_take_count"] == 47
+    assert result["preliminary_take_count"] == 4
+    assert result["preliminary_readiness_passed"] is False
+    assert result["final_protocol_frozen"] is False
+    assert result["official_acquisition_permitted"] is False
     assert result["leakage_group_count"] == 15
     assert not any(result["unseen_holdout_paths_present"].values())
     assert result["grant_creation_authorized"] is False

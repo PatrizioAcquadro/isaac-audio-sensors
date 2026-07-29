@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/isaac-audio-sensors/s4_8_preliminary_workflow.v1.schema.json",
+  "title": "S4.8 four-take preliminary workflow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "specification_path",
+    "acquisition_contract",
+    "preliminary",
+    "processing",
+    "reuse_policy",
+    "official_path",
+    "authority"
+  ],
+  "properties": {
+    "schema": {"const": "ias.s4_8.preliminary_workflow_config.v1"},
+    "status": {"const": "prepared_not_started"},
+    "specification_path": {"$ref": "#/$defs/path"},
+    "acquisition_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"const": "configs/s4_8_engineering_campaign.v1.json"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "preliminary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planned_take_count",
+        "campaign_root",
+        "pi_capture_root",
+        "cases",
+        "classification"
+      ],
+      "properties": {
+        "planned_take_count": {"const": 4},
+        "campaign_root": {"type": "string", "pattern": "^/home/.+/s4_8_preliminary$"},
+        "pi_capture_root": {"const": "S4.8/preliminary"},
+        "cases": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "prefixItems": [
+            {"$ref": "#/$defs/nominal"},
+            {"$ref": "#/$defs/low"},
+            {"$ref": "#/$defs/silence"},
+            {"$ref": "#/$defs/impact"}
+          ]
+        },
+        "classification": {"$ref": "#/$defs/classification"}
+      }
+    },
+    "processing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_gates",
+        "failure_classes",
+        "raw_reprocessing_without_reacquisition",
+        "diagnostic_evaluator_uses_synthetic_completion"
+      ],
+      "properties": {
+        "required_gates": {
+          "const": [
+            "acquisition",
+            "technical_validation",
+            "detector_processing",
+            "synchronization",
+            "metric_calculation",
+            "diagnostic_evaluator",
+            "diagnostic_packaging"
+          ]
+        },
+        "failure_classes": {
+          "const": [
+            "acquisition",
+            "detector",
+            "synchronization",
+            "metric",
+            "evaluator",
+            "packaging"
+          ]
+        },
+        "raw_reprocessing_without_reacquisition": {"const": true},
+        "diagnostic_evaluator_uses_synthetic_completion": {"const": true}
+      }
+    },
+    "reuse_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downstream_only_changes_reuse_valid_raw",
+        "physical_invalidators",
+        "detector_or_processing_change_requires_explicit_physical_confirmation_decision",
+        "automatic_four_take_reacquisition_forbidden",
+        "decision_record_required"
+      ],
+      "properties": {
+        "downstream_only_changes_reuse_valid_raw": {"const": true},
+        "physical_invalidators": {
+          "const": [
+            "physical_acquisition_conditions",
+            "playback_path",
+            "reference_signal",
+            "playback_gain",
+            "geometry",
+            "device_profile",
+            "channel_map",
+            "synchronization_assumptions",
+            "raw_recording_validity"
+          ]
+        },
+        "detector_or_processing_change_requires_explicit_physical_confirmation_decision": {
+          "const": true
+        },
+        "automatic_four_take_reacquisition_forbidden": {"const": true},
+        "decision_record_required": {"const": true}
+      }
+    },
+    "official_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amendment_id",
+        "preliminary_readiness_required_before_protocol_freeze",
+        "final_protocol_status",
+        "official_take_count",
+        "official_holdout_count",
+        "official_acquisition_status",
+        "official_acquisition_after_final_freeze_only",
+        "observable_during_acquisition",
+        "hash_and_seal_before_evaluation",
+        "frozen_evaluator_binding_required",
+        "preopen_validation_required",
+        "explicit_authorization_required"
+      ],
+      "properties": {
+        "amendment_id": {"const": "s4_8_recovery_amendment_02"},
+        "preliminary_readiness_required_before_protocol_freeze": {"const": true},
+        "final_protocol_status": {"const": "not_frozen"},
+        "official_take_count": {"const": 47},
+        "official_holdout_count": {"const": 1},
+        "official_acquisition_status": {"const": "blocked"},
+        "official_acquisition_after_final_freeze_only": {"const": true},
+        "observable_during_acquisition": {
+          "const": "preregistered_technical_qa_only"
+        },
+        "hash_and_seal_before_evaluation": {"const": true},
+        "frozen_evaluator_binding_required": {"const": true},
+        "preopen_validation_required": {"const": true},
+        "explicit_authorization_required": {"const": true}
+      }
+    },
+    "authority": {"$ref": "#/$defs/authority"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "path": {"type": "string", "minLength": 1, "pattern": "^[^/].*"},
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "take_id", "source_stratum"],
+      "properties": {
+        "case_id": {"type": "string"},
+        "take_id": {"type": "string", "pattern": "^s48prelim_"},
+        "source_stratum": {"type": "string"}
+      }
+    },
+    "nominal": {
+      "allOf": [
+        {"$ref": "#/$defs/case"},
+        {"properties": {
+          "case_id": {"const": "nominal_reference"},
+          "take_id": {"const": "s48prelim_001_nominal_reference"},
+          "source_stratum": {"const": "B_center_nominal_level"}
+        }}
+      ]
+    },
+    "low": {
+      "allOf": [
+        {"$ref": "#/$defs/case"},
+        {"properties": {
+          "case_id": {"const": "low_level_reference"},
+          "take_id": {"const": "s48prelim_002_low_level_reference"},
+          "source_stratum": {"const": "C_center_low_level"}
+        }}
+      ]
+    },
+    "silence": {
+      "allOf": [
+        {"$ref": "#/$defs/case"},
+        {"properties": {
+          "case_id": {"const": "silence"},
+          "take_id": {"const": "s48prelim_003_silence"},
+          "source_stratum": {"const": "D_silence"}
+        }}
+      ]
+    },
+    "impact": {
+      "allOf": [
+        {"$ref": "#/$defs/case"},
+        {"properties": {
+          "case_id": {"const": "audio_video_impact_with_zed"},
+          "take_id": {"const": "s48prelim_004_audio_video_impact_with_zed"},
+          "source_stratum": {"const": "E_impact_audio_video"}
+        }}
+      ]
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engineering_only",
+        "uncounted",
+        "excluded_from_official_holdout",
+        "safe_to_inspect_and_analyze",
+        "diagnostic_results_only",
+        "official_evidence_eligible"
+      ],
+      "properties": {
+        "engineering_only": {"const": true},
+        "uncounted": {"const": true},
+        "excluded_from_official_holdout": {"const": true},
+        "safe_to_inspect_and_analyze": {"const": true},
+        "diagnostic_results_only": {"const": true},
+        "official_evidence_eligible": {"const": false}
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "creates_grant",
+        "consumes_grant",
+        "opens_holdout",
+        "official_state_machine",
+        "publishes_official_evidence",
+        "freezes_final_protocol",
+        "starts_official_acquisition"
+      ],
+      "properties": {
+        "creates_grant": {"const": false},
+        "consumes_grant": {"const": false},
+        "opens_holdout": {"const": false},
+        "official_state_machine": {"const": false},
+        "publishes_official_evidence": {"const": false},
+        "freezes_final_protocol": {"const": false},
+        "starts_official_acquisition": {"const": false}
+      }
+    }
+  }
+}

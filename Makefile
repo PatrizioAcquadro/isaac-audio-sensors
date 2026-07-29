@@ -18,7 +18,8 @@ CURRENT_TESTS := \
 	tests/test_s4_8_engineering_acquisition_v2.py \
 	tests/test_s4_8_engineering_campaign.py \
 	tests/test_s4_8_engineering_rehearsal.py \
-	tests/test_s4_8_physical_backend.py
+	tests/test_s4_8_physical_backend.py \
+	tests/test_s4_8_preliminary.py
 
 # Keep the established closeout contract: `make test` always runs everything.
 test: test-full

@@ -74,6 +74,7 @@ def load_amendment(repo_root: Path) -> dict[str, Any]:
             f"S4.8 recovery amendment_02 schema failure: {exc.message}"
         ) from exc
     _validate_scientific_bindings(root, amendment)
+    _validate_preliminary_bindings(root, amendment)
     _validate_namespaces(amendment)
     return amendment
 
@@ -147,6 +148,56 @@ def _validate_namespaces(amendment: Mapping[str, Any]) -> None:
         raise s4_8.S48Error(
             "S4.8 recovery amendment_02 future paths overlap terminal history"
         )
+
+
+def _validate_preliminary_bindings(
+    repo_root: Path,
+    amendment: Mapping[str, Any],
+) -> None:
+    preliminary = amendment["preliminary_readiness"]
+    for path_key, digest_key in (
+        ("workflow_config_path", "workflow_config_sha256"),
+        ("workflow_schema_path", "workflow_schema_sha256"),
+        ("workflow_spec_path", "workflow_spec_sha256"),
+    ):
+        path = repo_root / _safe_relative(preliminary[path_key])
+        if (
+            not path.is_file()
+            or s4_8.sha256_file(path) != preliminary[digest_key]
+        ):
+            raise s4_8.S48Error(
+                f"S4.8 recovery amendment_02 binding mismatch: {path_key}"
+            )
+
+
+def _preliminary_readiness_state(
+    repo_root: Path,
+    amendment: Mapping[str, Any],
+) -> tuple[bool, bool]:
+    preliminary = amendment["preliminary_readiness"]
+    path = repo_root / _safe_relative(preliminary["readiness_path"])
+    if not path.exists():
+        return False, False
+    report = s4_8.load_json(path)
+    passed = (
+        report.get("schema") == "ias.s4_8.preliminary_readiness.v1"
+        and report.get("status") == preliminary["required_status"]
+        and report.get("preliminary_take_count")
+        == preliminary["required_take_count"]
+        and report.get("all_required_gates_passed") is True
+        and report.get("final_protocol_freeze_permitted") is True
+        and report.get("final_protocol_frozen") is False
+        and report.get("official_acquisition_permitted") is False
+        and report.get("grant_creation_authorized") is False
+        and report.get("grant_consumption_authorized") is False
+        and report.get("holdout_opening_authorized") is False
+        and report.get("official_evaluation_authorized") is False
+    )
+    if not passed:
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 preliminary readiness is invalid"
+        )
+    return True, True
 
 
 def _validate_terminal_package(
@@ -308,10 +359,23 @@ def recovery_preopen_validate(
         )
     }
     present = {key: (root / path).exists() for key, path in holdout_paths.items()}
+    readiness_present, readiness_passed = _preliminary_readiness_state(
+        root, amendment
+    )
+    final_protocol_frozen = (
+        amendment["preliminary_readiness"]["final_protocol_status"] == "frozen"
+    )
+    if any(present.values()) and not (readiness_passed and final_protocol_frozen):
+        raise s4_8.S48Error(
+            "S4.8 official holdout state exists before preliminary readiness "
+            "and final protocol freeze"
+        )
     review_present = (
         root / _safe_relative(future["independent_review_path"])
     ).is_file()
     blockers = [
+        "preliminary_readiness_not_established",
+        "final_official_protocol_not_frozen",
         "new_unseen_holdout_not_collected_or_bound",
         "evaluator_not_bound_to_new_holdout",
         "independent_review_not_present",
@@ -332,6 +396,11 @@ def recovery_preopen_validate(
         "readiness_criterion_count": 23,
         "stretch_criterion_count": 6,
         "planned_take_count": 47,
+        "preliminary_take_count": 4,
+        "preliminary_readiness_present": readiness_present,
+        "preliminary_readiness_passed": readiness_passed,
+        "final_protocol_frozen": final_protocol_frozen,
+        "official_acquisition_permitted": False,
         "leakage_group_count": 15,
         "unseen_holdout_id": unseen["holdout_id"],
         "unseen_holdout_paths_present": present,

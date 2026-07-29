@@ -20,21 +20,27 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
     run_supported_engineering_acquisition,
 )
 from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
+    PRELIMINARY_MANIFEST_SCHEMA,
     S48EngineeringCampaignError,
     append_attempt_ledger_record,
+    build_preliminary_manifest,
     build_reference_take_manifest,
     build_stratum_aware_campaign_manifest,
+    derive_preliminary_design,
     derive_stratum_aware_design,
     run_supported_nonreference_acquisition,
     validate_attempt_ledger,
     validate_attempt_request,
-    validate_campaign_manifest,
+    validate_engineering_manifest,
 )
 from isaac_audio_sensors.acquisition.s4_8_physical_backend import (
     RemotePhysicalEngineeringBackend,
     S48PhysicalBackendError,
     build_continuous_playback_asset,
     evaluate_mac_preflight_acceptance,
+)
+from isaac_audio_sensors.acquisition.s4_8_preliminary import (
+    load_workflow_config,
 )
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
@@ -46,10 +52,13 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "configs/s4_8_engineering_campaign.v1.json"
 SOURCE_PATHS = (
     "configs/s4_8_engineering_campaign.v1.json",
+    "configs/s4_8_preliminary_workflow.v1.json",
     "configs/s4_8_presealing_gate.v2.json",
     "docs/development/specs/s4_8_engineering_campaign.md",
+    "docs/development/specs/s4_8_preliminary_workflow.md",
     "docs/development/specs/s4_8_presealing_gate_v2.md",
     "docs/schemas/s4_8_presealing_gate_report.v2.schema.json",
+    "docs/schemas/s4_8_preliminary_workflow.v1.schema.json",
     "scripts/run_s4_8_physical_rehearsal.py",
     "scripts/s4_8_mac_playback.swift",
     "scripts/s4_2_pi_capture.py",
@@ -60,6 +69,7 @@ SOURCE_PATHS = (
     "src/isaac_audio_sensors/acquisition/s4_8_engineering_acquisition.py",
     "src/isaac_audio_sensors/acquisition/s4_8_engineering_campaign.py",
     "src/isaac_audio_sensors/acquisition/s4_8_physical_backend.py",
+    "src/isaac_audio_sensors/acquisition/s4_8_preliminary.py",
     "src/isaac_audio_sensors/acquisition/s4_8_presealing_gate_v2.py",
 )
 
@@ -406,7 +416,13 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
 
 def freeze(args: argparse.Namespace) -> dict[str, Any]:
     config = _config(args.config)
-    root = Path(config["operational_locations"]["campaign_root"]).resolve()
+    preliminary = getattr(args, "preliminary", False)
+    workflow = load_workflow_config(ROOT) if preliminary else None
+    root = Path(
+        workflow["preliminary"]["campaign_root"]
+        if workflow is not None
+        else config["operational_locations"]["campaign_root"]
+    ).resolve()
     if args.campaign_root is not None:
         root = args.campaign_root.resolve()
     if root.exists():
@@ -474,8 +490,16 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
     }
     template_path = ROOT / config["template"]["path"]
     template = _load_json(template_path)
-    design = derive_stratum_aware_design(template)
-    protocol_path = ROOT / config["protocol"]["specification_path"]
+    design = (
+        derive_preliminary_design(template)
+        if preliminary
+        else derive_stratum_aware_design(template)
+    )
+    protocol_path = ROOT / (
+        workflow["specification_path"]
+        if workflow is not None
+        else config["protocol"]["specification_path"]
+    )
     controller_hash = canonical_sha256(
         {
             path: source_hashes[path]
@@ -485,6 +509,7 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
                     "s4_8_engineering_acquisition.py",
                     "s4_8_engineering_campaign.py",
                     "s4_8_physical_backend.py",
+                    "s4_8_preliminary.py",
                     "run_s4_8_physical_rehearsal.py",
                 )
             )
@@ -541,7 +566,12 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         },
     }
     head = _git_head()
-    manifest = build_stratum_aware_campaign_manifest(
+    build_manifest = (
+        build_preliminary_manifest
+        if preliminary
+        else build_stratum_aware_campaign_manifest
+    )
+    manifest = build_manifest(
         code_head=head,
         source_archive_sha256=_sha256(archive_path),
         source_package_hashes=source_hashes,
@@ -559,7 +589,11 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
             "sha256": controller_hash,
         },
         protocol={
-            "identity": config["protocol"]["identity"],
+            "identity": (
+                "s4_8_four_take_preliminary_v1"
+                if preliminary
+                else config["protocol"]["identity"]
+            ),
             "sha256": _sha256(protocol_path),
         },
         devices=devices,
@@ -568,14 +602,22 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         retry_policy=config["retry_policy"],
         operational_locations={
             "campaign_root": str(root),
-            "pi_capture_root": config["operational_locations"]["pi_capture_root"],
+            "pi_capture_root": (
+                workflow["preliminary"]["pi_capture_root"]
+                if workflow is not None
+                else config["operational_locations"]["pi_capture_root"]
+            ),
         },
         template_manifest_sha256=_sha256(template_path),
     )
     manifest_path = freeze_root / "campaign_manifest.json"
     _write_new_json(manifest_path, manifest)
     payload = {
-        "schema": "ias.s4_8.engineering_campaign_freeze.v1",
+        "schema": (
+            "ias.s4_8.preliminary_freeze.v1"
+            if preliminary
+            else "ias.s4_8.engineering_campaign_freeze.v1"
+        ),
         "status": "frozen",
         "campaign_root": str(root),
         "campaign_manifest_path": str(manifest_path),
@@ -588,6 +630,14 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         "playback_runtime": playback_runtime,
         "authority": config["authority"],
     }
+    if preliminary:
+        payload.update(
+            {
+                "classification": workflow["preliminary"]["classification"],
+                "final_protocol_frozen": False,
+                "official_acquisition_permitted": False,
+            }
+        )
     _write_new_json(freeze_root / "freeze_report.json", payload)
     return payload
 
@@ -596,10 +646,17 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
     config = _config(args.config)
     campaign_manifest = _load_json(args.manifest.resolve())
     anchor = str(campaign_manifest.get("manifest_sha256"))
-    validate_campaign_manifest(
+    validate_engineering_manifest(
         campaign_manifest,
         expected_manifest_sha256=anchor,
     )
+    preliminary = (
+        campaign_manifest.get("schema") == PRELIMINARY_MANIFEST_SCHEMA
+    )
+    if getattr(args, "require_preliminary", False) and not preliminary:
+        raise S48PhysicalRehearsalError(
+            "run-preliminary-take requires a four-case preliminary manifest"
+        )
     _require_clean_head(expected_head=str(campaign_manifest["code_head"]))
     matches = [
         item
@@ -635,7 +692,7 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
         )
     attempt_root.mkdir(parents=True, exist_ok=False)
     remote_attempt = (
-        f"{config['respeaker']['remote_campaign_root']}/"
+        f"{campaign_manifest['operational_locations']['pi_capture_root']}/"
         f"{anchor[:16]}/{take['engineering_take_id']}"
         f"__attempt_{args.attempt_number:02d}"
         + ("__dry_run" if args.dry_run else "")
@@ -742,7 +799,17 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
     _write_new_json(attempt_root / "gate_report.json", result["report"])
     if result["clearance"] is not None:
         _write_new_json(attempt_root / "candidate_clearance.json", result["clearance"])
-    _write_new_json(attempt_root / "controller_result.json", result)
+    retained_result = dict(result)
+    if preliminary:
+        retained_result.update(
+            {
+                "preliminary_case_id": take["preliminary_case_id"],
+                "classification": campaign_manifest["classification"],
+                "counts_as_official_take": False,
+                "official_evidence_eligible": False,
+            }
+        )
+    _write_new_json(attempt_root / "controller_result.json", retained_result)
     if not args.dry_run:
         record = append_attempt_ledger_record(
             ledger,
@@ -775,6 +842,13 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
             if result["candidate_seal"] is None
             else result["candidate_seal"]["seal_sha256"]
         ),
+        "classification": (
+            campaign_manifest.get("classification")
+            if preliminary
+            else {"engineering_only": True}
+        ),
+        "counts_as_official_take": False,
+        "official_evidence_eligible": False,
         "authority": config["authority"],
     }
 
@@ -835,7 +909,19 @@ def main() -> int:
     freeze_parser = subparsers.add_parser("freeze")
     freeze_parser.add_argument("--preflight-report", type=Path, required=True)
     freeze_parser.add_argument("--campaign-root", type=Path, default=None)
+    freeze_parser.set_defaults(preliminary=False)
     freeze_parser.set_defaults(function=freeze)
+    preliminary_freeze_parser = subparsers.add_parser("freeze-preliminary")
+    preliminary_freeze_parser.add_argument(
+        "--preflight-report", type=Path, required=True
+    )
+    preliminary_freeze_parser.add_argument(
+        "--campaign-root", type=Path, default=None
+    )
+    preliminary_freeze_parser.set_defaults(
+        function=freeze,
+        preliminary=True,
+    )
     take_parser = subparsers.add_parser("run-take")
     take_parser.add_argument("--manifest", type=Path, required=True)
     take_parser.add_argument("--take-id", required=True)
@@ -847,7 +933,23 @@ def main() -> int:
     )
     take_parser.add_argument("--dry-run", action="store_true")
     take_parser.add_argument("--dry-run-root", type=Path, default=None)
+    take_parser.set_defaults(require_preliminary=False)
     take_parser.set_defaults(function=run_take)
+    preliminary_take_parser = subparsers.add_parser("run-preliminary-take")
+    preliminary_take_parser.add_argument("--manifest", type=Path, required=True)
+    preliminary_take_parser.add_argument("--take-id", required=True)
+    preliminary_take_parser.add_argument(
+        "--attempt-number",
+        type=int,
+        choices=(1, 2),
+        required=True,
+    )
+    preliminary_take_parser.set_defaults(
+        function=run_take,
+        dry_run=False,
+        dry_run_root=None,
+        require_preliminary=True,
+    )
     args = parser.parse_args()
     try:
         result = args.function(args)

@@ -10,13 +10,14 @@
     "status",
     "prior_terminal_runs",
     "scientific_preregistration",
+    "preliminary_readiness",
     "unseen_holdout",
     "future_attempt"
   ],
   "properties": {
     "schema": {"const": "ias.s4_8.recovery_amendment_02.v1"},
     "amendment_id": {"const": "s4_8_recovery_amendment_02"},
-    "status": {"const": "preregistered_awaiting_unseen_holdout"},
+    "status": {"const": "prepared_awaiting_preliminary_readiness"},
     "prior_terminal_runs": {
       "type": "array",
       "minItems": 2,
@@ -27,6 +28,7 @@
       ]
     },
     "scientific_preregistration": {"$ref": "#/$defs/scientificPreregistration"},
+    "preliminary_readiness": {"$ref": "#/$defs/preliminaryReadiness"},
     "unseen_holdout": {"$ref": "#/$defs/unseenHoldout"},
     "future_attempt": {"$ref": "#/$defs/futureAttempt"}
   },
@@ -163,6 +165,48 @@
         "post_hoc_threshold_or_scenario_change_forbidden": {"const": true}
       }
     },
+    "preliminaryReadiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_before_final_protocol_freeze",
+        "workflow_config_path",
+        "workflow_config_sha256",
+        "workflow_schema_path",
+        "workflow_schema_sha256",
+        "workflow_spec_path",
+        "workflow_spec_sha256",
+        "readiness_path",
+        "required_take_count",
+        "required_gate_count",
+        "required_status",
+        "diagnostic_results_are_official_evidence",
+        "final_protocol_status"
+      ],
+      "properties": {
+        "required_before_final_protocol_freeze": {"const": true},
+        "workflow_config_path": {
+          "const": "configs/s4_8_preliminary_workflow.v1.json"
+        },
+        "workflow_config_sha256": {"$ref": "#/$defs/sha256"},
+        "workflow_schema_path": {
+          "const": "docs/schemas/s4_8_preliminary_workflow.v1.schema.json"
+        },
+        "workflow_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "workflow_spec_path": {
+          "const": "docs/development/specs/s4_8_preliminary_workflow.md"
+        },
+        "workflow_spec_sha256": {"$ref": "#/$defs/sha256"},
+        "readiness_path": {
+          "const": "runs/s4_8_preliminary/preliminary_readiness.v1.json"
+        },
+        "required_take_count": {"const": 4},
+        "required_gate_count": {"const": 7},
+        "required_status": {"const": "passed"},
+        "diagnostic_results_are_official_evidence": {"const": false},
+        "final_protocol_status": {"const": "not_frozen"}
+      }
+    },
     "unseenHoldout": {
       "type": "object",
       "additionalProperties": false,
@@ -186,7 +230,9 @@
       ],
       "properties": {
         "holdout_id": {"const": "s4_8_recovery_amendment_02_unseen_holdout"},
-        "status": {"const": "not_collected"},
+        "status": {
+          "const": "blocked_pending_preliminary_readiness_and_final_freeze"
+        },
         "planned_take_id_prefix": {"const": "s48r02_unseen_holdout_"},
         "namespace_root": {"$ref": "#/$defs/path"},
         "observation_root": {"$ref": "#/$defs/path"},
@@ -244,7 +290,9 @@
         "grant_consumption_authorized": {"const": false},
         "evaluation_execution_authorized": {"const": false},
         "automatic_retry_of_prior_runs": {"const": false},
-        "evaluation_implementation_status": {"const": "blocked_until_unseen_holdout_binding"}
+        "evaluation_implementation_status": {
+          "const": "blocked_until_preliminary_readiness_final_freeze_and_unseen_holdout_binding"
+        }
       }
     }
   }

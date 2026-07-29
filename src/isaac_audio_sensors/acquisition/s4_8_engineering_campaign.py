@@ -40,6 +40,7 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
 )
 
 CAMPAIGN_MANIFEST_SCHEMA = "ias.s4_8.engineering_campaign_manifest.v1"
+PRELIMINARY_MANIFEST_SCHEMA = "ias.s4_8.preliminary_manifest.v1"
 ATTEMPT_LEDGER_SCHEMA = "ias.s4_8.engineering_attempt_ledger_record.v1"
 NONREFERENCE_REPORT_SCHEMA = "ias.s4_8.nonreference_presealing_report.v1"
 NONREFERENCE_JOURNAL_SCHEMA = (
@@ -74,6 +75,10 @@ _MANIFEST_FIELDS = {
     "operational_locations",
     "template_manifest_sha256",
     "authority",
+}
+_PRELIMINARY_MANIFEST_FIELDS = _MANIFEST_FIELDS | {
+    "classification",
+    "workflow",
 }
 _RETRY_POLICY = {
     "maximum_attempts_per_planned_take": 2,
@@ -223,6 +228,60 @@ def derive_stratum_aware_design(
     return design
 
 
+def derive_preliminary_design(
+    template_manifest: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Select the four representative, uncounted preliminary cases."""
+
+    catalog = derive_stratum_aware_design(template_manifest)
+    cases = (
+        (
+            "nominal_reference",
+            "B_center_nominal_level",
+            "s48prelim_001_nominal_reference",
+        ),
+        (
+            "low_level_reference",
+            "C_center_low_level",
+            "s48prelim_002_low_level_reference",
+        ),
+        ("silence", "D_silence", "s48prelim_003_silence"),
+        (
+            "audio_video_impact_with_zed",
+            "E_impact_audio_video",
+            "s48prelim_004_audio_video_impact_with_zed",
+        ),
+    )
+    design: list[dict[str, Any]] = []
+    for sequence_index, (case_id, stratum_id, take_id) in enumerate(
+        cases, start=1
+    ):
+        source = next(
+            item for item in catalog if item["stratum_id"] == stratum_id
+        )
+        payload = {
+            **{
+                key: value
+                for key, value in source.items()
+                if key != "engineering_take_definition_sha256"
+            },
+            "engineering_take_id": take_id,
+            "sequence_index": sequence_index,
+            "preliminary_case_id": case_id,
+            "source_engineering_take_id": source["engineering_take_id"],
+            "source_engineering_take_definition_sha256": source[
+                "engineering_take_definition_sha256"
+            ],
+        }
+        design.append(
+            {
+                **payload,
+                "engineering_take_definition_sha256": canonical_sha256(payload),
+            }
+        )
+    return design
+
+
 def build_stratum_aware_campaign_manifest(
     *,
     code_head: str,
@@ -267,6 +326,70 @@ def build_stratum_aware_campaign_manifest(
     return {**payload, "manifest_sha256": canonical_sha256(payload)}
 
 
+def build_preliminary_manifest(
+    *,
+    code_head: str,
+    source_archive_sha256: str,
+    source_package_hashes: Mapping[str, str],
+    environment: Mapping[str, Any],
+    reference_wav_sha256: str,
+    gate_configuration_sha256: str,
+    detector_configuration_sha256: str,
+    controller: Mapping[str, Any],
+    protocol: Mapping[str, Any],
+    devices: Mapping[str, Any],
+    channel_map: Sequence[str],
+    design: Sequence[Mapping[str, Any]],
+    retry_policy: Mapping[str, Any],
+    operational_locations: Mapping[str, str],
+    template_manifest_sha256: str,
+) -> dict[str, Any]:
+    """Build the four-case preliminary anchor with no official authority."""
+
+    payload = {
+        "schema": PRELIMINARY_MANIFEST_SCHEMA,
+        "code_head": code_head,
+        "source_archive_sha256": source_archive_sha256,
+        "source_package_hashes": dict(source_package_hashes),
+        "environment": deepcopy(dict(environment)),
+        "reference_wav_sha256": reference_wav_sha256,
+        "gate_configuration_sha256": gate_configuration_sha256,
+        "detector_configuration_sha256": detector_configuration_sha256,
+        "controller": dict(controller),
+        "protocol": dict(protocol),
+        "devices": deepcopy(dict(devices)),
+        "channel_map": list(channel_map),
+        "planned_take_count": len(design),
+        "design": deepcopy([dict(item) for item in design]),
+        "retry_policy": dict(retry_policy),
+        "operational_locations": dict(operational_locations),
+        "template_manifest_sha256": template_manifest_sha256,
+        "classification": {
+            "engineering_only": True,
+            "uncounted": True,
+            "excluded_from_official_holdout": True,
+            "safe_to_inspect_and_analyze": True,
+            "diagnostic_results_only": True,
+            "official_evidence_eligible": False,
+        },
+        "workflow": {
+            "case_count": 4,
+            "case_order": [
+                "nominal_reference",
+                "low_level_reference",
+                "silence",
+                "audio_video_impact_with_zed",
+            ],
+            "complete_stack_required": True,
+            "official_protocol_freeze_permitted": False,
+            "official_acquisition_permitted": False,
+        },
+        "authority": dict(AUTHORITY_NONE),
+    }
+    _validate_preliminary_payload(payload)
+    return {**payload, "manifest_sha256": canonical_sha256(payload)}
+
+
 def build_reference_take_manifest(
     *,
     campaign_manifest: Mapping[str, Any],
@@ -275,7 +398,7 @@ def build_reference_take_manifest(
 ) -> dict[str, Any]:
     """Derive the unchanged v2 A/B/C manifest from the campaign anchor."""
 
-    validate_campaign_manifest(
+    validate_engineering_manifest(
         campaign_manifest,
         expected_manifest_sha256=expected_campaign_manifest_sha256,
     )
@@ -350,6 +473,48 @@ def validate_campaign_manifest(
         )
 
 
+def validate_preliminary_manifest(
+    manifest: Mapping[str, Any],
+    *,
+    expected_manifest_sha256: str,
+) -> None:
+    """Validate the exact four-case preliminary anchor."""
+
+    if not _is_sha256(expected_manifest_sha256):
+        raise S48EngineeringCampaignError("preliminary manifest anchor is invalid")
+    payload = {
+        key: value for key, value in manifest.items() if key != "manifest_sha256"
+    }
+    _validate_preliminary_payload(payload)
+    if (
+        set(manifest) != _PRELIMINARY_MANIFEST_FIELDS | {"manifest_sha256"}
+        or manifest.get("manifest_sha256") != canonical_sha256(payload)
+        or manifest.get("manifest_sha256") != expected_manifest_sha256
+    ):
+        raise S48EngineeringCampaignError(
+            "preliminary manifest does not match the external anchor"
+        )
+
+
+def validate_engineering_manifest(
+    manifest: Mapping[str, Any],
+    *,
+    expected_manifest_sha256: str,
+) -> None:
+    """Validate a historical 47-take or active four-take engineering anchor."""
+
+    if manifest.get("schema") == PRELIMINARY_MANIFEST_SCHEMA:
+        validate_preliminary_manifest(
+            manifest,
+            expected_manifest_sha256=expected_manifest_sha256,
+        )
+        return
+    validate_campaign_manifest(
+        manifest,
+        expected_manifest_sha256=expected_manifest_sha256,
+    )
+
+
 def append_attempt_ledger_record(
     ledger: MutableSequence[dict[str, Any]],
     *,
@@ -405,7 +570,7 @@ def validate_attempt_ledger(
 ) -> None:
     """Validate chain, retry retention, and sequence advancement."""
 
-    validate_campaign_manifest(
+    validate_engineering_manifest(
         campaign_manifest,
         expected_manifest_sha256=expected_campaign_manifest_sha256,
     )
@@ -538,7 +703,7 @@ def evaluate_nonreference_presealing_gate(
 ) -> dict[str, Any]:
     """Evaluate D/E technical integrity without scientific outcome fields."""
 
-    validate_campaign_manifest(
+    validate_engineering_manifest(
         campaign_manifest,
         expected_manifest_sha256=expected_campaign_manifest_sha256,
     )
@@ -666,7 +831,7 @@ def append_nonreference_journal_event(
 ) -> dict[str, Any]:
     """Append one mode-specific event to the exact campaign/take chain."""
 
-    validate_campaign_manifest(
+    validate_engineering_manifest(
         campaign_manifest,
         expected_manifest_sha256=expected_campaign_manifest_sha256,
     )
@@ -712,7 +877,7 @@ def validate_nonreference_process_journal(
 ) -> None:
     """Validate the complete D/E mode sequence and every hash-chain link."""
 
-    validate_campaign_manifest(
+    validate_engineering_manifest(
         campaign_manifest,
         expected_manifest_sha256=expected_campaign_manifest_sha256,
     )
@@ -1014,7 +1179,7 @@ def run_supported_nonreference_acquisition(
     """Run the sole supported D/E recorder-to-candidate-seal path."""
 
     root = repo_root.resolve()
-    validate_campaign_manifest(
+    validate_engineering_manifest(
         campaign_manifest,
         expected_manifest_sha256=expected_campaign_manifest_sha256,
     )
@@ -1555,6 +1720,119 @@ def _validate_campaign_payload(payload: Mapping[str, Any]) -> None:
         "E_impact_audio_video": 4,
     }:
         raise S48EngineeringCampaignError("campaign stratum counts are invalid")
+
+
+def _validate_preliminary_payload(payload: Mapping[str, Any]) -> None:
+    design = payload.get("design")
+    common = {
+        key: value
+        for key, value in payload.items()
+        if key not in {"classification", "workflow"}
+    }
+    classification = payload.get("classification")
+    workflow = payload.get("workflow")
+    if (
+        set(payload) != _PRELIMINARY_MANIFEST_FIELDS
+        or common.get("schema") != PRELIMINARY_MANIFEST_SCHEMA
+        or not _is_git_head(common.get("code_head"))
+        or not all(
+            _is_sha256(common.get(key))
+            for key in (
+                "source_archive_sha256",
+                "reference_wav_sha256",
+                "gate_configuration_sha256",
+                "detector_configuration_sha256",
+                "template_manifest_sha256",
+            )
+        )
+        or not isinstance(common.get("source_package_hashes"), Mapping)
+        or not common["source_package_hashes"]
+        or not all(
+            isinstance(path, str) and path and _is_sha256(digest)
+            for path, digest in common["source_package_hashes"].items()
+        )
+        or not isinstance(common.get("environment"), Mapping)
+        or not common["environment"]
+        or not isinstance(common.get("controller"), Mapping)
+        or set(common["controller"]) != {"identity", "version", "sha256"}
+        or not _is_sha256(common["controller"].get("sha256"))
+        or not isinstance(common.get("protocol"), Mapping)
+        or set(common["protocol"]) != {"identity", "sha256"}
+        or not _is_sha256(common["protocol"].get("sha256"))
+        or not isinstance(common.get("devices"), Mapping)
+        or set(common["devices"]) != {"respeaker", "playback", "zed"}
+        or common.get("channel_map") != _EXPECTED_CHANNEL_MAP
+        or common.get("planned_take_count") != 4
+        or not isinstance(design, list)
+        or len(design) != 4
+        or common.get("retry_policy") != _RETRY_POLICY
+        or not isinstance(common.get("operational_locations"), Mapping)
+        or set(common["operational_locations"])
+        != {"campaign_root", "pi_capture_root"}
+        or common.get("authority") != AUTHORITY_NONE
+        or classification
+        != {
+            "engineering_only": True,
+            "uncounted": True,
+            "excluded_from_official_holdout": True,
+            "safe_to_inspect_and_analyze": True,
+            "diagnostic_results_only": True,
+            "official_evidence_eligible": False,
+        }
+        or workflow
+        != {
+            "case_count": 4,
+            "case_order": [
+                "nominal_reference",
+                "low_level_reference",
+                "silence",
+                "audio_video_impact_with_zed",
+            ],
+            "complete_stack_required": True,
+            "official_protocol_freeze_permitted": False,
+            "official_acquisition_permitted": False,
+        }
+    ):
+        raise S48EngineeringCampaignError(
+            "four-case preliminary manifest payload is invalid"
+        )
+    expected = [
+        ("nominal_reference", "B_center_nominal_level", "reference"),
+        ("low_level_reference", "C_center_low_level", "reference"),
+        ("silence", "D_silence", "silence"),
+        (
+            "audio_video_impact_with_zed",
+            "E_impact_audio_video",
+            "impact_av",
+        ),
+    ]
+    for index, (take, expected_case) in enumerate(
+        zip(design, expected, strict=True), start=1
+    ):
+        case_id, stratum_id, acquisition_mode = expected_case
+        take_payload = {
+            key: value
+            for key, value in take.items()
+            if key != "engineering_take_definition_sha256"
+        }
+        if (
+            not isinstance(take, Mapping)
+            or take.get("sequence_index") != index
+            or take.get("preliminary_case_id") != case_id
+            or take.get("stratum_id") != stratum_id
+            or take.get("acquisition_mode") != acquisition_mode
+            or not str(take.get("engineering_take_id", "")).startswith(
+                "s48prelim_"
+            )
+            or not _is_sha256(
+                take.get("source_engineering_take_definition_sha256")
+            )
+            or take.get("engineering_take_definition_sha256")
+            != canonical_sha256(take_payload)
+        ):
+            raise S48EngineeringCampaignError(
+                "preliminary design is invalid, incomplete, or reordered"
+            )
 
 
 def _reason(
