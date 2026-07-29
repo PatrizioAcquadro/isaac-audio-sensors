@@ -414,6 +414,9 @@ def test_v9_campaign_retains_70_percent_volume_without_focus_prompt() -> None:
     )
     assert config["controller"]["version"] == "1.8"
     assert config["playback"]["system_volume_percent"] == 70
+    assert config["playback"]["playback_helper_mac_path"].endswith(
+        "_v9.swift"
+    )
     assert config["playback"]["playback_helper_sha256"] == hashlib.sha256(
         (root / "scripts/s4_8_mac_playback.swift").read_bytes()
     ).hexdigest()
