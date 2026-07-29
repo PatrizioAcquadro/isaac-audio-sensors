@@ -14,6 +14,7 @@ from isaac_audio_sensors.acquisition.s4_8_physical_backend import (
     RemotePhysicalEngineeringBackend,
     S48PhysicalBackendError,
     build_continuous_playback_asset,
+    evaluate_mac_preflight_acceptance,
 )
 
 
@@ -235,3 +236,59 @@ def test_mac_playback_lifecycle_binds_reference_and_observes_exit(
     assert stopped["exit_status"] == 0
     assert stopped["remote_afplay_exit_status"] == 0
     assert stopped["controller_requested_termination"] is False
+
+
+def test_mac_preflight_accepts_explicit_battery_and_operator_focus_policy() -> None:
+    checks = {
+        "ac_power": False,
+        "model_identifier_matches": True,
+        "notifications_suppressed": False,
+        "os_build_matches": True,
+        "os_version_matches": True,
+        "output_channels_match": True,
+        "output_device_matches": True,
+        "output_sample_rate_matches": True,
+        "reference_format_matches": True,
+        "reference_hash_matches": True,
+        "unmuted": True,
+        "volume_matches": True,
+        "work_focus_active": False,
+    }
+    report = {
+        "frozen_checks": checks,
+        "power": {
+            "status": "collected",
+            "source": "Battery Power",
+            "on_ac_power": False,
+            "battery_percent": 37,
+        },
+        "focus_and_notifications": {
+            "status": "collected",
+            "work_focus_active": False,
+            "notifications_suppressed": False,
+        },
+    }
+
+    acceptance = evaluate_mac_preflight_acceptance(
+        report,
+        power_policy="battery_allowed",
+        operator_work_focus_confirmed=True,
+    )
+
+    assert acceptance["status"] == "passed"
+    assert acceptance["power_disposition"] == "battery_allowed"
+    assert acceptance["focus_disposition"] == "operator_confirmed"
+    assert report["frozen_checks"]["ac_power"] is False
+    assert report["frozen_checks"]["work_focus_active"] is False
+    with pytest.raises(S48PhysicalBackendError, match="Focus"):
+        evaluate_mac_preflight_acceptance(
+            report,
+            power_policy="battery_allowed",
+            operator_work_focus_confirmed=False,
+        )
+    with pytest.raises(S48PhysicalBackendError, match="AC power"):
+        evaluate_mac_preflight_acceptance(
+            report,
+            power_policy="ac_required",
+            operator_work_focus_confirmed=True,
+        )

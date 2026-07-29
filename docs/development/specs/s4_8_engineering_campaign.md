@@ -93,6 +93,12 @@ define the capture duration. The local recorder-ready observation anchors
 that duration in the controller journal; SSH startup and post-capture file
 transfer latency are never represented as waveform duration.
 
+The playback host power policy is frozen as `battery_allowed`. The preflight
+retains the collector's measured power source and battery percentage without
+rewriting them. Work Focus may be accepted from machine evidence or from an
+explicit operator confirmation recorded in the preflight acceptance object;
+the collector's contradictory Focus and notification fields remain preserved.
+
 ## Retry and sealing policy
 
 Every attempt is appended to one hash-chained ledger. A planned cell receives

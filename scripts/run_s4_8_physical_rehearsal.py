@@ -34,6 +34,7 @@ from isaac_audio_sensors.acquisition.s4_8_physical_backend import (
     RemotePhysicalEngineeringBackend,
     S48PhysicalBackendError,
     build_continuous_playback_asset,
+    evaluate_mac_preflight_acceptance,
 )
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
@@ -111,8 +112,13 @@ def _run(command: list[str], *, timeout: float) -> dict[str, Any]:
     }
 
 
-def _command_json(observation: dict[str, Any], label: str) -> dict[str, Any]:
-    if observation["return_code"] != 0:
+def _command_json(
+    observation: dict[str, Any],
+    label: str,
+    *,
+    require_success: bool = True,
+) -> dict[str, Any]:
+    if require_success and observation["return_code"] != 0:
         raise S48PhysicalRehearsalError(
             f"{label} failed ({observation['return_code']}): "
             f"{observation['stderr'].strip()}"
@@ -298,7 +304,18 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
         ],
         timeout=60,
     )
-    mac_report = _command_json(mac_observation, "Mac playback preflight")
+    mac_report = _command_json(
+        mac_observation,
+        "Mac playback preflight",
+        require_success=False,
+    )
+    mac_acceptance = evaluate_mac_preflight_acceptance(
+        mac_report,
+        power_policy=playback["power_policy"],
+        operator_work_focus_confirmed=(
+            args.operator_work_focus_confirmed
+        ),
+    )
     zed = config["zed"]
     zed_observation = _run(
         [
@@ -332,6 +349,7 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
         "playback_helper_deployment": helper_deployment,
         "pi": pi_report,
         "mac": mac_report,
+        "mac_acceptance": mac_acceptance,
         "zed": zed_report,
         "authority": config["authority"],
     }
@@ -444,6 +462,7 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
                 "nominal_sample_rate_hz",
                 "system_volume_percent",
                 "muted",
+                "power_policy",
                 "playback_helper_mac_path",
                 "playback_helper_sha256",
             )
@@ -757,6 +776,10 @@ def main() -> int:
     preflight_parser = subparsers.add_parser("preflight")
     preflight_parser.add_argument("--output", type=Path, required=True)
     preflight_parser.add_argument("--pi-probe-root", required=True)
+    preflight_parser.add_argument(
+        "--operator-work-focus-confirmed",
+        action="store_true",
+    )
     preflight_parser.set_defaults(function=preflight)
     freeze_parser = subparsers.add_parser("freeze")
     freeze_parser.add_argument("--preflight-report", type=Path, required=True)

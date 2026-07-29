@@ -21,7 +21,7 @@
   },
   "controller": {
     "identity": "ias.s4_8.stratum_aware_engineering_controller",
-    "version": "1.1"
+    "version": "1.2"
   },
   "respeaker": {
     "ssh_prefix": [
@@ -97,6 +97,7 @@
     "nominal_sample_rate_hz": 48000,
     "system_volume_percent": 40,
     "muted": false,
+    "power_policy": "battery_allowed",
     "mac_preflight_path": "S4.2/bin/s4_2_mac_preflight.py",
     "playback_helper_local_path": "scripts/s4_8_mac_playback.py",
     "playback_helper_mac_path": "S4.8/engineering_rehearsal/bin/s4_8_mac_playback.py",

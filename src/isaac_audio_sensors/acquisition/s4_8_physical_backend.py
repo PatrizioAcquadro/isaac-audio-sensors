@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 import wave
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +20,93 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha25
 
 class S48PhysicalBackendError(RuntimeError):
     """Physical backend command, media, or transfer failure."""
+
+
+def evaluate_mac_preflight_acceptance(
+    report: Mapping[str, Any],
+    *,
+    power_policy: str,
+    operator_work_focus_confirmed: bool,
+) -> dict[str, Any]:
+    """Evaluate frozen Mac identity plus explicit operational policy."""
+
+    checks = report.get("frozen_checks")
+    power = report.get("power")
+    focus = report.get("focus_and_notifications")
+    required_checks = {
+        "model_identifier_matches",
+        "os_build_matches",
+        "os_version_matches",
+        "output_channels_match",
+        "output_device_matches",
+        "output_sample_rate_matches",
+        "reference_format_matches",
+        "reference_hash_matches",
+        "unmuted",
+        "volume_matches",
+    }
+    if (
+        not isinstance(checks, Mapping)
+        or not isinstance(power, Mapping)
+        or not isinstance(focus, Mapping)
+        or any(checks.get(key) is not True for key in required_checks)
+    ):
+        raise S48PhysicalBackendError(
+            "Mac identity, output, volume, or reference preflight failed"
+        )
+    if power_policy == "ac_required":
+        if checks.get("ac_power") is not True:
+            raise S48PhysicalBackendError(
+                "Mac preflight requires AC power"
+            )
+        power_disposition = "ac_verified"
+    elif power_policy == "battery_allowed":
+        if (
+            power.get("status") != "collected"
+            or not isinstance(power.get("on_ac_power"), bool)
+            or isinstance(power.get("battery_percent"), bool)
+            or not isinstance(power.get("battery_percent"), int)
+        ):
+            raise S48PhysicalBackendError(
+                "Mac battery state was not collected"
+            )
+        power_disposition = (
+            "ac_verified"
+            if power["on_ac_power"]
+            else "battery_allowed"
+        )
+    else:
+        raise S48PhysicalBackendError("Mac power policy is invalid")
+    machine_focus = (
+        checks.get("work_focus_active") is True
+        and checks.get("notifications_suppressed") is True
+    )
+    if machine_focus:
+        focus_disposition = "machine_verified"
+    elif operator_work_focus_confirmed is True:
+        focus_disposition = "operator_confirmed"
+    else:
+        raise S48PhysicalBackendError(
+            "Mac Work Focus requires machine evidence or operator confirmation"
+        )
+    return {
+        "schema": "ias.s4_8.mac_preflight_acceptance.v1",
+        "status": "passed",
+        "power_policy": power_policy,
+        "power_disposition": power_disposition,
+        "focus_disposition": focus_disposition,
+        "operator_work_focus_confirmed": operator_work_focus_confirmed,
+        "collector_facts": {
+            "ac_power": checks.get("ac_power"),
+            "work_focus_active": checks.get("work_focus_active"),
+            "notifications_suppressed": checks.get(
+                "notifications_suppressed"
+            ),
+            "battery_percent": power.get("battery_percent"),
+            "power_source": power.get("source"),
+            "collector_focus_status": focus.get("status"),
+        },
+    }
 
 
 def build_continuous_playback_asset(
