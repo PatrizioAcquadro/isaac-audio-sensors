@@ -91,11 +91,27 @@ The authenticated six-channel order is the official XVF3800 firmware order:
 `raw microphone 2`, and `raw microphone 3`. The gate continues to analyze
 indices 2 through 5 as the four raw microphones.
 
-The Mac playback helper is authenticated and armed before the scheduled
-playback time. It emits an actual remote `playback_started` handshake only
-after launching `afplay`, then retains the remote completion status and
-standard error. The controller therefore journals playback launch rather than
-SSH connection latency.
+The authenticated Mac Swift/AVFoundation playback helper is compiled,
+typechecked, and armed before the recorder starts, but it does not schedule or
+play audio until the controller sends the authenticated `START` command at the
+frozen playback offset. This keeps Swift startup and CoreAudio engine
+preparation outside the capture interval without reordering the required
+recorder-ready, playback-command, and playback-start journal events.
+
+The helper installs a tap on the CoreAudio main mixer and observes the first
+nonzero reference frame rendered after `START`. The retained start time adds
+CoreAudio's reported output-presentation latency to that exact frame offset;
+it is not an `afplay` process-launch timestamp or a fitted sleep. Before
+capture, one request/reply on the already-authenticated SSH stream binds the
+remote helper monotonic clock to a causal interval in the controller clock.
+The journal uses the interval's conservative lower bound and retains the
+remote observation, local lower/upper bounds, and complete round-trip
+uncertainty. Completion is separately observed with CoreAudio's
+`dataPlayedBack` callback.
+
+No detector window, start tolerance, playback gain, system volume, geometry,
+reference sample, or scientific criterion is changed by this controller-only
+timing correction.
 
 The Pi producer's authenticated start and completion monotonic timestamps
 define the capture duration. The local recorder-ready observation anchors

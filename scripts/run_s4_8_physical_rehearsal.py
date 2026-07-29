@@ -51,7 +51,7 @@ SOURCE_PATHS = (
     "docs/development/specs/s4_8_presealing_gate_v2.md",
     "docs/schemas/s4_8_presealing_gate_report.v2.schema.json",
     "scripts/run_s4_8_physical_rehearsal.py",
-    "scripts/s4_8_mac_playback.py",
+    "scripts/s4_8_mac_playback.swift",
     "scripts/s4_2_pi_capture.py",
     "scripts/s4_2_mac_preflight.py",
     "scripts/preflight_s4_2_zed.py",
@@ -243,6 +243,55 @@ def _deploy_mac_file(
     return {"action": "transferred_and_verified", "sha256": expected_sha256}
 
 
+def _verify_mac_playback_runtime(config: dict[str, Any]) -> dict[str, Any]:
+    playback = config["playback"]
+    version = _run(
+        [
+            *playback["ssh_prefix"],
+            playback["playback_runtime_path"],
+            "--version",
+        ],
+        timeout=30,
+    )
+    observed_version = "\n".join(
+        part.strip()
+        for part in (version["stdout"], version["stderr"])
+        if part.strip()
+    )
+    if (
+        version["return_code"] != 0
+        or observed_version != playback["playback_runtime_version"]
+    ):
+        raise S48PhysicalRehearsalError(
+            "Mac Swift playback runtime identity mismatch"
+        )
+    typecheck = _run(
+        [
+            *playback["ssh_prefix"],
+            playback["playback_typecheck_path"],
+            "-typecheck",
+            playback["playback_helper_mac_path"],
+        ],
+        timeout=60,
+    )
+    if typecheck["return_code"] != 0:
+        raise S48PhysicalRehearsalError(
+            "Mac CoreAudio playback helper typecheck failed: "
+            f"{typecheck['stderr'].strip()}"
+        )
+    return {
+        "schema": "ias.s4_8.mac_playback_runtime.v1",
+        "status": "passed",
+        "runtime_path": playback["playback_runtime_path"],
+        "typecheck_path": playback["playback_typecheck_path"],
+        "runtime_version": observed_version,
+        "helper_sha256": playback["playback_helper_sha256"],
+        "helper_typecheck_exit_status": typecheck["return_code"],
+        "start_observation": "coreaudio_first_nonzero_presented_frame",
+        "clock_mapping": "causal_ssh_sync_interval_lower_bound",
+    }
+
+
 def preflight(args: argparse.Namespace) -> dict[str, Any]:
     config = _config(args.config)
     output = args.output.resolve()
@@ -268,6 +317,7 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
         expected_sha256=config["playback"]["playback_helper_sha256"],
         label="playback helper",
     )
+    playback_runtime = _verify_mac_playback_runtime(config)
     pi = config["respeaker"]
     pi_observation = _run(
         [
@@ -350,6 +400,7 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
         "continuous_asset": asset,
         "continuous_asset_deployment": deployment,
         "playback_helper_deployment": helper_deployment,
+        "playback_runtime": playback_runtime,
         "pi": pi_report,
         "mac": mac_report,
         "mac_acceptance": mac_acceptance,
@@ -410,6 +461,7 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         expected_sha256=config["playback"]["playback_helper_sha256"],
         label="playback helper",
     )
+    playback_runtime = _verify_mac_playback_runtime(config)
     source_hashes = {
         relative: _sha256(ROOT / relative) for relative in SOURCE_PATHS
     }
@@ -470,6 +522,9 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
                 "power_policy",
                 "playback_helper_mac_path",
                 "playback_helper_sha256",
+                "playback_runtime_path",
+                "playback_typecheck_path",
+                "playback_runtime_version",
             )
         }
         | {
@@ -536,6 +591,7 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         "continuous_asset": asset,
         "continuous_asset_deployment": deployment,
         "playback_helper_deployment": helper_deployment,
+        "playback_runtime": playback_runtime,
         "authority": config["authority"],
     }
     _write_new_json(freeze_root / "freeze_report.json", payload)

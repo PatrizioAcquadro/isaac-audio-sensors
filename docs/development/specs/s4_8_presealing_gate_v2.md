@@ -96,6 +96,14 @@ These checks compare process timing with acoustic evidence. A live player
 process, zero exit status, or reported on-time start/stop cannot substitute for
 the sentinels.
 
+For the physical engineering controller, the process start is anchored to the
+first nonzero CoreAudio mixer frame plus the output device's reported
+presentation latency. A causal SSH clock-sync interval maps that remote host
+time into the controller clock; the earlier bound is retained as the journal
+time and both bounds remain in event data. This makes the process boundary a
+genuine observed CoreAudio event without changing the 3,200-sample search,
+2,000-sample maximum delay, or any detector/scientific configuration value.
+
 ## Remaining controls
 
 ### Strict capture integrity

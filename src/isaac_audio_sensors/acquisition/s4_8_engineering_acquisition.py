@@ -686,6 +686,7 @@ def run_supported_engineering_acquisition(
             "pid": os.getpid(),
         },
     )
+    command = backend.prepare_playback(reference_path)
     recorder = backend.start_recorder(capture_path)
     observe("recorder_started", recorder)
     ready = backend.wait_recorder_ready(recorder)
@@ -706,11 +707,18 @@ def run_supported_engineering_acquisition(
     capture_stop_ns = capture_start_ns + round(
         config["capture_duration_s"] * 1_000_000_000
     )
-    command = backend.prepare_playback(reference_path)
     observe("playback_commanded", command)
     backend.wait_until(playback_start_ns)
     playback = backend.start_playback(command)
-    observe("playback_started", playback)
+    playback_observed_ns = playback.pop(
+        "observed_start_monotonic_ns",
+        None,
+    )
+    observe(
+        "playback_started",
+        playback,
+        observed_monotonic_ns=playback_observed_ns,
+    )
     observe(
         "playback_stop_planned",
         {"planned_monotonic_ns": planned_stop_ns},

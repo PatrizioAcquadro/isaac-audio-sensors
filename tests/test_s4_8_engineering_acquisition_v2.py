@@ -453,7 +453,14 @@ class _FakeBackend:
 
     def start_playback(self, command: object) -> dict[str, object]:
         self.operations.append("playback_start")
-        return {"pid": 202, "process_identity": "fake_player"}
+        self.now += 20_000_000
+        return {
+            "pid": 202,
+            "process_identity": "fake_player",
+            "observed_start_monotonic_ns": self.now - 10_000_000,
+            "start_observation":
+                "coreaudio_first_nonzero_presented_frame",
+        }
 
     def wait_until(self, monotonic_ns: int) -> None:
         self.operations.append("continuous_capture")
@@ -521,9 +528,9 @@ def test_supported_controller_enforces_complete_order_and_retains_retry_only(
     assert result["clearance"]["clearance_sha256"]
     assert result["candidate_seal"]["engineering_only"] is True
     assert backend.operations == [
+        "playback_command",
         "recorder_start",
         "recorder_ready",
-        "playback_command",
         "continuous_capture",
         "playback_start",
         "continuous_capture",
@@ -539,6 +546,17 @@ def test_supported_controller_enforces_complete_order_and_retains_retry_only(
     ]
     by_type = {event["event_type"]: event for event in events}
     capture_start_ns = by_type["recorder_ready"]["observed_monotonic_ns"]
+    assert (
+        by_type["playback_started"]["observed_monotonic_ns"]
+        - capture_start_ns
+        == 1_010_000_000
+    )
+    assert "observed_start_monotonic_ns" not in by_type["playback_started"][
+        "data"
+    ]
+    assert by_type["playback_started"]["data"]["start_observation"] == (
+        "coreaudio_first_nonzero_presented_frame"
+    )
     assert (
         by_type["playback_stop_planned"]["data"]["planned_monotonic_ns"]
         - capture_start_ns

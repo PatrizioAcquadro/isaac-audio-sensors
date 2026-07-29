@@ -139,7 +139,7 @@ def _backend(tmp_path: Path) -> RemotePhysicalEngineeringBackend:
         pi_device="hw:CARD=Array,DEV=0",
         capture_duration_s=20,
         mac_ssh_prefix=["ssh", "mac"],
-        mac_playback_helper_path="s4_8_mac_playback.py",
+        mac_playback_helper_path="s4_8_mac_playback.swift",
         mac_continuous_asset_path="continuous.wav",
         mac_continuous_asset_sha256="a" * 64,
         playback_gain=0.5,
@@ -233,12 +233,30 @@ def test_mac_playback_lifecycle_binds_reference_and_observes_exit(
     )
     events = iter(
         (
-            {"event": "armed", "asset_sha256": "a" * 64},
-            {"event": "playback_started", "afplay_pid": 303},
+            {
+                "event": "armed",
+                "asset_sha256": "a" * 64,
+                "helper_monotonic_ns": 1_000,
+                "start_observation":
+                    "coreaudio_first_nonzero_presented_frame",
+                "output_presentation_latency_ns": 12_000,
+            },
+            {
+                "event": "clock_sync",
+                "helper_monotonic_ns": 2_000,
+            },
+            {
+                "event": "playback_started",
+                "presentation_start_monotonic_ns": 502_000,
+                "first_nonzero_frame_offset": 7,
+                "start_observation":
+                    "coreaudio_first_nonzero_presented_frame",
+                "output_presentation_latency_ns": 12_000,
+            },
             {
                 "event": "playback_completed",
-                "afplay_pid": 303,
-                "afplay_exit_status": 0,
+                "playback_exit_status": 0,
+                "completion_observation": "coreaudio_data_played_back",
             },
         )
     )
@@ -246,6 +264,12 @@ def test_mac_playback_lifecycle_binds_reference_and_observes_exit(
         physical_backend,
         "_wait_json_event",
         lambda process, *, expected_event, timeout_s: next(events),
+    )
+    observed_times = iter((10_000, 20_000, 900_000))
+    monkeypatch.setattr(
+        physical_backend.time,
+        "monotonic_ns",
+        lambda: next(observed_times),
     )
     reference_path = tmp_path / "reference.wav"
     reference_path.write_bytes(b"exact reference")
@@ -259,11 +283,38 @@ def test_mac_playback_lifecycle_binds_reference_and_observes_exit(
         reference_path.read_bytes()
     ).hexdigest()
     assert prepared["continuous_asset_path"] == "continuous.wav"
-    assert playback["process_identity"] == "ssh_mac_afplay"
-    assert process.stdin.values == ["START\n"]
+    assert prepared["clock_sync_round_trip_ns"] == 10_000
+    assert playback["process_identity"] == "ssh_mac_coreaudio"
+    assert playback["observed_start_monotonic_ns"] == 510_000
+    assert (
+        playback["presentation_start_upper_bound_monotonic_ns"] == 520_000
+    )
+    assert playback["output_presentation_latency_ns"] == 12_000
+    assert playback["start_observation"] == (
+        "coreaudio_first_nonzero_presented_frame"
+    )
+    assert process.stdin.values == ["SYNC\n", "START\n"]
     assert stopped["exit_status"] == 0
-    assert stopped["remote_afplay_exit_status"] == 0
+    assert stopped["remote_playback_exit_status"] == 0
+    assert stopped["completion_observation"] == "coreaudio_data_played_back"
     assert stopped["controller_requested_termination"] is False
+
+
+def test_mac_helper_source_uses_render_callback_without_fitted_delay() -> None:
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "scripts" / "s4_8_mac_playback.swift").read_text(
+        encoding="utf-8"
+    )
+
+    assert "AVAudioEngine" in source
+    assert "installTap" in source
+    assert "first_nonzero_presented_frame" in source
+    assert "dataPlayedBack" in source
+    assert "Thread.sleep" not in source
+    assert "asyncAfter" not in source
+    assert "recursive-include scripts *.swift" in (
+        root / "MANIFEST.in"
+    ).read_text(encoding="utf-8")
 
 
 def test_mac_preflight_accepts_explicit_battery_and_operator_focus_policy() -> None:

@@ -25,6 +25,7 @@ recursive-include examples/calibration *.md *.json
 recursive-exclude examples/datasets *
 recursive-include exts *.toml *.py *.md *.svg *.json
 recursive-include scripts *.py
+recursive-include scripts *.swift
 include scripts/live_clean_install_gate.py
 include scripts/live_clean_install_probe.py
 include scripts/run_installed_consumer_gate.py

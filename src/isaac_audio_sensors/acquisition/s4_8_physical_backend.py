@@ -318,6 +318,10 @@ class RemotePhysicalEngineeringBackend:
         self._playback_termination_observed_ns: int | None = None
         self._recorder_termination_observed_ns: int | None = None
         self._recorder_ready_observed_ns: int | None = None
+        self._mac_clock_sync_local_sent_ns: int | None = None
+        self._mac_clock_sync_local_received_ns: int | None = None
+        self._mac_clock_sync_remote_received_ns: int | None = None
+        self._mac_output_presentation_latency_ns: int | None = None
 
     def monotonic_ns(self) -> int:
         return time.monotonic_ns()
@@ -387,7 +391,7 @@ class RemotePhysicalEngineeringBackend:
             raise S48PhysicalBackendError("playback already prepared")
         self._playback_command = [
             *self._mac_ssh_prefix,
-            "/usr/bin/python3",
+            "/usr/bin/swift",
             self._mac_helper_path,
             "--asset",
             self._mac_asset_path,
@@ -409,6 +413,48 @@ class RemotePhysicalEngineeringBackend:
             raise S48PhysicalBackendError(
                 "armed Mac helper authenticated a different playback asset"
             )
+        output_presentation_latency_ns = armed.get(
+            "output_presentation_latency_ns"
+        )
+        if (
+            armed.get("start_observation")
+            != "coreaudio_first_nonzero_presented_frame"
+            or isinstance(output_presentation_latency_ns, bool)
+            or not isinstance(output_presentation_latency_ns, int)
+            or output_presentation_latency_ns < 0
+        ):
+            raise S48PhysicalBackendError(
+                "Mac helper did not arm the CoreAudio render observation"
+            )
+        if self._playback_process.stdin is None:
+            raise S48PhysicalBackendError(
+                "Mac playback command stream is unavailable"
+            )
+        local_sent_ns = time.monotonic_ns()
+        self._playback_process.stdin.write("SYNC\n")
+        self._playback_process.stdin.flush()
+        sync = _wait_json_event(
+            self._playback_process,
+            expected_event="clock_sync",
+            timeout_s=5.0,
+        )
+        local_received_ns = time.monotonic_ns()
+        remote_received_ns = sync.get("helper_monotonic_ns")
+        if (
+            isinstance(remote_received_ns, bool)
+            or not isinstance(remote_received_ns, int)
+            or remote_received_ns < 0
+            or local_received_ns < local_sent_ns
+        ):
+            raise S48PhysicalBackendError(
+                "Mac helper clock synchronization is invalid"
+            )
+        self._mac_clock_sync_local_sent_ns = local_sent_ns
+        self._mac_clock_sync_local_received_ns = local_received_ns
+        self._mac_clock_sync_remote_received_ns = remote_received_ns
+        self._mac_output_presentation_latency_ns = (
+            output_presentation_latency_ns
+        )
         return {
             "command_sha256": canonical_sha256(self._playback_command),
             "authenticated_reference_sha256": _sha256_file(reference_path),
@@ -416,6 +462,14 @@ class RemotePhysicalEngineeringBackend:
             "continuous_asset_sha256": self._mac_asset_sha256,
             "helper_path": self._mac_helper_path,
             "armed": True,
+            "start_observation": armed["start_observation"],
+            "clock_sync_local_sent_monotonic_ns": local_sent_ns,
+            "clock_sync_local_received_monotonic_ns": local_received_ns,
+            "clock_sync_remote_received_monotonic_ns": remote_received_ns,
+            "clock_sync_round_trip_ns": local_received_ns - local_sent_ns,
+            "output_presentation_latency_ns": (
+                output_presentation_latency_ns
+            ),
         }
 
     def start_playback(self, command: object) -> dict[str, Any]:
@@ -431,11 +485,46 @@ class RemotePhysicalEngineeringBackend:
             expected_event="playback_started",
             timeout_s=5.0,
         )
+        remote_start_ns = started.get("presentation_start_monotonic_ns")
+        local_sent_ns = self._mac_clock_sync_local_sent_ns
+        local_received_ns = self._mac_clock_sync_local_received_ns
+        remote_sync_ns = self._mac_clock_sync_remote_received_ns
+        output_presentation_latency_ns = (
+            self._mac_output_presentation_latency_ns
+        )
+        if (
+            isinstance(remote_start_ns, bool)
+            or not isinstance(remote_start_ns, int)
+            or local_sent_ns is None
+            or local_received_ns is None
+            or remote_sync_ns is None
+            or remote_start_ns < remote_sync_ns
+            or started.get("output_presentation_latency_ns")
+            != output_presentation_latency_ns
+            or started.get("start_observation")
+            != "coreaudio_first_nonzero_presented_frame"
+        ):
+            raise S48PhysicalBackendError(
+                "Mac CoreAudio playback-start observation is invalid"
+            )
+        remote_elapsed_ns = remote_start_ns - remote_sync_ns
+        lower_bound_ns = local_sent_ns + remote_elapsed_ns
+        upper_bound_ns = local_received_ns + remote_elapsed_ns
         return {
             "pid": self._playback_process.pid,
-            "process_identity": "ssh_mac_afplay",
-            "remote_afplay_pid": started.get("afplay_pid"),
-            "remote_helper_monotonic_ns": started.get("helper_monotonic_ns"),
+            "process_identity": "ssh_mac_coreaudio",
+            "start_observation": started["start_observation"],
+            "remote_presentation_start_monotonic_ns": remote_start_ns,
+            "first_nonzero_frame_offset": started.get(
+                "first_nonzero_frame_offset"
+            ),
+            "render_host_time_valid": started.get("render_host_time_valid"),
+            "clock_sync_round_trip_ns": local_received_ns - local_sent_ns,
+            "output_presentation_latency_ns": (
+                output_presentation_latency_ns
+            ),
+            "presentation_start_upper_bound_monotonic_ns": upper_bound_ns,
+            "observed_start_monotonic_ns": lower_bound_ns,
         }
 
     def wait_until(self, monotonic_ns: int) -> None:
@@ -481,15 +570,10 @@ class RemotePhysicalEngineeringBackend:
         return {
             "pid": process.pid,
             "exit_status": process.returncode,
-            "remote_afplay_pid": (
+            "remote_playback_exit_status": (
                 None
                 if remote_completed is None
-                else remote_completed.get("afplay_pid")
-            ),
-            "remote_afplay_exit_status": (
-                None
-                if remote_completed is None
-                else remote_completed.get("afplay_exit_status")
+                else remote_completed.get("playback_exit_status")
             ),
             "remote_helper_monotonic_ns": (
                 None
@@ -500,6 +584,11 @@ class RemotePhysicalEngineeringBackend:
                 None
                 if remote_completed is None
                 else remote_completed.get("stderr")
+            ),
+            "completion_observation": (
+                None
+                if remote_completed is None
+                else remote_completed.get("completion_observation")
             ),
             "controller_requested_termination": requested,
             "controller_requested_signal": signal.SIGTERM if requested else None,
