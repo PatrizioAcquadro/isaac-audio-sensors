@@ -147,6 +147,15 @@ func run() throws {
     guard buffer.frameLength == 864_000 else {
         throw PlaybackError.invalidAsset("playback buffer is incomplete")
     }
+    guard let sourceFirstNonzeroFrame = firstNonzeroFrame(buffer) else {
+        throw PlaybackError.invalidAsset("playback asset has no nonzero frame")
+    }
+    let sourceFirstNonzeroNanoseconds = UInt64(
+        (
+            Double(sourceFirstNonzeroFrame)
+                / buffer.format.sampleRate * 1_000_000_000.0
+        ).rounded()
+    )
 
     let engine = AVAudioEngine()
     let player = AVAudioPlayerNode()
@@ -249,9 +258,27 @@ func run() throws {
         "clock_sync",
         ["helper_monotonic_ns": NSNumber(value: monotonicNanoseconds())]
     )
-    guard readLine() == "START" else {
+    guard
+        let startCommand = readLine(),
+        startCommand.hasPrefix("START_AT "),
+        let targetPresentationNanoseconds = UInt64(
+            startCommand.dropFirst("START_AT ".count)
+        ),
+        targetPresentationNanoseconds
+            > outputPresentationLatencyNanoseconds
+                + sourceFirstNonzeroNanoseconds
+    else {
         throw PlaybackError.invalidCommand(
-            "authenticated START command was not received"
+            "authenticated START_AT command was not received"
+        )
+    }
+    let renderStartNanoseconds =
+        targetPresentationNanoseconds
+            - outputPresentationLatencyNanoseconds
+            - sourceFirstNonzeroNanoseconds
+    guard renderStartNanoseconds > monotonicNanoseconds() else {
+        throw PlaybackError.invalidCommand(
+            "authenticated START_AT target is not in the future"
         )
     }
 
@@ -266,7 +293,13 @@ func run() throws {
     observationLock.lock()
     playbackRequested = true
     observationLock.unlock()
-    player.play()
+    player.play(
+        at: AVAudioTime(
+            hostTime: AVAudioTime.hostTime(
+                forSeconds: Double(renderStartNanoseconds) / 1_000_000_000.0
+            )
+        )
+    )
 
     guard startSemaphore.wait(timeout: .now() + 5.0) == .success else {
         throw PlaybackError.renderStartTimeout

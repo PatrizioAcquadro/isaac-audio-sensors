@@ -451,8 +451,15 @@ class _FakeBackend:
         self.operations.append("playback_command")
         return {"command_sha256": "d" * 64}
 
-    def start_playback(self, command: object) -> dict[str, object]:
+    def start_playback(
+        self,
+        command: object,
+        *,
+        target_monotonic_ns: int | None = None,
+    ) -> dict[str, object]:
         self.operations.append("playback_start")
+        if target_monotonic_ns is not None:
+            self.now = target_monotonic_ns
         self.now += 20_000_000
         return {
             "pid": 202,
@@ -531,7 +538,6 @@ def test_supported_controller_enforces_complete_order_and_retains_retry_only(
         "playback_command",
         "recorder_start",
         "recorder_ready",
-        "continuous_capture",
         "playback_start",
         "continuous_capture",
         "playback_stop",

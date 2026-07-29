@@ -277,7 +277,10 @@ def test_mac_playback_lifecycle_binds_reference_and_observes_exit(
     backend = _backend(tmp_path)
 
     prepared = backend.prepare_playback(reference_path)
-    playback = backend.start_playback(prepared)
+    playback = backend.start_playback(
+        prepared,
+        target_monotonic_ns=515_000,
+    )
     stopped = backend.stop_playback(playback)
 
     assert prepared["authenticated_reference_sha256"] == hashlib.sha256(
@@ -294,7 +297,7 @@ def test_mac_playback_lifecycle_binds_reference_and_observes_exit(
     assert playback["start_observation"] == (
         "coreaudio_first_nonzero_presented_frame"
     )
-    assert process.stdin.values == ["SYNC\n", "START\n"]
+    assert process.stdin.values == ["SYNC\n", "START_AT 502000\n"]
     assert stopped["exit_status"] == 0
     assert stopped["remote_playback_exit_status"] == 0
     assert stopped["completion_observation"] == "coreaudio_data_played_back"
@@ -311,6 +314,10 @@ def test_mac_helper_source_uses_render_callback_without_fitted_delay() -> None:
     assert "installTap" in source
     assert "first_nonzero_presented_frame" in source
     assert "dataPlayedBack" in source
+    assert "START_AT " in source
+    assert "player.play(" in source
+    assert "AVAudioTime.hostTime" in source
+    assert "sourceFirstNonzeroNanoseconds" in source
     assert "Thread.sleep" not in source
     assert "asyncAfter" not in source
     assert "recursive-include scripts *.swift" in (

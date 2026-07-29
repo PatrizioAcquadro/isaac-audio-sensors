@@ -434,13 +434,40 @@ class RemotePhysicalEngineeringBackend:
             ),
         }
 
-    def start_playback(self, command: object) -> dict[str, Any]:
+    def start_playback(
+        self,
+        command: object,
+        *,
+        target_monotonic_ns: int | None = None,
+    ) -> dict[str, Any]:
         del command
         if self._playback_command is None or self._playback_process is None:
             raise S48PhysicalBackendError("playback command was not prepared")
         if self._playback_process.stdin is None:
             raise S48PhysicalBackendError("Mac playback command stream is unavailable")
-        self._playback_process.stdin.write("START\n")
+        local_sent_ns = self._mac_clock_sync_local_sent_ns
+        local_received_ns = self._mac_clock_sync_local_received_ns
+        remote_sync_ns = self._mac_clock_sync_remote_received_ns
+        output_presentation_latency_ns = self._mac_output_presentation_latency_ns
+        if (
+            isinstance(target_monotonic_ns, bool)
+            or not isinstance(target_monotonic_ns, int)
+            or target_monotonic_ns <= 0
+            or local_sent_ns is None
+            or local_received_ns is None
+            or remote_sync_ns is None
+            or output_presentation_latency_ns is None
+        ):
+            raise S48PhysicalBackendError(
+                "Mac playback target monotonic time is invalid"
+            )
+        local_midpoint_ns = local_sent_ns + (local_received_ns - local_sent_ns) // 2
+        remote_target_ns = remote_sync_ns + (target_monotonic_ns - local_midpoint_ns)
+        if remote_target_ns <= remote_sync_ns:
+            raise S48PhysicalBackendError(
+                "Mac playback target is not after clock synchronization"
+            )
+        self._playback_process.stdin.write(f"START_AT {remote_target_ns}\n")
         self._playback_process.stdin.flush()
         started = _wait_json_event(
             self._playback_process,
@@ -448,18 +475,9 @@ class RemotePhysicalEngineeringBackend:
             timeout_s=5.0,
         )
         remote_start_ns = started.get("presentation_start_monotonic_ns")
-        local_sent_ns = self._mac_clock_sync_local_sent_ns
-        local_received_ns = self._mac_clock_sync_local_received_ns
-        remote_sync_ns = self._mac_clock_sync_remote_received_ns
-        output_presentation_latency_ns = (
-            self._mac_output_presentation_latency_ns
-        )
         if (
             isinstance(remote_start_ns, bool)
             or not isinstance(remote_start_ns, int)
-            or local_sent_ns is None
-            or local_received_ns is None
-            or remote_sync_ns is None
             or remote_start_ns < remote_sync_ns
             or started.get("output_presentation_latency_ns")
             != output_presentation_latency_ns
@@ -477,6 +495,7 @@ class RemotePhysicalEngineeringBackend:
             "process_identity": "ssh_mac_coreaudio",
             "start_observation": started["start_observation"],
             "remote_presentation_start_monotonic_ns": remote_start_ns,
+            "remote_target_presentation_monotonic_ns": remote_target_ns,
             "first_nonzero_frame_offset": started.get(
                 "first_nonzero_frame_offset"
             ),

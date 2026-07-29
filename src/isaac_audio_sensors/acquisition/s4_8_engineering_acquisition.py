@@ -128,10 +128,17 @@ class SubprocessEngineeringBackend:
         ]
         return {"command_sha256": canonical_sha256(self._playback_args)}
 
-    def start_playback(self, command: object) -> dict[str, Any]:
+    def start_playback(
+        self,
+        command: object,
+        *,
+        target_monotonic_ns: int | None = None,
+    ) -> dict[str, Any]:
         del command
         if self._playback_args is None or self._playback_process is not None:
             raise S48EngineeringAcquisitionError("playback command was not prepared")
+        if target_monotonic_ns is not None:
+            self.wait_until(target_monotonic_ns)
         self._playback_process = _start_process(self._playback_args)
         return {
             "pid": self._playback_process.pid,
@@ -708,8 +715,10 @@ def run_supported_engineering_acquisition(
         config["capture_duration_s"] * 1_000_000_000
     )
     observe("playback_commanded", command)
-    backend.wait_until(playback_start_ns)
-    playback = backend.start_playback(command)
+    playback = backend.start_playback(
+        command,
+        target_monotonic_ns=playback_start_ns,
+    )
     playback_observed_ns = playback.pop(
         "observed_start_monotonic_ns",
         None,
