@@ -26,7 +26,9 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate import (
     canonical_sha256,
 )
 
-TRACKED_DETECTOR_METHOD_V2 = "polarity_separated_multichannel_lag_tracking_v2"
+TRACKED_DETECTOR_METHOD_V2 = (
+    "polarity_separated_multichannel_lag_tracking_v2"
+)
 
 # The v1 energy, correlation, coherence, channel-count, continuity, coverage,
 # and gap limits are copied unchanged.  The alignment fields are new technical
@@ -208,7 +210,8 @@ def normalize_reference_for_capture_rate(
         or capture_sample_rate_hz <= 0
         or reference_sample_rate_hz < capture_sample_rate_hz
         or reference_sample_rate_hz % capture_sample_rate_hz
-        or array.shape[0] % (reference_sample_rate_hz // capture_sample_rate_hz)
+        or array.shape[0]
+        % (reference_sample_rate_hz // capture_sample_rate_hz)
     ):
         raise S48PresealingGateError(
             "reference/capture sample rates require an exact integer ratio"
@@ -243,7 +246,9 @@ def select_active_reference_interval_v2(
         or stop <= start
         or stop > array.shape[0]
     ):
-        raise S48PresealingGateError("exact reference active interval is invalid")
+        raise S48PresealingGateError(
+            "exact reference active interval is invalid"
+        )
     return array[start:stop].copy()
 
 
@@ -712,7 +717,8 @@ def evaluate_presealing_gate_v2(
                     "channel_health",
                     "a microphone has stable negative reference correlation",
                     correlations=[
-                        item["signed_correlation_median"] for item in polarity_evidence
+                        item["signed_correlation_median"]
+                        for item in polarity_evidence
                     ],
                     polarity_evidence=polarity_evidence,
                 )
@@ -969,13 +975,19 @@ def detect_tracked_reference_activity_v2(
         stop = start + block
         frame = mic[:, start:stop]
         nominal_phase = start - acoustic_start
-        adjustment, tracking_correlation, channel_evidence = _track_common_phase_step(
-            frame,
-            ref,
-            nominal_phase=nominal_phase,
-            center_adjustment=tracked_adjustment,
-            maximum_step_samples=int(detector["maximum_tracking_step_samples"]),
-            maximum_lag_samples=int(detector["maximum_reference_lag_samples"]),
+        adjustment, tracking_correlation, channel_evidence = (
+            _track_common_phase_step(
+                frame,
+                ref,
+                nominal_phase=nominal_phase,
+                center_adjustment=tracked_adjustment,
+                maximum_step_samples=int(
+                    detector["maximum_tracking_step_samples"]
+                ),
+                maximum_lag_samples=int(
+                    detector["maximum_reference_lag_samples"]
+                ),
+            )
         )
         step = adjustment - tracked_adjustment
         local_reasons: list[str] = []
@@ -1020,17 +1032,26 @@ def detect_tracked_reference_activity_v2(
                 for channel in frame
             ]
         rms_by_channel = np.sqrt(np.mean(frame * frame, axis=1))
-        correlations = [float(item["signed_correlation"]) for item in channel_evidence]
+        correlations = [
+            float(item["signed_correlation"])
+            for item in channel_evidence
+        ]
         correlation_magnitudes = [
-            float(item["correlation_magnitude"]) for item in channel_evidence
+            float(item["correlation_magnitude"])
+            for item in channel_evidence
         ]
         positive_correlations = [
-            float(item["positive_correlation"]) for item in channel_evidence
+            float(item["positive_correlation"])
+            for item in channel_evidence
         ]
         negative_correlation_magnitudes = [
-            float(item["negative_correlation_magnitude"]) for item in channel_evidence
+            float(item["negative_correlation_magnitude"])
+            for item in channel_evidence
         ]
-        reference_lags = [int(item["lag_samples"]) for item in channel_evidence]
+        reference_lags = [
+            int(item["lag_samples"])
+            for item in channel_evidence
+        ]
         pair_coherences = [
             abs(
                 _best_signed_correlation(
@@ -1091,8 +1112,12 @@ def detect_tracked_reference_activity_v2(
                 "rms_by_channel": [float(value) for value in rms_by_channel],
                 "reference_correlation": reference_correlation,
                 "reference_correlation_by_channel": correlations,
-                "reference_correlation_magnitude_by_channel": (correlation_magnitudes),
-                "positive_reference_correlation_by_channel": (positive_correlations),
+                "reference_correlation_magnitude_by_channel": (
+                    correlation_magnitudes
+                ),
+                "positive_reference_correlation_by_channel": (
+                    positive_correlations
+                ),
                 "negative_reference_correlation_magnitude_by_channel": (
                     negative_correlation_magnitudes
                 ),
@@ -1132,7 +1157,9 @@ def detect_tracked_reference_activity_v2(
             decisions[index]["candidate"] = True
             reason_sets[index].append("temporally_supported_reference")
 
-    weak_tracking = ["reference_tracking_weak" in reasons for reasons in reason_sets]
+    weak_tracking = [
+        "reference_tracking_weak" in reasons for reasons in reason_sets
+    ]
     if any(
         stop - start >= int(detector["minimum_detection_contiguous_blocks"])
         for start, stop in _boolean_runs(weak_tracking)
@@ -1182,13 +1209,16 @@ def detect_tracked_reference_activity_v2(
         )
         negative_median = float(
             median(
-                item["negative_reference_correlation_magnitude_by_channel"][channel]
+                item[
+                    "negative_reference_correlation_magnitude_by_channel"
+                ][channel]
                 for item in decisions
             )
         )
         signed_median = float(
             median(
-                item["reference_correlation_by_channel"][channel] for item in decisions
+                item["reference_correlation_by_channel"][channel]
+                for item in decisions
             )
         )
         relative_median = float(
@@ -1337,15 +1367,24 @@ def _evaluate_stop_sentinel(
         * float(alignment["estimated_drift_ppm"])
         / 1_000_000.0
     )
-    adjustment, tracking_correlation, channel_evidence = _track_common_phase_step(
-        frame,
-        reference,
-        nominal_phase=elapsed,
-        center_adjustment=predicted_adjustment,
-        maximum_step_samples=int(config["maximum_tracking_step_samples"]),
-        maximum_lag_samples=int(config["maximum_reference_lag_samples"]),
+    adjustment, tracking_correlation, channel_evidence = (
+        _track_common_phase_step(
+            frame,
+            reference,
+            nominal_phase=elapsed,
+            center_adjustment=predicted_adjustment,
+            maximum_step_samples=int(
+                config["maximum_tracking_step_samples"]
+            ),
+            maximum_lag_samples=int(
+                config["maximum_reference_lag_samples"]
+            ),
+        )
     )
-    correlations = [float(item["correlation_magnitude"]) for item in channel_evidence]
+    correlations = [
+        float(item["correlation_magnitude"])
+        for item in channel_evidence
+    ]
     correlated_count = sum(
         value >= float(config["minimum_reference_correlation"])
         for value in correlations
@@ -1367,7 +1406,8 @@ def _evaluate_stop_sentinel(
         "correlated_channel_count": correlated_count,
         "alignment_adjustment_samples": adjustment,
         "reference_lag_samples_by_channel": [
-            int(item["lag_samples"]) for item in channel_evidence
+            int(item["lag_samples"])
+            for item in channel_evidence
         ],
         "rms_median": rms_median,
     }
@@ -1439,7 +1479,10 @@ def _estimate_initial_acoustic_start(
     if segment.shape[1] < probe_count:
         return None, 0.0
     channel_correlations = [_sliding_correlation(channel, probe) for channel in segment]
-    peak_indices = [int(np.argmax(np.abs(values))) for values in channel_correlations]
+    peak_indices = [
+        int(np.argmax(np.abs(values)))
+        for values in channel_correlations
+    ]
     peak_values = [
         abs(float(values[index]))
         for values, index in zip(channel_correlations, peak_indices, strict=True)
@@ -1542,7 +1585,10 @@ def _track_common_phase_step(
         for channel in frame
     ]
     tracking_correlation = float(
-        median(item["correlation_magnitude"] for item in adjusted_evidence)
+        median(
+            item["correlation_magnitude"]
+            for item in adjusted_evidence
+        )
     )
     return adjustment, tracking_correlation, adjusted_evidence
 
@@ -1587,7 +1633,9 @@ def _lag_polarity_evidence(
         "signed_correlation": float(signed_correlation),
         "correlation_magnitude": abs(float(signed_correlation)),
         "positive_correlation": float(positive_correlation),
-        "negative_correlation_magnitude": float(negative_correlation_magnitude),
+        "negative_correlation_magnitude": float(
+            negative_correlation_magnitude
+        ),
     }
 
 
