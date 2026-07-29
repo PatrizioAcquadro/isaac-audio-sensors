@@ -14,7 +14,12 @@ from typing import Any
 import jsonschema
 
 from isaac_audio_sensors.acquisition import s4_8
+from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
+    run_presealing_gate_from_engineering_files,
+    validate_engineering_process_journal,
+)
 from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
+    validate_attempt_ledger,
     validate_preliminary_manifest,
 )
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
@@ -22,6 +27,9 @@ from isaac_audio_sensors.core import acceptance_criteria_corrective_03
 
 CONFIG_PATH = Path("configs/s4_8_preliminary_workflow.v1.json")
 CONFIG_SCHEMA_PATH = Path("docs/schemas/s4_8_preliminary_workflow.v1.schema.json")
+REPROCESSING_SCHEMA_PATH = Path(
+    "docs/schemas/s4_8_preliminary_reprocessing_record.v1.schema.json"
+)
 REQUIRED_GATES = (
     "acquisition",
     "technical_validation",
@@ -215,12 +223,324 @@ def validate_reuse_decision(decision: Mapping[str, Any]) -> None:
         raise S48PreliminaryError("reuse decision is altered or noncanonical")
 
 
+def reprocess_attempt_gate(
+    repo_root: Path,
+    *,
+    attempt_path: Path,
+    reference_path: Path,
+) -> dict[str, Any]:
+    """Rerun the current gate offline without extending the historical journal."""
+
+    attempt = attempt_path.resolve()
+    manifest = _load_json(attempt / "take_precollection_manifest.json")
+    journal = _load_json_lines(attempt / "process_journal.jsonl")
+    if (
+        not journal
+        or journal[-1].get("event_type") != "gate_evaluated"
+        or journal[-1].get("data", {}).get("decision") != "RETRY_REQUIRED"
+    ):
+        raise S48PreliminaryError(
+            "offline reprocessing requires a retained RETRY_REQUIRED history"
+        )
+    capture_journal = journal[:-1]
+    try:
+        return run_presealing_gate_from_engineering_files(
+            capture_path=attempt / "respeaker_audio.wav",
+            reference_path=reference_path.resolve(),
+            manifest=manifest,
+            journal=capture_journal,
+            expected_manifest_sha256=str(manifest.get("manifest_sha256")),
+            repo_root=repo_root.resolve(),
+            dry_run=False,
+        )
+    except Exception as exc:
+        raise S48PreliminaryError(f"offline gate reprocessing failed: {exc}") from exc
+
+
+def build_reprocessing_record(
+    repo_root: Path,
+    *,
+    correction_id: str,
+    case_id: str,
+    preliminary_take_id: str,
+    attempt_number: int,
+    attempt_path: Path,
+    attempt_ledger_path: Path,
+    campaign_manifest_path: Path,
+    corrected_report_path: Path,
+    corrective_commit: str,
+    technical_justification: str,
+    physical_confirmation_evidence: str,
+) -> dict[str, Any]:
+    """Build an additive record that preserves a historical retry decision."""
+
+    root = repo_root.resolve()
+    attempt = attempt_path.resolve()
+    ledger_path = attempt_ledger_path.resolve()
+    campaign_path = campaign_manifest_path.resolve()
+    report_path = corrected_report_path.resolve()
+    if (
+        case_id not in CASE_IDS
+        or not correction_id
+        or not preliminary_take_id.startswith("s48prelim_")
+        or isinstance(attempt_number, bool)
+        or not isinstance(attempt_number, int)
+        or attempt_number < 1
+        or len(corrective_commit) != 40
+        or any(character not in "0123456789abcdef" for character in corrective_commit)
+    ):
+        raise S48PreliminaryError("reprocessing record identity is invalid")
+    historical_paths = {
+        "raw_capture": attempt / "respeaker_audio.wav",
+        "retry_report": attempt / "retry_report.json",
+        "gate_report": attempt / "gate_report.json",
+        "controller_result": attempt / "controller_result.json",
+        "process_journal": attempt / "process_journal.jsonl",
+        "take_precollection_manifest": attempt / "take_precollection_manifest.json",
+        "attempt_ledger": ledger_path,
+        "campaign_manifest": campaign_path,
+    }
+    for path in (*historical_paths.values(), report_path):
+        if not path.is_file():
+            raise S48PreliminaryError(f"reprocessing artifact is missing: {path}")
+    raw_sha256 = _sha256_file(historical_paths["raw_capture"])
+    reuse = build_reuse_decision(
+        correction_id=correction_id,
+        change_class="detector_or_processing",
+        affected_case_ids=[case_id],
+        raw_sha256_by_case={case_id: raw_sha256},
+        decision="reuse",
+        technical_justification=technical_justification,
+        physical_confirmation="not_required_by_evidence",
+        physical_confirmation_evidence=physical_confirmation_evidence,
+        replacement_complete=False,
+    )
+    corrected_report = _load_json(report_path)
+    alignment = corrected_report.get("waveform", {}).get("alignment", {})
+    longest = alignment.get("longest_continuous_useful_interval", {})
+    payload = {
+        "schema": "ias.s4_8.preliminary_reprocessing_record.v1",
+        "correction_id": correction_id,
+        "change_class": "detector_or_processing",
+        "case_id": case_id,
+        "preliminary_take_id": preliminary_take_id,
+        "attempt_number": attempt_number,
+        "attempt_path": str(attempt),
+        "historical_result": {
+            "decision": "RETRY_REQUIRED",
+            **{
+                name: _artifact_record(path)
+                for name, path in historical_paths.items()
+            },
+            "journal_gate_decision": "RETRY_REQUIRED",
+            "ledger_gate_decision": "RETRY_REQUIRED",
+        },
+        "corrected_offline_result": {
+            "decision": "PASS",
+            "report": _artifact_record(report_path),
+            "report_canonical_sha256": canonical_sha256(corrected_report),
+            "corrective_commit": corrective_commit,
+            "useful_block_count": alignment.get("useful_block_count"),
+            "source_block_count": alignment.get("source_block_count"),
+            "useful_sound_coverage": alignment.get("useful_sound_coverage"),
+            "continuous_useful_duration_s": longest.get("duration_s"),
+            "maximum_non_applicable_gap_s": alignment.get(
+                "maximum_non_applicable_gap_s"
+            ),
+        },
+        "reuse_decision": reuse,
+        "classification": dict(DIAGNOSTIC_CLASSIFICATION),
+        "authority": dict(AUTHORITY_NONE),
+    }
+    record = {**payload, "record_sha256": canonical_sha256(payload)}
+    validate_reprocessing_record(root, record)
+    return record
+
+
+def validate_reprocessing_record(
+    repo_root: Path,
+    record: Mapping[str, Any],
+    *,
+    expected_attempt_path: Path | None = None,
+    expected_case_id: str | None = None,
+) -> dict[str, Any]:
+    """Authenticate an additive PASS while retaining the original retry."""
+
+    root = repo_root.resolve()
+    schema = _load_json(root / REPROCESSING_SCHEMA_PATH)
+    try:
+        jsonschema.validate(dict(record), schema)
+    except jsonschema.ValidationError as exc:
+        raise S48PreliminaryError(
+            f"preliminary reprocessing schema failure: {exc.message}"
+        ) from exc
+    payload = {key: value for key, value in record.items() if key != "record_sha256"}
+    if record.get("record_sha256") != canonical_sha256(payload):
+        raise S48PreliminaryError("preliminary reprocessing record hash mismatch")
+    if record.get("classification") != DIAGNOSTIC_CLASSIFICATION or record.get(
+        "authority"
+    ) != AUTHORITY_NONE:
+        raise S48PreliminaryError("preliminary reprocessing boundary is invalid")
+    attempt = Path(str(record["attempt_path"])).resolve()
+    if expected_attempt_path is not None and attempt != expected_attempt_path.resolve():
+        raise S48PreliminaryError("reprocessing record targets a different attempt")
+    if expected_case_id is not None and record.get("case_id") != expected_case_id:
+        raise S48PreliminaryError("reprocessing record targets a different case")
+    historical = record["historical_result"]
+    for artifact in (
+        *(
+            historical[name]
+            for name in (
+                "raw_capture",
+                "retry_report",
+                "gate_report",
+                "controller_result",
+                "process_journal",
+                "take_precollection_manifest",
+                "attempt_ledger",
+                "campaign_manifest",
+            )
+        ),
+        record["corrected_offline_result"]["report"],
+    ):
+        _validate_artifact_record(artifact)
+    expected_attempt_artifacts = {
+        "raw_capture": attempt / "respeaker_audio.wav",
+        "retry_report": attempt / "retry_report.json",
+        "gate_report": attempt / "gate_report.json",
+        "controller_result": attempt / "controller_result.json",
+        "process_journal": attempt / "process_journal.jsonl",
+        "take_precollection_manifest": attempt / "take_precollection_manifest.json",
+    }
+    if any(
+        Path(str(historical[name]["path"])).resolve() != path
+        for name, path in expected_attempt_artifacts.items()
+    ):
+        raise S48PreliminaryError(
+            "reprocessing record does not bind the retained attempt files"
+        )
+    retry_report = _load_json(Path(historical["retry_report"]["path"]))
+    gate_report = _load_json(Path(historical["gate_report"]["path"]))
+    controller = _load_json(Path(historical["controller_result"]["path"]))
+    manifest = _load_json(Path(historical["take_precollection_manifest"]["path"]))
+    journal = _load_json_lines(Path(historical["process_journal"]["path"]))
+    campaign = _load_json(Path(historical["campaign_manifest"]["path"]))
+    ledger = _load_json_lines(Path(historical["attempt_ledger"]["path"]))
+    if (
+        retry_report.get("decision") != "RETRY_REQUIRED"
+        or gate_report != retry_report
+        or controller.get("decision") != "RETRY_REQUIRED"
+        or controller.get("report") != retry_report
+        or controller.get("preliminary_case_id") != record.get("case_id")
+        or controller.get("classification") != DIAGNOSTIC_CLASSIFICATION
+        or controller.get("counts_as_official_take") is not False
+        or controller.get("official_evidence_eligible") is not False
+    ):
+        raise S48PreliminaryError(
+            "reprocessing record contradicts the historical retry result"
+        )
+    try:
+        validate_engineering_process_journal(
+            manifest,
+            journal,
+            expected_manifest_sha256=str(manifest.get("manifest_sha256")),
+            required_terminal_event="gate_evaluated",
+        )
+        validate_attempt_ledger(
+            ledger,
+            campaign_manifest=campaign,
+            expected_campaign_manifest_sha256=str(campaign.get("manifest_sha256")),
+        )
+    except Exception as exc:
+        raise S48PreliminaryError(
+            f"reprocessing historical provenance validation failed: {exc}"
+        ) from exc
+    gate_event = journal[-1]
+    ledger_matches = [
+        item
+        for item in ledger
+        if item.get("engineering_take_id") == record.get("preliminary_take_id")
+        and item.get("attempt_number") == record.get("attempt_number")
+    ]
+    if (
+        gate_event.get("data", {}).get("decision") != "RETRY_REQUIRED"
+        or gate_event.get("data", {}).get("report_sha256")
+        != canonical_sha256(retry_report)
+        or len(ledger_matches) != 1
+        or ledger_matches[0].get("decision") != "RETRY_REQUIRED"
+        or ledger_matches[0].get("report_sha256") != canonical_sha256(retry_report)
+        or ledger_matches[0].get("candidate_seal_sha256") is not None
+    ):
+        raise S48PreliminaryError(
+            "reprocessing record contradicts journal or ledger history"
+        )
+    corrected = record["corrected_offline_result"]
+    corrected_report = _load_json(Path(corrected["report"]["path"]))
+    alignment = corrected_report.get("waveform", {}).get("alignment", {})
+    longest = alignment.get("longest_continuous_useful_interval", {})
+    capture_sha256 = historical["raw_capture"]["sha256"]
+    if (
+        corrected_report.get("decision") != "PASS"
+        or corrected_report.get("reasons") != []
+        or corrected_report.get("input_provenance", {}).get("capture_sha256")
+        != capture_sha256
+        or corrected_report.get("input_provenance", {}).get("manifest_sha256")
+        != manifest.get("manifest_sha256")
+        or corrected_report.get("input_provenance", {}).get(
+            "process_journal_head_sha256"
+        )
+        != journal[-2].get("event_sha256")
+        or corrected.get("report_canonical_sha256")
+        != canonical_sha256(corrected_report)
+        or corrected.get("useful_block_count") != alignment.get("useful_block_count")
+        or corrected.get("source_block_count") != alignment.get("source_block_count")
+        or corrected.get("useful_sound_coverage")
+        != alignment.get("useful_sound_coverage")
+        or corrected.get("continuous_useful_duration_s") != longest.get("duration_s")
+        or corrected.get("maximum_non_applicable_gap_s")
+        != alignment.get("maximum_non_applicable_gap_s")
+    ):
+        raise S48PreliminaryError("corrected offline PASS binding is invalid")
+    reuse = record["reuse_decision"]
+    validate_reuse_decision(reuse)
+    if (
+        reuse.get("correction_id") != record.get("correction_id")
+        or reuse.get("affected_case_ids") != [record.get("case_id")]
+        or reuse.get("raw_sha256_by_case")
+        != {str(record.get("case_id")): capture_sha256}
+        or reuse.get("decision") != "reuse"
+        or reuse.get("physical_confirmation") != "not_required_by_evidence"
+    ):
+        raise S48PreliminaryError("reprocessing reuse disposition is invalid")
+    return corrected_report
+
+
+def load_reprocessing_record(
+    repo_root: Path,
+    record_path: Path,
+    *,
+    expected_attempt_path: Path,
+    expected_case_id: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Load and authenticate one versioned additive reprocessing record."""
+
+    record = _load_json(record_path.resolve())
+    report = validate_reprocessing_record(
+        repo_root,
+        record,
+        expected_attempt_path=expected_attempt_path,
+        expected_case_id=expected_case_id,
+    )
+    return record, report
+
+
 def process_case(
     repo_root: Path,
     *,
     manifest: Mapping[str, Any],
     case_root: Path,
     case_id: str,
+    reprocessing_record_path: Path | None = None,
 ) -> dict[str, Any]:
     """Authenticate and run the current detector/metric path on one raw case."""
 
@@ -239,40 +559,67 @@ def process_case(
     take = matches[0]
     attempt = case_root.resolve()
     capture = attempt / "respeaker_audio.wav"
-    gate_report = _load_json(attempt / "gate_report.json")
     controller_result = _load_json(attempt / "controller_result.json")
-    candidate_seal = _load_json(attempt / "candidate_seal.json")
     capture_sha256 = _sha256_file(capture)
-    seal_payload = {
-        key: value for key, value in candidate_seal.items() if key != "seal_sha256"
-    }
-    seal_manifest_sha256 = candidate_seal.get(
-        "manifest_sha256",
-        candidate_seal.get("campaign_manifest_sha256"),
-    )
-    if (
-        controller_result.get("decision") != "PASS"
-        or controller_result.get("preliminary_case_id") != case_id
-        or controller_result.get("classification") != DIAGNOSTIC_CLASSIFICATION
-        or controller_result.get("counts_as_official_take") is not False
-        or controller_result.get("official_evidence_eligible") is not False
-        or gate_report.get("decision") != "PASS"
-        or candidate_seal.get("engineering_only") is not True
-        or candidate_seal.get("authority", {}).get("official_state_machine")
-        is not False
-        or candidate_seal.get("authority", {}).get("publishes_official_evidence")
-        is not False
-        or candidate_seal.get("capture_sha256") != capture_sha256
-        or seal_manifest_sha256 != anchor
-        or candidate_seal.get("report_sha256") != canonical_sha256(gate_report)
-        or candidate_seal.get("seal_sha256") != canonical_sha256(seal_payload)
-        or (
-            candidate_seal.get("engineering_take_definition_sha256") is not None
-            and candidate_seal.get("engineering_take_definition_sha256")
-            != take["engineering_take_definition_sha256"]
+    reprocessing_record = None
+    if reprocessing_record_path is None:
+        gate_report = _load_json(attempt / "gate_report.json")
+        candidate_seal = _load_json(attempt / "candidate_seal.json")
+        seal_payload = {
+            key: value for key, value in candidate_seal.items() if key != "seal_sha256"
+        }
+        seal_manifest_sha256 = candidate_seal.get(
+            "manifest_sha256",
+            candidate_seal.get("campaign_manifest_sha256"),
         )
-    ):
-        raise S48PreliminaryError("acquisition artifacts did not pass authentication")
+        if (
+            controller_result.get("decision") != "PASS"
+            or controller_result.get("preliminary_case_id") != case_id
+            or controller_result.get("classification") != DIAGNOSTIC_CLASSIFICATION
+            or controller_result.get("counts_as_official_take") is not False
+            or controller_result.get("official_evidence_eligible") is not False
+            or gate_report.get("decision") != "PASS"
+            or candidate_seal.get("engineering_only") is not True
+            or candidate_seal.get("authority", {}).get("official_state_machine")
+            is not False
+            or candidate_seal.get("authority", {}).get(
+                "publishes_official_evidence"
+            )
+            is not False
+            or candidate_seal.get("capture_sha256") != capture_sha256
+            or seal_manifest_sha256 != anchor
+            or candidate_seal.get("report_sha256") != canonical_sha256(gate_report)
+            or candidate_seal.get("seal_sha256") != canonical_sha256(seal_payload)
+            or (
+                candidate_seal.get("engineering_take_definition_sha256") is not None
+                and candidate_seal.get("engineering_take_definition_sha256")
+                != take["engineering_take_definition_sha256"]
+            )
+        ):
+            raise S48PreliminaryError(
+                "acquisition artifacts did not pass authentication"
+            )
+        acquisition_source = "original_pass"
+        historical_acquisition_decision = "PASS"
+    else:
+        reprocessing_record, gate_report = load_reprocessing_record(
+            root,
+            reprocessing_record_path,
+            expected_attempt_path=attempt,
+            expected_case_id=case_id,
+        )
+        if (
+            reprocessing_record.get("preliminary_take_id")
+            != take["engineering_take_id"]
+            or gate_report.get("decision") != "PASS"
+            or controller_result.get("decision") != "RETRY_REQUIRED"
+            or controller_result.get("preliminary_case_id") != case_id
+        ):
+            raise S48PreliminaryError(
+                "additive reprocessing record does not select this case"
+            )
+        acquisition_source = "additive_reprocessing_record"
+        historical_acquisition_decision = "RETRY_REQUIRED"
     registry = acceptance_criteria_corrective_03.build_identity_registry(root)
     source_take_id = take["template_planned_take_id"]
     identity = registry.get(source_take_id)
@@ -332,6 +679,19 @@ def process_case(
         "source_evaluator_take_id": source_take_id,
         "raw_capture_sha256": capture_sha256,
         "acquisition_gate": "PASS",
+        "acquisition_source": acquisition_source,
+        "historical_acquisition_decision": historical_acquisition_decision,
+        "corrected_offline_decision": gate_report["decision"],
+        "reprocessing_record_sha256": (
+            None
+            if reprocessing_record is None
+            else reprocessing_record["record_sha256"]
+        ),
+        "fresh_physical_confirmation_required": (
+            False
+            if reprocessing_record is not None
+            else None
+        ),
         "technical_validation_gate": "PASS",
         "detector_processing_gate": "PASS",
         "synchronization_gate": (
@@ -478,8 +838,10 @@ def build_readiness_report(
 
     anchor = str(manifest.get("manifest_sha256"))
     validate_preliminary_manifest(manifest, expected_manifest_sha256=anchor)
+    latest_decisions: dict[str, Mapping[str, Any]] = {}
     for decision in reuse_decisions:
         validate_reuse_decision(decision)
+        latest_decisions[str(decision["correction_id"])] = decision
     package_payload = {
         key: value for key, value in package.items() if key != "package_sha256"
     }
@@ -488,7 +850,7 @@ def build_readiness_report(
     )
     unresolved = [
         decision["correction_id"]
-        for decision in reuse_decisions
+        for decision in latest_decisions.values()
         if decision["physical_confirmation"] == "required_pending"
         or (
             decision["decision"] == "reacquire"
@@ -599,12 +961,40 @@ def _load_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def _load_json_lines(path: Path) -> list[dict[str, Any]]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        values = [json.loads(line) for line in lines]
+    except (OSError, json.JSONDecodeError) as exc:
+        raise S48PreliminaryError(f"JSONL read failure for {path}: {exc}") from exc
+    if not values or not all(isinstance(value, dict) for value in values):
+        raise S48PreliminaryError(f"non-empty JSON object lines required: {path}")
+    return values
+
+
 def _write_json(path: Path, value: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(value, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+
+def _artifact_record(path: Path) -> dict[str, str]:
+    resolved = path.resolve()
+    return {"path": str(resolved), "sha256": _sha256_file(resolved)}
+
+
+def _validate_artifact_record(artifact: Mapping[str, Any]) -> None:
+    path = Path(str(artifact.get("path", "")))
+    if (
+        not path.is_absolute()
+        or not _is_sha256(artifact.get("sha256"))
+        or _sha256_file(path.resolve()) != artifact.get("sha256")
+    ):
+        raise S48PreliminaryError(
+            f"reprocessing artifact hash mismatch: {artifact.get('path')}"
+        )
 
 
 def _sha256_file(path: Path) -> str:
@@ -638,14 +1028,19 @@ __all__ = [
     "CASE_IDS",
     "CONFIG_PATH",
     "DIAGNOSTIC_CLASSIFICATION",
+    "REPROCESSING_SCHEMA_PATH",
     "REQUIRED_GATES",
     "S48PreliminaryError",
     "build_diagnostic_package",
     "build_diagnostic_payload",
     "build_readiness_report",
+    "build_reprocessing_record",
     "build_reuse_decision",
+    "load_reprocessing_record",
     "load_workflow_config",
     "process_case",
+    "reprocess_attempt_gate",
     "run_diagnostic_evaluator",
+    "validate_reprocessing_record",
     "validate_reuse_decision",
 ]

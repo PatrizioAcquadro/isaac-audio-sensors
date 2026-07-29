@@ -89,7 +89,21 @@ automatically trigger four new recordings.
 
 Every correction has an append-only reuse/reacquisition decision with its
 change class, affected cases, raw hashes, decision, technical justification,
-and physical-confirmation disposition.
+and physical-confirmation disposition. A later record with the same correction
+ID supersedes only that correction's pending disposition, so a retained failed
+attempt remains documented while a technically valid replacement can settle
+the earlier reacquisition requirement.
+
+When a retained acquisition historically ended `RETRY_REQUIRED` because of a
+later-corrected detector or processing defect, the original retry report,
+controller result, journal, attempt ledger, manifest, raw, and attempt
+directory remain immutable. A separately versioned
+`ias.s4_8.preliminary_reprocessing_record.v1` may bind those historical
+artifacts, the corrective source commit, a current offline gate report, exact
+corrected technical metrics, and a canonical `reuse` decision. Preliminary
+processing may consume that authenticated additive `PASS`, but must expose the
+historical `RETRY_REQUIRED` decision separately and may not synthesize an
+original candidate seal or append to the historical acquisition journal.
 
 Keep each failed raw only until a technically valid replacement passes. Then
 delete the failed attempt artifacts and retain only a short note with the take

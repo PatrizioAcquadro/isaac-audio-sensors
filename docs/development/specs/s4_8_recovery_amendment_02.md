@@ -93,7 +93,10 @@ Official acquisition is not required to run continuously or in one session.
 The operator may request one take, a subset, or the complete frozen sequence;
 collection stops at the end of that explicit scope. Technical
 `RETRY_REQUIRED` attempts may be repeated without a fixed limit for physical
-or technical invalidation only. Scientific outcomes may not inform a retry,
+or technical invalidation only when that invalidation is preregistered and
+documented. The detector is technical QA during acquisition, not a scientific
+result gate. A technically passed take may never be repeated because its
+scientific result is undesirable. Scientific outcomes may not inform a retry,
 and accepted official data is immutable after protocol freeze.
 
 The precollection seal, technical manifests, and final unopened holdout seal
