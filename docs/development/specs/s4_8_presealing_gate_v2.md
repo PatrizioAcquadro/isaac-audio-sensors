@@ -36,6 +36,15 @@ limit and identity. The v1 values below are copied without change:
 No scientific threshold, denominator, evaluation interval, or acceptance
 criterion changes in v2.
 
+The basic RMS floor is unconditional. The adaptive background statistic
+classifies a block as `background_energy` only when that block also lacks the
+exact frozen reference at the unchanged 0.20 median-correlation minimum. It is
+not a second minimum playback-level criterion: authenticated pre/post-roll
+variation can make the extrapolated robust cutoff exceed every physically
+valid low-level playback block. Reference identity does not bypass the
+unchanged three-correlated-channel, pair-coherence, alignment, continuity,
+coverage, or gap requirements.
+
 The exact authenticated reference WAV contains intentional silent lead-in,
 separator, and tail regions. The acquisition path therefore selects the
 already-preregistered +2.25 s through +7.25 s active fitting interval after

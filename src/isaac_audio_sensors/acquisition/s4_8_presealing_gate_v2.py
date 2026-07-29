@@ -1084,10 +1084,19 @@ def detect_tracked_reference_activity_v2(
             value >= float(detector["minimum_reference_correlation"])
             for value in correlation_magnitudes
         )
+        reference_energy_supported = reference_correlation >= float(
+            detector["minimum_reference_correlation"]
+        )
         reasons = list(local_reasons)
         if rms_median <= float(detector["basic_rms_floor"]):
             reasons.append("basic_energy")
-        if rms_median <= robust_rms_threshold:
+        # The adaptive RMS statistic distinguishes uncorrelated background; it
+        # is not a minimum playback-level criterion.  Exact reference identity
+        # at the frozen correlation limit is stronger evidence than an
+        # extrapolated background cutoff, while the unconditional RMS floor,
+        # channel-count, coherence, alignment, and continuity gates still
+        # reject weak or false-positive activity.
+        if rms_median <= robust_rms_threshold and not reference_energy_supported:
             reasons.append("background_energy")
         if reference_correlation < float(
             detector["minimum_reference_correlation"]

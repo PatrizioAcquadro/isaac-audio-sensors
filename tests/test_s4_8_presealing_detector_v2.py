@@ -35,6 +35,7 @@ def _reference() -> np.ndarray:
 def _capture(
     reference: np.ndarray,
     *,
+    amplitude: float = 0.04,
     latency_samples: int = 0,
     drift_ppm: float = 0.0,
     room_ir: np.ndarray | None = None,
@@ -67,9 +68,39 @@ def _capture(
         start = acoustic_start + delay
         stop = min(start + filtered.size, PLAYBACK_STOP)
         microphones[channel, start:stop] += (
-            0.04 * polarity * filtered[: stop - start]
+            amplitude * polarity * filtered[: stop - start]
         )
     return microphones
+
+
+def _with_variable_background(
+    microphones: np.ndarray,
+    *,
+    seed: int,
+) -> np.ndarray:
+    result = microphones.copy()
+    rng = np.random.default_rng(seed)
+    block = int(DEFAULT_ALIGNMENT_CONFIG_V2["analysis_block_samples"])
+    levels = (
+        0.002,
+        0.003,
+        0.004,
+        0.005,
+        0.006,
+        0.007,
+        0.008,
+        0.009,
+    )
+    for interval_start in (0, PLAYBACK_STOP):
+        for index, level in enumerate(levels):
+            start = interval_start + index * block
+            stop = start + block
+            result[:, start:stop] = rng.normal(
+                0.0,
+                level,
+                size=(result.shape[0], block),
+            )
+    return result
 
 
 def _detect(
@@ -87,6 +118,72 @@ def _detect(
         background_intervals=BACKGROUND_INTERVALS,
         config=DEFAULT_ALIGNMENT_CONFIG_V2,
     )
+
+
+def test_v2_accepts_low_level_reference_when_identity_evidence_is_stronger_than_rms(
+) -> None:
+    reference = _reference()
+    microphones = _with_variable_background(
+        _capture(reference, amplitude=0.012),
+        seed=493,
+    )
+
+    result = _detect(microphones, reference)
+
+    active_rms = [float(item["rms_median"]) for item in result["decisions"]]
+    assert result["robust_rms_threshold"] > max(active_rms)
+    assert result["median_reference_correlation"] >= 0.20
+    assert result["alignment_status"] == "maintained"
+    assert result["useful_sound_coverage"] >= 0.90
+
+
+def test_v2_rejects_energetic_diffuse_noise_without_reference_identity() -> None:
+    reference = _reference()
+    microphones = np.random.default_rng(494).normal(
+        0.0,
+        0.02,
+        size=(4, 20 * RATE),
+    )
+
+    result = _detect(microphones, reference)
+
+    assert result["useful_block_count"] == 0
+    assert result["alignment_status"] == "failed"
+    assert (
+        result["exclusion_reason_counts"]["reference_correlation"]
+        > 0
+    )
+
+
+def test_v2_preserves_nominal_reference_acceptance() -> None:
+    reference = _reference()
+
+    result = _detect(_capture(reference), reference)
+
+    assert result["alignment_status"] == "maintained"
+    assert result["useful_sound_coverage"] >= 0.90
+    assert result["longest_continuous_useful_interval"]["duration_s"] >= 16.0
+
+
+def test_v2_rejects_coherent_non_reference_false_positive() -> None:
+    reference = _reference()
+    microphones = np.random.default_rng(495).normal(
+        0.0,
+        0.0005,
+        size=(4, 20 * RATE),
+    )
+    distractor = np.random.default_rng(496).normal(
+        0.0,
+        0.01,
+        size=PLAYBACK_STOP - PLAYBACK_START,
+    )
+    microphones[:, PLAYBACK_START:PLAYBACK_STOP] += distractor
+
+    result = _detect(microphones, reference)
+
+    assert result["useful_block_count"] == 0
+    assert result["alignment_status"] == "failed"
+    assert result["median_reference_correlation"] < 0.20
 
 
 def test_v2_establishes_alignment_with_realistic_fixed_playback_latency() -> None:
