@@ -11,6 +11,9 @@ import numpy as np
 import pytest
 
 import isaac_audio_sensors.acquisition.s4_8_physical_backend as physical_backend
+from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
+    OPERATOR_TRIGGERED_RETRY_POLICY,
+)
 from isaac_audio_sensors.acquisition.s4_8_physical_backend import (
     RemotePhysicalEngineeringBackend,
     S48PhysicalBackendError,
@@ -368,6 +371,47 @@ def test_mac_runtime_identity_preserves_stdout_stderr_split(
     assert report["runtime_stdout"].startswith("Apple Swift")
     assert report["runtime_stderr"].startswith("swift-driver")
     assert calls[1][-2:] == ["-typecheck", "helper.swift"]
+
+
+def test_runner_freeze_uses_operator_triggered_policy() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location(
+        "s48_operator_policy_runner",
+        script_path,
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    assert runner._operator_acquisition_policy() == (
+        OPERATOR_TRIGGERED_RETRY_POLICY
+    )
+    source = script_path.read_text(encoding="utf-8")
+    assert "retry_policy=operator_policy" in source
+
+
+def test_runner_requires_fresh_authorization_for_every_physical_take() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location(
+        "s48_operator_authorization_runner",
+        script_path,
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    with pytest.raises(
+        runner.S48PhysicalRehearsalError,
+        match="every physical take requires",
+    ):
+        runner._require_operator_authorization(None, dry_run=False)
+    runner._require_operator_authorization(None, dry_run=True)
+    runner._require_operator_authorization(
+        {"schema": "one-take-test"},
+        dry_run=False,
+    )
 
 
 def test_mac_preflight_does_not_gate_on_power_or_work_focus() -> None:

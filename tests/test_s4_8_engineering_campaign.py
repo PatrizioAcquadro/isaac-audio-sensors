@@ -6,14 +6,17 @@ import wave
 from copy import deepcopy
 from pathlib import Path
 
+import jsonschema
 import numpy as np
 import pytest
 
 import isaac_audio_sensors.acquisition.s4_8_engineering_campaign as campaign
 from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
+    OPERATOR_TRIGGERED_RETRY_POLICY,
     S48EngineeringCampaignError,
     append_attempt_ledger_record,
     append_nonreference_journal_event,
+    build_operator_take_authorization,
     build_reference_take_manifest,
     build_stratum_aware_campaign_manifest,
     create_nonreference_candidate_clearance,
@@ -25,6 +28,7 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
     validate_attempt_request,
     validate_campaign_manifest,
     validate_nonreference_process_journal,
+    validate_operator_take_authorization,
 )
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
@@ -45,7 +49,9 @@ def _design() -> list[dict[str, object]]:
     )
 
 
-def _manifest() -> dict[str, object]:
+def _manifest(
+    retry_policy: dict[str, object] | None = None,
+) -> dict[str, object]:
     return build_stratum_aware_campaign_manifest(
         code_head="4" * 40,
         source_archive_sha256="1" * 64,
@@ -90,7 +96,8 @@ def _manifest() -> dict[str, object]:
         },
         channel_map=DEFAULT_PRESEALING_CONFIG_V2["expected_channel_map"],
         design=_design(),
-        retry_policy={
+        retry_policy=retry_policy
+        or {
             "maximum_attempts_per_planned_take": 2,
             "replacement_requires_retained_retry_required": True,
             "sequence_advances_only_after_pass": True,
@@ -401,6 +408,193 @@ def test_attempt_request_is_authorized_before_any_capture_starts() -> None:
             take=first_take,
             attempt_number=1,
         )
+
+
+def test_operator_authorization_extends_retained_retry_chain(
+) -> None:
+    manifest = _manifest()
+    ledger: list[dict[str, object]] = []
+    take = manifest["design"][0]
+    append_attempt_ledger_record(
+        ledger,
+        campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+        planned_take=take,
+        attempt_number=1,
+        decision="RETRY_REQUIRED",
+        report_sha256="b" * 64,
+        candidate_seal_sha256=None,
+    )
+    append_attempt_ledger_record(
+        ledger,
+        campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+        planned_take=take,
+        attempt_number=2,
+        decision="RETRY_REQUIRED",
+        report_sha256="c" * 64,
+        candidate_seal_sha256=None,
+    )
+
+    authorization = build_operator_take_authorization(
+        campaign_manifest=manifest,
+        ledger=ledger,
+        implementation_head="8" * 40,
+        take=take,
+        attempt_number=3,
+        reason_code="operator_reported_physical_invalidation",
+        justification="Uncontrolled people made noise during both retained attempts.",
+        scientific_outcomes_inspected=False,
+    )
+    validate_operator_take_authorization(
+        authorization,
+        campaign_manifest=manifest,
+        ledger=ledger,
+        take=take,
+        attempt_number=3,
+    )
+    validate_attempt_request(
+        ledger,
+        campaign_manifest=manifest,
+        expected_campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+        take=take,
+        attempt_number=3,
+        operator_authorization=authorization,
+    )
+    third = append_attempt_ledger_record(
+        ledger,
+        campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+        planned_take=take,
+        attempt_number=3,
+        decision="PASS",
+        report_sha256="d" * 64,
+        candidate_seal_sha256="e" * 64,
+        operator_authorization=authorization,
+    )
+
+    validate_attempt_ledger(
+        ledger,
+        campaign_manifest=manifest,
+        expected_campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+    )
+    assert [record["attempt_number"] for record in ledger] == [1, 2, 3]
+    assert third["schema"] == "ias.s4_8.operator_attempt_ledger_record.v1"
+    assert third["operator_authorization_sha256"] == authorization[
+        "authorization_sha256"
+    ]
+    assert third["one_take_only"] is True
+    assert third["automatic_batch"] is False
+
+    altered = deepcopy(ledger)
+    altered[-1]["reason_code"] = "operator_requested_initial"
+    altered_payload = {
+        key: value
+        for key, value in altered[-1].items()
+        if key != "record_sha256"
+    }
+    altered[-1]["record_sha256"] = canonical_sha256(altered_payload)
+    with pytest.raises(S48EngineeringCampaignError):
+        validate_attempt_ledger(
+            altered,
+            campaign_manifest=manifest,
+            expected_campaign_manifest_sha256=str(
+                manifest["manifest_sha256"]
+            ),
+        )
+
+
+def test_operator_authorization_is_exact_stale_safe_and_never_scientific() -> None:
+    manifest = _manifest()
+    ledger: list[dict[str, object]] = []
+    take = manifest["design"][0]
+    authorization = build_operator_take_authorization(
+        campaign_manifest=manifest,
+        ledger=ledger,
+        implementation_head="8" * 40,
+        take=take,
+        attempt_number=1,
+        reason_code="operator_requested_initial",
+        justification="Operator explicitly requested this one take.",
+        scientific_outcomes_inspected=False,
+    )
+    assert authorization["one_take_only"] is True
+    assert authorization["automatic_batch"] is False
+    assert authorization["all_prior_attempts_retained"] is True
+    assert authorization["scientific_outcomes_inspected"] is False
+    jsonschema.validate(
+        authorization,
+        json.loads(
+            (
+                ROOT
+                / "docs/schemas/s4_8_operator_take_authorization.v1.schema.json"
+            ).read_text(encoding="utf-8")
+        ),
+    )
+
+    wrong_take = manifest["design"][1]
+    with pytest.raises(S48EngineeringCampaignError):
+        validate_operator_take_authorization(
+            authorization,
+            campaign_manifest=manifest,
+            ledger=ledger,
+            take=wrong_take,
+            attempt_number=1,
+        )
+    altered = deepcopy(authorization)
+    altered["justification"] = "changed"
+    with pytest.raises(S48EngineeringCampaignError):
+        validate_operator_take_authorization(
+            altered,
+            campaign_manifest=manifest,
+            ledger=ledger,
+            take=take,
+            attempt_number=1,
+        )
+    with pytest.raises(S48EngineeringCampaignError):
+        build_operator_take_authorization(
+            campaign_manifest=manifest,
+            ledger=ledger,
+            implementation_head="8" * 40,
+            take=take,
+            attempt_number=1,
+            reason_code="operator_requested_initial",
+            justification="Scientific result looked poor.",
+            scientific_outcomes_inspected=True,
+        )
+
+
+def test_new_47_take_policy_requires_explicit_authorization_for_every_take() -> None:
+    manifest = _manifest(dict(OPERATOR_TRIGGERED_RETRY_POLICY))
+    ledger: list[dict[str, object]] = []
+    take = manifest["design"][0]
+
+    with pytest.raises(
+        S48EngineeringCampaignError,
+        match="operator authorization is required",
+    ):
+        validate_attempt_request(
+            ledger,
+            campaign_manifest=manifest,
+            expected_campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+            take=take,
+            attempt_number=1,
+        )
+    authorization = build_operator_take_authorization(
+        campaign_manifest=manifest,
+        ledger=ledger,
+        implementation_head="8" * 40,
+        take=take,
+        attempt_number=1,
+        reason_code="operator_requested_initial",
+        justification="Operator requested take 1 of the 47-take design.",
+        scientific_outcomes_inspected=False,
+    )
+    validate_attempt_request(
+        ledger,
+        campaign_manifest=manifest,
+        expected_campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+        take=take,
+        attempt_number=1,
+        operator_authorization=authorization,
+    )
 
 
 class _FakeNonreferenceBackend:

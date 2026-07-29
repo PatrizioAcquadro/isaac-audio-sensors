@@ -21,6 +21,12 @@ The active sequence is:
 8. hash, seal, bind, pre-open validate, explicitly authorize, and evaluate it
    once.
 
+Physical collection is operator-triggered under
+`s4_8_operator_triggered_acquisition.md`. One explicit command starts at most
+one take. No preliminary take starts automatically after another take, and all
+prior attempts remain retained. A fresh one-take authorization is required for
+every later attempt.
+
 This preparation has no authority to record a take, freeze the final protocol,
 start official acquisition, create or consume a grant, open a holdout, run the
 official state machine, or publish official evidence.
@@ -85,6 +91,13 @@ automatically trigger four new recordings.
 Every correction has an append-only reuse/reacquisition decision with its
 change class, affected cases, raw hashes, decision, technical justification,
 and physical-confirmation disposition.
+
+An uncontrolled physical interruption such as unrelated people making noise
+may invalidate only the affected take. A retained `RETRY_REQUIRED` attempt may
+be followed by another monotonic operator-authorized attempt without a fixed
+retry count. The authorization is exact to one take, one attempt number, and
+the current ledger head. It cannot authorize a batch or silently replace a
+passed take.
 
 ## Preliminary readiness and official boundary
 

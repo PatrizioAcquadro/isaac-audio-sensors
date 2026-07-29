@@ -89,6 +89,14 @@ During official acquisition, the operator may observe only preregistered
 technical QA. Scientific outputs remain unopened until the complete dataset is
 hashed, sealed, and bound to the frozen evaluator.
 
+Official acquisition is not required to run continuously or in one session.
+The operator-triggered acquisition policy requires one explicit authorization
+and one command per take, retains every prior attempt, and forbids implicit
+batch continuation. Technical `RETRY_REQUIRED` attempts may be repeated with
+monotonic attempt numbers and fresh ledger-bound authorizations. The frozen
+47-cell sequence and scientific configuration remain unchanged, and no
+scientific outcome may inform a retry.
+
 The precollection seal, technical manifests, and final unopened holdout seal
 must live under the amendment_04 namespace declared in the machine-readable
 amendment. The eventual binding file must validate against

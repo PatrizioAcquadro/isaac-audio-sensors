@@ -226,7 +226,18 @@
         "new_capture_required",
         "captured_after_preregistration_required",
         "observation_roots_must_be_disjoint",
-        "holdout_must_remain_unopened_until_grant_consumption"
+        "holdout_must_remain_unopened_until_grant_consumption",
+        "operator_acquisition_policy_path",
+        "operator_acquisition_policy_sha256",
+        "operator_acquisition_policy_schema_path",
+        "operator_acquisition_policy_schema_sha256",
+        "operator_acquisition_spec_path",
+        "operator_acquisition_spec_sha256",
+        "operator_authorization_required_per_take",
+        "one_take_per_command",
+        "automatic_batch_forbidden",
+        "all_attempts_retained",
+        "scientific_outcomes_must_remain_uninspected"
       ],
       "properties": {
         "holdout_id": {"const": "s4_8_recovery_amendment_02_unseen_holdout"},
@@ -250,7 +261,26 @@
         "new_capture_required": {"const": true},
         "captured_after_preregistration_required": {"const": true},
         "observation_roots_must_be_disjoint": {"const": true},
-        "holdout_must_remain_unopened_until_grant_consumption": {"const": true}
+        "holdout_must_remain_unopened_until_grant_consumption": {"const": true},
+        "operator_acquisition_policy_path": {
+          "const": "configs/s4_8_operator_acquisition_policy.v1.json"
+        },
+        "operator_acquisition_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "operator_acquisition_policy_schema_path": {
+          "const": "docs/schemas/s4_8_operator_acquisition_policy.v1.schema.json"
+        },
+        "operator_acquisition_policy_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "operator_acquisition_spec_path": {
+          "const": "docs/development/specs/s4_8_operator_triggered_acquisition.md"
+        },
+        "operator_acquisition_spec_sha256": {"$ref": "#/$defs/sha256"},
+        "operator_authorization_required_per_take": {"const": true},
+        "one_take_per_command": {"const": true},
+        "automatic_batch_forbidden": {"const": true},
+        "all_attempts_retained": {"const": true},
+        "scientific_outcomes_must_remain_uninspected": {"const": true}
       }
     },
     "futureAttempt": {

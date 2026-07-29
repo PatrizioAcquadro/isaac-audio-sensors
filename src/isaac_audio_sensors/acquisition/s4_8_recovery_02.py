@@ -75,6 +75,7 @@ def load_amendment(repo_root: Path) -> dict[str, Any]:
         ) from exc
     _validate_scientific_bindings(root, amendment)
     _validate_preliminary_bindings(root, amendment)
+    _validate_operator_policy_binding(root, amendment)
     _validate_namespaces(amendment)
     return amendment
 
@@ -168,6 +169,59 @@ def _validate_preliminary_bindings(
             raise s4_8.S48Error(
                 f"S4.8 recovery amendment_02 binding mismatch: {path_key}"
             )
+
+
+def _validate_operator_policy_binding(
+    repo_root: Path,
+    amendment: Mapping[str, Any],
+) -> None:
+    unseen = amendment["unseen_holdout"]
+    for path_key, digest_key in (
+        (
+            "operator_acquisition_policy_path",
+            "operator_acquisition_policy_sha256",
+        ),
+        (
+            "operator_acquisition_policy_schema_path",
+            "operator_acquisition_policy_schema_sha256",
+        ),
+        (
+            "operator_acquisition_spec_path",
+            "operator_acquisition_spec_sha256",
+        ),
+    ):
+        path = repo_root / _safe_relative(unseen[path_key])
+        if not path.is_file() or s4_8.sha256_file(path) != unseen[digest_key]:
+            raise s4_8.S48Error(
+                f"S4.8 recovery amendment_02 operator binding mismatch: {path_key}"
+            )
+    policy = s4_8.load_json(
+        repo_root / _safe_relative(unseen["operator_acquisition_policy_path"])
+    )
+    schema = s4_8.load_json(
+        repo_root
+        / _safe_relative(unseen["operator_acquisition_policy_schema_path"])
+    )
+    try:
+        jsonschema.validate(policy, schema)
+    except jsonschema.ValidationError as exc:
+        raise s4_8.S48Error(
+            f"S4.8 operator acquisition policy schema failure: {exc.message}"
+        ) from exc
+    controls = (
+        "operator_authorization_required_per_take",
+        "one_take_per_command",
+        "automatic_batch_forbidden",
+        "all_attempts_retained",
+        "scientific_outcomes_must_remain_uninspected",
+    )
+    if any(
+        unseen.get(key) is not True or policy["policy"].get(key) is not True
+        for key in controls
+    ):
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 operator policy is weakened"
+        )
 
 
 def _preliminary_readiness_state(

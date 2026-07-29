@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/isaac-audio-sensors/s4_8_operator_take_authorization.v1.schema.json",
+  "title": "S4.8 one-take operator authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "campaign_manifest_sha256",
+    "ledger_head_sha256",
+    "engineering_take_id",
+    "engineering_take_definition_sha256",
+    "attempt_number",
+    "implementation_head",
+    "reason_code",
+    "justification",
+    "scientific_outcomes_inspected",
+    "one_take_only",
+    "automatic_batch",
+    "all_prior_attempts_retained",
+    "operator_policy_sha256",
+    "authority",
+    "authorization_sha256"
+  ],
+  "properties": {
+    "schema": {"const": "ias.s4_8.operator_take_authorization.v1"},
+    "campaign_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "ledger_head_sha256": {"$ref": "#/$defs/sha256"},
+    "engineering_take_id": {"type": "string", "minLength": 1},
+    "engineering_take_definition_sha256": {"$ref": "#/$defs/sha256"},
+    "attempt_number": {"type": "integer", "minimum": 1},
+    "implementation_head": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "reason_code": {
+      "enum": [
+        "operator_requested_initial",
+        "operator_requested_technical_retry",
+        "operator_reported_physical_invalidation"
+      ]
+    },
+    "justification": {"type": "string", "minLength": 1},
+    "scientific_outcomes_inspected": {"const": false},
+    "one_take_only": {"const": true},
+    "automatic_batch": {"const": false},
+    "all_prior_attempts_retained": {"const": true},
+    "operator_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "creates_grant",
+        "consumes_grant",
+        "official_state_machine",
+        "publishes_official_evidence"
+      ],
+      "properties": {
+        "creates_grant": {"const": false},
+        "consumes_grant": {"const": false},
+        "official_state_machine": {"const": false},
+        "publishes_official_evidence": {"const": false}
+      }
+    },
+    "authorization_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

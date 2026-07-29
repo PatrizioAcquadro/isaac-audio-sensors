@@ -6,6 +6,20 @@
     "path": "configs/s4_8_engineering_campaign.v1.json",
     "sha256": "6fa942d3395f3bdee3e5d3607a6773c544c3d391037c66641c47732899e7b5d4"
   },
+  "operator_control": {
+    "policy_path": "configs/s4_8_operator_acquisition_policy.v1.json",
+    "policy_sha256": "7cb67886c337e393a97bd85ec9a56e16f61ba59a24ec901301938f9a011b9fe1",
+    "policy_schema_path": "docs/schemas/s4_8_operator_acquisition_policy.v1.schema.json",
+    "policy_schema_sha256": "00ae7490eaba20786f4f12fdffd53e9d1360e1a5210eff2cad77ce9c9135620c",
+    "authorization_schema_path": "docs/schemas/s4_8_operator_take_authorization.v1.schema.json",
+    "authorization_schema_sha256": "582dc5d7fcd4920364e4d7435ab5a26a292d9b5f8d82a81e5cd845c454c30f59",
+    "specification_path": "docs/development/specs/s4_8_operator_triggered_acquisition.md",
+    "specification_sha256": "082ac859eb25dbc47fadc14f697898e350604231592a929df8da858bef8adb71",
+    "operator_authorization_required_per_take": true,
+    "one_take_per_command": true,
+    "automatic_batch_forbidden": true,
+    "all_attempts_retained": true
+  },
   "preliminary": {
     "planned_take_count": 4,
     "campaign_root": "/home/pacquadr/Desktop/s4_8_preliminary",
