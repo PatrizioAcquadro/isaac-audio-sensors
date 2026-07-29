@@ -26,7 +26,9 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate import (
     canonical_sha256,
 )
 
-TRACKED_DETECTOR_METHOD_V2 = "waveform_aligned_tracked_looped_reference_v2"
+TRACKED_DETECTOR_METHOD_V2 = (
+    "polarity_separated_multichannel_lag_tracking_v2"
+)
 
 # The v1 energy, correlation, coherence, channel-count, continuity, coverage,
 # and gap limits are copied unchanged.  The alignment fields are new technical
@@ -705,7 +707,12 @@ def evaluate_presealing_gate_v2(
                 )
             polarity_evidence = alignment["channel_polarity_evidence"]
             if any(
-                item["status"] == "inverted"
+                (
+                    item["negative_correlation_magnitude_median"]
+                    >= abs(gate["maximum_negative_reference_correlation"])
+                    and item["positive_correlation_median"]
+                    < gate["detector"]["minimum_reference_correlation"]
+                )
                 for item in polarity_evidence
             ):
                 reject(

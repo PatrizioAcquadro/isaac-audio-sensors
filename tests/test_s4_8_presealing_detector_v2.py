@@ -98,6 +98,10 @@ def test_v2_establishes_alignment_with_realistic_fixed_playback_latency() -> Non
         reference,
     )
 
+    assert (
+        result["method"]
+        == "polarity_separated_multichannel_lag_tracking_v2"
+    )
     assert result["alignment_status"] == "maintained"
     assert (
         abs(
