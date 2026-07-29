@@ -76,11 +76,20 @@ block. The original file hash remains the provenance identity; the normalized
 array is not substituted as a new reference artifact.
 
 For continuous A/B/C playback, the supported builder tiles exact PCM frames
-from the original reference into one finite 18-second asset without inserting
-gap samples. The derived asset and construction metadata are frozen in the
-campaign manifest. The v2 gate continues to authenticate the original
-reference and requires unchanged start/stop sentinels, useful-sound coverage,
-continuity, alignment, and drift limits.
+only from the preregistered +2.25 s through +7.25 s active fitting interval
+already used by S4.5. It creates one finite 18-second asset without inserting
+or interpolating samples. This avoids misclassifying the exact source WAV's
+intentional lead-in, chirp separators, and tail silence as transport gaps.
+The derived asset, source interval, and construction metadata are frozen in
+the campaign manifest. The v2 gate continues to authenticate the complete
+original reference file, selects the same exact active interval after
+deterministic rate normalization, and retains every numerical start/stop,
+coverage, continuity, alignment, drift, and scientific threshold unchanged.
+
+The authenticated six-channel order is the official XVF3800 firmware order:
+`Conference`, `ASR`, `raw microphone 0`, `raw microphone 1`,
+`raw microphone 2`, and `raw microphone 3`. The gate continues to analyze
+indices 2 through 5 as the four raw microphones.
 
 The Mac playback helper is authenticated and armed before the scheduled
 playback time. It emits an actual remote `playback_started` handshake only

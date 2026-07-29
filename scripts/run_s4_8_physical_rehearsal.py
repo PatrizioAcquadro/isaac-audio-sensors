@@ -46,6 +46,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "configs/s4_8_engineering_campaign.v1.json"
 SOURCE_PATHS = (
     "configs/s4_8_engineering_campaign.v1.json",
+    "configs/s4_8_presealing_gate.v2.json",
     "docs/development/specs/s4_8_engineering_campaign.md",
     "docs/development/specs/s4_8_presealing_gate_v2.md",
     "docs/schemas/s4_8_presealing_gate_report.v2.schema.json",
@@ -252,6 +253,8 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
         reference_path=ROOT / config["reference"]["local_path"],
         output_path=asset_path,
         duration_s=float(config["reference"]["continuous_asset_duration_s"]),
+        source_start_s=float(config["reference"]["active_start_s"]),
+        source_stop_s=float(config["reference"]["active_stop_s"]),
     )
     deployment = _deploy_continuous_asset(
         config,
@@ -392,6 +395,8 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         reference_path=ROOT / config["reference"]["local_path"],
         output_path=asset_path,
         duration_s=float(config["reference"]["continuous_asset_duration_s"]),
+        source_start_s=float(config["reference"]["active_start_s"]),
+        source_stop_s=float(config["reference"]["active_stop_s"]),
     )
     deployment = _deploy_continuous_asset(
         config,

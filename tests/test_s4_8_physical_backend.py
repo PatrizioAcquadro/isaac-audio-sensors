@@ -57,6 +57,34 @@ def test_continuous_asset_tiles_exact_reference_without_gap(
     assert result["gap_samples_inserted"] == 0
 
 
+def test_continuous_asset_tiles_only_frozen_active_reference_interval(
+    tmp_path: Path,
+) -> None:
+    reference = np.arange(120, dtype=np.float64).reshape(-1, 1) / 1000.0
+    source = tmp_path / "reference.wav"
+    output = tmp_path / "continuous.wav"
+    _write_wav(source, reference, rate=12)
+
+    result = build_continuous_playback_asset(
+        reference_path=source,
+        output_path=output,
+        duration_s=2.5,
+        source_start_s=2.25,
+        source_stop_s=7.25,
+    )
+
+    with wave.open(str(output), "rb") as stream:
+        actual = np.frombuffer(stream.readframes(30), dtype="<i2")
+    with wave.open(str(source), "rb") as stream:
+        original = np.frombuffer(stream.readframes(120), dtype="<i2")
+    active = original[27:87]
+    np.testing.assert_array_equal(actual, np.resize(active, 30))
+    assert result["source_active_start_frame"] == 27
+    assert result["source_active_stop_frame"] == 87
+    assert result["source_active_duration_s"] == 5.0
+    assert result["construction"] == "exact_active_pcm_frame_tiling"
+
+
 def test_continuous_asset_refuses_overwrite_or_non_pcm16(
     tmp_path: Path,
 ) -> None:

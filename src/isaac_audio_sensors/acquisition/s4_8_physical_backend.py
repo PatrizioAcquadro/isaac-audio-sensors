@@ -114,8 +114,10 @@ def build_continuous_playback_asset(
     reference_path: Path,
     output_path: Path,
     duration_s: float,
+    source_start_s: float = 0.0,
+    source_stop_s: float | None = None,
 ) -> dict[str, Any]:
-    """Tile exact PCM16 frames into one gapless finite playback asset."""
+    """Tile a frozen exact-frame interval into one gapless playback asset."""
 
     if output_path.exists():
         raise S48PhysicalBackendError(
@@ -125,6 +127,17 @@ def build_continuous_playback_asset(
         isinstance(duration_s, bool)
         or not isinstance(duration_s, (int, float))
         or duration_s <= 0.0
+        or isinstance(source_start_s, bool)
+        or not isinstance(source_start_s, (int, float))
+        or source_start_s < 0.0
+        or (
+            source_stop_s is not None
+            and (
+                isinstance(source_stop_s, bool)
+                or not isinstance(source_stop_s, (int, float))
+                or source_stop_s <= source_start_s
+            )
+        )
     ):
         raise S48PhysicalBackendError("continuous playback duration is invalid")
     try:
@@ -151,12 +164,29 @@ def build_continuous_playback_asset(
         raise S48PhysicalBackendError(
             "reference must be complete signed 16-bit uncompressed PCM"
         )
+    active_start_frame = round(float(source_start_s) * sample_rate)
+    active_stop_frame = (
+        frame_count
+        if source_stop_s is None
+        else round(float(source_stop_s) * sample_rate)
+    )
+    if (
+        active_start_frame < 0
+        or active_stop_frame > frame_count
+        or active_stop_frame <= active_start_frame
+    ):
+        raise S48PhysicalBackendError(
+            "continuous playback source interval is invalid"
+        )
+    active_frames = frames[
+        active_start_frame * block_align : active_stop_frame * block_align
+    ]
     output_frames = round(float(duration_s) * sample_rate)
     if output_frames <= 0:
         raise S48PhysicalBackendError("continuous playback has no output frames")
     required_bytes = output_frames * block_align
-    repetitions, remainder = divmod(required_bytes, len(frames))
-    payload = frames * repetitions + frames[:remainder]
+    repetitions, remainder = divmod(required_bytes, len(active_frames))
+    payload = active_frames * repetitions + active_frames[:remainder]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         with (
@@ -179,9 +209,19 @@ def build_continuous_playback_asset(
         "channel_count": channels,
         "sample_format": "PCM_S16_LE",
         "source_frame_count": frame_count,
+        "source_active_start_frame": active_start_frame,
+        "source_active_stop_frame": active_stop_frame,
+        "source_active_duration_s": (
+            active_stop_frame - active_start_frame
+        )
+        / sample_rate,
         "asset_frame_count": output_frames,
         "duration_s": output_frames / sample_rate,
-        "construction": "exact_pcm_frame_tiling",
+        "construction": (
+            "exact_pcm_frame_tiling"
+            if active_start_frame == 0 and active_stop_frame == frame_count
+            else "exact_active_pcm_frame_tiling"
+        ),
         "gap_samples_inserted": 0,
     }
 

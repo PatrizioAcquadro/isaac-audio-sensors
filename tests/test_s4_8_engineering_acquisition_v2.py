@@ -557,7 +557,11 @@ def test_file_backed_journal_to_v2_gate_passes_complete_engineering_fixture(
     tmp_path: Path,
 ) -> None:
     rate = 16_000
-    reference = np.random.default_rng(493).normal(0.0, 0.2, size=4_096)
+    active_reference = np.random.default_rng(493).normal(
+        0.0, 0.2, size=5 * rate
+    )
+    reference = np.zeros(round(9.5 * rate), dtype=np.float64)
+    reference[round(2.25 * rate) : round(7.25 * rate)] = active_reference
     capture = np.zeros((20 * rate, 6), dtype=np.float64)
     microphones = np.random.default_rng(494).normal(
         0.0,
@@ -565,8 +569,12 @@ def test_file_backed_journal_to_v2_gate_passes_complete_engineering_fixture(
         size=(4, 20 * rate),
     )
     for channel, delay in enumerate((0, 2, 4, 6)):
-        indices = (np.arange(rate, 19 * rate) - rate - delay) % reference.size
-        microphones[channel, rate : 19 * rate] += 0.04 * reference[indices]
+        indices = (
+            np.arange(rate, 19 * rate) - rate - delay
+        ) % active_reference.size
+        microphones[channel, rate : 19 * rate] += (
+            0.04 * active_reference[indices]
+        )
     capture[:, 2:6] = microphones.T
     capture_path = tmp_path / "capture.wav"
     reference_path = tmp_path / "reference.wav"

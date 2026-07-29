@@ -20,6 +20,8 @@ non-regression; no v2 limit is selected from its performance.
 limit and identity. The v1 values below are copied without change:
 
 - 16 kHz, six channels, microphone channels 2 through 5;
+- the official six-channel firmware order: `Conference`, `ASR`, then raw
+  microphones 0 through 3;
 - 20.0 second capture with 0.05 second duration tolerance;
 - planned playback from +1.0 through +19.0 seconds;
 - scientific evaluation interval from +1.25 through +18.75 seconds;
@@ -34,6 +36,14 @@ limit and identity. The v1 values below are copied without change:
 No scientific threshold, denominator, evaluation interval, or acceptance
 criterion changes in v2.
 
+The exact authenticated reference WAV contains intentional silent lead-in,
+separator, and tail regions. The acquisition path therefore selects the
+already-preregistered +2.25 s through +7.25 s active fitting interval after
+deterministic rate normalization, and the playback builder tiles those exact
+PCM frames into the 18-second continuous asset. The complete source WAV hash,
+selected frame bounds, and derived asset hash remain frozen. No silence is
+removed based on a collected capture or outcome.
+
 ## Waveform-derived alignment
 
 Authenticated process playback timing is a coarse permitted boundary, not
@@ -41,9 +51,10 @@ proof of acoustic phase.
 
 1. From the process-reported playback command/start sample, search the next
    3,200 samples (200 ms) of every authenticated microphone waveform.
-2. Match a 2,000-sample (125 ms) prefix of the exact frozen reference. The
-   earliest strong per-channel peak defines the acoustic wavefront; the median
-   peak correlation must retain the unchanged 0.20 minimum.
+2. Match a 2,000-sample (125 ms) prefix of the exact frozen active reference
+   interval. The earliest strong per-channel peak defines the acoustic
+   wavefront; the median peak correlation must retain the unchanged 0.20
+   minimum.
 3. The acoustic onset must be no later than 2,000 samples (125 ms) after the
    process start. The wider 200 ms search exists only to identify and report a
    late onset rather than silently treating it as background.

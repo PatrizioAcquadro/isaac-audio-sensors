@@ -10,13 +10,15 @@
   ],
   "expected_device_profile_id": "respeaker_usb_6ch_pcm16_v1",
   "expected_channel_map": [
-    "playback_left",
-    "playback_right",
-    "microphone_0",
-    "microphone_1",
-    "microphone_2",
-    "microphone_3"
+    "Conference",
+    "ASR",
+    "raw microphone 0",
+    "raw microphone 1",
+    "raw microphone 2",
+    "raw microphone 3"
   ],
+  "reference_active_start_s": 2.25,
+  "reference_active_stop_s": 7.25,
   "capture_duration_s": 20.0,
   "capture_duration_tolerance_s": 0.05,
   "playback_start_s": 1.0,

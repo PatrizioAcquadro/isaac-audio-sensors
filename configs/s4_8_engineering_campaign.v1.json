@@ -1,7 +1,7 @@
 {
   "schema": "ias.s4_8.engineering_campaign_config.v1",
   "protocol": {
-    "identity": "s4_8_physical_engineering_rehearsal_stratum_aware_v1",
+    "identity": "s4_8_physical_engineering_rehearsal_stratum_aware_v2",
     "specification_path": "docs/development/specs/s4_8_engineering_campaign.md"
   },
   "template": {
@@ -12,16 +12,18 @@
     "local_path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
     "mac_path": "S4.2/reference/s4_2_reference_v1.0.0.wav",
     "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468",
+    "active_start_s": 2.25,
+    "active_stop_s": 7.25,
     "continuous_asset_duration_s": 18.0,
     "continuous_asset_mac_path": "S4.8/engineering_rehearsal/continuous_reference_18s.wav"
   },
   "gate": {
-    "configuration_canonical_sha256": "e67cfd17c56d33762d7365225a7dbd4991acfe693facfcd0af401e23ee0d0e04",
+    "configuration_canonical_sha256": "2061f874c170cf95ca63e573b0f03560e0e65b1d8fc3f34ae65b48055f311714",
     "detector_canonical_sha256": "c6d18d0c32a1a8c9c1253df728df017c6342170ce4be2effa4dcafc688a06680"
   },
   "controller": {
     "identity": "ias.s4_8.stratum_aware_engineering_controller",
-    "version": "1.2"
+    "version": "1.3"
   },
   "respeaker": {
     "ssh_prefix": [
@@ -54,12 +56,12 @@
     "channel_count": 6
   },
   "channel_map": [
-    "playback_left",
-    "playback_right",
-    "microphone_0",
-    "microphone_1",
-    "microphone_2",
-    "microphone_3"
+    "Conference",
+    "ASR",
+    "raw microphone 0",
+    "raw microphone 1",
+    "raw microphone 2",
+    "raw microphone 3"
   ],
   "playback": {
     "ssh_prefix": [

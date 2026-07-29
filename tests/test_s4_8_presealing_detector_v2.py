@@ -14,6 +14,9 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
     detect_tracked_reference_activity_v2,
     evaluate_presealing_waveform_v2,
     load_presealing_config_v2,
+    normalize_reference_for_capture_rate,
+    read_pcm16_wav_strict,
+    select_active_reference_interval_v2,
 )
 
 RATE = 16_000
@@ -236,6 +239,16 @@ def test_v2_alignment_limits_are_tracked_schema_valid_and_outcome_independent() 
     jsonschema.validate(raw, schema)
     assert load_presealing_config_v2(ROOT) == DEFAULT_PRESEALING_CONFIG_V2
     assert raw["detector"] == DEFAULT_ALIGNMENT_CONFIG_V2
+    assert raw["expected_channel_map"] == [
+        "Conference",
+        "ASR",
+        "raw microphone 0",
+        "raw microphone 1",
+        "raw microphone 2",
+        "raw microphone 3",
+    ]
+    assert raw["reference_active_start_s"] == 2.25
+    assert raw["reference_active_stop_s"] == 7.25
     serialized = json.dumps(raw, sort_keys=True)
     for forbidden in (
         "take_id",
@@ -247,3 +260,26 @@ def test_v2_alignment_limits_are_tracked_schema_valid_and_outcome_independent() 
         "criterion",
     ):
         assert forbidden not in serialized
+
+
+def test_exact_reference_active_interval_has_no_silent_detector_blocks() -> None:
+    reference, reference_rate = read_pcm16_wav_strict(
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.2/reference/"
+        "s4_2_reference_v1.0.0.wav"
+    )
+    normalized = normalize_reference_for_capture_rate(
+        reference[:, 0],
+        reference_sample_rate_hz=reference_rate,
+        capture_sample_rate_hz=RATE,
+    )
+
+    active = select_active_reference_interval_v2(
+        normalized,
+        sample_rate_hz=RATE,
+        config=DEFAULT_PRESEALING_CONFIG_V2,
+    )
+
+    assert active.shape == (5 * RATE,)
+    blocks = active.reshape(-1, DEFAULT_ALIGNMENT_CONFIG_V2["analysis_block_samples"])
+    assert np.all(np.sqrt(np.mean(blocks * blocks, axis=1)) > 0.08)

@@ -25,6 +25,7 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
     load_presealing_config_v2,
     normalize_reference_for_capture_rate,
     read_pcm16_wav_strict,
+    select_active_reference_interval_v2,
 )
 
 MANIFEST_SCHEMA = "ias.s4_8.engineering_precollection_manifest.v2"
@@ -535,6 +536,11 @@ def run_presealing_gate_from_engineering_files(
         reference_channels,
         reference_sample_rate_hz=reference_rate,
         capture_sample_rate_hz=capture_rate,
+    )
+    reference_channels = select_active_reference_interval_v2(
+        reference_channels,
+        sample_rate_hz=capture_rate,
+        config=config,
     )
     capture_sha256 = _sha256_file(capture_path)
     reference_sha256 = _sha256_file(reference_path)

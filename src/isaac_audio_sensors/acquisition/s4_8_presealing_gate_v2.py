@@ -63,13 +63,15 @@ DEFAULT_PRESEALING_CONFIG_V2: dict[str, Any] = {
     "microphone_channel_indices": [2, 3, 4, 5],
     "expected_device_profile_id": "respeaker_usb_6ch_pcm16_v1",
     "expected_channel_map": [
-        "playback_left",
-        "playback_right",
-        "microphone_0",
-        "microphone_1",
-        "microphone_2",
-        "microphone_3",
+        "Conference",
+        "ASR",
+        "raw microphone 0",
+        "raw microphone 1",
+        "raw microphone 2",
+        "raw microphone 3",
     ],
+    "reference_active_start_s": 2.25,
+    "reference_active_stop_s": 7.25,
     "capture_duration_s": 20.0,
     "capture_duration_tolerance_s": 0.05,
     "playback_start_s": 1.0,
@@ -218,6 +220,34 @@ def normalize_reference_for_capture_rate(
     if array.ndim == 1:
         return array.reshape(-1, ratio).mean(axis=1)
     return array.reshape(-1, ratio, array.shape[1]).mean(axis=1)
+
+
+def select_active_reference_interval_v2(
+    reference: np.ndarray,
+    *,
+    sample_rate_hz: int,
+    config: Mapping[str, Any],
+) -> np.ndarray:
+    """Select the preregistered active interval from the exact reference."""
+
+    if dict(config) != DEFAULT_PRESEALING_CONFIG_V2:
+        raise S48PresealingGateError("v2 gate configuration mismatch")
+    array = np.asarray(reference, dtype=np.float64)
+    start = round(float(config["reference_active_start_s"]) * sample_rate_hz)
+    stop = round(float(config["reference_active_stop_s"]) * sample_rate_hz)
+    if (
+        isinstance(sample_rate_hz, bool)
+        or not isinstance(sample_rate_hz, int)
+        or sample_rate_hz <= 0
+        or array.ndim not in {1, 2}
+        or start < 0
+        or stop <= start
+        or stop > array.shape[0]
+    ):
+        raise S48PresealingGateError(
+            "exact reference active interval is invalid"
+        )
+    return array[start:stop].copy()
 
 
 def evaluate_capture_integrity_v2(

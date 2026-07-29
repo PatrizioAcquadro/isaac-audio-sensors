@@ -31,7 +31,9 @@ from isaac_audio_sensors.core import acceptance_criteria_corrective_03
 
 RATE = 16_000
 CAPTURE_DURATION_S = 20.0
-REFERENCE_SAMPLE_COUNT = 4_000
+REFERENCE_ACTIVE_START = round(2.25 * RATE)
+REFERENCE_ACTIVE_STOP = round(7.25 * RATE)
+REFERENCE_SAMPLE_COUNT = round(9.5 * RATE)
 
 
 def run_synthetic_engineering_rehearsal(
@@ -292,11 +294,15 @@ def run_synthetic_engineering_rehearsal(
 
 
 def _engineering_reference() -> np.ndarray:
-    return np.random.default_rng(483).normal(
-        0.0,
-        0.2,
-        size=REFERENCE_SAMPLE_COUNT,
+    reference = np.zeros(REFERENCE_SAMPLE_COUNT, dtype=np.float64)
+    reference[REFERENCE_ACTIVE_START:REFERENCE_ACTIVE_STOP] = (
+        np.random.default_rng(483).normal(
+            0.0,
+            0.2,
+            size=REFERENCE_ACTIVE_STOP - REFERENCE_ACTIVE_START,
+        )
     )
+    return reference
 
 
 def _engineering_capture(reference: np.ndarray) -> np.ndarray:
@@ -305,9 +311,10 @@ def _engineering_capture(reference: np.ndarray) -> np.ndarray:
     microphones = rng.normal(0.0, 0.0005, size=(4, capture.shape[0]))
     start = RATE
     stop = 19 * RATE
+    active = reference[REFERENCE_ACTIVE_START:REFERENCE_ACTIVE_STOP]
     for channel, delay in enumerate((0, 2, 4, 6)):
-        indices = (np.arange(start, stop) - start - delay) % reference.size
-        microphones[channel, start:stop] += 0.04 * reference[indices]
+        indices = (np.arange(start, stop) - start - delay) % active.size
+        microphones[channel, start:stop] += 0.04 * active[indices]
     capture[:, 2:6] = microphones.T
     return capture
 

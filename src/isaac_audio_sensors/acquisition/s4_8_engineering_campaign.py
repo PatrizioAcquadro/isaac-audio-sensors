@@ -82,12 +82,12 @@ _RETRY_POLICY = {
     "configuration_change_restarts_campaign": True,
 }
 _EXPECTED_CHANNEL_MAP = [
-    "playback_left",
-    "playback_right",
-    "microphone_0",
-    "microphone_1",
-    "microphone_2",
-    "microphone_3",
+    "Conference",
+    "ASR",
+    "raw microphone 0",
+    "raw microphone 1",
+    "raw microphone 2",
+    "raw microphone 3",
 ]
 
 
