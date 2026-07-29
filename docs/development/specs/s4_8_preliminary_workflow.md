@@ -111,10 +111,14 @@ same campaign manifest, ledger prefix, attempt identity, raw, corrected report,
 and corrective source commit.
 
 Keep each failed raw only until a technically valid replacement passes. Then
-delete the failed attempt artifacts and retain only a short note with the take
-ID, failure cause, and practical prevention guidance. Never delete the newest
-valid raw. The existing low-level attempts 1 and 2 remain in place until the
-replacement passes; attempt 2 was invalidated by uncontrolled human noise.
+delete the failed attempt artifacts, remove their `RETRY_REQUIRED` records from
+the active attempt ledger, and retain only a short note with the take ID,
+attempt number, failure cause, replacement attempt number, and practical
+prevention guidance. The replacement becomes one authenticated compacted
+`PASS` ledger record that preserves its actual attempt number and binds each
+remaining note by path and SHA-256. Never delete the newest valid raw. The
+existing low-level attempts 1 and 2 remain in place until the replacement
+passes; attempt 2 was invalidated by uncontrolled human noise.
 
 These retries and software corrections remain within Recovery Amendment 02 and
 the planned second holdout; they do not create another amendment. Once the

@@ -12,6 +12,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
     build_preliminary_manifest,
     build_reference_take_manifest,
     build_stratum_aware_campaign_manifest,
+    compact_passed_retry_ledger,
     derive_preliminary_design,
     derive_stratum_aware_design,
     run_supported_nonreference_acquisition,
@@ -887,7 +889,7 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
             )
         _append_json_line(ledger_path, record)
         retired_failed_attempts = (
-            _retire_failed_attempts(
+            _prepare_failed_attempt_retirement(
                 campaign_root=campaign_root,
                 take_id=str(take["engineering_take_id"]),
                 replacement_attempt_root=attempt_root,
@@ -896,6 +898,44 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
             if result["decision"] == "PASS"
             else []
         )
+        if retired_failed_attempts:
+            retirement_notes = []
+            for retired_root in retired_failed_attempts:
+                note_path = Path(retired_root) / "failed_raw_note.json"
+                note = _load_json(note_path)
+                retirement_notes.append(
+                    {
+                        "attempt_number": note["attempt_number"],
+                        "failure_note_path": note_path.relative_to(
+                            campaign_root
+                        ).as_posix(),
+                        "failure_note_sha256": _sha256(note_path),
+                    }
+                )
+            compact_passed_retry_ledger(
+                ledger,
+                campaign_manifest_sha256=anchor,
+                take_id=str(take["engineering_take_id"]),
+                retirement_notes=retirement_notes,
+            )
+            if preliminary:
+                validate_attempt_ledger_with_reprocessing(
+                    ledger,
+                    campaign_manifest=campaign_manifest,
+                    expected_campaign_manifest_sha256=anchor,
+                    reprocessed_attempts=reprocessed_attempts,
+                )
+            else:
+                validate_attempt_ledger(
+                    ledger,
+                    campaign_manifest=campaign_manifest,
+                    expected_campaign_manifest_sha256=anchor,
+                )
+            _replace_json_lines(ledger_path, ledger)
+            _finalize_failed_attempt_retirement(
+                campaign_root=campaign_root,
+                attempt_roots=retired_failed_attempts,
+            )
     else:
         retired_failed_attempts = []
     return {
@@ -1037,14 +1077,14 @@ def _require_manifest_head_ancestor(
         )
 
 
-def _retire_failed_attempts(
+def _prepare_failed_attempt_retirement(
     *,
     campaign_root: Path,
     take_id: str,
     replacement_attempt_root: Path,
     ledger: list[dict[str, Any]],
 ) -> list[str]:
-    """Replace failed attempt artifacts with one concise prevention note."""
+    """Create prevention notes after PASS without deleting artifacts yet."""
 
     if (
         not (replacement_attempt_root / "respeaker_audio.wav").is_file()
@@ -1090,17 +1130,54 @@ def _retire_failed_attempts(
         )
         note = {
             "take_id": take_id,
+            "attempt_number": attempt_number,
+            "replacement_attempt_number": ledger[-1]["attempt_number"],
             "failure_cause": (
                 ", ".join(dict.fromkeys(codes))
                 or "technical validation failed"
             ),
-            "prevention_guidance": (
-                "Remove uncontrolled noise and verify playback, capture timing, "
-                "devices, and placement before repeating the take."
-            ),
+            "prevention_guidance": _prevention_guidance(codes),
         }
         note_path = attempt_root / "failed_raw_note.json"
         _write_new_json(note_path, note)
+        retired.append(str(attempt_root))
+    return retired
+
+
+def _prevention_guidance(codes: list[str]) -> str:
+    if "zed_full_replay_failed" in codes:
+        return (
+            "Verify the canonical S4.2 SVO replay schema, full frame replay, "
+            "end-of-SVO, and ZED identity before repeating the take."
+        )
+    return (
+        "Remove uncontrolled noise and verify playback, capture timing, "
+        "devices, and placement before repeating the take."
+    )
+
+
+def _finalize_failed_attempt_retirement(
+    *,
+    campaign_root: Path,
+    attempt_roots: list[str],
+) -> None:
+    """Delete retired artifacts only after the compacted ledger is durable."""
+
+    allowed_root = (campaign_root / "attempts").resolve()
+    for attempt_root_value in attempt_roots:
+        attempt_root = Path(attempt_root_value).resolve()
+        if (
+            attempt_root == allowed_root
+            or not attempt_root.is_relative_to(allowed_root)
+        ):
+            raise S48PhysicalRehearsalError(
+                f"retired attempt path escapes campaign attempts: {attempt_root}"
+            )
+        note_path = attempt_root / "failed_raw_note.json"
+        if not note_path.is_file():
+            raise S48PhysicalRehearsalError(
+                f"retirement note is missing: {note_path}"
+            )
         for child in attempt_root.iterdir():
             if child == note_path:
                 continue
@@ -1108,8 +1185,50 @@ def _retire_failed_attempts(
                 shutil.rmtree(child)
             else:
                 child.unlink()
-        retired.append(str(attempt_root))
-    return retired
+
+
+def _replace_json_lines(
+    path: Path,
+    records: list[dict[str, Any]],
+) -> None:
+    """Atomically replace a compacted operational ledger."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=path.parent,
+        )
+        temporary_path = Path(temporary_name)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            for record in records:
+                stream.write(
+                    json.dumps(
+                        record,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        ensure_ascii=True,
+                        allow_nan=False,
+                    )
+                    + "\n"
+                )
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, path)
+        temporary_path = None
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    except OSError as exc:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise S48PhysicalRehearsalError(
+            f"compacted attempt ledger replacement failed: {exc}"
+        ) from exc
 
 
 def main() -> int:

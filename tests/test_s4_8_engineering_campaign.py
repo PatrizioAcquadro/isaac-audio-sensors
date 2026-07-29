@@ -16,6 +16,7 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
     append_nonreference_journal_event,
     build_reference_take_manifest,
     build_stratum_aware_campaign_manifest,
+    compact_passed_retry_ledger,
     create_nonreference_candidate_clearance,
     derive_stratum_aware_design,
     evaluate_nonreference_presealing_gate,
@@ -280,7 +281,14 @@ def test_impact_gate_requires_frozen_audio_events_and_complete_zed_evidence(
             "depth_mode": "PERFORMANCE",
             "strictly_increasing_device_timestamps": True,
         },
-        "replay_report": {"status": "passed", "full_replay": True},
+        "replay_report": {
+            "schema": "ias.s4_2.svo_replay_validation.v1",
+            "status": "passed",
+            "identity": {"serial": "39011785"},
+            "end_of_svo_reached": True,
+            "declared_frame_count": 602,
+            "replayed_frame_count": 602,
+        },
         "svo2_sha256": "9" * 64,
         "frames_sha256": "a" * 64,
     }
@@ -299,7 +307,7 @@ def test_impact_gate_requires_frozen_audio_events_and_complete_zed_evidence(
     assert report["decision"] == "PASS"
     assert report["impact_integrity"]["selected_event_count"] == 3
     incomplete = deepcopy(zed)
-    incomplete["replay_report"]["full_replay"] = False
+    incomplete["replay_report"]["replayed_frame_count"] = 601
     retry = evaluate_nonreference_presealing_gate(
         capture_path=capture_path,
         take=take,
@@ -316,7 +324,7 @@ def test_impact_gate_requires_frozen_audio_events_and_complete_zed_evidence(
     }
 
 
-def test_attempt_ledger_is_hash_chained_and_never_discards_retry() -> None:
+def test_attempt_ledger_retires_retry_state_after_replacement_passes() -> None:
     manifest = _manifest()
     ledger: list[dict[str, object]] = []
     take = manifest["design"][0]
@@ -350,10 +358,59 @@ def test_attempt_ledger_is_hash_chained_and_never_discards_retry() -> None:
         "RETRY_REQUIRED",
         "PASS",
     ]
-    missing_retry = [second]
+
+    compacted = compact_passed_retry_ledger(
+        ledger,
+        campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+        take_id=str(take["engineering_take_id"]),
+        retirement_notes=[
+            {
+                "attempt_number": 1,
+                "failure_note_path": (
+                    "attempts/s48eng_rehearsal_001/"
+                    "s48eng_rehearsal_001__attempt_01/failed_raw_note.json"
+                ),
+                "failure_note_sha256": "e" * 64,
+            }
+        ],
+    )
+
+    validate_attempt_ledger(
+        ledger,
+        campaign_manifest=manifest,
+        expected_campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+    )
+    assert len(ledger) == 1
+    assert compacted["decision"] == "PASS"
+    assert compacted["attempt_number"] == 2
+    assert compacted["previous_record_sha256"] == manifest["manifest_sha256"]
+    assert compacted["schema"] == (
+        "ias.s4_8.engineering_compacted_pass_ledger_record.v2"
+    )
+    assert "RETRY_REQUIRED" not in {
+        str(record["decision"]) for record in ledger
+    }
+    validate_attempt_request(
+        ledger,
+        campaign_manifest=manifest,
+        expected_campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+        take=manifest["design"][1],
+        attempt_number=1,
+    )
+
+    tampered = deepcopy(ledger)
+    tampered[0]["retired_attempts"][0]["failure_note_path"] = (
+        "../failed_raw_note.json"
+    )
+    tampered_payload = {
+        key: value
+        for key, value in tampered[0].items()
+        if key != "record_sha256"
+    }
+    tampered[0]["record_sha256"] = canonical_sha256(tampered_payload)
     with pytest.raises(S48EngineeringCampaignError):
         validate_attempt_ledger(
-            missing_retry,
+            tampered,
             campaign_manifest=manifest,
             expected_campaign_manifest_sha256=str(manifest["manifest_sha256"]),
         )
@@ -406,7 +463,7 @@ def test_attempt_request_is_authorized_before_any_capture_starts() -> None:
         )
 
 
-def test_unlimited_technical_retries_use_standard_ledger_records() -> None:
+def test_multiple_technical_retries_compact_after_pass() -> None:
     manifest = _manifest()
     ledger: list[dict[str, object]] = []
     take = manifest["design"][0]
@@ -445,12 +502,49 @@ def test_unlimited_technical_retries_use_standard_ledger_records() -> None:
         candidate_seal_sha256="e" * 64,
     )
 
+    compacted = compact_passed_retry_ledger(
+        ledger,
+        campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+        take_id=str(take["engineering_take_id"]),
+        retirement_notes=[
+            {
+                "attempt_number": attempt_number,
+                "failure_note_path": (
+                    f"attempts/{take['engineering_take_id']}/"
+                    f"{take['engineering_take_id']}__attempt_"
+                    f"{attempt_number:02d}/failed_raw_note.json"
+                ),
+                "failure_note_sha256": digest * 64,
+            }
+            for attempt_number, digest in ((1, "f"), (2, "a"))
+        ],
+    )
     validate_attempt_ledger(
         ledger,
         campaign_manifest=manifest,
         expected_campaign_manifest_sha256=str(manifest["manifest_sha256"]),
     )
-    assert [record["attempt_number"] for record in ledger] == [1, 2, 3]
+    assert [record["attempt_number"] for record in ledger] == [3]
+    assert compacted["retired_attempts"] == [
+        {
+            "attempt_number": 1,
+            "failure_note_path": (
+                f"attempts/{take['engineering_take_id']}/"
+                f"{take['engineering_take_id']}__attempt_01/"
+                "failed_raw_note.json"
+            ),
+            "failure_note_sha256": "f" * 64,
+        },
+        {
+            "attempt_number": 2,
+            "failure_note_path": (
+                f"attempts/{take['engineering_take_id']}/"
+                f"{take['engineering_take_id']}__attempt_02/"
+                "failed_raw_note.json"
+            ),
+            "failure_note_sha256": "a" * 64,
+        },
+    ]
     assert third["schema"] == "ias.s4_8.engineering_attempt_ledger_record.v1"
     with pytest.raises(S48EngineeringCampaignError):
         validate_attempt_request(

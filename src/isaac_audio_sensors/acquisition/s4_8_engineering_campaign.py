@@ -22,6 +22,7 @@ from typing import Any
 
 import numpy as np
 
+from isaac_audio_sensors.acquisition.s4_2 import SVO_REPLAY_SCHEMA
 from isaac_audio_sensors.acquisition.s4_3 import (
     S43Error,
     _prospective_transient_events,
@@ -42,6 +43,9 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
 CAMPAIGN_MANIFEST_SCHEMA = "ias.s4_8.engineering_campaign_manifest.v1"
 PRELIMINARY_MANIFEST_SCHEMA = "ias.s4_8.preliminary_manifest.v1"
 ATTEMPT_LEDGER_SCHEMA = "ias.s4_8.engineering_attempt_ledger_record.v1"
+COMPACTED_PASS_LEDGER_SCHEMA = (
+    "ias.s4_8.engineering_compacted_pass_ledger_record.v2"
+)
 NONREFERENCE_REPORT_SCHEMA = "ias.s4_8.nonreference_presealing_report.v1"
 NONREFERENCE_JOURNAL_SCHEMA = (
     "ias.s4_8.nonreference_engineering_process_journal_event.v1"
@@ -525,7 +529,7 @@ def append_attempt_ledger_record(
     report_sha256: str,
     candidate_seal_sha256: str | None,
 ) -> dict[str, Any]:
-    """Append one PASS or RETRY_REQUIRED record without hiding attempts."""
+    """Append a current result; resolved retries compact only after PASS."""
 
     if (
         not _is_sha256(campaign_manifest_sha256)
@@ -564,13 +568,99 @@ def append_attempt_ledger_record(
     return record
 
 
+def compact_passed_retry_ledger(
+    ledger: MutableSequence[dict[str, Any]],
+    *,
+    campaign_manifest_sha256: str,
+    take_id: str,
+    retirement_notes: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Replace resolved retry records with one PASS bound to prevention notes."""
+
+    if (
+        not _is_sha256(campaign_manifest_sha256)
+        or not isinstance(take_id, str)
+        or not take_id
+        or not ledger
+        or ledger[-1].get("engineering_take_id") != take_id
+        or ledger[-1].get("decision") != "PASS"
+        or ledger[-1].get("campaign_manifest_sha256")
+        != campaign_manifest_sha256
+    ):
+        raise S48EngineeringCampaignError(
+            "retry compaction requires the current take to PASS"
+        )
+    pass_record = dict(ledger[-1])
+    pass_attempt_number = pass_record.get("attempt_number")
+    if (
+        not isinstance(pass_attempt_number, int)
+        or isinstance(pass_attempt_number, bool)
+        or pass_attempt_number <= 1
+    ):
+        raise S48EngineeringCampaignError(
+            "retry compaction requires a replacement attempt number"
+        )
+    retry_start = len(ledger) - 1
+    while (
+        retry_start > 0
+        and ledger[retry_start - 1].get("engineering_take_id") == take_id
+        and ledger[retry_start - 1].get("decision") == "RETRY_REQUIRED"
+    ):
+        retry_start -= 1
+    retry_records = list(ledger[retry_start:-1])
+    expected_attempts = [record.get("attempt_number") for record in retry_records]
+    normalized_notes = [dict(note) for note in retirement_notes]
+    if (
+        not retry_records
+        or expected_attempts
+        != list(range(1, pass_attempt_number))
+        or len(normalized_notes) != len(retry_records)
+        or [
+            note.get("attempt_number") for note in normalized_notes
+        ]
+        != expected_attempts
+        or any(not _valid_retirement_note(note) for note in normalized_notes)
+    ):
+        raise S48EngineeringCampaignError(
+            "retry compaction notes do not match the resolved attempts"
+        )
+    prefix = list(ledger[:retry_start])
+    previous = (
+        campaign_manifest_sha256
+        if not prefix
+        else str(prefix[-1].get("record_sha256"))
+    )
+    payload = {
+        key: value
+        for key, value in pass_record.items()
+        if key
+        not in {
+            "schema",
+            "sequence",
+            "previous_record_sha256",
+            "record_sha256",
+        }
+    }
+    payload.update(
+        {
+            "schema": COMPACTED_PASS_LEDGER_SCHEMA,
+            "sequence": len(prefix),
+            "previous_record_sha256": previous,
+            "retired_attempts": normalized_notes,
+        }
+    )
+    record = {**payload, "record_sha256": canonical_sha256(payload)}
+    ledger[:] = [*prefix, record]
+    return record
+
+
 def validate_attempt_ledger(
     ledger: Sequence[Mapping[str, Any]],
     *,
     campaign_manifest: Mapping[str, Any],
     expected_campaign_manifest_sha256: str,
 ) -> None:
-    """Validate chain, retry retention, and sequence advancement."""
+    """Validate active retry state, compacted passes, and sequence advancement."""
 
     validate_attempt_ledger_with_reprocessing(
         ledger,
@@ -623,6 +713,9 @@ def validate_attempt_ledger_with_reprocessing(
             record.get("attempt_number"),
         )
         corrected_retry = record_identity in corrected
+        compacted_pass = (
+            record.get("schema") == COMPACTED_PASS_LEDGER_SCHEMA
+        )
         fields = {
             "schema",
             "sequence",
@@ -637,10 +730,35 @@ def validate_attempt_ledger_with_reprocessing(
             "candidate_seal_sha256",
             "record_sha256",
         }
+        if compacted_pass:
+            fields.add("retired_attempts")
         attempt_number = record.get("attempt_number")
+        retired_attempts = record.get("retired_attempts")
+        valid_compacted_pass = (
+            not compacted_pass
+            or (
+                record.get("decision") == "PASS"
+                and isinstance(attempt_number, int)
+                and not isinstance(attempt_number, bool)
+                and attempt_number > 1
+                and isinstance(retired_attempts, list)
+                and [
+                    item.get("attempt_number")
+                    for item in retired_attempts
+                    if isinstance(item, Mapping)
+                ]
+                == list(range(1, attempt_number))
+                and all(
+                    isinstance(item, Mapping)
+                    and _valid_retirement_note(item)
+                    for item in retired_attempts
+                )
+            )
+        )
         if (
             set(record) != fields
-            or record.get("schema") != ATTEMPT_LEDGER_SCHEMA
+            or record.get("schema")
+            not in {ATTEMPT_LEDGER_SCHEMA, COMPACTED_PASS_LEDGER_SCHEMA}
             or not isinstance(attempt_number, int)
             or isinstance(attempt_number, bool)
             or attempt_number < 1
@@ -667,12 +785,18 @@ def validate_attempt_ledger_with_reprocessing(
                 and record.get("candidate_seal_sha256") is not None
             )
             or (corrected_retry and record.get("decision") != "RETRY_REQUIRED")
+            or not valid_compacted_pass
         ):
             raise S48EngineeringCampaignError(
                 "attempt ledger chain, binding, or disposition is invalid"
             )
         assert isinstance(attempt_number, int)
-        if attempt_number == 1:
+        if compacted_pass:
+            if prior_for_take is not None:
+                raise S48EngineeringCampaignError(
+                    "compacted PASS cannot follow retained retry state"
+                )
+        elif attempt_number == 1:
             if prior_for_take is not None:
                 raise S48EngineeringCampaignError(
                     "attempt 1 cannot replace an existing take attempt"
@@ -1660,7 +1784,7 @@ def _evaluate_zed_integrity(
             )
         )
     else:
-        if replay.get("schema") == "ias.s4_2.zed_svo_validation.v1":
+        if replay.get("schema") == SVO_REPLAY_SCHEMA:
             identity = replay.get("identity")
             replay_passed = (
                 replay.get("status") == "passed"
@@ -2000,6 +2124,27 @@ def _append_json_line(path: Path, value: Mapping[str, Any]) -> None:
         raise S48EngineeringCampaignError(
             f"engineering journal append failure: {exc}"
         ) from exc
+
+
+def _valid_retirement_note(note: Mapping[str, Any]) -> bool:
+    note_path = note.get("failure_note_path")
+    path = Path(note_path) if isinstance(note_path, str) else None
+    return (
+        set(note)
+        == {
+            "attempt_number",
+            "failure_note_path",
+            "failure_note_sha256",
+        }
+        and isinstance(note.get("attempt_number"), int)
+        and not isinstance(note.get("attempt_number"), bool)
+        and note["attempt_number"] >= 1
+        and path is not None
+        and not path.is_absolute()
+        and ".." not in path.parts
+        and path.name == "failed_raw_note.json"
+        and _is_sha256(note.get("failure_note_sha256"))
+    )
 
 
 def _is_sha256(value: Any) -> bool:

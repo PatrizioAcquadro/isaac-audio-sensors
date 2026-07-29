@@ -476,7 +476,7 @@ def test_runner_retires_failed_raws_only_after_replacement_passes(
         },
     ]
 
-    retired = runner._retire_failed_attempts(
+    retired = runner._prepare_failed_attempt_retirement(
         campaign_root=tmp_path,
         take_id=take_id,
         replacement_attempt_root=replacement,
@@ -486,6 +486,16 @@ def test_runner_retires_failed_raws_only_after_replacement_passes(
     assert len(retired) == 2
     for attempt_number in (1, 2):
         attempt_root = attempts_root / f"{take_id}__attempt_{attempt_number:02d}"
+        assert (attempt_root / "respeaker_audio.wav").is_file()
+        assert (attempt_root / "failed_raw_note.json").is_file()
+
+    runner._finalize_failed_attempt_retirement(
+        campaign_root=tmp_path,
+        attempt_roots=retired,
+    )
+
+    for attempt_number in (1, 2):
+        attempt_root = attempts_root / f"{take_id}__attempt_{attempt_number:02d}"
         assert [path.name for path in attempt_root.iterdir()] == [
             "failed_raw_note.json"
         ]
@@ -493,11 +503,15 @@ def test_runner_retires_failed_raws_only_after_replacement_passes(
             (attempt_root / "failed_raw_note.json").read_text(encoding="utf-8")
         )
         assert set(note) == {
+            "attempt_number",
+            "replacement_attempt_number",
             "take_id",
             "failure_cause",
             "prevention_guidance",
         }
         assert note["take_id"] == take_id
+        assert note["attempt_number"] == attempt_number
+        assert note["replacement_attempt_number"] == 3
     assert (replacement / "respeaker_audio.wav").read_bytes() == b"valid raw"
 
 
@@ -548,7 +562,7 @@ def test_runner_never_deletes_failed_raw_without_valid_replacement(
         runner.S48PhysicalRehearsalError,
         match="replacement is valid",
     ):
-        runner._retire_failed_attempts(
+        runner._prepare_failed_attempt_retirement(
             campaign_root=tmp_path,
             take_id=take_id,
             replacement_attempt_root=replacement,
@@ -556,6 +570,82 @@ def test_runner_never_deletes_failed_raw_without_valid_replacement(
         )
 
     assert failed_raw.read_bytes() == b"retain me"
+
+
+def test_runner_zed_retry_note_prevents_schema_regression() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location(
+        "s48_zed_retry_guidance_runner",
+        script_path,
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    guidance = runner._prevention_guidance(["zed_full_replay_failed"])
+
+    assert "canonical S4.2 SVO replay schema" in guidance
+    assert "end-of-SVO" in guidance
+
+
+def test_runner_never_finalizes_retirement_outside_campaign(
+    tmp_path: Path,
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location(
+        "s48_retirement_path_runner",
+        script_path,
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "failed_raw_note.json").write_text("{}", encoding="utf-8")
+    protected = outside / "protected.bin"
+    protected.write_bytes(b"preserve")
+
+    with pytest.raises(
+        runner.S48PhysicalRehearsalError,
+        match="escapes campaign attempts",
+    ):
+        runner._finalize_failed_attempt_retirement(
+            campaign_root=tmp_path / "campaign",
+            attempt_roots=[str(outside)],
+        )
+
+    assert protected.read_bytes() == b"preserve"
+
+
+def test_runner_atomically_replaces_retry_ledger_with_compacted_pass(
+    tmp_path: Path,
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location(
+        "s48_compacted_ledger_runner",
+        script_path,
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    ledger_path = tmp_path / "attempt_ledger.jsonl"
+    ledger_path.write_text(
+        '{"decision":"RETRY_REQUIRED"}\n{"decision":"PASS"}\n',
+        encoding="utf-8",
+    )
+    compacted = {
+        "schema": "ias.s4_8.engineering_compacted_pass_ledger_record.v2",
+        "decision": "PASS",
+    }
+
+    runner._replace_json_lines(ledger_path, [compacted])
+
+    assert json.loads(ledger_path.read_text(encoding="utf-8")) == compacted
+    assert "RETRY_REQUIRED" not in ledger_path.read_text(encoding="utf-8")
+    assert list(tmp_path.glob(".attempt_ledger.jsonl.*.tmp")) == []
 
 
 def test_mac_preflight_does_not_gate_on_power_or_work_focus() -> None:
