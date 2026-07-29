@@ -363,7 +363,7 @@ def test_mac_runtime_identity_preserves_stdout_stderr_split(
     assert calls[1][-2:] == ["-typecheck", "helper.swift"]
 
 
-def test_mac_preflight_accepts_explicit_battery_and_operator_focus_policy() -> None:
+def test_mac_preflight_does_not_gate_on_power_or_work_focus() -> None:
     checks = {
         "ac_power": False,
         "model_identifier_matches": True,
@@ -379,41 +379,33 @@ def test_mac_preflight_accepts_explicit_battery_and_operator_focus_policy() -> N
         "volume_matches": True,
         "work_focus_active": False,
     }
-    report = {
-        "frozen_checks": checks,
-        "power": {
-            "status": "collected",
-            "source": "Battery Power",
-            "on_ac_power": False,
-            "battery_percent": 37,
-        },
-        "focus_and_notifications": {
-            "status": "collected",
-            "work_focus_active": False,
-            "notifications_suppressed": False,
-        },
-    }
+    report = {"frozen_checks": checks}
 
-    acceptance = evaluate_mac_preflight_acceptance(
-        report,
-        power_policy="battery_allowed",
-        operator_work_focus_confirmed=True,
-    )
+    acceptance = evaluate_mac_preflight_acceptance(report)
 
     assert acceptance["status"] == "passed"
-    assert acceptance["power_disposition"] == "battery_allowed"
-    assert acceptance["focus_disposition"] == "operator_confirmed"
+    assert acceptance["power_requirement"] == "none"
+    assert acceptance["work_focus_requirement"] == "none"
     assert report["frozen_checks"]["ac_power"] is False
     assert report["frozen_checks"]["work_focus_active"] is False
-    with pytest.raises(S48PhysicalBackendError, match="Focus"):
-        evaluate_mac_preflight_acceptance(
-            report,
-            power_policy="battery_allowed",
-            operator_work_focus_confirmed=False,
+
+
+def test_v7_campaign_freezes_70_percent_volume_without_focus_prompt() -> None:
+    root = Path(__file__).resolve().parents[1]
+    config = json.loads(
+        (root / "configs/s4_8_engineering_campaign.v1.json").read_text(
+            encoding="utf-8"
         )
-    with pytest.raises(S48PhysicalBackendError, match="AC power"):
-        evaluate_mac_preflight_acceptance(
-            report,
-            power_policy="ac_required",
-            operator_work_focus_confirmed=True,
-        )
+    )
+    runner = (
+        root / "scripts/run_s4_8_physical_rehearsal.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        config["protocol"]["identity"]
+        == "s4_8_physical_engineering_rehearsal_stratum_aware_v5"
+    )
+    assert config["controller"]["version"] == "1.6"
+    assert config["playback"]["system_volume_percent"] == 70
+    assert config["playback"]["power_policy"] == "battery_allowed"
+    assert "--operator-work-focus-confirmed" not in runner

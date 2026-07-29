@@ -1,7 +1,7 @@
 {
   "schema": "ias.s4_8.engineering_campaign_config.v1",
   "protocol": {
-    "identity": "s4_8_physical_engineering_rehearsal_stratum_aware_v4",
+    "identity": "s4_8_physical_engineering_rehearsal_stratum_aware_v5",
     "specification_path": "docs/development/specs/s4_8_engineering_campaign.md"
   },
   "template": {
@@ -23,7 +23,7 @@
   },
   "controller": {
     "identity": "ias.s4_8.stratum_aware_engineering_controller",
-    "version": "1.5"
+    "version": "1.6"
   },
   "respeaker": {
     "ssh_prefix": [
@@ -97,7 +97,7 @@
     "output_device": "MacBook Pro Speakers",
     "channel_count": 2,
     "nominal_sample_rate_hz": 48000,
-    "system_volume_percent": 40,
+    "system_volume_percent": 70,
     "muted": false,
     "power_policy": "battery_allowed",
     "mac_preflight_path": "S4.2/bin/s4_2_mac_preflight.py",

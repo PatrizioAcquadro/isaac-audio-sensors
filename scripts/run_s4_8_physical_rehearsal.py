@@ -361,13 +361,7 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
         "Mac playback preflight",
         require_success=False,
     )
-    mac_acceptance = evaluate_mac_preflight_acceptance(
-        mac_report,
-        power_policy=playback["power_policy"],
-        operator_work_focus_confirmed=(
-            args.operator_work_focus_confirmed
-        ),
-    )
+    mac_acceptance = evaluate_mac_preflight_acceptance(mac_report)
     zed = config["zed"]
     zed_observation = _run(
         [
@@ -837,10 +831,6 @@ def main() -> int:
     preflight_parser = subparsers.add_parser("preflight")
     preflight_parser.add_argument("--output", type=Path, required=True)
     preflight_parser.add_argument("--pi-probe-root", required=True)
-    preflight_parser.add_argument(
-        "--operator-work-focus-confirmed",
-        action="store_true",
-    )
     preflight_parser.set_defaults(function=preflight)
     freeze_parser = subparsers.add_parser("freeze")
     freeze_parser.add_argument("--preflight-report", type=Path, required=True)

@@ -109,20 +109,22 @@ remote observation, local lower/upper bounds, and complete round-trip
 uncertainty. Completion is separately observed with CoreAudio's
 `dataPlayedBack` callback.
 
-No detector window, start tolerance, playback gain, system volume, geometry,
-reference sample, or scientific criterion is changed by this controller-only
-timing correction.
+Relative to the clean v6 acquisition snapshot, v7 changes only the MacBook
+system playback volume from 40% to 70% and removes AC power and Work Focus as
+preflight requirements and acceptance checks. The helper playback gain,
+detector windows, start tolerance, geometry, reference samples, device
+profile, channel map, thresholds, and scientific criteria remain unchanged.
 
 The Pi producer's authenticated start and completion monotonic timestamps
 define the capture duration. The local recorder-ready observation anchors
 that duration in the controller journal; SSH startup and post-capture file
 transfer latency are never represented as waveform duration.
 
-The playback host power policy is frozen as `battery_allowed`. The preflight
-retains the collector's measured power source and battery percentage without
-rewriting them. Work Focus may be accepted from machine evidence or from an
-explicit operator confirmation recorded in the preflight acceptance object;
-the collector's contradictory Focus and notification fields remain preserved.
+The playback host power policy remains `battery_allowed`. AC power and Work
+Focus are informational collector facts only: preflight never prompts for
+either condition and never blocks on either condition. Battery operation is
+allowed. When the collector reports power, Focus, or notification facts, the
+preflight record retains them without rewriting them.
 
 ## Retry and sealing policy
 

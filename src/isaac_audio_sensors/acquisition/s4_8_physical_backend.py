@@ -24,15 +24,10 @@ class S48PhysicalBackendError(RuntimeError):
 
 def evaluate_mac_preflight_acceptance(
     report: Mapping[str, Any],
-    *,
-    power_policy: str,
-    operator_work_focus_confirmed: bool,
 ) -> dict[str, Any]:
-    """Evaluate frozen Mac identity plus explicit operational policy."""
+    """Evaluate only frozen Mac identity, output, volume, and reference."""
 
     checks = report.get("frozen_checks")
-    power = report.get("power")
-    focus = report.get("focus_and_notifications")
     required_checks = {
         "model_identifier_matches",
         "os_build_matches",
@@ -47,55 +42,22 @@ def evaluate_mac_preflight_acceptance(
     }
     if (
         not isinstance(checks, Mapping)
-        or not isinstance(power, Mapping)
-        or not isinstance(focus, Mapping)
         or any(checks.get(key) is not True for key in required_checks)
     ):
         raise S48PhysicalBackendError(
             "Mac identity, output, volume, or reference preflight failed"
         )
-    if power_policy == "ac_required":
-        if checks.get("ac_power") is not True:
-            raise S48PhysicalBackendError(
-                "Mac preflight requires AC power"
-            )
-        power_disposition = "ac_verified"
-    elif power_policy == "battery_allowed":
-        if (
-            power.get("status") != "collected"
-            or not isinstance(power.get("on_ac_power"), bool)
-            or isinstance(power.get("battery_percent"), bool)
-            or not isinstance(power.get("battery_percent"), int)
-        ):
-            raise S48PhysicalBackendError(
-                "Mac battery state was not collected"
-            )
-        power_disposition = (
-            "ac_verified"
-            if power["on_ac_power"]
-            else "battery_allowed"
-        )
-    else:
-        raise S48PhysicalBackendError("Mac power policy is invalid")
-    machine_focus = (
-        checks.get("work_focus_active") is True
-        and checks.get("notifications_suppressed") is True
-    )
-    if machine_focus:
-        focus_disposition = "machine_verified"
-    elif operator_work_focus_confirmed is True:
-        focus_disposition = "operator_confirmed"
-    else:
-        raise S48PhysicalBackendError(
-            "Mac Work Focus requires machine evidence or operator confirmation"
-        )
+    power = report.get("power")
+    if not isinstance(power, Mapping):
+        power = {}
+    focus = report.get("focus_and_notifications")
+    if not isinstance(focus, Mapping):
+        focus = {}
     return {
-        "schema": "ias.s4_8.mac_preflight_acceptance.v1",
+        "schema": "ias.s4_8.mac_preflight_acceptance.v2",
         "status": "passed",
-        "power_policy": power_policy,
-        "power_disposition": power_disposition,
-        "focus_disposition": focus_disposition,
-        "operator_work_focus_confirmed": operator_work_focus_confirmed,
+        "power_requirement": "none",
+        "work_focus_requirement": "none",
         "collector_facts": {
             "ac_power": checks.get("ac_power"),
             "work_focus_active": checks.get("work_focus_active"),
