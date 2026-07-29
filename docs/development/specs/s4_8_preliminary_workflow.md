@@ -103,7 +103,12 @@ artifacts, the corrective source commit, a current offline gate report, exact
 corrected technical metrics, and a canonical `reuse` decision. Preliminary
 processing may consume that authenticated additive `PASS`, but must expose the
 historical `RETRY_REQUIRED` decision separately and may not synthesize an
-original candidate seal or append to the historical acquisition journal.
+original candidate seal or append to the historical acquisition journal. The
+record authenticates the attempt-ledger prefix through the corrected retry;
+later preliminary entries may append normally. Request validation may advance
+past that retry only when it authenticates the additive record against the
+same campaign manifest, ledger prefix, attempt identity, raw, corrected report,
+and corrective source commit.
 
 Keep each failed raw only until a technically valid replacement passes. Then
 delete the failed attempt artifacts and retain only a short note with the take

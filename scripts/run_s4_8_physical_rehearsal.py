@@ -30,7 +30,9 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
     derive_stratum_aware_design,
     run_supported_nonreference_acquisition,
     validate_attempt_ledger,
+    validate_attempt_ledger_with_reprocessing,
     validate_attempt_request,
+    validate_attempt_request_with_reprocessing,
     validate_engineering_manifest,
 )
 from isaac_audio_sensors.acquisition.s4_8_physical_backend import (
@@ -41,6 +43,7 @@ from isaac_audio_sensors.acquisition.s4_8_physical_backend import (
 )
 from isaac_audio_sensors.acquisition.s4_8_preliminary import (
     load_workflow_config,
+    validate_reprocessing_record,
 )
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
@@ -675,14 +678,35 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
     )
     ledger_path = campaign_root / "attempt_ledger.jsonl"
     ledger = _read_json_lines(ledger_path)
+    reprocessed_attempts = _load_reprocessed_attempts(
+        getattr(args, "reprocessing_record", []),
+        campaign_manifest_path=args.manifest.resolve(),
+        campaign_manifest=campaign_manifest,
+        ledger_path=ledger_path,
+        ledger=ledger,
+    )
     if not args.dry_run:
-        validate_attempt_request(
-            ledger,
-            campaign_manifest=campaign_manifest,
-            expected_campaign_manifest_sha256=anchor,
-            take=take,
-            attempt_number=args.attempt_number,
-        )
+        if preliminary:
+            validate_attempt_request_with_reprocessing(
+                ledger,
+                campaign_manifest=campaign_manifest,
+                expected_campaign_manifest_sha256=anchor,
+                take=take,
+                attempt_number=args.attempt_number,
+                reprocessed_attempts=reprocessed_attempts,
+            )
+        else:
+            if reprocessed_attempts:
+                raise S48PhysicalRehearsalError(
+                    "additive reprocessing is restricted to preliminary takes"
+                )
+            validate_attempt_request(
+                ledger,
+                campaign_manifest=campaign_manifest,
+                expected_campaign_manifest_sha256=anchor,
+                take=take,
+                attempt_number=args.attempt_number,
+            )
     if args.dry_run:
         if args.dry_run_root is None:
             raise S48PhysicalRehearsalError("--dry-run-root is required for dry-run")
@@ -828,11 +852,19 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
                 else result["candidate_seal"]["seal_sha256"]
             ),
         )
-        validate_attempt_ledger(
-            ledger,
-            campaign_manifest=campaign_manifest,
-            expected_campaign_manifest_sha256=anchor,
-        )
+        if preliminary:
+            validate_attempt_ledger_with_reprocessing(
+                ledger,
+                campaign_manifest=campaign_manifest,
+                expected_campaign_manifest_sha256=anchor,
+                reprocessed_attempts=reprocessed_attempts,
+            )
+        else:
+            validate_attempt_ledger(
+                ledger,
+                campaign_manifest=campaign_manifest,
+                expected_campaign_manifest_sha256=anchor,
+            )
         _append_json_line(ledger_path, record)
         retired_failed_attempts = (
             _retire_failed_attempts(
@@ -868,6 +900,55 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
         "retired_failed_attempts": retired_failed_attempts,
         "authority": config["authority"],
     }
+
+
+def _load_reprocessed_attempts(
+    record_paths: list[Path],
+    *,
+    campaign_manifest_path: Path,
+    campaign_manifest: dict[str, Any],
+    ledger_path: Path,
+    ledger: list[dict[str, Any]],
+) -> list[tuple[str, int]]:
+    reprocessed: list[tuple[str, int]] = []
+    design_by_id = {
+        str(item["engineering_take_id"]): item
+        for item in campaign_manifest["design"]
+    }
+    for path in record_paths:
+        record = _load_json(path.resolve())
+        validate_reprocessing_record(ROOT, record)
+        historical = record["historical_result"]
+        take_id = str(record["preliminary_take_id"])
+        attempt_number = int(record["attempt_number"])
+        take = design_by_id.get(take_id)
+        if (
+            Path(historical["campaign_manifest"]["path"]).resolve()
+            != campaign_manifest_path
+            or Path(historical["attempt_ledger"]["path"]).resolve()
+            != ledger_path.resolve()
+            or take is None
+            or take.get("preliminary_case_id") != record.get("case_id")
+            or not any(
+                item.get("engineering_take_id") == take_id
+                and item.get("attempt_number") == attempt_number
+                and item.get("decision") == "RETRY_REQUIRED"
+                for item in ledger
+            )
+        ):
+            raise S48PhysicalRehearsalError(
+                "additive reprocessing record targets another campaign history"
+            )
+        _require_manifest_head_ancestor(
+            str(record["corrected_offline_result"]["corrective_commit"]),
+            _git_head(),
+        )
+        reprocessed.append((take_id, attempt_number))
+    if len(set(reprocessed)) != len(reprocessed):
+        raise S48PhysicalRehearsalError(
+            "duplicate additive reprocessing records are forbidden"
+        )
+    return reprocessed
 
 
 def _read_json_lines(path: Path) -> list[dict[str, Any]]:
@@ -1047,6 +1128,12 @@ def main() -> int:
     preliminary_take_parser.add_argument("--manifest", type=Path, required=True)
     preliminary_take_parser.add_argument("--take-id", required=True)
     preliminary_take_parser.add_argument("--attempt-number", type=int, required=True)
+    preliminary_take_parser.add_argument(
+        "--reprocessing-record",
+        action="append",
+        default=[],
+        type=Path,
+    )
     preliminary_take_parser.set_defaults(
         function=run_take,
         dry_run=False,

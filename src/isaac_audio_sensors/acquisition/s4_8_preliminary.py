@@ -19,7 +19,7 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
     validate_engineering_process_journal,
 )
 from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
-    validate_attempt_ledger,
+    validate_attempt_ledger_with_reprocessing,
     validate_preliminary_manifest,
 )
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
@@ -397,7 +397,6 @@ def validate_reprocessing_record(
                 "controller_result",
                 "process_journal",
                 "take_precollection_manifest",
-                "attempt_ledger",
                 "campaign_manifest",
             )
         ),
@@ -425,7 +424,8 @@ def validate_reprocessing_record(
     manifest = _load_json(Path(historical["take_precollection_manifest"]["path"]))
     journal = _load_json_lines(Path(historical["process_journal"]["path"]))
     campaign = _load_json(Path(historical["campaign_manifest"]["path"]))
-    ledger = _load_json_lines(Path(historical["attempt_ledger"]["path"]))
+    ledger_path = Path(historical["attempt_ledger"]["path"])
+    ledger = _load_json_lines(ledger_path)
     if (
         retry_report.get("decision") != "RETRY_REQUIRED"
         or gate_report != retry_report
@@ -439,6 +439,26 @@ def validate_reprocessing_record(
         raise S48PreliminaryError(
             "reprocessing record contradicts the historical retry result"
         )
+    ledger_matches = [
+        item
+        for item in ledger
+        if item.get("engineering_take_id") == record.get("preliminary_take_id")
+        and item.get("attempt_number") == record.get("attempt_number")
+    ]
+    ledger_artifact = historical["attempt_ledger"]
+    if (
+        not ledger_path.is_absolute()
+        or not _is_sha256(ledger_artifact.get("sha256"))
+        or len(ledger_matches) != 1
+        or _sha256_jsonl_prefix(
+            ledger_path,
+            line_count=int(ledger_matches[0]["sequence"]) + 1,
+        )
+        != ledger_artifact["sha256"]
+    ):
+        raise S48PreliminaryError(
+            "reprocessing record does not bind the retained ledger prefix"
+        )
     try:
         validate_engineering_process_journal(
             manifest,
@@ -446,22 +466,22 @@ def validate_reprocessing_record(
             expected_manifest_sha256=str(manifest.get("manifest_sha256")),
             required_terminal_event="gate_evaluated",
         )
-        validate_attempt_ledger(
+        validate_attempt_ledger_with_reprocessing(
             ledger,
             campaign_manifest=campaign,
             expected_campaign_manifest_sha256=str(campaign.get("manifest_sha256")),
+            reprocessed_attempts=[
+                (
+                    str(record["preliminary_take_id"]),
+                    int(record["attempt_number"]),
+                )
+            ],
         )
     except Exception as exc:
         raise S48PreliminaryError(
             f"reprocessing historical provenance validation failed: {exc}"
         ) from exc
     gate_event = journal[-1]
-    ledger_matches = [
-        item
-        for item in ledger
-        if item.get("engineering_take_id") == record.get("preliminary_take_id")
-        and item.get("attempt_number") == record.get("attempt_number")
-    ]
     if (
         gate_event.get("data", {}).get("decision") != "RETRY_REQUIRED"
         or gate_event.get("data", {}).get("report_sha256")
@@ -983,6 +1003,16 @@ def _write_json(path: Path, value: Mapping[str, Any]) -> None:
 def _artifact_record(path: Path) -> dict[str, str]:
     resolved = path.resolve()
     return {"path": str(resolved), "sha256": _sha256_file(resolved)}
+
+
+def _sha256_jsonl_prefix(path: Path, *, line_count: int) -> str:
+    try:
+        lines = path.read_bytes().splitlines(keepends=True)
+    except OSError as exc:
+        raise S48PreliminaryError(f"JSONL prefix read failure: {path}: {exc}") from exc
+    if line_count < 1 or len(lines) < line_count:
+        raise S48PreliminaryError(f"JSONL prefix is incomplete: {path}")
+    return hashlib.sha256(b"".join(lines[:line_count])).hexdigest()
 
 
 def _validate_artifact_record(artifact: Mapping[str, Any]) -> None:

@@ -572,20 +572,57 @@ def validate_attempt_ledger(
 ) -> None:
     """Validate chain, retry retention, and sequence advancement."""
 
+    validate_attempt_ledger_with_reprocessing(
+        ledger,
+        campaign_manifest=campaign_manifest,
+        expected_campaign_manifest_sha256=expected_campaign_manifest_sha256,
+        reprocessed_attempts=(),
+    )
+
+
+def validate_attempt_ledger_with_reprocessing(
+    ledger: Sequence[Mapping[str, Any]],
+    *,
+    campaign_manifest: Mapping[str, Any],
+    expected_campaign_manifest_sha256: str,
+    reprocessed_attempts: Sequence[tuple[str, int]],
+) -> None:
+    """Validate history while additive records advance corrected retries."""
+
     validate_engineering_manifest(
         campaign_manifest,
         expected_manifest_sha256=expected_campaign_manifest_sha256,
     )
     design = campaign_manifest["design"]
     by_id = {item["engineering_take_id"]: item for item in design}
+    corrected = set(reprocessed_attempts)
+    if (
+        len(corrected) != len(reprocessed_attempts)
+        or any(
+            take_id not in by_id
+            or isinstance(attempt_number, bool)
+            or not isinstance(attempt_number, int)
+            or attempt_number < 1
+            for take_id, attempt_number in corrected
+        )
+    ):
+        raise S48EngineeringCampaignError(
+            "additive reprocessing disposition is invalid"
+        )
     previous = expected_campaign_manifest_sha256
     expected_design_index = 0
     prior_for_take: Mapping[str, Any] | None = None
+    matched_corrected: set[tuple[str, int]] = set()
     for sequence, record in enumerate(ledger):
         payload = {
             key: value for key, value in record.items() if key != "record_sha256"
         }
         take = by_id.get(record.get("engineering_take_id"))
+        record_identity = (
+            str(record.get("engineering_take_id")),
+            record.get("attempt_number"),
+        )
+        corrected_retry = record_identity in corrected
         fields = {
             "schema",
             "sequence",
@@ -629,6 +666,7 @@ def validate_attempt_ledger(
                 record.get("decision") == "RETRY_REQUIRED"
                 and record.get("candidate_seal_sha256") is not None
             )
+            or (corrected_retry and record.get("decision") != "RETRY_REQUIRED")
         ):
             raise S48EngineeringCampaignError(
                 "attempt ledger chain, binding, or disposition is invalid"
@@ -649,12 +687,18 @@ def validate_attempt_ledger(
             raise S48EngineeringCampaignError(
                 "retry requires the retained immediately prior attempt"
             )
-        if record["decision"] == "PASS":
+        if record["decision"] == "PASS" or corrected_retry:
             expected_design_index += 1
             prior_for_take = None
+            if corrected_retry:
+                matched_corrected.add(record_identity)
         else:
             prior_for_take = record
         previous = str(record["record_sha256"])
+    if matched_corrected != corrected:
+        raise S48EngineeringCampaignError(
+            "additive reprocessing record has no exact retained retry"
+        )
 
 
 def validate_attempt_request(
@@ -682,16 +726,63 @@ def validate_attempt_request(
         )
 
 
+def validate_attempt_request_with_reprocessing(
+    ledger: Sequence[Mapping[str, Any]],
+    *,
+    campaign_manifest: Mapping[str, Any],
+    expected_campaign_manifest_sha256: str,
+    take: Mapping[str, Any],
+    attempt_number: int,
+    reprocessed_attempts: Sequence[tuple[str, int]],
+) -> None:
+    """Authorize the next attempt after authenticated additive corrections."""
+
+    validate_attempt_ledger_with_reprocessing(
+        ledger,
+        campaign_manifest=campaign_manifest,
+        expected_campaign_manifest_sha256=expected_campaign_manifest_sha256,
+        reprocessed_attempts=reprocessed_attempts,
+    )
+    expected_take, expected_attempt = _next_attempt(
+        ledger,
+        campaign_manifest,
+        reprocessed_attempts=reprocessed_attempts,
+    )
+    if dict(take) != dict(expected_take) or attempt_number != expected_attempt:
+        raise S48EngineeringCampaignError(
+            "requested take/attempt is not the next corrected ledger action"
+        )
+
+
 def _next_attempt(
     ledger: Sequence[Mapping[str, Any]],
     campaign_manifest: Mapping[str, Any],
+    *,
+    reprocessed_attempts: Sequence[tuple[str, int]] = (),
 ) -> tuple[Mapping[str, Any], int]:
     design = campaign_manifest["design"]
-    passed_count = sum(record.get("decision") == "PASS" for record in ledger)
+    corrected = set(reprocessed_attempts)
+    passed_count = sum(
+        record.get("decision") == "PASS"
+        or (
+            str(record.get("engineering_take_id")),
+            record.get("attempt_number"),
+        )
+        in corrected
+        for record in ledger
+    )
     if passed_count >= len(design):
         raise S48EngineeringCampaignError("engineering campaign is already complete")
     expected_take = design[passed_count]
-    if ledger and ledger[-1].get("decision") == "RETRY_REQUIRED":
+    last_is_corrected = bool(ledger) and (
+        str(ledger[-1].get("engineering_take_id")),
+        ledger[-1].get("attempt_number"),
+    ) in corrected
+    if (
+        ledger
+        and ledger[-1].get("decision") == "RETRY_REQUIRED"
+        and not last_is_corrected
+    ):
         prior_attempt = ledger[-1].get("attempt_number")
         if (
             not isinstance(prior_attempt, int)
