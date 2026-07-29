@@ -1,7 +1,7 @@
 {
   "schema": "ias.s4_8.engineering_campaign_config.v1",
   "protocol": {
-    "identity": "s4_8_physical_engineering_rehearsal_stratum_aware_v6",
+    "identity": "s4_8_physical_engineering_rehearsal_stratum_aware_v7",
     "specification_path": "docs/development/specs/s4_8_engineering_campaign.md"
   },
   "template": {
@@ -23,7 +23,7 @@
   },
   "controller": {
     "identity": "ias.s4_8.stratum_aware_engineering_controller",
-    "version": "1.7"
+    "version": "1.8"
   },
   "respeaker": {
     "ssh_prefix": [

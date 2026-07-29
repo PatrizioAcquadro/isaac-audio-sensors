@@ -397,7 +397,7 @@ def test_mac_preflight_does_not_gate_on_power_or_work_focus() -> None:
     assert report["frozen_checks"]["work_focus_active"] is False
 
 
-def test_v7_campaign_freezes_70_percent_volume_without_focus_prompt() -> None:
+def test_v9_campaign_retains_70_percent_volume_without_focus_prompt() -> None:
     root = Path(__file__).resolve().parents[1]
     config = json.loads(
         (root / "configs/s4_8_engineering_campaign.v1.json").read_text(
@@ -410,9 +410,9 @@ def test_v7_campaign_freezes_70_percent_volume_without_focus_prompt() -> None:
 
     assert (
         config["protocol"]["identity"]
-        == "s4_8_physical_engineering_rehearsal_stratum_aware_v6"
+        == "s4_8_physical_engineering_rehearsal_stratum_aware_v7"
     )
-    assert config["controller"]["version"] == "1.7"
+    assert config["controller"]["version"] == "1.8"
     assert config["playback"]["system_volume_percent"] == 70
     assert config["playback"]["power_policy"] == "battery_allowed"
     assert "--operator-work-focus-confirmed" not in runner
