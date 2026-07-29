@@ -103,7 +103,7 @@
     "mac_preflight_path": "S4.2/bin/s4_2_mac_preflight.py",
     "playback_helper_local_path": "scripts/s4_8_mac_playback.swift",
     "playback_helper_mac_path": "S4.8/engineering_rehearsal/bin/s4_8_mac_playback.swift",
-    "playback_helper_sha256": "60155da2e21ef5e4b86a34184e39c7fdb727defd1b6e02730d21ae48db3ab285",
+    "playback_helper_sha256": "8658940eab7fc230e4acef4438f69939a2adcdf7b62072144686420fc9e8e489",
     "playback_runtime_path": "/usr/bin/swift",
     "playback_typecheck_path": "/usr/bin/swiftc",
     "playback_runtime_stdout": "Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)\nTarget: arm64-apple-macosx26.0",
