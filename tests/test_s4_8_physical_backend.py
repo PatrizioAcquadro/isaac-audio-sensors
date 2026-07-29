@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import subprocess
 import wave
@@ -315,6 +316,51 @@ def test_mac_helper_source_uses_render_callback_without_fitted_delay() -> None:
     assert "recursive-include scripts *.swift" in (
         root / "MANIFEST.in"
     ).read_text(encoding="utf-8")
+
+
+def test_mac_runtime_identity_preserves_stdout_stderr_split(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location("s48_physical_runner", script_path)
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], *, timeout: float) -> dict[str, object]:
+        del timeout
+        calls.append(command)
+        if command[-1] == "--version":
+            return {
+                "return_code": 0,
+                "stdout": "Apple Swift version frozen\nTarget: arm64\n",
+                "stderr": "swift-driver version: frozen ",
+            }
+        return {"return_code": 0, "stdout": "", "stderr": ""}
+
+    monkeypatch.setattr(runner, "_run", fake_run)
+    report = runner._verify_mac_playback_runtime(
+        {
+            "playback": {
+                "ssh_prefix": ["ssh", "mac"],
+                "playback_runtime_path": "/usr/bin/swift",
+                "playback_typecheck_path": "/usr/bin/swiftc",
+                "playback_runtime_stdout": (
+                    "Apple Swift version frozen\nTarget: arm64"
+                ),
+                "playback_runtime_stderr": "swift-driver version: frozen",
+                "playback_helper_mac_path": "helper.swift",
+                "playback_helper_sha256": "a" * 64,
+            }
+        }
+    )
+
+    assert report["status"] == "passed"
+    assert report["runtime_stdout"].startswith("Apple Swift")
+    assert report["runtime_stderr"].startswith("swift-driver")
+    assert calls[1][-2:] == ["-typecheck", "helper.swift"]
 
 
 def test_mac_preflight_accepts_explicit_battery_and_operator_focus_policy() -> None:

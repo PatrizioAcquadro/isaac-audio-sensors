@@ -1,7 +1,7 @@
 {
   "schema": "ias.s4_8.engineering_campaign_config.v1",
   "protocol": {
-    "identity": "s4_8_physical_engineering_rehearsal_stratum_aware_v3",
+    "identity": "s4_8_physical_engineering_rehearsal_stratum_aware_v4",
     "specification_path": "docs/development/specs/s4_8_engineering_campaign.md"
   },
   "template": {
@@ -23,7 +23,7 @@
   },
   "controller": {
     "identity": "ias.s4_8.stratum_aware_engineering_controller",
-    "version": "1.4"
+    "version": "1.5"
   },
   "respeaker": {
     "ssh_prefix": [
@@ -106,7 +106,8 @@
     "playback_helper_sha256": "60155da2e21ef5e4b86a34184e39c7fdb727defd1b6e02730d21ae48db3ab285",
     "playback_runtime_path": "/usr/bin/swift",
     "playback_typecheck_path": "/usr/bin/swiftc",
-    "playback_runtime_version": "swift-driver version: 1.127.14.1 Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)\nTarget: arm64-apple-macosx26.0"
+    "playback_runtime_stdout": "Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)\nTarget: arm64-apple-macosx26.0",
+    "playback_runtime_stderr": "swift-driver version: 1.127.14.1"
   },
   "zed": {
     "model": "ZED 2i",

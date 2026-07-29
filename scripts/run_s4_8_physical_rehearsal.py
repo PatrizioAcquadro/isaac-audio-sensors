@@ -253,14 +253,12 @@ def _verify_mac_playback_runtime(config: dict[str, Any]) -> dict[str, Any]:
         ],
         timeout=30,
     )
-    observed_version = "\n".join(
-        part.strip()
-        for part in (version["stdout"], version["stderr"])
-        if part.strip()
-    )
     if (
         version["return_code"] != 0
-        or observed_version != playback["playback_runtime_version"]
+        or version["stdout"].strip()
+        != playback["playback_runtime_stdout"]
+        or version["stderr"].strip()
+        != playback["playback_runtime_stderr"]
     ):
         raise S48PhysicalRehearsalError(
             "Mac Swift playback runtime identity mismatch"
@@ -284,7 +282,8 @@ def _verify_mac_playback_runtime(config: dict[str, Any]) -> dict[str, Any]:
         "status": "passed",
         "runtime_path": playback["playback_runtime_path"],
         "typecheck_path": playback["playback_typecheck_path"],
-        "runtime_version": observed_version,
+        "runtime_stdout": version["stdout"].strip(),
+        "runtime_stderr": version["stderr"].strip(),
         "helper_sha256": playback["playback_helper_sha256"],
         "helper_typecheck_exit_status": typecheck["return_code"],
         "start_observation": "coreaudio_first_nonzero_presented_frame",
@@ -524,7 +523,8 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
                 "playback_helper_sha256",
                 "playback_runtime_path",
                 "playback_typecheck_path",
-                "playback_runtime_version",
+                "playback_runtime_stdout",
+                "playback_runtime_stderr",
             )
         }
         | {
