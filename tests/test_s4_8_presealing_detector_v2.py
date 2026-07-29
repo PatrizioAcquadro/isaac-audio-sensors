@@ -40,6 +40,7 @@ def _capture(
     room_ir: np.ndarray | None = None,
     phase_jump_sample: int | None = None,
     phase_jump_size: int = 0,
+    channel_polarities: tuple[int, int, int, int] = (1, 1, 1, 1),
 ) -> np.ndarray:
     rng = np.random.default_rng(491)
     microphones = rng.normal(0.0, 0.0005, size=(4, 20 * RATE))
@@ -59,11 +60,15 @@ def _capture(
         if room_ir is None
         else np.asarray(room_ir, dtype=np.float64)
     )
-    for channel, delay in enumerate((0, 2, 4, 6)):
+    for channel, (delay, polarity) in enumerate(
+        zip((0, 2, 4, 6), channel_polarities, strict=True)
+    ):
         filtered = np.convolve(stimulus, impulse, mode="full")[: stimulus.size]
         start = acoustic_start + delay
         stop = min(start + filtered.size, PLAYBACK_STOP)
-        microphones[channel, start:stop] += 0.04 * filtered[: stop - start]
+        microphones[channel, start:stop] += (
+            0.04 * polarity * filtered[: stop - start]
+        )
     return microphones
 
 
@@ -127,6 +132,60 @@ def test_v2_tracks_small_resampling_difference() -> None:
     assert result["alignment_status"] == "maintained"
     assert abs(result["estimated_drift_ppm"] + 450.0) <= 120.0
     assert result["useful_sound_coverage"] >= 0.90
+
+
+def test_v2_separates_timing_from_fixed_channel_polarity() -> None:
+    reference = _reference()
+
+    result = _detect(
+        _capture(
+            reference,
+            latency_samples=640,
+            drift_ppm=350.0,
+            channel_polarities=(1, -1, -1, -1),
+        ),
+        reference,
+    )
+
+    assert result["alignment_status"] == "maintained"
+    assert result["useful_sound_coverage"] >= 0.90
+    assert [
+        item["status"] for item in result["channel_polarity_evidence"]
+    ] == ["normal", "inverted", "inverted", "inverted"]
+
+
+def test_v2_keeps_periodic_polarity_ambiguity_separate_from_presence() -> None:
+    reference, reference_rate = read_pcm16_wav_strict(
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.2/reference/"
+        "s4_2_reference_v1.0.0.wav"
+    )
+    normalized = normalize_reference_for_capture_rate(
+        reference[:, 0],
+        reference_sample_rate_hz=reference_rate,
+        capture_sample_rate_hz=RATE,
+    )
+    active = select_active_reference_interval_v2(
+        normalized,
+        sample_rate_hz=RATE,
+        config=DEFAULT_PRESEALING_CONFIG_V2,
+    )
+
+    result = _detect(
+        _capture(
+            active,
+            latency_samples=1_225,
+            drift_ppm=350.0,
+        ),
+        active,
+    )
+
+    assert result["alignment_status"] == "maintained"
+    assert result["useful_sound_coverage"] >= 0.90
+    assert all(
+        item["status"] != "inverted"
+        for item in result["channel_polarity_evidence"]
+    )
 
 
 def test_v2_accepts_room_filtering_and_reverberation() -> None:
