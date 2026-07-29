@@ -53,6 +53,7 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "configs/s4_8_engineering_campaign.v1.json"
+LOCAL_S4_8_ROOT = (ROOT / ".local" / "s4_8").resolve()
 SOURCE_PATHS = (
     "configs/s4_8_engineering_campaign.v1.json",
     "configs/s4_8_preliminary_workflow.v1.json",
@@ -79,6 +80,22 @@ SOURCE_PATHS = (
 
 class S48PhysicalRehearsalError(RuntimeError):
     """Top-level physical rehearsal command failure."""
+
+
+def _repository_local_campaign_root(configured_root: str) -> Path:
+    """Rebase a frozen campaign name into the repository-local runtime area."""
+
+    campaign_name = Path(configured_root).name
+    if not campaign_name.startswith("s4_8_"):
+        raise S48PhysicalRehearsalError(
+            "configured campaign root must end in an S4.8 campaign name"
+        )
+    root = (LOCAL_S4_8_ROOT / campaign_name).resolve()
+    if root.parent != LOCAL_S4_8_ROOT:
+        raise S48PhysicalRehearsalError(
+            "configured campaign root escapes the repository-local runtime area"
+        )
+    return root
 
 
 def _sha256(path: Path) -> str:
@@ -421,13 +438,16 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
     config = _config(args.config)
     preliminary = getattr(args, "preliminary", False)
     workflow = load_workflow_config(ROOT) if preliminary else None
-    root = Path(
+    configured_root = (
         workflow["preliminary"]["campaign_root"]
         if workflow is not None
         else config["operational_locations"]["campaign_root"]
-    ).resolve()
-    if args.campaign_root is not None:
-        root = args.campaign_root.resolve()
+    )
+    root = (
+        args.campaign_root.resolve()
+        if args.campaign_root is not None
+        else _repository_local_campaign_root(configured_root)
+    )
     if root.exists():
         raise S48PhysicalRehearsalError(
             f"refusing to reuse campaign root: {root}"
@@ -1102,7 +1122,12 @@ def main() -> int:
     preflight_parser.set_defaults(function=preflight)
     freeze_parser = subparsers.add_parser("freeze")
     freeze_parser.add_argument("--preflight-report", type=Path, required=True)
-    freeze_parser.add_argument("--campaign-root", type=Path, default=None)
+    freeze_parser.add_argument(
+        "--campaign-root",
+        type=Path,
+        default=None,
+        help="override the default repository-local .local/s4_8 campaign root",
+    )
     freeze_parser.set_defaults(preliminary=False)
     freeze_parser.set_defaults(function=freeze)
     preliminary_freeze_parser = subparsers.add_parser("freeze-preliminary")
@@ -1110,7 +1135,10 @@ def main() -> int:
         "--preflight-report", type=Path, required=True
     )
     preliminary_freeze_parser.add_argument(
-        "--campaign-root", type=Path, default=None
+        "--campaign-root",
+        type=Path,
+        default=None,
+        help="override the default repository-local .local/s4_8 campaign root",
     )
     preliminary_freeze_parser.set_defaults(
         function=freeze,

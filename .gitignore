@@ -34,6 +34,7 @@ generated/
 .codex/
 .claude/
 .local-goals/
+.local/s4_8/
 TODO.md
 !examples/datasets/
 !examples/datasets/**

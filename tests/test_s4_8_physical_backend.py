@@ -325,6 +325,53 @@ def test_mac_helper_source_uses_render_callback_without_fitted_delay() -> None:
     ).read_text(encoding="utf-8")
 
 
+def test_runtime_campaign_defaults_are_repository_local() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location(
+        "s48_repository_local_runner",
+        script_path,
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    campaign = json.loads(
+        (root / "configs/s4_8_engineering_campaign.v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    preliminary = json.loads(
+        (root / "configs/s4_8_preliminary_workflow.v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert runner._repository_local_campaign_root(
+        campaign["operational_locations"]["campaign_root"]
+    ) == root / ".local/s4_8/s4_8_engineering_rehearsal"
+    assert runner._repository_local_campaign_root(
+        preliminary["preliminary"]["campaign_root"]
+    ) == root / ".local/s4_8/s4_8_preliminary"
+
+
+def test_runtime_campaign_default_rejects_non_s4_8_name() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location(
+        "s48_repository_local_rejection_runner",
+        script_path,
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    with pytest.raises(
+        runner.S48PhysicalRehearsalError,
+        match="S4.8 campaign name",
+    ):
+        runner._repository_local_campaign_root("/tmp/unrelated")
+
+
 def test_mac_runtime_identity_preserves_stdout_stderr_split(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
