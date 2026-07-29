@@ -11,9 +11,6 @@ import numpy as np
 import pytest
 
 import isaac_audio_sensors.acquisition.s4_8_physical_backend as physical_backend
-from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
-    OPERATOR_TRIGGERED_RETRY_POLICY,
-)
 from isaac_audio_sensors.acquisition.s4_8_physical_backend import (
     RemotePhysicalEngineeringBackend,
     S48PhysicalBackendError,
@@ -373,45 +370,145 @@ def test_mac_runtime_identity_preserves_stdout_stderr_split(
     assert calls[1][-2:] == ["-typecheck", "helper.swift"]
 
 
-def test_runner_freeze_uses_operator_triggered_policy() -> None:
+def test_runner_retires_failed_raws_only_after_replacement_passes(
+    tmp_path: Path,
+) -> None:
     root = Path(__file__).resolve().parents[1]
     script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
     spec = importlib.util.spec_from_file_location(
-        "s48_operator_policy_runner",
+        "s48_failed_raw_retention_runner",
         script_path,
     )
     assert spec is not None and spec.loader is not None
     runner = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(runner)
 
-    assert runner._operator_acquisition_policy() == (
-        OPERATOR_TRIGGERED_RETRY_POLICY
+    take_id = "s48prelim_002_low_level_reference"
+    attempts_root = tmp_path / "attempts" / take_id
+    for attempt_number in (1, 2):
+        attempt_root = attempts_root / f"{take_id}__attempt_{attempt_number:02d}"
+        attempt_root.mkdir(parents=True)
+        (attempt_root / "respeaker_audio.wav").write_bytes(b"failed raw")
+        (attempt_root / "retry_report.json").write_text(
+            json.dumps(
+                {
+                    "reasons": [
+                        {
+                            "code": (
+                                "reference_alignment_failed"
+                                if attempt_number == 2
+                                else "acoustic_playback_stopped_early"
+                            )
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        (attempt_root / "zed").mkdir()
+        (attempt_root / "zed" / "artifact").write_bytes(b"failed")
+    replacement = attempts_root / f"{take_id}__attempt_03"
+    replacement.mkdir()
+    (replacement / "respeaker_audio.wav").write_bytes(b"valid raw")
+    (replacement / "candidate_seal.json").write_text("{}", encoding="utf-8")
+    ledger = [
+        {
+            "engineering_take_id": take_id,
+            "attempt_number": 1,
+            "decision": "RETRY_REQUIRED",
+        },
+        {
+            "engineering_take_id": take_id,
+            "attempt_number": 2,
+            "decision": "RETRY_REQUIRED",
+        },
+        {
+            "engineering_take_id": take_id,
+            "attempt_number": 3,
+            "decision": "PASS",
+        },
+    ]
+
+    retired = runner._retire_failed_attempts(
+        campaign_root=tmp_path,
+        take_id=take_id,
+        replacement_attempt_root=replacement,
+        ledger=ledger,
     )
-    source = script_path.read_text(encoding="utf-8")
-    assert "retry_policy=operator_policy" in source
+
+    assert len(retired) == 2
+    for attempt_number in (1, 2):
+        attempt_root = attempts_root / f"{take_id}__attempt_{attempt_number:02d}"
+        assert [path.name for path in attempt_root.iterdir()] == [
+            "failed_raw_note.json"
+        ]
+        note = json.loads(
+            (attempt_root / "failed_raw_note.json").read_text(encoding="utf-8")
+        )
+        assert set(note) == {
+            "take_id",
+            "failure_cause",
+            "prevention_guidance",
+        }
+        assert note["take_id"] == take_id
+    assert (replacement / "respeaker_audio.wav").read_bytes() == b"valid raw"
 
 
-def test_runner_requires_fresh_authorization_for_every_physical_take() -> None:
+def test_runner_never_deletes_failed_raw_without_valid_replacement(
+    tmp_path: Path,
+) -> None:
     root = Path(__file__).resolve().parents[1]
     script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
     spec = importlib.util.spec_from_file_location(
-        "s48_operator_authorization_runner",
+        "s48_failed_raw_safety_runner",
         script_path,
     )
     assert spec is not None and spec.loader is not None
     runner = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(runner)
+
+    take_id = "s48prelim_002_low_level_reference"
+    failed = (
+        tmp_path
+        / "attempts"
+        / take_id
+        / f"{take_id}__attempt_01"
+    )
+    failed.mkdir(parents=True)
+    failed_raw = failed / "respeaker_audio.wav"
+    failed_raw.write_bytes(b"retain me")
+    (failed / "retry_report.json").write_text(
+        '{"reasons":[{"code":"reference_alignment_failed"}]}',
+        encoding="utf-8",
+    )
+    replacement = failed.parent / f"{take_id}__attempt_02"
+    replacement.mkdir()
+    (replacement / "respeaker_audio.wav").write_bytes(b"unsealed")
+    ledger = [
+        {
+            "engineering_take_id": take_id,
+            "attempt_number": 1,
+            "decision": "RETRY_REQUIRED",
+        },
+        {
+            "engineering_take_id": take_id,
+            "attempt_number": 2,
+            "decision": "PASS",
+        },
+    ]
 
     with pytest.raises(
         runner.S48PhysicalRehearsalError,
-        match="every physical take requires",
+        match="replacement is valid",
     ):
-        runner._require_operator_authorization(None, dry_run=False)
-    runner._require_operator_authorization(None, dry_run=True)
-    runner._require_operator_authorization(
-        {"schema": "one-take-test"},
-        dry_run=False,
-    )
+        runner._retire_failed_attempts(
+            campaign_root=tmp_path,
+            take_id=take_id,
+            replacement_attempt_root=replacement,
+            ledger=ledger,
+        )
+
+    assert failed_raw.read_bytes() == b"retain me"
 
 
 def test_mac_preflight_does_not_gate_on_power_or_work_focus() -> None:

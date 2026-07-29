@@ -21,11 +21,9 @@ The active sequence is:
 8. hash, seal, bind, pre-open validate, explicitly authorize, and evaluate it
    once.
 
-Physical collection is operator-triggered under
-`s4_8_operator_triggered_acquisition.md`. One explicit command starts at most
-one take. No preliminary take starts automatically after another take, and all
-prior attempts remain retained. A fresh one-take authorization is required for
-every later attempt.
+Acquire only the take or takes explicitly requested by the operator; a request
+may cover one take, a subset, or the complete sequence, and acquisition must
+never continue beyond that scope.
 
 This preparation has no authority to record a take, freeze the final protocol,
 start official acquisition, create or consume a grant, open a holdout, run the
@@ -55,9 +53,10 @@ this workflow.
 ## Acquisition and complete-stack processing
 
 The existing authenticated v9 acquisition controllers and gates are used with
-a four-case preliminary manifest. Each attempt retains its raw WAV, process
-journal, technical report, clearance, candidate seal, and ZED artifacts when
-applicable. Every gate emits an explicit PASS or FAIL/RETRY_REQUIRED result.
+a four-case preliminary manifest. A technically invalid take may be retried
+without a fixed limit, but only for a physical or technical invalidation; an
+undesirable scientific result can never justify a retry. Every gate emits an
+explicit PASS or FAIL/RETRY_REQUIRED result.
 
 Processing is repeatable without reacquisition. It authenticates the raw
 inputs, reruns technical checks, current detector and synchronization
@@ -92,12 +91,16 @@ Every correction has an append-only reuse/reacquisition decision with its
 change class, affected cases, raw hashes, decision, technical justification,
 and physical-confirmation disposition.
 
-An uncontrolled physical interruption such as unrelated people making noise
-may invalidate only the affected take. A retained `RETRY_REQUIRED` attempt may
-be followed by another monotonic operator-authorized attempt without a fixed
-retry count. The authorization is exact to one take, one attempt number, and
-the current ledger head. It cannot authorize a batch or silently replace a
-passed take.
+Keep each failed raw only until a technically valid replacement passes. Then
+delete the failed attempt artifacts and retain only a short note with the take
+ID, failure cause, and practical prevention guidance. Never delete the newest
+valid raw. The existing low-level attempts 1 and 2 remain in place until the
+replacement passes; attempt 2 was invalidated by uncontrolled human noise.
+
+These retries and software corrections remain within Recovery Amendment 02 and
+the planned second holdout; they do not create another amendment. Once the
+official protocol is frozen, accepted official data is immutable. A passed
+take cannot be replaced, including in response to a scientific result.
 
 ## Preliminary readiness and official boundary
 

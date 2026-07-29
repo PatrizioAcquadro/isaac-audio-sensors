@@ -38,32 +38,6 @@ def test_amendment_02_preregistration_is_schema_valid_and_frozen() -> None:
         ]
         is True
     )
-    unseen = amendment["unseen_holdout"]
-    assert unseen["operator_authorization_required_per_take"] is True
-    assert unseen["one_take_per_command"] is True
-    assert unseen["automatic_batch_forbidden"] is True
-    assert unseen["all_attempts_retained"] is True
-    assert unseen["scientific_outcomes_must_remain_uninspected"] is True
-
-
-def test_future_47_take_operator_policy_is_hash_bound_and_fail_closed(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    amendment = recovery.load_amendment(ROOT)
-    record = amendment["unseen_holdout"]
-    policy_path = (
-        ROOT / record["operator_acquisition_policy_path"]
-    ).resolve()
-    original = s4_8.sha256_file
-
-    def changed(path: Path) -> str:
-        if path.resolve() == policy_path:
-            return "0" * 64
-        return original(path)
-
-    monkeypatch.setattr(s4_8, "sha256_file", changed)
-    with pytest.raises(s4_8.S48Error, match="operator binding mismatch"):
-        recovery.load_amendment(ROOT)
 
 
 def test_terminal_history_authenticates_both_failed_runs_hash_only() -> None:

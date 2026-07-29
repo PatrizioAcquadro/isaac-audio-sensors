@@ -15,18 +15,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import jsonschema
-
 from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
     S48EngineeringAcquisitionError,
     run_supported_engineering_acquisition,
 )
 from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
-    OPERATOR_TRIGGERED_RETRY_POLICY,
     PRELIMINARY_MANIFEST_SCHEMA,
     S48EngineeringCampaignError,
     append_attempt_ledger_record,
-    build_operator_take_authorization,
     build_preliminary_manifest,
     build_reference_take_manifest,
     build_stratum_aware_campaign_manifest,
@@ -36,7 +32,6 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
     validate_attempt_ledger,
     validate_attempt_request,
     validate_engineering_manifest,
-    validate_operator_take_authorization,
 )
 from isaac_audio_sensors.acquisition.s4_8_physical_backend import (
     RemotePhysicalEngineeringBackend,
@@ -55,24 +50,14 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "configs/s4_8_engineering_campaign.v1.json"
-OPERATOR_POLICY_CONFIG = (
-    ROOT / "configs/s4_8_operator_acquisition_policy.v1.json"
-)
-OPERATOR_POLICY_SCHEMA = (
-    ROOT / "docs/schemas/s4_8_operator_acquisition_policy.v1.schema.json"
-)
 SOURCE_PATHS = (
     "configs/s4_8_engineering_campaign.v1.json",
-    "configs/s4_8_operator_acquisition_policy.v1.json",
     "configs/s4_8_preliminary_workflow.v1.json",
     "configs/s4_8_presealing_gate.v2.json",
     "docs/development/specs/s4_8_engineering_campaign.md",
-    "docs/development/specs/s4_8_operator_triggered_acquisition.md",
     "docs/development/specs/s4_8_preliminary_workflow.md",
     "docs/development/specs/s4_8_presealing_gate_v2.md",
     "docs/schemas/s4_8_presealing_gate_report.v2.schema.json",
-    "docs/schemas/s4_8_operator_acquisition_policy.v1.schema.json",
-    "docs/schemas/s4_8_operator_take_authorization.v1.schema.json",
     "docs/schemas/s4_8_preliminary_workflow.v1.schema.json",
     "scripts/run_s4_8_physical_rehearsal.py",
     "scripts/s4_8_mac_playback.swift",
@@ -195,22 +180,6 @@ def _config(path: Path) -> dict[str, Any]:
             "v2 gate or detector configuration hash mismatch"
         )
     return config
-
-
-def _operator_acquisition_policy() -> dict[str, Any]:
-    config = _load_json(OPERATOR_POLICY_CONFIG)
-    schema = _load_json(OPERATOR_POLICY_SCHEMA)
-    try:
-        jsonschema.validate(config, schema)
-    except jsonschema.ValidationError as exc:
-        raise S48PhysicalRehearsalError(
-            f"operator acquisition policy schema failure: {exc.message}"
-        ) from exc
-    if config.get("policy") != OPERATOR_TRIGGERED_RETRY_POLICY:
-        raise S48PhysicalRehearsalError(
-            "operator acquisition policy contradicts the runtime contract"
-        )
-    return dict(config["policy"])
 
 
 def _deploy_continuous_asset(
@@ -447,7 +416,6 @@ def preflight(args: argparse.Namespace) -> dict[str, Any]:
 
 def freeze(args: argparse.Namespace) -> dict[str, Any]:
     config = _config(args.config)
-    operator_policy = _operator_acquisition_policy()
     preliminary = getattr(args, "preliminary", False)
     workflow = load_workflow_config(ROOT) if preliminary else None
     root = Path(
@@ -631,7 +599,7 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         devices=devices,
         channel_map=config["channel_map"],
         design=design,
-        retry_policy=operator_policy,
+        retry_policy=config["retry_policy"],
         operational_locations={
             "campaign_root": str(root),
             "pi_capture_root": (
@@ -689,6 +657,11 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
         raise S48PhysicalRehearsalError(
             "run-preliminary-take requires a four-case preliminary manifest"
         )
+    _require_clean_head()
+    _require_manifest_head_ancestor(
+        str(campaign_manifest["code_head"]),
+        _git_head(),
+    )
     matches = [
         item
         for item in campaign_manifest["design"]
@@ -702,34 +675,6 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
     )
     ledger_path = campaign_root / "attempt_ledger.jsonl"
     ledger = _read_json_lines(ledger_path)
-    authorization_path = getattr(args, "operator_authorization", None)
-    operator_authorization = (
-        None
-        if authorization_path is None
-        else _load_json(authorization_path.resolve())
-    )
-    _require_operator_authorization(
-        operator_authorization,
-        dry_run=bool(args.dry_run),
-    )
-    if operator_authorization is None:
-        _require_clean_head(expected_head=str(campaign_manifest["code_head"]))
-    else:
-        implementation_head = str(
-            operator_authorization.get("implementation_head", "")
-        )
-        _require_clean_head(expected_head=implementation_head)
-        _require_manifest_head_ancestor(
-            str(campaign_manifest["code_head"]),
-            implementation_head,
-        )
-        validate_operator_take_authorization(
-            operator_authorization,
-            campaign_manifest=campaign_manifest,
-            ledger=ledger,
-            take=take,
-            attempt_number=args.attempt_number,
-        )
     if not args.dry_run:
         validate_attempt_request(
             ledger,
@@ -737,7 +682,6 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
             expected_campaign_manifest_sha256=anchor,
             take=take,
             attempt_number=args.attempt_number,
-            operator_authorization=operator_authorization,
         )
     if args.dry_run:
         if args.dry_run_root is None:
@@ -751,11 +695,6 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
             / f"{take['engineering_take_id']}__attempt_{args.attempt_number:02d}"
         )
     attempt_root.mkdir(parents=True, exist_ok=False)
-    if operator_authorization is not None:
-        _write_new_json(
-            attempt_root / "operator_take_authorization.json",
-            dict(operator_authorization),
-        )
     remote_attempt = (
         f"{campaign_manifest['operational_locations']['pi_capture_root']}/"
         f"{anchor[:16]}/{take['engineering_take_id']}"
@@ -865,19 +804,6 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
     if result["clearance"] is not None:
         _write_new_json(attempt_root / "candidate_clearance.json", result["clearance"])
     retained_result = dict(result)
-    if operator_authorization is not None:
-        retained_result.update(
-            {
-                "operator_authorization_sha256": operator_authorization[
-                    "authorization_sha256"
-                ],
-                "operator_triggered": True,
-                "one_take_only": True,
-                "automatic_batch": False,
-                "all_prior_attempts_retained": True,
-                "scientific_outcomes_inspected_for_authorization": False,
-            }
-        )
     if preliminary:
         retained_result.update(
             {
@@ -901,7 +827,6 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
                 if result["candidate_seal"] is None
                 else result["candidate_seal"]["seal_sha256"]
             ),
-            operator_authorization=operator_authorization,
         )
         validate_attempt_ledger(
             ledger,
@@ -909,6 +834,18 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
             expected_campaign_manifest_sha256=anchor,
         )
         _append_json_line(ledger_path, record)
+        retired_failed_attempts = (
+            _retire_failed_attempts(
+                campaign_root=campaign_root,
+                take_id=str(take["engineering_take_id"]),
+                replacement_attempt_root=attempt_root,
+                ledger=ledger,
+            )
+            if result["decision"] == "PASS"
+            else []
+        )
+    else:
+        retired_failed_attempts = []
     return {
         "status": "complete",
         "decision": result["decision"],
@@ -928,14 +865,7 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
         ),
         "counts_as_official_take": False,
         "official_evidence_eligible": False,
-        "operator_authorization_sha256": (
-            None
-            if operator_authorization is None
-            else operator_authorization["authorization_sha256"]
-        ),
-        "operator_triggered": operator_authorization is not None,
-        "one_take_only": True,
-        "automatic_batch": False,
+        "retired_failed_attempts": retired_failed_attempts,
         "authority": config["authority"],
     }
 
@@ -967,17 +897,6 @@ def _git_head() -> str:
     if result["return_code"] != 0:
         raise S48PhysicalRehearsalError("unable to resolve Git HEAD")
     return result["stdout"].strip()
-
-
-def _require_operator_authorization(
-    operator_authorization: dict[str, Any] | None,
-    *,
-    dry_run: bool,
-) -> None:
-    if operator_authorization is None and not dry_run:
-        raise S48PhysicalRehearsalError(
-            "every physical take requires a fresh operator authorization"
-        )
 
 
 def _require_clean_head(expected_head: str | None = None) -> None:
@@ -1012,70 +931,84 @@ def _require_manifest_head_ancestor(
     )
     if result["return_code"] != 0:
         raise S48PhysicalRehearsalError(
-            "operator acquisition implementation does not descend from the "
-            "frozen campaign source"
+            "acquisition implementation does not descend from the frozen "
+            "campaign source"
         )
 
 
-def authorize_operator_take(args: argparse.Namespace) -> dict[str, Any]:
-    """Create one exact authorization without starting physical acquisition."""
+def _retire_failed_attempts(
+    *,
+    campaign_root: Path,
+    take_id: str,
+    replacement_attempt_root: Path,
+    ledger: list[dict[str, Any]],
+) -> list[str]:
+    """Replace failed attempt artifacts with one concise prevention note."""
 
-    _config(args.config)
-    _operator_acquisition_policy()
-    campaign_manifest = _load_json(args.manifest.resolve())
-    anchor = str(campaign_manifest.get("manifest_sha256"))
-    validate_engineering_manifest(
-        campaign_manifest,
-        expected_manifest_sha256=anchor,
-    )
-    _require_clean_head()
-    implementation_head = _git_head()
-    _require_manifest_head_ancestor(
-        str(campaign_manifest["code_head"]),
-        implementation_head,
-    )
-    matches = [
-        item
-        for item in campaign_manifest["design"]
-        if item["engineering_take_id"] == args.take_id
-    ]
-    if len(matches) != 1:
+    if (
+        not (replacement_attempt_root / "respeaker_audio.wav").is_file()
+        or not (replacement_attempt_root / "candidate_seal.json").is_file()
+        or not ledger
+        or ledger[-1].get("engineering_take_id") != take_id
+        or ledger[-1].get("decision") != "PASS"
+    ):
         raise S48PhysicalRehearsalError(
-            "operator authorization take id is not in the frozen campaign"
+            "failed raws cannot be retired before the replacement is valid"
         )
-    campaign_root = Path(
-        campaign_manifest["operational_locations"]["campaign_root"]
-    )
-    ledger = _read_json_lines(campaign_root / "attempt_ledger.jsonl")
-    authorization = build_operator_take_authorization(
-        campaign_manifest=campaign_manifest,
-        ledger=ledger,
-        implementation_head=implementation_head,
-        take=matches[0],
-        attempt_number=args.attempt_number,
-        reason_code=args.reason_code,
-        justification=args.justification,
-        scientific_outcomes_inspected=False,
-    )
-    output = args.output.resolve()
-    if output == ROOT or ROOT in output.parents:
-        raise S48PhysicalRehearsalError(
-            "operator authorization must remain outside the repository"
+    retired: list[str] = []
+    for record in ledger[:-1]:
+        if (
+            record.get("engineering_take_id") != take_id
+            or record.get("decision") != "RETRY_REQUIRED"
+        ):
+            continue
+        attempt_number = record["attempt_number"]
+        attempt_root = (
+            campaign_root
+            / "attempts"
+            / take_id
+            / f"{take_id}__attempt_{attempt_number:02d}"
         )
-    _write_new_json(output, authorization)
-    return {
-        "status": "authorized",
-        "take_id": args.take_id,
-        "attempt_number": args.attempt_number,
-        "authorization_path": str(output),
-        "authorization_sha256": authorization["authorization_sha256"],
-        "one_take_only": True,
-        "automatic_batch": False,
-        "recorder_started": False,
-        "playback_started": False,
-        "zed_recording_started": False,
-        "authority": dict(campaign_manifest["authority"]),
-    }
+        if not attempt_root.is_dir():
+            raise S48PhysicalRehearsalError(
+                f"failed attempt directory is missing: {attempt_root}"
+            )
+        report_path = attempt_root / "retry_report.json"
+        if not report_path.is_file():
+            report_path = attempt_root / "gate_report.json"
+        report = _load_json(report_path)
+        reasons = report.get("reasons")
+        codes = (
+            [
+                str(reason.get("code"))
+                for reason in reasons
+                if isinstance(reason, dict) and reason.get("code")
+            ]
+            if isinstance(reasons, list)
+            else []
+        )
+        note = {
+            "take_id": take_id,
+            "failure_cause": (
+                ", ".join(dict.fromkeys(codes))
+                or "technical validation failed"
+            ),
+            "prevention_guidance": (
+                "Remove uncontrolled noise and verify playback, capture timing, "
+                "devices, and placement before repeating the take."
+            ),
+        }
+        note_path = attempt_root / "failed_raw_note.json"
+        _write_new_json(note_path, note)
+        for child in attempt_root.iterdir():
+            if child == note_path:
+                continue
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+        retired.append(str(attempt_root))
+    return retired
 
 
 def main() -> int:
@@ -1102,27 +1035,10 @@ def main() -> int:
         function=freeze,
         preliminary=True,
     )
-    authorize_parser = subparsers.add_parser("authorize-operator-take")
-    authorize_parser.add_argument("--manifest", type=Path, required=True)
-    authorize_parser.add_argument("--take-id", required=True)
-    authorize_parser.add_argument("--attempt-number", type=int, required=True)
-    authorize_parser.add_argument(
-        "--reason-code",
-        choices=(
-            "operator_requested_initial",
-            "operator_requested_technical_retry",
-            "operator_reported_physical_invalidation",
-        ),
-        required=True,
-    )
-    authorize_parser.add_argument("--justification", required=True)
-    authorize_parser.add_argument("--output", type=Path, required=True)
-    authorize_parser.set_defaults(function=authorize_operator_take)
     take_parser = subparsers.add_parser("run-take")
     take_parser.add_argument("--manifest", type=Path, required=True)
     take_parser.add_argument("--take-id", required=True)
     take_parser.add_argument("--attempt-number", type=int, required=True)
-    take_parser.add_argument("--operator-authorization", type=Path)
     take_parser.add_argument("--dry-run", action="store_true")
     take_parser.add_argument("--dry-run-root", type=Path, default=None)
     take_parser.set_defaults(require_preliminary=False)
@@ -1131,7 +1047,6 @@ def main() -> int:
     preliminary_take_parser.add_argument("--manifest", type=Path, required=True)
     preliminary_take_parser.add_argument("--take-id", required=True)
     preliminary_take_parser.add_argument("--attempt-number", type=int, required=True)
-    preliminary_take_parser.add_argument("--operator-authorization", type=Path)
     preliminary_take_parser.set_defaults(
         function=run_take,
         dry_run=False,

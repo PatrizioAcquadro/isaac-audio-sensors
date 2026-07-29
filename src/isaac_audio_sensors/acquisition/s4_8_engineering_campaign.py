@@ -42,10 +42,6 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
 CAMPAIGN_MANIFEST_SCHEMA = "ias.s4_8.engineering_campaign_manifest.v1"
 PRELIMINARY_MANIFEST_SCHEMA = "ias.s4_8.preliminary_manifest.v1"
 ATTEMPT_LEDGER_SCHEMA = "ias.s4_8.engineering_attempt_ledger_record.v1"
-OPERATOR_ATTEMPT_LEDGER_SCHEMA = "ias.s4_8.operator_attempt_ledger_record.v1"
-OPERATOR_TAKE_AUTHORIZATION_SCHEMA = (
-    "ias.s4_8.operator_take_authorization.v1"
-)
 NONREFERENCE_REPORT_SCHEMA = "ias.s4_8.nonreference_presealing_report.v1"
 NONREFERENCE_JOURNAL_SCHEMA = (
     "ias.s4_8.nonreference_engineering_process_journal_event.v1"
@@ -89,23 +85,6 @@ _RETRY_POLICY = {
     "replacement_requires_retained_retry_required": True,
     "sequence_advances_only_after_pass": True,
     "configuration_change_restarts_campaign": True,
-}
-OPERATOR_TRIGGERED_RETRY_POLICY = {
-    "operator_authorization_required_per_take": True,
-    "one_take_per_command": True,
-    "automatic_batch_forbidden": True,
-    "all_attempts_retained": True,
-    "technical_retry_attempt_limit": None,
-    "technical_retry_requires_retained_retry_required": True,
-    "attempt_numbers_strictly_monotonic": True,
-    "sequence_advances_only_after_pass": True,
-    "passed_take_replacement_requires_versioned_invalidation": True,
-    "scientific_outcomes_must_remain_uninspected": True,
-}
-_OPERATOR_REASON_CODES = {
-    "operator_requested_initial",
-    "operator_requested_technical_retry",
-    "operator_reported_physical_invalidation",
 }
 _EXPECTED_CHANNEL_MAP = [
     "Conference",
@@ -536,155 +515,6 @@ def validate_engineering_manifest(
     )
 
 
-def build_operator_take_authorization(
-    *,
-    campaign_manifest: Mapping[str, Any],
-    ledger: Sequence[Mapping[str, Any]],
-    implementation_head: str,
-    take: Mapping[str, Any],
-    attempt_number: int,
-    reason_code: str,
-    justification: str,
-    scientific_outcomes_inspected: bool,
-) -> dict[str, Any]:
-    """Authorize one exact operator-requested take without enabling a batch."""
-
-    anchor = str(campaign_manifest.get("manifest_sha256"))
-    validate_attempt_ledger(
-        ledger,
-        campaign_manifest=campaign_manifest,
-        expected_campaign_manifest_sha256=anchor,
-    )
-    expected_take, expected_attempt = _next_attempt(ledger, campaign_manifest)
-    if (
-        not _is_git_head(implementation_head)
-        or dict(take) != dict(expected_take)
-        or attempt_number != expected_attempt
-        or reason_code not in _OPERATOR_REASON_CODES
-        or not isinstance(justification, str)
-        or not justification.strip()
-        or scientific_outcomes_inspected is not False
-        or (
-            expected_attempt == 1
-            and reason_code != "operator_requested_initial"
-        )
-        or (
-            expected_attempt > 1
-            and reason_code == "operator_requested_initial"
-        )
-    ):
-        raise S48EngineeringCampaignError(
-            "operator take authorization request is invalid"
-        )
-    ledger_head = (
-        anchor if not ledger else str(ledger[-1].get("record_sha256"))
-    )
-    payload = {
-        "schema": OPERATOR_TAKE_AUTHORIZATION_SCHEMA,
-        "campaign_manifest_sha256": anchor,
-        "ledger_head_sha256": ledger_head,
-        "engineering_take_id": take["engineering_take_id"],
-        "engineering_take_definition_sha256": take[
-            "engineering_take_definition_sha256"
-        ],
-        "attempt_number": attempt_number,
-        "implementation_head": implementation_head,
-        "reason_code": reason_code,
-        "justification": justification.strip(),
-        "scientific_outcomes_inspected": False,
-        "one_take_only": True,
-        "automatic_batch": False,
-        "all_prior_attempts_retained": True,
-        "operator_policy_sha256": canonical_sha256(
-            OPERATOR_TRIGGERED_RETRY_POLICY
-        ),
-        "authority": dict(AUTHORITY_NONE),
-    }
-    return {**payload, "authorization_sha256": canonical_sha256(payload)}
-
-
-def validate_operator_take_authorization(
-    authorization: Mapping[str, Any],
-    *,
-    campaign_manifest: Mapping[str, Any],
-    ledger: Sequence[Mapping[str, Any]],
-    take: Mapping[str, Any],
-    attempt_number: int,
-) -> None:
-    """Validate one exact, current-ledger operator authorization."""
-
-    anchor = str(campaign_manifest.get("manifest_sha256"))
-    validate_attempt_ledger(
-        ledger,
-        campaign_manifest=campaign_manifest,
-        expected_campaign_manifest_sha256=anchor,
-    )
-    expected_take, expected_attempt = _next_attempt(ledger, campaign_manifest)
-    payload = {
-        key: value
-        for key, value in authorization.items()
-        if key != "authorization_sha256"
-    }
-    expected_fields = {
-        "schema",
-        "campaign_manifest_sha256",
-        "ledger_head_sha256",
-        "engineering_take_id",
-        "engineering_take_definition_sha256",
-        "attempt_number",
-        "implementation_head",
-        "reason_code",
-        "justification",
-        "scientific_outcomes_inspected",
-        "one_take_only",
-        "automatic_batch",
-        "all_prior_attempts_retained",
-        "operator_policy_sha256",
-        "authority",
-        "authorization_sha256",
-    }
-    ledger_head = (
-        anchor if not ledger else str(ledger[-1].get("record_sha256"))
-    )
-    if (
-        set(authorization) != expected_fields
-        or authorization.get("schema") != OPERATOR_TAKE_AUTHORIZATION_SCHEMA
-        or authorization.get("authorization_sha256")
-        != canonical_sha256(payload)
-        or authorization.get("campaign_manifest_sha256") != anchor
-        or authorization.get("ledger_head_sha256") != ledger_head
-        or dict(take) != dict(expected_take)
-        or attempt_number != expected_attempt
-        or authorization.get("engineering_take_id")
-        != take.get("engineering_take_id")
-        or authorization.get("engineering_take_definition_sha256")
-        != take.get("engineering_take_definition_sha256")
-        or authorization.get("attempt_number") != attempt_number
-        or not _is_git_head(authorization.get("implementation_head"))
-        or authorization.get("reason_code") not in _OPERATOR_REASON_CODES
-        or not isinstance(authorization.get("justification"), str)
-        or not str(authorization["justification"]).strip()
-        or authorization.get("scientific_outcomes_inspected") is not False
-        or authorization.get("one_take_only") is not True
-        or authorization.get("automatic_batch") is not False
-        or authorization.get("all_prior_attempts_retained") is not True
-        or authorization.get("operator_policy_sha256")
-        != canonical_sha256(OPERATOR_TRIGGERED_RETRY_POLICY)
-        or authorization.get("authority") != AUTHORITY_NONE
-        or (
-            attempt_number == 1
-            and authorization.get("reason_code") != "operator_requested_initial"
-        )
-        or (
-            attempt_number > 1
-            and authorization.get("reason_code") == "operator_requested_initial"
-        )
-    ):
-        raise S48EngineeringCampaignError(
-            "operator take authorization is stale, altered, or mismatched"
-        )
-
-
 def append_attempt_ledger_record(
     ledger: MutableSequence[dict[str, Any]],
     *,
@@ -694,7 +524,6 @@ def append_attempt_ledger_record(
     decision: str,
     report_sha256: str,
     candidate_seal_sha256: str | None,
-    operator_authorization: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Append one PASS or RETRY_REQUIRED record without hiding attempts."""
 
@@ -715,44 +544,8 @@ def append_attempt_ledger_record(
         if not ledger
         else str(ledger[-1].get("record_sha256"))
     )
-    if operator_authorization is None and attempt_number not in {1, 2}:
-        raise S48EngineeringCampaignError(
-            "attempts beyond two require an operator authorization"
-        )
-    if operator_authorization is not None:
-        authorization_payload = {
-            key: value
-            for key, value in operator_authorization.items()
-            if key != "authorization_sha256"
-        }
-        if (
-            operator_authorization.get("schema")
-            != OPERATOR_TAKE_AUTHORIZATION_SCHEMA
-            or operator_authorization.get("authorization_sha256")
-            != canonical_sha256(authorization_payload)
-            or operator_authorization.get("campaign_manifest_sha256")
-            != campaign_manifest_sha256
-            or operator_authorization.get("ledger_head_sha256") != previous
-            or operator_authorization.get("engineering_take_id")
-            != planned_take.get("engineering_take_id")
-            or operator_authorization.get("engineering_take_definition_sha256")
-            != planned_take.get("engineering_take_definition_sha256")
-            or operator_authorization.get("attempt_number") != attempt_number
-            or operator_authorization.get("scientific_outcomes_inspected")
-            is not False
-            or operator_authorization.get("one_take_only") is not True
-            or operator_authorization.get("automatic_batch") is not False
-            or operator_authorization.get("all_prior_attempts_retained") is not True
-        ):
-            raise S48EngineeringCampaignError(
-                "operator authorization cannot bind the attempt ledger record"
-            )
     payload = {
-        "schema": (
-            ATTEMPT_LEDGER_SCHEMA
-            if operator_authorization is None
-            else OPERATOR_ATTEMPT_LEDGER_SCHEMA
-        ),
+        "schema": ATTEMPT_LEDGER_SCHEMA,
         "sequence": len(ledger),
         "campaign_manifest_sha256": campaign_manifest_sha256,
         "previous_record_sha256": previous,
@@ -766,22 +559,6 @@ def append_attempt_ledger_record(
         "report_sha256": report_sha256,
         "candidate_seal_sha256": candidate_seal_sha256,
     }
-    if operator_authorization is not None:
-        payload.update(
-            {
-                "operator_authorization_sha256": operator_authorization[
-                    "authorization_sha256"
-                ],
-                "implementation_head": operator_authorization[
-                    "implementation_head"
-                ],
-                "reason_code": operator_authorization["reason_code"],
-                "one_take_only": True,
-                "automatic_batch": False,
-                "all_prior_attempts_retained": True,
-                "scientific_outcomes_inspected": False,
-            }
-        )
     record = {**payload, "record_sha256": canonical_sha256(payload)}
     ledger.append(record)
     return record
@@ -809,8 +586,7 @@ def validate_attempt_ledger(
             key: value for key, value in record.items() if key != "record_sha256"
         }
         take = by_id.get(record.get("engineering_take_id"))
-        schema = record.get("schema")
-        legacy_fields = {
+        fields = {
             "schema",
             "sequence",
             "campaign_manifest_sha256",
@@ -824,48 +600,13 @@ def validate_attempt_ledger(
             "candidate_seal_sha256",
             "record_sha256",
         }
-        operator_fields = legacy_fields | {
-            "operator_authorization_sha256",
-            "implementation_head",
-            "reason_code",
-            "one_take_only",
-            "automatic_batch",
-            "all_prior_attempts_retained",
-            "scientific_outcomes_inspected",
-        }
         attempt_number = record.get("attempt_number")
-        schema_valid = (
-            schema == ATTEMPT_LEDGER_SCHEMA
-            and set(record) == legacy_fields
-            and attempt_number in {1, 2}
-        ) or (
-            schema == OPERATOR_ATTEMPT_LEDGER_SCHEMA
-            and set(record) == operator_fields
-            and isinstance(attempt_number, int)
-            and not isinstance(attempt_number, bool)
-            and attempt_number >= 1
-            and _is_sha256(record.get("operator_authorization_sha256"))
-            and _is_git_head(record.get("implementation_head"))
-            and record.get("reason_code") in _OPERATOR_REASON_CODES
-            and (
-                (
-                    attempt_number == 1
-                    and record.get("reason_code")
-                    == "operator_requested_initial"
-                )
-                or (
-                    attempt_number > 1
-                    and record.get("reason_code")
-                    != "operator_requested_initial"
-                )
-            )
-            and record.get("one_take_only") is True
-            and record.get("automatic_batch") is False
-            and record.get("all_prior_attempts_retained") is True
-            and record.get("scientific_outcomes_inspected") is False
-        )
         if (
-            not schema_valid
+            set(record) != fields
+            or record.get("schema") != ATTEMPT_LEDGER_SCHEMA
+            or not isinstance(attempt_number, int)
+            or isinstance(attempt_number, bool)
+            or attempt_number < 1
             or record.get("sequence") != sequence
             or record.get("campaign_manifest_sha256")
             != expected_campaign_manifest_sha256
@@ -923,7 +664,6 @@ def validate_attempt_request(
     expected_campaign_manifest_sha256: str,
     take: Mapping[str, Any],
     attempt_number: int,
-    operator_authorization: Mapping[str, Any] | None = None,
 ) -> None:
     """Authorize the exact next attempt before any producer is started."""
 
@@ -933,27 +673,6 @@ def validate_attempt_request(
         expected_campaign_manifest_sha256=expected_campaign_manifest_sha256,
     )
     expected_take, expected_attempt = _next_attempt(ledger, campaign_manifest)
-    operator_policy = (
-        campaign_manifest.get("retry_policy") == OPERATOR_TRIGGERED_RETRY_POLICY
-    )
-    if operator_authorization is None:
-        if operator_policy:
-            raise S48EngineeringCampaignError(
-                "operator authorization is required for every take"
-            )
-        if expected_attempt > 2:
-            raise S48EngineeringCampaignError(
-                "frozen retry policy permits no third attempt without an "
-                "additive operator authorization"
-            )
-    else:
-        validate_operator_take_authorization(
-            operator_authorization,
-            campaign_manifest=campaign_manifest,
-            ledger=ledger,
-            take=take,
-            attempt_number=attempt_number,
-        )
     if (
         dict(take) != dict(expected_take)
         or attempt_number != expected_attempt
@@ -1969,7 +1688,7 @@ def _validate_campaign_payload(payload: Mapping[str, Any]) -> None:
         or payload.get("planned_take_count") != 47
         or not isinstance(design, list)
         or len(design) != 47
-        or retry not in (_RETRY_POLICY, OPERATOR_TRIGGERED_RETRY_POLICY)
+        or retry != _RETRY_POLICY
         or not isinstance(locations, Mapping)
         or set(locations) != {"campaign_root", "pi_capture_root"}
         or not all(isinstance(value, str) and value for value in locations.values())
@@ -2063,8 +1782,7 @@ def _validate_preliminary_payload(payload: Mapping[str, Any]) -> None:
         or common.get("planned_take_count") != 4
         or not isinstance(design, list)
         or len(design) != 4
-        or common.get("retry_policy")
-        not in (_RETRY_POLICY, OPERATOR_TRIGGERED_RETRY_POLICY)
+        or common.get("retry_policy") != _RETRY_POLICY
         or not isinstance(common.get("operational_locations"), Mapping)
         or set(common["operational_locations"])
         != {"campaign_root", "pi_capture_root"}

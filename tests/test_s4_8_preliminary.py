@@ -13,7 +13,6 @@ import pytest
 
 from isaac_audio_sensors.acquisition import s4_8_recovery_02
 from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
-    OPERATOR_TRIGGERED_RETRY_POLICY,
     S48EngineeringCampaignError,
     build_preliminary_manifest,
     derive_preliminary_design,
@@ -123,19 +122,6 @@ def test_active_workflow_is_exactly_four_preliminary_plus_one_47_holdout() -> No
     assert config["official_path"]["official_holdout_count"] == 1
     assert config["official_path"]["final_protocol_status"] == "not_frozen"
     assert config["official_path"]["official_acquisition_status"] == "blocked"
-    assert (
-        config["operator_control"]["operator_authorization_required_per_take"]
-        is True
-    )
-    assert config["operator_control"]["one_take_per_command"] is True
-    policy = json.loads(
-        (ROOT / config["operator_control"]["policy_path"]).read_text(encoding="utf-8")
-    )
-    assert policy["policy"] == OPERATOR_TRIGGERED_RETRY_POLICY
-    assert policy["applies_to"] == [
-        "s4_8_four_take_preliminary_v1",
-        "s4_8_recovery_amendment_02_unseen_holdout",
-    ]
     assert config["authority"] == AUTHORITY_NONE
 
 

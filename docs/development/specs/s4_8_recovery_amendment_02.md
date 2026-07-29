@@ -90,12 +90,11 @@ technical QA. Scientific outputs remain unopened until the complete dataset is
 hashed, sealed, and bound to the frozen evaluator.
 
 Official acquisition is not required to run continuously or in one session.
-The operator-triggered acquisition policy requires one explicit authorization
-and one command per take, retains every prior attempt, and forbids implicit
-batch continuation. Technical `RETRY_REQUIRED` attempts may be repeated with
-monotonic attempt numbers and fresh ledger-bound authorizations. The frozen
-47-cell sequence and scientific configuration remain unchanged, and no
-scientific outcome may inform a retry.
+The operator may request one take, a subset, or the complete frozen sequence;
+collection stops at the end of that explicit scope. Technical
+`RETRY_REQUIRED` attempts may be repeated without a fixed limit for physical
+or technical invalidation only. Scientific outcomes may not inform a retry,
+and accepted official data is immutable after protocol freeze.
 
 The precollection seal, technical manifests, and final unopened holdout seal
 must live under the amendment_04 namespace declared in the machine-readable

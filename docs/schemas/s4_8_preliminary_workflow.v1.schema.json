@@ -9,7 +9,6 @@
     "status",
     "specification_path",
     "acquisition_contract",
-    "operator_control",
     "preliminary",
     "processing",
     "reuse_policy",
@@ -27,46 +26,6 @@
       "properties": {
         "path": {"const": "configs/s4_8_engineering_campaign.v1.json"},
         "sha256": {"$ref": "#/$defs/sha256"}
-      }
-    },
-    "operator_control": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "policy_path",
-        "policy_sha256",
-        "policy_schema_path",
-        "policy_schema_sha256",
-        "authorization_schema_path",
-        "authorization_schema_sha256",
-        "specification_path",
-        "specification_sha256",
-        "operator_authorization_required_per_take",
-        "one_take_per_command",
-        "automatic_batch_forbidden",
-        "all_attempts_retained"
-      ],
-      "properties": {
-        "policy_path": {
-          "const": "configs/s4_8_operator_acquisition_policy.v1.json"
-        },
-        "policy_sha256": {"$ref": "#/$defs/sha256"},
-        "policy_schema_path": {
-          "const": "docs/schemas/s4_8_operator_acquisition_policy.v1.schema.json"
-        },
-        "policy_schema_sha256": {"$ref": "#/$defs/sha256"},
-        "authorization_schema_path": {
-          "const": "docs/schemas/s4_8_operator_take_authorization.v1.schema.json"
-        },
-        "authorization_schema_sha256": {"$ref": "#/$defs/sha256"},
-        "specification_path": {
-          "const": "docs/development/specs/s4_8_operator_triggered_acquisition.md"
-        },
-        "specification_sha256": {"$ref": "#/$defs/sha256"},
-        "operator_authorization_required_per_take": {"const": true},
-        "one_take_per_command": {"const": true},
-        "automatic_batch_forbidden": {"const": true},
-        "all_attempts_retained": {"const": true}
       }
     },
     "preliminary": {

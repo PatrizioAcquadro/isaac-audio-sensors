@@ -15,7 +15,6 @@ import jsonschema
 
 from isaac_audio_sensors.acquisition import s4_8
 from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
-    OPERATOR_TRIGGERED_RETRY_POLICY,
     validate_preliminary_manifest,
 )
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
@@ -91,32 +90,6 @@ def load_workflow_config(repo_root: Path) -> dict[str, Any]:
     if _sha256_file(path) != acquisition["sha256"]:
         raise S48PreliminaryError(
             "preliminary workflow acquisition contract hash mismatch"
-        )
-    operator = config["operator_control"]
-    for path_key, digest_key in (
-        ("policy_path", "policy_sha256"),
-        ("policy_schema_path", "policy_schema_sha256"),
-        ("authorization_schema_path", "authorization_schema_sha256"),
-        ("specification_path", "specification_sha256"),
-    ):
-        bound_path = root / _safe_relative(operator[path_key])
-        if _sha256_file(bound_path) != operator[digest_key]:
-            raise S48PreliminaryError(
-                f"preliminary operator-control binding mismatch: {path_key}"
-            )
-    policy = _load_json(root / _safe_relative(operator["policy_path"]))
-    policy_schema = _load_json(
-        root / _safe_relative(operator["policy_schema_path"])
-    )
-    try:
-        jsonschema.validate(policy, policy_schema)
-    except jsonschema.ValidationError as exc:
-        raise S48PreliminaryError(
-            f"operator acquisition policy schema failure: {exc.message}"
-        ) from exc
-    if policy.get("policy") != OPERATOR_TRIGGERED_RETRY_POLICY:
-        raise S48PreliminaryError(
-            "operator acquisition policy contradicts the runtime contract"
         )
     if config["authority"] != AUTHORITY_NONE:
         raise S48PreliminaryError("preliminary workflow authority is invalid")
