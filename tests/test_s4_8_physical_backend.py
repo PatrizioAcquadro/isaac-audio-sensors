@@ -403,9 +403,9 @@ def test_v7_campaign_freezes_70_percent_volume_without_focus_prompt() -> None:
 
     assert (
         config["protocol"]["identity"]
-        == "s4_8_physical_engineering_rehearsal_stratum_aware_v5"
+        == "s4_8_physical_engineering_rehearsal_stratum_aware_v6"
     )
-    assert config["controller"]["version"] == "1.6"
+    assert config["controller"]["version"] == "1.7"
     assert config["playback"]["system_volume_percent"] == 70
     assert config["playback"]["power_policy"] == "battery_allowed"
     assert "--operator-work-focus-confirmed" not in runner
