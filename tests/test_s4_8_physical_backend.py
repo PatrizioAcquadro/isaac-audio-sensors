@@ -455,6 +455,57 @@ def test_mac_runtime_identity_preserves_stdout_stderr_split(
     assert calls[1][-2:] == ["-typecheck", "helper.swift"]
 
 
+def test_preflight_asset_is_removed_after_deployment_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location(
+        "s48_preflight_cleanup_runner",
+        script_path,
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    observed: list[Path] = []
+
+    def fake_build(*, output_path: Path, **_: object) -> dict[str, object]:
+        output_path.write_bytes(b"scratch")
+        observed.append(output_path)
+        return {"asset_sha256": "a" * 64}
+
+    def fail_deployment(
+        _config: dict[str, object],
+        *,
+        local_asset_path: Path,
+        expected_sha256: str,
+    ) -> dict[str, object]:
+        assert local_asset_path.is_file()
+        assert expected_sha256 == "a" * 64
+        raise runner.S48PhysicalRehearsalError("injected deployment failure")
+
+    monkeypatch.setattr(runner, "build_continuous_playback_asset", fake_build)
+    monkeypatch.setattr(runner, "_deploy_continuous_asset", fail_deployment)
+    config = {
+        "reference": {
+            "local_path": "unused.wav",
+            "continuous_asset_duration_s": 18,
+            "active_start_s": 2.25,
+            "active_stop_s": 7.25,
+        }
+    }
+
+    with pytest.raises(
+        runner.S48PhysicalRehearsalError,
+        match="injected deployment failure",
+    ):
+        runner._prepare_preflight_asset(config)
+
+    assert len(observed) == 1
+    assert not observed[0].exists()
+    assert not observed[0].parent.exists()
+
+
 def test_runner_retires_failed_raws_only_after_replacement_passes(
     tmp_path: Path,
 ) -> None:

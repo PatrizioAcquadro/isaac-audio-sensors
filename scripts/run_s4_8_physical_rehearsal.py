@@ -348,24 +348,34 @@ def _verify_mac_playback_runtime(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _prepare_preflight_asset(
+    config: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Build and deploy the deterministic asset without retaining scratch media."""
+
+    with tempfile.TemporaryDirectory(prefix="ias_s4_8_preflight_") as temporary:
+        asset_path = Path(temporary) / "continuous_reference_18s.wav"
+        asset = build_continuous_playback_asset(
+            reference_path=ROOT / config["reference"]["local_path"],
+            output_path=asset_path,
+            duration_s=float(config["reference"]["continuous_asset_duration_s"]),
+            source_start_s=float(config["reference"]["active_start_s"]),
+            source_stop_s=float(config["reference"]["active_stop_s"]),
+        )
+        deployment = _deploy_continuous_asset(
+            config,
+            local_asset_path=asset_path,
+            expected_sha256=asset["asset_sha256"],
+        )
+    return asset, deployment
+
+
 def preflight(args: argparse.Namespace) -> dict[str, Any]:
     config = _config(args.config)
     output = args.output.resolve()
     if output.exists():
         raise S48PhysicalRehearsalError(f"refusing to overwrite {output}")
-    asset_path = output.with_name("continuous_reference_18s.preflight.wav")
-    asset = build_continuous_playback_asset(
-        reference_path=ROOT / config["reference"]["local_path"],
-        output_path=asset_path,
-        duration_s=float(config["reference"]["continuous_asset_duration_s"]),
-        source_start_s=float(config["reference"]["active_start_s"]),
-        source_stop_s=float(config["reference"]["active_stop_s"]),
-    )
-    deployment = _deploy_continuous_asset(
-        config,
-        local_asset_path=asset_path,
-        expected_sha256=asset["asset_sha256"],
-    )
+    asset, deployment = _prepare_preflight_asset(config)
     helper_deployment = _deploy_mac_file(
         config,
         local_path=ROOT / config["playback"]["playback_helper_local_path"],
