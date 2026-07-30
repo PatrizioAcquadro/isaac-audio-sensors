@@ -14,6 +14,14 @@ assert SPEC is not None and SPEC.loader is not None
 bias = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(bias)
 
+RECHECK_SPEC = importlib.util.spec_from_file_location(
+    "s4_8_22p5_recheck",
+    ROOT / "scripts/run_s4_8_22p5_recheck.py",
+)
+assert RECHECK_SPEC is not None and RECHECK_SPEC.loader is not None
+recheck = importlib.util.module_from_spec(RECHECK_SPEC)
+RECHECK_SPEC.loader.exec_module(recheck)
+
 
 def test_design_is_exactly_two_zero_then_two_45_degree_takes() -> None:
     takes = bias._take_definitions()
@@ -29,6 +37,19 @@ def test_design_is_exactly_two_zero_then_two_45_degree_takes() -> None:
     assert [
         take["mac_removal_and_exact_reposition_before_take"] for take in takes
     ] == [False, True, True, True]
+
+
+def test_22p5_recheck_is_one_take_in_a_new_additive_campaign() -> None:
+    takes = recheck.workflow._take_definitions()
+
+    assert recheck.workflow.DEFAULT_CAMPAIGN_ROOT.name == (
+        "s4_8_bias_disambiguation_22p5_recheck_v2"
+    )
+    assert recheck.workflow.PROTOCOL_ID_PREFIX == (
+        "s4_8_additive_22p5_recheck_v2"
+    )
+    assert [take["source_bearing_deg"] for take in takes] == [22.5]
+    assert [take["take_number"] for take in takes] == [1]
 
 
 def test_campaign_root_is_fixed_and_additive(tmp_path: Path) -> None:

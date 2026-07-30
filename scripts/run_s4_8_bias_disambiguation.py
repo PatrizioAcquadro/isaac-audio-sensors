@@ -53,6 +53,8 @@ TAKE_BEARINGS_DEG = (0.0, 0.0, 45.0, 45.0)
 TARGET_RADIUS_M = 0.8
 PLAYBACK_GAIN = 0.75
 CONTROLLER_SOURCE_PATH = "scripts/run_s4_8_bias_disambiguation.py"
+PROTOCOL_ID_PREFIX = "s4_8_additive_bias_disambiguation_0_45_v1"
+PI_REMOTE_CAMPAIGN_NAME = "bias_disambiguation_0_45_v1"
 SOURCE_PATHS = (
     "configs/s4_3_pilot.v1.json",
     "configs/s4_6_profile_application.v1.json",
@@ -489,7 +491,7 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
         device_profile_id=str(manifest["device_profile_id"]),
         channel_map=manifest["channel_map"],
         protocol_id=(
-            "s4_8_additive_bias_disambiguation_0_45_v1:"
+            f"{PROTOCOL_ID_PREFIX}:"
             f"{manifest['manifest_sha256']}:{take_sha256}"
         ),
         capture_controller_identity=str(config["controller"]["identity"]),
@@ -505,7 +507,7 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
         pi_scp_target=config["respeaker"]["scp_target"],
         pi_helper_path=config["respeaker"]["helper_path"],
         pi_remote_attempt=(
-            f"S4.8/bias_disambiguation_0_45_v1/"
+            f"S4.8/{PI_REMOTE_CAMPAIGN_NAME}/"
             f"{manifest['manifest_sha256'][:16]}/{take['take_id']}"
         ),
         pi_device=config["respeaker"]["device"],
