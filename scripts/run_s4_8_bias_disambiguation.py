@@ -48,9 +48,11 @@ REFERENCE_PATH = (
 )
 SCHEMA = "ias.s4_8.bias_disambiguation_campaign.v1"
 LEDGER_SCHEMA = "ias.s4_8.bias_disambiguation_ledger_record.v1"
+AUTHORIZATION_SCHEMA = "ias.s4_8.bias_disambiguation_take_authorization.v1"
 TAKE_BEARINGS_DEG = (0.0, 0.0, 45.0, 45.0)
 TARGET_RADIUS_M = 0.8
 PLAYBACK_GAIN = 0.75
+CONTROLLER_SOURCE_PATH = "scripts/run_s4_8_bias_disambiguation.py"
 SOURCE_PATHS = (
     "configs/s4_3_pilot.v1.json",
     "configs/s4_6_profile_application.v1.json",
@@ -155,10 +157,6 @@ def _campaign_root(path: Path) -> Path:
 
 def _require_bound_source_state(expected_head: str | None = None) -> str:
     head = repeatability._git_head()
-    if expected_head is not None and head != expected_head:
-        raise BiasDisambiguationError(
-            "repository HEAD differs from the campaign binding"
-        )
     changed = subprocess.run(
         ["git", "diff", "--quiet", "HEAD", "--", *SOURCE_PATHS],
         cwd=ROOT,
@@ -175,7 +173,26 @@ def _require_bound_source_state(expected_head: str | None = None) -> str:
         raise BiasDisambiguationError(
             "bias controller or scientific dependencies are not committed"
         )
+    if expected_head is not None and head != expected_head:
+        raise BiasDisambiguationError(
+            "repository HEAD differs from the campaign binding"
+        )
     return head
+
+
+def _require_additive_controller_state(
+    manifest: Mapping[str, Any],
+) -> tuple[str, str]:
+    head = _require_bound_source_state()
+    source_hashes = manifest["source_files_sha256"]
+    for path in SOURCE_PATHS:
+        if path == CONTROLLER_SOURCE_PATH:
+            continue
+        if repeatability._sha256(ROOT / path) != source_hashes[path]:
+            raise BiasDisambiguationError(
+                f"scientific campaign source changed after freeze: {path}"
+            )
+    return head, repeatability._sha256(ROOT / CONTROLLER_SOURCE_PATH)
 
 
 def _validate_campaign(manifest: Mapping[str, Any]) -> None:
@@ -227,9 +244,153 @@ def _validate_ledger(
             or record.get("previous_record_sha256") != previous
             or record.get("decision") not in {"PASS", "RETRY_REQUIRED"}
             or record.get("record_sha256") != canonical_sha256(payload)
+            or (
+                sequence == 0
+                and "authorization_sha256" in record
+            )
+            or (
+                sequence > 0
+                and not isinstance(record.get("authorization_sha256"), str)
+            )
         ):
             raise BiasDisambiguationError("bias-disambiguation ledger is invalid")
         previous = str(record["record_sha256"])
+
+
+def _authorization_path(root: Path, take_number: int) -> Path:
+    return root / "authorizations" / f"take_{take_number:02d}.json"
+
+
+def _validate_authorization(
+    authorization: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    prior_records: Sequence[Mapping[str, Any]],
+    take_number: int,
+) -> None:
+    payload = {
+        key: value
+        for key, value in authorization.items()
+        if key != "authorization_sha256"
+    }
+    take = manifest["takes"][take_number - 1]
+    expected_previous = (
+        manifest["manifest_sha256"]
+        if not prior_records
+        else prior_records[-1]["record_sha256"]
+    )
+    if (
+        authorization.get("schema") != AUTHORIZATION_SCHEMA
+        or authorization.get("campaign_manifest_sha256")
+        != manifest["manifest_sha256"]
+        or authorization.get("base_code_head") != manifest["code_head"]
+        or authorization.get("take_number") != take_number
+        or authorization.get("take_id") != take["take_id"]
+        or authorization.get("target_bearing_deg_f_project")
+        != take["source_bearing_deg"]
+        or authorization.get("previous_record_sha256") != expected_previous
+        or authorization.get("scope") != "single_engineering_take_only"
+        or authorization.get("automatic_continuation_authorized") is not False
+        or authorization.get("retry_authorized") is not False
+        or authorization.get("classification") != CLASSIFICATION
+        or authorization.get("authority") != AUTHORITY_NONE
+        or not isinstance(authorization.get("controller_head"), str)
+        or not isinstance(authorization.get("controller_source_sha256"), str)
+        or authorization.get("authorization_sha256")
+        != canonical_sha256(payload)
+    ):
+        raise BiasDisambiguationError("take authorization is invalid")
+
+
+def _load_authorization(
+    root: Path,
+    manifest: Mapping[str, Any],
+    prior_records: Sequence[Mapping[str, Any]],
+    take_number: int,
+) -> dict[str, Any] | None:
+    if take_number == 1:
+        if take_number not in manifest["authorization_policy"][
+            "authorized_take_numbers"
+        ]:
+            raise BiasDisambiguationError(
+                "requested take lacks baseline authorization"
+            )
+        _require_bound_source_state(str(manifest["code_head"]))
+        return None
+    path = _authorization_path(root, take_number)
+    if not path.is_file():
+        raise BiasDisambiguationError(
+            "requested take lacks an additive explicit authorization"
+        )
+    authorization = repeatability._load_json(path)
+    _validate_authorization(
+        authorization, manifest, prior_records, take_number
+    )
+    head, controller_sha256 = _require_additive_controller_state(manifest)
+    if (
+        authorization["controller_head"] != head
+        or authorization["controller_source_sha256"] != controller_sha256
+    ):
+        raise BiasDisambiguationError(
+            "take authorization does not bind the active controller"
+        )
+    return authorization
+
+
+def authorize_take(args: argparse.Namespace) -> dict[str, Any]:
+    root = _campaign_root(args.campaign_root)
+    manifest = repeatability._load_json(root / "freeze/campaign_manifest.json")
+    _validate_campaign(manifest)
+    records = _ledger(root / "attempt_ledger.jsonl")
+    _validate_ledger(records, manifest)
+    if args.take_number == 1:
+        raise BiasDisambiguationError(
+            "Take 1 authorization is frozen in the campaign manifest"
+        )
+    if args.take_number != len(records) + 1:
+        raise BiasDisambiguationError(
+            "authorization is permitted only for the exact next take"
+        )
+    if any(record["decision"] != "PASS" for record in records):
+        raise BiasDisambiguationError("a prior take requires operator review")
+    path = _authorization_path(root, args.take_number)
+    if path.exists():
+        raise BiasDisambiguationError(f"refusing to overwrite {path}")
+    head, controller_sha256 = _require_additive_controller_state(manifest)
+    take = manifest["takes"][args.take_number - 1]
+    payload = {
+        "schema": AUTHORIZATION_SCHEMA,
+        "recorded_at_utc": datetime.now(UTC).isoformat(),
+        "campaign_manifest_sha256": manifest["manifest_sha256"],
+        "base_code_head": manifest["code_head"],
+        "controller_head": head,
+        "controller_source_sha256": controller_sha256,
+        "take_number": args.take_number,
+        "take_id": take["take_id"],
+        "target_bearing_deg_f_project": take["source_bearing_deg"],
+        "previous_record_sha256": records[-1]["record_sha256"],
+        "scope": "single_engineering_take_only",
+        "automatic_continuation_authorized": False,
+        "retry_authorized": False,
+        "classification": dict(CLASSIFICATION),
+        "authority": dict(AUTHORITY_NONE),
+    }
+    authorization = {
+        **payload,
+        "authorization_sha256": canonical_sha256(payload),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    repeatability._write_new_json(path, authorization)
+    return {
+        "status": "authorized",
+        "take_number": args.take_number,
+        "take_id": take["take_id"],
+        "authorization": str(path),
+        "authorization_sha256": authorization["authorization_sha256"],
+        "automatic_continuation_authorized": False,
+        "retry_authorized": False,
+        "classification": dict(CLASSIFICATION),
+        "authority": dict(AUTHORITY_NONE),
+    }
 
 
 def prepare(args: argparse.Namespace) -> dict[str, Any]:
@@ -296,11 +457,6 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
     root = _campaign_root(args.campaign_root)
     manifest = repeatability._load_json(root / "freeze/campaign_manifest.json")
     _validate_campaign(manifest)
-    _require_bound_source_state(str(manifest["code_head"]))
-    if args.take_number not in manifest["authorization_policy"][
-        "authorized_take_numbers"
-    ]:
-        raise BiasDisambiguationError("requested take lacks explicit authorization")
     config = repeatability._load_json(args.config.resolve())
     ledger_path = root / "attempt_ledger.jsonl"
     records = _ledger(ledger_path)
@@ -309,6 +465,9 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
         raise BiasDisambiguationError("requested take is not the exact next take")
     if any(record["decision"] != "PASS" for record in records):
         raise BiasDisambiguationError("a prior take requires operator review")
+    authorization = _load_authorization(
+        root, manifest, records, args.take_number
+    )
     take = manifest["takes"][args.take_number - 1]
     attempt_root = root / "takes" / take["take_id"]
     if attempt_root.exists():
@@ -432,6 +591,10 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
         "decision": result["decision"],
         "artifact_sha256": artifact_hashes,
     }
+    if authorization is not None:
+        payload["authorization_sha256"] = authorization[
+            "authorization_sha256"
+        ]
     record = {**payload, "record_sha256": canonical_sha256(payload)}
     repeatability._append_json_line(ledger_path, record)
     return {
@@ -450,7 +613,6 @@ def analyze_take(args: argparse.Namespace) -> dict[str, Any]:
     root = _campaign_root(args.campaign_root)
     manifest = repeatability._load_json(root / "freeze/campaign_manifest.json")
     _validate_campaign(manifest)
-    _require_bound_source_state(str(manifest["code_head"]))
     records = _ledger(root / "attempt_ledger.jsonl")
     _validate_ledger(records, manifest)
     if args.take_number > len(records):
@@ -458,6 +620,17 @@ def analyze_take(args: argparse.Namespace) -> dict[str, Any]:
     record = records[args.take_number - 1]
     if record["decision"] != "PASS":
         raise BiasDisambiguationError("scientific analysis requires a passing gate")
+    authorization = _load_authorization(
+        root, manifest, records[: args.take_number - 1], args.take_number
+    )
+    if (
+        authorization is not None
+        and record.get("authorization_sha256")
+        != authorization["authorization_sha256"]
+    ):
+        raise BiasDisambiguationError(
+            "take ledger does not bind the additive authorization"
+        )
     take = manifest["takes"][args.take_number - 1]
     identity = EngineeringIdentity(
         planned_take_id=str(take["take_id"]),
@@ -530,6 +703,11 @@ def analyze_take(args: argparse.Namespace) -> dict[str, Any]:
         "scientific_replay_sha256": first["scientific_replay_sha256"],
         "deterministic_replay": deterministic,
         "profile_canonical_sha256": canonical_sha256(profile),
+        "authorization_sha256": (
+            None
+            if authorization is None
+            else authorization["authorization_sha256"]
+        ),
         "classification": dict(CLASSIFICATION),
         "authority": dict(AUTHORITY_NONE),
     }
@@ -576,6 +754,11 @@ def main() -> int:
     prepare_parser = subparsers.add_parser("prepare")
     prepare_parser.add_argument("--preflight-report", type=Path, required=True)
     prepare_parser.set_defaults(function=prepare)
+    authorization_parser = subparsers.add_parser("authorize-take")
+    authorization_parser.add_argument(
+        "--take-number", type=int, choices=(2, 3, 4), required=True
+    )
+    authorization_parser.set_defaults(function=authorize_take)
     take_parser = subparsers.add_parser("run-take")
     take_parser.add_argument(
         "--take-number", type=int, choices=(1, 2, 3, 4), required=True
@@ -603,7 +786,7 @@ def main() -> int:
         return 2
     print(json.dumps(result, indent=2, sort_keys=True))
     terminal = result.get("decision", result.get("status"))
-    return 0 if terminal in {"PASS", "prepared", "complete"} else 1
+    return 0 if terminal in {"PASS", "prepared", "authorized", "complete"} else 1
 
 
 if __name__ == "__main__":

@@ -67,6 +67,83 @@ def test_campaign_validation_allows_only_take_one_authorization() -> None:
         bias._validate_campaign(manifest)
 
 
+def test_additive_authorization_binds_exact_take_and_ledger_tip() -> None:
+    manifest = {
+        "manifest_sha256": "campaign-sha",
+        "code_head": "base-head",
+        "takes": bias._take_definitions(),
+    }
+    prior_records = [{"record_sha256": "take-1-record-sha"}]
+    payload = {
+        "schema": bias.AUTHORIZATION_SCHEMA,
+        "recorded_at_utc": "2026-07-29T00:00:00+00:00",
+        "campaign_manifest_sha256": "campaign-sha",
+        "base_code_head": "base-head",
+        "controller_head": "controller-head",
+        "controller_source_sha256": "controller-source-sha",
+        "take_number": 2,
+        "take_id": "s48eng_bias_000_take_02",
+        "target_bearing_deg_f_project": 0.0,
+        "previous_record_sha256": "take-1-record-sha",
+        "scope": "single_engineering_take_only",
+        "automatic_continuation_authorized": False,
+        "retry_authorized": False,
+        "classification": bias.CLASSIFICATION,
+        "authority": bias.AUTHORITY_NONE,
+    }
+    authorization = {
+        **payload,
+        "authorization_sha256": bias.canonical_sha256(payload),
+    }
+
+    bias._validate_authorization(authorization, manifest, prior_records, 2)
+
+    authorization["take_number"] = 3
+    changed_payload = {
+        key: value
+        for key, value in authorization.items()
+        if key != "authorization_sha256"
+    }
+    authorization["authorization_sha256"] = bias.canonical_sha256(
+        changed_payload
+    )
+    with pytest.raises(bias.BiasDisambiguationError, match="authorization"):
+        bias._validate_authorization(authorization, manifest, prior_records, 2)
+
+
+def test_additive_authorization_forbids_automatic_continuation() -> None:
+    manifest = {
+        "manifest_sha256": "campaign-sha",
+        "code_head": "base-head",
+        "takes": bias._take_definitions(),
+    }
+    prior_records = [{"record_sha256": "take-1-record-sha"}]
+    payload = {
+        "schema": bias.AUTHORIZATION_SCHEMA,
+        "recorded_at_utc": "2026-07-29T00:00:00+00:00",
+        "campaign_manifest_sha256": "campaign-sha",
+        "base_code_head": "base-head",
+        "controller_head": "controller-head",
+        "controller_source_sha256": "controller-source-sha",
+        "take_number": 2,
+        "take_id": "s48eng_bias_000_take_02",
+        "target_bearing_deg_f_project": 0.0,
+        "previous_record_sha256": "take-1-record-sha",
+        "scope": "single_engineering_take_only",
+        "automatic_continuation_authorized": True,
+        "retry_authorized": False,
+        "classification": bias.CLASSIFICATION,
+        "authority": bias.AUTHORITY_NONE,
+    }
+    authorization = {
+        **payload,
+        "authorization_sha256": bias.canonical_sha256(payload),
+    }
+
+    with pytest.raises(bias.BiasDisambiguationError, match="authorization"):
+        bias._validate_authorization(authorization, manifest, prior_records, 2)
+
+
 def test_identity_is_explicitly_engineering_stratum_a() -> None:
     identity = bias.EngineeringIdentity(
         planned_take_id="s48eng_bias_000_take_01",
