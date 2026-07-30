@@ -82,6 +82,7 @@
         "criteria_roles_amended_for_squadbot",
         "primary_direction_metric",
         "primary_direction_threshold",
+        "categorical_take_aggregation_bound",
         "continuous_bearing_error_gating",
         "denominators_recomputed_for_37_take_design"
       ],
@@ -111,6 +112,7 @@
           "const": "squadbot_categorical_direction_accuracy"
         },
         "primary_direction_threshold": {"const": 0.75},
+        "categorical_take_aggregation_bound": {"const": true},
         "continuous_bearing_error_gating": {"const": false},
         "denominators_recomputed_for_37_take_design": {"const": true}
       }

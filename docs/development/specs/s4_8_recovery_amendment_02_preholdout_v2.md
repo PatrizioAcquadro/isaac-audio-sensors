@@ -33,6 +33,17 @@ abstention is incorrect for categorical accuracy; rear/ambiguous and silence
 are expected to be unavailable. Continuous-bearing error and the inherited
 eight-sector result remain diagnostic and non-gating for this revision.
 
+The categorical result is aggregated exactly once per take. The unchanged
+exact-window analyzer derives `estimated_bearing_deg_f_project` as the linear
+median of the valid, non-abstained window bearings. The SquadBot mapping above
+is then applied once to that authenticated representative bearing; there is no
+second per-window category vote. No valid representative produces unavailable
+direction. That is incorrect for an active front/right/left take and is the
+expected direction state for rear/ambiguous and silence, provided the take has
+not failed. A failed or missing planned take is adverse regardless of its
+direction availability, so a no-valid-window analysis failure cannot pass a
+rear or silence case.
+
 The primary accuracy threshold is the already-preregistered `0.75`; no numeric
 threshold was selected from the engineering results. The frozen S4.7
 corrective_03 criteria register is preserved byte-for-byte. Its continuous

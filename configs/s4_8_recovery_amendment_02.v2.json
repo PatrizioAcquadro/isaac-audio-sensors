@@ -4,7 +4,7 @@
   "revision_id": "s4_8_recovery_amendment_02_preholdout_37_take_revision",
   "status": "prepared_not_frozen",
   "specification_path": "docs/development/specs/s4_8_recovery_amendment_02_preholdout_v2.md",
-  "specification_sha256": "62c7f3474d20e700c5e43ea0583df1581125e6f816408cf38dae0b1f46faa28e",
+  "specification_sha256": "d07d36586c0cb1827843fac8459dab723ae081e183dad5b6e4010da0b24ce365",
   "supersedes": {
     "path": "configs/s4_8_recovery_amendment_02.v1.json",
     "sha256": "ec8e16eb1f7ff606db18a2fbb26e183d27ea95dacf8f43138b8e4a8dfe059542",
@@ -13,9 +13,9 @@
   },
   "protocol_revision": {
     "design_manifest_path": "configs/s4_8_recovery_amendment_02_preholdout_manifest.v2.json",
-    "design_manifest_sha256": "5c0ecae6c83ad5cbbf1e3e1c4e42765125e3d6e0893424de92c25110412fc6d2",
+    "design_manifest_sha256": "a15efd738bb5e75b2dc72cac8f333a10bbe31a118b70ef584e7b4f64c6c2d879",
     "design_schema_path": "docs/schemas/s4_8_recovery_amendment_02_preholdout_manifest.v2.schema.json",
-    "design_schema_sha256": "ae3d44a22674a70461609405a4ddf9cb081e671e72123c3e5f9a298d5cf2e1a8",
+    "design_schema_sha256": "0c1ce117bdceeab9ad70865bfed09b7da7ee5eec53db1672baaae6845298e225",
     "denominators_path": "configs/s4_8_recovery_amendment_02_denominators.v2.json",
     "denominators_sha256": "dfdaca130adf51ced54e6cb08c515270502e44ea5726c1ce7984b6f6583c300e",
     "denominators_schema_path": "docs/schemas/s4_8_recovery_amendment_02_denominators.v2.schema.json",
@@ -35,6 +35,7 @@
     "criteria_roles_amended_for_squadbot": true,
     "primary_direction_metric": "squadbot_categorical_direction_accuracy",
     "primary_direction_threshold": 0.75,
+    "categorical_take_aggregation_bound": true,
     "continuous_bearing_error_gating": false,
     "denominators_recomputed_for_37_take_design": true
   },

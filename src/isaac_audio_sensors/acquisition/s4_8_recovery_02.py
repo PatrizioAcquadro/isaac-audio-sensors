@@ -39,6 +39,18 @@ PRODUCT_CONDITIONS = (
 )
 SQUADBOT_DIRECTION_POLICY_ID = "purdue_asn_v2_initial_engineering_2026-07-28"
 SQUADBOT_CATEGORICAL_ACCURACY_THRESHOLD = 0.75
+SQUADBOT_TAKE_AGGREGATION_CONTRACT = {
+    "representative_bearing_field": "estimated_bearing_deg_f_project",
+    "representative_bearing_derivation": (
+        "linear_median_of_valid_exact_window_bearings"
+    ),
+    "mapping_application": "once_per_take_to_representative_bearing",
+    "no_valid_bearing_result": "unavailable",
+    "failed_or_missing_take_result": "adverse",
+    "active_unavailable_result": "incorrect",
+    "rear_unavailable_result": "correct_only_when_take_not_failed",
+    "silence_unavailable_result": "correct_only_when_take_not_failed",
+}
 CONTINUOUS_BEARING_DIAGNOSTIC_CRITERIA = frozenset(
     {
         "bearing_median_absolute_error_stratum_a",
@@ -95,18 +107,28 @@ def reclassify_engineering_take(
     target_bearing_deg: float,
     estimated_bearing_deg: float | None,
     bearing_absolute_error_deg: float | None,
+    take_failed: bool = False,
 ) -> dict[str, Any]:
     """Reclassify one non-holdout engineering take without changing its evidence."""
 
     expected = bearing_to_squadbot_direction(target_bearing_deg)
+    if expected is None:
+        raise ValueError("target_bearing_deg must be a finite numeric bearing")
     observed = bearing_to_squadbot_direction(estimated_bearing_deg)
+    expected_unavailable = expected == "None"
+    observed_unavailable = observed in {None, "None"}
+    categorical_correct = not take_failed and (
+        observed_unavailable if expected_unavailable else observed == expected
+    )
     return {
         "take_id": take_id,
         "policy_id": SQUADBOT_DIRECTION_POLICY_ID,
         "expected_direction": expected,
         "observed_direction": observed,
-        "categorical_correct": observed == expected,
+        "categorical_correct": categorical_correct,
         "categorical_metric_role": "primary_gating",
+        "categorical_aggregation": SQUADBOT_TAKE_AGGREGATION_CONTRACT,
+        "take_failed": take_failed,
         "estimated_bearing_deg": estimated_bearing_deg,
         "bearing_absolute_error_deg": bearing_absolute_error_deg,
         "continuous_bearing_metric_role": "diagnostic_non_gating",
@@ -382,6 +404,11 @@ def _validate_design_manifest(design: Mapping[str, Any]) -> None:
     groups = {take["leakage_group_id"] for take in takes}
     if len(groups) != LEAKAGE_GROUP_COUNT:
         raise s4_8.S48Error("S4.8 37-take leakage-group mismatch")
+    if (
+        design["direction_contract"]["take_aggregation"]
+        != SQUADBOT_TAKE_AGGREGATION_CONTRACT
+    ):
+        raise s4_8.S48Error("S4.8 categorical take aggregation mismatch")
 
     expected: list[tuple[Any, ...]] = [
         (
@@ -634,6 +661,7 @@ def validate_protocol_revision(repo_root: Path) -> dict[str, Any]:
         "direction_policy_id": SQUADBOT_DIRECTION_POLICY_ID,
         "primary_direction_metric": "squadbot_categorical_direction_accuracy",
         "primary_direction_threshold": SQUADBOT_CATEGORICAL_ACCURACY_THRESHOLD,
+        "categorical_take_aggregation_bound": True,
         "continuous_bearing_error_gating": False,
         "rig_fixed": True,
         "thresholds_unchanged": denominators["thresholds_unchanged"],
@@ -1087,6 +1115,7 @@ def recovery_preopen_validate(
         "criteria_set_unchanged": False,
         "criteria_roles_amended_for_squadbot": True,
         "primary_direction_metric": "squadbot_categorical_direction_accuracy",
+        "categorical_take_aggregation_bound": True,
         "continuous_bearing_error_gating": False,
         "thresholds_unchanged": True,
         "denominators_updated_for_design": True,

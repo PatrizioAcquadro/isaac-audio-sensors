@@ -80,6 +80,16 @@
           "195": "left",
           "315": "forward"
         },
+        "take_aggregation": {
+          "representative_bearing_field": "estimated_bearing_deg_f_project",
+          "representative_bearing_derivation": "linear_median_of_valid_exact_window_bearings",
+          "mapping_application": "once_per_take_to_representative_bearing",
+          "no_valid_bearing_result": "unavailable",
+          "failed_or_missing_take_result": "adverse",
+          "active_unavailable_result": "incorrect",
+          "rear_unavailable_result": "correct_only_when_take_not_failed",
+          "silence_unavailable_result": "correct_only_when_take_not_failed"
+        },
         "continuous_bearing_role": "diagnostic_non_gating",
         "active_abstention_rule": "incorrect_for_front_right_left",
         "rear_rule": "expected_unavailable_numeric_bearing_retained_internally",

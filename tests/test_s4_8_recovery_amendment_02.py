@@ -35,6 +35,7 @@ def test_amendment_02_additive_revision_is_schema_valid_and_not_frozen() -> None
     assert revision["primary_direction_metric"] == (
         "squadbot_categorical_direction_accuracy"
     )
+    assert revision["categorical_take_aggregation_bound"] is True
     assert revision["continuous_bearing_error_gating"] is False
     assert revision["denominators_recomputed_for_37_take_design"] is True
     assert revision["readiness_criterion_count"] == 23
@@ -106,6 +107,9 @@ def test_protocol_manifest_is_exactly_37_takes_in_required_order() -> None:
         "impact_position_02",
     ]
     assert manifest["direction_repeatability_contract"]["same_session_required"] is True
+    assert manifest["direction_contract"]["take_aggregation"] == (
+        recovery.SQUADBOT_TAKE_AGGREGATION_CONTRACT
+    )
 
 
 @pytest.mark.parametrize(
@@ -147,8 +151,40 @@ def test_engineering_reclassification_keeps_bearing_diagnostic_only() -> None:
     assert result["observed_direction"] == "right"
     assert result["categorical_correct"] is True
     assert result["categorical_metric_role"] == "primary_gating"
+    assert result["categorical_aggregation"] == (
+        recovery.SQUADBOT_TAKE_AGGREGATION_CONTRACT
+    )
     assert result["bearing_absolute_error_deg"] == 43.0
     assert result["continuous_bearing_metric_role"] == "diagnostic_non_gating"
+
+
+@pytest.mark.parametrize(
+    ("target", "estimated", "take_failed", "expected"),
+    [
+        (0.0, None, False, False),
+        (180.0, None, False, True),
+        (180.0, 182.0, False, True),
+        (180.0, 90.0, False, False),
+        (180.0, None, True, False),
+        (0.0, 358.0, True, False),
+    ],
+)
+def test_take_aggregation_unavailable_and_failure_precedence(
+    target: float,
+    estimated: float | None,
+    take_failed: bool,
+    expected: bool,
+) -> None:
+    result = recovery.reclassify_engineering_take(
+        take_id="engineering_take",
+        target_bearing_deg=target,
+        estimated_bearing_deg=estimated,
+        bearing_absolute_error_deg=None,
+        take_failed=take_failed,
+    )
+
+    assert result["categorical_correct"] is expected
+    assert result["take_failed"] is take_failed
 
 
 def test_protocol_manifest_rejects_nonconsecutive_or_dependent_takes() -> None:
@@ -175,6 +211,13 @@ def test_protocol_manifest_rejects_nonconsecutive_or_dependent_takes() -> None:
     altered = copy.deepcopy(manifest)
     altered["direction_repeatability_contract"]["same_session_required"] = False
     with pytest.raises(s4_8.S48Error, match="direction repeatability contract"):
+        recovery._validate_design_manifest(altered)
+
+    altered = copy.deepcopy(manifest)
+    altered["direction_contract"]["take_aggregation"]["mapping_application"] = (
+        "per_window_vote"
+    )
+    with pytest.raises(s4_8.S48Error, match="categorical take aggregation"):
         recovery._validate_design_manifest(altered)
 
     altered = copy.deepcopy(manifest)
@@ -207,6 +250,7 @@ def test_protocol_denominators_cover_all_criteria_without_threshold_changes() ->
         "squadbot_categorical_direction_accuracy"
     )
     assert result["primary_direction_threshold"] == 0.75
+    assert result["categorical_take_aggregation_bound"] is True
     assert result["continuous_bearing_error_gating"] is False
     assert denominators["planned_take_denominator"] == 37
     assert denominators["derived_denominators"]["raw_channel_take_records"] == 148
@@ -457,6 +501,7 @@ def test_preopen_is_truthful_no_go_without_new_unseen_holdout(
     assert result["primary_direction_metric"] == (
         "squadbot_categorical_direction_accuracy"
     )
+    assert result["categorical_take_aggregation_bound"] is True
     assert result["continuous_bearing_error_gating"] is False
     assert result["thresholds_unchanged"] is True
     assert result["denominators_updated_for_design"] is True
