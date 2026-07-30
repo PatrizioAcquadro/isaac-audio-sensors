@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/isaac-audio-sensors/s4_8_recovery_amendment_02_preholdout_manifest.v2.schema.json",
+  "title": "S4.8 Recovery Amendment 02 additive 37-take pre-holdout manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "manifest_id",
+    "status",
+    "planned_take_count",
+    "leakage_group_count",
+    "stratum_counts",
+    "geometry",
+    "direction_contract",
+    "direction_repeatability_contract",
+    "modality_contract",
+    "take_order",
+    "authority"
+  ],
+  "properties": {
+    "schema": {"const": "ias.s4_8.recovery_amendment_02_preholdout_manifest.v2"},
+    "manifest_id": {"const": "s4_8_recovery_amendment_02_preholdout_37_take_design"},
+    "status": {"const": "prepared_not_frozen"},
+    "planned_take_count": {"const": 37},
+    "leakage_group_count": {"const": 15},
+    "stratum_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level",
+        "C_center_low_level",
+        "D_silence",
+        "E_impact_audio_video"
+      ],
+      "properties": {
+        "A_controlled_boundary_sweep": {"const": 24},
+        "B_center_nominal_level": {"const": 4},
+        "C_center_low_level": {"const": 4},
+        "D_silence": {"const": 3},
+        "E_impact_audio_video": {"const": 2}
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_frame",
+        "direction_bearings_deg",
+        "product_bearings_deg",
+        "active_radius_m",
+        "nominal_gain",
+        "low_gain"
+      ],
+      "properties": {
+        "source_frame": {"const": "F_project"},
+        "direction_bearings_deg": {
+          "const": [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
+        },
+        "product_bearings_deg": {"const": [0.0, 90.0, 180.0, 270.0]},
+        "active_radius_m": {"const": 0.8},
+        "nominal_gain": {"const": 0.75},
+        "low_gain": {"const": 0.35}
+      }
+    },
+    "direction_contract": {
+      "const": {
+        "policy_id": "purdue_asn_v2_initial_engineering_2026-07-28",
+        "primary_metric": "squadbot_categorical_direction_accuracy",
+        "primary_metric_threshold": 0.75,
+        "front_serialization": "forward",
+        "front_ranges_deg": [[315.0, 360.0], [0.0, 45.0]],
+        "right_range_deg": [45.0, 165.0],
+        "rear_unavailable_range_deg": [165.0, 195.0],
+        "left_range_deg": [195.0, 315.0],
+        "boundary_ownership": {
+          "45": "right",
+          "165": "None",
+          "195": "left",
+          "315": "forward"
+        },
+        "continuous_bearing_role": "diagnostic_non_gating",
+        "active_abstention_rule": "incorrect_for_front_right_left",
+        "rear_rule": "expected_unavailable_numeric_bearing_retained_internally",
+        "silence_rule": "expected_unavailable",
+        "missing_or_invalid_rule": "omit_direction"
+      }
+    },
+    "direction_repeatability_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repetitions_per_bearing",
+        "bearing_repetitions_must_be_consecutive",
+        "same_session_required",
+        "each_repetition_is_an_independent_take",
+        "stop_playback_between_repetitions",
+        "stop_recording_between_repetitions",
+        "move_mac_slightly_between_repetitions",
+        "reposition_to_exact_radius_and_bearing_before_each_repetition",
+        "rig_must_remain_fixed",
+        "measurement_intent"
+      ],
+      "properties": {
+        "repetitions_per_bearing": {"const": 3},
+        "bearing_repetitions_must_be_consecutive": {"const": true},
+        "same_session_required": {"const": true},
+        "each_repetition_is_an_independent_take": {"const": true},
+        "stop_playback_between_repetitions": {"const": true},
+        "stop_recording_between_repetitions": {"const": true},
+        "move_mac_slightly_between_repetitions": {"const": true},
+        "reposition_to_exact_radius_and_bearing_before_each_repetition": {
+          "const": true
+        },
+        "rig_must_remain_fixed": {"const": true},
+        "measurement_intent": {
+          "const": "short_term_same_session_full_setup_repeatability"
+        }
+      }
+    },
+    "modality_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "A_controlled_boundary_sweep",
+        "B_center_nominal_level",
+        "C_center_low_level",
+        "D_silence",
+        "E_impact_audio_video",
+        "product_conditions",
+        "impact_scenarios"
+      ],
+      "properties": {
+        "A_controlled_boundary_sweep": {"const": ["six_channel_audio"]},
+        "B_center_nominal_level": {"const": ["six_channel_audio"]},
+        "C_center_low_level": {"const": ["six_channel_audio"]},
+        "D_silence": {"const": ["six_channel_audio"]},
+        "E_impact_audio_video": {
+          "const": ["six_channel_audio", "zed_video"]
+        },
+        "product_conditions": {
+          "const": ["front_occluded", "right_noise", "rear_noise", "left_occluded"]
+        },
+        "impact_scenarios": {
+          "const": ["impact_position_01", "impact_position_02"]
+        }
+      }
+    },
+    "take_order": {
+      "type": "array",
+      "minItems": 37,
+      "maxItems": 37,
+      "items": {"$ref": "#/$defs/take"}
+    },
+    "authority": {"$ref": "#/$defs/authority"}
+  },
+  "$defs": {
+    "take": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence_index",
+        "planned_take_id",
+        "stratum_id",
+        "bearing_deg",
+        "radius_m",
+        "playback_gain",
+        "repetition",
+        "leakage_group_id",
+        "condition_id"
+      ],
+      "properties": {
+        "sequence_index": {"type": "integer", "minimum": 1, "maximum": 37},
+        "planned_take_id": {
+          "type": "string",
+          "pattern": "^s48r02_preholdout_[0-9]{3}_[a-z0-9_]+$"
+        },
+        "stratum_id": {
+          "enum": [
+            "A_controlled_boundary_sweep",
+            "B_center_nominal_level",
+            "C_center_low_level",
+            "D_silence",
+            "E_impact_audio_video"
+          ]
+        },
+        "bearing_deg": {
+          "oneOf": [
+            {"type": "number", "minimum": 0, "exclusiveMaximum": 360},
+            {"type": "null"}
+          ]
+        },
+        "radius_m": {
+          "oneOf": [
+            {"const": 0.8},
+            {"type": "null"}
+          ]
+        },
+        "playback_gain": {
+          "oneOf": [
+            {"enum": [0.75, 0.35]},
+            {"type": "null"}
+          ]
+        },
+        "repetition": {"type": "integer", "minimum": 1, "maximum": 3},
+        "leakage_group_id": {"type": "string", "minLength": 1},
+        "condition_id": {
+          "enum": [
+            "nominal_direction",
+            "front_occluded",
+            "right_noise",
+            "rear_noise",
+            "left_occluded",
+            "low_volume",
+            "silence",
+            "impact"
+          ]
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "final_protocol_frozen",
+        "official_acquisition_authorized",
+        "grant_creation_authorized",
+        "grant_consumption_authorized",
+        "holdout_opening_authorized",
+        "evaluation_authorized"
+      ],
+      "properties": {
+        "final_protocol_frozen": {"const": false},
+        "official_acquisition_authorized": {"const": false},
+        "grant_creation_authorized": {"const": false},
+        "grant_consumption_authorized": {"const": false},
+        "holdout_opening_authorized": {"const": false},
+        "evaluation_authorized": {"const": false}
+      }
+    }
+  }
+}
