@@ -12,14 +12,17 @@ import shutil
 import statistics
 import subprocess
 import sys
+import tempfile
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
+from isaac_audio_sensors.acquisition import s4_8
 from isaac_audio_sensors.acquisition.s4_3 import (
     _circular_range,
-    analyze_trial_wav,
     load_pilot_configuration,
 )
 from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
@@ -36,6 +39,7 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
     S48PresealingGateError,
     load_presealing_config_v2,
 )
+from isaac_audio_sensors.core import acceptance_criteria_corrective_03
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_ROOT = (ROOT / ".local" / "s4_8").resolve()
@@ -53,18 +57,28 @@ TAKE_COUNT = 3
 TARGET_BEARING_DEG = 22.5
 TARGET_RADIUS_M = 0.8
 PLAYBACK_GAIN = 0.75
+PAIR_IDS = tuple(
+    f"raw_microphone_{left}->raw_microphone_{right}"
+    for left in range(4)
+    for right in range(left + 1, 4)
+)
 SOURCE_PATHS = (
     "configs/s4_3_pilot.v1.json",
+    "configs/s4_6_profile_application.v1.json",
     "configs/s4_8_engineering_campaign.v1.json",
     "configs/s4_8_presealing_gate.v2.json",
     "docs/schemas/s4_8_presealing_gate_config.v2.schema.json",
     "scripts/run_s4_8_repeatability_diagnostic.py",
     "scripts/s4_8_mac_playback.swift",
+    "outputs/isaac_audio_sensors/S4/S4.5_active_profile.v1.json",
+    "outputs/isaac_audio_sensors/S4/S4.5_corrective_01/calibration_profile.v2.json",
     "src/isaac_audio_sensors/acquisition/s4_3.py",
+    "src/isaac_audio_sensors/acquisition/s4_8.py",
     "src/isaac_audio_sensors/acquisition/s4_8_engineering_acquisition.py",
     "src/isaac_audio_sensors/acquisition/s4_8_physical_backend.py",
     "src/isaac_audio_sensors/acquisition/s4_8_presealing_gate.py",
     "src/isaac_audio_sensors/acquisition/s4_8_presealing_gate_v2.py",
+    "src/isaac_audio_sensors/core/acceptance_criteria_corrective_03.py",
 )
 AUTHORITY_NONE = {
     "final_protocol_frozen": False,
@@ -487,24 +501,6 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-def _trial(take: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "trial_id": take["take_id"],
-        "category": "repeatability",
-        "stimulus": "continuous_frozen_reference",
-        "duration_s": take["duration_s"],
-        "repetition": take["take_number"],
-        "source_frame": "F_project",
-        "source_position_m": [*take["source_xy_m"], -0.135],
-        "source_bearing_deg": take["source_bearing_deg"],
-        "source_distance_m": take["source_radius_m"],
-        "mac_volume_percent": 70,
-        "occlusion": "none",
-        "zed_required": False,
-        "operator_action": "independent_exact_reposition",
-    }
-
-
 def _pair_medians_us(analysis: Mapping[str, Any]) -> dict[str, float]:
     grouped: dict[str, list[float]] = {}
     for window in analysis["windows"]:
@@ -519,108 +515,336 @@ def _pair_medians_us(analysis: Mapping[str, Any]) -> dict[str, float]:
     }
 
 
+def _confidence_summary(values: Sequence[float]) -> dict[str, float | int]:
+    ordered = sorted(float(value) for value in values)
+    if not ordered:
+        raise RepeatabilityError("current analysis produced no confidence values")
+    p95_index = max(0, math.ceil(0.95 * len(ordered)) - 1)
+    return {
+        "count": len(ordered),
+        "median": float(statistics.median(ordered)),
+        "p95_nearest_rank": ordered[p95_index],
+        "minimum": ordered[0],
+        "maximum": ordered[-1],
+    }
+
+
+def _current_pipeline_analysis(
+    *,
+    campaign_root: Path,
+    take: Mapping[str, Any],
+    identity: Any,
+    profile: Mapping[str, Any],
+) -> dict[str, Any]:
+    source = campaign_root / "takes" / take["take_id"] / "respeaker_audio.wav"
+    runs_root = ROOT / "runs"
+    runs_root.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix="s4_8_repeatability_processing_", dir=runs_root
+    ) as temporary:
+        attempt = Path(temporary) / "attempt"
+        raw_root = attempt / "raw"
+        raw_root.mkdir(parents=True)
+        wav = raw_root / "respeaker_audio.wav"
+        shutil.copyfile(source, wav)
+        qa = attempt / "technical_qa.json"
+        qa.write_text(
+            json.dumps(
+                {
+                    "schema": "ias.s4_8.repeatability_technical_qa_adapter.v1",
+                    "overall_technical_pass": True,
+                    "diagnostic_only": True,
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        seal = {
+            "artifacts": [
+                {
+                    "path": path.relative_to(ROOT).as_posix(),
+                    "byte_size": path.stat().st_size,
+                    "sha256": _sha256(path),
+                }
+                for path in (wav, qa)
+            ]
+        }
+        derived, inventory = s4_8._analyze_real_take(
+            ROOT,
+            attempt,
+            identity,
+            profile=profile,
+            seal=seal,
+        )
+        samples, rate = s4_8._read_pcm16(wav)
+        raw = samples[:, 2:6].T
+        adjusted = raw * np.asarray(profile["gain_multipliers"])[:, None]
+        positions = np.asarray(profile["positions"], dtype=float)
+        ids = tuple(f"raw_microphone_{index}" for index in range(4))
+        position_map = dict(zip(ids, map(tuple, positions), strict=True))
+        aperture = max(
+            float(np.linalg.norm(positions[left] - positions[right]))
+            for left in range(4)
+            for right in range(left + 1, 4)
+        )
+        max_delay = aperture / 343.0 + 1.0 / rate
+        confidences = []
+        replay_windows = []
+        for index in range(159):
+            start = index * 2000
+            (
+                record,
+                confidence,
+                _tdoa,
+                _correlations,
+                _elapsed_ms,
+                _adapter_ms,
+            ) = s4_8._analyze_window(
+                adjusted[:, start : start + 4000],
+                ids=ids,
+                position_map=position_map,
+                sample_rate_hz=rate,
+                max_delay_s=max_delay,
+                index=index,
+                start=start,
+                take_id=str(take["take_id"]),
+            )
+            confidences.append(confidence)
+            replay_windows.append(record)
+        if replay_windows != derived["bearing_windows"]:
+            raise RepeatabilityError(
+                "current S4.8 confidence replay differs from derived windows"
+            )
+    scientific_derived = {
+        key: value for key, value in derived.items() if key != "latency"
+    }
+    stable_inventory = {
+        key: value for key, value in inventory.items() if key != "attempt_root"
+    }
+    confidence = _confidence_summary(confidences)
+    scientific_payload = {
+        "derived": scientific_derived,
+        "confidence": confidence,
+        "capture_sha256": _sha256(source),
+    }
+    return {
+        "schema": "ias.s4_8.current_repeatability_take_analysis.v1",
+        "status": "PASS" if not derived["failed"] else "FAIL",
+        "take_number": take["take_number"],
+        "take_id": take["take_id"],
+        "diagnostic_template_identity": identity.payload_identity(),
+        "derived": derived,
+        "inventory": stable_inventory,
+        "confidence": confidence,
+        "abstention_rate": (
+            derived["window_summary"]["abstained_window_count"]
+            / derived["window_summary"]["source_window_count"]
+        ),
+        "capture_sha256": _sha256(source),
+        "scientific_replay_sha256": canonical_sha256(scientific_payload),
+        "classification": dict(CLASSIFICATION),
+        "authority": dict(AUTHORITY_NONE),
+    }
+
+
+def _accuracy_thresholds() -> dict[str, float]:
+    register = _load_json(
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.7_corrective_03/"
+        "criteria_register.json"
+    )
+    wanted = {
+        "bearing_median_absolute_error_stratum_a": "median",
+        "bearing_p95_absolute_error_stratum_a": "p95_nearest_rank",
+        "bearing_worst_absolute_error_stratum_a": "worst",
+    }
+    result = {}
+    for criterion in register["details"]["criteria"]:
+        key = wanted.get(criterion.get("criterion_id"))
+        if key is not None:
+            result[key] = float(criterion["threshold"])
+    if set(result) != set(wanted.values()):
+        raise RepeatabilityError("current bearing-accuracy thresholds are incomplete")
+    return result
+
+
+def _unique_pair_ranges(
+    all_pairs: Mapping[str, Sequence[float]],
+) -> dict[str, float]:
+    if set(all_pairs) != set(PAIR_IDS) or any(
+        len(values) != TAKE_COUNT for values in all_pairs.values()
+    ):
+        raise RepeatabilityError(
+            "repeatability TDOA input must contain exactly six unique pairs "
+            "with three values each"
+        )
+    return {
+        pair: max(float(value) for value in all_pairs[pair])
+        - min(float(value) for value in all_pairs[pair])
+        for pair in PAIR_IDS
+    }
+
+
 def diagnose(args: argparse.Namespace) -> dict[str, Any]:
     root = _campaign_root(args.campaign_root)
     manifest = _load_json(root / "freeze/campaign_manifest.json")
     _validate_campaign(manifest)
-    _require_bound_source_state(str(manifest["code_head"]))
+    diagnostic_head = _require_bound_source_state()
     records = _ledger(root / "attempt_ledger.jsonl")
     _validate_ledger(records, manifest)
     if len(records) != TAKE_COUNT or any(
         record["decision"] != "PASS" for record in records
     ):
         raise RepeatabilityError("diagnostic requires exactly three passing takes")
-    output = root / "diagnostics/reduced_repeatability_v1"
+    output = root / "diagnostics/reduced_repeatability_v2"
     if output.exists():
         raise RepeatabilityError(f"refusing to overwrite diagnostic root: {output}")
+    prior_output = root / "diagnostics/reduced_repeatability_v1"
+    prior_report = prior_output / "repeatability_report.json"
+    prior_package = prior_output / "package_manifest.json"
+    if not prior_report.is_file() or not prior_package.is_file():
+        raise RepeatabilityError("preserved v1 diagnostic is required before v2")
     output.mkdir(parents=True)
-    configuration = load_pilot_configuration(PILOT_CONFIG, repo_root=ROOT)
+    registry = acceptance_criteria_corrective_03.build_identity_registry(ROOT)
+    identities = sorted(
+        (
+            identity
+            for identity in registry.values()
+            if identity.stratum_id == "A_controlled_boundary_sweep"
+            and identity.target_bearing_deg_f_project == TARGET_BEARING_DEG
+        ),
+        key=lambda identity: identity.planned_take_id,
+    )
+    if len(identities) != TAKE_COUNT:
+        raise RepeatabilityError("current S4.8 registry lacks three 22.5-degree cells")
+    profile = s4_8._profile_runtime(ROOT)
     take_results = []
     replay_results = []
     all_pairs: dict[str, list[float]] = {}
-    for take in manifest["takes"]:
-        wav = root / "takes" / take["take_id"] / "respeaker_audio.wav"
-        first = analyze_trial_wav(wav, _trial(take), configuration)
-        second = analyze_trial_wav(wav, _trial(take), configuration)
+    for take, identity, record in zip(
+        manifest["takes"], identities, records, strict=True
+    ):
+        first = _current_pipeline_analysis(
+            campaign_root=root,
+            take=take,
+            identity=identity,
+            profile=profile,
+        )
+        second = _current_pipeline_analysis(
+            campaign_root=root,
+            take=take,
+            identity=identity,
+            profile=profile,
+        )
         replay_pass = (
-            first.get("status") == "passed"
-            and second.get("status") == "passed"
-            and first.get("scientific_replay_sha256")
-            == second.get("scientific_replay_sha256")
+            first["status"] == "PASS"
+            and second["status"] == "PASS"
+            and first["scientific_replay_sha256"]
+            == second["scientific_replay_sha256"]
         )
+        first["deterministic_replay"] = replay_pass
         _write_new_json(output / f"{take['take_id']}.analysis.json", first)
-        pair_medians = (
-            _pair_medians_us(first) if first.get("status") == "passed" else {}
-        )
+        pair_medians = {
+            str(item["pair_id"]): float(item["tdoa_us"])
+            for item in first["derived"]["tdoa"]
+        }
         for pair, value in pair_medians.items():
             all_pairs.setdefault(pair, []).append(value)
-        summary = first.get("summary", {})
+        channels = first["derived"]["channels"]
         take_results.append(
             {
                 "take_number": take["take_number"],
                 "take_id": take["take_id"],
-                "analysis_status": first.get("status"),
-                "bearing_deg": summary.get("bearing_deg", {}).get("median"),
-                "bearing_error_deg": summary.get(
-                    "absolute_bearing_error_deg", {}
-                ).get("median"),
-                "confidence": summary.get("confidence"),
-                "abstention_rate": summary.get("abstention_rate"),
+                "analysis_status": first["status"],
+                "bearing_deg": first["derived"][
+                    "estimated_bearing_deg_f_project"
+                ],
+                "bearing_error_deg": first["derived"][
+                    "bearing_absolute_error_deg"
+                ],
+                "confidence": first["confidence"],
+                "abstained_window_count": first["derived"]["window_summary"][
+                    "abstained_window_count"
+                ],
+                "window_count": first["derived"]["window_summary"][
+                    "source_window_count"
+                ],
+                "abstention_rate": first["abstention_rate"],
                 "tdoa_median_us": pair_medians,
-                "capture_sha256": _sha256(wav),
-                "capture_properties": first.get("wav"),
-                "acquisition_gate": records[take["take_number"] - 1]["decision"],
+                "capture_sha256": first["capture_sha256"],
+                "capture_hash_matches_ledger": (
+                    record["artifact_sha256"].get("respeaker_audio.wav")
+                    == first["capture_sha256"]
+                ),
+                "channel_integrity": channels,
+                "channel_health_failure_count": sum(
+                    bool(channel["health_failure"]) for channel in channels
+                ),
+                "acquisition_gate": record["decision"],
                 "deterministic_replay": replay_pass,
-                "scientific_replay_sha256": first.get("scientific_replay_sha256"),
+                "scientific_replay_sha256": first[
+                    "scientific_replay_sha256"
+                ],
             }
         )
         replay_results.append(
             {
                 "take_id": take["take_id"],
                 "status": "PASS" if replay_pass else "FAIL",
-                "first_scientific_replay_sha256": first.get(
+                "first_scientific_replay_sha256": first[
                     "scientific_replay_sha256"
-                ),
-                "second_scientific_replay_sha256": second.get(
+                ],
+                "second_scientific_replay_sha256": second[
                     "scientific_replay_sha256"
-                ),
+                ],
             }
         )
-    bearings = [
-        float(item["bearing_deg"])
-        for item in take_results
-        if item["bearing_deg"] is not None
-    ]
+    bearings = [float(item["bearing_deg"]) for item in take_results]
+    errors = [float(item["bearing_error_deg"]) for item in take_results]
     bearing_range = _circular_range(bearings)
-    pair_ranges = {
-        pair: max(values) - min(values)
-        for pair, values in sorted(all_pairs.items())
-        if len(values) == TAKE_COUNT
-    }
+    pair_ranges = _unique_pair_ranges(all_pairs)
     bearing_limit = float(manifest["limits"]["bearing_circular_range_deg_max"])
     tdoa_limit = float(manifest["limits"]["pair_tdoa_median_range_us_max"])
-    expected_pair_count = 6
     checks = {
-        "three_authenticated_passes": len(records) == TAKE_COUNT
-        and all(record["decision"] == "PASS" for record in records),
-        "three_successful_analyses": len(bearings) == TAKE_COUNT
-        and all(item["analysis_status"] == "passed" for item in take_results),
+        "three_authenticated_passes": all(
+            record["decision"] == "PASS" for record in records
+        ),
+        "three_current_pipeline_analyses": all(
+            item["analysis_status"] == "PASS" for item in take_results
+        ),
         "bearing_circular_range": bearing_range is not None
         and bearing_range <= bearing_limit,
-        "six_pair_tdoa_ranges": len(pair_ranges) == expected_pair_count
+        "six_pair_tdoa_ranges": len(pair_ranges) == 6
         and all(value <= tdoa_limit for value in pair_ranges.values()),
         "capture_and_channel_integrity": all(
-            item["acquisition_gate"] == "PASS"
-            and item["capture_properties"] is not None
+            item["capture_hash_matches_ledger"]
+            and item["channel_health_failure_count"] == 0
+            and item["acquisition_gate"] == "PASS"
             for item in take_results
         ),
         "deterministic_scientific_replay": all(
             item["deterministic_replay"] for item in take_results
         ),
     }
+    accuracy_limits = _accuracy_thresholds()
+    sorted_errors = sorted(errors)
+    accuracy_observed = {
+        "median": float(statistics.median(errors)),
+        "p95_nearest_rank": sorted_errors[
+            max(0, math.ceil(0.95 * len(sorted_errors)) - 1)
+        ],
+        "worst": max(errors),
+    }
+    accuracy_checks = {
+        key: accuracy_observed[key] <= limit
+        for key, limit in accuracy_limits.items()
+    }
     report_payload = {
-        "schema": "ias.s4_8.reduced_repeatability_diagnostic.v1",
+        "schema": "ias.s4_8.reduced_repeatability_diagnostic.v2",
         "campaign_manifest_sha256": manifest["manifest_sha256"],
+        "acquisition_code_head": manifest["code_head"],
+        "diagnostic_code_head": diagnostic_head,
         "status": "PASS" if all(checks.values()) else "FAIL",
         "target": {
             "bearing_deg_f_project": TARGET_BEARING_DEG,
@@ -633,7 +857,28 @@ def diagnose(args: argparse.Namespace) -> dict[str, Any]:
         "pair_tdoa_median_range_us": pair_ranges,
         "pair_tdoa_median_range_limit_us": tdoa_limit,
         "checks": checks,
+        "bearing_accuracy_context": {
+            "observed_deg": accuracy_observed,
+            "current_stratum_a_limits_deg": accuracy_limits,
+            "checks": accuracy_checks,
+            "gating_in_reduced_repeatability_verdict": False,
+        },
         "deterministic_replay": replay_results,
+        "corrects_preserved_diagnostic": {
+            "version": "v1",
+            "report_path": prior_report.relative_to(root).as_posix(),
+            "report_sha256": _sha256(prior_report),
+            "package_path": prior_package.relative_to(root).as_posix(),
+            "package_sha256": _sha256(prior_package),
+            "correction": (
+                "replace legacy S4.3 geometry with current S4.8 profile "
+                "application and restrict TDOA to six unique microphone pairs"
+            ),
+        },
+        "diagnostic_source_files_sha256": {
+            path: _sha256(ROOT / path) for path in SOURCE_PATHS
+        },
+        "profile_canonical_sha256": canonical_sha256(profile),
         "classification": dict(CLASSIFICATION),
         "full_s4_8_pass_claimed": False,
         "authority": dict(AUTHORITY_NONE),
@@ -653,11 +898,12 @@ def diagnose(args: argparse.Namespace) -> dict[str, Any]:
             package_files[path.relative_to(root).as_posix()] = _sha256(path)
     for path in sorted(output.glob("*.analysis.json")):
         package_files[path.relative_to(root).as_posix()] = _sha256(path)
-    package_files["diagnostics/reduced_repeatability_v1/repeatability_report.json"] = (
-        _sha256(output / "repeatability_report.json")
+    report_relative = (
+        "diagnostics/reduced_repeatability_v2/repeatability_report.json"
     )
+    package_files[report_relative] = _sha256(output / "repeatability_report.json")
     package_payload = {
-        "schema": "ias.s4_8.reduced_repeatability_package.v1",
+        "schema": "ias.s4_8.reduced_repeatability_package.v2",
         "campaign_manifest_sha256": manifest["manifest_sha256"],
         "repeatability_report_sha256": report["report_sha256"],
         "files_sha256": package_files,
@@ -674,7 +920,7 @@ def diagnose(args: argparse.Namespace) -> dict[str, Any]:
     ]
     checksum_lines.append(
         f"{_sha256(output / 'package_manifest.json')}  "
-        "diagnostics/reduced_repeatability_v1/package_manifest.json\n"
+        "diagnostics/reduced_repeatability_v2/package_manifest.json\n"
     )
     (output / "SHA256SUMS").write_text("".join(checksum_lines), encoding="utf-8")
     authenticated = all(

@@ -82,3 +82,18 @@ def test_preflight_accepts_authenticated_existing_asset(
     )
 
     repeatability._validate_preflight(report)
+
+
+def test_unique_pair_ranges_require_six_unordered_physical_pairs() -> None:
+    values = {
+        pair: [float(index), float(index + 10), float(index + 20)]
+        for index, pair in enumerate(repeatability.PAIR_IDS)
+    }
+
+    assert repeatability._unique_pair_ranges(values) == {
+        pair: 20.0 for pair in repeatability.PAIR_IDS
+    }
+
+    invalid = {**values, "raw_microphone_0->raw_microphone_0": [0.0, 0.0, 0.0]}
+    with pytest.raises(repeatability.RepeatabilityError, match="exactly six"):
+        repeatability._unique_pair_ranges(invalid)
