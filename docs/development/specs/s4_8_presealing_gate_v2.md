@@ -45,6 +45,15 @@ valid low-level playback block. Reference identity does not bypass the
 unchanged three-correlated-channel, pair-coherence, alignment, continuity,
 coverage, or gap requirements.
 
+Reference matching uses the deterministic first difference of the exact
+looped reference and each raw microphone waveform. This removes DC and
+stationary low-frequency speaker/room coloration before correlation without
+changing the raw-waveform RMS, multichannel-coherence, clipping, timing,
+coverage, continuity, gap, or polarity limits. The reference difference is
+cyclic so the authenticated five-second loop boundary does not create an
+artificial impulse. Raw microphone samples remain the evidence and are not
+modified.
+
 The exact authenticated reference WAV contains intentional silent lead-in,
 separator, and tail regions. The acquisition path therefore selects the
 already-preregistered +2.25 s through +7.25 s active fitting interval after

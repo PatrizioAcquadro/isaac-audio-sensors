@@ -27,7 +27,7 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate import (
 )
 
 TRACKED_DETECTOR_METHOD_V2 = (
-    "polarity_separated_multichannel_lag_tracking_v2"
+    "first_difference_polarity_separated_multichannel_lag_tracking_v2"
 )
 
 # The v1 energy, correlation, coherence, channel-count, continuity, coverage,
@@ -917,6 +917,8 @@ def detect_tracked_reference_activity_v2(
         raise S48PresealingGateError("reference must be non-empty mono samples")
     if not np.all(np.isfinite(mic)) or not np.all(np.isfinite(ref)):
         raise S48PresealingGateError("waveform samples must be finite")
+    correlation_mic = _first_difference(mic)
+    correlation_ref = _cyclic_first_difference(ref)
     block = int(detector["analysis_block_samples"])
     if (
         process_playback_start_sample < 0
@@ -949,8 +951,8 @@ def detect_tracked_reference_activity_v2(
     )
 
     acoustic_start, initial_correlation = _estimate_initial_acoustic_start(
-        mic,
-        ref,
+        correlation_mic,
+        correlation_ref,
         process_start=process_playback_start_sample,
         search_samples=int(detector["initial_alignment_search_samples"]),
         probe_samples=int(detector["initial_alignment_probe_samples"]),
@@ -974,11 +976,12 @@ def detect_tracked_reference_activity_v2(
     ):
         stop = start + block
         frame = mic[:, start:stop]
+        correlation_frame = correlation_mic[:, start:stop]
         nominal_phase = start - acoustic_start
         adjustment, tracking_correlation, channel_evidence = (
             _track_common_phase_step(
-                frame,
-                ref,
+                correlation_frame,
+                correlation_ref,
                 nominal_phase=nominal_phase,
                 center_adjustment=tracked_adjustment,
                 maximum_step_samples=int(
@@ -993,8 +996,8 @@ def detect_tracked_reference_activity_v2(
         local_reasons: list[str] = []
         if tracking_correlation < float(detector["minimum_reference_correlation"]):
             wide_adjustment, wide_correlation = _best_common_phase_adjustment(
-                frame,
-                ref,
+                correlation_frame,
+                correlation_ref,
                 nominal_phase=nominal_phase,
                 center_adjustment=tracked_adjustment,
                 radius=int(detector["discontinuity_search_radius_samples"]),
@@ -1018,7 +1021,7 @@ def detect_tracked_reference_activity_v2(
                 tracked_adjustments.append(float(tracked_adjustment))
 
         reference_frame = _reference_frame(
-            ref,
+            correlation_ref,
             phase_start=nominal_phase + tracked_adjustment,
             sample_count=block,
         )
@@ -1029,7 +1032,7 @@ def detect_tracked_reference_activity_v2(
                     reference_frame,
                     int(detector["maximum_reference_lag_samples"]),
                 )
-                for channel in frame
+                for channel in correlation_frame
             ]
         rms_by_channel = np.sqrt(np.mean(frame * frame, axis=1))
         correlations = [
@@ -1376,10 +1379,14 @@ def _evaluate_stop_sentinel(
         * float(alignment["estimated_drift_ppm"])
         / 1_000_000.0
     )
+    correlation_frame = _first_difference(microphones)[
+        :, start:planned_playback_stop_sample
+    ]
+    correlation_reference = _cyclic_first_difference(reference)
     adjustment, tracking_correlation, channel_evidence = (
         _track_common_phase_step(
-            frame,
-            reference,
+            correlation_frame,
+            correlation_reference,
             nominal_phase=elapsed,
             center_adjustment=predicted_adjustment,
             maximum_step_samples=int(
@@ -1673,6 +1680,22 @@ def _reference_frame(
 ) -> np.ndarray:
     indices = (np.arange(sample_count) + phase_start) % reference.size
     return reference[indices]
+
+
+def _first_difference(samples: np.ndarray) -> np.ndarray:
+    """Suppress stationary acoustic coloration before reference matching."""
+
+    array = np.asarray(samples, dtype=np.float64)
+    result = np.zeros_like(array)
+    result[..., 1:] = array[..., 1:] - array[..., :-1]
+    return result
+
+
+def _cyclic_first_difference(reference: np.ndarray) -> np.ndarray:
+    """Differentiate the exact loop without introducing a boundary impulse."""
+
+    array = np.asarray(reference, dtype=np.float64)
+    return array - np.roll(array, 1)
 
 
 def _signed_correlation(left: np.ndarray, right: np.ndarray) -> float:

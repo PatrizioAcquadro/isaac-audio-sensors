@@ -197,7 +197,7 @@ def test_v2_establishes_alignment_with_realistic_fixed_playback_latency() -> Non
 
     assert (
         result["method"]
-        == "polarity_separated_multichannel_lag_tracking_v2"
+        == "first_difference_polarity_separated_multichannel_lag_tracking_v2"
     )
     assert result["alignment_status"] == "maintained"
     assert (
@@ -348,6 +348,52 @@ def test_v2_accepts_room_filtering_and_reverberation() -> None:
     assert result["alignment_status"] == "maintained"
     assert result["median_reference_correlation"] >= 0.20
     assert result["useful_sound_coverage"] >= 0.90
+
+
+def test_v2_reference_matching_rejects_stationary_room_coloration() -> None:
+    reference = _reference()
+    microphones = _capture(
+        reference,
+        amplitude=0.012,
+        latency_samples=640,
+        drift_ppm=120.0,
+    )
+    time_s = np.arange(microphones.shape[1], dtype=np.float64) / RATE
+    stationary_coloration = (
+        0.025 * np.sin(2.0 * np.pi * 90.0 * time_s)
+        + 0.018 * np.sin(2.0 * np.pi * 140.0 * time_s)
+    )
+    microphones += stationary_coloration
+
+    phase_start = EVALUATION_START - (PLAYBACK_START + 640)
+    expected = reference[
+        (np.arange(DEFAULT_ALIGNMENT_CONFIG_V2["analysis_block_samples"]) + phase_start)
+        % reference.size
+    ]
+    raw_correlations = [
+        abs(
+            float(
+                np.corrcoef(
+                    microphones[
+                        channel,
+                        EVALUATION_START
+                        + delay : EVALUATION_START
+                        + delay
+                        + expected.size,
+                    ],
+                    expected,
+                )[0, 1]
+            )
+        )
+        for channel, delay in enumerate((0, 2, 4, 6))
+    ]
+    result = _detect(microphones, reference)
+
+    assert max(raw_correlations) < 0.20
+    assert result["alignment_status"] == "maintained"
+    assert result["useful_sound_coverage"] == 1.0
+    assert result["longest_continuous_useful_interval"]["duration_s"] == 17.5
+    assert result["median_reference_correlation"] >= 0.20
 
 
 def test_v2_rejects_abrupt_phase_discontinuity() -> None:
