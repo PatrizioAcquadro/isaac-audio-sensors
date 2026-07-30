@@ -64,6 +64,7 @@ SOURCE_PATHS = (
     "docs/development/specs/s4_8_preliminary_workflow.md",
     "docs/development/specs/s4_8_presealing_gate_v2.md",
     "docs/schemas/s4_8_presealing_gate_report.v2.schema.json",
+    "docs/schemas/s4_8_preliminary_reprocessing_record.v1.schema.json",
     "docs/schemas/s4_8_preliminary_workflow.v1.schema.json",
     "scripts/run_s4_8_physical_rehearsal.py",
     "scripts/s4_8_mac_playback.swift",
@@ -98,6 +99,30 @@ def _repository_local_campaign_root(configured_root: str) -> Path:
             "configured campaign root escapes the repository-local runtime area"
         )
     return root
+
+
+def _campaign_runtime_root(
+    campaign_manifest_path: Path,
+    configured_root: str,
+) -> Path:
+    """Accept only the frozen root or its repository-local whole-root relocation."""
+
+    declared_root = Path(configured_root).resolve()
+    repository_local_root = _repository_local_campaign_root(configured_root)
+    manifest_path = campaign_manifest_path.resolve()
+    if (
+        manifest_path.name != "campaign_manifest.json"
+        or manifest_path.parent.name != "freeze"
+    ):
+        raise S48PhysicalRehearsalError(
+            "campaign manifest must use the frozen campaign path"
+        )
+    manifest_root = manifest_path.parent.parent
+    if manifest_root not in {declared_root, repository_local_root}:
+        raise S48PhysicalRehearsalError(
+            "campaign manifest is outside its declared or repository-local root"
+        )
+    return manifest_root
 
 
 def _sha256(path: Path) -> str:
@@ -669,7 +694,12 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
 
 def run_take(args: argparse.Namespace) -> dict[str, Any]:
     config = _config(args.config)
-    campaign_manifest = _load_json(args.manifest.resolve())
+    if getattr(args, "validate_only", False) and args.dry_run:
+        raise S48PhysicalRehearsalError(
+            "--validate-only cannot be combined with --dry-run"
+        )
+    campaign_manifest_path = args.manifest.resolve()
+    campaign_manifest = _load_json(campaign_manifest_path)
     anchor = str(campaign_manifest.get("manifest_sha256"))
     validate_engineering_manifest(
         campaign_manifest,
@@ -695,17 +725,17 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
     if len(matches) != 1:
         raise S48PhysicalRehearsalError("take id is not in the frozen campaign")
     take = matches[0]
-    campaign_root = Path(
-        campaign_manifest["operational_locations"]["campaign_root"]
+    campaign_root = _campaign_runtime_root(
+        campaign_manifest_path,
+        str(campaign_manifest["operational_locations"]["campaign_root"]),
     )
     ledger_path = campaign_root / "attempt_ledger.jsonl"
     ledger = _read_json_lines(ledger_path)
     reprocessed_attempts = _load_reprocessed_attempts(
         getattr(args, "reprocessing_record", []),
-        campaign_manifest_path=args.manifest.resolve(),
         campaign_manifest=campaign_manifest,
-        ledger_path=ledger_path,
         ledger=ledger,
+        campaign_root=campaign_root,
     )
     if not args.dry_run:
         if preliminary:
@@ -740,6 +770,21 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
             / take["engineering_take_id"]
             / f"{take['engineering_take_id']}__attempt_{args.attempt_number:02d}"
         )
+    if attempt_root.exists():
+        raise S48PhysicalRehearsalError(
+            f"attempt path already exists: {attempt_root}"
+        )
+    if getattr(args, "validate_only", False):
+        return {
+            "status": "validated",
+            "take_id": take["engineering_take_id"],
+            "attempt_number": args.attempt_number,
+            "attempt_root": str(attempt_root),
+            "campaign_root": str(campaign_root),
+            "acquisition_started": False,
+            "ledger_modified": False,
+            "authority": config["authority"],
+        }
     attempt_root.mkdir(parents=True, exist_ok=False)
     remote_attempt = (
         f"{campaign_manifest['operational_locations']['pi_capture_root']}/"
@@ -965,10 +1010,9 @@ def run_take(args: argparse.Namespace) -> dict[str, Any]:
 def _load_reprocessed_attempts(
     record_paths: list[Path],
     *,
-    campaign_manifest_path: Path,
     campaign_manifest: dict[str, Any],
-    ledger_path: Path,
     ledger: list[dict[str, Any]],
+    campaign_root: Path,
 ) -> list[tuple[str, int]]:
     reprocessed: list[tuple[str, int]] = []
     design_by_id = {
@@ -977,17 +1021,16 @@ def _load_reprocessed_attempts(
     }
     for path in record_paths:
         record = _load_json(path.resolve())
-        validate_reprocessing_record(ROOT, record)
-        historical = record["historical_result"]
+        validate_reprocessing_record(
+            ROOT,
+            record,
+            runtime_campaign_root=campaign_root,
+        )
         take_id = str(record["preliminary_take_id"])
         attempt_number = int(record["attempt_number"])
         take = design_by_id.get(take_id)
         if (
-            Path(historical["campaign_manifest"]["path"]).resolve()
-            != campaign_manifest_path
-            or Path(historical["attempt_ledger"]["path"]).resolve()
-            != ledger_path.resolve()
-            or take is None
+            take is None
             or take.get("preliminary_case_id") != record.get("case_id")
             or not any(
                 item.get("engineering_take_id") == take_id
@@ -1269,12 +1312,14 @@ def main() -> int:
     take_parser.add_argument("--attempt-number", type=int, required=True)
     take_parser.add_argument("--dry-run", action="store_true")
     take_parser.add_argument("--dry-run-root", type=Path, default=None)
+    take_parser.add_argument("--validate-only", action="store_true")
     take_parser.set_defaults(require_preliminary=False)
     take_parser.set_defaults(function=run_take)
     preliminary_take_parser = subparsers.add_parser("run-preliminary-take")
     preliminary_take_parser.add_argument("--manifest", type=Path, required=True)
     preliminary_take_parser.add_argument("--take-id", required=True)
     preliminary_take_parser.add_argument("--attempt-number", type=int, required=True)
+    preliminary_take_parser.add_argument("--validate-only", action="store_true")
     preliminary_take_parser.add_argument(
         "--reprocessing-record",
         action="append",

@@ -357,12 +357,102 @@ def build_reprocessing_record(
     return record
 
 
+def resolve_reprocessing_record_paths(
+    record: Mapping[str, Any],
+    *,
+    runtime_campaign_root: Path | None = None,
+) -> dict[str, Any]:
+    """Resolve an authenticated v1 record after a whole-campaign relocation."""
+
+    take_id = str(record.get("preliminary_take_id", ""))
+    attempt_number = record.get("attempt_number")
+    declared_attempt = Path(str(record.get("attempt_path", "")))
+    if (
+        not declared_attempt.is_absolute()
+        or not take_id.startswith("s48prelim_")
+        or isinstance(attempt_number, bool)
+        or not isinstance(attempt_number, int)
+        or attempt_number < 1
+        or len(declared_attempt.parents) < 3
+    ):
+        raise S48PreliminaryError("reprocessing record path identity is invalid")
+    declared_root = declared_attempt.parents[2]
+    expected_suffix = (
+        Path("attempts")
+        / take_id
+        / f"{take_id}__attempt_{attempt_number:02d}"
+    )
+    if declared_attempt != declared_root / expected_suffix:
+        raise S48PreliminaryError(
+            "reprocessing attempt path does not match its bound identity"
+        )
+    runtime_root = (
+        declared_root
+        if runtime_campaign_root is None
+        else runtime_campaign_root.resolve()
+    )
+    if (
+        not declared_root.name
+        or runtime_root.name != declared_root.name
+    ):
+        raise S48PreliminaryError(
+            "reprocessing campaign relocation changes campaign identity"
+        )
+
+    def relocate(value: Any) -> Path:
+        source = Path(str(value))
+        if not source.is_absolute():
+            raise S48PreliminaryError(
+                f"reprocessing artifact path is not absolute: {value}"
+            )
+        try:
+            relative = source.relative_to(declared_root)
+        except ValueError as exc:
+            raise S48PreliminaryError(
+                f"reprocessing artifact escapes declared campaign: {value}"
+            ) from exc
+        resolved = (runtime_root / relative).resolve()
+        if resolved != runtime_root and runtime_root not in resolved.parents:
+            raise S48PreliminaryError(
+                f"reprocessing artifact escapes runtime campaign: {value}"
+            )
+        return resolved
+
+    historical = record.get("historical_result", {})
+    if not isinstance(historical, Mapping):
+        raise S48PreliminaryError("reprocessing historical result is invalid")
+    historical_paths = {
+        name: relocate(historical.get(name, {}).get("path"))
+        for name in (
+            "raw_capture",
+            "retry_report",
+            "gate_report",
+            "controller_result",
+            "process_journal",
+            "take_precollection_manifest",
+            "attempt_ledger",
+            "campaign_manifest",
+        )
+    }
+    corrected = record.get("corrected_offline_result", {})
+    if not isinstance(corrected, Mapping):
+        raise S48PreliminaryError("reprocessing corrected result is invalid")
+    return {
+        "declared_campaign_root": declared_root,
+        "runtime_campaign_root": runtime_root,
+        "attempt_path": runtime_root / expected_suffix,
+        "historical_result": historical_paths,
+        "corrected_report": relocate(corrected.get("report", {}).get("path")),
+    }
+
+
 def validate_reprocessing_record(
     repo_root: Path,
     record: Mapping[str, Any],
     *,
     expected_attempt_path: Path | None = None,
     expected_case_id: str | None = None,
+    runtime_campaign_root: Path | None = None,
 ) -> dict[str, Any]:
     """Authenticate an additive PASS while retaining the original retry."""
 
@@ -381,28 +471,33 @@ def validate_reprocessing_record(
         "authority"
     ) != AUTHORITY_NONE:
         raise S48PreliminaryError("preliminary reprocessing boundary is invalid")
-    attempt = Path(str(record["attempt_path"])).resolve()
+    resolved_paths = resolve_reprocessing_record_paths(
+        record,
+        runtime_campaign_root=runtime_campaign_root,
+    )
+    attempt = resolved_paths["attempt_path"]
     if expected_attempt_path is not None and attempt != expected_attempt_path.resolve():
         raise S48PreliminaryError("reprocessing record targets a different attempt")
     if expected_case_id is not None and record.get("case_id") != expected_case_id:
         raise S48PreliminaryError("reprocessing record targets a different case")
     historical = record["historical_result"]
-    for artifact in (
-        *(
-            historical[name]
-            for name in (
-                "raw_capture",
-                "retry_report",
-                "gate_report",
-                "controller_result",
-                "process_journal",
-                "take_precollection_manifest",
-                "campaign_manifest",
-            )
-        ),
-        record["corrected_offline_result"]["report"],
+    for name in (
+        "raw_capture",
+        "retry_report",
+        "gate_report",
+        "controller_result",
+        "process_journal",
+        "take_precollection_manifest",
+        "campaign_manifest",
     ):
-        _validate_artifact_record(artifact)
+        _validate_artifact_record(
+            historical[name],
+            resolved_path=resolved_paths["historical_result"][name],
+        )
+    _validate_artifact_record(
+        record["corrected_offline_result"]["report"],
+        resolved_path=resolved_paths["corrected_report"],
+    )
     expected_attempt_artifacts = {
         "raw_capture": attempt / "respeaker_audio.wav",
         "retry_report": attempt / "retry_report.json",
@@ -412,19 +507,20 @@ def validate_reprocessing_record(
         "take_precollection_manifest": attempt / "take_precollection_manifest.json",
     }
     if any(
-        Path(str(historical[name]["path"])).resolve() != path
+        resolved_paths["historical_result"][name] != path
         for name, path in expected_attempt_artifacts.items()
     ):
         raise S48PreliminaryError(
             "reprocessing record does not bind the retained attempt files"
         )
-    retry_report = _load_json(Path(historical["retry_report"]["path"]))
-    gate_report = _load_json(Path(historical["gate_report"]["path"]))
-    controller = _load_json(Path(historical["controller_result"]["path"]))
-    manifest = _load_json(Path(historical["take_precollection_manifest"]["path"]))
-    journal = _load_json_lines(Path(historical["process_journal"]["path"]))
-    campaign = _load_json(Path(historical["campaign_manifest"]["path"]))
-    ledger_path = Path(historical["attempt_ledger"]["path"])
+    historical_paths = resolved_paths["historical_result"]
+    retry_report = _load_json(historical_paths["retry_report"])
+    gate_report = _load_json(historical_paths["gate_report"])
+    controller = _load_json(historical_paths["controller_result"])
+    manifest = _load_json(historical_paths["take_precollection_manifest"])
+    journal = _load_json_lines(historical_paths["process_journal"])
+    campaign = _load_json(historical_paths["campaign_manifest"])
+    ledger_path = historical_paths["attempt_ledger"]
     ledger = _load_json_lines(ledger_path)
     if (
         retry_report.get("decision") != "RETRY_REQUIRED"
@@ -495,7 +591,7 @@ def validate_reprocessing_record(
             "reprocessing record contradicts journal or ledger history"
         )
     corrected = record["corrected_offline_result"]
-    corrected_report = _load_json(Path(corrected["report"]["path"]))
+    corrected_report = _load_json(resolved_paths["corrected_report"])
     alignment = corrected_report.get("waveform", {}).get("alignment", {})
     longest = alignment.get("longest_continuous_useful_interval", {})
     capture_sha256 = historical["raw_capture"]["sha256"]
@@ -550,6 +646,7 @@ def load_reprocessing_record(
         record,
         expected_attempt_path=expected_attempt_path,
         expected_case_id=expected_case_id,
+        runtime_campaign_root=expected_attempt_path.resolve().parents[2],
     )
     return record, report
 
@@ -1015,12 +1112,17 @@ def _sha256_jsonl_prefix(path: Path, *, line_count: int) -> str:
     return hashlib.sha256(b"".join(lines[:line_count])).hexdigest()
 
 
-def _validate_artifact_record(artifact: Mapping[str, Any]) -> None:
+def _validate_artifact_record(
+    artifact: Mapping[str, Any],
+    *,
+    resolved_path: Path | None = None,
+) -> None:
     path = Path(str(artifact.get("path", "")))
+    authenticated_path = path.resolve() if resolved_path is None else resolved_path
     if (
         not path.is_absolute()
         or not _is_sha256(artifact.get("sha256"))
-        or _sha256_file(path.resolve()) != artifact.get("sha256")
+        or _sha256_file(authenticated_path) != artifact.get("sha256")
     ):
         raise S48PreliminaryError(
             f"reprocessing artifact hash mismatch: {artifact.get('path')}"
@@ -1070,6 +1172,7 @@ __all__ = [
     "load_workflow_config",
     "process_case",
     "reprocess_attempt_gate",
+    "resolve_reprocessing_record_paths",
     "run_diagnostic_evaluator",
     "validate_reprocessing_record",
     "validate_reuse_decision",

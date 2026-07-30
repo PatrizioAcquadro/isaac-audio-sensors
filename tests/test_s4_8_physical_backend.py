@@ -352,6 +352,14 @@ def test_runtime_campaign_defaults_are_repository_local() -> None:
     assert runner._repository_local_campaign_root(
         preliminary["preliminary"]["campaign_root"]
     ) == root / ".local/s4_8/s4_8_preliminary"
+    relocated_manifest = (
+        root
+        / ".local/s4_8/s4_8_preliminary/freeze/campaign_manifest.json"
+    )
+    assert runner._campaign_runtime_root(
+        relocated_manifest,
+        preliminary["preliminary"]["campaign_root"],
+    ) == root / ".local/s4_8/s4_8_preliminary"
 
 
 def test_runtime_campaign_default_rejects_non_s4_8_name() -> None:
@@ -370,6 +378,36 @@ def test_runtime_campaign_default_rejects_non_s4_8_name() -> None:
         match="S4.8 campaign name",
     ):
         runner._repository_local_campaign_root("/tmp/unrelated")
+
+
+def test_runtime_campaign_rejects_unbound_manifest_copy() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script_path = root / "scripts" / "run_s4_8_physical_rehearsal.py"
+    spec = importlib.util.spec_from_file_location(
+        "s48_unbound_manifest_runner",
+        script_path,
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    with pytest.raises(
+        runner.S48PhysicalRehearsalError,
+        match="outside its declared or repository-local root",
+    ):
+        runner._campaign_runtime_root(
+            Path("/tmp/copied/freeze/campaign_manifest.json"),
+            "/home/operator/s4_8_preliminary",
+        )
+
+    with pytest.raises(
+        runner.S48PhysicalRehearsalError,
+        match="frozen campaign path",
+    ):
+        runner._campaign_runtime_root(
+            root / ".local/s4_8/s4_8_preliminary/copied.json",
+            "/home/operator/s4_8_preliminary",
+        )
 
 
 def test_mac_runtime_identity_preserves_stdout_stderr_split(

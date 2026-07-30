@@ -110,6 +110,15 @@ past that retry only when it authenticates the additive record against the
 same campaign manifest, ledger prefix, attempt identity, raw, corrected report,
 and corrective source commit.
 
+A whole-campaign relocation does not alter those authenticated payloads. The
+physical runner accepts the frozen campaign root or its repository-local
+`.local/s4_8/<campaign-name>` location, rebases every bound reprocessing path
+as one unit, and then rechecks every SHA-256 and structural binding. Individual
+path substitution, a different campaign name, an artifact outside the declared
+campaign root, or an unbound manifest copy fails closed. Operators may use
+`run-preliminary-take --validate-only` to exercise the complete request and
+ledger checks without creating an attempt directory or starting hardware.
+
 Keep each failed raw only until a technically valid replacement passes. Then
 delete the failed attempt artifacts, remove their `RETRY_REQUIRED` records from
 the active attempt ledger, and retain only a short note with the take ID,

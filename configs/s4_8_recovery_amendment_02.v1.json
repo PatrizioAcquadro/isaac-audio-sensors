@@ -134,7 +134,7 @@
     "workflow_schema_path": "docs/schemas/s4_8_preliminary_workflow.v1.schema.json",
     "workflow_schema_sha256": "30817b9811e22b8c422b8b5358971dca7061eca94c1d5a9fd417b3e48077b2e2",
     "workflow_spec_path": "docs/development/specs/s4_8_preliminary_workflow.md",
-    "workflow_spec_sha256": "f200afa3e7313bc9662494550d4e0e565af41a4386108ec86e82f3815ba9b516",
+    "workflow_spec_sha256": "f4a7a8f2cc1f3dbe96f5d4700b8083cd6f9225d99482a11308fe24112b7c3b8f",
     "readiness_path": "runs/s4_8_preliminary/preliminary_readiness.v1.json",
     "required_take_count": 4,
     "required_gate_count": 7,

@@ -28,6 +28,7 @@ from isaac_audio_sensors.acquisition.s4_8_preliminary import (
     build_reuse_decision,
     load_workflow_config,
     process_case,
+    resolve_reprocessing_record_paths,
     run_diagnostic_evaluator,
 )
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
@@ -213,6 +214,111 @@ def test_reuse_policy_is_scope_sensitive_and_not_blanket_reacquisition() -> None
         replacement_complete=False,
     )
     assert detector["physical_confirmation"] == "not_required_by_evidence"
+
+
+def test_reprocessing_paths_support_authenticated_whole_campaign_relocation(
+    tmp_path: Path,
+) -> None:
+    take_id = "s48prelim_002_low_level_reference"
+    declared_root = Path("/old/runtime/s4_8_preliminary")
+    runtime_root = tmp_path / "s4_8_preliminary"
+    attempt_suffix = (
+        Path("attempts") / take_id / f"{take_id}__attempt_03"
+    )
+    historical_names = (
+        "raw_capture",
+        "retry_report",
+        "gate_report",
+        "controller_result",
+        "process_journal",
+        "take_precollection_manifest",
+        "attempt_ledger",
+        "campaign_manifest",
+    )
+    record = {
+        "preliminary_take_id": take_id,
+        "attempt_number": 3,
+        "attempt_path": str(declared_root / attempt_suffix),
+        "historical_result": {
+            name: {
+                "path": str(
+                    declared_root
+                    / (
+                        f"historical/{name}"
+                        if name not in {"attempt_ledger", "campaign_manifest"}
+                        else (
+                            "attempt_ledger.jsonl"
+                            if name == "attempt_ledger"
+                            else "freeze/campaign_manifest.json"
+                        )
+                    )
+                )
+            }
+            for name in historical_names
+        },
+        "corrected_offline_result": {
+            "report": {
+                "path": str(
+                    declared_root
+                    / "diagnostics/correction/gate_report.reprocessed.json"
+                )
+            }
+        },
+    }
+    original = copy.deepcopy(record)
+
+    paths = resolve_reprocessing_record_paths(
+        record,
+        runtime_campaign_root=runtime_root,
+    )
+
+    assert paths["attempt_path"] == runtime_root / attempt_suffix
+    assert paths["historical_result"]["attempt_ledger"] == (
+        runtime_root / "attempt_ledger.jsonl"
+    )
+    assert paths["corrected_report"] == (
+        runtime_root / "diagnostics/correction/gate_report.reprocessed.json"
+    )
+    assert record == original
+
+
+def test_reprocessing_relocation_rejects_artifact_outside_campaign(
+    tmp_path: Path,
+) -> None:
+    take_id = "s48prelim_002_low_level_reference"
+    declared_root = Path("/old/runtime/s4_8_preliminary")
+    record = {
+        "preliminary_take_id": take_id,
+        "attempt_number": 3,
+        "attempt_path": str(
+            declared_root
+            / "attempts"
+            / take_id
+            / f"{take_id}__attempt_03"
+        ),
+        "historical_result": {
+            name: {"path": str(declared_root / name)}
+            for name in (
+                "raw_capture",
+                "retry_report",
+                "gate_report",
+                "controller_result",
+                "process_journal",
+                "take_precollection_manifest",
+                "attempt_ledger",
+                "campaign_manifest",
+            )
+        },
+        "corrected_offline_result": {
+            "report": {"path": "/outside/corrected-report.json"}
+        },
+    }
+
+    with pytest.raises(S48PreliminaryError, match="escapes declared campaign"):
+        resolve_reprocessing_record_paths(
+            record,
+            runtime_campaign_root=tmp_path / "s4_8_preliminary",
+        )
 
 
 def test_readiness_requires_all_gates_and_resolved_physical_confirmation() -> None:
