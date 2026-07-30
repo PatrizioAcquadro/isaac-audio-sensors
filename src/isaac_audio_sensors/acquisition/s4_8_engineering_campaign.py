@@ -31,6 +31,7 @@ from isaac_audio_sensors.acquisition.s4_3 import (
 from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
     S48EngineeringAcquisitionError,
     build_engineering_precollection_manifest,
+    engineering_operational_path_is_allowed,
 )
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
@@ -1441,9 +1442,10 @@ def run_supported_nonreference_acquisition(
         clearance_registry_path,
         *(() if zed_artifact_root is None else (zed_artifact_root,)),
     ):
-        if path.resolve().is_relative_to(root):
+        if not engineering_operational_path_is_allowed(root, path):
             raise S48EngineeringCampaignError(
-                "engineering operational files must remain outside the repository"
+                "engineering operational files must remain outside tracked "
+                "repository paths"
             )
     if journal_path.exists():
         raise S48EngineeringCampaignError(

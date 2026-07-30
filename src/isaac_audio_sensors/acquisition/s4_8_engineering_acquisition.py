@@ -66,6 +66,21 @@ class S48EngineeringAcquisitionError(RuntimeError):
     """Engineering acquisition provenance or interlock failure."""
 
 
+def engineering_operational_path_is_allowed(
+    repo_root: Path,
+    operational_path: Path,
+) -> bool:
+    """Allow external runtime paths and the ignored repository-local S4.8 root."""
+
+    root = repo_root.resolve()
+    resolved = operational_path.resolve()
+    repository_local_runtime = (root / ".local" / "s4_8").resolve()
+    return (
+        not resolved.is_relative_to(root)
+        or resolved.is_relative_to(repository_local_runtime)
+    )
+
+
 class SubprocessEngineeringBackend:
     """Concrete backend for explicit recorder/player argument vectors."""
 
@@ -651,9 +666,10 @@ def run_supported_engineering_acquisition(
         candidate_seal_path,
         clearance_registry_path,
     ):
-        if operational_path.resolve().is_relative_to(root):
+        if not engineering_operational_path_is_allowed(root, operational_path):
             raise S48EngineeringAcquisitionError(
-                "engineering operational files must remain outside the repository"
+                "engineering operational files must remain outside tracked "
+                "repository paths"
             )
     if journal_path.exists():
         raise S48EngineeringAcquisitionError(

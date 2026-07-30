@@ -19,6 +19,7 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
     append_engineering_journal_event,
     build_engineering_precollection_manifest,
     create_candidate_engineering_clearance,
+    engineering_operational_path_is_allowed,
     run_presealing_gate_from_engineering_files,
     run_supported_engineering_acquisition,
     seal_engineering_candidate,
@@ -51,6 +52,30 @@ def _manifest(*, reference_sha256: str = "a" * 64) -> dict[str, object]:
         protocol_id="s4_8_physical_engineering_rehearsal_v2",
         capture_controller_identity="ias.s4_8.engineering_controller",
         capture_controller_version="2.0",
+    )
+
+
+def test_operational_paths_allow_only_external_or_local_s4_8_runtime(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+
+    assert engineering_operational_path_is_allowed(
+        root,
+        tmp_path / "external" / "capture.wav",
+    )
+    assert engineering_operational_path_is_allowed(
+        root,
+        root / ".local/s4_8/s4_8_preliminary/attempts/capture.wav",
+    )
+    assert not engineering_operational_path_is_allowed(
+        root,
+        root / "dataset/S4.8/capture.wav",
+    )
+    assert not engineering_operational_path_is_allowed(
+        root,
+        root / "src/isaac_audio_sensors/capture.wav",
     )
 
 
