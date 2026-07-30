@@ -50,3 +50,35 @@ def test_pair_medians_exclude_abstained_windows() -> None:
     }
 
     assert repeatability._pair_medians_us(analysis) == pytest.approx({"a->b": 20.0})
+
+
+def test_preflight_accepts_authenticated_existing_asset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reference_sha256 = repeatability._sha256(repeatability.REFERENCE_PATH)
+    report = {
+        "schema": "ias.s4_8.physical_rig_preflight.v1",
+        "status": "passed",
+        "read_only_hardware_checks": True,
+        "recorder_started": False,
+        "playback_started": False,
+        "zed_recording_started": False,
+        "continuous_asset": {
+            "source_sha256": reference_sha256,
+            "asset_sha256": "a" * 64,
+        },
+        "continuous_asset_deployment": {
+            "action": "verified_existing",
+            "sha256": "a" * 64,
+        },
+        "mac_acceptance": {"status": "passed"},
+        "pi": {"status": "passed"},
+        "zed": {"status": "passed"},
+    }
+    monkeypatch.setattr(
+        repeatability,
+        "_sha256",
+        lambda path: reference_sha256,
+    )
+
+    repeatability._validate_preflight(report)

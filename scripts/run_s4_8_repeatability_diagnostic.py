@@ -199,6 +199,8 @@ def _take_definitions() -> list[dict[str, Any]]:
 
 
 def _validate_preflight(report: Mapping[str, Any]) -> None:
+    asset = report.get("continuous_asset", {})
+    deployment = report.get("continuous_asset_deployment", {})
     if (
         report.get("schema") != "ias.s4_8.physical_rig_preflight.v1"
         or report.get("status") != "passed"
@@ -206,9 +208,9 @@ def _validate_preflight(report: Mapping[str, Any]) -> None:
         or report.get("recorder_started") is not False
         or report.get("playback_started") is not False
         or report.get("zed_recording_started") is not False
-        or report.get("continuous_asset", {}).get("source_sha256")
-        != _sha256(REFERENCE_PATH)
-        or report.get("continuous_asset_deployment", {}).get("status") != "passed"
+        or asset.get("source_sha256") != _sha256(REFERENCE_PATH)
+        or deployment.get("action") not in {"deployed", "verified_existing"}
+        or deployment.get("sha256") != asset.get("asset_sha256")
         or report.get("mac_acceptance", {}).get("status") != "passed"
         or report.get("pi", {}).get("status") != "passed"
         or report.get("zed", {}).get("status") != "passed"
