@@ -4315,11 +4315,6 @@ def _derive_av_association(
         contract_sha256=contract["analysis"]["transient_contract_sha256"],
     )
     audio_candidates = [int(record["peak_sample"]) for record in transient["events"]]
-    audio_samples = _select_three_spaced_events(
-        audio_candidates,
-        sample_rate_hz=16000,
-        expected_interval_s=float(contract["analysis"]["av_expected_interval_s"]),
-    )
     producer = load_json(producer_path)
     audio_start_ms = (
         1000.0 * _parse_utc(producer.get("started_wall_time_utc")).timestamp()
@@ -4329,26 +4324,48 @@ def _derive_av_association(
     robust_sigma_multiplier = float(
         detector_config["noise_event_detector"]["robust_sigma_multiplier"]
     )
+    visual_peak_indices = _significant_visual_peak_indices(
+        depth_motion,
+        robust_sigma_multiplier=robust_sigma_multiplier,
+    )
+    audio_candidate_times_ms = [
+        audio_start_ms + 1000.0 * sample / 16000.0 for sample in audio_candidates
+    ]
+    alignment = _align_av_event_sequences(
+        audio_candidate_times_ms,
+        [host_times_ms[index] for index in visual_peak_indices],
+        event_count=int(contract["analysis"]["av_expected_event_count"]),
+        expected_interval_ms=(
+            1000.0 * float(contract["analysis"]["av_expected_interval_s"])
+        ),
+        maximum_origin_offset_ms=search_half_width,
+    )
     associations = []
-    for event_index, sample in enumerate(audio_samples):
-        audio_ms = audio_start_ms + 1000.0 * sample / 16000.0
-        video_index = _select_significant_visual_peak(
-            host_times_ms,
-            depth_motion,
-            audio_event_time_ms=audio_ms,
-            search_half_width_ms=search_half_width,
-            robust_sigma_multiplier=robust_sigma_multiplier,
+    for event_index, (audio_index, visual_index) in enumerate(
+        zip(
+            alignment["audio_indices"],
+            alignment["video_indices"],
+            strict=True,
         )
+    ):
+        sample = audio_candidates[audio_index]
+        raw_audio_ms = audio_candidate_times_ms[audio_index]
+        aligned_audio_ms = raw_audio_ms + alignment["timestamp_origin_offset_ms"]
+        video_index = visual_peak_indices[visual_index]
         video_ms = host_times_ms[video_index]
         associations.append(
             {
                 "event_index": event_index,
                 "audio_peak_sample": sample,
-                "audio_event_time_ms": audio_ms,
+                "raw_audio_event_time_ms": raw_audio_ms,
+                "audio_event_time_ms": aligned_audio_ms,
                 "video_frame_index": int(frames[video_index]["frame_index"]),
                 "video_event_time_ms": video_ms,
                 "visual_motion_mean_absolute_depth_delta_m": depth_motion[video_index],
-                "av_absolute_residual_ms": abs(audio_ms - video_ms),
+                "timestamp_origin_offset_ms": alignment[
+                    "timestamp_origin_offset_ms"
+                ],
+                "av_absolute_residual_ms": abs(aligned_audio_ms - video_ms),
             }
         )
     worst = max(associations, key=lambda item: item["av_absolute_residual_ms"])
@@ -4357,8 +4374,138 @@ def _derive_av_association(
         "video_event_time_ms": worst["video_event_time_ms"],
         "av_absolute_residual_ms": worst["av_absolute_residual_ms"],
         "events": associations,
+        "timestamp_origin_offset_ms": alignment["timestamp_origin_offset_ms"],
+        "sequence_alignment": alignment,
         "audio_candidates": transient,
     }
+
+
+def _align_av_event_sequences(
+    audio_event_times_ms: Sequence[float],
+    video_event_times_ms: Sequence[float],
+    *,
+    event_count: int,
+    expected_interval_ms: float,
+    maximum_origin_offset_ms: float,
+) -> dict[str, Any]:
+    """Match event sequences before removing their common timestamp origin."""
+
+    audio = [float(value) for value in audio_event_times_ms]
+    video = [float(value) for value in video_event_times_ms]
+    if (
+        event_count < 2
+        or len(audio) < event_count
+        or len(video) < event_count
+        or expected_interval_ms <= 0.0
+        or maximum_origin_offset_ms <= 0.0
+        or any(not math.isfinite(value) for value in (*audio, *video))
+        or any(
+            later <= earlier
+            for earlier, later in zip(audio, audio[1:], strict=False)
+        )
+        or any(
+            later <= earlier
+            for earlier, later in zip(video, video[1:], strict=False)
+        )
+    ):
+        raise S48Error("invalid audio-video event-sequence inputs")
+
+    candidates = []
+    for audio_indices in itertools.combinations(range(len(audio)), event_count):
+        audio_times = [audio[index] for index in audio_indices]
+        audio_interval_error = sum(
+            abs((later - earlier) - expected_interval_ms)
+            for earlier, later in zip(
+                audio_times,
+                audio_times[1:],
+                strict=False,
+            )
+        )
+        for video_indices in itertools.combinations(range(len(video)), event_count):
+            video_times = [video[index] for index in video_indices]
+            offsets = [
+                video_time - audio_time
+                for audio_time, video_time in zip(
+                    audio_times,
+                    video_times,
+                    strict=True,
+                )
+            ]
+            origin_offset = float(median(offsets))
+            if abs(origin_offset) > maximum_origin_offset_ms:
+                continue
+            residuals = [abs(value - origin_offset) for value in offsets]
+            video_interval_error = sum(
+                abs((later - earlier) - expected_interval_ms)
+                for earlier, later in zip(
+                    video_times,
+                    video_times[1:],
+                    strict=False,
+                )
+            )
+            score = (
+                max(residuals),
+                sum(residuals),
+                audio_interval_error + video_interval_error,
+                audio_indices,
+                video_indices,
+            )
+            candidates.append(
+                (
+                    score,
+                    audio_indices,
+                    video_indices,
+                    origin_offset,
+                    residuals,
+                    audio_interval_error,
+                    video_interval_error,
+                )
+            )
+    if not candidates:
+        raise S48Error("no audio-video event sequence has a bounded common origin")
+    (
+        _score,
+        selected_audio,
+        selected_video,
+        origin_offset,
+        residuals,
+        audio_interval_error,
+        video_interval_error,
+    ) = min(candidates, key=lambda item: item[0])
+    return {
+        "method": "ordered_event_interval_match_with_common_origin_removal",
+        "event_count": event_count,
+        "audio_indices": list(selected_audio),
+        "video_indices": list(selected_video),
+        "timestamp_origin_offset_ms": origin_offset,
+        "absolute_residuals_ms": residuals,
+        "worst_absolute_residual_ms": max(residuals),
+        "audio_expected_interval_absolute_error_ms": audio_interval_error,
+        "video_expected_interval_absolute_error_ms": video_interval_error,
+        "maximum_origin_offset_ms": maximum_origin_offset_ms,
+    }
+
+
+def _significant_visual_peak_indices(
+    depth_motion: Sequence[float],
+    *,
+    robust_sigma_multiplier: float,
+) -> list[int]:
+    if len(depth_motion) < 3 or robust_sigma_multiplier <= 0.0:
+        raise S48Error("invalid visual-motion peak inputs")
+    baseline = float(median(depth_motion))
+    mad = float(median(abs(value - baseline) for value in depth_motion))
+    threshold = baseline + robust_sigma_multiplier * 1.4826 * mad
+    candidates = [
+        index
+        for index in range(1, len(depth_motion) - 1)
+        if depth_motion[index] >= threshold
+        and depth_motion[index] >= depth_motion[index - 1]
+        and depth_motion[index] > depth_motion[index + 1]
+    ]
+    if not candidates:
+        raise S48Error("no significant local visual-motion peak")
+    return candidates
 
 
 def _select_significant_visual_peak(
@@ -4376,16 +4523,14 @@ def _select_significant_visual_peak(
         or robust_sigma_multiplier <= 0.0
     ):
         raise S48Error("invalid visual-motion association inputs")
-    baseline = float(median(depth_motion))
-    mad = float(median(abs(value - baseline) for value in depth_motion))
-    threshold = baseline + robust_sigma_multiplier * 1.4826 * mad
+    significant = _significant_visual_peak_indices(
+        depth_motion,
+        robust_sigma_multiplier=robust_sigma_multiplier,
+    )
     candidates = [
         index
-        for index in range(1, len(depth_motion) - 1)
+        for index in significant
         if abs(host_times_ms[index] - audio_event_time_ms) <= search_half_width_ms
-        and depth_motion[index] >= threshold
-        and depth_motion[index] >= depth_motion[index - 1]
-        and depth_motion[index] > depth_motion[index + 1]
     ]
     if not candidates:
         raise S48Error("no significant local visual-motion peak for audio event")

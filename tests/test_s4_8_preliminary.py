@@ -11,10 +11,11 @@ import jsonschema
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.acquisition import s4_8_recovery_02
+from isaac_audio_sensors.acquisition import s4_8, s4_8_recovery_02
 from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
     S48EngineeringCampaignError,
     build_preliminary_manifest,
+    build_reference_take_manifest,
     derive_preliminary_design,
     validate_preliminary_manifest,
 )
@@ -23,6 +24,7 @@ from isaac_audio_sensors.acquisition.s4_8_preliminary import (
     CASE_IDS,
     DIAGNOSTIC_CLASSIFICATION,
     S48PreliminaryError,
+    _candidate_seal_manifest_authenticated,
     build_diagnostic_package,
     build_readiness_report,
     build_reuse_decision,
@@ -434,6 +436,48 @@ def test_silence_raw_take_runs_current_detector_and_metric_path(
     assert result["classification"] == DIAGNOSTIC_CLASSIFICATION
 
 
+def test_reference_candidate_seal_authenticates_v2_take_manifest(
+    tmp_path: Path,
+) -> None:
+    manifest = _manifest()
+    take = next(
+        item
+        for item in manifest["design"]
+        if item["preliminary_case_id"] == "nominal_reference"
+    )
+    take_manifest = build_reference_take_manifest(
+        campaign_manifest=manifest,
+        take=take,
+        expected_campaign_manifest_sha256=str(manifest["manifest_sha256"]),
+    )
+    (tmp_path / "take_precollection_manifest.json").write_text(
+        json.dumps(take_manifest),
+        encoding="utf-8",
+    )
+
+    assert _candidate_seal_manifest_authenticated(
+        attempt=tmp_path,
+        candidate_seal={"manifest_sha256": take_manifest["manifest_sha256"]},
+        campaign_manifest=manifest,
+        take=take,
+        campaign_anchor=str(manifest["manifest_sha256"]),
+    )
+
+    altered = copy.deepcopy(take_manifest)
+    altered["protocol_id"] = f"{altered['protocol_id']}:altered"
+    (tmp_path / "take_precollection_manifest.json").write_text(
+        json.dumps(altered),
+        encoding="utf-8",
+    )
+    assert not _candidate_seal_manifest_authenticated(
+        attempt=tmp_path,
+        candidate_seal={"manifest_sha256": take_manifest["manifest_sha256"]},
+        campaign_manifest=manifest,
+        take=take,
+        campaign_anchor=str(manifest["manifest_sha256"]),
+    )
+
+
 def test_diagnostic_evaluator_runs_exact_contract_with_four_replacements() -> None:
     manifest = _manifest()
     payload = acceptance_criteria_corrective_03.build_synthetic_payload(ROOT)
@@ -459,6 +503,133 @@ def test_diagnostic_evaluator_runs_exact_contract_with_four_replacements() -> No
     assert result["official_take_count"] == 0
     assert result["official_s4_8_pass_claimed"] is False
     assert result["evaluation"]["readiness_passed"] is True
+
+
+def test_diagnostic_completion_uses_the_real_runtime_domain() -> None:
+    manifest = _manifest()
+    payload = acceptance_criteria_corrective_03.build_synthetic_payload(ROOT)
+    takes = {take["identity"]["planned_take_id"]: take for take in payload["takes"]}
+    observed_runtime_ms = {
+        "nominal_reference": 253.906784,
+        "low_level_reference": 253.894235,
+        "silence": 253.898150,
+        "audio_video_impact_with_zed": 253.903464,
+    }
+    case_results = []
+    for take in manifest["design"]:
+        derived = copy.deepcopy(takes[take["template_planned_take_id"]])
+        derived["latency"]["capture_to_frame_offline_ms"] = observed_runtime_ms[
+            take["preliminary_case_id"]
+        ]
+        case_results.append(
+            {
+                "case_id": take["preliminary_case_id"],
+                "source_evaluator_take_id": take["template_planned_take_id"],
+                "derived_take": derived,
+            }
+        )
+
+    result = run_diagnostic_evaluator(
+        ROOT,
+        manifest=manifest,
+        case_results=case_results,
+    )
+    criterion = next(
+        item
+        for item in result["evaluation"]["criteria"]
+        if item["criterion_id"] == "capture_to_frame_offline_spread"
+    )
+
+    assert criterion["observed"] == pytest.approx(
+        max(observed_runtime_ms.values()) - min(observed_runtime_ms.values())
+    )
+    assert criterion["passed"] is True
+    assert result["synthetic_completion"]["runtime_domain_alignment"] == {
+        "capture_to_frame_offline_ms": pytest.approx(253.900807),
+        "frame_to_adapter_round_trip_ms": pytest.approx(1.0),
+    }
+
+
+def test_av_sequence_alignment_reproduces_preliminary_origin_error() -> None:
+    audio_start_ms = 1785371185249.431
+    audio_samples = [104493, 116039, 124897, 177454, 184795, 256761, 268182]
+    audio_times_ms = [audio_start_ms + sample / 16.0 for sample in audio_samples]
+    visual_frame_indices = [
+        46,
+        91,
+        149,
+        152,
+        168,
+        170,
+        172,
+        174,
+        264,
+        286,
+        288,
+        291,
+        417,
+        421,
+        430,
+        444,
+        448,
+        451,
+        454,
+        565,
+    ]
+    visual_times_ms = [
+        1785371189005.559,
+        1785371190505.5781,
+        1785371192439.071,
+        1785371192539.095,
+        1785371193072.4512,
+        1785371193139.2368,
+        1785371193205.75,
+        1785371193272.476,
+        1785371196272.6072,
+        1785371197006.003,
+        1785371197072.5752,
+        1785371197172.6028,
+        1785371201372.917,
+        1785371201506.393,
+        1785371201806.545,
+        1785371202273.0352,
+        1785371202406.469,
+        1785371202506.636,
+        1785371202606.344,
+        1785371206306.591,
+    ]
+    legacy_audio = [
+        audio_start_ms + sample / 16.0
+        for sample in (104493, 184795, 268182)
+    ]
+    legacy_video = [
+        1785371192439.071,
+        1785371197006.003,
+        1785371201806.545,
+    ]
+    assert max(
+        abs(audio_ms - video_ms)
+        for audio_ms, video_ms in zip(legacy_audio, legacy_video, strict=True)
+    ) == pytest.approx(658.82763671875)
+
+    aligned = s4_8._align_av_event_sequences(
+        audio_times_ms,
+        visual_times_ms,
+        event_count=3,
+        expected_interval_ms=5000.0,
+        maximum_origin_offset_ms=1000.0,
+    )
+
+    assert [audio_samples[index] for index in aligned["audio_indices"]] == [
+        124897,
+        184795,
+        256761,
+    ]
+    assert [
+        visual_frame_indices[index] for index in aligned["video_indices"]
+    ] == [174, 286, 421]
+    assert aligned["timestamp_origin_offset_ms"] == pytest.approx(209.399658203125)
+    assert aligned["worst_absolute_residual_ms"] == pytest.approx(7.5830078125)
 
 
 def test_amendment_02_blocks_official_path_before_preliminary_and_freeze() -> None:

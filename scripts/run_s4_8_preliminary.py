@@ -221,7 +221,9 @@ def decide_reuse(args: argparse.Namespace) -> dict[str, Any]:
 
 def readiness(args: argparse.Namespace) -> dict[str, Any]:
     load_workflow_config(ROOT)
-    manifest = _load_json(args.manifest.resolve())
+    manifest_path = args.manifest.resolve()
+    manifest = _load_json(manifest_path)
+    runtime_campaign_root = manifest_path.parent.parent
     package = _load_json(args.package.resolve())
     decisions = []
     if args.decision_log.is_file():
@@ -232,7 +234,11 @@ def readiness(args: argparse.Namespace) -> dict[str, Any]:
             decisions.append(value)
     for path in args.reprocessing_record:
         record = _load_json(path.resolve())
-        validate_reprocessing_record(ROOT, record)
+        validate_reprocessing_record(
+            ROOT,
+            record,
+            runtime_campaign_root=runtime_campaign_root,
+        )
         decisions.append(record["reuse_decision"])
     report = build_readiness_report(
         manifest=manifest,

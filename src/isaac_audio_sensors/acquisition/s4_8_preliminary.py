@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import shutil
 import tempfile
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from pathlib import Path
+from statistics import median
 from typing import Any
 
 import jsonschema
@@ -19,6 +21,8 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
     validate_engineering_process_journal,
 )
 from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
+    S48EngineeringCampaignError,
+    build_reference_take_manifest,
     validate_attempt_ledger_with_reprocessing,
     validate_preliminary_manifest,
 )
@@ -79,6 +83,34 @@ PHYSICAL_INVALIDATORS = frozenset(
 
 class S48PreliminaryError(RuntimeError):
     """Fail-closed preliminary workflow error."""
+
+
+def _candidate_seal_manifest_authenticated(
+    *,
+    attempt: Path,
+    candidate_seal: Mapping[str, Any],
+    campaign_manifest: Mapping[str, Any],
+    take: Mapping[str, Any],
+    campaign_anchor: str,
+) -> bool:
+    if candidate_seal.get("campaign_manifest_sha256") is not None:
+        return candidate_seal.get("campaign_manifest_sha256") == campaign_anchor
+    take_manifest = _load_json(attempt / "take_precollection_manifest.json")
+    try:
+        expected_take_manifest = build_reference_take_manifest(
+            campaign_manifest=campaign_manifest,
+            take=take,
+            expected_campaign_manifest_sha256=campaign_anchor,
+        )
+    except S48EngineeringCampaignError as exc:
+        raise S48PreliminaryError(
+            f"candidate seal precollection manifest is invalid: {exc}"
+        ) from exc
+    return (
+        candidate_seal.get("manifest_sha256")
+        == take_manifest.get("manifest_sha256")
+        and take_manifest == expected_take_manifest
+    )
 
 
 def load_workflow_config(repo_root: Path) -> dict[str, Any]:
@@ -685,9 +717,12 @@ def process_case(
         seal_payload = {
             key: value for key, value in candidate_seal.items() if key != "seal_sha256"
         }
-        seal_manifest_sha256 = candidate_seal.get(
-            "manifest_sha256",
-            candidate_seal.get("campaign_manifest_sha256"),
+        seal_manifest_authenticated = _candidate_seal_manifest_authenticated(
+            attempt=attempt,
+            candidate_seal=candidate_seal,
+            campaign_manifest=manifest,
+            take=take,
+            campaign_anchor=anchor,
         )
         if (
             controller_result.get("decision") != "PASS"
@@ -704,7 +739,7 @@ def process_case(
             )
             is not False
             or candidate_seal.get("capture_sha256") != capture_sha256
-            or seal_manifest_sha256 != anchor
+            or not seal_manifest_authenticated
             or candidate_seal.get("report_sha256") != canonical_sha256(gate_report)
             or candidate_seal.get("seal_sha256") != canonical_sha256(seal_payload)
             or (
@@ -836,15 +871,47 @@ def build_diagnostic_payload(
         item["source_evaluator_take_id"]: deepcopy(item["derived_take"])
         for item in case_results
     }
+    runtime_alignment = _runtime_domain_alignment(list(replacements.values()))
     replaced = []
     for index, take in enumerate(payload["takes"]):
         take_id = take["identity"]["planned_take_id"]
         if take_id in replacements:
             payload["takes"][index] = replacements[take_id]
             replaced.append(take_id)
+        else:
+            take["latency"].update(runtime_alignment)
     if set(replaced) != set(replacements):
         raise S48PreliminaryError("diagnostic evaluator replacement is incomplete")
     return payload
+
+
+def _runtime_domain_alignment(
+    derived_takes: Sequence[Mapping[str, Any]],
+) -> dict[str, float]:
+    """Impute runtime-only synthetic fields from the real diagnostic host."""
+
+    fields = (
+        "capture_to_frame_offline_ms",
+        "frame_to_adapter_round_trip_ms",
+    )
+    values: dict[str, list[float]] = {field: [] for field in fields}
+    for take in derived_takes:
+        latency = take.get("latency")
+        if not isinstance(latency, Mapping):
+            raise S48PreliminaryError("derived take lacks runtime latency")
+        for field in fields:
+            value = latency.get(field)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or float(value) < 0.0
+            ):
+                raise S48PreliminaryError(f"invalid derived runtime latency: {field}")
+            values[field].append(float(value))
+    if any(len(records) != len(CASE_IDS) for records in values.values()):
+        raise S48PreliminaryError("runtime alignment requires all four real takes")
+    return {field: float(median(records)) for field, records in values.items()}
 
 
 def run_diagnostic_evaluator(
@@ -857,6 +924,9 @@ def run_diagnostic_evaluator(
 
     anchor = str(manifest.get("manifest_sha256"))
     validate_preliminary_manifest(manifest, expected_manifest_sha256=anchor)
+    runtime_alignment = _runtime_domain_alignment(
+        [item["derived_take"] for item in case_results]
+    )
     payload = build_diagnostic_payload(repo_root, case_results)
     try:
         evaluation = acceptance_criteria_corrective_03.evaluate_corrective(
@@ -882,6 +952,12 @@ def run_diagnostic_evaluator(
         "preliminary_manifest_sha256": anchor,
         "raw_preliminary_take_count": 4,
         "synthetic_completion_take_count": 43,
+        "synthetic_completion": {
+            "method": "synthetic_scientific_completion_with_real_runtime_domain",
+            "runtime_domain_alignment": runtime_alignment,
+            "real_runtime_take_count": 4,
+            "synthetic_runtime_imputation_take_count": 43,
+        },
         "official_take_count": 0,
         "payload_sha256": canonical_sha256(payload),
         "evaluation": evaluation,
