@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isaac-audio-sensors.local/schemas/s4_8_reference_tdoa_boundary_policy.v1.schema.json",
+  "title": "S4.8 geometric reference TDOA one-ULP policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "policy_id",
+    "status",
+    "scope",
+    "frozen_sources",
+    "canonicalization",
+    "scientific_invariants",
+    "authority"
+  ],
+  "properties": {
+    "schema": {"const": "ias.s4_8.reference_tdoa_boundary_policy.v1"},
+    "policy_id": {"const": "s4_8_geometric_reference_tdoa_one_ulp_v1"},
+    "status": {"const": "frozen_for_engineering_replay"},
+    "scope": {
+      "const": {
+        "reference_origin": "internally_calculated_geometric_reference",
+        "reference_field": "reference_tdoa_us",
+        "measured_field": "tdoa_us",
+        "absolute_error_field": "absolute_error_us"
+      }
+    },
+    "frozen_sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tdoa_domain",
+        "geometry",
+        "microphone_ordering",
+        "reference_formula",
+        "propagation_speed_m_s"
+      ],
+      "properties": {
+        "tdoa_domain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256", "json_pointer"],
+          "properties": {
+            "path": {
+              "const": "configs/s4_7_holdout_acceptance.corrective_02.v3.json"
+            },
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "json_pointer": {"const": "/physical_domains/tdoa_us"}
+          }
+        },
+        "geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "runtime_entrypoint",
+            "profile_application_path",
+            "profile_application_sha256"
+          ],
+          "properties": {
+            "runtime_entrypoint": {
+              "const": "isaac_audio_sensors.acquisition.s4_8:_profile_runtime"
+            },
+            "profile_application_path": {
+              "const": "configs/s4_6_profile_application.v1.json"
+            },
+            "profile_application_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "microphone_ordering": {
+          "const": "runtime_positions_indexed_as_raw_microphone_0_through_raw_microphone_3"
+        },
+        "reference_formula": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["entrypoint", "source_path", "source_sha256"],
+          "properties": {
+            "entrypoint": {
+              "const": "isaac_audio_sensors.acquisition.s4_3:_expected_tdoa"
+            },
+            "source_path": {
+              "const": "src/isaac_audio_sensors/acquisition/s4_3.py"
+            },
+            "source_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "propagation_speed_m_s": {"const": 343.0}
+      }
+    },
+    "canonicalization": {
+      "const": {
+        "unit": "microseconds",
+        "allowance_ulps": 1,
+        "lower_rule": "nextafter(minimum_us,-infinity)_to_minimum_us",
+        "upper_rule": "nextafter(maximum_us,+infinity)_to_maximum_us",
+        "beyond_allowance": "reject",
+        "measured_value_policy": "strict_no_canonicalization",
+        "absolute_error_policy": "recompute_only_when_reference_canonicalized"
+      }
+    },
+    "scientific_invariants": {
+      "const": {
+        "microphone_geometry_unchanged": true,
+        "microphone_ordering_unchanged": true,
+        "propagation_speed_unchanged": true,
+        "tdoa_formula_unchanged": true,
+        "scientific_thresholds_unchanged": true,
+        "acceptance_criteria_unchanged": true,
+        "criterion_roles_unchanged": true,
+        "categorical_aggregation_unchanged": true,
+        "planned_take_count": 37,
+        "leakage_group_count": 15
+      }
+    },
+    "authority": {
+      "const": {
+        "creates_or_consumes_grant": false,
+        "opens_holdout": false,
+        "collects_data": false,
+        "executes_official_evaluation": false,
+        "changes_scientific_protocol": false,
+        "starts_later_phase": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

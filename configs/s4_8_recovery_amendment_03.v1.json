@@ -1,0 +1,134 @@
+{
+  "schema": "ias.s4_8.recovery_03.release_candidate.v1",
+  "amendment_id": "s4_8_recovery_amendment_03",
+  "release_candidate_id": "s4_8_recovery_amendment_03_rc1",
+  "status": "frozen_for_engineering_replay",
+  "implementation": {
+    "tool_version": "ias_s4_8_recovery_03/1.0.0",
+    "derived_input_schema": "ias.s4_8.recovery_03.derived_evaluation_input.v1",
+    "validator_identity": "ias_s4_8_recovery_03_validator/1.0.0"
+  },
+  "reference_policy": {
+    "policy_id": "s4_8_geometric_reference_tdoa_one_ulp_v1",
+    "path": "configs/s4_8_reference_tdoa_boundary_policy.v1.json",
+    "sha256": "069b423e9e2c11a1bb0cb38b9748500e635c4215a48446676f93425086d184c5",
+    "schema_path": "docs/schemas/s4_8_reference_tdoa_boundary_policy.v1.schema.json",
+    "schema_sha256": "b52b7ee9bc66c3a76055bdec83cc5132c0fd44da81bb76c954bbf547cd997bd7"
+  },
+  "package_profiles": {
+    "full_evaluated_evidence": "recovery_03_full_evaluated_evidence.v1",
+    "terminal_input_contract_rejection": "recovery_03_terminal_input_contract_rejection.v1",
+    "pre_evaluation_terminal_failure": "recovery_03_pre_evaluation_terminal_failure.v1"
+  },
+  "inherited_protocol": {
+    "amendment_path": "configs/s4_8_recovery_amendment_02.v2.json",
+    "amendment_sha256": "ed71fd462de09325c02ce3b8b2d7edd6b06b99ee66d6348580aedcdd25952877",
+    "evaluator_binding_path": "configs/s4_8_recovery_amendment_02_evaluator_binding.v2.json",
+    "evaluator_binding_sha256": "275984676d822ac2cf002d72791eef2694042da6d3cac1419b4876f0f4a39902",
+    "evaluator_entrypoint": "isaac_audio_sensors.acquisition.s4_8_recovery_02_evaluator:evaluate_payload",
+    "evaluator_tool_version": "ias_s4_8_recovery_02_evaluator/1.0.1",
+    "planned_take_count": 37,
+    "leakage_group_count": 15,
+    "microphone_geometry_unchanged": true,
+    "microphone_ordering_unchanged": true,
+    "propagation_speed_unchanged": true,
+    "tdoa_formula_unchanged": true,
+    "scientific_thresholds_unchanged": true,
+    "acceptance_criteria_unchanged": true,
+    "criterion_roles_unchanged": true,
+    "categorical_aggregation_unchanged": true
+  },
+  "engineering_replay": {
+    "profile": "recovery_03_engineering_replay_non_official.v1",
+    "payload_builder_entrypoint": "isaac_audio_sensors.acquisition.s4_8_recovery_02_execution:build_real_payload",
+    "source_raw_observation_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts",
+    "source_holdout_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/holdout_seal.v2.json",
+    "source_holdout_seal_sha256": "3b5dc394a3e8a112750c947845467f167c8c271106390283f56683a364df2660",
+    "output_root": ".local/s4_8/s4_8_recovery_amendment_03_rc1_engineering_replay",
+    "planned_take_count": 37,
+    "applies_reference_policy": true,
+    "official_evidence": false,
+    "overwrite_permitted": false,
+    "raw_take_read_occurs_only_when_mode_explicitly_run": true
+  },
+  "future_holdout": {
+    "holdout_id": "s4_8_recovery_amendment_03_unseen_holdout",
+    "status": "preregistered_empty_not_authorized",
+    "raw_observation_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_05/attempts",
+    "evaluation_state_root": "dataset/S4.8/recovery_amendment_03",
+    "official_output_root": "outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_03",
+    "planned_take_count": 37,
+    "leakage_group_count": 15,
+    "genuinely_unseen_required": true,
+    "must_remain_empty": true,
+    "disjoint_from_observation_roots": [
+      "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts",
+      "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts"
+    ]
+  },
+  "historical_amendment_02": {
+    "correction_commit": "59d006818b7958794dd51ce0437dfaa58e7b3db6",
+    "protected_files": [
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_recovery_02_execution.py",
+        "sha256": "19a4fd7d5f78a20692f334d505b6f9ba812e495b38757a6b2b35338891721196"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_recovery_02_profiles.py",
+        "sha256": "ed1cda13c522a0330d5ce0de708690307f4506a3c531da81bc407841bcd00c56"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py",
+        "sha256": "007045b13ba45f8aaee38a35143e0959392490f14ed1fd4c7d76e6ebae35871a"
+      },
+      {
+        "path": "configs/s4_8_recovery_amendment_02.v2.json",
+        "sha256": "ed71fd462de09325c02ce3b8b2d7edd6b06b99ee66d6348580aedcdd25952877"
+      },
+      {
+        "path": "docs/schemas/s4_8_recovery_amendment_02.v2.schema.json",
+        "sha256": "571b6edd7531081d62bb35f60ff70423a1b46a34b265d441b20f879dafffab65"
+      },
+      {
+        "path": "configs/s4_8_recovery_amendment_02_evaluator_binding.v2.json",
+        "sha256": "275984676d822ac2cf002d72791eef2694042da6d3cac1419b4876f0f4a39902"
+      },
+      {
+        "path": "docs/schemas/s4_8_recovery_amendment_02_evaluator_binding.v2.schema.json",
+        "sha256": "cd2c367381d19abb78e9af32ddfe2600c19fd024b5b80551386d1c9e6d393380"
+      },
+      {
+        "path": "configs/s4_8_recovery_amendment_02_terminalization.v1.json",
+        "sha256": "2ede858ffadab0af2918d532f8fab72fea065f2d657f6cdf32cd46cf21e7543c"
+      },
+      {
+        "path": "docs/schemas/s4_8_recovery_amendment_02_terminalization.v1.schema.json",
+        "sha256": "192d12b06584818efc34a716d9eb77ecadf4840cfece11b543e5625c3dfcb9db"
+      },
+      {
+        "path": "docs/schemas/s4_8_recovery_amendment_02_terminal_package.v1.schema.json",
+        "sha256": "d69e7476595360b337cbc0a72a1ff9375e6349167afae8d8f07266f0d1f128d3"
+      }
+    ],
+    "published_terminal_package": {
+      "root": "outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_02_37_take",
+      "files": {
+        "SHA256SUMS": "0a7fabf0871c990776994bfdb22be67e008b29762ae2e0ac508e7e90f232fd7d",
+        "evidence_index.json": "4d6c1745cd9609a9e6374353716d2a8e452656788a2798317b4afa92c684dbe3",
+        "heldout_evaluation_input.v2.json": "5d92f6ce464a5b5df246e5b6dfc79cb1733db9ae84918f1f20ef35856d7dc36f",
+        "terminal_validation.v1.json": "254a90bf7daa5c439f25c62c867ad426daf93f4a0ddecf40e44c0930529d0059",
+        "terminalization_authorization.v1.json": "f13659f3b26014fb84d1c6cc5cefaff34b43b77ef642451d5010cbc7a471a8bd"
+      }
+    }
+  },
+  "authority": {
+    "collects_data": false,
+    "creates_grant": false,
+    "consumes_grant": false,
+    "opens_holdout": false,
+    "executes_official_evaluation": false,
+    "publishes_official_evidence": false,
+    "authorizes_new_holdout": false,
+    "starts_later_phase": false
+  }
+}

@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isaac-audio-sensors.local/schemas/s4_8_recovery_amendment_03.v1.schema.json",
+  "title": "S4.8 recovery amendment-03 release candidate v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "amendment_id",
+    "release_candidate_id",
+    "status",
+    "implementation",
+    "reference_policy",
+    "package_profiles",
+    "inherited_protocol",
+    "engineering_replay",
+    "future_holdout",
+    "historical_amendment_02",
+    "authority"
+  ],
+  "properties": {
+    "schema": {"const": "ias.s4_8.recovery_03.release_candidate.v1"},
+    "amendment_id": {"const": "s4_8_recovery_amendment_03"},
+    "release_candidate_id": {"const": "s4_8_recovery_amendment_03_rc1"},
+    "status": {"const": "frozen_for_engineering_replay"},
+    "implementation": {
+      "const": {
+        "tool_version": "ias_s4_8_recovery_03/1.0.0",
+        "derived_input_schema": "ias.s4_8.recovery_03.derived_evaluation_input.v1",
+        "validator_identity": "ias_s4_8_recovery_03_validator/1.0.0"
+      }
+    },
+    "reference_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "path",
+        "sha256",
+        "schema_path",
+        "schema_sha256"
+      ],
+      "properties": {
+        "policy_id": {"const": "s4_8_geometric_reference_tdoa_one_ulp_v1"},
+        "path": {
+          "const": "configs/s4_8_reference_tdoa_boundary_policy.v1.json"
+        },
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "schema_path": {
+          "const": "docs/schemas/s4_8_reference_tdoa_boundary_policy.v1.schema.json"
+        },
+        "schema_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "package_profiles": {
+      "const": {
+        "full_evaluated_evidence": "recovery_03_full_evaluated_evidence.v1",
+        "terminal_input_contract_rejection": "recovery_03_terminal_input_contract_rejection.v1",
+        "pre_evaluation_terminal_failure": "recovery_03_pre_evaluation_terminal_failure.v1"
+      }
+    },
+    "inherited_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amendment_path",
+        "amendment_sha256",
+        "evaluator_binding_path",
+        "evaluator_binding_sha256",
+        "evaluator_entrypoint",
+        "evaluator_tool_version",
+        "planned_take_count",
+        "leakage_group_count",
+        "microphone_geometry_unchanged",
+        "microphone_ordering_unchanged",
+        "propagation_speed_unchanged",
+        "tdoa_formula_unchanged",
+        "scientific_thresholds_unchanged",
+        "acceptance_criteria_unchanged",
+        "criterion_roles_unchanged",
+        "categorical_aggregation_unchanged"
+      ],
+      "properties": {
+        "amendment_path": {
+          "const": "configs/s4_8_recovery_amendment_02.v2.json"
+        },
+        "amendment_sha256": {"$ref": "#/$defs/sha256"},
+        "evaluator_binding_path": {
+          "const": "configs/s4_8_recovery_amendment_02_evaluator_binding.v2.json"
+        },
+        "evaluator_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "evaluator_entrypoint": {
+          "const": "isaac_audio_sensors.acquisition.s4_8_recovery_02_evaluator:evaluate_payload"
+        },
+        "evaluator_tool_version": {
+          "const": "ias_s4_8_recovery_02_evaluator/1.0.1"
+        },
+        "planned_take_count": {"const": 37},
+        "leakage_group_count": {"const": 15},
+        "microphone_geometry_unchanged": {"const": true},
+        "microphone_ordering_unchanged": {"const": true},
+        "propagation_speed_unchanged": {"const": true},
+        "tdoa_formula_unchanged": {"const": true},
+        "scientific_thresholds_unchanged": {"const": true},
+        "acceptance_criteria_unchanged": {"const": true},
+        "criterion_roles_unchanged": {"const": true},
+        "categorical_aggregation_unchanged": {"const": true}
+      }
+    },
+    "engineering_replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "payload_builder_entrypoint",
+        "source_raw_observation_root",
+        "source_holdout_seal_path",
+        "source_holdout_seal_sha256",
+        "output_root",
+        "planned_take_count",
+        "applies_reference_policy",
+        "official_evidence",
+        "overwrite_permitted",
+        "raw_take_read_occurs_only_when_mode_explicitly_run"
+      ],
+      "properties": {
+        "profile": {
+          "const": "recovery_03_engineering_replay_non_official.v1"
+        },
+        "payload_builder_entrypoint": {
+          "const": "isaac_audio_sensors.acquisition.s4_8_recovery_02_execution:build_real_payload"
+        },
+        "source_raw_observation_root": {
+          "const": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts"
+        },
+        "source_holdout_seal_path": {
+          "const": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/holdout_seal.v2.json"
+        },
+        "source_holdout_seal_sha256": {"$ref": "#/$defs/sha256"},
+        "output_root": {
+          "const": ".local/s4_8/s4_8_recovery_amendment_03_rc1_engineering_replay"
+        },
+        "planned_take_count": {"const": 37},
+        "applies_reference_policy": {"const": true},
+        "official_evidence": {"const": false},
+        "overwrite_permitted": {"const": false},
+        "raw_take_read_occurs_only_when_mode_explicitly_run": {"const": true}
+      }
+    },
+    "future_holdout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holdout_id",
+        "status",
+        "raw_observation_root",
+        "evaluation_state_root",
+        "official_output_root",
+        "planned_take_count",
+        "leakage_group_count",
+        "genuinely_unseen_required",
+        "must_remain_empty",
+        "disjoint_from_observation_roots"
+      ],
+      "properties": {
+        "holdout_id": {
+          "const": "s4_8_recovery_amendment_03_unseen_holdout"
+        },
+        "status": {"const": "preregistered_empty_not_authorized"},
+        "raw_observation_root": {
+          "const": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_05/attempts"
+        },
+        "evaluation_state_root": {
+          "const": "dataset/S4.8/recovery_amendment_03"
+        },
+        "official_output_root": {
+          "const": "outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_03"
+        },
+        "planned_take_count": {"const": 37},
+        "leakage_group_count": {"const": 15},
+        "genuinely_unseen_required": {"const": true},
+        "must_remain_empty": {"const": true},
+        "disjoint_from_observation_roots": {
+          "const": [
+            "dataset/S4.4/amendments/s4_4_data_expansion_amendment_03/attempts",
+            "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts"
+          ]
+        }
+      }
+    },
+    "historical_amendment_02": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "correction_commit",
+        "protected_files",
+        "published_terminal_package"
+      ],
+      "properties": {
+        "correction_commit": {"$ref": "#/$defs/sha1"},
+        "protected_files": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/fileBinding"}
+        },
+        "published_terminal_package": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["root", "files"],
+          "properties": {
+            "root": {
+              "const": "outputs/isaac_audio_sensors/S4/S4.8_recovery_amendment_02_37_take"
+            },
+            "files": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "SHA256SUMS",
+                "evidence_index.json",
+                "heldout_evaluation_input.v2.json",
+                "terminal_validation.v1.json",
+                "terminalization_authorization.v1.json"
+              ],
+              "properties": {
+                "SHA256SUMS": {"$ref": "#/$defs/sha256"},
+                "evidence_index.json": {"$ref": "#/$defs/sha256"},
+                "heldout_evaluation_input.v2.json": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "terminal_validation.v1.json": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "terminalization_authorization.v1.json": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "authority": {
+      "const": {
+        "collects_data": false,
+        "creates_grant": false,
+        "consumes_grant": false,
+        "opens_holdout": false,
+        "executes_official_evaluation": false,
+        "publishes_official_evidence": false,
+        "authorizes_new_holdout": false,
+        "starts_later_phase": false
+      }
+    }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "not": {"pattern": "(^/|(^|/)\\.\\.(/|$))"}
+        },
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}
