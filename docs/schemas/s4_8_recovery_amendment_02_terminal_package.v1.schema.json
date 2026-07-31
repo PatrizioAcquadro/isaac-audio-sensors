@@ -1,0 +1,99 @@
+{
+  "$id": "https://example.invalid/isaac-audio-sensors/s4_8_recovery_amendment_02_terminal_package.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_binding_sha256": {"$ref": "#/$defs/sha256"},
+    "automatic_retry_forbidden": {"const": true},
+    "derived_state": {
+      "additionalProperties": false,
+      "properties": {
+        "evaluation_sha256": {"$ref": "#/$defs/sha256"},
+        "package_path": {
+          "const": "heldout_evaluation_input.v2.json"
+        },
+        "source_path": {"type": "string"},
+        "source_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "required": [
+        "source_path",
+        "source_sha256",
+        "package_path",
+        "evaluation_sha256"
+      ],
+      "type": "object"
+    },
+    "evaluator_invocation_count": {"const": 1},
+    "evaluator_raw_observation_access_count": {"const": 0},
+    "failed_gate": {"const": "evaluation_input_contract_rejected"},
+    "holdout_opening_count": {"const": 1},
+    "identities": {
+      "additionalProperties": false,
+      "properties": {
+        "scientific_source_commit": {"$ref": "#/$defs/sha1"},
+        "terminalization_authorization_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "terminalizer_implementation_commit": {"$ref": "#/$defs/sha1"}
+      },
+      "required": [
+        "scientific_source_commit",
+        "terminalizer_implementation_commit",
+        "terminalization_authorization_id"
+      ],
+      "type": "object"
+    },
+    "immutable_evidence": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"$ref": "#/$defs/sha256"}
+        },
+        "required": ["path", "sha256"],
+        "type": "object"
+      },
+      "type": "object"
+    },
+    "readiness": {"const": false},
+    "schema": {
+      "const": "ias.s4_8.recovery_02.terminal_validation.v1"
+    },
+    "scientific_evaluation_state": {"const": "evaluation_completed"},
+    "scientific_evaluation_status": {"const": "failed"},
+    "scientific_recomputation_count": {"const": 0},
+    "scientific_verdict": {"const": "NO-GO"},
+    "terminal_status": {"const": "failed"},
+    "terminalization_completed": {"const": true},
+    "terminalization_contract_id": {
+      "const": "s4_8_recovery_amendment_02_37_take_terminalization_v1"
+    }
+  },
+  "required": [
+    "schema",
+    "terminalization_contract_id",
+    "terminalization_completed",
+    "identities",
+    "authorization_binding_sha256",
+    "scientific_verdict",
+    "terminal_status",
+    "readiness",
+    "scientific_evaluation_state",
+    "scientific_evaluation_status",
+    "failed_gate",
+    "evaluator_invocation_count",
+    "evaluator_raw_observation_access_count",
+    "scientific_recomputation_count",
+    "holdout_opening_count",
+    "automatic_retry_forbidden",
+    "derived_state",
+    "immutable_evidence"
+  ],
+  "title": "S4.8 recovery amendment-02 terminal validation record",
+  "type": "object",
+  "$defs": {
+    "sha1": {"pattern": "^[0-9a-f]{40}$", "type": "string"},
+    "sha256": {"pattern": "^[0-9a-f]{64}$", "type": "string"}
+  }
+}

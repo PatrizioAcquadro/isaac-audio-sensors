@@ -1,0 +1,145 @@
+{
+  "$id": "https://example.invalid/isaac-audio-sensors/s4_8_recovery_amendment_02_terminalization.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "allowed_inputs": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {"$ref": "#/$defs/path"},
+          "role": {"pattern": "^[a-z][a-z0-9_]*$", "type": "string"},
+          "sha256": {"$ref": "#/$defs/sha256"}
+        },
+        "required": ["role", "path", "sha256"],
+        "type": "object"
+      },
+      "minItems": 8,
+      "type": "array"
+    },
+    "authority": {
+      "additionalProperties": false,
+      "properties": {
+        "automatic_scientific_retry": {"const": false},
+        "creates_or_consumes_scientific_grant": {"const": false},
+        "opens_raw_observations": {"const": false},
+        "preterminal_creates_authorization": {"const": false},
+        "publishes_closeout": {"const": false},
+        "recomputes_scientific_result": {"const": false},
+        "starts_later_phase": {"const": false}
+      },
+      "required": [
+        "automatic_scientific_retry",
+        "creates_or_consumes_scientific_grant",
+        "opens_raw_observations",
+        "preterminal_creates_authorization",
+        "publishes_closeout",
+        "recomputes_scientific_result",
+        "starts_later_phase"
+      ],
+      "type": "object"
+    },
+    "authorization": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization_id_prefix": {"minLength": 1, "type": "string"},
+        "path": {"$ref": "#/$defs/path"},
+        "schema": {
+          "const": "ias.s4_8.recovery_02.terminalization_authorization.v1"
+        },
+        "schema_path": {"$ref": "#/$defs/path"}
+      },
+      "required": [
+        "authorization_id_prefix",
+        "path",
+        "schema",
+        "schema_path"
+      ],
+      "type": "object"
+    },
+    "contract_id": {
+      "const": "s4_8_recovery_amendment_02_37_take_terminalization_v1"
+    },
+    "implementation_baseline_commit": {"$ref": "#/$defs/sha1"},
+    "publication": {
+      "additionalProperties": false,
+      "properties": {
+        "atomic_same_filesystem_rename_required": {"const": true},
+        "closeout_path": {"$ref": "#/$defs/path"},
+        "output_path": {"$ref": "#/$defs/path"},
+        "overwrite_permitted": {"const": false},
+        "package_files": {
+          "const": [
+            "SHA256SUMS",
+            "evidence_index.json",
+            "heldout_evaluation_input.v2.json",
+            "terminal_validation.v1.json",
+            "terminalization_authorization.v1.json"
+          ]
+        },
+        "terminal_schema_path": {"$ref": "#/$defs/path"}
+      },
+      "required": [
+        "atomic_same_filesystem_rename_required",
+        "closeout_path",
+        "output_path",
+        "overwrite_permitted",
+        "package_files",
+        "terminal_schema_path"
+      ],
+      "type": "object"
+    },
+    "raw_observation_roots": {
+      "items": {"$ref": "#/$defs/path"},
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema": {
+      "const": "ias.s4_8.recovery_02.terminalization_contract.v1"
+    },
+    "scientific_identity": {
+      "additionalProperties": false,
+      "properties": {
+        "derived_state_sha256": {"$ref": "#/$defs/sha256"},
+        "evaluation_profile": {
+          "const": "evaluation_input_contract_rejected.v1"
+        },
+        "evaluation_sha256": {"$ref": "#/$defs/sha256"},
+        "grant_id": {"minLength": 1, "type": "string"},
+        "scientific_source_commit": {"$ref": "#/$defs/sha1"}
+      },
+      "required": [
+        "derived_state_sha256",
+        "evaluation_profile",
+        "evaluation_sha256",
+        "grant_id",
+        "scientific_source_commit"
+      ],
+      "type": "object"
+    },
+    "status": {"const": "frozen_terminalization_only"}
+  },
+  "required": [
+    "schema",
+    "contract_id",
+    "status",
+    "implementation_baseline_commit",
+    "scientific_identity",
+    "authorization",
+    "publication",
+    "allowed_inputs",
+    "raw_observation_roots",
+    "authority"
+  ],
+  "title": "S4.8 recovery amendment-02 terminalization-only contract",
+  "type": "object",
+  "$defs": {
+    "path": {
+      "minLength": 1,
+      "not": {"pattern": "(^/|(^|/)\\.\\.(/|$))"},
+      "type": "string"
+    },
+    "sha1": {"pattern": "^[0-9a-f]{40}$", "type": "string"},
+    "sha256": {"pattern": "^[0-9a-f]{64}$", "type": "string"}
+  }
+}

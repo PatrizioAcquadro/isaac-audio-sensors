@@ -20,6 +20,9 @@ from isaac_audio_sensors.acquisition.s4_4 import (
     canonical_sha256,
     validate_ledger,
 )
+from isaac_audio_sensors.acquisition.s4_8_recovery_02_profiles import (
+    is_input_contract_rejected,
+)
 from isaac_audio_sensors.core import acceptance_criteria_corrective_02 as c2
 
 TOOL_VERSION = "ias_s4_8_recovery_02_execution/1.0.1"
@@ -981,20 +984,7 @@ def _validate_evidence_package_structure(
     gating = [
         item for item in criteria.get("criteria", []) if item.get("gating") is True
     ]
-    input_contract_rejected = (
-        criteria.get("status") == "failed"
-        and criteria.get("readiness_passed") is False
-        and criteria.get("failed_gating_criteria")
-        == ["evaluation_input_contract_rejected"]
-        and criteria.get("criteria") == []
-        and criteria.get("comparison_classifications") == []
-        and criteria.get("categorical_take_results") == []
-        and isinstance(criteria.get("evaluation_error"), str)
-        and bool(criteria["evaluation_error"])
-        and isinstance(criteria.get("identity_summary"), Mapping)
-        and criteria["identity_summary"].get("input_contract_adverse") is True
-        and criteria.get("holdout_observations_accessed_by_evaluator") == 0
-    )
+    input_contract_rejected = is_input_contract_rejected(criteria)
     if derived.get("evaluation_state") == "evaluation_completed":
         if input_contract_rejected:
             if final.get("evaluator_invocation_count") != 1 or gating:

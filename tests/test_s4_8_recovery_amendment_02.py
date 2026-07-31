@@ -400,6 +400,11 @@ def test_stale_review_is_a_preopen_blocker_not_active_authority() -> None:
     current_source = s4_8._git(ROOT, "rev-parse", "HEAD")
     if review["source_commit"] == current_source:
         pytest.skip("the canonical review is already bound to the current source")
+    if any(
+        (ROOT / path).exists()
+        for path in recovery._future_state_paths(amendment).values()
+    ):
+        pytest.skip("official amendment-02 access state is already present")
 
     result = recovery.recovery_preopen_validate(
         ROOT,
