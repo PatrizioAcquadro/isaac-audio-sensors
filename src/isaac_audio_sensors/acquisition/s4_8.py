@@ -3078,35 +3078,48 @@ def _recover_pending_finalization(
     if operational_closeout is not None:
         if not isinstance(operational_closeout, Mapping):
             raise S48Error("S4.8 prepared operational closeout is invalid")
-        publish_closeout_callback = _execution_adapter_callback(
-            "publish_operational_closeout"
-        )
-        try:
-            if publish_closeout_callback is None:
-                raise S48Error(
-                    "S4.8 operational closeout publisher is unavailable"
+        publication_status = operational_closeout.get("publication_status")
+        if publication_status == "published":
+            publish_closeout_callback = _execution_adapter_callback(
+                "publish_operational_closeout"
+            )
+            try:
+                if publish_closeout_callback is None:
+                    raise S48Error("S4.8 operational closeout publisher is unavailable")
+                publish_closeout_callback(
+                    root,
+                    package=output,
+                    closeout=operational_closeout,
                 )
-            publish_closeout_callback(
-                root,
-                package=output,
-                closeout=operational_closeout,
-            )
-        except Exception as exc:
-            derived = load_json(root / config["evidence"]["derived_input_path"])
-            _, downgraded = _finalize_transition_failure(
-                root,
-                config=config,
-                derived=derived,
-                source_commit=source_commit,
-                event_time_utc=prepared["event_time_utc"],
-                error=exc,
-                failure_stage="operational_closeout_publication",
-                operational_closeout=operational_closeout,
-            )
-            return validate_evidence_package(
-                Path(downgraded["output"]),
-                repo_root=root,
-            )
+            except Exception as exc:
+                derived = load_json(root / config["evidence"]["derived_input_path"])
+                _, downgraded = _finalize_transition_failure(
+                    root,
+                    config=config,
+                    derived=derived,
+                    source_commit=source_commit,
+                    event_time_utc=prepared["event_time_utc"],
+                    error=exc,
+                    failure_stage="operational_closeout_publication",
+                    operational_closeout=operational_closeout,
+                )
+                return validate_evidence_package(
+                    Path(downgraded["output"]),
+                    repo_root=root,
+                )
+        elif publication_status == "failed":
+            if (
+                prepared.get("event") != "first_run_finalization_failed"
+                or prepared.get("terminal_status") != "failed"
+                or operational_closeout.get("sha256") is not None
+                or operational_closeout.get("verdict") != "NO-GO"
+            ):
+                raise S48Error("S4.8 failed operational closeout is contradictory")
+            closeout_path = root / _safe_relative(operational_closeout.get("path"))
+            if closeout_path.exists() or closeout_path.is_symlink():
+                raise S48Error("S4.8 failed operational closeout was published")
+        else:
+            raise S48Error("S4.8 operational closeout status is invalid")
     _append_run_journal(
         journal_path,
         _terminal_event_from_prepared(prepared),

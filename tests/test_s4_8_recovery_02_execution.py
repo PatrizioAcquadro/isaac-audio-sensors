@@ -216,6 +216,58 @@ def _write_journal(path: Path, records: list[dict[str, Any]]) -> None:
     )
 
 
+def _interrupt_failed_closeout_downgrade(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    fault_step: str,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, int]]:
+    config, amendment, derived = _install_finalization_fixture(
+        tmp_path,
+        monkeypatch,
+    )
+    original_publish = execution._publish_operational_closeout
+    publish_calls = {"count": 0}
+
+    def fail_after_publish(*args: Any, **kwargs: Any) -> None:
+        publish_calls["count"] += 1
+        original_publish(*args, **kwargs)
+        raise OSError("injected closeout publication failure")
+
+    boundary_injected = False
+
+    def stop_at_boundary(step: str) -> None:
+        nonlocal boundary_injected
+        if step == fault_step and not boundary_injected:
+            boundary_injected = True
+            raise OSError(f"injected downgrade interruption: {step}")
+
+    monkeypatch.setattr(execution, "_publish_operational_closeout", fail_after_publish)
+    monkeypatch.setattr(s4_8, "_downgrade_step", stop_at_boundary)
+    monkeypatch.setattr(
+        evaluator,
+        "evaluate_payload",
+        lambda *_a, **_k: pytest.fail("evaluator was reinvoked"),
+    )
+    counter = {"count": 0}
+    with (
+        s4_8._use_execution_adapter(execution._adapter(counter)),
+        pytest.raises(OSError, match=f"injected downgrade interruption: {fault_step}"),
+    ):
+        s4_8._finalize_first_run(
+            tmp_path,
+            config=config,
+            derived=derived,
+            source_commit=SOURCE_COMMIT,
+            event_time_utc=derived["event_time_utc"],
+        )
+
+    assert boundary_injected
+    assert publish_calls["count"] == 1
+    assert counter["count"] == 0
+    return config, amendment, derived, counter
+
+
 def test_execution_contract_is_additive_and_37_take_scoped() -> None:
     contract = execution._execution_contract(ROOT)
     amendment = recovery.load_amendment(ROOT)
@@ -635,6 +687,141 @@ def test_closeout_failure_downgrades_and_preserves_provisional_evidence(
     assert journal[-1]["event"] == "first_run_terminal"
     assert journal[-1]["terminal_status"] == "failed"
     assert journal[-1]["operational_closeout"]["verdict"] == "NO-GO"
+
+
+@pytest.mark.parametrize("fault_step", ["failure_prepared", "failure_published"])
+def test_failed_closeout_crash_recovery_terminalizes_without_republication(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    fault_step: str,
+) -> None:
+    config, amendment, derived, counter = _interrupt_failed_closeout_downgrade(
+        tmp_path,
+        monkeypatch,
+        fault_step=fault_step,
+    )
+    journal_path = tmp_path / config["evidence"]["run_journal_path"]
+    interrupted = s4_8._load_run_journal(journal_path)
+    intent = next(
+        record
+        for record in interrupted
+        if record["event"] == "first_run_downgrade_intent"
+    )
+    failed = interrupted[-1]
+    assert failed["event"] == "first_run_finalization_failed"
+    assert failed["terminal_status"] == "failed"
+    assert failed["operational_closeout"] == {
+        "publication_status": "failed",
+        "path": amendment["future_attempt"]["closeout_path"],
+        "sha256": None,
+        "verdict": "NO-GO",
+    }
+
+    monkeypatch.setattr(s4_8, "_downgrade_step", lambda _step: None)
+    monkeypatch.setattr(
+        execution,
+        "_publish_operational_closeout",
+        lambda *_a, **_k: pytest.fail("failed closeout was republished"),
+    )
+    with s4_8._use_execution_adapter(execution._adapter(counter)):
+        recovered = s4_8._recover_pending_finalization(
+            tmp_path,
+            config=config,
+            source_commit=SOURCE_COMMIT,
+        )
+        output = tmp_path / config["evidence"]["output_path"]
+        validated = execution.validate_evidence_package(
+            output,
+            repo_root=tmp_path,
+        )
+        with pytest.raises(s4_8.S48Error, match="automatic retry forbidden"):
+            s4_8.run_authorized_evaluation_once(
+                tmp_path,
+                source_commit=SOURCE_COMMIT,
+                event_time_utc="2026-07-31T12:00:01Z",
+            )
+
+    assert recovered["final_status"] == "failed"
+    assert validated["final_status"] == "failed"
+    assert validated["readiness_passed"] is False
+    assert validated["closeout"]["publication_status"] == "failed"
+    assert validated["closeout"]["sha256"] is None
+    assert counter["count"] == 0
+    closeout = tmp_path / amendment["future_attempt"]["closeout_path"]
+    assert not closeout.exists()
+    provisional = (
+        tmp_path / config["evidence"]["derived_input_path"]
+    ).parent / "provisional_evidence.v1"
+    assert provisional.is_dir()
+    assert s4_8.load_json(provisional / "final_validation.json")["status"] == "passed"
+    assert (
+        s4_8.sha256_file(provisional / "SHA256SUMS")
+        == intent["provisional_manifest_sha256"]
+    )
+    assert (provisional.parent / "provisional_closeout.v1.md").is_file()
+    journal = s4_8._load_run_journal(journal_path)
+    events = [record["event"] for record in journal]
+    assert events.count("first_run_downgrade_intent") == 1
+    assert events[-2:] == ["first_run_finalization_failed", "first_run_terminal"]
+    assert journal[-1]["terminal_status"] == "failed"
+    assert journal[-1]["automatic_retry_forbidden"] is True
+
+
+@pytest.mark.parametrize(
+    "contradiction",
+    [
+        "unknown_status",
+        "non_null_sha256",
+        "non_failed_terminal",
+        "official_closeout_exists",
+    ],
+)
+def test_failed_closeout_recovery_rejects_contradictory_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    contradiction: str,
+) -> None:
+    config, amendment, _derived, counter = _interrupt_failed_closeout_downgrade(
+        tmp_path,
+        monkeypatch,
+        fault_step="failure_prepared",
+    )
+    journal_path = tmp_path / config["evidence"]["run_journal_path"]
+    records = s4_8._load_run_journal(journal_path)
+    failed = records[-1]
+    assert failed["event"] == "first_run_finalization_failed"
+    if contradiction == "unknown_status":
+        failed["operational_closeout"]["publication_status"] = "unknown"
+    elif contradiction == "non_null_sha256":
+        failed["operational_closeout"]["sha256"] = "0" * 64
+    elif contradiction == "non_failed_terminal":
+        failed["terminal_status"] = "passed"
+    else:
+        closeout = tmp_path / amendment["future_attempt"]["closeout_path"]
+        closeout.parent.mkdir(parents=True, exist_ok=True)
+        closeout.write_text("contradictory official closeout\n", encoding="utf-8")
+    _write_journal(journal_path, records)
+
+    monkeypatch.setattr(s4_8, "_downgrade_step", lambda _step: None)
+    monkeypatch.setattr(
+        execution,
+        "_publish_operational_closeout",
+        lambda *_a, **_k: pytest.fail("contradictory closeout was published"),
+    )
+    with (
+        s4_8._use_execution_adapter(execution._adapter(counter)),
+        pytest.raises(s4_8.S48Error),
+    ):
+        s4_8._recover_pending_finalization(
+            tmp_path,
+            config=config,
+            source_commit=SOURCE_COMMIT,
+        )
+
+    journal = s4_8._load_run_journal(journal_path)
+    assert journal[-1]["event"] == "first_run_finalization_failed"
+    assert all(record["event"] != "first_run_terminal" for record in journal)
+    assert counter["count"] == 0
 
 
 def test_prepared_recovery_downgrades_mismatched_closeout(
