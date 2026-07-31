@@ -41,6 +41,18 @@ HOLDOUT_BINDING_SCHEMA_PATH = Path(
 AMENDMENT_SPEC_PATH = Path(
     "docs/development/specs/s4_8_recovery_amendment_02_preholdout_v2.md"
 )
+EVALUATOR_BINDING_PATH = Path(
+    "configs/s4_8_recovery_amendment_02_evaluator_binding.v1.json"
+)
+EVALUATOR_BINDING_SCHEMA_PATH = Path(
+    "docs/schemas/s4_8_recovery_amendment_02_evaluator_binding.v1.schema.json"
+)
+EVALUATOR_BINDING_SHA256 = (
+    "4bc6077c514d7c4157869e88c0bfe0bf4fa514a46f699410f7dd8bb545141dcc"
+)
+EVALUATOR_BINDING_SCHEMA_SHA256 = (
+    "6630a76e05d980f056e40f17a0878dd0372fa5a5da4072ceff063941427a866e"
+)
 
 PLANNED_TAKE_COUNT = 37
 LEAKAGE_GROUP_COUNT = 15
@@ -1058,6 +1070,200 @@ def _source_binds_protocol_revision(
     return True
 
 
+def _source_contains_files(
+    repo_root: Path,
+    *,
+    source_commit: str,
+    paths: Mapping[Path, str],
+) -> bool:
+    for relative, expected_sha256 in paths.items():
+        worktree_path = repo_root / relative
+        if (
+            not worktree_path.is_file()
+            or s4_8.sha256_file(worktree_path) != expected_sha256
+        ):
+            return False
+        result = subprocess.run(
+            ["git", "show", f"{source_commit}:{relative.as_posix()}"],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+        )
+        if (
+            result.returncode != 0
+            or hashlib.sha256(result.stdout).hexdigest() != expected_sha256
+        ):
+            return False
+    return True
+
+
+def authenticate_evaluator_binding(
+    repo_root: Path,
+    *,
+    source_commit: str,
+) -> dict[str, Any] | None:
+    """Authenticate the outcome-blind evaluator freeze without opening data."""
+
+    root = repo_root.resolve()
+    binding_path = root / EVALUATOR_BINDING_PATH
+    if not binding_path.exists():
+        return None
+    schema_path = root / EVALUATOR_BINDING_SCHEMA_PATH
+    if (
+        not binding_path.is_file()
+        or not schema_path.is_file()
+        or s4_8.sha256_file(binding_path) != EVALUATOR_BINDING_SHA256
+        or s4_8.sha256_file(schema_path) != EVALUATOR_BINDING_SCHEMA_SHA256
+    ):
+        raise s4_8.S48Error("S4.8 37-take evaluator binding hash mismatch")
+    binding = s4_8.load_json(binding_path)
+    schema = s4_8.load_json(schema_path)
+    try:
+        jsonschema.validate(binding, schema)
+    except jsonschema.ValidationError as exc:
+        raise s4_8.S48Error(
+            f"S4.8 37-take evaluator binding schema failure: {exc.message}"
+        ) from exc
+
+    committed = _source_contains_files(
+        root,
+        source_commit=source_commit,
+        paths={
+            EVALUATOR_BINDING_PATH: EVALUATOR_BINDING_SHA256,
+            EVALUATOR_BINDING_SCHEMA_PATH: EVALUATOR_BINDING_SCHEMA_SHA256,
+        },
+    )
+    if not committed:
+        return None
+
+    evaluator = binding["evaluator"]
+    evaluator_source_commit = evaluator["source_commit"]
+    ancestor = subprocess.run(
+        [
+            "git",
+            "merge-base",
+            "--is-ancestor",
+            evaluator_source_commit,
+            source_commit,
+        ],
+        cwd=root,
+        check=False,
+        capture_output=True,
+    )
+    if ancestor.returncode != 0:
+        raise s4_8.S48Error(
+            "S4.8 37-take evaluator source is not an ancestor"
+        )
+    source_records = evaluator["source_files"]
+    source_paths: dict[Path, str] = {}
+    for record in source_records:
+        relative = _safe_relative(record["path"])
+        if relative in source_paths:
+            raise s4_8.S48Error(
+                "S4.8 37-take evaluator source path is duplicated"
+            )
+        source_paths[relative] = record["sha256"]
+    if not _source_contains_files(
+        root,
+        source_commit=evaluator_source_commit,
+        paths=source_paths,
+    ):
+        raise s4_8.S48Error(
+            "S4.8 37-take evaluator source authentication failed"
+        )
+
+    for record in binding["bindings"].values():
+        relative = _safe_relative(record["path"])
+        path = root / relative
+        if (
+            not path.is_file()
+            or s4_8.sha256_file(path) != record["sha256"]
+        ):
+            raise s4_8.S48Error(
+                f"S4.8 37-take evaluator protocol binding mismatch: {relative}"
+            )
+
+    from isaac_audio_sensors.acquisition.s4_8_recovery_02_evaluator import (
+        RESULT_SCHEMA,
+        TOOL_VERSION,
+        protocol_identity,
+    )
+
+    identity = protocol_identity(root)
+    protocol = binding["protocol"]
+    if (
+        evaluator["tool_version"] != TOOL_VERSION
+        or evaluator["result_schema"] != RESULT_SCHEMA
+        or protocol["protocol_sha256"] != identity["protocol_sha256"]
+        or protocol["planned_take_count"] != identity["planned_take_count"]
+        or protocol["planned_take_ids_sha256"]
+        != identity["planned_take_ids_sha256"]
+        or protocol["stratum_counts"] != STRATUM_COUNTS
+        or protocol["take_aggregation"] != SQUADBOT_TAKE_AGGREGATION_CONTRACT
+        or set(protocol["continuous_bearing_diagnostic_criteria"])
+        != CONTINUOUS_BEARING_DIAGNOSTIC_CRITERIA
+        or set(protocol["superseded_sector_criteria"])
+        != SUPERSEDED_SECTOR_CRITERIA
+    ):
+        raise s4_8.S48Error(
+            "S4.8 37-take evaluator protocol identity mismatch"
+        )
+
+    precollection_record = binding["bindings"]["precollection_seal"]
+    precollection = s4_8.load_json(
+        root / _safe_relative(precollection_record["path"])
+    )
+    holdout_record = binding["bindings"]["holdout_seal"]
+    holdout = s4_8.load_json(root / _safe_relative(holdout_record["path"]))
+    holdout_binding_record = binding["bindings"]["holdout_binding"]
+    holdout_binding = s4_8.load_json(
+        root / _safe_relative(holdout_binding_record["path"])
+    )
+    if (
+        precollection.get("seal_sha256")
+        != precollection_record["payload_sha256"]
+        or precollection.get("evaluation_authorized") is not False
+        or holdout.get("seal_payload_sha256")
+        != holdout_record["payload_sha256"]
+        or holdout.get("status") != "sealed_unopened"
+        or holdout.get("technically_sealed") is not True
+        or holdout.get("scientifically_opened") is not False
+        or holdout.get("scientific_artifact_contents_parsed") is not False
+        or holdout.get("scientific_outcomes_derived") is not False
+        or holdout.get("scientific_outputs_returned") is not False
+        or holdout_binding.get("status") != "sealed_unopened"
+        or holdout_binding.get("scientifically_opened") is not False
+        or holdout_binding.get("planned_take_count") != PLANNED_TAKE_COUNT
+        or holdout_binding.get("holdout_id") != binding["holdout_id"]
+    ):
+        raise s4_8.S48Error(
+            "S4.8 37-take evaluator sealed-holdout identity mismatch"
+        )
+    return {
+        "status": "authenticated",
+        "binding_id": binding["binding_id"],
+        "binding_sha256": EVALUATOR_BINDING_SHA256,
+        "schema_sha256": EVALUATOR_BINDING_SCHEMA_SHA256,
+        "evaluator_source_commit": evaluator_source_commit,
+        "tool_version": evaluator["tool_version"],
+        "entrypoint": evaluator["entrypoint"],
+        "result_schema": evaluator["result_schema"],
+        "protocol_sha256": protocol["protocol_sha256"],
+        "planned_take_count": protocol["planned_take_count"],
+        "primary_metric": protocol["primary_metric"],
+        "primary_threshold": protocol["primary_threshold"],
+        "primary_denominator": protocol["primary_denominator"],
+        "effective_gating_criterion_count": protocol[
+            "effective_gating_criterion_count"
+        ],
+        "scientifically_opened": False,
+        "scientific_outcomes_derived": False,
+        "grant_created": False,
+        "grant_consumed": False,
+        "evaluation_run": False,
+    }
+
+
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -1271,11 +1477,16 @@ def recovery_preopen_validate(
             raise s4_8.S48Error(
                 f"S4.8 postcollection finalization authentication failed: {exc}"
             ) from exc
+    evaluator_binding = authenticate_evaluator_binding(
+        root,
+        source_commit=resolved_commit,
+    )
     blockers = [
-        "evaluator_not_bound_to_37_take_protocol",
         "independent_review_not_present",
         "explicit_authorization_not_granted",
     ]
+    if evaluator_binding is None:
+        blockers.insert(0, "evaluator_not_bound_to_37_take_protocol")
     if finalization is None:
         blockers.insert(0, "new_unseen_holdout_not_collected_or_bound")
     if not source_binds_protocol:
@@ -1364,6 +1575,8 @@ def recovery_preopen_validate(
         "holdout_seal_authenticated": finalization is not None,
         "holdout_binding_authenticated": finalization is not None,
         "postcollection_finalization": finalization,
+        "evaluator_binding_authenticated": evaluator_binding is not None,
+        "evaluator_binding": evaluator_binding,
         "independent_review_present": review_present,
         "grant_creation_authorized": False,
         "grant_consumption_authorized": False,
@@ -1377,6 +1590,7 @@ def recovery_preopen_validate(
 
 __all__ = [
     "AMENDMENT_PATH",
+    "authenticate_evaluator_binding",
     "load_amendment",
     "recovery_preopen_validate",
     "validate_protocol_revision",

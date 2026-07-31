@@ -112,8 +112,11 @@ SCOPE_TOKEN_ALLOWLIST_ENTRIES = frozenset(
         "docs/versioning.md",
         "scripts/audit_distribution.py",
         "scripts/generate_live_evidence_report.py",
+        "isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py",
+        "src/isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py",
         "tests/test_distribution_audit.py",
         "tests/test_v1_scope_docs.py",
+        "_vendor/isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py",
     }
 )
 SCOPE_GUARDRAIL_CODE_ENTRIES = frozenset(

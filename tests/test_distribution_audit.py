@@ -506,6 +506,20 @@ def test_distribution_audit_classifies_final_plan_as_scope_document():
     )
 
 
+def test_distribution_audit_allows_authenticated_protocol_adapter():
+    audit = _load_audit_module()
+
+    for entry_name in (
+        "isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py",
+        "src/isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py",
+        "_vendor/isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py",
+    ):
+        assert audit._project_scope_token_findings(
+            entry_name,
+            "Apply the frozen SquadBot mapping exactly once.",
+        ) == ()
+
+
 def _api_freeze_doc_text() -> str:
     return "\n".join(
         (
