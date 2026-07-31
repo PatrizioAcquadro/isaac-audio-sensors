@@ -4188,8 +4188,23 @@ def _analyze_real_take(
     qa = load_json(qa_path)
     if qa.get(qa_pass_field) != qa_pass_value:
         failure_reasons.append("technical_qa_failed")
-    av = (
-        _derive_av_association(
+    if identity.stratum_id != "E_impact_audio_video":
+        av = None
+    elif (
+        av_confirmation_relative_path == Path("operator_event_confirmation.json")
+        and av_frames_relative_path == Path("raw/zed_frames.jsonl")
+        and av_producer_relative_path == Path("raw/pi_producer_status.json")
+        and av_confirmation_validator is None
+    ):
+        av = _derive_av_association(
+            repo_root,
+            attempt_root,
+            take_id,
+            raw,
+            seal,
+        )
+    else:
+        av = _derive_av_association(
             repo_root,
             attempt_root,
             take_id,
@@ -4200,9 +4215,6 @@ def _analyze_real_take(
             producer_relative_path=av_producer_relative_path,
             confirmation_validator=av_confirmation_validator,
         )
-        if identity.stratum_id == "E_impact_audio_video"
-        else None
-    )
     candidate_bearings = (
         [representative] if applicable_bearing and representative is not None else []
     )

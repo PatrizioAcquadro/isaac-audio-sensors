@@ -992,6 +992,7 @@ def _authenticate_independent_review(
     *,
     amendment: Mapping[str, Any],
     source_commit: str,
+    allow_source_mismatch: bool = False,
 ) -> dict[str, Any] | None:
     path = repo_root / _safe_relative(
         amendment["future_attempt"]["independent_review_path"]
@@ -1012,7 +1013,6 @@ def _authenticate_independent_review(
         set(review) != REVIEW_FIELDS
         or review.get("schema") != "ias.s4_8.independent_recovery_review.v1"
         or review.get("amendment_id") != amendment["amendment_id"]
-        or review.get("source_commit") != source_commit
         or review.get("decision") != "approved"
         or review.get("independent") is not True
         or not isinstance(review.get("reviewer_id"), str)
@@ -1020,6 +1020,13 @@ def _authenticate_independent_review(
         or not isinstance(review.get("reviewed_at_utc"), str)
         or not review["reviewed_at_utc"].strip()
     ):
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 requires an independent review "
+            "bound to this source"
+        )
+    if review.get("source_commit") != source_commit:
+        if allow_source_mismatch:
+            return None
         raise s4_8.S48Error(
             "S4.8 recovery amendment_02 requires an independent review "
             "bound to this source"
@@ -1456,6 +1463,7 @@ def recovery_preopen_validate(
         root,
         amendment=amendment,
         source_commit=resolved_commit,
+        allow_source_mismatch=True,
     )
     seal_present = present["holdout_seal_path"]
     binding_present = present["binding_path"]

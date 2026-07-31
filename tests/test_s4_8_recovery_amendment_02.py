@@ -367,14 +367,44 @@ def test_future_state_paths_are_disjoint_and_absent() -> None:
     assert historical.isdisjoint(future_paths | {review_path})
     assert all(not (ROOT / path).exists() for path in future_paths)
     if (ROOT / review_path).exists():
-        assert (
-            recovery._authenticate_independent_review(
-                ROOT,
-                amendment=amendment,
-                source_commit=s4_8._git(ROOT, "rev-parse", "HEAD"),
+        review = s4_8.load_json(ROOT / review_path)
+        current_source = s4_8._git(ROOT, "rev-parse", "HEAD")
+        if review["source_commit"] == current_source:
+            assert (
+                recovery._authenticate_independent_review(
+                    ROOT,
+                    amendment=amendment,
+                    source_commit=current_source,
+                )
+                is not None
             )
-            is not None
-        )
+        else:
+            with pytest.raises(s4_8.S48Error, match="bound to this source"):
+                recovery._authenticate_independent_review(
+                    ROOT,
+                    amendment=amendment,
+                    source_commit=current_source,
+                )
+
+
+def test_stale_review_is_a_preopen_blocker_not_active_authority() -> None:
+    amendment = recovery.load_amendment(ROOT)
+    review_path = ROOT / amendment["future_attempt"]["independent_review_path"]
+    if not review_path.exists():
+        pytest.skip("no prior independent review is present")
+    review = s4_8.load_json(review_path)
+    current_source = s4_8._git(ROOT, "rev-parse", "HEAD")
+    if review["source_commit"] == current_source:
+        pytest.skip("the canonical review is already bound to the current source")
+
+    result = recovery.recovery_preopen_validate(
+        ROOT,
+        source_commit=current_source,
+    )
+
+    assert result["independent_review_present"] is True
+    assert result["independent_review_authenticated"] is False
+    assert "independent_review_not_present" in result["blockers"]
 
 
 def test_future_namespace_cannot_cover_a_frozen_terminal_package() -> None:
@@ -684,8 +714,8 @@ def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
         is (ROOT / amendment["future_attempt"]["independent_review_path"]).exists()
     )
     assert (
-        result["independent_review_authenticated"]
-        is result["independent_review_present"]
+        result["independent_review_authenticated"] is False
+        or result["independent_review_present"] is True
     )
     assert result["new_grant_present"] is False
     assert result["new_ledger_present"] is False
