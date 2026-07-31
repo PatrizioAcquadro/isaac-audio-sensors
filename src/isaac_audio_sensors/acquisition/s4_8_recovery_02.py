@@ -172,6 +172,7 @@ def reclassify_engineering_take(
         "continuous_bearing_metric_role": "diagnostic_non_gating",
     }
 
+
 EXPECTED_DENOMINATOR_OVERRIDES = {
     "bearing_median_absolute_error_stratum_b": 4,
     "sector_accuracy_stratum_b": 4,
@@ -292,25 +293,17 @@ def _load_historical_amendment(
 ) -> dict[str, Any]:
     supersedes = amendment["supersedes"]
     if _safe_relative(supersedes["path"]) != HISTORICAL_AMENDMENT_PATH:
-        raise s4_8.S48Error(
-            "S4.8 recovery amendment_02 historical path mismatch"
-        )
+        raise s4_8.S48Error("S4.8 recovery amendment_02 historical path mismatch")
     path = repo_root / HISTORICAL_AMENDMENT_PATH
-    if (
-        not path.is_file()
-        or s4_8.sha256_file(path) != supersedes["sha256"]
-    ):
-        raise s4_8.S48Error(
-            "S4.8 recovery amendment_02 historical binding mismatch"
-        )
+    if not path.is_file() or s4_8.sha256_file(path) != supersedes["sha256"]:
+        raise s4_8.S48Error("S4.8 recovery amendment_02 historical binding mismatch")
     historical = s4_8.load_json(path)
     schema = s4_8.load_json(repo_root / HISTORICAL_AMENDMENT_SCHEMA_PATH)
     try:
         jsonschema.validate(historical, schema)
     except jsonschema.ValidationError as exc:
         raise s4_8.S48Error(
-            "S4.8 recovery amendment_02 historical schema failure: "
-            f"{exc.message}"
+            f"S4.8 recovery amendment_02 historical schema failure: {exc.message}"
         ) from exc
     return historical
 
@@ -324,9 +317,7 @@ def _validate_bound_file(
 ) -> Path:
     path = repo_root / _safe_relative(container[path_key])
     if not path.is_file() or s4_8.sha256_file(path) != container[digest_key]:
-        raise s4_8.S48Error(
-            f"S4.8 recovery amendment_02 binding mismatch: {path_key}"
-        )
+        raise s4_8.S48Error(f"S4.8 recovery amendment_02 binding mismatch: {path_key}")
     return path
 
 
@@ -473,9 +464,7 @@ def _validate_design_manifest(design: Mapping[str, Any]) -> None:
                     "nominal_direction",
                 )
             )
-    expected.append(
-        ("D_silence", None, None, None, 2, "ambient_silence", "silence")
-    )
+    expected.append(("D_silence", None, None, None, 2, "ambient_silence", "silence"))
     for bearing, condition in zip(
         PRODUCT_BEARINGS,
         PRODUCT_CONDITIONS,
@@ -554,9 +543,7 @@ def _validate_design_manifest(design: Mapping[str, Any]) -> None:
             "rig_must_remain_fixed",
         )
     ):
-        raise s4_8.S48Error(
-            "S4.8 37-take direction repeatability contract mismatch"
-        )
+        raise s4_8.S48Error("S4.8 37-take direction repeatability contract mismatch")
 
 
 def _validate_denominators(
@@ -564,9 +551,7 @@ def _validate_denominators(
     denominators: Mapping[str, Any],
     design: Mapping[str, Any],
 ) -> None:
-    source_relative = _safe_relative(
-        denominators["source_criteria_register_path"]
-    )
+    source_relative = _safe_relative(denominators["source_criteria_register_path"])
     if (
         source_relative != FROZEN_CRITERIA_REGISTER_PATH
         or denominators["source_criteria_register_sha256"]
@@ -587,10 +572,8 @@ def _validate_denominators(
         or details.get("criterion_count") != 29
         or details.get("readiness_criterion_count") != 23
         or details.get("stretch_criterion_count") != 6
-        or details.get("register_schema")
-        != "ias.s4_7.effective_criteria_register.v4"
-        or details.get("resolution")
-        != "corrective_03_exact_machine_readable_semantics"
+        or details.get("register_schema") != "ias.s4_7.effective_criteria_register.v4"
+        or details.get("resolution") != "corrective_03_exact_machine_readable_semantics"
         or details.get("scientific_semantics_sha256")
         != FROZEN_SCIENTIFIC_SEMANTICS_SHA256
     ):
@@ -613,14 +596,11 @@ def _validate_denominators(
     if (
         set(metric_roles["continuous_bearing_diagnostic_criteria"])
         != CONTINUOUS_BEARING_DIAGNOSTIC_CRITERIA
-        or set(metric_roles["superseded_sector_criteria"])
-        != SUPERSEDED_SECTOR_CRITERIA
-        or metric_roles["primary_metric"]
-        != "squadbot_categorical_direction_accuracy"
+        or set(metric_roles["superseded_sector_criteria"]) != SUPERSEDED_SECTOR_CRITERIA
+        or metric_roles["primary_metric"] != "squadbot_categorical_direction_accuracy"
         or metric_roles["primary_metric_threshold"]
         != SQUADBOT_CATEGORICAL_ACCURACY_THRESHOLD
-        or metric_roles["continuous_bearing_error_role"]
-        != "diagnostic_non_gating"
+        or metric_roles["continuous_bearing_error_role"] != "diagnostic_non_gating"
         or metric_roles["categorical_direction_role"] != "primary_gating"
     ):
         raise s4_8.S48Error("S4.8 consumer metric-role amendment mismatch")
@@ -678,12 +658,8 @@ def validate_protocol_revision(repo_root: Path) -> dict[str, Any]:
     root = repo_root.resolve()
     amendment = load_amendment(root)
     revision = amendment["protocol_revision"]
-    design = s4_8.load_json(
-        root / _safe_relative(revision["design_manifest_path"])
-    )
-    denominators = s4_8.load_json(
-        root / _safe_relative(revision["denominators_path"])
-    )
+    design = s4_8.load_json(root / _safe_relative(revision["design_manifest_path"]))
+    denominators = s4_8.load_json(root / _safe_relative(revision["denominators_path"]))
     return {
         "schema": "ias.s4_8.recovery_amendment_02_protocol_validation.v2",
         "status": "passed",
@@ -704,8 +680,7 @@ def validate_protocol_revision(repo_root: Path) -> dict[str, Any]:
         "rig_fixed": True,
         "thresholds_unchanged": denominators["thresholds_unchanged"],
         "criterion_count": (
-            revision["readiness_criterion_count"]
-            + revision["stretch_criterion_count"]
+            revision["readiness_criterion_count"] + revision["stretch_criterion_count"]
         ),
         "final_protocol_frozen": True,
         "official_acquisition_permitted": False,
@@ -805,10 +780,7 @@ def _validate_preliminary_bindings(
         ("workflow_spec_path", "workflow_spec_sha256"),
     ):
         path = repo_root / _safe_relative(preliminary[path_key])
-        if (
-            not path.is_file()
-            or s4_8.sha256_file(path) != preliminary[digest_key]
-        ):
+        if not path.is_file() or s4_8.sha256_file(path) != preliminary[digest_key]:
             raise s4_8.S48Error(
                 f"S4.8 recovery amendment_02 binding mismatch: {path_key}"
             )
@@ -880,8 +852,7 @@ def _preliminary_readiness_state(
     passed = (
         report.get("schema") == "ias.s4_8.preliminary_readiness.v1"
         and report.get("status") == preliminary["required_status"]
-        and report.get("preliminary_take_count")
-        == preliminary["required_take_count"]
+        and report.get("preliminary_take_count") == preliminary["required_take_count"]
         and report.get("all_required_gates_passed") is True
         and report.get("final_protocol_freeze_permitted") is True
         and report.get("final_protocol_frozen") is False
@@ -983,8 +954,7 @@ def validate_terminal_history(
         "status": "passed",
         "terminal_run_count": 2,
         "terminal_statuses": {
-            run["run_id"]: run["terminal_status"]
-            for run in terminal_runs
+            run["run_id"]: run["terminal_status"] for run in terminal_runs
         },
         "artifact_count": artifact_count,
         "package_manifest_sha256": manifest_hashes,
@@ -1114,9 +1084,10 @@ def _source_binds_protocol_revision(
         )
         if result.returncode != 0:
             return False
-        if hashlib.sha256(result.stdout).digest() != hashlib.sha256(
-            worktree_path.read_bytes()
-        ).digest():
+        if (
+            hashlib.sha256(result.stdout).digest()
+            != hashlib.sha256(worktree_path.read_bytes()).digest()
+        ):
             return False
     return True
 
@@ -1202,34 +1173,25 @@ def authenticate_evaluator_binding(
         capture_output=True,
     )
     if ancestor.returncode != 0:
-        raise s4_8.S48Error(
-            "S4.8 37-take evaluator source is not an ancestor"
-        )
+        raise s4_8.S48Error("S4.8 37-take evaluator source is not an ancestor")
     source_records = evaluator["source_files"]
     source_paths: dict[Path, str] = {}
     for record in source_records:
         relative = _safe_relative(record["path"])
         if relative in source_paths:
-            raise s4_8.S48Error(
-                "S4.8 37-take evaluator source path is duplicated"
-            )
+            raise s4_8.S48Error("S4.8 37-take evaluator source path is duplicated")
         source_paths[relative] = record["sha256"]
     if not _source_contains_files(
         root,
         source_commit=evaluator_source_commit,
         paths=source_paths,
     ):
-        raise s4_8.S48Error(
-            "S4.8 37-take evaluator source authentication failed"
-        )
+        raise s4_8.S48Error("S4.8 37-take evaluator source authentication failed")
 
     for record in binding["bindings"].values():
         relative = _safe_relative(record["path"])
         path = root / relative
-        if (
-            not path.is_file()
-            or s4_8.sha256_file(path) != record["sha256"]
-        ):
+        if not path.is_file() or s4_8.sha256_file(path) != record["sha256"]:
             raise s4_8.S48Error(
                 f"S4.8 37-take evaluator protocol binding mismatch: {relative}"
             )
@@ -1247,23 +1209,17 @@ def authenticate_evaluator_binding(
         or evaluator["result_schema"] != RESULT_SCHEMA
         or protocol["protocol_sha256"] != identity["protocol_sha256"]
         or protocol["planned_take_count"] != identity["planned_take_count"]
-        or protocol["planned_take_ids_sha256"]
-        != identity["planned_take_ids_sha256"]
+        or protocol["planned_take_ids_sha256"] != identity["planned_take_ids_sha256"]
         or protocol["stratum_counts"] != STRATUM_COUNTS
         or protocol["take_aggregation"] != SQUADBOT_TAKE_AGGREGATION_CONTRACT
         or set(protocol["continuous_bearing_diagnostic_criteria"])
         != CONTINUOUS_BEARING_DIAGNOSTIC_CRITERIA
-        or set(protocol["superseded_sector_criteria"])
-        != SUPERSEDED_SECTOR_CRITERIA
+        or set(protocol["superseded_sector_criteria"]) != SUPERSEDED_SECTOR_CRITERIA
     ):
-        raise s4_8.S48Error(
-            "S4.8 37-take evaluator protocol identity mismatch"
-        )
+        raise s4_8.S48Error("S4.8 37-take evaluator protocol identity mismatch")
 
     precollection_record = binding["bindings"]["precollection_seal"]
-    precollection = s4_8.load_json(
-        root / _safe_relative(precollection_record["path"])
-    )
+    precollection = s4_8.load_json(root / _safe_relative(precollection_record["path"]))
     holdout_record = binding["bindings"]["holdout_seal"]
     holdout = s4_8.load_json(root / _safe_relative(holdout_record["path"]))
     holdout_binding_record = binding["bindings"]["holdout_binding"]
@@ -1271,11 +1227,9 @@ def authenticate_evaluator_binding(
         root / _safe_relative(holdout_binding_record["path"])
     )
     if (
-        precollection.get("seal_sha256")
-        != precollection_record["payload_sha256"]
+        precollection.get("seal_sha256") != precollection_record["payload_sha256"]
         or precollection.get("evaluation_authorized") is not False
-        or holdout.get("seal_payload_sha256")
-        != holdout_record["payload_sha256"]
+        or holdout.get("seal_payload_sha256") != holdout_record["payload_sha256"]
         or holdout.get("status") != "sealed_unopened"
         or holdout.get("technically_sealed") is not True
         or holdout.get("scientifically_opened") is not False
@@ -1287,9 +1241,7 @@ def authenticate_evaluator_binding(
         or holdout_binding.get("planned_take_count") != PLANNED_TAKE_COUNT
         or holdout_binding.get("holdout_id") != binding["holdout_id"]
     ):
-        raise s4_8.S48Error(
-            "S4.8 37-take evaluator sealed-holdout identity mismatch"
-        )
+        raise s4_8.S48Error("S4.8 37-take evaluator sealed-holdout identity mismatch")
     return {
         "status": "authenticated",
         "binding_id": binding["binding_id"],
@@ -1374,20 +1326,16 @@ def _validate_official_precollection_freeze(
     ):
         raise s4_8.S48Error("S4.8 official partition manifest is invalid")
     seal = s4_8.load_json(seal_path)
-    seal_payload = {
-        key: value for key, value in seal.items() if key != "seal_sha256"
-    }
+    seal_payload = {key: value for key, value in seal.items() if key != "seal_sha256"}
     if (
         seal.get("seal_sha256") != canonical_sha256(seal_payload)
         or seal.get("status") != "frozen_before_collection"
-        or seal.get("amendment_sha256")
-        != s4_8.sha256_file(repo_root / AMENDMENT_PATH)
+        or seal.get("amendment_sha256") != s4_8.sha256_file(repo_root / AMENDMENT_PATH)
         or seal.get("design_manifest_sha256") != s4_8.sha256_file(design_path)
         or seal.get("partition_manifest_sha256")
         != partition["partition_manifest_sha256"]
         or seal.get("session_manifest_sha256") != session["manifest_sha256"]
-        or seal.get("preflight_report_sha256")
-        != s4_8.sha256_file(preflight_path)
+        or seal.get("preflight_report_sha256") != s4_8.sha256_file(preflight_path)
         or seal.get("official_acquisition_permitted") is not True
         or seal.get("postcollection_holdout_seal_present") is not False
         or seal.get("unseen_holdout_binding_present") is not False
@@ -1437,9 +1385,7 @@ def _validate_official_precollection_freeze(
         / "authorizations"
     )
     authorizations = (
-        list(authorization_root.glob("*.json"))
-        if authorization_root.is_dir()
-        else []
+        list(authorization_root.glob("*.json")) if authorization_root.is_dir() else []
     )
     return {
         "valid": True,
@@ -1448,9 +1394,7 @@ def _validate_official_precollection_freeze(
         "precollection_seal_sha256": seal["seal_sha256"],
         "source_commit": seal["source_commit"],
         "attempt_count": len(ledger),
-        "next_take_id": (
-            None if next_take is None else next_take["planned_take_id"]
-        ),
+        "next_take_id": (None if next_take is None else next_take["planned_take_id"]),
         "next_attempt_number": next_attempt,
         "authorization_count": len(authorizations),
         "recorder_started_during_preflight": False,
@@ -1463,6 +1407,7 @@ def recovery_preopen_validate(
     repo_root: Path,
     *,
     source_commit: str | None = None,
+    require_access_paths_absent: bool = True,
 ) -> dict[str, Any]:
     """Validate the preregistration while keeping execution at NO-GO."""
 
@@ -1480,7 +1425,8 @@ def recovery_preopen_validate(
         amendment=amendment,
         source_commit=resolved_commit,
     )
-    _require_no_unauthorized_state(root, amendment)
+    if require_access_paths_absent:
+        _require_no_unauthorized_state(root, amendment)
     unseen = amendment["unseen_holdout"]
     future = amendment["future_attempt"]
     holdout_paths = {
@@ -1495,9 +1441,7 @@ def recovery_preopen_validate(
         )
     }
     present = {key: (root / path).exists() for key, path in holdout_paths.items()}
-    readiness_present, readiness_passed = _preliminary_readiness_state(
-        root, amendment
-    )
+    readiness_present, readiness_passed = _preliminary_readiness_state(root, amendment)
     final_protocol_frozen = (
         amendment["preliminary_readiness"]["final_protocol_status"] == "frozen"
     )
@@ -1636,18 +1580,75 @@ def recovery_preopen_validate(
         "grant_creation_authorized": False,
         "grant_consumption_authorized": False,
         "evaluation_execution_authorized": False,
-        "new_grant_present": False,
-        "new_ledger_present": False,
+        "new_grant_present": (root / _safe_relative(future["grant_path"])).is_file(),
+        "new_ledger_present": (root / _safe_relative(future["ledger_path"])).is_file(),
         "holdout_observation_opened": False,
         "content_derived_values_returned": False,
     }
 
 
+def create_recovery_grant(
+    repo_root: Path,
+    *,
+    source_commit: str,
+    authorization_id: str,
+) -> dict[str, Any]:
+    """Create the exact externally authorized amendment-02 grant."""
+
+    from isaac_audio_sensors.acquisition.s4_8_recovery_02_execution import (
+        create_recovery_grant as create,
+    )
+
+    return create(
+        repo_root,
+        source_commit=source_commit,
+        authorization_id=authorization_id,
+    )
+
+
+def run_recovery_evaluation_once(
+    repo_root: Path,
+    *,
+    source_commit: str,
+    authorization_id: str,
+    event_time_utc: str,
+) -> dict[str, Any]:
+    """Consume, open, and evaluate the amendment-02 holdout exactly once."""
+
+    from isaac_audio_sensors.acquisition.s4_8_recovery_02_execution import (
+        run_recovery_evaluation_once as run,
+    )
+
+    return run(
+        repo_root,
+        source_commit=source_commit,
+        authorization_id=authorization_id,
+        event_time_utc=event_time_utc,
+    )
+
+
+def validate_recovery_evidence_package(
+    repo_root: Path,
+    *,
+    package: Path | None = None,
+) -> dict[str, Any]:
+    """Validate terminal bytes without rerunning the scientific evaluator."""
+
+    from isaac_audio_sensors.acquisition.s4_8_recovery_02_execution import (
+        validate_recovery_evidence_package as validate,
+    )
+
+    return validate(repo_root, package=package)
+
+
 __all__ = [
     "AMENDMENT_PATH",
     "authenticate_evaluator_binding",
+    "create_recovery_grant",
     "load_amendment",
     "recovery_preopen_validate",
+    "run_recovery_evaluation_once",
+    "validate_recovery_evidence_package",
     "validate_protocol_revision",
     "validate_terminal_history",
 ]

@@ -185,9 +185,13 @@ _ACTIVE_EXECUTION_LEASE: ContextVar[_ExecutionLockLease | None] = ContextVar(
     "s4_8_active_execution_lease",
     default=None,
 )
-_ACTIVE_CONTRACT: ContextVar[
-    tuple[dict[str, Any], Path, tuple[Path, ...]] | None
-] = ContextVar("s4_8_active_contract", default=None)
+_ACTIVE_CONTRACT: ContextVar[tuple[dict[str, Any], Path, tuple[Path, ...]] | None] = (
+    ContextVar("s4_8_active_contract", default=None)
+)
+_ACTIVE_EXECUTION_ADAPTER: ContextVar[Mapping[str, Any] | None] = ContextVar(
+    "s4_8_active_execution_adapter",
+    default=None,
+)
 AUTHORIZATION_RECORD_SCHEMA = "ias.s4_8.authorization_record.v1"
 AUTHORIZATION_RECORD_FIELDS = frozenset(
     {
@@ -529,6 +533,39 @@ def _use_contract(
         _ACTIVE_CONTRACT.reset(token)
 
 
+@contextmanager
+def _use_execution_adapter(adapter: Mapping[str, Any]) -> Iterator[None]:
+    """Select additive execution hooks without changing the base state machine."""
+
+    token = _ACTIVE_EXECUTION_ADAPTER.set(dict(adapter))
+    try:
+        yield
+    finally:
+        _ACTIVE_EXECUTION_ADAPTER.reset(token)
+
+
+def _execution_adapter_callback(name: str) -> Callable[..., Any] | None:
+    adapter = _ACTIVE_EXECUTION_ADAPTER.get()
+    if adapter is None:
+        return None
+    callback = adapter.get(name)
+    if callback is None:
+        return None
+    if not callable(callback):
+        raise S48Error(f"S4.8 execution adapter callback is invalid: {name}")
+    return callback
+
+
+def _execution_adapter_value(name: str, default: str) -> str:
+    adapter = _ACTIVE_EXECUTION_ADAPTER.get()
+    if adapter is None:
+        return default
+    value = adapter.get(name)
+    if not isinstance(value, str) or not value:
+        raise S48Error(f"S4.8 execution adapter value is invalid: {name}")
+    return value
+
+
 def preopen_validate(
     repo_root: Path,
     *,
@@ -538,6 +575,14 @@ def preopen_validate(
 ) -> dict[str, Any]:
     """Authenticate readiness without interpreting held-out content."""
 
+    callback = _execution_adapter_callback("preopen_validate")
+    if callback is not None:
+        return callback(
+            repo_root,
+            source_commit=source_commit,
+            verify_prerequisite_replay=verify_prerequisite_replay,
+            require_access_paths_absent=require_access_paths_absent,
+        )
     root = repo_root.resolve()
     config = load_contract(root)
     seal_path = _repo_file(root, config["holdout"]["seal_path"])
@@ -923,14 +968,24 @@ def _consume_grant_once(
             staged_ledger = staging / ledger_path.name
             staged_journal = staging / journal_path.name
             staged_recovery = staging / RECOVERY_CONTEXT_NAME
-            result = consume_s4_8_grant(
-                grant_path,
-                seal_path=_repo_file(root, config["holdout"]["seal_path"]),
-                split_plan_sha256=config["holdout"]["split_plan_sha256"],
-                prerequisite_path=_repo_file(root, config["prerequisite"]["path"]),
-                ledger_path=staged_ledger,
-                event_time_utc=event_time_utc,
-            )
+            consume_callback = _execution_adapter_callback("consume_grant")
+            if consume_callback is None:
+                result = consume_s4_8_grant(
+                    grant_path,
+                    seal_path=_repo_file(root, config["holdout"]["seal_path"]),
+                    split_plan_sha256=config["holdout"]["split_plan_sha256"],
+                    prerequisite_path=_repo_file(root, config["prerequisite"]["path"]),
+                    ledger_path=staged_ledger,
+                    event_time_utc=event_time_utc,
+                )
+            else:
+                result = consume_callback(
+                    root,
+                    grant_path=grant_path,
+                    ledger_path=staged_ledger,
+                    source_commit=source_commit,
+                    event_time_utc=event_time_utc,
+                )
             if (
                 result.get("allowed") is not True
                 or result.get("mode") != "S4.8_evaluation"
@@ -988,8 +1043,7 @@ def _cleanup_opening_transition_staging(
             if item.is_symlink() or not item.is_file():
                 raise S48Error("S4.8 opening-transition staging contains invalid state")
             if item.name not in allowed and not any(
-                item.name.startswith(f".{name}.")
-                and item.name.endswith(".staging")
+                item.name.startswith(f".{name}.") and item.name.endswith(".staging")
                 for name in allowed
             ):
                 raise S48Error(
@@ -1304,8 +1358,10 @@ def _run_authorized_evaluation_once_locked(
             runtime_provenance=runtime_provenance,
         )
         derived = {
-            "schema": DERIVED_INPUT_SCHEMA,
-            "tool_version": TOOL_VERSION,
+            "schema": _execution_adapter_value(
+                "derived_input_schema", DERIVED_INPUT_SCHEMA
+            ),
+            "tool_version": _execution_adapter_value("tool_version", TOOL_VERSION),
             "source_commit": source_commit,
             "event_time_utc": event_time_utc,
             "authorization_record": authorization_record,
@@ -1382,6 +1438,9 @@ def _build_real_payload(
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Open and derive the real payload. Caller must have consumed the grant."""
 
+    callback = _execution_adapter_callback("build_real_payload")
+    if callback is not None:
+        return callback(repo_root, progress_callback=progress_callback)
     root = repo_root.resolve()
     _require_execution_lock(root)
     config = load_contract(root)
@@ -1730,6 +1789,8 @@ def _initial_observation_inventory(
     registry: Mapping[str, Any],
     attempt_candidates: Mapping[str, set[Path]],
     attempt_roots: Mapping[str, Path],
+    wav_relative_path: Path = Path("raw/respeaker_audio.wav"),
+    qa_relative_path: Path = Path("technical_qa.json"),
 ) -> list[dict[str, Any]]:
     """Create the complete inventory before the first observation is opened."""
 
@@ -1738,8 +1799,8 @@ def _initial_observation_inventory(
         selected = attempt_roots[take_id]
         for candidate in sorted(attempt_candidates[take_id]):
             is_selected = repo_root / candidate == selected
-            wav_record = _seal_record(seal, candidate / "raw/respeaker_audio.wav")
-            qa_record = _seal_record(seal, candidate / "technical_qa.json")
+            wav_record = _seal_record(seal, candidate / wav_relative_path)
+            qa_record = _seal_record(seal, candidate / qa_relative_path)
             records.append(
                 {
                     "planned_take_id": take_id,
@@ -1787,6 +1848,9 @@ def _partial_payload(
 def evaluate_payload(payload: Mapping[str, Any], *, repo_root: Path) -> dict[str, Any]:
     """Return a truthful result, including an explicit failed rejection."""
 
+    callback = _execution_adapter_callback("evaluate_payload")
+    if callback is not None:
+        return callback(payload, repo_root=repo_root)
     try:
         result = evaluate_corrective(payload, repo_root=repo_root)
     except CorrectiveAcceptanceError as exc:
@@ -1820,6 +1884,9 @@ def evaluate_payload(payload: Mapping[str, Any], *, repo_root: Path) -> dict[str
 def _input_rejection_payload(repo_root: Path) -> dict[str, Any]:
     """Create a frozen-identity payload that the evaluator rejects closed."""
 
+    callback = _execution_adapter_callback("input_rejection_payload")
+    if callback is not None:
+        return callback(repo_root)
     config = load_contract(repo_root)
     return {
         "schema": "ias.s4_7.corrective_metrics.v4",
@@ -1839,6 +1906,9 @@ def _input_rejection_inventory(
 ) -> list[dict[str, Any]]:
     """Retain all sealed attempts when observation derivation rejects input."""
 
+    callback = _execution_adapter_callback("input_rejection_inventory")
+    if callback is not None:
+        return callback(repo_root, error)
     config = load_contract(repo_root)
     seal = load_json(_repo_file(repo_root, config["holdout"]["seal_path"]))
     registry = build_identity_registry(repo_root)
@@ -2355,8 +2425,10 @@ def _recover_post_consumption_run(
     if not isinstance(recovered_runtime, Mapping):
         recovered_runtime = context["runtime_provenance"]
     derived = {
-        "schema": DERIVED_INPUT_SCHEMA,
-        "tool_version": TOOL_VERSION,
+        "schema": _execution_adapter_value(
+            "derived_input_schema", DERIVED_INPUT_SCHEMA
+        ),
+        "tool_version": _execution_adapter_value("tool_version", TOOL_VERSION),
         "source_commit": source_commit,
         "event_time_utc": context["event_time_utc"],
         "authorization_record": context["authorization_record"],
@@ -2943,6 +3015,15 @@ def _build_terminal_failure_package_in_place(
 ) -> dict[str, Any]:
     """Build terminal-failure evidence without calling the full package builder."""
 
+    callback = _execution_adapter_callback("build_terminal_failure_package")
+    if callback is not None:
+        return callback(
+            repo_root,
+            derived,
+            destination=destination,
+            source_commit=source_commit,
+            validate_result=validate_result,
+        )
     root = repo_root.resolve()
     run_failure = derived.get("run_failure")
     if not isinstance(run_failure, Mapping):
@@ -3210,6 +3291,15 @@ def _build_evidence_package_in_place(
     source_commit: str,
     validate_result: bool = True,
 ) -> dict[str, Any]:
+    callback = _execution_adapter_callback("build_evidence_package")
+    if callback is not None:
+        return callback(
+            repo_root,
+            derived,
+            destination=destination,
+            source_commit=source_commit,
+            validate_result=validate_result,
+        )
     root = repo_root.resolve()
     _validate_authorization_evidence(derived, config=load_contract(root))
     evaluation = _recomputed_evaluation(root, derived)
@@ -3445,6 +3535,9 @@ def _build_evidence_package_in_place(
 
 
 def validate_evidence_package(package: Path, *, repo_root: Path) -> dict[str, Any]:
+    callback = _execution_adapter_callback("validate_evidence_package")
+    if callback is not None:
+        return callback(package, repo_root=repo_root)
     package = package.resolve()
     present = {path.name for path in package.iterdir() if path.is_file()}
     if present != PACKAGE_FILES:
@@ -3952,10 +4045,20 @@ def _analyze_real_take(
     profile: Mapping[str, Any],
     seal: Mapping[str, Any],
     window_progress_callback: (Callable[[Mapping[str, Any]], None] | None) = None,
+    wav_relative_path: Path = Path("raw/respeaker_audio.wav"),
+    qa_relative_path: Path = Path("technical_qa.json"),
+    qa_pass_field: str = "overall_technical_pass",
+    qa_pass_value: Any = True,
+    av_confirmation_relative_path: Path = Path("operator_event_confirmation.json"),
+    av_frames_relative_path: Path = Path("raw/zed_frames.jsonl"),
+    av_producer_relative_path: Path = Path("raw/pi_producer_status.json"),
+    av_confirmation_validator: (
+        Callable[[Mapping[str, Any], str, Path], bool] | None
+    ) = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     take_id = identity.planned_take_id
-    wav_path = attempt_root / "raw/respeaker_audio.wav"
-    qa_path = attempt_root / "technical_qa.json"
+    wav_path = attempt_root / wav_relative_path
+    qa_path = attempt_root / qa_relative_path
     _verify_sealed_file(repo_root, wav_path, seal)
     _verify_sealed_file(repo_root, qa_path, seal)
     properties, issues = inspect_six_channel_wav(
@@ -4083,7 +4186,7 @@ def _analyze_real_take(
         }
     )
     qa = load_json(qa_path)
-    if qa.get("overall_technical_pass") is not True:
+    if qa.get(qa_pass_field) != qa_pass_value:
         failure_reasons.append("technical_qa_failed")
     av = (
         _derive_av_association(
@@ -4092,6 +4195,10 @@ def _analyze_real_take(
             take_id,
             raw,
             seal,
+            confirmation_relative_path=av_confirmation_relative_path,
+            frames_relative_path=av_frames_relative_path,
+            producer_relative_path=av_producer_relative_path,
+            confirmation_validator=av_confirmation_validator,
         )
         if identity.stratum_id == "E_impact_audio_video"
         else None
@@ -4257,26 +4364,38 @@ def _derive_av_association(
     take_id: str,
     raw: np.ndarray,
     seal: Mapping[str, Any],
+    *,
+    confirmation_relative_path: Path = Path("operator_event_confirmation.json"),
+    frames_relative_path: Path = Path("raw/zed_frames.jsonl"),
+    producer_relative_path: Path = Path("raw/pi_producer_status.json"),
+    confirmation_validator: (
+        Callable[[Mapping[str, Any], str, Path], bool] | None
+    ) = None,
 ) -> dict[str, Any]:
-    confirmation_path = attempt_root / "operator_event_confirmation.json"
-    frames_path = attempt_root / "raw/zed_frames.jsonl"
-    producer_path = attempt_root / "raw/pi_producer_status.json"
+    confirmation_path = attempt_root / confirmation_relative_path
+    frames_path = attempt_root / frames_relative_path
+    producer_path = attempt_root / producer_relative_path
     _verify_sealed_file(repo_root, confirmation_path, seal)
     _verify_sealed_file(repo_root, frames_path, seal)
     _verify_sealed_file(repo_root, producer_path, seal)
     confirmation = load_json(confirmation_path)
-    if (
-        confirmation.get("schema")
-        != "ias.s4_4.amendment_av_operator_event_confirmation.v1"
-        or confirmation.get("planned_take_id") != take_id
-        or confirmation.get("attempt_id") != attempt_root.name
-        or confirmation.get("protocol_compliance_pass") is not True
-        or confirmation.get("required_impact_count") != 3
-        or confirmation.get("retained_media_deleted_or_overwritten") is not False
-        or confirmation.get("scientific_outcome_used_for_replacement") is not False
-        or confirmation.get("technical_qa_passed") is not True
-        or confirmation.get("technical_quality_failure_reason") is not None
-    ):
+    valid_confirmation = (
+        confirmation_validator(confirmation, take_id, attempt_root)
+        if confirmation_validator is not None
+        else (
+            confirmation.get("schema")
+            == "ias.s4_4.amendment_av_operator_event_confirmation.v1"
+            and confirmation.get("planned_take_id") == take_id
+            and confirmation.get("attempt_id") == attempt_root.name
+            and confirmation.get("protocol_compliance_pass") is True
+            and confirmation.get("required_impact_count") == 3
+            and confirmation.get("retained_media_deleted_or_overwritten") is False
+            and confirmation.get("scientific_outcome_used_for_replacement") is False
+            and confirmation.get("technical_qa_passed") is True
+            and confirmation.get("technical_quality_failure_reason") is None
+        )
+    )
+    if not valid_confirmation:
         raise S48Error(f"{attempt_root.name}: invalid AV confirmation")
     frames = []
     for line in frames_path.read_text(encoding="utf-8").splitlines():
@@ -4362,9 +4481,7 @@ def _derive_av_association(
                 "video_frame_index": int(frames[video_index]["frame_index"]),
                 "video_event_time_ms": video_ms,
                 "visual_motion_mean_absolute_depth_delta_m": depth_motion[video_index],
-                "timestamp_origin_offset_ms": alignment[
-                    "timestamp_origin_offset_ms"
-                ],
+                "timestamp_origin_offset_ms": alignment["timestamp_origin_offset_ms"],
                 "av_absolute_residual_ms": abs(aligned_audio_ms - video_ms),
             }
         )
@@ -4400,12 +4517,10 @@ def _align_av_event_sequences(
         or maximum_origin_offset_ms <= 0.0
         or any(not math.isfinite(value) for value in (*audio, *video))
         or any(
-            later <= earlier
-            for earlier, later in zip(audio, audio[1:], strict=False)
+            later <= earlier for earlier, later in zip(audio, audio[1:], strict=False)
         )
         or any(
-            later <= earlier
-            for earlier, later in zip(video, video[1:], strict=False)
+            later <= earlier for earlier, later in zip(video, video[1:], strict=False)
         )
     ):
         raise S48Error("invalid audio-video event-sequence inputs")

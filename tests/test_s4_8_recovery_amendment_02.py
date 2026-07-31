@@ -45,9 +45,7 @@ def test_amendment_02_additive_revision_is_schema_valid_and_frozen() -> None:
     assert revision["source_checkpoint_bound_in_precollection_seal"] is True
     assert amendment["preliminary_readiness"]["required_take_count"] == 4
     assert (
-        amendment["preliminary_readiness"][
-            "required_before_final_protocol_freeze"
-        ]
+        amendment["preliminary_readiness"]["required_before_final_protocol_freeze"]
         is True
     )
 
@@ -67,32 +65,19 @@ def test_protocol_manifest_is_exactly_37_takes_in_required_order() -> None:
         "E_impact_audio_video": 2,
     }
     direction = [
-        take
-        for take in takes
-        if take["stratum_id"] == "A_controlled_boundary_sweep"
+        take for take in takes if take["stratum_id"] == "A_controlled_boundary_sweep"
     ]
-    assert [
-        (take["bearing_deg"], take["repetition"])
-        for take in direction
-    ] == [
+    assert [(take["bearing_deg"], take["repetition"]) for take in direction] == [
         (bearing, repetition)
         for bearing in recovery.DIRECTION_BEARINGS
         for repetition in (1, 2, 3)
     ]
     assert all(take["radius_m"] == 0.8 for take in direction)
     assert all(take["playback_gain"] == 0.75 for take in direction)
-    product = [
-        take for take in takes if take["stratum_id"] == "B_center_nominal_level"
-    ]
-    low = [
-        take for take in takes if take["stratum_id"] == "C_center_low_level"
-    ]
-    assert [take["bearing_deg"] for take in product] == list(
-        recovery.PRODUCT_BEARINGS
-    )
-    assert [take["bearing_deg"] for take in low] == list(
-        recovery.PRODUCT_BEARINGS
-    )
+    product = [take for take in takes if take["stratum_id"] == "B_center_nominal_level"]
+    low = [take for take in takes if take["stratum_id"] == "C_center_low_level"]
+    assert [take["bearing_deg"] for take in product] == list(recovery.PRODUCT_BEARINGS)
+    assert [take["bearing_deg"] for take in low] == list(recovery.PRODUCT_BEARINGS)
     assert [take["condition_id"] for take in product] == list(
         recovery.PRODUCT_CONDITIONS
     )
@@ -235,13 +220,9 @@ def test_protocol_manifest_rejects_nonconsecutive_or_dependent_takes() -> None:
 def test_protocol_denominators_cover_all_criteria_without_threshold_changes() -> None:
     result = recovery.validate_protocol_revision(ROOT)
     amendment = recovery.load_amendment(ROOT)
-    denominator_path = (
-        ROOT / amendment["protocol_revision"]["denominators_path"]
-    )
+    denominator_path = ROOT / amendment["protocol_revision"]["denominators_path"]
     denominators = s4_8.load_json(denominator_path)
-    source = s4_8.load_json(
-        ROOT / denominators["source_criteria_register_path"]
-    )
+    source = s4_8.load_json(ROOT / denominators["source_criteria_register_path"])
 
     assert result["readiness"] == "frozen_for_precollection"
     assert result["planned_take_count"] == 37
@@ -278,9 +259,7 @@ def test_protocol_denominator_drift_fails_closed() -> None:
     denominators = s4_8.load_json(ROOT / revision["denominators_path"])
     manifest = s4_8.load_json(ROOT / revision["design_manifest_path"])
     altered = copy.deepcopy(denominators)
-    altered["criterion_expected_count_overrides"][
-        "take_failure_rate"
-    ] = 36
+    altered["criterion_expected_count_overrides"]["take_failure_rate"] = 36
 
     with pytest.raises(s4_8.S48Error, match="denominator override"):
         recovery._validate_denominators(ROOT, altered, manifest)
@@ -358,9 +337,7 @@ def test_unseen_holdout_namespace_cannot_reuse_consumed_observations() -> None:
     with pytest.raises(s4_8.S48Error, match="reuses consumed data"):
         recovery._validate_namespaces(altered, historical)
 
-    altered["unseen_holdout"]["observation_root"] = (
-        "dataset/S4.4/amendments"
-    )
+    altered["unseen_holdout"]["observation_root"] = "dataset/S4.4/amendments"
     with pytest.raises(s4_8.S48Error, match="reuses consumed data"):
         recovery._validate_namespaces(altered, historical)
 
@@ -404,16 +381,12 @@ def test_future_namespace_cannot_cover_a_frozen_terminal_package() -> None:
     amendment = recovery.load_amendment(ROOT)
     historical = recovery._load_historical_amendment(ROOT, amendment)
     altered = copy.deepcopy(amendment)
-    altered["future_attempt"]["output_path"] = (
-        "outputs/isaac_audio_sensors/S4/S4.8"
-    )
+    altered["future_attempt"]["output_path"] = "outputs/isaac_audio_sensors/S4/S4.8"
 
     with pytest.raises(s4_8.S48Error, match="overlap terminal history"):
         recovery._validate_namespaces(altered, historical)
 
-    altered["future_attempt"]["output_path"] = (
-        "outputs/isaac_audio_sensors/S4"
-    )
+    altered["future_attempt"]["output_path"] = "outputs/isaac_audio_sensors/S4"
     with pytest.raises(s4_8.S48Error, match="overlap terminal history"):
         recovery._validate_namespaces(altered, historical)
 
@@ -424,7 +397,7 @@ def test_future_namespace_cannot_cover_a_frozen_terminal_package() -> None:
         recovery._validate_namespaces(altered, historical)
 
 
-def test_amendment_02_exposes_no_grant_or_execution_function() -> None:
+def test_amendment_02_execution_requires_external_authority() -> None:
     amendment = recovery.load_amendment(ROOT)
     future = amendment["future_attempt"]
 
@@ -432,8 +405,9 @@ def test_amendment_02_exposes_no_grant_or_execution_function() -> None:
     assert future["grant_consumption_authorized"] is False
     assert future["evaluation_execution_authorized"] is False
     assert future["automatic_retry_of_prior_runs"] is False
-    assert not hasattr(recovery, "create_recovery_grant")
-    assert not hasattr(recovery, "run_recovery_evaluation_once")
+    assert callable(recovery.create_recovery_grant)
+    assert callable(recovery.run_recovery_evaluation_once)
+    assert callable(recovery.validate_recovery_evidence_package)
 
 
 def test_authority_cannot_be_enabled_inside_preregistration_schema() -> None:
@@ -705,9 +679,10 @@ def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
     assert result["grant_creation_authorized"] is False
     assert result["grant_consumption_authorized"] is False
     assert result["evaluation_execution_authorized"] is False
-    assert result["independent_review_present"] is (
-        ROOT / amendment["future_attempt"]["independent_review_path"]
-    ).exists()
+    assert (
+        result["independent_review_present"]
+        is (ROOT / amendment["future_attempt"]["independent_review_path"]).exists()
+    )
     assert (
         result["independent_review_authenticated"]
         is result["independent_review_present"]
@@ -751,11 +726,14 @@ def test_preopen_requires_source_containing_producer_fix() -> None:
 def test_preopen_does_not_attribute_protocol_to_stale_source_commit() -> None:
     amendment = recovery.load_amendment(ROOT)
 
-    assert recovery._source_binds_protocol_revision(
-        ROOT,
-        amendment=amendment,
-        source_commit="5897e7d054097c4672d70f69fbcea20049ab8fff",
-    ) is False
+    assert (
+        recovery._source_binds_protocol_revision(
+            ROOT,
+            amendment=amendment,
+            source_commit="5897e7d054097c4672d70f69fbcea20049ab8fff",
+        )
+        is False
+    )
 
 
 def test_preopen_cli_reports_no_go_without_writing_state() -> None:
