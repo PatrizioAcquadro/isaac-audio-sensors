@@ -23,13 +23,11 @@ from isaac_audio_sensors.core import acceptance_criteria_corrective_02 as c2
 from isaac_audio_sensors.core import acceptance_criteria_corrective_03 as c3
 
 PAYLOAD_SCHEMA = "ias.s4_8.recovery_02.corrective_metrics.v1"
-RESULT_SCHEMA = "ias.s4_8.recovery_02.criteria_evaluation_result.v1"
-TOOL_VERSION = "ias_s4_8_recovery_02_evaluator/1.0.0"
+RESULT_SCHEMA = "ias.s4_8.recovery_02.criteria_evaluation_result.v2"
+TOOL_VERSION = "ias_s4_8_recovery_02_evaluator/1.0.1"
 
 DESIGN_PATH = Path("configs/s4_8_recovery_amendment_02_preholdout_manifest.v2.json")
-DENOMINATORS_PATH = Path(
-    "configs/s4_8_recovery_amendment_02_denominators.v2.json"
-)
+DENOMINATORS_PATH = Path("configs/s4_8_recovery_amendment_02_denominators.v2.json")
 SESSION_MANIFEST_PATH = Path(
     "outputs/isaac_audio_sensors/S4/S4.4/amendments/"
     "s4_4_data_expansion_amendment_04/manifests/sessions/"
@@ -81,26 +79,35 @@ class Recovery02EvaluationResult:
     categorical_take_results: tuple[dict[str, Any], ...]
     identity_summary: dict[str, Any]
     config_identity: dict[str, Any]
+    evaluation_error: str | None = None
 
     @property
     def readiness_passed(self) -> bool:
-        return all(item.passed for item in self.outcomes if item.gating)
+        return self.evaluation_error is None and all(
+            item.passed for item in self.outcomes if item.gating
+        )
 
     def report(self) -> dict[str, Any]:
+        failed_gating_criteria = (
+            ["evaluation_input_contract_rejected"]
+            if self.evaluation_error is not None
+            else [
+                item.criterion_id
+                for item in self.outcomes
+                if item.gating and not item.passed
+            ]
+        )
         return {
             "schema": RESULT_SCHEMA,
             "status": "passed" if self.readiness_passed else "failed",
             "readiness_passed": self.readiness_passed,
-            "failed_gating_criteria": [
-                item.criterion_id
-                for item in self.outcomes
-                if item.gating and not item.passed
-            ],
+            "failed_gating_criteria": failed_gating_criteria,
             "criteria": [item.report() for item in self.outcomes],
             "comparison_classifications": list(self.comparisons),
             "categorical_take_results": list(self.categorical_take_results),
             "identity_summary": self.identity_summary,
             "config_identity": self.config_identity,
+            "evaluation_error": self.evaluation_error,
             "holdout_observations_accessed_by_evaluator": 0,
         }
 
@@ -151,18 +158,13 @@ def build_identity_registry(
     if (
         len(design_takes) != recovery.PLANNED_TAKE_COUNT
         or len(session_takes) != recovery.PLANNED_TAKE_COUNT
-        or partition_ids
-        != [take["planned_take_id"] for take in design_takes]
-        or partition_ids
-        != [take["planned_take_id"] for take in session_takes]
+        or partition_ids != [take["planned_take_id"] for take in design_takes]
+        or partition_ids != [take["planned_take_id"] for take in session_takes]
     ):
         raise c2.CorrectiveAcceptanceError(
             "S4.8 37-take evaluator identity order mismatch"
         )
-    session_by_id = {
-        take["planned_take_id"]: take
-        for take in session_takes
-    }
+    session_by_id = {take["planned_take_id"]: take for take in session_takes}
     if len(session_by_id) != recovery.PLANNED_TAKE_COUNT:
         raise c2.CorrectiveAcceptanceError(
             "S4.8 37-take evaluator identity set mismatch"
@@ -193,8 +195,7 @@ def build_identity_registry(
             "playback_gain": take["playback_gain"],
         }
         if any(
-            session_take.get(key) != value
-            for key, value in expected_session.items()
+            session_take.get(key) != value for key, value in expected_session.items()
         ):
             raise c2.CorrectiveAcceptanceError(
                 f"S4.8 37-take session identity mismatch: {take_id}"
@@ -223,9 +224,7 @@ def build_identity_registry(
             repetition=take["repetition"],
             condition_id=take["condition_id"],
             paired_counterpart_take_id=counterpart,
-            target_bearing_deg_f_project=(
-                None if bearing is None else float(bearing)
-            ),
+            target_bearing_deg_f_project=(None if bearing is None else float(bearing)),
             duration_s=session_take["duration_s"],
         )
     counts = Counter(identity.stratum_id for identity in registry.values())
@@ -285,9 +284,7 @@ def classify_categorical_take(
     expected = recovery.bearing_to_squadbot_direction(
         identity.target_bearing_deg_f_project
     )
-    observed = recovery.bearing_to_squadbot_direction(
-        representative_bearing_deg
-    )
+    observed = recovery.bearing_to_squadbot_direction(representative_bearing_deg)
     applicable = identity.stratum_id in {
         "A_controlled_boundary_sweep",
         "B_center_nominal_level",
@@ -322,9 +319,7 @@ def _adapted_configs(
     corrective_02 = c2.load_corrective_config(root)
     adapted = copy.deepcopy(corrective_02)
     for entry in adapted["sim_vs_real"]["comparison_registry"]:
-        entry["expected_count"] = _COMPARISON_EXPECTED_COUNTS[
-            entry["comparison_id"]
-        ]
+        entry["expected_count"] = _COMPARISON_EXPECTED_COUNTS[entry["comparison_id"]]
     return corrective_03, adapted
 
 
@@ -359,7 +354,54 @@ def evaluate_payload(
     *,
     repo_root: Path,
 ) -> Recovery02EvaluationResult:
-    """Evaluate an already-derived payload without opening any observations."""
+    """Return a truthful result without opening any observations."""
+
+    root = repo_root.resolve()
+    try:
+        return _evaluate_payload_strict(payload, repo_root=root)
+    except c2.CorrectiveAcceptanceError as exc:
+        protocol = protocol_identity(root)
+        return Recovery02EvaluationResult(
+            outcomes=(),
+            comparisons=(),
+            categorical_take_results=(),
+            identity_summary={
+                "planned_take_count": recovery.PLANNED_TAKE_COUNT,
+                "planned_take_denominator": recovery.PLANNED_TAKE_COUNT,
+                "categorical_applicable_take_count": (
+                    recovery.EXPECTED_DENOMINATOR_OVERRIDES[
+                        "candidate_coverage_strata_ab"
+                    ]
+                ),
+                "primary_metric_denominator": (
+                    recovery.EXPECTED_DENOMINATOR_OVERRIDES[
+                        "candidate_coverage_strata_ab"
+                    ]
+                ),
+                "denominators_shrunk": False,
+                "input_contract_adverse": True,
+            },
+            config_identity={
+                "schema": RESULT_SCHEMA,
+                "tool_version": TOOL_VERSION,
+                "protocol_sha256": protocol["protocol_sha256"],
+                "holdout_id": protocol["holdout_id"],
+                "planned_take_count": recovery.PLANNED_TAKE_COUNT,
+                "primary_direction_metric": ("squadbot_categorical_direction_accuracy"),
+                "primary_direction_threshold": (
+                    recovery.SQUADBOT_CATEGORICAL_ACCURACY_THRESHOLD
+                ),
+            },
+            evaluation_error=str(exc),
+        )
+
+
+def _evaluate_payload_strict(
+    payload: Mapping[str, Any],
+    *,
+    repo_root: Path,
+) -> Recovery02EvaluationResult:
+    """Evaluate a contract-valid payload or raise an internal rejection."""
 
     root = repo_root.resolve()
     if not isinstance(payload, Mapping) or set(payload) != _PAYLOAD_FIELDS:
@@ -408,18 +450,17 @@ def evaluate_payload(
                 f"{label}.planned_take_id must be a non-empty string"
             )
         if take_id in seen:
-            raise c2.CorrectiveAcceptanceError(
-                f"duplicate take identity: {take_id}"
-            )
+            raise c2.CorrectiveAcceptanceError(f"duplicate take identity: {take_id}")
         seen.add(take_id)
         identity = registry.get(take_id)
         if identity is None:
             raise c2.CorrectiveAcceptanceError(f"unknown take identity: {take_id}")
         normalized = dict(raw)
         windows = normalized.pop("bearing_windows")
-        if identity.stratum_id in corrective_03["window_observation_contract"][
-            "applicable_strata"
-        ]:
+        if (
+            identity.stratum_id
+            in corrective_03["window_observation_contract"]["applicable_strata"]
+        ):
             derivation = c3._derive_window_values(
                 windows,
                 normalized,
@@ -427,17 +468,14 @@ def evaluate_payload(
                 corrective_03,
             )
             derived_by_take[take_id] = derivation
-            normalized["bearing_absolute_error_deg"] = derivation[
-                "per_take_error_deg"
-            ]
+            normalized["bearing_absolute_error_deg"] = derivation["per_take_error_deg"]
             target = float(identity.target_bearing_deg_f_project)
             surrogate = (target + derivation["per_take_error_deg"]) % 360.0
             normalized["estimated_bearing_deg_f_project"] = surrogate
             if identity.stratum_id == "B_center_nominal_level":
-                normalized["sector_correct"] = (
-                    c3.bearing_deg_to_sector_name(surrogate)
-                    == c3.bearing_deg_to_sector_name(target)
-                )
+                normalized["sector_correct"] = c3.bearing_deg_to_sector_name(
+                    surrogate
+                ) == c3.bearing_deg_to_sector_name(target)
             total_windows += derivation["source_window_count"]
             valid_windows += derivation["valid_window_count"]
             abstained_windows += derivation["abstained_window_count"]
@@ -477,8 +515,7 @@ def evaluate_payload(
                 derived_by_take[take_id]["representative_bearing_deg"]
             )
     repeatability = max(
-        c2._circular_range(group)
-        for group in representatives_by_cell.values()
+        c2._circular_range(group) for group in representatives_by_cell.values()
     )
 
     categorical = tuple(
@@ -493,14 +530,10 @@ def evaluate_payload(
         )
         for take_id in sorted(registry)
     )
-    applicable = [
-        item for item in categorical if item["primary_metric_applicable"]
-    ]
+    applicable = [item for item in categorical if item["primary_metric_applicable"]]
     categorical_accuracy = (
         sum(item["categorical_correct"] is True for item in applicable)
-        / recovery.EXPECTED_DENOMINATOR_OVERRIDES[
-            "candidate_coverage_strata_ab"
-        ]
+        / recovery.EXPECTED_DENOMINATOR_OVERRIDES["candidate_coverage_strata_ab"]
     )
     values["squadbot_categorical_direction_accuracy"] = (
         categorical_accuracy,
@@ -518,10 +551,7 @@ def evaluate_payload(
                 observed=sector_accuracy,
                 sample_count=4,
             )
-        elif (
-            outcome.criterion_id
-            == "within_cell_bearing_circular_range_stratum_a"
-        ):
+        elif outcome.criterion_id == "within_cell_bearing_circular_range_stratum_a":
             outcome = _replace_outcome(
                 outcome,
                 observed=repeatability,
@@ -543,9 +573,7 @@ def evaluate_payload(
             "raw_channel_record_count": sum(
                 len(item["channels"]) for item in normalized.values()
             ),
-            "tdoa_record_count": sum(
-                len(item["tdoa"]) for item in normalized.values()
-            ),
+            "tdoa_record_count": sum(len(item["tdoa"]) for item in normalized.values()),
             "bearing_window_record_count": total_windows,
             "valid_bearing_window_count": valid_windows,
             "abstained_bearing_window_count": abstained_windows,
@@ -570,9 +598,7 @@ def evaluate_payload(
             "protocol_sha256": protocol["protocol_sha256"],
             "holdout_id": protocol["holdout_id"],
             "planned_take_count": recovery.PLANNED_TAKE_COUNT,
-            "primary_direction_metric": (
-                "squadbot_categorical_direction_accuracy"
-            ),
+            "primary_direction_metric": ("squadbot_categorical_direction_accuracy"),
             "primary_direction_threshold": (
                 recovery.SQUADBOT_CATEGORICAL_ACCURACY_THRESHOLD
             ),
@@ -649,9 +675,7 @@ def _derive_criterion_values(
         raise c2.CorrectiveAcceptanceError(
             "A bearing cells require exactly 3 repetitions"
         )
-    if len(tdoa_groups) != 48 or any(
-        len(group) != 3 for group in tdoa_groups.values()
-    ):
+    if len(tdoa_groups) != 48 or any(len(group) != 3 for group in tdoa_groups.values()):
         raise c2.CorrectiveAcceptanceError(
             "A TDOA groups require exactly 3 repetitions"
         )
@@ -674,18 +698,10 @@ def _derive_criterion_values(
         )
 
     channels = [channel for take in all_takes for channel in take["channels"]]
-    window_count_d = sum(
-        item["window_summary"]["source_window_count"] for item in d
-    )
-    window_count_ab = sum(
-        item["window_summary"]["source_window_count"] for item in ab
-    )
-    abstained_d = sum(
-        item["window_summary"]["abstained_window_count"] for item in d
-    )
-    abstained_ab = sum(
-        item["window_summary"]["abstained_window_count"] for item in ab
-    )
+    window_count_d = sum(item["window_summary"]["source_window_count"] for item in d)
+    window_count_ab = sum(item["window_summary"]["source_window_count"] for item in ab)
+    abstained_d = sum(item["window_summary"]["abstained_window_count"] for item in d)
+    abstained_ab = sum(item["window_summary"]["abstained_window_count"] for item in ab)
     comparison_map = {item["comparison_id"]: item for item in comparisons}
     bearing_comparison = comparison_map["bearing_doa_error_ab"]
     worsened = sum(
@@ -694,12 +710,10 @@ def _derive_criterion_values(
         if item["comparison_id"] in _GATING_COMPARISON_IDS
     )
     frame_latency = [
-        float(item["latency"]["frame_to_adapter_round_trip_ms"])
-        for item in all_takes
+        float(item["latency"]["frame_to_adapter_round_trip_ms"]) for item in all_takes
     ]
     capture_latency = [
-        float(item["latency"]["capture_to_frame_offline_ms"])
-        for item in all_takes
+        float(item["latency"]["capture_to_frame_offline_ms"]) for item in all_takes
     ]
     max_clip = max(int(item["maximum_clip_run_samples"]) for item in channels)
     clip_take_count = sum(
@@ -761,16 +775,11 @@ def _derive_criterion_values(
         "sub_floor_direction_emission_count": (
             float(
                 sum(
-                    item["window_summary"][
-                        "sub_floor_direction_emission_count"
-                    ]
+                    item["window_summary"]["sub_floor_direction_emission_count"]
                     for item in all_takes
                 )
             ),
-            sum(
-                item["window_summary"]["source_window_count"]
-                for item in all_takes
-            ),
+            sum(item["window_summary"]["source_window_count"] for item in all_takes),
         ),
         "low_level_confidence_monotonicity": (
             float(median(c_by_pair.values())) - float(median(b_by_pair.values())),
@@ -797,9 +806,7 @@ def _derive_criterion_values(
             "bearing_p95_absolute_error_stratum_a_stretch": values[
                 "bearing_p95_absolute_error_stratum_a"
             ],
-            "sector_accuracy_stratum_b_stretch": values[
-                "sector_accuracy_stratum_b"
-            ],
+            "sector_accuracy_stratum_b_stretch": values["sector_accuracy_stratum_b"],
             "candidate_coverage_strata_ab_stretch": values[
                 "candidate_coverage_strata_ab"
             ],
@@ -836,10 +843,7 @@ def build_synthetic_payload(repo_root: Path) -> dict[str, Any]:
         target = identity.target_bearing_deg_f_project
         bearing = None if target is None else (float(target) + 4.0) % 360.0
         windows = (
-            [
-                c3._window_record(index, bearing)
-                for index in range(expected_windows)
-            ]
+            [c3._window_record(index, bearing) for index in range(expected_windows)]
             if is_a or is_b
             else []
         )
@@ -901,14 +905,11 @@ def build_synthetic_payload(repo_root: Path) -> dict[str, Any]:
         for item in takes
     ]
     normalized_map = {
-        item["identity"]["planned_take_id"]: item
-        for item in normalized_for_comparisons
+        item["identity"]["planned_take_id"]: item for item in normalized_for_comparisons
     }
     comparisons = []
     for entry in config["sim_vs_real"]["comparison_registry"]:
-        conditions = sorted(
-            c2._expected_comparison_conditions(entry, registry, config)
-        )
+        conditions = sorted(c2._expected_comparison_conditions(entry, registry, config))
         comparisons.append(
             {
                 "comparison_id": entry["comparison_id"],
