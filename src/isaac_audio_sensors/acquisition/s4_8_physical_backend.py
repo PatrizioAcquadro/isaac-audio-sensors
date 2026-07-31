@@ -274,6 +274,8 @@ class RemotePhysicalEngineeringBackend:
         self._capture_path: Path | None = None
         self._recorder_process: subprocess.Popen[str] | None = None
         self._playback_process: subprocess.Popen[str] | None = None
+        self._playback_start_commanded = False
+        self._playback_start_confirmed = False
         self._zed_process: subprocess.Popen[str] | None = None
         self._zed_root: Path | None = None
         self._playback_command: list[str] | None = None
@@ -469,6 +471,7 @@ class RemotePhysicalEngineeringBackend:
             )
         self._playback_process.stdin.write(f"START_AT {remote_target_ns}\n")
         self._playback_process.stdin.flush()
+        self._playback_start_commanded = True
         started = _wait_json_event(
             self._playback_process,
             expected_event="playback_started",
@@ -487,6 +490,7 @@ class RemotePhysicalEngineeringBackend:
             raise S48PhysicalBackendError(
                 "Mac CoreAudio playback-start observation is invalid"
             )
+        self._playback_start_confirmed = True
         remote_elapsed_ns = remote_start_ns - remote_sync_ns
         lower_bound_ns = local_sent_ns + remote_elapsed_ns
         upper_bound_ns = local_received_ns + remote_elapsed_ns
@@ -846,6 +850,19 @@ class RemotePhysicalEngineeringBackend:
             "stderr": remote_stop.stderr,
         }
         return cleanup
+
+    def start_state(self) -> dict[str, bool | None]:
+        """Report whether each physical producer was ever allocated."""
+
+        return {
+            "recorder_started": self._recorder_process is not None,
+            "playback_started": (
+                True
+                if self._playback_start_confirmed
+                else None if self._playback_start_commanded else False
+            ),
+            "zed_recording_started": self._zed_process is not None,
+        }
 
 
 def _wait_json_event(

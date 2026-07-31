@@ -114,17 +114,22 @@ def _package(manifest: dict[str, object]) -> dict[str, object]:
     )
 
 
-def test_active_workflow_is_exactly_four_preliminary_plus_one_47_holdout() -> None:
+def test_active_workflow_is_exactly_four_preliminary_plus_one_37_holdout() -> None:
     config = load_workflow_config(ROOT)
 
     assert config["preliminary"]["planned_take_count"] == 4
     assert [case["case_id"] for case in config["preliminary"]["cases"]] == list(
         CASE_IDS
     )
-    assert config["official_path"]["official_take_count"] == 47
+    assert config["official_path"]["official_take_count"] == 37
     assert config["official_path"]["official_holdout_count"] == 1
-    assert config["official_path"]["final_protocol_status"] == "not_frozen"
-    assert config["official_path"]["official_acquisition_status"] == "blocked"
+    assert (
+        config["official_path"]["final_protocol_status"]
+        == "frozen_for_precollection"
+    )
+    assert config["official_path"]["official_acquisition_status"] == (
+        "permitted_with_exact_per_take_authorization"
+    )
     assert config["authority"] == AUTHORITY_NONE
 
 
@@ -632,19 +637,14 @@ def test_av_sequence_alignment_reproduces_preliminary_origin_error() -> None:
     assert aligned["worst_absolute_residual_ms"] == pytest.approx(7.5830078125)
 
 
-def test_amendment_02_blocks_official_path_before_preliminary_and_freeze() -> None:
+def test_amendment_02_keeps_evaluation_blocked_after_protocol_freeze() -> None:
     result = s4_8_recovery_02.recovery_preopen_validate(ROOT)
 
     assert result["preliminary_take_count"] == 4
-    assert result["planned_take_count"] == 47
-    assert result["preliminary_readiness_present"] is False
-    assert result["preliminary_readiness_passed"] is False
-    assert result["final_protocol_frozen"] is False
-    assert result["official_acquisition_permitted"] is False
-    assert result["blockers"][:2] == [
-        "preliminary_readiness_not_established",
-        "final_official_protocol_not_frozen",
-    ]
+    assert result["planned_take_count"] == 37
+    assert result["final_protocol_frozen"] is True
+    assert result["official_readiness"] == "no_go"
+    assert "new_unseen_holdout_not_collected_or_bound" in result["blockers"]
     assert result["grant_creation_authorized"] is False
     assert result["evaluation_execution_authorized"] is False
 

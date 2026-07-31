@@ -69,15 +69,31 @@ class S48EngineeringAcquisitionError(RuntimeError):
 def engineering_operational_path_is_allowed(
     repo_root: Path,
     operational_path: Path,
+    *,
+    repository_local_allowed_root: Path | None = None,
 ) -> bool:
-    """Allow external runtime paths and the ignored repository-local S4.8 root."""
+    """Allow external, engineering-local, or one exact official runtime root."""
 
     root = repo_root.resolve()
     resolved = operational_path.resolve()
     repository_local_runtime = (root / ".local" / "s4_8").resolve()
+    official_runtime = (
+        None
+        if repository_local_allowed_root is None
+        else repository_local_allowed_root.resolve()
+    )
+    if official_runtime is not None and (
+        not official_runtime.is_relative_to(root)
+        or official_runtime == root
+    ):
+        return False
     return (
         not resolved.is_relative_to(root)
         or resolved.is_relative_to(repository_local_runtime)
+        or (
+            official_runtime is not None
+            and resolved.is_relative_to(official_runtime)
+        )
     )
 
 
@@ -654,6 +670,7 @@ def run_supported_engineering_acquisition(
     candidate_seal_path: Path,
     clearance_registry_path: Path,
     dry_run: bool,
+    repository_local_allowed_root: Path | None = None,
 ) -> dict[str, Any]:
     """Run the one supported recorder-to-engineering-candidate-seal path."""
 
@@ -666,7 +683,11 @@ def run_supported_engineering_acquisition(
         candidate_seal_path,
         clearance_registry_path,
     ):
-        if not engineering_operational_path_is_allowed(root, operational_path):
+        if not engineering_operational_path_is_allowed(
+            root,
+            operational_path,
+            repository_local_allowed_root=repository_local_allowed_root,
+        ):
             raise S48EngineeringAcquisitionError(
                 "engineering operational files must remain outside tracked "
                 "repository paths"

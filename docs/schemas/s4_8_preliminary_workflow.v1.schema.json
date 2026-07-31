@@ -143,10 +143,12 @@
       "properties": {
         "amendment_id": {"const": "s4_8_recovery_amendment_02"},
         "preliminary_readiness_required_before_protocol_freeze": {"const": true},
-        "final_protocol_status": {"const": "not_frozen"},
-        "official_take_count": {"const": 47},
+        "final_protocol_status": {"const": "frozen_for_precollection"},
+        "official_take_count": {"const": 37},
         "official_holdout_count": {"const": 1},
-        "official_acquisition_status": {"const": "blocked"},
+        "official_acquisition_status": {
+          "const": "permitted_with_exact_per_take_authorization"
+        },
         "official_acquisition_after_final_freeze_only": {"const": true},
         "observable_during_acquisition": {
           "const": "preregistered_technical_qa_only"

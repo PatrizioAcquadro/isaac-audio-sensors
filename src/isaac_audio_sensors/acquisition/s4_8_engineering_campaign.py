@@ -506,10 +506,23 @@ def validate_engineering_manifest(
     *,
     expected_manifest_sha256: str,
 ) -> None:
-    """Validate a historical 47-take or active four-take engineering anchor."""
+    """Validate an engineering anchor or the official wrapper's session anchor."""
 
     if manifest.get("schema") == PRELIMINARY_MANIFEST_SCHEMA:
         validate_preliminary_manifest(
+            manifest,
+            expected_manifest_sha256=expected_manifest_sha256,
+        )
+        return
+    if (
+        manifest.get("schema")
+        == "ias.s4_8.recovery_02_official_session_manifest.v1"
+    ):
+        from isaac_audio_sensors.acquisition.s4_8_official_acquisition import (
+            validate_session_manifest,
+        )
+
+        validate_session_manifest(
             manifest,
             expected_manifest_sha256=expected_manifest_sha256,
         )
@@ -1408,6 +1421,7 @@ def run_supported_nonreference_acquisition(
     candidate_seal_path: Path,
     clearance_registry_path: Path,
     dry_run: bool,
+    repository_local_allowed_root: Path | None = None,
 ) -> dict[str, Any]:
     """Run the sole supported D/E recorder-to-candidate-seal path."""
 
@@ -1442,7 +1456,11 @@ def run_supported_nonreference_acquisition(
         clearance_registry_path,
         *(() if zed_artifact_root is None else (zed_artifact_root,)),
     ):
-        if not engineering_operational_path_is_allowed(root, path):
+        if not engineering_operational_path_is_allowed(
+            root,
+            path,
+            repository_local_allowed_root=repository_local_allowed_root,
+        ):
             raise S48EngineeringCampaignError(
                 "engineering operational files must remain outside tracked "
                 "repository paths"

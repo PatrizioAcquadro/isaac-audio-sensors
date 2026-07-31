@@ -82,10 +82,10 @@
   "official_path": {
     "amendment_id": "s4_8_recovery_amendment_02",
     "preliminary_readiness_required_before_protocol_freeze": true,
-    "final_protocol_status": "not_frozen",
-    "official_take_count": 47,
+    "final_protocol_status": "frozen_for_precollection",
+    "official_take_count": 37,
     "official_holdout_count": 1,
-    "official_acquisition_status": "blocked",
+    "official_acquisition_status": "permitted_with_exact_per_take_authorization",
     "official_acquisition_after_final_freeze_only": true,
     "observable_during_acquisition": "preregistered_technical_qa_only",
     "hash_and_seal_before_evaluation": true,

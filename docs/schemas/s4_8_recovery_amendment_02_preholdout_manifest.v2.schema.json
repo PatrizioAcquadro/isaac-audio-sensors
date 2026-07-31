@@ -15,13 +15,14 @@
     "direction_contract",
     "direction_repeatability_contract",
     "modality_contract",
+    "physical_contract",
     "take_order",
     "authority"
   ],
   "properties": {
     "schema": {"const": "ias.s4_8.recovery_amendment_02_preholdout_manifest.v2"},
     "manifest_id": {"const": "s4_8_recovery_amendment_02_preholdout_37_take_design"},
-    "status": {"const": "prepared_not_frozen"},
+    "status": {"const": "frozen_for_precollection"},
     "planned_take_count": {"const": 37},
     "leakage_group_count": {"const": 15},
     "stratum_counts": {
@@ -157,6 +158,66 @@
         }
       }
     },
+    "physical_contract": {
+      "const": {
+        "mac": {
+          "model": "MacBookPro18,1",
+          "output_device": "MacBook Pro Speakers",
+          "output_sample_rate_hz": 48000,
+          "output_channel_count": 2,
+          "system_volume_percent": 70,
+          "muted": false,
+          "power_state": "powered_on_truthful_battery_or_charging_state",
+          "battery_operation_allowed": true,
+          "source_frame": "F_project",
+          "active_radius_m": 0.8,
+          "active_z_m": -0.135,
+          "lid_angle_deg": 90.0,
+          "heading": "same_general_heading_as_zed",
+          "placement_tolerance_m": 0.02,
+          "bearing_reference_tolerance_deg": 5.0,
+          "cartesian_derivation": "x=r*cos(bearing),y=r*sin(bearing),z=-0.135"
+        },
+        "respeaker": {
+          "serial": "114993701261100454",
+          "firmware": "2.08",
+          "sample_rate_hz": 16000,
+          "sample_format": "PCM16",
+          "channel_count": 6
+        },
+        "zed": {
+          "model": "ZED 2i",
+          "serial": "39011785",
+          "resolution": "HD720",
+          "fps": 30,
+          "depth_mode": "PERFORMANCE"
+        },
+        "rig": {
+          "must_remain_fixed": true,
+          "respeaker_and_zed_configuration_must_remain_unchanged": true
+        },
+        "occlusion": {
+          "instruction": "place the declared rigid two-box occluder to fully block the Mac-to-rig line of sight without touching the Mac or rig"
+        },
+        "noise": {
+          "phrase": "Audio pilot check, one two three, direction test.",
+          "repetitions": 2,
+          "instruction": "speak the standardized phrase twice, overlapping the Mac reference, from the same target direction"
+        },
+        "impacts": {
+          "impact_position_01": {
+            "position_m_f_project": [0.8, -0.2, -0.135],
+            "instruction": "strike the blue wastebasket with a plain-paper roll at 5, 10, and 15 seconds"
+          },
+          "impact_position_02": {
+            "position_m_f_project": [0.8, 0.2, -0.135],
+            "instruction": "strike the blue wastebasket with a plain-paper roll at 5, 10, and 15 seconds"
+          },
+          "cue_elapsed_times_s": [5.0, 10.0, 15.0],
+          "privacy_instruction": "exclude speech, faces, displays, and unrelated personal information from the capture volume"
+        }
+      }
+    },
     "take_order": {
       "type": "array",
       "minItems": 37,
@@ -241,7 +302,7 @@
         "evaluation_authorized"
       ],
       "properties": {
-        "final_protocol_frozen": {"const": false},
+        "final_protocol_frozen": {"const": true},
         "official_acquisition_authorized": {"const": false},
         "grant_creation_authorized": {"const": false},
         "grant_consumption_authorized": {"const": false},

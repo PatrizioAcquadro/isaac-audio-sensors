@@ -7,9 +7,11 @@ This additive revision supersedes the unexecuted 47-take design in
 It does not rewrite that file, either terminal S4.8 package, any preliminary
 campaign, or any other historical/frozen artifact.
 
-The v2 protocol is prepared but not frozen. It authorizes no acquisition,
-holdout access, grant creation or consumption, scientific evaluation,
-artifact deletion, push, release, or later-phase work.
+The v2 protocol is frozen for precollection. The committed precollection seal
+permits collection only through the one-take official controller. It does not
+authorize a take by itself and authorizes no holdout evaluation access, grant
+creation or consumption, scientific evaluation, artifact deletion, push,
+release, or later-phase work.
 
 ## SquadBot direction contract amendment
 
@@ -97,6 +99,30 @@ The microphone/ZED rig remains fixed throughout. These repetitions measure
 short-term, same-session full-setup repeatability, including source removal
 and repositioning; they are not three segments from one continuous recording.
 
+## Frozen physical and device contract
+
+The Mac is `MacBookPro18,1`, powered on with truthful battery/charging state;
+battery operation is allowed. Output is `MacBook Pro Speakers`, 48 kHz stereo,
+system volume 70%, and unmuted. Active placements use `F_project`, radius
+`0.8 m`, `z=-0.135 m`, a 90-degree lid angle, and the same general heading as
+the ZED. Cartesian positions are derived deterministically as
+`x=r*cos(bearing), y=r*sin(bearing), z=-0.135`. Placement tolerance is
+`0.02 m` and bearing-reference tolerance is 5 degrees.
+
+The ReSpeaker identity is serial `114993701261100454`, firmware `2.08`,
+six-channel PCM16 at 16 kHz. The ZED 2i identity is serial `39011785`, HD720
+at 30 FPS with `PERFORMANCE` depth mode. The rig remains fixed.
+
+Occlusion uses the declared rigid two-box occluder to fully block Mac-to-rig
+line of sight without touching either. Noise uses the phrase
+`Audio pilot check, one two three, direction test.` twice, overlapping the Mac
+reference from the same target direction. Impact sources are at
+`[0.8,-0.2,-0.135]` and `[0.8,+0.2,-0.135]`; a plain-paper roll strikes the
+blue wastebasket at 5, 10, and 15 seconds with no speech, faces, displays, or
+unrelated personal information in the capture volume. Silence and impact
+takes keep Mac playback off. Silence has no source placement and all deliberate
+sources are removed or silent.
+
 ## Denominators, metric roles, and thresholds
 
 The v2 denominator adapter is
@@ -137,20 +163,30 @@ machine-local readiness file by SHA-256, records that it was produced against
 the former 47-take count, and keeps it uncounted and ineligible as official
 holdout evidence.
 
-## Final-freeze boundary
+## Final precollection freeze and one-take boundary
 
-The v2 machine-readable manifest, denominator adapter, schemas, and validator
-must all pass before a final-freeze decision. A later freeze must bind the
-exact 37 planned identities and the v2 unseen-holdout binding schema before
-official acquisition can begin.
+`freeze-official` binds the exact 37 identities and order, this protocol,
+device configuration, preliminary-readiness evidence, disjoint unseen
+partition, clean committed source checkpoint, physical preflight, official
+session manifest, and precollection seal. The preflight is non-acquiring and
+must explicitly record recorder, playback, and ZED recording as not started.
+The amendment-04 observation root and official ledger must be empty at freeze.
 
-Worktree validation may report the protocol design ready for a final-freeze
-decision, but official pre-open validation must not attribute that revision to
-a source commit until the commit contains byte-identical v2 config, manifest,
-schemas, specification, validator, and CLI files. Until then no candidate
-grant identity is emitted.
+`run-official-take --validate-only` returns the exact next identity, attempt,
+and physical setup without allocating an attempt, creating authorization, or
+starting hardware. `authorize-official-take` accepts only explicit user
+confirmation `go` and binds the session and seal hashes, current ledger head,
+exact take identity and definition hash, attempt number, source revision, and
+authorization identity. Any ledger append makes it stale.
 
-This revision deliberately exposes no freeze, acquisition, grant, opening, or
-evaluation operation. The 37-take evaluator binding, independent review, exact
-candidate source identity, sealed-unopened holdout binding, and explicit
-operator authorization remain later gates.
+`run-official-take` consumes one exact authorization and then stops after one
+attempt. It never retries or continues automatically. Every raw capture,
+journal, technical report, clearance, seal, authorization, official wrapper,
+controller failure, and ledger record remains in place. `PASS` advances one
+position. `RETRY_REQUIRED`, including a post-allocation controller failure,
+retains the take and increments its attempt number; a fresh `go` is required.
+
+The postcollection holdout seal and unseen-holdout binding remain absent until
+all 37 takes finish. Evaluation remains `no_go` until those artifacts,
+37-take evaluator binding, independent review, and separate evaluation
+authorization exist.

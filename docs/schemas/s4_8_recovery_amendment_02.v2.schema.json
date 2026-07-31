@@ -24,7 +24,7 @@
     "revision_id": {
       "const": "s4_8_recovery_amendment_02_preholdout_37_take_revision"
     },
-    "status": {"const": "prepared_not_frozen"},
+    "status": {"const": "frozen_for_precollection"},
     "specification_path": {
       "const": "docs/development/specs/s4_8_recovery_amendment_02_preholdout_v2.md"
     },
@@ -84,7 +84,9 @@
         "primary_direction_threshold",
         "categorical_take_aggregation_bound",
         "continuous_bearing_error_gating",
-        "denominators_recomputed_for_37_take_design"
+        "denominators_recomputed_for_37_take_design",
+        "final_protocol_revision",
+        "source_checkpoint_bound_in_precollection_seal"
       ],
       "properties": {
         "design_manifest_path": {"$ref": "#/$defs/path"},
@@ -114,7 +116,11 @@
         "primary_direction_threshold": {"const": 0.75},
         "categorical_take_aggregation_bound": {"const": true},
         "continuous_bearing_error_gating": {"const": false},
-        "denominators_recomputed_for_37_take_design": {"const": true}
+        "denominators_recomputed_for_37_take_design": {"const": true},
+        "final_protocol_revision": {
+          "const": "s4_8_recovery_amendment_02_preholdout_v2"
+        },
+        "source_checkpoint_bound_in_precollection_seal": {"const": true}
       }
     },
     "preliminaryReadiness": {
@@ -170,7 +176,7 @@
           "const": "physical_preliminary_cases_gains_geometry_devices_and_required_gates_unchanged"
         },
         "diagnostic_results_are_official_evidence": {"const": false},
-        "final_protocol_status": {"const": "not_frozen"}
+        "final_protocol_status": {"const": "frozen"}
       }
     },
     "unseenHoldout": {
@@ -185,6 +191,9 @@
         "precollection_seal_path",
         "partition_manifest_path",
         "session_manifest_path",
+        "preflight_report_path",
+        "source_archive_path",
+        "attempt_ledger_path",
         "holdout_seal_path",
         "binding_path",
         "binding_schema_path",
@@ -197,13 +206,16 @@
       ],
       "properties": {
         "holdout_id": {"const": "s4_8_recovery_amendment_02_unseen_holdout"},
-        "status": {"const": "blocked_pending_final_freeze"},
+        "status": {"const": "ready_for_collection"},
         "planned_take_id_prefix": {"const": "s48r02_preholdout_"},
         "namespace_root": {"$ref": "#/$defs/path"},
         "observation_root": {"$ref": "#/$defs/path"},
         "precollection_seal_path": {"$ref": "#/$defs/path"},
         "partition_manifest_path": {"$ref": "#/$defs/path"},
         "session_manifest_path": {"$ref": "#/$defs/path"},
+        "preflight_report_path": {"$ref": "#/$defs/path"},
+        "source_archive_path": {"$ref": "#/$defs/path"},
+        "attempt_ledger_path": {"$ref": "#/$defs/path"},
         "holdout_seal_path": {"$ref": "#/$defs/path"},
         "binding_path": {"$ref": "#/$defs/path"},
         "binding_schema_path": {"$ref": "#/$defs/path"},
@@ -272,7 +284,7 @@
         "deletes_artifacts"
       ],
       "properties": {
-        "freezes_final_protocol": {"const": false},
+        "freezes_final_protocol": {"const": true},
         "starts_official_acquisition": {"const": false},
         "creates_grant": {"const": false},
         "consumes_grant": {"const": false},

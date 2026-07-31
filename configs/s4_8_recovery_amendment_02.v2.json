@@ -2,9 +2,9 @@
   "schema": "ias.s4_8.recovery_amendment_02.v2",
   "amendment_id": "s4_8_recovery_amendment_02",
   "revision_id": "s4_8_recovery_amendment_02_preholdout_37_take_revision",
-  "status": "prepared_not_frozen",
+  "status": "frozen_for_precollection",
   "specification_path": "docs/development/specs/s4_8_recovery_amendment_02_preholdout_v2.md",
-  "specification_sha256": "d07d36586c0cb1827843fac8459dab723ae081e183dad5b6e4010da0b24ce365",
+  "specification_sha256": "d215ea7b710217b1fd281fa4ea20a2ea00a1fc3e3f9d5b0539fe8d5573c35274",
   "supersedes": {
     "path": "configs/s4_8_recovery_amendment_02.v1.json",
     "sha256": "ec8e16eb1f7ff606db18a2fbb26e183d27ea95dacf8f43138b8e4a8dfe059542",
@@ -13,9 +13,9 @@
   },
   "protocol_revision": {
     "design_manifest_path": "configs/s4_8_recovery_amendment_02_preholdout_manifest.v2.json",
-    "design_manifest_sha256": "a15efd738bb5e75b2dc72cac8f333a10bbe31a118b70ef584e7b4f64c6c2d879",
+    "design_manifest_sha256": "379740afa39e86874b8e2c4e5b3f92e58b4d7872fecc982961a39f4637ff0aa9",
     "design_schema_path": "docs/schemas/s4_8_recovery_amendment_02_preholdout_manifest.v2.schema.json",
-    "design_schema_sha256": "0c1ce117bdceeab9ad70865bfed09b7da7ee5eec53db1672baaae6845298e225",
+    "design_schema_sha256": "ae6d363a1224b27f08dcf3d82b315122a845ce29bade73a51a38cdbd89801495",
     "denominators_path": "configs/s4_8_recovery_amendment_02_denominators.v2.json",
     "denominators_sha256": "dfdaca130adf51ced54e6cb08c515270502e44ea5726c1ce7984b6f6583c300e",
     "denominators_schema_path": "docs/schemas/s4_8_recovery_amendment_02_denominators.v2.schema.json",
@@ -37,16 +37,18 @@
     "primary_direction_threshold": 0.75,
     "categorical_take_aggregation_bound": true,
     "continuous_bearing_error_gating": false,
-    "denominators_recomputed_for_37_take_design": true
+    "denominators_recomputed_for_37_take_design": true,
+    "final_protocol_revision": "s4_8_recovery_amendment_02_preholdout_v2",
+    "source_checkpoint_bound_in_precollection_seal": true
   },
   "preliminary_readiness": {
     "required_before_final_protocol_freeze": true,
     "workflow_config_path": "configs/s4_8_preliminary_workflow.v1.json",
-    "workflow_config_sha256": "407df2dc36b28e4f7644519cfbcfeb464ae0262fa26e236522c33ed6ca3347e8",
+    "workflow_config_sha256": "6e2deb9b6bd1e9b9a0cfdd4465b8ed18ab2a57d854b448022697d47305295482",
     "workflow_schema_path": "docs/schemas/s4_8_preliminary_workflow.v1.schema.json",
-    "workflow_schema_sha256": "30817b9811e22b8c422b8b5358971dca7061eca94c1d5a9fd417b3e48077b2e2",
+    "workflow_schema_sha256": "bc1d399e4088252c1f78b9f653b2f5b84ac3b8661cdc573d285b04ffe02d12e3",
     "workflow_spec_path": "docs/development/specs/s4_8_preliminary_workflow.md",
-    "workflow_spec_sha256": "f4a7a8f2cc1f3dbe96f5d4700b8083cd6f9225d99482a11308fe24112b7c3b8f",
+    "workflow_spec_sha256": "2310a0b31bf47b94dd412dce4df06537040cb9781585089637e4bc6b67fa48b6",
     "readiness_path": ".local/s4_8/s4_8_preliminary_confirmation_02/diagnostics/preliminary_readiness_v1.json",
     "readiness_file_sha256": "1b16f3dd311f7babc3c762483652c589bd7e69c78a3b40eed03d5573149ca264",
     "source_campaign_manifest_path": ".local/s4_8/s4_8_preliminary_confirmation_02/freeze/campaign_manifest.json",
@@ -60,17 +62,20 @@
     "reuse_for_37_take_revision_permitted": true,
     "reuse_basis": "physical_preliminary_cases_gains_geometry_devices_and_required_gates_unchanged",
     "diagnostic_results_are_official_evidence": false,
-    "final_protocol_status": "not_frozen"
+    "final_protocol_status": "frozen"
   },
   "unseen_holdout": {
     "holdout_id": "s4_8_recovery_amendment_02_unseen_holdout",
-    "status": "blocked_pending_final_freeze",
+    "status": "ready_for_collection",
     "planned_take_id_prefix": "s48r02_preholdout_",
     "namespace_root": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04",
     "observation_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts",
     "precollection_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/precollection_seal.v2.json",
     "partition_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/manifests/prospective_holdout_recovery_02_manifest.v2.json",
     "session_manifest_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/manifests/sessions/prospective_holdout_recovery_02.v2.json",
+    "preflight_report_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/preflight/physical_rig_preflight.v1.json",
+    "source_archive_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/freeze/source.tar",
+    "attempt_ledger_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/attempt_ledger.jsonl",
     "holdout_seal_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/holdout_seal.v2.json",
     "binding_path": "configs/s4_8_recovery_amendment_02_holdout_binding.v2.json",
     "binding_schema_path": "docs/schemas/s4_8_recovery_unseen_holdout_binding.v2.schema.json",
@@ -102,7 +107,7 @@
     "evaluation_implementation_status": "blocked_until_final_freeze_unseen_holdout_binding_and_37_take_evaluator_binding"
   },
   "authority": {
-    "freezes_final_protocol": false,
+    "freezes_final_protocol": true,
     "starts_official_acquisition": false,
     "creates_grant": false,
     "consumes_grant": false,

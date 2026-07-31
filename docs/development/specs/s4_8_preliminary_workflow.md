@@ -17,17 +17,20 @@ The active sequence is:
 4. reprocess valid raw takes or replace only invalidated takes;
 5. establish preliminary readiness with every required gate passing;
 6. later freeze the final official protocol;
-7. later collect one new 47-take Recovery Amendment 02 unseen holdout;
+7. collect one new 37-take Recovery Amendment 02 unseen holdout, one explicitly
+   authorized attempt at a time;
 8. hash, seal, bind, pre-open validate, explicitly authorize, and evaluate it
    once.
 
-Acquire only the take or takes explicitly requested by the operator; a request
-may cover one take, a subset, or the complete sequence, and acquisition must
-never continue beyond that scope.
+Acquire only one exact take and attempt explicitly confirmed by the operator.
+Every retry and every subsequent take requires a fresh authorization, and
+acquisition must stop after the one attempt.
 
-This preparation has no authority to record a take, freeze the final protocol,
-start official acquisition, create or consume a grant, open a holdout, run the
-official state machine, or publish official evidence.
+The preliminary evidence itself has no acquisition authority. The separately
+committed final precollection freeze permits official capture only after an
+exact per-take authorization. It still cannot create or consume an evaluation
+grant, open the holdout for evaluation, run the official evaluation state
+machine, or publish evaluation evidence.
 
 ## Four preliminary cases
 
@@ -152,8 +155,8 @@ Final protocol freeze is permitted only when:
 Readiness permits a later final-protocol freeze; it does not perform that
 freeze.
 
-After the later freeze, Recovery Amendment 02 may collect exactly one new
-47-take unseen holdout. During acquisition, only preregistered technical QA may
+After the final precollection freeze, Recovery Amendment 02 may collect exactly
+one new 37-take unseen holdout. During acquisition, only preregistered technical QA may
 be observed. The complete dataset must then be hashed, sealed unopened, and
 bound to the frozen evaluator. Official evaluation remains blocked until
 pre-open validation passes and explicit authorization is supplied.

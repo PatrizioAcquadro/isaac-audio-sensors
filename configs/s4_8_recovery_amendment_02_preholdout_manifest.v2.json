@@ -1,7 +1,7 @@
 {
   "schema": "ias.s4_8.recovery_amendment_02_preholdout_manifest.v2",
   "manifest_id": "s4_8_recovery_amendment_02_preholdout_37_take_design",
-  "status": "prepared_not_frozen",
+  "status": "frozen_for_precollection",
   "planned_take_count": 37,
   "leakage_group_count": 15,
   "stratum_counts": {
@@ -71,6 +71,64 @@
     "product_conditions": ["front_occluded", "right_noise", "rear_noise", "left_occluded"],
     "impact_scenarios": ["impact_position_01", "impact_position_02"]
   },
+  "physical_contract": {
+    "mac": {
+      "model": "MacBookPro18,1",
+      "output_device": "MacBook Pro Speakers",
+      "output_sample_rate_hz": 48000,
+      "output_channel_count": 2,
+      "system_volume_percent": 70,
+      "muted": false,
+      "power_state": "powered_on_truthful_battery_or_charging_state",
+      "battery_operation_allowed": true,
+      "source_frame": "F_project",
+      "active_radius_m": 0.8,
+      "active_z_m": -0.135,
+      "lid_angle_deg": 90.0,
+      "heading": "same_general_heading_as_zed",
+      "placement_tolerance_m": 0.02,
+      "bearing_reference_tolerance_deg": 5.0,
+      "cartesian_derivation": "x=r*cos(bearing),y=r*sin(bearing),z=-0.135"
+    },
+    "respeaker": {
+      "serial": "114993701261100454",
+      "firmware": "2.08",
+      "sample_rate_hz": 16000,
+      "sample_format": "PCM16",
+      "channel_count": 6
+    },
+    "zed": {
+      "model": "ZED 2i",
+      "serial": "39011785",
+      "resolution": "HD720",
+      "fps": 30,
+      "depth_mode": "PERFORMANCE"
+    },
+    "rig": {
+      "must_remain_fixed": true,
+      "respeaker_and_zed_configuration_must_remain_unchanged": true
+    },
+    "occlusion": {
+      "instruction": "place the declared rigid two-box occluder to fully block the Mac-to-rig line of sight without touching the Mac or rig"
+    },
+    "noise": {
+      "phrase": "Audio pilot check, one two three, direction test.",
+      "repetitions": 2,
+      "instruction": "speak the standardized phrase twice, overlapping the Mac reference, from the same target direction"
+    },
+    "impacts": {
+      "impact_position_01": {
+        "position_m_f_project": [0.8, -0.2, -0.135],
+        "instruction": "strike the blue wastebasket with a plain-paper roll at 5, 10, and 15 seconds"
+      },
+      "impact_position_02": {
+        "position_m_f_project": [0.8, 0.2, -0.135],
+        "instruction": "strike the blue wastebasket with a plain-paper roll at 5, 10, and 15 seconds"
+      },
+      "cue_elapsed_times_s": [5.0, 10.0, 15.0],
+      "privacy_instruction": "exclude speech, faces, displays, and unrelated personal information from the capture volume"
+    }
+  },
   "take_order": [
     {"sequence_index":1,"planned_take_id":"s48r02_preholdout_001_silence_beginning","stratum_id":"D_silence","bearing_deg":null,"radius_m":null,"playback_gain":null,"repetition":1,"leakage_group_id":"ambient_silence","condition_id":"silence"},
     {"sequence_index":2,"planned_take_id":"s48r02_preholdout_002_direction_000_r1","stratum_id":"A_controlled_boundary_sweep","bearing_deg":0.0,"radius_m":0.8,"playback_gain":0.75,"repetition":1,"leakage_group_id":"direction_000","condition_id":"nominal_direction"},
@@ -111,7 +169,7 @@
     {"sequence_index":37,"planned_take_id":"s48r02_preholdout_037_impact_02","stratum_id":"E_impact_audio_video","bearing_deg":null,"radius_m":null,"playback_gain":null,"repetition":1,"leakage_group_id":"impact_position_02","condition_id":"impact"}
   ],
   "authority": {
-    "final_protocol_frozen": false,
+    "final_protocol_frozen": true,
     "official_acquisition_authorized": false,
     "grant_creation_authorized": false,
     "grant_consumption_authorized": false,

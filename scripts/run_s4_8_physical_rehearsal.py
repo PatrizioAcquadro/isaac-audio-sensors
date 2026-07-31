@@ -16,6 +16,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from isaac_audio_sensors.acquisition.s4_4_amendment import (
+    build_source_checkpoint,
+    validate_source_checkpoint,
+)
 from isaac_audio_sensors.acquisition.s4_8_engineering_acquisition import (
     S48EngineeringAcquisitionError,
     run_supported_engineering_acquisition,
@@ -37,6 +41,24 @@ from isaac_audio_sensors.acquisition.s4_8_engineering_campaign import (
     validate_attempt_request_with_reprocessing,
     validate_engineering_manifest,
 )
+from isaac_audio_sensors.acquisition.s4_8_official_acquisition import (
+    S48OfficialAcquisitionError,
+    build_official_attempt_record,
+    build_official_design,
+    build_partition_manifest,
+    build_precollection_seal,
+    build_session_manifest,
+    build_take_authorization,
+    validate_empty_observation_root,
+    validate_session_manifest,
+    validate_take_authorization,
+)
+from isaac_audio_sensors.acquisition.s4_8_official_acquisition import (
+    append_attempt_record as append_official_attempt_record,
+)
+from isaac_audio_sensors.acquisition.s4_8_official_acquisition import (
+    next_attempt as next_official_attempt,
+)
 from isaac_audio_sensors.acquisition.s4_8_physical_backend import (
     RemotePhysicalEngineeringBackend,
     S48PhysicalBackendError,
@@ -51,6 +73,9 @@ from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha25
 from isaac_audio_sensors.acquisition.s4_8_presealing_gate_v2 import (
     S48PresealingGateError,
     load_presealing_config_v2,
+)
+from isaac_audio_sensors.acquisition.s4_8_recovery_02 import (
+    load_amendment,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -78,6 +103,15 @@ SOURCE_PATHS = (
     "src/isaac_audio_sensors/acquisition/s4_8_physical_backend.py",
     "src/isaac_audio_sensors/acquisition/s4_8_preliminary.py",
     "src/isaac_audio_sensors/acquisition/s4_8_presealing_gate_v2.py",
+)
+OFFICIAL_SOURCE_PATHS = SOURCE_PATHS + (
+    "configs/s4_8_recovery_amendment_02.v2.json",
+    "configs/s4_8_recovery_amendment_02_preholdout_manifest.v2.json",
+    "docs/development/specs/s4_8_recovery_amendment_02_preholdout_v2.md",
+    "docs/schemas/s4_8_recovery_amendment_02.v2.schema.json",
+    "docs/schemas/s4_8_recovery_amendment_02_preholdout_manifest.v2.schema.json",
+    "src/isaac_audio_sensors/acquisition/s4_8_official_acquisition.py",
+    "src/isaac_audio_sensors/acquisition/s4_8_recovery_02.py",
 )
 
 
@@ -702,6 +736,591 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
     return payload
 
 
+def _official_paths(amendment: dict[str, Any]) -> dict[str, Path]:
+    unseen = amendment["unseen_holdout"]
+    return {
+        key: (ROOT / unseen[key]).resolve()
+        for key in (
+            "observation_root",
+            "precollection_seal_path",
+            "partition_manifest_path",
+            "session_manifest_path",
+            "preflight_report_path",
+            "source_archive_path",
+            "attempt_ledger_path",
+            "holdout_seal_path",
+            "binding_path",
+        )
+    }
+
+
+def _official_devices(
+    config: dict[str, Any],
+    *,
+    continuous_asset: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "respeaker": {
+            key: config["respeaker"][key]
+            for key in (
+                "profile_id",
+                "serial",
+                "model",
+                "firmware",
+                "sample_rate_hz",
+                "sample_format",
+                "channel_count",
+            )
+        },
+        "playback": {
+            key: config["playback"][key]
+            for key in (
+                "model",
+                "output_device",
+                "channel_count",
+                "nominal_sample_rate_hz",
+                "system_volume_percent",
+                "muted",
+                "power_policy",
+                "playback_helper_mac_path",
+                "playback_helper_sha256",
+                "playback_runtime_path",
+                "playback_typecheck_path",
+                "playback_runtime_stdout",
+                "playback_runtime_stderr",
+            )
+        }
+        | {
+            "continuous_asset_sha256": continuous_asset["asset_sha256"],
+            "continuous_asset_duration_s": continuous_asset["duration_s"],
+        },
+        "zed": {
+            key: config["zed"][key]
+            for key in (
+                "model",
+                "serial",
+                "sdk_version_reference",
+                "camera_firmware_reference",
+                "sensor_firmware_reference",
+                "resolution",
+                "fps",
+                "depth_mode",
+            )
+        },
+    }
+
+
+def freeze_official(args: argparse.Namespace) -> dict[str, Any]:
+    """Freeze the final 37-take collection anchor without starting producers."""
+
+    config = _config(args.config)
+    amendment = load_amendment(ROOT)
+    paths = _official_paths(amendment)
+    _require_clean_head()
+    validate_empty_observation_root(
+        ROOT, amendment["unseen_holdout"]["observation_root"]
+    )
+    forbidden = (
+        paths["precollection_seal_path"],
+        paths["partition_manifest_path"],
+        paths["session_manifest_path"],
+        paths["source_archive_path"],
+        paths["attempt_ledger_path"],
+        paths["holdout_seal_path"],
+        paths["binding_path"],
+    )
+    if any(path.exists() for path in forbidden):
+        raise S48PhysicalRehearsalError(
+            "refusing to overwrite existing official freeze or collection state"
+        )
+    preflight_source = args.preflight_report.resolve()
+    preflight = _load_json(preflight_source)
+    if (
+        preflight.get("schema") != "ias.s4_8.physical_rig_preflight.v1"
+        or preflight.get("status") != "passed"
+        or preflight.get("read_only_hardware_checks") is not True
+        or preflight.get("recorder_started") is not False
+        or preflight.get("playback_started") is not False
+        or preflight.get("zed_recording_started") is not False
+    ):
+        raise S48PhysicalRehearsalError(
+            "official freeze requires a passing non-acquiring physical preflight"
+        )
+    paths["preflight_report_path"].parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(preflight_source, paths["preflight_report_path"])
+    paths["source_archive_path"].parent.mkdir(parents=True, exist_ok=True)
+    archive = _run(
+        [
+            "git",
+            "archive",
+            "--format=tar",
+            "-o",
+            str(paths["source_archive_path"]),
+            "HEAD",
+        ],
+        timeout=120,
+    )
+    if archive["return_code"] != 0:
+        raise S48PhysicalRehearsalError(
+            f"official source archive failed: {archive['stderr'].strip()}"
+        )
+    head = _git_head()
+    source_hashes = {
+        relative: _sha256(ROOT / relative) for relative in OFFICIAL_SOURCE_PATHS
+    }
+    checkpoint = build_source_checkpoint(ROOT, head, OFFICIAL_SOURCE_PATHS)
+    design_path = ROOT / amendment["protocol_revision"]["design_manifest_path"]
+    design_manifest = _load_json(design_path)
+    design = build_official_design(
+        design_manifest,
+        physical_contract=design_manifest["physical_contract"],
+    )
+    partition = build_partition_manifest(
+        holdout_id=amendment["unseen_holdout"]["holdout_id"],
+        observation_root=amendment["unseen_holdout"]["observation_root"],
+        consumed_observation_roots=amendment["unseen_holdout"][
+            "consumed_observation_roots"
+        ],
+        design_manifest_sha256=_sha256(design_path),
+        design=design,
+    )
+    _write_new_json(paths["partition_manifest_path"], partition)
+    dependencies = sorted(
+        f"{distribution.metadata['Name']}=={distribution.version}"
+        for distribution in importlib.metadata.distributions()
+        if distribution.metadata.get("Name")
+    )
+    environment = {
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "python": platform.python_version(),
+        "python_executable": str(Path(sys.executable).resolve()),
+        "dependencies": dependencies,
+        "dependencies_canonical_sha256": canonical_sha256(dependencies),
+        "preflight_report_sha256": _sha256(paths["preflight_report_path"]),
+    }
+    controller_hash = canonical_sha256(
+        {
+            path: source_hashes[path]
+            for path in OFFICIAL_SOURCE_PATHS
+            if path.endswith(
+                (
+                    "s4_8_engineering_acquisition.py",
+                    "s4_8_engineering_campaign.py",
+                    "s4_8_official_acquisition.py",
+                    "s4_8_physical_backend.py",
+                    "run_s4_8_physical_rehearsal.py",
+                )
+            )
+        }
+    )
+    session = build_session_manifest(
+        code_head=head,
+        source_archive_sha256=_sha256(paths["source_archive_path"]),
+        source_package_hashes=source_hashes,
+        environment=environment,
+        reference_wav_sha256=config["reference"]["sha256"],
+        gate_configuration_sha256=config["gate"][
+            "configuration_canonical_sha256"
+        ],
+        detector_configuration_sha256=config["gate"][
+            "detector_canonical_sha256"
+        ],
+        controller={
+            "identity": "ias.s4_8.recovery_02_official_controller",
+            "version": "1.0",
+            "sha256": controller_hash,
+        },
+        protocol={
+            "identity": amendment["revision_id"],
+            "amendment_sha256": _sha256(
+                ROOT / "configs/s4_8_recovery_amendment_02.v2.json"
+            ),
+            "design_manifest_sha256": _sha256(design_path),
+            "specification_sha256": amendment["specification_sha256"],
+            "final_protocol_status": "frozen_for_precollection",
+        },
+        devices=_official_devices(
+            config, continuous_asset=preflight["continuous_asset"]
+        ),
+        channel_map=config["channel_map"],
+        design=design,
+        operational_locations={
+            "campaign_root": str(
+                (ROOT / amendment["unseen_holdout"]["namespace_root"]).resolve()
+            ),
+            "observation_root": str(paths["observation_root"]),
+            "attempt_ledger_path": str(paths["attempt_ledger_path"]),
+            "pi_capture_root": "S4.8/recovery_amendment_02_37_take",
+        },
+        design_manifest_sha256=_sha256(design_path),
+        partition_manifest_sha256=partition["partition_manifest_sha256"],
+        preflight_report_sha256=_sha256(paths["preflight_report_path"]),
+    )
+    _write_new_json(paths["session_manifest_path"], session)
+    seal = build_precollection_seal(
+        source_commit=head,
+        source_checkpoint=checkpoint,
+        amendment_sha256=_sha256(
+            ROOT / "configs/s4_8_recovery_amendment_02.v2.json"
+        ),
+        design_manifest_sha256=_sha256(design_path),
+        partition_manifest_sha256=partition["partition_manifest_sha256"],
+        session_manifest_sha256=session["manifest_sha256"],
+        preflight_report_sha256=_sha256(paths["preflight_report_path"]),
+    )
+    _write_new_json(paths["precollection_seal_path"], seal)
+    return {
+        "schema": "ias.s4_8.recovery_02_official_freeze.v1",
+        "status": "frozen_before_collection",
+        "source_commit": head,
+        "session_manifest_path": str(paths["session_manifest_path"]),
+        "session_manifest_sha256": session["manifest_sha256"],
+        "partition_manifest_path": str(paths["partition_manifest_path"]),
+        "partition_manifest_sha256": partition["partition_manifest_sha256"],
+        "precollection_seal_path": str(paths["precollection_seal_path"]),
+        "precollection_seal_sha256": seal["seal_sha256"],
+        "planned_take_count": 37,
+        "observation_root_empty": True,
+        "attempt_ledger_empty": True,
+        "recorder_started": False,
+        "playback_started": False,
+        "zed_recording_started": False,
+        "authorization_created": False,
+    }
+
+
+def _load_official_freeze() -> tuple[
+    dict[str, Any],
+    dict[str, Path],
+    dict[str, Any],
+    dict[str, Any],
+]:
+    amendment = load_amendment(ROOT)
+    paths = _official_paths(amendment)
+    session = _load_json(paths["session_manifest_path"])
+    validate_session_manifest(
+        session, expected_manifest_sha256=str(session.get("manifest_sha256"))
+    )
+    partition = _load_json(paths["partition_manifest_path"])
+    seal = _load_json(paths["precollection_seal_path"])
+    seal_payload = {
+        key: value for key, value in seal.items() if key != "seal_sha256"
+    }
+    if (
+        seal.get("seal_sha256") != canonical_sha256(seal_payload)
+        or seal.get("status") != "frozen_before_collection"
+        or seal.get("session_manifest_sha256") != session["manifest_sha256"]
+        or seal.get("partition_manifest_sha256")
+        != partition.get("partition_manifest_sha256")
+        or seal.get("preflight_report_sha256")
+        != _sha256(paths["preflight_report_path"])
+        or seal.get("amendment_sha256")
+        != _sha256(ROOT / "configs/s4_8_recovery_amendment_02.v2.json")
+        or session.get("preflight_report_sha256")
+        != seal.get("preflight_report_sha256")
+    ):
+        raise S48PhysicalRehearsalError(
+            "official precollection seal or bound manifests are invalid"
+        )
+    validate_source_checkpoint(
+        seal["source_checkpoint"],
+        ROOT,
+        require_current_checkout=True,
+    )
+    preflight = _load_json(paths["preflight_report_path"])
+    if any(
+        preflight.get(field) is not False
+        for field in (
+            "recorder_started",
+            "playback_started",
+            "zed_recording_started",
+        )
+    ):
+        raise S48PhysicalRehearsalError(
+            "official preflight evidence started a producer"
+        )
+    return amendment, paths, session, seal
+
+
+def authorize_official_take(args: argparse.Namespace) -> dict[str, Any]:
+    """Create one exact user-confirmed authorization without acquisition."""
+
+    _config(args.config)
+    _, paths, session, seal = _load_official_freeze()
+    _require_clean_head()
+    _require_manifest_head_ancestor(str(session["code_head"]), _git_head())
+    ledger = _read_json_lines(paths["attempt_ledger_path"])
+    authorization = build_take_authorization(
+        session_manifest=session,
+        precollection_seal_sha256=seal["seal_sha256"],
+        ledger=ledger,
+        planned_take_id=args.take_id,
+        attempt_number=args.attempt_number,
+        source_revision=str(session["code_head"]),
+        authorization_id=args.authorization_id,
+        user_confirmation=args.user_confirmation,
+    )
+    output = args.output.resolve()
+    allowed = (
+        ROOT
+        / "outputs/isaac_audio_sensors/S4/S4.4/amendments/"
+        "s4_4_data_expansion_amendment_04/acquisition/authorizations"
+    ).resolve()
+    if not output.is_relative_to(allowed):
+        raise S48PhysicalRehearsalError(
+            "official authorization must remain in the frozen authorization root"
+        )
+    _write_new_json(output, authorization)
+    return {
+        "status": "authorized",
+        "take_id": args.take_id,
+        "attempt_number": args.attempt_number,
+        "authorization_id": args.authorization_id,
+        "authorization_path": str(output),
+        "authorization_sha256": authorization["authorization_sha256"],
+        "one_take_only": True,
+        "automatic_retry": False,
+        "automatic_continuation": False,
+        "recorder_started": False,
+        "playback_started": False,
+        "zed_recording_started": False,
+    }
+
+
+def _official_backend(
+    config: dict[str, Any],
+    *,
+    session: dict[str, Any],
+    take: dict[str, Any],
+    attempt_number: int,
+) -> RemotePhysicalEngineeringBackend:
+    anchor = session["manifest_sha256"]
+    remote_attempt = (
+        f"{session['operational_locations']['pi_capture_root']}/"
+        f"{anchor[:16]}/{take['planned_take_id']}"
+        f"__attempt_{attempt_number:02d}"
+    )
+    return RemotePhysicalEngineeringBackend(
+        pi_ssh_prefix=config["respeaker"]["ssh_prefix"],
+        pi_scp_prefix=config["respeaker"]["scp_prefix"],
+        pi_scp_target=config["respeaker"]["scp_target"],
+        pi_helper_path=config["respeaker"]["helper_path"],
+        pi_remote_attempt=remote_attempt,
+        pi_device=config["respeaker"]["device"],
+        capture_duration_s=float(take["duration_s"]),
+        mac_ssh_prefix=config["playback"]["ssh_prefix"],
+        mac_playback_helper_path=config["playback"][
+            "playback_helper_mac_path"
+        ],
+        mac_continuous_asset_path=config["reference"][
+            "continuous_asset_mac_path"
+        ],
+        mac_continuous_asset_sha256=session["devices"]["playback"][
+            "continuous_asset_sha256"
+        ],
+        playback_gain=take["playback_gain"],
+        zed_helper_path=ROOT / "scripts/run_s4_2_zed_capture.py",
+        zed_replay_path=ROOT / "scripts/validate_s4_2_zed_svo.py",
+        expected_zed_serial=config["zed"]["serial"],
+        expected_zed_sdk=config["zed"]["sdk_version_reference"],
+        expected_zed_camera_firmware=config["zed"][
+            "camera_firmware_reference"
+        ],
+        expected_zed_sensor_firmware=config["zed"][
+            "sensor_firmware_reference"
+        ],
+    )
+
+
+def run_official_take(args: argparse.Namespace) -> dict[str, Any]:
+    """Validate or execute exactly one official attempt and then stop."""
+
+    config = _config(args.config)
+    amendment, paths, session, seal = _load_official_freeze()
+    _require_clean_head()
+    _require_manifest_head_ancestor(str(session["code_head"]), _git_head())
+    ledger = _read_json_lines(paths["attempt_ledger_path"])
+    take, attempt_number = next_official_attempt(
+        ledger,
+        session_manifest=session,
+        expected_session_manifest_sha256=session["manifest_sha256"],
+    )
+    if take["planned_take_id"] != args.take_id or attempt_number != args.attempt_number:
+        raise S48PhysicalRehearsalError(
+            "requested official take/attempt is not the exact next action"
+        )
+    attempt_root = (
+        paths["observation_root"]
+        / take["planned_take_id"]
+        / f"{take['planned_take_id']}__attempt_{attempt_number:02d}"
+    )
+    if attempt_root.exists():
+        raise S48PhysicalRehearsalError(
+            f"official attempt path already exists: {attempt_root}"
+        )
+    if args.validate_only:
+        return {
+            "status": "validated",
+            "take_id": take["planned_take_id"],
+            "attempt_number": attempt_number,
+            "physical_setup": take["physical_setup"],
+            "attempt_root": str(attempt_root),
+            "acquisition_started": False,
+            "attempt_allocated": False,
+            "ledger_modified": False,
+            "authorization_created": False,
+            "automatic_retry": False,
+            "automatic_continuation": False,
+        }
+    if args.authorization is None:
+        raise S48PhysicalRehearsalError(
+            "run-official-take requires one exact official authorization"
+        )
+    authorization = _load_json(args.authorization.resolve())
+    validate_take_authorization(
+        authorization,
+        session_manifest=session,
+        precollection_seal_sha256=seal["seal_sha256"],
+        ledger=ledger,
+        take=take,
+        attempt_number=attempt_number,
+    )
+    backend = _official_backend(
+        config,
+        session=session,
+        take=take,
+        attempt_number=attempt_number,
+    )
+    attempt_root.mkdir(parents=True, exist_ok=False)
+    capture_path = attempt_root / "respeaker_audio.wav"
+    journal_path = attempt_root / "process_journal.jsonl"
+    retry_path = attempt_root / "retry_report.json"
+    seal_path = attempt_root / "technical_candidate_seal.json"
+    registry_path = attempt_root / "technical_clearance_consumed.json"
+    failure: dict[str, Any] | None = None
+    try:
+        _write_new_json(
+            attempt_root / "official_take_authorization.json",
+            authorization,
+        )
+        if take["acquisition_mode"] == "reference":
+            technical_manifest = build_reference_take_manifest(
+                campaign_manifest=session,
+                take=take,
+                expected_campaign_manifest_sha256=session["manifest_sha256"],
+            )
+            _write_new_json(
+                attempt_root / "technical_precollection_manifest.json",
+                technical_manifest,
+            )
+            result = run_supported_engineering_acquisition(
+                backend=backend,
+                repo_root=ROOT,
+                capture_path=capture_path,
+                reference_path=ROOT / config["reference"]["local_path"],
+                manifest=technical_manifest,
+                expected_manifest_sha256=technical_manifest["manifest_sha256"],
+                journal_path=journal_path,
+                retry_report_path=retry_path,
+                candidate_seal_path=seal_path,
+                clearance_registry_path=registry_path,
+                dry_run=False,
+                repository_local_allowed_root=paths["observation_root"],
+            )
+        else:
+            result = run_supported_nonreference_acquisition(
+                backend=backend,
+                repo_root=ROOT,
+                take=take,
+                campaign_manifest=session,
+                expected_campaign_manifest_sha256=session["manifest_sha256"],
+                capture_path=capture_path,
+                zed_artifact_root=(
+                    attempt_root / "zed"
+                    if take["acquisition_mode"] == "impact_av"
+                    else None
+                ),
+                journal_path=journal_path,
+                retry_report_path=retry_path,
+                candidate_seal_path=seal_path,
+                clearance_registry_path=registry_path,
+                dry_run=False,
+                repository_local_allowed_root=paths["observation_root"],
+            )
+        technical_report = result["report"]
+        technical_candidate_seal_sha256 = (
+            None
+            if result["candidate_seal"] is None
+            else result["candidate_seal"]["seal_sha256"]
+        )
+        decision = result["decision"]
+    except BaseException as exc:
+        start_state = backend.start_state()
+        try:
+            cleanup = backend.abort()
+        except Exception as cleanup_exc:
+            cleanup = {
+                "cleanup_error_type": type(cleanup_exc).__name__,
+                "cleanup_error": str(cleanup_exc),
+            }
+        failure = {
+            "schema": "ias.s4_8.recovery_02_controller_failure.v1",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+            "cleanup": cleanup,
+            "retained": True,
+            "start_state": start_state,
+        }
+        _write_new_json(attempt_root / "controller_failure.json", failure)
+        technical_report = failure
+        technical_candidate_seal_sha256 = None
+        decision = "RETRY_REQUIRED"
+    else:
+        start_state = backend.start_state()
+    _write_new_json(attempt_root / "technical_gate_report.json", technical_report)
+    official_attempt = build_official_attempt_record(
+        session_manifest_sha256=session["manifest_sha256"],
+        partition_manifest_sha256=session["partition_manifest_sha256"],
+        precollection_seal_sha256=seal["seal_sha256"],
+        source_commit=str(session["code_head"]),
+        take=take,
+        attempt_number=attempt_number,
+        authorization=authorization,
+        decision=decision,
+        technical_report_sha256=canonical_sha256(technical_report),
+        technical_candidate_seal_sha256=technical_candidate_seal_sha256,
+        recorder_started=start_state["recorder_started"],
+        playback_started=start_state["playback_started"],
+        zed_recording_started=start_state["zed_recording_started"],
+        controller_failure=failure,
+    )
+    _write_new_json(attempt_root / "official_attempt_record.json", official_attempt)
+    ledger_record = append_official_attempt_record(
+        ledger,
+        session_manifest=session,
+        official_attempt=official_attempt,
+    )
+    _append_json_line(paths["attempt_ledger_path"], ledger_record)
+    return {
+        "status": "complete",
+        "decision": decision,
+        "take_id": take["planned_take_id"],
+        "attempt_number": attempt_number,
+        "attempt_root": str(attempt_root),
+        "authorization_sha256": authorization["authorization_sha256"],
+        "recorder_started": start_state["recorder_started"],
+        "playback_started": start_state["playback_started"],
+        "zed_recording_started": start_state["zed_recording_started"],
+        "retained": True,
+        "automatic_retry": False,
+        "automatic_continuation": False,
+        "next_take_started": False,
+        "holdout_opened_for_evaluation": False,
+        "observation_root": amendment["unseen_holdout"]["observation_root"],
+    }
+
+
 def run_take(args: argparse.Namespace) -> dict[str, Any]:
     config = _config(args.config)
     if getattr(args, "validate_only", False) and args.dry_run:
@@ -1316,6 +1935,32 @@ def main() -> int:
         function=freeze,
         preliminary=True,
     )
+    official_freeze_parser = subparsers.add_parser("freeze-official")
+    official_freeze_parser.add_argument(
+        "--preflight-report", type=Path, required=True
+    )
+    official_freeze_parser.set_defaults(function=freeze_official)
+    official_authorize_parser = subparsers.add_parser(
+        "authorize-official-take"
+    )
+    official_authorize_parser.add_argument("--take-id", required=True)
+    official_authorize_parser.add_argument(
+        "--attempt-number", type=int, required=True
+    )
+    official_authorize_parser.add_argument("--authorization-id", required=True)
+    official_authorize_parser.add_argument(
+        "--user-confirmation", choices=("go",), required=True
+    )
+    official_authorize_parser.add_argument("--output", type=Path, required=True)
+    official_authorize_parser.set_defaults(function=authorize_official_take)
+    official_take_parser = subparsers.add_parser("run-official-take")
+    official_take_parser.add_argument("--take-id", required=True)
+    official_take_parser.add_argument(
+        "--attempt-number", type=int, required=True
+    )
+    official_take_parser.add_argument("--authorization", type=Path)
+    official_take_parser.add_argument("--validate-only", action="store_true")
+    official_take_parser.set_defaults(function=run_official_take)
     take_parser = subparsers.add_parser("run-take")
     take_parser.add_argument("--manifest", type=Path, required=True)
     take_parser.add_argument("--take-id", required=True)
@@ -1354,6 +1999,7 @@ def main() -> int:
         S48PhysicalBackendError,
         S48PhysicalRehearsalError,
         S48PresealingGateError,
+        S48OfficialAcquisitionError,
     ) as exc:
         print(f"S4.8 physical rehearsal failed: {exc}", file=sys.stderr)
         return 2

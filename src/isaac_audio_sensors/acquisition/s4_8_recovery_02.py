@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 from collections import Counter
 from collections.abc import Mapping
@@ -13,6 +14,20 @@ from typing import Any
 import jsonschema
 
 from isaac_audio_sensors.acquisition import s4_8
+from isaac_audio_sensors.acquisition.s4_4_amendment import (
+    validate_source_checkpoint,
+)
+from isaac_audio_sensors.acquisition.s4_8_official_acquisition import (
+    S48OfficialAcquisitionError,
+    validate_session_manifest,
+)
+from isaac_audio_sensors.acquisition.s4_8_official_acquisition import (
+    next_attempt as next_official_attempt,
+)
+from isaac_audio_sensors.acquisition.s4_8_official_acquisition import (
+    validate_attempt_ledger as validate_official_attempt_ledger,
+)
+from isaac_audio_sensors.acquisition.s4_8_presealing_gate import canonical_sha256
 
 AMENDMENT_PATH = Path("configs/s4_8_recovery_amendment_02.v2.json")
 AMENDMENT_SCHEMA_PATH = Path("docs/schemas/s4_8_recovery_amendment_02.v2.schema.json")
@@ -80,7 +95,7 @@ STRATUM_COUNTS = {
 
 
 def bearing_to_squadbot_direction(bearing_deg: float | None) -> str | None:
-    """Map a diagnostic bearing to the exact SquadBot ASN v2 direction value."""
+    """Map a diagnostic bearing to the frozen consumer direction value."""
 
     if (
         bearing_deg is None
@@ -585,7 +600,7 @@ def _validate_denominators(
         != "diagnostic_non_gating"
         or metric_roles["categorical_direction_role"] != "primary_gating"
     ):
-        raise s4_8.S48Error("S4.8 SquadBot metric-role amendment mismatch")
+        raise s4_8.S48Error("S4.8 consumer metric-role amendment mismatch")
     if set(source_counts) != set(overrides) | set(unchanged) | null_ids:
         raise s4_8.S48Error("S4.8 denominator criterion coverage mismatch")
     if any(source_counts[criterion_id] is not None for criterion_id in null_ids):
@@ -635,7 +650,7 @@ def _validate_denominators(
 
 
 def validate_protocol_revision(repo_root: Path) -> dict[str, Any]:
-    """Authenticate the v2 design and denominator adaptation without freezing."""
+    """Authenticate the frozen v2 design and denominator adaptation."""
 
     root = repo_root.resolve()
     amendment = load_amendment(root)
@@ -649,7 +664,7 @@ def validate_protocol_revision(repo_root: Path) -> dict[str, Any]:
     return {
         "schema": "ias.s4_8.recovery_amendment_02_protocol_validation.v2",
         "status": "passed",
-        "readiness": "go_for_final_freeze",
+        "readiness": "frozen_for_precollection",
         "planned_take_count": design["planned_take_count"],
         "leakage_group_count": design["leakage_group_count"],
         "stratum_counts": design["stratum_counts"],
@@ -669,7 +684,7 @@ def validate_protocol_revision(repo_root: Path) -> dict[str, Any]:
             revision["readiness_criterion_count"]
             + revision["stretch_criterion_count"]
         ),
-        "final_protocol_frozen": False,
+        "final_protocol_frozen": True,
         "official_acquisition_permitted": False,
         "grant_creation_authorized": False,
         "grant_consumption_authorized": False,
@@ -702,6 +717,9 @@ def _validate_namespaces(
             "precollection_seal_path",
             "partition_manifest_path",
             "session_manifest_path",
+            "preflight_report_path",
+            "source_archive_path",
+            "attempt_ledger_path",
             "holdout_seal_path",
         )
     ):
@@ -1009,7 +1027,12 @@ def _source_binds_protocol_revision(
         AMENDMENT_SCHEMA_PATH,
         AMENDMENT_SPEC_PATH,
         Path("src/isaac_audio_sensors/acquisition/s4_8_recovery_02.py"),
+        Path("src/isaac_audio_sensors/acquisition/s4_8_official_acquisition.py"),
+        Path("src/isaac_audio_sensors/acquisition/s4_8_engineering_acquisition.py"),
+        Path("src/isaac_audio_sensors/acquisition/s4_8_engineering_campaign.py"),
+        Path("src/isaac_audio_sensors/acquisition/s4_8_physical_backend.py"),
         Path("scripts/run_s4_8_recovery_02.py"),
+        Path("scripts/run_s4_8_physical_rehearsal.py"),
         _safe_relative(revision["design_manifest_path"]),
         _safe_relative(revision["design_schema_path"]),
         _safe_relative(revision["denominators_path"]),
@@ -1033,6 +1056,148 @@ def _source_binds_protocol_revision(
         ).digest():
             return False
     return True
+
+
+def _load_jsonl(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    records: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        value = json.loads(line)
+        if not isinstance(value, dict):
+            raise s4_8.S48Error("official attempt ledger record is not an object")
+        records.append(value)
+    return records
+
+
+def _validate_official_precollection_freeze(
+    repo_root: Path,
+    amendment: Mapping[str, Any],
+) -> dict[str, Any]:
+    unseen = amendment["unseen_holdout"]
+    design_path = repo_root / _safe_relative(
+        amendment["protocol_revision"]["design_manifest_path"]
+    )
+    session_path = repo_root / _safe_relative(unseen["session_manifest_path"])
+    partition_path = repo_root / _safe_relative(unseen["partition_manifest_path"])
+    seal_path = repo_root / _safe_relative(unseen["precollection_seal_path"])
+    preflight_path = repo_root / _safe_relative(unseen["preflight_report_path"])
+    ledger_path = repo_root / _safe_relative(unseen["attempt_ledger_path"])
+    required = (session_path, partition_path, seal_path, preflight_path)
+    if any(not path.is_file() for path in required):
+        return {
+            "valid": False,
+            "reason": "committed_precollection_freeze_not_present",
+        }
+    session = s4_8.load_json(session_path)
+    validate_session_manifest(
+        session,
+        expected_manifest_sha256=str(session.get("manifest_sha256")),
+    )
+    partition = s4_8.load_json(partition_path)
+    partition_payload = {
+        key: value
+        for key, value in partition.items()
+        if key != "partition_manifest_sha256"
+    }
+    design = s4_8.load_json(design_path)
+    expected_ids = [take["planned_take_id"] for take in design["take_order"]]
+    if (
+        partition.get("partition_manifest_sha256")
+        != canonical_sha256(partition_payload)
+        or partition.get("status") != "frozen_unseen_precollection"
+        or partition.get("observation_root") != unseen["observation_root"]
+        or partition.get("planned_take_ids") != expected_ids
+        or partition.get("planned_take_count") != PLANNED_TAKE_COUNT
+        or partition.get("roots_disjoint") is not True
+        or partition.get("observations_present_at_freeze") is not False
+        or partition.get("holdout_opened") is not False
+    ):
+        raise s4_8.S48Error("S4.8 official partition manifest is invalid")
+    seal = s4_8.load_json(seal_path)
+    seal_payload = {
+        key: value for key, value in seal.items() if key != "seal_sha256"
+    }
+    if (
+        seal.get("seal_sha256") != canonical_sha256(seal_payload)
+        or seal.get("status") != "frozen_before_collection"
+        or seal.get("amendment_sha256")
+        != s4_8.sha256_file(repo_root / AMENDMENT_PATH)
+        or seal.get("design_manifest_sha256") != s4_8.sha256_file(design_path)
+        or seal.get("partition_manifest_sha256")
+        != partition["partition_manifest_sha256"]
+        or seal.get("session_manifest_sha256") != session["manifest_sha256"]
+        or seal.get("preflight_report_sha256")
+        != s4_8.sha256_file(preflight_path)
+        or seal.get("official_acquisition_permitted") is not True
+        or seal.get("postcollection_holdout_seal_present") is not False
+        or seal.get("unseen_holdout_binding_present") is not False
+        or seal.get("evaluation_authorized") is not False
+    ):
+        raise s4_8.S48Error("S4.8 official precollection seal is invalid")
+    validate_source_checkpoint(
+        seal["source_checkpoint"],
+        repo_root,
+        require_current_checkout=True,
+    )
+    preflight = s4_8.load_json(preflight_path)
+    if (
+        preflight.get("status") != "passed"
+        or preflight.get("read_only_hardware_checks") is not True
+        or any(
+            preflight.get(field) is not False
+            for field in (
+                "recorder_started",
+                "playback_started",
+                "zed_recording_started",
+            )
+        )
+    ):
+        raise s4_8.S48Error("S4.8 official physical preflight is invalid")
+    ledger = _load_jsonl(ledger_path)
+    validate_official_attempt_ledger(
+        ledger,
+        session_manifest=session,
+        expected_session_manifest_sha256=session["manifest_sha256"],
+    )
+    try:
+        next_take, next_attempt = next_official_attempt(
+            ledger,
+            session_manifest=session,
+            expected_session_manifest_sha256=session["manifest_sha256"],
+        )
+    except S48OfficialAcquisitionError as exc:
+        if str(exc) != "official collection is complete":
+            raise
+        next_take = None
+        next_attempt = None
+    authorization_root = (
+        repo_root
+        / _safe_relative(unseen["namespace_root"])
+        / "acquisition"
+        / "authorizations"
+    )
+    authorizations = (
+        list(authorization_root.glob("*.json"))
+        if authorization_root.is_dir()
+        else []
+    )
+    return {
+        "valid": True,
+        "session_manifest_sha256": session["manifest_sha256"],
+        "partition_manifest_sha256": partition["partition_manifest_sha256"],
+        "precollection_seal_sha256": seal["seal_sha256"],
+        "source_commit": seal["source_commit"],
+        "attempt_count": len(ledger),
+        "next_take_id": (
+            None if next_take is None else next_take["planned_take_id"]
+        ),
+        "next_attempt_number": next_attempt,
+        "authorization_count": len(authorizations),
+        "recorder_started_during_preflight": False,
+        "playback_started_during_preflight": False,
+        "zed_recording_started_during_preflight": False,
+    }
 
 
 def recovery_preopen_validate(
@@ -1086,7 +1251,6 @@ def recovery_preopen_validate(
         root / _safe_relative(future["independent_review_path"])
     ).is_file()
     blockers = [
-        "final_official_protocol_not_frozen",
         "new_unseen_holdout_not_collected_or_bound",
         "evaluator_not_bound_to_37_take_protocol",
         "independent_review_not_present",
@@ -1097,6 +1261,13 @@ def recovery_preopen_validate(
     if not readiness_passed:
         blockers.insert(0, "preliminary_readiness_not_established")
     protocol_validation = validate_protocol_revision(root)
+    official_freeze = _validate_official_precollection_freeze(root, amendment)
+    official_acquisition_permitted = (
+        source_binds_protocol
+        and readiness_passed
+        and final_protocol_frozen
+        and official_freeze["valid"]
+    )
     return {
         "schema": "ias.s4_8.recovery_amendment_02_preopen.v2",
         "status": "passed",
@@ -1127,7 +1298,34 @@ def recovery_preopen_validate(
         "preliminary_readiness_passed": readiness_passed,
         "final_protocol_frozen": final_protocol_frozen,
         "source_commit_binds_protocol_revision": source_binds_protocol,
-        "official_acquisition_permitted": False,
+        "official_acquisition_permitted": official_acquisition_permitted,
+        "official_acquisition_blockers": (
+            []
+            if official_acquisition_permitted
+            else [
+                reason
+                for condition, reason in (
+                    (
+                        not source_binds_protocol,
+                        "source_commit_does_not_bind_37_take_protocol",
+                    ),
+                    (
+                        not readiness_passed,
+                        "preliminary_readiness_not_established",
+                    ),
+                    (
+                        not final_protocol_frozen,
+                        "final_official_protocol_not_frozen",
+                    ),
+                    (
+                        not official_freeze["valid"],
+                        str(official_freeze["reason"]),
+                    ),
+                )
+                if condition
+            ]
+        ),
+        "official_precollection_freeze": official_freeze,
         "leakage_group_count": LEAKAGE_GROUP_COUNT,
         "unseen_holdout_id": unseen["holdout_id"],
         "unseen_holdout_paths_present": present,

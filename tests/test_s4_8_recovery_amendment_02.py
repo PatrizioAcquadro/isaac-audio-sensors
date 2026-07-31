@@ -14,10 +14,10 @@ from isaac_audio_sensors.acquisition import s4_8_recovery_02 as recovery
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_amendment_02_additive_revision_is_schema_valid_and_not_frozen() -> None:
+def test_amendment_02_additive_revision_is_schema_valid_and_frozen() -> None:
     amendment = recovery.load_amendment(ROOT)
 
-    assert amendment["status"] == "prepared_not_frozen"
+    assert amendment["status"] == "frozen_for_precollection"
     assert amendment["supersedes"] == {
         "path": "configs/s4_8_recovery_amendment_02.v1.json",
         "sha256": "ec8e16eb1f7ff606db18a2fbb26e183d27ea95dacf8f43138b8e4a8dfe059542",
@@ -42,6 +42,7 @@ def test_amendment_02_additive_revision_is_schema_valid_and_not_frozen() -> None
     assert revision["stretch_criterion_count"] == 6
     assert revision["planned_take_count"] == 37
     assert revision["leakage_group_count"] == 15
+    assert revision["source_checkpoint_bound_in_precollection_seal"] is True
     assert amendment["preliminary_readiness"]["required_take_count"] == 4
     assert (
         amendment["preliminary_readiness"][
@@ -242,7 +243,7 @@ def test_protocol_denominators_cover_all_criteria_without_threshold_changes() ->
         ROOT / denominators["source_criteria_register_path"]
     )
 
-    assert result["readiness"] == "go_for_final_freeze"
+    assert result["readiness"] == "frozen_for_precollection"
     assert result["planned_take_count"] == 37
     assert result["thresholds_unchanged"] is True
     assert result["criterion_count"] == 29
@@ -466,7 +467,7 @@ def test_future_binding_schema_requires_sealed_unopened_state() -> None:
         jsonschema.validate(opened, schema)
 
 
-def test_preopen_is_truthful_no_go_without_new_unseen_holdout(
+def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -483,16 +484,16 @@ def test_preopen_is_truthful_no_go_without_new_unseen_holdout(
     ).is_file()
 
     assert result["status"] == "passed"
-    assert result["protocol_revision_readiness"] == "go_for_final_freeze"
+    assert result["protocol_revision_readiness"] == "frozen_for_precollection"
     assert result["official_readiness"] == "no_go"
     expected_blockers = [
-        "source_commit_does_not_bind_37_take_protocol",
-        "final_official_protocol_not_frozen",
         "new_unseen_holdout_not_collected_or_bound",
         "evaluator_not_bound_to_37_take_protocol",
         "independent_review_not_present",
         "explicit_authorization_not_granted",
     ]
+    if not result["source_commit_binds_protocol_revision"]:
+        expected_blockers.insert(0, "source_commit_does_not_bind_37_take_protocol")
     if not readiness_present:
         expected_blockers.insert(0, "preliminary_readiness_not_established")
     assert result["blockers"] == expected_blockers
@@ -509,12 +510,20 @@ def test_preopen_is_truthful_no_go_without_new_unseen_holdout(
     assert result["preliminary_take_count"] == 4
     assert result["preliminary_readiness_present"] is readiness_present
     assert result["preliminary_readiness_passed"] is readiness_present
-    assert result["final_protocol_frozen"] is False
-    assert result["source_commit_binds_protocol_revision"] is False
-    assert result["candidate_grant_id"] is None
-    assert result["official_acquisition_permitted"] is False
+    assert result["final_protocol_frozen"] is True
+    assert result["candidate_grant_id"] is (
+        amendment["future_attempt"]["grant_id_template"].format(
+            source_commit=result["source_commit"]
+        )
+        if result["source_commit_binds_protocol_revision"]
+        else None
+    )
+    assert result["official_acquisition_permitted"] is (
+        result["source_commit_binds_protocol_revision"]
+        and readiness_present
+        and result["official_precollection_freeze"]["valid"]
+    )
     assert result["leakage_group_count"] == 15
-    assert not any(result["unseen_holdout_paths_present"].values())
     assert result["grant_creation_authorized"] is False
     assert result["grant_consumption_authorized"] is False
     assert result["evaluation_execution_authorized"] is False
@@ -554,14 +563,13 @@ def test_preopen_requires_source_containing_producer_fix() -> None:
         )
 
 
-def test_preopen_does_not_attribute_uncommitted_protocol_to_head() -> None:
+def test_preopen_does_not_attribute_protocol_to_stale_source_commit() -> None:
     amendment = recovery.load_amendment(ROOT)
-    head = s4_8._git(ROOT, "rev-parse", "HEAD")
 
     assert recovery._source_binds_protocol_revision(
         ROOT,
         amendment=amendment,
-        source_commit=head,
+        source_commit="5897e7d054097c4672d70f69fbcea20049ab8fff",
     ) is False
 
 
@@ -581,6 +589,6 @@ def test_preopen_cli_reports_no_go_without_writing_state() -> None:
     report = json.loads(result.stdout)
 
     assert report == before
-    assert report["protocol_revision_readiness"] == "go_for_final_freeze"
+    assert report["protocol_revision_readiness"] == "frozen_for_precollection"
     assert report["official_readiness"] == "no_go"
     assert report["new_grant_present"] is False
