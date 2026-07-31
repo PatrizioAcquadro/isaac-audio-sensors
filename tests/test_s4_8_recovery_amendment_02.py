@@ -511,7 +511,7 @@ def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
     assert result["preliminary_readiness_present"] is readiness_present
     assert result["preliminary_readiness_passed"] is readiness_present
     assert result["final_protocol_frozen"] is True
-    assert result["candidate_grant_id"] is (
+    assert result["candidate_grant_id"] == (
         amendment["future_attempt"]["grant_id_template"].format(
             source_commit=result["source_commit"]
         )

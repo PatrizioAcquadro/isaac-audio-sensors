@@ -1,0 +1,136 @@
+{
+  "amendment_sha256": "ed71fd462de09325c02ce3b8b2d7edd6b06b99ee66d6348580aedcdd25952877",
+  "attempt_ledger_empty": true,
+  "design_manifest_sha256": "379740afa39e86874b8e2c4e5b3f92e58b4d7872fecc982961a39f4637ff0aa9",
+  "evaluation_authorized": false,
+  "observation_root_empty": true,
+  "official_acquisition_permitted": true,
+  "partition_manifest_sha256": "5d104375ff79f3356700923089f7ba79b7c24fb4f01029cef619cf9790ea4440",
+  "planned_take_count": 37,
+  "postcollection_holdout_seal_present": false,
+  "preflight_report_sha256": "6da6e58e4437b2424ffed0bf24c366a4c575a1e923869935af552d0142e93d62",
+  "schema": "ias.s4_8.recovery_02_precollection_seal.v1",
+  "seal_sha256": "c7b7caaefef11795f717be81914bcead54fc2f0b0867c4e87289a54c9359e025",
+  "session_manifest_sha256": "ed1736831ea3fabf5fbad16086fd975572a4dd34bfd4aadaef24c01c4eee7353",
+  "source_checkpoint": {
+    "checkpoint_sha256": "2fd0cf84b755b31e7ae8fd1a8b26b83b9b049ae8639facee490306643e848ba8",
+    "commit": "80ad1dcd23b08e31316505a18d0a3fa1fc02ea50",
+    "source_records": [
+      {
+        "path": "configs/s4_8_engineering_campaign.v1.json",
+        "sha256": "6fa942d3395f3bdee3e5d3607a6773c544c3d391037c66641c47732899e7b5d4"
+      },
+      {
+        "path": "configs/s4_8_preliminary_workflow.v1.json",
+        "sha256": "6e2deb9b6bd1e9b9a0cfdd4465b8ed18ab2a57d854b448022697d47305295482"
+      },
+      {
+        "path": "configs/s4_8_presealing_gate.v2.json",
+        "sha256": "5da558ef52f254f9aa6191188a197965ffabd42872679ef6dbb942b0df3b1784"
+      },
+      {
+        "path": "configs/s4_8_recovery_amendment_02.v2.json",
+        "sha256": "ed71fd462de09325c02ce3b8b2d7edd6b06b99ee66d6348580aedcdd25952877"
+      },
+      {
+        "path": "configs/s4_8_recovery_amendment_02_preholdout_manifest.v2.json",
+        "sha256": "379740afa39e86874b8e2c4e5b3f92e58b4d7872fecc982961a39f4637ff0aa9"
+      },
+      {
+        "path": "docs/development/specs/s4_8_engineering_campaign.md",
+        "sha256": "b628b21254cee0f87380a13fe22c142378a92bb0521a86d5a8a3abf580dd1c6a"
+      },
+      {
+        "path": "docs/development/specs/s4_8_preliminary_workflow.md",
+        "sha256": "2310a0b31bf47b94dd412dce4df06537040cb9781585089637e4bc6b67fa48b6"
+      },
+      {
+        "path": "docs/development/specs/s4_8_presealing_gate_v2.md",
+        "sha256": "eaeb7e4a7e7f7d3cdfd9ed3ada410417194037ecb7f6de99438762aa19cdab3f"
+      },
+      {
+        "path": "docs/development/specs/s4_8_recovery_amendment_02_preholdout_v2.md",
+        "sha256": "d215ea7b710217b1fd281fa4ea20a2ea00a1fc3e3f9d5b0539fe8d5573c35274"
+      },
+      {
+        "path": "docs/schemas/s4_8_preliminary_reprocessing_record.v1.schema.json",
+        "sha256": "239814309c1e3740024e23f5dedc6b8dfad65c05e15b01e3fe51ab071d60c76d"
+      },
+      {
+        "path": "docs/schemas/s4_8_preliminary_workflow.v1.schema.json",
+        "sha256": "bc1d399e4088252c1f78b9f653b2f5b84ac3b8661cdc573d285b04ffe02d12e3"
+      },
+      {
+        "path": "docs/schemas/s4_8_presealing_gate_report.v2.schema.json",
+        "sha256": "b3f70ab5d303358eebaeba315b6f4b5f26ef9ad7f9e070f271dd8d892ccdb81a"
+      },
+      {
+        "path": "docs/schemas/s4_8_recovery_amendment_02.v2.schema.json",
+        "sha256": "571b6edd7531081d62bb35f60ff70423a1b46a34b265d441b20f879dafffab65"
+      },
+      {
+        "path": "docs/schemas/s4_8_recovery_amendment_02_preholdout_manifest.v2.schema.json",
+        "sha256": "ae6d363a1224b27f08dcf3d82b315122a845ce29bade73a51a38cdbd89801495"
+      },
+      {
+        "path": "scripts/preflight_s4_2_zed.py",
+        "sha256": "4a4ca08aca2d51f57fa69bffe079633d3d22953cea28485748c91ec2c76c57d9"
+      },
+      {
+        "path": "scripts/run_s4_2_zed_capture.py",
+        "sha256": "22ffa53ec5eacef5368940236651eb7f39384cda9f56b8b8ef679297d306119d"
+      },
+      {
+        "path": "scripts/run_s4_8_physical_rehearsal.py",
+        "sha256": "fc60a357f637da5bb9406b7f0cbfeec57a3f0cfc1b539ed2995f60651485d7bd"
+      },
+      {
+        "path": "scripts/s4_2_mac_preflight.py",
+        "sha256": "b983287852824561704a059251e5e3501a6cb3c775a3c3d9335a2f3ab93fd2d6"
+      },
+      {
+        "path": "scripts/s4_2_pi_capture.py",
+        "sha256": "af9a18fe855da034d062c4b50eddf559b7d57c0241324f77b8d13381d69da997"
+      },
+      {
+        "path": "scripts/s4_8_mac_playback.swift",
+        "sha256": "8658940eab7fc230e4acef4438f69939a2adcdf7b62072144686420fc9e8e489"
+      },
+      {
+        "path": "scripts/validate_s4_2_zed_svo.py",
+        "sha256": "5fdc0aef5401716c70b151865d96e86dff4384a4c1f7d59a39ed8964065c3629"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_engineering_acquisition.py",
+        "sha256": "ff49f1beacea2bee4e2a88fe286802f6b58112b350b971f1ebb691cfc2c7d325"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_engineering_campaign.py",
+        "sha256": "a5b0af5e82dfc86c7fdaa5991970d4b37fdd6da03470d7c63bbbaa769ce9a1d7"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_official_acquisition.py",
+        "sha256": "528bb73dd344db770d988708460f8ed8339a68977947815623b0496f067a82ff"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_physical_backend.py",
+        "sha256": "fdeb79d21e94f3e0b6a3c28d6c4cf239cde83e439bd493ac5a16d41ce2cd7a8d"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_preliminary.py",
+        "sha256": "48fb5890c933058d28e95fcced5e5c967b1b04ebe9732e9e14d382338ee29dbf"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_presealing_gate_v2.py",
+        "sha256": "bca13b31307c7985118cb540633426160779593eaffdaa14147ff9ab35a3ce13"
+      },
+      {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_recovery_02.py",
+        "sha256": "14eb726e6ed656f4b4412dc98f9501d8434c3a4fc687f4895dcb7090f20c7db0"
+      }
+    ]
+  },
+  "source_commit": "80ad1dcd23b08e31316505a18d0a3fa1fc02ea50",
+  "status": "frozen_before_collection",
+  "unseen_holdout_binding_present": false
+}
