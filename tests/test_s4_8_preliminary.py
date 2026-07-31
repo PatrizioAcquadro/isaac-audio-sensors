@@ -644,7 +644,12 @@ def test_amendment_02_keeps_evaluation_blocked_after_protocol_freeze() -> None:
     assert result["planned_take_count"] == 37
     assert result["final_protocol_frozen"] is True
     assert result["official_readiness"] == "no_go"
-    assert "new_unseen_holdout_not_collected_or_bound" in result["blockers"]
+    assert (
+        "new_unseen_holdout_not_collected_or_bound" in result["blockers"]
+    ) is not result["holdout_collection_complete"]
+    assert "evaluator_not_bound_to_37_take_protocol" in result["blockers"]
+    assert "independent_review_not_present" in result["blockers"]
+    assert "explicit_authorization_not_granted" in result["blockers"]
     assert result["grant_creation_authorized"] is False
     assert result["evaluation_execution_authorized"] is False
 

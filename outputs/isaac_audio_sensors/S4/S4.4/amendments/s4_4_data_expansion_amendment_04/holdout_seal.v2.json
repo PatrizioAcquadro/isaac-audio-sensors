@@ -1,0 +1,2301 @@
+{
+  "amendment_id": "s4_8_recovery_amendment_02",
+  "artifact_count": 374,
+  "artifact_inventory_sha256": "307401342ef9bcbed66226aff230b7232f62af567cd77ce54a9df6d672b8dc71",
+  "artifacts": [
+    {
+      "byte_size": 1389,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_001_silence_beginning/s48r02_preholdout_001_silence_beginning__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "b945020a1a085431d09000cec27889e46b60515ea0ff6275684820491242be3d"
+    },
+    {
+      "byte_size": 1042,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_001_silence_beginning/s48r02_preholdout_001_silence_beginning__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "ad0e68ee99f36d59ecf6a31536b29475a2cbc5e10047278a8bdf7f08e6e4eedd"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_001_silence_beginning/s48r02_preholdout_001_silence_beginning__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "3734bb66569110606c9fb8406a20500055cf7f02af6d6c25c0782a7d1696f072"
+    },
+    {
+      "byte_size": 6327,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_001_silence_beginning/s48r02_preholdout_001_silence_beginning__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "beab5c2b4f353795b5bdd531e72dff3539a3cb95498ad43f4b80d985c1ebc6ea"
+    },
+    {
+      "byte_size": 2880044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_001_silence_beginning/s48r02_preholdout_001_silence_beginning__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "2bedf4ecc720ce493f33dda82951a5b0c97faf39eb74813061df1c9207782ff4"
+    },
+    {
+      "byte_size": 1023,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_001_silence_beginning/s48r02_preholdout_001_silence_beginning__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "0c604b7c917ded8d37050821988e7ee6c9bd7a1caab0df4afb529d257dbbe7c0"
+    },
+    {
+      "byte_size": 262,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_001_silence_beginning/s48r02_preholdout_001_silence_beginning__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "92f8565bd00e4d08da224d791806af6c4c83a92ffdeb8f16e61bf0aafce4ee2a"
+    },
+    {
+      "byte_size": 2039,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_001_silence_beginning/s48r02_preholdout_001_silence_beginning__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "031dea6ef2c0c971bf565602e160525743869067c056cacea2eab453463da333"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_002_direction_000_r1/s48r02_preholdout_002_direction_000_r1__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "5168d28d8e04583ce18008b7a17e980fd4b8ed29ee4abd5de6f4138766d74d77"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_002_direction_000_r1/s48r02_preholdout_002_direction_000_r1__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "d37c9e448269c7e2da7085857f830564ae22bb0c93794e49fdf920923d4690c5"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_002_direction_000_r1/s48r02_preholdout_002_direction_000_r1__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "f0469623be866ece9ccff265810a94828d376833514bf02db41769453639e851"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_002_direction_000_r1/s48r02_preholdout_002_direction_000_r1__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "216599b135b8a05564ced9bff51dc06f17349693cce8d71440bab08b2074b22a"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_002_direction_000_r1/s48r02_preholdout_002_direction_000_r1__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "a15233b3d3478e45346ed4912aa40dde19eb691549cb25372f6f5c41b6a888d2"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_002_direction_000_r1/s48r02_preholdout_002_direction_000_r1__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "6b180c1a0948e1f942f3e99bdfa04d9eea0224452efdc285d5afd08dcdf12205"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_002_direction_000_r1/s48r02_preholdout_002_direction_000_r1__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "9819dd629469435351ea9e9b001af76c74ffec9b91473a057d2b7904b3dcbabd"
+    },
+    {
+      "byte_size": 271983,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_002_direction_000_r1/s48r02_preholdout_002_direction_000_r1__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "9f991eba1fdf449c135d8ae1b20d6bca0f8fbf51271e84cde8eec8831e3ddbcd"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_002_direction_000_r1/s48r02_preholdout_002_direction_000_r1__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "1ac859352fc99df2adfb1d0c5f4faeb34c6b0633691b7c33593f4edc762f7b74"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_003_direction_000_r2/s48r02_preholdout_003_direction_000_r2__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "f40aaeae927d91f37d8db356a86cb1f40b2247ba47e789c797724e35e5d93bf1"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_003_direction_000_r2/s48r02_preholdout_003_direction_000_r2__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "e3b9d35447acf9c72441a601380665486579e5c086b1df2397b0fffa5e032abc"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_003_direction_000_r2/s48r02_preholdout_003_direction_000_r2__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "e77301e423346b849fe2c4a4956437265cbceac684f108a3377705a03e30d0e5"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_003_direction_000_r2/s48r02_preholdout_003_direction_000_r2__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "1b492a2e0a5a87acc4a0a65ae3efe4a85b059c68a1fa532811a69e26b6888524"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_003_direction_000_r2/s48r02_preholdout_003_direction_000_r2__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "66cafc7fca9e4d99473b030c8ba56b650436b2cedf6d26fbd7f6c4b4cb7d3ea5"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_003_direction_000_r2/s48r02_preholdout_003_direction_000_r2__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "9ab1b536fb0fdeffdb7bb23ba417e6465232652e68121fbf38aed8f2baff222b"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_003_direction_000_r2/s48r02_preholdout_003_direction_000_r2__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "73de2cd8c34ddff89713d1217ed94a4829b86d1bd5f1ee279e6e04bff486d942"
+    },
+    {
+      "byte_size": 271783,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_003_direction_000_r2/s48r02_preholdout_003_direction_000_r2__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "883099c1887f7e4e7ce820ddce1766fa676ee0dc5c96ac7056c3ac33a0083bc3"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_003_direction_000_r2/s48r02_preholdout_003_direction_000_r2__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "403f4ec854a9b04eb40dc9800114122d25c431f117d53d5e6650b5f7b3a496ab"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_004_direction_000_r3/s48r02_preholdout_004_direction_000_r3__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "bb2c4bc2fea6663222ffb3d2616b01e10096db4af38fd7d076ba7f392d1099cb"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_004_direction_000_r3/s48r02_preholdout_004_direction_000_r3__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "d690b4ccaead29f413f108f1690aa3223368f0838d361728b9fc1ba7e53bbf4b"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_004_direction_000_r3/s48r02_preholdout_004_direction_000_r3__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "29ed54379ef52667e0248de155f4a95d5b8eed5a1d24186a1b19f1d2bc833687"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_004_direction_000_r3/s48r02_preholdout_004_direction_000_r3__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "b0595a72c0a1ae56dc91adbe68ea6972c14f9ac8763b68681126e02934f5cc7a"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_004_direction_000_r3/s48r02_preholdout_004_direction_000_r3__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "040b0f0e61ab2fc66a0546e6bb40cdb4ff49d143236242e63c4f5cd1da1dd68e"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_004_direction_000_r3/s48r02_preholdout_004_direction_000_r3__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "f6698c8663b8b58670a02a09c2bb0a6f2b392fe17ec01f8eb4dbd3710e918b6e"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_004_direction_000_r3/s48r02_preholdout_004_direction_000_r3__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "cd6edb557733132a1bc708e8f276d23fd1ebc2d19ed5fb5e1bec1dffbbc27d29"
+    },
+    {
+      "byte_size": 271784,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_004_direction_000_r3/s48r02_preholdout_004_direction_000_r3__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "86743f4987665e6e82c10cb9dce4e981d84fe035cea9db4d6e2bf94f52e4e446"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_004_direction_000_r3/s48r02_preholdout_004_direction_000_r3__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "3ef06e36c0321f832bbf592be13d544847138973f8691c014f376815685e5023"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_005_direction_045_r1/s48r02_preholdout_005_direction_045_r1__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "19f019b14ece8b07fb86ec719543c71b185068d1db9aa441e0fab17132a0ad51"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_005_direction_045_r1/s48r02_preholdout_005_direction_045_r1__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "ed88e7f3450ea74563dce46fcfce5a4b9415f940cd8f410175dbaa6c449d5047"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_005_direction_045_r1/s48r02_preholdout_005_direction_045_r1__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "1dc6513f817d7aef0db209413434a39bfc7b6b3fc05764943f2e5f895b817bad"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_005_direction_045_r1/s48r02_preholdout_005_direction_045_r1__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "19a03bf38a3749703bac9fee5517c5887946213eb5a9be1c3470583a6d6de404"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_005_direction_045_r1/s48r02_preholdout_005_direction_045_r1__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "7ed62c669d98e1e586832df3fea57be212f38dbde00eb75742bb2ff98bc6237e"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_005_direction_045_r1/s48r02_preholdout_005_direction_045_r1__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "0e0c79a82b9872c812f1a2ffe0ddbcaabe288ff9bf361b73d5f8f94cce093b97"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_005_direction_045_r1/s48r02_preholdout_005_direction_045_r1__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "05d932a4591bea74c0f7d0adcf9023580b471a5298155bcdab7ac03d148fcc3a"
+    },
+    {
+      "byte_size": 271777,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_005_direction_045_r1/s48r02_preholdout_005_direction_045_r1__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "4fb96c5dbb4d17bfe298af471928a02e7067a7e64e1919f005cd3f5fb741eb8f"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_005_direction_045_r1/s48r02_preholdout_005_direction_045_r1__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "ed9dc5cf06b29da0b7a0adb3f371c728c23b123505960549e40f186f011456a0"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_006_direction_045_r2/s48r02_preholdout_006_direction_045_r2__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "802ac233020fe64296cd58500dac1d0fccdf5daa04a6ebcad7c591e19d649a1a"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_006_direction_045_r2/s48r02_preholdout_006_direction_045_r2__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "ac59f82e0d74382bc335dade3132dc88ec3fc1373308053b96ce18e7eab3ad91"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_006_direction_045_r2/s48r02_preholdout_006_direction_045_r2__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "624c5b2df6072fe66fc05297d15e2669200b087ad44ee9fe39dcd1878dd19b23"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_006_direction_045_r2/s48r02_preholdout_006_direction_045_r2__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "f2b46e415fa3afcf22de17e2716e58deb66e99df6a9c265a0e49d11dcde31d3d"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_006_direction_045_r2/s48r02_preholdout_006_direction_045_r2__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "15c51229c1c4344d51a78e82be3b83bb113cd575f1e90c0cc7a50f8a3a7cab42"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_006_direction_045_r2/s48r02_preholdout_006_direction_045_r2__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "f2f9032b0ee85dce2c98c0fce95b1f0f4d52b4b997d84183e0a7a3ab3a99dcad"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_006_direction_045_r2/s48r02_preholdout_006_direction_045_r2__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "5308156ad8ed80cb106dd6c22c73c6a4f31492e285ef6726ee948e91fd818a15"
+    },
+    {
+      "byte_size": 271876,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_006_direction_045_r2/s48r02_preholdout_006_direction_045_r2__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "054d1c4ec7c35338d100ee3e5dda00a7c1da89211a12f8c5308f00f728e60628"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_006_direction_045_r2/s48r02_preholdout_006_direction_045_r2__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "fbe0f7cc65d02bdd55b859d96dc09428a9a2c01b8a17d725e75917623be45456"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_007_direction_045_r3/s48r02_preholdout_007_direction_045_r3__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "8d6a284d79e570337afce2af124a04ce9d090adc0337bd85169d9ff656b4f3b5"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_007_direction_045_r3/s48r02_preholdout_007_direction_045_r3__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "4af4c06d30194afc655111a787cfd40365d15305816826c4628773f82a1d468c"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_007_direction_045_r3/s48r02_preholdout_007_direction_045_r3__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "f20c8350198d0dda89a58521c0769055766a3c22fd5be729dd05a33600a5ddd9"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_007_direction_045_r3/s48r02_preholdout_007_direction_045_r3__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "e4fd682202abd3dcb1172aac003cd61079512589f43f48319f7412ec6fceeef4"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_007_direction_045_r3/s48r02_preholdout_007_direction_045_r3__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "2723cff66092da7a4b026ba49bb7f045bcb6c4e0ab28ae88d39e92fcb2f28c88"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_007_direction_045_r3/s48r02_preholdout_007_direction_045_r3__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "03982a3b6438fd9be452ea712118afe6946ba8c27eb0dd66c20bdf933afc22d4"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_007_direction_045_r3/s48r02_preholdout_007_direction_045_r3__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "09529e4dd85d96573c713d4bad5d212c406ef9efa9ff66c94b050714a8ce7e6c"
+    },
+    {
+      "byte_size": 271772,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_007_direction_045_r3/s48r02_preholdout_007_direction_045_r3__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "b22843fb072157156abb140cb01f5514170542ae83240acc1b882b9f4a0f51d9"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_007_direction_045_r3/s48r02_preholdout_007_direction_045_r3__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "7496e426968af4645aab5578f06bdec05d10ea1c103383bfdfc69ebb045b06b4"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_008_direction_090_r1/s48r02_preholdout_008_direction_090_r1__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "9d448fb4cde355caeddc1a36946ca1b8e7945df63da89de1e9280312786cbba1"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_008_direction_090_r1/s48r02_preholdout_008_direction_090_r1__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "edaa09fbad77fa5b52f91a1344209311f2a05d686bf925886f7a5c0df2d767fa"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_008_direction_090_r1/s48r02_preholdout_008_direction_090_r1__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "f0a4c61be21352fc73a23b4bc1feab38e1374ef0e8c86c454091452dd5ee41e9"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_008_direction_090_r1/s48r02_preholdout_008_direction_090_r1__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "0c5ae5823015313c4272a8f83232e6f767761e1096108272a16f410b716674a1"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_008_direction_090_r1/s48r02_preholdout_008_direction_090_r1__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "950e564c7c870467f1a2ccb42c36e50f8be7a9bdb6da7eeaed74c184f6c4fe41"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_008_direction_090_r1/s48r02_preholdout_008_direction_090_r1__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "8e40bc4a94f17752039693782aa04e3842ad6dd9d01bbb2e7a58e77c58817b24"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_008_direction_090_r1/s48r02_preholdout_008_direction_090_r1__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "251be9bbb3f1d22a31551cde8190c276c921a12ebda16e66e4e2cb0ea1ce9e78"
+    },
+    {
+      "byte_size": 271861,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_008_direction_090_r1/s48r02_preholdout_008_direction_090_r1__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "bcca67db9a72e0fe0de0659e9b05be87fbe4bdad6260193d6dfe3b5fefcf9762"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_008_direction_090_r1/s48r02_preholdout_008_direction_090_r1__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "21f872e376be1239d149402a8019ddf7b58520f297b69c4a0d96fb86d10cb4cc"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_009_direction_090_r2/s48r02_preholdout_009_direction_090_r2__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "cb484b9d622fd2c61a0506800aa856120db483425990f60fc7a67e9e6ab71143"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_009_direction_090_r2/s48r02_preholdout_009_direction_090_r2__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "85f2b54c75f43981f2022bc5520e9b111ff5d42b19943aed38d1bf5746d4d7c9"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_009_direction_090_r2/s48r02_preholdout_009_direction_090_r2__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "51743c695ecd3e3d114be7a8bac5dd9b9945d72d97a0635d520f698964824362"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_009_direction_090_r2/s48r02_preholdout_009_direction_090_r2__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "b8fd24f9cb4f5e5d24b593f356c89ea224bf0491344eabb6cb8011492b1292d2"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_009_direction_090_r2/s48r02_preholdout_009_direction_090_r2__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "28c1221aa7e08ef8355c9e180f9d15f00fa7615d0e94e83ad2890d4a39ec14ff"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_009_direction_090_r2/s48r02_preholdout_009_direction_090_r2__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "d9f06761299880933f1e7d3b8e3e42389195579051f44826ffbebe19d5911fdd"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_009_direction_090_r2/s48r02_preholdout_009_direction_090_r2__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "5721fb4c9ae7f150847d98043b87d88d0ef6a0fa744b6ccdb097544523f85011"
+    },
+    {
+      "byte_size": 271727,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_009_direction_090_r2/s48r02_preholdout_009_direction_090_r2__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "b879dc1df3f50b5247e1e47f34f16b016a234a77bdbb277ba7522197433a10e5"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_009_direction_090_r2/s48r02_preholdout_009_direction_090_r2__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "29c0c3ca8098dfce2f8ecb0fe9ea37e747e63e98ba2da4123d76d0573dd12324"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_010_direction_090_r3/s48r02_preholdout_010_direction_090_r3__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "4c933ce89383902f04ba8833da86f7da6292c6cdb95e77a298bcd99479cb2ed5"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_010_direction_090_r3/s48r02_preholdout_010_direction_090_r3__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "5e238e10c853a2d93c4bfb2d9654d3decd4962a3916d3f22eabdcd13b1303061"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_010_direction_090_r3/s48r02_preholdout_010_direction_090_r3__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "8ca64fc4039f1bfed8c0bf77ed539e706dd1f2f6ad208fe5b2dfc0f7e662c7ac"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_010_direction_090_r3/s48r02_preholdout_010_direction_090_r3__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "f7a9919193f9beaa6203d16f9a4072720b40f11c931460923af034835d990109"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_010_direction_090_r3/s48r02_preholdout_010_direction_090_r3__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "0468e8b113ab5db84f26262bfa5cd0c192b7e167f5fd7e6ca47bfa4ee893bf87"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_010_direction_090_r3/s48r02_preholdout_010_direction_090_r3__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "0adfaf6c5ea2149aa2cc21bf9ff621b40f2f7e625575bffee53395bf2a32dbfc"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_010_direction_090_r3/s48r02_preholdout_010_direction_090_r3__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "8e7ed15b367e0d87b4f65a96d608671558d67c00531215715f86eed30487042f"
+    },
+    {
+      "byte_size": 271765,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_010_direction_090_r3/s48r02_preholdout_010_direction_090_r3__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "ca1b3bc4e807d69c21236e4d255332b1b63d68dcd119d36fb1f8ef5a8fcfa303"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_010_direction_090_r3/s48r02_preholdout_010_direction_090_r3__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "2702dcb84d904333631a27ba833b042204db914dbf37ec4ef80ed8fc1ed6106d"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_011_direction_135_r1/s48r02_preholdout_011_direction_135_r1__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "8eb248c366fe4a01e5bc664d96272179a9fb47a7a2b6d0c98184d14dc8449245"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_011_direction_135_r1/s48r02_preholdout_011_direction_135_r1__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "2244ade9fb4d6541868d3b770d5276a45ed3eecbc4ae1a1cc6c8a0f5f02e0277"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_011_direction_135_r1/s48r02_preholdout_011_direction_135_r1__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "a075aea36b9364df5cd66ec3d36fadd0a8b0933552f34f756c8dd59c4f9f4fd4"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_011_direction_135_r1/s48r02_preholdout_011_direction_135_r1__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "9c171890add39ee81c55742f945622ae5cf98aeba3e4eba5ef741c71bab122a5"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_011_direction_135_r1/s48r02_preholdout_011_direction_135_r1__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "f587992e4403328834d8f0487777e0ae9ec5a06cf370d4b6fdf2c4f4c590ce36"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_011_direction_135_r1/s48r02_preholdout_011_direction_135_r1__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "b87a1bcda72854ab7f05e9faf5bf4f6949729b37e56c02964bc74dec29ddf8a6"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_011_direction_135_r1/s48r02_preholdout_011_direction_135_r1__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "acbd36a88e1c16ece5aa6e55378ed72219700f8ff8a642e2299f5ded4747f3d2"
+    },
+    {
+      "byte_size": 271838,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_011_direction_135_r1/s48r02_preholdout_011_direction_135_r1__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "31f823a6920d86e21f97e300f7ca9eb56401c7f5ae88a374ac12fca5ab48b4a5"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_011_direction_135_r1/s48r02_preholdout_011_direction_135_r1__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "beb131634dab65f01ec4c71b0f2704c976090f209930690d5019b5d81a47d21d"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_012_direction_135_r2/s48r02_preholdout_012_direction_135_r2__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "b621468a494aa344bcf580583f7cb9c351bd8fee90381aec87c0ab5b3297d43a"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_012_direction_135_r2/s48r02_preholdout_012_direction_135_r2__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "719cdcc03fdecad6c3f3a49bdc8762fa82cb8c88648053cb1193f9178a98da96"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_012_direction_135_r2/s48r02_preholdout_012_direction_135_r2__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "f3c882500b7363f2184c1f55f39cee08f6273db895e539543507c115d7919dc0"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_012_direction_135_r2/s48r02_preholdout_012_direction_135_r2__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "637c5e5bf01ba4bcd7f37665ebd7b3ed1df1e9e4eb48333d3970ed5028b2afbc"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_012_direction_135_r2/s48r02_preholdout_012_direction_135_r2__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "1ba2ff009c5b85caca69575142361c4e6786d8bbac42c867691258c10d38fbfb"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_012_direction_135_r2/s48r02_preholdout_012_direction_135_r2__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "e400d4bd1740176e3c7bab701cca0cd40e64f26d51ca308ba4295caeb2289c42"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_012_direction_135_r2/s48r02_preholdout_012_direction_135_r2__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "8355262dc7fe66194f55e1a2c2546cec420ea526a29dce6c222f9cf842f68203"
+    },
+    {
+      "byte_size": 271863,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_012_direction_135_r2/s48r02_preholdout_012_direction_135_r2__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "f36ed643ebd80653bdcadf76afb9f11ee474d37a77ee9d4c54d0f94380fb0d17"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_012_direction_135_r2/s48r02_preholdout_012_direction_135_r2__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "131488c8b7f59e74ee5be56b088dcabc9356f3c289b4372738f4fe75393e89ed"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_013_direction_135_r3/s48r02_preholdout_013_direction_135_r3__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "980c485cacdf4e0746a6adeb9580682cbf6bf87bb4703e0d04c274836c895425"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_013_direction_135_r3/s48r02_preholdout_013_direction_135_r3__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "8a9806f940fa58a0cfe63bd170066eec409d99b41bb0686afbb59d24b719d377"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_013_direction_135_r3/s48r02_preholdout_013_direction_135_r3__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "2feca7ba77b2a0ee527092f0cc64380ab4b70601c18b642a6ad4978db17a05d3"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_013_direction_135_r3/s48r02_preholdout_013_direction_135_r3__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "b49fee1c7a2c225cd8b7c8c44106ce8ceef8bbac38835918298d8ae9318971ea"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_013_direction_135_r3/s48r02_preholdout_013_direction_135_r3__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "0103908fb29c1cf98368778a856eadecb9e65c2ce1432773a70aef3e9791d450"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_013_direction_135_r3/s48r02_preholdout_013_direction_135_r3__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "c9cd128ec42ca4f334fe2ad671483d94d88e85f884be96ffcb655d3838c30610"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_013_direction_135_r3/s48r02_preholdout_013_direction_135_r3__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "8121cdc8a09171aa172cd8c9c64090ecfe5247ced38d2b39d5a1cca48410b779"
+    },
+    {
+      "byte_size": 271757,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_013_direction_135_r3/s48r02_preholdout_013_direction_135_r3__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "0996ef2ff33dcf3e325fccd0fc9bee93b47f8802dbb2b7efdaa366b8f80c70e4"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_013_direction_135_r3/s48r02_preholdout_013_direction_135_r3__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "ac664b2c45c29255bf70378c2365cde2ad91557c6c1a45c768ee33599b586663"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_014_direction_180_r1/s48r02_preholdout_014_direction_180_r1__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "1f4d181f65a9980f1bc3b5853962cf44cebe3f4a23e499eef97556bb9e41a983"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_014_direction_180_r1/s48r02_preholdout_014_direction_180_r1__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "0cb17d3468a3d574f418d1f1a749ff88f353626b22923d2ee72e8d0e87c72752"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_014_direction_180_r1/s48r02_preholdout_014_direction_180_r1__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "adbc944be9a4b6fe7c2991de471b227843309270b0214bfc904483bebf225911"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_014_direction_180_r1/s48r02_preholdout_014_direction_180_r1__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "e100feecc45eca69a015ad8acd359c0674413811587f0d46d13e8e9d0551ac90"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_014_direction_180_r1/s48r02_preholdout_014_direction_180_r1__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "495d79385f06ca424505f11334a9c292817cfec796d81ab1aab72d13a6d78b31"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_014_direction_180_r1/s48r02_preholdout_014_direction_180_r1__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "9d2351ac4b5dff93be8b3ecf2c3318669d363fdb4e7306d54910b8437b616805"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_014_direction_180_r1/s48r02_preholdout_014_direction_180_r1__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "2f99b73a30c41e9b33497efa1e2dbfffaf963545bf73d1f88aa0adfcc09ed8cc"
+    },
+    {
+      "byte_size": 271676,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_014_direction_180_r1/s48r02_preholdout_014_direction_180_r1__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "f7c2e1fe00c3e8d67f3672f64080ac23e5a1a234884571e4f4af7d35cedfda0a"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_014_direction_180_r1/s48r02_preholdout_014_direction_180_r1__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "b70463764f8fa96b267275fb8628bf49721a5a750e590c55a5d373b22a967258"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_015_direction_180_r2/s48r02_preholdout_015_direction_180_r2__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "e11a31eed7341bd6482d31957d38dae3ee3d2a1ea334639fd0916709ba76126f"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_015_direction_180_r2/s48r02_preholdout_015_direction_180_r2__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "54c5e9269b3ea14ac554e12eba10d4b33f252c76c17c74fa31366e042b447328"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_015_direction_180_r2/s48r02_preholdout_015_direction_180_r2__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "fa24e49bd38642d48e1c476d4ab653155e6df8f6c04579d0437ea229f5864a20"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_015_direction_180_r2/s48r02_preholdout_015_direction_180_r2__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "1aee3ef3d097b24a079b0ca26dc8ca55e22cacf506b68db952458a1b26e842f1"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_015_direction_180_r2/s48r02_preholdout_015_direction_180_r2__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "92dfc482ad82e373d1586c6324dedd05c0f028281c18e665fa7d3f1d7e162000"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_015_direction_180_r2/s48r02_preholdout_015_direction_180_r2__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "a3de7f45f404ddb13b70f40574d856402489bb02f71d6b0b4f16fc425608be0c"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_015_direction_180_r2/s48r02_preholdout_015_direction_180_r2__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "31aafd78dceeed6b18be69321164ad143f7da1172cd2d90f5b28685e92894387"
+    },
+    {
+      "byte_size": 271679,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_015_direction_180_r2/s48r02_preholdout_015_direction_180_r2__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "179bad7749ee1eaec800169ed60485b62a57118f66a95ec6279b3c6b72c64616"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_015_direction_180_r2/s48r02_preholdout_015_direction_180_r2__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "a553d65719fb1acfb7acf9ca9210437509be95555e2ed5f871666298015f1295"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_016_direction_180_r3/s48r02_preholdout_016_direction_180_r3__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "2da9167f72052f8c81697c570f43519275d2feb1aca491136906f57800023a06"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_016_direction_180_r3/s48r02_preholdout_016_direction_180_r3__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "e2f560bde1318cf6ae2a2d105cd835dc458be0458fe2dad1729e273661b519f7"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_016_direction_180_r3/s48r02_preholdout_016_direction_180_r3__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "b518a6b5ae8233f95b8309ccd30b007d97bc615a8f82ab86976eaebc4bef4feb"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_016_direction_180_r3/s48r02_preholdout_016_direction_180_r3__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "b06cdd379601cb6080453eb8a84d508cf8d84a21f1fb7f0a76a3517a6efdf480"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_016_direction_180_r3/s48r02_preholdout_016_direction_180_r3__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "7965e01f1479b59d182322a1ea32e18b1a6bb98e0478bfe5e80acae4382f2b0f"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_016_direction_180_r3/s48r02_preholdout_016_direction_180_r3__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "5a8a85567eab85621d823e9234cae449ee80b6a66c0e57bba713ba73e3383c2c"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_016_direction_180_r3/s48r02_preholdout_016_direction_180_r3__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "8767efc01ed4e6f9adeed5586f41a2267b12a2929ab68d813dd1e9acf1f6f262"
+    },
+    {
+      "byte_size": 271683,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_016_direction_180_r3/s48r02_preholdout_016_direction_180_r3__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "8b829f46d7ff26b646b4309906e1e71990c7f75396fa1c6ac76ed1ad39b6f432"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_016_direction_180_r3/s48r02_preholdout_016_direction_180_r3__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "d5f625d2570ff388b3cbd342e9d411ec2e6e00bd735336770862a6bca7fd7ab7"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_017_direction_225_r1/s48r02_preholdout_017_direction_225_r1__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "fbbe18e0456fa5808597cbf1ed0d434f003aed50975639caa97d0e9fede5513b"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_017_direction_225_r1/s48r02_preholdout_017_direction_225_r1__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "c9c147c734138b7a89daca08cc362036cc304bc6f8b65a5dbf28d4f7ff2fda38"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_017_direction_225_r1/s48r02_preholdout_017_direction_225_r1__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "1eeb282d04359b4a76fe7dc5409245d16ab7844aba27d49347a6e9e9a9438193"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_017_direction_225_r1/s48r02_preholdout_017_direction_225_r1__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "e7dfe6584fafa8de2cce52b703d1718c193f2a974b54595778f2d12a7d8709b7"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_017_direction_225_r1/s48r02_preholdout_017_direction_225_r1__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "54664e69501b092930c87a3d36e58a666e68fbec8d2972749d966fc5633a0659"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_017_direction_225_r1/s48r02_preholdout_017_direction_225_r1__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "f25fa2846d5921e01f651295911a48686cc9c108266a943a0566caaa4ee6529f"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_017_direction_225_r1/s48r02_preholdout_017_direction_225_r1__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "dea508d242f15d7252ae888ed919d33ece053017be2c893a7b4833c1c10d13de"
+    },
+    {
+      "byte_size": 271793,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_017_direction_225_r1/s48r02_preholdout_017_direction_225_r1__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "09fcc1eff0112bed48e736b7c6383fef48ebfa8551276ee0175187a41f193c42"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_017_direction_225_r1/s48r02_preholdout_017_direction_225_r1__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "aa96a94578d00cf5d54e70a936e61ed1c593bb0984acd7c380ec0b17929777d9"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_018_direction_225_r2/s48r02_preholdout_018_direction_225_r2__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "abf73badd7de0186a8b86de6dee0896ae8d8c9c3e49373238e88faac2243e0f7"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_018_direction_225_r2/s48r02_preholdout_018_direction_225_r2__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "332653f5fa8663ca065c206a654501cb441149a376159b9d722f050ebbd3e9a9"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_018_direction_225_r2/s48r02_preholdout_018_direction_225_r2__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "11759d457d32a1c43279651a571ea7523ac46bd1f898dbd81bad0c217e9ab162"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_018_direction_225_r2/s48r02_preholdout_018_direction_225_r2__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "1f699f564531a7fe35810040c8c72cf39d5756da0807c8ceed579ad946d9c2cf"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_018_direction_225_r2/s48r02_preholdout_018_direction_225_r2__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "fb5a6f4416b4788e6064b1b10f7a8d89616d229f308a21d691db90bd7d7b9c5f"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_018_direction_225_r2/s48r02_preholdout_018_direction_225_r2__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "f786665a4e2031cd4b137c0c7489a5e9718426adfe2cfa2c8d01d856e17590ed"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_018_direction_225_r2/s48r02_preholdout_018_direction_225_r2__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "488633e8fe74dbb88acec761d9bdaca8b71342b3e4db24dab70be48aae0c65cb"
+    },
+    {
+      "byte_size": 271720,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_018_direction_225_r2/s48r02_preholdout_018_direction_225_r2__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "cea84ba963ca95d38aff5e10b61e667aabbf3e151b1eba0f0dd17134fc76c9e0"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_018_direction_225_r2/s48r02_preholdout_018_direction_225_r2__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "fdffb2a31f78fef58a7ed56ce3a711a058c994013bf405a2e44469afcaac4e82"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_019_direction_225_r3/s48r02_preholdout_019_direction_225_r3__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "2d035e642bc423b70520a7558d6536332d9f400259bae37d29a582723bf1f540"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_019_direction_225_r3/s48r02_preholdout_019_direction_225_r3__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "860824fe2151c87292799827f166ea41c0e711b085191ac76535cfe5647fbbc7"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_019_direction_225_r3/s48r02_preholdout_019_direction_225_r3__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "56c565f59941449f9068b66ad69c8cd81bdb863df2b3aa0c4da75b09bd9923d0"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_019_direction_225_r3/s48r02_preholdout_019_direction_225_r3__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "a75bccdb479c2c17ef7de57076efb346edbc810c1a48a8fae1804073221dc823"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_019_direction_225_r3/s48r02_preholdout_019_direction_225_r3__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "9ba3cd833eba21a8f361cf40397e6626a0f7065f694fd17b8cdc07351818f7f0"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_019_direction_225_r3/s48r02_preholdout_019_direction_225_r3__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "4dfefbc014d482a6d7239dd9ca245812f31c5319149942a7fc7d4e2037fa816b"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_019_direction_225_r3/s48r02_preholdout_019_direction_225_r3__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "e9b5f275e59092b56c9c1533c74bcbde0d8f8db2d92db211565f5d7a45c9343b"
+    },
+    {
+      "byte_size": 271743,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_019_direction_225_r3/s48r02_preholdout_019_direction_225_r3__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "9e17d73829f163eab075c518a8ea063d64902174c38d15e4aa07b6aedb8e3326"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_019_direction_225_r3/s48r02_preholdout_019_direction_225_r3__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "3e182fa8916cec88833c4d3a5117aaa6dec245b958405c05d7456872c1e4a1ad"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_020_direction_270_r1/s48r02_preholdout_020_direction_270_r1__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "f5475fcf145641ef8cae947e2efcd13c442d9ebb17432ca3f87a10906428a717"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_020_direction_270_r1/s48r02_preholdout_020_direction_270_r1__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "05fec53ddcc4752f932b1a48e53638a6753c3605e6695d2dcad5e6c9da5d63c1"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_020_direction_270_r1/s48r02_preholdout_020_direction_270_r1__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "1cbad201afb0705e848424b5688a7fce705364e941ff8418f80906cb150936b1"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_020_direction_270_r1/s48r02_preholdout_020_direction_270_r1__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "c435bd639b282c11189425d99c2c87184cc6fdd2291b9bc7efbc41a9d104e42b"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_020_direction_270_r1/s48r02_preholdout_020_direction_270_r1__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "b7ca9e984086121b413b7279560af1b60ba435d4cfbc9ce9f72c49b3f89cd1a2"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_020_direction_270_r1/s48r02_preholdout_020_direction_270_r1__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "d41c3dd5247437b2a4adb4ac5165949ba76e55de9af3f318ea8520f888b911cb"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_020_direction_270_r1/s48r02_preholdout_020_direction_270_r1__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "77bfdef7571ed9484ad718c793514823615c8c2574d2976a1cf55265ef5342e8"
+    },
+    {
+      "byte_size": 271844,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_020_direction_270_r1/s48r02_preholdout_020_direction_270_r1__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "c69856e6a570cad8077f91f57d78b63f77b1d5e7aecf77c2edd20aee45768307"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_020_direction_270_r1/s48r02_preholdout_020_direction_270_r1__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "609a74cf11b5ede7c726310a084835bac47841e9f27b01a5a72fbde5b8cfc5c8"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_021_direction_270_r2/s48r02_preholdout_021_direction_270_r2__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "96774a4d5ed3f6c0d5cf3d2234789fdfc6d88e5512825f106c9d1c5d097092a8"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_021_direction_270_r2/s48r02_preholdout_021_direction_270_r2__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "04cfb82b3b55874e065d5546dccda7f109462c44097eceea93b0d79c894941fc"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_021_direction_270_r2/s48r02_preholdout_021_direction_270_r2__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "ddd1a0996f4600fc5c7b96419e01541f4be5125f21ba0f20cff7ea1f17c08c77"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_021_direction_270_r2/s48r02_preholdout_021_direction_270_r2__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "d2a38effa979a9a065b0668453b8dce37d3cd1a29c4070833076f8c95246361f"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_021_direction_270_r2/s48r02_preholdout_021_direction_270_r2__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "379db3ce2b731f5374c8ee61628429af5d67dd97ce466d7572e52c1541ab70c5"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_021_direction_270_r2/s48r02_preholdout_021_direction_270_r2__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "29c264d46d15214a892df033dd9ed565f15b5bc5414544ee17174e91b20736d9"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_021_direction_270_r2/s48r02_preholdout_021_direction_270_r2__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "000b09d44829a6f6bdd58520de117415615f741eba99a0c3c526132a6570419e"
+    },
+    {
+      "byte_size": 271900,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_021_direction_270_r2/s48r02_preholdout_021_direction_270_r2__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "0ad1232489dbe760190d564249a4907c1e9ba9aa93c73d04481127d00231d5b1"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_021_direction_270_r2/s48r02_preholdout_021_direction_270_r2__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "4e6040e4effc565faab291f912e315ac6ac1ed63b56fc32b65e99f4863516f09"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_022_direction_270_r3/s48r02_preholdout_022_direction_270_r3__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "d8df3a2f65a47b489384320a4cb5c0004db641dd9f7547306b9e453fcd7dd4d7"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_022_direction_270_r3/s48r02_preholdout_022_direction_270_r3__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "a3c657971d84fc031d95f3f34c61a6da8bebe518650b90b0e4d5f147cb36f99f"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_022_direction_270_r3/s48r02_preholdout_022_direction_270_r3__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "3e3ac0dd4d06a90453d89db0e5bb9a2a4e884dd09876ff6214c4f9548d95e46b"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_022_direction_270_r3/s48r02_preholdout_022_direction_270_r3__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "f8ada67970fed71fdf85ce3c09c44b2b185c9c4d941603fb007040dad69d2fda"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_022_direction_270_r3/s48r02_preholdout_022_direction_270_r3__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "038d7549e98fc70d524f6ae919eb439103875de6240f4ed2ce23f1be8ab58d07"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_022_direction_270_r3/s48r02_preholdout_022_direction_270_r3__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "f4caa94fbdfbd2b9f2a5479e8f7d0b62f56dac9e472fd2a9aec7070f42c326b9"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_022_direction_270_r3/s48r02_preholdout_022_direction_270_r3__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "4d1d674aa542c3ef25dc052cc32c46e2b40a34ed86fc6c239dc0e563e4d6efd7"
+    },
+    {
+      "byte_size": 271849,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_022_direction_270_r3/s48r02_preholdout_022_direction_270_r3__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "f48ec1abc536b7e48cd1067be1a4e11d7affff808ba493d70fb32fa563b1c56a"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_022_direction_270_r3/s48r02_preholdout_022_direction_270_r3__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "17f8c650ec15b805472f456289aa9108b84f559cde42668e7050dbfa53524d56"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_023_direction_315_r1/s48r02_preholdout_023_direction_315_r1__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "4f2fe0ac73be47f81d882287959ace42c14b976599210c4d4881c2a248127807"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_023_direction_315_r1/s48r02_preholdout_023_direction_315_r1__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "187bbe86980493ff8d597991039429403fd5c973067c4070c757e74444dbf742"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_023_direction_315_r1/s48r02_preholdout_023_direction_315_r1__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "aedbe8afc2ea637597b1b8e0e0f4e4e3e4e54e437ad063220126e1b15bedaee3"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_023_direction_315_r1/s48r02_preholdout_023_direction_315_r1__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "aa23fc95eac319fda49f34d7a5eaa4d07829a09b96d6c53e285565e387a59539"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_023_direction_315_r1/s48r02_preholdout_023_direction_315_r1__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "ef4c370745d1182c22d3d10e22ce88fd68ecbe5e3547fe615759eff148cfa8c9"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_023_direction_315_r1/s48r02_preholdout_023_direction_315_r1__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "b9341f15e079cea64d33606f4da63916262837126f86a9aefa1149b91901e26a"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_023_direction_315_r1/s48r02_preholdout_023_direction_315_r1__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "506264de4a3b5ea4e4e103259d520fb31b194f9b3b540fff93e0569fd087c131"
+    },
+    {
+      "byte_size": 271883,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_023_direction_315_r1/s48r02_preholdout_023_direction_315_r1__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "111f4c68ead4ad76f0cb81384f46d1dcee5a14190f69744ee9b984bbec7ff210"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_023_direction_315_r1/s48r02_preholdout_023_direction_315_r1__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "de0c1e62027be3ecb37827da69501d9505fb9953cb9d863632876bf7d63b99ec"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_024_direction_315_r2/s48r02_preholdout_024_direction_315_r2__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "0ef4a71c6ee465e3a94deb6a254c3419d9a282c4e2835d5772e333bd6506ebf6"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_024_direction_315_r2/s48r02_preholdout_024_direction_315_r2__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "261567e3db73e7795d7486ffff0da91a35852fb029623c5095d8edf0db07e56d"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_024_direction_315_r2/s48r02_preholdout_024_direction_315_r2__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "45cbec4d4303bc9583e30ea36f909a9ec55a138c47a9e6e7a54c11e71bf6a4cc"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_024_direction_315_r2/s48r02_preholdout_024_direction_315_r2__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "b65f7a629740266cae979fd2aacbc14062bf9e638d1e9daabef99ca9323cdb50"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_024_direction_315_r2/s48r02_preholdout_024_direction_315_r2__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "77e1675d123ef0a15a1e6b22301eca3cbd21e01a6e1f19894ab642c0b5462c6c"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_024_direction_315_r2/s48r02_preholdout_024_direction_315_r2__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "dcb9e4e3211dd494810c386918691424c3b3da4a68a7c25a112d199b8f0b489e"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_024_direction_315_r2/s48r02_preholdout_024_direction_315_r2__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "994b1ae00bfcd005e15d74748abbd6f494674f1086d5cf3fdc03c0cba1031667"
+    },
+    {
+      "byte_size": 271775,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_024_direction_315_r2/s48r02_preholdout_024_direction_315_r2__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "83fdd9e84b48e41c006c2af747dd03881c926acfc778febc628d2efaf2798c67"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_024_direction_315_r2/s48r02_preholdout_024_direction_315_r2__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "59ae89110126ab4890e1eb49dcc8a84f682868159ee488d70f5826a149aee638"
+    },
+    {
+      "byte_size": 1386,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_025_direction_315_r3/s48r02_preholdout_025_direction_315_r3__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "cb039f050fefbcc59237a90e361180b76ce980f776ebff03f818fab26330e118"
+    },
+    {
+      "byte_size": 1040,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_025_direction_315_r3/s48r02_preholdout_025_direction_315_r3__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "a3bdf96f0f9525e5e0e497f2b385a2d4e322ca6b89971995f87712b6f0547d0a"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_025_direction_315_r3/s48r02_preholdout_025_direction_315_r3__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "5a1832e6a2f5f0c84b8c385493cfbd6b3b0f378ded6923c431e3d898549e8338"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_025_direction_315_r3/s48r02_preholdout_025_direction_315_r3__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "688172078ce854f59695f94c4e62c012d21d7ff221a34ad1fa42c1b506597f2d"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_025_direction_315_r3/s48r02_preholdout_025_direction_315_r3__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "552f566f7254d138e62a85c3caf25ca3578b7d8b8d5248da099deec84998f57d"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_025_direction_315_r3/s48r02_preholdout_025_direction_315_r3__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "222909260b1b1f62887e5bb9ad56856715bb6e155f0c8964295faf8c60738b2f"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_025_direction_315_r3/s48r02_preholdout_025_direction_315_r3__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "b53cb0eeeaef148fb95d870161e4e3bed19c78fd4f9ff97010ccfeb0787760dd"
+    },
+    {
+      "byte_size": 271838,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_025_direction_315_r3/s48r02_preholdout_025_direction_315_r3__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "03970df10ca4cb37b0ffe801183ac8d090d730e7140c8a582c313212b9a1adff"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_025_direction_315_r3/s48r02_preholdout_025_direction_315_r3__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "8977c6d00ed0ce28fe66e7d74662a274c63d5442df3e7c938341f75391acfd2d"
+    },
+    {
+      "byte_size": 1383,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_026_silence_middle/s48r02_preholdout_026_silence_middle__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "8349afeb117a08e65843407b612b79438724866fd627d017d3cf12924f674159"
+    },
+    {
+      "byte_size": 1036,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_026_silence_middle/s48r02_preholdout_026_silence_middle__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "719ed01b2f5fc57dfab2a39c5a7a0f5eb879884bc562cc75c913796109375435"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_026_silence_middle/s48r02_preholdout_026_silence_middle__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "f72cf4e2e1723a672b770f215254823fc63d0223ecca07dae6b072d095d221d0"
+    },
+    {
+      "byte_size": 6327,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_026_silence_middle/s48r02_preholdout_026_silence_middle__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "2ff36ebe36b80158077f994db9986c6c55a18e869633390b7b27ddef994b3bbb"
+    },
+    {
+      "byte_size": 2880044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_026_silence_middle/s48r02_preholdout_026_silence_middle__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "d9d509f4bda266a5673ef906a31928a3104f81a9fdd4a2b554766af227f7bf9c"
+    },
+    {
+      "byte_size": 1023,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_026_silence_middle/s48r02_preholdout_026_silence_middle__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "1fba5983aa066dfae4e3dbd1ecdef00a215353f1eb0f90ad485243b6608790bc"
+    },
+    {
+      "byte_size": 262,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_026_silence_middle/s48r02_preholdout_026_silence_middle__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "54c0d9e3279243e54bf429d00b3f5c68c6ca1bade554b126bd7d450cacfbea66"
+    },
+    {
+      "byte_size": 2037,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_026_silence_middle/s48r02_preholdout_026_silence_middle__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "a6dac2b9c31a51b056b3f611e3e0de8694c323e123a4d51af8a140bbe2391ccb"
+    },
+    {
+      "byte_size": 1390,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_027_front_occluded_000/s48r02_preholdout_027_front_occluded_000__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "45a55e8dca8a26d9eea2bbbbdec53321b68041c0ff7df08f7a9383cfc5174ef1"
+    },
+    {
+      "byte_size": 1044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_027_front_occluded_000/s48r02_preholdout_027_front_occluded_000__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "38e7c0d16e91d54d9f7febaf21bcb8a4e69f30df071fd538a69a716b2d92833c"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_027_front_occluded_000/s48r02_preholdout_027_front_occluded_000__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "1fac41543a28609ac266c9a8e55560d06f190287f6900600530afa6d2eb2a73a"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_027_front_occluded_000/s48r02_preholdout_027_front_occluded_000__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "477cf43fdefb8efeaf91865237e51f2bbcd291c6fbd52558cc81192f790196cc"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_027_front_occluded_000/s48r02_preholdout_027_front_occluded_000__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "ffa221b72104f839a4fcbb246431baaebf408977126cfeac35009526513fdbdd"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_027_front_occluded_000/s48r02_preholdout_027_front_occluded_000__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "e4d6defbb96b76a7a4e4e895cff6535ff9577a57652ab3b914545cea591a8cdd"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_027_front_occluded_000/s48r02_preholdout_027_front_occluded_000__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "7ce1c81930e9e2edab3e22615739365e3b7cb26fa97df3b586fe729b00a739a3"
+    },
+    {
+      "byte_size": 271361,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_027_front_occluded_000/s48r02_preholdout_027_front_occluded_000__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "9892d0af3a80e3cb2d21c8e48a7ab74213e5a4bcc2fcce8223758ccc25b9d03e"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_027_front_occluded_000/s48r02_preholdout_027_front_occluded_000__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "17fa924114f0d090ac1500a0ad871ac2b5beab07a2ef88d9da998fce9ae2c448"
+    },
+    {
+      "byte_size": 1384,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_028_right_noise_090/s48r02_preholdout_028_right_noise_090__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "4ee89d0b19cfaf164d8f49766051adea17011ac66c9de8a4a3237213327ceea5"
+    },
+    {
+      "byte_size": 1038,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_028_right_noise_090/s48r02_preholdout_028_right_noise_090__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "a7fa5731d48fc257cd0506d280bae077003399db7a62c20e6d139e73a19b140f"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_028_right_noise_090/s48r02_preholdout_028_right_noise_090__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "7b2bd6beefe501d6d6d0fad1d662e2a4ce9f9116aea4cf68e843bfdceba4189f"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_028_right_noise_090/s48r02_preholdout_028_right_noise_090__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "4eec68adf9b75b20dd49319647b612a77bb2e62f7795daac9f7de37cb328cdf5"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_028_right_noise_090/s48r02_preholdout_028_right_noise_090__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "de91ac40990118b42fd1cc9983a4cc0e354aa0dab3a17de79a978e8469c44ae5"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_028_right_noise_090/s48r02_preholdout_028_right_noise_090__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "fcbdaa79dc7d2e1e415cee553e0f80cf95bea059b006b424be8121e7dfd9214e"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_028_right_noise_090/s48r02_preholdout_028_right_noise_090__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "67da51cd18cb734cd35bc7af5d598f70589e61170f1d8aa83b289ec52d2d14de"
+    },
+    {
+      "byte_size": 271217,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_028_right_noise_090/s48r02_preholdout_028_right_noise_090__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "d17260284c76dabcb417a6625222ecfe0025b2de9d7f3ddc9675cb130bfbe407"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_028_right_noise_090/s48r02_preholdout_028_right_noise_090__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "0243fb0cbdaa3d3229266a4da0f06b979dedb17631efa192a786c166112a18c3"
+    },
+    {
+      "byte_size": 1382,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_029_rear_noise_180/s48r02_preholdout_029_rear_noise_180__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "3125a952a27dd5a7f0a76259df127e4658df3a050d73274ceea8858497601526"
+    },
+    {
+      "byte_size": 1036,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_029_rear_noise_180/s48r02_preholdout_029_rear_noise_180__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "1c1233190151c1d225b4d820749d2102f0827ebb691b3dbb761893274378c2de"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_029_rear_noise_180/s48r02_preholdout_029_rear_noise_180__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "010b4e44b9a3949311420bb0d2d0e154a7597e805e2aac576b1ed8b7061a057f"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_029_rear_noise_180/s48r02_preholdout_029_rear_noise_180__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "4569d37cfc28233f9a13f75651829ef98cc79d2c504ae2e0c54adb55894b5eaa"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_029_rear_noise_180/s48r02_preholdout_029_rear_noise_180__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "2a8997853ef3cba0281f6746b9c08c58bd7d080a78eb8d6e4056b2083a4756c1"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_029_rear_noise_180/s48r02_preholdout_029_rear_noise_180__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "e62ac4aa63ea57580af4ebb4d016038d59ec541f4266c803794b419922ebef3b"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_029_rear_noise_180/s48r02_preholdout_029_rear_noise_180__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "25bf048c0f0dd659bad951431c39bfabaaf4b9c063f191f38cd5a19e5abf78e6"
+    },
+    {
+      "byte_size": 271177,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_029_rear_noise_180/s48r02_preholdout_029_rear_noise_180__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "54c4eda0fc747129a8fd337d444974731ae3805bb53cd82aafa6feeabb8f1d9f"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_029_rear_noise_180/s48r02_preholdout_029_rear_noise_180__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "0586e5907fc11e63b262d326411b4ba9a970e9255cdaf1fa30495da4c19ac5e9"
+    },
+    {
+      "byte_size": 1388,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_030_left_occluded_270/s48r02_preholdout_030_left_occluded_270__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "3ab10026f1807005052f33bc4bf49f767fc5d49efb3056daddc366c60011015a"
+    },
+    {
+      "byte_size": 1042,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_030_left_occluded_270/s48r02_preholdout_030_left_occluded_270__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "fa464619e8b6dc33972ccb7c433556915a52c13a6f0129a146c752682bc0982d"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_030_left_occluded_270/s48r02_preholdout_030_left_occluded_270__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "1fc9b2671a3b73c7a7f60ca127dd01de874566e6dcfb91fbf4dc7bc5038f074c"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_030_left_occluded_270/s48r02_preholdout_030_left_occluded_270__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "5052c25e6fcb589255a77d8af14e39ec69750c9c2bd4dcee80ce33a366bcc23c"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_030_left_occluded_270/s48r02_preholdout_030_left_occluded_270__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "db5aaf3dc2ac75c7ec8f0880dbf09f7e28064908a2f561da1244f040cb2d1649"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_030_left_occluded_270/s48r02_preholdout_030_left_occluded_270__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "d565f1d0f73d606282dd2c77704ba6e7686e10f408a66fd62e9e8b49c24511e7"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_030_left_occluded_270/s48r02_preholdout_030_left_occluded_270__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "cdd711bffb43617424fd83a192ff2da67a1e8cff277bd878ef70bb3d079c3dcc"
+    },
+    {
+      "byte_size": 271340,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_030_left_occluded_270/s48r02_preholdout_030_left_occluded_270__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "3aa7481854b3887c81d57b7d126fa606361dcfb34ffca4b16d968b7c3d227942"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_030_left_occluded_270/s48r02_preholdout_030_left_occluded_270__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "9b8a4123e692915290a2c3505f2d4e3adb79ac544dcf61c5ecf296a1fc41054c"
+    },
+    {
+      "byte_size": 1380,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_031_low_front_000/s48r02_preholdout_031_low_front_000__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "924587c1727eed51b2b5640841f6177f3ee8e83932adeb91365fdf30a4316d59"
+    },
+    {
+      "byte_size": 1034,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_031_low_front_000/s48r02_preholdout_031_low_front_000__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "9293bc91eebd9b3762c0922de2d6a37bd376cb6257663935e95d05da0f009da3"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_031_low_front_000/s48r02_preholdout_031_low_front_000__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "59d0fef0ab12484763a7e1cfe4757f640682d8d0955db3bc6eb0ec11e9774f21"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_031_low_front_000/s48r02_preholdout_031_low_front_000__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "1ee0ea5fec9a728aa67a8a8e4ff7e86905c4ac752e53527e2da6c82606027ef0"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_031_low_front_000/s48r02_preholdout_031_low_front_000__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "da5e5f2b1121ec9c74b15cc3272227503d7c3d96c7241a2f26243d4c66bf92fb"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_031_low_front_000/s48r02_preholdout_031_low_front_000__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "fec50963045c345581452c668570ea899684a81ea6a7a65b5842d5f9185a8b3d"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_031_low_front_000/s48r02_preholdout_031_low_front_000__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "b3f5a31571d60926daaf35263c01313735a85426e0da662ba6ea65acaccd1ec7"
+    },
+    {
+      "byte_size": 271966,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_031_low_front_000/s48r02_preholdout_031_low_front_000__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "41a40e381f8652c4702328195f696021b6745ea8103551735320523459d36819"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_031_low_front_000/s48r02_preholdout_031_low_front_000__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "bdbc07710f367258841e08dec56d0faf6f1ff57d3a99c98461bfa42ad4979bde"
+    },
+    {
+      "byte_size": 1380,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_032_low_right_090/s48r02_preholdout_032_low_right_090__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "cca1daca8623a51eee1269ae7e4b9550f24cc8e07734ae476bffbd4eb7d78e77"
+    },
+    {
+      "byte_size": 1034,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_032_low_right_090/s48r02_preholdout_032_low_right_090__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "8c5934143cd50ac4dd313912c9822dc568a938436a57f725532433b3e152bf5b"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_032_low_right_090/s48r02_preholdout_032_low_right_090__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "4516aaec49ff371a5d7e6dd2a2b86816d418aba453fb19a41c1afa059ae15b75"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_032_low_right_090/s48r02_preholdout_032_low_right_090__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "9d7c3eb6e16680d1f0fa575058f76ba7a2e2e0bfc8783493924ecfa2119a5b9d"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_032_low_right_090/s48r02_preholdout_032_low_right_090__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "a5720ccff9481f935d11c422b9094d8f908d3fdc971cde26685343a571bc58c7"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_032_low_right_090/s48r02_preholdout_032_low_right_090__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "975f5702288e2306f5f2006173b6371f778d6d3be4f022910140c1be050dae32"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_032_low_right_090/s48r02_preholdout_032_low_right_090__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "6bd4e60f38c7ec689f6972f6cbfa12e6ebec192533ce800727dbc5bf1ef53b79"
+    },
+    {
+      "byte_size": 271886,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_032_low_right_090/s48r02_preholdout_032_low_right_090__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "e821f0ead046867e8833844a112509a5e2d25d0ff2a22004966f6f5945c5a66a"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_032_low_right_090/s48r02_preholdout_032_low_right_090__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "1750f090c4b4061a1c16f46e395b0d8cbd349f9c13004a2a67d421e1d6f0f114"
+    },
+    {
+      "byte_size": 1378,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_033_low_rear_180/s48r02_preholdout_033_low_rear_180__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "cd2fbaeeb7ba9f9285dd5574a3902e9aa5cde6f2108efb9e81e7930bd4270920"
+    },
+    {
+      "byte_size": 1032,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_033_low_rear_180/s48r02_preholdout_033_low_rear_180__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "df1f7fac615d254c7f9101a1919137df39821bab2f0cc188d97937957130edfb"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_033_low_rear_180/s48r02_preholdout_033_low_rear_180__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "cb8264d48f35ffb3fe2b1ac6747874dcf5c1d0e56de8856822f88373ab1ed7c6"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_033_low_rear_180/s48r02_preholdout_033_low_rear_180__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "bece85e9618c68611acdce5b300c48b56c1755afb011730b77ba4ac3ca82419a"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_033_low_rear_180/s48r02_preholdout_033_low_rear_180__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "544d07c3a6170d22d4593318bccd4833356499f96d5edce1141f5a8606705a72"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_033_low_rear_180/s48r02_preholdout_033_low_rear_180__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "9f950c587c53b969e341bed18a43041c8cf1b662fa448054b0063370a55a93cc"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_033_low_rear_180/s48r02_preholdout_033_low_rear_180__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "0eb0941bc2a58cfca34cdd856ce18a87c984aa9b311d83115d6d6d4abc1e386d"
+    },
+    {
+      "byte_size": 271908,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_033_low_rear_180/s48r02_preholdout_033_low_rear_180__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "8e7ef7a88bebb763d3825f762842400ce08d10960d54ecf9ed1f67c5d47291fe"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_033_low_rear_180/s48r02_preholdout_033_low_rear_180__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "d6f57e753d0b9586f9fb77294386250dc6b129fac5db168eba2df2edf212c18d"
+    },
+    {
+      "byte_size": 1378,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_034_low_left_270/s48r02_preholdout_034_low_left_270__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "7e96f404d65d33f90dd31f53efdde1cd711a6825137ce3ff5b4be616b79a0a33"
+    },
+    {
+      "byte_size": 1032,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_034_low_left_270/s48r02_preholdout_034_low_left_270__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "21d7654009f73393611cf9160df33d81d2632ed25fbe5ad6c45db5ddecb8f5e1"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_034_low_left_270/s48r02_preholdout_034_low_left_270__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "d216f5c7111767fe3de3fab0b2c737d620351a8563146083f7fd0ef582636888"
+    },
+    {
+      "byte_size": 7414,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_034_low_left_270/s48r02_preholdout_034_low_left_270__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "e18f7729188ca05e10972e0f2f411a9bb83cc31dc12072acd1e98e3aaa301eb6"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_034_low_left_270/s48r02_preholdout_034_low_left_270__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "83a1bd8c20ac5957aeaee3915b7e1bae339b7b0d19393ccf69e578ea40892b49"
+    },
+    {
+      "byte_size": 964,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_034_low_left_270/s48r02_preholdout_034_low_left_270__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "8000c82aa0897ed44017f783910bdf1ad7459f543f2bf01e9852b106b10fdb97"
+    },
+    {
+      "byte_size": 249,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_034_low_left_270/s48r02_preholdout_034_low_left_270__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "2fc0419ca94de85380d24aeaaf694038b16d2615afe5d3499f9e9c0438501739"
+    },
+    {
+      "byte_size": 271854,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_034_low_left_270/s48r02_preholdout_034_low_left_270__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "e5f886edcc9cbad3053eeea9a59c6b5776c96c8198372f8b730df42699ff1d0a"
+    },
+    {
+      "byte_size": 1281,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_034_low_left_270/s48r02_preholdout_034_low_left_270__attempt_01/technical_precollection_manifest.json",
+      "role": "retained_attempt_technical_precollection_manifest.json",
+      "sha256": "799083304182a3b92e21c60c54b462264a039e283e456696859270c7c84ab75f"
+    },
+    {
+      "byte_size": 1377,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_035_silence_end/s48r02_preholdout_035_silence_end__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "bb4be5790dcde5c9c9fdf8a2d1ee3575d6aa414628acf6156d8cfcb1f087bed5"
+    },
+    {
+      "byte_size": 1030,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_035_silence_end/s48r02_preholdout_035_silence_end__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "f17fd96b029d1d511ae822fdd5c3a69e4cdb36499c47ee6d172e3ea9dbe24206"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_035_silence_end/s48r02_preholdout_035_silence_end__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "bbcb7d4482890f84b5ce452f37c01efe8280aff97c7456ee4ef2d29f5bc31c53"
+    },
+    {
+      "byte_size": 6327,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_035_silence_end/s48r02_preholdout_035_silence_end__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "b238ee10b1cf1f5c940464a084498ff5c8e959f39c1be53a7ad9588746054603"
+    },
+    {
+      "byte_size": 2880044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_035_silence_end/s48r02_preholdout_035_silence_end__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "8424ca91f443eb5e286b80542db646952dbde5235bc8fb34996479e60caf5057"
+    },
+    {
+      "byte_size": 1023,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_035_silence_end/s48r02_preholdout_035_silence_end__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "5119041425a6575cf490c323f6553e9953d98ed8d8c455b514342c5f022cf0d7"
+    },
+    {
+      "byte_size": 262,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_035_silence_end/s48r02_preholdout_035_silence_end__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "76fabe00cd1c819d8576576865e18dc198b878298b4b25acebd9b634d2dcfeee"
+    },
+    {
+      "byte_size": 2042,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_035_silence_end/s48r02_preholdout_035_silence_end__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "dbf236516b3c446f0ed3c143de628af2c33c442f82322f7b8389786f00a1cb77"
+    },
+    {
+      "byte_size": 1372,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "7dcfc2554799afaf80129a55ca8982080cf3a2a6582046c05456467b8eae0ac7"
+    },
+    {
+      "byte_size": 1026,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "4174672fe9b19707eaadcd86c4883590ccb79966d2fdd41fca88fb0fe9c1e2d9"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "14cb551e0c1938c65fbba2482b01e613db3609a3dd69198e9d273350f8b7e72c"
+    },
+    {
+      "byte_size": 8761,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "1d9100ee99d9ff86a7bea83d735c7859c715385d77b70af09079c94e973d0d71"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "bd6b0b852b8b772c1f501d525b6c8f42d1a3c507986118cee67899f8da3e7373"
+    },
+    {
+      "byte_size": 1201,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "e9d8d6a97898b517abfaac9303ca45c9d5fad7b460bf3dd7584ef9a20e2bcbbd"
+    },
+    {
+      "byte_size": 262,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "9070e070d0a0d397e17d91d469e3344d78fa4713b94fdc3011bc0f8e920f92fd"
+    },
+    {
+      "byte_size": 5180,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "69f85ba1bc283a0dac2e96df6aec82dbe4a06d6e2936f8dbe285a5c64f027bb3"
+    },
+    {
+      "byte_size": 31949636,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/zed/capture.svo2",
+      "role": "retained_attempt_capture.svo2",
+      "sha256": "970ef6bd4dca42b854c9d1b5c9eacfca88ce40cb42226633f17261e58760fe32"
+    },
+    {
+      "byte_size": 3450456,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/zed/frames.jsonl",
+      "role": "retained_attempt_frames.jsonl",
+      "sha256": "ffbe288f6cdc8b6bcd9a1982522f251b3712efe82dfeccffb44a9ad65df44e2a"
+    },
+    {
+      "byte_size": 2294,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/zed/producer_summary.json",
+      "role": "retained_attempt_producer_summary.json",
+      "sha256": "f7114aa496343017e1f843441467dac19530c57b89a88bd39d73694c9373e134"
+    },
+    {
+      "byte_size": 1192,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_036_impact_01/s48r02_preholdout_036_impact_01__attempt_01/zed/zed_svo_replay.json",
+      "role": "retained_attempt_zed_svo_replay.json",
+      "sha256": "2b3868513b16a313390fbfbbb11e0e04a450b8ff84b8f8dd126a546c15c241fb"
+    },
+    {
+      "byte_size": 1372,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/official_attempt_record.json",
+      "role": "retained_attempt_official_attempt_record.json",
+      "sha256": "dc7a45da660813872ccbe28fca31c0751e8b162324ae48869eabcb917fcb50e0"
+    },
+    {
+      "byte_size": 1026,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/official_take_authorization.json",
+      "role": "retained_attempt_official_take_authorization.json",
+      "sha256": "f59339d1510d30ddd2231d2cc171827e5915cbb61c5c580a13941836d491a441"
+    },
+    {
+      "byte_size": 1284,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/pi_producer_status.json",
+      "role": "retained_attempt_pi_producer_status.json",
+      "sha256": "adb195f1be5e17edcfa493d44d9adfc98c4c45633e20df9e7ee6bea8bf25e69b"
+    },
+    {
+      "byte_size": 8761,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/process_journal.jsonl",
+      "role": "retained_attempt_process_journal.jsonl",
+      "sha256": "da95ad33490baca9842884eac9643df30a0becfc423b0494e8856f2f3703b887"
+    },
+    {
+      "byte_size": 3840044,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/respeaker_audio.wav",
+      "role": "retained_attempt_respeaker_audio.wav",
+      "sha256": "455f8078b5d38e1ca1110291d98cb72210909dd9be53da70ddbd4f8d4cfebc1d"
+    },
+    {
+      "byte_size": 1201,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/technical_candidate_seal.json",
+      "role": "retained_attempt_technical_candidate_seal.json",
+      "sha256": "6ca31211b0b9fee583fd8c852763f907e0727a2960105391c024ec1959f54a6a"
+    },
+    {
+      "byte_size": 262,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/technical_clearance_consumed.json",
+      "role": "retained_attempt_technical_clearance_consumed.json",
+      "sha256": "f423f5667df55482e8bc9bc4490000e89c24537b9450190963b350efa1e2f91f"
+    },
+    {
+      "byte_size": 5701,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/technical_gate_report.json",
+      "role": "retained_attempt_technical_gate_report.json",
+      "sha256": "d4c15ca6c0cb5976ff7db3aa22389cf8270ae22ec0ad17992a04fa872ee358c7"
+    },
+    {
+      "byte_size": 31974070,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/zed/capture.svo2",
+      "role": "retained_attempt_capture.svo2",
+      "sha256": "c874f0709b3537318ea890c3eb74e095444e931c27ea8237c2e0cd192fabab3e"
+    },
+    {
+      "byte_size": 3442035,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/zed/frames.jsonl",
+      "role": "retained_attempt_frames.jsonl",
+      "sha256": "4f5851aee3e5955f5f80b7f36eb34376e8c8e7f0f4e7245709901d05951b438f"
+    },
+    {
+      "byte_size": 2296,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/zed/producer_summary.json",
+      "role": "retained_attempt_producer_summary.json",
+      "sha256": "51dcbeb07aa8adee55a73e935031eb3ffc26217236da80211b9e943e53301b86"
+    },
+    {
+      "byte_size": 1192,
+      "path": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts/s48r02_preholdout_037_impact_02/s48r02_preholdout_037_impact_02__attempt_01/zed/zed_svo_replay.json",
+      "role": "retained_attempt_zed_svo_replay.json",
+      "sha256": "ea2fc42eb829c3ba0d5d438568e8ded94236215fbf50bc2390b05151d4ae0498"
+    },
+    {
+      "byte_size": 26596,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/attempt_ledger.jsonl",
+      "role": "official_attempt_ledger",
+      "sha256": "905da302647cf3844cedf77fbacae94bf2d521964ee4fdbb2daea6e75cea0ded"
+    },
+    {
+      "byte_size": 1042,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_001_silence_beginning__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "ad0e68ee99f36d59ecf6a31536b29475a2cbc5e10047278a8bdf7f08e6e4eedd"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_002_direction_000_r1__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "d37c9e448269c7e2da7085857f830564ae22bb0c93794e49fdf920923d4690c5"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_003_direction_000_r2__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "e3b9d35447acf9c72441a601380665486579e5c086b1df2397b0fffa5e032abc"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_004_direction_000_r3__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "d690b4ccaead29f413f108f1690aa3223368f0838d361728b9fc1ba7e53bbf4b"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_005_direction_045_r1__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "ed88e7f3450ea74563dce46fcfce5a4b9415f940cd8f410175dbaa6c449d5047"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_006_direction_045_r2__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "ac59f82e0d74382bc335dade3132dc88ec3fc1373308053b96ce18e7eab3ad91"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_007_direction_045_r3__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "4af4c06d30194afc655111a787cfd40365d15305816826c4628773f82a1d468c"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_008_direction_090_r1__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "edaa09fbad77fa5b52f91a1344209311f2a05d686bf925886f7a5c0df2d767fa"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_009_direction_090_r2__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "85f2b54c75f43981f2022bc5520e9b111ff5d42b19943aed38d1bf5746d4d7c9"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_010_direction_090_r3__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "5e238e10c853a2d93c4bfb2d9654d3decd4962a3916d3f22eabdcd13b1303061"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_011_direction_135_r1__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "2244ade9fb4d6541868d3b770d5276a45ed3eecbc4ae1a1cc6c8a0f5f02e0277"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_012_direction_135_r2__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "719cdcc03fdecad6c3f3a49bdc8762fa82cb8c88648053cb1193f9178a98da96"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_013_direction_135_r3__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "8a9806f940fa58a0cfe63bd170066eec409d99b41bb0686afbb59d24b719d377"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_014_direction_180_r1__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "0cb17d3468a3d574f418d1f1a749ff88f353626b22923d2ee72e8d0e87c72752"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_015_direction_180_r2__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "54c5e9269b3ea14ac554e12eba10d4b33f252c76c17c74fa31366e042b447328"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_016_direction_180_r3__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "e2f560bde1318cf6ae2a2d105cd835dc458be0458fe2dad1729e273661b519f7"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_017_direction_225_r1__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "c9c147c734138b7a89daca08cc362036cc304bc6f8b65a5dbf28d4f7ff2fda38"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_018_direction_225_r2__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "332653f5fa8663ca065c206a654501cb441149a376159b9d722f050ebbd3e9a9"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_019_direction_225_r3__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "860824fe2151c87292799827f166ea41c0e711b085191ac76535cfe5647fbbc7"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_020_direction_270_r1__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "05fec53ddcc4752f932b1a48e53638a6753c3605e6695d2dcad5e6c9da5d63c1"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_021_direction_270_r2__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "04cfb82b3b55874e065d5546dccda7f109462c44097eceea93b0d79c894941fc"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_022_direction_270_r3__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "a3c657971d84fc031d95f3f34c61a6da8bebe518650b90b0e4d5f147cb36f99f"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_023_direction_315_r1__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "187bbe86980493ff8d597991039429403fd5c973067c4070c757e74444dbf742"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_024_direction_315_r2__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "261567e3db73e7795d7486ffff0da91a35852fb029623c5095d8edf0db07e56d"
+    },
+    {
+      "byte_size": 1040,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_025_direction_315_r3__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "a3bdf96f0f9525e5e0e497f2b385a2d4e322ca6b89971995f87712b6f0547d0a"
+    },
+    {
+      "byte_size": 1036,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_026_silence_middle__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "719ed01b2f5fc57dfab2a39c5a7a0f5eb879884bc562cc75c913796109375435"
+    },
+    {
+      "byte_size": 1044,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_027_front_occluded_000__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "38e7c0d16e91d54d9f7febaf21bcb8a4e69f30df071fd538a69a716b2d92833c"
+    },
+    {
+      "byte_size": 1038,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_028_right_noise_090__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "a7fa5731d48fc257cd0506d280bae077003399db7a62c20e6d139e73a19b140f"
+    },
+    {
+      "byte_size": 1036,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_029_rear_noise_180__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "1c1233190151c1d225b4d820749d2102f0827ebb691b3dbb761893274378c2de"
+    },
+    {
+      "byte_size": 1042,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_030_left_occluded_270__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "fa464619e8b6dc33972ccb7c433556915a52c13a6f0129a146c752682bc0982d"
+    },
+    {
+      "byte_size": 1034,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_031_low_front_000__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "9293bc91eebd9b3762c0922de2d6a37bd376cb6257663935e95d05da0f009da3"
+    },
+    {
+      "byte_size": 1034,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_032_low_right_090__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "8c5934143cd50ac4dd313912c9822dc568a938436a57f725532433b3e152bf5b"
+    },
+    {
+      "byte_size": 1032,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_033_low_rear_180__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "df1f7fac615d254c7f9101a1919137df39821bab2f0cc188d97937957130edfb"
+    },
+    {
+      "byte_size": 1032,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_034_low_left_270__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "21d7654009f73393611cf9160df33d81d2632ed25fbe5ad6c45db5ddecb8f5e1"
+    },
+    {
+      "byte_size": 1030,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_035_silence_end__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "f17fd96b029d1d511ae822fdd5c3a69e4cdb36499c47ee6d172e3ea9dbe24206"
+    },
+    {
+      "byte_size": 1026,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_036_impact_01__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "4174672fe9b19707eaadcd86c4883590ccb79966d2fdd41fca88fb0fe9c1e2d9"
+    },
+    {
+      "byte_size": 1026,
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/authorizations/s48r02_preholdout_037_impact_02__attempt_01.json",
+      "role": "external_take_authorization",
+      "sha256": "f59339d1510d30ddd2231d2cc171827e5915cbb61c5c580a13941836d491a441"
+    }
+  ],
+  "authority": {
+    "adds_independent_review": false,
+    "consumes_grant": false,
+    "creates_grant": false,
+    "opens_holdout": false,
+    "runs_evaluation": false
+  },
+  "bindings": {
+    "partition_manifest": {
+      "file_sha256": "26f28d6ba2e91fd6bf60d1de20e3be90caef60143cf3ca0b89e67c260a2d5b31",
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/manifests/prospective_holdout_recovery_02_manifest.v2.json",
+      "payload_sha256": "5d104375ff79f3356700923089f7ba79b7c24fb4f01029cef619cf9790ea4440"
+    },
+    "precollection_seal": {
+      "file_sha256": "e35359509910d79ef4933748255d71faf6191bd3cb17638e8ea68655367bbf0d",
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/precollection_seal.v2.json",
+      "payload_sha256": "c7b7caaefef11795f717be81914bcead54fc2f0b0867c4e87289a54c9359e025"
+    },
+    "session_manifest": {
+      "file_sha256": "328abccec1e363b77af53762b8ceabdafd186a50945aa16b7671ce72ecf9b32a",
+      "path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/manifests/sessions/prospective_holdout_recovery_02.v2.json",
+      "payload_sha256": "ed1736831ea3fabf5fbad16086fd975572a4dd34bfd4aadaef24c01c4eee7353"
+    }
+  },
+  "collection": {
+    "attempt_artifact_count": 336,
+    "attempt_ledger_path": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/attempt_ledger.jsonl",
+    "authorization_record_count": 37,
+    "collection_artifact_count": 374,
+    "completed_take_count": 37,
+    "ledger_file_sha256": "905da302647cf3844cedf77fbacae94bf2d521964ee4fdbb2daea6e75cea0ded",
+    "ledger_head_sha256": "df52d66e02763e197c375a4a120bff059eccdfb821e3d66c0e696d1c1c770f8c",
+    "ledger_record_count": 37,
+    "observation_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts",
+    "pass_attempt_count": 37,
+    "planned_take_count": 37,
+    "retained_attempt_count": 37,
+    "retry_required_attempt_count": 0
+  },
+  "finalizer_source_commit": "7da92b8cc2a28610aff2f0a15d2e75ea919c36ca",
+  "holdout_id": "s4_8_recovery_amendment_02_unseen_holdout",
+  "revision_id": "s4_8_recovery_amendment_02_preholdout_37_take_revision",
+  "schema": "ias.s4_8.recovery_02_holdout_seal.v2",
+  "scientific_artifact_contents_parsed": false,
+  "scientific_outcomes_derived": false,
+  "scientific_outputs_returned": false,
+  "scientifically_opened": false,
+  "seal_payload_sha256": "c2a90baca98feaef4e57fa87669856f9d481e2c05169b1eab73b805a715512df",
+  "status": "sealed_unopened",
+  "technically_sealed": true
+}

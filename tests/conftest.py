@@ -134,6 +134,9 @@ def pre_s4_6_root() -> Iterator[Path]:
                 source_s4_4,
                 snapshot / "dataset/S4.4",
                 copy_function=os.link,
+                ignore=shutil.ignore_patterns(
+                    "s4_4_data_expansion_amendment_04"
+                ),
             )
         yield snapshot
     finally:

@@ -487,11 +487,12 @@ def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
     assert result["protocol_revision_readiness"] == "frozen_for_precollection"
     assert result["official_readiness"] == "no_go"
     expected_blockers = [
-        "new_unseen_holdout_not_collected_or_bound",
         "evaluator_not_bound_to_37_take_protocol",
         "independent_review_not_present",
         "explicit_authorization_not_granted",
     ]
+    if not result["holdout_collection_complete"]:
+        expected_blockers.insert(0, "new_unseen_holdout_not_collected_or_bound")
     if not result["source_commit_binds_protocol_revision"]:
         expected_blockers.insert(0, "source_commit_does_not_bind_37_take_protocol")
     if not readiness_present:

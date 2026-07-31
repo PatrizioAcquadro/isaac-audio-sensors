@@ -179,25 +179,27 @@ def test_exclusive_pair_write_cleans_only_new_partial_file(
 def test_preopen_removes_only_collection_binding_blocker(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        recovery,
-        "_source_binds_protocol_revision",
-        lambda *_a, **_k: True,
-    )
-    before = recovery.recovery_preopen_validate(ROOT)
+    original_exists = Path.exists
+
+    def absent(path: Path) -> bool:
+        if path in {SEAL_PATH, BINDING_PATH}:
+            return False
+        return original_exists(path)
+
+    with monkeypatch.context() as before_context:
+        before_context.setattr(
+            recovery,
+            "_source_binds_protocol_revision",
+            lambda *_a, **_k: True,
+        )
+        before_context.setattr(Path, "exists", absent)
+        before = recovery.recovery_preopen_validate(ROOT)
     assert before["blockers"] == [
         "new_unseen_holdout_not_collected_or_bound",
         "evaluator_not_bound_to_37_take_protocol",
         "independent_review_not_present",
         "explicit_authorization_not_granted",
     ]
-
-    original_exists = Path.exists
-
-    def exists(path: Path) -> bool:
-        if path in {SEAL_PATH, BINDING_PATH}:
-            return True
-        return original_exists(path)
 
     authenticated = {
         "status": "passed",
@@ -212,7 +214,11 @@ def test_preopen_removes_only_collection_binding_blocker(
         "grant_consumed": False,
         "evaluation_run": False,
     }
-    monkeypatch.setattr(Path, "exists", exists)
+    monkeypatch.setattr(
+        recovery,
+        "_source_binds_protocol_revision",
+        lambda *_a, **_k: True,
+    )
     monkeypatch.setattr(
         finalizer,
         "authenticate_existing_finalization",
