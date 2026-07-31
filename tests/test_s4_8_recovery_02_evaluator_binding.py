@@ -224,10 +224,10 @@ def test_preopen_removes_only_evaluator_blocker_when_authenticated(
 
     result = recovery.recovery_preopen_validate(ROOT)
 
-    assert result["blockers"] == [
-        "independent_review_not_present",
-        "explicit_authorization_not_granted",
-    ]
+    expected_blockers = ["explicit_authorization_not_granted"]
+    if not result["independent_review_authenticated"]:
+        expected_blockers.insert(0, "independent_review_not_present")
+    assert result["blockers"] == expected_blockers
     assert result["official_readiness"] == "no_go"
     assert result["evaluator_binding_authenticated"] is True
     assert result["evaluator_binding"] == authenticated
@@ -254,10 +254,10 @@ def test_absent_binding_retains_only_its_named_blocker(
 
     result = recovery.recovery_preopen_validate(ROOT)
 
-    assert result["blockers"] == [
-        "evaluator_not_bound_to_37_take_protocol",
-        "independent_review_not_present",
-        "explicit_authorization_not_granted",
-    ]
+    expected_blockers = ["explicit_authorization_not_granted"]
+    if not result["independent_review_authenticated"]:
+        expected_blockers.insert(0, "independent_review_not_present")
+    expected_blockers.insert(0, "evaluator_not_bound_to_37_take_protocol")
+    assert result["blockers"] == expected_blockers
     assert result["evaluator_binding_authenticated"] is False
     assert result["evaluator_binding"] is None

@@ -383,12 +383,21 @@ def test_future_state_paths_are_disjoint_and_absent() -> None:
             "derived_input_path",
             "output_path",
             "closeout_path",
-            "independent_review_path",
         )
     }
+    review_path = future["independent_review_path"]
 
-    assert historical.isdisjoint(future_paths)
+    assert historical.isdisjoint(future_paths | {review_path})
     assert all(not (ROOT / path).exists() for path in future_paths)
+    if (ROOT / review_path).exists():
+        assert (
+            recovery._authenticate_independent_review(
+                ROOT,
+                amendment=amendment,
+                source_commit=s4_8._git(ROOT, "rev-parse", "HEAD"),
+            )
+            is not None
+        )
 
 
 def test_future_namespace_cannot_cover_a_frozen_terminal_package() -> None:
@@ -467,6 +476,174 @@ def test_future_binding_schema_requires_sealed_unopened_state() -> None:
         jsonschema.validate(opened, schema)
 
 
+def _write_independent_review(
+    repo_root: Path,
+    *,
+    amendment: dict,
+    source_commit: str,
+) -> Path:
+    path = repo_root / amendment["future_attempt"]["independent_review_path"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema": "ias.s4_8.independent_recovery_review.v1",
+                "amendment_id": amendment["amendment_id"],
+                "source_commit": source_commit,
+                "decision": "approved",
+                "independent": True,
+                "reviewer_id": "independent_reviewer",
+                "reviewed_at_utc": "2030-01-01T00:00:00Z",
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_independent_review_authentication_is_absent_or_candidate_bound(
+    tmp_path: Path,
+) -> None:
+    amendment = recovery.load_amendment(ROOT)
+    source_commit = "a" * 40
+
+    assert (
+        recovery._authenticate_independent_review(
+            tmp_path,
+            amendment=amendment,
+            source_commit=source_commit,
+        )
+        is None
+    )
+    _write_independent_review(
+        tmp_path,
+        amendment=amendment,
+        source_commit=source_commit,
+    )
+    review = recovery._authenticate_independent_review(
+        tmp_path,
+        amendment=amendment,
+        source_commit=source_commit,
+    )
+
+    assert review is not None
+    assert review["source_commit"] == source_commit
+    with pytest.raises(s4_8.S48Error, match="bound to this source"):
+        recovery._authenticate_independent_review(
+            tmp_path,
+            amendment=amendment,
+            source_commit="b" * 40,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("schema", "ias.s4_8.independent_recovery_review.v2"),
+        ("amendment_id", "other_amendment"),
+        ("decision", "rejected"),
+        ("independent", False),
+        ("reviewer_id", " "),
+        ("reviewed_at_utc", ""),
+    ],
+)
+def test_independent_review_tamper_fails_closed(
+    tmp_path: Path,
+    field: str,
+    value: object,
+) -> None:
+    amendment = recovery.load_amendment(ROOT)
+    source_commit = "a" * 40
+    path = _write_independent_review(
+        tmp_path,
+        amendment=amendment,
+        source_commit=source_commit,
+    )
+    review = json.loads(path.read_text(encoding="utf-8"))
+    review[field] = value
+    path.write_text(json.dumps(review), encoding="utf-8")
+
+    with pytest.raises(s4_8.S48Error, match="bound to this source"):
+        recovery._authenticate_independent_review(
+            tmp_path,
+            amendment=amendment,
+            source_commit=source_commit,
+        )
+
+
+@pytest.mark.parametrize("change", ["extra", "missing", "malformed", "directory"])
+def test_independent_review_shape_and_file_fail_closed(
+    tmp_path: Path,
+    change: str,
+) -> None:
+    amendment = recovery.load_amendment(ROOT)
+    source_commit = "a" * 40
+    path = _write_independent_review(
+        tmp_path,
+        amendment=amendment,
+        source_commit=source_commit,
+    )
+    if change in {"extra", "missing"}:
+        review = json.loads(path.read_text(encoding="utf-8"))
+        if change == "extra":
+            review["unexpected"] = True
+        else:
+            review.pop("reviewer_id")
+        path.write_text(json.dumps(review), encoding="utf-8")
+    elif change == "malformed":
+        path.write_text("{", encoding="utf-8")
+    else:
+        path.unlink()
+        path.mkdir()
+
+    with pytest.raises(s4_8.S48Error, match="independent review"):
+        recovery._authenticate_independent_review(
+            tmp_path,
+            amendment=amendment,
+            source_commit=source_commit,
+        )
+
+
+def test_preopen_authenticated_review_removes_only_review_blocker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    amendment = recovery.load_amendment(ROOT)
+    review_path = (
+        ROOT / amendment["future_attempt"]["independent_review_path"]
+    ).resolve()
+    original_exists = Path.exists
+
+    def exists(path: Path) -> bool:
+        if path.resolve() == review_path:
+            return True
+        return original_exists(path)
+
+    monkeypatch.setattr(Path, "exists", exists)
+    monkeypatch.setattr(
+        recovery,
+        "_authenticate_independent_review",
+        lambda *_args, **_kwargs: {"decision": "approved"},
+    )
+    monkeypatch.setattr(
+        recovery,
+        "_source_binds_protocol_revision",
+        lambda *_args, **_kwargs: True,
+    )
+    result = recovery.recovery_preopen_validate(ROOT)
+
+    assert result["blockers"] == ["explicit_authorization_not_granted"]
+    assert result["independent_review_present"] is True
+    assert result["independent_review_authenticated"] is True
+    assert result["official_readiness"] == "no_go"
+    assert result["grant_creation_authorized"] is False
+    assert result["grant_consumption_authorized"] is False
+    assert result["evaluation_execution_authorized"] is False
+    assert result["new_grant_present"] is False
+    assert result["new_ledger_present"] is False
+    assert result["holdout_observation_opened"] is False
+    assert result["content_derived_values_returned"] is False
+
+
 def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -486,10 +663,9 @@ def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
     assert result["status"] == "passed"
     assert result["protocol_revision_readiness"] == "frozen_for_precollection"
     assert result["official_readiness"] == "no_go"
-    expected_blockers = [
-        "independent_review_not_present",
-        "explicit_authorization_not_granted",
-    ]
+    expected_blockers = ["explicit_authorization_not_granted"]
+    if not result["independent_review_authenticated"]:
+        expected_blockers.insert(0, "independent_review_not_present")
     if not result["evaluator_binding_authenticated"]:
         expected_blockers.insert(0, "evaluator_not_bound_to_37_take_protocol")
     if not result["holdout_collection_complete"]:
@@ -529,6 +705,13 @@ def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
     assert result["grant_creation_authorized"] is False
     assert result["grant_consumption_authorized"] is False
     assert result["evaluation_execution_authorized"] is False
+    assert result["independent_review_present"] is (
+        ROOT / amendment["future_attempt"]["independent_review_path"]
+    ).exists()
+    assert (
+        result["independent_review_authenticated"]
+        is result["independent_review_present"]
+    )
     assert result["new_grant_present"] is False
     assert result["new_ledger_present"] is False
     assert result["holdout_observation_opened"] is False

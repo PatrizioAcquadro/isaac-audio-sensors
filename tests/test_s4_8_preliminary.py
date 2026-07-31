@@ -650,7 +650,9 @@ def test_amendment_02_keeps_evaluation_blocked_after_protocol_freeze() -> None:
     assert (
         "evaluator_not_bound_to_37_take_protocol" in result["blockers"]
     ) is not result["evaluator_binding_authenticated"]
-    assert "independent_review_not_present" in result["blockers"]
+    assert (
+        "independent_review_not_present" in result["blockers"]
+    ) is not result["independent_review_authenticated"]
     assert "explicit_authorization_not_granted" in result["blockers"]
     assert result["grant_creation_authorized"] is False
     assert result["evaluation_execution_authorized"] is False

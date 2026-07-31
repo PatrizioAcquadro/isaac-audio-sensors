@@ -194,13 +194,12 @@ def test_preopen_removes_only_collection_binding_blocker(
         )
         before_context.setattr(Path, "exists", absent)
         before = recovery.recovery_preopen_validate(ROOT)
-    expected_before = [
-        "new_unseen_holdout_not_collected_or_bound",
-        "independent_review_not_present",
-        "explicit_authorization_not_granted",
-    ]
+    expected_before = ["explicit_authorization_not_granted"]
+    if not before["independent_review_authenticated"]:
+        expected_before.insert(0, "independent_review_not_present")
     if not before["evaluator_binding_authenticated"]:
-        expected_before.insert(1, "evaluator_not_bound_to_37_take_protocol")
+        expected_before.insert(0, "evaluator_not_bound_to_37_take_protocol")
+    expected_before.insert(0, "new_unseen_holdout_not_collected_or_bound")
     assert before["blockers"] == expected_before
 
     authenticated = {
@@ -228,10 +227,9 @@ def test_preopen_removes_only_collection_binding_blocker(
     )
     after = recovery.recovery_preopen_validate(ROOT)
 
-    expected_after = [
-        "independent_review_not_present",
-        "explicit_authorization_not_granted",
-    ]
+    expected_after = ["explicit_authorization_not_granted"]
+    if not after["independent_review_authenticated"]:
+        expected_after.insert(0, "independent_review_not_present")
     if not after["evaluator_binding_authenticated"]:
         expected_after.insert(0, "evaluator_not_bound_to_37_take_protocol")
     assert after["blockers"] == expected_after

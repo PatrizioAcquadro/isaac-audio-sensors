@@ -53,6 +53,17 @@ EVALUATOR_BINDING_SHA256 = (
 EVALUATOR_BINDING_SCHEMA_SHA256 = (
     "cd2c367381d19abb78e9af32ddfe2600c19fd024b5b80551386d1c9e6d393380"
 )
+REVIEW_FIELDS = frozenset(
+    {
+        "schema",
+        "amendment_id",
+        "source_commit",
+        "decision",
+        "independent",
+        "reviewer_id",
+        "reviewed_at_utc",
+    }
+)
 
 PLANNED_TAKE_COUNT = 37
 LEAKAGE_GROUP_COUNT = 15
@@ -1006,6 +1017,46 @@ def _require_no_unauthorized_state(
             )
 
 
+def _authenticate_independent_review(
+    repo_root: Path,
+    *,
+    amendment: Mapping[str, Any],
+    source_commit: str,
+) -> dict[str, Any] | None:
+    path = repo_root / _safe_relative(
+        amendment["future_attempt"]["independent_review_path"]
+    )
+    if not path.exists():
+        return None
+    if not path.is_file():
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 independent review is not a file"
+        )
+    try:
+        review = s4_8.load_json(path)
+    except (OSError, ValueError, s4_8.S48Error) as exc:
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 independent review is malformed"
+        ) from exc
+    if (
+        set(review) != REVIEW_FIELDS
+        or review.get("schema") != "ias.s4_8.independent_recovery_review.v1"
+        or review.get("amendment_id") != amendment["amendment_id"]
+        or review.get("source_commit") != source_commit
+        or review.get("decision") != "approved"
+        or review.get("independent") is not True
+        or not isinstance(review.get("reviewer_id"), str)
+        or not review["reviewer_id"].strip()
+        or not isinstance(review.get("reviewed_at_utc"), str)
+        or not review["reviewed_at_utc"].strip()
+    ):
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 requires an independent review "
+            "bound to this source"
+        )
+    return review
+
+
 def _require_fix_ancestor(
     repo_root: Path,
     *,
@@ -1455,9 +1506,13 @@ def recovery_preopen_validate(
             "S4.8 official holdout state exists before preliminary readiness "
             "and final protocol freeze"
         )
-    review_present = (
-        root / _safe_relative(future["independent_review_path"])
-    ).is_file()
+    review_path = root / _safe_relative(future["independent_review_path"])
+    review_present = review_path.exists()
+    independent_review = _authenticate_independent_review(
+        root,
+        amendment=amendment,
+        source_commit=resolved_commit,
+    )
     seal_present = present["holdout_seal_path"]
     binding_present = present["binding_path"]
     if seal_present != binding_present:
@@ -1481,10 +1536,9 @@ def recovery_preopen_validate(
         root,
         source_commit=resolved_commit,
     )
-    blockers = [
-        "independent_review_not_present",
-        "explicit_authorization_not_granted",
-    ]
+    blockers = ["explicit_authorization_not_granted"]
+    if independent_review is None:
+        blockers.insert(0, "independent_review_not_present")
     if evaluator_binding is None:
         blockers.insert(0, "evaluator_not_bound_to_37_take_protocol")
     if finalization is None:
@@ -1578,6 +1632,7 @@ def recovery_preopen_validate(
         "evaluator_binding_authenticated": evaluator_binding is not None,
         "evaluator_binding": evaluator_binding,
         "independent_review_present": review_present,
+        "independent_review_authenticated": independent_review is not None,
         "grant_creation_authorized": False,
         "grant_consumption_authorized": False,
         "evaluation_execution_authorized": False,
