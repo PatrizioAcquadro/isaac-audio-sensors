@@ -12,6 +12,31 @@ from isaac_audio_sensors.acquisition import s4_8
 from isaac_audio_sensors.acquisition import s4_8_recovery_02 as recovery
 
 ROOT = Path(__file__).resolve().parents[1]
+EVALUATOR_REPAIR_COMMIT = "b6703ee1601826f8a5d96b6d69345edfd252e577"
+
+
+def test_v2_binding_is_additive_and_source_bound() -> None:
+    binding = s4_8.load_json(ROOT / recovery.EVALUATOR_BINDING_PATH)
+
+    assert binding["schema"] == "ias.s4_8.recovery_02_evaluator_binding.v2"
+    assert binding["evaluator"]["source_commit"] == EVALUATOR_REPAIR_COMMIT
+    assert binding["evaluator"]["source_files"][0] == {
+        "path": "src/isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py",
+        "sha256": "007045b13ba45f8aaee38a35143e0959392490f14ed1fd4c7d76e6ebae35871a",
+    }
+    assert (
+        s4_8.sha256_file(
+            ROOT / "configs/s4_8_recovery_amendment_02_evaluator_binding.v1.json"
+        )
+        == "4bc6077c514d7c4157869e88c0bfe0bf4fa514a46f699410f7dd8bb545141dcc"
+    )
+    assert (
+        s4_8.sha256_file(
+            ROOT / "docs/schemas/"
+            "s4_8_recovery_amendment_02_evaluator_binding.v1.schema.json"
+        )
+        == "6630a76e05d980f056e40f17a0878dd0372fa5a5da4072ceff063941427a866e"
+    )
 
 
 def _allow_uncommitted_binding(
@@ -46,7 +71,7 @@ def test_binding_authenticates_without_scientific_or_authority_state(
 
     result = recovery.authenticate_evaluator_binding(
         ROOT,
-        source_commit="1d97ba8690a08911d91abd2e32aa1c265808c8c3",
+        source_commit=EVALUATOR_REPAIR_COMMIT,
     )
 
     assert result is not None
@@ -56,6 +81,11 @@ def test_binding_authenticates_without_scientific_or_authority_state(
     assert result["primary_threshold"] == 0.75
     assert result["primary_denominator"] == 28
     assert result["effective_gating_criterion_count"] == 17
+    assert result["evaluator_source_commit"] == EVALUATOR_REPAIR_COMMIT
+    assert result["tool_version"] == "ias_s4_8_recovery_02_evaluator/1.0.1"
+    assert (
+        result["result_schema"] == "ias.s4_8.recovery_02.criteria_evaluation_result.v2"
+    )
     assert result["scientifically_opened"] is False
     assert result["scientific_outcomes_derived"] is False
     assert result["grant_created"] is False
@@ -77,7 +107,7 @@ def test_binding_hash_tamper_fails_closed(
     with pytest.raises(s4_8.S48Error, match="binding hash mismatch"):
         recovery.authenticate_evaluator_binding(
             ROOT,
-            source_commit="1d97ba8690a08911d91abd2e32aa1c265808c8c3",
+            source_commit=EVALUATOR_REPAIR_COMMIT,
         )
 
 
@@ -98,7 +128,7 @@ def test_schema_and_protocol_role_tamper_fail_closed(
     with pytest.raises(s4_8.S48Error, match="binding schema failure"):
         recovery.authenticate_evaluator_binding(
             ROOT,
-            source_commit="1d97ba8690a08911d91abd2e32aa1c265808c8c3",
+            source_commit=EVALUATOR_REPAIR_COMMIT,
         )
 
 
@@ -118,7 +148,7 @@ def test_unsafe_bound_path_fails_closed(
     with pytest.raises(s4_8.S48Error, match="unsafe amendment_02 path"):
         recovery.authenticate_evaluator_binding(
             ROOT,
-            source_commit="1d97ba8690a08911d91abd2e32aa1c265808c8c3",
+            source_commit=EVALUATOR_REPAIR_COMMIT,
         )
 
 
@@ -143,7 +173,7 @@ def test_evaluator_source_tamper_fails_closed(
     with pytest.raises(s4_8.S48Error, match="source authentication failed"):
         recovery.authenticate_evaluator_binding(
             ROOT,
-            source_commit="1d97ba8690a08911d91abd2e32aa1c265808c8c3",
+            source_commit=EVALUATOR_REPAIR_COMMIT,
         )
 
 
@@ -166,7 +196,7 @@ def test_opened_holdout_claim_fails_closed(
     with pytest.raises(s4_8.S48Error, match="sealed-holdout identity"):
         recovery.authenticate_evaluator_binding(
             ROOT,
-            source_commit="1d97ba8690a08911d91abd2e32aa1c265808c8c3",
+            source_commit=EVALUATOR_REPAIR_COMMIT,
         )
 
 

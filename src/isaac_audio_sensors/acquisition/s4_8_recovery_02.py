@@ -42,16 +42,16 @@ AMENDMENT_SPEC_PATH = Path(
     "docs/development/specs/s4_8_recovery_amendment_02_preholdout_v2.md"
 )
 EVALUATOR_BINDING_PATH = Path(
-    "configs/s4_8_recovery_amendment_02_evaluator_binding.v1.json"
+    "configs/s4_8_recovery_amendment_02_evaluator_binding.v2.json"
 )
 EVALUATOR_BINDING_SCHEMA_PATH = Path(
-    "docs/schemas/s4_8_recovery_amendment_02_evaluator_binding.v1.schema.json"
+    "docs/schemas/s4_8_recovery_amendment_02_evaluator_binding.v2.schema.json"
 )
 EVALUATOR_BINDING_SHA256 = (
-    "4bc6077c514d7c4157869e88c0bfe0bf4fa514a46f699410f7dd8bb545141dcc"
+    "275984676d822ac2cf002d72791eef2694042da6d3cac1419b4876f0f4a39902"
 )
 EVALUATOR_BINDING_SCHEMA_SHA256 = (
-    "6630a76e05d980f056e40f17a0878dd0372fa5a5da4072ceff063941427a866e"
+    "cd2c367381d19abb78e9af32ddfe2600c19fd024b5b80551386d1c9e6d393380"
 )
 
 PLANNED_TAKE_COUNT = 37
