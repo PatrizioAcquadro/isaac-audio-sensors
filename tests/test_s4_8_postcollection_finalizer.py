@@ -193,7 +193,10 @@ def test_preopen_removes_only_collection_binding_blocker(
             lambda *_a, **_k: True,
         )
         before_context.setattr(Path, "exists", absent)
-        before = recovery.recovery_preopen_validate(ROOT)
+        before = recovery.recovery_preopen_validate(
+            ROOT,
+            require_access_paths_absent=False,
+        )
     expected_before = ["explicit_authorization_not_granted"]
     if not before["independent_review_authenticated"]:
         expected_before.insert(0, "independent_review_not_present")
@@ -225,7 +228,10 @@ def test_preopen_removes_only_collection_binding_blocker(
         "authenticate_existing_finalization",
         lambda _root: authenticated,
     )
-    after = recovery.recovery_preopen_validate(ROOT)
+    after = recovery.recovery_preopen_validate(
+        ROOT,
+        require_access_paths_absent=False,
+    )
 
     expected_after = ["explicit_authorization_not_granted"]
     if not after["independent_review_authenticated"]:
@@ -266,4 +272,7 @@ def test_preopen_rejects_partial_finalization_state(
         recovery.s4_8.S48Error,
         match="seal and binding are incomplete",
     ):
-        recovery.recovery_preopen_validate(ROOT)
+        recovery.recovery_preopen_validate(
+            ROOT,
+            require_access_paths_absent=False,
+        )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -21,7 +22,7 @@ from isaac_audio_sensors.acquisition.s4_4 import (
 )
 from isaac_audio_sensors.core import acceptance_criteria_corrective_02 as c2
 
-TOOL_VERSION = "ias_s4_8_recovery_02_execution/1.0.0"
+TOOL_VERSION = "ias_s4_8_recovery_02_execution/1.0.1"
 DERIVED_INPUT_SCHEMA = "ias.s4_8.recovery_02.derived_evaluation_input.v2"
 PACKAGE_FILES = s4_8.PACKAGE_FILES
 FULL_EVIDENCE_PROFILE = "recovery_02_full_evidence.v2"
@@ -40,6 +41,48 @@ SOURCE_BOUND_FILES = (
     Path("src/isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py"),
     Path("scripts/run_s4_8_recovery_02.py"),
 )
+
+
+def _canonicalize_reference_tdoa_boundaries(
+    take: dict[str, Any],
+    *,
+    minimum_us: float,
+    maximum_us: float,
+) -> None:
+    """Clamp only one-ULP producer drift at the frozen TDOA boundaries."""
+
+    if (
+        not math.isfinite(minimum_us)
+        or not math.isfinite(maximum_us)
+        or minimum_us >= maximum_us
+    ):
+        raise s4_8.S48Error("S4.8 recovery amendment_02 TDOA domain is invalid")
+    lower_ulp = math.nextafter(minimum_us, -math.inf)
+    upper_ulp = math.nextafter(maximum_us, math.inf)
+    for record in take.get("tdoa", []):
+        if not isinstance(record, dict):
+            raise s4_8.S48Error(
+                "S4.8 recovery amendment_02 TDOA record is invalid"
+            )
+        reference = record.get("reference_tdoa_us")
+        measured = record.get("tdoa_us")
+        if (
+            not isinstance(reference, (int, float))
+            or isinstance(reference, bool)
+            or not math.isfinite(float(reference))
+            or not isinstance(measured, (int, float))
+            or isinstance(measured, bool)
+            or not math.isfinite(float(measured))
+        ):
+            continue
+        canonical = float(reference)
+        if lower_ulp <= canonical < minimum_us:
+            canonical = minimum_us
+        elif maximum_us < canonical <= upper_ulp:
+            canonical = maximum_us
+        if canonical != reference:
+            record["reference_tdoa_us"] = canonical
+            record["absolute_error_us"] = abs(float(measured) - canonical)
 
 
 def _holdout_seal_path(repo_root: Path) -> Path:
@@ -432,6 +475,7 @@ def build_real_payload(
     seal, registry, candidates, selected = _attempt_state(root)
     profile = s4_8._profile_runtime(root)
     simulation = _simulation_comparisons(root, registry)
+    tdoa_domain = c2.load_corrective_config(root)["physical_domains"]["tdoa_us"]
     takes: list[dict[str, Any]] = []
     inventory = s4_8._initial_observation_inventory(
         root,
@@ -545,6 +589,11 @@ def build_real_payload(
                 observation_inventory=inventory,
                 cause=exc,
             ) from exc
+        _canonicalize_reference_tdoa_boundaries(
+            take,
+            minimum_us=float(tdoa_domain["minimum"]),
+            maximum_us=float(tdoa_domain["maximum"]),
+        )
         takes.append(take)
         progress_record.update(record)
         progress_record.update(
@@ -932,10 +981,30 @@ def _validate_evidence_package_structure(
     gating = [
         item for item in criteria.get("criteria", []) if item.get("gating") is True
     ]
-    if derived.get("evaluation_state") == "evaluation_completed" and (
-        final.get("evaluator_invocation_count") != 1 or len(gating) != 17
-    ):
-        raise s4_8.S48Error("S4.8 recovery amendment_02 completed evaluation mismatch")
+    input_contract_rejected = (
+        criteria.get("status") == "failed"
+        and criteria.get("readiness_passed") is False
+        and criteria.get("failed_gating_criteria")
+        == ["evaluation_input_contract_rejected"]
+        and criteria.get("criteria") == []
+        and criteria.get("comparison_classifications") == []
+        and criteria.get("categorical_take_results") == []
+        and isinstance(criteria.get("evaluation_error"), str)
+        and bool(criteria["evaluation_error"])
+        and isinstance(criteria.get("identity_summary"), Mapping)
+        and criteria["identity_summary"].get("input_contract_adverse") is True
+        and criteria.get("holdout_observations_accessed_by_evaluator") == 0
+    )
+    if derived.get("evaluation_state") == "evaluation_completed":
+        if input_contract_rejected:
+            if final.get("evaluator_invocation_count") != 1 or gating:
+                raise s4_8.S48Error(
+                    "S4.8 recovery amendment_02 adverse evaluation mismatch"
+                )
+        elif final.get("evaluator_invocation_count") != 1 or len(gating) != 17:
+            raise s4_8.S48Error(
+                "S4.8 recovery amendment_02 completed evaluation mismatch"
+            )
     expected_invocation_count = (
         0 if derived.get("evaluation_state") == "not_evaluated" else 1
     )

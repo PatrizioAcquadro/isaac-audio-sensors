@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import shutil
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
 
 from isaac_audio_sensors.acquisition import s4_8
@@ -18,7 +20,9 @@ from isaac_audio_sensors.acquisition import (
 from isaac_audio_sensors.acquisition import (
     s4_8_recovery_02_execution as execution,
 )
+from isaac_audio_sensors.acquisition.s4_3 import _expected_tdoa
 from isaac_audio_sensors.acquisition.s4_4 import GRANT_SCHEMA, canonical_sha256
+from isaac_audio_sensors.core import acceptance_criteria_corrective_02 as c2
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_COMMIT = "a" * 40
@@ -120,6 +124,9 @@ def _synthetic_derived(
 def _install_finalization_fixture(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    input_contract_rejected: bool = False,
+    run_failure: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     config = execution._execution_contract(ROOT)
     config["evidence"]["derived_input_path"] = "state/derived.json"
@@ -135,11 +142,26 @@ def _install_finalization_fixture(
     amendment["future_attempt"]["output_path"] = config["evidence"]["output_path"]
     amendment["future_attempt"]["closeout_path"] = "closeout/terminal.md"
     payload = evaluator.build_synthetic_payload(ROOT)
+    if input_contract_rejected:
+        controlled = next(
+            take
+            for take in payload["takes"]
+            if take["identity"]["stratum_id"] == "A_controlled_boundary_sweep"
+        )
+        record = controlled["tdoa"][0]
+        minimum = c2.load_corrective_config(ROOT)["physical_domains"]["tdoa_us"][
+            "minimum"
+        ]
+        record["reference_tdoa_us"] = math.nextafter(minimum, -math.inf)
+        record["absolute_error_us"] = abs(
+            record["tdoa_us"] - record["reference_tdoa_us"]
+        )
     evaluation = evaluator.evaluate_payload(payload, repo_root=ROOT).report()
     evaluation["evaluation_invocation_count"] = 1
     derived = _synthetic_derived(
         payload=payload,
         evaluation=evaluation,
+        run_failure=run_failure,
         journal_path=config["evidence"]["run_journal_path"],
     )
     derived_path = tmp_path / config["evidence"]["derived_input_path"]
@@ -319,6 +341,148 @@ def test_bound_evaluator_can_be_invoked_only_once() -> None:
     assert sample_counts["coarse_av_association_residual_stratum_e"] == 2
     with pytest.raises(s4_8.S48Error, match="invocation already consumed"):
         execution._evaluation_callback(counter, payload, repo_root=ROOT)
+
+
+def test_reference_tdoa_boundary_canonicalization_is_one_ulp_only() -> None:
+    domain = c2.load_corrective_config(ROOT)["physical_domains"]["tdoa_us"]
+    minimum = float(domain["minimum"])
+    maximum = float(domain["maximum"])
+    lower_ulp = math.nextafter(minimum, -math.inf)
+    upper_ulp = math.nextafter(maximum, math.inf)
+    below_tolerance = math.nextafter(lower_ulp, -math.inf)
+    take = {
+        "tdoa": [
+            {
+                "pair_id": "raw_microphone_0->raw_microphone_2",
+                "tdoa_us": 10.0,
+                "reference_tdoa_us": lower_ulp,
+                "absolute_error_us": abs(10.0 - lower_ulp),
+            },
+            {
+                "pair_id": "raw_microphone_1->raw_microphone_3",
+                "tdoa_us": -10.0,
+                "reference_tdoa_us": upper_ulp,
+                "absolute_error_us": abs(-10.0 - upper_ulp),
+            },
+            {
+                "pair_id": "raw_microphone_0->raw_microphone_1",
+                "tdoa_us": 0.0,
+                "reference_tdoa_us": below_tolerance,
+                "absolute_error_us": abs(below_tolerance),
+            },
+        ]
+    }
+
+    execution._canonicalize_reference_tdoa_boundaries(
+        take,
+        minimum_us=minimum,
+        maximum_us=maximum,
+    )
+
+    lower, upper, rejected = take["tdoa"]
+    assert lower["reference_tdoa_us"] == minimum
+    assert lower["absolute_error_us"] == abs(lower["tdoa_us"] - minimum)
+    assert upper["reference_tdoa_us"] == maximum
+    assert upper["absolute_error_us"] == abs(upper["tdoa_us"] - maximum)
+    assert rejected["reference_tdoa_us"] == below_tolerance
+
+
+def test_225_degree_reference_is_canonical_before_frozen_evaluation() -> None:
+    domain = c2.load_corrective_config(ROOT)["physical_domains"]["tdoa_us"]
+    minimum = float(domain["minimum"])
+    positions = np.asarray(s4_8._profile_runtime(ROOT)["positions"], dtype=float)
+    ids = tuple(f"raw_microphone_{index}" for index in range(4))
+    pair_id = "raw_microphone_0->raw_microphone_2"
+    reference = float(_expected_tdoa(positions, ids, 225.0, 343.0)[pair_id] * 1e6)
+    assert reference == math.nextafter(minimum, -math.inf)
+    payload = evaluator.build_synthetic_payload(ROOT)
+    take = next(
+        item
+        for item in payload["takes"]
+        if item["identity"]["target_bearing_deg_f_project"] == 225.0
+    )
+    record = next(item for item in take["tdoa"] if item["pair_id"] == pair_id)
+    record["reference_tdoa_us"] = reference
+    record["absolute_error_us"] = abs(record["tdoa_us"] - reference)
+
+    execution._canonicalize_reference_tdoa_boundaries(
+        take,
+        minimum_us=minimum,
+        maximum_us=float(domain["maximum"]),
+    )
+    report = evaluator.evaluate_payload(payload, repo_root=ROOT).report()
+
+    assert record["reference_tdoa_us"] == minimum
+    assert report["evaluation_error"] is None
+    assert report["failed_gating_criteria"] != ["evaluation_input_contract_rejected"]
+
+
+@pytest.mark.parametrize("with_run_failure", [False, True])
+def test_input_contract_rejection_terminalizes_without_reinvocation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    with_run_failure: bool,
+) -> None:
+    run_failure = (
+        {
+            "stage": "finalization",
+            "error_type": "S48Error",
+            "error": "completed evaluation mismatch",
+            "terminal": True,
+            "automatic_retry_forbidden": True,
+        }
+        if with_run_failure
+        else None
+    )
+    config, _amendment, derived = _install_finalization_fixture(
+        tmp_path,
+        monkeypatch,
+        input_contract_rejected=True,
+        run_failure=run_failure,
+    )
+    assert derived["evaluation"]["status"] == "failed"
+    assert derived["evaluation"]["criteria"] == []
+    assert derived["evaluation"]["failed_gating_criteria"] == [
+        "evaluation_input_contract_rejected"
+    ]
+    counter = {"count": 0}
+
+    with s4_8._use_execution_adapter(execution._adapter(counter)):
+        finalized, result = s4_8._finalize_first_run(
+            tmp_path,
+            config=config,
+            derived=derived,
+            source_commit=SOURCE_COMMIT,
+            event_time_utc=derived["event_time_utc"],
+            failure_only=with_run_failure,
+        )
+        output = tmp_path / config["evidence"]["output_path"]
+        validated = execution.validate_evidence_package(
+            output,
+            repo_root=tmp_path,
+        )
+
+    assert finalized["evaluation"] == derived["evaluation"]
+    assert result["status"] == "failed"
+    assert validated["final_status"] == "failed"
+    assert validated["readiness_passed"] is False
+    assert validated["evaluator_invocation_count"] == 1
+    assert counter["count"] == 0
+    final = s4_8.load_json(output / "final_validation.json")
+    assert final["scientific_evaluation_state"] == "evaluation_completed"
+    assert final["scientific_evaluation_status"] == "failed"
+    assert final["readiness_criterion_count"] == 0
+    assert final["run_failure"] == run_failure
+    assert final["package_profile"] == (
+        execution.TERMINAL_FAILURE_PROFILE
+        if with_run_failure
+        else execution.FULL_EVIDENCE_PROFILE
+    )
+    journal = s4_8._load_run_journal(
+        tmp_path / config["evidence"]["run_journal_path"]
+    )
+    assert journal[-1]["event"] == "first_run_terminal"
+    assert journal[-1]["terminal_status"] == "failed"
 
 
 def test_custom_grant_consumption_is_single_use(

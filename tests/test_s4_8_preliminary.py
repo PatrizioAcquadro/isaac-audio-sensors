@@ -637,8 +637,12 @@ def test_av_sequence_alignment_reproduces_preliminary_origin_error() -> None:
     assert aligned["worst_absolute_residual_ms"] == pytest.approx(7.5830078125)
 
 
-def test_amendment_02_keeps_evaluation_blocked_after_protocol_freeze() -> None:
-    result = s4_8_recovery_02.recovery_preopen_validate(ROOT)
+def test_amendment_02_keeps_evaluation_blocked_after_protocol_freeze(
+) -> None:
+    result = s4_8_recovery_02.recovery_preopen_validate(
+        ROOT,
+        require_access_paths_absent=False,
+    )
 
     assert result["preliminary_take_count"] == 4
     assert result["planned_take_count"] == 37

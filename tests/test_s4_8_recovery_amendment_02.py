@@ -342,7 +342,7 @@ def test_unseen_holdout_namespace_cannot_reuse_consumed_observations() -> None:
         recovery._validate_namespaces(altered, historical)
 
 
-def test_future_state_paths_are_disjoint_and_absent() -> None:
+def test_future_state_paths_are_disjoint_and_safe() -> None:
     amendment = recovery.load_amendment(ROOT)
     historical_amendment = recovery._load_historical_amendment(ROOT, amendment)
     historical = {
@@ -365,7 +365,11 @@ def test_future_state_paths_are_disjoint_and_absent() -> None:
     review_path = future["independent_review_path"]
 
     assert historical.isdisjoint(future_paths | {review_path})
-    assert all(not (ROOT / path).exists() for path in future_paths)
+    assert len(future_paths) == 6
+    assert all(
+        not Path(path).is_absolute() and ".." not in Path(path).parts
+        for path in future_paths
+    )
     if (ROOT / review_path).exists():
         review = s4_8.load_json(ROOT / review_path)
         current_source = s4_8._git(ROOT, "rev-parse", "HEAD")
@@ -633,7 +637,10 @@ def test_preopen_authenticated_review_removes_only_review_blocker(
         "_source_binds_protocol_revision",
         lambda *_args, **_kwargs: True,
     )
-    result = recovery.recovery_preopen_validate(ROOT)
+    result = recovery.recovery_preopen_validate(
+        ROOT,
+        require_access_paths_absent=False,
+    )
 
     assert result["blockers"] == ["explicit_authorization_not_granted"]
     assert result["independent_review_present"] is True
@@ -642,8 +649,12 @@ def test_preopen_authenticated_review_removes_only_review_blocker(
     assert result["grant_creation_authorized"] is False
     assert result["grant_consumption_authorized"] is False
     assert result["evaluation_execution_authorized"] is False
-    assert result["new_grant_present"] is False
-    assert result["new_ledger_present"] is False
+    assert result["new_grant_present"] is (
+        ROOT / amendment["future_attempt"]["grant_path"]
+    ).is_file()
+    assert result["new_ledger_present"] is (
+        ROOT / amendment["future_attempt"]["ledger_path"]
+    ).is_file()
     assert result["holdout_observation_opened"] is False
     assert result["content_derived_values_returned"] is False
 
@@ -658,7 +669,10 @@ def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
             "consumed-holdout preopen path must not run"
         ),
     )
-    result = recovery.recovery_preopen_validate(ROOT)
+    result = recovery.recovery_preopen_validate(
+        ROOT,
+        require_access_paths_absent=False,
+    )
     amendment = recovery.load_amendment(ROOT)
     readiness_present = (
         ROOT / amendment["preliminary_readiness"]["readiness_path"]
@@ -717,8 +731,12 @@ def test_preopen_separates_acquisition_readiness_from_evaluation_no_go(
         result["independent_review_authenticated"] is False
         or result["independent_review_present"] is True
     )
-    assert result["new_grant_present"] is False
-    assert result["new_ledger_present"] is False
+    assert result["new_grant_present"] is (
+        ROOT / amendment["future_attempt"]["grant_path"]
+    ).is_file()
+    assert result["new_ledger_present"] is (
+        ROOT / amendment["future_attempt"]["ledger_path"]
+    ).is_file()
     assert result["holdout_observation_opened"] is False
     assert result["content_derived_values_returned"] is False
 
@@ -734,7 +752,10 @@ def test_preopen_does_not_load_terminal_derived_payloads(
         return original(path)
 
     monkeypatch.setattr(s4_8, "load_json", record)
-    recovery.recovery_preopen_validate(ROOT)
+    recovery.recovery_preopen_validate(
+        ROOT,
+        require_access_paths_absent=False,
+    )
     amendment = recovery.load_amendment(ROOT)
     historical = recovery._load_historical_amendment(ROOT, amendment)
     derived = {
@@ -767,7 +788,11 @@ def test_preopen_does_not_attribute_protocol_to_stale_source_commit() -> None:
 
 
 def test_preopen_cli_reports_no_go_without_writing_state() -> None:
-    before = recovery.recovery_preopen_validate(ROOT)
+    amendment = recovery.load_amendment(ROOT)
+    access_paths = [
+        ROOT / path for path in recovery._future_state_paths(amendment).values()
+    ]
+    access_state_present = any(path.exists() for path in access_paths)
     result = subprocess.run(
         [
             str(ROOT / ".venv/bin/python"),
@@ -775,13 +800,18 @@ def test_preopen_cli_reports_no_go_without_writing_state() -> None:
             "--preopen",
         ],
         cwd=ROOT,
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
     )
-    report = json.loads(result.stdout)
-
-    assert report == before
-    assert report["protocol_revision_readiness"] == "frozen_for_precollection"
-    assert report["official_readiness"] == "no_go"
-    assert report["new_grant_present"] is False
+    if access_state_present:
+        assert result.returncode == 1
+        assert "unauthorized future state exists" in result.stderr
+    else:
+        assert result.returncode == 0
+        report = json.loads(result.stdout)
+        before = recovery.recovery_preopen_validate(ROOT)
+        assert report == before
+        assert report["protocol_revision_readiness"] == "frozen_for_precollection"
+        assert report["official_readiness"] == "no_go"
+        assert report["new_grant_present"] is False

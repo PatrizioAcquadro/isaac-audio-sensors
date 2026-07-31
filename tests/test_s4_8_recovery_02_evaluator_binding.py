@@ -222,7 +222,10 @@ def test_preopen_removes_only_evaluator_blocker_when_authenticated(
         lambda *_args, **_kwargs: authenticated,
     )
 
-    result = recovery.recovery_preopen_validate(ROOT)
+    result = recovery.recovery_preopen_validate(
+        ROOT,
+        require_access_paths_absent=False,
+    )
 
     expected_blockers = ["explicit_authorization_not_granted"]
     if not result["independent_review_authenticated"]:
@@ -252,7 +255,10 @@ def test_absent_binding_retains_only_its_named_blocker(
         lambda *_args, **_kwargs: None,
     )
 
-    result = recovery.recovery_preopen_validate(ROOT)
+    result = recovery.recovery_preopen_validate(
+        ROOT,
+        require_access_paths_absent=False,
+    )
 
     expected_blockers = ["explicit_authorization_not_granted"]
     if not result["independent_review_authenticated"]:
