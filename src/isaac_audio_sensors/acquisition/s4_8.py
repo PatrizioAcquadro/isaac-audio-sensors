@@ -1325,6 +1325,16 @@ def _run_authorized_evaluation_once_locked(
                 "evaluation_failed",
                 error=exc,
             )
+            invocation_count_callback = _execution_adapter_callback(
+                "evaluation_invocation_count"
+            )
+            if invocation_count_callback is not None:
+                invocation_count = invocation_count_callback()
+                if invocation_count not in {0, 1}:
+                    raise S48Error(
+                        "S4.8 evaluator invocation count is invalid"
+                    ) from exc
+                failed_evaluation["evaluation_invocation_count"] = invocation_count
             _persist_post_consumption_progress(
                 _progress_path(root, config),
                 journal_path=journal_path,
@@ -2620,6 +2630,8 @@ def _finalize_first_run(
         boundary="finalization_staging",
     )
     prepared: dict[str, Any] | None = None
+    operational_closeout: dict[str, Any] | None = None
+    finalization_stage = "finalization_publication"
     try:
         try:
             if failure_only:
@@ -2663,6 +2675,14 @@ def _finalize_first_run(
                 source_commit=source_commit,
             )
         _fsync_package_tree(staging)
+        closeout_record_callback = _execution_adapter_callback(
+            "operational_closeout_record"
+        )
+        if closeout_record_callback is not None:
+            closeout_record = closeout_record_callback(root, package=staging)
+            if not isinstance(closeout_record, Mapping):
+                raise S48Error("S4.8 operational closeout record is invalid")
+            operational_closeout = dict(closeout_record)
         prepared = {
             "event": "first_run_finalization_prepared",
             "event_time_utc": event_time_utc,
@@ -2682,12 +2702,31 @@ def _finalize_first_run(
             "output_path": output.relative_to(root).as_posix(),
             "automatic_retry_forbidden": True,
         }
+        if operational_closeout is not None:
+            prepared["operational_closeout"] = operational_closeout
         _append_run_journal(journal_path, prepared)
         if not failure_only:
             _post_consumption_stage("evidence_publication")
         _fsync_package_tree(staging)
         os.replace(staging, output)
         _fsync_directory(output.parent)
+        publish_closeout_callback = _execution_adapter_callback(
+            "publish_operational_closeout"
+        )
+        if operational_closeout is not None:
+            finalization_stage = "operational_closeout_publication"
+            if publish_closeout_callback is None:
+                raise S48Error("S4.8 operational closeout publisher is unavailable")
+            publish_closeout_callback(
+                root,
+                package=output,
+                closeout=operational_closeout,
+            )
+            package_result = {
+                **package_result,
+                "closeout": operational_closeout,
+            }
+            finalization_stage = "finalization_publication"
         if not failure_only:
             _post_consumption_stage("journal_finalization")
         _append_run_journal(
@@ -2706,6 +2745,8 @@ def _finalize_first_run(
                 source_commit=source_commit,
                 event_time_utc=event_time_utc,
                 error=exc,
+                failure_stage=finalization_stage,
+                operational_closeout=operational_closeout,
             )
         if staging.exists():
             _remove_directory_durably(staging)
@@ -2727,6 +2768,8 @@ def _finalize_transition_failure(
     source_commit: str,
     event_time_utc: str,
     error: Exception,
+    failure_stage: str = "finalization_publication",
+    operational_closeout: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Downgrade an uncommitted publication transaction to terminal FAILED."""
 
@@ -2739,7 +2782,7 @@ def _finalize_transition_failure(
     if len(candidates) != 1:
         raise S48Error("S4.8 finalization failure has no unique provisional package")
     failure = _run_failure_record(
-        stage="finalization_publication",
+        stage=failure_stage,
         error=error,
     )
     if derived.get("run_failure") is not None:
@@ -2756,6 +2799,8 @@ def _finalize_transition_failure(
         "staging_path": staging.relative_to(repo_root).as_posix(),
         "automatic_retry_forbidden": True,
     }
+    if operational_closeout is not None:
+        intent["operational_closeout"] = dict(operational_closeout)
     _append_run_journal(journal_path, intent)
     _downgrade_step("intent_recorded")
     return _continue_failure_downgrade(
@@ -2816,6 +2861,27 @@ def _continue_failure_downgrade(
         os.replace(candidate, archive)
         _fsync_directory(archive.parent)
     _downgrade_step("provisional_archived")
+    operational_closeout = intent.get("operational_closeout")
+    failed_closeout: dict[str, Any] | None = None
+    if operational_closeout is not None:
+        if not isinstance(operational_closeout, Mapping):
+            raise S48Error("S4.8 provisional closeout record is invalid")
+        quarantine_callback = _execution_adapter_callback(
+            "quarantine_operational_closeout"
+        )
+        if quarantine_callback is None:
+            raise S48Error("S4.8 operational closeout quarantine is unavailable")
+        quarantine_callback(
+            repo_root,
+            closeout=operational_closeout,
+            provisional_evidence=archive,
+        )
+        failed_closeout = {
+            "publication_status": "failed",
+            "path": operational_closeout.get("path"),
+            "sha256": None,
+            "verdict": "NO-GO",
+        }
     failure = dict(intent["run_failure"])
     derived = {**derived, "run_failure": failure}
     _persist_derived_state(derived_path, derived)
@@ -2875,6 +2941,8 @@ def _continue_failure_downgrade(
             "provisional_evidence_path": archive.relative_to(repo_root).as_posix(),
             "automatic_retry_forbidden": True,
         }
+        if failed_closeout is not None:
+            failed["operational_closeout"] = failed_closeout
         _append_run_journal(journal_path, failed)
     _downgrade_step("failure_prepared")
     if staging.exists():
@@ -2901,6 +2969,11 @@ def _continue_failure_downgrade(
             **package_result,
             "status": "failed",
             "output": output.as_posix(),
+            **(
+                {"closeout": failed_closeout}
+                if failed_closeout is not None
+                else {}
+            ),
         },
     )
 
@@ -2908,7 +2981,7 @@ def _continue_failure_downgrade(
 def _terminal_event_from_prepared(
     prepared: Mapping[str, Any],
 ) -> dict[str, Any]:
-    return {
+    terminal = {
         "event": "first_run_terminal",
         "event_time_utc": prepared["event_time_utc"],
         "source_commit": prepared["source_commit"],
@@ -2921,6 +2994,9 @@ def _terminal_event_from_prepared(
         "evidence_manifest_sha256": prepared["evidence_manifest_sha256"],
         "automatic_retry_forbidden": True,
     }
+    if "operational_closeout" in prepared:
+        terminal["operational_closeout"] = prepared["operational_closeout"]
+    return terminal
 
 
 def _recover_pending_finalization(
@@ -2998,6 +3074,39 @@ def _recover_pending_finalization(
     validation = validate_evidence_package(output, repo_root=root)
     if validation["final_status"] != prepared.get("terminal_status"):
         raise S48Error("S4.8 prepared finalization status mismatch")
+    operational_closeout = prepared.get("operational_closeout")
+    if operational_closeout is not None:
+        if not isinstance(operational_closeout, Mapping):
+            raise S48Error("S4.8 prepared operational closeout is invalid")
+        publish_closeout_callback = _execution_adapter_callback(
+            "publish_operational_closeout"
+        )
+        try:
+            if publish_closeout_callback is None:
+                raise S48Error(
+                    "S4.8 operational closeout publisher is unavailable"
+                )
+            publish_closeout_callback(
+                root,
+                package=output,
+                closeout=operational_closeout,
+            )
+        except Exception as exc:
+            derived = load_json(root / config["evidence"]["derived_input_path"])
+            _, downgraded = _finalize_transition_failure(
+                root,
+                config=config,
+                derived=derived,
+                source_commit=source_commit,
+                event_time_utc=prepared["event_time_utc"],
+                error=exc,
+                failure_stage="operational_closeout_publication",
+                operational_closeout=operational_closeout,
+            )
+            return validate_evidence_package(
+                Path(downgraded["output"]),
+                repo_root=root,
+            )
     _append_run_journal(
         journal_path,
         _terminal_event_from_prepared(prepared),
@@ -5327,6 +5436,8 @@ def _validate_terminal_journal(
                 "evidence_manifest_sha256",
             )
         )
+        or terminal.get("operational_closeout")
+        != prepared.get("operational_closeout")
     ):
         raise S48Error("S4.8 run journal terminal status mismatch")
     return terminal

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +68,152 @@ def _ledger_event(grant: dict[str, Any]) -> dict[str, Any]:
         "holdout_opened": True,
     }
     return {**payload, "event_sha256": canonical_sha256(payload)}
+
+
+def _synthetic_derived(
+    *,
+    payload: dict[str, Any],
+    evaluation: dict[str, Any],
+    evaluation_state: str = "evaluation_completed",
+    run_failure: dict[str, Any] | None = None,
+    journal_path: str = "state/first_run_journal.jsonl",
+) -> dict[str, Any]:
+    grant = _grant()
+    event = _ledger_event(grant)
+    inventory = [
+        {
+            "planned_take_id": take["identity"]["planned_take_id"],
+            "attempt_root": f"attempts/{take['identity']['planned_take_id']}",
+            "selected_for_evaluation": True,
+            "rejected": False,
+            "failed": False,
+        }
+        for take in payload["takes"]
+    ]
+    return {
+        "schema": execution.DERIVED_INPUT_SCHEMA,
+        "tool_version": execution.TOOL_VERSION,
+        "source_commit": SOURCE_COMMIT,
+        "event_time_utc": "2026-07-31T12:00:00Z",
+        "authorization_record": {"authorization_id": "authorization-001"},
+        "grant": {
+            "path": "grant.json",
+            "file_sha256": "3" * 64,
+            "grant_sha256": grant["grant_sha256"],
+        },
+        "ledger_event": event,
+        "run_journal": {
+            "path": journal_path,
+            "opening_event_count": 2,
+        },
+        "observation_inventory": inventory,
+        "payload": payload,
+        "payload_sha256": canonical_sha256(payload),
+        "evaluation_state": evaluation_state,
+        "evaluation": evaluation,
+        "evaluation_sha256": canonical_sha256(evaluation),
+        "run_failure": run_failure,
+        "runtime_provenance": {},
+    }
+
+
+def _install_finalization_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    config = execution._execution_contract(ROOT)
+    config["evidence"]["derived_input_path"] = "state/derived.json"
+    config["evidence"]["run_journal_path"] = "state/first_run_journal.jsonl"
+    config["evidence"]["output_path"] = "output/package"
+    amendment = copy.deepcopy(recovery.load_amendment(ROOT))
+    amendment["future_attempt"]["derived_input_path"] = config["evidence"][
+        "derived_input_path"
+    ]
+    amendment["future_attempt"]["journal_path"] = config["evidence"][
+        "run_journal_path"
+    ]
+    amendment["future_attempt"]["output_path"] = config["evidence"]["output_path"]
+    amendment["future_attempt"]["closeout_path"] = "closeout/terminal.md"
+    payload = evaluator.build_synthetic_payload(ROOT)
+    evaluation = evaluator.evaluate_payload(payload, repo_root=ROOT).report()
+    evaluation["evaluation_invocation_count"] = 1
+    derived = _synthetic_derived(
+        payload=payload,
+        evaluation=evaluation,
+        journal_path=config["evidence"]["run_journal_path"],
+    )
+    derived_path = tmp_path / config["evidence"]["derived_input_path"]
+    derived_path.parent.mkdir(parents=True)
+    derived_path.write_text(s4_8.pretty_json(derived), encoding="utf-8")
+    journal_path = tmp_path / config["evidence"]["run_journal_path"]
+    opening = s4_8._opening_journal_records(
+        source_commit=SOURCE_COMMIT,
+        event_time_utc=derived["event_time_utc"],
+        ledger_event=derived["ledger_event"],
+    )
+    journal_path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in opening
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(recovery, "load_amendment", lambda _root: amendment)
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: config)
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_source_commit",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_authorization_evidence",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_provenance_report",
+        lambda *_a, **_k: {
+            "schema": "ias.s4_8.provenance.v1",
+            "source_commit": SOURCE_COMMIT,
+        },
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_provenance",
+        lambda *_a, **_k: SOURCE_COMMIT,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "preservation_report",
+        lambda _root: {"status": "passed"},
+    )
+    return config, amendment, derived
+
+
+def _write_journal(path: Path, records: list[dict[str, Any]]) -> None:
+    previous = "0" * 64
+    chained: list[dict[str, Any]] = []
+    for record in records:
+        payload = {
+            key: value
+            for key, value in record.items()
+            if key not in {"event_sha256", "previous_event_sha256"}
+        }
+        payload["previous_event_sha256"] = previous
+        chained_record = {
+            **payload,
+            "event_sha256": canonical_sha256(payload),
+        }
+        chained.append(chained_record)
+        previous = chained_record["event_sha256"]
+    path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in chained
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_execution_contract_is_additive_and_37_take_scoped() -> None:
@@ -231,40 +379,7 @@ def test_package_build_and_validation_never_reinvoke_evaluator(
     payload = evaluator.build_synthetic_payload(ROOT)
     evaluation = evaluator.evaluate_payload(payload, repo_root=ROOT).report()
     evaluation["evaluation_invocation_count"] = 1
-    grant = _grant()
-    event = _ledger_event(grant)
-    inventory = [
-        {
-            "planned_take_id": take["identity"]["planned_take_id"],
-            "attempt_root": f"attempts/{take['identity']['planned_take_id']}",
-            "selected_for_evaluation": True,
-            "rejected": False,
-            "failed": False,
-        }
-        for take in payload["takes"]
-    ]
-    derived = {
-        "schema": execution.DERIVED_INPUT_SCHEMA,
-        "tool_version": execution.TOOL_VERSION,
-        "source_commit": SOURCE_COMMIT,
-        "event_time_utc": "2026-07-31T12:00:00Z",
-        "authorization_record": {"authorization_id": "authorization-001"},
-        "grant": {
-            "path": "grant.json",
-            "file_sha256": "3" * 64,
-            "grant_sha256": grant["grant_sha256"],
-        },
-        "ledger_event": event,
-        "run_journal": {"opening_event_count": 2},
-        "observation_inventory": inventory,
-        "payload": payload,
-        "payload_sha256": canonical_sha256(payload),
-        "evaluation_state": "evaluation_completed",
-        "evaluation": evaluation,
-        "evaluation_sha256": canonical_sha256(evaluation),
-        "run_failure": None,
-        "runtime_provenance": {},
-    }
+    derived = _synthetic_derived(payload=payload, evaluation=evaluation)
     monkeypatch.setattr(
         s4_8,
         "_validate_authorization_evidence",
@@ -340,7 +455,7 @@ def test_package_build_and_validation_never_reinvoke_evaluator(
         source_commit=SOURCE_COMMIT,
         validate_result=False,
     )
-    validated = execution.validate_evidence_package(
+    validated = execution._validate_evidence_package_structure(
         destination,
         repo_root=ROOT,
     )
@@ -352,3 +467,367 @@ def test_package_build_and_validation_never_reinvoke_evaluator(
     final = s4_8.load_json(destination / "final_validation.json")
     assert final["readiness_criterion_count"] == 17
     assert final["planned_take_count"] == 37
+
+
+def test_public_validation_authenticates_terminal_journal_and_rejects_rewrite(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    config, _amendment, derived = _install_finalization_fixture(
+        tmp_path,
+        monkeypatch,
+    )
+    monkeypatch.setattr(
+        evaluator,
+        "evaluate_payload",
+        lambda *_a, **_k: pytest.fail("evaluator was reinvoked"),
+    )
+    counter = {"count": 0}
+    with s4_8._use_execution_adapter(execution._adapter(counter)):
+        _finalized, result = s4_8._finalize_first_run(
+            tmp_path,
+            config=config,
+            derived=derived,
+            source_commit=SOURCE_COMMIT,
+            event_time_utc=derived["event_time_utc"],
+        )
+        package = Path(result["output"])
+        validated = execution.validate_evidence_package(
+            package,
+            repo_root=tmp_path,
+        )
+        assert validated["journal_authenticated"] is True
+        assert validated["final_status"] == "passed"
+        assert validated["closeout"]["verdict"] == "GO"
+
+        rewritten = tmp_path / "rewritten"
+        shutil.copytree(package, rewritten)
+        reproduction = s4_8.load_json(rewritten / "reproduction.json")
+        reproduction["status"] = "self_consistently_rewritten"
+        (rewritten / "reproduction.json").write_text(
+            s4_8.pretty_json(reproduction),
+            encoding="utf-8",
+        )
+        s4_8._write_index_and_manifest(rewritten, SOURCE_COMMIT)
+        execution._validate_evidence_package_structure(
+            rewritten,
+            repo_root=tmp_path,
+        )
+        with pytest.raises(
+            s4_8.S48Error,
+            match="terminal journal/package mismatch",
+        ):
+            execution.validate_evidence_package(
+                rewritten,
+                repo_root=tmp_path,
+            )
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ["missing", "truncated", "source_commit", "terminal_status"],
+)
+def test_public_validation_rejects_invalid_terminal_journal(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    tamper: str,
+) -> None:
+    config, _amendment, derived = _install_finalization_fixture(
+        tmp_path,
+        monkeypatch,
+    )
+    monkeypatch.setattr(
+        evaluator,
+        "evaluate_payload",
+        lambda *_a, **_k: pytest.fail("evaluator was reinvoked"),
+    )
+    with s4_8._use_execution_adapter(execution._adapter({"count": 0})):
+        _finalized, result = s4_8._finalize_first_run(
+            tmp_path,
+            config=config,
+            derived=derived,
+            source_commit=SOURCE_COMMIT,
+            event_time_utc=derived["event_time_utc"],
+        )
+        journal_path = tmp_path / config["evidence"]["run_journal_path"]
+        records = s4_8._load_run_journal(journal_path)
+        if tamper == "missing":
+            journal_path.unlink()
+        elif tamper == "truncated":
+            _write_journal(journal_path, records[:-1])
+        elif tamper == "source_commit":
+            for record in records:
+                record["source_commit"] = "b" * 40
+            _write_journal(journal_path, records)
+        else:
+            records[-2]["terminal_status"] = "failed"
+            records[-2]["readiness_passed"] = False
+            records[-1]["terminal_status"] = "failed"
+            records[-1]["readiness_passed"] = False
+            _write_journal(journal_path, records)
+
+        with pytest.raises(s4_8.S48Error):
+            execution.validate_evidence_package(
+                Path(result["output"]),
+                repo_root=tmp_path,
+            )
+
+
+@pytest.mark.parametrize("failure_after_write", [False, True])
+def test_closeout_failure_downgrades_and_preserves_provisional_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    failure_after_write: bool,
+) -> None:
+    config, amendment, derived = _install_finalization_fixture(
+        tmp_path,
+        monkeypatch,
+    )
+    original_publish = execution._publish_operational_closeout
+    calls = 0
+
+    def fail_closeout(*args: Any, **kwargs: Any) -> None:
+        nonlocal calls
+        calls += 1
+        if failure_after_write:
+            original_publish(*args, **kwargs)
+        raise OSError("injected closeout publication failure")
+
+    monkeypatch.setattr(execution, "_publish_operational_closeout", fail_closeout)
+    monkeypatch.setattr(
+        evaluator,
+        "evaluate_payload",
+        lambda *_a, **_k: pytest.fail("evaluator was reinvoked"),
+    )
+    counter = {"count": 0}
+    with s4_8._use_execution_adapter(execution._adapter(counter)):
+        finalized, result = s4_8._finalize_first_run(
+            tmp_path,
+            config=config,
+            derived=derived,
+            source_commit=SOURCE_COMMIT,
+            event_time_utc=derived["event_time_utc"],
+        )
+        validated = execution.validate_evidence_package(
+            Path(result["output"]),
+            repo_root=tmp_path,
+        )
+
+    assert calls == 1
+    assert counter["count"] == 0
+    assert result["status"] == "failed"
+    assert finalized["run_failure"]["stage"] == "operational_closeout_publication"
+    assert validated["final_status"] == "failed"
+    assert validated["readiness_passed"] is False
+    assert validated["closeout"]["publication_status"] == "failed"
+    closeout = tmp_path / amendment["future_attempt"]["closeout_path"]
+    assert not closeout.exists()
+    provisional = (
+        tmp_path / config["evidence"]["derived_input_path"]
+    ).parent / "provisional_evidence.v1"
+    assert provisional.is_dir()
+    assert s4_8.load_json(provisional / "final_validation.json")["status"] == "passed"
+    provisional_closeout = provisional.parent / "provisional_closeout.v1.md"
+    assert provisional_closeout.exists() is failure_after_write
+    journal = s4_8._load_run_journal(
+        tmp_path / config["evidence"]["run_journal_path"]
+    )
+    assert journal[-1]["event"] == "first_run_terminal"
+    assert journal[-1]["terminal_status"] == "failed"
+    assert journal[-1]["operational_closeout"]["verdict"] == "NO-GO"
+
+
+def test_prepared_recovery_downgrades_mismatched_closeout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    config, amendment, derived = _install_finalization_fixture(
+        tmp_path,
+        monkeypatch,
+    )
+    original_transition = s4_8._finalize_transition_failure
+    original_publish = execution._publish_operational_closeout
+
+    def stop_before_downgrade(*_args: Any, **_kwargs: Any):
+        raise OSError("simulated crash before downgrade intent")
+
+    def fail_initial_publish(*_args: Any, **_kwargs: Any) -> None:
+        raise OSError("simulated closeout interruption")
+
+    monkeypatch.setattr(s4_8, "_finalize_transition_failure", stop_before_downgrade)
+    monkeypatch.setattr(
+        execution,
+        "_publish_operational_closeout",
+        fail_initial_publish,
+    )
+    with (
+        s4_8._use_execution_adapter(execution._adapter({"count": 0})),
+        pytest.raises(OSError, match="crash before downgrade"),
+    ):
+        s4_8._finalize_first_run(
+            tmp_path,
+            config=config,
+            derived=derived,
+            source_commit=SOURCE_COMMIT,
+            event_time_utc=derived["event_time_utc"],
+        )
+
+    closeout = tmp_path / amendment["future_attempt"]["closeout_path"]
+    closeout.parent.mkdir(parents=True, exist_ok=True)
+    closeout.write_text("tampered GO closeout\n", encoding="utf-8")
+    monkeypatch.setattr(s4_8, "_finalize_transition_failure", original_transition)
+    monkeypatch.setattr(
+        execution,
+        "_publish_operational_closeout",
+        original_publish,
+    )
+    with s4_8._use_execution_adapter(execution._adapter({"count": 0})):
+        recovered = s4_8._recover_pending_finalization(
+            tmp_path,
+            config=config,
+            source_commit=SOURCE_COMMIT,
+        )
+        validated = execution.validate_evidence_package(
+            tmp_path / config["evidence"]["output_path"],
+            repo_root=tmp_path,
+        )
+
+    assert recovered["final_status"] == "failed"
+    assert validated["final_status"] == "failed"
+    assert not closeout.exists()
+    provisional_closeout = (
+        tmp_path / config["evidence"]["derived_input_path"]
+    ).parent / "provisional_closeout.v1.md"
+    assert provisional_closeout.read_text(encoding="utf-8") == (
+        "tampered GO closeout\n"
+    )
+
+
+def test_evaluator_exception_count_is_preserved_in_terminal_structures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    payload = evaluator.build_synthetic_payload(ROOT)
+    counter = {"count": 0}
+    monkeypatch.setattr(
+        evaluator,
+        "evaluate_payload",
+        lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("evaluator fault")),
+    )
+    with pytest.raises(RuntimeError, match="evaluator fault"):
+        execution._evaluation_callback(counter, payload, repo_root=ROOT)
+    assert counter["count"] == 1
+    with pytest.raises(s4_8.S48Error, match="invocation already consumed"):
+        execution._evaluation_callback(counter, payload, repo_root=ROOT)
+
+    failed_evaluation = {
+        **s4_8._evaluation_placeholder(
+            "evaluation_failed",
+            error=RuntimeError("evaluator fault"),
+        ),
+        "evaluation_invocation_count": 1,
+    }
+    derived = _synthetic_derived(
+        payload=payload,
+        evaluation=failed_evaluation,
+        evaluation_state="evaluation_failed",
+        run_failure={"stage": "scientific_evaluation", "error": "evaluator fault"},
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_authorization_evidence",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_provenance_report",
+        lambda *_a, **_k: {
+            "schema": "ias.s4_8.provenance.v1",
+            "source_commit": SOURCE_COMMIT,
+        },
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_provenance",
+        lambda *_a, **_k: SOURCE_COMMIT,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "preservation_report",
+        lambda _root: {"status": "passed"},
+    )
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: {})
+    destination = tmp_path / "failed"
+    destination.mkdir()
+    execution.build_terminal_failure_package(
+        ROOT,
+        derived,
+        destination=destination,
+        source_commit=SOURCE_COMMIT,
+        validate_result=False,
+    )
+    validated = execution._validate_evidence_package_structure(
+        destination,
+        repo_root=ROOT,
+    )
+    final = s4_8.load_json(destination / "final_validation.json")
+    determinism = s4_8.load_json(destination / "determinism_report.json")
+    assert validated["evaluator_invocation_count"] == 1
+    assert final["scientific_evaluation_state"] == "evaluation_failed"
+    assert final["evaluator_invocation_count"] == 1
+    assert determinism["evaluator_invocation_count"] == 1
+
+
+def test_not_evaluated_terminal_structure_requires_zero_invocations(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    payload = evaluator.build_synthetic_payload(ROOT)
+    not_evaluated = s4_8._evaluation_placeholder("not_evaluated")
+    derived = _synthetic_derived(
+        payload=payload,
+        evaluation=not_evaluated,
+        evaluation_state="not_evaluated",
+        run_failure={"stage": "scientific_evaluation", "error": "pre-entry fault"},
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_authorization_evidence",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_provenance_report",
+        lambda *_a, **_k: {
+            "schema": "ias.s4_8.provenance.v1",
+            "source_commit": SOURCE_COMMIT,
+        },
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_validate_provenance",
+        lambda *_a, **_k: SOURCE_COMMIT,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "preservation_report",
+        lambda _root: {"status": "passed"},
+    )
+    monkeypatch.setattr(s4_8, "load_contract", lambda _root: {})
+    destination = tmp_path / "not-evaluated"
+    destination.mkdir()
+    execution.build_terminal_failure_package(
+        ROOT,
+        derived,
+        destination=destination,
+        source_commit=SOURCE_COMMIT,
+        validate_result=False,
+    )
+    validated = execution._validate_evidence_package_structure(
+        destination,
+        repo_root=ROOT,
+    )
+    assert validated["evaluator_invocation_count"] == 0
+    final = s4_8.load_json(destination / "final_validation.json")
+    assert final["scientific_evaluation_state"] == "not_evaluated"
+    assert final["evaluator_invocation_count"] == 0

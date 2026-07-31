@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
@@ -808,7 +810,7 @@ def _build_package(
         )
     s4_8._write_index_and_manifest(destination, source_commit)
     if validate_result:
-        validate_evidence_package(destination, repo_root=root)
+        _validate_evidence_package_structure(destination, repo_root=root)
     s4_8._fsync_package_tree(destination)
     final = reports["final_validation.json"]
     return {
@@ -861,12 +863,12 @@ def build_terminal_failure_package(
     )
 
 
-def validate_evidence_package(
+def _validate_evidence_package_structure(
     package: Path,
     *,
     repo_root: Path,
 ) -> dict[str, Any]:
-    """Validate hashes and terminal invariants without evaluator recomputation."""
+    """Validate package structure without requiring finalized public state."""
 
     root = repo_root.resolve()
     package = package.resolve()
@@ -934,6 +936,19 @@ def validate_evidence_package(
         final.get("evaluator_invocation_count") != 1 or len(gating) != 17
     ):
         raise s4_8.S48Error("S4.8 recovery amendment_02 completed evaluation mismatch")
+    expected_invocation_count = (
+        0 if derived.get("evaluation_state") == "not_evaluated" else 1
+    )
+    if (
+        derived.get("evaluation_state")
+        not in {"not_evaluated", "evaluation_failed", "evaluation_completed"}
+        or final.get("evaluator_invocation_count") != expected_invocation_count
+        or criteria.get("evaluation_invocation_count", 0)
+        != expected_invocation_count
+    ):
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 evaluation state/count mismatch"
+        )
     provenance = s4_8.load_json(package / "provenance.json")
     source_commit = s4_8._validate_provenance(
         provenance,
@@ -972,6 +987,93 @@ def validate_evidence_package(
     }
 
 
+def validate_evidence_package(
+    package: Path,
+    *,
+    repo_root: Path,
+) -> dict[str, Any]:
+    """Authenticate a finalized package against its terminal journal."""
+
+    root = repo_root.resolve()
+    package = package.resolve()
+    structural = _validate_evidence_package_structure(package, repo_root=root)
+    derived = s4_8.load_json(package / "derived_evaluation_input.json")
+    final = s4_8.load_json(package / "final_validation.json")
+    amendment = recovery.load_amendment(root)
+    expected_journal = recovery._safe_relative(
+        amendment["future_attempt"]["journal_path"]
+    )
+    run_journal = derived.get("run_journal")
+    if (
+        not isinstance(run_journal, Mapping)
+        or run_journal.get("path") != expected_journal.as_posix()
+    ):
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 journal path mismatch"
+        )
+    ledger_event = derived.get("ledger_event")
+    if not isinstance(ledger_event, Mapping):
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 ledger evidence is missing"
+        )
+    terminal = s4_8._validate_terminal_journal(
+        root / expected_journal,
+        source_commit=structural["source_commit"],
+        expected_status=structural["final_status"],
+        expected_ledger_event_sha256=ledger_event["event_sha256"],
+    )
+    if (
+        terminal.get("source_commit") != structural["source_commit"]
+        or terminal.get("terminal_status") != final.get("status")
+        or terminal.get("evidence_manifest_sha256")
+        != structural["manifest_sha256"]
+    ):
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 terminal journal/package mismatch"
+        )
+    closeout = terminal.get("operational_closeout")
+    expected_closeout = recovery._safe_relative(
+        amendment["future_attempt"]["closeout_path"]
+    )
+    if (
+        not isinstance(closeout, Mapping)
+        or closeout.get("path") != expected_closeout.as_posix()
+        or closeout.get("verdict")
+        != ("GO" if final["readiness_passed"] else "NO-GO")
+    ):
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 closeout journal binding mismatch"
+        )
+    closeout_path = root / expected_closeout
+    if closeout.get("publication_status") == "published":
+        if (
+            not closeout_path.is_file()
+            or closeout.get("sha256") != s4_8.sha256_file(closeout_path)
+        ):
+            raise s4_8.S48Error(
+                "S4.8 recovery amendment_02 closeout publication mismatch"
+            )
+    elif closeout.get("publication_status") == "failed":
+        if (
+            final.get("status") != "failed"
+            or closeout.get("sha256") is not None
+            or closeout_path.exists()
+        ):
+            raise s4_8.S48Error(
+                "S4.8 recovery amendment_02 failed closeout is contradictory"
+            )
+    else:
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 closeout status is invalid"
+        )
+    return {
+        **structural,
+        "journal_authenticated": True,
+        "terminal_journal_sha256": terminal["event_sha256"],
+        "closeout": dict(closeout),
+    }
+
+
 def _closeout_markdown(
     repo_root: Path,
     *,
@@ -985,14 +1087,19 @@ def _closeout_markdown(
         item for item in criteria.get("criteria", []) if item.get("gating") is True
     ]
     rows = [
-        "| Criterion | Comparator | Threshold | Observed | N | Result |",
+        "| Criterion | Metric / statistic | Threshold | Observed | N | Result |",
         "|---|---|---:|---:|---:|---|",
     ]
     for item in gating:
         rows.append(
-            "| {criterion_id} | {comparator} | {threshold} | {observed} | "
-            "{sample_count} | {result} |".format(
-                **item,
+            "| {criterion_id} | {metric} / {statistic} | {threshold} | "
+            "{observed} | {sample_count} | {result} |".format(
+                criterion_id=item["criterion_id"],
+                metric=item["metric"],
+                statistic=item["statistic"],
+                threshold=item["threshold"],
+                observed=item["observed"],
+                sample_count=item["sample_count"],
                 result="PASS" if item["passed"] else "FAIL",
             )
         )
@@ -1023,23 +1130,81 @@ def _closeout_markdown(
     )
 
 
-def _write_closeout(repo_root: Path) -> dict[str, Any]:
+def _operational_closeout_record(
+    repo_root: Path,
+    *,
+    package: Path,
+) -> dict[str, Any]:
     root = repo_root.resolve()
     amendment = recovery.load_amendment(root)
-    package = root / recovery._safe_relative(amendment["future_attempt"]["output_path"])
     closeout = root / recovery._safe_relative(
         amendment["future_attempt"]["closeout_path"]
     )
-    if closeout.exists():
-        raise s4_8.S48Error("S4.8 recovery amendment_02 closeout already exists")
+    content = _closeout_markdown(root, package=package)
+    final = s4_8.load_json(package / "final_validation.json")
+    return {
+        "publication_status": "published",
+        "path": closeout.relative_to(root).as_posix(),
+        "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+        "verdict": "GO" if final["readiness_passed"] else "NO-GO",
+    }
+
+
+def _publish_operational_closeout(
+    repo_root: Path,
+    *,
+    package: Path,
+    closeout: Mapping[str, Any],
+) -> None:
+    root = repo_root.resolve()
+    expected = _operational_closeout_record(root, package=package)
+    if dict(closeout) != expected:
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 closeout record mismatch"
+        )
+    closeout_path = root / recovery._safe_relative(closeout["path"])
+    if closeout_path.exists():
+        if (
+            closeout_path.is_file()
+            and s4_8.sha256_file(closeout_path) == closeout["sha256"]
+        ):
+            return
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 closeout already exists"
+        )
     s4_8._atomic_write_text(
-        closeout,
+        closeout_path,
         _closeout_markdown(root, package=package),
     )
-    return {
-        "path": closeout.relative_to(root).as_posix(),
-        "sha256": s4_8.sha256_file(closeout),
-    }
+    if s4_8.sha256_file(closeout_path) != closeout["sha256"]:
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 closeout publication mismatch"
+        )
+
+
+def _quarantine_operational_closeout(
+    repo_root: Path,
+    *,
+    closeout: Mapping[str, Any],
+    provisional_evidence: Path,
+) -> None:
+    root = repo_root.resolve()
+    final_path = root / recovery._safe_relative(closeout["path"])
+    archive = provisional_evidence.parent / "provisional_closeout.v1.md"
+    if archive.exists():
+        if final_path.exists() or not archive.is_file():
+            raise s4_8.S48Error(
+                "S4.8 recovery amendment_02 provisional closeout is invalid"
+            )
+        return
+    if not final_path.exists():
+        return
+    if final_path.is_dir():
+        raise s4_8.S48Error(
+            "S4.8 recovery amendment_02 closeout path is not a file"
+        )
+    os.replace(final_path, archive)
+    s4_8._fsync_directory(archive.parent)
 
 
 def _adapter(counter: dict[str, int]) -> dict[str, Any]:
@@ -1056,11 +1221,15 @@ def _adapter(counter: dict[str, int]) -> dict[str, Any]:
                 repo_root=repo_root,
             )
         ),
+        "evaluation_invocation_count": lambda: counter["count"],
         "input_rejection_payload": input_rejection_payload,
         "input_rejection_inventory": input_rejection_inventory,
         "build_evidence_package": build_evidence_package,
         "build_terminal_failure_package": build_terminal_failure_package,
-        "validate_evidence_package": validate_evidence_package,
+        "validate_evidence_package": _validate_evidence_package_structure,
+        "operational_closeout_record": _operational_closeout_record,
+        "publish_operational_closeout": _publish_operational_closeout,
+        "quarantine_operational_closeout": _quarantine_operational_closeout,
     }
 
 
@@ -1135,11 +1304,14 @@ def run_recovery_evaluation_once(
         )
         if counter["count"] not in {0, 1}:
             raise s4_8.S48Error("S4.8 recovery amendment_02 evaluator count is invalid")
-        closeout = _write_closeout(root)
+        output = root / recovery._safe_relative(
+            amendment["future_attempt"]["output_path"]
+        )
+        validation = validate_evidence_package(output, repo_root=root)
     return {
         **result,
-        "closeout": closeout,
-        "evaluator_invocation_count": counter["count"],
+        "closeout": validation["closeout"],
+        "evaluator_invocation_count": validation["evaluator_invocation_count"],
         "holdout_opening_event_count": 1,
         "scientific_recomputed": False,
     }
@@ -1155,7 +1327,7 @@ def validate_recovery_evidence_package(
     selected = package or Path(amendment["future_attempt"]["output_path"])
     selected = selected if selected.is_absolute() else root / selected
     with execution_context(root):
-        return s4_8.validate_evidence_package(selected, repo_root=root)
+        return validate_evidence_package(selected, repo_root=root)
 
 
 __all__ = [

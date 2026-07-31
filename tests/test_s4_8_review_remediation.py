@@ -1891,6 +1891,50 @@ def test_evaluator_exception_is_evaluation_failed_not_input_rejection(
     assert derived["evaluation"]["failed_gating_criteria"] == []
 
 
+def test_adapter_evaluator_exception_preserves_entered_invocation_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, source_commit, _context, _expected = _install_authorized_run_harness(
+        tmp_path,
+        monkeypatch,
+    )
+    counter = {"count": 0}
+
+    def fail_after_entry(_payload, *, repo_root):
+        del repo_root
+        counter["count"] += 1
+        raise RuntimeError("injected adapter evaluator failure")
+
+    with s4_8._use_execution_adapter(
+        {
+            "tool_version": s4_8.TOOL_VERSION,
+            "derived_input_schema": s4_8.DERIVED_INPUT_SCHEMA,
+            "evaluate_payload": fail_after_entry,
+            "evaluation_invocation_count": lambda: counter["count"],
+        }
+    ):
+        result = s4_8.run_authorized_evaluation_once(
+            tmp_path,
+            source_commit=source_commit,
+            event_time_utc="2030-01-01T00:00:00Z",
+        )
+
+    assert counter["count"] == 1
+    assert result["status"] == "failed"
+    assert result["evaluation"]["status"] == "evaluation_failed"
+    assert result["evaluation"]["evaluation_invocation_count"] == 1
+    derived = s4_8.load_json(
+        tmp_path / config["evidence"]["output_path"] / "derived_evaluation_input.json"
+    )
+    final = s4_8.load_json(
+        tmp_path / config["evidence"]["output_path"] / "final_validation.json"
+    )
+    assert derived["evaluation_state"] == "evaluation_failed"
+    assert derived["evaluation"]["evaluation_invocation_count"] == 1
+    assert final["scientific_evaluation_state"] == "evaluation_failed"
+
+
 def _progress_fixture(
     tmp_path: Path,
 ) -> tuple[dict[str, object], str, Path, Path]:
