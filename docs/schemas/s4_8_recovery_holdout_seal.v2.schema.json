@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/isaac-audio-sensors/s4_8_recovery_holdout_seal.v2.schema.json",
+  "title": "S4.8 recovery amendment-02 37-take postcollection holdout seal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "amendment_id",
+    "revision_id",
+    "holdout_id",
+    "finalizer_source_commit",
+    "bindings",
+    "collection",
+    "artifacts",
+    "artifact_count",
+    "artifact_inventory_sha256",
+    "technically_sealed",
+    "scientifically_opened",
+    "scientific_artifact_contents_parsed",
+    "scientific_outcomes_derived",
+    "scientific_outputs_returned",
+    "authority",
+    "seal_payload_sha256"
+  ],
+  "properties": {
+    "schema": {"const": "ias.s4_8.recovery_02_holdout_seal.v2"},
+    "status": {"const": "sealed_unopened"},
+    "amendment_id": {"const": "s4_8_recovery_amendment_02"},
+    "revision_id": {
+      "const": "s4_8_recovery_amendment_02_preholdout_37_take_revision"
+    },
+    "holdout_id": {
+      "const": "s4_8_recovery_amendment_02_unseen_holdout"
+    },
+    "finalizer_source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "precollection_seal",
+        "partition_manifest",
+        "session_manifest"
+      ],
+      "properties": {
+        "precollection_seal": {"$ref": "#/$defs/binding"},
+        "partition_manifest": {"$ref": "#/$defs/binding"},
+        "session_manifest": {"$ref": "#/$defs/binding"}
+      }
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_root",
+        "attempt_ledger_path",
+        "planned_take_count",
+        "completed_take_count",
+        "retained_attempt_count",
+        "pass_attempt_count",
+        "retry_required_attempt_count",
+        "ledger_record_count",
+        "ledger_file_sha256",
+        "ledger_head_sha256",
+        "authorization_record_count",
+        "attempt_artifact_count",
+        "collection_artifact_count"
+      ],
+      "properties": {
+        "observation_root": {
+          "const": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_04/attempts"
+        },
+        "attempt_ledger_path": {
+          "const": "outputs/isaac_audio_sensors/S4/S4.4/amendments/s4_4_data_expansion_amendment_04/acquisition/attempt_ledger.jsonl"
+        },
+        "planned_take_count": {"const": 37},
+        "completed_take_count": {"const": 37},
+        "retained_attempt_count": {"type": "integer", "minimum": 37},
+        "pass_attempt_count": {"const": 37},
+        "retry_required_attempt_count": {"type": "integer", "minimum": 0},
+        "ledger_record_count": {"type": "integer", "minimum": 37},
+        "ledger_file_sha256": {"$ref": "#/$defs/sha256"},
+        "ledger_head_sha256": {"$ref": "#/$defs/sha256"},
+        "authorization_record_count": {"type": "integer", "minimum": 37},
+        "attempt_artifact_count": {"type": "integer", "minimum": 336},
+        "collection_artifact_count": {"type": "integer", "minimum": 374}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 374,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "artifact_count": {"type": "integer", "minimum": 374},
+    "artifact_inventory_sha256": {"$ref": "#/$defs/sha256"},
+    "technically_sealed": {"const": true},
+    "scientifically_opened": {"const": false},
+    "scientific_artifact_contents_parsed": {"const": false},
+    "scientific_outcomes_derived": {"const": false},
+    "scientific_outputs_returned": {"const": false},
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "creates_grant",
+        "consumes_grant",
+        "opens_holdout",
+        "runs_evaluation",
+        "adds_independent_review"
+      ],
+      "properties": {
+        "creates_grant": {"const": false},
+        "consumes_grant": {"const": false},
+        "opens_holdout": {"const": false},
+        "runs_evaluation": {"const": false},
+        "adds_independent_review": {"const": false}
+      }
+    },
+    "seal_payload_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/].*"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "file_sha256", "payload_sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "file_sha256": {"$ref": "#/$defs/sha256"},
+        "payload_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "role", "byte_size", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "role": {"type": "string", "minLength": 1},
+        "byte_size": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

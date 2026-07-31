@@ -1073,6 +1073,8 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
 def _validate_official_precollection_freeze(
     repo_root: Path,
     amendment: Mapping[str, Any],
+    *,
+    require_current_source: bool = True,
 ) -> dict[str, Any]:
     unseen = amendment["unseen_holdout"]
     design_path = repo_root / _safe_relative(
@@ -1138,7 +1140,7 @@ def _validate_official_precollection_freeze(
     validate_source_checkpoint(
         seal["source_checkpoint"],
         repo_root,
-        require_current_checkout=True,
+        require_current_checkout=require_current_source,
     )
     preflight = s4_8.load_json(preflight_path)
     if (
@@ -1250,18 +1252,42 @@ def recovery_preopen_validate(
     review_present = (
         root / _safe_relative(future["independent_review_path"])
     ).is_file()
+    seal_present = present["holdout_seal_path"]
+    binding_present = present["binding_path"]
+    if seal_present != binding_present:
+        raise s4_8.S48Error(
+            "S4.8 postcollection holdout seal and binding are incomplete"
+        )
+    finalization: dict[str, Any] | None = None
+    if seal_present:
+        from isaac_audio_sensors.acquisition.s4_8_postcollection_finalizer import (
+            S48PostcollectionFinalizerError,
+            authenticate_existing_finalization,
+        )
+
+        try:
+            finalization = authenticate_existing_finalization(root)
+        except S48PostcollectionFinalizerError as exc:
+            raise s4_8.S48Error(
+                f"S4.8 postcollection finalization authentication failed: {exc}"
+            ) from exc
     blockers = [
-        "new_unseen_holdout_not_collected_or_bound",
         "evaluator_not_bound_to_37_take_protocol",
         "independent_review_not_present",
         "explicit_authorization_not_granted",
     ]
+    if finalization is None:
+        blockers.insert(0, "new_unseen_holdout_not_collected_or_bound")
     if not source_binds_protocol:
         blockers.insert(0, "source_commit_does_not_bind_37_take_protocol")
     if not readiness_passed:
         blockers.insert(0, "preliminary_readiness_not_established")
     protocol_validation = validate_protocol_revision(root)
-    official_freeze = _validate_official_precollection_freeze(root, amendment)
+    official_freeze = _validate_official_precollection_freeze(
+        root,
+        amendment,
+        require_current_source=False,
+    )
     official_acquisition_permitted = (
         source_binds_protocol
         and readiness_passed
@@ -1319,7 +1345,12 @@ def recovery_preopen_validate(
                     ),
                     (
                         not official_freeze["valid"],
-                        str(official_freeze["reason"]),
+                        str(
+                            official_freeze.get(
+                                "reason",
+                                "committed_precollection_freeze_not_present",
+                            )
+                        ),
                     ),
                 )
                 if condition
@@ -1329,6 +1360,10 @@ def recovery_preopen_validate(
         "leakage_group_count": LEAKAGE_GROUP_COUNT,
         "unseen_holdout_id": unseen["holdout_id"],
         "unseen_holdout_paths_present": present,
+        "holdout_collection_complete": finalization is not None,
+        "holdout_seal_authenticated": finalization is not None,
+        "holdout_binding_authenticated": finalization is not None,
+        "postcollection_finalization": finalization,
         "independent_review_present": review_present,
         "grant_creation_authorized": False,
         "grant_consumption_authorized": False,
