@@ -142,7 +142,7 @@
     "schema_path": "docs/schemas/s4_8_recovery_amendment_02_terminalization_authorization.v1.schema.json"
   },
   "contract_id": "s4_8_recovery_amendment_02_37_take_terminalization_v1",
-  "implementation_baseline_commit": "59d006818b7958794dd51ce0437dfaa58e7b3db6",
+  "implementation_baseline_commit": "716b3210032284911138b8d36abd82e3b4a16d91",
   "publication": {
     "atomic_same_filesystem_rename_required": true,
     "closeout_path": "docs/development/closeouts/S4/s4_8_recovery_amendment_02_37_take.md",

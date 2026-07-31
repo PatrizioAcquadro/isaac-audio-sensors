@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import errno
 import hashlib
 import json
 import os
@@ -952,6 +954,44 @@ def _remove_created_path(path: Path) -> None:
     _fsync_directory(path.parent)
 
 
+def _atomic_publish_directory_noreplace(source: Path, target: Path) -> None:
+    """Atomically rename a directory only when the destination is absent."""
+
+    try:
+        renameat2 = ctypes.CDLL(None, use_errno=True).renameat2
+    except AttributeError as exc:
+        raise S48TerminalizationError(
+            "atomic no-replace publication is unavailable"
+        ) from exc
+    renameat2.argtypes = [
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    ]
+    renameat2.restype = ctypes.c_int
+    result = renameat2(
+        -100,
+        os.fsencode(source),
+        -100,
+        os.fsencode(target),
+        1,
+    )
+    if result == 0:
+        return
+    error = ctypes.get_errno()
+    if error in {errno.EEXIST, errno.ENOTEMPTY}:
+        raise S48TerminalizationError(
+            "refusing to overwrite existing terminal package"
+        )
+    if error in {errno.EINVAL, errno.ENOSYS, errno.ENOTSUP}:
+        raise S48TerminalizationError(
+            "atomic no-replace publication is unavailable"
+        )
+    raise OSError(error, os.strerror(error), os.fspath(target))
+
+
 def terminalize(
     repo_root: Path,
     *,
@@ -981,6 +1021,7 @@ def terminalize(
     )
     _fsync_directory(parent)
     _publication_step("staging_created", staging)
+    published = False
     try:
         _write_fsync(
             staging / "heldout_evaluation_input.v2.json",
@@ -1032,7 +1073,8 @@ def terminalize(
                 "refusing to overwrite existing terminal package"
             )
         _publication_step("before_rename", staging)
-        os.replace(staging, state.output_path)
+        _atomic_publish_directory_noreplace(staging, state.output_path)
+        published = True
         _publication_step("after_rename", state.output_path)
         terminal = _validate_terminal_package(
             state.output_path,
@@ -1045,7 +1087,9 @@ def terminalize(
     except Exception:
         if staging.exists() or staging.is_symlink():
             _remove_created_path(staging)
-        if state.output_path.exists() or state.output_path.is_symlink():
+        if published and (
+            state.output_path.exists() or state.output_path.is_symlink()
+        ):
             try:
                 _validate_terminal_package(
                     state.output_path,

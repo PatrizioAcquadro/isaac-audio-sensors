@@ -5,8 +5,6 @@ from __future__ import annotations
 import builtins
 import hashlib
 import json
-import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -739,35 +737,34 @@ def test_pre_rename_failure_leaves_no_partial_package(
     assert not list(output.parent.glob(f".{output.name}.*.staging"))
 
 
-def test_non_atomic_partial_replace_is_removed(
+def test_raced_empty_destination_is_never_overwritten_or_removed(
     terminal_root: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     authorization_id, _created = _authorize(terminal_root)
-
-    def partial_replace(
-        source: str | os.PathLike[str],
-        target: str | os.PathLike[str],
-    ) -> None:
-        source_path = Path(source)
-        target_path = Path(target)
-        target_path.mkdir()
-        shutil.copy2(
-            source_path / "heldout_evaluation_input.v2.json",
-            target_path / "heldout_evaluation_input.v2.json",
-        )
-        raise OSError("injected partial replace")
-
-    monkeypatch.setattr(terminalizer.os, "replace", partial_replace)
     contract = _contract(terminal_root)
     output = terminal_root / contract["publication"]["output_path"]
 
-    with pytest.raises(OSError, match="injected partial replace"):
+    def create_raced_destination(step: str, _path: Path) -> None:
+        if step == "before_rename":
+            output.mkdir()
+
+    monkeypatch.setattr(
+        terminalizer,
+        "_publication_step",
+        create_raced_destination,
+    )
+
+    with pytest.raises(
+        terminalizer.S48TerminalizationError,
+        match="refusing to overwrite existing terminal package",
+    ):
         terminalizer.terminalize(
             terminal_root,
             implementation_commit=IMPLEMENTATION_COMMIT,
             authorization_id=authorization_id,
         )
 
-    assert not output.exists()
+    assert output.is_dir()
+    assert not list(output.iterdir())
     assert not list(output.parent.glob(f".{output.name}.*.staging"))
