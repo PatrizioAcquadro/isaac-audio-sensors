@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isaac-audio-sensors.local/schemas/s4_8_recovery_amendment_03_future_holdout.v2.schema.json",
+  "title": "S4.8 amendment-03 future holdout B/C nuisance-matched contract v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "amendment_id",
+    "contract_id",
+    "status",
+    "extends",
+    "scope",
+    "preserved_contract",
+    "pairing_control",
+    "authority"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ias.s4_8.recovery_03.future_holdout_contract.v2"
+    },
+    "amendment_id": {
+      "const": "s4_8_recovery_amendment_03"
+    },
+    "contract_id": {
+      "const": "s4_8_recovery_amendment_03_future_holdout_bc_nuisance_matched_v2"
+    },
+    "status": {
+      "const": "preregistered_empty_not_authorized"
+    },
+    "extends": {
+      "const": {
+        "release_candidate_path": "configs/s4_8_recovery_amendment_03.v1.json",
+        "release_candidate_sha256": "e8c0632dfd63f34dd1ee0e76cd0bc91c4d1f1e43d58b85a060d709ec2de4e21c",
+        "scope": "future_holdout_only",
+        "rc1_mutation_permitted": false,
+        "historical_result_mutation_permitted": false
+      }
+    },
+    "scope": {
+      "const": {
+        "future_holdout_id": "s4_8_recovery_amendment_03_unseen_holdout",
+        "raw_observation_root": "dataset/S4.4/amendments/s4_4_data_expansion_amendment_05/attempts",
+        "base_design_path": "configs/s4_8_recovery_amendment_02_preholdout_manifest.v2.json",
+        "base_design_sha256": "379740afa39e86874b8e2c4e5b3f92e58b4d7872fecc982961a39f4637ff0aa9",
+        "planned_take_count": 37,
+        "changed_take_count": 4,
+        "unchanged_take_count": 33,
+        "bc_pair_count": 4
+      }
+    },
+    "preserved_contract": {
+      "const": {
+        "geometry_unchanged": true,
+        "tdoa_unchanged": true,
+        "evaluator_unchanged": true,
+        "formula_unchanged": true,
+        "threshold_unchanged": true,
+        "criteria_unchanged": true,
+        "pipeline_unchanged": true,
+        "criterion_id": "low_level_confidence_monotonicity",
+        "statistic": "median_difference",
+        "comparator": "less_than_or_equal",
+        "threshold": 0.0,
+        "reference_policy_path": "configs/s4_8_reference_tdoa_boundary_policy.v1.json",
+        "reference_policy_sha256": "069b423e9e2c11a1bb0cb38b9748500e635c4215a48446676f93425086d184c5",
+        "evaluator_path": "src/isaac_audio_sensors/acquisition/s4_8_recovery_02_evaluator.py",
+        "evaluator_sha256": "007045b13ba45f8aaee38a35143e0959392490f14ed1fd4c7d76e6ebae35871a",
+        "pipeline_path": "src/isaac_audio_sensors/acquisition/s4_8_recovery_03.py",
+        "pipeline_sha256": "a0f0372f070a34f0b8f82114be77d8a264a923470e757a890ad376574348597d"
+      }
+    },
+    "pairing_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "representation",
+        "shared_condition_applies_to",
+        "administrative_identity_fields",
+        "matched_scientific_fields",
+        "only_allowed_scientific_difference",
+        "b_playback_gain",
+        "c_playback_gain",
+        "pairs"
+      ],
+      "properties": {
+        "representation": {
+          "const": "one_shared_scientific_condition_object_per_bc_pair"
+        },
+        "shared_condition_applies_to": {
+          "const": [
+            "B_center_nominal_level",
+            "C_center_low_level"
+          ]
+        },
+        "administrative_identity_fields": {
+          "const": [
+            "planned_take_id",
+            "stratum_id"
+          ]
+        },
+        "matched_scientific_fields": {
+          "const": [
+            "target_bearing_deg_f_project",
+            "target_radius_m",
+            "session_id",
+            "reference_signal",
+            "nuisance_condition_id",
+            "noise",
+            "occlusion"
+          ]
+        },
+        "only_allowed_scientific_difference": {
+          "const": "playback_gain"
+        },
+        "b_playback_gain": {
+          "const": 0.75
+        },
+        "c_playback_gain": {
+          "const": 0.35
+        },
+        "pairs": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/pair"
+          }
+        }
+      }
+    },
+    "authority": {
+      "const": {
+        "collects_data": false,
+        "creates_grant": false,
+        "consumes_grant": false,
+        "opens_holdout": false,
+        "executes_official_evaluation": false,
+        "publishes_official_evidence": false,
+        "authorizes_new_holdout": false,
+        "starts_later_phase": false
+      }
+    }
+  },
+  "$defs": {
+    "referenceSignal": {
+      "const": {
+        "path": "outputs/isaac_audio_sensors/S4/S4.2/reference/s4_2_reference_v1.0.0.wav",
+        "sha256": "27929826ae179faf5adb1aa2759ed302a0cd6163b3ec8324325e7cdf0b143468"
+      }
+    },
+    "noise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "phrase",
+        "repetitions",
+        "instruction"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "phrase": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repetitions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "instruction": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "occlusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "instruction"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "instruction": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "scientificConditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_bearing_deg_f_project",
+        "target_radius_m",
+        "session_id",
+        "reference_signal",
+        "nuisance_condition_id",
+        "noise",
+        "occlusion"
+      ],
+      "properties": {
+        "target_bearing_deg_f_project": {
+          "enum": [
+            0.0,
+            90.0,
+            180.0,
+            270.0
+          ]
+        },
+        "target_radius_m": {
+          "const": 0.8
+        },
+        "session_id": {
+          "const": "prospective_holdout_recovery_03"
+        },
+        "reference_signal": {
+          "$ref": "#/$defs/referenceSignal"
+        },
+        "nuisance_condition_id": {
+          "enum": [
+            "front_occluded",
+            "right_noise",
+            "rear_noise",
+            "left_occluded"
+          ]
+        },
+        "noise": {
+          "$ref": "#/$defs/noise"
+        },
+        "occlusion": {
+          "$ref": "#/$defs/occlusion"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "nuisance_condition_id": {
+                "enum": [
+                  "front_occluded",
+                  "left_occluded"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "noise": {
+                "const": {
+                  "enabled": false,
+                  "phrase": null,
+                  "repetitions": 0,
+                  "instruction": null
+                }
+              },
+              "occlusion": {
+                "const": {
+                  "enabled": true,
+                  "instruction": "place the declared rigid two-box occluder to fully block the Mac-to-rig line of sight without touching the Mac or rig"
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "noise": {
+                "const": {
+                  "enabled": true,
+                  "phrase": "Audio pilot check, one two three, direction test.",
+                  "repetitions": 2,
+                  "instruction": "speak the standardized phrase twice, overlapping the Mac reference, from the same target direction"
+                }
+              },
+              "occlusion": {
+                "const": {
+                  "enabled": false,
+                  "instruction": null
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "bArm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planned_take_id",
+        "stratum_id",
+        "playback_gain"
+      ],
+      "properties": {
+        "planned_take_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stratum_id": {
+          "const": "B_center_nominal_level"
+        },
+        "playback_gain": {
+          "const": 0.75
+        }
+      }
+    },
+    "cArm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planned_take_id",
+        "stratum_id",
+        "playback_gain"
+      ],
+      "properties": {
+        "planned_take_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stratum_id": {
+          "const": "C_center_low_level"
+        },
+        "playback_gain": {
+          "const": 0.35
+        }
+      }
+    },
+    "pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pair_id",
+        "scientific_conditions",
+        "b",
+        "c"
+      ],
+      "properties": {
+        "pair_id": {
+          "enum": [
+            "product_000",
+            "product_090",
+            "product_180",
+            "product_270"
+          ]
+        },
+        "scientific_conditions": {
+          "$ref": "#/$defs/scientificConditions"
+        },
+        "b": {
+          "$ref": "#/$defs/bArm"
+        },
+        "c": {
+          "$ref": "#/$defs/cArm"
+        }
+      }
+    }
+  }
+}
