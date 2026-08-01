@@ -5,7 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -18,6 +19,9 @@ from isaac_audio_sensors.acquisition import (
 )
 from isaac_audio_sensors.acquisition import (
     s4_8_recovery_02_execution as historical_execution,
+)
+from isaac_audio_sensors.acquisition import (
+    s4_8_recovery_02_terminalizer as historical_terminalizer,
 )
 from isaac_audio_sensors.acquisition.s4_8_recovery_02_profiles import (
     is_input_contract_rejected,
@@ -41,6 +45,7 @@ RELEASE_CANDIDATE_ID = "s4_8_recovery_amendment_03_rc1"
 TOOL_VERSION = "ias_s4_8_recovery_03/1.0.0"
 DERIVED_INPUT_SCHEMA = "ias.s4_8.recovery_03.derived_evaluation_input.v1"
 VALIDATOR_IDENTITY = "ias_s4_8_recovery_03_validator/1.0.0"
+TERMINAL_JOURNAL_RECORD_COUNT = 5845
 
 FULL_EVALUATED_PROFILE = "recovery_03_full_evaluated_evidence.v1"
 INPUT_CONTRACT_REJECTION_PROFILE = (
@@ -511,15 +516,87 @@ def validate_release_candidate(repo_root: Path) -> dict[str, Any]:
     }
 
 
+def _authenticate_terminal_amendment_02_state(
+    repo_root: Path,
+    config: Mapping[str, Any],
+) -> None:
+    root = repo_root.resolve()
+    validate_release_candidate(root)
+    release_candidate = load_release_candidate(root)
+    try:
+        contract, *_schemas = historical_terminalizer._load_contract(root)
+        snapshots = historical_terminalizer._snapshot_inputs(root, contract)
+        historical_terminalizer._validate_scientific_state(
+            contract,
+            snapshots,
+        )
+        journal = historical_terminalizer._json_lines(
+            snapshots["scientific_journal"].data,
+            label=snapshots["scientific_journal"].relative_path,
+        )
+        expected_paths = {
+            ("grant", "path"): snapshots["scientific_grant"].relative_path,
+            ("grant", "ledger_path"): snapshots["scientific_ledger"].relative_path,
+            ("evidence", "run_journal_path"): (
+                snapshots["scientific_journal"].relative_path
+            ),
+            ("evidence", "derived_input_path"): (
+                snapshots["derived_state"].relative_path
+            ),
+            ("evidence", "output_path"): contract["publication"]["output_path"],
+        }
+        if any(
+            config.get(section, {}).get(field) != expected
+            for (section, field), expected in expected_paths.items()
+        ):
+            raise S48Recovery03Error(
+                "engineering replay amendment-02 path binding mismatch"
+            )
+        package_binding = release_candidate["historical_amendment_02"][
+            "published_terminal_package"
+        ]
+        if package_binding["root"] != contract["publication"]["output_path"]:
+            raise S48Recovery03Error(
+                "engineering replay terminal package binding mismatch"
+            )
+    except historical_terminalizer.S48TerminalizationError as exc:
+        raise S48Recovery03Error(
+            f"terminal amendment-02 authentication failed: {exc}"
+        ) from exc
+    if len(journal) != TERMINAL_JOURNAL_RECORD_COUNT:
+        raise S48Recovery03Error(
+            "engineering replay terminal journal record count mismatch"
+        )
+
+
+@contextmanager
+def _engineering_replay_opening_check(repo_root: Path) -> Iterator[None]:
+    official_check = s4_8._require_consumed_ledger
+
+    def authenticate_terminal_state(
+        root: Path,
+        config: Mapping[str, Any],
+    ) -> None:
+        _authenticate_terminal_amendment_02_state(root, config)
+
+    s4_8._require_consumed_ledger = authenticate_terminal_state
+    try:
+        yield
+    finally:
+        s4_8._require_consumed_ledger = official_check
+
+
 def _build_engineering_payload(
     repo_root: Path,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    lock_path = repo_root.resolve() / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
+    root = repo_root.resolve()
+    lock_path = root / s4_8.AUTHORIZED_EXECUTION_LOCK_PATH
     with (
         s4_8._exclusive_execution_lock(lock_path),
-        historical_execution.execution_context(repo_root.resolve()),
+        historical_execution.execution_context(root),
+        _engineering_replay_opening_check(root),
     ):
-        return historical_execution.build_real_payload(repo_root.resolve())
+        return historical_execution.build_real_payload(root)
 
 
 def _evaluate_engineering_payload(

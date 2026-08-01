@@ -4,6 +4,7 @@ import copy
 import json
 import math
 import struct
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -412,6 +413,51 @@ def _mock_payload() -> tuple[dict[str, Any], list[dict[str, Any]]]:
         },
         [{"planned_take_id": f"take_{index:02d}"} for index in range(37)],
     )
+
+
+def test_engineering_payload_uses_terminal_check_without_weakening_official(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    official_check = s4_8._require_consumed_ledger
+    terminal_config = {"journal_record_count": 5845}
+    authenticated: list[tuple[Path, dict[str, int]]] = []
+
+    def authenticate(root: Path, config: dict[str, int]) -> None:
+        authenticated.append((root, config))
+
+    def build(root: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        assert s4_8._require_consumed_ledger is not official_check
+        s4_8._require_consumed_ledger(root, terminal_config)
+        return _mock_payload()
+
+    monkeypatch.setattr(
+        recovery03,
+        "_authenticate_terminal_amendment_02_state",
+        authenticate,
+    )
+    monkeypatch.setattr(
+        s4_8,
+        "_exclusive_execution_lock",
+        lambda _path: nullcontext(),
+    )
+    monkeypatch.setattr(
+        recovery03.historical_execution,
+        "execution_context",
+        lambda _root: nullcontext(),
+    )
+    monkeypatch.setattr(
+        recovery03.historical_execution,
+        "build_real_payload",
+        build,
+    )
+
+    payload, inventory = recovery03._build_engineering_payload(tmp_path)
+
+    assert len(payload["takes"]) == 37
+    assert len(inventory) == 37
+    assert authenticated == [(tmp_path.resolve(), terminal_config)]
+    assert s4_8._require_consumed_ledger is official_check
 
 
 def _install_replay_mocks(
