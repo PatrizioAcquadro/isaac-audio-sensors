@@ -40,8 +40,8 @@ from alex_showcase_assets import (
     AlexModelAsset,
     build_cache_descriptor,
     cache_directory,
-    importer_settings,
     installed_runtime_version,
+    isaaclab_importer_settings,
     load_cached_usd,
     parse_arguments,
     require_strict_v2_evidence,
@@ -584,6 +584,7 @@ def convert_alex_urdf_to_usd(
     evidence: dict[str, Any],
     asset: AlexModelAsset,
     *,
+    settings: dict[str, Any],
     runtime: dict[str, str],
     require_real_alex_v2: bool,
 ) -> Path | None:
@@ -593,7 +594,6 @@ def convert_alex_urdf_to_usd(
     importer opens its own working stage during conversion.
     """
 
-    settings = importer_settings()
     descriptor = build_cache_descriptor(
         asset,
         importer_settings=settings,
@@ -641,11 +641,11 @@ def convert_alex_urdf_to_usd(
             usd_path=str(target_dir),
             merge_fixed_joints=bool(settings["merge_fixed_joints"]),
             merge_mesh=bool(settings["merge_mesh"]),
+            collision_from_visuals=bool(settings["collision_from_visuals"]),
+            allow_self_collision=bool(settings["allow_self_collision"]),
+            fix_base=bool(settings["fix_base"]),
+            run_asset_transformer=bool(settings["run_asset_transformer"]),
         )
-        with suppress(Exception):
-            config.run_asset_transformer = bool(
-                settings["run_asset_transformer"]
-            )
         final_path = Path(URDFImporter(config).import_urdf())
         if not final_path.is_file():
             raise RuntimeError(f"Importer returned missing file {final_path}.")
@@ -891,6 +891,8 @@ def main() -> int:
         simulation_app = ensure_isaac_runtime(evidence)
         runtime = isaac_runtime_identity()
         evidence["isaac_runtime"] = runtime
+        shared_importer_settings = isaaclab_importer_settings(model_asset)
+        evidence["alex_isaaclab_importer_settings"] = shared_importer_settings
 
         import omni.usd  # type: ignore
 
@@ -901,6 +903,7 @@ def main() -> int:
         alex_usd = convert_alex_urdf_to_usd(
             evidence,
             model_asset,
+            settings=shared_importer_settings,
             runtime=runtime,
             require_real_alex_v2=args.require_real_alex_v2,
         )

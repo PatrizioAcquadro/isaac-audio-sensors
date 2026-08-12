@@ -251,12 +251,19 @@ kitchen from the static CombinedScene export. A strict headless run on the
 validated Isaac Sim installation is:
 
 ```bash
+/home/pacquadr/IsaacLab/isaaclab.sh -p -m pip install -e \
+  /home/pacquadr/Desktop/Alex/source/ihmc_alex_isaaclab
 PYTHONPATH="$PWD/src" \
-"$HOME/isaacsim/python.sh" scripts/live_alex_audio_showcase.py \
+"$HOME/IsaacLab/isaaclab.sh" -p scripts/live_alex_audio_showcase.py \
   --alex-root "$HOME/Desktop/Alex" \
   --scene-usd "$HOME/Desktop/CombinedScene/FloorPlan1_updated_physics/scene.usda" \
   --require-real-alex-v2
 ```
+
+The live Alex target lazily imports
+`ihmc_alex_isaaclab.robots.alex_v2.make_alex_v2_cfg` and derives the applicable
+URDF importer settings from that shared config. Generic package imports remain
+independent of Isaac Sim and Isaac Lab.
 
 Strict mode rejects a missing Isaac runtime provenance, proxy robot, fallback
 room, stale or tampered USD cache, unresolved mesh, missing exact `HEAD_LINK`,

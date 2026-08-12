@@ -7,6 +7,7 @@ import json
 import math
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -156,6 +157,38 @@ def test_v2_static_asset_resolution_is_deterministic(tmp_path):
     (root / "meshes" / "head.obj").write_bytes(b"different bytes")
     changed = assets.resolve_v2_asset(alex_root=root, manifest_dir=manifest_dir)
     assert changed.fingerprint != first.fingerprint
+
+
+def test_isaaclab_factory_bridge_is_lazy_and_binds_importer(tmp_path):
+    assets = _load_assets_module()
+    root = tmp_path / "Alex"
+    _write_static_v2_asset(root)
+    asset = assets.resolve_v2_asset(alex_root=root, manifest_dir=tmp_path / "manifests")
+    calls = []
+
+    def factory(path, *, fix_base, variant):
+        calls.append((path, fix_base, variant))
+        return SimpleNamespace(
+            spawn=SimpleNamespace(
+                asset_path=path,
+                fix_base=fix_base,
+                merge_fixed_joints=True,
+                collision_from_visuals=False,
+                self_collision=True,
+            )
+        )
+
+    settings = assets.isaaclab_importer_settings(asset, cfg_factory=factory)
+
+    assert calls == [(str(asset.urdf_path), True, "standard")]
+    assert settings == {
+        "merge_fixed_joints": True,
+        "merge_mesh": False,
+        "run_asset_transformer": False,
+        "fix_base": True,
+        "collision_from_visuals": False,
+        "allow_self_collision": True,
+    }
 
 
 def test_v2_static_resolution_rejects_bad_assets(tmp_path):

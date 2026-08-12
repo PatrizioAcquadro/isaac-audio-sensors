@@ -266,6 +266,40 @@ def importer_settings() -> dict[str, Any]:
     }
 
 
+def isaaclab_importer_settings(
+    asset: AlexModelAsset,
+    *,
+    cfg_factory: Any | None = None,
+) -> dict[str, Any]:
+    """Bind the direct importer to the shared Alex V2 Isaac Lab config.
+
+    The factory import stays inside this function so importing the generic
+    showcase helpers does not require Isaac Sim or Isaac Lab.
+    """
+
+    if cfg_factory is None:
+        from ihmc_alex_isaaclab.robots.alex_v2 import make_alex_v2_cfg
+
+        cfg_factory = make_alex_v2_cfg
+    cfg = cfg_factory(str(asset.urdf_path), fix_base=True, variant="standard")
+    configured_path = Path(cfg.spawn.asset_path).expanduser().resolve()
+    if configured_path != asset.urdf_path.resolve():
+        raise RuntimeError(
+            "Alex V2 factory selected "
+            f"{configured_path}, expected {asset.urdf_path.resolve()}"
+        )
+    settings = importer_settings()
+    settings.update(
+        {
+            "fix_base": bool(cfg.spawn.fix_base),
+            "merge_fixed_joints": bool(cfg.spawn.merge_fixed_joints),
+            "collision_from_visuals": bool(cfg.spawn.collision_from_visuals),
+            "allow_self_collision": bool(cfg.spawn.self_collision),
+        }
+    )
+    return settings
+
+
 def build_cache_descriptor(
     asset: AlexModelAsset,
     *,
