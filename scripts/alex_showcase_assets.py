@@ -34,7 +34,7 @@ HEAD_SENSOR_FRAMES = {
 
 
 def default_alex_root() -> Path:
-    return Path.home() / "Desktop" / "Alex"
+    return Path.home() / "Desktop" / "Alex" / "assets" / "robots" / "alex_v2"
 
 
 def default_v2_urdf(alex_root: Path | None = None) -> Path:
@@ -217,9 +217,7 @@ def resolve_v2_asset(
 ) -> AlexModelAsset:
     """Resolve the static Alex V2 asset without importing Isaac Sim."""
 
-    selected_urdf = (
-        urdf_path if urdf_path is not None else default_v2_urdf(alex_root)
-    )
+    selected_urdf = urdf_path if urdf_path is not None else default_v2_urdf(alex_root)
     selected_urdf = selected_urdf.expanduser().resolve()
     if not selected_urdf.is_file():
         raise FileNotFoundError(f"Alex V2 URDF not found: {selected_urdf}")

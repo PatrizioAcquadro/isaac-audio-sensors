@@ -245,17 +245,16 @@ The gate defaults to `~/isaacsim/python.sh`; override with
 
 ### Alex V2 audio showcase
 
-The showcase imports the static Alex V2 asset folder (`~/Desktop/Alex`:
-`urdf/alex_v2.urdf` plus `meshes/*.obj`) and opens the iTHOR FloorPlan1
+The showcase imports the static Alex V2 asset folder
+(`~/Desktop/Alex/assets/robots/alex_v2`) and opens the iTHOR FloorPlan1
 kitchen from the static CombinedScene export. A strict headless run on the
 validated Isaac Sim installation is:
 
 ```bash
-/home/pacquadr/IsaacLab/isaaclab.sh -p -m pip install -e \
-  /home/pacquadr/Desktop/Alex/source/ihmc_alex_isaaclab
+/home/pacquadr/IsaacLab/isaaclab.sh -p -m pip install -e /home/pacquadr/Desktop/Alex
 PYTHONPATH="$PWD/src" \
 "$HOME/IsaacLab/isaaclab.sh" -p scripts/live_alex_audio_showcase.py \
-  --alex-root "$HOME/Desktop/Alex" \
+  --alex-root "$HOME/Desktop/Alex/assets/robots/alex_v2" \
   --scene-usd "$HOME/Desktop/CombinedScene/FloorPlan1_updated_physics/scene.usda" \
   --require-real-alex-v2
 ```

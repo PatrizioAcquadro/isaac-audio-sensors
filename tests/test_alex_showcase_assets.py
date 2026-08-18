@@ -74,7 +74,9 @@ def test_cli_defaults_to_static_v2_and_decouples_scene(tmp_path):
     assets = _load_assets_module()
 
     defaults = assets.parse_arguments([])
-    assert defaults.alex_root == Path.home() / "Desktop" / "Alex"
+    assert defaults.alex_root == (
+        Path.home() / "Desktop" / "Alex" / "assets" / "robots" / "alex_v2"
+    )
     assert defaults.scene_usd == (
         Path.home()
         / "Desktop"
@@ -109,9 +111,7 @@ def test_runtime_version_prefers_active_distribution_and_falls_back(
     root.mkdir()
     (root / "VERSION").write_text("6.0.1-rc.7\n", encoding="utf-8")
 
-    monkeypatch.setattr(
-        assets.importlib.metadata, "version", lambda _name: "5.1.0.0"
-    )
+    monkeypatch.setattr(assets.importlib.metadata, "version", lambda _name: "5.1.0.0")
     assert (
         assets.installed_runtime_version("isaacsim", "UNSET_RUNTIME_ROOT", root)
         == "5.1.0.0"
@@ -204,9 +204,7 @@ def test_v2_static_resolution_rejects_bad_assets(tmp_path):
     _write_static_v2_asset(missing_mesh_root)
     (missing_mesh_root / "meshes" / "head.obj").unlink()
     with pytest.raises(RuntimeError, match="unresolved mesh"):
-        assets.resolve_v2_asset(
-            alex_root=missing_mesh_root, manifest_dir=manifest_dir
-        )
+        assets.resolve_v2_asset(alex_root=missing_mesh_root, manifest_dir=manifest_dir)
 
     no_imu_root = tmp_path / "no-imu"
     _write_static_v2_asset(no_imu_root, include_imu_joint=False)
