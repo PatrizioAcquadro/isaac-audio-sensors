@@ -1,4 +1,4 @@
-# AlexDoor-XAS Technical Wiki Rules
+# isaac-audio-sensors Technical Wiki Rules
 
 ## Scope and Hierarchy
 
@@ -35,7 +35,8 @@ Do not add additional folders.
 
 - `knowledge/raw/` is user-owned and immutable to agents. 
   Agents may inventory and read its contents, but must never edit, rename, move, overwrite, reformat, or delete anything in it.
-  Raw storage is for research material, clipped web material, specifications,reports, notes, transcripts, small ingestable data, and local visual assets.
+  Raw storage is for research material, clipped web material, specifications, reports, notes, transcripts, small ingestable data, and local visual assets.
+  A user may explicitly authorize one named raw-path operation; R4 authorizes moving `docs/00_repository_restructuring.md` byte-for-byte to `knowledge/raw/docs/00_repository_restructuring.md` and removing the now-unnecessary placeholder.
 - `knowledge/wiki/` is primarily agent-maintained. 
   Preserve user editorial changes unless they conflict with verified evidence; resolve such conflicts with the smallest necessary edit and explain the evidence.
 - Do not use destructive Git commands or rewrite history. 
@@ -110,11 +111,11 @@ Main files affected (repository-relative code references). Only the main ones.
   It must list `status.md` prominently and every other wiki page (except itself and `log.md`), 
   grouped under Implementation Phases, Topics, Key Decisions, Experiments, and Sources, with a one-line description.
 - `wiki/log.md` is append-only. Do not rewrite or reorder existing entries.
-  In this way we keep track in a coincise way of all the changes done in the wiki.
-  Log entries use `## YYYY-MM-DD — operation : Title`, followed by two-lines description.
+  In this way we keep a concise record of wiki maintenance.
+  Log entries use `## YYYY-MM-DD — operation: Title`, followed by a concise description.
   Allowed operations are: setup, ingest, update, query, experiment, and lint.
   Keep the log append-only and chronologically ordered. 
-  This format must remain compatible with: grep "^## \[" knowledge/wiki/log.md | tail -5
+  This format must remain compatible with: `grep "^## " knowledge/wiki/log.md | tail -5`.
 
 ## Ingest Workflow
 
@@ -138,7 +139,7 @@ Do not assume that image captions contain all relevant visual information.
 2. Check referenced repository files, tests, artifacts, and Git history when a current or high-consequence answer needs verification.
 3. Answer with the distinction between verified state and uncertainty intact.
 4. Update the wiki only when the user explicitly requests it or the query uncovers a meaningful, verified correction worth preserving.
-5. If documentation is updated, update `wiki/index.md` and append an ingest entry to `wiki/log.md`.
+5. If documentation is updated, update `wiki/index.md` and append an update entry to `wiki/log.md`.
 
 ## Synchronization Workflow
 
@@ -159,7 +160,7 @@ For a material implementation change:
 
 Before finishing wiki work:
 
-1. Confirm the allowed tree shape, and that `knowledge/raw/` and top-level `implementation_phases/` are unchanged.
+1. Confirm the allowed tree shape, preserve `knowledge/raw/` except for an exact user-authorized operation, and change phase pages only when the requested work affects those phases.
 2. Resolve every internal wikilink and ensure every page is listed in the index.
 3. Check headings, repository-relative references, and concise Version Notes.
 4. Search for duplicated canonical explanations, stale claims, unsupported completion language, copied plan text, and accidental source ingestion.
