@@ -251,7 +251,7 @@ kitchen from the static CombinedScene export. A strict headless run on the
 validated Isaac Sim installation is:
 
 ```bash
-/home/pacquadr/IsaacLab/isaaclab.sh -p -m pip install -e /home/pacquadr/Desktop/Alex
+"$HOME/IsaacLab/isaaclab.sh" -p -m pip install -e "$HOME/Desktop/Alex"
 PYTHONPATH="$PWD/src" \
 "$HOME/IsaacLab/isaaclab.sh" -p scripts/live_alex_audio_showcase.py \
   --alex-root "$HOME/Desktop/Alex/assets/robots/alex_v2" \

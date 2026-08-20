@@ -81,6 +81,7 @@ HISTORICAL_METADATA_FILES = frozenset(
         "evidence_index.json",
         "preservation_validation.json",
         "provenance.json",
+        "reproduction.json",
     }
 )
 HYPOTHESIS_IDS = (

@@ -221,8 +221,8 @@ def test_semantic_validator_accepts_canonical_package(
     result = validate_corrective_package(pre_s4_6_root, _canonical_package())
     assert result["status"] == "passed", result
     assert result["semantic_regeneration"] is True
-    assert result["semantic_regenerated_file_count"] == 12
-    assert result["historical_metadata_file_count"] == 5
+    assert result["semantic_regenerated_file_count"] == 11
+    assert result["historical_metadata_file_count"] == 6
     assert result["holdout_opened"] is False
     assert result["later_phase_artifacts"] == []
 
