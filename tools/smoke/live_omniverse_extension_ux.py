@@ -46,22 +46,6 @@ from isaac_audio_sensors.kit.instruments import (
 )
 
 EXTENSION_ID = "isaac_audio_sensors.omni"
-MOLMO_FIXTURE_ROOT = Path.home() / "Desktop" / "CombinedScene"
-MOLMO_FLOORPLAN1_USD = (
-    MOLMO_FIXTURE_ROOT / "FloorPlan1_updated_physics" / "scene.usda"
-)
-MOLMO_KITCHEN_OBJECT_CANDIDATES = (
-    "/FloorPlan1_physics/Geometry/oven_588514d9b7194ff8509ced4f3f34adb0_1_0_0",
-    "/FloorPlan1_physics/Geometry/sink_6963746c1cac2341702c2d7d922de618_1_0_0",
-    "/FloorPlan1_physics/Geometry/microwaveoven_"
-    "37bc68a024364106033dc6f1f16a5c8d_1_0_0",
-    "/FloorPlan1_physics/Geometry/refrigerator_"
-    "5a1cb9d35791f7f9acfa7d661c12908e_1_0_0",
-    "/FloorPlan1_physics/Geometry/standardislandheight_"
-    "7cc63329b1f0a38cd8c2450298404ab3_1_0_0",
-    "/FloorPlan1_physics/Geometry/standardcounterheightwidth_"
-    "63e81a44be2e417bdef7ec44364879f9_1_0_0",
-)
 EXPECTED_UI_SECTIONS = (
     "Stage",
     "Author Array",
@@ -182,7 +166,7 @@ EXPECTED_COMBO_FIELDS = (
     "layout_name",
     "waveform_mode",
 )
-ARRAY_RIG_PROFILE_ID = "alex_head_quad"
+ARRAY_RIG_PROFILE_ID = "quad_cross_120mm"
 ARRAY_MOUNT_PRIM_PATH = "/World/Rig/RobotMount"
 ARRAY_MOUNT_POSITION_BEFORE = (0.0, -1.0, 0.0)
 ARRAY_MOUNT_POSITION_AFTER = (1.5, -2.0, 0.5)
@@ -216,7 +200,6 @@ def main() -> int:
         "replicator_dir": replicator_dir,
         "screenshot_path": screenshot_path,
     }
-    molmo_artifacts = _scenario_artifacts(args.out, "molmo_floorplan1")
     _remove_existing_artifacts(
         args.out,
         frame_trace_path,
@@ -224,13 +207,8 @@ def main() -> int:
         pre_frame_config_path,
         latest_frame_path,
         screenshot_path,
-        molmo_artifacts["frame_trace_path"],
-        molmo_artifacts["config_path"],
-        molmo_artifacts["latest_frame_path"],
-        molmo_artifacts["screenshot_path"],
     )
     _prepare_output_dir(replicator_dir)
-    _prepare_output_dir(molmo_artifacts["replicator_dir"])
 
     evidence: dict[str, Any] = {
         "argv": sys.argv,
@@ -245,7 +223,6 @@ def main() -> int:
         "latest_frame_path": str(latest_frame_path),
         "replicator_output_dir": str(replicator_dir),
         "screenshot_path": str(screenshot_path),
-        "molmo_floorplan1_artifacts": _stringify_artifacts(molmo_artifacts),
         "extension_id": EXTENSION_ID,
         "extension_path": str(
             Path(__file__).resolve().parents[2] / "exts" / EXTENSION_ID
@@ -264,7 +241,6 @@ def main() -> int:
         _record_isaacsim_preflight(evidence)
         _record_gpu_preflight(evidence)
         _record_nvidia_smi(evidence)
-        evidence["alex_molmo_fixture"] = _probe_alex_molmo_fixture()
         simulation_app = _ensure_isaac_runtime(evidence)
 
         import omni  # type: ignore
@@ -375,34 +351,6 @@ def main() -> int:
             lambda: _collect_audio_output_evidence(controller, stage=stage),
         )
 
-        molmo_stage, molmo_open = _open_molmo_floorplan1_stage(evidence)
-        evidence["molmo_floorplan1_open"] = molmo_open
-        molmo_object_path = _select_molmo_kitchen_object(molmo_stage)
-        molmo_result = _step(
-            evidence,
-            "molmo_floorplan1_object_attach_workflow",
-            lambda: _run_object_attach_scenario(
-                evidence=evidence,
-                controller=controller,
-                stage=molmo_stage,
-                fixture_kind="molmo_floorplan1",
-                artifacts=molmo_artifacts,
-                object_path=molmo_object_path,
-                source_prim_path="/World/Sources/MolmoSpeakerA",
-                source_id="molmo_speaker_a",
-                parent_position_before=(2.0, 0.0, 0.0),
-                parent_position_after=(0.0, 2.0, 0.0),
-                local_offset_before=(0.0, 0.0, 0.0),
-                local_offset_after=(0.5, 0.0, 0.25),
-                discovery_roots_text=molmo_object_path,
-                stage_setup=None,
-                usd_path=MOLMO_FLOORPLAN1_USD,
-                stage_open=molmo_open,
-                require_screenshot=args.require_screenshot,
-            ),
-        )
-        evidence["object_attach_live_qa"]["molmo_floorplan1"] = molmo_result
-
         _validate_live_extension_outputs(evidence=evidence)
         evidence["status"] = "passed"
     except BaseException as exc:  # noqa: BLE001 - smoke evidence records exact error.
@@ -460,16 +408,6 @@ def _step(evidence: dict[str, Any], name: str, callback: Any) -> Any:
     if result is None:
         raise RuntimeError(f"Workflow step {name!r} returned None.")
     return result
-
-
-def _scenario_artifacts(out: Path, name: str) -> dict[str, Path]:
-    return {
-        "frame_trace_path": out.with_suffix(f".{name}.frames.jsonl"),
-        "config_path": out.with_suffix(f".{name}.config.json"),
-        "latest_frame_path": out.with_suffix(f".{name}.latest_frame.json"),
-        "replicator_dir": out.with_suffix(f".{name}.replicator"),
-        "screenshot_path": out.with_suffix(f".{name}.viewport.png"),
-    }
 
 
 def _stringify_artifacts(artifacts: dict[str, Path]) -> dict[str, str]:
@@ -1122,83 +1060,6 @@ def _promote_legacy_generic_evidence(
         "config_import_result", {}
     ).get("roundtrip_probe")
     evidence["screenshot"] = generic_result.get("screenshot")
-
-
-def _open_molmo_floorplan1_stage(
-    evidence: dict[str, Any],
-) -> tuple[Any, dict[str, Any]]:
-    command = f"omni.usd.get_context().open_stage({str(MOLMO_FLOORPLAN1_USD)!r})"
-    record: dict[str, Any] = {
-        "command": command,
-        "scene_path": str(MOLMO_FLOORPLAN1_USD),
-        "scene_exists": MOLMO_FLOORPLAN1_USD.is_file(),
-        "fixture_kind": "molmo_floorplan1",
-    }
-    if not MOLMO_FLOORPLAN1_USD.is_file():
-        raise RuntimeError(
-            "Molmo FloorPlan1 USD is missing: " f"{MOLMO_FLOORPLAN1_USD}"
-        )
-    try:
-        import omni.usd  # type: ignore
-
-        context = omni.usd.get_context()
-        open_stage = getattr(context, "open_stage", None)
-        if not callable(open_stage):
-            raise RuntimeError("omni.usd context has no open_stage method")
-        open_result = open_stage(str(MOLMO_FLOORPLAN1_USD))
-        record["open_stage_result"] = str(open_result)
-        for _ in range(12):
-            _update_kit_once(evidence)
-        stage = context.get_stage() if hasattr(context, "get_stage") else None
-        if stage is None:
-            raise RuntimeError("omni.usd context returned no stage after open_stage")
-        record.update({"status": "opened", **_stage_summary(stage)})
-        return stage, record
-    except Exception as exc:
-        record.update(
-            {
-                "status": "failed",
-                "error_type": type(exc).__name__,
-                "error": str(exc),
-            }
-        )
-        evidence["molmo_floorplan1_open"] = record
-        raise RuntimeError(
-            f"Molmo FloorPlan1 USD open failed via {command}: "
-            f"{type(exc).__name__}: {exc}"
-        ) from exc
-
-
-def _select_molmo_kitchen_object(stage: Any) -> str:
-    for path in MOLMO_KITCHEN_OBJECT_CANDIDATES:
-        if _stage_has_prim(stage, path):
-            return path
-    keywords = (
-        "refrigerator",
-        "fridge",
-        "oven",
-        "sink",
-        "cabinet",
-        "counter",
-        "island",
-        "microwave",
-    )
-    if hasattr(stage, "Traverse"):
-        for prim in stage.Traverse():
-            path = _prim_path(prim)
-            lowered = path.lower()
-            if (
-                "/geometry/" in lowered
-                and not lowered.endswith("/geometry")
-                and not any(token in lowered for token in ("collision", "visual"))
-                and any(keyword in lowered for keyword in keywords)
-                and _prim_type_name(prim) in {"Xform", "Mesh"}
-            ):
-                return path
-    raise RuntimeError(
-        "No meaningful kitchen object prim was found in Molmo FloorPlan1. "
-        f"Tried {list(MOLMO_KITCHEN_OBJECT_CANDIDATES)}."
-    )
 
 
 def _path_name(path: str) -> str:
@@ -2987,16 +2848,10 @@ def _validate_live_extension_outputs(
             "Kit extension manager did not prove extension enabled: "
             f"{manager_status}"
         )
-    scenarios = evidence.get("object_attach_live_qa", {})
-    for required in ("generic_scene", "molmo_floorplan1"):
-        if required not in scenarios:
-            raise RuntimeError(f"Missing object-attach scenario evidence: {required}")
-        _validate_attach_scenario(required, scenarios[required])
-    molmo_open = evidence.get("molmo_floorplan1_open", {})
-    if molmo_open.get("status") != "opened":
-        raise RuntimeError(f"Molmo FloorPlan1 did not open in Kit: {molmo_open}")
-    if int(molmo_open.get("prim_count", 0)) <= 0:
-        raise RuntimeError(f"Molmo FloorPlan1 open has no prims: {molmo_open}")
+    generic_result = evidence.get("object_attach_live_qa", {}).get("generic_scene")
+    if generic_result is None:
+        raise RuntimeError("Missing generic object-attach scenario evidence.")
+    _validate_attach_scenario("generic_scene", generic_result)
 
 
 def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
@@ -3017,29 +2872,8 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
             f"{name} JSONL trace must include source and array move/rotation frames."
         )
     selected_object = str(result.get("selected_object_path", ""))
-    if not selected_object or selected_object in {"/World", "/FloorPlan1_physics"}:
+    if not selected_object or selected_object == "/World":
         raise RuntimeError(f"{name} selected object is not a real object path.")
-    if name == "molmo_floorplan1":
-        if result.get("usd_path") != str(MOLMO_FLOORPLAN1_USD):
-            raise RuntimeError(f"Molmo scenario used the wrong USD: {result}")
-        lowered = selected_object.lower()
-        if not any(
-            word in lowered
-            for word in (
-                "refrigerator",
-                "fridge",
-                "oven",
-                "sink",
-                "cabinet",
-                "counter",
-                "island",
-                "microwave",
-            )
-        ):
-            raise RuntimeError(
-                "Molmo selected object is not a meaningful kitchen object: "
-                f"{selected_object}"
-            )
     discovery = result.get("discovery", {})
     if discovery.get("selected_object_found") is not True:
         raise RuntimeError(f"{name} discovery did not include selected object.")
@@ -3460,23 +3294,6 @@ def _prepare_output_dir(path: Path) -> None:
     for item in path.iterdir():
         if item.is_file():
             item.unlink()
-
-
-def _probe_alex_molmo_fixture() -> dict[str, Any]:
-    usd_path = MOLMO_FLOORPLAN1_USD
-    return {
-        "status": "available" if usd_path.is_file() else "missing_usd",
-        "fixture_root": str(MOLMO_FIXTURE_ROOT),
-        "fixture_kind": "static_scene_export",
-        "required_usd_path": str(usd_path),
-        "required_usd_exists": usd_path.is_file(),
-        "documented_download_command": (
-            "static AI2-THOR FloorPlan1 USD export under ~/Desktop/CombinedScene; "
-            "no download step"
-        ),
-        "fixture_used": usd_path.is_file(),
-        "procedural_fallback": None if usd_path.is_file() else "/World/Oven",
-    }
 
 
 if __name__ == "__main__":

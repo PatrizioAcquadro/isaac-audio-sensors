@@ -1,9 +1,4 @@
-"""Import-safe microphone rig presets for the Omniverse extension.
-
-Rig profiles describe reusable listener hardware layouts (microphone ids,
-relative offsets, gains, sample rate, and a local mount pose). They are not
-sound profiles: microphones do not emit audio.
-"""
+"""Reusable microphone rig profiles for Isaac stages."""
 
 from __future__ import annotations
 
@@ -220,8 +215,8 @@ def default_microphone_rig_profiles() -> tuple[MicrophoneRigProfile, ...]:
 
     return (
         MicrophoneRigProfile(
-            profile_id="alex_head_quad",
-            display_label="Alex Head / Quad",
+            profile_id="quad_cross_120mm",
+            display_label="Quad Cross / 120 mm",
             layout_name="quad_cross",
             microphone_ids=("front", "right", "rear", "left"),
             microphone_relative_offsets_m=(
@@ -231,59 +226,21 @@ def default_microphone_rig_profiles() -> tuple[MicrophoneRigProfile, ...]:
                 (0.0, -0.06, 0.0),
             ),
             microphone_gains_db=(0.0, 0.0, 0.0, 0.0),
-            mount_local_offset_m=(0.0, 0.0, 0.12),
             sample_rate_hz=48_000,
-            recommended_mount_prim_path=(
-                "/World/Alex/PELVIS_LINK/TORSO_LINK/NECK_Z_LINK/HEAD_LINK"
-            ),
-            description="Four-mic cross rig mounted above the Alex V2 head link.",
+            description="Four-microphone cross with a 120 mm diameter.",
         ),
         MicrophoneRigProfile(
-            profile_id="alex_chest_stereo",
-            display_label="Alex Chest / Stereo",
+            profile_id="stereo_y_100mm",
+            display_label="Stereo Y / 100 mm",
             layout_name="stereo_y",
             microphone_ids=("left", "right"),
             microphone_relative_offsets_m=(
-                (0.0, -0.09, 0.0),
-                (0.0, 0.09, 0.0),
+                (0.0, -0.05, 0.0),
+                (0.0, 0.05, 0.0),
             ),
             microphone_gains_db=(0.0, 0.0),
-            mount_local_offset_m=(0.05, 0.0, 0.05),
             sample_rate_hz=48_000,
-            recommended_mount_prim_path="/World/Alex/PELVIS_LINK/TORSO_LINK",
-            description="Wide stereo pair mounted forward of the Alex V2 torso link.",
-        ),
-        MicrophoneRigProfile(
-            profile_id="unitree_head_stereo",
-            display_label="Unitree Head / Stereo",
-            layout_name="stereo_y",
-            microphone_ids=("left", "right"),
-            microphone_relative_offsets_m=(
-                (0.0, -0.04, 0.0),
-                (0.0, 0.04, 0.0),
-            ),
-            microphone_gains_db=(0.0, 0.0),
-            mount_local_offset_m=(0.25, 0.0, 0.05),
-            sample_rate_hz=48_000,
-            recommended_mount_prim_path="/World/Unitree/head_link",
-            description="Compact stereo pair mounted toward a Unitree head link.",
-        ),
-        MicrophoneRigProfile(
-            profile_id="unitree_base_quad",
-            display_label="Unitree Base / Quad",
-            layout_name="quad_cross",
-            microphone_ids=("front", "right", "rear", "left"),
-            microphone_relative_offsets_m=(
-                (0.10, 0.0, 0.0),
-                (0.0, 0.10, 0.0),
-                (-0.10, 0.0, 0.0),
-                (0.0, -0.10, 0.0),
-            ),
-            microphone_gains_db=(0.0, 0.0, 0.0, 0.0),
-            mount_local_offset_m=(0.0, 0.0, 0.08),
-            sample_rate_hz=48_000,
-            recommended_mount_prim_path="/World/Unitree/base_link",
-            description="Four-mic cross rig mounted above a Unitree body/base link.",
+            description="Two-microphone Y-axis pair with a 100 mm baseline.",
         ),
     )
 

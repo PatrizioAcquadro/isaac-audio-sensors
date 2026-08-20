@@ -36,10 +36,16 @@ _TEXT_SUFFIXES = {
 }
 _PHASE_PATH = re.compile(r"(?:^|[/_.-])s[0-4](?:[._-]\d+)?(?:$|[/_.-])", re.I)
 _PHASE_TEXT = re.compile(r"\bS[0-4](?:\.\d+)?\b")
+_PROJECT_PATH = re.compile(
+    r"(?:^|[/_.-])(?:alex|combinedscene|molmo|squadbot|unitree)(?:$|[/_.-])",
+    re.I,
+)
 _ABSOLUTE_PATH = re.compile(rb"(?:/home|/Users)/[A-Za-z0-9._-]+/|[A-Za-z]:\\Users\\")
 _PROJECT_TEXT = re.compile(
-    rb"isaac_audio_sensors\." rb"acquisition|squadbot-" rb"av-phase1|"
-    rb"Alex" rb"003|live_" rb"alex|ihmc_" rb"alex_isaaclab|Desktop/" rb"Alex"
+    rb"isaac_audio_sensors\.acquisition|squadbot-av-phase1|"
+    rb"alex_(?:head|chest)|unitree_(?:head|base)|molmo|combinedscene|"
+    rb"/world/(?:alex|unitree)|ihmc_alex_isaaclab|desktop/alex",
+    re.I,
 )
 _TEST_PATH = b"tests/" + b"test_"
 
@@ -112,7 +118,7 @@ def _audit_entries(
             yield f"forbidden path: {display}"
         if name.suffix == ".pyc" or _PHASE_PATH.search(name.as_posix()):
             yield f"forbidden path: {display}"
-        if any(token in lowered for token in {"alex", "squadbot"}):
+        if _PROJECT_PATH.search(name.as_posix()):
             yield f"project-specific path: {display}"
 
         nested = _nested_entries(name, payload)

@@ -318,8 +318,7 @@ listener hardware presets, not sound profiles: microphones do not emit sound. A
 rig profile defines the microphone ids, the relative microphone offsets in the
 array frame, per-microphone gains, the sample rate, a local mount offset and
 orientation for robot mounting, and an optional recommended mount prim path.
-The built-in rig profile ids are `alex_head_quad`, `alex_chest_stereo`,
-`unitree_head_stereo`, and `unitree_base_quad`.
+The built-in rig profile ids are `quad_cross_120mm` and `stereo_y_100mm`.
 
 `Select Rig Profile` validates the typed rig profile id and updates the rig
 summary label.
@@ -369,9 +368,8 @@ centimeters above a robot head link.
 `Attach Array To Object` moves the current array (including its child
 microphone prims) under the selected object or robot prim and writes
 array-binding metadata plus the local mount pose. Select the mount prim first
-with `Use Object` (or `Use Base` for a robot base link); typical mounts are
-robot links such as an Alex head/base link or a Unitree body link. The
-attachment is a real parent/child transform relationship in the USD hierarchy,
+with `Use Object` (or `Use Base` for a robot base link), for example
+`/World/Robot/mount_link`. Attachment creates a parent/child relationship,
 so moving or rotating the robot with Isaac Sim's normal transform gizmo changes
 the array world pose read by the sensor on the next `Update`.
 
@@ -397,7 +395,7 @@ while a source sits straight ahead changes the next frame's sector from
 
 For the robot/object mount workflow:
 
-1. Select the robot or object prim, such as an Alex head link.
+1. Select the robot or object mount prim.
 2. Click `Use Object`.
 3. Set `Array Offset X/Y/Z` and `Array Local Yaw/Pitch/Roll`.
 4. Click `Attach Array To Object`.

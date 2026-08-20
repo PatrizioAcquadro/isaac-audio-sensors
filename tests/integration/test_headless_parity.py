@@ -207,8 +207,8 @@ def test_fully_populated_config_summary_roundtrip_is_byte_identical(
     state.array_local_roll_deg = 4.0
     state.array_local_pitch_deg = 5.0
     state.array_local_yaw_deg = 6.0
-    state.selected_rig_profile_id = "unitree_head_stereo"
-    state.applied_array_rig_profile = {"profile_id": "unitree_head_stereo"}
+    state.selected_rig_profile_id = "stereo_y_100mm"
+    state.applied_array_rig_profile = {"profile_id": "stereo_y_100mm"}
     state.source_prim_path = "/World/PerturbedObject/Source"
     state.source_id = "perturbed_source"
     state.source_class_label = "Alarm"

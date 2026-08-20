@@ -27,6 +27,11 @@ active product. Generic recording code, packaged schemas, release tools,
 runtime smokes, demo configuration, and Kit code moved to their owning
 packages. Removed interfaces have no compatibility shims.
 
+The final boundary audit replaced the built-in Alex and Unitree rig presets
+with `quad_cross_120mm` and `stereo_y_100mm`. Custom rig profiles and optional
+mount paths remain supported. The live Kit smoke now uses only its portable
+in-memory scene and has no external showcase-fixture dependency.
+
 ## Release Boundary
 
 One recursive policy inspects wheel, source archive, Kit, and pack artifacts,
@@ -40,20 +45,21 @@ does not read from documentation.
 The ignored local evidence archive retains the authoritative terminal indices,
 active calibration handoff, decisive failed evaluation and recovery packages,
 and every referenced raw artifact required by that closure. Its local manifest
-records path, role, byte size, SHA-256, and source index; every retained byte
-was verified before the old data and output roots were removed.
+records path, role, byte size, SHA-256, and source index. All 1,500 records were
+reverified after the final boundary cleanup.
 
 ## Validation
 
-- Host: 414 passed, no skips, 6.87 seconds wall time.
+- Host: 414 passed, no skips, 9.71 seconds during the parallel full gate.
 - Integration: 366 passed.
-- Release: 27 passed; real wheel, source archive, and Kit archives passed.
+- Release: 34 passed; real wheel, source archive, and Kit archives passed.
 - Isaac: 116 passed on the RTX 4090 through the Isaac Lab interpreter.
+- Live Kit: the generic scenario and all 37 workflow steps passed on the RTX
+  4090; no CPU fallback or external scene was used.
 - Ruff, version synchronization, configuration, schema export, fixture
   validation, consumer searches, and whitespace checks passed.
-- The downstream SquadBot project now owns its replay fixture; its focused
-  audio contract, replay, and demo checks passed without this repository's
-  removed output tree.
+- The downstream SquadBot project owns its replay fixture; 38 focused audio
+  contract, adapter, replay, and demo tests passed against this checkout.
 
 ## Commits
 

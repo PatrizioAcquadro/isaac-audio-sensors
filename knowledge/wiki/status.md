@@ -17,13 +17,16 @@ campaigns, and downstream adapters remain outside this repository.
   acoustics.
 - Recording, replay, codecs, GUI/headless flows, filesystem behavior, and
   plugin discovery.
+- Generic `quad_cross_120mm` and `stereo_y_100mm` rig presets; robot-specific
+  profiles remain downstream configuration.
 - Lazy Isaac Sim, Isaac Lab, Kit, Omnigraph, and GPU/runtime integration.
 - Wheel, source archive, Kit extension, and optional acoustics-pack content
   policy.
 
-The 2026-08-20 cleanup gate passed 414 host tests, 366 integration tests, 27
+The 2026-08-20 cleanup gate passed 414 host tests, 366 integration tests, 34
 release tests, and 116 Isaac tests. The Isaac lane used the Isaac Lab
-interpreter with the workstation RTX 4090. Wheel, source archive, and Kit
+interpreter with the workstation RTX 4090. The generic live Kit scenario and
+all 37 workflow steps passed on the same GPU. Wheel, source archive, and Kit
 artifacts passed content inspection. See
 [[implementation_phases/r2-r3-test-and-boundary-cleanup|R2-R3 Test and Boundary Cleanup]].
 

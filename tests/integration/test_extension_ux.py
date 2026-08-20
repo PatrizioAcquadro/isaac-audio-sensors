@@ -350,9 +350,9 @@ def test_kit_stage_has_prim_uses_sdf_path_for_strict_isaac_stage(
                 raise TypeError("expected Sdf.Path")
             return super().GetPrimAtPath(str(path))
 
-    stage = StrictStage((_FakePrim("/FloorPlan1_physics/Geometry/fridge", "Xform"),))
+    stage = StrictStage((_FakePrim("/World/Room/Geometry/object", "Xform"),))
 
-    assert _stage_has_prim(stage, "/FloorPlan1_physics/Geometry/fridge") is True
+    assert _stage_has_prim(stage, "/World/Room/Geometry/object") is True
     assert stage.calls == ["SdfPath"]
 
 
@@ -1607,8 +1607,8 @@ def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
 def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     tmp_path,
 ):
-    head_link = _FakePrim(
-        "/World/Alex/head_link",
+    mount_link = _FakePrim(
+        "/World/Robot/mount_link",
         "Xform",
         {"xformOp:translate": (0.0, 0.0, 1.0)},
     )
@@ -1626,7 +1626,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     stage = _FakeStage(
         (
             _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
-            head_link,
+            mount_link,
             source,
         )
     )
@@ -1640,26 +1640,26 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     assert (
         controller.use_selected_as_object(
             stage=stage,
-            selected_paths=("/World/Alex/head_link",),
+            selected_paths=("/World/Robot/mount_link",),
         )
-        == "/World/Alex/head_link"
+        == "/World/Robot/mount_link"
     )
     controller.state.array_local_offset_z_m = 0.1
     attached = controller.attach_array_to_object(stage=stage)
 
     assert attached is not None
-    assert attached.prim_path == "/World/Alex/head_link/AudioArray"
-    assert controller.state.array_prim_path == "/World/Alex/head_link/AudioArray"
+    assert attached.prim_path == "/World/Robot/mount_link/AudioArray"
+    assert controller.state.array_prim_path == "/World/Robot/mount_link/AudioArray"
     assert controller.state.array_attached_to_object is True
-    array_prim = stage.GetPrimAtPath("/World/Alex/head_link/AudioArray")
+    array_prim = stage.GetPrimAtPath("/World/Robot/mount_link/AudioArray")
     assert array_prim is not None
     assert stage.GetPrimAtPath("/World/Rig/AudioArray") is None
     assert stage.GetPrimAtPath("/World/Rig/AudioArray/front") is None
-    moved_mic = stage.GetPrimAtPath("/World/Alex/head_link/AudioArray/front")
+    moved_mic = stage.GetPrimAtPath("/World/Robot/mount_link/AudioArray/front")
     assert moved_mic is not None
     assert moved_mic.attributes["ias:microphone_id"] == "front"
     assert array_prim.attributes["ias:attached_object_prim_path"] == (
-        "/World/Alex/head_link"
+        "/World/Robot/mount_link"
     )
     assert array_prim.attributes["ias:array_local_offset_m"] == (0.0, 0.0, 0.1)
     assert array_prim.attributes["xformOp:translate"] == (0.0, 0.0, 0.1)
@@ -1675,7 +1675,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     first_mics = dict(controller.state.latest_mic_world_positions)
     assert first_mics["front"] == pytest.approx((0.08, 0.0, 1.1))
 
-    head_link.attributes["xformOp:translate"] = (0.0, 2.0, 1.0)
+    mount_link.attributes["xformOp:translate"] = (0.0, 2.0, 1.0)
     moved_frame = controller.update_sensor()
     assert moved_frame is not None
     assert moved_frame.array_pose is not None
@@ -1690,7 +1690,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
         (0.08, 2.0, 1.1)
     )
 
-    head_link.attributes["xformOp:orient"] = quaternion_from_yaw_deg(90.0)
+    mount_link.attributes["xformOp:orient"] = quaternion_from_yaw_deg(90.0)
     rotated_frame = controller.update_sensor()
     assert rotated_frame is not None
     assert rotated_frame.array_pose is not None
@@ -1705,7 +1705,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     assert detached is not None
     detached_prim = stage.GetPrimAtPath("/World/AudioArrays/AudioArray")
     assert detached_prim is not None
-    assert stage.GetPrimAtPath("/World/Alex/head_link/AudioArray") is None
+    assert stage.GetPrimAtPath("/World/Robot/mount_link/AudioArray") is None
     assert stage.GetPrimAtPath("/World/AudioArrays/AudioArray/front") is not None
     assert "ias:attached_object_prim_path" not in detached_prim.attributes
     assert detached_prim.attributes["ias:position_world"] == pytest.approx(
@@ -1717,7 +1717,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     assert controller.state.array_attached_to_object is False
     assert controller.state.array_prim_path == "/World/AudioArrays/AudioArray"
 
-    head_link.attributes["xformOp:translate"] = (5.0, 0.0, 1.0)
+    mount_link.attributes["xformOp:translate"] = (5.0, 0.0, 1.0)
     after_detach_frame = controller.update_sensor()
     assert after_detach_frame is not None
     assert after_detach_frame.array_pose is not None
@@ -1739,12 +1739,12 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     controller.state.config_export_path = str(tmp_path / "binding.json")
 
     assert controller.author_array(stage=stage) is not None
-    profile = controller.select_rig_profile("alex_head_quad")
+    profile = controller.select_rig_profile("quad_cross_120mm")
     assert profile is not None
     assert controller.apply_selected_rig_profile(stage=stage) is not None
     array_prim = stage.GetPrimAtPath("/World/Rig/AudioArray")
     assert array_prim is not None
-    assert array_prim.attributes["ias:rig_profile_id"] == "alex_head_quad"
+    assert array_prim.attributes["ias:rig_profile_id"] == "quad_cross_120mm"
     assert array_prim.attributes["ias:layout_name"] == "quad_cross"
     assert array_prim.attributes["ias:sample_rate_hz"] == 48_000
     assert array_prim.attributes["ias:microphone_ids"] == (
@@ -1763,19 +1763,19 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     assert front_mic.attributes["ias:gain_db"] == 0.0
     assert front_mic.attributes["ias:relative_position_m"] == (0.06, 0.0, 0.0)
     assert controller.state.applied_array_rig_profile["profile_id"] == (
-        "alex_head_quad"
+        "quad_cross_120mm"
     )
-    assert controller.state.array_local_offset_z_m == pytest.approx(0.12)
+    assert controller.state.array_local_offset_z_m == pytest.approx(0.0)
     assert controller.state.layout_name == "quad_cross"
 
-    assert controller.select_rig_profile("unitree_head_stereo") is not None
+    assert controller.select_rig_profile("stereo_y_100mm") is not None
     assert controller.apply_selected_rig_profile(stage=stage) is not None
     assert stage.GetPrimAtPath("/World/Rig/AudioArray/front") is None
     assert stage.GetPrimAtPath("/World/Rig/AudioArray/rear") is None
     left_mic = stage.GetPrimAtPath("/World/Rig/AudioArray/left")
     assert left_mic is not None
-    assert left_mic.attributes["ias:relative_position_m"] == (0.0, -0.04, 0.0)
-    assert controller.state.array_local_offset_x_m == pytest.approx(0.25)
+    assert left_mic.attributes["ias:relative_position_m"] == (0.0, -0.05, 0.0)
+    assert controller.state.array_local_offset_x_m == pytest.approx(0.0)
 
     controller.state.array_position_x_m = 1.0
     controller.state.array_position_y_m = 2.0
@@ -1785,30 +1785,28 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     assert payload["array"]["position_world"] == [1.0, 2.0, 0.0]
     rig_section = payload["microphone_rig_profiles"]
-    assert rig_section["selected_rig_profile_id"] == "unitree_head_stereo"
-    assert len(rig_section["rig_library"]) == 4
+    assert rig_section["selected_rig_profile_id"] == "stereo_y_100mm"
+    assert len(rig_section["rig_library"]) == 2
     assert payload["array_binding"]["attached"] is False
-    assert payload["array_binding"]["array_local_offset_m"] == [0.25, 0.0, 0.05]
+    assert payload["array_binding"]["array_local_offset_m"] == [0.0, 0.0, 0.0]
 
     imported = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     assert imported.import_config_summary(path) == path
-    assert imported.state.selected_rig_profile_id == "unitree_head_stereo"
+    assert imported.state.selected_rig_profile_id == "stereo_y_100mm"
     assert {
         item.profile_id for item in imported.state.rig_profile_library
     } == {
-        "alex_head_quad",
-        "alex_chest_stereo",
-        "unitree_head_stereo",
-        "unitree_base_quad",
+        "quad_cross_120mm",
+        "stereo_y_100mm",
     }
     assert imported.state.array_position_x_m == pytest.approx(1.0)
     assert imported.state.array_position_y_m == pytest.approx(2.0)
     assert imported.state.array_yaw_deg == pytest.approx(90.0)
-    assert imported.state.array_local_offset_x_m == pytest.approx(0.25)
+    assert imported.state.array_local_offset_x_m == pytest.approx(0.0)
     assert imported.state.applied_array_rig_profile["profile_id"] == (
-        "unitree_head_stereo"
+        "stereo_y_100mm"
     )
 
     legacy_payload = {

@@ -114,7 +114,7 @@ class ExtensionUiState:
     rig_profile_library: tuple[MicrophoneRigProfile, ...] = field(
         default_factory=default_microphone_rig_profiles
     )
-    selected_rig_profile_id: str = "alex_head_quad"
+    selected_rig_profile_id: str = "quad_cross_120mm"
     applied_array_rig_profile: dict[str, Any] = field(default_factory=dict)
 
     source_prim_path: str = "/World/Sources/SpeakerA"

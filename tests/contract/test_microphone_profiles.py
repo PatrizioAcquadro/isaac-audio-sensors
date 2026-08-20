@@ -1,5 +1,3 @@
-"""Tests for reusable microphone rig profiles."""
-
 from __future__ import annotations
 
 import pytest
@@ -18,12 +16,10 @@ def test_default_rig_library_contains_named_presets_with_valid_geometry():
     profiles = default_microphone_rig_profiles()
 
     assert [profile.profile_id for profile in profiles] == [
-        "alex_head_quad",
-        "alex_chest_stereo",
-        "unitree_head_stereo",
-        "unitree_base_quad",
+        "quad_cross_120mm",
+        "stereo_y_100mm",
     ]
-    assert [len(profile.microphone_ids) for profile in profiles] == [4, 2, 2, 4]
+    assert [len(profile.microphone_ids) for profile in profiles] == [4, 2]
     for profile in profiles:
         assert profile.layout_name in RIG_LAYOUT_CHOICES
         assert len(profile.microphone_relative_offsets_m) == len(
@@ -31,19 +27,22 @@ def test_default_rig_library_contains_named_presets_with_valid_geometry():
         )
         assert len(profile.microphone_gains_db) == len(profile.microphone_ids)
         assert profile.sample_rate_hz == 48_000
-        assert profile.recommended_mount_prim_path is not None
-        assert profile.recommended_mount_prim_path.startswith("/World/")
+        assert profile.mount_local_offset_m == (0.0, 0.0, 0.0)
+        assert profile.recommended_mount_prim_path is None
 
     validated = validate_microphone_rig_profile_library(profiles)
     assert {profile.profile_id for profile in validated} == {
         profile.profile_id for profile in profiles
     }
     by_id = {profile.profile_id: profile for profile in profiles}
-    assert by_id["alex_head_quad"].recommended_mount_prim_path == (
-        "/World/Alex/PELVIS_LINK/TORSO_LINK/NECK_Z_LINK/HEAD_LINK"
+    assert by_id["quad_cross_120mm"].microphone_relative_offsets_m[0] == (
+        0.06,
+        0.0,
+        0.0,
     )
-    assert by_id["alex_chest_stereo"].recommended_mount_prim_path == (
-        "/World/Alex/PELVIS_LINK/TORSO_LINK"
+    assert by_id["stereo_y_100mm"].microphone_relative_offsets_m == (
+        (0.0, -0.05, 0.0),
+        (0.0, 0.05, 0.0),
     )
 
 
