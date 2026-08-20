@@ -107,12 +107,10 @@ change.
   1.3.0 and became material-aware, frequency-dependent ray/transmission
   occlusion in 1.4.0; diffraction, edge effects, and thickness-dependent
   transmission remain open.
-- L4 functional sim-to-real characterization tooling for documented rig/device,
-  channel/frame/source/room/mount state; repeatable acquisition; supported
-  relative geometry/gain/delay/polarity/confidence/timing adjustments; grouped
-  fit/holdout validation; and replayable evidence. Absolute calibrated fields
-  remain absent or unsupported unless later claim-driven equipment and evidence
-  justify them.
+- Calibration-profile tools for externally owned measurements, limited to
+  supported relative geometry, gain, delay, polarity, confidence, and timing
+  adjustments. Absolute calibrated fields remain unsupported without suitable
+  equipment and evidence.
 - Additional waveform-domain estimators (e.g. MUSIC) behind the
   `doa_estimator` dispatch shipped with `room_acoustics_srp` in 1.7.0.
 - ROS 2 adapter as an optional downstream/project layer.

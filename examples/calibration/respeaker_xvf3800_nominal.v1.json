@@ -219,7 +219,7 @@
   "created_at": "2026-01-01T00:00:00Z",
   "device_id": "respeaker_xvf3800_fixture",
   "device_model": "ReSpeaker XVF3800 USB 4-Mic Array",
-  "environment_description": "Nominal room-temperature fixture; no physical acquisition was run.",
+  "environment_description": "Nominal room-temperature fixture; no physical measurement was run.",
   "evidence_status": "nominal_not_measured",
   "fit_metrics": [],
   "fitted_model_parameters": [],
