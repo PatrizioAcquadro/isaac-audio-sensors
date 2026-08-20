@@ -35,6 +35,9 @@ generated/
 .claude/
 .local-goals/
 .local/s4_8/
+/knowledge/.obsidian/
+!/knowledge/raw/data/
+!/knowledge/raw/data/.gitkeep
 TODO.md
 !examples/datasets/
 !examples/datasets/**

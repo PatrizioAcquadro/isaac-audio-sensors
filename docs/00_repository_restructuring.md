@@ -68,16 +68,25 @@ isaac-audio-sensors/
 ├── Makefile
 ├── .gitignore
 ├── knowledge/
+│   ├── .obsidian/ (local and ignored)
 │   ├── AGENTS.md
 │   ├── raw/
+│   │   ├── assets/
+│   │   ├── data/
+│   │   ├── docs/
+│   │   ├── notes/
+│   │   ├── papers/
+│   │   ├── transcripts/
+│   │   └── web/
 │   └── wiki/
-│       ├── index.md
-│       ├── status.md
-│       ├── getting-started.md
-│       ├── assets/
-│       ├── topics/
 │       ├── decisions/
-│       └── experiments/
+│       ├── experiments/
+│       ├── implementation_phases/
+│       ├── sources/
+│       ├── topics/
+│       ├── index.md
+│       ├── log.md
+│       └── status.md
 ├── src/isaac_audio_sensors/
 │   ├── __init__.py
 │   ├── cli.py
@@ -244,9 +253,11 @@ No destructive restructuring step may bypass these gates:
 
 ### R1 — Knowledge and repository rules
 
-Create root and knowledge `AGENTS.md` files, create the wiki skeleton, and
-migrate only current, essential information. Do not recreate S0–S3 history;
-release history belongs in `CHANGELOG.md`.
+Create the root and knowledge `AGENTS.md` files and the empty, versioned
+`knowledge/raw/` and `knowledge/wiki/` skeleton. Keep local Obsidian state
+ignored. Do not populate the wiki or recreate S0–S4 history during R1;
+migration of concise, current product information belongs in R4, and release
+history belongs in `CHANGELOG.md`.
 
 ### R2 — Fast tests before code movement
 
