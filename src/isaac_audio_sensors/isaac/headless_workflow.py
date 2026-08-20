@@ -9,9 +9,9 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.isaac.extension_ui.controller import ExtensionController
-from isaac_audio_sensors.isaac.extension_ui.state import CurrentStageContext
-from isaac_audio_sensors.isaac.extension_ui.workflow import (
+from isaac_audio_sensors.kit.controller import ExtensionController
+from isaac_audio_sensors.kit.state import CurrentStageContext
+from isaac_audio_sensors.kit.workflow import (
     SAFE_PRESETS,
     GuidedStage,
     StageStatus,

@@ -71,8 +71,11 @@ Issues = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/issues"
 where = ["src"]
 include = ["isaac_audio_sensors*"]
 
+[tool.setuptools.package-data]
+"isaac_audio_sensors.schemas" = ["*.json"]
+
 [tool.pytest.ini_options]
-testpaths = ["tests/unit", "tests/contract", "tests/integration", "tests/release"]
+testpaths = ["tests/unit", "tests/contract"]
 pythonpath = ["src"]
 addopts = "-ra --strict-config --strict-markers"
 

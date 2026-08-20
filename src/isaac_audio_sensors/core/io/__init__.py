@@ -8,14 +8,6 @@ from isaac_audio_sensors.core.io.calibration import (
     read_calibration_profile,
     write_calibration_profile,
 )
-from isaac_audio_sensors.core.io.manifests import (
-    dataset_manifest_from_dict,
-    dataset_manifest_to_dict,
-    manifest_from_dict,
-    manifest_to_dict,
-    read_dataset_manifest,
-    write_dataset_manifest,
-)
 from isaac_audio_sensors.core.io.traces import (
     AudioFrameJsonlWriter,
     append_frame_jsonl,
@@ -32,6 +24,14 @@ from isaac_audio_sensors.core.io.waveforms import (
     WaveformWriteResult,
     waveform_safe_filename,
     write_multichannel_wav,
+)
+from isaac_audio_sensors.recording.serialization import (
+    dataset_manifest_from_dict,
+    dataset_manifest_to_dict,
+    manifest_from_dict,
+    manifest_to_dict,
+    read_dataset_manifest,
+    write_dataset_manifest,
 )
 
 __all__ = [

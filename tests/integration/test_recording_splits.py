@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from isaac_audio_sensors.cli import main as cli_main
-from isaac_audio_sensors.core.dataset import (
+from isaac_audio_sensors.recording import (
     DatasetSplitError,
     apply_split_plan,
     build_split_plan,
@@ -22,12 +22,12 @@ from isaac_audio_sensors.core.dataset import (
     write_json_atomic,
     write_split_plan,
 )
-from isaac_audio_sensors.core.dataset_manifest import (
+from isaac_audio_sensors.recording.manifest import (
     AssetRecord,
     AudioDatasetManifest,
     ShardRecord,
 )
-from isaac_audio_sensors.core.io.manifests import (
+from isaac_audio_sensors.recording.serialization import (
     manifest_to_dict,
     read_dataset_manifest,
 )

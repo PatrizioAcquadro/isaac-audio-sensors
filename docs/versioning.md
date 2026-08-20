@@ -18,13 +18,12 @@ preset), the SRP-PHAT estimation path as the additive `room_acoustics_srp`
 L2 backend id, and Doppler from the new optional `velocity_world_mps` spec
 fields (metadata at L1, resampled source waveforms at L2). The frame schema
 version is unchanged; new DOA/detection/unit fields are additive optional
-and absent-tolerant, so pre-1.7.0 traces still load. Under the S1.7 freeze,
+and absent-tolerant, so pre-1.7.0 traces still load. Under the compatibility contract,
 `1.7.0` traces load with identical semantics; current serialization adds only
 the four documented canonical defaults for absent optional fields:
 `occluded=false`, `ground_truth_elevation_deg=null`,
 `doa.estimated_elevation_deg=null`, and
 `doa.candidate_elevation_deg=[]`. No other key appears, disappears, or changes.
-See the [Compatibility Matrix](compatibility_matrix.md).
 
 `1.6.0` is a v1 minor release with a documented `room_acoustics` behavior
 break: rooms are fixed in world space (`origin_m` + `dimensions_m`) instead
@@ -39,7 +38,7 @@ visual instruments (bearing compass, per-mic RMS meters, detection timeline),
 a waveform/spectrogram preview with audition of exported WAVs,
 viewport-first interaction (selection follow and manipulator-driven pose
 sync), persistent USD debug geometry, and a runtime OmniGraph node exposing
-the latest frame. The backing `extension_ui` module became a package with
+the latest frame. The backing `kit` module became a package with
 the same import path, and the extension config schema stays
 `ias.omni_extension_binding.v1` with additive lifecycle keys only; the frame
 schema version is unchanged.
@@ -150,7 +149,7 @@ clockwise bearings use 45-degree half-open bins, and the wraparound `straight`
 sector includes `337.5 <= bearing < 360.0` plus `0.0 <= bearing < 22.5`. That
 correction is a documented bug fix, not a schema redesign.
 
-The generated schema in `docs/schemas/audio_sensor_frame.v1.schema.json` is the
+The generated schema in `src/isaac_audio_sensors/schemas/audio_sensor_frame.v1.schema.json` is the
 checked-in public artifact. `make export-schema` regenerates it from code and
 tests compare the generated schema with the checked-in file.
 
@@ -173,7 +172,7 @@ when refreshing live evidence:
 
 ```bash
 make live-isaac-sim-audio
-make live-isaac-lab-audio-gpu
+make smoke-isaac-lab
 ```
 
 These live gates auto-detect the official `~/isaacsim` and `~/IsaacLab`

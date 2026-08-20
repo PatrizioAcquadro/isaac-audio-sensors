@@ -13,22 +13,22 @@ import numpy as np
 import pytest
 
 from isaac_audio_sensors.core.constants import FRAME_UNITS
-from isaac_audio_sensors.core.dataset import (
-    DatasetLayoutError,
-    SessionDataset,
-    SessionRecorder,
-    replay_session,
-)
-from isaac_audio_sensors.core.dataset_manifest import (
-    CreationProvenance,
-    DeviceProvenance,
-)
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
 from isaac_audio_sensors.core.io.wave_read import read_wav
 from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSensorFrame,
     DoaEstimate,
+)
+from isaac_audio_sensors.recording import (
+    DatasetLayoutError,
+    SessionDataset,
+    SessionRecorder,
+    replay_session,
+)
+from isaac_audio_sensors.recording.manifest import (
+    CreationProvenance,
+    DeviceProvenance,
 )
 
 REFERENCE = Path("tests/fixtures/recording/session")

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from isaac_audio_sensors.isaac.extension_ui.instruments import (
+from isaac_audio_sensors.kit.instruments import (
     COLOR_CLEAR,
     COLOR_OCCLUDED,
     COLOR_UNKNOWN,
@@ -228,7 +228,7 @@ def test_render_compass_rgba_draws_needle_toward_bearing():
 
 
 def test_render_meters_and_panel_compose_expected_shapes():
-    from isaac_audio_sensors.isaac.extension_ui.instruments import (
+    from isaac_audio_sensors.kit.instruments import (
         render_instruments_panel_rgba,
         render_meters_rgba,
     )
@@ -254,7 +254,7 @@ def test_write_rgba_png_emits_valid_png(tmp_path):
     import struct
     import zlib
 
-    from isaac_audio_sensors.isaac.extension_ui.instruments import write_rgba_png
+    from isaac_audio_sensors.kit.instruments import write_rgba_png
 
     image = render_compass_rgba(compass_view_model(bearing_deg=0.0), size=32)
     path = write_rgba_png(tmp_path / "compass.png", image)

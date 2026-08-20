@@ -13,16 +13,16 @@ from typing import Any
 import pytest
 
 from isaac_audio_sensors.core.capabilities import CapabilityReport, CapabilityStatus
-from isaac_audio_sensors.isaac.extension_ui import (
+from isaac_audio_sensors.isaac.validation import ValidationController
+from isaac_audio_sensors.isaac.validation import checks as validation_checks
+from isaac_audio_sensors.isaac.validation import controller as validation_controller
+from isaac_audio_sensors.isaac.validation.results import ValidationReport
+from isaac_audio_sensors.kit import (
     CurrentStageContext,
     ExtensionActionError,
     ExtensionController,
     ExtensionUiState,
 )
-from isaac_audio_sensors.isaac.validation import ValidationController
-from isaac_audio_sensors.isaac.validation import checks as validation_checks
-from isaac_audio_sensors.isaac.validation import controller as validation_controller
-from isaac_audio_sensors.isaac.validation.results import ValidationReport
 
 
 class _FakePrim:

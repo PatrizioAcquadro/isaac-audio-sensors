@@ -48,7 +48,7 @@ def test_core_package_imports_and_exposes_version():
 
 
 def test_config_validation_accepts_demo_config():
-    config = load_audio_config("configs/isaac_audio_sensors_demo.toml")
+    config = load_audio_config("examples/configs/isaac_audio_sensors_demo.toml")
     scene = build_scene_snapshot(config, timestamp_ms=1234)
 
     assert config.default_backend == "tdoa_synthetic"
@@ -626,7 +626,7 @@ def test_detection_mode_validation_rejects_unknown_mode():
 
 
 def test_max_events_limits_detections_in_deterministic_order():
-    config = load_audio_config("configs/isaac_audio_sensors_demo.toml")
+    config = load_audio_config("examples/configs/isaac_audio_sensors_demo.toml")
     scene = build_scene_snapshot(config, timestamp_ms=500)
     sensor = scene.array_by_id("rig_front")
     frame = GeometryBackend().simulate(

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-from pathlib import Path
 
 import pytest
 
@@ -103,41 +102,6 @@ def test_public_ladder_imports_are_import_safe_core_api():
         is fidelity_level_for_backend("geometry_only")
     )
 
-
-def test_ladder_contract_is_documented_and_linked_publicly():
-    docs = {
-        path: Path(path).read_text(encoding="utf-8")
-        for path in (
-            "README.md",
-            "docs/README.md",
-            "docs/acoustic_fidelity.md",
-            "docs/api_freeze_0_1.md",
-            "docs/api_reference.md",
-            "docs/backends.md",
-            "docs/limitations.md",
-            "docs/versioning.md",
-            "docs/open_source_release_checklist.md",
-        )
-    }
-
-    assert "docs/acoustic_fidelity.md" in docs["README.md"]
-    assert "acoustic_fidelity.md" in docs["docs/README.md"]
-
-    combined = "\n".join(docs.values())
-    for phrase in (
-        "L0 `geometry_only`",
-        "L1 `tdoa_synthetic`",
-        "L2 `room_acoustics`",
-        "L3 `advanced_realism`",
-        "L4 `sim_real_calibration`",
-        "stable v1",
-        "supported optional v1",
-        "provisional v1",
-        "experimental/tooling",
-        "AudioSensorFrame v1",
-        "not a complete v1 runtime backend",
-    ):
-        assert phrase in combined
 
 
 def _ladder_by_level() -> dict[AcousticFidelityLevel, AcousticFidelityMetadata]:

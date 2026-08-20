@@ -15,8 +15,8 @@ used by frames and traces; they do not play audible audio, classify waveforms,
 or integrate downstream ontology labels.
 
 The control inventory below is derived from
-`src/isaac_audio_sensors/isaac/extension_ui/` and
-`scripts/live_omniverse_extension_ux.py`. The visible sections are:
+`src/isaac_audio_sensors/kit/` and
+`tools/smoke/live_omniverse_extension_ux.py`. The visible sections are:
 
 - `Stage`
 - `Author Array`
@@ -70,7 +70,7 @@ Sim process. If you normally open Isaac Sim from its desktop icon, install the
 extension into Isaac's persistent user extension folder once:
 
 ```bash
-~/isaacsim/python.sh scripts/install_isaac_sim_extension.py \
+~/isaacsim/python.sh tools/release/install_isaac_sim_extension.py \
   --isaacsim-root ~/isaacsim
 ```
 

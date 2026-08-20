@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from isaac_audio_sensors.core.dataset import export_session_flac
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
+from isaac_audio_sensors.recording import export_session_flac
 
 REFERENCE_SESSION = Path("tests/fixtures/recording/session")
 

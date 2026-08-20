@@ -38,6 +38,7 @@ def test_cli_exposes_current_product_operations(capsys):
         "guided",
     ):
         assert command in help_text
+    assert "s4" + "-2" not in help_text
 
 
 def test_isaac_and_lab_import_without_loading_optional_runtimes():

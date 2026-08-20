@@ -1,9 +1,0 @@
-{
-  "adjusted_configurations_equal": true,
-  "application_reports_identical": true,
-  "randomness_used": false,
-  "run_count": 2,
-  "schema": "ias.s4_6.determinism_report.v1",
-  "status": "passed",
-  "wall_clock_input_used": false
-}

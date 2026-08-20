@@ -44,7 +44,7 @@ def _apply(samples: np.ndarray, mic: ChannelResponseMicConfig) -> np.ndarray:
         samples,
         mic_ids=("mic",),
         sample_rate_hz=SAMPLE_RATE_HZ,
-        frame_id="s3_3_fixture",
+        frame_id="channel_response_fixture",
     )
     assert diagnostics["channel_response"]["applied_mic_ids"] == ("mic",)
     return output

@@ -35,7 +35,7 @@ def resolve_directivity(source: AudioSourceSpec) -> str:
 
     Frozen first-order families require an orientation to point any non-omni
     lobe. Legacy unknown values and unoriented non-omni values retain the
-    pre-S3.6 metadata fallback to ``"omni"``.
+    legacy metadata fallback to ``"omni"``.
     """
 
     if (

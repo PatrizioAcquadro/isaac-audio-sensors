@@ -105,7 +105,7 @@ are stable and must remain readable when their corresponding path is used:
 The JSON Schema is stored at:
 
 ```text
-docs/schemas/audio_sensor_frame.v1.schema.json
+src/isaac_audio_sensors/schemas/audio_sensor_frame.v1.schema.json
 ```
 
 Example traces are stored at:
@@ -123,11 +123,7 @@ Export the schema from code:
 isaac-audio-sensors export-schema --out /tmp/audio_sensor_frame.v1.schema.json
 ```
 
-The [Compatibility Matrix](compatibility_matrix.md) records the `1.7.0` trace
-baseline and the only canonical defaults that may appear when an older record
-is serialized by the current writer.
-
-## Stage 1 Contracts And Plugins
+## Contracts And Plugins
 
 The dataset manifest and calibration profile are independent versioned
 contracts:
@@ -138,7 +134,7 @@ from isaac_audio_sensors.core import (
     AudioDatasetManifest,
     check_profile_compatibility,
 )
-from isaac_audio_sensors.core.io import (
+from isaac_audio_sensors.recording.serialization import (
     read_calibration_profile,
     read_dataset_manifest,
     write_calibration_profile,
@@ -148,7 +144,7 @@ from isaac_audio_sensors.core.io import (
 
 Their schema identifiers are `ias.audio_dataset_manifest.v1` and
 `ias.audio_calibration_profile.v1`. The corresponding generated schemas are
-under `docs/schemas/`, and valid and invalid examples are under
+packaged under `isaac_audio_sensors.schemas`, and examples are under
 `examples/manifests/` and `examples/calibration/`.
 
 Finalized waveform sessions can be checked, replayed, recovered after an
@@ -156,7 +152,7 @@ interrupted manifest publication, or exported to the documented archival FLAC
 profile:
 
 ```python
-from isaac_audio_sensors.core.dataset import (
+from isaac_audio_sensors.recording import (
     SessionDataset,
     export_session_flac,
     recover_finalization,

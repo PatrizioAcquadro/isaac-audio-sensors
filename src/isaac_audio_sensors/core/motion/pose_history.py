@@ -57,7 +57,7 @@ class _EntityState:
 
 
 class PoseHistory:
-    """Per-entity two-pose history with frozen S3.1 motion policies."""
+    """Per-entity two-pose history with bounded motion policies."""
 
     __slots__ = (
         "smoothing_alpha",
@@ -169,7 +169,7 @@ class PoseHistory:
         self.reset(entity_id)
 
     def remove(self, entity_id: str) -> None:
-        """Alias for the conceptual S3.1 ``remove(entity_id)`` interface."""
+        """Remove one entity from the history."""
 
         self.remove_entity(entity_id)
 

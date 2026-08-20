@@ -52,7 +52,7 @@ def test_training_profile_rejects_explicit_waveform_export():
 
 
 def test_demo_config_retains_existing_validated_results():
-    config = load_audio_config(Path("configs/isaac_audio_sensors_demo.toml"))
+    config = load_audio_config(Path("examples/configs/isaac_audio_sensors_demo.toml"))
 
     assert config.runtime_profile == "waveform_fidelity"
     assert config.scene_id == "demo_audio_lab_single_source"

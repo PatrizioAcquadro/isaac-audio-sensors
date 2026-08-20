@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from importlib.resources import files
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -20,7 +21,9 @@ from isaac_audio_sensors.core.io.calibration import (
 from isaac_audio_sensors.core.schema import audio_calibration_profile_json_schema
 from isaac_audio_sensors.core.types import MicrophoneArraySpec, MicrophoneSpec
 
-SCHEMA_PATH = Path("docs/schemas/audio_calibration_profile.v1.schema.json")
+SCHEMA_PATH = files("isaac_audio_sensors.schemas").joinpath(
+    "audio_calibration_profile.v1.schema.json"
+)
 FIXTURE_DIR = Path("examples/calibration")
 
 INVALID_MESSAGES = {

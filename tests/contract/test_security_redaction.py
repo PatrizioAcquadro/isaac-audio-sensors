@@ -24,7 +24,7 @@ def _load_script(module_name: str, relative_path: str):
 def test_discover_redacts_sensitive_isaac_and_omni_environment(monkeypatch):
     discover_module = _load_script(
         "discover_isaac_runtimes_test",
-        "scripts/discover_isaac_runtimes.py",
+        "tools/smoke/discover_isaac_runtimes.py",
     )
     monkeypatch.setenv("ISAAC_SECRET_TOKEN", "isaac-token-secret")
     monkeypatch.setenv("OMNI_API_KEY", "omni-api-key-secret")
@@ -41,7 +41,7 @@ def test_discover_redacts_sensitive_isaac_and_omni_environment(monkeypatch):
 def test_diagnostic_command_output_is_redacted_before_json_collection():
     diagnose_module = _load_script(
         "diagnose_isaac_gpu_audio_test",
-        "scripts/diagnose_isaac_gpu_audio.py",
+        "tools/smoke/diagnose_isaac_gpu_audio.py",
     )
     spec = diagnose_module.CommandSpec(
         "python_secret",
@@ -66,7 +66,7 @@ def test_diagnostic_command_output_is_redacted_before_json_collection():
 def test_diagnostic_text_artifacts_are_redacted(tmp_path):
     diagnose_module = _load_script(
         "diagnose_isaac_gpu_audio_artifact_test",
-        "scripts/diagnose_isaac_gpu_audio.py",
+        "tools/smoke/diagnose_isaac_gpu_audio.py",
     )
     spec = diagnose_module.CommandSpec("secret_command", ("secret-command",))
     output_path = tmp_path / "secret_command.txt"
@@ -94,7 +94,7 @@ def test_diagnostic_environment_and_file_reads_are_redacted(
 ):
     diagnose_module = _load_script(
         "diagnose_isaac_gpu_audio_env_test",
-        "scripts/diagnose_isaac_gpu_audio.py",
+        "tools/smoke/diagnose_isaac_gpu_audio.py",
     )
     monkeypatch.setenv("XAUTHORITY", "raw-xauthority-secret")
     monkeypatch.setenv("OMNI_KIT_ACCEPT_EULA", "YES")

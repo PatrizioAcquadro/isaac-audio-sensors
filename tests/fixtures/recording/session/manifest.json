@@ -20,7 +20,7 @@
     "isaac_sim_version": null,
     "kit_version": null,
     "tool_name": "ias_fixture_generator",
-    "tool_version": "1.8.0"
+    "tool_version": "1.10.0"
   },
   "creation_timestamp_ms": 1767225600000,
   "dataset_id": "reference_session_v1",
@@ -129,7 +129,7 @@
           "asset_id": "shard_00000.frames",
           "kind": "frame_trace_jsonl",
           "path": "shards/shard_00000/frames.jsonl",
-          "sha256": "d4181c17c3c3cc5abf653bb0416485649f6671e8304cf2cc2af553cb34293b7e"
+          "sha256": "82684b8b9de0c24c19bebc03ea38ed0e0ea2f5c7b438c0e7e28fd5a1b14587cd"
         },
         {
           "asset_id": "shard_00000.audio",
@@ -151,7 +151,7 @@
           "asset_id": "shard_00001.frames",
           "kind": "frame_trace_jsonl",
           "path": "shards/shard_00001/frames.jsonl",
-          "sha256": "223cfa2ad8e551b267a50eaf6f2ca60cd669ac6aeaba81eb108cefc071630eb8"
+          "sha256": "a5024da930c8c6cde33d395e6b822abff3b981cfd9923a6e69fd9674400dd9b8"
         },
         {
           "asset_id": "shard_00001.audio",
@@ -167,7 +167,7 @@
       "shard_id": "shard_00001"
     }
   ],
-  "source": "Deterministic synthetic S2.1 reference fixture",
+  "source": "Deterministic synthetic recording fixture",
   "split_grouping_key": "scene_id",
   "splits": [
     {

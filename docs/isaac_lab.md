@@ -361,8 +361,8 @@ Indicative scale: at 4096 environments (two sources, quad array,
 where the scalar loop took ~48 s/step — the per-env Python loop, not the
 math, dominates at RL scale.
 
-Parity and dispatch coverage lives in `tests/test_lab_batched_backend.py`.
-The GPU live gate (`make live-isaac-lab-audio-gpu`) additionally runs a
+Parity and dispatch coverage lives in the Isaac test lane.
+The GPU live gate (`make smoke-isaac-lab`) additionally runs a
 batched-vs-scalar parity check on the live runtime and a perf-budget phase:
 4096 environments must update under `ISAAC_LAB_PERF_BUDGET_MS` (default
 20 ms/step mean; override via the make variable or the smoke script's
@@ -434,7 +434,7 @@ It writes JSON evidence under `outputs/isaac_audio_sensors/`.
 
 ```bash
 make live-isaac-lab-audio
-make live-isaac-lab-audio-gpu
+make smoke-isaac-lab
 ```
 
 Both gates default to the official Isaac Lab launcher
@@ -456,7 +456,7 @@ budget is violated.
 The 2026-05-24 local-time live Lab GPU run used:
 
 ```bash
-make live-isaac-lab-audio-gpu ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
+make smoke-isaac-lab ISAAC_LAB_PYTHON="$ISAAC_LAB_PYTHON"
 ```
 
 It wrote `outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json` with
@@ -494,15 +494,3 @@ If a full Isaac Lab simulation context is unavailable, the smoke still records
 the exact blocker. The pure tests remain authoritative for tensor conversion,
 padding, selected `env_ids`, reset, import-order recovery, and cloned-env stage
 binding behavior.
-
-For a single machine-local summary across Isaac Sim, Isaac Lab, the Omniverse
-extension UX, and Replicator artifacts, run:
-
-```bash
-make live-evidence-report
-```
-
-It calls `scripts/generate_live_evidence_report.py` and writes:
-
-- `outputs/isaac_audio_sensors/live_validation_evidence.md`
-- `outputs/isaac_audio_sensors/live_validation_evidence.pdf`

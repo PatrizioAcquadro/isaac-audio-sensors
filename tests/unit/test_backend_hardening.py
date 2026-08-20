@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import replace
-from pathlib import Path
 
 import pytest
 
@@ -547,27 +546,6 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
     assert reseeded.diagnostics["noise_seed"] == 99
     assert stressed.diagnostics["noise_seed"] is None
 
-
-def test_l1_noise_jitter_gain_mismatch_controls_are_documented() -> None:
-    docs = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in (
-            Path("docs/backends.md"),
-            Path("docs/tdoa_doa.md"),
-            Path("docs/limitations.md"),
-        )
-    )
-
-    for phrase in (
-        "`noise_std_s`",
-        "`clock_jitter_s`",
-        "`gain_mismatch_db`",
-        "deterministic stress",
-        "not calibrated hardware noise",
-        "does not model",
-        "stochastic sensor drift",
-    ):
-        assert phrase in docs
 
 
 def test_l0_l1_per_mic_rms_follows_pressure_law_with_source_gain() -> None:

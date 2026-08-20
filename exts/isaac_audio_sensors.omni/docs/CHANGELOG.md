@@ -56,7 +56,7 @@
 - OmniGraph: registers the runtime node
   `isaac_audio_sensors.omni.IsaacAudioSensorFrame` when `omni.graph.core`
   is present, exposing the latest frame to Action Graphs.
-- The backing `extension_ui` module became a package with the same import
+- The backing `kit` module became a package with the same import
   path; the extension config schema stays `ias.omni_extension_binding.v1`
   with additive keys.
 

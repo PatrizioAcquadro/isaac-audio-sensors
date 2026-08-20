@@ -1,4 +1,4 @@
-"""Pure bounded S3.2 pose interpolation and segment division."""
+"""Bounded pose interpolation and segment division."""
 
 from __future__ import annotations
 

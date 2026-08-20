@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__version__ = "1.10.0"
+
 from isaac_audio_sensors.core.backends.base import AudioSimulationBackend
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
@@ -26,8 +28,6 @@ from isaac_audio_sensors.core.types import (
     RoomAcousticsSpec,
     SourceOcclusion,
 )
-
-__version__ = "1.10.0"
 
 __all__ = [
     "__version__",

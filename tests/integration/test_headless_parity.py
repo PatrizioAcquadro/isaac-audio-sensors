@@ -8,34 +8,30 @@ import numpy as np
 import pytest
 
 import isaac_audio_sensors.cli as cli_module
-from isaac_audio_sensors.core.dataset import SessionRecorder
-from isaac_audio_sensors.core.dataset_manifest import (
-    CreationProvenance,
-    DeviceProvenance,
-)
 from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSensorFrame,
     DoaEstimate,
     Pose3D,
 )
-from isaac_audio_sensors.isaac.extension_ui.controller import ExtensionController
-from isaac_audio_sensors.isaac.extension_ui.state import (
+from isaac_audio_sensors.isaac.headless_workflow import HeadlessGuidedSession
+from isaac_audio_sensors.kit.controller import ExtensionController
+from isaac_audio_sensors.kit.state import (
     AuthoredMetadataSummary,
     CurrentStageContext,
     DiscoveredPrimSummary,
 )
-from isaac_audio_sensors.isaac.extension_ui.workflow import (
+from isaac_audio_sensors.kit.workflow import (
     GUIDED_STAGE_ORDER,
     SAFE_PRESETS,
 )
-from isaac_audio_sensors.isaac.headless_workflow import HeadlessGuidedSession
-from scripts.compare_gui_headless_sessions import (
-    compare_sessions,
+from isaac_audio_sensors.recording import SessionRecorder
+from isaac_audio_sensors.recording.manifest import (
+    CreationProvenance,
+    DeviceProvenance,
 )
-from scripts.compare_gui_headless_sessions import (
-    main as compare_main,
-)
+from tests.session_compare import compare_sessions
+from tests.session_compare import main as compare_main
 
 
 class _FakeStage:

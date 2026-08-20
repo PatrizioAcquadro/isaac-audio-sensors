@@ -1,4 +1,4 @@
-"""Frozen S3.7 acoustic material table with fail-closed provenance.
+"""Acoustic material table with fail-closed provenance.
 
 This module is intentionally dependency-free.  In particular, material ids
 are never delegated to a runtime pyroomacoustics database: the exact vectors

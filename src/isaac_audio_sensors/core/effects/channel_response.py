@@ -22,7 +22,7 @@ def apply_channel_response(
     sample_rate_hz: int,
     config: ChannelResponseConfig,
 ) -> tuple[np.ndarray, dict[str, Any]]:
-    """Apply FIR, gain, polarity, and delay in the frozen S3.3 order."""
+    """Apply FIR, gain, polarity and delay in canonical order."""
 
     microphones = config.microphones or {}
     applied_ids = tuple(

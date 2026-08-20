@@ -1,66 +1,26 @@
-include README.md
-include LICENSE
-include NOTICE
-include CHANGELOG.md
-include CITATION.cff
-include CONTRIBUTING.md
-include CODE_OF_CONDUCT.md
-include SECURITY.md
-include Makefile
-include pyproject.toml
-recursive-include configs *.toml
-recursive-include docs *.md *.json
-include docs/schemas/audio_dataset_manifest.v1.schema.json
-include docs/schemas/audio_calibration_profile.v1.schema.json
-exclude docs/reference_rig_hardware_environment.md
-exclude docs/zed_respeaker_mount_pre_cad.md
-recursive-exclude docs/development *
-recursive-exclude docs/evidence *
-recursive-include examples *.md *.py *.json *.ndjson
-recursive-include examples/manifests *.md *.json
-recursive-include examples/calibration *.md *.json
-# The S2.1 reference session fixture stays a repo-only development
-# artifact for the 1.9.0 line: the frozen distribution audit bans media
-# payloads, and shipping it without WAV/JSONL would be a broken session.
-recursive-exclude examples/datasets *
+include README.md LICENSE NOTICE CHANGELOG.md CITATION.cff
+include CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md
+recursive-include examples *.md *.py *.json *.ndjson *.toml
 recursive-include exts *.toml *.py *.md *.svg *.json
-recursive-include scripts *.py
-recursive-include scripts *.swift
-include scripts/live_clean_install_gate.py
-include scripts/live_clean_install_probe.py
-include scripts/run_installed_consumer_gate.py
 recursive-include packs/acoustics *.toml *.lock
 recursive-exclude packs *.whl
-recursive-include src/isaac_audio_sensors/core/plugins *.py
-recursive-include tests *.py
-recursive-include .github *.yml
-global-exclude *.py[cod]
-global-exclude __pycache__
-global-exclude .DS_Store
-global-exclude .env
-global-exclude .env.*
-global-exclude *.wav
-global-exclude *.mp4
-global-exclude *.mov
-global-exclude *.png
-global-exclude *.jpg
-global-exclude *.jpeg
-global-exclude *.pdf
-recursive-exclude * __pycache__
-recursive-exclude * *.py[cod]
+global-exclude *.py[cod] __pycache__ .DS_Store .env .env.*
+global-exclude *.wav *.mp4 *.mov *.png *.jpg *.jpeg *.pdf
+prune tests
+prune tools
+prune scripts
+prune configs
+prune docs
+prune dataset
 prune outputs
-prune runs
-prune data
-prune generated
+prune evidence
 prune build
 prune dist
+prune .github
 prune .venv
-prune venv
-prune .local-goals
 prune .pytest_cache
 prune .ruff_cache
 prune .mypy_cache
 prune .agents
 prune .codex
-prune src/*.egg-info
 include exts/isaac_audio_sensors.omni/data/preview.png

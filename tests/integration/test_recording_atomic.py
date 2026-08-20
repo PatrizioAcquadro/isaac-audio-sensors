@@ -14,7 +14,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.dataset import (
+from isaac_audio_sensors.core.io.wave_read import read_wav
+from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.recording import (
     CancellationToken,
     CancelledWrite,
     CarryState,
@@ -30,8 +32,6 @@ from isaac_audio_sensors.core.dataset import (
     verify_shard_completion,
     write_json_atomic,
 )
-from isaac_audio_sensors.core.io.wave_read import read_wav
-from isaac_audio_sensors.core.types import AudioSensorFrame
 
 
 def _enospc_at(operation: str, index: int):
@@ -170,7 +170,7 @@ def test_subprocess_sigkill_never_exposes_a_complete_shard(tmp_path, phase):
 
         import numpy as np
 
-        from isaac_audio_sensors.core.dataset import (
+        from isaac_audio_sensors.recording import (
             FilesystemSeam,
             JsonlShardFile,
             StreamingWavShardWriter,

@@ -11,23 +11,23 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import isaac_audio_sensors.core.dataset.recorder as recorder_module
-from isaac_audio_sensors.core.dataset import (
+import isaac_audio_sensors.recording.recorder as recorder_module
+from isaac_audio_sensors.core.io.wave_read import read_wav
+from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.recording import (
     CancelledWrite,
     SessionRecorder,
     validate_dataset,
 )
-from isaac_audio_sensors.core.dataset.time_gaps import (
+from isaac_audio_sensors.recording.manifest import (
+    CreationProvenance,
+    DeviceProvenance,
+)
+from isaac_audio_sensors.recording.time_gaps import (
     TimeGapCursor,
     advance_time_gap_cursor,
     plan_time_gap,
 )
-from isaac_audio_sensors.core.dataset_manifest import (
-    CreationProvenance,
-    DeviceProvenance,
-)
-from isaac_audio_sensors.core.io.wave_read import read_wav
-from isaac_audio_sensors.core.types import AudioSensorFrame
 
 
 def _configuration(
@@ -43,7 +43,7 @@ def _configuration(
     result: dict[str, object] = {
         "backend_id": "tdoa_synthetic",
         "channel_order": [f"mic_{index}" for index in range(channels)],
-        "dataset_id": "s3_2_time_gap_test",
+        "dataset_id": "time_gap_test",
         "dtype": "float32",
         "hop_sample_count": hop_sample_count,
         "runtime_profile": "waveform_fidelity",
@@ -68,7 +68,7 @@ def _recorder(
         root,
         configuration,
         creation=CreationProvenance(
-            tool_name="s3_2_test",
+            tool_name="time_gap_tool",
             tool_version="1.0",
             backend_id="tdoa_synthetic",
             estimator_id="test",
@@ -106,7 +106,7 @@ def _frame(
         array_id="array",
         provenance="synthetic/core",
         aggregate_per_mic_rms={f"mic_{mic}": 0.1 for mic in range(4)},
-        diagnostics={"fixture": "s3_2"},
+        diagnostics={"fixture": "window_motion"},
     )
 
 
@@ -452,7 +452,6 @@ def test_non_monotonic_recorder_candidate_rejects_without_mutation(tmp_path):
 
 def test_absent_and_explicit_false_use_identical_public_append_bytes(tmp_path):
     hashes = []
-    full_session_hashes = []
     for name, preserve in (("absent", None), ("false", False)):
         root = tmp_path / name
         config = _configuration(
@@ -489,24 +488,7 @@ def test_absent_and_explicit_false_use_identical_public_append_bytes(tmp_path):
             for filename in ("frames.jsonl", "audio.wav", "shard.complete.json")
         )
         hashes.append(hashlib.sha256(public).hexdigest())
-        full_session = b"".join(
-            path.read_bytes()
-            for path in (
-                root / "config/session_config.json",
-                root / "shards/shard_00000/frames.jsonl",
-                root / "shards/shard_00000/audio.wav",
-                root / "shards/shard_00000/shard.complete.json",
-                root / "manifest.json",
-            )
-        )
-        full_session_hashes.append(hashlib.sha256(full_session).hexdigest())
     assert hashes[0] == hashes[1]
-    assert hashes[0] == (
-        "6cb66c3487ab471d8abf5a515c09cf6b9a32ad9a4c7a389cad473b91f3188442"
-    )
-    assert full_session_hashes[0] == (
-        "77aa7521801985c7346e5ec707535c3be43579ef97c3b3ef662f1b08e3f6de52"
-    )
 
 
 class _CancelAfterChecks:

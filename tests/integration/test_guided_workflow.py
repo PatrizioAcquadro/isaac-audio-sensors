@@ -10,18 +10,21 @@ from typing import Any
 import numpy as np
 import pytest
 
-import isaac_audio_sensors.isaac.extension_ui.controller as controller_module
-from isaac_audio_sensors.core.dataset.validate import Finding, validate_dataset
-from isaac_audio_sensors.core.io.manifests import read_dataset_manifest
+import isaac_audio_sensors.kit.controller as controller_module
 from isaac_audio_sensors.core.types import AudioSensorFrame
-from isaac_audio_sensors.isaac.extension_ui.controller import ExtensionController
-from isaac_audio_sensors.isaac.extension_ui.sections import build_guided_section
-from isaac_audio_sensors.isaac.extension_ui.state import (
+from isaac_audio_sensors.isaac.validation import (
+    ValidationController,
+    ValidationFinding,
+    ValidationReport,
+)
+from isaac_audio_sensors.kit.controller import ExtensionController
+from isaac_audio_sensors.kit.sections import build_guided_section
+from isaac_audio_sensors.kit.state import (
     CurrentStageContext,
     ExtensionUiState,
 )
-from isaac_audio_sensors.isaac.extension_ui.window import OmniReferenceWindow
-from isaac_audio_sensors.isaac.extension_ui.workflow import (
+from isaac_audio_sensors.kit.window import OmniReferenceWindow
+from isaac_audio_sensors.kit.workflow import (
     GUIDED_STAGE_ORDER,
     INVALID_STATE_MATRIX,
     SAFE_PRESET_LIBRARY,
@@ -31,11 +34,8 @@ from isaac_audio_sensors.isaac.extension_ui.workflow import (
     RecordingStatus,
     StageStatus,
 )
-from isaac_audio_sensors.isaac.validation import (
-    ValidationController,
-    ValidationFinding,
-    ValidationReport,
-)
+from isaac_audio_sensors.recording.serialization import read_dataset_manifest
+from isaac_audio_sensors.recording.validate import Finding, validate_dataset
 
 
 class _FakeStage:

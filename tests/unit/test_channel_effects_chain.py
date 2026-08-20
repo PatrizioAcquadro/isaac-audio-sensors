@@ -84,7 +84,7 @@ def test_absent_effects_table_normalizes_all_five_stages_disabled():
     assert not config.effects.motion.enabled
 
 
-def test_normative_s3_3_record_field_names_are_frozen():
+def test_channel_record_field_names_are_stable():
     assert tuple(field.name for field in fields(FrequencyResponsePointConfig)) == (
         "frequency_hz",
         "magnitude_db",

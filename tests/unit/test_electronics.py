@@ -69,7 +69,7 @@ SAMPLE_RATE_HZ = 48_000
 MIC_IDS = ("front", "right", "rear", "left")
 SEED = 20_260_718
 ALT_SEED = 20_260_719
-FRAME_ID = "s3_5_frame_000000"
+FRAME_ID = "electronics_frame_000000"
 FULL_SCALE = 1.0
 BIT_DEPTH = 16
 STEP = 1.0 / 32_768.0
@@ -114,7 +114,7 @@ def _apply(
 
 def _base_raw() -> dict[str, object]:
     return {
-        "scene": {"scene_id": "s3_5_config"},
+        "scene": {"scene_id": "electronics_config"},
         "audio": {
             "default_backend": "room_acoustics",
             "runtime_profile": "waveform_fidelity",
@@ -483,7 +483,7 @@ def test_tpdf_dither_named_stream_peak_to_peak_and_decorrelation():
     output, _diagnostics = _apply(
         np.tile(signal, (4, 1)),
         _effects(dither=True),
-        frame_id="s3_5_dither_000000",
+        frame_id="electronics_dither_000000",
     )
     for mic_index, mic_id in enumerate(MIC_IDS):
         error = output[mic_index] - signal
@@ -492,7 +492,7 @@ def test_tpdf_dither_named_stream_peak_to_peak_and_decorrelation():
             sample_count,
             step=STEP,
             seed=SEED,
-            frame_id="s3_5_dither_000000",
+            frame_id="electronics_dither_000000",
             mic_id=mic_id,
         )
         assert float(np.max(dither) - np.min(dither)) < STEP
@@ -502,7 +502,7 @@ def test_tpdf_dither_named_stream_peak_to_peak_and_decorrelation():
             == named_stream_descriptor(
                 SEED,
                 domain="electronics",
-                frame_id="s3_5_dither_000000",
+                frame_id="electronics_dither_000000",
                 mic_id=mic_id,
                 effect="tpdf_dither",
             )[2]

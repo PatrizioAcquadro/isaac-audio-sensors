@@ -6,21 +6,24 @@ import json
 import math
 from copy import deepcopy
 from dataclasses import replace
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
 from isaac_audio_sensors.core.constants import DATASET_MANIFEST_SCHEMA_VERSION
-from isaac_audio_sensors.core.dataset_manifest import AssetRecord, ManifestPose
-from isaac_audio_sensors.core.io.manifests import (
+from isaac_audio_sensors.core.schema import audio_dataset_manifest_json_schema
+from isaac_audio_sensors.recording.manifest import AssetRecord, ManifestPose
+from isaac_audio_sensors.recording.serialization import (
     manifest_from_dict,
     manifest_to_dict,
     read_dataset_manifest,
     write_dataset_manifest,
 )
-from isaac_audio_sensors.core.schema import audio_dataset_manifest_json_schema
 
-SCHEMA_PATH = Path("docs/schemas/audio_dataset_manifest.v1.schema.json")
+SCHEMA_PATH = files("isaac_audio_sensors.schemas").joinpath(
+    "audio_dataset_manifest.v1.schema.json"
+)
 FIXTURE_DIR = Path("examples/manifests")
 
 INVALID_MESSAGES = {

@@ -1,7 +1,0 @@
-{
-  "delay_from_alignment_ack_s": 1.5,
-  "event": "REMOVE_PAPER_ROLL_NOW",
-  "operator_procedure": "self_timed_without_second_chat_cue",
-  "schema": "ias.s4_2.chat_cue_target.v1",
-  "target_host_monotonic_ns": 393489432139099
-}

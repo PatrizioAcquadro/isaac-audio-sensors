@@ -13,7 +13,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.dataset import (
+from isaac_audio_sensors.core.io.traces import (
+    frame_from_trace_dict,
+    frame_to_trace_dict,
+)
+from isaac_audio_sensors.core.types import (
+    AudioDetection,
+    AudioSensorFrame,
+    DoaEstimate,
+)
+from isaac_audio_sensors.recording import (
     DATASET_FRAME_RECORD_VERSION,
     SHARD_COMPLETION_VERSION,
     DatasetLayoutError,
@@ -34,24 +43,15 @@ from isaac_audio_sensors.core.dataset import (
     verify_shard_completion,
     verify_shard_tiling,
 )
-from isaac_audio_sensors.core.dataset.layout import (
+from isaac_audio_sensors.recording.layout import (
     MAX_STREAMING_WARNINGS_PER_SHARD,
 )
-from isaac_audio_sensors.core.io.manifests import (
+from isaac_audio_sensors.recording.serialization import (
     manifest_to_dict,
     read_dataset_manifest,
     write_dataset_manifest,
 )
-from isaac_audio_sensors.core.io.traces import (
-    frame_from_trace_dict,
-    frame_to_trace_dict,
-)
-from isaac_audio_sensors.core.types import (
-    AudioDetection,
-    AudioSensorFrame,
-    DoaEstimate,
-)
-from scripts.regenerate_reference_dataset import (
+from tests.recording_fixture import (
     CHANNEL_ORDER,
     _write_float32_wav,
     regenerate_reference_dataset,
@@ -250,7 +250,7 @@ def test_ids_planners_records_config_seed_and_import_safety(tmp_path):
     code = (
         "import sys;"
         f"sys.path.insert(0,{str(source_root)!r});"
-        "import isaac_audio_sensors.core.dataset.layout;"
+        "import isaac_audio_sensors.recording.layout;"
         "bad={'soundfile','omni','torch'} & set(sys.modules);"
         "raise SystemExit(1 if bad else 0)"
     )

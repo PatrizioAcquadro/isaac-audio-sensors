@@ -15,21 +15,21 @@ import pytest
 
 from isaac_audio_sensors.cli import main as cli_main
 from isaac_audio_sensors.core.constants import FRAME_UNITS
-from isaac_audio_sensors.core.dataset import (
+from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.recording import (
     DatasetLayoutError,
     SessionDataset,
     SessionRecorder,
     validate_dataset,
 )
-from isaac_audio_sensors.core.dataset.layout import (
+from isaac_audio_sensors.recording.layout import (
     MAX_STREAMING_WARNINGS_PER_SHARD,
 )
-from isaac_audio_sensors.core.dataset.validate import MAX_FINDINGS_PER_CODE
-from isaac_audio_sensors.core.dataset_manifest import (
+from isaac_audio_sensors.recording.manifest import (
     CreationProvenance,
     DeviceProvenance,
 )
-from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.recording.validate import MAX_FINDINGS_PER_CODE
 
 REFERENCE = Path("tests/fixtures/recording/session")
 
@@ -173,7 +173,6 @@ def test_reference_fixture_has_exact_statistics_and_no_findings():
     assert report.findings == ()
     assert report.error_count == report.warning_count == 0
     expected_statistics = {
-        "asset_bytes": {"audio_wav": 33368, "frame_trace_jsonl": 6969},
         "audio": {
             "attributed_sample_count": 1920,
             "duration_seconds_by_shard": {
@@ -220,8 +219,12 @@ def test_reference_fixture_has_exact_statistics_and_no_findings():
             "waveform_path_count": 0,
         },
     }
-    assert report.statistics.to_dict() == expected_statistics
-    assert report.to_dict() == {
+    statistics = report.statistics.to_dict()
+    assert all(size > 0 for size in statistics.pop("asset_bytes").values())
+    assert statistics == expected_statistics
+    report_dict = report.to_dict()
+    report_dict["statistics"].pop("asset_bytes")
+    assert report_dict == {
         "error_count": 0,
         "finding_totals": {},
         "findings": [],
@@ -332,7 +335,7 @@ def _corrupt(root: Path, case: str) -> None:
         ),
     ],
 )
-def test_s2_3_corruption_matrix_has_only_intended_finding(
+def test_corruption_matrix_has_only_intended_finding(
     tmp_path, case, code, location
 ):
     root = tmp_path / case

@@ -18,9 +18,9 @@
   ],
   "files": [
     {
-      "bytes": 3982,
+      "bytes": 4058,
       "path": "frames.jsonl",
-      "sha256": "d4181c17c3c3cc5abf653bb0416485649f6671e8304cf2cc2af553cb34293b7e"
+      "sha256": "82684b8b9de0c24c19bebc03ea38ed0e0ea2f5c7b438c0e7e28fd5a1b14587cd"
     },
     {
       "bytes": 21804,
@@ -33,5 +33,5 @@
   "shard_id": "shard_00000",
   "start_frame": 0,
   "tail_samples": 80,
-  "writer_tool_version": "ias_fixture_generator/1.8.0"
+  "writer_tool_version": "ias_fixture_generator/1.10.0"
 }

@@ -12,7 +12,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.dataset import (
+from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
+from isaac_audio_sensors.core.io.wave_read import read_wav
+from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.recording import (
     CancellationToken,
     CancelledWrite,
     FilesystemSeam,
@@ -22,16 +25,13 @@ from isaac_audio_sensors.core.dataset import (
     resume,
     validate_session_layout,
 )
-from isaac_audio_sensors.core.dataset.layout import (
+from isaac_audio_sensors.recording.layout import (
     MAX_STREAMING_WARNINGS_PER_SHARD,
 )
-from isaac_audio_sensors.core.dataset_manifest import (
+from isaac_audio_sensors.recording.manifest import (
     CreationProvenance,
     DeviceProvenance,
 )
-from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
-from isaac_audio_sensors.core.io.wave_read import read_wav
-from isaac_audio_sensors.core.types import AudioSensorFrame
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 _CANCEL_FRAMES = tuple(
@@ -210,8 +210,8 @@ def test_resume_after_sigkill_replays_from_published_boundary(tmp_path):
         import sys, time
         from pathlib import Path
         import numpy as np
-        from isaac_audio_sensors.core.dataset import SessionRecorder
-        from isaac_audio_sensors.core.dataset_manifest import (
+        from isaac_audio_sensors.recording import SessionRecorder
+        from isaac_audio_sensors.recording.manifest import (
             CreationProvenance,
             DeviceProvenance,
         )
@@ -390,8 +390,8 @@ def test_fresh_process_recovers_enospc_during_manifest_finalization(
 
         import numpy as np
 
-        from isaac_audio_sensors.core.dataset import FilesystemSeam, SessionRecorder
-        from isaac_audio_sensors.core.dataset_manifest import (
+        from isaac_audio_sensors.recording import FilesystemSeam, SessionRecorder
+        from isaac_audio_sensors.recording.manifest import (
             CreationProvenance,
             DeviceProvenance,
         )
@@ -481,7 +481,7 @@ def test_fresh_process_recovers_enospc_during_manifest_finalization(
         import sys
         from pathlib import Path
 
-        from isaac_audio_sensors.core.dataset import recover_finalization
+        from isaac_audio_sensors.recording import recover_finalization
 
         root = Path(sys.argv[1])
         manifest = recover_finalization(root)
@@ -568,27 +568,6 @@ def test_warning_heavy_finalize_retains_bounded_layout_examples(tmp_path):
     # A small-session RSS delta is allocator- and test-order-sensitive. The
     # retained result shape directly guards the finalize path's bounded object set.
     assert len(streamed.warnings) == MAX_STREAMING_WARNINGS_PER_SHARD
-
-
-def test_memory_harness_scale_smoke(tmp_path):
-    sys.path.insert(0, str(REPO_ROOT / "scripts"))
-    try:
-        from measure_writer_memory import run_memory_measurements
-
-        result = run_memory_measurements(
-            "W2",
-            output_json=tmp_path / "telemetry.json",
-            session_root=tmp_path / "sessions",
-            scale=0.02,
-        )
-    finally:
-        sys.path.pop(0)
-    assert result["run_kind"] == "smoke"
-    assert result["status_is_acceptance_evidence"] is False
-    assert result["runs"]["W2"]["baseline"]["sample_count"] == 3
-    assert result["runs"]["W2"]["samples"]
-    assert result["runs"]["W2"]["validation"]["passed"]
-    assert json.loads((tmp_path / "telemetry.json").read_text())["status"] == "passed"
 
 
 def test_unaligned_multishard_recording_does_not_retain_frame_payloads(tmp_path):

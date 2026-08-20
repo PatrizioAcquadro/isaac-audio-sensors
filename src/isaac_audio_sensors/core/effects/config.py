@@ -110,7 +110,7 @@ class AmbientNoiseConfig:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class NoiseConfig:
-    """Frozen S3.4 seeded-noise configuration."""
+    """Seeded-noise configuration."""
 
     enabled: bool = False
     seed: int | None = None
@@ -187,7 +187,7 @@ class DirectivityPatternSetConfig:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class DirectivityConfig:
-    """Frozen S3.6 source/microphone waveform-directivity configuration."""
+    """Source and microphone directivity configuration."""
 
     enabled: bool = False
     source_patterns: DirectivityPatternSetConfig | None = None
@@ -1000,7 +1000,7 @@ def _validate_mic_config(
         if point.phase_deg is not None:
             raise UnsupportedEffectError(
                 f"{prefix}.phase_deg={point.phase_deg!r} is unsupported by the "
-                "S3.3 magnitude-only linear-phase FIR; use delay_s for a supported "
+                "magnitude-only linear-phase FIR; use delay_s for a supported "
                 f"linear phase offset, backend={backend_id!r}, "
                 f"profile={runtime_profile!r}."
             )
@@ -1611,19 +1611,17 @@ def _validate_reserved_stage(
     if enabled:
         raise UnsupportedEffectError(
             f"audio.effects.{stage_name}.enabled=true is outside implemented "
-            f"subphase S3.3 for backend {backend_id!r}, profile "
-            f"{runtime_profile!r}; enable it only after its owning S3 contract is "
-            "implemented."
+            f"effects for backend {backend_id!r}, profile {runtime_profile!r}."
         )
 
 
 def validate_motion_effects_config(config: MotionEffectsConfig) -> None:
-    """Validate a normalized S3.1 motion record without backend side effects."""
+    """Validate normalized motion settings without backend side effects."""
 
     table = "audio.effects.motion"
     if isinstance(config, _LegacyEnabledMotionEffectsConfig):
         raise UnsupportedEffectError(
-            f"{table}.enabled=true is removed by S3.1; accepted fields are "
+            f"{table}.enabled=true is unsupported; accepted fields are "
             "derive_velocity_from_poses, teleport_speed_threshold_mps, "
             "stale_time_s, smoothing_alpha, and segments_per_window."
         )

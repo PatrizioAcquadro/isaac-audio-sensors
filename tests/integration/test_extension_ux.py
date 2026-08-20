@@ -13,23 +13,9 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback.
-    import tomli as tomllib
-
 from isaac_audio_sensors.core.config import load_audio_config
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
-from isaac_audio_sensors.isaac.extension_ui import (
-    OUTPUT_ROOT_ENV_VAR,
-    CurrentStageContext,
-    ExtensionController,
-    _gui_output_root,
-    _resolve_gui_output_path,
-    _stage_has_prim,
-    current_omni_stage_context,
-)
 from isaac_audio_sensors.isaac.microphone_rig_profiles import (
     default_microphone_rig_profiles,
 )
@@ -38,6 +24,15 @@ from isaac_audio_sensors.isaac.sound_profiles import (
     SoundProfile,
     default_object_profile_mappings,
     default_sound_profiles,
+)
+from isaac_audio_sensors.kit import (
+    OUTPUT_ROOT_ENV_VAR,
+    CurrentStageContext,
+    ExtensionController,
+    _gui_output_root,
+    _resolve_gui_output_path,
+    _stage_has_prim,
+    current_omni_stage_context,
 )
 
 
@@ -55,9 +50,9 @@ def _write_test_png(path: Path, *, width: int = 13, height: int = 17) -> None:
 
 def _load_live_ux_script(monkeypatch):
     repo = Path(__file__).resolve().parents[2]
-    monkeypatch.syspath_prepend(str(repo / "scripts"))
+    monkeypatch.syspath_prepend(str(repo / "tools" / "smoke"))
     monkeypatch.syspath_prepend(str(repo / "exts" / "isaac_audio_sensors.omni"))
-    script_path = repo / "scripts" / "live_omniverse_extension_ux.py"
+    script_path = repo / "tools" / "smoke" / "live_omniverse_extension_ux.py"
     spec = importlib.util.spec_from_file_location(
         "live_omniverse_extension_ux_for_tests",
         script_path,
@@ -326,7 +321,7 @@ class _FakeStage:
         return len(self._prims) != before
 
 
-def test_extension_ui_stage_has_prim_uses_sdf_path_for_strict_isaac_stage(
+def test_kit_stage_has_prim_uses_sdf_path_for_strict_isaac_stage(
     monkeypatch,
 ):
     pxr = ModuleType("pxr")
@@ -361,7 +356,7 @@ def test_extension_ui_stage_has_prim_uses_sdf_path_for_strict_isaac_stage(
     assert stage.calls == ["SdfPath"]
 
 
-def test_extension_ui_stage_has_prim_falls_back_to_traverse_after_type_error():
+def test_kit_stage_has_prim_falls_back_to_traverse_after_type_error():
     class RejectingStage(_FakeStage):
         def GetPrimAtPath(self, path: object) -> _FakePrim | None:
             raise TypeError(f"unsupported path type: {type(path).__name__}")
@@ -959,7 +954,7 @@ def test_omni_extension_entrypoint_initializes_kit_iext_base():
     }
 
 
-def test_extension_ui_resolves_relative_outputs_against_repo(monkeypatch):
+def test_kit_resolves_relative_outputs_against_repo(monkeypatch):
     monkeypatch.delenv(OUTPUT_ROOT_ENV_VAR, raising=False)
     repo = Path(__file__).resolve().parents[2]
     root = (repo / "outputs" / "isaac_audio_sensors").resolve()
@@ -1946,7 +1941,7 @@ def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
 
 def test_sensor_update_stream_subscription_respects_update_period(monkeypatch):
     stream = _install_fake_kit_update_stream(monkeypatch, timeline_time_s=0.0)
-    config = load_audio_config("configs/isaac_audio_sensors_demo.toml")
+    config = load_audio_config("examples/configs/isaac_audio_sensors_demo.toml")
     sensor = IsaacAudioArraySensor.from_config(
         config=config,
         array_id=next(iter(config.arrays)),
@@ -2172,7 +2167,7 @@ def test_extension_controller_reads_fake_omni_usd_selection(monkeypatch):
     assert controller.state.array_prim_path == "/World/Robot"
 
 
-def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
+def test_kit_builds_against_fake_omni_ui(monkeypatch):
     omni = ModuleType("omni")
     omni_ui = _FakeUI()
     omni.ui = omni_ui
@@ -2355,7 +2350,7 @@ def test_extension_ui_builds_against_fake_omni_ui(monkeypatch):
     } <= set(controller._ui_window._buttons)
 
 
-def test_extension_ui_instruments_show_compass_meters_and_timeline(monkeypatch):
+def test_kit_instruments_show_compass_meters_and_timeline(monkeypatch):
     omni = ModuleType("omni")
     omni_ui = _FakeUI()
     omni.ui = omni_ui
@@ -2470,7 +2465,7 @@ def _install_fake_stage_events(monkeypatch):
 def test_extension_controller_follows_viewport_selection_via_stage_events(
     monkeypatch,
 ):
-    from isaac_audio_sensors.isaac.extension_ui import DiscoveredPrimSummary
+    from isaac_audio_sensors.kit import DiscoveredPrimSummary
 
     _install_fake_kit_integrations(monkeypatch)
     stream = _install_fake_stage_events(monkeypatch)
@@ -2517,7 +2512,7 @@ def test_extension_controller_follows_viewport_selection_via_stage_events(
 
 
 def test_extension_controller_polling_fallback_follows_selection():
-    from isaac_audio_sensors.isaac.extension_ui import DiscoveredPrimSummary
+    from isaac_audio_sensors.kit import DiscoveredPrimSummary
 
     source_prim = _FakePrim(
         "/World/Sources/SpeakerA",
@@ -2758,7 +2753,7 @@ def test_extension_controller_room_anchor_missing_prim_records_error():
     assert "/World/MissingRoom" in controller.state.error_message
 
 
-def test_extension_ui_audio_panel_renders_waveform_preview(monkeypatch, tmp_path):
+def test_kit_audio_panel_renders_waveform_preview(monkeypatch, tmp_path):
     omni = ModuleType("omni")
     omni_ui = _FakeUI()
     omni.ui = omni_ui
@@ -2785,7 +2780,7 @@ def test_extension_ui_audio_panel_renders_waveform_preview(monkeypatch, tmp_path
     assert window._labels["audition"].text == "Audition idle."
 
 
-def test_extension_ui_audio_panel_reports_missing_waveform(monkeypatch):
+def test_kit_audio_panel_reports_missing_waveform(monkeypatch):
     omni = ModuleType("omni")
     omni_ui = _FakeUI()
     omni.ui = omni_ui
@@ -2877,120 +2872,8 @@ def test_extension_controller_versioned_id_reads_base_shortcut_setting(monkeypat
     assert "SHIFT + A" in controller.hotkey_status
 
 
-def test_omniverse_extension_manifest_metadata_files_exist():
-    repo = Path(__file__).resolve().parents[2]
-    ext_root = repo / "exts" / "isaac_audio_sensors.omni"
-    manifest_path = ext_root / "config" / "extension.toml"
-    manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
-    package = manifest["package"]
-    dependencies = manifest["dependencies"]
-    python_modules = manifest["python"]["module"]
 
-    assert package["authors"] == ["Patrizio Acquadro"]
-    assert package["author"] == "Patrizio Acquadro"
-    assert package["trusted"] is False
-    assert package["support_level"].lower() == "community"
-    assert package["category"].lower() == "simulation"
-    assert package["repository"] == (
-        "https://github.com/PatrizioAcquadro/isaac-audio-sensors"
-    )
-    assert {
-        "audio",
-        "microphone",
-        "microphone-array",
-        "sensor",
-        "robotics",
-        "isaac-sim",
-        "omniverse",
-        "usd",
-        "tdoa",
-        "simulation",
-    } <= set(package["keywords"])
-    assert set(dependencies) == {
-        "omni.kit.actions.core",
-        "omni.kit.menu.utils",
-        "omni.ui",
-        "omni.usd",
-        "omni.kit.hotkeys.core",
-        "omni.replicator.core",
-        "omni.graph.core",
-    }
-    assert dependencies["omni.kit.hotkeys.core"]["optional"] is True
-    assert dependencies["omni.replicator.core"]["optional"] is True
-    assert dependencies["omni.graph.core"]["optional"] is True
-    for forbidden_dependency in ("isaaclab", "cuda", "torch", "pyroomacoustics"):
-        assert not any(
-            forbidden_dependency in dependency.lower() for dependency in dependencies
-        )
-    for key in ("readme", "changelog", "icon", "preview_image"):
-        path = ext_root / package[key]
-        assert path.exists(), f"{key} does not exist: {path}"
-        assert path.stat().st_size > 0, f"{key} is empty: {path}"
-
-    readme = (ext_root / package["readme"]).read_text(encoding="utf-8")
-    for expected in (
-        "Window -> Isaac Audio Sensors",
-        "Ctrl+Alt+A",
-        "isaac_audio_sensors.omni::toggle_window",
-        "selected USD prim",
-        "author `ias:*` microphone-array and sound-source metadata",
-        "discover authored arrays and sources",
-        "start, update, and stop the live `IsaacAudioArraySensor`",
-        "export the latest frame as JSON and stream frames as JSONL",
-        "export and import reusable extension/stage-binding config JSON",
-        "optional `omni.replicator.core`",
-        "one extension Python module",
-        "isaac_audio_sensors.omni.IsaacAudioSensorFrame",
-    ):
-        assert expected in readme
-    preview_bytes = (ext_root / package["preview_image"]).read_bytes()
-    assert preview_bytes.startswith(b"\x89PNG\r\n\x1a\n")
-    assert int.from_bytes(preview_bytes[16:20], "big") == 1600
-    assert int.from_bytes(preview_bytes[20:24], "big") == 900
-    assert python_modules == [{"name": "isaac_audio_sensors_omni"}]
-
-
-def test_omniverse_extension_advertises_runtime_omnigraph_node_only():
-    repo = Path(__file__).resolve().parents[2]
-    ext_root = repo / "exts" / "isaac_audio_sensors.omni"
-    manifest_path = ext_root / "config" / "extension.toml"
-    manifest_text = manifest_path.read_text(encoding="utf-8")
-    manifest = tomllib.loads(manifest_text)
-
-    assert manifest["python"]["module"] == [{"name": "isaac_audio_sensors_omni"}]
-    # The node is runtime-registered: no .ogn codegen files, optional dep only.
-    assert not list(ext_root.rglob("*.ogn"))
-    assert "[[ogn" not in manifest_text.lower()
-    assert manifest["dependencies"]["omni.graph.core"] == {"optional": True}
-    graph_node_text = (
-        ext_root / "isaac_audio_sensors_omni" / "graph_node.py"
-    ).read_text(encoding="utf-8")
-    assert "register_node_type" in graph_node_text
-    readme_text = (ext_root / "docs" / "README.md").read_text(encoding="utf-8")
-    assert "IsaacAudioSensorFrame" in readme_text
-
-
-def test_omniverse_extension_manifest_is_third_party_by_kit_source_logic():
-    repo = Path(__file__).resolve().parents[2]
-    manifest_path = (
-        repo / "exts" / "isaac_audio_sensors.omni" / "config" / "extension.toml"
-    )
-    package = tomllib.loads(manifest_path.read_text(encoding="utf-8"))["package"]
-
-    if package.get("exchange", False):
-        author_group = "COMMUNITY_VERIFIED"
-    elif not package.get("trusted", True):
-        author_group = "COMMUNITY_UNVERIFIED"
-    else:
-        author_group = "NVIDIA"
-
-    ext_source = "NVIDIA" if author_group == "NVIDIA" else "THIRD PARTY"
-
-    assert author_group != "NVIDIA"
-    assert ext_source == "THIRD PARTY"
-
-
-def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatch):
+def test_kit_config_roundtrips_edited_widget_state(tmp_path, monkeypatch):
     omni = ModuleType("omni")
     omni_ui = _FakeUI()
     omni.ui = omni_ui
@@ -3101,7 +2984,7 @@ def test_extension_ui_config_roundtrips_edited_widget_state(tmp_path, monkeypatc
     assert imported_layout_widget.model.value == layout_choices.index("mono")
 
 
-def test_extension_ui_invalid_numeric_input_is_readable(monkeypatch):
+def test_kit_invalid_numeric_input_is_readable(monkeypatch):
     omni = ModuleType("omni")
     omni_ui = _FakeUI()
     omni.ui = omni_ui

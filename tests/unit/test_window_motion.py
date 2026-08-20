@@ -374,7 +374,7 @@ def _room_fixture():
         gain_db=0.0,
     )
     scene = AudioSceneSnapshot(
-        stage_id="s3_2",
+        stage_id="window_motion",
         timestamp_ms=0,
         sources=(source,),
         arrays=(array,),
@@ -409,7 +409,7 @@ class _CaptureSink:
 
 def _install_fake_pyroom(monkeypatch):
     fake = types.ModuleType("pyroomacoustics")
-    fake.__version__ = "s3.2-fake"
+    fake.__version__ = "motion-fixture"
     fake.Material = lambda absorption: absorption
     fake.MicrophoneArray = _FakeMicrophoneArray
     fake.ShoeBox = _FakeShoeBox

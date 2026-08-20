@@ -38,7 +38,7 @@ class ValidationReport:
         for finding in self.findings:
             if finding.severity != "error":
                 continue
-            from isaac_audio_sensors.isaac.extension_ui.state import (
+            from isaac_audio_sensors.kit.state import (
                 ExtensionActionError,
             )
 

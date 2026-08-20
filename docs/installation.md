@@ -58,8 +58,8 @@ The canonical runtimes are the official installs:
 For live smoke tests, run the scripts through those launchers:
 
 ```bash
-PYTHONPATH=src ~/isaacsim/python.sh scripts/live_isaac_sim_audio_smoke.py
-PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p scripts/live_isaac_lab_audio_smoke.py
+PYTHONPATH=src ~/isaacsim/python.sh tools/smoke/live_isaac_sim_audio_smoke.py
+PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p tools/smoke/live_isaac_lab_audio_smoke.py
 ```
 
 The Makefile auto-detects the same installs: `make live-*` gates default to
@@ -78,7 +78,7 @@ Headless vs GUI conventions:
   still accepted):
 
   ```bash
-  PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p scripts/live_isaac_lab_audio_smoke.py --viz kit
+  PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p tools/smoke/live_isaac_lab_audio_smoke.py --viz kit
   ```
 
 - For the Isaac Sim GUI, launch `~/isaacsim/isaac-sim.sh --ext-folder <repo>/exts`

@@ -60,7 +60,7 @@ def _array():
 
 def _scene(array) -> AudioSceneSnapshot:
     return AudioSceneSnapshot(
-        stage_id="s3_3_l1",
+        stage_id="channel_response_l1",
         timestamp_ms=0,
         sources=(
             AudioSourceSpec(

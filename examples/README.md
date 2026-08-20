@@ -14,12 +14,12 @@ python examples/core/room_acoustics_demo.py
 Isaac runtime examples:
 
 ```bash
-PYTHONPATH=src ~/isaacsim/python.sh scripts/live_isaac_sim_audio_smoke.py
-PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p scripts/live_isaac_lab_audio_smoke.py
+PYTHONPATH=src ~/isaacsim/python.sh tools/smoke/live_isaac_sim_audio_smoke.py
+PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p tools/smoke/live_isaac_lab_audio_smoke.py
 ```
 
 Frame trace examples are tracked under `examples/traces/` and match
-`docs/schemas/audio_sensor_frame.v1.schema.json`. They intentionally cover the
+`src/isaac_audio_sensors/schemas/audio_sensor_frame.v1.schema.json`. They intentionally cover the
 stable v1 trace shape: an empty minimal frame, multiple detections, explicit
 two-microphone ambiguity, stable provenance namespaces, fixed units, and the
 corrected bearing-sector semantics.

@@ -21,7 +21,7 @@ Isaac helper actually needs `pxr`, `omni`, or `isaacsim`.
 Live smoke:
 
 ```bash
-PYTHONPATH=src ~/isaacsim/python.sh scripts/live_isaac_sim_audio_smoke.py
+PYTHONPATH=src ~/isaacsim/python.sh tools/smoke/live_isaac_sim_audio_smoke.py
 ```
 
 The smoke script:
@@ -69,15 +69,6 @@ debug primitive kinds `microphone`, `source`, `bearing_ray`, and
 `mic:right`, `source:speaker_front`, bearing rays, and `sector:straight`.
 `room_acoustics` was skipped with an explicit evidence reason because
 `pyroomacoustics` was not installed in that Isaac runtime.
-
-The local report generator parses the Isaac Sim JSON/config/JSONL evidence and
-the other live gates, then writes:
-
-- `outputs/isaac_audio_sensors/live_validation_evidence.md`
-- `outputs/isaac_audio_sensors/live_validation_evidence.pdf`
-
-Run it with `make live-evidence-report`. The generator is
-`scripts/generate_live_evidence_report.py`.
 
 ## Reference Extension UX
 
@@ -145,7 +136,7 @@ Latest local final `1.0.0` extension UX validation was rerun on 2026-05-24
 local time (`2026-05-25T03:38Z` Kit log timestamp) with:
 
 ```bash
-make live-omniverse-extension-ux ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
+make smoke-kit ISAAC_SIM_COMMAND="$ISAAC_SIM_PYTHON"
 ```
 
 It passed using the host-visible runtime with `kit_app_version` `5.1.0`, Kit

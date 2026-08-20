@@ -11,7 +11,8 @@ from pathlib import Path
 def _load_install_module():
     script_path = (
         Path(__file__).resolve().parents[2]
-        / "scripts"
+        / "tools"
+        / "release"
         / "install_isaac_sim_extension.py"
     )
     spec = importlib.util.spec_from_file_location(

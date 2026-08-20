@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 
 from isaac_audio_sensors.core.io.wave_read import read_wav
-from isaac_audio_sensors.isaac.extension_ui.audition import AuditionPlayer
-from isaac_audio_sensors.isaac.extension_ui.spectro import (
+from isaac_audio_sensors.kit.audition import AuditionPlayer
+from isaac_audio_sensors.kit.spectro import (
     mixdown,
     render_spectrogram_rgba,
     render_waveform_rgba,

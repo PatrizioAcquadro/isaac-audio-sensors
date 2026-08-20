@@ -21,7 +21,6 @@ from isaac_audio_sensors.core.config import (
     load_audio_config,
     validate_audio_config,
 )
-from isaac_audio_sensors.core.dataset_manifest import AudioDatasetManifest
 from isaac_audio_sensors.core.fidelity import (
     ACOUSTIC_FIDELITY_LADDER,
     AcousticFidelityLevel,
@@ -73,6 +72,7 @@ from isaac_audio_sensors.core.types import (
     RoomAcousticsSpec,
     SourceOcclusion,
 )
+from isaac_audio_sensors.recording.manifest import AudioDatasetManifest
 
 __all__ = [
     "AudioDetection",

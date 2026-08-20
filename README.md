@@ -166,10 +166,10 @@ print(frame.schema_version, frame.frame_name)
 print(frame.detections[0].doa)
 ```
 
-The frame serializes to the public v1 JSON shape. The JSON Schema is available
-at `docs/schemas/audio_sensor_frame.v1.schema.json`, and example traces live
-under `examples/traces/`. The public contract is documented in
-[API Freeze](docs/api_freeze_0_1.md) and [API Reference](docs/api_reference.md):
+The frame serializes to the public v1 JSON shape. The JSON Schema is packaged at
+`src/isaac_audio_sensors/schemas/audio_sensor_frame.v1.schema.json`, and example
+traces live under `examples/traces/`. The public contract is documented in
+[API Reference](docs/api_reference.md):
 `AudioSensorFrame.schema_version` is `ias.audio_sensor_frame.v1`, independent
 from the Python package version, and covers the coordinate policy, units,
 timestamps, provenance values, ambiguity fields, diagnostics namespaces, JSON
@@ -185,7 +185,7 @@ non-promise boundary is documented in [V1 Public Scope](docs/v1_scope.md).
 ## Isaac Sim Example
 
 ```bash
-PYTHONPATH=src ~/isaacsim/python.sh scripts/live_isaac_sim_audio_smoke.py
+PYTHONPATH=src ~/isaacsim/python.sh tools/smoke/live_isaac_sim_audio_smoke.py
 ```
 
 The script creates an in-memory USD stage, semantically discovers sources and a
@@ -237,48 +237,16 @@ sensor do not depend on Replicator availability.
 The live reference UX smoke is:
 
 ```bash
-make live-omniverse-extension-ux
+make smoke-kit
 ```
 
 The gate defaults to `~/isaacsim/python.sh`; override with
 `ISAAC_SIM_COMMAND=<isaac-python>` for a non-default install.
 
-### Alex V2 audio showcase
-
-The showcase imports the static Alex V2 asset folder
-(`~/Desktop/Alex/assets/robots/alex_v2`) and opens the iTHOR FloorPlan1
-kitchen from the static CombinedScene export. A strict headless run on the
-validated Isaac Sim installation is:
-
-```bash
-"$HOME/IsaacLab/isaaclab.sh" -p -m pip install -e "$HOME/Desktop/Alex"
-PYTHONPATH="$PWD/src" \
-"$HOME/IsaacLab/isaaclab.sh" -p scripts/live_alex_audio_showcase.py \
-  --alex-root "$HOME/Desktop/Alex/assets/robots/alex_v2" \
-  --scene-usd "$HOME/Desktop/CombinedScene/FloorPlan1_updated_physics/scene.usda" \
-  --require-real-alex-v2
-```
-
-The live Alex target lazily imports
-`ihmc_alex_isaaclab.robots.alex_v2.make_alex_v2_cfg` and derives the applicable
-URDF importer settings from that shared config. Generic package imports remain
-independent of Isaac Sim and Isaac Lab.
-
-Strict mode rejects a missing Isaac runtime provenance, proxy robot, fallback
-room, stale or tampered USD cache, unresolved mesh, missing exact `HEAD_LINK`,
-or missing model provenance. It records the complete asset manifest (URDF and
-per-mesh SHA-256 hashes), microphone mount, and recreated camera/IMU frames in
-the evidence JSON.
-
-It records real Kit version/runtime facts, selected-prim workflow status,
-overlay primitive evidence, JSON/JSONL exports, config import/export,
-Replicator registration/write/flush/stop status, and screenshot status under
-`outputs/isaac_audio_sensors/`.
-
 ## Isaac Lab Example
 
 ```bash
-PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p scripts/live_isaac_lab_audio_smoke.py
+PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p tools/smoke/live_isaac_lab_audio_smoke.py
 ```
 
 Append `--viz kit` for a GUI run; headless is the default (Isaac Lab 3.x runs
@@ -299,7 +267,7 @@ Lab observations expose `event_presence`, `bearing_deg`, `confidence`,
 GPU-required validation fails instead of passing on CPU:
 
 ```bash
-make live-isaac-lab-audio-gpu
+make smoke-isaac-lab
 ```
 
 The gate defaults to `~/IsaacLab/isaaclab.sh -p`; override with
@@ -314,10 +282,12 @@ Current core validation is reproducible without Isaac:
 python -m pip install -e ".[dev]"
 python -c "import isaac_audio_sensors; print(isaac_audio_sensors.__version__)"
 python -m isaac_audio_sensors --version
-python -m pytest
-python -m ruff check .
-python -m build
-python scripts/audit_distribution.py --dist-dir dist
+make test
+python -m pytest -q tests/integration
+make test-release
+make test-isaac
+make lint
+make build
 python -m isaac_audio_sensors.cli export-schema --out /tmp/audio_sensor_frame.v1.schema.json
 git diff --check
 ```
@@ -325,39 +295,6 @@ git diff --check
 Live Isaac Sim and Isaac Lab checks use user-managed NVIDIA runtimes, not PyPI
 dependencies. The GPU Isaac Lab target is expected to fail with a concrete CUDA
 blocker when no NVIDIA GPU is available to the Isaac Lab runtime.
-
-## Local Live Evidence Report
-
-The machine-local report source and PDF are generated from the canonical
-ignored artifacts, including exact `python_executable` runtime paths that are
-not repeated in tracked public docs:
-
-```bash
-make live-evidence-report
-```
-
-Inputs:
-
-- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.json`
-- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.frames.jsonl`
-- `outputs/isaac_audio_sensors/isaac_sim_live_smoke.config.json`
-- `outputs/isaac_audio_sensors/isaac_lab_live_smoke_gpu.json`
-- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.json`
-- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.frames.jsonl`
-- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.config.json`
-- `outputs/isaac_audio_sensors/omniverse_extension_live_ux.replicator/`
-
-Outputs:
-
-- `outputs/isaac_audio_sensors/live_validation_evidence.md`
-- `outputs/isaac_audio_sensors/live_validation_evidence.pdf`
-
-The generator is `scripts/generate_live_evidence_report.py`. It records Isaac
-Sim/Kit app and build fields, Isaac Lab version, exact Python executable paths,
-GPU/CUDA/NVIDIA driver facts, pass/optional/blocker status, artifact paths, and
-declared non-promises from the current JSON/JSONL artifacts. The PDF is written
-with ReportLab when that dependency is available; if no PDF backend is
-available, the Markdown source remains the reproducible report source.
 
 ## Known Limitations
 

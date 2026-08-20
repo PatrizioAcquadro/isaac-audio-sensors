@@ -115,7 +115,7 @@ class _StatefulShoeBox:
 @pytest.fixture
 def fake_room(monkeypatch):
     fake = types.ModuleType("pyroomacoustics")
-    fake.__version__ = "fake-s3.7"
+    fake.__version__ = "room-fixture"
     fake.Material = _FakeMaterial
     fake.MicrophoneArray = _FakeMicrophoneArray
     fake.ShoeBox = _StatefulShoeBox
@@ -128,7 +128,7 @@ def fake_room(monkeypatch):
         assert time_window.sample_rate_hz == SAMPLE_RATE_HZ
         return room_module._ScheduledSignal(
             signal=signal.copy(),
-            mode="s3.7-six-tone",
+            mode="six-tone",
             start_offset_samples=0,
             content_sample_count=signal.size,
         )
@@ -170,7 +170,7 @@ def _source(position=(4.0, 0.0, 1.0)):
 
 def _room(absorption="pra.rough_concrete", **changes):
     room = RoomAcousticsSpec(
-        room_id="s3_7_room",
+        room_id="dynamic_room",
         dimensions_m=(6.0, 6.0, 3.0),
         origin_m=(-1.0, -3.0, 0.0),
         absorption=absorption,
@@ -225,7 +225,7 @@ def _record(blocked, bands=None, flat_db=0.0, material=None):
 def _render(fake_room, record=None, room=None):
     array = _array()
     scene = AudioSceneSnapshot(
-        stage_id="s3_7_fixture",
+        stage_id="dynamic_room_fixture",
         timestamp_ms=0,
         sources=(_source(),),
         arrays=(array,),
@@ -359,7 +359,7 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
     base_frame, base_wave = _render(fake_room)
     array = _array(position=(0.0, 0.25, 1.0))
     array_scene = AudioSceneSnapshot(
-        stage_id="s3_7_fixture",
+        stage_id="dynamic_room_fixture",
         timestamp_ms=0,
         sources=(_source(),),
         arrays=(array,),
@@ -397,7 +397,7 @@ class _Prim:
 
 
 class _Stage:
-    identifier = "s3_7_fake_stage"
+    identifier = "dynamic_room_stage"
 
     def __init__(self):
         self.traversals = 0

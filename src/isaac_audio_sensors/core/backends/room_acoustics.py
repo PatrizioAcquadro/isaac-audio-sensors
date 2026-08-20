@@ -227,7 +227,7 @@ class RoomAcousticsBackend:
         if self.backend_id == "room_acoustics_srp" and len(sensor.microphones) == 2:
             raise UnsupportedEffectError(
                 "room_acoustics_srp requires at least three microphones for an "
-                "unambiguous S3.8 claim"
+                "unambiguous localization claim"
             )
         validate_tdoa_array(sensor)
         if scene.room is None:
@@ -1447,7 +1447,7 @@ def _room_material_resolution(
 
 
 def _room_state_hash(room_spec: RoomAcousticsSpec) -> str:
-    """Hash the complete canonical S3.7 room state."""
+    """Hash the complete canonical room state."""
 
     applied, evidence, resolution = _room_material_resolution(room_spec)
     if isinstance(applied, dict):

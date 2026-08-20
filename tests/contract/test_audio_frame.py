@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import fields
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -44,7 +45,9 @@ from isaac_audio_sensors.core.types import (
 )
 from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 
-SCHEMA_PATH = Path("docs/schemas/audio_sensor_frame.v1.schema.json")
+SCHEMA_PATH = files("isaac_audio_sensors.schemas").joinpath(
+    "audio_sensor_frame.v1.schema.json"
+)
 TRACE_DIR = Path("examples/traces")
 
 def test_generated_schema_matches_checked_in_schema_exactly():

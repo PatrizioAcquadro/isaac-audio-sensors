@@ -135,7 +135,7 @@ import isaac_audio_sensors as _isaac_audio_sensors  # noqa: E402
 _assert_packaged_package(_PACKAGE_METADATA, _isaac_audio_sensors)
 
 from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor  # noqa: E402
-from isaac_audio_sensors.isaac.extension_ui import ExtensionController  # noqa: E402
+from isaac_audio_sensors.kit import ExtensionController  # noqa: E402
 
 
 def _i_ext_base() -> type:
