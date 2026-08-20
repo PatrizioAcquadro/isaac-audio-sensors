@@ -1,57 +1,37 @@
 # R0 — Repository Restructuring Inventory
 
-Status: approved restructuring specification
-
-Baseline: `main` at `de2b680e1354e9db2327abbe8e2b0f419860afe7`
-
 Target release line: clean `2.x`
 
-Scope of R0: documentation and decisions only
-
-## Purpose
-
-This document is the temporary source of truth for restructuring
-`isaac-audio-sensors`. It records the target repository boundary, the
-disposition of the current top-level surfaces, the deletion gates, and the
-order of implementation.
-
-R0 does not move or delete source code, datasets, evidence, tests, or runtime
-artifacts. This file itself is temporary: R4 will remove `docs/` after the
-small amount of still-current product documentation has moved to
-`knowledge/wiki/`.
+This document is the temporary source of truth for restructuring `isaac-audio-sensors`.
+It records the target repository boundary, the disposition of the current top-level surfaces, the deletion gates, and the order of implementation.
 
 ## Product Boundary
 
-`isaac-audio-sensors` is a reusable open-source audio sensor package for Isaac
-Sim and Isaac Lab. The product owns:
+`isaac-audio-sensors` is an open-source robot-audition SDK for Isaac Sim and Isaac Lab.
+It connects acoustic simulation, robot-mounted microphone arrays, standardized sensor observations, recording, datasets, and robot-learning policies.
 
-- simulator-independent audio scene, source, microphone-array, and frame
-  contracts;
-- audio propagation, room-acoustics, Doppler, DOA, effects, and backend
-  behavior;
+The product owns:
+- simulator-independent audio scene, source, microphone-array, and frame contracts;
+- pluggable acoustic-propagation and sensor-model backends, including lightweight built-in backends and adapters to NVIDIA Kit Audio, RTX Acoustic, and other acoustic engines;
+- observed multichannel sensor outputs and derived audio features, with privileged source, geometry, and isolated-signal ground truth kept separate for supervision and evaluation;
 - calibration profiles and their application;
-- generic recording, session layout, manifests, loading, validation, and
-  replay;
+- generic recording, session layout, manifests, loading, validation, and replay;
 - Isaac Sim stage integration and runtime sensors;
-- Isaac Lab sensor integration and batched data;
+- Isaac Lab SensorBase integration with fixed-shape batched waveform, TDOA, spatial-audio feature, detection, and confidence observations;
 - the Kit/Omniverse extension and its user interface;
 - small public examples, deterministic test fixtures, and release tooling.
+- The package complements NVIDIA Kit Audio and RTX Acoustic by providing the robot-mounted sensor, data-contract, recording, and Isaac Lab observation layer that connects acoustic simulation to robot learning.
 
-The product does not own:
+The distributed product and tracked source tree do not own:
+- SquadBot behaviors, policies, task orchestration, or task-specific   evaluation;
+- Alex- or SquadBot-specific paths, factories, showcase logic, or acceptance criteria;
+- S0–S4 campaign orchestration, physical-acquisition protocols, grants, holdouts, corrective amendments, or one-shot evidence workflows;
+- raw experiment datasets or run-specific outputs as tracked or distributed content;
+- historical phase documentation beyond concise release notes in `CHANGELOG.md`.
 
-- SquadBot behaviors, policies, task orchestration, or task-specific
-  evaluation;
-- Alex- or SquadBot-specific paths, factories, showcase logic, or acceptance
-  criteria;
-- S0–S4 campaign orchestration, physical-acquisition protocols, grants,
-  holdouts, corrective amendments, or one-shot evidence workflows;
-- raw experiment datasets or run-specific outputs;
-- historical phase documentation beyond concise release notes in
-  `CHANGELOG.md`.
-
-SquadBot is a downstream consumer. It may own an adapter to the public audio
-sensor API, task logic, evaluators, and a few small derived fixtures. It must
-not receive a wholesale copy of the raw S4 dataset or generic sensor code.
+SquadBot is a downstream consumer.
+It may own an adapter to the public audio sensor API, task logic, evaluators, and a few small derived fixtures.
+These product boundaries do not exclude repository-owned publication evidence from the ignored local `evidence/` workspace defined below.
 
 ## Target Repository
 
@@ -67,6 +47,7 @@ isaac-audio-sensors/
 ├── pyproject.toml
 ├── Makefile
 ├── .gitignore
+├── evidence/ (local and ignored; repository-owned publication evidence, USED ONLY WHEN NEEDED)
 ├── knowledge/
 │   ├── .obsidian/ (local and ignored)
 │   ├── AGENTS.md
@@ -119,22 +100,23 @@ isaac-audio-sensors/
     └── acoustics/
 ```
 
-There is no target root `docs/`, `dataset/`, `outputs/`, `configs/`,
-`scripts/`, or `.github/` directory. Build products, caches, generated data,
-local goals, and runtime output remain ignored and absent from releases.
+There is no target root `docs/`, `dataset/`, `outputs/`, `configs/`, `scripts/`, or `.github/` directory.
+Build products, caches, generated data, local goals, and runtime output remain ignored and absent from releases.
 
-`knowledge/raw/` is for small, immutable source material used to build the
-wiki. It is not a destination for multi-gigabyte audio, video, or experiment
-datasets.
+Root `evidence/` is the deliberate local home for paper-relevant evidence owned by `isaac-audio-sensors`.
+It remains inside the repository working directory, is ignored by Git, and is excluded from packages and releases.
+Use one clearly named subdirectory per study or paper. Evidence owned by SquadBot or another downstream project belongs under the corresponding ignored evidence directory in that project's repository.
+
+`knowledge/raw/` is for small, immutable source material used to build the wiki.
+It is not a destination for multi-gigabyte audio, video, or experiment datasets.
 
 ## Root File Disposition
 
-This table covers every file tracked at the repository root on the R0
-baseline, plus the two target files that do not yet exist.
+This table covers every file tracked at the repository root on the R0 baseline, plus the two target files that do not yet exist.
 
 | Current or target file | Decision | Target responsibility |
 | --- | --- | --- |
-| `.gitignore` | Keep and simplify | Ignore build products, datasets, outputs, media, caches, and local tooling state. |
+| `.gitignore` | Keep and simplify | Ignore local publication evidence, build products, datasets, outputs, media, caches, and local tooling state. |
 | `CHANGELOG.md` | Keep | The only retained historical summary, organized by release. |
 | `CITATION.cff` | Delete | Add the paper citation to `README.md` only after the paper exists. |
 | `CODE_OF_CONDUCT.md` | Delete | Not essential at the current project/community stage. |
@@ -151,27 +133,25 @@ baseline, plus the two target files that do not yet exist.
 
 ## Top-Level Directory Disposition
 
-This table covers every top-level directory with tracked files on the R0
-baseline, plus ignored data/runtime directories that affect the cleanup.
+This table covers every top-level directory with tracked files on the R0 baseline, plus ignored data/runtime directories that affect the cleanup.
 
 | Current directory | Decision | Destination or rule |
 | --- | --- | --- |
 | `.github/` | Delete | The only current workflow is S4-coupled. Use local Make targets unless a concrete publication requirement later justifies automation. |
 | `configs/` | Split, then delete | Move the generic demo configuration to `examples/configs/`; delete S-specific configurations. |
-| `dataset/` | Archive externally if needed, then delete locally | Raw S4 evidence; never ship it and do not move it wholesale to SquadBot. Deletion requires the evidence gate below. |
-| `docs/` | Absorb, then delete in R4 | Move only current essential content and useful GUI images to `knowledge/wiki/`; move public schemas into the package; delete phase history. |
-| `examples/` | Keep and reduce | Retain only small runnable public examples, configs, traces, calibration samples, and deterministic fixtures. |
+| `dataset/` | Classify, relocate, then delete | Move paper-relevant evidence owned by this repository to `evidence/<study-or-paper>/`. Move SquadBot or other downstream evidence to the corresponding repository. Delete data only after the evidence gate below passes. |
+| `docs/` | Absorb, then delete in R4 | Move only current essential content to `knowledge/wiki/`; move public schemas into the package. |
+| `examples/` | Keep and reduce | Retain only small runnable public examples, configs, traces, calibration samples, and deterministic fixtures. Move useful GUI images here |
 | `exts/` | Keep and thin | Keep Kit packaging, metadata, icons, and the extension entry point; implementation belongs in `src/.../kit/`. |
-| `outputs/` | Archive selectively, then delete from the active tree | Keep externally only evidence required by a paper or release. Runtime outputs remain ignored. |
+| `outputs/` | Classify, relocate, then delete | Move paper- or release-relevant evidence to `evidence/<study-or-paper>/` in the owning repository. Discard ordinary reproducible runtime outputs only after confirming that they are not evidence. |
 | `packs/` | Keep if supported | Retain the optional acoustics pack only while its build and runtime contract are actively tested. |
 | `scripts/` | Split, then delete | Move public examples to `examples/`, release tooling to `tools/release/`, runtime checks to `tools/smoke/`, and delete phase/run-specific scripts. |
 | `src/` | Keep and restructure | Retain only the generic package subsystems described below. |
 | `tests/` | Keep and restructure | Replace phase/history organization with unit, contract, integration, Isaac, release, and fixture ownership. |
 
-Ignored directories such as `dist/`, `build/`, `runs/`, `.local/`, caches,
-and local agent state are not product surfaces. Cleanup may remove generated
-copies when safe, but these paths must never become package inputs or sources
-of truth.
+Ignored directories such as `dist/`, `build/`, `runs/`, `.local/`, caches, and local agent state are not product surfaces.
+Cleanup may remove generated copies when safe, but these paths must never become package inputs or sources of truth.
+The ignored `evidence/` directory is the explicit exception: it is a local research surface and may be the source of truth for publication claims, but it must never become a package input or release payload.
 
 ## Package Component Disposition
 
@@ -190,136 +170,93 @@ of truth.
 
 ## Data and Evidence Policy
 
-The word "dataset" currently refers to three different surfaces. They have
-different outcomes:
+The word "dataset" currently refers to three different surfaces. They have different outcomes:
 
-1. Root `dataset/` is ignored raw S4 audio/video/evidence. It is not required
-   by the installed sensor and leaves the active checkout after verified
-   archival or an explicit decision that it is no longer needed.
-2. Generic dataset code is a product capability. It moves from
-   `core/dataset/` to the clearer `recording/` subsystem.
-3. The small deterministic reference session remains as a test fixture under
-   `tests/fixtures/recording/`; it is not a research dataset.
+1. Root `dataset/` is ignored raw S4 audio/video/evidence.
+   It is not required by the installed sensor. Before removing that legacy location, classify each retained dataset by owning project and relocate it to `evidence/<study-or-paper>/` inside that project's repository.
+2. Generic dataset code is a product capability.
+   It moves from `core/dataset/` to the clearer `recording/` subsystem.
+3. The small deterministic reference session remains as a test fixture under `tests/fixtures/recording/`; it is not a research dataset.
 
-Raw evidence that is necessary for a paper must live in a deliberate external
-archive, research artifact, or separately published dataset. Source Git is
-not that archive. SquadBot receives only the smallest derived fixture needed
-to test its consumer boundary.
+Raw evidence that is necessary for an `isaac-audio-sensors` paper must live under root `evidence/<study-or-paper>/` in this working tree.
+The entire `evidence/` directory remains untracked by Git and absent from distributions, but it is part of the declared local repository structure and must not be treated as disposable output.
+SquadBot and other downstream projects keep their own raw evidence in the same kind of ignored, repository-local location; this repository receives only the smallest derived fixture needed to test a consumer boundary.
 
 ## Clean v2 API Policy
 
 The current v1 name freeze does not constrain the `2.x` restructuring.
-Removing obsolete imports, moving namespaces, and reducing the CLI are
-intentional breaking changes. Permanent compatibility shims are not required
-for experimental, phase-specific, Alex-specific, or SquadBot-specific
-surfaces.
+Removing obsolete imports, moving namespaces, and reducing the CLI are intentional breaking changes. 
+Permanent compatibility shims are not required for experimental, phase-specific, Alex-specific, or SquadBot-specific surfaces.
 
 The target public concepts are:
 
-- audio frame, time window, scene, source, pose, detection, and microphone
-  array models;
-- configuration, schema, backend, acoustics, calibration, DOA, effects, and
-  plugin interfaces;
+- audio frame, time window, scene, source, pose, detection, and microphone array models;
+- configuration, schema, backend, acoustics, calibration, DOA, effects, and plugin interfaces;
 - generic recording, manifest, loading, validation, and replay;
 - Isaac Sim sensor and stage integration;
 - Isaac Lab sensor and batched data;
 - Kit extension behavior;
 - a small user-facing CLI.
 
-R5 freezes the exact v2 import and CLI inventory only after R3 removes the
-non-product surfaces. Python package versions and serialized schema versions
-are independent: an existing `v1` data schema may remain valid in package
-`2.0.0` when its data contract remains useful.
+R5 freezes the exact v2 import and CLI inventory only after R3 removes the non-product surfaces. 
+Python package versions and serialized schema versions are independent: an existing `v1` data schema may remain valid in package `2.0.0` when its data contract remains useful.
 
 ## Deletion Gates
 
 No destructive restructuring step may bypass these gates:
 
-1. **Consumer gate:** audit imports, CLI calls, paths, schemas, and generated
-   artifacts before moving or deleting a symbol. Active SquadBot behavior
-   must be migrated to its owning repository or adapted to the v2 API.
-2. **Evidence gate:** verify an external backup/archive and its scope before
-   deleting raw datasets or paper-relevant outputs. R0 does not open, copy,
-   move, or delete S4 evidence.
-3. **Test gate:** establish the R2 characterization and contract suites before
-   removing S-specific source and tests, so skips cannot masquerade as
-   successful coverage.
-4. **Distribution gate:** audit an installed wheel, sdist, Kit extension
-   archive, and optional pack before declaring the migration complete. None
-   may contain acquisition code, S-phase surfaces, SquadBot/Alex paths, raw
-   data, tests, or maintainer-only scripts.
+1. **Consumer gate:** audit imports, CLI calls, paths, schemas, and generated artifacts before moving or deleting a symbol. 
+   Active SquadBot behavior must be migrated to its owning repository.
+2. **Evidence gate:** classify the owning project and verify the complete relocation of raw datasets or paper-relevant outputs to `evidence/` in that project's repository before deleting the old copy.
+3. **Test gate:** establish the R2 characterization and contract suites before removing S-specific source and tests, so skips cannot masquerade as successful coverage.
+4. **Distribution gate:** audit an installed wheel, sdist, Kit extension archive, and optional pack before declaring the migration complete. 
+   None may contain acquisition code, S-phase surfaces, SquadBot/Alex paths, raw data, tests, or maintainer-only scripts.
 
 ## Implementation Sequence
 
 ### R1 — Knowledge and repository rules
 
-Create the root and knowledge `AGENTS.md` files and the empty, versioned
-`knowledge/raw/` and `knowledge/wiki/` skeleton. Keep local Obsidian state
-ignored. Do not populate the wiki or recreate S0–S4 history during R1;
-migration of concise, current product information belongs in R4, and release
-history belongs in `CHANGELOG.md`.
+Create the root and knowledge `AGENTS.md` files and the empty, versioned `knowledge/raw/` and `knowledge/wiki/` skeleton. Keep local Obsidian state ignored. 
+Do not populate the wiki or recreate S0–S4 history during R1; migration of concise, current product information belongs in R4, and release history belongs in `CHANGELOG.md`.
 
 ### R2 — Fast tests before code movement
 
-- Add characterization tests for the intended public frames, schemas,
-  configuration, backends, recording contract, Isaac/Lab imports, and CLI.
-- Organize tests into `unit`, `contract`, `integration`, `isaac`, `release`,
-  and `fixtures` instead of phase-based filenames.
-- Make `make test` run unit and contract tests with a target below ten seconds.
-  Provide separate `test-integration`, `test-isaac`, `test-release`, and
-  `test-all` targets.
+- Add characterization tests for the intended public frames, schemas, configuration, backends, recording contract, Isaac/Lab imports, and CLI.
+- Organize tests into `unit`, `contract`, `integration`, `isaac`, `release`, and `fixtures` instead of phase-based filenames.
+- Make `make test` run unit and contract tests with a target below ten seconds. Provide separate test targets.
 - Remove historical Git-checkout and filename-regex phase classification.
-- Add a distribution-content test that rejects `acquisition`, S-phase,
-  SquadBot/Alex, local absolute path, dataset, output, and test surfaces in
-  released artifacts.
+- Add a distribution-content test that rejects `acquisition`, S-phase, SquadBot/Alex, local absolute path, dataset, output, and test surfaces in released artifacts.
 
 ### R3 — Enforce the repository boundary
 
-- Remove `acquisition/`, S-specific acceptance criteria, configs, schemas,
-  scripts, tests, docs, and tracked output only after their gates pass.
-- Move generic configuration, schemas, release tools, smoke tools, and small
-  fixtures to their target owners.
+- Remove `acquisition/`, S-specific acceptance criteria, configs, schemas, scripts, tests, docs, and tracked output only after their gates pass.
+- Move generic configuration, schemas, release tools, smoke tools, and small fixtures to their target owners.
 - Keep generic calibration, sensor backends, and recording behavior here.
-- Move only active downstream adapters, task evaluators, and tiny fixtures to
-  SquadBot; keep raw evidence in an external archive when required.
-- Remove S, Alex, and SquadBot targets and paths from packaging and the
-  Makefile.
+- Move only active downstream adapters, task evaluators, and tiny fixtures to SquadBot; relocate raw evidence to the ignored `evidence/` directory in the repository that owns the study or paper.
+- Remove S, Alex, and SquadBot targets and paths from packaging and the Makefile.
 
 ### R4 — Replace `docs/` with the wiki
 
-Move concise current product documentation and useful GUI assets to
-`knowledge/wiki/`, absorb essential root guidance into `README.md`, and delete
-the entire root `docs/` directory, including this applied R0 specification.
+Move concise current product documentation and useful GUI assets to `knowledge/wiki/`, absorb essential root guidance into `README.md`, and delete the entire root `docs/` directory, including this applied R0 specification.
 
 ### R5 — Refactor by semantic component
 
-Refactor one subsystem at a time in this order: public core contracts,
-backends/DSP, recording, Isaac Sim, Isaac Lab, Kit UI, and CLI. Remove the
-duplicate package examples and freeze the exact v2 public API only after the
-tree is clean. Validate and commit each coherent component independently.
+Refactor one subsystem at a time in this order: 
+- public core contracts,
+- backends/DSP,
+- recording, 
+- Isaac Sim, 
+- Isaac Lab, 
+- Kit UI,
+- CLI. 
+
+Remove the duplicate package examples and freeze the exact v2 public API only after the tree is clean. 
 
 ### R6 — Simplify packaging and release
 
-Move package-data declarations into `pyproject.toml`, reduce local Make
-targets, verify clean wheel/sdist/Kit/pack artifacts, and prepare the public
-README and marketplace release. Do not restore automation unless a concrete
-publication or maintenance need justifies it.
+Move package-data declarations into `pyproject.toml`, reduce local Make targets, verify clean wheel/sdist/Kit/pack artifacts, and prepare the public README and marketplace release. 
+Do not restore automation unless a concrete publication or maintenance need justifies it.
 
 ### R7 — Paper readiness
 
-Define the reproducible benchmark, publish or archive the necessary scientific
-artifacts separately, state claims and limitations, and add the paper citation
-to the README once available.
-
-## R0 Completion Criteria
-
-R0 is complete when:
-
-- every tracked root file and top-level directory has an explicit target;
-- product and SquadBot ownership are unambiguous;
-- raw data, generic recording code, and small fixtures are distinguished;
-- the clean v2 compatibility policy is explicit;
-- deletion gates and the R1–R7 order are recorded;
-- no runtime code, dataset, evidence, or package artifact has changed;
-- this documentation-only change passes `git diff --check` and is committed
-  locally without a push.
+Define the reproducible benchmark, organize the necessary scientific artifacts under the repository-local ignored `evidence/` directory, state claims and limitations, prepare selected artifacts for separate publication only when needed, and add the paper citation to the README once available.

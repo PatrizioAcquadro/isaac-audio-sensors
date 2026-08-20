@@ -12,6 +12,7 @@ dist/
 venv/
 outputs/
 dataset/
+/evidence/
 runs/
 data/
 generated/
@@ -38,6 +39,15 @@ generated/
 /knowledge/.obsidian/
 !/knowledge/raw/data/
 !/knowledge/raw/data/.gitkeep
-TODO.md
 !examples/datasets/
 !examples/datasets/**
+
+# Local assistant state
+/.agents/
+/.codex/
+/.claude/
+/CLAUDE.md
+/claude.md
+/AGENTS.md
+/agents.md
+/TODO.md
