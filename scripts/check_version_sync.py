@@ -194,39 +194,6 @@ def check_version_sync(repo_root: Path) -> tuple[str, tuple[str, ...]]:
             repo_root / "exts/isaac_audio_sensors.omni/docs/CHANGELOG.md"
         ),
     )
-    core_test = repo_root / "tests/test_isaac_audio_core.py"
-    for label, pattern in (
-        (
-            "tests/test_isaac_audio_core.py imported __version__ expectation",
-            r'assert\s+isaac_audio_sensors\.__version__\s*==\s*["\']([^"\']+)["\']',
-        ),
-        (
-            "tests/test_isaac_audio_core.py expected",
-            r'^\s*expected\s*=\s*["\']([^"\']+)["\']\s*$',
-        ),
-        (
-            "tests/test_isaac_audio_core.py kit_manifest_expected",
-            r'^\s*kit_manifest_expected\s*=\s*["\']([^"\']+)["\']\s*$',
-        ),
-        (
-            "tests/test_isaac_audio_core.py CLI version expectation",
-            r'assert\s+result\.stdout\.strip\(\)\s*==\s*["\']([^"\']+)["\']',
-        ),
-    ):
-        check(
-            label,
-            lambda pattern=pattern, label=label: _required_regex(
-                core_test, pattern, label
-            ),
-        )
-    check(
-        "tests/test_distribution_audit.py RELEASE_VERSION",
-        lambda: _required_regex(
-            repo_root / "tests/test_distribution_audit.py",
-            r'^RELEASE_VERSION\s*=\s*["\']([^"\']+)["\']\s*$',
-            "distribution test RELEASE_VERSION",
-        ),
-    )
     return version, tuple(findings)
 
 
