@@ -161,21 +161,14 @@ def check_version_sync(repo_root: Path) -> tuple[str, tuple[str, ...]]:
             "CITATION version",
         ),
     )
-    for label, phrase in (
-        ("docs/versioning.md package version", "package version"),
-        (
-            "docs/versioning.md Kit extension manifest version",
-            "Kit extension manifest version",
+    check(
+        "knowledge/wiki/status.md package version",
+        lambda: _required_regex(
+            repo_root / "knowledge/wiki/status.md",
+            r"^Updated: [^.]+\. Package version: `([^`]+)`\.$",
+            "wiki status package version",
         ),
-    ):
-        check(
-            label,
-            lambda phrase=phrase, label=label: _required_regex(
-                repo_root / "docs/versioning.md",
-                rf"^- {re.escape(phrase)}: `([^`]+)`\s*$",
-                label,
-            ),
-        )
+    )
     check(
         "CHANGELOG.md top release heading",
         lambda: _top_changelog_version(repo_root / "CHANGELOG.md"),

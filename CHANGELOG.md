@@ -16,6 +16,7 @@ off-state is preserved.
 - Added noise-aware SRP bearing confidence; `room_srp` confidence values change behavior without a schema change and now degrade on noise-dominated input instead of saturating.
 - Added measured-absorption provenance, nominal transmission separation, dynamic-room/material invalidation, and live direct-ray occlusion refresh without claiming diffraction.
 - Added the supported/unsupported motion and multi-source stress matrix plus a published claim-to-evidence fidelity envelope with explicit geometry, dependency, performance, and realism limits.
+- Consolidated current product documentation into the canonical technical wiki, removed the obsolete root `docs/` tree, retained the applied R0 specification as authorized raw material, and added a tested documentation boundary without changing Python, CLI, schema, or runtime behavior.
 
 ## 1.9.0 - Unreleased
 
@@ -272,9 +273,7 @@ Verification:
   compass+meter panel PNG), validates persistent USD debug prims on the live
   stage, exercises a real room-acoustics WAV export/preview/audition round
   trip, and records the OmniGraph registration outcome.
-- `docs/isaac_sim_gui_guide.md` gained Instruments, Audio Output, Work From
-  the Viewport, and Use Audio In Action Graphs chapters plus the persistent
-  debug geometry subsection.
+- The extension documentation gained Instruments, Audio Output, Work From the Viewport, Use Audio In Action Graphs, and persistent debug geometry guidance; the maintained behavior is now described in [Isaac Sim and Kit](knowledge/wiki/topics/isaac-sim-and-kit.md).
 
 Deferred:
 
@@ -477,9 +476,7 @@ Waveform export (additive):
 - The live Isaac Sim smoke now requires WAV round-trip evidence for the
   room backend: non-empty `waveform_paths`, an existing file, and a
   `soundfile` read matching the frame's rate, mic count, and window length.
-- New [Audio Assets](docs/audio_assets.md) doc: asset path rules,
-  auto-resampling, the `data/` convention for external corpora
-  (ESC-50/FSD50K style), and the test-time fixture-generation pattern.
+- Added audio asset path, auto-resampling, external-corpus, and test-fixture guidance; the maintained behavior is now described in [Public Contracts and Recording](knowledge/wiki/topics/public-contracts-and-recording.md) and [Acoustic Modeling](knowledge/wiki/topics/acoustic-modeling.md).
 
 Deferred:
 
@@ -538,8 +535,7 @@ Additive APIs, diagnostics, and tooling:
 - New `make regenerate-traces` target and
   `scripts/regenerate_example_traces.py` regenerate the backend-generated
   JSON example traces, which are refreshed for the corrected physics.
-- `docs/api_freeze_0_1.md` gains an explicit "V1 Frame Schema Evolution
-  Policy" section defining what compatible v1 releases may add to a frame.
+- Added the v1 frame schema evolution policy defining compatible additive frame changes; the maintained rule is now described in [Product Boundary and Compatibility](knowledge/wiki/decisions/product-boundary-and-compatibility.md).
 
 ## 1.0.0 - 2026-05-24
 

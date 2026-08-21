@@ -10,7 +10,6 @@ prune tests
 prune tools
 prune scripts
 prune configs
-prune docs
 prune dataset
 prune outputs
 prune evidence

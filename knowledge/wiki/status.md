@@ -4,52 +4,57 @@ Updated: 2026-08-20. Package version: `1.10.0`.
 
 ## Product Boundary
 
-`isaac-audio-sensors` is a reusable robot-audition SDK. It owns pure audio
-contracts and backends, recording and replay, optional Isaac Sim and Isaac Lab
-integration, and the Kit extension. Robot-specific policies, measurement
-campaigns, and downstream adapters remain outside this repository.
+`isaac-audio-sensors` is a reusable robot-audition SDK that owns pure audio contracts and backends, calibration, generic recording/replay, optional Isaac Sim and Isaac Lab integration, the Kit extension, examples, and release tooling.
+
+Robot-specific assets and mounts, downstream adapters and policies, task orchestration, measurement campaigns, holdouts, acceptance criteria, and experiment evidence remain outside the distributed product.
 
 ## Verified Capabilities
 
-- Stable frame, calibration, manifest, serialization, plugin, and CLI
-  contracts with packaged JSON Schemas.
-- Deterministic geometry and synthetic TDOA backends plus optional room
-  acoustics.
-- Recording, replay, codecs, GUI/headless flows, filesystem behavior, and
-  plugin discovery.
-- Generic `quad_cross_120mm` and `stereo_y_100mm` rig presets; robot-specific
-  profiles remain downstream configuration.
-- Lazy Isaac Sim, Isaac Lab, Kit, Omnigraph, and GPU/runtime integration.
-- Wheel, source archive, Kit extension, and optional acoustics-pack content
-  policy.
+- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts.
+- Deterministic geometry and synthetic TDOA backends plus optional room acoustics, SRP-PHAT, motion, Doppler, channel response, noise, electronics, directivity, and material/occlusion behavior.
+- Atomic generic recording, verified sharded sessions, codecs, validation, statistics, deterministic splits, and read-only replay.
+- Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
+- Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
+- Lazy Isaac Lab sensor recovery, cloned-stage and scene/entity binding, scalar/batched fixed-shape observations, selected update/reset, and explicit GPU validation.
+- Wheel, source archive, Kit extension, and optional acoustics-pack version, provenance, determinism, and content policy.
 
-The 2026-08-20 cleanup gate passed 414 host tests, 366 integration tests, 34
-release tests, and 116 Isaac tests. The Isaac lane used the Isaac Lab
-interpreter with the workstation RTX 4090. The generic live Kit scenario and
-all 37 workflow steps passed on the same GPU. Wheel, source archive, and Kit
-artifacts passed content inspection. See
-[[implementation_phases/r2-r3-test-and-boundary-cleanup|R2-R3 Test and Boundary Cleanup]].
+## Documentation State
 
-## Commands
+The canonical documentation is this wiki; the root README is the concise public landing page and the root `CHANGELOG.md` owns product and release chronology.
 
-- `make test` — host unit and contract tests; required below 10 seconds.
-- `pytest tests/integration` — host integration tests.
-- `make test-release` — archive and release policy.
+The root `docs/` directory is not part of the maintained repository boundary; the applied R0 specification is retained only as authorized raw material under `knowledge/raw/docs/`.
+
+The Kit extension keeps a narrow standalone README and extension-specific changelog because an installed archive cannot depend on repository-relative documentation.
+
+## Validation
+
+The R3 runtime baseline passed 116 Isaac tests on the RTX 4090 and the complete generic live Kit workflow.
+
+The R4 deterministic gate passed 414 host tests in 9.58 seconds, 366 integration tests in 10.36 seconds, and 40 release tests in 0.36 seconds, including six documentation-boundary tests.
+
+Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, authorized R0 hash preservation, removed-root-doc references, Kit metadata, and whitespace checks passed.
+
+R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; clean-source wheel, source, and Kit builds are verified after the implementation commit and reported in the phase handoff.
+
+See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]], [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]], and [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]].
+
+## Maintained Commands
+
+- `make test` — pure unit and contract tests.
+- `.venv/bin/python -m pytest -q tests/integration` — host integration tests.
+- `make test-release` — repository and archive release policy.
 - `make test-isaac` — Isaac tests through the Isaac Lab interpreter.
 - `make test-all` — all lanes in dependency order.
+- `make build`, `make build-kit`, and `make build-pack` — audited release artifacts.
 
 ## Limits
 
-- Isaac tests require a compatible local Isaac runtime; GPU checks do not use
-  a CPU fallback.
-- `room_acoustics` requires its optional dependencies.
-- Simulation correctness does not establish physical acoustic fidelity or
-  sim-to-real validity.
-- Retained historical scientific evidence is local, ignored, and excluded
-  from distributions.
+- Isaac tests require a compatible user-managed runtime and visible GPU; required GPU checks do not use CPU fallback.
+- Room acoustics requires the optional `room` dependencies and remains an approximate shoebox model.
+- Raycast occlusion and nominal transmission do not model diffraction or establish measured material behavior.
+- Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
+- Retained scientific evidence is local, ignored, protected, and excluded from distributions.
 
 ## Next Work
 
-Advance product features only through semantic contracts and owner-specific
-tests. Keep downstream project fixtures and experiment evidence with their
-owners.
+R5 refactors one semantic subsystem at a time and freezes the exact clean v2 public import and CLI surface only after the documentation and repository boundaries are stable.

@@ -30,11 +30,5 @@ support_level = "Community"
 [settings]
 exts."isaac_audio_sensors.omni".shortcut = "CTRL + ALT + A"
 
-[documentation]
-pages = [
-    "docs/README.md",
-    "docs/CHANGELOG.md",
-]
-
 [[python.module]]
 name = "isaac_audio_sensors_omni"
