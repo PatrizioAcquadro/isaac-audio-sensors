@@ -11,7 +11,6 @@ from tools.release.build_kit_extension import (
     BUNDLED_ROOT,
     _extract_wheel,
     community_archive_name,
-    read_dependency_lock,
 )
 from tools.release.content_policy import ContentPolicyError
 
@@ -51,17 +50,18 @@ def _valid_entries() -> dict[str, str]:
     return entries
 
 
-def test_dependency_lock_is_the_exact_kit_inventory():
-    dependencies = read_dependency_lock()
-
-    assert {(item.name, item.version) for item in dependencies} == {
-        ("cffi", "2.1.0"),
-        ("pycparser", "3.0"),
-        ("pyroomacoustics", "0.10.1"),
-        ("scipy", "1.18.0"),
-        ("soundfile", "0.14.0"),
-    }
-    assert all(len(item.sha256) == 64 for item in dependencies)
+def _audit(archive, expected_entries: dict[str, str]) -> None:
+    prefix = f"{BUNDLED_ROOT.as_posix()}/"
+    audit_kit_archive(
+        archive,
+        version="2.0.0",
+        expected_first_party={
+            name for name in expected_entries if not name.startswith(prefix)
+        },
+        expected_bundled={
+            name for name in expected_entries if name.startswith(prefix)
+        },
+    )
 
 
 def test_wheel_staging_keeps_runtime_and_license_files(tmp_path, wheel_bytes):
@@ -93,28 +93,48 @@ def test_wheel_staging_rejects_host_owned_numpy(tmp_path, wheel_bytes):
 
 
 def test_kit_audit_accepts_bundled_dependencies(tmp_path, write_zip):
+    entries = _valid_entries()
     archive = write_zip(
         tmp_path / community_archive_name("2.0.0"),
-        _valid_entries(),
+        entries,
     )
 
-    audit_kit_archive(archive)
+    _audit(archive, entries)
 
 
 def test_kit_audit_rejects_wrong_registry_target(tmp_path, write_zip):
-    entries = _valid_entries()
+    expected = _valid_entries()
+    entries = dict(expected)
     entries["config/extension.toml"] = _manifest(kit="999.0")
     archive = write_zip(tmp_path / community_archive_name("2.0.0"), entries)
 
     with pytest.raises(ContentPolicyError, match="package.target"):
-        audit_kit_archive(archive)
+        _audit(archive, expected)
 
 
 def test_kit_audit_rejects_bundled_numpy(tmp_path, write_zip):
-    entries = _valid_entries()
+    expected = _valid_entries()
+    entries = dict(expected)
     prefix = f"{BUNDLED_ROOT.as_posix()}/"
     entries[f"{prefix}numpy/__init__.py"] = ""
     archive = write_zip(tmp_path / community_archive_name("2.0.0"), entries)
 
     with pytest.raises(ContentPolicyError, match="host-owned bundled"):
-        audit_kit_archive(archive)
+        _audit(archive, expected)
+
+
+@pytest.mark.parametrize(
+    "member",
+    (
+        "isaac_audio_sensors/unused.py",
+        f"{BUNDLED_ROOT.as_posix()}/scipy/unused.py",
+    ),
+)
+def test_kit_audit_rejects_unexpected_inventory(tmp_path, write_zip, member):
+    expected = _valid_entries()
+    entries = dict(expected)
+    entries[member] = ""
+    archive = write_zip(tmp_path / community_archive_name("2.0.0"), entries)
+
+    with pytest.raises(ContentPolicyError, match="unexpected Kit"):
+        _audit(archive, expected)

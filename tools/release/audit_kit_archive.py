@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
-import sys
 from pathlib import Path
 
 try:
@@ -73,11 +71,35 @@ REQUIRED_BUNDLED_MEMBERS = {
 }
 
 
-def audit_kit_archive(path: Path) -> None:
+def audit_kit_archive(
+    path: Path,
+    *,
+    version: str,
+    expected_first_party: set[str],
+    expected_bundled: set[str],
+) -> None:
     """Validate the Community Registry and bundled-dependency contracts."""
 
     entries = archive_entries(path)
     findings: list[str] = []
+    actual_first_party = {
+        name for name in entries if not name.startswith(_BUNDLE_PREFIX)
+    }
+    actual_bundled = {
+        name for name in entries if name.startswith(_BUNDLE_PREFIX)
+    }
+    _append_inventory_findings(
+        findings,
+        actual_first_party,
+        expected_first_party,
+        label="Kit first-party",
+    )
+    _append_inventory_findings(
+        findings,
+        actual_bundled,
+        expected_bundled,
+        label="Kit bundled",
+    )
     missing = sorted(REQUIRED_MEMBERS - entries.keys())
     if missing:
         findings.append(f"missing Kit members: {', '.join(missing)}")
@@ -143,11 +165,14 @@ def audit_kit_archive(path: Path) -> None:
             findings.append(f"invalid Kit manifest: {exc}")
         else:
             package = manifest.get("package", {})
-            version = package.get("version")
+            manifest_version = package.get("version")
             if package.get("name") != EXTENSION_NAME:
                 findings.append("Kit package.name must be isaac_audio_sensors.omni")
-            if not isinstance(version, str) or not version:
-                findings.append("Kit package.version must be a non-empty string")
+            if manifest_version != version:
+                findings.append(
+                    "Kit package.version does not match pyproject.toml: "
+                    f"{manifest_version!r} != {version!r}"
+                )
             elif path.name != community_archive_name(version):
                 findings.append(
                     "Kit archive filename does not match package.version: "
@@ -166,18 +191,12 @@ def audit_kit_archive(path: Path) -> None:
     require_archive(path)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("archive", type=Path)
-    args = parser.parse_args(argv)
-    try:
-        audit_kit_archive(args.archive)
-    except (ContentPolicyError, OSError) as exc:
-        print(f"[kit-audit] FAILED: {exc}", file=sys.stderr)
-        return 1
-    print(f"[kit-audit] OK {args.archive}")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+def _append_inventory_findings(
+    findings: list[str], actual: set[str], expected: set[str], *, label: str
+) -> None:
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing:
+        findings.append(f"missing {label} members: {', '.join(missing)}")
+    if unexpected:
+        findings.append(f"unexpected {label} members: {', '.join(unexpected)}")

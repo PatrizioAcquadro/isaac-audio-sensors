@@ -62,16 +62,10 @@ def archive_entries(path: Path) -> dict[str, bytes]:
         raise ContentPolicyError(f"unsupported archive: {path}") from exc
 
 
-def find_violations(path: Path) -> tuple[str, ...]:
-    """Return all path and content policy violations."""
-
-    return tuple(_audit_entries(archive_entries(path)))
-
-
 def require_archive(path: Path) -> None:
     """Raise when an archive violates the shared policy."""
 
-    findings = find_violations(path)
+    findings = tuple(_audit_entries(archive_entries(path)))
     if findings:
         raise ContentPolicyError("; ".join(findings))
 
@@ -115,10 +109,3 @@ def _audit_entries(
             text = payload.decode("utf-8", errors="ignore")
             if _PHASE_TEXT.search(text):
                 yield f"phase content: {display}"
-
-__all__ = [
-    "ContentPolicyError",
-    "archive_entries",
-    "find_violations",
-    "require_archive",
-]

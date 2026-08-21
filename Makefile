@@ -39,8 +39,7 @@ release:
 	rm -rf -- dist build/lib build/bdist.*
 	$(PYTHON) -m build --wheel $(BUILD_FLAGS)
 	$(PYTHON) tools/release/build_kit_extension.py --wheelhouse "$(WHEELHOUSE)"
-	$(PYTHON) tools/release/audit_python_wheel.py --dist-dir dist
-	$(PYTHON) tools/release/audit_kit_archive.py dist/*.zip
+	$(PYTHON) tools/release/audit_release_artifacts.py --dist-dir dist --wheelhouse "$(WHEELHOUSE)"
 
 lint:
 	$(PYTHON) -m ruff check .

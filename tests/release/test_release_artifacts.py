@@ -5,11 +5,22 @@ import zipfile
 
 import pytest
 
-from tools.release.audit_python_wheel import audit_python_wheel
+from tools.release.audit_release_artifacts import (
+    audit_python_wheel,
+    audit_release_artifacts,
+)
 from tools.release.content_policy import ContentPolicyError
 
 DIST_INFO = "isaac_audio_sensors-1.0.0.dist-info"
 SCHEMA_ROOT = "isaac_audio_sensors/schemas"
+EXPECTED_PACKAGE_FILES = {
+    "isaac_audio_sensors/__init__.py",
+    "isaac_audio_sensors/cli.py",
+    f"{SCHEMA_ROOT}/__init__.py",
+    f"{SCHEMA_ROOT}/audio_calibration_profile.v1.schema.json",
+    f"{SCHEMA_ROOT}/audio_dataset_manifest.v1.schema.json",
+    f"{SCHEMA_ROOT}/audio_sensor_frame.v1.schema.json",
+}
 
 
 def _wheel(wheel_bytes, extra_entries: dict[str, bytes | str] | None = None) -> bytes:
@@ -65,44 +76,49 @@ def _without_member(payload: bytes, member: str) -> bytes:
     return result.getvalue()
 
 
-def test_python_wheel_audit_installs_minimal_artifact(tmp_path, wheel_bytes):
+def test_python_wheel_audit_installs_exact_artifact(tmp_path, wheel_bytes):
     wheel = _write_wheel(tmp_path, _wheel(wheel_bytes))
-    kit_archive = (
-        tmp_path
-        / "PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v1.0.0.zip"
+
+    audit_python_wheel(
+        wheel,
+        version="1.0.0",
+        expected_package_files=EXPECTED_PACKAGE_FILES,
     )
-    kit_archive.write_bytes(b"kit")
-
-    assert audit_python_wheel(tmp_path) == wheel
 
 
-def test_python_wheel_audit_rejects_source_distribution(tmp_path, wheel_bytes):
-    _write_wheel(tmp_path, _wheel(wheel_bytes))
-    (tmp_path / "isaac_audio_sensors-1.0.0.tar.gz").write_bytes(b"sdist")
+def test_release_audit_rejects_extra_outbox_artifact(tmp_path):
+    repo = tmp_path / "repo"
+    dist = repo / "dist"
+    dist.mkdir(parents=True)
+    (repo / "pyproject.toml").write_text(
+        '[project]\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (dist / "isaac_audio_sensors-1.0.0-py3-none-any.whl").write_bytes(b"wheel")
+    (
+        dist / "PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v1.0.0.zip"
+    ).write_bytes(b"kit")
+    (dist / "isaac_audio_sensors-1.0.0.tar.gz").write_bytes(b"sdist")
 
-    with pytest.raises(ContentPolicyError, match="exactly one Python wheel"):
-        audit_python_wheel(tmp_path)
+    with pytest.raises(ContentPolicyError, match="dist root"):
+        audit_release_artifacts(
+            dist_dir=dist,
+            repo_root=repo,
+            wheelhouse=tmp_path / "wheelhouse",
+        )
 
 
 def test_python_wheel_audit_rejects_unexpected_content(tmp_path, wheel_bytes):
-    payload = _wheel(wheel_bytes, {"examples/demo.py": "print('demo')\n"})
-    _write_wheel(tmp_path, payload)
+    wheel = _write_wheel(
+        tmp_path,
+        _wheel(wheel_bytes, {"isaac_audio_sensors/unused.py": ""}),
+    )
 
-    with pytest.raises(ContentPolicyError, match="unexpected wheel roots"):
-        audit_python_wheel(tmp_path)
-
-
-@pytest.mark.parametrize(
-    "member",
-    ("isaac_audio_sensors/_bundled/sample.py", "isaac_audio_sensors/core/packs.py"),
-)
-def test_python_wheel_audit_rejects_kit_only_members(
-    tmp_path, wheel_bytes, member
-):
-    _write_wheel(tmp_path, _wheel(wheel_bytes, {member: ""}))
-
-    with pytest.raises(ContentPolicyError, match="forbidden wheel members"):
-        audit_python_wheel(tmp_path)
+    with pytest.raises(ContentPolicyError, match="invalid wheel inventory"):
+        audit_python_wheel(
+            wheel,
+            version="1.0.0",
+            expected_package_files=EXPECTED_PACKAGE_FILES,
+        )
 
 
 @pytest.mark.parametrize(
@@ -116,8 +132,11 @@ def test_python_wheel_audit_rejects_kit_only_members(
 def test_python_wheel_audit_requires_metadata_licenses_and_schemas(
     tmp_path, wheel_bytes, member
 ):
-    payload = _without_member(_wheel(wheel_bytes), member)
-    _write_wheel(tmp_path, payload)
+    wheel = _write_wheel(tmp_path, _without_member(_wheel(wheel_bytes), member))
 
-    with pytest.raises(ContentPolicyError):
-        audit_python_wheel(tmp_path)
+    with pytest.raises(ContentPolicyError, match="invalid wheel inventory"):
+        audit_python_wheel(
+            wheel,
+            version="1.0.0",
+            expected_package_files=EXPECTED_PACKAGE_FILES,
+        )
