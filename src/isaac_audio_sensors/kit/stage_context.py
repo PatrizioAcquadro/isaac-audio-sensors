@@ -93,18 +93,6 @@ def _usd_path(path: str) -> Any:
         return path
 
 
-def _prim_has_pose(prim: Any) -> bool:
-    attrs = _prim_attrs(prim)
-    return any(
-        key in attrs
-        for key in (
-            "ias:position_world",
-            "xformOp:translate",
-            "usd_world_position",
-        )
-    )
-
-
 def _author_position_arg(
     prim: Any,
     *,
@@ -145,18 +133,6 @@ def _prim_has_xform_pose(prim: Any) -> bool:
 def _prim_has_xform_orientation(prim: Any) -> bool:
     attrs = _prim_attrs(prim)
     return any(key in attrs for key in ("xformOp:orient", "usd_world_orientation"))
-
-
-def _prim_has_orientation(prim: Any) -> bool:
-    attrs = _prim_attrs(prim)
-    return any(
-        key in attrs
-        for key in (
-            "ias:orientation_world_quat",
-            "xformOp:orient",
-            "usd_world_orientation",
-        )
-    )
 
 
 def _prim_attrs(prim: Any) -> dict[str, Any]:

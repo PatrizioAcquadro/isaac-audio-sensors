@@ -106,26 +106,8 @@ def _aggregate_rms_from_frame(frame: Any) -> dict[str, float]:
     return rms
 
 
-def _optional_float_text(value: float | None) -> str:
-    return "none" if value is None else f"{value:.2f}"
-
-
 def _optional_vec3_text(value: tuple[float, float, float] | None) -> str:
     return "none" if value is None else _format_vec3(value)
-
-
-def _format_rms_summary(values: Mapping[str, float]) -> str:
-    if not values:
-        return "none"
-    order = {"front": 0, "right": 1, "rear": 2, "left": 3}
-    items = sorted(values.items(), key=lambda item: (order.get(item[0], 99), item[0]))
-    return ", ".join(f"{mic_id}:{_format_rms_value(value)}" for mic_id, value in items)
-
-
-def _format_rms_value(value: float) -> str:
-    if value != 0.0 and abs(value) < 0.01:
-        return f"{value:.2e}"
-    return f"{value:.2f}"
 
 
 def _format_vec3(value: Iterable[float]) -> str:

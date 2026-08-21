@@ -42,9 +42,7 @@ from isaac_audio_sensors.kit.constants import (
 from isaac_audio_sensors.kit.instruments import (
     compass_view_model,
     meter_view_models,
-    render_instruments_panel_rgba,
     timeline_rows,
-    write_rgba_png,
 )
 
 EXTENSION_ID = "isaac_audio_sensors.omni"
@@ -283,7 +281,7 @@ def main() -> int:
         if getattr(controller, "_ui_window", None) is not None:
             controller._ui_window.push_state_to_widgets()
 
-        evidence["ui_available"] = extension.ui_available
+        evidence["ui_available"] = extension.controller.ui_available
         evidence["ui_control_inventory"] = _inventory_ui_controls(controller)
         evidence["omnigraph"] = _collect_omnigraph_evidence(controller)
         evidence["window_integration"] = _probe_window_integrations(controller)
@@ -836,7 +834,7 @@ def _run_object_attach_scenario(
     _step(
         evidence,
         f"{label}_stop_sensor",
-        lambda: (controller.stop_sensor() or "stopped"),
+        lambda: controller.stop_sensor() or "stopped",
     )
     _step(evidence, f"{label}_stop_replicator", controller.stop_replicator)
     result["replicator_status"] = controller._replicator_status_dict()
@@ -2205,23 +2203,14 @@ def _collect_instruments_evidence(
             "compass_image": instruments.get("compass") is not None,
             "compass_label_text": getattr(compass_label, "text", None),
             "visible_meter_rows": sum(
-                1
-                for row in meter_rows
-                if getattr(row.get("row"), "visible", False)
+                1 for row in meter_rows if getattr(row.get("row"), "visible", False)
             ),
             "visible_timeline_rows": sum(
                 1 for label in timeline_labels if getattr(label, "visible", False)
             ),
         }
     record["widgets"] = widget_record
-    record["panel"] = _write_instruments_panel(
-        screenshot_path,
-        view_model=view_model,
-        meters=meters,
-    )
-    record["app_screenshot"] = _capture_app_screenshot(
-        screenshot_path.with_suffix(".app.png")
-    )
+    record["app_screenshot"] = _capture_app_screenshot(screenshot_path)
     passed = (
         bool(view_model.needles)
         and bool(record["meters"])
@@ -2230,41 +2219,10 @@ def _collect_instruments_evidence(
         and widget_record.get("compass_image") is True
         and int(widget_record.get("visible_meter_rows", 0)) > 0
         and int(widget_record.get("visible_timeline_rows", 0)) > 0
-        and record["panel"].get("status") == "captured"
+        and record["app_screenshot"].get("status") == "captured"
     )
     record["status"] = "passed" if passed else "failed"
     return record
-
-
-def _write_instruments_panel(
-    path: Path,
-    *,
-    view_model: Any,
-    meters: Any,
-) -> dict[str, Any]:
-    """Write the compass + meter raster (the compass widget's exact pixels)."""
-
-    try:
-        panel = render_instruments_panel_rgba(view_model, meters)
-        write_rgba_png(path, panel)
-    except Exception as exc:  # noqa: BLE001 - report the exact render error.
-        return {
-            "status": "failed",
-            "path": str(path),
-            "error_type": type(exc).__name__,
-            "error": str(exc),
-        }
-    png = _png_info(path)
-    if png is None:
-        return {"status": "failed", "path": str(path), "error": "invalid png"}
-    return {
-        "status": "captured",
-        "path": str(path),
-        "method": "render_instruments_panel_rgba",
-        "file_size_bytes": path.stat().st_size,
-        "width": png["width"],
-        "height": png["height"],
-    }
 
 
 def _collect_omnigraph_evidence(controller: ExtensionController) -> dict[str, Any]:
@@ -2842,13 +2800,12 @@ def _validate_live_extension_outputs(
     ]
     if missing_error_checks:
         raise RuntimeError(
-            "Readable error checks did not record messages: " f"{missing_error_checks}"
+            f"Readable error checks did not record messages: {missing_error_checks}"
         )
     manager_status = evidence.get("kit_extension_manager", {})
     if manager_status.get("status") != "enabled":
         raise RuntimeError(
-            "Kit extension manager did not prove extension enabled: "
-            f"{manager_status}"
+            f"Kit extension manager did not prove extension enabled: {manager_status}"
         )
     generic_result = evidence.get("object_attach_live_qa", {}).get("generic_scene")
     if generic_result is None:
@@ -2895,8 +2852,7 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
         "selected_profile_id"
     ):
         raise RuntimeError(
-            f"{name} applied profile does not match selection: "
-            f"{profile_application}"
+            f"{name} applied profile does not match selection: {profile_application}"
         )
     authored_attrs = profile_application.get("authored_attrs", {})
     for attr_name in (
@@ -2945,13 +2901,9 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
         )
     array_attachment = result.get("array_object_attachment", {})
     if array_attachment.get("array_attached_to_object") is not True:
-        raise RuntimeError(
-            f"{name} did not attach array to mount: {array_attachment}"
-        )
+        raise RuntimeError(f"{name} did not attach array to mount: {array_attachment}")
     if array_attachment.get("attached_object_prim_path") != ARRAY_MOUNT_PRIM_PATH:
-        raise RuntimeError(
-            f"{name} attached array to wrong mount: {array_attachment}"
-        )
+        raise RuntimeError(f"{name} attached array to wrong mount: {array_attachment}")
     rig_application = result.get("rig_profile_application", {})
     rig_attrs = rig_application.get("authored_attrs", {})
     if rig_attrs.get("ias:rig_profile_id") != ARRAY_RIG_PROFILE_ID:
@@ -2962,10 +2914,7 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
     array_binding_config = config.get("array_binding", {})
     if array_binding_config.get("attached") is not True:
         raise RuntimeError(f"{name} config did not preserve array attachment.")
-    if (
-        array_binding_config.get("attached_object_prim_path")
-        != ARRAY_MOUNT_PRIM_PATH
-    ):
+    if array_binding_config.get("attached_object_prim_path") != ARRAY_MOUNT_PRIM_PATH:
         raise RuntimeError(f"{name} config preserved wrong array mount binding.")
     if array_binding_config.get("array_local_offset_m") != list(
         ARRAY_MOUNT_LOCAL_OFFSET
@@ -2973,9 +2922,7 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
         raise RuntimeError(f"{name} config preserved wrong array local offset.")
     rig_config = config.get("microphone_rig_profiles", {})
     if rig_config.get("selected_rig_profile_id") != ARRAY_RIG_PROFILE_ID:
-        raise RuntimeError(
-            f"{name} config did not preserve selected rig profile id."
-        )
+        raise RuntimeError(f"{name} config did not preserve selected rig profile id.")
     if not rig_config.get("rig_library"):
         raise RuntimeError(f"{name} config did not export rig library.")
     applied_rig_config = rig_config.get("applied_array_rig_profile") or {}
