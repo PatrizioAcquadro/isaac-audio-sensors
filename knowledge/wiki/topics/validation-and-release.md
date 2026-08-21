@@ -6,7 +6,7 @@
 
 `.venv/bin/python -m pytest -q tests/integration` runs recording, replay, codecs, workflows, filesystem, and cross-component integration tests.
 
-`make test-release` runs release content, versioning, distribution, Kit, pack, and repository-boundary tests.
+`make test-release` runs release content, versioning, Python-wheel, Kit, pack, and repository-boundary tests.
 
 `make test-isaac` runs the Isaac lane through the configured Isaac Lab interpreter with `CUDA_VISIBLE_DEVICES=0`.
 
@@ -44,7 +44,7 @@ The frame, dataset-manifest, and calibration-profile schema versions remain inde
 
 ## Build and Audit
 
-`make build` creates the wheel and source archive after version and clean-source checks, then audits both formats.
+`make build-python` creates the universal wheel after version and clean-source checks. Its audit enforces the minimal package, schema, metadata, entry-point, and license inventory, then installs the wheel without dependency downloads in a temporary environment and verifies the installed import, CLI, schemas, and `room` metadata.
 
 `make build-kit` creates a deterministic self-contained Kit archive with the maintained package vendored under `_vendor`, source revision metadata, and a canonical tree hash.
 
@@ -54,11 +54,11 @@ The shared recursive policy rejects tests, tools, scripts, local datasets, evide
 
 ## Release Checklist
 
-Run the deterministic and runtime gates appropriate to the changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect the actual wheel, source, Kit, and pack inventories before publication.
+Run the deterministic and runtime gates appropriate to the changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect the actual wheel, Kit, and pack inventories before publication.
 
 Builds must originate from one clean committed tree; do not publish, tag, or push based on uncommitted artifacts or skipped required lanes.
 
-R6.1 keeps the current source and pack workflows until their later R6 subphases. It changes only root guidance and temporary workspace behavior, but the current wheel, source archive, and Kit archive must still build and pass their audits from the clean implementation commit.
+R6.2 removes the source archive and treats the GitHub repository as the public source. The current Kit and acoustic-pack workflows remain unchanged until R6.3 and R6.4.
 
 ## Interpretation
 

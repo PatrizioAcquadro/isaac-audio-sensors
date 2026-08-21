@@ -16,7 +16,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
 - Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, explicit entity/reference binding, fixed-shape tensor observations, partial reset, and fail-closed device validation.
-- Wheel, source archive, Kit extension, and optional acoustics-pack version, provenance, determinism, and content policy.
+- Universal Python wheel, Kit extension, and optional acoustics-pack version, provenance, determinism, and content policy.
 - Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
 - R5.1 core root limited to eleven fundamental models, simulator-independent config, quaternion-authoritative array pose, one propagation protocol, and generator-authoritative schemas.
 - R5.2 single-path backend resolution and declaration-derived inventory, separated effects parsing/validation, and modular room-acoustics orchestration with unchanged valid-input numerical results.
@@ -27,6 +27,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R5.7 lazy CLI leaf handlers, subsystem-owned config simulation, frozen v2 command inventory, one trace-export path, consistent exit codes, and consolidated command tests.
 - R5.8 exact curated v2 entrypoint inventory, minimal Kit/schema roots, one maintained root example set, installed-package execution coverage, and no duplicate example documentation.
 - R6.1 concise root guidance and release history, temporary validation output under `build/validation/`, and a safe generated-workspace cleanup target.
+- R6.2 explicit wheel-only package data, one universal Python build, minimal installed-artifact audit, and no sdist or compatibility build aliases.
 
 ## Documentation State
 
@@ -35,6 +36,8 @@ The canonical documentation is this wiki; the root README is the concise public 
 The root `docs/` directory is not part of the maintained repository boundary; the applied R0 specification is retained only as authorized raw material under `knowledge/raw/docs/`.
 
 Essential contribution and security guidance now lives directly in the root README. Separate citation, conduct, contribution, and security policy files are no longer maintained; paper citation metadata remains deferred until a paper exists.
+
+The GitHub repository is the public source distribution. Python releases contain one universal wheel; no sdist is currently produced.
 
 The Kit extension keeps a narrow standalone README and extension-specific changelog because an installed archive cannot depend on repository-relative documentation.
 
@@ -66,6 +69,8 @@ The R6.1 host gate passes 418 unit/contract tests, 229 integration tests with th
 
 The subsequent live-blocker reconciliation passes 418 unit/contract tests, 231 integration tests with the same two expected SoundFile skips, 40 release tests, and 88 Isaac tests on the RTX 4090. The Isaac Sim smoke passes three frames for geometry, TDOA, and room acoustics. The Kit smoke passes all 37 workflow steps, UI inventory, editable and invalid-input models, config roundtrip, instruments, audio output, and both screenshots. All generated evidence remains under `build/validation/`.
 
+The R6.2 gate passes 418 unit/contract tests, 231 integration tests with the same two expected SoundFile skips, and 43 release tests. Version synchronization and Ruff pass. The real `py3-none-any` wheel contains only the maintained Python package, three JSON Schema files, metadata, and required licenses; a fresh no-dependency installation passes package import, CLI version, schema-resource parsing, and `room` extra metadata checks.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; clean-source wheel, source, and Kit builds are verified after the implementation commit and reported in the phase handoff.
@@ -79,7 +84,7 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 - `make test-release` — repository and archive release policy.
 - `make test-isaac` — Isaac tests through the Isaac Lab interpreter.
 - `make test-all` — all lanes in dependency order.
-- `make build`, `make build-kit`, and `make build-pack` — audited release artifacts.
+- `make build-python`, `make build-kit`, and `make build-pack` — audited release artifacts.
 - `make clean` — remove only regenerable local build, validation, cache, and Python metadata files.
 
 ## Limits
@@ -92,4 +97,4 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 
 ## Next Work
 
-R6.0 is locked and R6.1 is implemented. Its two live-smoke blockers are reconciled without starting R6.2. R6.2 is the next unstarted subphase; the source archive and acoustic-pack commands remain current behavior until their explicitly assigned later R6 work.
+R6.0 through R6.2 are implemented. R6.3 is next: standardize the Kit archive without changing the wheel-only Python distribution. The acoustic-pack workflow remains current until R6.4.

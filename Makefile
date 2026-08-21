@@ -8,7 +8,7 @@ WHEELHOUSE ?=
 SCHEMA_OUT ?= build/schemas
 CLEAN_PYTHON_ROOTS := src tests tools examples exts
 
-.PHONY: clean test test-isaac test-release test-all lint format build build-kit build-pack audit-dist audit-kit audit-pack check-version check-release-source validate-config validate-fixture export-schema smoke-optional smoke-isaac-sim smoke-isaac-lab smoke-kit diagnose-isaac
+.PHONY: clean test test-isaac test-release test-all lint format build-python build-kit build-pack audit-python audit-kit audit-pack check-version check-release-source validate-config validate-fixture export-schema smoke-optional smoke-isaac-sim smoke-isaac-lab smoke-kit diagnose-isaac
 
 clean:
 	rm -rf -- build dist .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage
@@ -36,9 +36,10 @@ lint:
 format:
 	$(PYTHON) -m ruff format .
 
-build: check-version check-release-source
-	$(PYTHON) -m build $(BUILD_FLAGS)
-	$(MAKE) audit-dist
+build-python: check-version check-release-source
+	rm -f -- dist/*.whl dist/*.tar.gz
+	$(PYTHON) -m build --wheel $(BUILD_FLAGS)
+	$(MAKE) audit-python
 
 build-kit: check-version check-release-source
 	$(PYTHON) tools/release/build_kit_extension.py
@@ -49,8 +50,8 @@ build-pack: check-version check-release-source
 	$(PYTHON) tools/release/build_acoustic_pack.py --wheelhouse "$(WHEELHOUSE)"
 	$(MAKE) audit-pack
 
-audit-dist:
-	$(PYTHON) tools/release/audit_distribution.py --dist-dir dist
+audit-python:
+	$(PYTHON) tools/release/audit_python_wheel.py --dist-dir dist
 
 audit-kit:
 	$(PYTHON) tools/release/audit_kit_archive.py dist/kit/isaac_audio_sensors.omni-$(EXPECTED_VERSION).zip

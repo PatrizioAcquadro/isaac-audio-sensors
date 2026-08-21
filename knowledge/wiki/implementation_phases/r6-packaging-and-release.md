@@ -12,11 +12,11 @@ The release model is locked to the public GitHub repository, one universal Pytho
 
 #### Key Decisions
 
-There is no target source archive, separate acoustics pack, checksum artifact, automated publication, tag, or push. Current source and pack commands remain operational until their assigned later R6 subphases remove them.
+There is no target source archive, separate acoustics pack, checksum artifact, automated publication, tag, or push. The temporary source command is removed in R6.2; the pack command remains operational until R6.4.
 
 #### Problems / Limitations
 
-None. The model is decision-complete but not fully implemented by R6.1.
+None. The model is decision-complete; later R6 subphases implement each artifact.
 
 ## Subphase R6.1 — Root and Local Workspace Cleanup
 
@@ -40,12 +40,36 @@ Host tests, version synchronization, Ruff, and current wheel/source and Kit arch
 
 The R6.1 run exposed two semantic blockers outside its cleanup diff. A subsequent reconciliation preserves static room configuration during live capture and aligns the Kit smoke with the composed controller and current renderer-capture namespace. On the RTX 4090, Isaac Sim now passes three frames for each maintained backend and Kit passes all 37 workflow steps, UI/config/instrument checks, audio output, and screenshots.
 
+## Subphase R6.2 — Minimal Python Wheel
+
+#### Implementation
+
+Python packaging now produces only `isaac_audio_sensors-<version>-py3-none-any.whl`. `MANIFEST.in` and the source-distribution workflow are removed; package discovery and the three JSON Schema files are declared explicitly in `pyproject.toml`.
+
+`make build-python` clears only prior root Python artifacts under `dist/`, preserves Kit and pack subdirectories, builds the wheel from a clean version-synchronized commit, and runs one wheel-specific audit. The audit permits only the maintained package and matching distribution metadata, requires the schemas, console entry point, `LICENSE`, and `NOTICE`, and rejects source archives or repository-only content.
+
+The same audit installs the wheel with `--no-deps` in a temporary virtual environment with repository import paths removed. It verifies the installed package version, CLI, schema resources, metadata, and the `room` extra declarations without downloading optional dependencies.
+
+#### Key Decisions
+
+`make build` and `audit-dist` have no compatibility aliases. GitHub remains the public source distribution, and an sdist remains deferred until a separate PyPI decision.
+
+The standard `room` extra still declares `pyroomacoustics`, `scipy`, and `soundfile`. R6.2 checks this installed metadata but does not repeat the real room-runtime gate. Kit and acoustic-pack builders, audits, and tests remain unchanged for R6.3 and R6.4.
+
+#### Problems / Limitations
+
+The host gate passes 418 unit/contract tests, 231 integration tests with two expected SoundFile skips, and 43 release tests. Version synchronization, Ruff, and the real wheel build and installed-artifact audit pass.
+
+R6.2 changes packaging only. Isaac, GPU, physical-acoustics, and optional room-execution gates are not repeated; Python APIs, CLI behavior, and serialized schemas are unchanged.
+
 ## Artifacts
 
-R6.1 retains no generated artifact. Build, distribution, cache, and live-validation products are temporary and removed by `make clean` after verification.
+R6.1 retains no generated artifact. R6.2 leaves one ignored universal wheel under `dist/`; build, cache, and installed-audit environments remain temporary.
 
 ## Files
 
 - `README.md`
 - `Makefile`
 - `src/isaac_audio_sensors/kit/paths.py`
+- `pyproject.toml`
+- `tools/release/audit_python_wheel.py`

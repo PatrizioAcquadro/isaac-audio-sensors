@@ -5,6 +5,7 @@
 - Established subsystem-owned v2 APIs, lazy optional runtimes, focused tests, and concise examples without compatibility shims; existing frame, manifest, and calibration schema v1 contracts remain supported.
 - Consolidated backends, effects, recording, Isaac Sim, Isaac Lab, Kit, and CLI around their maintained runtime responsibilities while removing duplicate, private, and test-only surfaces.
 - Consolidated product documentation in the canonical wiki and cleaned root guidance, generated workspaces, and validation output under R6.1.
+- Replaced the temporary wheel/source workflow with one audited universal Python wheel installed in an isolated environment.
 
 ## 1.9.0 - Unreleased
 

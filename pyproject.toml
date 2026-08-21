@@ -59,6 +59,9 @@ Documentation = "https://isaac-audio-showcase-site.vercel.app"
 Changelog = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/CHANGELOG.md"
 Issues = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/issues"
 
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["isaac_audio_sensors*"]

@@ -129,3 +129,11 @@ Recorded static-room preservation, current Kit service access, the renderer-capt
 ## 2026-08-21 — lint: Live-smoke reconciliation
 
 Verified canonical phase ownership, current paths and symbols, host and RTX 4090 gates, wiki consistency, Ruff, and Markdown whitespace.
+
+## 2026-08-21 — update: R6.2 minimal Python wheel
+
+Recorded the wheel-only Python workflow, explicit package data, installed-artifact audit, removed sdist surfaces, preserved `room` metadata, and unchanged Kit and acoustic-pack boundaries.
+
+## 2026-08-21 — lint: R6.2 canonical documentation
+
+Verified current build commands, wheel inventory and installation, wiki consistency, raw-specification preservation, host and release gates, Ruff, and Markdown whitespace.

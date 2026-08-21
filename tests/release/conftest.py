@@ -38,16 +38,25 @@ def write_tar():
 
 @pytest.fixture
 def wheel_bytes():
-    def build(package: str = "sample", source: str = "VALUE = 1\n") -> bytes:
+    def build(
+        package: str = "sample",
+        source: str = "VALUE = 1\n",
+        *,
+        metadata: str | None = None,
+        extra_entries: dict[str, bytes | str] | None = None,
+    ) -> bytes:
         dist_info = f"{package}-1.0.0.dist-info"
         payloads = {
             f"{package}/__init__.py": source.encode(),
             f"{dist_info}/METADATA": (
-                f"Metadata-Version: 2.1\nName: {package}\nVersion: 1.0.0\n"
+                metadata
+                or f"Metadata-Version: 2.1\nName: {package}\nVersion: 1.0.0\n"
             ).encode(),
             f"{dist_info}/WHEEL": b"Wheel-Version: 1.0\nTag: py3-none-any\n",
             f"{dist_info}/top_level.txt": f"{package}\n".encode(),
         }
+        for name, raw in (extra_entries or {}).items():
+            payloads[name] = raw.encode() if isinstance(raw, str) else raw
         record_name = f"{dist_info}/RECORD"
         rows = []
         for name, payload in payloads.items():

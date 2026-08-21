@@ -26,7 +26,7 @@ The package root exports only `__version__`. `isaac_audio_sensors.core` exports 
 - Lazy Isaac Sim discovery, stage binding, pose tracking, visualization, frame publication, and optional Replicator integration.
 - Lazy Isaac Lab `SensorBase` integration with scalar or batched multi-environment observation tensors and explicit GPU validation.
 - Reference Kit extension with guided and expert workflows, instruments, audio preview, OmniGraph, recording, and export.
-- Deterministic wheel, source, Kit, and optional acoustics-pack build and audit tooling.
+- Deterministic Python wheel, Kit, and optional acoustics-pack build and audit tooling.
 
 ## Install
 
@@ -131,7 +131,7 @@ make test
 make test-release
 make test-isaac
 make lint
-make build
+make build-python
 make build-kit
 git diff --check
 make clean
