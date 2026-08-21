@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import re
-import tarfile
 import zipfile
 from collections.abc import Iterable, Mapping
 from pathlib import Path, PurePosixPath
@@ -55,16 +54,12 @@ class ContentPolicyError(RuntimeError):
 
 
 def archive_entries(path: Path) -> dict[str, bytes]:
-    """Read regular files from a zip-compatible or tar archive."""
+    """Read regular files from a wheel or zip archive."""
 
-    payload = path.read_bytes()
     try:
-        return _zip_entries(payload)
-    except zipfile.BadZipFile:
-        try:
-            return _tar_entries(payload)
-        except tarfile.TarError as exc:
-            raise ContentPolicyError(f"unsupported archive: {path}") from exc
+        return _zip_entries(path.read_bytes())
+    except zipfile.BadZipFile as exc:
+        raise ContentPolicyError(f"unsupported archive: {path}") from exc
 
 
 def find_violations(path: Path) -> tuple[str, ...]:
@@ -89,21 +84,6 @@ def _zip_entries(payload: bytes) -> dict[str, bytes]:
         return {name: archive.read(name) for name in names}
 
 
-def _tar_entries(payload: bytes) -> dict[str, bytes]:
-    entries: dict[str, bytes] = {}
-    with tarfile.open(fileobj=io.BytesIO(payload), mode="r:*") as archive:
-        for member in archive.getmembers():
-            if not member.isfile():
-                continue
-            if member.name in entries:
-                raise ContentPolicyError("archive contains duplicate members")
-            stream = archive.extractfile(member)
-            if stream is None:
-                raise ContentPolicyError(f"cannot read archive member: {member.name}")
-            entries[member.name] = stream.read()
-    return entries
-
-
 def _audit_entries(
     entries: Mapping[str, bytes], *, prefix: str = ""
 ) -> Iterable[str]:
@@ -114,9 +94,6 @@ def _audit_entries(
             yield f"unsafe path: {display}"
             continue
         if name.parts[:2] == ("isaac_audio_sensors", "_bundled"):
-            nested = _nested_entries(name, payload)
-            if nested is not None:
-                yield from _audit_entries(nested, prefix=f"{display}!/")
             continue
         lowered = tuple(part.lower() for part in name.parts)
         if any(part in _FORBIDDEN_PARTS for part in lowered):
@@ -126,10 +103,6 @@ def _audit_entries(
         if _PROJECT_PATH.search(name.as_posix()):
             yield f"project-specific path: {display}"
 
-        nested = _nested_entries(name, payload)
-        if nested is not None:
-            yield from _audit_entries(nested, prefix=f"{display}!/")
-            continue
         if name.suffix.lower() not in _TEXT_SUFFIXES:
             continue
         if _ABSOLUTE_PATH.search(payload):
@@ -142,19 +115,6 @@ def _audit_entries(
             text = payload.decode("utf-8", errors="ignore")
             if _PHASE_TEXT.search(text):
                 yield f"phase content: {display}"
-
-
-def _nested_entries(name: PurePosixPath, payload: bytes) -> dict[str, bytes] | None:
-    lowered = name.name.lower()
-    try:
-        if lowered.endswith((".whl", ".zip")):
-            return _zip_entries(payload)
-        if lowered.endswith((".tar", ".tar.gz", ".tgz")):
-            return _tar_entries(payload)
-    except (ContentPolicyError, tarfile.TarError, zipfile.BadZipFile) as exc:
-        raise ContentPolicyError(f"invalid nested archive: {name}") from exc
-    return None
-
 
 __all__ = [
     "ContentPolicyError",

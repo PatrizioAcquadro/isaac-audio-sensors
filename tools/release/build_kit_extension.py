@@ -236,12 +236,6 @@ def build_kit_extension(
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    legacy_output = output_dir / "kit"
-    if legacy_output.exists():
-        shutil.rmtree(legacy_output)
-    for previous in output_dir.glob(f"{COMMUNITY_PREFIX}-v*.zip"):
-        previous.unlink()
-
     archive_path = output_dir / community_archive_name(version)
     with TemporaryDirectory(prefix="isaac-audio-sensors-kit-") as temporary:
         staging_dir = Path(temporary) / EXTENSION_NAME
@@ -278,6 +272,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wheelhouse", required=True, type=Path)
     parser.add_argument(
+        "--validate-wheelhouse",
+        action="store_true",
+        help="Validate the locked wheelhouse without building.",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("dist"),
@@ -286,6 +285,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     repo_root = Path(__file__).resolve().parents[2]
     try:
+        if args.validate_wheelhouse:
+            _resolve_locked_wheels(args.wheelhouse.resolve(), read_dependency_lock())
+            print(f"[kit-wheelhouse] OK {args.wheelhouse}")
+            return 0
         archive_path = build_kit_extension(
             repo_root=repo_root,
             output_dir=args.output_dir,

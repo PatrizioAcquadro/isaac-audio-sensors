@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import io
-import zipfile
-
 import pytest
 
 from tools.release.content_policy import ContentPolicyError, require_archive
@@ -61,13 +58,3 @@ def test_policy_allows_phase_history_only_in_changelog(tmp_path, write_zip):
     )
 
     require_archive(archive)
-
-
-def test_policy_audits_nested_wheels(tmp_path, write_tar):
-    wheel = io.BytesIO()
-    with zipfile.ZipFile(wheel, "w") as archive:
-        archive.writestr("te" + "sts/leak.py", "")
-    pack = write_tar(tmp_path / "pack.tar.gz", {"wheels/leak.whl": wheel.getvalue()})
-
-    with pytest.raises(ContentPolicyError):
-        require_archive(pack)

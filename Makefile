@@ -3,12 +3,11 @@ PYTHON ?= $(if $(wildcard $(VENV_PYTHON)),$(VENV_PYTHON),python3)
 ISAAC_LAB_ROOT ?= $(HOME)/IsaacLab
 ISAAC_LAB_PYTHON ?= $(if $(wildcard $(ISAAC_LAB_ROOT)/isaaclab.sh),$(ISAAC_LAB_ROOT)/isaaclab.sh -p,$(PYTHON))
 BUILD_FLAGS ?= --no-isolation
-EXPECTED_VERSION ?= 2.0.0
 WHEELHOUSE ?=
 SCHEMA_OUT ?= build/schemas
 CLEAN_PYTHON_ROOTS := src tests tools examples exts
 
-.PHONY: clean test test-isaac test-release test-all lint format build-python build-kit audit-python audit-kit check-version check-release-source validate-config validate-fixture export-schema smoke-optional smoke-isaac-sim smoke-isaac-lab smoke-kit diagnose-isaac
+.PHONY: clean check release test test-isaac test-release lint format validate-config validate-fixture export-schema smoke-optional smoke-isaac-sim smoke-isaac-lab smoke-kit diagnose-isaac
 
 clean:
 	rm -rf -- build dist .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage
@@ -24,40 +23,30 @@ test-isaac:
 test-release:
 	$(PYTHON) -m pytest -q tests/release
 
-test-all:
+check:
+	$(PYTHON) tools/release/check_version_sync.py
+	$(MAKE) lint
+	git diff --check
 	$(MAKE) test
 	$(PYTHON) -m pytest -q tests/integration
 	$(MAKE) test-release
-	$(MAKE) test-isaac
+
+release:
+	@test -n "$(WHEELHOUSE)" || { echo "WHEELHOUSE is required" >&2; exit 2; }
+	$(PYTHON) tools/release/build_kit_extension.py --wheelhouse "$(WHEELHOUSE)" --validate-wheelhouse
+	$(PYTHON) tools/release/check_version_sync.py
+	$(PYTHON) tools/release/check_release_source.py
+	rm -rf -- dist build/lib build/bdist.*
+	$(PYTHON) -m build --wheel $(BUILD_FLAGS)
+	$(PYTHON) tools/release/build_kit_extension.py --wheelhouse "$(WHEELHOUSE)"
+	$(PYTHON) tools/release/audit_python_wheel.py --dist-dir dist
+	$(PYTHON) tools/release/audit_kit_archive.py dist/*.zip
 
 lint:
 	$(PYTHON) -m ruff check .
 
 format:
 	$(PYTHON) -m ruff format .
-
-build-python: check-version check-release-source
-	rm -rf -- build/lib build/bdist.*
-	rm -f -- dist/*.whl dist/*.tar.gz
-	$(PYTHON) -m build --wheel $(BUILD_FLAGS)
-	$(MAKE) audit-python
-
-build-kit: check-version check-release-source
-	@test -n "$(WHEELHOUSE)" || { echo "WHEELHOUSE is required" >&2; exit 2; }
-	$(PYTHON) tools/release/build_kit_extension.py --wheelhouse "$(WHEELHOUSE)"
-	$(MAKE) audit-kit
-
-audit-python:
-	$(PYTHON) tools/release/audit_python_wheel.py --dist-dir dist
-
-audit-kit:
-	$(PYTHON) tools/release/audit_kit_archive.py dist/PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v$(EXPECTED_VERSION).zip
-
-check-version:
-	$(PYTHON) tools/release/check_version_sync.py
-
-check-release-source:
-	$(PYTHON) tools/release/check_release_source.py
 
 validate-config:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) -m isaac_audio_sensors validate-config examples/configs/isaac_audio_sensors_demo.toml

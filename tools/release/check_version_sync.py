@@ -113,14 +113,6 @@ def check_version_sync(repo_root: Path) -> tuple[str, tuple[str, ...]]:
         ),
     )
     check(
-        "Makefile EXPECTED_VERSION default",
-        lambda: _required_regex(
-            repo_root / "Makefile",
-            r"^EXPECTED_VERSION\s*\?=\s*([^\s#]+)\s*$",
-            "Makefile EXPECTED_VERSION",
-        ),
-    )
-    check(
         "README.md current-release statement",
         lambda: _required_regex(
             repo_root / "README.md",

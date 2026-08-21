@@ -4,7 +4,6 @@ import base64
 import csv
 import hashlib
 import io
-import tarfile
 import zipfile
 from pathlib import Path
 
@@ -17,20 +16,6 @@ def write_zip():
         with zipfile.ZipFile(path, "w") as archive:
             for name, payload in entries.items():
                 archive.writestr(name, payload)
-        return path
-
-    return write
-
-
-@pytest.fixture
-def write_tar():
-    def write(path: Path, entries: dict[str, bytes | str]) -> Path:
-        with tarfile.open(path, "w:gz") as archive:
-            for name, raw in entries.items():
-                payload = raw.encode() if isinstance(raw, str) else raw
-                info = tarfile.TarInfo(name)
-                info.size = len(payload)
-                archive.addfile(info, io.BytesIO(payload))
         return path
 
     return write
