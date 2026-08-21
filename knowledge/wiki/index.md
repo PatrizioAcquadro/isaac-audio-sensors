@@ -8,7 +8,7 @@
 - [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]] — generic SDK, downstream, evidence, and release-content boundaries.
 - [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]] — canonical wiki, root documentation removal, and documentation-boundary enforcement.
 - [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]] — v2 API ownership, dependency direction, and bounded semantic cleanup.
-- [[implementation_phases/r6-packaging-and-release|R6 Packaging and Release]] — audited Python source/wheel distributions, tokenless publication, and self-contained Kit archive.
+- [[implementation_phases/r6-packaging-and-release|R6 Packaging and Release]] — published Python source/wheel distributions, trusted publication, and self-contained Kit archive.
 
 ## Topics
 
@@ -18,7 +18,7 @@
 - [[topics/acoustic-modeling|Acoustic Modeling]] — arrays, backends, fidelity, room acoustics, motion, effects, occlusion, DOA, and interpretation limits.
 - [[topics/isaac-sim-and-kit|Isaac Sim and Kit]] — stage discovery, live sensing, extension workflows, OmniGraph, Replicator, and troubleshooting.
 - [[topics/isaac-lab-integration|Isaac Lab Integration]] — sensor configuration, observation tensors, entity/reference binding, reset/update, and GPU validation.
-- [[topics/validation-and-release|Validation and Release]] — deterministic lanes, live gates, version authority, builds, audits, and claim boundaries.
+- [[topics/validation-and-release|Validation and Release]] — deterministic lanes, live gates, builds, audits, publication verification, and claim boundaries.
 
 ## Key Decisions
 

@@ -33,7 +33,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.5 three-command local workflow, deterministic host check, clean-source release preflight, flat two-artifact outbox, and removal of redundant release orchestration.
 - R6.6 one exact two-artifact audit derived from source and locked wheels, including isolated offline wheel installation and packaged dependency provenance.
 - R6.7 complete host, RTX 4090, packaged Kit, artifact, and downstream-consumer closeout without publication.
-- R6.8 exact source distribution, Python 3.10–3.12 CI, and tokenless TestPyPI/PyPI publication workflow with isolated OIDC permissions.
+- R6.8 exact source distribution, Python 3.10–3.12 CI, and verified tokenless TestPyPI/PyPI publication with isolated OIDC permissions.
 
 ## Documentation State
 
@@ -85,7 +85,9 @@ The R6.5 deterministic gate passes 412 unit/contract tests, 230 integration test
 
 The R6.6–R6.7 gate passes 412 unit/contract tests, 230 integration tests with two expected host SoundFile skips, 37 release tests, and 88 Isaac tests on the RTX 4090. Live Isaac Sim passes three frames each for geometry, TDOA, and room acoustics. Live Isaac Lab passes parity, partial reset, and 50 steps over 4096 environments at 1.934 ms/step mean against the 20 ms budget. The Isaac Lab interpreter passes room and FLAC execution with the locked versions. The isolated final ZIP passes Extension Manager enable/disable, exact package and dependency origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, and shutdown. The same 34 SquadBot consumer tests pass without consumer changes. `dist/` contains only the exact synchronized wheel and Kit ZIP.
 
-The R6.8 publication-readiness gate passes 412 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, 41 release tests, and `twine check`. The clean-source build leaves exactly the audited sdist, universal wheel, and Kit ZIP; isolated wheel installation and sdist build/installation pass. The RTX 4090 passes 88 Isaac tests, all three live Isaac Sim backends, room/FLAC with pyroomacoustics 0.10.1, SciPy 1.18.0, and SoundFile 0.14.0, and the 4096-environment Lab smoke at 2.099 ms/step mean against the 20 ms budget. The final extracted ZIP passes all 37 workflow steps with packaged first-party and bundled dependency origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, Extension Manager enable/disable, and shutdown. The unchanged SquadBot consumer subset passes 34 tests.
+The final R6.8 freeze at commit `583d66e` passes 412 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, 45 release tests, and `twine check`. The clean-source build leaves exactly the audited sdist, universal wheel, and Kit ZIP; isolated wheel installation and sdist build/installation pass. The RTX 4090 passes 88 Isaac tests, all three live Isaac Sim backends, room/FLAC with pyroomacoustics 0.10.1, SciPy 1.18.0, and SoundFile 0.14.0, and the 4096-environment Lab smoke at 2.4035 ms/step mean against the 20 ms budget. The final extracted ZIP passes all 37 workflow steps with packaged first-party and bundled dependency origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, Extension Manager enable/disable, and shutdown. The unchanged SquadBot consumer subset passes 34 tests.
+
+The TestPyPI rehearsal and production workflow passed from the same commit. GitHub release `v2.0.0` is immutable, its tag targets `583d66e`, and its only asset is the validated Linux Kit ZIP with SHA-256 `cfaeea69ac79a711fc608329dad2a947cc66c4ff1c6a1f958fca4617c1c5ff8a`. PyPI exposes exactly the universal wheel and sdist with provenance attestations; clean Python 3.10, 3.11, 3.12, and `room`/FLAC installations passed. The public repository has the `omniverse-kit-extension` topic. NVIDIA Community Registry discovery and installation remain pending the periodic crawler.
 
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
@@ -111,4 +113,4 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-Complete the R6.8 clean-source and runtime gates, then configure maintainer accounts, protected GitHub environments, trusted publishers, TestPyPI rehearsal, final changelog freeze, GitHub/PyPI release, and Community Registry verification. R7 follows after publication closeout.
+Verify `isaac_audio_sensors.omni` 2.0.0 discovery, installation, and launch from the NVIDIA Community Registry after its crawler runs. R7 follows after that publication closeout.

@@ -66,6 +66,8 @@ R6.2 originally deferred the source archive. R6.8 supersedes that temporary whee
 
 GitHub Actions runs the deterministic host gate on Python 3.10, 3.11, and 3.12 plus one Python 3.12 `room`/FLAC lane. The publication workflow builds and audits all three artifacts, transfers only the sdist and wheel between jobs, and grants `id-token: write` only to jobs whose sole mutable action is the OIDC upload. Separate no-token jobs repeat `twine check` immediately before each upload. Manual dispatch from `main` targets TestPyPI and verifies both distributions in clean environments; publishing a matching non-prerelease GitHub release targets PyPI through a separately protected environment.
 
+After publication, verify the remote tag and immutable GitHub asset against the release commit and digest. Verify the PyPI JSON and Integrity APIs expose only the expected sdist and wheel with provenance, then repeat base and optional-extra installation checks from the public index. Community Registry closeout additionally requires discovery, installation, enable/disable, and launch from the registry; a valid GitHub release is only the crawler input, not proof of registry publication.
+
 Before closeout, run the packaged Kit smoke from an extracted ZIP with offline pip settings, no checkout package path, and a precreated `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT`. Verify Extension Manager enable/disable, first-party and bundled origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, and shutdown.
 
 ## Interpretation

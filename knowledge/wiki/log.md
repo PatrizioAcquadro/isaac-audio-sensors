@@ -185,3 +185,11 @@ Recorded the clean-source three-artifact build, Twine and isolated Python instal
 ## 2026-08-21 — lint: R6.8 local validation
 
 Verified current validation claims against the final local gates, canonical wiki ownership and links, immutable raw content, version synchronization, Ruff, release tests, and Markdown whitespace.
+
+## 2026-08-21 — update: Published v2.0.0
+
+Recorded the successful TestPyPI rehearsal, immutable GitHub release, exact PyPI wheel and source distribution, trusted-publisher provenance, clean public-index installation gates, and pending NVIDIA Community Registry discovery.
+
+## 2026-08-21 — lint: v2.0.0 publication status
+
+Verified canonical ownership, index coverage, internal links, immutable raw content, final release metadata, public GitHub and PyPI state, version synchronization, release tests, and Markdown whitespace while keeping NVIDIA discovery explicitly pending.
