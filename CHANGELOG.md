@@ -25,6 +25,14 @@ R5.2 simplifies backends, DSP, and effects without changing valid-input results.
 - Split room-acoustics orchestration, signal preparation, pyroomacoustics rendering, and diagnostic construction into a compatible package without changing formulas, source order, seeds, phase cursors, units, coordinates, or frame meaning.
 - Removed unused compatibility and test-only registry validation paths, legacy effects flags, private room helper tests, and redundant disabled-stage matrices while retaining direct backend imports and actionable optional-dependency errors.
 
+R5.3 simplifies recording and dataset sessions without changing serialized v1 artifacts.
+
+- Reduced `recording.__all__` to the maintained models, reports, errors, `SessionRecorder`, `SessionDataset`, replay, validation, FLAC, manifest IO, and split-plan services; internal writers, filesystem seams, state, marker, planner, and recovery wrappers are no longer public.
+- Made `SessionDataset` the shared streaming authority for lifecycle, manifests, markers, record ordering, audio joins, validation, replay, and FLAC export.
+- Composed `SessionRecorder` from internal writing, recovery, and manifest-building components; frame timestamps now drive automatic time-gap diagnostics, and `cancel()` replaces token-based incomplete finalization.
+- Made manifest parsing strict and canonical, made manifest and split writes atomic, unified checksum verification, and replaced text-classified failures with structured layout errors.
+- Removed duplicate helper-level, seam, callback, retry, snapshot, and retained-mode test matrices while retaining crash/recovery, replay, bounded-memory, corruption, split, statistics, time-gap, and real FLAC coverage.
+
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
 development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects
 and diagnostics are additive, every effect defaults off, and the compatibility

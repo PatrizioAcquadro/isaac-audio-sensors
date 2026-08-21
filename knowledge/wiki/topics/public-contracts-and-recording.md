@@ -52,9 +52,13 @@ Tracked examples under `examples/traces/` cover minimal, multi-detection, ambigu
 
 The recording subsystem writes a finalized session with a root manifest, canonical session configuration, deterministic shard directories, frame records, audio payloads when enabled, and completion markers that bind promoted shard content.
 
-Atomic staging, retry, cancellation, filesystem seams, and promotion prevent a partial write from appearing as a completed shard.
+The public recording surface contains the manifest/provenance models, `AppendFrameResult`, `LoadedFrame`, `ReplayEvent`, split/statistics/validation reports, `SessionRecorder`, `SessionDataset`, replay, validation, FLAC export, manifest IO, and split-plan services. `DatasetLayoutError`, `DatasetSplitError`, and `SessionRecorderError` are the public failures; writer, checkpoint, carry, marker, planner, and filesystem details are internal.
 
-The loader verifies layout and completion markers before exposing records; corrupt or incomplete shards are not silently treated as valid data.
+`SessionRecorder.append_frame()` accepts one `AudioSensorFrame` and its audio block, uses the frame timestamp for automatic time-gap diagnostics, and accepts `is_reset` only as a keyword. `cancel()` finalizes an incomplete session; class methods own resume and finalization recovery.
+
+Durable staging and atomic promotion prevent a partial write from appearing as a completed shard. Manifest and split-plan writes are atomic, and manifest input must already match the canonical v1 representation rather than relying on type coercion.
+
+`SessionDataset` verifies lifecycle, manifest/configuration agreement, completion markers, record order, audio joins, and optional checksums before exposing records. Corrupt or incomplete shards are not silently treated as valid data, and layout failures carry stable code, location, and detail fields.
 
 Validation checks manifest/schema consistency, shard tiling and lifecycle, frame records, split-group isolation, waveform finiteness when requested, and preserved time-gap accounting.
 

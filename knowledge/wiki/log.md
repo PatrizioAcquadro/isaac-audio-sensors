@@ -49,3 +49,11 @@ Recorded the single backend resolver and declaration-derived inventory, focused 
 ## 2026-08-20 — lint: R5.2 canonical documentation
 
 Verified canonical ownership, internal links, raw-file preservation, current paths and symbols, numerical baseline evidence, release checks, Ruff, real pyroomacoustics rendering, Isaac GPU execution, downstream compatibility, and Markdown whitespace.
+
+## 2026-08-20 — update: R5.3 recording and dataset
+
+Recorded the minimal recording API, strict canonical manifests, unified streaming session authority, composed recorder internals, structured layout failures, removed test-only surfaces, preserved v1 artifacts, and verified host, FLAC, GPU, downstream, wheel, and Kit gates.
+
+## 2026-08-20 — lint: R5.3 canonical documentation
+
+Verified canonical ownership, internal links, raw-file preservation, current paths and contracts, release checks, Ruff, host and FLAC suites, Isaac GPU execution, downstream compatibility, audited builds, and Markdown whitespace.

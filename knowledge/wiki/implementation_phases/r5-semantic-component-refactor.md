@@ -72,6 +72,29 @@ Unused compatibility and test-only surfaces were removed from the registry, effe
 
 Backend inventory and optional dependency metadata no longer have parallel lists in configuration or simulator consumers. Large effects and room-acoustics modules no longer combine unrelated responsibilities. The acoustic fidelity limits described in the modeling documentation are unchanged.
 
+## Subphase R5.3 — Recording and Dataset
+
+#### Implementation
+
+R5.3 makes `SessionDataset` the single session-layout authority used by loading, validation, replay, FLAC export, and recording recovery. Internal modules now separate canonical frame records, deterministic shard planning, shard completion and streaming scans, durable writes, audio writing, recovery state, time gaps, and manifest construction.
+
+`SessionRecorder` remains the public orchestrator. `append_frame(frame, audio_block, *, is_reset=False)` accepts only `AudioSensorFrame`, reads `frame.timestamp_ms`, and records time-gap diagnostics internally. `cancel()` publishes a finalized-incomplete session; resume and finalization recovery remain class methods. Atomic helpers, writer state, filesystem seams, promotion callbacks, planner details, and module-level recovery wrappers are private or removed.
+
+Manifest parsing is strict canonical v1 parsing rather than coercion. Manifest and split-plan writes use durable atomic replacement. Shard checksum verification has one implementation, and `DatasetLayoutError` reports stable `code`, `location`, and `detail` fields consumed directly by validation.
+
+Focused black-box tests retain aligned and unaligned output, crash/resume/recovery safety, incomplete-session opt-in, bounded streaming, replay identity and read-only behavior, time-gap/reset diagnostics, corruption codes, exact statistics, split leakage, and real FLAC behavior. Duplicate seam, callback, retry, snapshot, retained-mode, and helper-level matrices were removed.
+
+#### Key Decisions
+
+- `ias.audio_dataset_manifest.v1`, `ias.dataset_frame_record.v1`, `ias.shard_completion.v1`, marker meaning, session layout, units, and provenance remain compatible.
+- The Python recording API reduction is intentionally breaking and has no compatibility shims.
+- `verify_checksums` remains available through `SessionDataset` and replay without a second verifier.
+- Atomic promotion, false-complete prevention, drop accounting, time-gap preservation, streaming bounded memory, statistics, split isolation, WAV, and optional FLAC remain maintained behavior.
+
+#### Problems / Limitations
+
+Normal callers no longer need checkpoint, carry-buffer, marker, filesystem, or promotion internals. FLAC still requires SoundFile from the optional `room` dependencies; absence fails explicitly.
+
 ## Artifacts
 
 - AST dependency contract and fresh-process import-boundary tests.
@@ -87,6 +110,7 @@ Backend inventory and optional dependency metadata no longer have parallel lists
 - `src/isaac_audio_sensors/core/backends/room_acoustics/`
 - `src/isaac_audio_sensors/core/effects/`
 - `src/isaac_audio_sensors/core/plugins/registry.py`
+- `src/isaac_audio_sensors/recording/`
 - `src/isaac_audio_sensors/kit/headless.py`
 - `src/isaac_audio_sensors/schemas/generate.py`
 - `tests/contract/test_schemas.py`

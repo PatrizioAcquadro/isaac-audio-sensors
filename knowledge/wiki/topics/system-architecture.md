@@ -22,6 +22,8 @@ Recording consumes `AudioSensorFrame` values and emits versioned generic dataset
 
 Dataset-manifest constants, models, and canonical JSON serializers are recording APIs rather than core APIs.
 
+`SessionDataset` is the lifecycle and streaming-read authority shared by validation, replay, FLAC, and recovery. `SessionRecorder` composes internal shard/audio writing, recovery state, and pure manifest construction. Record serialization, shard planning/completion, time-gap accounting, and durable file replacement remain focused internal components rather than public user workflow.
+
 ## Schema Layer
 
 `isaac_audio_sensors.schemas` owns deterministic generation through `schemas.generate`; its three Python generators are authoritative and packaged JSON schemas are generated release artifacts. Generation depends only on core and recording contracts.
