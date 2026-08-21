@@ -84,4 +84,4 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 
 ## Next Work
 
-Later R5 work may simplify another semantic subsystem within the established boundaries. General packaging and release cleanup remains R6 work.
+R5 is complete. R6.0 is already closed by user decision: the target distribution consists only of the public GitHub source repository, one Python wheel, and one Kit extension zip. R6 implementation starts at R6.1; the current source archive and acoustic-pack commands remain current behavior only until the relevant R6 subphases remove them.

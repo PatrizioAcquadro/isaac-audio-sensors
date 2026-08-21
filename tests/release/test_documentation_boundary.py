@@ -12,12 +12,12 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WIKI_ROOT = REPO_ROOT / "knowledge" / "wiki"
-R0_SHA256 = "a9180f8553751c4edf5ef44f00f278466921b0257c94d6cd3db69ce683019cee"
+R0_SHA256 = "d87efa29c8efc94bbcc05c732e65e560e810a7ff8fcaca8e0cc2cd3ac9adc748"
 WIKILINK_RE = re.compile(r"\[\[([^\]\n]+)\]\]")
 MARKDOWN_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 
 
-def test_root_docs_are_removed_and_r0_spec_is_preserved() -> None:
+def test_root_docs_are_removed_and_authorized_r0_spec_is_preserved() -> None:
     assert not (REPO_ROOT / "docs").exists()
     r0_spec = (
         REPO_ROOT

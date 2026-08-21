@@ -2,8 +2,8 @@
 
 Target release line: clean `2.x`
 
-This document is the temporary source of truth for restructuring `isaac-audio-sensors`.
-It records the target repository boundary, the disposition of the current top-level surfaces, the deletion gates, and the order of implementation.
+This document is the user-authorized restructuring specification for `isaac-audio-sensors`.
+The canonical wiki reports the implemented state; this specification records the approved target boundary, deletion gates, and remaining implementation sequence.
 
 ## Product Boundary
 
@@ -39,7 +39,8 @@ The target `2.x` repository is intentionally small:
 
 ```text
 isaac-audio-sensors/
-├── AGENTS.md
+├── AGENTS.md (local and ignored)
+├── TODO.md (local and ignored)
 ├── README.md
 ├── CHANGELOG.md
 ├── LICENSE
@@ -96,12 +97,11 @@ isaac-audio-sensors/
 ├── tools/
 │   ├── release/
 │   └── smoke/
-└── packs/
-    └── acoustics/
 ```
 
-There is no target root `docs/`, `dataset/`, `outputs/`, `configs/`, `scripts/`, or `.github/` directory.
-Build products, caches, generated data, local goals, and runtime output remain ignored and absent from releases.
+There is no target root `docs/`, `dataset/`, `outputs/`, `runs/`, `configs/`, `scripts/`, `packs/`, or `.github/` directory.
+`build/` is a temporary validation/build workspace and `dist/` is a temporary release outbox; both are ignored, regenerated only when needed, and removable through `make clean`.
+Caches, generated data, local goals, and routine runtime output remain ignored and absent from releases.
 
 Root `evidence/` is the deliberate local home for paper-relevant evidence owned by `isaac-audio-sensors`.
 It remains inside the repository working directory, is ignored by Git, and is excluded from packages and releases.
@@ -116,19 +116,19 @@ This table covers every file tracked at the repository root on the R0 baseline, 
 
 | Current or target file | Decision | Target responsibility |
 | --- | --- | --- |
-| `.gitignore` | Keep and simplify | Ignore local publication evidence, build products, datasets, outputs, media, caches, and local tooling state. |
+| `.gitignore` | Keep and simplify | Ignore local publication evidence, temporary build/release products, media, caches, and local tooling state. |
 | `CHANGELOG.md` | Keep | The only retained historical summary, organized by release. |
 | `CITATION.cff` | Delete | Add the paper citation to `README.md` only after the paper exists. |
 | `CODE_OF_CONDUCT.md` | Delete | Not essential at the current project/community stage. |
 | `CONTRIBUTING.md` | Absorb, then delete | Put the few essential contribution commands and expectations in `README.md`. |
 | `LICENSE` | Keep | Open-source license. |
-| `MANIFEST.in` | Absorb, then delete | Declare necessary package data in `pyproject.toml` and verify wheel/sdist contents. |
+| `MANIFEST.in` | Delete in R6.2 | Declare wheel package data in `pyproject.toml`; GitHub is the source distribution until a later PyPI decision explicitly adds an sdist. |
 | `Makefile` | Keep and reduce | Expose a small set of local test, lint, build, release, and runtime-smoke commands. |
-| `NOTICE` | Keep | Required notices and attributions for distribution. |
+| `NOTICE` | Keep | Required notices and attributions, including licenses required by dependencies prebundled in the Kit archive. |
 | `README.md` | Keep and rewrite | Product landing page, install, quick start, concise contribution/security notes, limitations, and later paper citation. |
 | `SECURITY.md` | Absorb, then delete | Preserve only warnings against publishing secrets/private recordings and against safety-critical use without independent validation. |
 | `pyproject.toml` | Keep and simplify | Package metadata, dependencies, entry points, tool settings, and package data. |
-| `AGENTS.md` | Create in R1 | Repository-wide development and validation rules. |
+| `AGENTS.md` | Keep local and ignored | Repository-wide development and validation rules. |
 | `TODO.md` | Keep local and ignored | Active implementation checklist only; never product documentation or release history. |
 
 ## Top-Level Directory Disposition
@@ -143,14 +143,16 @@ This table covers every top-level directory with tracked files on the R0 baselin
 | `docs/` | Absorb, then delete in R4 | Move only current essential content to `knowledge/wiki/`; move public schemas into the package. |
 | `examples/` | Keep and reduce | Retain only small runnable public examples, configs, traces, calibration samples, and deterministic fixtures. Move useful GUI images here |
 | `exts/` | Keep and thin | Keep Kit packaging, metadata, icons, and the extension entry point; implementation belongs in `src/.../kit/`. |
-| `outputs/` | Classify, relocate, then delete | Move paper- or release-relevant evidence to `evidence/<study-or-paper>/` in the owning repository. Discard ordinary reproducible runtime outputs only after confirming that they are not evidence. |
-| `packs/` | Keep if supported | Retain the optional acoustics pack only while its build and runtime contract are actively tested. |
+| `outputs/` | Classify, then delete in R6.1 | Promote only paper-relevant results to `evidence/<study-or-paper>/`; discard reproducible diagnostics and move automatic smoke output to temporary `build/validation/`. Do not recreate a root output surface. |
+| `packs/` | Delete in R6.4 | Remove the custom acoustic-pack builder, installer, activation runtime, tests, and release artifact. Standard Python uses the `room` extra; Kit receives build-time prebundled dependencies inside its single archive. |
 | `scripts/` | Split, then delete | Move public examples to `examples/`, release tooling to `tools/release/`, runtime checks to `tools/smoke/`, and delete phase/run-specific scripts. |
 | `src/` | Keep and restructure | Retain only the generic package subsystems described below. |
 | `tests/` | Keep and restructure | Replace phase/history organization with unit, contract, integration, Isaac, release, and fixture ownership. |
 
-Ignored directories such as `dist/`, `build/`, `runs/`, `.local/`, caches, and local agent state are not product surfaces.
-Cleanup may remove generated copies when safe, but these paths must never become package inputs or sources of truth.
+Ignored directories such as `dist/`, `build/`, `.local/`, caches, and local agent state are not product surfaces.
+Root `outputs/` and `runs/` have no target role and are removed in R6.1.
+Routine validation output belongs under temporary `build/validation/`; release commands create `dist/` from an empty state and leave only the current wheel and Kit archive until they are uploaded or cleaned.
+These paths must never become package inputs or sources of truth.
 The ignored `evidence/` directory is the explicit exception: it is a local research surface and may be the source of truth for publication claims, but it must never become a package input or release payload.
 
 ## Package Component Disposition
@@ -180,6 +182,7 @@ The word "dataset" currently refers to three different surfaces. They have diffe
 
 Raw evidence that is necessary for an `isaac-audio-sensors` paper must live under root `evidence/<study-or-paper>/` in this working tree.
 The entire `evidence/` directory remains untracked by Git and absent from distributions, but it is part of the declared local repository structure and must not be treated as disposable output.
+Tools must never write to `evidence/` by default: a result enters it only through an explicit, reviewed promotion because it supports a scientific claim, benchmark, or publication.
 SquadBot and other downstream projects keep their own raw evidence in the same kind of ignored, repository-local location; this repository receives only the smallest derived fixture needed to test a consumer boundary.
 
 ## Clean v2 API Policy
@@ -209,7 +212,7 @@ No destructive restructuring step may bypass these gates:
    Active SquadBot behavior must be migrated to its owning repository.
 2. **Evidence gate:** classify the owning project and verify the complete relocation of raw datasets or paper-relevant outputs to `evidence/` in that project's repository before deleting the old copy.
 3. **Test gate:** establish the R2 characterization and contract suites before removing S-specific source and tests, so skips cannot masquerade as successful coverage.
-4. **Distribution gate:** audit an installed wheel, sdist, Kit extension archive, and optional pack before declaring the migration complete. 
+4. **Distribution gate:** audit an installed wheel and the standalone Kit extension archive before declaring the migration complete.
    None may contain acquisition code, S-phase surfaces, SquadBot/Alex paths, raw data, tests, or maintainer-only scripts.
 
 ## Implementation Sequence
@@ -237,7 +240,8 @@ Do not populate the wiki or recreate S0–S4 history during R1; migration of con
 
 ### R4 — Replace `docs/` with the wiki
 
-Move concise current product documentation and useful GUI assets to `knowledge/wiki/`, absorb essential root guidance into `README.md`, and delete the entire root `docs/` directory, including this applied R0 specification.
+Move concise current product documentation and useful GUI assets to `knowledge/wiki/`, absorb essential root guidance into `README.md`, and delete the entire root `docs/` directory.
+R4 retained this applied specification byte-for-byte under `knowledge/raw/docs/`; the user explicitly authorized this later amendment to record the final R6 release decision.
 
 ### R5 — Refactor by semantic component
 
@@ -254,8 +258,58 @@ Remove the duplicate package examples and freeze the exact v2 public API only af
 
 ### R6 — Simplify packaging and release
 
-Move package-data declarations into `pyproject.toml`, reduce local Make targets, verify clean wheel/sdist/Kit/pack artifacts, and prepare the public README and marketplace release. 
-Do not restore automation unless a concrete publication or maintenance need justifies it.
+#### R6.0 — Release model locked (decision complete)
+
+R6.0 is already closed by explicit user decision. The release model is exactly:
+
+```text
+GitHub repository                    authoritative public source
+GitHub Release / Python distribution isaac_audio_sensors-<version>-py3-none-any.whl
+GitHub Release / NVIDIA distribution one platform-compatible Kit extension zip
+```
+
+The current R6 scope has no source archive, standalone acoustic pack, or checksum artifact.
+An sdist may be added later only if PyPI publication is explicitly selected; a separate dependency pack or runtime network installation is not part of the target.
+R6 implementation therefore starts at R6.1 and does not reopen this decision.
+
+#### R6.1 — Root and local workspace cleanup
+
+- Absorb the essential security and contribution guidance into `README.md`, then delete `CITATION.cff`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, and `CONTRIBUTING.md`.
+- Reduce `CHANGELOG.md` to concise release history.
+- After confirming their contents are disposable, remove current `build/`, `dist/`, `.pytest_cache/`, `.ruff_cache/`, `outputs/`, and `runs/` copies.
+- Move automatic smoke diagnostics to temporary `build/validation/` and add a safe `make clean` that never touches `evidence/`, `AGENTS.md`, or `TODO.md`.
+
+#### R6.2 — Minimal Python wheel
+
+- Delete `MANIFEST.in`, keep package-data declarations in `pyproject.toml`, and build only the universal Python wheel.
+- Include the package, public schemas, required metadata, and licenses; exclude examples, Kit sources, knowledge, tests, tools, evidence, and local paths.
+- Preserve `isaac-audio-sensors[room]` as the standard optional installation path and validate the built wheel in a fresh temporary environment.
+
+#### R6.3 — Standard Kit archive
+
+- Build one standalone Community Registry-compatible archive containing Kit metadata, minimal Extension Manager documentation, entrypoint, assets, and the vendored maintained package.
+- Use the required GitHub Community Registry filename and explicit platform/Python/Kit target metadata.
+- Stage in a temporary directory and retain only the final zip in `dist/`.
+
+#### R6.4 — Remove the custom acoustic pack
+
+- Delete `packs/`, `core/packs.py`, pack-specific release tools, Make targets, tests, messages, documentation, and version synchronization.
+- Simplify capability provenance to bundled, external, or absent.
+- Prebundle `pyroomacoustics`, `scipy`, `soundfile`, and required transitive dependencies inside the Kit archive at build time, without bundling or shadowing Kit-owned NumPy and without runtime downloads.
+
+#### R6.5 — Local release workflow
+
+Expose the small local workflow `make clean`, `make check`, and `make release`.
+`make release` starts from an empty `dist/`, builds only the current wheel and Kit zip, audits them, and never publishes, tags, pushes, or restores CI automation.
+
+#### R6.6 — Artifact audits
+
+Enforce exact wheel and Kit inventories, synchronized versions and filenames, required metadata/licenses, fresh wheel installation, live Kit loading, correct prebundled dependency origins, Kit-owned NumPy, and absence of evidence, tests, tools, downstream content, and workstation paths.
+
+#### R6.7 — Validation and closeout
+
+Run deterministic host/release lanes, Isaac GPU tests, live Isaac Sim/Lab/Kit smokes, and the maintained SquadBot consumer audit.
+Update the canonical wiki and concise changelog with verified results, inspect the final root and both release artifacts, and stop before external publication.
 
 ### R7 — Paper readiness
 

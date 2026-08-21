@@ -97,3 +97,11 @@ Recorded the exact curated v2 entrypoints, minimal Kit and schema roots, consoli
 ## 2026-08-21 — lint: R5.8 canonical documentation
 
 Verified canonical ownership, internal links, raw-file preservation, exact exports, executable examples, host and RTX 4090 gates, downstream compatibility, audited builds, Ruff, release documentation checks, and Markdown whitespace.
+
+## 2026-08-21 — update: Locked R6 release model
+
+Recorded the explicitly approved GitHub source, Python wheel, and Kit zip release model in the authorized R0 specification; removed the future sdist and acoustic-pack artifacts from the target and marked R6 implementation as starting at R6.1.
+
+## 2026-08-21 — lint: Authorized R6 specification amendment
+
+Verified the authorized raw revision hash, wiki index coverage, internal links, removed root-doc boundary, standalone Kit metadata, and Markdown whitespace.
