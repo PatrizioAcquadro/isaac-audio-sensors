@@ -2,21 +2,19 @@
 
 ## Test Lanes
 
-`make test` runs the pure unit and contract lane and is the fast required gate.
+`make check` is the deterministic host gate. It runs version synchronization, Ruff, `git diff --check`, and the unit/contract, integration, and release lanes without requiring a GPU or clean worktree.
 
-`.venv/bin/python -m pytest -q tests/integration` runs recording, replay, codecs, workflows, filesystem, and cross-component integration tests.
+`make test` remains the focused pure unit and contract lane. `.venv/bin/python -m pytest -q tests/integration` remains the focused recording, replay, codecs, workflows, filesystem, and cross-component lane.
 
-`make test-release` runs release content, versioning, Python-wheel, Kit, and repository-boundary tests.
+`make test-release` remains the focused release content, versioning, Python-wheel, Kit, and repository-boundary lane.
 
 `make test-isaac` runs the Isaac lane through the configured Isaac Lab interpreter with `CUDA_VISIBLE_DEVICES=0`.
-
-`make test-all` runs host, integration, release, and Isaac lanes in dependency order.
 
 ## Focused Checks
 
 `make validate-config` validates the maintained TOML example; `make validate-fixture` validates the deterministic recording fixture; `make export-schema` regenerates all three public schemas.
 
-`make lint` runs Ruff and `git diff --check` catches whitespace and conflict-marker damage.
+`make lint` runs Ruff. The complete `make check` gate also rejects whitespace and conflict-marker damage.
 
 `make clean` removes only regenerable build, distribution, coverage, Python metadata, and tool-cache files. It does not touch the virtual environment, local evidence, agent instructions, or the local implementation checklist.
 
@@ -38,27 +36,29 @@ Runtime blockers must report the exact command and failure; sandbox restrictions
 
 `pyproject.toml` is authoritative for the package version.
 
-The version gate synchronizes the package `__version__`, Kit manifest, Makefile expected version, root README, canonical wiki status, root changelog, and extension-specific changelog.
+The version gate synchronizes the package `__version__`, Kit manifest, root README, canonical wiki status, root changelog, and extension-specific changelog.
 
 The frame, dataset-manifest, and calibration-profile schema versions remain independent from the package version.
 
 ## Build and Audit
 
-`make build-python` creates the universal wheel after version and clean-source checks. Its audit enforces the minimal package, schema, metadata, entry-point, and license inventory, then installs the wheel without dependency downloads in a temporary environment and verifies the installed import, CLI, schemas, and `room` metadata.
+`make release WHEELHOUSE=<path>` validates the locked wheelhouse, version synchronization, and clean Git source before clearing `dist/`. It builds and audits the universal wheel and self-contained Kit ZIP, leaves only those two flat artifacts, and never publishes, tags, or pushes.
 
-`make build-kit WHEELHOUSE=<path>` creates the self-contained Community Registry archive `PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v<version>.zip`. The explicit wheelhouse must match the hashes and exact five-distribution inventory in `tools/release/kit_dependencies.lock`.
+The wheel audit enforces the minimal package, schema, metadata, entry-point, and license inventory, then installs the wheel without dependency downloads in a temporary environment and verifies the installed import, CLI, schemas, and `room` metadata.
+
+The Kit build creates `PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v<version>.zip`. The explicit wheelhouse must match the hashes and exact five-distribution inventory in `tools/release/kit_dependencies.lock`.
 
 Temporary staging contains the direct Python package, Kit configuration/resources/docs/entrypoint, licenses, and the locked room/FLAC dependencies under `isaac_audio_sensors/_bundled`. The audit verifies target metadata, runtime modules, distribution metadata, licenses, native libraries, no Kit-owned NumPy or `typing_extensions`, and no retired release surface.
 
-The shared recursive policy rejects first-party tests, tools, scripts, local datasets, evidence, outputs, phase paths/content, downstream project identifiers, absolute workstation paths, and nested archive leaks. Bundled third-party content receives safe-path and dedicated dependency/license audits instead of project-semantic filtering.
+The shared policy rejects first-party tests, tools, scripts, local datasets, evidence, outputs, phase paths/content, downstream project identifiers, and absolute workstation paths. Bundled third-party content receives safe-path and dedicated dependency/license audits instead of project-semantic filtering.
 
 ## Release Checklist
 
-Run the deterministic and runtime gates appropriate to the changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect the actual wheel and Kit inventories before publication.
+Run `make clean`, `make check`, and `make release WHEELHOUSE=<path>`. Add the runtime gates appropriate to changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect both artifacts before publication.
 
 Builds must originate from one clean committed tree; do not publish, tag, or push based on uncommitted artifacts or skipped required lanes.
 
-R6.2 removes the source archive and treats the GitHub repository as the public source. R6.3 standardizes the Kit archive. R6.4 removes the separate dependency artifact and makes the single Kit zip self-contained without runtime installation.
+R6.2 removes the source archive and treats the GitHub repository as the public source. R6.3 standardizes the Kit archive, R6.4 makes it self-contained, and R6.5 owns the three-command local workflow.
 
 ## Interpretation
 

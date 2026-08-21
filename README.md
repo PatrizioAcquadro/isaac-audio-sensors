@@ -128,18 +128,12 @@ The GPU-required Lab gate fails instead of silently falling back to CPU.
 ## Validation
 
 ```bash
-make test
-.venv/bin/python -m pytest -q tests/integration
-make test-release
-make test-isaac
-make lint
-make build-python
-make build-kit WHEELHOUSE=/path/to/locked-wheels
-git diff --check
 make clean
+make check
+make release WHEELHOUSE=/path/to/locked-wheels
 ```
 
-The Isaac lane is required only for runtime changes and for release evidence that claims the supported live path.
+`make check` is the deterministic host gate. `make release` requires one clean commit and the exact locked Kit wheelhouse, then leaves only the audited wheel and Kit ZIP in `dist/`; it does not publish, tag, or push. Focused test, Isaac, and live-smoke targets remain available when their subsystem is touched.
 
 ## Limitations
 

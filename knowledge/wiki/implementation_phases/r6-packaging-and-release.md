@@ -46,7 +46,7 @@ The R6.1 run exposed two semantic blockers outside its cleanup diff. A subsequen
 
 Python packaging now produces only `isaac_audio_sensors-<version>-py3-none-any.whl`. `MANIFEST.in` and the source-distribution workflow are removed; package discovery and the three JSON Schema files are declared explicitly in `pyproject.toml`.
 
-`make build-python` clears prior Python artifacts and stale setuptools staging, preserves the Kit zip, builds the wheel from a clean version-synchronized commit, and runs one wheel-specific audit. The audit permits only the maintained package and matching distribution metadata, requires the schemas, console entry point, `LICENSE`, and `NOTICE`, and rejects source archives or repository-only content.
+The Python build step clears stale setuptools staging, builds the wheel from a clean version-synchronized commit, and runs one wheel-specific audit. The audit permits only the maintained package and matching distribution metadata, requires the schemas, console entry point, `LICENSE`, and `NOTICE`, and rejects source archives or repository-only content.
 
 The same audit installs the wheel with `--no-deps` in a temporary virtual environment with repository import paths removed. It verifies the installed package version, CLI, schema resources, metadata, and the `room` extra declarations without downloading optional dependencies.
 
@@ -66,7 +66,7 @@ R6.2 changes packaging only. Isaac, GPU, physical-acoustics, and optional room-e
 
 #### Implementation
 
-`make build-kit` now creates `dist/PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v2.0.0.zip` through temporary staging. The archive contains only the Kit manifest, Extension Manager resources, entrypoint, direct `isaac_audio_sensors` package, and required licenses. It leaves no extracted tree, checksum, vendoring manifest, or build metadata in `dist/`.
+The Kit build step creates `dist/PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v2.0.0.zip` through temporary staging. The archive contains only the Kit manifest, Extension Manager resources, entrypoint, direct `isaac_audio_sensors` package, and required licenses. It leaves no extracted tree, checksum, vendoring manifest, or build metadata in `dist/`.
 
 The manifest declares the canonical package name and exact release target: Linux x86_64, CPython 3.12, Kit 110.1, and release configuration. The archive audit owns filename, target metadata, required content, and shared release policy. The entrypoint uses the included package, with one `src/` fallback for checkout development.
 
@@ -88,7 +88,7 @@ Direct Extension Manager discovery requires the extracted root to use the extens
 
 The separate dependency artifact and all of its source, installer, builder, audit, Make, version-sync, documentation, and test surfaces are removed. `isaac_audio_sensors.core.packs`, `active_pack`, pack artifact naming, and `discover_capabilities(pack_root=...)` have no compatibility shims. `discover_capabilities()` now reports only `bundled`, `external`, or `absent` origins.
 
-`make build-kit WHEELHOUSE=<path>` verifies one hash-locked wheel for pyroomacoustics 0.10.1, SciPy 1.18.0, SoundFile 0.14.0, CFFI 2.1.0, and pycparser 3.0. It extracts runtime and license content into `isaac_audio_sensors/_bundled` in the temporary Kit staging tree while discarding wheel records, tests, and benchmarks. The source tree and universal Python wheel never contain `_bundled`.
+The Kit build verifies one hash-locked wheel for pyroomacoustics 0.10.1, SciPy 1.18.0, SoundFile 0.14.0, CFFI 2.1.0, and pycparser 3.0. It extracts runtime and license content into `isaac_audio_sensors/_bundled` in the temporary Kit staging tree while discarding wheel records, tests, and benchmarks. The source tree and universal Python wheel never contain `_bundled`.
 
 The Kit audit requires the five module and metadata payloads, native CFFI, libsndfile, pyroomacoustics, and SciPy libraries, plus their licenses. It rejects NumPy, `typing_extensions`, undeclared wheelhouse files, unsafe paths, collisions, and retired release members. `NOTICE` records the distributed dependencies; their complete shipped license payload remains in the zip.
 
@@ -106,9 +106,29 @@ Kit 110.1 preloads CFFI before third-party extensions start, so `sys.path` order
 
 The gate passes 412 unit/contract tests, 230 integration tests with two expected SoundFile skips in the base venv, 39 release tests, and 88 Isaac tests on the RTX 4090. The packaged extension verifies all five dependency origins, bundled L2/room/FLAC capability, room waveform generation, FLAC export/read/replay, Extension Manager enable/disable, and shutdown. The unchanged SquadBot consumer subset passes 34 tests.
 
+## Subphase R6.5 — Local Release Workflow
+
+#### Implementation
+
+The primary local workflow is `make clean`, `make check`, and `make release WHEELHOUSE=<path>`. The check command runs version synchronization, Ruff, Git whitespace checks, and the unit/contract, integration, and release lanes without requiring a GPU or clean worktree.
+
+The release command validates the exact locked wheelhouse, synchronized versions, and one clean Git revision before removing existing artifacts. It recreates `dist/`, builds the universal wheel and self-contained Kit archive, and audits both. The flat outbox retains only the two current artifacts and performs no publication, tag, or push.
+
+Redundant build, audit, version, source, and all-lane Make wrappers are removed. The Makefile no longer duplicates the package version. Clean-source logic now has one implementation, and the retired tar and nested-archive policy/test surfaces are gone. Focused host, Isaac, smoke, schema, and diagnostic targets remain available.
+
+#### Key Decisions
+
+`pyproject.toml` is the only package-version authority. The explicit R6.4 wheelhouse remains required; release orchestration never downloads or changes dependency versions. Preflight failures preserve existing `dist/` contents.
+
+`dist/python/` and `dist/kit/` are not introduced because two flat artifacts are simpler and match the approved temporary outbox. `make check` remains deterministic and CPU-only; GPU and live runtime gates remain separate.
+
+#### Problems / Limitations
+
+Release still requires a clean committed tree and an externally prepared wheelhouse matching all five locked hashes. The deterministic gate passes 412 unit/contract tests, 230 integration tests with two expected SoundFile skips, and 38 release tests. The clean-source release produces and audits exactly the current wheel and Kit ZIP.
+
 ## Artifacts
 
-R6.1 retains no generated artifact. R6.2 leaves one ignored universal wheel under `dist/`. R6.3 and R6.4 leave one self-contained Community Registry zip beside it; all Kit and dependency staging remains temporary.
+R6.1 retains no generated artifact. R6.2 adds the ignored universal wheel and R6.3–R6.4 add the self-contained Community Registry ZIP. R6.5 recreates the flat `dist/` outbox from empty and leaves exactly those two files; all staging remains temporary.
 
 ## Files
 
@@ -120,6 +140,8 @@ R6.1 retains no generated artifact. R6.2 leaves one ignored universal wheel unde
 - `exts/isaac_audio_sensors.omni/config/extension.toml`
 - `tools/release/build_kit_extension.py`
 - `tools/release/audit_kit_archive.py`
+- `tools/release/check_release_source.py`
+- `tools/release/content_policy.py`
 - `tools/release/kit_dependencies.lock`
 - `src/isaac_audio_sensors/core/capabilities.py`
 - `NOTICE`

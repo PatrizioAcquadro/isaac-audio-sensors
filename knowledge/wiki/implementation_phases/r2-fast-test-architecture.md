@@ -38,7 +38,7 @@ Release builders require a clean Git source because their provenance is bound to
 
 #### Implementation
 
-The maintained entry points are `make test`, `make test-isaac`, `make test-release`, and `make test-all`, with focused smoke and build targets documented in [[topics/validation-and-release|Validation and Release]].
+The focused entry points are `make test`, `make test-release`, and `make test-isaac`. R6.5 adds `make check` as the deterministic host umbrella; live smoke and release behavior are documented in [[topics/validation-and-release|Validation and Release]].
 
 #### Key Decisions
 
@@ -46,7 +46,7 @@ Test commands express ownership and runtime requirements directly.
 
 #### Problems / Limitations
 
-`make test-all` includes the Isaac lane and therefore is not a CPU-only portability command.
+Isaac validation remains a separate GPU/runtime lane and is not part of the portable host check.
 
 ## Artifacts
 

@@ -30,6 +30,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.2 explicit wheel-only package data, one universal Python build, minimal installed-artifact audit, and no sdist or compatibility build aliases.
 - R6.3 minimal self-contained Kit archive, standard Linux/CPython/Kit target metadata, temporary-only staging, direct package layout, and Extension Manager lifecycle verification.
 - R6.4 removal of the dependency-pack API and tooling, three-state capability provenance, and locked room/FLAC dependencies inside the single Kit zip without a second NumPy.
+- R6.5 three-command local workflow, deterministic host check, clean-source release preflight, flat two-artifact outbox, and removal of redundant release orchestration.
 
 ## Documentation State
 
@@ -77,22 +78,21 @@ The R6.3 gate passes 418 unit/contract tests, 230 integration tests with the sam
 
 The R6.4 gate passes 412 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, 39 release tests, and 88 Isaac tests on the RTX 4090. The Python wheel contains no `_bundled` tree or removed pack module. The Kit zip contains the five locked dependency distributions and licenses, with NumPy and `typing_extensions` still supplied by Kit. The isolated extension passes bundled capability, room waveform, FLAC export/read/replay, enable/disable, and shutdown gates. The same 34 SquadBot consumer tests pass without consumer changes.
 
+The R6.5 deterministic gate passes 412 unit/contract tests, 230 integration tests with two expected SoundFile skips, and 38 release tests. Version synchronization, Ruff, whitespace, wheelhouse hashes, clean-source provenance, the installed wheel audit, and the Kit audit pass. `dist/` contains only the current universal wheel and Community Registry ZIP.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
-R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; clean-source wheel, source, and Kit builds are verified after the implementation commit and reported in the phase handoff.
+R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
 
 See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]], [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]], [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]], and [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]].
 
 ## Maintained Commands
 
-- `make test` — pure unit and contract tests.
-- `.venv/bin/python -m pytest -q tests/integration` — host integration tests.
-- `make test-release` — repository and archive release policy.
-- `make test-isaac` — Isaac tests through the Isaac Lab interpreter.
-- `make test-all` — all lanes in dependency order.
-- `make build-python` — audited universal Python wheel.
-- `make build-kit WHEELHOUSE=<path>` — audited self-contained Kit zip.
 - `make clean` — remove only regenerable local build, validation, cache, and Python metadata files.
+- `make check` — run the complete deterministic host gate.
+- `make release WHEELHOUSE=<path>` — rebuild and audit the wheel and Kit ZIP from one clean commit.
+
+Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain available for subsystem work.
 
 ## Limits
 
@@ -104,4 +104,4 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 
 ## Next Work
 
-R6.0 through R6.4 are implemented. R6.5 is next: reduce local release orchestration to the approved clean, check, and release commands.
+R6.0 through R6.5 are implemented. R6.6 is next: enforce the final exact artifact inventories, metadata, licenses, installed wheel behavior, and live packaged Kit provenance.

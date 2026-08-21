@@ -153,3 +153,11 @@ Recorded the removed pack API and tooling, three-state capability provenance, lo
 ## 2026-08-21 — lint: R6.4 canonical documentation
 
 Verified canonical ownership, index coverage, internal links, immutable raw content, current commands and artifacts, host and RTX gates, bundled dependency origins, downstream compatibility, Ruff, version synchronization, and Markdown whitespace.
+
+## 2026-08-21 — update: R6.5 local release workflow
+
+Recorded the clean, deterministic check, and clean-source release interface; flat two-artifact outbox; explicit locked wheelhouse; and removed redundant Make, provenance, archive, and test surfaces.
+
+## 2026-08-21 — lint: R6.5 canonical documentation
+
+Verified canonical ownership, index coverage, internal links, immutable raw content, current commands and artifact names, deterministic host and release gates, Ruff, version synchronization, and Markdown whitespace.
