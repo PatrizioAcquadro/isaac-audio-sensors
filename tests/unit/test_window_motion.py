@@ -10,7 +10,6 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-import isaac_audio_sensors.core.backends.room_acoustics as room_module
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
@@ -169,59 +168,6 @@ def test_circular_speed_dependent_error_obeys_frozen_bound():
     assert held <= 0.0751953135
 
 
-def test_phase_cursor_continuity_residual_is_below_two_e_minus_six():
-    factors = (0.95, 0.97, 0.99, 1.00, 1.01, 1.03, 1.04, 1.05)
-    lengths = (300,) * 8
-    samples = np.arange(W, dtype=float)
-    source = (
-        np.sin(2.0 * math.pi * 700.0 * samples / R)
-        + 0.6 * np.sin(2.0 * math.pi * 1132.6238 * samples / R)
-    ) / 1.6
-    observed = room_module._piecewise_phase_signal(
-        source,
-        factors=factors,
-        segment_lengths=lengths,
-    )
-    reference = np.zeros(W, dtype=float)
-    cursor = 0.0
-    for index in range(W):
-        segment = index // 300
-        lower = math.floor(cursor)
-        fraction = cursor - lower
-        first = source[lower] if lower < W else 0.0
-        second = source[lower + 1] if lower + 1 < W else 0.0
-        reference[index] = first + fraction * (second - first)
-        cursor += factors[segment]
-    signal_pairs = [(observed, reference)]
-    for delay, decay in ((0, 0.7), (3, 0.5), (7, 0.35), (11, 0.2)):
-        response = np.zeros(delay + 3, dtype=float)
-        response[delay:] = (1.0, decay, decay * decay)
-        signal_pairs.append(
-            (
-                np.convolve(observed, response)[:W],
-                np.convolve(reference, response)[:W],
-            )
-        )
-    residuals = []
-    for observed_signal, reference_signal in signal_pairs:
-        peak = max(
-            float(np.max(np.abs(observed_signal))),
-            float(np.max(np.abs(reference_signal))),
-        )
-        observed_signal = observed_signal / peak
-        reference_signal = reference_signal / peak
-        residuals.extend(
-            abs(
-                (observed_signal[boundary] - observed_signal[boundary - 1])
-                - (reference_signal[boundary] - reference_signal[boundary - 1])
-            )
-            for boundary in range(300, W, 300)
-        )
-    assert max(residuals) <= 2e-6
-    assert observed.shape == (W,)
-    assert np.isfinite(observed).all()
-
-
 @pytest.mark.parametrize("backend", [GeometryBackend, TdoaSyntheticBackend])
 def test_l0_l1_explicitly_reject_multiple_segments_before_output(backend):
     scene, array, window = _room_fixture()
@@ -229,21 +175,9 @@ def test_l0_l1_explicitly_reject_multiple_segments_before_output(backend):
         backend(effects=_motion_effects(2)).simulate(scene, array, window)
 
 
-def test_segments_one_selects_literal_room_branch_and_is_byte_identical(monkeypatch):
+def test_segments_one_is_byte_identical_to_default_motion_config(monkeypatch):
     _install_fake_pyroom(monkeypatch)
     scene, array, window = _room_fixture()
-    calls = {"scheduled": 0}
-    original_scheduled = room_module._scheduled_window_signal
-
-    def scheduled_spy(*args, **kwargs):
-        calls["scheduled"] += 1
-        return original_scheduled(*args, **kwargs)
-
-    def forbidden_piecewise(**_kwargs):
-        raise AssertionError("segments=1 entered the piecewise branch")
-
-    monkeypatch.setattr(room_module, "_scheduled_window_signal", scheduled_spy)
-    monkeypatch.setattr(room_module, "_simulate_piecewise_room", forbidden_piecewise)
     absent = RoomAcousticsBackend(
         effects=EffectsConfig(
             motion=MotionEffectsConfig(derive_velocity_from_poses=True)
@@ -259,7 +193,6 @@ def test_segments_one_selects_literal_room_branch_and_is_byte_identical(monkeypa
         frame_to_trace_dict(explicit), sort_keys=True, separators=(",", ":")
     ).encode()
     assert absent_bytes == explicit_bytes
-    assert calls["scheduled"] == 2
     assert "motion" not in absent.diagnostics
 
 

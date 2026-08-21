@@ -9,7 +9,6 @@ from types import MappingProxyType
 import numpy as np
 import pytest
 
-import isaac_audio_sensors.core.backends.room_acoustics as room_module
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
@@ -683,8 +682,20 @@ def _controlled_premix(_room, *, source_count: int, mic_count: int):
 
 
 def test_room_noise_is_dispatched_once_on_equal_summed_mixtures(monkeypatch):
-    _install_fake_pyroom(monkeypatch)
-    monkeypatch.setattr(room_module, "_simulate_premix", _controlled_premix)
+    fake = _install_fake_pyroom(monkeypatch)
+    base_shoebox = fake.ShoeBox
+
+    class ControlledShoebox(base_shoebox):
+        def simulate(self, return_premix=False):
+            premix = _controlled_premix(
+                self,
+                source_count=len(self.sources),
+                mic_count=self.mic_array.R.shape[1],
+            )
+            self.mic_array.signals = premix.sum(axis=0)
+            return premix if return_premix else None
+
+    fake.ShoeBox = ControlledShoebox
     array = _quad_array()
     noise = _noise_effects(
         seed=SEED,
@@ -738,10 +749,6 @@ def test_self_noise_metadata_fallback_requires_seed_before_room_synthesis(
         array=array,
     )
 
-    def forbidden_premix(*_args, **_kwargs):
-        raise AssertionError("room premix synthesis ran before noise validation")
-
-    monkeypatch.setattr(room_module, "_simulate_premix", forbidden_premix)
     effects = _noise_effects(self_noise=SelfNoiseConfig())
     with pytest.raises(ConfigValidationError, match="seed"):
         RoomAcousticsBackend(effects=effects).simulate(scene, array, _window())

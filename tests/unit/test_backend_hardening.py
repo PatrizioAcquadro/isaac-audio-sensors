@@ -252,8 +252,7 @@ def test_tdoa_two_mic_projection_endpoint_collapses_to_one_candidate(
     assert candidates == pytest.approx((expected_bearing,))
 
 
-def test_tdoa_two_mic_projection_outside_endpoint_tolerance_stays_ambiguous(
-) -> None:
+def test_tdoa_two_mic_projection_outside_endpoint_tolerance_stays_ambiguous() -> None:
     candidates = two_mic_candidate_bearings(
         baseline_unit_xy=(0.0, 1.0),
         projection=1.0 - 9 * math.ulp(1.0),
@@ -324,20 +323,26 @@ def test_tdoa_two_mic_noisy_endpoint_fails_closed(
     position: tuple[float, float, float],
 ) -> None:
     array = _array("stereo_y")
-    doa = TdoaSyntheticBackend(
-        ambiguity_policy=ambiguity_policy,
-        noise_std_s=1e-3,
-        seed=1,
-    ).simulate(
-        _scene(_source("speaker", position), array=array),
-        array,
-        _window(array),
-    ).detections[0].doa
+    doa = (
+        TdoaSyntheticBackend(
+            ambiguity_policy=ambiguity_policy,
+            noise_std_s=1e-3,
+            seed=1,
+        )
+        .simulate(
+            _scene(_source("speaker", position), array=array),
+            array,
+            _window(array),
+        )
+        .detections[0]
+        .doa
+    )
 
     assert doa.estimated_bearing_deg is None
     assert doa.candidate_bearing_deg == ()
     assert doa.bearing_confidence == 0.0
     assert doa.ambiguity_class == "invalid_tdoa_delay"
+
 
 @pytest.mark.parametrize(
     ("position", "expected_bearing", "expected_sector"),
@@ -354,11 +359,15 @@ def test_tdoa_two_mic_baseline_axis_is_unambiguous(
     ambiguity_policy: str,
 ) -> None:
     array = _array("stereo_y")
-    detection = TdoaSyntheticBackend(ambiguity_policy=ambiguity_policy).simulate(
-        _scene(_source("speaker", position), array=array),
-        array,
-        _window(array),
-    ).detections[0]
+    detection = (
+        TdoaSyntheticBackend(ambiguity_policy=ambiguity_policy)
+        .simulate(
+            _scene(_source("speaker", position), array=array),
+            array,
+            _window(array),
+        )
+        .detections[0]
+    )
     doa = detection.doa
     direct_estimate = estimate_doa_from_delays(
         sensor=array,
@@ -397,11 +406,16 @@ def test_tdoa_two_mic_non_axis_sources_remain_front_back_ambiguous(
     position: tuple[float, float, float],
 ) -> None:
     array = _array("stereo_y")
-    doa = TdoaSyntheticBackend(ambiguity_policy="none").simulate(
-        _scene(_source("speaker", position), array=array),
-        array,
-        _window(array),
-    ).detections[0].doa
+    doa = (
+        TdoaSyntheticBackend(ambiguity_policy="none")
+        .simulate(
+            _scene(_source("speaker", position), array=array),
+            array,
+            _window(array),
+        )
+        .detections[0]
+        .doa
+    )
 
     assert doa.estimated_bearing_deg is None
     assert doa.bearing_sector is None
@@ -411,11 +425,16 @@ def test_tdoa_two_mic_non_axis_sources_remain_front_back_ambiguous(
 
 def test_tdoa_two_mic_front_prior_preserves_behind_limitation() -> None:
     array = _array("stereo_y")
-    doa = TdoaSyntheticBackend(ambiguity_policy="front_hemisphere").simulate(
-        _scene(_source("behind", (-3.0, 0.0, 0.0)), array=array),
-        array,
-        _window(array),
-    ).detections[0].doa
+    doa = (
+        TdoaSyntheticBackend(ambiguity_policy="front_hemisphere")
+        .simulate(
+            _scene(_source("behind", (-3.0, 0.0, 0.0)), array=array),
+            array,
+            _window(array),
+        )
+        .detections[0]
+        .doa
+    )
 
     assert doa.estimated_bearing_deg == pytest.approx(0.0)
     assert doa.bearing_sector == "straight"
@@ -522,8 +541,9 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
     clean_detection = clean.detections[0]
     stressed_detection = stressed.detections[0]
     assert stressed_detection.per_mic_delay_s != clean_detection.per_mic_delay_s
-    assert stressed_detection.per_mic_rms["left"] < (
-        stressed_detection.per_mic_rms["right"]
+    assert (
+        stressed_detection.per_mic_rms["left"]
+        < (stressed_detection.per_mic_rms["right"])
     )
     assert stressed_detection.doa.bearing_confidence < (
         clean_detection.doa.bearing_confidence
@@ -549,14 +569,12 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
     assert stressed.diagnostics["noise_seed"] is None
 
 
-
 def test_l0_l1_per_mic_rms_follows_pressure_law_with_source_gain() -> None:
     array = _array("quad_front")
     source = _source("speaker", (4.0, 3.0, 0.0), gain_db=-6.0)
     scene = _scene(source, array=array)
     expected = {
-        mic_id: 10.0 ** (-6.0 / 20.0)
-        / norm(subtract(source.position_world, position))
+        mic_id: 10.0 ** (-6.0 / 20.0) / norm(subtract(source.position_world, position))
         for mic_id, position in microphone_world_positions(array).items()
     }
 
@@ -705,33 +723,6 @@ def test_l1_air_absorption_toggle_attenuates_rms_with_distance() -> None:
         assert rms < base.per_mic_rms[mic_id]
 
 
-def test_multi_mic_confidence_is_invariant_to_ground_truth_bearing() -> None:
-    array = _array("quad_front")
-    frame = TdoaSyntheticBackend().simulate(
-        _scene(_source("speaker", (4.0, 2.0, 0.0)), array=array),
-        array,
-        _window(array),
-    )
-    detection = frame.detections[0]
-
-    estimates = tuple(
-        estimate_doa_from_delays(
-            sensor=array,
-            per_mic_delay_s=detection.per_mic_delay_s,
-            ground_truth_bearing_deg=ground_truth,
-        )
-        for ground_truth in (None, 0.0, 90.0, 180.0, 271.5)
-    )
-
-    assert estimates[0].bearing_confidence > 0.0
-    assert len({estimate.bearing_confidence for estimate in estimates}) == 1
-    assert len({estimate.estimated_bearing_deg for estimate in estimates}) == 1
-    assert detection.diagnostics["oracle_bearing_error_deg"] == pytest.approx(
-        0.0,
-        abs=1.0,
-    )
-
-
 def test_seeded_noise_is_deterministic_per_seed_frame_and_mic() -> None:
     array = _array("quad_front")
     scene = _scene(_source("speaker", (5.0, 2.0, 0.0)), array=array)
@@ -756,8 +747,7 @@ def test_seeded_noise_is_deterministic_per_seed_frame_and_mic() -> None:
 
     other_frame = backend.simulate(scene, array, _window_at(2_000))
     assert (
-        other_frame.detections[0].per_mic_delay_s
-        != first.detections[0].per_mic_delay_s
+        other_frame.detections[0].per_mic_delay_s != first.detections[0].per_mic_delay_s
     )
     assert (
         other_frame.detections[0].diagnostics["per_mic_gain_offset_db"]
@@ -771,8 +761,7 @@ def test_seeded_noise_is_deterministic_per_seed_frame_and_mic() -> None:
         seed=8,
     ).simulate(scene, array, _window_at(1_000))
     assert (
-        other_seed.detections[0].per_mic_delay_s
-        != first.detections[0].per_mic_delay_s
+        other_seed.detections[0].per_mic_delay_s != first.detections[0].per_mic_delay_s
     )
 
 

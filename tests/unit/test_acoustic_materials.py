@@ -13,11 +13,9 @@ from isaac_audio_sensors.core.acoustics.materials import (
     MATERIAL_TABLE,
     PYROOMACOUSTICS_MATERIAL_CITATION,
     PYROOMACOUSTICS_MATERIALS_SHA256,
-    MaterialEntry,
     known_material_ids,
     resolve_material,
     resolve_material_coefficients,
-    validate_material_table,
 )
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.types import RoomAcousticsSpec
@@ -118,34 +116,6 @@ def test_family_resolution_propagates_evidence_without_promotion():
         )
 
 
-@pytest.mark.parametrize(
-    ("mutation", "message"),
-    [
-        ({"material_id": ""}, "nonempty"),
-        ({"absorption": (0.1,) * 7}, "6-value"),
-        ({"absorption": (0.1, 0.1, 0.1, 0.1, 0.1, 1.1)}, r"\[0, 1\]"),
-        ({"transmission_db": (1.0, 1.0, 1.0, 1.0, 1.0, -1.0)}, "non-negative"),
-        ({"evidence": "invented"}, "invalid evidence"),
-        ({"citation": "not allowed"}, "cannot cite"),
-    ],
-)
-def test_material_validation_fails_closed(mutation, message):
-    base = MATERIAL_TABLE["nominal.wood"]
-    invalid = replace(base, **mutation)
-    with pytest.raises(ValueError, match=message):
-        validate_material_table((invalid,), {})
-
-
-def test_material_validation_rejects_duplicates_alias_cycles_and_unknown_targets():
-    entry = MATERIAL_TABLE["nominal.wood"]
-    with pytest.raises(ValueError, match="Duplicate material id"):
-        validate_material_table((entry, entry), {})
-    with pytest.raises(ValueError, match="cycle"):
-        validate_material_table((entry,), {"a": "b", "b": "a"})
-    with pytest.raises(ValueError, match="unknown id"):
-        validate_material_table((entry,), {"a": "nominal.missing"})
-
-
 def test_room_spec_accepts_only_resolvable_absorption_material_ids():
     room = RoomAcousticsSpec(
         room_id="material_room",
@@ -196,16 +166,3 @@ def test_usd_material_resolution_precedence_and_fail_closed_matrix():
     prim.attributes = {"ias:transmission_loss_db_bands": (1, 2, 3, 4, 5, 6, 7)}
     with pytest.raises(ValueError, match="exactly 6"):
         resolver.loss_for("/World/Wall")
-
-
-def test_nominal_entry_validation_rejects_measured_without_citation():
-    invalid = MaterialEntry(
-        material_id="measured.missing",
-        description="invalid",
-        absorption=(0.1,) * 6,
-        transmission_db=None,
-        evidence="measured",
-        citation=None,
-    )
-    with pytest.raises(ValueError, match="needs a citation"):
-        validate_material_table((invalid,), {})

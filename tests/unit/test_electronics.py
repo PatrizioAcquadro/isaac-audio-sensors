@@ -8,7 +8,6 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-import isaac_audio_sensors.core.backends.room_acoustics as room_module
 import isaac_audio_sensors.core.effects.electronics as electronics_module
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
@@ -609,8 +608,20 @@ def _primary_premix(_room, *, source_count: int, mic_count: int):
 
 
 def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch):
-    _install_fake_pyroom(monkeypatch)
-    monkeypatch.setattr(room_module, "_simulate_premix", _primary_premix)
+    fake = _install_fake_pyroom(monkeypatch)
+    base_shoebox = fake.ShoeBox
+
+    class ControlledShoebox(base_shoebox):
+        def simulate(self, return_premix=False):
+            premix = _primary_premix(
+                self,
+                source_count=len(self.sources),
+                mic_count=self.mic_array.R.shape[1],
+            )
+            self.mic_array.signals = premix.sum(axis=0)
+            return premix if return_premix else None
+
+    fake.ShoeBox = ControlledShoebox
     array = _quad_array()
     results = []
     for source_count in (1, 4):

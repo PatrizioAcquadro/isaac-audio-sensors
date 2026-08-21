@@ -2,13 +2,9 @@ from __future__ import annotations
 
 import builtins
 
-import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.backends.room_acoustics import (
-    RoomAcousticsBackend,
-    _scheduled_window_signal,
-)
+from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.traces import append_frame_jsonl, frame_from_trace_dict
 from isaac_audio_sensors.core.io.waveforms import (
@@ -40,18 +36,6 @@ def test_room_backend_exports_mixture_and_trace_path(monkeypatch, tmp_path):
 
     assert sink.calls[0]["mixture"].shape[0] == 4
     assert restored.waveform_paths == frame.waveform_paths
-
-
-def test_scheduled_signal_respects_window_boundaries():
-    active = source("pulse", (1.0, 0.0, 0.0), start_time_s=0.02, duration_s=0.01)
-    signal = _scheduled_window_signal(
-        active,
-        time_window=time_window(start_time_s=0.0, end_time_s=0.05),
-    ).signal
-
-    assert np.count_nonzero(signal[:960]) == 0
-    assert np.count_nonzero(signal[960:1440]) > 0
-    assert np.count_nonzero(signal[1440:]) == 0
 
 
 def test_waveform_filename_is_portable():

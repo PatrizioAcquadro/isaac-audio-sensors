@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import sys
 
 import numpy as np
 import pytest
@@ -213,9 +214,7 @@ def test_tdoa_tetrahedral_clean_elevation_matches_ground_truth(
     assert detection.ground_truth_elevation_deg == pytest.approx(
         elevation_deg, abs=1e-6
     )
-    assert detection.doa.estimated_bearing_deg == pytest.approx(
-        bearing_deg, abs=2.0
-    )
+    assert detection.doa.estimated_bearing_deg == pytest.approx(bearing_deg, abs=2.0)
     assert detection.doa.estimated_elevation_deg == pytest.approx(
         elevation_deg, abs=2.0
     )
@@ -269,9 +268,7 @@ def test_geometry_backend_emits_exact_elevation():
     assert detection.ground_truth_elevation_deg == pytest.approx(
         expected_elevation, abs=1e-9
     )
-    assert detection.doa.candidate_elevation_deg == pytest.approx(
-        (expected_elevation,)
-    )
+    assert detection.doa.candidate_elevation_deg == pytest.approx((expected_elevation,))
 
 
 def test_tdoa_two_mic_front_back_ambiguity_is_explicit():
@@ -471,9 +468,7 @@ def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch):
         "anchor_prim_path": None,
     }
     assert frame.diagnostics["room_clamped_position_ids"] == ()
-    assert frame.diagnostics["per_source_rir_summary"]["speaker"][
-        "rir_length_samples"
-    ]
+    assert frame.diagnostics["per_source_rir_summary"]["speaker"]["rir_length_samples"]
     assert detection.diagnostics["physical_waveform"] is True
     assert detection.diagnostics["pyroomacoustics_version"] == "fake-test"
     assert detection.diagnostics["room_config"] == frame.diagnostics["room_config"]
@@ -561,7 +556,8 @@ def test_room_acoustics_rejects_unknown_doa_estimator():
         RoomAcousticsBackend(doa_estimator="music")
 
 
-def test_room_acoustics_srp_backend_pins_srp_phat_estimator():
+def test_room_acoustics_srp_backend_pins_srp_phat_estimator(monkeypatch):
+    _install_fake_pyroom(monkeypatch)
     backend = RoomAcousticsSrpBackend()
     assert backend.backend_id == "room_acoustics_srp"
     assert backend.doa_estimator == "srp_phat"
@@ -636,25 +632,9 @@ def test_room_acoustics_rejects_malformed_pyroom_signals(monkeypatch):
 
 
 def test_room_acoustics_unavailable_error_is_clear(monkeypatch):
-    import isaac_audio_sensors.core.backends.room_acoustics as room_module
-
-    original_import = room_module.importlib.import_module
-
-    def missing(name):
-        if name == "pyroomacoustics":
-            raise ModuleNotFoundError(name)
-        return original_import(name)
-
-    monkeypatch.setattr(room_module.importlib, "import_module", missing)
-
-    array = create_microphone_array(
-        array_id="rig",
-        prim_path="/World/Rig/AudioArray",
-        layout_name="quad_front",
-    )
-    scene = _room_scene_with_sources(_source("speaker", (3.0, 0.0, 0.0)), array=array)
+    monkeypatch.setitem(sys.modules, "pyroomacoustics", None)
     with pytest.raises(OptionalDependencyUnavailable, match="room"):
-        RoomAcousticsBackend().simulate(scene, array, _window())
+        RoomAcousticsBackend()
 
 
 class _MalformedSignalShoeBox(_FakeShoeBox):

@@ -11,7 +11,6 @@ from isaac_audio_sensors.core.acoustics.materials import (
     known_material_ids,
     resolve_material,
     resolve_material_coefficients,
-    validate_material_table,
 )
 
 __all__ = [
@@ -25,5 +24,4 @@ __all__ = [
     "known_material_ids",
     "resolve_material",
     "resolve_material_coefficients",
-    "validate_material_table",
 ]

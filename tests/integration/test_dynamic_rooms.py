@@ -13,7 +13,6 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-import isaac_audio_sensors.core.backends.room_acoustics as room_module
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
@@ -103,11 +102,12 @@ class _StatefulShoeBox:
     def simulate(self, return_premix=False):
         assert self.mic_array is not None
         sample_count = max(signal.size for _position, signal in self.sources)
+        fixture_signal = _six_tone()[:sample_count]
         premix = np.zeros((len(self.sources), self.mic_array.R.shape[1], sample_count))
         for source_index, (_position, signal) in enumerate(self.sources):
             for mic_index in range(self.mic_array.R.shape[1]):
                 premix[source_index, mic_index, : signal.size] = (
-                    signal * self.rir[mic_index][source_index][0]
+                    fixture_signal * self.rir[mic_index][source_index][0]
                 )
         return premix if return_premix else None
 
@@ -122,18 +122,6 @@ def fake_room(monkeypatch):
     _StatefulShoeBox.instances = []
     _StatefulShoeBox.compute_rir_calls = 0
     monkeypatch.setitem(sys.modules, "pyroomacoustics", fake)
-    signal = _six_tone()
-
-    def scheduled(_source, *, time_window):
-        assert time_window.sample_rate_hz == SAMPLE_RATE_HZ
-        return room_module._ScheduledSignal(
-            signal=signal.copy(),
-            mode="six-tone",
-            start_offset_samples=0,
-            content_sample_count=signal.size,
-        )
-
-    monkeypatch.setattr(room_module, "_scheduled_window_signal", scheduled)
     return fake
 
 

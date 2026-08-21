@@ -182,7 +182,7 @@ LEGACY_MATERIAL_ALIASES: Mapping[str, str] = MappingProxyType(
 )
 
 
-def validate_material_table(
+def _build_material_table(
     entries: Sequence[MaterialEntry],
     aliases: Mapping[str, str],
 ) -> Mapping[str, MaterialEntry]:
@@ -259,7 +259,7 @@ def validate_material_table(
     return MappingProxyType(by_id)
 
 
-MATERIAL_TABLE = validate_material_table(
+MATERIAL_TABLE = _build_material_table(
     _MEASURED_ENTRIES + _NOMINAL_ENTRIES,
     LEGACY_MATERIAL_ALIASES,
 )

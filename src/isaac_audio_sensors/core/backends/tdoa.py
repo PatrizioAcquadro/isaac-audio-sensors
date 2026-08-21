@@ -558,17 +558,9 @@ def estimate_doa_from_delays(
     per_mic_delay_s: dict[str, float],
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
     ambiguity_policy: str = "none",
-    ground_truth_bearing_deg: float | None = None,
 ) -> DoaEstimate:
-    """Estimate DOA from externally measured per-microphone delays.
+    """Estimate DOA from externally measured per-microphone delays."""
 
-    ``ground_truth_bearing_deg`` is deprecated and ignored: confidence derives
-    only from observable quantities (residual, geometry, stress settings).
-    Compare against ground truth via ``oracle_bearing_error_deg`` in
-    detection diagnostics instead.
-    """
-
-    del ground_truth_bearing_deg
     return TdoaSyntheticBackend(
         speed_of_sound_mps=speed_of_sound_mps,
         ambiguity_policy=ambiguity_policy,
