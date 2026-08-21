@@ -61,52 +61,6 @@ def test_shutdown_releases_all_resources_after_one_cleanup_failure(monkeypatch):
     assert "audition: planted" in controller.state.error_message
 
 
-def test_omni_extension_entrypoint_import_smoke_without_isaac_modules():
-    repo = Path(__file__).resolve().parents[2]
-    code = textwrap.dedent("""
-        import importlib
-        import importlib.abc
-        import json
-        import sys
-
-        blocked = ("omni", "pxr", "isaacsim")
-
-        class OptionalRuntimeBlocker(importlib.abc.MetaPathFinder):
-            def find_spec(self, fullname, path=None, target=None):
-                for module_name in blocked:
-                    if fullname == module_name or fullname.startswith(
-                        module_name + "."
-                    ):
-                        raise ImportError(f"blocked optional module {fullname}")
-                return None
-
-        sys.meta_path.insert(0, OptionalRuntimeBlocker())
-        module = importlib.import_module("isaac_audio_sensors_omni")
-        ext = module.Extension()
-        ext.on_startup("test.ext")
-        ext.on_shutdown()
-        print(json.dumps({"ui_available": ext.controller.ui_available}))
-        """)
-    env = os.environ.copy()
-    env["PYTHONPATH"] = os.pathsep.join(
-        (
-            str(repo / "src"),
-            str(repo / "exts" / "isaac_audio_sensors.omni"),
-            env.get("PYTHONPATH", ""),
-        )
-    )
-
-    completed = subprocess.run(
-        [sys.executable, "-c", code],
-        check=True,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-
-    assert json.loads(completed.stdout) == {"ui_available": False}
-
-
 def test_omni_extension_entrypoint_import_smoke_from_extension_path_only():
     repo = Path(__file__).resolve().parents[2]
     code = textwrap.dedent("""

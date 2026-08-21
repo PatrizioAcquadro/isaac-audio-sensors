@@ -186,8 +186,15 @@ def main() -> int:
         action="store_true",
         help="Fail the live gate if any required viewport screenshot is unavailable.",
     )
+    parser.add_argument(
+        "--extension-path",
+        type=Path,
+        default=Path(__file__).resolve().parents[2] / "exts" / EXTENSION_ID,
+        help="Extension directory discovered by Kit.",
+    )
     args = parser.parse_args()
     args.out = args.out.resolve()
+    args.extension_path = args.extension_path.resolve()
 
     frame_trace_path = args.out.with_suffix(".frames.jsonl")
     config_path = args.out.with_suffix(".config.json")
@@ -226,9 +233,7 @@ def main() -> int:
         "replicator_output_dir": str(replicator_dir),
         "screenshot_path": str(screenshot_path),
         "extension_id": EXTENSION_ID,
-        "extension_path": str(
-            Path(__file__).resolve().parents[2] / "exts" / EXTENSION_ID
-        ),
+        "extension_path": str(args.extension_path),
         "headless": True,
         "viewport_mode": "headless_or_existing_viewport",
         "require_screenshot": args.require_screenshot,
@@ -256,6 +261,9 @@ def main() -> int:
         evidence["kit_extension_manager"] = _try_enable_extension_manager(
             extension_id=EXTENSION_ID,
             extension_path=Path(evidence["extension_path"]),
+        )
+        evidence["package_origin"] = _probe_package_origin(
+            Path(evidence["extension_path"])
         )
 
         stage, stage_mode = _create_stage(evidence)
@@ -372,6 +380,26 @@ def main() -> int:
                 evidence["extension_shutdown"] = "ok"
             except Exception as exc:  # noqa: BLE001 - diagnostic only.
                 evidence["extension_shutdown_error"] = f"{type(exc).__name__}: {exc}"
+        if (
+            simulation_app is not None
+            and evidence.get("kit_extension_manager", {}).get("status") == "enabled"
+        ):
+            manager_disable = _try_disable_extension_manager(
+                extension_id=_enabled_extension_id(evidence) or EXTENSION_ID,
+            )
+            evidence["kit_extension_manager_disable"] = manager_disable
+            if manager_disable.get("status") != "disabled" and exit_code == 0:
+                exit_code = 2
+                evidence.update(
+                    {
+                        "status": "blocked",
+                        "error_type": "RuntimeError",
+                        "error": (
+                            "Kit extension manager did not prove extension disabled: "
+                            f"{manager_disable}"
+                        ),
+                    }
+                )
         _write_evidence(args.out, evidence)
         if simulation_app is not None:
             try:
@@ -1185,6 +1213,34 @@ def _execute_toggle_window_action(
     return {
         "status": "passed" if result is not None else "returned_none",
         "result_summary": _result_summary(result),
+    }
+
+
+def _probe_package_origin(extension_path: Path) -> dict[str, Any]:
+    package = sys.modules.get("isaac_audio_sensors")
+    module_file = getattr(package, "__file__", None)
+    packaged_root = extension_path / "isaac_audio_sensors"
+    expected_root = (
+        packaged_root
+        if packaged_root.is_dir()
+        else extension_path.parent.parent / "src" / "isaac_audio_sensors"
+    )
+    try:
+        if module_file is None:
+            raise ValueError("package has no __file__")
+        Path(module_file).resolve().relative_to(expected_root.resolve())
+    except (OSError, ValueError) as exc:
+        return {
+            "status": "failed",
+            "module_file": str(module_file),
+            "expected_root": str(expected_root),
+            "reason": str(exc),
+        }
+    return {
+        "status": "passed",
+        "mode": "packaged" if packaged_root.is_dir() else "source",
+        "module_file": str(Path(module_file).resolve()),
+        "expected_root": str(expected_root.resolve()),
     }
 
 
@@ -2789,6 +2845,7 @@ def _validate_live_extension_outputs(
 ) -> None:
     for probe_name in (
         "ui_control_inventory",
+        "package_origin",
         "ui_editable_model_probe",
         "ui_invalid_numeric_probe",
         "export_latest_without_frame",
@@ -3049,6 +3106,69 @@ def _try_enable_extension_manager(
         return result
     except Exception as exc:  # noqa: BLE001 - direct startup may still work.
         return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
+
+
+def _try_disable_extension_manager(*, extension_id: str) -> dict[str, Any]:
+    result: dict[str, Any] = {"requested_extension_id": extension_id}
+    try:
+        import omni.kit.app  # type: ignore
+
+        app = omni.kit.app.get_app()
+        manager = app.get_extension_manager() if app is not None else None
+        if manager is None:
+            return {"status": "unavailable", "reason": "no extension manager"}
+        for method_name in ("set_extension_enabled_immediate", "set_extension_enabled"):
+            method = getattr(manager, method_name, None)
+            if not callable(method):
+                continue
+            try:
+                result["disable_result"] = str(method(extension_id, False))
+                result["disable_method"] = method_name
+                break
+            except Exception as exc:  # noqa: BLE001 - try next API name.
+                result[f"{method_name}_error"] = f"{type(exc).__name__}: {exc}"
+        result["kit_update_after_disable"] = _pump_kit_app(app)
+        result["verification"] = _verify_extension_manager_disabled(
+            manager=manager,
+            extension_id=extension_id,
+        )
+        result["status"] = (
+            "disabled" if result["verification"]["disabled"] else "disable_failed"
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001 - evidence records exact failure.
+        return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
+
+
+def _verify_extension_manager_disabled(
+    *, manager: Any, extension_id: str
+) -> dict[str, Any]:
+    checks = []
+    enabled = False
+    observed = False
+    for candidate in dict.fromkeys((extension_id, EXTENSION_ID)):
+        for method_name in (
+            "is_extension_enabled",
+            "is_extension_enabled_immediate",
+        ):
+            check = _call_manager_method(manager, method_name, candidate)
+            checks.append(check)
+            if check.get("status") == "called":
+                observed = True
+                enabled = enabled or check.get("value") is True
+    enabled_id_check = _call_manager_method(
+        manager,
+        "get_enabled_extension_id",
+        EXTENSION_ID,
+    )
+    checks.append(enabled_id_check)
+    if enabled_id_check.get("status") == "called":
+        observed = True
+        enabled = enabled or bool(enabled_id_check.get("value"))
+    return {
+        "disabled": observed and not enabled,
+        "checks": checks,
+    }
 
 
 def _enabled_extension_id(evidence: dict[str, Any]) -> str | None:

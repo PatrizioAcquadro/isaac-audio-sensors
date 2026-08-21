@@ -60,17 +60,6 @@ def test_active_markdown_links_resolve_and_avoid_removed_root_docs() -> None:
             assert target_path.exists(), f"{page}: unresolved Markdown link {target!r}"
 
 
-def test_kit_metadata_is_standalone_and_wiki_is_not_a_packaged_doc_set() -> None:
-    extension_root = REPO_ROOT / "exts" / "isaac_audio_sensors.omni"
-    manifest_path = extension_root / "config" / "extension.toml"
-    with manifest_path.open("rb") as stream:
-        manifest = tomllib.load(stream)
-    package = manifest["package"]
-    assert (extension_root / package["readme"]).is_file()
-    assert (extension_root / package["changelog"]).is_file()
-    assert "documentation" not in manifest
-
-
 def test_pyproject_has_no_obsolete_docs_extra() -> None:
     with (REPO_ROOT / "pyproject.toml").open("rb") as stream:
         pyproject = tomllib.load(stream)

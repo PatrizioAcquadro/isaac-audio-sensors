@@ -54,7 +54,7 @@ audit-python:
 	$(PYTHON) tools/release/audit_python_wheel.py --dist-dir dist
 
 audit-kit:
-	$(PYTHON) tools/release/audit_kit_archive.py dist/kit/isaac_audio_sensors.omni-$(EXPECTED_VERSION).zip
+	$(PYTHON) tools/release/audit_kit_archive.py dist/PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v$(EXPECTED_VERSION).zip
 
 audit-pack:
 	$(PYTHON) tools/release/audit_acoustic_pack.py dist/packs/isaac_audio_sensors_acoustic_pack-l2l3-$(EXPECTED_VERSION)-linux_x86_64-cp312.tar.gz
@@ -86,7 +86,7 @@ smoke-isaac-lab:
 	CUDA_VISIBLE_DEVICES=0 PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) tools/smoke/live_isaac_lab_audio_smoke.py
 
 smoke-kit:
-	PYTHONPATH=$(CURDIR)/src:$(CURDIR)/exts/isaac_audio_sensors.omni:$(CURDIR)/tools/smoke:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) tools/smoke/live_omniverse_extension_ux.py
+	CUDA_VISIBLE_DEVICES=0 PYTHONPATH=$(CURDIR)/src:$(CURDIR)/exts/isaac_audio_sensors.omni:$(CURDIR)/tools/smoke:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) tools/smoke/live_omniverse_extension_ux.py
 
 diagnose-isaac:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(PYTHON) tools/smoke/diagnose_isaac_gpu_audio.py

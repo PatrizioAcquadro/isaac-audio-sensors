@@ -1,11 +1,9 @@
 [package]
-# Kit extension manifests require SemVer spelling. The Python package release
-# uses the same final SemVer spelling for 2.0.0.
+name = "isaac_audio_sensors.omni"
 version = "2.0.0"
 title = "Isaac Audio Sensors"
 description = "Reference Isaac Sim Kit workflow for audio-array metadata, live sensor control, overlays, and JSON/JSONL export."
 authors = ["Patrizio Acquadro"]
-author = "Patrizio Acquadro"
 repository = "https://github.com/PatrizioAcquadro/isaac-audio-sensors"
 category = "Simulation"
 keywords = ["audio", "microphone", "microphone-array", "sensor", "robotics", "isaac-sim", "omniverse", "usd", "tdoa", "simulation"]
@@ -14,7 +12,12 @@ changelog = "docs/CHANGELOG.md"
 icon = "data/icon.svg"
 preview_image = "data/preview.png"
 trusted = false
-support_level = "Community"
+
+[package.target]
+config = ["release"]
+kit = ["110.1"]
+platform = ["linux-x86_64"]
+python = ["cp312"]
 
 [dependencies]
 "omni.kit.actions.core" = {}
@@ -22,9 +25,7 @@ support_level = "Community"
 "omni.ui" = {}
 "omni.usd" = {}
 "omni.kit.hotkeys.core" = { optional = true }
-# Optional extension-only recording path. Core package imports do not depend on it.
 "omni.replicator.core" = { optional = true }
-# Optional Action Graph integration; the node registers only when present.
 "omni.graph.core" = { optional = true }
 
 [settings]
