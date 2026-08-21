@@ -24,7 +24,7 @@ from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.core.microphone_array import microphone_layout
 from isaac_audio_sensors.core.types import AudioSensorFrame, RoomAcousticsSpec
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
     attach_sound_source_attrs,

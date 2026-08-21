@@ -7,7 +7,7 @@ import math
 import pytest
 
 from isaac_audio_sensors.core.effects import EffectsConfig, MotionEffectsConfig
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 
 UPDATE_PERIOD_S = 0.05
 

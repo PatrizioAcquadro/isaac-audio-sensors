@@ -26,7 +26,7 @@ from isaac_audio_sensors.core.types import (
     AudioSourceSpec,
     AudioTimeWindow,
 )
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_snapshot import (
     build_stage_snapshot,
     enrich_snapshot_motion,

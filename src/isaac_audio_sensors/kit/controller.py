@@ -31,15 +31,9 @@ from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioSceneBindingCfg,
     discover_stage_audio,
 )
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.frame_registry import (
     clear_latest_frames,
     publish_latest_frame,
-)
-from isaac_audio_sensors.isaac.microphone_rig_profiles import (
-    MicrophoneRigProfile,
-    microphone_rig_profile_from_mapping,
-    validate_microphone_rig_profile_library,
 )
 from isaac_audio_sensors.isaac.pose_resolver import (
     IsaacStagePoseResolver,
@@ -48,13 +42,7 @@ from isaac_audio_sensors.isaac.pose_resolver import (
     vec3_from_any,
 )
 from isaac_audio_sensors.isaac.replicator import AudioSensorReplicatorRecorder
-from isaac_audio_sensors.isaac.sound_profiles import (
-    SoundProfile,
-    match_sound_profile_id,
-    normalize_object_label,
-    sound_profile_from_mapping,
-    validate_sound_profile_library,
-)
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_array_object_binding_attrs,
     attach_microphone_array_attrs,
@@ -70,16 +58,28 @@ from isaac_audio_sensors.isaac.stage_audio import (
     remove_prim,
     set_prim_xform_pose,
 )
-from isaac_audio_sensors.isaac.validation import (
-    ValidationController,
-    ValidationFinding,
-    ValidationReport,
-)
 from isaac_audio_sensors.isaac.viz.overlays import (
     DebugPrimitive,
     debug_primitives_to_dicts,
 )
 from isaac_audio_sensors.isaac.viz.usd_debug import UsdDebugGeometryAuthor
+from isaac_audio_sensors.kit.microphone_rig_profiles import (
+    MicrophoneRigProfile,
+    microphone_rig_profile_from_mapping,
+    validate_microphone_rig_profile_library,
+)
+from isaac_audio_sensors.kit.sound_profiles import (
+    SoundProfile,
+    match_sound_profile_id,
+    normalize_object_label,
+    sound_profile_from_mapping,
+    validate_sound_profile_library,
+)
+from isaac_audio_sensors.kit.validation import (
+    ValidationController,
+    ValidationFinding,
+    ValidationReport,
+)
 from isaac_audio_sensors.recording import (
     CreationProvenance,
     DeviceProvenance,

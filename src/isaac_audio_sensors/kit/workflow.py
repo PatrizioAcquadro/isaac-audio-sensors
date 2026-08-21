@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from isaac_audio_sensors.isaac.validation import (
+from isaac_audio_sensors.kit.validation import (
     ValidationController,
     ValidationFinding,
     ValidationReport,

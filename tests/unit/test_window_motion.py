@@ -35,7 +35,7 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     RoomAcousticsSpec,
 )
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 
 R = 48_000
 W = 2_400

@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from isaac_audio_sensors.isaac.array_registry import (
-    ArrayRecord,
-    discover_microphone_arrays,
-)
 from isaac_audio_sensors.isaac.discovery import (
     DiscoveredAudioArray,
     DiscoveredAudioSource,
@@ -13,12 +9,6 @@ from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioDiscoveryResult,
     IsaacAudioSceneBindingCfg,
     discover_stage_audio,
-)
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
-from isaac_audio_sensors.isaac.listener_registry import ListenerRecord
-from isaac_audio_sensors.isaac.microphone_rig_profiles import (
-    MicrophoneRigProfile,
-    default_microphone_rig_profiles,
 )
 from isaac_audio_sensors.isaac.pose_resolver import (
     IsaacStagePoseResolver,
@@ -32,12 +22,7 @@ from isaac_audio_sensors.isaac.replicator import (
     audio_sensor_frame_replicator_payload,
     require_replicator_core,
 )
-from isaac_audio_sensors.isaac.sound_profiles import (
-    SoundProfile,
-    default_object_profile_mappings,
-    default_sound_profiles,
-)
-from isaac_audio_sensors.isaac.source_registry import SourceRecord
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
     attach_microphone_attrs,
@@ -49,7 +34,6 @@ from isaac_audio_sensors.isaac.stage_audio import (
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 
 __all__ = [
-    "ArrayRecord",
     "DiscoveredAudioArray",
     "DiscoveredAudioSource",
     "IsaacAudioArraySensor",
@@ -57,13 +41,9 @@ __all__ = [
     "IsaacAudioDiscoveryResult",
     "IsaacAudioSceneBindingCfg",
     "IsaacStagePoseResolver",
-    "ListenerRecord",
-    "MicrophoneRigProfile",
     "AudioSensorReplicatorRecorder",
     "ReplicatorIntegrationError",
     "ReplicatorRecorderStatus",
-    "SoundProfile",
-    "SourceRecord",
     "StagePose",
     "attach_microphone_array_attrs",
     "attach_microphone_attrs",
@@ -72,11 +52,7 @@ __all__ = [
     "create_listener_prim",
     "create_sound_prim",
     "discover_stage_audio",
-    "discover_microphone_arrays",
     "audio_sensor_frame_replicator_payload",
-    "default_microphone_rig_profiles",
-    "default_object_profile_mappings",
-    "default_sound_profiles",
     "require_isaac_usd",
     "require_replicator_core",
     "resolve_world_pose",

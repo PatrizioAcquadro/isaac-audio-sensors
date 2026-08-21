@@ -15,23 +15,23 @@ import pytest
 
 from isaac_audio_sensors.core.config import load_audio_config
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
-from isaac_audio_sensors.isaac.microphone_rig_profiles import (
-    default_microphone_rig_profiles,
-)
 from isaac_audio_sensors.isaac.replicator import PAYLOAD_SCHEMA_VERSION
-from isaac_audio_sensors.isaac.sound_profiles import (
-    SoundProfile,
-    default_object_profile_mappings,
-    default_sound_profiles,
-)
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.kit import (
     CurrentStageContext,
     ExtensionController,
     current_omni_stage_context,
 )
 from isaac_audio_sensors.kit.constants import OUTPUT_ROOT_ENV_VAR
+from isaac_audio_sensors.kit.microphone_rig_profiles import (
+    default_microphone_rig_profiles,
+)
 from isaac_audio_sensors.kit.paths import _gui_output_root, _resolve_gui_output_path
+from isaac_audio_sensors.kit.sound_profiles import (
+    SoundProfile,
+    default_object_profile_mappings,
+    default_sound_profiles,
+)
 from isaac_audio_sensors.kit.stage_context import _stage_has_prim
 
 

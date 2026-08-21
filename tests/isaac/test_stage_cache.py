@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_cache import (
     StageAudioCache,
     _discovery_relevant_property,

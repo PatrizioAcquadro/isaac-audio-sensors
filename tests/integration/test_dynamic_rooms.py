@@ -26,7 +26,7 @@ from isaac_audio_sensors.core.types import (
     RoomAcousticsSpec,
     SourceOcclusion,
 )
-from isaac_audio_sensors.isaac.extension import IsaacAudioArraySensor
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.occlusion import OcclusionHit
 from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
 

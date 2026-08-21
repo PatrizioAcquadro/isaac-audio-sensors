@@ -11,15 +11,15 @@ from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     DEFAULT_SAMPLE_RATE_HZ,
 )
-from isaac_audio_sensors.isaac.microphone_rig_profiles import (
-    MicrophoneRigProfile,
-    default_microphone_rig_profiles,
-)
 from isaac_audio_sensors.isaac.replicator import (
     DEFAULT_REPLICATOR_ANNOTATOR_NAME,
     DEFAULT_REPLICATOR_WRITER_NAME,
 )
-from isaac_audio_sensors.isaac.sound_profiles import (
+from isaac_audio_sensors.kit.microphone_rig_profiles import (
+    MicrophoneRigProfile,
+    default_microphone_rig_profiles,
+)
+from isaac_audio_sensors.kit.sound_profiles import (
     SoundProfile,
     default_object_profile_mappings,
     default_sound_profiles,

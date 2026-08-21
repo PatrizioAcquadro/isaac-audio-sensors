@@ -1,9 +1,11 @@
+"""Integration tests for Kit configuration profiles."""
+
 from __future__ import annotations
 
 import pytest
 
 from isaac_audio_sensors.core.types import MicrophoneSpec
-from isaac_audio_sensors.isaac.microphone_rig_profiles import (
+from isaac_audio_sensors.kit.microphone_rig_profiles import (
     RIG_LAYOUT_CHOICES,
     MicrophoneRigProfile,
     default_microphone_rig_profiles,

@@ -12,15 +12,15 @@ import pytest
 
 import isaac_audio_sensors.kit.controller as controller_module
 from isaac_audio_sensors.core.types import AudioSensorFrame
-from isaac_audio_sensors.isaac.validation import (
-    ValidationController,
-    ValidationReport,
-)
 from isaac_audio_sensors.kit.controller import ExtensionController
 from isaac_audio_sensors.kit.sections import build_guided_section
 from isaac_audio_sensors.kit.state import (
     CurrentStageContext,
     ExtensionUiState,
+)
+from isaac_audio_sensors.kit.validation import (
+    ValidationController,
+    ValidationReport,
 )
 from isaac_audio_sensors.kit.window import OmniReferenceWindow
 from isaac_audio_sensors.kit.workflow import (

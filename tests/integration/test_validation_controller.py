@@ -13,16 +13,16 @@ from typing import Any
 import pytest
 
 from isaac_audio_sensors.core.capabilities import CapabilityReport, CapabilityStatus
-from isaac_audio_sensors.isaac.validation import ValidationController
-from isaac_audio_sensors.isaac.validation import checks as validation_checks
-from isaac_audio_sensors.isaac.validation import controller as validation_controller
-from isaac_audio_sensors.isaac.validation.results import ValidationReport
 from isaac_audio_sensors.kit import (
     CurrentStageContext,
     ExtensionActionError,
     ExtensionController,
     ExtensionUiState,
 )
+from isaac_audio_sensors.kit.validation import ValidationController
+from isaac_audio_sensors.kit.validation import checks as validation_checks
+from isaac_audio_sensors.kit.validation import controller as validation_controller
+from isaac_audio_sensors.kit.validation.results import ValidationReport
 
 
 class _FakePrim:
@@ -141,12 +141,16 @@ def test_validation_package_imports_without_isaac_runtime_dependencies():
                 return None
 
         sys.meta_path.insert(0, IsaacRuntimeBlocker())
-        module = importlib.import_module("isaac_audio_sensors.isaac.validation")
+        module = importlib.import_module("isaac_audio_sensors.kit.validation")
         assert module.ValidationController().validate_stage_present(True).ok
         report = module.ValidationController().validate_stage_present(False)
         assert not report.ok
         assert report.findings[0].message == "No USD stage is open."
-        assert "isaac_audio_sensors.kit" not in sys.modules
+        assert not any(
+            name == blocked_name or name.startswith(blocked_name + ".")
+            for name in sys.modules
+            for blocked_name in blocked
+        )
         print("validation-import-ok")
         """)
     env = os.environ.copy()
