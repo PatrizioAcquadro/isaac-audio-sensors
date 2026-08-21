@@ -35,7 +35,7 @@ SOURCE_POSITION_PRESETS: Mapping[str, tuple[float, float, float]] = {
 }
 OUTPUT_ROOT_ENV_VAR = "ISAAC_AUDIO_SENSORS_OUTPUT_ROOT"
 PROJECT_NAME = "isaac-audio-sensors"
-DEFAULT_OUTPUT_ROOT = Path("outputs/isaac_audio_sensors")
+DEFAULT_OUTPUT_ROOT = Path("build/validation/isaac_audio_sensors")
 DEFAULT_TRACE_FILENAME = "extension_trace.frames.jsonl"
 DEFAULT_LATEST_FRAME_FILENAME = "extension_latest_frame.json"
 DEFAULT_CONFIG_FILENAME = "extension_binding.json"

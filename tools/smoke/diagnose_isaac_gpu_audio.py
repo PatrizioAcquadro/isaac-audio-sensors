@@ -15,7 +15,7 @@ from typing import Any
 
 from security_redaction import redact_text, redact_value_for_key
 
-DEFAULT_OUT_DIR = Path("outputs/isaac_audio_sensors/showcase/diagnostics")
+DEFAULT_OUT_DIR = Path("build/validation/isaac_audio_sensors/diagnostics")
 MAX_TEXT_CHARS = 120_000
 
 

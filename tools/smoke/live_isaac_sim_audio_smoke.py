@@ -42,7 +42,9 @@ SMOKE_PHASES = (
     ("moved", 0.1),
     ("inactive", 0.5),
 )
-WAVEFORM_EVIDENCE_DIR = Path("outputs/isaac_audio_sensors/live_waveforms")
+WAVEFORM_EVIDENCE_DIR = Path(
+    "build/validation/isaac_audio_sensors/live_waveforms"
+)
 
 
 def main() -> int:
@@ -50,7 +52,9 @@ def main() -> int:
     parser.add_argument(
         "--out",
         type=Path,
-        default=Path("outputs/isaac_audio_sensors/isaac_sim_live_smoke.json"),
+        default=Path(
+            "build/validation/isaac_audio_sensors/isaac_sim_live_smoke.json"
+        ),
     )
     args = parser.parse_args()
 

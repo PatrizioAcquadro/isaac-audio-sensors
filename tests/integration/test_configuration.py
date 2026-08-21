@@ -5,10 +5,10 @@ from isaac_audio_sensors.kit.sensor_session import SensorSession
 from ._kit_ui_support import *
 
 
-def test_kit_resolves_relative_outputs_against_repo(monkeypatch):
+def test_kit_resolves_relative_validation_paths_against_repo(monkeypatch):
     monkeypatch.delenv(OUTPUT_ROOT_ENV_VAR, raising=False)
     repo = Path(__file__).resolve().parents[2]
-    root = (repo / "outputs" / "isaac_audio_sensors").resolve()
+    root = (repo / "build" / "validation" / "isaac_audio_sensors").resolve()
 
     assert _gui_output_root() == root
     assert _resolve_gui_output_path("gui_manual_binding.json") == (
@@ -17,9 +17,6 @@ def test_kit_resolves_relative_outputs_against_repo(monkeypatch):
     assert _resolve_gui_output_path("manual/binding.json") == (
         root / "manual" / "binding.json"
     )
-    assert _resolve_gui_output_path(
-        "outputs/isaac_audio_sensors/gui_manual_binding.json"
-    ) == (root / "gui_manual_binding.json")
 
 
 def test_extension_controller_config_paths_use_output_root_env(

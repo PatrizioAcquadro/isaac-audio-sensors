@@ -6,8 +6,14 @@ BUILD_FLAGS ?= --no-isolation
 EXPECTED_VERSION ?= 2.0.0
 WHEELHOUSE ?=
 SCHEMA_OUT ?= build/schemas
+CLEAN_PYTHON_ROOTS := src tests tools examples exts
 
-.PHONY: test test-isaac test-release test-all lint format build build-kit build-pack audit-dist audit-kit audit-pack check-version check-release-source validate-config validate-fixture export-schema smoke-optional smoke-isaac-sim smoke-isaac-lab smoke-kit diagnose-isaac
+.PHONY: clean test test-isaac test-release test-all lint format build build-kit build-pack audit-dist audit-kit audit-pack check-version check-release-source validate-config validate-fixture export-schema smoke-optional smoke-isaac-sim smoke-isaac-lab smoke-kit diagnose-isaac
+
+clean:
+	rm -rf -- build dist .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage
+	find $(CLEAN_PYTHON_ROOTS) -type d -name __pycache__ -prune -exec rm -rf -- {} +
+	find src -maxdepth 1 -type d -name '*.egg-info' -prune -exec rm -rf -- {} +
 
 test:
 	$(PYTHON) -m pytest -q tests/unit tests/contract

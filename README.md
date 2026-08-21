@@ -134,6 +134,7 @@ make lint
 make build
 make build-kit
 git diff --check
+make clean
 ```
 
 The Isaac lane is required only for runtime changes and for release evidence that claims the supported live path.
@@ -163,12 +164,12 @@ The Isaac lane is required only for runtime changes and for release evidence tha
 
 ## Contributing and Security
 
-Keep core imports independent from optional runtimes, add proportional tests for behavior changes, update canonical wiki pages for material interface changes, and keep generated media, private recordings, credentials, task policy, and workstation-specific paths out of tracked product surfaces.
+Keep core imports independent from optional runtimes, add proportional tests for behavior changes, update canonical wiki pages for material interface changes, and keep discussions professional and technical.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+Report vulnerabilities privately through a GitHub security advisory when available or directly to the maintainer. Never publish credentials, private recordings, restricted robot data, generated media dumps, or workstation-specific paths in issues, pull requests, examples, or fixtures.
 
-## License and Citation
+This package is simulation tooling, not a safety-critical perception component. Independent validation, calibration, and runtime safety controls are required for safety-relevant use.
+
+## License
 
 This project is licensed under Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
-
-Citation metadata is provided in [CITATION.cff](CITATION.cff).

@@ -10,9 +10,7 @@ build/
 dist/
 .venv/
 venv/
-outputs/
 /evidence/
-runs/
 data/
 generated/
 *.wav

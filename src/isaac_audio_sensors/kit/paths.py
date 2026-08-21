@@ -31,7 +31,7 @@ def _resolve_gui_output_path(path: str | Path) -> Path:
     candidate = Path(raw).expanduser()
     if candidate.is_absolute():
         return candidate
-    return _gui_output_root() / _strip_legacy_output_prefix(candidate)
+    return _gui_output_root() / candidate
 
 
 def _find_project_root_from_module() -> Path | None:
@@ -44,12 +44,3 @@ def _find_project_root_from_module() -> Path | None:
             if f'name = "{PROJECT_NAME}"' in text or f"name = '{PROJECT_NAME}'" in text:
                 return parent
     return None
-
-
-def _strip_legacy_output_prefix(path: Path) -> Path:
-    parts = path.parts
-    prefix = DEFAULT_OUTPUT_ROOT.parts
-    if len(parts) >= len(prefix) and parts[: len(prefix)] == prefix:
-        stripped = parts[len(prefix) :]
-        return Path(*stripped) if stripped else Path(".")
-    return path

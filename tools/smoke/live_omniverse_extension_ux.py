@@ -176,7 +176,9 @@ def main() -> int:
     parser.add_argument(
         "--out",
         type=Path,
-        default=Path("outputs/isaac_audio_sensors/omniverse_extension_live_ux.json"),
+        default=Path(
+            "build/validation/isaac_audio_sensors/omniverse_extension_live_ux.json"
+        ),
     )
     parser.add_argument(
         "--require-screenshot",

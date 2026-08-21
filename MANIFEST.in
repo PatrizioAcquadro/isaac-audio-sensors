@@ -1,5 +1,4 @@
-include README.md LICENSE NOTICE CHANGELOG.md CITATION.cff
-include CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md
+include README.md LICENSE NOTICE CHANGELOG.md
 recursive-include examples *.md *.py *.json *.ndjson *.toml
 recursive-include exts *.toml *.py *.md *.svg *.json
 recursive-include packs/acoustics *.toml *.lock
@@ -11,7 +10,6 @@ prune tools
 prune scripts
 prune configs
 prune dataset
-prune outputs
 prune evidence
 prune build
 prune dist

@@ -154,14 +154,6 @@ def check_version_sync(repo_root: Path) -> tuple[str, tuple[str, ...]]:
         ),
     )
     check(
-        "CITATION.cff version",
-        lambda: _required_regex(
-            repo_root / "CITATION.cff",
-            r'^version:\s*["\']?([^"\'\s]+)["\']?\s*$',
-            "CITATION version",
-        ),
-    )
-    check(
         "knowledge/wiki/status.md package version",
         lambda: _required_regex(
             repo_root / "knowledge/wiki/status.md",
