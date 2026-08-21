@@ -49,9 +49,7 @@ def apply_channel_response(
             waveform = waveform * (10.0 ** (mic_config.gain_db / 20.0))
         if mic_config.polarity is not None:
             waveform = (
-                np.negative(waveform)
-                if mic_config.polarity == -1
-                else waveform * 1
+                np.negative(waveform) if mic_config.polarity == -1 else waveform * 1
             )
         if mic_config.delay_s is not None and mic_config.delay_s != 0.0:
             waveform = fractional_delay(
@@ -116,9 +114,7 @@ def fractional_delay(
     guard = math.ceil(abs(delay_s * sample_rate_hz)) + 64
     padded = np.pad(samples, (guard, guard), mode="constant")
     transform_size = _next_power_of_two(int(padded.size))
-    frequencies = np.fft.rfftfreq(
-        transform_size, d=1.0 / float(sample_rate_hz)
-    )
+    frequencies = np.fft.rfftfreq(transform_size, d=1.0 / float(sample_rate_hz))
     phase = np.exp(-2j * np.pi * frequencies * delay_s)
     delayed = np.fft.irfft(
         np.fft.rfft(padded, n=transform_size) * phase,
@@ -197,14 +193,11 @@ def is_noop(config: ChannelResponseMicConfig) -> bool:
     )
 
 
-def _linear_convolve_compensated(
-    samples: np.ndarray, taps: np.ndarray
-) -> np.ndarray:
+def _linear_convolve_compensated(samples: np.ndarray, taps: np.ndarray) -> np.ndarray:
     full_size = samples.size + taps.size - 1
     transform_size = _next_power_of_two(full_size)
     convolution = np.fft.irfft(
-        np.fft.rfft(samples, n=transform_size)
-        * np.fft.rfft(taps, n=transform_size),
+        np.fft.rfft(samples, n=transform_size) * np.fft.rfft(taps, n=transform_size),
         n=transform_size,
     )[:full_size]
     group_delay = taps.size // 2

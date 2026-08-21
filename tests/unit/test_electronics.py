@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import fields, replace
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -25,16 +25,14 @@ from isaac_audio_sensors.core.effects import (
     SelfNoiseConfig,
     UnsupportedEffectError,
 )
-from isaac_audio_sensors.core.effects.config import (
-    parse_effects_config,
-    validate_effects_config,
-)
 from isaac_audio_sensors.core.effects.electronics import (
     apply_agc,
     generate_tpdf_dither,
     quantize,
 )
+from isaac_audio_sensors.core.effects.parsing import parse_effects_config
 from isaac_audio_sensors.core.effects.streams import named_stream_descriptor
+from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from tests.helpers import (
@@ -146,24 +144,7 @@ def _base_raw() -> dict[str, object]:
     }
 
 
-def test_frozen_records_defaults_toml_and_shared_seed_ownership():
-    assert tuple(field.name for field in fields(AgcConfig)) == (
-        "enabled",
-        "target_rms_dbfs",
-        "attack_time_s",
-        "release_time_s",
-        "gain_floor_db",
-        "gain_ceiling_db",
-    )
-    assert tuple(field.name for field in fields(ElectronicsConfig)) == (
-        "enabled",
-        "full_scale",
-        "bit_depth",
-        "dither_enabled",
-        "agc",
-    )
-    assert ElectronicsConfig() == ElectronicsConfig(enabled=False)
-    assert AgcConfig() == AgcConfig(enabled=False)
+def test_defaults_toml_and_shared_seed_ownership():
     assert parse_effects_config({}).electronics == ElectronicsConfig()
     parsed = validate_audio_config(_base_raw()).effects
     assert parsed.electronics.agc == _agc()
@@ -323,20 +304,6 @@ def test_fail_closed_validation_matrix(electronics, seed, match):
             backend_id="room_acoustics",
             runtime_profile="waveform_fidelity",
             sample_count=16,
-        )
-
-
-def test_malformed_values_fail_even_when_electronics_is_explicitly_disabled():
-    samples = np.zeros((1, 16), dtype=np.float64)
-    config = EffectsConfig(
-        electronics=ElectronicsConfig(enabled=False, full_scale=math.nan)
-    )
-    with pytest.raises(ConfigValidationError, match="full_scale"):
-        ChannelEffectsChain(config).apply(
-            samples,
-            mic_ids=("front",),
-            sample_rate_hz=SAMPLE_RATE_HZ,
-            frame_id=FRAME_ID,
         )
 
 

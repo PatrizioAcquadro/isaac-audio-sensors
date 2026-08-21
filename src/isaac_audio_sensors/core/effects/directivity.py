@@ -18,8 +18,8 @@ from isaac_audio_sensors.core.effects.config import (
     DirectivityPatternConfig,
     DirectivityPatternSetConfig,
     FrequencyResponsePointConfig,
-    UnsupportedEffectError,
 )
+from isaac_audio_sensors.core.effects.validation import UnsupportedEffectError
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.math_utils import (
     Quaternion,
@@ -256,6 +256,8 @@ def validate_directivity_config(
         raise ConfigValidationError(
             f"{table}.enabled must be a bool; received {config.enabled!r}."
         )
+    if not config.enabled:
+        return
     if config.mode is not None and config.mode != DIRECTIVITY_MODE:
         raise UnsupportedEffectError(
             f"{table}.mode={config.mode!r} is unsupported; the supported "

@@ -11,12 +11,10 @@ from isaac_audio_sensors.core.backends.amplitude import (
 )
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
 from isaac_audio_sensors.core.effects.channel_response import metadata_channel_values
-from isaac_audio_sensors.core.effects.config import (
-    EffectsConfig,
-    validate_effects_config,
-)
+from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.effects.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.noise import metadata_noise_timing_values
+from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.math_utils import (
     basis_from_quaternion,
     bearing_from_components,

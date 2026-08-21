@@ -12,8 +12,8 @@ from isaac_audio_sensors.core.acoustics.materials import resolve_material
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.config import AudioSensorConfig, build_scene_snapshot
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
-from isaac_audio_sensors.core.effects.config import (
-    EffectsConfig,
+from isaac_audio_sensors.core.effects.config import EffectsConfig
+from isaac_audio_sensors.core.effects.validation import (
     UnsupportedEffectError,
     validate_motion_effects_config,
 )

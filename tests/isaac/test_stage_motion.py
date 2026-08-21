@@ -17,7 +17,7 @@ from isaac_audio_sensors.core.effects import (
     MotionEffectsConfig,
     UnsupportedEffectError,
 )
-from isaac_audio_sensors.core.effects.config import validate_effects_config
+from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.motion import PoseHistory
@@ -136,22 +136,33 @@ def test_motion_config_defaults_and_normalized_fields_are_frozen():
         ("derive_velocity_from_poses", 0.0),
         ("teleport_speed_threshold_mps", True),
         ("teleport_speed_threshold_mps", "50.0"),
-        ("teleport_speed_threshold_mps", 0.0),
-        ("teleport_speed_threshold_mps", 100.0001),
         ("teleport_speed_threshold_mps", float("nan")),
         ("stale_time_s", False),
-        ("stale_time_s", 0.0),
-        ("stale_time_s", 60.0001),
         ("stale_time_s", float("inf")),
         ("smoothing_alpha", True),
-        ("smoothing_alpha", 0.0),
-        ("smoothing_alpha", 1.0001),
         ("smoothing_alpha", float("-inf")),
     ],
 )
 def test_invalid_motion_config_matrix_fails_closed(field, value):
     raw = _raw_config()
     raw["audio"]["effects"] = {"motion": {field: value}}
+    with pytest.raises(ConfigValidationError, match=f"audio.effects.motion.*{field}"):
+        validate_audio_config(raw)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("teleport_speed_threshold_mps", 0.0),
+        ("stale_time_s", 60.0001),
+        ("smoothing_alpha", 1.0001),
+    ],
+)
+def test_active_motion_rejects_out_of_range_values(field, value):
+    raw = _raw_config()
+    raw["audio"]["effects"] = {
+        "motion": {"derive_velocity_from_poses": True, field: value}
+    }
     with pytest.raises(ConfigValidationError, match=f"audio.effects.motion.*{field}"):
         validate_audio_config(raw)
 
@@ -173,9 +184,7 @@ def test_direct_motion_record_validation_rejects_bool_as_number():
 def test_config_source_selected_array_collision_fails_before_snapshot():
     raw = _raw_config()
     raw["sources"][0]["source_id"] = "rig"
-    raw["audio"]["effects"] = {
-        "motion": {"derive_velocity_from_poses": True}
-    }
+    raw["audio"]["effects"] = {"motion": {"derive_velocity_from_poses": True}}
     with pytest.raises(ConfigValidationError, match="collisions.*rig"):
         validate_audio_config(raw)
 
@@ -370,9 +379,7 @@ def test_enabled_stage_snapshot_requires_finite_explicit_simulation_time():
 
 def test_offline_sensor_rejects_pose_derivation_before_capture():
     raw = _raw_config()
-    raw["audio"]["effects"] = {
-        "motion": {"derive_velocity_from_poses": True}
-    }
+    raw["audio"]["effects"] = {"motion": {"derive_velocity_from_poses": True}}
     config = validate_audio_config(raw)
     with pytest.raises(UnsupportedEffectError, match="from_config is offline"):
         IsaacAudioArraySensor.from_config(config=config, array_id="rig")
@@ -395,9 +402,7 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
     )
     assert diagnostics == {"rig": "none:first_sample"}
     assert enriched.sources == ()
-    frame = TdoaSyntheticBackend(
-        effects=EffectsConfig(motion=_motion())
-    ).simulate(
+    frame = TdoaSyntheticBackend(effects=EffectsConfig(motion=_motion())).simulate(
         enriched,
         enriched.array_by_id("rig"),
         AudioTimeWindow(
@@ -478,9 +483,12 @@ def test_stage_replacement_clears_history_before_new_stage_sample():
     ).start()
     sensor.update(sim_time_s=0.0)
     first_source.attributes["ias:position_world"] = (1.1, 0.0, 0.0)
-    assert sensor.update(sim_time_s=0.05).diagnostics["motion"][
-        "velocity_source"
-    ]["speaker"] == "derived"
+    assert (
+        sensor.update(sim_time_s=0.05).diagnostics["motion"]["velocity_source"][
+            "speaker"
+        ]
+        == "derived"
+    )
 
     second_stage, _, _ = _fake_stage()
     sensor.stage = second_stage

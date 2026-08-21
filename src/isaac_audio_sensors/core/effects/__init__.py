@@ -18,7 +18,12 @@ from isaac_audio_sensors.core.effects.config import (
     NoiseLevelSpecConfig,
     NoiseSpectrumPointConfig,
     SelfNoiseConfig,
+)
+from isaac_audio_sensors.core.effects.parsing import parse_effects_config
+from isaac_audio_sensors.core.effects.validation import (
     UnsupportedEffectError,
+    validate_effects_config,
+    validate_motion_effects_config,
 )
 
 __all__ = [
@@ -40,4 +45,7 @@ __all__ = [
     "NoiseSpectrumPointConfig",
     "SelfNoiseConfig",
     "UnsupportedEffectError",
+    "parse_effects_config",
+    "validate_effects_config",
+    "validate_motion_effects_config",
 ]

@@ -15,7 +15,7 @@ from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.effects import EffectsConfig, MotionEffectsConfig
-from isaac_audio_sensors.core.effects.config import (
+from isaac_audio_sensors.core.effects.validation import (
     UnsupportedEffectError,
     validate_effects_config,
     validate_motion_effects_config,
@@ -86,9 +86,7 @@ def _plan_for_trajectory(position, velocity, *, segments: int = P):
 def _position_errors(position, plan):
     interpolation_error = 0.0
     for time_s in np.linspace(0.0, T, 1_001):
-        observed = _interpolate_endpoints(
-            position(0.0), position(T), float(time_s / T)
-        )
+        observed = _interpolate_endpoints(position(0.0), position(T), float(time_s / T))
         interpolation_error = max(
             interpolation_error,
             _distance(observed, position(float(time_s))),
@@ -103,8 +101,7 @@ def _position_errors(position, plan):
 
 def _interpolate_endpoints(start, end, weight):
     return tuple(
-        start[index] + weight * (end[index] - start[index])
-        for index in range(3)
+        start[index] + weight * (end[index] - start[index]) for index in range(3)
     )
 
 
@@ -123,9 +120,7 @@ def test_segment_division_longer_remainders_first_and_accounts_every_sample():
 @pytest.mark.parametrize("value", [0, 65, -1, True, 1.5])
 def test_segments_configuration_range_is_exact_and_rejects_bool(value):
     with pytest.raises(ConfigValidationError, match="segments_per_window"):
-        validate_motion_effects_config(
-            MotionEffectsConfig(segments_per_window=value)
-        )
+        validate_motion_effects_config(MotionEffectsConfig(segments_per_window=value))
 
 
 def test_segments_greater_than_window_reject_before_backend_output():
@@ -217,14 +212,8 @@ def test_phase_cursor_continuity_residual_is_below_two_e_minus_six():
         reference_signal = reference_signal / peak
         residuals.extend(
             abs(
-                (
-                    observed_signal[boundary]
-                    - observed_signal[boundary - 1]
-                )
-                - (
-                    reference_signal[boundary]
-                    - reference_signal[boundary - 1]
-                )
+                (observed_signal[boundary] - observed_signal[boundary - 1])
+                - (reference_signal[boundary] - reference_signal[boundary - 1])
             )
             for boundary in range(300, W, 300)
         )
@@ -240,9 +229,7 @@ def test_l0_l1_explicitly_reject_multiple_segments_before_output(backend):
         backend(effects=_motion_effects(2)).simulate(scene, array, window)
 
 
-def test_segments_one_selects_literal_room_branch_and_is_byte_identical(
-    monkeypatch
-):
+def test_segments_one_selects_literal_room_branch_and_is_byte_identical(monkeypatch):
     _install_fake_pyroom(monkeypatch)
     scene, array, window = _room_fixture()
     calls = {"scheduled": 0}
@@ -262,9 +249,9 @@ def test_segments_one_selects_literal_room_branch_and_is_byte_identical(
             motion=MotionEffectsConfig(derive_velocity_from_poses=True)
         )
     ).simulate(scene, array, window)
-    explicit = RoomAcousticsBackend(
-        effects=_motion_effects(1)
-    ).simulate(scene, array, window)
+    explicit = RoomAcousticsBackend(effects=_motion_effects(1)).simulate(
+        scene, array, window
+    )
     absent_bytes = json.dumps(
         frame_to_trace_dict(absent), sort_keys=True, separators=(",", ":")
     ).encode()
@@ -449,9 +436,7 @@ class _FakeShoeBox:
             per_source = []
             for source_position, _signal in self.sources:
                 delay = round(
-                    np.linalg.norm(source_position - mic_position)
-                    / self.c
-                    * self.fs
+                    np.linalg.norm(source_position - mic_position) / self.c * self.fs
                 )
                 impulse = np.zeros(max(0, delay) + 8)
                 impulse[max(0, delay)] = 1.0

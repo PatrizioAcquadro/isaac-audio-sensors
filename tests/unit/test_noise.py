@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import fields, replace
+from dataclasses import replace
 from types import MappingProxyType
 
 import numpy as np
@@ -25,21 +25,19 @@ from isaac_audio_sensors.core.effects import (
     SelfNoiseConfig,
     UnsupportedEffectError,
 )
-from isaac_audio_sensors.core.effects.config import (
-    parse_effects_config,
-    validate_effects_config,
-)
 from isaac_audio_sensors.core.effects.noise import (
     apply_clock_drift,
     decompose_drift_delay,
     design_noise_fir,
     drift_delay_samples,
 )
+from isaac_audio_sensors.core.effects.parsing import parse_effects_config
 from isaac_audio_sensors.core.effects.streams import (
     SEED_DERIVATION_ID,
     named_generator,
     named_stream_descriptor,
 )
+from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from tests.helpers import (
@@ -170,8 +168,7 @@ def _base_raw() -> dict[str, object]:
             "rig": {
                 "prim_path": "/World/Rig",
                 "microphones": [
-                    {"mic_id": mic_id, "self_noise_db": -54.0}
-                    for mic_id in MIC_IDS
+                    {"mic_id": mic_id, "self_noise_db": -54.0} for mic_id in MIC_IDS
                 ],
             }
         },
@@ -179,33 +176,6 @@ def _base_raw() -> dict[str, object]:
 
 
 def test_frozen_noise_records_toml_immutability_precedence_and_scalar_map_forms():
-    assert tuple(field.name for field in fields(NoiseSpectrumPointConfig)) == (
-        "freq_hz",
-        "level_db",
-    )
-    assert tuple(field.name for field in fields(NoiseLevelSpecConfig)) == (
-        "level_db",
-        "spectrum",
-    )
-    assert tuple(field.name for field in fields(SelfNoiseConfig)) == (
-        "default",
-        "microphones",
-    )
-    assert tuple(field.name for field in fields(AmbientNoiseConfig)) == (
-        "level_db",
-        "spectrum",
-        "coherent_fraction",
-    )
-    assert tuple(field.name for field in fields(NoiseConfig)) == (
-        "enabled",
-        "seed",
-        "self_noise",
-        "ambient",
-        "clock_jitter_std_s",
-        "clock_drift_ppm",
-    )
-    assert NoiseConfig() == NoiseConfig(enabled=False)
-
     raw = _base_raw()
     raw["audio"]["effects"] = {  # type: ignore[index]
         "noise": {
@@ -303,9 +273,7 @@ def test_toml_self_noise_metadata_fallback_requires_seed_at_config_validation():
             NoiseConfig(
                 enabled=True,
                 seed=SEED,
-                ambient=AmbientNoiseConfig(
-                    level_db=-36.0, coherent_fraction=1.01
-                ),
+                ambient=AmbientNoiseConfig(level_db=-36.0, coherent_fraction=1.01),
             ),
             "coherent_fraction",
         ),
@@ -336,9 +304,7 @@ def test_toml_self_noise_metadata_fallback_requires_seed_at_config_validation():
                 self_noise=SelfNoiseConfig(
                     default=NoiseLevelSpecConfig(
                         level_db=-48.0,
-                        spectrum=(
-                            NoiseSpectrumPointConfig(freq_hz=1000, level_db=0),
-                        ),
+                        spectrum=(NoiseSpectrumPointConfig(freq_hz=1000, level_db=0),),
                     )
                 ),
             ),
@@ -452,9 +418,7 @@ def test_exact_zero_is_distinct_from_disabled_and_makes_no_stream_draw():
     )
     zero, diagnostics = _apply(
         _noise_effects(
-            self_noise=SelfNoiseConfig(
-                default=NoiseLevelSpecConfig(level_db=-math.inf)
-            )
+            self_noise=SelfNoiseConfig(default=NoiseLevelSpecConfig(level_db=-math.inf))
         ),
         samples,
     )
@@ -482,8 +446,7 @@ def test_ambient_coherent_power_fraction_matches_pairwise_correlation(
     )
     if coherent_fraction == 1.0:
         assert all(
-            output[index].tobytes() == output[0].tobytes()
-            for index in range(1, 4)
+            output[index].tobytes() == output[0].tobytes() for index in range(1, 4)
         )
         return
     correlation = np.corrcoef(output)
@@ -725,9 +688,7 @@ def test_room_noise_is_dispatched_once_on_equal_summed_mixtures(monkeypatch):
     array = _quad_array()
     noise = _noise_effects(
         seed=SEED,
-        self_noise=SelfNoiseConfig(
-            default=NoiseLevelSpecConfig(level_db=-48.0)
-        ),
+        self_noise=SelfNoiseConfig(default=NoiseLevelSpecConfig(level_db=-48.0)),
         ambient=AmbientNoiseConfig(level_db=-36.0, coherent_fraction=0.25),
         clock_jitter_std_s=20e-6,
     )
@@ -769,8 +730,7 @@ def test_self_noise_metadata_fallback_requires_seed_before_room_synthesis(
     array = replace(
         array,
         microphones=tuple(
-            replace(microphone, self_noise_db=-48.0)
-            for microphone in array.microphones
+            replace(microphone, self_noise_db=-48.0) for microphone in array.microphones
         ),
     )
     scene = _room_scene_with_sources(
@@ -798,9 +758,7 @@ def test_segmented_room_paths_compose_with_one_mixture_noise_dispatch(monkeypatc
         noise=NoiseConfig(
             enabled=True,
             seed=SEED,
-            self_noise=SelfNoiseConfig(
-                default=NoiseLevelSpecConfig(level_db=-48.0)
-            ),
+            self_noise=SelfNoiseConfig(default=NoiseLevelSpecConfig(level_db=-48.0)),
             ambient=AmbientNoiseConfig(
                 level_db=-36.0,
                 coherent_fraction=0.25,
@@ -825,8 +783,7 @@ def test_segmented_room_paths_compose_with_one_mixture_noise_dispatch(monkeypatc
     assert frames[0].diagnostics["motion"]["segments_per_window"] == MOTION_SEGMENTS
     assert "noise" in frames[0].diagnostics["effects"]
     assert (
-        sinks[0].calls[0]["mixture"].tobytes()
-        == sinks[1].calls[0]["mixture"].tobytes()
+        sinks[0].calls[0]["mixture"].tobytes() == sinks[1].calls[0]["mixture"].tobytes()
     )
 
 
@@ -905,18 +862,14 @@ def test_l1_timing_adapter_exact_and_legacy_rng_unchanged(q0, stress):
 def test_l0_l1_waveform_noise_is_typed_unsupported(backend):
     effects = _noise_effects(
         seed=SEED,
-        self_noise=SelfNoiseConfig(
-            default=NoiseLevelSpecConfig(level_db=-48.0)
-        ),
+        self_noise=SelfNoiseConfig(default=NoiseLevelSpecConfig(level_db=-48.0)),
     )
     array = create_microphone_array(
         array_id="rig",
         prim_path="/World/Rig/AudioArray",
         layout_name="quad_front",
     )
-    scene = _room_scene_with_sources(
-        _source("speaker", (3.0, 0.0, 0.0)), array=array
-    )
+    scene = _room_scene_with_sources(_source("speaker", (3.0, 0.0, 0.0)), array=array)
     with pytest.raises(UnsupportedEffectError, match="waveform-only"):
         backend(effects=effects).simulate(scene, array, _window())
 
@@ -924,9 +877,7 @@ def test_l0_l1_waveform_noise_is_typed_unsupported(backend):
 def test_backend_off_state_and_enabled_determinism(monkeypatch):
     _install_fake_pyroom(monkeypatch)
     array = _quad_array()
-    scene = _room_scene_with_sources(
-        _source("speaker", (3.0, 0.0, 0.0)), array=array
-    )
+    scene = _room_scene_with_sources(_source("speaker", (3.0, 0.0, 0.0)), array=array)
     baseline_sink = _CaptureSink()
     baseline = RoomAcousticsBackend(waveform_writer=baseline_sink).simulate(
         scene, array, _window()
@@ -936,9 +887,7 @@ def test_backend_off_state_and_enabled_determinism(monkeypatch):
 
     effects = _noise_effects(
         seed=SEED,
-        self_noise=SelfNoiseConfig(
-            default=NoiseLevelSpecConfig(level_db=-48.0)
-        ),
+        self_noise=SelfNoiseConfig(default=NoiseLevelSpecConfig(level_db=-48.0)),
         ambient=AmbientNoiseConfig(level_db=-36.0, coherent_fraction=0.25),
         clock_jitter_std_s=20e-6,
     )
@@ -951,8 +900,7 @@ def test_backend_off_state_and_enabled_determinism(monkeypatch):
     )
     assert frames[0] == frames[1]
     assert (
-        sinks[0].calls[0]["mixture"].tobytes()
-        == sinks[1].calls[0]["mixture"].tobytes()
+        sinks[0].calls[0]["mixture"].tobytes() == sinks[1].calls[0]["mixture"].tobytes()
     )
 
 

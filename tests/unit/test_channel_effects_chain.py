@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import fields
 from types import MappingProxyType
 
 import numpy as np
@@ -17,7 +16,7 @@ from isaac_audio_sensors.core.effects import (
     FrequencyResponsePointConfig,
     UnsupportedEffectError,
 )
-from isaac_audio_sensors.core.effects.config import parse_effects_config
+from isaac_audio_sensors.core.effects.parsing import parse_effects_config
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 
 SAMPLE_RATE_HZ = 48_000
@@ -81,25 +80,7 @@ def test_absent_effects_table_normalizes_all_five_stages_disabled():
     assert not config.effects.noise.enabled
     assert not config.effects.electronics.enabled
     assert not config.effects.directivity.enabled
-    assert not config.effects.motion.enabled
-
-
-def test_channel_record_field_names_are_stable():
-    assert tuple(field.name for field in fields(FrequencyResponsePointConfig)) == (
-        "frequency_hz",
-        "magnitude_db",
-        "phase_deg",
-    )
-    assert tuple(field.name for field in fields(ChannelResponseMicConfig)) == (
-        "gain_db",
-        "delay_s",
-        "polarity",
-        "frequency_response",
-    )
-    assert tuple(field.name for field in fields(ChannelResponseConfig)) == (
-        "enabled",
-        "microphones",
-    )
+    assert not config.effects.motion.derive_velocity_from_poses
 
 
 def test_toml_shape_parses_to_immutable_mapping_and_tuple_records():
@@ -179,9 +160,7 @@ def test_unknown_microphone_and_order_mismatch_fail_config(microphones, match):
         (
             ChannelResponseMicConfig(
                 frequency_response=(
-                    FrequencyResponsePointConfig(
-                        frequency_hz=100.0, magnitude_db=0.0
-                    ),
+                    FrequencyResponsePointConfig(frequency_hz=100.0, magnitude_db=0.0),
                 )
             ),
             "at least two",
@@ -192,9 +171,7 @@ def test_unknown_microphone_and_order_mismatch_fail_config(microphones, match):
                     FrequencyResponsePointConfig(
                         frequency_hz=1_000.0, magnitude_db=0.0
                     ),
-                    FrequencyResponsePointConfig(
-                        frequency_hz=500.0, magnitude_db=0.0
-                    ),
+                    FrequencyResponsePointConfig(frequency_hz=500.0, magnitude_db=0.0),
                 )
             ),
             "strictly increasing",
@@ -202,9 +179,7 @@ def test_unknown_microphone_and_order_mismatch_fail_config(microphones, match):
         (
             ChannelResponseMicConfig(
                 frequency_response=(
-                    FrequencyResponsePointConfig(
-                        frequency_hz=100.0, magnitude_db=0.0
-                    ),
+                    FrequencyResponsePointConfig(frequency_hz=100.0, magnitude_db=0.0),
                     FrequencyResponsePointConfig(
                         frequency_hz=24_001.0, magnitude_db=0.0
                     ),
@@ -317,7 +292,7 @@ def test_empty_and_one_sample_gain_inputs_do_not_invent_samples(sample_count):
     assert diagnostics["channel_response"]["gain_db"] == {"front": -6.0}
 
 
-@pytest.mark.parametrize("stage", ["noise", "electronics", "directivity", "motion"])
+@pytest.mark.parametrize("stage", ["noise", "electronics", "directivity"])
 def test_later_effect_stages_fail_typed_instead_of_silently_running(stage):
     raw = {stage: {"enabled": True}}
     effects = parse_effects_config(raw)

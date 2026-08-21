@@ -152,8 +152,7 @@ def apply_noise(
                     effect="ambient",
                 )
             additive[mic_index] += scale * (
-                math.sqrt(1.0 - coherent) * independent
-                + math.sqrt(coherent) * common
+                math.sqrt(1.0 - coherent) * independent + math.sqrt(coherent) * common
             )
 
     output = np.asarray(samples, dtype=np.float64) + additive
@@ -273,8 +272,7 @@ def design_noise_fir(
         [float(point.freq_hz) for point in points], dtype=np.float64
     )
     point_amplitudes = 10.0 ** (
-        np.asarray([float(point.level_db) for point in points], dtype=np.float64)
-        / 20.0
+        np.asarray([float(point.level_db) for point in points], dtype=np.float64) / 20.0
     )
     target = np.interp(
         frequencies,
@@ -330,9 +328,7 @@ def apply_clock_drift(samples: np.ndarray, *, q0: int, ppm: float) -> np.ndarray
     alpha = source_positions - lower
     result = np.zeros(samples.size, dtype=np.float64)
     valid_lower = (lower >= 0) & (lower < samples.size)
-    result[valid_lower] += (
-        (1.0 - alpha[valid_lower]) * samples[lower[valid_lower]]
-    )
+    result[valid_lower] += (1.0 - alpha[valid_lower]) * samples[lower[valid_lower]]
     upper = lower + 1
     valid_upper = (upper >= 0) & (upper < samples.size)
     result[valid_upper] += alpha[valid_upper] * samples[upper[valid_upper]]

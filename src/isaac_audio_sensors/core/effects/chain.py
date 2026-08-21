@@ -10,12 +10,10 @@ import numpy as np
 from isaac_audio_sensors.core.effects.channel_response import (
     apply_channel_response,
 )
-from isaac_audio_sensors.core.effects.config import (
-    EffectsConfig,
-    validate_effects_config,
-)
+from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.effects.electronics import apply_electronics
 from isaac_audio_sensors.core.effects.noise import apply_noise
+from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 
 
