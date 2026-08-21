@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import sys
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -49,7 +50,13 @@ _WAV_HEADER_BYTES = 44
 _FLOAT32_BYTES = 4
 
 
-@dataclass(frozen=True, slots=True, weakref_slot=True)
+if sys.version_info >= (3, 11):
+    _loaded_frame_dataclass = dataclass(frozen=True, slots=True, weakref_slot=True)
+else:
+    _loaded_frame_dataclass = dataclass(frozen=True)
+
+
+@_loaded_frame_dataclass
 class LoadedFrame:
     """One typed frame and its authoritative shard-audio join."""
 
