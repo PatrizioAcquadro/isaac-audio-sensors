@@ -38,11 +38,15 @@ The action ID is `isaac_audio_sensors.omni::toggle_window`; the default shortcut
 
 The extension imports without `omni`, `pxr`, CUDA, Torch, Replicator, or a display; live APIs are resolved only inside the operations that require them.
 
+The entrypoint exposes its `controller` and has no duplicate sensor, authoring, export, or Replicator proxies. The controller composes internal lifecycle, authoring, sensor-session, recording-workflow, Replicator, and configuration services; the window and sections only render state and invoke controller actions.
+
+Shutdown independently cancels an active recording as incomplete, stops audition, Replicator, and the sensor, clears debug/frame state, detaches workflow/window callbacks, and releases update, stage, reset, hotkey, menu, and action registrations even if one cleanup fails.
+
 ## Guided Workflow
 
 The guided path is `Setup -> Validate -> Run -> Inspect -> Record -> Export`.
 
-Setup applies a maintained safe preset and stage bindings; Validate runs stage, backend, device, source, array, room, attachment, calibration, and capability checks; Run starts the real sensor lifecycle; Inspect requires explicit user acceptance of the instrument output; Record writes a generic session; Export validates, splits when requested, and inventories the result.
+Setup applies a maintained safe preset and stage bindings; Validate runs stage, backend, device, source, array, room, attachment, calibration, and capability checks; Run starts the real sensor lifecycle; Inspect requires explicit user acceptance of the instrument output; Record writes a generic session; Export validates, splits when requested, and inventories the result. Capability validation refreshes stale cached facts within the same pass.
 
 Simulator reset starts a new episode, and partial or failed recording output is not promoted as a complete session.
 
@@ -66,7 +70,7 @@ The node publishes the latest frame ID, timestamp, detection count, bearing, sec
 
 Replicator integration is a lazy Isaac bridge used by the extension; core frames, package JSON/JSONL writers, the base sensor capture path, and Isaac Lab do not require it.
 
-Kit owns profile libraries, validation, output paths, and application persistence. It appends JSONL only for new frames and injects a constructed core `WaveformSink`; the live sensor uses and closes that sink without knowing UI paths or output modes.
+Kit services own profile libraries, validation, output paths, and application persistence. The sensor-session service appends JSONL only for new frames and injects a constructed core `WaveformSink`; the live sensor uses and closes that sink without knowing UI paths or output modes.
 
 ## Troubleshooting
 

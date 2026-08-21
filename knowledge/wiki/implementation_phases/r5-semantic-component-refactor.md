@@ -140,6 +140,27 @@ USD discovery, stage pose resolution, and room anchoring remain in `isaac`. The 
 
 Duplicate stage/entity ownership, silent device transfers, fallback inheritance, test-only metadata, and multiple binding routes are removed. The live-only RTX 4090 gate cannot be replaced by CPU execution; it passed entity/reference parity, partial reset, CUDA shape/dtype/device checks, and 50 steps over 4096 environments at 1.879 ms/step mean against the 20 ms budget.
 
+## Subphase R5.6 — Kit UI
+
+#### Implementation
+
+R5.6 reduces `ExtensionController` to state, status reporting, service composition, and the stable GUI/headless action facade. Internal services own lifecycle, USD authoring, sensor sessions, recording/export, Replicator, and deterministic `ias.omni_extension_binding.v1` configuration.
+
+`window.py` and `sections.py` render the flat `ExtensionUiState` and invoke controller actions; waveform loading, filesystem access, USD work, recording internals, and Replicator remain in services. The Omniverse entrypoint now constructs the controller and runs startup, shutdown, and OmniGraph registration without duplicate proxies.
+
+Validation retains only capability cache, backend/device, and calibration state. Pure checks are called by the owning services, and a refreshed capability snapshot no longer forces a redundant second validation. Focused service tests replace the controller monolith; pure instruments, audio-panel, and OmniGraph tests move out of the Isaac/GPU lane.
+
+#### Key Decisions
+
+- `ExtensionController`, `ExtensionUiState`, maintained actions, expert/guided UI, headless workflow, and config v1 behavior remain available.
+- Internal services are not package-root exports; removed entrypoint proxies and private validation seams have no compatibility shims.
+- Shutdown is best-effort and releases active recording, audition, Replicator, sensor, debug/frame state, callbacks, subscriptions, hotkey, menu, action, and window resources independently.
+- The live smoke retains one complete workflow and the real app screenshot; synthetic panel PNG generation is removed.
+
+#### Problems / Limitations
+
+Kit no longer combines UI state, USD authoring, recording, sensor, Replicator, and lifecycle implementation in one class. Acoustic models, serialized contracts, Isaac Lab, and downstream adapters are unchanged.
+
 ## Artifacts
 
 - AST dependency contract and fresh-process import-boundary tests.
@@ -161,7 +182,13 @@ Duplicate stage/entity ownership, silent device transfers, fallback inheritance,
 - `src/isaac_audio_sensors/isaac/occlusion.py`
 - `src/isaac_audio_sensors/lab/`
 - `src/isaac_audio_sensors/kit/validation/`
+- `src/isaac_audio_sensors/kit/authoring.py`
+- `src/isaac_audio_sensors/kit/configuration.py`
 - `src/isaac_audio_sensors/kit/headless.py`
+- `src/isaac_audio_sensors/kit/lifecycle.py`
+- `src/isaac_audio_sensors/kit/recording_workflow.py`
+- `src/isaac_audio_sensors/kit/replicator_service.py`
+- `src/isaac_audio_sensors/kit/sensor_session.py`
 - `src/isaac_audio_sensors/schemas/generate.py`
 - `tests/contract/test_schemas.py`
 - `tests/contract/test_public_surface.py`

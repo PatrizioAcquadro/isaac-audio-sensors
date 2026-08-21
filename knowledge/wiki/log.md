@@ -73,3 +73,11 @@ Recorded the five-name lazy Lab API, explicit entity/reference paths, six-tensor
 ## 2026-08-21 — lint: R5.5 canonical documentation
 
 Verified canonical ownership, index coverage, internal links, raw-file preservation, current paths and symbols, deterministic host/Isaac/downstream evidence, Ruff, release documentation checks, Markdown whitespace, and the live RTX 4090 parity/reset/device/performance gate.
+
+## 2026-08-21 — update: R5.6 Kit UI
+
+Recorded the composed Kit services, thin controller/view/entrypoint boundaries, stateful-only validation, exhaustive best-effort shutdown, focused test layout, preserved config v1, and verified host, RTX 4090, downstream, live Kit, and distribution gates.
+
+## 2026-08-21 — lint: R5.6 canonical documentation
+
+Verified canonical ownership, internal links, raw-file preservation, current Kit paths and contracts, host and GPU gates, downstream compatibility, audited builds, Ruff, and Markdown whitespace.

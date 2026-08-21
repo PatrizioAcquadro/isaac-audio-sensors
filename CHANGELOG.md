@@ -50,6 +50,15 @@ R5.5 reduces Isaac Lab integration to two explicit observation paths.
 - Reduced observations to fixed-shape `event_presence`, `bearing_deg`, `confidence`, `sector_onehot`, `per_mic_rms`, and `ambiguity_mask` tensors on the sensor device.
 - Removed the Lab USD stage adapter and its fake-stage tests; live USD discovery, pose resolution, and room anchoring remain owned by `isaac`.
 
+R5.6 modularizes the Kit UI without changing maintained workflows or config v1.
+
+- Reduced `ExtensionController` to service composition, flat UI state, status reporting, and the maintained GUI/headless action facade.
+- Split lifecycle, USD authoring, sensor sessions, recording/export, Replicator, and deterministic configuration into internal Kit services; views no longer access filesystem, USD, or recording internals.
+- Reduced the Omniverse entrypoint to controller startup/shutdown and OmniGraph registration, removing duplicate proxies and private compatibility seams.
+- Made shutdown release recording, audition, Replicator, sensor, debug/frame state, callbacks, subscriptions, hotkey, menu, action, and window resources independently.
+- Kept only stateful capability, backend/device, and calibration validation; removed redundant capability revalidation, test-only panel PNG rendering, private parity matrices, and dead helpers.
+- Replaced the controller test monolith with focused service coverage and moved pure Kit instruments, audio-panel, and OmniGraph tests out of the Isaac/GPU lane.
+
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
 development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects
 and diagnostics are additive, every effect defaults off, and the compatibility

@@ -42,11 +42,11 @@ Its entity path converts official scene root/body pose tensors directly into bat
 
 ## Kit and Extension Layers
 
-`isaac_audio_sensors.kit` contains import-safe profiles, validation, state, controller, workflow, view-model, instruments, audio preview, output paths, and UI-section logic.
+`isaac_audio_sensors.kit` contains import-safe profiles, validation, state, workflow, instruments, presentation adapters, and internal application services for lifecycle, USD authoring, sensor sessions, recording/export, Replicator, and configuration.
 
-The guided headless service is a Kit application service and receives an `ExtensionController` explicitly. Kit validation returns dependency-free findings and converts its first error finding into the extension error type. The controller constructs waveform sinks and appends each new frame to configured JSONL output.
+`ExtensionController` composes those services, owns the flat `ExtensionUiState`, reports status/errors, and exposes the maintained GUI/headless actions. `window.py` and `sections.py` only render state and invoke actions. Pure validation checks remain dependency-free; the stateful validation controller owns capability discovery, backend/device facts, and calibration reads.
 
-`exts/isaac_audio_sensors.omni` is the thin Omniverse extension entry point and package metadata; it registers the window, menu/action/hotkey integration, and optional OmniGraph node while delegating reusable behavior to the Python package.
+The guided headless service receives an `ExtensionController` explicitly. `exts/isaac_audio_sensors.omni` only constructs that controller and runs startup, shutdown, and optional OmniGraph registration; Kit lifecycle service owns window, menu, action, hotkey, and subscriptions.
 
 ## Data Flow
 
