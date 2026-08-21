@@ -2,6 +2,8 @@
 
 ## Test Lanes
 
+`make` requires an explicit target and fails without one, so validation, release, and cleanup work is never implicit.
+
 `make check` is the deterministic host gate. It runs version synchronization, Ruff, `git diff --check`, and the unit/contract, integration, and release lanes without requiring a GPU or clean worktree.
 
 `make test` remains the focused pure unit and contract lane. `.venv/bin/python -m pytest -q tests/integration` remains the focused recording, replay, codecs, workflows, filesystem, and cross-component lane.
@@ -41,6 +43,8 @@ The version gate synchronizes the package `__version__`, Kit manifest, root READ
 The frame, dataset-manifest, and calibration-profile schema versions remain independent from the package version.
 
 ## Build and Audit
+
+The `dev` extra installs the build frontend, Setuptools 77 or newer, and wheel, matching the default non-isolated wheel build and its PEP 639 license metadata.
 
 `make release WHEELHOUSE=<path>` validates the locked wheelhouse, version synchronization, and clean Git source before clearing `dist/`. It builds and audits the universal wheel and self-contained Kit ZIP, requires those exact synchronized filenames as the complete flat outbox, and never publishes, tags, or pushes.
 

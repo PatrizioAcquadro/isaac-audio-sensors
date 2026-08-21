@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "isaac-audio-sensors"
 version = "2.0.0"
-description = "Reusable audio-sensor models and lazy Isaac Sim/Lab helpers for robotics simulation."
+description = "Robot-audition SDK for Isaac Sim and Isaac Lab."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
@@ -14,12 +14,14 @@ authors = [
     { name = "isaac-audio-sensors contributors" },
 ]
 keywords = [
-    "isaac-sim",
-    "isaac-lab",
-    "robotics",
     "audio",
-    "tdoa",
+    "isaac-lab",
+    "isaac-sim",
     "microphone-array",
+    "robot-audition",
+    "robotics",
+    "spatial-audio",
+    "tdoa",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -29,6 +31,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
@@ -42,6 +46,8 @@ dev = [
     "jsonschema>=4.10",
     "pytest>=8,<9",
     "ruff>=0.6,<1",
+    "setuptools>=77",
+    "wheel",
 ]
 room = [
     "pyroomacoustics>=0.7",
@@ -53,11 +59,11 @@ room = [
 isaac-audio-sensors = "isaac_audio_sensors.cli:main"
 
 [project.urls]
+Homepage = "https://isaac-audio-showcase-site.vercel.app"
+Documentation = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/index.md"
 Source = "https://github.com/PatrizioAcquadro/isaac-audio-sensors"
-Showcase = "https://isaac-audio-showcase-site.vercel.app"
-Documentation = "https://isaac-audio-showcase-site.vercel.app"
-Changelog = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/CHANGELOG.md"
 Issues = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/issues"
+Changelog = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
 include-package-data = false

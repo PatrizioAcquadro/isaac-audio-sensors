@@ -1,3 +1,4 @@
+# Python bytecode and tool state
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -6,38 +7,40 @@ __pycache__/
 .mypy_cache/
 .coverage
 htmlcov/
+
+# Build outputs and virtual environments
 build/
 dist/
 .venv/
 venv/
+
+# Local evidence, datasets, and generated media
 /evidence/
 data/
 generated/
 *.wav
+*.flac
 *.mp4
 *.mov
 *.png
 *.jpg
 *.jpeg
 *.pdf
-!exts/isaac_audio_sensors.omni/data/
-!exts/isaac_audio_sensors.omni/data/icon.svg
-!exts/isaac_audio_sensors.omni/data/preview.png
+!/exts/isaac_audio_sensors.omni/data/
+!/exts/isaac_audio_sensors.omni/data/preview.png
+!/knowledge/raw/data/
+
+# Secrets and machine-local state
 .DS_Store
 .env
 .env.*
-.agents/
-.codex/
-.claude/
-.local-goals/
 /knowledge/.obsidian/
-!/knowledge/raw/data/
-!/knowledge/raw/data/.gitkeep
 
-# Local assistant state
+# Local assistant state and instructions
 /.agents/
 /.codex/
 /.claude/
+/.local-goals/
 /CLAUDE.md
 /claude.md
 /AGENTS.md
