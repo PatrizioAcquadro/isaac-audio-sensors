@@ -119,12 +119,6 @@ FRAME_PROVENANCE_VALUES = frozenset(
     }
 )
 
-STABLE_DIAGNOSTIC_NAMESPACES = (
-    "stage_snapshot",
-    "stage_binding",
-    "entity_binding",
-)
-
 DETECTION_MODES = frozenset(
     {
         "scheduled_known_source",
@@ -142,8 +136,6 @@ ROOM_CLAMP_MARGIN_M = 0.05
 MIN_ROOM_EXTENT_M = 0.05
 
 TDOA_AMBIGUITY_POLICIES = frozenset({"none", "front_hemisphere"})
-
-COMPUTE_PATHS = frozenset({"auto", "scalar", "batched"})
 
 SECTOR_ORDER = (
     "straight",

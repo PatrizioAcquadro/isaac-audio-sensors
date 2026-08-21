@@ -28,10 +28,6 @@ from isaac_audio_sensors.isaac.viz.overlays import (
     build_debug_primitives,
     room_outline_points,
 )
-from isaac_audio_sensors.lab.stage_binding import (
-    LabAudioStageBindingCfg,
-    build_lab_stage_provider,
-)
 from tests.helpers import (
     FakeShoeBox as _FakeShoeBox,
 )
@@ -55,16 +51,6 @@ class _FakePrim:
         self.path = path
         self.type_name = type_name
         self.attributes = attributes
-
-
-class _FakeStage:
-    identifier = "room_anchor_test_stage"
-
-    def __init__(self, prims: tuple[_FakePrim, ...]) -> None:
-        self._prims = list(prims)
-
-    def Traverse(self) -> tuple[_FakePrim, ...]:
-        return tuple(self._prims)
 
 
 def _array(position=ARRAY_POSITION):
@@ -299,134 +285,6 @@ def test_room_absorption_precedence_attr_then_tag_then_default():
         semantic_absorption=semantic_table,
         default=0.35,
     ) == (0.35, "config")
-
-
-def _stage_with_rooms(*, env_count: int = 2) -> _FakeStage:
-    prims: list[_FakePrim] = []
-    for env_id in range(env_count):
-        env_ns = f"/World/envs/env_{env_id}"
-        offset = float(env_id) * 10.0
-        prims.append(
-            _FakePrim(
-                f"{env_ns}/Robot/audio_array",
-                "Xform",
-                {
-                    "ias:array_id": f"rig_{env_id}",
-                    "ias:position_world": (offset + 4.0, 3.0, 1.5),
-                    "ias:orientation_world_quat": (0.0, 0.0, 0.0, 1.0),
-                },
-            )
-        )
-        prims.append(
-            _FakePrim(
-                f"{env_ns}/Sources/speaker",
-                "Sound",
-                {
-                    "filePath": "generated://impulse",
-                    "ias:position_world": (offset + 6.0, 2.0, 1.0),
-                    "ias:source_id": f"speaker_{env_id}",
-                    "ias:class_label": "Speech",
-                    "ias:start_time_s": 0.0,
-                    "ias:duration_s": 1.0,
-                },
-            )
-        )
-        prims.append(
-            _FakePrim(
-                f"{env_ns}/Room",
-                "Xform",
-                {
-                    "ias:room_min_world": (offset + 2.0, 1.0, 0.0),
-                    "ias:room_max_world": (offset + 8.0, 5.0, 3.0),
-                    "ias:material": "concrete",
-                },
-            )
-        )
-    return _FakeStage(tuple(prims))
-
-
-def _room_binding_cfg(**overrides) -> LabAudioStageBindingCfg:
-    base = {
-        "num_envs": 2,
-        "env_namespace_pattern": "/World/envs/env_{env_id}",
-        "array_prim_path": "Robot/audio_array",
-        "source_prim_paths": ("Sources/speaker",),
-        "microphone_layout": "quad_front",
-        "room_prim_path": "Room",
-        "room_max_order": 1,
-    }
-    base.update(overrides)
-    return LabAudioStageBindingCfg(**base)
-
-
-def test_stage_binding_anchors_room_per_env_to_prim_bbox():
-    provider = build_lab_stage_provider(
-        stage=_stage_with_rooms(),
-        binding_cfg=_room_binding_cfg(),
-    )
-
-    bindings = provider([0, 1])
-
-    for env_id in (0, 1):
-        snapshot, _array_spec = bindings[env_id]
-        room = snapshot.room
-        offset = float(env_id) * 10.0
-        assert room is not None
-        assert room.room_id == f"stage_room_env_{env_id}"
-        assert room.dimensions_m == (6.0, 4.0, 3.0)
-        assert room.origin_m == (offset + 2.0, 1.0, 0.0)
-        assert room.anchor_prim_path == f"/World/envs/env_{env_id}/Room"
-        # ias:material tag resolved through the default semantic table.
-        assert room.absorption == 0.05
-        diagnostics = provider.last_diagnostics[env_id]["room"]
-        assert diagnostics["absorption_provenance"] == "semantic:concrete"
-        assert diagnostics["dimensions_m"] == room.dimensions_m
-        assert diagnostics["origin_m"] == room.origin_m
-
-
-def test_stage_binding_room_absorption_tags_can_be_disabled():
-    provider = build_lab_stage_provider(
-        stage=_stage_with_rooms(),
-        binding_cfg=_room_binding_cfg(
-            room_absorption_from_tags=False,
-            room_absorption=0.42,
-        ),
-    )
-
-    snapshot, _array_spec = provider([0])[0]
-
-    assert snapshot.room is not None
-    assert snapshot.room.absorption == 0.42
-    assert provider.last_diagnostics[0]["room"]["absorption_provenance"] == "config"
-
-
-def test_stage_binding_missing_room_prim_errors_with_path():
-    stage = _stage_with_rooms()
-    stage._prims = [prim for prim in stage._prims if not prim.path.endswith("/Room")]
-    provider = build_lab_stage_provider(
-        stage=stage,
-        binding_cfg=_room_binding_cfg(),
-    )
-
-    with pytest.raises(ValueError, match="/World/envs/env_0/Room"):
-        provider([0])
-
-
-def test_stage_binding_without_room_prim_path_keeps_room_none():
-    provider = build_lab_stage_provider(
-        stage=_stage_with_rooms(),
-        binding_cfg=_room_binding_cfg(room_prim_path=None),
-    )
-
-    snapshot, _array_spec = provider([0])[0]
-
-    assert snapshot.room is None
-    assert "room" not in provider.last_diagnostics[0]
-
-
-def test_stage_binding_cfg_rejects_bad_room_policy():
-    with pytest.raises(ValueError, match="room_out_of_bounds"):
-        _room_binding_cfg(room_out_of_bounds="wrap")
 
 
 def test_room_outline_polyline_covers_all_box_edges():

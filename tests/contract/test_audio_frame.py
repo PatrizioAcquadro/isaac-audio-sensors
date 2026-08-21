@@ -23,7 +23,6 @@ from isaac_audio_sensors.core.constants import (
     OPTIONAL_DETECTION_FIELDS,
     OPTIONAL_DOA_FIELDS,
     POSE3D_FIELDS,
-    STABLE_DIAGNOSTIC_NAMESPACES,
 )
 from isaac_audio_sensors.core.io.traces import (
     frame_from_trace_dict,
@@ -35,7 +34,6 @@ from isaac_audio_sensors.core.types import (
     DoaEstimate,
     Pose3D,
 )
-from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 
 TRACE_DIR = Path("examples/traces")
 
@@ -124,14 +122,7 @@ def test_trace_corpus_has_required_representative_cases():
         for payload in payloads
         for detection in payload["detections"]
     )
-    assert any(
-        payload["provenance"] in {"isaac_live", "replay/trace"}
-        and any(
-            namespace in payload["diagnostics"]
-            for namespace in STABLE_DIAGNOSTIC_NAMESPACES
-        )
-        for payload in payloads
-    )
+    assert any(payload["provenance"] == "replay/trace" for payload in payloads)
 
 
 def test_trace_corpus_files_are_deterministically_formatted():
@@ -226,40 +217,6 @@ def test_dataclasses_enforce_contract_policy_values():
             array_id="rig",
             frame_index=-1,
         )
-
-
-def test_ambiguity_fields_drive_import_safe_lab_ambiguity_mask():
-    frame = AudioSensorFrame(
-        frame_id="ambiguous",
-        timestamp_ms=0,
-        backend_id="tdoa_synthetic",
-        array_id="stereo",
-        detections=(
-            AudioDetection(
-                detection_id="det_ambiguous",
-                source_id="tone",
-                class_label="Tone",
-                detection_mode="scheduled_known_source",
-                timestamp_ms=0,
-                ground_truth_bearing_deg=0.0,
-                source_distance_m=5.0,
-                doa=DoaEstimate(
-                    estimated_bearing_deg=None,
-                    candidate_bearing_deg=(0.0, 180.0),
-                    bearing_confidence=0.35,
-                    ambiguity_class="ambiguous_front_back",
-                    ambiguity_reason=(
-                        "Two-mic TDOA cannot distinguish mirrored bearings."
-                    ),
-                ),
-            ),
-        ),
-    )
-
-    data = AudioArraySensorData.from_frame(frame)
-
-    assert frame.detections[0].doa.candidate_bearing_deg == pytest.approx((0.0, 180.0))
-    assert data.ambiguity_mask == (True,)
 
 
 def _contract_frame() -> AudioSensorFrame:

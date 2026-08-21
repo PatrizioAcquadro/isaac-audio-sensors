@@ -17,7 +17,7 @@ ALLOWED_DEPENDENCIES = {
     "core": frozenset(),
     "recording": frozenset({"core"}),
     "isaac": frozenset({"core"}),
-    "lab": frozenset({"core", "isaac"}),
+    "lab": frozenset({"core"}),
     "kit": frozenset({"core", "recording", "isaac"}),
     "schemas": frozenset({"core", "recording"}),
     "cli": frozenset({"core", "recording", "kit", "schemas"}),
@@ -230,7 +230,14 @@ def test_isaac_and_lab_import_without_loading_optional_runtimes():
             for prefix in forbidden
         )
 
-        import isaac_audio_sensors.lab
+        import isaac_audio_sensors.lab as lab
+        assert lab.__all__ == [
+            "AudioArraySensor",
+            "AudioArraySensorCfg",
+            "AudioArraySensorData",
+            "EntityBindingCfg",
+            "SourceEntityCfg",
+        ]
         assert not any(
             name == prefix or name.startswith(prefix + ".")
             for name in sys.modules

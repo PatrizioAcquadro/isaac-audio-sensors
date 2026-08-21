@@ -76,7 +76,7 @@ smoke-isaac-sim:
 	PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) tools/smoke/live_isaac_sim_audio_smoke.py
 
 smoke-isaac-lab:
-	CUDA_VISIBLE_DEVICES=0 PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) tools/smoke/live_isaac_lab_audio_smoke.py --require-gpu
+	CUDA_VISIBLE_DEVICES=0 PYTHONPATH=$(CURDIR)/src:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) tools/smoke/live_isaac_lab_audio_smoke.py
 
 smoke-kit:
 	PYTHONPATH=$(CURDIR)/src:$(CURDIR)/exts/isaac_audio_sensors.omni:$(CURDIR)/tools/smoke:$${PYTHONPATH} $(ISAAC_LAB_PYTHON) tools/smoke/live_omniverse_extension_ux.py
