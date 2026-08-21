@@ -177,3 +177,11 @@ Recorded the audited source distribution, exact three-artifact outbox, Python 3.
 ## 2026-08-21 — lint: R6.8 publication readiness
 
 Verified canonical ownership, index coverage, internal links, immutable raw content, current install and release commands, real sdist inventory, workflow syntax and action pins, host gates, Ruff, version synchronization, and Markdown whitespace.
+
+## 2026-08-21 — update: R6.8 local validation
+
+Recorded the clean-source three-artifact build, Twine and isolated Python installation checks, complete RTX 4090 Sim/Lab and packaged Kit gates, and unchanged SquadBot consumer compatibility before external publication.
+
+## 2026-08-21 — lint: R6.8 local validation
+
+Verified current validation claims against the final local gates, canonical wiki ownership and links, immutable raw content, version synchronization, Ruff, release tests, and Markdown whitespace.

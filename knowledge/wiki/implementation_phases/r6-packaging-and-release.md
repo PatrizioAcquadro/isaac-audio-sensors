@@ -176,7 +176,7 @@ Setuptools default discovery already creates the required minimal sdist, so no `
 
 #### Problems / Limitations
 
-The current host gate passes 412 unit/contract tests, 230 integration tests with two expected SoundFile skips, and 41 release tests. A real regenerated sdist passes the exact inventory and metadata audit. PyPI and TestPyPI accounts, two-factor authentication, GitHub environments, pending trusted publishers, immutable GitHub release publication, and Community Registry discovery remain external maintainer actions. The repository stays `2.0.0 - Unreleased` until the TestPyPI rehearsal and final freeze pass.
+The final local gate passes 412 unit/contract tests, 230 integration tests with two expected SoundFile skips, 41 release tests, `twine check`, isolated wheel installation, and isolated sdist build/installation. The clean-source release produces exactly the three audited artifacts. The RTX 4090 passes 88 Isaac tests, all live Sim/Lab and room/FLAC gates, and the extracted ZIP's 37-step packaged workflow; the unchanged SquadBot subset passes 34 tests. PyPI and TestPyPI accounts, two-factor authentication, GitHub environments, pending trusted publishers, immutable GitHub release publication, and Community Registry discovery remain external maintainer actions. The repository stays `2.0.0 - Unreleased` until the TestPyPI rehearsal and final freeze pass.
 
 ## Artifacts
 
