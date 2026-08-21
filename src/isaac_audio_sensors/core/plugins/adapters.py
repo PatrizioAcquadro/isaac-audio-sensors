@@ -180,9 +180,6 @@ def _ordered_inputs(
         prim_path="/PluginDoaArray",
         position_world=(0.0, 0.0, 0.0),
         orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
-        forward_vec_world=(1.0, 0.0, 0.0),
-        right_vec_world=(0.0, 1.0, 0.0),
-        up_vec_world=(0.0, 0.0, 1.0),
         microphones=microphones,
         sample_rate_hz=int(sample_rate_hz),
     )

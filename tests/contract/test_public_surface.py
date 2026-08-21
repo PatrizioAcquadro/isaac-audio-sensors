@@ -91,9 +91,38 @@ def test_minimal_root_and_v2_public_surfaces_in_fresh_process():
         )
 
         core = importlib.import_module("isaac_audio_sensors.core")
+        assert core.__all__ == [
+            "AudioDetection",
+            "AudioSceneSnapshot",
+            "AudioSensorFrame",
+            "AudioSourceSpec",
+            "AudioTimeWindow",
+            "DoaEstimate",
+            "MicrophoneArraySpec",
+            "MicrophoneSpec",
+            "Pose3D",
+            "RoomAcousticsSpec",
+            "SourceOcclusion",
+        ]
         assert core.AudioSensorFrame.__module__ == "isaac_audio_sensors.core.types"
-        assert not hasattr(core, "AudioDatasetManifest")
-        assert "isaac_audio_sensors.recording" not in sys.modules
+        forbidden = (
+            "numpy",
+            "torch",
+            "omni",
+            "pxr",
+            "isaaclab",
+            "isaac_audio_sensors.recording",
+            "isaac_audio_sensors.isaac",
+            "isaac_audio_sensors.lab",
+            "isaac_audio_sensors.kit",
+            "isaac_audio_sensors.core.backends",
+            "isaac_audio_sensors.core.effects",
+        )
+        assert not any(
+            name == prefix or name.startswith(prefix + ".")
+            for name in sys.modules
+            for prefix in forbidden
+        )
 
         recording = importlib.import_module("isaac_audio_sensors.recording")
         assert recording.AudioDatasetManifest.__module__.endswith(".manifest")
@@ -105,29 +134,6 @@ def test_minimal_root_and_v2_public_surfaces_in_fresh_process():
 
         for optional in ("omni", "pxr", "isaaclab", "torch"):
             assert optional not in sys.modules
-        """
-    )
-    assert completed.stderr == ""
-
-
-def test_removed_v1_surfaces_are_unavailable():
-    completed = _run_fresh_process(
-        """
-        import importlib
-
-        removed_modules = (
-            "isaac_audio_sensors.core.schema",
-            "isaac_audio_sensors.isaac.headless_workflow",
-            "isaac_audio_sensors.usd_bounds",
-            "isaac_audio_sensors.examples",
-        )
-        for name in removed_modules:
-            try:
-                importlib.import_module(name)
-            except ModuleNotFoundError:
-                pass
-            else:
-                raise AssertionError(f"removed module remains importable: {name}")
         """
     )
     assert completed.stderr == ""

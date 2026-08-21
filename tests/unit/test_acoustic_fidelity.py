@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
-
 import pytest
 
 from isaac_audio_sensors.core.backends.base import get_backend
@@ -89,17 +87,6 @@ def test_l3_l4_are_metadata_only_not_runtime_backends():
             fidelity_level_for_backend(future_family)
         with pytest.raises(ValueError, match="Unknown audio simulation backend"):
             get_backend(future_family)
-
-
-def test_ladder_imports_are_import_safe_core_api():
-    core = importlib.import_module("isaac_audio_sensors.core")
-    fidelity = importlib.import_module("isaac_audio_sensors.core.fidelity")
-
-    assert core.ACOUSTIC_FIDELITY_LADDER is ACOUSTIC_FIDELITY_LADDER
-    assert fidelity.ACOUSTIC_FIDELITY_LADDER is ACOUSTIC_FIDELITY_LADDER
-    assert core.fidelity_level_for_backend(
-        "geometry_only"
-    ) is fidelity_level_for_backend("geometry_only")
 
 
 def _ladder_by_level() -> dict[AcousticFidelityLevel, AcousticFidelityMetadata]:

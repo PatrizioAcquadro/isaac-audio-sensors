@@ -87,12 +87,6 @@ def occlusion_extra_gain_db(occlusion: SourceOcclusion | None) -> float:
     return 0.0 if occlusion is None else -float(occlusion.attenuation_db)
 
 
-def occlusion_amplitude_scale(occlusion: SourceOcclusion | None) -> float:
-    """Linear amplitude scale equivalent of ``occlusion_extra_gain_db``."""
-
-    return 10.0 ** (occlusion_extra_gain_db(occlusion) / 20.0)
-
-
 def occlusion_flag(occlusion: SourceOcclusion | None) -> bool:
     """Detection ``occluded`` flag for one occlusion record."""
 

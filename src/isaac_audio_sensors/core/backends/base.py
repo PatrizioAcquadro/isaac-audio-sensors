@@ -2,31 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Protocol, cast
+from typing import cast
 
-from isaac_audio_sensors.core.types import (
-    AudioSceneSnapshot,
-    AudioSensorFrame,
-    AudioTimeWindow,
-    MicrophoneArraySpec,
-)
+from isaac_audio_sensors.core.plugins.protocols import PropagationBackend
 
 
-class AudioSimulationBackend(Protocol):
-    """Simulation backend interface shared by all layers."""
-
-    backend_id: str
-
-    def simulate(
-        self,
-        scene: AudioSceneSnapshot,
-        sensor: MicrophoneArraySpec,
-        time_window: AudioTimeWindow,
-    ) -> AudioSensorFrame:
-        """Simulate one array observation frame."""
-
-
-def get_backend(backend_id: str, **kwargs: object) -> AudioSimulationBackend:
+def get_backend(backend_id: str, **kwargs: object) -> PropagationBackend:
     """Instantiate a backend by public id."""
 
     from isaac_audio_sensors.core.exceptions import ConfigValidationError
@@ -40,4 +21,4 @@ def get_backend(backend_id: str, **kwargs: object) -> AudioSimulationBackend:
         )
     except ConfigValidationError as exc:
         raise ValueError(f"Unknown audio simulation backend {backend_id!r}.") from exc
-    return cast(AudioSimulationBackend, backend)
+    return cast(PropagationBackend, backend)

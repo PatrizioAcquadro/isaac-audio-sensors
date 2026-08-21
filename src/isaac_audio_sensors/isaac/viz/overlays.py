@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
-from isaac_audio_sensors.core.math_utils import add, scale
+from isaac_audio_sensors.core.math_utils import add, basis_from_quaternion, scale
 from isaac_audio_sensors.core.microphone_array import microphone_world_positions
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -224,8 +224,9 @@ def _bearing_endpoint(
     length_m: float,
 ) -> tuple[float, float, float]:
     radians = math.radians(bearing_deg)
+    forward, right, _ = basis_from_quaternion(sensor.orientation_world_quat)
     direction = add(
-        scale(sensor.forward_vec_world, math.cos(radians)),
-        scale(sensor.right_vec_world, math.sin(radians)),
+        scale(forward, math.cos(radians)),
+        scale(right, math.sin(radians)),
     )
     return add(sensor.position_world, scale(direction, length_m))

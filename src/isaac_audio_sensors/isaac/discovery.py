@@ -16,7 +16,6 @@ from isaac_audio_sensors.core.constants import (
 from isaac_audio_sensors.core.math_utils import (
     Quaternion,
     Vector3,
-    basis_from_quaternion,
     normalize_quaternion,
     quaternion_conjugate,
     quaternion_multiply,
@@ -565,7 +564,6 @@ def _array_spec_from_prim(
     )
     if microphone_diagnostics.get("source") == "child_prims":
         diagnostics["microphone_transforms"].update(microphone_diagnostics["items"])
-    forward, right, up = basis_from_quaternion(orientation)
     array_id = str(attrs.get("ias:array_id", _path_name(path)))
     array_diagnostics = {
         "prim_path": path,
@@ -590,9 +588,6 @@ def _array_spec_from_prim(
             prim_path=path,
             position_world=pose.position_world,
             orientation_world_quat=orientation,
-            forward_vec_world=forward,
-            right_vec_world=right,
-            up_vec_world=up,
             microphones=microphones,
             sample_rate_hz=int(
                 attrs.get("ias:sample_rate_hz", cfg.default_sample_rate_hz)

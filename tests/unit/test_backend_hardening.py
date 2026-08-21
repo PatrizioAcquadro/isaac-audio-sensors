@@ -30,7 +30,6 @@ from isaac_audio_sensors.core.math_utils import (
     subtract,
 )
 from isaac_audio_sensors.core.microphone_array import (
-    arbitrary_microphone_array,
     create_microphone_array,
     microphone_world_positions,
 )
@@ -39,6 +38,7 @@ from isaac_audio_sensors.core.types import (
     AudioSourceSpec,
     AudioTimeWindow,
     MicrophoneArraySpec,
+    MicrophoneSpec,
 )
 
 SECTOR_BOUNDARY_CASES = (
@@ -484,12 +484,14 @@ def test_tdoa_rejects_invalid_and_degenerate_mic_counts() -> None:
             _window(mono),
         )
 
-    degenerate = arbitrary_microphone_array(
+    degenerate = MicrophoneArraySpec(
         array_id="degenerate",
         prim_path="/World/Rig/Degenerate",
-        relative_positions_m=(
-            ("a", (0.0, 0.0, 0.0)),
-            ("b", (0.0, 0.0, 0.0)),
+        position_world=(0.0, 0.0, 0.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
+        microphones=(
+            MicrophoneSpec(mic_id="a", relative_position_m=(0.0, 0.0, 0.0)),
+            MicrophoneSpec(mic_id="b", relative_position_m=(0.0, 0.0, 0.0)),
         ),
     )
     with pytest.raises(ValueError, match="degenerate"):

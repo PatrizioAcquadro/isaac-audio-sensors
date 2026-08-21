@@ -29,6 +29,7 @@ from isaac_audio_sensors.core.effects.directivity import microphone_world_orient
 from isaac_audio_sensors.core.effects.noise import metadata_noise_timing_values
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
+    basis_from_quaternion,
     bearing_from_components,
     clamp,
     dot,
@@ -601,9 +602,10 @@ def _ground_truth_bearing(
     sensor: MicrophoneArraySpec,
 ) -> float | None:
     delta = subtract(source_position_world, sensor.position_world)
+    forward, right, _ = basis_from_quaternion(sensor.orientation_world_quat)
     return bearing_from_components(
-        dot(delta, sensor.forward_vec_world),
-        dot(delta, sensor.right_vec_world),
+        dot(delta, forward),
+        dot(delta, right),
     )
 
 
@@ -654,7 +656,8 @@ def _ground_truth_elevation(
     distance = norm(delta)
     if distance <= EPSILON:
         return None
-    up_component = dot(delta, sensor.up_vec_world)
+    _, _, up = basis_from_quaternion(sensor.orientation_world_quat)
+    up_component = dot(delta, up)
     return math.degrees(math.asin(clamp(up_component / distance, -1.0, 1.0)))
 
 

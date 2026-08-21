@@ -18,6 +18,7 @@ from isaac_audio_sensors.core.effects.config import (
 from isaac_audio_sensors.core.effects.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.noise import metadata_noise_timing_values
 from isaac_audio_sensors.core.math_utils import (
+    basis_from_quaternion,
     bearing_from_components,
     dot,
     norm,
@@ -142,13 +143,14 @@ class GeometryBackend:
             microphone.mic_id: 0.0 for microphone in sensor.microphones
         }
 
+        forward, right, up = basis_from_quaternion(sensor.orientation_world_quat)
         active = active_sources(scene, time_window)
         for index, source in enumerate(active):
             delta = subtract(source.position_world, sensor.position_world)
             distance = norm(delta)
-            forward_component = dot(delta, sensor.forward_vec_world)
-            right_component = dot(delta, sensor.right_vec_world)
-            up_component = dot(delta, sensor.up_vec_world)
+            forward_component = dot(delta, forward)
+            right_component = dot(delta, right)
+            up_component = dot(delta, up)
             horizontal_distance = math.hypot(forward_component, right_component)
             bearing = bearing_from_components(forward_component, right_component)
             elevation = (

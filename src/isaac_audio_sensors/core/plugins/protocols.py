@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Protocol, runtime_checkable
 
 import numpy as np
@@ -67,12 +66,8 @@ class AudioFeatureExtractor(Protocol):
         """Return the fixed-shape feature tensor and metadata."""
 
 
-PluginOutputContract = Mapping[str, object]
-
-
 __all__ = [
     "AudioFeatureExtractor",
     "DoaEstimator",
-    "PluginOutputContract",
     "PropagationBackend",
 ]

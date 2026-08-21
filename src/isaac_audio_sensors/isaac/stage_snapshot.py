@@ -15,7 +15,6 @@ from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.math_utils import (
     Quaternion,
     Vector3,
-    basis_from_quaternion,
     normalize_quaternion,
     quaternion_conjugate,
     quaternion_multiply,
@@ -343,16 +342,12 @@ def _array_from_prim(
         array_pose=array_pose,
         diagnostics=diagnostics,
     )
-    forward, right, up = basis_from_quaternion(orientation)
     array_id = str(attrs.get("ias:array_id", _path_name(path)))
     return MicrophoneArraySpec(
         array_id=array_id,
         prim_path=path,
         position_world=pose.position_world,
         orientation_world_quat=orientation,
-        forward_vec_world=forward,
-        right_vec_world=right,
-        up_vec_world=up,
         microphones=microphones,
         sample_rate_hz=int(attrs.get("ias:sample_rate_hz", DEFAULT_SAMPLE_RATE_HZ)),
         coordinate_convention=str(

@@ -19,7 +19,6 @@ from isaac_audio_sensors.core.math_utils import (
     add,
     as_quaternion_xyzw,
     as_vector3,
-    basis_from_quaternion,
     normalize_quaternion,
     quaternion_multiply,
     rotate_vector_by_quaternion,
@@ -451,7 +450,6 @@ def _array_from_prim(
 ) -> MicrophoneArraySpec:
     attrs = _attrs(prim, time_code=time_code)
     orientation = transform.orientation_world_quat or (0.0, 0.0, 0.0, 1.0)
-    forward, right, up = basis_from_quaternion(orientation)
     microphones = _microphones_from_stage_or_cfg(
         binding_cfg=binding_cfg,
         attrs=attrs,
@@ -465,9 +463,6 @@ def _array_from_prim(
         prim_path=array_path,
         position_world=transform.position_world,
         orientation_world_quat=orientation,
-        forward_vec_world=forward,
-        right_vec_world=right,
-        up_vec_world=up,
         microphones=microphones,
         sample_rate_hz=int(attrs.get("ias:sample_rate_hz", binding_cfg.sample_rate_hz)),
         coordinate_convention=str(

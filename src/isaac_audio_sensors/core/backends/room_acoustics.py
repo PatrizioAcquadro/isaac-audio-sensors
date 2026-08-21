@@ -49,6 +49,7 @@ from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
+    basis_from_quaternion,
     bearing_from_components,
     dot,
     norm,
@@ -1618,9 +1619,10 @@ def _ground_truth_bearing(
     sensor: MicrophoneArraySpec,
 ) -> float | None:
     delta = subtract(source_position_world, sensor.position_world)
+    forward, right, _ = basis_from_quaternion(sensor.orientation_world_quat)
     bearing = bearing_from_components(
-        dot(delta, sensor.forward_vec_world),
-        dot(delta, sensor.right_vec_world),
+        dot(delta, forward),
+        dot(delta, right),
     )
     if bearing is None:
         return None
@@ -1635,5 +1637,6 @@ def _ground_truth_elevation(
     distance = norm(delta)
     if distance <= 1e-9:
         return None
-    ratio = dot(delta, sensor.up_vec_world) / distance
+    _, _, up = basis_from_quaternion(sensor.orientation_world_quat)
+    ratio = dot(delta, up) / distance
     return math.degrees(math.asin(max(-1.0, min(1.0, ratio))))

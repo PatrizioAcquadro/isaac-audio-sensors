@@ -14,7 +14,6 @@ from isaac_audio_sensors.core.plugins.declarations import (
 from isaac_audio_sensors.core.plugins.protocols import (
     AudioFeatureExtractor,
     DoaEstimator,
-    PluginOutputContract,
     PropagationBackend,
 )
 from isaac_audio_sensors.core.plugins.registry import (
@@ -34,7 +33,6 @@ __all__ = [
     "PluginAvailability",
     "PluginDeclaration",
     "PluginFactory",
-    "PluginOutputContract",
     "PluginRegistry",
     "PropagationBackend",
     "SrpPhatEstimator",

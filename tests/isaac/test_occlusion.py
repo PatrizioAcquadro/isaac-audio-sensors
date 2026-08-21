@@ -94,9 +94,6 @@ def _array() -> MicrophoneArraySpec:
         prim_path=ARRAY_PRIM_PATH,
         position_world=(0.0, 0.0, 0.0),
         orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
-        forward_vec_world=(1.0, 0.0, 0.0),
-        right_vec_world=(0.0, 1.0, 0.0),
-        up_vec_world=(0.0, 0.0, 1.0),
         microphones=(
             MicrophoneSpec(mic_id="front", relative_position_m=(0.08, 0.0, 0.0)),
             MicrophoneSpec(mic_id="right", relative_position_m=(0.0, 0.08, 0.0)),

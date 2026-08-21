@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable
 
 from isaac_audio_sensors.core.constants import COORDINATE_CONVENTION
 from isaac_audio_sensors.core.math_utils import (
@@ -37,15 +36,11 @@ def create_microphone_array(
         orientation_world_quat,
         "orientation_world_quat",
     )
-    forward, right, up = basis_from_quaternion(orientation)
     return MicrophoneArraySpec(
         array_id=array_id,
         prim_path=prim_path,
         position_world=position_world,
         orientation_world_quat=orientation,
-        forward_vec_world=forward,
-        right_vec_world=right,
-        up_vec_world=up,
         microphones=microphones,
         sample_rate_hz=sample_rate_hz,
         coordinate_convention=COORDINATE_CONVENTION,
@@ -102,53 +97,21 @@ def microphone_layout(
     raise ValueError(f"Unknown microphone layout {layout_name!r}.")
 
 
-def arbitrary_microphone_array(
-    *,
-    array_id: str,
-    prim_path: str,
-    relative_positions_m: Iterable[tuple[str, Vector3]],
-    position_world: Vector3 = (0.0, 0.0, 0.0),
-    orientation_world_quat: Quaternion = (0.0, 0.0, 0.0, 1.0),
-    sample_rate_hz: int = 48_000,
-) -> MicrophoneArraySpec:
-    """Create an array from arbitrary microphone ids and local positions."""
-
-    orientation = as_quaternion_xyzw(
-        orientation_world_quat,
-        "orientation_world_quat",
-    )
-    forward, right, up = basis_from_quaternion(orientation)
-    return MicrophoneArraySpec(
-        array_id=array_id,
-        prim_path=prim_path,
-        position_world=position_world,
-        orientation_world_quat=orientation,
-        forward_vec_world=forward,
-        right_vec_world=right,
-        up_vec_world=up,
-        microphones=tuple(
-            MicrophoneSpec(mic_id=mic_id, relative_position_m=position)
-            for mic_id, position in relative_positions_m
-        ),
-        sample_rate_hz=sample_rate_hz,
-        coordinate_convention=COORDINATE_CONVENTION,
-    )
-
-
 def microphone_world_positions(
     array: MicrophoneArraySpec,
 ) -> dict[str, Vector3]:
     """Compute world-space microphone positions from local array coordinates."""
 
+    forward, right, up = basis_from_quaternion(array.orientation_world_quat)
     world_positions: dict[str, Vector3] = {}
     for microphone in array.microphones:
         local = microphone.relative_position_m
         world_offset = add(
             add(
-                scale(array.forward_vec_world, local[0]),
-                scale(array.right_vec_world, local[1]),
+                scale(forward, local[0]),
+                scale(right, local[1]),
             ),
-            scale(array.up_vec_world, local[2]),
+            scale(up, local[2]),
         )
         world_positions[microphone.mic_id] = add(array.position_world, world_offset)
     return world_positions
@@ -232,16 +195,3 @@ def _layout_rank_xy(array: MicrophoneArraySpec) -> int:
         if abs(cross_z) > 1e-9:
             return 2
     return 1
-
-
-def basis_is_orthogonal(array: MicrophoneArraySpec, *, tolerance: float = 1e-6) -> bool:
-    """Return whether the public basis vectors are approximately orthonormal."""
-
-    vectors = (array.forward_vec_world, array.right_vec_world, array.up_vec_world)
-    unit_lengths = all(abs(norm(vector) - 1.0) <= tolerance for vector in vectors)
-    orthogonal = (
-        abs(dot(vectors[0], vectors[1])) <= tolerance
-        and abs(dot(vectors[0], vectors[2])) <= tolerance
-        and abs(dot(vectors[1], vectors[2])) <= tolerance
-    )
-    return unit_lengths and orthogonal

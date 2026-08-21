@@ -135,9 +135,6 @@ def _array_spec() -> MicrophoneArraySpec:
         prim_path="/World/Array",
         position_world=(0.0, 0.0, 0.0),
         orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
-        forward_vec_world=(1.0, 0.0, 0.0),
-        right_vec_world=(0.0, 1.0, 0.0),
-        up_vec_world=(0.0, 0.0, 1.0),
         microphones=_microphones(),
         sample_rate_hz=48_000,
     )

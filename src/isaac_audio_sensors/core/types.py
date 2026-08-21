@@ -178,9 +178,6 @@ class MicrophoneArraySpec:
     prim_path: str
     position_world: Vector3
     orientation_world_quat: Quaternion
-    forward_vec_world: Vector3
-    right_vec_world: Vector3
-    up_vec_world: Vector3
     microphones: tuple[MicrophoneSpec, ...]
     sample_rate_hz: int = DEFAULT_SAMPLE_RATE_HZ
     coordinate_convention: str = COORDINATE_CONVENTION
@@ -206,14 +203,6 @@ class MicrophoneArraySpec:
                 "MicrophoneArraySpec.orientation_world_quat",
             ),
         )
-        for field_name in ("forward_vec_world", "right_vec_world", "up_vec_world"):
-            object.__setattr__(
-                self,
-                field_name,
-                as_vector3(
-                    getattr(self, field_name), f"MicrophoneArraySpec.{field_name}"
-                ),
-            )
         if self.velocity_world_mps is not None:
             object.__setattr__(
                 self,
@@ -333,7 +322,7 @@ class DoaEstimate:
     """Direction-of-arrival estimate with explicit ambiguity representation.
 
     Elevation fields are additive optional v1 fields measured in degrees up
-    from the array's forward/right plane (positive toward ``up_vec_world``),
+    from the array's forward/right plane (positive toward array-local +Z),
     in ``[-90.0, +90.0]``. They stay ``None``/empty unless the producer can
     resolve elevation (e.g. a rank-3 microphone layout); planar arrays keep
     the azimuth-only behavior. ``bearing_confidence`` covers the full

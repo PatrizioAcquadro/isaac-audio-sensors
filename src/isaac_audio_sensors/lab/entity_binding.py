@@ -867,15 +867,11 @@ def _array_for_env(
 ) -> MicrophoneArraySpec:
     position = _row_vec3(pose_batch.positions_world, row_index)
     orientation = _row_quat(pose_batch.orientations_world_xyzw, row_index)
-    forward, right, up = basis_from_quaternion(orientation)
     return MicrophoneArraySpec(
         array_id=f"{binding_cfg.array_id}_{env_id}",
         prim_path=_array_prim_path(binding_cfg, env_id),
         position_world=position,
         orientation_world_quat=orientation,
-        forward_vec_world=forward,
-        right_vec_world=right,
-        up_vec_world=up,
         microphones=_microphones(binding_cfg),
         sample_rate_hz=int(binding_cfg.sample_rate_hz),
         coordinate_convention=COORDINATE_CONVENTION,
@@ -1005,6 +1001,7 @@ def _diagnostics_for_env(
     sources: tuple[AudioSourceSpec, ...],
     read_count: int,
 ) -> dict[str, Any]:
+    forward, right, up = basis_from_quaternion(array.orientation_world_quat)
     return {
         "mode": "lab_entity_binding",
         "env_id": env_id,
@@ -1024,9 +1021,9 @@ def _diagnostics_for_env(
                 array_pose.orientations_world_xyzw,
                 row_index,
             ),
-            "forward_vec_world": array.forward_vec_world,
-            "right_vec_world": array.right_vec_world,
-            "up_vec_world": array.up_vec_world,
+            "forward_vec_world": forward,
+            "right_vec_world": right,
+            "up_vec_world": up,
         },
         "source_entities": tuple(
             {

@@ -30,7 +30,6 @@ from isaac_audio_sensors.core.effects.directivity import (
     microphone_world_orientation,
 )
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
-from isaac_audio_sensors.core.math_utils import basis_from_quaternion
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -45,8 +44,6 @@ class AudioSensorConfig:
     """Validated TOML config data for scenes and sensor examples."""
 
     scene_id: str
-    stage_units: str
-    up_axis: str
     default_backend: str
     runtime_profile: str = DEFAULT_RUNTIME_PROFILE
     effects: EffectsConfig = field(default_factory=EffectsConfig)
@@ -58,7 +55,6 @@ class AudioSensorConfig:
     sources: tuple[AudioSourceSpec, ...]
     arrays: dict[str, MicrophoneArraySpec]
     room: RoomAcousticsSpec | None
-    lab: dict[str, Any]
 
 
 def load_audio_config(path: str | Path) -> AudioSensorConfig:
@@ -168,14 +164,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             },
         )
         room = _parse_room(raw.get("room"))
-        lab = dict(raw.get("lab", {}))
-        _validate_lab(lab)
-        if lab and effects.motion.derive_velocity_from_poses:
-            raise UnsupportedEffectError(
-                "audio.effects.motion.derive_velocity_from_poses=true is "
-                "unsupported by Isaac Lab scalar and batched capture paths; "
-                "use a live IsaacAudioArraySensor stage stream."
-            )
         _validate_backend_requirements(
             default_backend=default_backend,
             arrays=arrays,
@@ -184,8 +172,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         )
         return AudioSensorConfig(
             scene_id=scene_id,
-            stage_units=stage_units,
-            up_axis=up_axis,
             default_backend=default_backend,
             runtime_profile=runtime_profile,
             effects=effects,
@@ -201,7 +187,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             sources=sources,
             arrays=arrays,
             room=room,
-            lab=lab,
         )
     except KeyError as exc:
         raise ConfigValidationError(
@@ -286,7 +271,6 @@ def _parse_arrays(
         orientation = tuple(
             raw_array.get("orientation_world_quat", (0.0, 0.0, 0.0, 1.0))
         )
-        forward, right, up = basis_from_quaternion(orientation)
         microphones = _parse_microphones(raw_array.get("microphones", ()))
         arrays[array_id] = MicrophoneArraySpec(
             array_id=array_id,
@@ -295,9 +279,6 @@ def _parse_arrays(
             ),
             position_world=tuple(raw_array.get("position_world", (0.0, 0.0, 0.0))),
             orientation_world_quat=orientation,
-            forward_vec_world=tuple(raw_array.get("forward_vec_world", forward)),
-            right_vec_world=tuple(raw_array.get("right_vec_world", right)),
-            up_vec_world=tuple(raw_array.get("up_vec_world", up)),
             microphones=microphones,
             sample_rate_hz=int(raw_array.get("sample_rate_hz", sample_rate_hz)),
             coordinate_convention=str(
@@ -350,16 +331,6 @@ def _parse_room(raw_room: Any) -> RoomAcousticsSpec | None:
         origin_m=tuple(raw_room.get("origin_m", (0.0, 0.0, 0.0))),
         out_of_bounds=str(raw_room.get("out_of_bounds", "error")),
     )
-
-
-def _validate_lab(lab: dict[str, Any]) -> None:
-    if not lab:
-        return
-    if float(lab.get("update_period", 0.0)) < 0.0:
-        raise ConfigValidationError("lab.update_period must be non-negative.")
-    prim_path = lab.get("prim_path")
-    if prim_path is not None and str(prim_path).strip() == "":
-        raise ConfigValidationError("lab.prim_path must be non-empty.")
 
 
 def _validate_backend_requirements(
