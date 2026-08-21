@@ -15,10 +15,10 @@ from enum import Enum
 from typing import Any
 
 from isaac_audio_sensors.kit.validation import (
-    ValidationController,
     ValidationFinding,
     ValidationReport,
 )
+from isaac_audio_sensors.kit.validation.checks import check_stage_present
 
 
 class GuidedStage(str, Enum):
@@ -254,12 +254,6 @@ class _RecoveryRule:
 _RECOVERY_RULES = (
     _RecoveryRule("check", "setup_preset_applied", "preset", "Apply preset"),
     _RecoveryRule("check", "stage_present", "stage", "Open stage"),
-    _RecoveryRule(
-        "check",
-        "capabilities_fresh",
-        "capabilities",
-        "Refresh capabilities",
-    ),
     _RecoveryRule("field", "backend", "preset", "Use safe backend"),
     _RecoveryRule("field_suffix", "_path", "preset", "Fix path"),
     _RecoveryRule("field", "guided_preset_id", "preset", "Apply preset"),
@@ -322,15 +316,12 @@ class GuidedWorkflow:
 
     def __init__(
         self,
-        validation: ValidationController,
         state: Any,
         *,
         on_change: Callable[[], None] | None = None,
-        recovery_handlers: Mapping[
-            str, Callable[[ValidationFinding], None]
-        ] | None = None,
+        recovery_handlers: Mapping[str, Callable[[ValidationFinding], None]]
+        | None = None,
     ) -> None:
-        self.validation = validation
         self.state = state
         try:
             current = GuidedStage(str(state.guided_stage))
@@ -385,9 +376,7 @@ class GuidedWorkflow:
     def export_status(self) -> ExportStatus:
         return self._export_status
 
-    def stage_gate(
-        self, stage: GuidedStage | str
-    ) -> tuple[ValidationFinding, ...]:
+    def stage_gate(self, stage: GuidedStage | str) -> tuple[ValidationFinding, ...]:
         """Return ordered findings preventing entry to ``stage``."""
 
         target = GuidedStage(stage)
@@ -507,11 +496,7 @@ class GuidedWorkflow:
             raise KeyError(preset_id)
         apply(preset)
         self.state.guided_preset_id = preset.preset_id
-        findings = (
-            ()
-            if stage_present
-            else self.validation.validate_stage_present(False).findings
-        )
+        findings = () if stage_present else check_stage_present(False)
         self._findings[GuidedStage.SETUP] = findings
         self._statuses[GuidedStage.SETUP] = (
             StageStatus.COMPLETE if not findings else StageStatus.BLOCKED
@@ -522,21 +507,10 @@ class GuidedWorkflow:
     def record_validation(
         self,
         report: ValidationReport,
-        *,
-        capabilities_fresh: bool,
     ) -> ValidationReport:
-        """Record a Validate pass and enforce its freshness prerequisite."""
+        """Record one Validate pass."""
 
         findings = [*self.stage_gate(GuidedStage.VALIDATE), *report.findings]
-        if not capabilities_fresh:
-            findings.append(
-                _finding(
-                    "capabilities_fresh",
-                    "Capability state is stale; refresh capabilities and "
-                    "validate again.",
-                    "backend",
-                )
-            )
         recorded = ValidationReport(tuple(dict.fromkeys(findings)))
         self._findings[GuidedStage.VALIDATE] = recorded.findings
         self._statuses[GuidedStage.VALIDATE] = (
@@ -586,9 +560,7 @@ class GuidedWorkflow:
             running=previous.running,
             stopped=previous.stopped,
             frame_count=previous.frame_count + 1,
-            last_timestamp_ms=(
-                None if timestamp_ms is None else int(timestamp_ms)
-            ),
+            last_timestamp_ms=(None if timestamp_ms is None else int(timestamp_ms)),
         )
         if self._run_status.running:
             self._statuses[GuidedStage.RUN] = StageStatus.COMPLETE
@@ -620,9 +592,7 @@ class GuidedWorkflow:
 
     def fail_run(self, message: str, *, check_id: str) -> None:
         self._statuses[GuidedStage.RUN] = StageStatus.BLOCKED
-        self._findings[GuidedStage.RUN] = (
-            _finding(check_id, message, "guided_stage"),
-        )
+        self._findings[GuidedStage.RUN] = (_finding(check_id, message, "guided_stage"),)
         self._emit_change()
 
     def mark_inspected(self) -> bool:
@@ -722,9 +692,7 @@ class GuidedWorkflow:
             note=note or message,
         )
         self._statuses[GuidedStage.EXPORT] = StageStatus.BLOCKED
-        self._findings[GuidedStage.EXPORT] = (
-            _finding(check_id, message, field),
-        )
+        self._findings[GuidedStage.EXPORT] = (_finding(check_id, message, field),)
         self._emit_change()
 
     def issues_for_field(self, field: str) -> tuple[InlineIssue, ...]:

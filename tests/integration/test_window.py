@@ -1,0 +1,488 @@
+# ruff: noqa: F403, F405
+
+from ._kit_ui_support import *
+
+
+def test_live_ux_screenshot_uses_viewport_utility_capture(monkeypatch, tmp_path):
+    path = tmp_path / "utility.viewport.png"
+    viewport = SimpleNamespace(camera_path=SimpleNamespace(pathString="/World/Camera"))
+
+    def capture_viewport_to_file(_viewport: object, *, file_path: str) -> object:
+        _write_test_png(Path(file_path), width=31, height=19)
+        return SimpleNamespace(wait_for_result=lambda: "done")
+
+    env = _install_viewport_modules(
+        monkeypatch,
+        viewport=viewport,
+        utility_capture=capture_viewport_to_file,
+    )
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(
+        path,
+        framed_paths=("/World/Oven", "/World/Oven/SpeakerA"),
+    )
+
+    assert record["status"] == "captured"
+    assert record["path"] == str(path)
+    assert record["method"] == "viewport_utility.capture_viewport_to_file"
+    assert record["width"] == 31
+    assert record["height"] == 19
+    assert record["file_size_bytes"] > 0
+    assert record["viewport_api_type"] == "SimpleNamespace"
+    assert record["camera_path"] == "/World/Camera"
+    assert record["framed_paths"] == ["/World/Oven", "/World/Oven/SpeakerA"]
+    assert env.framed == [("/World/Oven", "/World/Oven/SpeakerA")]
+    assert record["attempts"][0]["method"] == "viewport_utility.frame_viewport_prims"
+    assert record["attempts"][1]["method"] == (
+        "viewport_utility.capture_viewport_to_file"
+    )
+
+
+def test_live_ux_screenshot_falls_back_to_legacy_capture(monkeypatch, tmp_path):
+    path = tmp_path / "legacy.viewport.png"
+
+    class LegacyViewport:
+        camera_path = SimpleNamespace(pathString="/World/LegacyCamera")
+
+        def capture_to_file(self, file_path: str) -> object:
+            _write_test_png(Path(file_path), width=23, height=29)
+            return SimpleNamespace(wait=lambda: "done")
+
+    _install_viewport_modules(monkeypatch, viewport=LegacyViewport())
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(path)
+
+    assert record["status"] == "captured"
+    assert record["method"] == "viewport.capture_to_file"
+    assert record["width"] == 23
+    assert record["height"] == 29
+    methods = [attempt["method"] for attempt in record["attempts"]]
+    assert methods == [
+        "viewport_utility.capture_viewport_to_file",
+        "viewport.capture_to_file",
+    ]
+
+
+def test_live_ux_screenshot_waits_for_scheduled_kit_capture(monkeypatch, tmp_path):
+    path = tmp_path / "scheduled.viewport.png"
+    viewport = SimpleNamespace(camera_path=SimpleNamespace(pathString="/World/Camera"))
+
+    class App:
+        updates = 0
+
+        def update(self) -> None:
+            self.updates += 1
+            if self.updates == 3:
+                _write_test_png(path, width=37, height=39)
+
+    def capture_viewport_to_file(_viewport: object, *, file_path: str) -> object:
+        assert file_path == str(path)
+        return SimpleNamespace(wait_for_result=lambda: None)
+
+    app = App()
+    _install_viewport_modules(
+        monkeypatch,
+        viewport=viewport,
+        utility_capture=capture_viewport_to_file,
+        app=app,
+    )
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(path)
+
+    assert record["status"] == "captured"
+    assert record["method"] == "viewport_utility.capture_viewport_to_file"
+    assert record["width"] == 37
+    assert record["height"] == 39
+    assert record["attempts"][0]["file_wait"] == {"status": "ready", "updates": 3}
+
+
+def test_live_ux_screenshot_falls_back_to_renderer_capture(monkeypatch, tmp_path):
+    path = tmp_path / "renderer.viewport.png"
+    viewport = SimpleNamespace(camera_path=SimpleNamespace(pathString="/World/Camera"))
+
+    class RendererCapture:
+        def capture_next_frame_swapchain(self, file_path: str) -> object:
+            _write_test_png(Path(file_path), width=41, height=43)
+            return "scheduled"
+
+        def wait_async_capture(self) -> object:
+            return "done"
+
+    _install_viewport_modules(
+        monkeypatch,
+        viewport=viewport,
+        renderer=RendererCapture(),
+    )
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(path)
+
+    assert record["status"] == "captured"
+    assert record["method"] == "renderer_capture.capture_next_frame_swapchain"
+    assert record["width"] == 41
+    assert record["height"] == 43
+    methods = [attempt["method"] for attempt in record["attempts"]]
+    assert methods == [
+        "viewport_utility.capture_viewport_to_file",
+        "viewport.capture_to_file",
+        "renderer_capture.capture_next_frame_swapchain",
+    ]
+
+
+def test_live_ux_screenshot_records_no_active_viewport(monkeypatch, tmp_path):
+    path = tmp_path / "missing.viewport.png"
+    _install_viewport_modules(monkeypatch, viewport=None)
+    live_ux = _load_live_ux_script(monkeypatch)
+
+    record = live_ux._capture_viewport_screenshot(path)
+
+    assert record["status"] == "unavailable"
+    assert record["path"] == str(path)
+    assert record["reason"] == "no active viewport"
+    assert record["file_size_bytes"] == 0
+    assert record["width"] is None
+    assert record["height"] is None
+    assert record["attempts"] == []
+
+
+def test_kit_builds_against_fake_omni_ui(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+
+    controller = ExtensionController()
+    window = controller.build_ui_if_available()
+
+    assert window is not None
+    assert controller.ui_available is True
+    assert controller._lifecycle._ui_window is not None
+    assert set(controller._lifecycle._ui_window._combo_fields) == {
+        "ambiguity_policy",
+        "backend",
+        "layout_name",
+        "room_out_of_bounds",
+        "waveform_mode",
+    }
+    assert set(controller._lifecycle._ui_window._int_fields) == {
+        "max_events",
+        "sample_rate_hz",
+    }
+    assert set(controller._lifecycle._ui_window._float_fields) == {
+        "array_position_x_m",
+        "array_position_y_m",
+        "array_position_z_m",
+        "array_yaw_deg",
+        "array_pitch_deg",
+        "array_roll_deg",
+        "array_local_offset_x_m",
+        "array_local_offset_y_m",
+        "array_local_offset_z_m",
+        "array_local_yaw_deg",
+        "array_local_pitch_deg",
+        "array_local_roll_deg",
+        "source_local_offset_x_m",
+        "source_local_offset_y_m",
+        "source_local_offset_z_m",
+        "source_position_x_m",
+        "source_position_y_m",
+        "source_position_z_m",
+        "source_duration_s",
+        "source_gain_db",
+        "source_start_time_s",
+        "update_period_s",
+    }
+    assert set(controller._lifecycle._ui_window._bool_fields) == {
+        "author_child_microphones",
+        "debug_overlay_enabled",
+        "follow_viewport_selection",
+        "live_sync_array_pose",
+        "live_sync_source_pose",
+        "occlusion_enabled",
+        "replicator_enabled",
+        "trace_enabled",
+        "usd_debug_enabled",
+        "waveform_enabled",
+    }
+    assert "replicator_enabled" in controller._lifecycle._ui_window._bool_fields
+    assert "replicator_output_dir" in controller._lifecycle._ui_window._string_fields
+    assert "array_prim_path" in controller._lifecycle._ui_window._string_fields
+    assert "source_prim_path" in controller._lifecycle._ui_window._string_fields
+    assert "source_directivity" in controller._lifecycle._ui_window._string_fields
+    assert "selected_profile_id" in controller._lifecycle._ui_window._string_fields
+    assert "selected_rig_profile_id" in controller._lifecycle._ui_window._string_fields
+    assert "object_prim_path" in controller._lifecycle._ui_window._string_fields
+    assert "latest_frame_export_path" in controller._lifecycle._ui_window._string_fields
+    assert {
+        widget.kind
+        for widget in controller._lifecycle._ui_window._float_fields.values()
+    } == {"StringField"}
+    assert {
+        widget.kind for widget in controller._lifecycle._ui_window._int_fields.values()
+    } == {"StringField"}
+    assert controller._lifecycle._ui_window._sections == [
+        "Stage",
+        "Author Array",
+        "Author Source",
+        "Sensor",
+        "Room",
+        "Instruments",
+        "Audio Output",
+        "Replicator",
+        "Export",
+    ]
+
+    scrolling_frames = [
+        widget for widget in omni_ui.created if widget.kind == "ScrollingFrame"
+    ]
+    assert len(scrolling_frames) == 2
+    collapsable_frames = [
+        widget for widget in omni_ui.created if widget.kind == "CollapsableFrame"
+    ]
+    assert [widget.text for widget in collapsable_frames] == [
+        "Stage",
+        "Author Array",
+        "Author Source",
+        "Sensor",
+        "Room",
+        "Instruments",
+        "Audio Output",
+        "Replicator",
+        "Export",
+    ]
+    for frame in collapsable_frames:
+        assert [child.kind for child in frame.children] == ["VStack"]
+
+    button_labels = {
+        widget.text for widget in omni_ui.created if widget.kind == "Button"
+    }
+    assert {
+        "Refresh",
+        "Use Array",
+        "Use Source",
+        "Use Object",
+        "Use Base",
+        "Create Demo Object",
+        "Discover",
+        "Create/Attach Array",
+        "Select Rig Profile",
+        "Apply Rig Profile",
+        "Read Array Transform",
+        "Apply Array Pose",
+        "Attach Array To Object",
+        "Detach Array",
+        "Read Selected Transform",
+        "Apply Position",
+        "Select Profile",
+        "Auto From Object",
+        "Apply Profile",
+        "Front",
+        "Right",
+        "Left",
+        "Behind",
+        "Create/Attach Source",
+        "Attach Source To Object",
+        "Detach Source",
+        "Start",
+        "Stop",
+        "Update",
+        "Flush",
+        "Export Latest",
+        "Export Config",
+        "Load Config",
+    } <= button_labels
+    assert {
+        "Refresh",
+        "Use Array",
+        "Use Source",
+        "Use Object",
+        "Use Base",
+        "Create Demo Object",
+        "Discover",
+        "Create/Attach Array",
+        "Select Rig Profile",
+        "Apply Rig Profile",
+        "Read Array Transform",
+        "Apply Array Pose",
+        "Attach Array To Object",
+        "Detach Array",
+        "Read Selected Transform",
+        "Apply Position",
+        "Select Profile",
+        "Auto From Object",
+        "Apply Profile",
+        "Front",
+        "Right",
+        "Left",
+        "Behind",
+        "Create/Attach Source",
+        "Attach Source To Object",
+        "Detach Source",
+        "Start",
+        "Stop",
+        "Update",
+        "Flush",
+        "Export Latest",
+        "Export Config",
+        "Load Config",
+    } <= set(controller._lifecycle._ui_window._buttons)
+
+
+def test_kit_instruments_show_compass_meters_and_timeline(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    controller = ExtensionController()
+    controller.state.latest_frame_id = "frame_001"
+    controller.state.latest_detection_count = 1
+    controller.state.latest_backend = "tdoa_synthetic"
+    controller.state.latest_source_prim_path = "/World/Sources/SpeakerA"
+    controller.state.latest_source_position_m = (1.0, 2.0, 0.0)
+    controller.state.latest_bearing_deg = 90.0
+    controller.state.latest_sector = "right"
+    controller.state.latest_bearing_confidence = 0.8
+    controller.state.latest_occluded = False
+    controller.state.latest_aggregate_rms = {
+        "left": 0.2,
+        "front": 0.24,
+        "rear": 0.18,
+        "right": 0.22,
+    }
+    controller.state.detection_history = [
+        {
+            "frame_id": "frame_001",
+            "timestamp_ms": 1500,
+            "source_id": "speaker_a",
+            "class_label": "speech_generic",
+            "bearing_deg": 90.0,
+            "sector": "right",
+            "occluded": False,
+        }
+    ]
+
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    window.refresh_labels()
+
+    latest = window._labels["latest"].text
+    assert "Frame: frame_001" in latest
+    assert "detections=1" in latest
+
+    compass = window._labels["compass"].text
+    assert "bearing 90.0 deg" in compass
+    assert "sector right" in compass
+    assert "confidence 0.80" in compass
+    assert "clear" in compass
+    provider = window._instruments["compass_provider"]
+    assert provider.size == [192, 192]
+    assert len(provider.data) == 192 * 192 * 4
+
+    visible_meters = [
+        row for row in window._instruments["meters"] if row["row"].visible
+    ]
+    assert [row["label"].text.split(":")[0] for row in visible_meters] == [
+        "front",
+        "right",
+        "rear",
+        "left",
+    ]
+    fractions = [row["bar"].model.value for row in visible_meters]
+    assert all(0.0 < fraction <= 1.0 for fraction in fractions)
+    assert fractions[0] == max(fractions)
+    hidden_meters = [
+        row for row in window._instruments["meters"] if not row["row"].visible
+    ]
+    assert hidden_meters
+
+    timeline = [
+        label.text for label in window._instruments["timeline"] if label.visible
+    ]
+    assert len(timeline) == 1
+    assert "speech_generic" in timeline[0]
+    assert "90.0 deg" in timeline[0]
+    assert "clear" in timeline[0]
+
+
+def test_kit_audio_panel_renders_waveform_preview(monkeypatch, tmp_path):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    controller = ExtensionController()
+    wav_path = tmp_path / "frame_000001.wav"
+    wav_path.write_bytes(_float32_wav_bytes())
+    controller.state.latest_waveform_paths = (str(wav_path),)
+
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    window.refresh_labels()
+
+    label = window._labels["waveform"].text
+    assert "frame_000001.wav" in label
+    assert "1 ch" in label
+    assert "8000 Hz" in label
+    panel = window._audio_panel
+    assert panel["rendered_path"] == str(wav_path)
+    assert panel["waveform_provider"].size == [420, 96]
+    assert panel["spectrogram_provider"].size == [420, 128]
+    assert window._labels["audition"].text == "Audition idle."
+
+
+def test_kit_audio_panel_reports_missing_waveform(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    controller = ExtensionController()
+
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    window.refresh_labels()
+
+    assert "No waveform yet" in window._labels["waveform"].text
+
+
+def test_kit_invalid_numeric_input_is_readable(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+
+    controller = ExtensionController()
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    called = False
+
+    def _callback() -> None:
+        nonlocal called
+        called = True
+
+    window._float_fields["source_duration_s"].model.set_value("not-a-number")
+    window._action(_callback)()
+
+    assert called is False
+    assert controller.state.error_message is not None
+    assert "UI input failed" in controller.state.error_message
+
+
+def test_extension_controller_reports_visible_errors_without_raising():
+    controller = ExtensionController()
+
+    result = controller.start_sensor(subscribe_to_update_stream=False)
+
+    assert result is None
+    assert controller.state.error_message is not None
+    assert "Sensor configure failed" in controller.state.error_message

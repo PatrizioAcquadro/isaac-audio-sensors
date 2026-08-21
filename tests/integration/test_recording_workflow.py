@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-import isaac_audio_sensors.kit.controller as controller_module
+import isaac_audio_sensors.kit.recording_workflow as recording_workflow_module
 from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.kit.controller import ExtensionController
 from isaac_audio_sensors.kit.sections import build_guided_section
@@ -18,10 +18,7 @@ from isaac_audio_sensors.kit.state import (
     CurrentStageContext,
     ExtensionUiState,
 )
-from isaac_audio_sensors.kit.validation import (
-    ValidationController,
-    ValidationReport,
-)
+from isaac_audio_sensors.kit.validation import ValidationReport
 from isaac_audio_sensors.kit.window import OmniReferenceWindow
 from isaac_audio_sensors.kit.workflow import (
     GUIDED_STAGE_ORDER,
@@ -215,7 +212,9 @@ def _run_ready_controller(
     assert controller.guided_advance()
     assert controller.guided_validate().ok
     sensor = _FakeSensor(frames)
-    monkeypatch.setattr(controller, "_build_sensor", lambda _stage: sensor)
+    monkeypatch.setattr(
+        controller._sensor_session, "_build_sensor", lambda _stage: sensor
+    )
     assert controller.guided_start_run() is sensor
     return controller, sensor
 
@@ -224,7 +223,6 @@ def test_stage_machine_enforces_order_and_records_blocked_transitions() -> None:
     state = ExtensionUiState()
     changes: list[tuple[GuidedStage, StageStatus]] = []
     workflow = GuidedWorkflow(
-        ValidationController(),
         state,
         on_change=lambda: changes.append(
             (workflow.current_stage, workflow.current_status)
@@ -258,14 +256,14 @@ def test_stage_machine_enforces_order_and_records_blocked_transitions() -> None:
 
 
 def test_stage_machine_can_progress_in_order_after_each_stage_completes() -> None:
-    workflow = GuidedWorkflow(ValidationController(), ExtensionUiState())
+    workflow = GuidedWorkflow(ExtensionUiState())
     workflow.apply_preset(
         SAFE_PRESETS[0].preset_id,
         lambda _preset: None,
         stage_present=True,
     )
     assert workflow.advance()
-    workflow.record_validation(ValidationReport(), capabilities_fresh=True)
+    workflow.record_validation(ValidationReport())
 
     for expected in GUIDED_STAGE_ORDER[2:]:
         assert workflow.advance()
@@ -294,9 +292,7 @@ def test_xvf3800_preset_matches_demo_config_claims() -> None:
     assert preset.values["layout_name"] == "quad_front"
     assert preset.values["array_prim_path"] == "/World/Rig/AudioArray"
     assert preset.values["source_id"] == "speaker_front_right"
-    assert preset.values["source_prim_path"] == (
-        "/World/Sources/SpeakerFrontRight"
-    )
+    assert preset.values["source_prim_path"] == ("/World/Sources/SpeakerFrontRight")
     assert preset.values["source_position_world"] == (4.0, 2.0, 0.0)
 
 
@@ -355,27 +351,6 @@ def test_absent_stage_has_open_stage_recovery() -> None:
     assert controller.guided_validate().ok
 
 
-def test_stale_capabilities_block_once_and_refresh_recovery_unblocks() -> None:
-    stage_box: dict[str, object | None] = {"stage": _FakeStage()}
-    controller = _controller(stage_box)
-    controller.guided_apply_preset("minimal_single_source")
-    controller.guided_advance()
-    assert controller.guided_validate().ok
-    controller._validation.invalidate("planted stale capability state")
-
-    report = controller.guided_validate()
-
-    finding = next(
-        item for item in report.findings if item.check_id == "capabilities_fresh"
-    )
-    assert controller.guided_workflow.current_status is StageStatus.BLOCKED
-    assert controller.guided_workflow.issues_for_field("backend")[0].finding is finding
-    action = controller.guided_workflow.recovery_action(finding)
-    assert action.label == "Refresh capabilities"
-    action()
-    assert controller.guided_validate().ok
-
-
 def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
     stage_box: dict[str, object | None] = {"stage": _FakeStage()}
     controller = _controller(stage_box)
@@ -430,9 +405,7 @@ def test_guided_run_observes_frame_then_stop_regresses(
 
     assert sensor.running is False
     assert controller.guided_run_status.stopped is True
-    assert controller.guided_workflow.status(GuidedStage.RUN) is (
-        StageStatus.BLOCKED
-    )
+    assert controller.guided_workflow.status(GuidedStage.RUN) is (StageStatus.BLOCKED)
     assert controller.guided_workflow.findings_for_stage(GuidedStage.RUN)
 
 
@@ -496,16 +469,19 @@ def test_guided_recording_end_to_end_validates_and_reports_progress(
     _enter_record_stage(controller)
     session = tmp_path / "session"
 
-    assert controller.guided_start_recording(
-        session,
-        "guided_test",
-        2,
-        False,
-        scene_id="scene_a",
-        environment_id="environment_a",
-        split_group="scene_a",
-        session_seed=17,
-    ) is not None
+    assert (
+        controller.guided_start_recording(
+            session,
+            "guided_test",
+            2,
+            False,
+            scene_id="scene_a",
+            environment_id="environment_a",
+            split_group="scene_a",
+            session_seed=17,
+        )
+        is not None
+    )
     for _ in range(3):
         assert controller.update_sensor() is not None
 
@@ -544,16 +520,19 @@ def test_guided_recording_marks_sensor_and_detected_simulator_resets(
     )
     _enter_record_stage(controller)
     session = tmp_path / "reset_session"
-    assert controller.guided_start_recording(
-        session,
-        "guided_reset_test",
-        8,
-        False,
-        scene_id="scene_a",
-        environment_id="environment_a",
-        split_group="scene_a",
-        session_seed=17,
-    ) is not None
+    assert (
+        controller.guided_start_recording(
+            session,
+            "guided_reset_test",
+            8,
+            False,
+            scene_id="scene_a",
+            environment_id="environment_a",
+            split_group="scene_a",
+            session_seed=17,
+        )
+        is not None
+    )
 
     assert controller.update_sensor() is recorded[0]
     sensor.reset()
@@ -589,12 +568,15 @@ def test_equal_frame_identity_after_sensor_reset_is_not_a_duplicate(
     )
     _enter_record_stage(controller)
     session = tmp_path / "equal_identity_session"
-    assert controller.guided_start_recording(
-        session,
-        "guided_equal_identity_reset",
-        8,
-        False,
-    ) is not None
+    assert (
+        controller.guided_start_recording(
+            session,
+            "guided_equal_identity_reset",
+            8,
+            False,
+        )
+        is not None
+    )
 
     assert controller.update_sensor() is before
     sensor.reset()
@@ -641,22 +623,25 @@ def test_isaac_post_reset_lifecycle_resets_sensor_and_notifies_recorder(
     )
     _enter_record_stage(controller)
     session = tmp_path / "lifecycle_session"
-    assert controller.guided_start_recording(
-        session,
-        "guided_lifecycle_reset",
-        8,
-        False,
-    ) is not None
+    assert (
+        controller.guided_start_recording(
+            session,
+            "guided_lifecycle_reset",
+            8,
+            False,
+        )
+        is not None
+    )
     assert controller.update_sensor() is frames[0]
 
-    controller._register_simulation_reset_callback()
+    controller._lifecycle._register_simulation_reset_callback()
     assert callbacks[0][1] is post_reset
     callbacks[0][0](object())
     assert sensor.latest_frame is None
     assert controller.update_sensor() is frames[1]
     assert controller.guided_recording_status.reset_count == 1
     assert controller.guided_stop_recording() is not None
-    controller._unregister_simulation_reset_callback()
+    controller._lifecycle._unregister_simulation_reset_callback()
 
     manifest = read_dataset_manifest(session / "manifest.json")
     assert len(manifest.episodes) == 2
@@ -674,12 +659,15 @@ def test_guided_recording_cancellation_finalizes_incomplete_and_recovers(
     )
     _enter_record_stage(controller)
     session = tmp_path / "cancelled"
-    assert controller.guided_start_recording(
-        session,
-        "cancelled_test",
-        1,
-        False,
-    ) is not None
+    assert (
+        controller.guided_start_recording(
+            session,
+            "cancelled_test",
+            1,
+            False,
+        )
+        is not None
+    )
     controller.update_sensor()
     controller.update_sensor()
 
@@ -718,12 +706,15 @@ def test_failed_dataset_validation_blocks_record(
     )
     _enter_record_stage(controller)
     session = tmp_path / "failed_validation"
-    assert controller.guided_start_recording(
-        session,
-        "failed_test",
-        2,
-        False,
-    ) is not None
+    assert (
+        controller.guided_start_recording(
+            session,
+            "failed_test",
+            2,
+            False,
+        )
+        is not None
+    )
     controller.update_sensor()
     planted = Finding(
         "checksum_mismatch",
@@ -732,7 +723,7 @@ def test_failed_dataset_validation_blocks_record(
         "planted checksum mismatch",
     )
     monkeypatch.setattr(
-        controller_module,
+        recording_workflow_module,
         "validate_dataset",
         lambda _root: SimpleNamespace(
             status="failed",
@@ -829,15 +820,14 @@ def test_guided_export_validates_relocated_copy_and_inventory_without_symlinks(
         for asset in shard.assets
     }
     assert {
-        (entry["path"], entry["kind"], entry["sha256"])
-        for entry in inventory
+        (entry["path"], entry["kind"], entry["sha256"]) for entry in inventory
     } == expected
     for entry in inventory:
         shard_id, filename = entry["path"].split("/")[1:]
         marker = json.loads(
-            (
-                destination / "shards" / shard_id / "shard.complete.json"
-            ).read_text(encoding="utf-8")
+            (destination / "shards" / shard_id / "shard.complete.json").read_text(
+                encoding="utf-8"
+            )
         )
         marker_entry = next(
             item for item in marker["files"] if item["path"] == filename

@@ -96,7 +96,7 @@ def _controller_with_sensor(frame_count: int) -> ExtensionController:
         stage_context_provider=lambda: CurrentStageContext(_FakeStage(), ())
     )
     sensor = _FakeSensor([_frame(index) for index in range(frame_count)])
-    controller._build_sensor = lambda _stage: sensor  # type: ignore[method-assign]
+    controller._sensor_session._build_sensor = lambda _stage: sensor
     return controller
 
 

@@ -155,7 +155,7 @@ class HeadlessGuidedSession:
     def _apply_setup(self, payload: Mapping[str, Any], config: Path) -> None:
         controller = self.controller
         try:
-            context = controller._context()
+            context = controller.current_stage_context()
         except Exception as exc:
             raise HeadlessWorkflowError(
                 GuidedStage.SETUP,

@@ -49,6 +49,7 @@ from .ui_models import (
     _set_model_value,
     _set_widget_text,
     _set_window_visibility_changed_fn,
+    _set_window_visible,
     _ui_fraction,
 )
 
@@ -82,7 +83,7 @@ class OmniReferenceWindow:
         self.window = ui.Window(OMNI_WINDOW_TITLE, width=620, height=760)
         _set_window_visibility_changed_fn(
             self.window,
-            self.controller._on_window_visibility_changed,
+            self.controller.handle_window_visibility_changed,
         )
         with self.window.frame:
             scrolling_frame = getattr(ui, "ScrollingFrame", None)
@@ -94,6 +95,35 @@ class OmniReferenceWindow:
                     self._build_body()
         self.refresh_labels()
         return self.window
+
+    def close(self) -> None:
+        """Detach callbacks and release widget references."""
+
+        self.controller.detach_window_callbacks()
+        for subscription in self._model_change_subscriptions:
+            for method_name in ("unsubscribe", "revoke"):
+                method = getattr(subscription, method_name, None)
+                if callable(method):
+                    with suppress(Exception):
+                        method()
+                    break
+        self._model_change_subscriptions.clear()
+        if self.window is not None:
+            _set_window_visibility_changed_fn(self.window, None)
+            _set_window_visible(self.window, False)
+            destroy = getattr(self.window, "destroy", None)
+            if callable(destroy):
+                with suppress(Exception):
+                    destroy()
+        self.window = None
+        self._string_fields.clear()
+        self._float_fields.clear()
+        self._int_fields.clear()
+        self._bool_fields.clear()
+        self._combo_fields.clear()
+        self._labels.clear()
+        self._instruments.clear()
+        self._audio_panel.clear()
 
     def _build_body(self) -> None:
         if self.controller.state.guided_mode_enabled:
@@ -116,6 +146,11 @@ class OmniReferenceWindow:
         """Push current state summaries to visible labels."""
 
         state = self.controller.state
+        source_offset = (
+            state.source_local_offset_x_m,
+            state.source_local_offset_y_m,
+            state.source_local_offset_z_m,
+        )
         self._set_label("stage", state.stage_status)
         self._set_label(
             "discovery",
@@ -129,7 +164,7 @@ class OmniReferenceWindow:
             f"{state.object_label or 'none'} | "
             f"path={state.object_prim_path or 'none'} | "
             f"attached={state.source_attached_to_object} | "
-            f"offset={_format_vec3(self.controller._source_local_offset_from_state())}",
+            f"offset={_format_vec3(source_offset)}",
         )
         self._set_label("profile", _profile_summary_text(state))
         self._set_label("rig_profile", _rig_profile_summary_text(state))
@@ -260,9 +295,9 @@ class OmniReferenceWindow:
         waveform_provider = panel.get("waveform_provider")
         spectrogram_provider = panel.get("spectrogram_provider")
         try:
-            from isaac_audio_sensors.core.io.wave_read import read_wav
-
-            data = read_wav(latest)
+            data = self.controller.latest_waveform_data()
+            if data is None:
+                return
         except Exception as exc:
             self._set_label(
                 "waveform",
@@ -466,7 +501,7 @@ class OmniReferenceWindow:
             try:
                 self.sync_state_from_widgets()
             except Exception as exc:
-                self.controller._record_error("UI input failed", exc)
+                self.controller.report_error("UI input failed", exc)
                 self.refresh_labels()
                 return
             callback()
