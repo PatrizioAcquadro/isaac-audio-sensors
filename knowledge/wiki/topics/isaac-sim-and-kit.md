@@ -2,7 +2,7 @@
 
 ## Live Stage Integration
 
-`IsaacAudioArraySensor` binds an explicit array and scene or discovers authored sources and arrays from configured USD roots.
+`IsaacAudioArraySensor` in `isaac_audio_sensors.isaac.sensor` binds an explicit array on a live stage or discovers authored sources and arrays from configured USD roots. There is no offline `from_config()` path.
 
 Discovery uses `ias:*` metadata, compatible native sound attributes, USD type/name signals, child microphone prims, optional object/base context, filters, and deterministic preference rules.
 
@@ -19,6 +19,8 @@ Steady-state updates reuse discovered prim identities and re-read their current 
 `rediscover()` is the explicit recovery path, while a configuration flag can force full discovery each update when a dynamic authoring workflow needs it.
 
 Pose history derives bounded velocities and resets on lifecycle discontinuities, stale timestamps, or teleport-like changes according to configured policy.
+
+Lazy timeline time, update subscriptions, and reset subscriptions share one Isaac lifecycle helper. Anchored-room refresh belongs to stage-snapshot helpers, while occlusion pair comparison, refresh reasons, and material diagnostics stay inside the occlusion module.
 
 ## Occlusion and Visualization
 
@@ -62,7 +64,9 @@ When `omni.graph.core` is available, the extension registers `isaac_audio_sensor
 
 The node publishes the latest frame ID, timestamp, detection count, bearing, sector, microphone IDs/RMS, occlusion state, and JSON payload, optionally filtered by array key.
 
-Replicator is extension-only and lazy; core frames, package JSON/JSONL writers, the base Isaac sensor, and Isaac Lab do not depend on it.
+Replicator integration is a lazy Isaac bridge used by the extension; core frames, package JSON/JSONL writers, the base sensor capture path, and Isaac Lab do not require it.
+
+Kit owns profile libraries, validation, output paths, and application persistence. It appends JSONL only for new frames and injects a constructed core `WaveformSink`; the live sensor uses and closes that sink without knowing UI paths or output modes.
 
 ## Troubleshooting
 

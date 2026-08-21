@@ -57,3 +57,11 @@ Recorded the minimal recording API, strict canonical manifests, unified streamin
 ## 2026-08-20 — lint: R5.3 canonical documentation
 
 Verified canonical ownership, internal links, raw-file preservation, current paths and contracts, release checks, Ruff, host and FLAC suites, Isaac GPU execution, downstream compatibility, audited builds, and Markdown whitespace.
+
+## 2026-08-21 — update: R5.4 Isaac Sim bridge
+
+Recorded the live-only Isaac sensor, Kit-owned profiles, validation and output workflow, shared lazy lifecycle helpers, domain-owned room and occlusion state, removed legacy and test-only surfaces, and preserved live frame behavior.
+
+## 2026-08-21 — lint: R5.4 canonical documentation
+
+Verified canonical ownership, internal links, raw-file preservation, current paths and contracts, host and GPU gates, live Isaac and Kit smokes, downstream compatibility, Ruff, and Markdown whitespace.

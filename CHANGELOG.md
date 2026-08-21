@@ -33,6 +33,14 @@ R5.3 simplifies recording and dataset sessions without changing serialized v1 ar
 - Made manifest parsing strict and canonical, made manifest and split writes atomic, unified checksum verification, and replaced text-classified failures with structured layout errors.
 - Removed duplicate helper-level, seam, callback, retry, snapshot, and retained-mode test matrices while retaining crash/recovery, replay, bounded-memory, corruption, split, statistics, time-gap, and real FLAC coverage.
 
+R5.4 narrows `isaac` to the live USD/Isaac bridge without changing frame semantics.
+
+- Renamed the live sensor module to `isaac.sensor`; removed offline/config construction, legacy registries, and compatibility paths without a shim.
+- Moved microphone and sound profiles plus validation to `kit`, which owns extension configuration and workflow behavior.
+- Made Kit own JSONL paths and waveform-sink construction; the sensor only consumes and closes an injected core `WaveformSink`.
+- Centralized lazy update/timeline subscriptions, anchored-room refresh, and live occlusion state while preserving discovery, cache, motion, stage time, debug, frame publication, and Replicator behavior.
+- Consolidated lifecycle tests around public behavior and strengthened the exact Isaac export and fresh-import isolation contracts.
+
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
 development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects
 and diagnostics are additive, every effect defaults off, and the compatibility

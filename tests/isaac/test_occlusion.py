@@ -29,13 +29,13 @@ from isaac_audio_sensors.core.types import (
     RoomAcousticsSpec,
     SourceOcclusion,
 )
-from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.occlusion import (
     DEFAULT_MATERIAL_TRANSMISSION_DB,
     OcclusionHit,
     UsdTransmissionLossResolver,
     compute_scene_occlusion,
 )
+from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.viz.overlays import (
     CLEAR_BEARING_RAY_COLOR,
     OCCLUDED_BEARING_RAY_COLOR,

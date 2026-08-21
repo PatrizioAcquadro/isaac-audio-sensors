@@ -30,9 +30,9 @@ Dataset-manifest constants, models, and canonical JSON serializers are recording
 
 ## Isaac Sim Layer
 
-`isaac_audio_sensors.isaac` owns lazy stage discovery, metadata authoring, pose resolution, stage snapshots, live sensor lifecycle, occlusion queries, frame publication, Replicator integration, validation, and visualization records.
+`isaac_audio_sensors.isaac` owns lazy stage discovery, metadata authoring, pose resolution, stage snapshots, live sensor lifecycle, occlusion queries, frame publication, Replicator integration, and visualization records.
 
-The layer turns live USD state into pure core dataclasses before backend computation and raises explicit optional-runtime errors when required Isaac APIs are unavailable.
+The layer turns live USD state into pure core dataclasses before backend computation. Its sensor has no offline config path or application persistence: consumers inject an optional core waveform sink, and required Isaac APIs resolve lazily with explicit errors.
 
 ## Isaac Lab Layer
 
@@ -42,9 +42,9 @@ Fallback classes keep imports testable outside Lab, while `ensure_isaac_lab_sens
 
 ## Kit and Extension Layers
 
-`isaac_audio_sensors.kit` contains the import-safe state, controller, workflow, view-model, instruments, audio preview, validation, and UI-section logic.
+`isaac_audio_sensors.kit` contains import-safe profiles, validation, state, controller, workflow, view-model, instruments, audio preview, output paths, and UI-section logic.
 
-The guided headless service is a Kit application service and receives an `ExtensionController` explicitly. Isaac validation returns dependency-free findings; Kit converts its first error finding into the extension error type.
+The guided headless service is a Kit application service and receives an `ExtensionController` explicitly. Kit validation returns dependency-free findings and converts its first error finding into the extension error type. The controller constructs waveform sinks and appends each new frame to configured JSONL output.
 
 `exts/isaac_audio_sensors.omni` is the thin Omniverse extension entry point and package metadata; it registers the window, menu/action/hotkey integration, and optional OmniGraph node while delegating reusable behavior to the Python package.
 

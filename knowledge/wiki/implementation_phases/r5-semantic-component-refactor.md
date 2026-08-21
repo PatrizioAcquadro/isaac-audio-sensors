@@ -95,6 +95,27 @@ Focused black-box tests retain aligned and unaligned output, crash/resume/recove
 
 Normal callers no longer need checkpoint, carry-buffer, marker, filesystem, or promotion internals. FLAC still requires SoundFile from the optional `room` dependencies; absence fails explicitly.
 
+## Subphase R5.4 — Isaac Sim Bridge
+
+#### Implementation
+
+R5.4 makes `isaac_audio_sensors.isaac` the live USD/Isaac bridge. The sensor lives in `isaac.sensor`, binds a selected array prim path, builds every capture from a live stage, and retains manual capture, update subscriptions, monotonic timing, motion, discovery/cache, stage snapshots, occlusion, debug output, latest-frame publication, and Replicator integration.
+
+Kit now owns microphone/sound profiles, validation, JSONL paths, and waveform output configuration. The controller appends only new frames and constructs the optional core `WaveformSink`; the sensor consumes and closes that sink without knowing application paths or UI modes.
+
+Lazy timeline/update subscriptions share `isaac.lifecycle`. Anchored-room refresh moved to stage-snapshot helpers, and live occlusion pair state, refresh reasons, material evidence, and diagnostics moved to `isaac.occlusion`. Lifecycle coverage is consolidated around manual capture, throttling, forced updates, non-monotonic time, update subscriptions, timeline resets, stop, and close.
+
+#### Key Decisions
+
+- `from isaac_audio_sensors.isaac import IsaacAudioArraySensor` remains stable; the removed `isaac.extension` path has no shim before the v2 API freeze.
+- Offline `from_config()`, snapshot fallback construction, legacy source/array/listener registries, and the JSONL writer wrapper are removed.
+- Importing `isaac_audio_sensors.isaac` must not load Omniverse, USD, Isaac Lab, Torch, Kit, or recording modules.
+- Kit UI and instruments remain in place for a later Kit-focused phase.
+
+#### Problems / Limitations
+
+The ambiguous sensor module name, duplicate discovery registries, duplicated Kit update subscription, and sensor-owned application persistence are fixed. R5.4 does not change serialized frames, backend acoustics, Isaac Lab behavior, Kit UI structure, or the optional-runtime requirements of live simulation and waveform export.
+
 ## Artifacts
 
 - AST dependency contract and fresh-process import-boundary tests.
@@ -111,6 +132,10 @@ Normal callers no longer need checkpoint, carry-buffer, marker, filesystem, or p
 - `src/isaac_audio_sensors/core/effects/`
 - `src/isaac_audio_sensors/core/plugins/registry.py`
 - `src/isaac_audio_sensors/recording/`
+- `src/isaac_audio_sensors/isaac/sensor.py`
+- `src/isaac_audio_sensors/isaac/lifecycle.py`
+- `src/isaac_audio_sensors/isaac/occlusion.py`
+- `src/isaac_audio_sensors/kit/validation/`
 - `src/isaac_audio_sensors/kit/headless.py`
 - `src/isaac_audio_sensors/schemas/generate.py`
 - `tests/contract/test_schemas.py`
