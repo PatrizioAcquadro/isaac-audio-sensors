@@ -113,3 +113,11 @@ Removed the release-test hash and existence checks for the mutable R0 planning s
 ## 2026-08-21 — lint: R0 test simplification
 
 Verified documentation tests, wiki consistency, absence of active R0 hash checks, and Markdown whitespace.
+
+## 2026-08-21 — update: R6.1 root and workspace cleanup
+
+Recorded concise root guidance and release history, temporary validation output, safe generated-workspace cleanup, removed legacy path compatibility, preserved release-content enforcement, and the unchanged protected local boundaries.
+
+## 2026-08-21 — lint: R6.1 canonical documentation
+
+Verified index coverage, internal links, current paths and commands, removed root-policy references, raw-file preservation, host and archive gates, RTX output placement, explicit live-smoke blockers, Ruff, and Markdown whitespace.

@@ -18,6 +18,8 @@
 
 `make lint` runs Ruff and `git diff --check` catches whitespace and conflict-marker damage.
 
+`make clean` removes only regenerable build, distribution, coverage, Python metadata, and tool-cache files. It does not touch the virtual environment, local evidence, agent instructions, or the local implementation checklist.
+
 Use focused tests during iteration, then run the complete relevant lane before committing a coherent milestone.
 
 ## Live Runtime Gates
@@ -28,13 +30,15 @@ Use focused tests during iteration, then run the complete relevant lane before c
 
 `make smoke-kit` exercises the real extension manager, UI/controller workflow, USD stage operations, frame output, optional services, and clean shutdown.
 
+Automatic smoke and diagnostic artifacts use temporary paths under `build/validation/isaac_audio_sensors/`. `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT` remains the explicit Kit override.
+
 Runtime blockers must report the exact command and failure; sandbox restrictions are not evidence that the host lacks a GPU or Isaac installation.
 
 ## Version Authority
 
 `pyproject.toml` is authoritative for the package version.
 
-The version gate synchronizes the package `__version__`, Kit manifest, optional pack manifest/artifact name, Makefile expected version, root README, canonical wiki status, citation metadata, root changelog, and extension-specific changelog.
+The version gate synchronizes the package `__version__`, Kit manifest, optional pack manifest/artifact name, Makefile expected version, root README, canonical wiki status, root changelog, and extension-specific changelog.
 
 The frame, dataset-manifest, and calibration-profile schema versions remain independent from the package version.
 
@@ -54,7 +58,7 @@ Run the deterministic and runtime gates appropriate to the changed behavior, reg
 
 Builds must originate from one clean committed tree; do not publish, tag, or push based on uncommitted artifacts or skipped required lanes.
 
-R4 documentation-only work does not require GPU gates because it does not change runtime behavior, but it must rebuild and audit the source and Kit archives after the clean commit.
+R6.1 keeps the current source and pack workflows until their later R6 subphases. It changes only root guidance and temporary workspace behavior, but the current wheel, source archive, and Kit archive must still build and pass their audits from the clean implementation commit.
 
 ## Interpretation
 

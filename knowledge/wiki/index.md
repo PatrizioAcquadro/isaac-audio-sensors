@@ -8,6 +8,7 @@
 - [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]] — generic SDK, downstream, evidence, and release-content boundaries.
 - [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]] — canonical wiki, root documentation removal, and documentation-boundary enforcement.
 - [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]] — v2 API ownership, dependency direction, and bounded semantic cleanup.
+- [[implementation_phases/r6-packaging-and-release|R6 Packaging and Release]] — locked release model, root cleanup, and current release-workflow state.
 
 ## Topics
 

@@ -49,8 +49,8 @@ isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --ba
 Export a synthetic TDOA trace and the public frame schema:
 
 ```bash
-isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend tdoa_synthetic --array-id rig_front --out outputs/tdoa_trace.json
-isaac-audio-sensors export-schema --out outputs/audio_sensor_frame.v1.schema.json
+isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend tdoa_synthetic --array-id rig_front --out build/validation/isaac_audio_sensors/tdoa_trace.json
+isaac-audio-sensors export-schema --out build/validation/isaac_audio_sensors/audio_sensor_frame.v1.schema.json
 ```
 
 The CLI also exposes capability reporting, dataset validation/statistics/splitting, and the guided headless workflow; run `isaac-audio-sensors --help` and the relevant subcommand help for the current arguments.

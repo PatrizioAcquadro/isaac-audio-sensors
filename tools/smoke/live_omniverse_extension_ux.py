@@ -186,6 +186,7 @@ def main() -> int:
         help="Fail the live gate if any required viewport screenshot is unavailable.",
     )
     args = parser.parse_args()
+    args.out = args.out.resolve()
 
     frame_trace_path = args.out.with_suffix(".frames.jsonl")
     config_path = args.out.with_suffix(".config.json")

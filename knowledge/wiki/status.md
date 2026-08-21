@@ -26,12 +26,15 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R5.6 composed Kit services, thin controller/view/entrypoint boundaries, stateful-only validation controller, complete best-effort shutdown, and focused service tests.
 - R5.7 lazy CLI leaf handlers, subsystem-owned config simulation, frozen v2 command inventory, one trace-export path, consistent exit codes, and consolidated command tests.
 - R5.8 exact curated v2 entrypoint inventory, minimal Kit/schema roots, one maintained root example set, installed-package execution coverage, and no duplicate example documentation.
+- R6.1 concise root guidance and release history, temporary validation output under `build/validation/`, and a safe generated-workspace cleanup target.
 
 ## Documentation State
 
 The canonical documentation is this wiki; the root README is the concise public landing page and the root `CHANGELOG.md` owns product and release chronology.
 
 The root `docs/` directory is not part of the maintained repository boundary; the applied R0 specification is retained only as authorized raw material under `knowledge/raw/docs/`.
+
+Essential contribution and security guidance now lives directly in the root README. Separate citation, conduct, contribution, and security policy files are no longer maintained; paper citation metadata remains deferred until a paper exists.
 
 The Kit extension keeps a narrow standalone README and extension-specific changelog because an installed archive cannot depend on repository-relative documentation.
 
@@ -59,6 +62,8 @@ The R5.7 gate passes 406 unit/contract tests, 229 integration tests with two exp
 
 The R5.8 gate passes 418 unit/contract tests, 229 integration tests with two expected host SoundFile skips, 40 release tests, and 88 Isaac tests on the RTX 4090. The 15 SoundFile tests and the retained room-acoustics example pass in the Isaac Lab runtime. Live Isaac Sim, Isaac Lab, and Kit smokes pass on the same GPU; the Lab smoke validates 4096 environments at 1.846 ms/step mean against the 20 ms budget. The same 34 SquadBot consumer tests pass with one expected skip and no consumer changes. Wheel/source and Kit archives pass their audits.
 
+The R6.1 host gate passes 418 unit/contract tests, 229 integration tests with the same two expected SoundFile skips, 40 release tests, 11 focused Kit-path tests, version synchronization, and Ruff. Clean-source wheel/source and Kit builds pass their audits from commit `c96a152`. The RTX 4090 rerun confirms all automatic artifacts stay under `build/validation/`; the Isaac Sim smoke produces three geometry and three TDOA frames before blocking because the optional room backend receives no `scene.room`, and the Kit smoke passes 31 steps before its stale private-method probe calls missing `_array_orientation_from_state`. These two live-gate blockers are outside the R6.1 workspace diff and remain unresolved rather than being weakened or bypassed.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; clean-source wheel, source, and Kit builds are verified after the implementation commit and reported in the phase handoff.
@@ -73,6 +78,7 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 - `make test-isaac` — Isaac tests through the Isaac Lab interpreter.
 - `make test-all` — all lanes in dependency order.
 - `make build`, `make build-kit`, and `make build-pack` — audited release artifacts.
+- `make clean` — remove only regenerable local build, validation, cache, and Python metadata files.
 
 ## Limits
 
@@ -84,4 +90,4 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 
 ## Next Work
 
-R5 is complete. R6.0 is already closed by user decision: the target distribution consists only of the public GitHub source repository, one Python wheel, and one Kit extension zip. R6 implementation starts at R6.1; the current source archive and acoustic-pack commands remain current behavior only until the relevant R6 subphases remove them.
+R6.0 is locked and R6.1 is implemented. R6.2 is the next unstarted subphase; the source archive and acoustic-pack commands remain current behavior until their explicitly assigned later R6 work. The two R6.1 live-smoke blockers above require separate semantic reconciliation and do not authorize changes outside R6.1.
