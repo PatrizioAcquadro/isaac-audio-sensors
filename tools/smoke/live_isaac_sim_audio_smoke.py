@@ -20,6 +20,7 @@ from isaac_audio_sensors.core.io.traces import (
     append_frame_jsonl,
     frame_from_trace_dict,
 )
+from isaac_audio_sensors.core.io.waveforms import FrameWaveformWriter
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.core.microphone_array import microphone_layout
 from isaac_audio_sensors.core.types import AudioSensorFrame, RoomAcousticsSpec
@@ -282,8 +283,10 @@ def _run_backend_smoke(
         max_events=1,
         room=room_spec,
         debug_draw=True,
-        waveform_dir=(
-            WAVEFORM_EVIDENCE_DIR if backend_id == "room_acoustics" else None
+        waveform_sink=(
+            FrameWaveformWriter(WAVEFORM_EVIDENCE_DIR)
+            if backend_id == "room_acoustics"
+            else None
         ),
     )
     sensor.start()

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import math
 import struct
-import sys
 from dataclasses import replace
-from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -15,7 +13,6 @@ from isaac_audio_sensors.core.config import validate_audio_config
 from isaac_audio_sensors.core.effects import (
     EffectsConfig,
     MotionEffectsConfig,
-    UnsupportedEffectError,
 )
 from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
@@ -377,14 +374,6 @@ def test_enabled_stage_snapshot_requires_finite_explicit_simulation_time():
     assert history._entities == {}
 
 
-def test_offline_sensor_rejects_pose_derivation_before_capture():
-    raw = _raw_config()
-    raw["audio"]["effects"] = {"motion": {"derive_velocity_from_poses": True}}
-    config = validate_audio_config(raw)
-    with pytest.raises(UnsupportedEffectError, match="from_config is offline"):
-        IsaacAudioArraySensor.from_config(config=config, array_id="rig")
-
-
 def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detection():
     array = _array()
     scene = AudioSceneSnapshot(
@@ -547,67 +536,4 @@ def test_entity_removal_and_same_id_new_prim_purges_only_removed_history():
         "none:first_sample"
     )
     assert reused.diagnostics["motion"]["velocity_source"]["speaker"] == "derived"
-    sensor.close()
-
-
-class _EventStream:
-    def __init__(self):
-        self.callback = None
-
-    def create_subscription_to_pop(self, callback, name=None):
-        del name
-        self.callback = callback
-        return SimpleNamespace(callback=callback)
-
-    def trigger(self, event_type):
-        self.callback(SimpleNamespace(type=event_type))
-
-
-@pytest.mark.parametrize("event_name", ["STOP", "RESET"])
-def test_fake_timeline_stop_and_reset_events_clear_history(monkeypatch, event_name):
-    update_stream = _EventStream()
-    timeline_stream = _EventStream()
-    omni = ModuleType("omni")
-    kit = ModuleType("omni.kit")
-    app_module = ModuleType("omni.kit.app")
-    app_module.get_app = lambda: SimpleNamespace(
-        get_update_event_stream=lambda: update_stream
-    )
-    timeline_module = ModuleType("omni.timeline")
-    timeline_module.TimelineEventType = SimpleNamespace(STOP=10, RESET=20)
-    timeline_module.get_timeline_interface = lambda: SimpleNamespace(
-        get_timeline_event_stream=lambda: timeline_stream,
-        get_current_time=lambda: 0.0,
-    )
-    omni.kit = kit
-    omni.timeline = timeline_module
-    kit.app = app_module
-    monkeypatch.setitem(sys.modules, "omni", omni)
-    monkeypatch.setitem(sys.modules, "omni.kit", kit)
-    monkeypatch.setitem(sys.modules, "omni.kit.app", app_module)
-    monkeypatch.setitem(sys.modules, "omni.timeline", timeline_module)
-
-    stage, source_prim, _ = _fake_stage()
-    sensor = IsaacAudioArraySensor.from_stage(
-        stage=stage,
-        array_prim_path="/World/Rig",
-        source_prim_path="/World/Speaker",
-        backend="geometry_only",
-        effects=EffectsConfig(motion=_motion()),
-    ).start(subscribe_to_update_stream=True)
-    sensor.update(sim_time_s=0.0)
-    source_prim.attributes["ias:position_world"] = (1.1, 0.0, 0.0)
-    sensor.update(sim_time_s=0.05)
-    timeline_stream.trigger(getattr(timeline_module.TimelineEventType, event_name))
-    source_prim.attributes["ias:position_world"] = (1.2, 0.0, 0.0)
-    after_event = sensor.update(sim_time_s=0.10)
-    assert after_event.diagnostics["motion"]["velocity_source"] == {
-        "speaker": "none:first_sample",
-        "rig": "none:first_sample",
-    }
-    assert sensor._update_subscription is not None
-    assert sensor._timeline_subscription is not None
-    sensor.stop()
-    assert sensor._update_subscription is None
-    assert sensor._timeline_subscription is None
     sensor.close()

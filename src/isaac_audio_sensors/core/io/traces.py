@@ -94,27 +94,6 @@ def read_frame_trace(path: str | Path) -> AudioSensorFrame:
     return frame_from_trace_dict(json.loads(Path(path).read_text(encoding="utf-8")))
 
 
-class AudioFrameJsonlWriter:
-    """Small package-level writer fallback for Isaac/update-loop recordings."""
-
-    def __init__(self, path: str | Path) -> None:
-        self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._closed = False
-
-    def write(self, frame: AudioSensorFrame) -> Path:
-        """Append ``frame`` unless the writer has been closed."""
-
-        if self._closed:
-            raise RuntimeError("AudioFrameJsonlWriter is closed.")
-        return append_frame_jsonl(frame, self.path)
-
-    def close(self) -> None:
-        """Close the writer interface."""
-
-        self._closed = True
-
-
 def _serialize(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value

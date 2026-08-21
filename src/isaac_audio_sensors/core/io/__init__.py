@@ -9,7 +9,6 @@ from isaac_audio_sensors.core.io.calibration import (
     write_calibration_profile,
 )
 from isaac_audio_sensors.core.io.traces import (
-    AudioFrameJsonlWriter,
     append_frame_jsonl,
     frame_from_trace_dict,
     frame_to_trace_dict,
@@ -27,7 +26,6 @@ from isaac_audio_sensors.core.io.waveforms import (
 )
 
 __all__ = [
-    "AudioFrameJsonlWriter",
     "ContinuousWaveformWriter",
     "FrameWaveformWriter",
     "WaveformSink",

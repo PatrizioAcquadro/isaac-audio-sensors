@@ -34,6 +34,7 @@ from isaac_audio_sensors.isaac.stage_audio import (
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 
 __all__ = [
+    "AudioSensorReplicatorRecorder",
     "DiscoveredAudioArray",
     "DiscoveredAudioSource",
     "IsaacAudioArraySensor",
@@ -41,10 +42,10 @@ __all__ = [
     "IsaacAudioDiscoveryResult",
     "IsaacAudioSceneBindingCfg",
     "IsaacStagePoseResolver",
-    "AudioSensorReplicatorRecorder",
     "ReplicatorIntegrationError",
     "ReplicatorRecorderStatus",
     "StagePose",
+    "audio_sensor_frame_replicator_payload",
     "attach_microphone_array_attrs",
     "attach_microphone_attrs",
     "attach_sound_source_attrs",
@@ -52,7 +53,6 @@ __all__ = [
     "create_listener_prim",
     "create_sound_prim",
     "discover_stage_audio",
-    "audio_sensor_frame_replicator_payload",
     "require_isaac_usd",
     "require_replicator_core",
     "resolve_world_pose",

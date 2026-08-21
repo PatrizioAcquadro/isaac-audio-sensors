@@ -17,7 +17,13 @@ from typing import Any
 
 from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
-from isaac_audio_sensors.core.io.traces import write_frame_trace
+from isaac_audio_sensors.core.io.traces import append_frame_jsonl, write_frame_trace
+from isaac_audio_sensors.core.io.waveforms import (
+    ContinuousWaveformWriter,
+    FrameWaveformWriter,
+    WaveformSink,
+    waveform_safe_filename,
+)
 from isaac_audio_sensors.core.math_utils import (
     euler_deg_from_quaternion,
     quaternion_from_euler_deg,
@@ -35,6 +41,7 @@ from isaac_audio_sensors.isaac.frame_registry import (
     clear_latest_frames,
     publish_latest_frame,
 )
+from isaac_audio_sensors.isaac.lifecycle import subscribe_to_updates
 from isaac_audio_sensors.isaac.pose_resolver import (
     IsaacStagePoseResolver,
     prim_path,
@@ -2813,6 +2820,15 @@ class ExtensionController:
             return None
         return _resolve_gui_output_path(self.state.waveform_dir)
 
+    def _waveform_sink_or_none(self, array_id: str) -> WaveformSink | None:
+        output_dir = self._waveform_dir_or_none()
+        if output_dir is None:
+            return None
+        if self.state.waveform_mode == "session":
+            name = waveform_safe_filename(array_id)
+            return ContinuousWaveformWriter(output_dir / f"{name}_session.wav")
+        return FrameWaveformWriter(output_dir)
+
     def clear_usd_debug_geometry(self) -> tuple[str, ...] | None:
         """Remove the authored debug subtree from the current stage."""
 
@@ -2946,10 +2962,14 @@ class ExtensionController:
                 else None
             )
             frame = self.sensor.update(force=force)
+            is_new = _frame_is_new(previous_frame, frame)
+            if self.state.trace_enabled and is_new:
+                append_frame_jsonl(
+                    frame,
+                    _resolve_gui_output_path(self.state.jsonl_trace_path),
+                )
             self._record_latest_frame(frame)
-            if self.state.replicator_enabled and (
-                force or _frame_is_new(previous_frame, frame)
-            ):
+            if self.state.replicator_enabled and (force or is_new):
                 self._write_replicator_frame(frame)
             return frame
         except Exception as exc:
@@ -3276,26 +3296,6 @@ class ExtensionController:
         clear_latest_frames()
 
     def _start_controller_update_subscription(self) -> None:
-        try:
-            import omni.kit.app  # type: ignore
-        except ImportError as exc:
-            raise IsaacIntegrationUnavailable(
-                "Isaac update-stream subscription requires omni.kit.app inside "
-                "an Isaac Sim Python environment."
-            ) from exc
-        app = omni.kit.app.get_app()
-        get_stream = getattr(app, "get_update_event_stream", None)
-        if not callable(get_stream):
-            raise IsaacIntegrationUnavailable(
-                "Isaac update-stream subscription requires get_update_event_stream."
-            )
-        stream = get_stream()
-        subscribe = getattr(stream, "create_subscription_to_pop", None)
-        if not callable(subscribe):
-            raise IsaacIntegrationUnavailable(
-                "Isaac update-stream subscription requires create_subscription_to_pop."
-            )
-
         def _on_update(_event: Any) -> None:
             self._viewport_follow_tick()
             if self.sensor is None or not self.state.sensor_running:
@@ -3304,7 +3304,7 @@ class ExtensionController:
             if frame is not None and self._ui_window is not None:
                 self._ui_window.refresh_labels()
 
-        self._controller_update_subscription = subscribe(
+        self._controller_update_subscription = subscribe_to_updates(
             _on_update,
             name="isaac_audio_sensors.kit.update",
         )
@@ -3475,11 +3475,6 @@ class ExtensionController:
     def _build_sensor(self, stage: Any) -> IsaacAudioArraySensor:
         state = self.state
         self._validate_runtime_state()
-        writer_path = (
-            _resolve_gui_output_path(state.jsonl_trace_path)
-            if state.trace_enabled
-            else None
-        )
         explicit_array_available = bool(
             state.array_prim_path.strip()
         ) and _stage_has_prim(stage, state.array_prim_path)
@@ -3489,7 +3484,7 @@ class ExtensionController:
                 if state.source_attached_to_object and state.source_prim_path.strip()
                 else None
             )
-            return IsaacAudioArraySensor.from_stage(
+            sensor = IsaacAudioArraySensor.from_stage(
                 stage=stage,
                 array_prim_path=state.array_prim_path,
                 source_prim_path=explicit_source,
@@ -3500,39 +3495,32 @@ class ExtensionController:
                 ambiguity_policy=state.ambiguity_policy,
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
-                writer_path=writer_path,
-                waveform_dir=self._waveform_dir_or_none(),
-                waveform_mode=state.waveform_mode,
                 room=self._room_spec_or_none(stage),
             )
-
-        binding_cfg = IsaacAudioSceneBindingCfg(
-            discovery_roots=self._discovery_roots(),
-            robot_base_prim_path=state.robot_base_prim_path or None,
-            required_arrays=True,
-            required_sources=False,
-            preferred_array=self._preferred_discovered_array(),
-            preferred_source=None,
-        )
-        sensor = IsaacAudioArraySensor.from_discovered_stage(
-            stage=stage,
-            binding_cfg=binding_cfg,
-            backend=state.backend,
-            update_period_s=state.update_period_s,
-            max_events=state.max_events,
-            ambiguity_policy=state.ambiguity_policy,
-            debug_draw=state.debug_overlay_enabled,
-            occlusion_enabled=state.occlusion_enabled,
-            writer_path=writer_path,
-            waveform_dir=self._waveform_dir_or_none(),
-            waveform_mode=state.waveform_mode,
-            room=self._room_spec_or_none(stage),
-        )
-        if sensor.stage_snapshot is not None:
-            selected = sensor.stage_snapshot.array_by_id(sensor.array_id)
-            if selected.prim_path:
-                state.array_prim_path = selected.prim_path
-            state.array_id = sensor.array_id
+        else:
+            binding_cfg = IsaacAudioSceneBindingCfg(
+                discovery_roots=self._discovery_roots(),
+                robot_base_prim_path=state.robot_base_prim_path or None,
+                required_arrays=True,
+                required_sources=False,
+                preferred_array=self._preferred_discovered_array(),
+                preferred_source=None,
+            )
+            sensor = IsaacAudioArraySensor.from_discovered_stage(
+                stage=stage,
+                binding_cfg=binding_cfg,
+                backend=state.backend,
+                update_period_s=state.update_period_s,
+                max_events=state.max_events,
+                ambiguity_policy=state.ambiguity_policy,
+                debug_draw=state.debug_overlay_enabled,
+                occlusion_enabled=state.occlusion_enabled,
+                room=self._room_spec_or_none(stage),
+            )
+        sensor.waveform_sink = self._waveform_sink_or_none(sensor.array_id)
+        if sensor.array_prim_path:
+            state.array_prim_path = sensor.array_prim_path
+        state.array_id = sensor.array_id
         return sensor
 
     def _validate_runtime_state(self) -> None:

@@ -190,10 +190,51 @@ def test_isaac_and_lab_import_without_loading_optional_runtimes():
     _run_fresh_process(
         """
         import sys
-        import isaac_audio_sensors.isaac
+        import isaac_audio_sensors.isaac as isaac
+
+        assert isaac.__all__ == [
+            "AudioSensorReplicatorRecorder",
+            "DiscoveredAudioArray",
+            "DiscoveredAudioSource",
+            "IsaacAudioArraySensor",
+            "IsaacAudioDiscoveryCfg",
+            "IsaacAudioDiscoveryResult",
+            "IsaacAudioSceneBindingCfg",
+            "IsaacStagePoseResolver",
+            "ReplicatorIntegrationError",
+            "ReplicatorRecorderStatus",
+            "StagePose",
+            "audio_sensor_frame_replicator_payload",
+            "attach_microphone_array_attrs",
+            "attach_microphone_attrs",
+            "attach_sound_source_attrs",
+            "build_stage_snapshot",
+            "create_listener_prim",
+            "create_sound_prim",
+            "discover_stage_audio",
+            "require_isaac_usd",
+            "require_replicator_core",
+            "resolve_world_pose",
+        ]
+        forbidden = (
+            "omni",
+            "pxr",
+            "isaaclab",
+            "torch",
+            "isaac_audio_sensors.kit",
+            "isaac_audio_sensors.recording",
+        )
+        assert not any(
+            name == prefix or name.startswith(prefix + ".")
+            for name in sys.modules
+            for prefix in forbidden
+        )
+
         import isaac_audio_sensors.lab
-        assert "omni.usd" not in sys.modules
-        assert "isaaclab" not in sys.modules
-        assert "torch" not in sys.modules
+        assert not any(
+            name == prefix or name.startswith(prefix + ".")
+            for name in sys.modules
+            for prefix in forbidden
+        )
         """
     )

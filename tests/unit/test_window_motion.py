@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import math
 import types
-from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -35,7 +34,6 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     RoomAcousticsSpec,
 )
-from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 
 R = 48_000
 W = 2_400
@@ -253,25 +251,6 @@ def test_policy_absent_segments_hold_current_pose_and_use_exact_unity(monkeypatc
         entity = row["entities"]["source"]
         assert entity["start_position_world_m"] == scene.sources[0].position_world
         assert entity["mid_position_world_m"] == scene.sources[0].position_world
-
-
-def test_extension_rejects_decrease_before_backend_mutation():
-    scene, array, _window = _room_fixture()
-    sensor = IsaacAudioArraySensor(
-        array_id=array.array_id,
-        backend="geometry_only",
-        stage_snapshot=replace(scene, room=None),
-        update_period_s=0.05,
-    ).start()
-    first = sensor.update(sim_time_s=1.0)
-    assert sensor._frame_index == 1
-    with pytest.raises(ValueError, match="non-monotonic"):
-        sensor.update(sim_time_s=0.9)
-    sensor.effects = _motion_effects(2)
-    with pytest.raises(ValueError, match="duplicates or overlaps"):
-        sensor.update(sim_time_s=1.0, force=True)
-    assert sensor.latest_frame is first
-    assert sensor._frame_index == 1
 
 
 def _room_fixture():

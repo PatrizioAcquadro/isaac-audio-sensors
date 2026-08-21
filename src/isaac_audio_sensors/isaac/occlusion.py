@@ -15,7 +15,7 @@ edge effects, and thickness-dependent transmission are not modeled.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Any, Protocol
 
 from isaac_audio_sensors.core.acoustics.materials import (
@@ -28,7 +28,11 @@ from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 from isaac_audio_sensors.core.math_utils import Vector3, add, norm, scale, subtract
 from isaac_audio_sensors.core.microphone_array import microphone_world_positions
-from isaac_audio_sensors.core.types import AudioSceneSnapshot, SourceOcclusion
+from isaac_audio_sensors.core.types import (
+    AudioSceneSnapshot,
+    AudioSensorFrame,
+    SourceOcclusion,
+)
 
 DEFAULT_OCCLUSION_MAX_ATTENUATION_DB = 20.0
 DEFAULT_OCCLUSION_ATTENUATION_CAP_DB = 60.0
@@ -49,6 +53,167 @@ DEFAULT_MATERIAL_TRANSMISSION_DB: dict[str, tuple[float, ...]] = {
     alias: resolve_material_coefficients(target, "transmission_db").values
     for alias, target in LEGACY_MATERIAL_ALIASES.items()
 }
+
+
+@dataclass(slots=True)
+class LiveOcclusionState:
+    """Own live pair comparison, refresh reasons, and diagnostics."""
+
+    enabled: bool = False
+    max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB
+    attenuation_cap_db: float = DEFAULT_OCCLUSION_ATTENUATION_CAP_DB
+    raycaster: Any | None = None
+    transmission_resolver: Any | None = None
+    _previous_pairs: dict[tuple[str, str], tuple[Any, ...]] = field(
+        default_factory=dict
+    )
+    _has_previous_capture: bool = False
+    _pending_pairs: dict[tuple[str, str], tuple[Any, ...]] | None = None
+    _frame_state: dict[str, Any] | None = None
+
+    def begin_capture(self) -> None:
+        self._pending_pairs = None
+        self._frame_state = None
+
+    def reset(self) -> None:
+        self._previous_pairs.clear()
+        self._has_previous_capture = False
+        self.begin_capture()
+
+    def apply(
+        self,
+        scene: AudioSceneSnapshot,
+        *,
+        stage: Any,
+        cache: Any | None,
+        stage_diagnostics: dict[str, Any],
+    ) -> AudioSceneSnapshot:
+        if not self.enabled:
+            return scene
+        try:
+            if self.raycaster is None:
+                self.raycaster = IsaacPhysxRaycaster()
+            if self.transmission_resolver is None:
+                self.transmission_resolver = UsdTransmissionLossResolver(
+                    stage,
+                    default_db=self.max_attenuation_db,
+                )
+            records = compute_scene_occlusion(
+                scene,
+                self.raycaster,
+                max_attenuation_db=self.max_attenuation_db,
+                transmission_resolver=self.transmission_resolver,
+                attenuation_cap_db=self.attenuation_cap_db,
+            )
+        except IsaacIntegrationUnavailable as exc:
+            stage_diagnostics["occlusion"] = {
+                "status": "unavailable",
+                "error": str(exc),
+            }
+            self._frame_state = {"occlusion_recompute_count": 0}
+            return scene
+
+        current_pairs = {
+            (record.array_id, record.source_id): _canonical_pair(record)
+            for record in records
+        }
+        changed_pairs = [
+            f"{array.array_id}:{source.source_id}"
+            for array in scene.arrays
+            for source in scene.sources
+            if self._has_previous_capture
+            and self._previous_pairs.get((array.array_id, source.source_id))
+            != current_pairs.get((array.array_id, source.source_id))
+        ]
+        if cache is not None and cache.pending_non_audio_pose_paths and changed_pairs:
+            cache.record_acoustic_refresh("occluder_moved")
+        self._pending_pairs = current_pairs
+        state: dict[str, Any] = {"occlusion_recompute_count": 1}
+        if self._has_previous_capture:
+            state["changed_occlusion_pairs"] = changed_pairs
+        material_evidence = getattr(self.transmission_resolver, "material_evidence", {})
+        if isinstance(material_evidence, dict) and material_evidence:
+            state["material_evidence"] = {
+                key: dict(material_evidence[key]) for key in sorted(material_evidence)
+            }
+        self._frame_state = state
+        stage_diagnostics["occlusion"] = {
+            "status": "computed",
+            "record_count": len(records),
+            "max_attenuation_db": float(self.max_attenuation_db),
+            "attenuation_cap_db": float(self.attenuation_cap_db),
+            "occlusion_model": OCCLUSION_MODEL_RAYCAST_TRANSMISSION,
+        }
+        return replace(scene, occlusion=records)
+
+    def merge_frame(
+        self,
+        frame: AudioSensorFrame,
+        *,
+        cache: Any | None,
+        stage_diagnostics: dict[str, Any] | None,
+    ) -> AudioSensorFrame:
+        diagnostics = dict(frame.diagnostics)
+        backend_state = diagnostics.get("acoustics_state")
+        state = dict(backend_state) if isinstance(backend_state, dict) else {}
+        if self._frame_state is not None:
+            live_materials = self._frame_state.get("material_evidence")
+            room_materials = state.get("material_evidence")
+            merged_materials: dict[str, Any] = {}
+            if isinstance(room_materials, dict) and "room" in room_materials:
+                merged_materials["room"] = room_materials["room"]
+            for mapping in (room_materials, live_materials):
+                if isinstance(mapping, dict):
+                    for key in sorted(mapping):
+                        if key != "room":
+                            merged_materials[key] = mapping[key]
+            if merged_materials:
+                state["material_evidence"] = merged_materials
+            state.update(
+                (key, value)
+                for key, value in self._frame_state.items()
+                if key != "material_evidence"
+            )
+        reasons = () if cache is None else cache.consume_acoustic_refresh_reasons()
+        if state or self.enabled:
+            state["refresh_reasons"] = list(reasons)
+            diagnostics["acoustics_state"] = state
+        if cache is not None:
+            if self._pending_pairs is not None:
+                self._previous_pairs = self._pending_pairs
+                self._has_previous_capture = True
+                cache.clear_pending_non_audio_pose_paths()
+            if isinstance(stage_diagnostics, dict):
+                cache_diagnostics = stage_diagnostics.get("discovery_cache")
+                if isinstance(cache_diagnostics, dict):
+                    cache_diagnostics["acoustic_refresh_reasons"] = tuple(
+                        cache.acoustic_refresh_reasons
+                    )
+        self._pending_pairs = None
+        return replace(frame, diagnostics=diagnostics)
+
+
+def _canonical_pair(record: SourceOcclusion) -> tuple[Any, ...]:
+    return (
+        record.array_id,
+        record.source_id,
+        tuple(record.per_mic_blocked.items()),
+        record.occlusion_factor,
+        record.attenuation_db,
+        tuple(record.per_mic_attenuation_db.items()),
+        tuple(record.band_centers_hz),
+        tuple(
+            (mic_id, tuple(values))
+            for mic_id, values in record.per_mic_band_attenuation_db.items()
+        ),
+        tuple(record.hit_prim_paths),
+        tuple(
+            (mic_id, tuple(paths))
+            for mic_id, paths in record.per_mic_hit_prim_paths.items()
+        ),
+        tuple(sorted(record.hit_materials.items())),
+        record.occlusion_model,
+    )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

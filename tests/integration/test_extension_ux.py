@@ -13,10 +13,8 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from isaac_audio_sensors.core.config import load_audio_config
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.isaac.replicator import PAYLOAD_SCHEMA_VERSION
-from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.kit import (
     CurrentStageContext,
     ExtensionController,
@@ -1925,6 +1923,7 @@ def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
     stream.trigger()
 
     assert controller.state.replicator_write_count == 1
+    assert len((tmp_path / "frames.jsonl").read_text().splitlines()) == 1
 
     source = stage.GetPrimAtPath("/World/Sources/SpeakerA")
     assert source is not None
@@ -1934,35 +1933,7 @@ def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
     assert forced is not None
     assert controller.state.latest_sector == "right"
     assert controller.state.replicator_write_count == 2
-
-
-def test_sensor_update_stream_subscription_respects_update_period(monkeypatch):
-    stream = _install_fake_kit_update_stream(monkeypatch, timeline_time_s=0.0)
-    config = load_audio_config("examples/configs/isaac_audio_sensors_demo.toml")
-    sensor = IsaacAudioArraySensor.from_config(
-        config=config,
-        array_id=next(iter(config.arrays)),
-        update_period_s=0.05,
-    )
-    sensor.start(subscribe_to_update_stream=True)
-
-    stream.trigger()
-    first_frame = sensor.latest_frame
-    assert first_frame is not None
-    assert first_frame.frame_index == 0
-
-    for time_s in (0.01, 0.02, 0.03):
-        stream.timeline_clock.time_s = time_s
-        stream.trigger()
-
-    assert sensor.latest_frame is first_frame
-
-    stream.timeline_clock.time_s = 0.06
-    stream.trigger()
-
-    assert sensor.latest_frame is not first_frame
-    assert sensor.latest_frame.frame_index == 1
-    sensor.close()
+    assert len((tmp_path / "frames.jsonl").read_text().splitlines()) == 2
 
 
 def test_extension_controller_create_demo_object_authors_visible_cube():
@@ -2640,6 +2611,12 @@ def test_extension_controller_waveform_settings_flow_to_sensor_and_config(
     tmp_path,
 ):
     monkeypatch.setenv(OUTPUT_ROOT_ENV_VAR, str(tmp_path))
+    sink = SimpleNamespace(close=lambda: None)
+    monkeypatch.setattr(
+        ExtensionController,
+        "_waveform_sink_or_none",
+        lambda _controller, _array_id: sink,
+    )
     stage = _FakeStage(
         (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
     )
@@ -2655,8 +2632,7 @@ def test_extension_controller_waveform_settings_flow_to_sensor_and_config(
     assert controller.start_sensor(stage=stage) is not None
     sensor = controller.sensor
     assert sensor is not None
-    assert str(sensor.waveform_dir) == str(tmp_path / "wavs")
-    assert sensor.waveform_mode == "session"
+    assert sensor.waveform_sink is sink
 
     assert sensor.room is None  # default shoebox only applies to room_acoustics
 
