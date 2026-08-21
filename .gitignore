@@ -26,6 +26,8 @@ generated/
 *.jpg
 *.jpeg
 *.pdf
+!tests/fixtures/recording/session/shards/shard_00000/audio.wav
+!tests/fixtures/recording/session/shards/shard_00001/audio.wav
 !/exts/isaac_audio_sensors.omni/data/
 !/exts/isaac_audio_sensors.omni/data/preview.png
 !/knowledge/raw/data/
