@@ -12,10 +12,18 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
     import tomli as tomllib  # type: ignore[no-redef]
 
 try:
-    from .build_kit_extension import community_archive_name
+    from .build_kit_extension import (
+        BUNDLED_ROOT,
+        community_archive_name,
+        is_host_owned_path,
+    )
     from .content_policy import ContentPolicyError, archive_entries, require_archive
 except ImportError:
-    from build_kit_extension import community_archive_name
+    from build_kit_extension import (
+        BUNDLED_ROOT,
+        community_archive_name,
+        is_host_owned_path,
+    )
     from content_policy import ContentPolicyError, archive_entries, require_archive
 
 
@@ -43,10 +51,30 @@ REQUIRED_MEMBERS = {
     "isaac_audio_sensors/__init__.py",
     "isaac_audio_sensors_omni/__init__.py",
 }
+_BUNDLE_PREFIX = f"{BUNDLED_ROOT.as_posix()}/"
+REQUIRED_BUNDLED_MEMBERS = {
+    "_soundfile_data/COPYING",
+    "cffi/__init__.py",
+    "cffi-2.1.0.dist-info/METADATA",
+    "cffi-2.1.0.dist-info/licenses/LICENSE",
+    "licensing/license_notes.md",
+    "pycparser/__init__.py",
+    "pycparser-3.0.dist-info/METADATA",
+    "pycparser-3.0.dist-info/licenses/LICENSE",
+    "pyroomacoustics/__init__.py",
+    "pyroomacoustics-0.10.1.dist-info/METADATA",
+    "pyroomacoustics-0.10.1.dist-info/licenses/LICENSE",
+    "scipy/__init__.py",
+    "scipy-1.18.0.dist-info/LICENSE.txt",
+    "scipy-1.18.0.dist-info/METADATA",
+    "soundfile.py",
+    "soundfile-0.14.0.dist-info/LICENSE",
+    "soundfile-0.14.0.dist-info/METADATA",
+}
 
 
 def audit_kit_archive(path: Path) -> None:
-    """Validate the Community Registry contract and shared content policy."""
+    """Validate the Community Registry and bundled-dependency contracts."""
 
     entries = archive_entries(path)
     findings: list[str] = []
@@ -54,10 +82,55 @@ def audit_kit_archive(path: Path) -> None:
     if missing:
         findings.append(f"missing Kit members: {', '.join(missing)}")
 
+    bundle_entries = {
+        name[len(_BUNDLE_PREFIX) :]
+        for name in entries
+        if name.startswith(_BUNDLE_PREFIX)
+    }
+    missing_bundled = sorted(REQUIRED_BUNDLED_MEMBERS - bundle_entries)
+    if missing_bundled:
+        findings.append(
+            f"missing bundled dependency members: {', '.join(missing_bundled)}"
+        )
+    native_requirements = {
+        "CFFI": any(name.startswith("_cffi_backend.") for name in bundle_entries),
+        "libsndfile": any(
+            name.startswith("_soundfile_data/libsndfile_")
+            for name in bundle_entries
+        ),
+        "pyroomacoustics": any(
+            name.startswith("pyroomacoustics/libroom.") for name in bundle_entries
+        ),
+        "SciPy": any(
+            name.startswith("scipy.libs/libscipy_openblas-")
+            for name in bundle_entries
+        ),
+    }
+    missing_native = sorted(
+        name for name, present in native_requirements.items() if not present
+    )
+    if missing_native:
+        findings.append(
+            f"missing bundled native libraries: {', '.join(missing_native)}"
+        )
+
+    host_owned = sorted(name for name in bundle_entries if is_host_owned_path(name))
+    if host_owned:
+        findings.append(f"host-owned bundled members: {', '.join(host_owned)}")
+
     obsolete = sorted(
         name
         for name in entries
-        if name.startswith("_vendor/") or name.endswith("DEVELOPMENT_MODE.json")
+        if name.startswith(("_vendor/", "packs/", "wheels/"))
+        or name.endswith(
+            (
+                "DEVELOPMENT_MODE.json",
+                "core/packs.py",
+                "install_pack.py",
+                "pack_manifest.json",
+                "requirements.lock",
+            )
+        )
     )
     if obsolete:
         findings.append(f"obsolete Kit members: {', '.join(obsolete)}")

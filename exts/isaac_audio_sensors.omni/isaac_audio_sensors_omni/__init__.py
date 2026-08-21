@@ -6,7 +6,12 @@ import sys
 from pathlib import Path
 
 _EXTENSION_ROOT = Path(__file__).resolve().parents[1]
-if not (_EXTENSION_ROOT / "isaac_audio_sensors").is_dir():
+_PACKAGE_ROOT = _EXTENSION_ROOT / "isaac_audio_sensors"
+if _PACKAGE_ROOT.is_dir():
+    bundled_root = _PACKAGE_ROOT / "_bundled"
+    if bundled_root.is_dir():
+        sys.path.insert(0, str(bundled_root))
+else:
     repo_src = _EXTENSION_ROOT.parent.parent / "src"
     if not (repo_src / "isaac_audio_sensors").is_dir():
         raise RuntimeError(

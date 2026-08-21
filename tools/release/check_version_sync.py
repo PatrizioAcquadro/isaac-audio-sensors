@@ -54,15 +54,6 @@ def _toml_version(path: Path, table: str) -> str:
     return version
 
 
-def _toml_string(path: Path, table: str, key: str) -> str:
-    with path.open("rb") as stream:
-        data = tomllib.load(stream)
-    value = data.get(table, {}).get(key)
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"missing [{table}].{key}")
-    return value
-
-
 def _top_changelog_version(path: Path) -> str:
     headings = re.findall(
         r"^##\s+(.+?)\s*$", path.read_text(encoding="utf-8"), re.MULTILINE
@@ -120,22 +111,6 @@ def check_version_sync(repo_root: Path) -> tuple[str, tuple[str, ...]]:
             repo_root / "exts/isaac_audio_sensors.omni/config/extension.toml",
             "package",
         ),
-    )
-    pack_manifest = repo_root / "packs/acoustics/pack.toml"
-    check(
-        "packs/acoustics/pack.toml pack.pack_version",
-        lambda: _toml_string(pack_manifest, "pack", "pack_version"),
-    )
-    expected_pack_artifact = (
-        "isaac_audio_sensors_acoustic_pack-l2l3-"
-        f"{version}-linux_x86_64-cp312.tar.gz"
-    )
-    check(
-        "packs/acoustics/pack.toml pack.artifact_name",
-        lambda: _toml_string(pack_manifest, "pack", "artifact_name"),
-        expected=expected_pack_artifact,
-        noun="artifact name",
-        expected_source="expected artifact name",
     )
     check(
         "Makefile EXPECTED_VERSION default",

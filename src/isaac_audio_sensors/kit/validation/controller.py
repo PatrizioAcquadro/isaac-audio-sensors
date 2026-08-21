@@ -23,7 +23,6 @@ class CapabilityState:
 
     capabilities: CapabilityReport
     available_backend_ids: tuple[str, ...]
-    active_pack: str | None
     captured_at_generation: int
 
 
@@ -74,7 +73,6 @@ class ValidationController:
         snapshot = CapabilityState(
             capabilities=report,
             available_backend_ids=_available_backend_ids(report),
-            active_pack=report.active_pack,
             captured_at_generation=generation,
         )
         self._capability_generation = generation

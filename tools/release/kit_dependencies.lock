@@ -1,5 +1,4 @@
-# NumPy is deliberately absent: version 2.5.0 is owned by the Kit host and
-# must be validated, never installed or shadowed by the acoustic pack.
+# Kit owns NumPy and typing_extensions; neither may be bundled or shadowed.
 pyroomacoustics==0.10.1 --hash=sha256:c1b1077cfcafed9775d1b826dbbaf25fb4090aa95d21e9bc6dac795f88e8875c
 scipy==1.18.0 --hash=sha256:1f55797419e16e7f30cf88ffb3113ce0467f00cfe3f70d5c281730b21769bfc2
 soundfile==0.14.0 --hash=sha256:1e38bac1853412871318e82a1ba69a8be677619b56025bbfcccdb41b6cafe82d

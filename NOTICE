@@ -10,3 +10,15 @@ extension, or endorsement.
 
 No generated showcase media, private recordings, restricted robot data, or
 third-party scene assets are distributed as source in this repository.
+
+The NVIDIA Kit archive includes these third-party distributions:
+
+- pyroomacoustics, copyright EPFL-LCAV, MIT License.
+- SciPy, copyright Enthought and the SciPy Developers, BSD 3-Clause License.
+- SoundFile, copyright Bastian Bechtold, BSD 3-Clause License.
+- CFFI, copyright Armin Rigo and Maciej Fijalkowski, MIT No Attribution License.
+- pycparser, copyright Eli Bendersky, BSD 3-Clause License.
+
+Their license files, including notices for native libraries distributed by
+SciPy and SoundFile/libsndfile, remain in `isaac_audio_sensors/_bundled` inside
+the Kit archive.

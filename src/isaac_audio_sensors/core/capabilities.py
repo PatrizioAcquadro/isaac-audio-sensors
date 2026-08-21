@@ -5,14 +5,12 @@ from __future__ import annotations
 import importlib
 from dataclasses import dataclass
 from pathlib import Path
+from types import ModuleType
 
 from isaac_audio_sensors.core.fidelity import ACOUSTIC_FIDELITY_LADDER
-from isaac_audio_sensors.core.packs import (
-    activate_pack,
-    active_pack_manifest,
-    active_pack_root,
-)
 from isaac_audio_sensors.core.plugins.registry import get_default_registry
+
+_BUNDLED_ROOT = Path(__file__).resolve().parents[1] / "_bundled"
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,13 +27,9 @@ class CapabilityStatus:
 
     @property
     def available(self) -> bool:
-        """Return whether the capability can be selected in this process."""
-
         return self.status == "available"
 
     def to_dict(self) -> dict[str, object]:
-        """Return a JSON-serializable representation."""
-
         return {
             "capability_id": self.capability_id,
             "kind": self.kind,
@@ -53,27 +47,19 @@ class CapabilityReport:
 
     fidelity_levels: tuple[CapabilityStatus, ...]
     optional_features: tuple[CapabilityStatus, ...]
-    active_pack: str | None
 
     @property
     def capabilities(self) -> tuple[CapabilityStatus, ...]:
-        """Return all entries in stable fidelity-then-feature order."""
-
         return self.fidelity_levels + self.optional_features
 
     def get(self, capability_id: str) -> CapabilityStatus:
-        """Return one report entry by id."""
-
         for capability in self.capabilities:
             if capability.capability_id == capability_id:
                 return capability
         raise KeyError(capability_id)
 
     def to_dict(self) -> dict[str, object]:
-        """Return a JSON-serializable, deterministic mapping."""
-
         return {
-            "active_pack": self.active_pack,
             "fidelity_levels": [item.to_dict() for item in self.fidelity_levels],
             "optional_features": [
                 item.to_dict() for item in self.optional_features
@@ -81,34 +67,20 @@ class CapabilityReport:
         }
 
 
-def acoustic_pack_artifact_name() -> str:
-    """Return the exact acoustic-pack artifact for the running package version."""
-
-    from isaac_audio_sensors import __version__
-
-    return (
-        "isaac_audio_sensors_acoustic_pack-l2l3-"
-        f"{__version__}-linux_x86_64-cp312.tar.gz"
-    )
-
-
 def _is_under(origin: str, root: Path) -> bool:
     try:
-        Path(origin).resolve().relative_to(root)
+        Path(origin).resolve().relative_to(root.resolve())
     except (OSError, ValueError):
         return False
     return True
 
 
-def _declared_pack_capability(capability_id: str) -> bool:
-    manifest = active_pack_manifest()
-    if manifest is None:
-        return False
-    capabilities = manifest.get("capabilities")
-    return isinstance(capabilities, list) and any(
-        isinstance(item, dict) and item.get("id") == capability_id
-        for item in capabilities
-    )
+def _module_origins(module: ModuleType) -> tuple[str, ...]:
+    origin = getattr(module, "__file__", None)
+    if isinstance(origin, str):
+        return (origin,)
+    paths = getattr(module, "__path__", None)
+    return tuple(str(path) for path in paths) if paths is not None else ()
 
 
 def _probe_optional(
@@ -118,14 +90,13 @@ def _probe_optional(
     fidelity_level: str,
     dependencies: tuple[str, ...],
 ) -> CapabilityStatus:
-    modules = []
-    missing = []
+    modules: list[ModuleType] = []
+    missing: list[str] = []
     for dependency in dependencies:
         try:
             modules.append(importlib.import_module(dependency))
-        except Exception:  # noqa: BLE001 - broken optional binaries are unavailable.
+        except Exception:  # noqa: BLE001 - broken optional binaries are unavailable
             missing.append(dependency)
-    artifact = acoustic_pack_artifact_name()
     if missing:
         return CapabilityStatus(
             capability_id=capability_id,
@@ -135,32 +106,21 @@ def _probe_optional(
             origin="absent",
             missing_dependencies=tuple(missing),
             actionable_message=(
-                f"Install and explicitly activate {artifact}; missing dependencies: "
+                "Install isaac-audio-sensors[room]; missing dependencies: "
                 f"{', '.join(missing)}."
             ),
         )
 
-    root = active_pack_root()
-    manifest = active_pack_manifest()
-    module_origins = [getattr(module, "__file__", None) for module in modules]
-    if (
-        root is not None
-        and manifest is not None
-        and _declared_pack_capability(capability_id)
-        and all(
-            isinstance(origin, str) and _is_under(origin, root)
-            for origin in module_origins
-        )
-    ):
-        origin = f"pack:{manifest['pack_id']}@{manifest['pack_version']}"
-    else:
-        origin = "external-unmanaged"
+    origins = tuple(origin for module in modules for origin in _module_origins(module))
+    bundled = bool(origins) and all(
+        _is_under(origin, _BUNDLED_ROOT) for origin in origins
+    )
     return CapabilityStatus(
         capability_id=capability_id,
         kind=kind,
         fidelity_level=fidelity_level,
         status="available",
-        origin=origin,
+        origin="bundled" if bundled else "external",
         missing_dependencies=(),
         actionable_message="",
     )
@@ -172,25 +132,20 @@ def _base_level(level: str, public_name: str) -> CapabilityStatus:
         kind="fidelity_level",
         fidelity_level=level,
         status="available",
-        origin="base",
+        origin="bundled",
         missing_dependencies=(),
-        actionable_message=f"{public_name} is provided by the import-safe base.",
+        actionable_message=f"{public_name} is provided by the bundled base.",
     )
 
 
 def _unavailable_future_level(level: str, public_name: str) -> CapabilityStatus:
     if level == "L3":
         message = (
-            f"Complete {public_name} is unavailable. Install and explicitly activate "
-            f"{acoustic_pack_artifact_name()} for the released waveform-dependent "
-            "L2/L3 capabilities; material-aware ray/transmission occlusion remains "
-            "available in the base."
+            f"Complete {public_name} is unavailable; material-aware "
+            "ray/transmission occlusion remains bundled."
         )
     else:
-        message = (
-            f"{public_name} is not a released runtime capability in Stage 1; "
-            "no pack activation can enable it."
-        )
+        message = f"{public_name} is not a released runtime capability in Stage 1."
     return CapabilityStatus(
         capability_id=level,
         kind="fidelity_level",
@@ -202,15 +157,8 @@ def _unavailable_future_level(level: str, public_name: str) -> CapabilityStatus:
     )
 
 
-def discover_capabilities(pack_root: str | Path | None = None) -> CapabilityReport:
-    """Discover base, managed-pack, external, and absent capabilities.
-
-    Passing ``pack_root`` is an explicit selection request and activates that
-    validated immutable root before optional modules are imported.
-    """
-
-    if pack_root is not None:
-        activate_pack(pack_root)
+def discover_capabilities() -> CapabilityReport:
+    """Discover bundled, external, and absent capabilities."""
 
     backend_declarations = get_default_registry().declarations(
         "propagation_backend"
@@ -253,10 +201,10 @@ def discover_capabilities(pack_root: str | Path | None = None) -> CapabilityRepo
                 if declaration.fidelity_level == level
                 and declaration.plugin_id in backend_capabilities
             )
-            origins = {item.origin for item in level_capabilities}
             available = bool(level_capabilities) and all(
                 item.available for item in level_capabilities
             )
+            origins = {item.origin for item in level_capabilities}
             origin = origins.pop() if available and len(origins) == 1 else "absent"
             missing = tuple(
                 sorted(
@@ -279,9 +227,8 @@ def discover_capabilities(pack_root: str | Path | None = None) -> CapabilityRepo
                         ""
                         if available
                         else (
-                            "Install and explicitly activate "
-                            f"{acoustic_pack_artifact_name()} to enable the L2 room "
-                            "backends."
+                            "Install isaac-audio-sensors[room] to enable the "
+                            "L2 room backends."
                         )
                     ),
                 )
@@ -291,22 +238,10 @@ def discover_capabilities(pack_root: str | Path | None = None) -> CapabilityRepo
                 _unavailable_future_level(level, metadata.public_name)
             )
 
-    manifest = active_pack_manifest()
-    active_pack = (
-        None
-        if manifest is None
-        else f"{manifest['pack_id']}@{manifest['pack_version']}"
-    )
     return CapabilityReport(
         fidelity_levels=tuple(fidelity_levels),
         optional_features=(*optional_backends, waveform_wav, waveform_flac),
-        active_pack=active_pack,
     )
 
 
-__all__ = [
-    "CapabilityReport",
-    "CapabilityStatus",
-    "acoustic_pack_artifact_name",
-    "discover_capabilities",
-]
+__all__ = ["CapabilityReport", "CapabilityStatus", "discover_capabilities"]

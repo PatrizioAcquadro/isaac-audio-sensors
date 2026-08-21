@@ -8,7 +8,7 @@ WHEELHOUSE ?=
 SCHEMA_OUT ?= build/schemas
 CLEAN_PYTHON_ROOTS := src tests tools examples exts
 
-.PHONY: clean test test-isaac test-release test-all lint format build-python build-kit build-pack audit-python audit-kit audit-pack check-version check-release-source validate-config validate-fixture export-schema smoke-optional smoke-isaac-sim smoke-isaac-lab smoke-kit diagnose-isaac
+.PHONY: clean test test-isaac test-release test-all lint format build-python build-kit audit-python audit-kit check-version check-release-source validate-config validate-fixture export-schema smoke-optional smoke-isaac-sim smoke-isaac-lab smoke-kit diagnose-isaac
 
 clean:
 	rm -rf -- build dist .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage
@@ -42,22 +42,15 @@ build-python: check-version check-release-source
 	$(MAKE) audit-python
 
 build-kit: check-version check-release-source
-	$(PYTHON) tools/release/build_kit_extension.py
-	$(MAKE) audit-kit
-
-build-pack: check-version check-release-source
 	@test -n "$(WHEELHOUSE)" || { echo "WHEELHOUSE is required" >&2; exit 2; }
-	$(PYTHON) tools/release/build_acoustic_pack.py --wheelhouse "$(WHEELHOUSE)"
-	$(MAKE) audit-pack
+	$(PYTHON) tools/release/build_kit_extension.py --wheelhouse "$(WHEELHOUSE)"
+	$(MAKE) audit-kit
 
 audit-python:
 	$(PYTHON) tools/release/audit_python_wheel.py --dist-dir dist
 
 audit-kit:
 	$(PYTHON) tools/release/audit_kit_archive.py dist/PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v$(EXPECTED_VERSION).zip
-
-audit-pack:
-	$(PYTHON) tools/release/audit_acoustic_pack.py dist/packs/isaac_audio_sensors_acoustic_pack-l2l3-$(EXPECTED_VERSION)-linux_x86_64-cp312.tar.gz
 
 check-version:
 	$(PYTHON) tools/release/check_version_sync.py

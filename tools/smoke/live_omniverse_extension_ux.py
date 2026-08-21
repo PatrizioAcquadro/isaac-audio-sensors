@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib
 import inspect
 import json
 import platform
+import shutil
 import struct
 import sys
 import traceback
@@ -165,6 +167,8 @@ EXPECTED_COMBO_FIELDS = (
     "layout_name",
     "waveform_mode",
 )
+BUNDLED_DEPENDENCIES = ("pyroomacoustics", "scipy", "soundfile", "cffi", "pycparser")
+HOST_DEPENDENCIES = ("numpy", "typing_extensions")
 ARRAY_RIG_PROFILE_ID = "quad_cross_120mm"
 ARRAY_MOUNT_PRIM_PATH = "/World/Rig/RobotMount"
 ARRAY_MOUNT_POSITION_BEFORE = (0.0, -1.0, 0.0)
@@ -202,6 +206,7 @@ def main() -> int:
     latest_frame_path = args.out.with_suffix(".latest_frame.json")
     replicator_dir = args.out.with_suffix(".replicator")
     screenshot_path = args.out.with_suffix(".viewport.png")
+    flac_session_path = args.out.with_suffix(".flac-session")
     generic_artifacts = {
         "frame_trace_path": frame_trace_path,
         "config_path": config_path,
@@ -218,6 +223,7 @@ def main() -> int:
         screenshot_path,
     )
     _prepare_output_dir(replicator_dir)
+    shutil.rmtree(flac_session_path, ignore_errors=True)
 
     evidence: dict[str, Any] = {
         "argv": sys.argv,
@@ -232,6 +238,7 @@ def main() -> int:
         "latest_frame_path": str(latest_frame_path),
         "replicator_output_dir": str(replicator_dir),
         "screenshot_path": str(screenshot_path),
+        "flac_session_path": str(flac_session_path),
         "extension_id": EXTENSION_ID,
         "extension_path": str(args.extension_path),
         "headless": True,
@@ -263,6 +270,9 @@ def main() -> int:
             extension_path=Path(evidence["extension_path"]),
         )
         evidence["package_origin"] = _probe_package_origin(
+            Path(evidence["extension_path"])
+        )
+        evidence["dependency_origins"] = _probe_dependency_origins(
             Path(evidence["extension_path"])
         )
 
@@ -355,7 +365,11 @@ def main() -> int:
         evidence["audio_output"] = _step(
             evidence,
             "audio_output_live_qa",
-            lambda: _collect_audio_output_evidence(controller, stage=stage),
+            lambda: _collect_audio_output_evidence(
+                controller,
+                stage=stage,
+                flac_destination=flac_session_path,
+            ),
         )
 
         _validate_live_extension_outputs(evidence=evidence)
@@ -1242,6 +1256,64 @@ def _probe_package_origin(extension_path: Path) -> dict[str, Any]:
         "module_file": str(Path(module_file).resolve()),
         "expected_root": str(expected_root.resolve()),
     }
+
+
+def _probe_dependency_origins(extension_path: Path) -> dict[str, Any]:
+    bundled_root = extension_path / "isaac_audio_sensors" / "_bundled"
+    packaged = bundled_root.is_dir()
+    record: dict[str, Any] = {
+        "mode": "packaged" if packaged else "source",
+        "bundled_root": str(bundled_root),
+        "modules": {},
+    }
+    for name in (*BUNDLED_DEPENDENCIES, *HOST_DEPENDENCIES):
+        try:
+            module = importlib.import_module(name)
+            module_file = getattr(module, "__file__", None)
+        except Exception as exc:  # noqa: BLE001 - evidence records exact import failure
+            record["modules"][name] = {
+                "status": "unavailable",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+            continue
+        inside_bundle = False
+        if isinstance(module_file, str):
+            try:
+                Path(module_file).resolve().relative_to(bundled_root.resolve())
+                inside_bundle = True
+            except (OSError, ValueError):
+                pass
+        record["modules"][name] = {
+            "status": "available",
+            "module_file": str(module_file),
+            "inside_bundle": inside_bundle,
+        }
+
+    from isaac_audio_sensors.core.capabilities import discover_capabilities
+
+    report = discover_capabilities()
+    record["capabilities"] = {
+        name: report.get(name).origin
+        for name in ("L2", "room_acoustics", "waveform_export_flac")
+    }
+    if not packaged:
+        record["status"] = "passed"
+        return record
+
+    bundled_ok = all(
+        record["modules"].get(name, {}).get("inside_bundle") is True
+        for name in BUNDLED_DEPENDENCIES
+    )
+    host_ok = all(
+        record["modules"].get(name, {}).get("status") == "available"
+        and record["modules"][name].get("inside_bundle") is False
+        for name in HOST_DEPENDENCIES
+    )
+    capabilities_ok = set(record["capabilities"].values()) == {"bundled"}
+    record["status"] = (
+        "passed" if bundled_ok and host_ok and capabilities_ok else "failed"
+    )
+    return record
 
 
 def _probe_extension_manager_metadata(
@@ -2356,8 +2428,9 @@ def _collect_audio_output_evidence(
     controller: ExtensionController,
     *,
     stage: Any,
+    flac_destination: Path,
 ) -> dict[str, Any]:
-    """Exercise WAV export + panel preview on the room backend when available."""
+    """Exercise room audio, panel preview, and FLAC replay."""
 
     record: dict[str, Any] = {"requested_backend": "room_acoustics"}
     try:
@@ -2417,6 +2490,33 @@ def _collect_audio_output_evidence(
             controller.play_latest_waveform() or controller.state.error_message
         )
         record["audition_stop_status"] = controller.stop_audition()
+
+        from isaac_audio_sensors.recording import export_session_flac, replay_session
+
+        source_session = (
+            Path(__file__).resolve().parents[2]
+            / "tests/fixtures/recording/session"
+        )
+        exported = export_session_flac(
+            source_session,
+            flac_destination,
+            dataset_id="kit_flac_runtime",
+            creation_timestamp_ms=0,
+        )
+        replay_events = tuple(replay_session(exported, with_audio=True))
+        replay_frames = tuple(
+            event
+            for event in replay_events
+            if event.kind == "frame" and event.audio is not None
+        )
+        if not replay_frames:
+            raise RuntimeError("FLAC replay produced no audio frames")
+        record["flac"] = {
+            "session_path": str(exported),
+            "event_count": len(replay_events),
+            "audio_frame_count": len(replay_frames),
+            "first_audio_shape": list(replay_frames[0].audio.shape),
+        }
         record["status"] = "passed"
     except Exception as exc:  # noqa: BLE001 - evidence records the exact error.
         record["status"] = "failed"
@@ -2846,6 +2946,7 @@ def _validate_live_extension_outputs(
     for probe_name in (
         "ui_control_inventory",
         "package_origin",
+        "dependency_origins",
         "ui_editable_model_probe",
         "ui_invalid_numeric_probe",
         "export_latest_without_frame",
@@ -2857,7 +2958,9 @@ def _validate_live_extension_outputs(
         if probe.get("status") != "passed":
             raise RuntimeError(f"{probe_name} failed: {probe}")
     audio_output = evidence.get("audio_output", {})
-    if audio_output.get("status") not in {"passed", "skipped"}:
+    packaged = evidence.get("package_origin", {}).get("mode") == "packaged"
+    allowed_audio_status = {"passed"} if packaged else {"passed", "skipped"}
+    if audio_output.get("status") not in allowed_audio_status:
         raise RuntimeError(f"audio_output evidence failed: {audio_output}")
     omnigraph = evidence.get("omnigraph", {})
     if omnigraph.get("status") not in {"passed", "skipped"}:

@@ -26,15 +26,15 @@ def _capability(
         kind=kind,
         fidelity_level=fidelity_level,
         status="available" if available else "unavailable",
-        origin="pack:test@1" if available else "absent",
+        origin="bundled" if available else "absent",
         missing_dependencies=() if available else ("pyroomacoustics",),
         actionable_message=(
-            "" if available else "Activate the matching acoustic pack."
+            "" if available else "Install isaac-audio-sensors[room]."
         ),
     )
 
 
-def _capability_report(*, pack_present: bool) -> CapabilityReport:
+def _capability_report(*, room_available: bool) -> CapabilityReport:
     return CapabilityReport(
         fidelity_levels=(
             _capability(
@@ -49,16 +49,15 @@ def _capability_report(*, pack_present: bool) -> CapabilityReport:
                 "room_acoustics",
                 kind="backend",
                 fidelity_level="L2",
-                available=pack_present,
+                available=room_available,
             ),
             _capability(
                 "room_acoustics_srp",
                 kind="backend",
                 fidelity_level="L2",
-                available=pack_present,
+                available=room_available,
             ),
         ),
-        active_pack="test@1" if pack_present else None,
     )
 
 
@@ -99,7 +98,7 @@ def test_capability_cache_refreshes_once_after_invalidation(monkeypatch) -> None
     def _discover() -> CapabilityReport:
         nonlocal calls
         calls += 1
-        return _capability_report(pack_present=True)
+        return _capability_report(room_available=True)
 
     monkeypatch.setattr(validation_controller, "discover_capabilities", _discover)
     validation = ValidationController()
@@ -118,7 +117,10 @@ def test_capability_cache_refreshes_once_after_invalidation(monkeypatch) -> None
 
 def test_backend_validation_uses_refreshed_capability_state(monkeypatch) -> None:
     reports = iter(
-        (_capability_report(pack_present=True), _capability_report(pack_present=False))
+        (
+            _capability_report(room_available=True),
+            _capability_report(room_available=False),
+        )
     )
     monkeypatch.setattr(
         validation_controller,
@@ -126,14 +128,14 @@ def test_backend_validation_uses_refreshed_capability_state(monkeypatch) -> None
         lambda: next(reports),
     )
     validation = ValidationController()
-    validation.refresh_capabilities("pack active")
-    validation.invalidate("pack inactive")
+    validation.refresh_capabilities("room dependency available")
+    validation.invalidate("room dependency unavailable")
 
     report = validation.validate_backend_available("room_acoustics")
 
     assert not report.ok
     assert report.findings[0].check_id == "backend_available"
-    assert "Activate the matching acoustic pack." in report.findings[0].message
+    assert "Install isaac-audio-sensors[room]." in report.findings[0].message
 
 
 def test_backend_device_is_evaluated_on_every_call() -> None:

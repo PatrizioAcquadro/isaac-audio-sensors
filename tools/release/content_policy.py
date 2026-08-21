@@ -113,6 +113,11 @@ def _audit_entries(
         if name.is_absolute() or any(part in {"", ".", ".."} for part in name.parts):
             yield f"unsafe path: {display}"
             continue
+        if name.parts[:2] == ("isaac_audio_sensors", "_bundled"):
+            nested = _nested_entries(name, payload)
+            if nested is not None:
+                yield from _audit_entries(nested, prefix=f"{display}!/")
+            continue
         lowered = tuple(part.lower() for part in name.parts)
         if any(part in _FORBIDDEN_PARTS for part in lowered):
             yield f"forbidden path: {display}"
