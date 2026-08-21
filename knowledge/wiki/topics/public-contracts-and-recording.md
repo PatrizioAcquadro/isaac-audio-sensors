@@ -16,7 +16,7 @@ Detections keep source identity and class, timing, known source pose and oracle 
 
 The shipped schemas are `ias.audio_sensor_frame.v1`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1` under `src/isaac_audio_sensors/schemas/`.
 
-Code generation and checked package resources must remain identical; schema export never reads documentation files.
+The three Python generators are authoritative. Checked package resources and exports from `write_json_schema` must remain byte-identical deterministic JSON; schema export never reads documentation files.
 
 Generators are public under `isaac_audio_sensors.schemas.generate`; dataset manifests and their canonical `manifest_from_dict`, `manifest_to_dict`, `read_dataset_manifest`, and `write_dataset_manifest` services are public under `isaac_audio_sensors.recording`.
 
@@ -24,7 +24,7 @@ Package upgrades may preserve an existing schema version when serialized meaning
 
 ## Configuration and Runtime Profiles
 
-`AudioSensorConfig` validates scene, audio, source, array, room, Lab, backend, runtime-profile, and effects settings from TOML before simulation.
+`AudioSensorConfig` validates simulator-independent scene, audio, source, array, room, backend, runtime-profile, and effects settings from TOML before simulation. It validates meters and Z-up without storing fixed-value convention fields. Isaac Lab configuration belongs to `isaac_audio_sensors.lab.AudioArraySensorCfg`.
 
 `waveform_fidelity` is the default runtime profile and permits waveform-producing behavior; `training_features` is a constrained feature-oriented profile and rejects incompatible waveform export.
 
@@ -34,7 +34,7 @@ Unknown backends, profiles, coordinate conventions, invalid time windows, invali
 
 Import-safe protocols define propagation backends, DOA estimators, and audio feature extractors.
 
-Capability declarations record identifiers, profiles, device support, output contracts, determinism, dependencies, and provider provenance; registry resolution rejects duplicate declarations, unavailable dependencies, unsupported devices/profiles, and mismatched output claims.
+Capability declarations record identifiers, profiles, device support, `PluginDeclaration.output_contract`, determinism, dependencies, and provider provenance; registry resolution rejects duplicate declarations, unavailable dependencies, unsupported devices/profiles, and mismatched output claims.
 
 The built-in capability set includes the maintained acoustic backends and DOA estimators, while optional packs can add capabilities without changing core imports.
 
@@ -42,7 +42,7 @@ The built-in capability set includes the maintained acoustic backends and DOA es
 
 JSON frame files and JSONL streams use deterministic serialization and round-trip through the public frame model.
 
-Readers accept documented absent optional v1 fields and restore their canonical defaults; writers emit the current complete compatible v1 shape.
+Readers accept documented absent optional v1 fields and restore their canonical defaults; writers emit the current complete compatible v1 shape. In particular, legacy frames may omit the additive `units.elevation` entry.
 
 Tracked examples under `examples/traces/` cover minimal, multi-detection, ambiguity, and diagnostic/provenance-rich records.
 

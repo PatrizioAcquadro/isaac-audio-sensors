@@ -33,3 +33,11 @@ Recorded the `2.0.0` semantic import boundary, subsystem-owned APIs, headless an
 ## 2026-08-20 — lint: R5.0 canonical documentation
 
 Verified index coverage, internal links, R0 preservation, current paths, version synchronization, Markdown whitespace, and host test evidence.
+
+## 2026-08-20 — update: R5.1 core contracts and schemas
+
+Recorded the minimal core export, simulator-independent config, quaternion-authoritative array pose, consolidated protocols, generator-authoritative schemas, compatible legacy elevation-unit fix, and verified host, GPU, and downstream gates.
+
+## 2026-08-20 — lint: R5.1 canonical documentation
+
+Verified canonical ownership, index coverage, internal links, raw-file preservation, current paths and symbols, release documentation checks, Ruff, and Markdown whitespace.

@@ -18,6 +18,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Lazy Isaac Lab sensor recovery, cloned-stage and scene/entity binding, scalar/batched fixed-shape observations, selected update/reset, and explicit GPU validation.
 - Wheel, source archive, Kit extension, and optional acoustics-pack version, provenance, determinism, and content policy.
 - Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
+- R5.1 core root limited to eleven fundamental models, simulator-independent config, quaternion-authoritative array pose, one propagation protocol, and generator-authoritative schemas.
 
 ## Documentation State
 
@@ -34,6 +35,8 @@ The R3 runtime baseline passed 116 Isaac tests on the RTX 4090 and the complete 
 The R4 deterministic gate passed 414 host tests in 9.58 seconds, 366 integration tests in 10.36 seconds, and 40 release tests in 0.36 seconds, including six documentation-boundary tests.
 
 The R5.0 host gate passes 417 unit/contract tests, 343 integration tests, and 40 release tests after removing redundant test-only coverage.
+
+The R5.1 gate passes 416 unit/contract tests, 343 integration tests, 40 release tests, and 115 Isaac tests on the RTX 4090. The known SquadBot audio contract, replay, live-bridge, and adapter selection passes 34 downstream tests without consumer changes.
 
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, authorized R0 hash preservation, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
@@ -60,4 +63,4 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 
 ## Next Work
 
-R5.1+ may simplify internals within one semantic subsystem at a time. General packaging and release cleanup remains R6 work.
+R5.2+ may simplify internals within one semantic subsystem at a time. General packaging and release cleanup remains R6 work.

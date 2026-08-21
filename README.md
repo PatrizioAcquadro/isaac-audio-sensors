@@ -12,7 +12,9 @@ Current package release: `2.0.0`.
 
 The package version and the serialized schema versions are independent; the current frame contract is `ias.audio_sensor_frame.v1`.
 
-The package root exports only `__version__`. Import sensor contracts from `isaac_audio_sensors.core`, dataset contracts and serializers from `isaac_audio_sensors.recording`, schema generators from `isaac_audio_sensors.schemas.generate`, and simulator services from their `isaac`, `lab`, or `kit` subsystem.
+The package root exports only `__version__`. `isaac_audio_sensors.core` exports the eleven fundamental sensor models; config, calibration, backend, plugin, capability, fidelity, and pack APIs remain public from their canonical modules. Dataset contracts belong to `recording`, schema generators to `schemas.generate`, and simulator services to `isaac`, `lab`, or `kit`.
+
+`AudioSensorConfig` is simulator-independent. Isaac Lab configuration uses `isaac_audio_sensors.lab.AudioArraySensorCfg`. Python generators are authoritative for the three public schemas; packaged JSON files and CLI exports are deterministic generated artifacts.
 
 ## Capabilities
 

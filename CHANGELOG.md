@@ -9,6 +9,15 @@ R5.0 establishes the v2 semantic component boundary. This release intentionally 
 - Enforced import direction with an AST architecture contract while keeping Isaac, Lab, Kit, Torch, and Omniverse optional and lazy.
 - Removed duplicate package examples, manifest aliases, production test matrices, private Kit re-exports, and GUI/headless comparison scaffolding without changing serialized v1 schemas.
 
+R5.1 narrows the simulator-independent core without changing serialized v1 contracts.
+
+- Reduced `core.__all__` to the eleven fundamental sensor models; importing `isaac_audio_sensors.core` no longer loads NumPy, recording, concrete backends/effects, or optional simulator runtimes.
+- Removed Lab state and fixed-value stage convention fields from `AudioSensorConfig`; meters and Z-up remain validated, while Isaac Lab uses `AudioArraySensorCfg`.
+- Made the normalized array quaternion the sole pose authority, consolidated propagation on `PropagationBackend`, and removed duplicate array, plugin-output, basis, and occlusion helpers.
+- Made the three Python schema generators authoritative, replaced specialized writers with `write_json_schema`, and moved JSON Schema validation to the `dev` extra.
+- Preserved frame, calibration, manifest, trace, and provenance semantics; legacy v1 traces may omit the additive `units.elevation` field as originally intended.
+- Consolidated schema coverage and replaced the catch-all core test file with focused config, types, microphone-array, and math tests.
+
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
 development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects
 and diagnostics are additive, every effect defaults off, and the compatibility

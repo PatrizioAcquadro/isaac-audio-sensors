@@ -378,16 +378,6 @@ def test_offline_sensor_rejects_pose_derivation_before_capture():
         IsaacAudioArraySensor.from_config(config=config, array_id="rig")
 
 
-def test_lab_config_rejects_pose_derivation_explicitly():
-    raw = _raw_config()
-    raw["lab"] = {"prim_path": "/World/envs/env_.*/Rig"}
-    raw["audio"]["effects"] = {
-        "motion": {"derive_velocity_from_poses": True}
-    }
-    with pytest.raises(UnsupportedEffectError, match="Isaac Lab"):
-        validate_audio_config(raw)
-
-
 def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detection():
     array = _array()
     scene = AudioSceneSnapshot(

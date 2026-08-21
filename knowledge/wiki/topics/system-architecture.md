@@ -8,9 +8,9 @@ The design keeps simulator-independent contracts below optional simulator adapte
 
 ## Core Layer
 
-`isaac_audio_sensors.core` owns typed scene, source, pose, array, room, time-window, detection, DOA, occlusion, and frame models; configuration; microphone geometry; deterministic DSP and effects; acoustic backends; plugins; calibration; trace IO; and waveform helpers.
+`isaac_audio_sensors.core` owns typed scene, source, pose, array, room, time-window, detection, DOA, occlusion, and frame models; configuration; microphone geometry; deterministic DSP and effects; acoustic backends; plugins; calibration; trace IO; and waveform helpers. Its package root exports only the eleven fundamental models; the other APIs remain public from their canonical modules.
 
-This layer imports no other package subsystem and must not import Isaac, Omniverse, Isaac Lab, ROS 2, CUDA, Torch, or downstream project modules during normal import.
+This layer imports no other package subsystem. Importing the core package root loads no NumPy, recording, concrete backend/effect, Isaac, Omniverse, Isaac Lab, Kit, CUDA, Torch, or downstream module.
 
 ## Recording Layer
 
@@ -22,7 +22,7 @@ Dataset-manifest constants, models, and canonical JSON serializers are recording
 
 ## Schema Layer
 
-`isaac_audio_sensors.schemas` owns packaged JSON schemas and deterministic generation through `schemas.generate`. Generation depends only on core and recording contracts.
+`isaac_audio_sensors.schemas` owns deterministic generation through `schemas.generate`; its three Python generators are authoritative and packaged JSON schemas are generated release artifacts. Generation depends only on core and recording contracts.
 
 ## Isaac Sim Layer
 
@@ -56,7 +56,7 @@ The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> 
 
 The package root exports only `__version__`. Public types and services are imported from their semantic subsystem.
 
-Core dependencies are NumPy, JSON Schema validation, and TOML support for Python versions that need it.
+Core runtime dependencies are NumPy and TOML support for Python versions that need it. JSON Schema validation is development-only.
 
 The `room` extra provides `pyroomacoustics`, SciPy, and SoundFile; Isaac, Kit, CUDA, Torch, and Replicator remain environment capabilities resolved lazily.
 

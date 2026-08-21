@@ -12,6 +12,8 @@ If fallback classes were imported before runtime initialization, call `ensure_is
 
 `AudioArraySensorCfg` defines `prim_path`, `update_period`, `history_length`, debug visualization, backend, microphone layout, sample rate, `max_events`, optional microphone count, device, ambiguity policy, scalar/batched/auto compute path, effects, and optional waveform/trace outputs.
 
+This is the canonical Lab configuration. The generic `core.config.AudioSensorConfig` contains no Lab table or Lab-specific validation.
+
 Configuration rejects empty prim paths, negative timing/history, unknown backends or compute modes, invalid device or microphone counts, invalid ambiguity policy, and non-`EffectsConfig` effects.
 
 ## Observation Buffers
