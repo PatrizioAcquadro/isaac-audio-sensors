@@ -13,30 +13,30 @@ Current package release: `2.0.0`.
 - Simulator-independent, versioned contracts for scenes, microphone arrays, sensor frames, calibration, and dataset manifests, with deterministic geometry and synthetic TDOA backends plus optional room acoustics.
 - Generic multichannel recording, validation, sharded datasets, deterministic splits, statistics, FLAC export, and read-only replay.
 - Lazy Isaac Sim and Isaac Lab integrations for live stages and fixed-shape, batched observations without making NVIDIA runtimes core dependencies.
-- A reference Kit extension and audited distribution paths for the universal Python wheel and self-contained Kit archive.
+- Audited Python source/wheel distributions plus a reference, self-contained Kit archive.
 
 ## Install
 
-The core package supports Python 3.10 or newer. From a source checkout:
+The core package supports Python 3.10 or newer. Install it from PyPI:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install .
+python -m pip install isaac-audio-sensors
 ```
 
 Install the optional shoebox-room backend only when needed:
 
 ```bash
-python -m pip install ".[room]"
+python -m pip install "isaac-audio-sensors[room]"
 ```
 
 Isaac Sim, Isaac Lab, Kit, CUDA, Torch, and Replicator are user-managed runtime capabilities and are not installed with the core package.
 
 ## Quickstart
 
-Validate the maintained configuration and generate a deterministic sensor frame:
+From a source checkout, validate the maintained configuration and generate a deterministic sensor frame:
 
 ```bash
 isaac-audio-sensors validate-config examples/configs/isaac_audio_sensors_demo.toml
@@ -53,11 +53,11 @@ These commands require only the core package; no Isaac runtime or GPU is needed.
 
 ## Documentation
 
-- [Technical wiki](knowledge/wiki/index.md)
-- [Current verified status](knowledge/wiki/status.md)
-- [Getting started](knowledge/wiki/topics/getting-started.md)
-- [Examples](examples/README.md)
-- [Changelog](CHANGELOG.md)
+- [Technical wiki](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/index.md)
+- [Current verified status](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/status.md)
+- [Getting started](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/topics/getting-started.md)
+- [Examples](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/examples/README.md)
+- [Changelog](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/CHANGELOG.md)
 
 ## Contributing and Security
 
@@ -67,4 +67,4 @@ Report vulnerabilities privately through a GitHub security advisory when availab
 
 ## License
 
-Licensed under the Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Licensed under the Apache License 2.0. See [LICENSE](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/LICENSE) and [NOTICE](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/NOTICE).

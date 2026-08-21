@@ -10,22 +10,28 @@ Use the official Isaac Lab launcher for Isaac Sim, Isaac Lab, Kit, GPU, and live
 
 ## Install the Core
 
-Create a development environment from the repository root:
+Create a clean environment and install the published package:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+python -m pip install isaac-audio-sensors
 ```
 
 Install approximate room-acoustics support only when needed:
 
 ```bash
-python -m pip install -e ".[room]"
+python -m pip install "isaac-audio-sensors[room]"
 ```
 
-Install a built wheel with:
+For repository development, replace the package install with:
+
+```bash
+python -m pip install --editable ".[dev]"
+```
+
+Install an audited local wheel with:
 
 ```bash
 python -m pip install dist/isaac_audio_sensors-2.0.0-py3-none-any.whl

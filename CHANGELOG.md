@@ -4,22 +4,15 @@
 
 - Established subsystem-owned v2 APIs, lazy optional runtimes, focused tests, and concise examples without compatibility shims; existing frame, manifest, and calibration schema v1 contracts remain supported.
 - Consolidated backends, effects, recording, Isaac Sim, Isaac Lab, Kit, and CLI around their maintained runtime responsibilities while removing duplicate, private, and test-only surfaces.
+- Added dataset-manifest and calibration-profile contracts, runtime profiles, plugin protocols, version synchronization, and deterministic release audits.
+- Added generic sharded recording, verified session lifecycle, deterministic splits, validation, replay, and guided Kit workflows without changing existing frame or manifest schemas.
 - Consolidated product documentation in the canonical wiki and cleaned root guidance, generated workspaces, and validation output under R6.1.
-- Replaced the temporary wheel/source workflow with one audited universal Python wheel installed in an isolated environment.
+- Added an audited Python source distribution and one universal wheel built from it, with isolated installed-artifact validation.
 - Standardized the self-contained Kit extension as a minimal Linux x86_64 Community Registry archive for Kit 110.1 and Python 3.12.
 - Removed the custom acoustics-pack workflow and bundled the locked room-acoustics and FLAC dependencies directly in the Kit archive without duplicating Kit's NumPy.
-- Reduced the local release workflow to safe clean, deterministic check, and clean-source release commands that leave only the audited wheel and Kit ZIP.
-- Closed R6 with exact source-derived artifact inventories, offline installed-wheel validation, and packaged RTX runtime and consumer gates without publication.
-
-## 1.9.0 - Unreleased
-
-- Added generic sharded recording, verified session lifecycle, deterministic splits, validation, replay, and the reference dataset fixture without changing existing frame or manifest schemas.
-- Added guided Kit recording, recovery, validation, split, and export workflows.
-
-## 1.8.0 - Unreleased
-
-- Added dataset-manifest and calibration-profile contracts, runtime profiles, plugin protocols, version synchronization, and deterministic release audits.
-- Added self-contained Kit and optional acoustics-pack workflows plus official Isaac Sim 6.0.1 and Isaac Lab 3.0.0-beta2 launcher support.
+- Reduced the local workflow to safe clean, deterministic check, and clean-source release commands that leave exactly the audited sdist, wheel, and Kit ZIP.
+- Added Python 3.10–3.12 CI and tokenless TestPyPI/PyPI publication through GitHub Actions with environment approval and attestations.
+- Closed local R6 validation with exact source-derived artifact inventories, offline installed-wheel validation, and packaged RTX runtime and consumer gates.
 
 ## 1.7.0 - 2026-06-12
 

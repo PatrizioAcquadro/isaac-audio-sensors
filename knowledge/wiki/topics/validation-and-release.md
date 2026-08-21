@@ -8,7 +8,7 @@
 
 `make test` remains the focused pure unit and contract lane. `.venv/bin/python -m pytest -q tests/integration` remains the focused recording, replay, codecs, workflows, filesystem, and cross-component lane.
 
-`make test-release` remains the focused release content, versioning, Python-wheel, Kit, and repository-boundary lane.
+`make test-release` remains the focused release content, versioning, Python sdist/wheel, Kit, and repository-boundary lane.
 
 `make test-isaac` runs the Isaac lane through the configured Isaac Lab interpreter with `CUDA_VISIBLE_DEVICES=0`.
 
@@ -44,11 +44,11 @@ The frame, dataset-manifest, and calibration-profile schema versions remain inde
 
 ## Build and Audit
 
-The `dev` extra installs the build frontend, Setuptools 77 or newer, and wheel, matching the default non-isolated wheel build and its PEP 639 license metadata.
+The `dev` extra installs the build frontend, Setuptools 77 or newer, and wheel, matching the default non-isolated source/wheel build and its PEP 639 license metadata.
 
-`make release WHEELHOUSE=<path>` validates the locked wheelhouse, version synchronization, and clean Git source before clearing `dist/`. It builds and audits the universal wheel and self-contained Kit ZIP, requires those exact synchronized filenames as the complete flat outbox, and never publishes, tags, or pushes.
+`make release WHEELHOUSE=<path>` validates the locked wheelhouse, version synchronization, and clean Git source before clearing `dist/`. It builds the source distribution, builds the universal wheel from that source distribution, creates the self-contained Kit ZIP, and requires those exact synchronized filenames as the complete flat outbox. It never publishes, tags, or pushes.
 
-The wheel audit derives the complete package and schema inventory from the maintained source tree and enforces the exact distribution metadata, entry point, and licenses. It then installs the wheel without dependency downloads or checkout import paths and verifies the installed import, CLI, schemas, and `room` metadata.
+The source-distribution audit requires safe tar paths, exact source and generated-metadata inventories, matching root files, package metadata, licenses, console entry point, and README description. It rejects repository-only and project-specific content. The wheel audit derives the complete package and schema inventory from the maintained source tree, then installs the exact wheel without dependency downloads or checkout import paths and verifies the import, CLI, schemas, and `room` metadata.
 
 The Kit build creates `PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v<version>.zip`. The explicit wheelhouse must match the hashes and exact five-distribution inventory in `tools/release/kit_dependencies.lock`.
 
@@ -58,11 +58,13 @@ The shared policy rejects first-party tests, tools, scripts, local datasets, evi
 
 ## Release Checklist
 
-Run `make clean`, `make check`, and `make release WHEELHOUSE=<path>`. Add the runtime gates appropriate to changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect both artifacts before publication.
+Run `make clean`, `make check`, and `make release WHEELHOUSE=<path>`. Add the runtime gates appropriate to changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect all three artifacts before publication.
 
 Builds must originate from one clean committed tree; do not publish, tag, or push based on uncommitted artifacts or skipped required lanes.
 
-R6.2 removes the source archive and treats the GitHub repository as the public source. R6.3 standardizes the Kit archive, R6.4 makes it self-contained, R6.5 owns the three-command local workflow, and R6.6–R6.7 close the exact artifact and runtime gates.
+R6.2 originally deferred the source archive. R6.8 supersedes that temporary wheel-only decision for PyPI, adds the exact sdist contract, and keeps the GitHub repository as the public source tree. R6.3–R6.7 continue to own the Kit archive and validated runtime gates.
+
+GitHub Actions runs the deterministic host gate on Python 3.10, 3.11, and 3.12 plus one Python 3.12 `room`/FLAC lane. The publication workflow builds and audits all three artifacts, transfers only the sdist and wheel between jobs, and grants `id-token: write` only to jobs whose sole mutable action is the OIDC upload. Separate no-token jobs repeat `twine check` immediately before each upload. Manual dispatch from `main` targets TestPyPI and verifies both distributions in clean environments; publishing a matching non-prerelease GitHub release targets PyPI through a separately protected environment.
 
 Before closeout, run the packaged Kit smoke from an extracted ZIP with offline pip settings and no checkout package path. Verify Extension Manager enable/disable, first-party and bundled origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, and shutdown.
 

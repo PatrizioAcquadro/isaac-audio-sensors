@@ -169,3 +169,11 @@ Recorded exact source-derived wheel and Kit inventories, reconstructed locked bu
 ## 2026-08-21 — update: Finalized repository configuration
 
 Standardized ignore rules, package metadata, explicit Make target selection, and the PEP 639 build toolchain without changing runtime or release contracts.
+
+## 2026-08-21 — update: R6.8 publication readiness
+
+Recorded the audited source distribution, exact three-artifact outbox, Python 3.10–3.12 CI, optional audio lane, and isolated tokenless TestPyPI/PyPI publication workflow while preserving the Kit and runtime contracts.
+
+## 2026-08-21 — lint: R6.8 publication readiness
+
+Verified canonical ownership, index coverage, internal links, immutable raw content, current install and release commands, real sdist inventory, workflow syntax and action pins, host gates, Ruff, version synchronization, and Markdown whitespace.

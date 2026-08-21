@@ -16,7 +16,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
 - Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, explicit entity/reference binding, fixed-shape tensor observations, partial reset, and fail-closed device validation.
-- Universal Python wheel and a self-contained Kit Community Registry archive with audited room/FLAC dependencies.
+- Python source and universal wheel distributions plus a self-contained Kit Community Registry archive with audited room/FLAC dependencies.
 - Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
 - R5.1 core root limited to eleven fundamental models, simulator-independent config, quaternion-authoritative array pose, one propagation protocol, and generator-authoritative schemas.
 - R5.2 single-path backend resolution and declaration-derived inventory, separated effects parsing/validation, and modular room-acoustics orchestration with unchanged valid-input numerical results.
@@ -33,6 +33,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.5 three-command local workflow, deterministic host check, clean-source release preflight, flat two-artifact outbox, and removal of redundant release orchestration.
 - R6.6 one exact two-artifact audit derived from source and locked wheels, including isolated offline wheel installation and packaged dependency provenance.
 - R6.7 complete host, RTX 4090, packaged Kit, artifact, and downstream-consumer closeout without publication.
+- R6.8 exact source distribution, Python 3.10–3.12 CI, and tokenless TestPyPI/PyPI publication workflow with isolated OIDC permissions.
 
 ## Documentation State
 
@@ -42,7 +43,7 @@ The root `docs/` directory is not part of the maintained repository boundary; th
 
 Essential contribution and security guidance now lives directly in the root README. Separate citation, conduct, contribution, and security policy files are no longer maintained; paper citation metadata remains deferred until a paper exists.
 
-The GitHub repository is the public source distribution. Python releases contain one universal wheel; no sdist is currently produced.
+The GitHub repository is the public source tree. Python releases contain one audited source distribution and one universal wheel built from it.
 
 The Kit extension keeps a narrow standalone README and extension-specific changelog because an installed archive cannot depend on repository-relative documentation.
 
@@ -84,6 +85,8 @@ The R6.5 deterministic gate passes 412 unit/contract tests, 230 integration test
 
 The R6.6–R6.7 gate passes 412 unit/contract tests, 230 integration tests with two expected host SoundFile skips, 37 release tests, and 88 Isaac tests on the RTX 4090. Live Isaac Sim passes three frames each for geometry, TDOA, and room acoustics. Live Isaac Lab passes parity, partial reset, and 50 steps over 4096 environments at 1.934 ms/step mean against the 20 ms budget. The Isaac Lab interpreter passes room and FLAC execution with the locked versions. The isolated final ZIP passes Extension Manager enable/disable, exact package and dependency origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, and shutdown. The same 34 SquadBot consumer tests pass without consumer changes. `dist/` contains only the exact synchronized wheel and Kit ZIP.
 
+The R6.8 publication-readiness host gate passes 412 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, and 41 release tests. A real regenerated sdist contains only the root package metadata, maintained `src/` package, and generated `egg-info`; its safe paths, inventory, metadata, licenses, entry point, and README description pass the exact audit. The final clean-source three-artifact, GPU, Kit, and downstream gates remain required before the TestPyPI rehearsal.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -94,7 +97,7 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 
 - `make clean` — remove only regenerable local build, validation, cache, and Python metadata files.
 - `make check` — run the complete deterministic host gate.
-- `make release WHEELHOUSE=<path>` — rebuild and audit the wheel and Kit ZIP from one clean commit.
+- `make release WHEELHOUSE=<path>` — rebuild and audit the sdist, wheel, and Kit ZIP from one clean commit.
 
 Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain available for subsystem work.
 
@@ -108,4 +111,4 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-R6 is complete. R7 is next: paper readiness, research framing, and validation planning without changing the closed R6 release artifacts.
+Complete the R6.8 clean-source and runtime gates, then configure maintainer accounts, protected GitHub environments, trusted publishers, TestPyPI rehearsal, final changelog freeze, GitHub/PyPI release, and Community Registry verification. R7 follows after publication closeout.
