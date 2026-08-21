@@ -10,6 +10,7 @@ from typing import Any
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
 )
+from isaac_audio_sensors.recording._atomic import write_json_atomic
 from isaac_audio_sensors.recording.constants import (
     DATASET_MANIFEST_SCHEMA_VERSION,
     DATASET_MANIFEST_UNITS,
@@ -39,22 +40,20 @@ def write_dataset_manifest(
     manifest: AudioDatasetManifest,
     path: str | Path,
 ) -> Path:
-    """Write one deterministic pretty JSON dataset manifest."""
+    """Atomically write one canonical dataset manifest."""
 
     output_path = Path(path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(manifest_to_dict(manifest), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_atomic(output_path, manifest_to_dict(manifest))
     return output_path
 
 
 def manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
-    """Rebuild an ``AudioDatasetManifest`` from a JSON dictionary."""
+    """Parse one exact canonical manifest-v1 projection."""
 
+    if not isinstance(payload, dict):
+        raise TypeError("manifest root must be an object")
     calibration_payload = payload.get("calibration_profile")
-    return AudioDatasetManifest(
+    manifest = AudioDatasetManifest(
         dataset_id=str(payload["dataset_id"]),
         schema_version=str(
             payload.get("schema_version", DATASET_MANIFEST_SCHEMA_VERSION)
@@ -94,6 +93,23 @@ def manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
         ),
         completion_state=str(payload["completion_state"]),
     )
+    try:
+        source = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+        canonical = json.dumps(
+            manifest_to_dict(manifest),
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"manifest root contains invalid JSON values: {exc}") from exc
+    if source != canonical:
+        raise ValueError(
+            "manifest root is not an exact canonical manifest-v1 projection"
+        )
+    return manifest
 
 
 def read_dataset_manifest(path: str | Path) -> AudioDatasetManifest:

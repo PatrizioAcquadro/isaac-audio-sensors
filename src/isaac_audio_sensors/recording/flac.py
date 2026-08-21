@@ -13,13 +13,13 @@ from typing import Any
 
 from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
-from isaac_audio_sensors.recording.atomic import write_json_atomic
-from isaac_audio_sensors.recording.layout import (
-    build_shard_completion,
+from isaac_audio_sensors.recording._atomic import write_json_atomic
+from isaac_audio_sensors.recording._records import (
     canonical_configuration_bytes,
     configuration_sha256,
-    validate_session_layout,
 )
+from isaac_audio_sensors.recording._shards import build_shard_completion
+from isaac_audio_sensors.recording.loader import SessionDataset
 from isaac_audio_sensors.recording.manifest import AssetRecord, ShardRecord
 from isaac_audio_sensors.recording.serialization import manifest_to_dict
 
@@ -65,8 +65,10 @@ def export_session_flac(
     if dtype not in _FLAC_DTYPES:
         raise ValueError("FLAC export dtype must be 'int16' or 'int24'")
 
-    layout = validate_session_layout(source, allow_incomplete=False)
-    manifest = layout.manifest
+    dataset = SessionDataset.open(source)
+    for _ in dataset.iter_records():
+        pass
+    manifest = dataset.manifest
     if manifest.completion_state != "complete":
         raise ValueError("FLAC export requires a complete source session")
     if manifest.dtype != "float32":
@@ -100,11 +102,7 @@ def export_session_flac(
         target_shards: list[ShardRecord] = []
         for source_shard in manifest.shards:
             source_dir = source / "shards" / source_shard.shard_id
-            source_marker = next(
-                item.marker
-                for item in layout.shards
-                if item.marker["shard_id"] == source_shard.shard_id
-            )
+            source_marker = dataset._verified_markers[source_shard.shard_id]
             if source_marker["audio"] != {
                 **source_marker["audio"],
                 "path": "audio.wav",
@@ -151,9 +149,7 @@ def export_session_flac(
                     assets=(
                         AssetRecord(
                             asset_id=f"{source_shard.shard_id}.frames",
-                            path=(
-                                f"shards/{source_shard.shard_id}/frames.jsonl"
-                            ),
+                            path=(f"shards/{source_shard.shard_id}/frames.jsonl"),
                             kind="frame_trace_jsonl",
                             sha256=str(files["frames.jsonl"]["sha256"]),
                         ),
@@ -187,7 +183,9 @@ def export_session_flac(
             configuration_sha256=configuration_sha256(config_bytes),
         )
         write_json_atomic(staged_root / "manifest.json", manifest_to_dict(exported))
-        validate_session_layout(staged_root, allow_incomplete=False)
+        exported_dataset = SessionDataset.open(staged_root)
+        for _ in exported_dataset.iter_records():
+            pass
         os.replace(staged_root, destination)
         return destination
     finally:

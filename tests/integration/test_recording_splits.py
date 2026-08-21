@@ -17,9 +17,7 @@ from isaac_audio_sensors.recording import (
     build_split_plan,
     read_split_plan,
     validate_dataset,
-    verify_no_leakage,
-    verify_plan_against_manifest,
-    write_json_atomic,
+    write_dataset_manifest,
     write_split_plan,
 )
 from isaac_audio_sensors.recording.manifest import (
@@ -28,7 +26,6 @@ from isaac_audio_sensors.recording.manifest import (
     ShardRecord,
 )
 from isaac_audio_sensors.recording.serialization import (
-    manifest_to_dict,
     read_dataset_manifest,
 )
 
@@ -124,8 +121,6 @@ def test_groups_are_a_disjoint_cover_and_weighted_ratios_obey_greedy_bound():
         manifest, kind="train_validation_test", ratios=TVT_RATIOS, seed=19
     )
 
-    assert verify_no_leakage(plan)
-    assert verify_plan_against_manifest(manifest, plan)
     assigned = [group for values in plan.assignments.values() for group in values]
     assert len(assigned) == len(set(assigned)) == len(plan.group_weights)
     total_weight = sum(plan.group_weights.values())
@@ -292,7 +287,7 @@ def test_apply_reference_copy_revalidates_and_only_changes_manifest(tmp_path):
         seed=0,
     )
     updated = apply_split_plan(manifest, plan)
-    write_json_atomic(root / "manifest.json", manifest_to_dict(updated))
+    write_dataset_manifest(updated, root / "manifest.json")
 
     report = validate_dataset(root)
     after = _tree_bytes(root)

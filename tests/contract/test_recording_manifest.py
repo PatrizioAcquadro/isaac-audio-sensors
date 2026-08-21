@@ -132,21 +132,33 @@ def test_manifest_pose_normalizes_valid_non_unit_quaternion():
     assert pose.orientation_xyzw == (0.0, 0.0, 0.0, 1.0)
 
 
-def test_manifest_reader_normalizes_non_unit_quaternion_before_serialization():
+def test_manifest_reader_rejects_noncanonical_normalizable_values():
     payload = manifest_to_dict(
         read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v1.json")
     )
     payload["episodes"][0]["array_poses"][0]["orientation_xyzw"] = [0, 0, 0, 3]
 
-    manifest = manifest_from_dict(payload)
-    normalized = manifest_to_dict(manifest)
+    with pytest.raises(ValueError, match="exact canonical"):
+        manifest_from_dict(payload)
 
-    assert normalized["episodes"][0]["array_poses"][0]["orientation_xyzw"] == [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-    ]
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda payload: payload.__setitem__("sample_rate_hz", "48000"),
+        lambda payload: payload.__setitem__("creation_timestamp_ms", True),
+        lambda payload: payload.__setitem__("unknown", None),
+        lambda payload: payload.pop("schema_version"),
+    ],
+)
+def test_manifest_parser_rejects_coercions_extra_and_missing_fields(mutate):
+    payload = manifest_to_dict(
+        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v1.json")
+    )
+    mutate(payload)
+
+    with pytest.raises((TypeError, ValueError), match="canonical|integer"):
+        manifest_from_dict(payload)
 
 
 def _invalid_manifest(case: str) -> dict:

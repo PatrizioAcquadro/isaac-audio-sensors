@@ -22,6 +22,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Literal
 
+from isaac_audio_sensors.recording._atomic import write_bytes_atomic
 from isaac_audio_sensors.recording.manifest import (
     AudioDatasetManifest,
     SplitRecord,
@@ -88,7 +89,7 @@ class SplitPlan:
         object.__setattr__(self, "ratios", ratios)
         object.__setattr__(self, "assignments", assignments)
         object.__setattr__(self, "group_weights", weights)
-        verify_no_leakage(self)
+        _verify_no_leakage(self)
         expected = _plan_digest(self)
         if self.plan_sha256 and self.plan_sha256 != expected:
             raise DatasetSplitError(
@@ -145,13 +146,9 @@ class SplitPlan:
                 f"missing={sorted(missing)}, extra={sorted(extra)}."
             )
         supplied_hash = payload["plan_sha256"]
-        hash_payload = {
-            key: payload[key] for key in required if key != "plan_sha256"
-        }
+        hash_payload = {key: payload[key] for key in required if key != "plan_sha256"}
         try:
-            canonical = json.dumps(
-                hash_payload, sort_keys=True, separators=(",", ":")
-            )
+            canonical = json.dumps(hash_payload, sort_keys=True, separators=(",", ":"))
         except (TypeError, ValueError) as exc:
             raise DatasetSplitError(
                 f"split plan root: fields are not canonical JSON values: {exc}."
@@ -174,9 +171,7 @@ class SplitPlan:
                 ratios=payload["ratios"],
                 assignments=payload["assignments"],
                 group_weights=payload["group_weights"],
-                manifest_configuration_sha256=payload[
-                    "manifest_configuration_sha256"
-                ],
+                manifest_configuration_sha256=payload["manifest_configuration_sha256"],
                 plan_sha256=payload["plan_sha256"],
                 schema=payload["schema"],
             )
@@ -263,11 +258,11 @@ def build_split_plan(
         group_weights=weights,
         manifest_configuration_sha256=manifest.configuration_sha256,
     )
-    verify_plan_against_manifest(manifest, plan)
+    _verify_plan_against_manifest(manifest, plan)
     return plan
 
 
-def verify_no_leakage(plan: SplitPlan) -> bool:
+def _verify_no_leakage(plan: SplitPlan) -> None:
     """Assert that plan assignments are a disjoint cover of all known groups."""
 
     seen: set[str] = set()
@@ -285,12 +280,11 @@ def verify_no_leakage(plan: SplitPlan) -> bool:
             "split plan assignments: groups must form a disjoint cover; "
             f"missing={sorted(expected - seen)}, unknown={sorted(seen - expected)}."
         )
-    return True
 
 
-def verify_plan_against_manifest(
+def _verify_plan_against_manifest(
     manifest: AudioDatasetManifest, plan: SplitPlan
-) -> bool:
+) -> None:
     """Re-derive grouping and weights and assert a plan matches the manifest."""
 
     if plan.dataset_id != manifest.dataset_id:
@@ -310,8 +304,7 @@ def verify_plan_against_manifest(
             "split plan field group_weights: does not match manifest.json episode "
             "frame counts."
         )
-    verify_no_leakage(plan)
-    return True
+    _verify_no_leakage(plan)
 
 
 def apply_split_plan(
@@ -324,7 +317,7 @@ def apply_split_plan(
             "fit_holdout is a plan-level artifact and cannot be embedded as "
             "manifest SplitRecords; only train_validation_test plans can be applied."
         )
-    verify_plan_against_manifest(manifest, plan)
+    _verify_plan_against_manifest(manifest, plan)
     splits = tuple(
         SplitRecord(name=name, group_ids=tuple(plan.assignments[name]))
         for name in _PARTITIONS["train_validation_test"]
@@ -339,18 +332,11 @@ def apply_split_plan(
         ) from exc
 
 
-def serialize_split_plan(plan: SplitPlan) -> str:
-    """Serialize a split plan as canonical compact JSON."""
-
-    return plan.serialize()
-
-
 def write_split_plan(plan: SplitPlan, path: str | Path) -> Path:
-    """Write canonical split-plan JSON with one trailing newline."""
+    """Atomically write canonical split-plan JSON."""
 
     output = Path(path)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(plan.serialize() + "\n", encoding="utf-8")
+    write_bytes_atomic(output, (plan.serialize() + "\n").encode())
     return output
 
 
@@ -407,9 +393,7 @@ def _validated_manifest_input(
         ) from exc
 
 
-def _validated_ratios(
-    kind: SplitKind, ratios: Mapping[str, float]
-) -> dict[str, float]:
+def _validated_ratios(kind: SplitKind, ratios: Mapping[str, float]) -> dict[str, float]:
     if not isinstance(ratios, Mapping) or not ratios:
         raise DatasetSplitError(
             "split request field ratios: must be a non-empty mapping."
@@ -572,9 +556,7 @@ def _largest_remainder_targets(
     return targets
 
 
-def _group_score(
-    dataset_id: str, seed: int, grouping_key: str, group_id: str
-) -> int:
+def _group_score(dataset_id: str, seed: int, grouping_key: str, group_id: str) -> int:
     payload = f"{dataset_id}:{seed}:{grouping_key}:{group_id}".encode()
     return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big")
 
@@ -585,15 +567,10 @@ def _plan_digest(plan: SplitPlan) -> str:
 
 
 __all__ = [
-    "SPLIT_PLAN_SCHEMA",
     "DatasetSplitError",
-    "SplitKind",
     "SplitPlan",
     "apply_split_plan",
     "build_split_plan",
     "read_split_plan",
-    "serialize_split_plan",
-    "verify_no_leakage",
-    "verify_plan_against_manifest",
     "write_split_plan",
 ]

@@ -8,7 +8,12 @@ from pathlib import Path
 import pytest
 
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
-from isaac_audio_sensors.recording import export_session_flac
+from isaac_audio_sensors.recording import (
+    SessionDataset,
+    export_session_flac,
+    replay_session,
+    validate_dataset,
+)
 
 REFERENCE_SESSION = Path("tests/fixtures/recording/session")
 
@@ -41,3 +46,26 @@ def test_flac_export_rejects_unsupported_dtype(monkeypatch, tmp_path, dtype):
             dataset_id=f"invalid_{dtype}",
             dtype=dtype,
         )
+
+
+def test_flac_export_load_and_replay_round_trip(tmp_path):
+    pytest.importorskip("soundfile")
+    destination = export_session_flac(
+        REFERENCE_SESSION,
+        tmp_path / "flac",
+        dataset_id="flac_round_trip",
+        creation_timestamp_ms=1,
+    )
+
+    report = validate_dataset(destination)
+    dataset = SessionDataset.open(destination)
+    frames = list(dataset.iter_records())
+    replayed = [
+        event
+        for event in replay_session(destination, with_audio=True)
+        if event.kind == "frame"
+    ]
+
+    assert report.status == "passed"
+    assert len(frames) == len(replayed) == 7
+    assert all(event.audio is not None for event in replayed)

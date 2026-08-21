@@ -21,28 +21,26 @@ import numpy as np
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.traces import frame_from_trace_dict
 from isaac_audio_sensors.core.types import AudioSensorFrame
-from isaac_audio_sensors.recording import layout as _layout
-from isaac_audio_sensors.recording.constants import DATASET_MANIFEST_SCHEMA_VERSION
-from isaac_audio_sensors.recording.layout import (
+from isaac_audio_sensors.recording import _shards
+from isaac_audio_sensors.recording._records import (
     DATASET_FRAME_RECORD_VERSION,
-    SHARD_COMPLETION_VERSION,
+    DatasetFrameRecord,
     DatasetLayoutError,
     canonical_configuration_bytes,
-    classify_session_lifecycle,
     configuration_sha256,
     parse_dataset_frame_record,
-    serialize_shard_completion,
+)
+from isaac_audio_sensors.recording._shards import (
+    classify_session_lifecycle,
     verify_shard_completion,
 )
+from isaac_audio_sensors.recording.constants import DATASET_MANIFEST_SCHEMA_VERSION
 from isaac_audio_sensors.recording.manifest import (
     AudioDatasetManifest,
     EpisodeRecord,
     ShardRecord,
 )
-from isaac_audio_sensors.recording.serialization import (
-    manifest_to_dict,
-    read_dataset_manifest,
-)
+from isaac_audio_sensors.recording.serialization import read_dataset_manifest
 
 _ROOT_ENTRIES = frozenset(
     {"manifest.json", "config", "calibration", "shards", "_staging"}
@@ -85,7 +83,7 @@ class SessionDataset:
         self._shards = shards
         self._shards_by_id = {shard.shard_id: shard for shard in shards}
         self._verified_markers: dict[str, dict[str, Any]] = {}
-        self._max_overlap_samples = _layout._find_overlap(configuration)
+        self._max_overlap_samples = _shards._find_overlap(configuration)
 
     @classmethod
     def open(
@@ -110,7 +108,7 @@ class SessionDataset:
             raise DatasetLayoutError(
                 f"session {root}: session root is not a directory."
             )
-        _layout._reject_symlinks(root)
+        _shards._reject_symlinks(root)
         unknown = sorted(
             path.name for path in root.iterdir() if path.name not in _ROOT_ENTRIES
         )
@@ -129,26 +127,31 @@ class SessionDataset:
         if version != DATASET_MANIFEST_SCHEMA_VERSION:
             raise DatasetLayoutError(
                 f"session {root} file manifest.json: schema_version {version!r}; "
-                f"expected {DATASET_MANIFEST_SCHEMA_VERSION!r}."
+                f"expected {DATASET_MANIFEST_SCHEMA_VERSION!r}.",
+                code="unknown_version",
+                location=f"session {root} file manifest.json",
             )
         try:
             manifest = read_dataset_manifest(manifest_path)
         except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
             raise DatasetLayoutError(
-                f"session {root} file manifest.json: invalid manifest: {exc}"
+                f"session {root} file manifest.json: invalid manifest: {exc}",
+                code="invalid_manifest",
+                location=f"session {root} file manifest.json",
             ) from exc
-        if manifest_to_dict(manifest) != payload:
-            raise DatasetLayoutError(
-                f"session {root} file manifest.json: values are not an exact "
-                "manifest-v1 projection (silent coercion or omitted fields)."
-            )
 
         lifecycle = classify_session_lifecycle(root)
         if lifecycle == "in-progress-or-aborted":
-            raise DatasetLayoutError(f"session {root}: in-progress or aborted session.")
+            raise DatasetLayoutError(
+                f"session {root}: in-progress or aborted session.",
+                code="lifecycle_violation",
+                location=f"session {root}",
+            )
         if lifecycle == "finalized-incomplete" and not allow_incomplete:
             raise DatasetLayoutError(
-                f"session {root}: finalized-incomplete session refused."
+                f"session {root}: finalized-incomplete session refused.",
+                code="lifecycle_violation",
+                location=f"session {root}",
             )
         if manifest.runtime_profile != "waveform_fidelity":
             raise DatasetLayoutError(
@@ -382,7 +385,9 @@ class SessionDataset:
                         if record.dataset_frame_index != expected_index:
                             raise DatasetLayoutError(
                                 f"{location}: dataset_frame_index "
-                                f"{record.dataset_frame_index} != {expected_index}."
+                                f"{record.dataset_frame_index} != {expected_index}.",
+                                code="index_gap",
+                                location=location,
                             )
                         while (
                             episode_ordinal < len(episodes)
@@ -418,7 +423,12 @@ class SessionDataset:
                             raise DatasetLayoutError(
                                 f"session {self.session_root} episode "
                                 f"{episode.episode_id}: non-monotonic timestamp at "
-                                f"frame {expected_index} ({location})."
+                                f"frame {expected_index} ({location}).",
+                                code="non_monotonic_timestamp",
+                                location=(
+                                    f"session {self.session_root} episode "
+                                    f"{episode.episode_id}"
+                                ),
                             )
                         if timestamp != episode.timestamps_ms[offset]:
                             raise DatasetLayoutError(
@@ -480,27 +490,13 @@ class SessionDataset:
         if cached is not None:
             return cached
         shard_dir = self.session_root / "shards" / shard.shard_id
-        marker = _read_marker(shard_dir)
-        try:
-            if self.verify_checksums:
-                verified = verify_shard_completion(
-                    shard_dir,
-                    manifest=self.manifest,
-                    max_overlap_samples=self._max_overlap_samples,
-                    retain_records=False,
-                )
-                marker = verified.marker
-            else:
-                _verify_without_sha256(
-                    shard_dir,
-                    marker,
-                    self.manifest,
-                    self._max_overlap_samples,
-                )
-        except DatasetLayoutError as exc:
-            if "record_version" in str(exc):
-                _raise_located_record_version(shard_dir)
-            raise
+        verified = verify_shard_completion(
+            shard_dir,
+            manifest=self.manifest,
+            max_overlap_samples=self._max_overlap_samples,
+            verify_checksums=self.verify_checksums,
+        )
+        marker = verified.marker
         self._verified_markers[shard.shard_id] = marker
         return marker
 
@@ -558,9 +554,15 @@ def _read_json_object(path: Path, location: str) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_bytes())
     except FileNotFoundError as exc:
-        raise DatasetLayoutError(f"{location}: missing file.") from exc
+        raise DatasetLayoutError(
+            f"{location}: missing file.", code="missing_asset", location=location
+        ) from exc
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise DatasetLayoutError(f"{location}: invalid JSON: {exc}") from exc
+        raise DatasetLayoutError(
+            f"{location}: invalid JSON: {exc}",
+            code="invalid_json",
+            location=location,
+        ) from exc
     if not isinstance(payload, dict):
         raise DatasetLayoutError(f"{location}: must be a JSON object.")
     return payload
@@ -628,130 +630,10 @@ def _check_calibration_reference(root: Path, manifest: AudioDatasetManifest) -> 
         raise DatasetLayoutError(
             f"session {root} file {reference.path}: missing calibration profile."
         )
-    if _layout._sha256_file(path) != reference.sha256:
+    if _shards._sha256_file(path) != reference.sha256:
         raise DatasetLayoutError(
             f"session {root} file {reference.path}: calibration sha256 mismatch."
         )
-
-
-def _read_marker(shard_dir: Path) -> dict[str, Any]:
-    location = f"shard {shard_dir.name} file shard.complete.json"
-    path = shard_dir / "shard.complete.json"
-    payload = _read_json_object(path, location)
-    version = payload.get("marker_version", "<missing>")
-    if version != SHARD_COMPLETION_VERSION:
-        raise DatasetLayoutError(
-            f"{location}: marker_version {version!r}; "
-            f"expected {SHARD_COMPLETION_VERSION!r}."
-        )
-    _layout._validate_marker_payload(payload, directory=shard_dir)
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise DatasetLayoutError(f"{location}: cannot read: {exc}") from exc
-    if text != serialize_shard_completion(payload):
-        raise DatasetLayoutError(f"{location}: marker is not canonical JSON.")
-    if payload["shard_id"] != shard_dir.name:
-        raise DatasetLayoutError(
-            f"{location}: marker shard_id {payload['shard_id']!r} does not equal "
-            "containing directory."
-        )
-    return payload
-
-
-def _verify_without_sha256(
-    shard_dir: Path,
-    marker: dict[str, Any],
-    manifest: AudioDatasetManifest,
-    max_overlap_samples: int | None,
-) -> None:
-    shard_id = shard_dir.name
-    expected_entries = {"frames.jsonl", marker["audio"]["path"], "shard.complete.json"}
-    try:
-        actual_entries = {path.name for path in shard_dir.iterdir()}
-    except OSError as exc:
-        raise DatasetLayoutError(
-            f"shard {shard_id}: cannot inspect directory: {exc}"
-        ) from exc
-    if actual_entries != expected_entries:
-        raise DatasetLayoutError(
-            f"shard {shard_id}: on-disk entries must be exactly "
-            f"{sorted(expected_entries)}; got {sorted(actual_entries)}."
-        )
-    for entry in marker["files"]:
-        path = shard_dir / entry["path"]
-        location = f"shard {shard_id} file {entry['path']}"
-        if path.is_symlink():
-            raise DatasetLayoutError(f"{location}: symlink forbidden.")
-        if not path.is_file():
-            raise DatasetLayoutError(f"{location}: missing file.")
-        actual_size = path.stat().st_size
-        if actual_size != entry["bytes"]:
-            raise DatasetLayoutError(
-                f"{location}: bytes mismatch ({actual_size} != {entry['bytes']})."
-            )
-    audio = marker["audio"]
-    header = _layout._read_audio_header(shard_dir / audio["path"], streaming=True)
-    for field in (
-        "container",
-        "subtype",
-        "channels",
-        "sample_rate_hz",
-        "dtype",
-        "sample_count",
-    ):
-        if header[field] != audio[field]:
-            raise DatasetLayoutError(
-                f"shard {shard_id} file {audio['path']}: decoded audio header "
-                f"{field}={header[field]!r} disagrees with marker {audio[field]!r}."
-            )
-    resets = tuple(
-        reset.frame_index
-        for episode in manifest.episodes
-        if episode.episode_id in marker["episode_ids"]
-        for reset in episode.reset_markers
-    )
-    scan = _layout._scan_record_file(
-        shard_dir / "frames.jsonl",
-        sample_count=audio["sample_count"],
-        session_root=shard_dir.parent.parent,
-        reset_frame_indices=resets,
-        max_overlap_samples=max_overlap_samples,
-        expected_start_frame=marker["start_frame"],
-        retain_records=False,
-    )
-    if scan.line_count != marker["frame_count"]:
-        raise DatasetLayoutError(
-            f"shard {shard_id} file frames.jsonl: line count {scan.line_count} "
-            f"does not equal frame_count {marker['frame_count']}."
-        )
-    if scan.index_error is not None:
-        raise scan.index_error
-    if scan.producer_error is not None:
-        raise scan.producer_error
-    if scan.episode_ids != tuple(marker["episode_ids"]):
-        raise DatasetLayoutError(
-            f"shard {shard_id} file frames.jsonl: episode_ids do not exactly "
-            "match marker first-appearance order."
-        )
-    expected_tail = audio["sample_count"] - scan.max_audio_end
-    if marker["tail_samples"] != expected_tail:
-        raise DatasetLayoutError(
-            f"shard {shard_id} file shard.complete.json: tail_samples "
-            f"{marker['tail_samples']} != {expected_tail}."
-        )
-    _layout._verify_manifest_marker_agreement(manifest, marker, shard_dir)
-    if audio["channels"] != len(manifest.channel_order):
-        raise DatasetLayoutError(
-            f"shard {shard_id} file {audio['path']}: channel count disagrees "
-            "with manifest channel_order."
-        )
-    for field in ("sample_rate_hz", "dtype"):
-        if audio[field] != getattr(manifest, field):
-            raise DatasetLayoutError(
-                f"shard {shard_id} file {audio['path']}: {field} "
-                "disagrees with manifest."
-            )
 
 
 def _parse_record(
@@ -759,7 +641,7 @@ def _parse_record(
     location: str,
     marker: Mapping[str, Any],
     session_root: Path,
-) -> _layout.DatasetFrameRecord:
+) -> DatasetFrameRecord:
     try:
         payload = json.loads(line)
     except (UnicodeDecodeError, json.JSONDecodeError):
@@ -769,7 +651,9 @@ def _parse_record(
         if version != DATASET_FRAME_RECORD_VERSION:
             raise DatasetLayoutError(
                 f"{location}: record_version {version!r}; "
-                f"expected {DATASET_FRAME_RECORD_VERSION!r}."
+                f"expected {DATASET_FRAME_RECORD_VERSION!r}.",
+                code="unknown_version",
+                location=location,
             )
     return parse_dataset_frame_record(
         line,
@@ -777,25 +661,3 @@ def _parse_record(
         sample_count=marker["audio"]["sample_count"],
         session_root=session_root,
     )
-
-
-def _raise_located_record_version(shard_dir: Path) -> None:
-    path = shard_dir / "frames.jsonl"
-    try:
-        with path.open("rb") as stream:
-            for line_number, line in enumerate(stream, start=1):
-                try:
-                    payload = json.loads(line)
-                except (UnicodeDecodeError, json.JSONDecodeError):
-                    continue
-                if not isinstance(payload, dict):
-                    continue
-                version = payload.get("record_version", "<missing>")
-                if version != DATASET_FRAME_RECORD_VERSION:
-                    raise DatasetLayoutError(
-                        f"shard {shard_dir.name} file frames.jsonl line "
-                        f"{line_number}: record_version {version!r}; expected "
-                        f"{DATASET_FRAME_RECORD_VERSION!r}."
-                    )
-    except OSError:
-        return

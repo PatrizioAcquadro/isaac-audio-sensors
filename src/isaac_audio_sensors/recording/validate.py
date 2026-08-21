@@ -15,19 +15,21 @@ from isaac_audio_sensors.core.io.traces import (
     frame_from_trace_dict,
 )
 from isaac_audio_sensors.recording import loader as _loader
-from isaac_audio_sensors.recording.layout import (
+from isaac_audio_sensors.recording._records import (
     DatasetLayoutError,
     LayoutWarning,
+)
+from isaac_audio_sensors.recording._shards import (
     VerifiedShard,
     verify_shard_completion,
 )
-from isaac_audio_sensors.recording.loader import LoadedFrame, SessionDataset
-from isaac_audio_sensors.recording.statistics import Statistics, StatisticsBuilder
-from isaac_audio_sensors.recording.time_gaps import (
+from isaac_audio_sensors.recording._time_gaps import (
     TimeGapCursor,
     advance_time_gap_cursor,
     plan_time_gap,
 )
+from isaac_audio_sensors.recording.loader import LoadedFrame, SessionDataset
+from isaac_audio_sensors.recording.statistics import Statistics, StatisticsBuilder
 
 FindingSeverity = Literal["error", "warning"]
 ValidationStatus = Literal["passed", "passed_with_warnings", "failed"]
@@ -199,14 +201,11 @@ def validate_dataset(
                 root / "shards" / shard.shard_id,
                 manifest=dataset.manifest,
                 max_overlap_samples=dataset._max_overlap_samples,
-                retain_records=False,
             )
             marker = verified.marker
             dataset._verified_markers[shard.shard_id] = marker
         except DatasetLayoutError as exc:
-            findings.add(
-                _error_finding(exc, time_gap_mode=preserve_time_gaps)
-            )
+            findings.add(_error_finding(exc, time_gap_mode=preserve_time_gaps))
             builder.add_skipped_shard()
             continue
         verified_markers[shard.shard_id] = marker
@@ -231,9 +230,7 @@ def validate_dataset(
             for item in dataset.iter_records():
                 builder.add_frame(item)
         except DatasetLayoutError as exc:
-            findings.add(
-                _error_finding(exc, time_gap_mode=preserve_time_gaps)
-            )
+            findings.add(_error_finding(exc, time_gap_mode=preserve_time_gaps))
     else:
         # Bad shards are isolated; records from independently verified shards
         # remain useful and are streamed without attempting cross-shard claims.
@@ -404,9 +401,7 @@ def _time_gap_findings(
     next_audio_before_gap: dict[str, int] = {}
     findings: list[Finding] = []
     for item in dataset.iter_records():
-        location = (
-            f"shard {item.shard_id} file frames.jsonl line {item.line_number}"
-        )
+        location = f"shard {item.shard_id} file frames.jsonl line {item.line_number}"
         cursor = cursors.get(item.episode_id, TimeGapCursor())
         actual_start = shard_bases[item.shard_id] + item.audio_start_sample
         before_gap = next_audio_before_gap.get(item.episode_id, actual_start)
@@ -454,11 +449,7 @@ def _time_gap_findings(
                 )
             )
         recording = frame.diagnostics.get("recording")
-        attached = (
-            recording.get("time_gap")
-            if isinstance(recording, dict)
-            else None
-        )
+        attached = recording.get("time_gap") if isinstance(recording, dict) else None
         if attached != plan.diagnostic():
             findings.append(
                 Finding(
@@ -540,96 +531,16 @@ def _error_finding(
     *,
     time_gap_mode: bool = False,
 ) -> Finding:
-    text = str(error)
+    del time_gap_mode
     return Finding(
-        code=_finding_code(text, time_gap_mode=time_gap_mode),
+        code=error.code,
         severity="error",
-        location=text,
-        detail=text.split(": ", 1)[-1],
+        location=error.location,
+        detail=error.detail,
     )
 
 
-def _finding_code(text: str, *, time_gap_mode: bool = False) -> str:
-    lowered = text.lower()
-    if time_gap_mode and (
-        "non-monotonic timestamp" in lowered
-        or "non-negative and monotonic" in lowered
-    ):
-        return "non_monotonic_window_placement"
-    rules = (
-        (("schema_version", "marker_version", "record_version"), "unknown_version"),
-        (("manifest/marker",), "manifest_marker_disagreement"),
-        (("configuration_sha256 mismatch",), "configuration_mismatch"),
-        (("calibration sha256 mismatch",), "calibration_mismatch"),
-        (("sha256 mismatch",), "checksum_mismatch"),
-        (("missing calibration profile",), "missing_asset"),
-        (
-            (
-                "missing file",
-                "missing completion marker",
-                "on-disk entries must be exactly",
-                "missing shard directories",
-            ),
-            "missing_asset",
-        ),
-        (("final line is not newline-terminated",), "truncated_record_file"),
-        (("bytes mismatch",), "file_size_mismatch"),
-        (("non-monotonic timestamp",), "non_monotonic_timestamp"),
-        (("non-negative and monotonic",), "non_monotonic_timestamp"),
-        (("dataset_frame_index",), "index_gap"),
-        (("audio_end_sample", "audio sample range is inverted"), "range_out_of_bounds"),
-        (("audio_start_sample is non-monotonic",), "non_monotonic_audio_range"),
-        (("audio_end_sample is non-monotonic",), "non_monotonic_audio_range"),
-        (("overlaps across a reset",), "reset_overlap"),
-        (("audio overlap",), "overlap_out_of_bounds"),
-        (("line count",), "line_count_mismatch"),
-        (("tail_samples",), "tail_mismatch"),
-        (("decoded audio header",), "audio_header_mismatch"),
-        (("channel count",), "channel_mismatch"),
-        (("sample rate changed", "sample_rate_hz"), "sample_rate_mismatch"),
-        (("dtype",), "dtype_mismatch"),
-        (("duplicate producer frame_id",), "duplicate_frame_id"),
-        (("timestamp mismatch", "timestamps_ms"), "timestamp_mismatch"),
-        (("episode tiling",), "episode_tiling_error"),
-        (
-            (
-                "boundary crossing",
-                "interleaved",
-                "missing record",
-                "extra dataset record",
-            ),
-            "episode_correspondence_error",
-        ),
-        (("breaks tiling", "expected ordinal id"), "shard_tiling_error"),
-        (
-            ("manifest kind", "asset_id", "invalid or duplicate asset"),
-            "asset_metadata_mismatch",
-        ),
-        (("symlink", "symbolic links"), "symlink_forbidden"),
-        (
-            ("unknown root entries", "unlisted shard", "non-directory entries"),
-            "unknown_entry",
-        ),
-        (
-            ("finalized-incomplete", "_staging", "in-progress or aborted"),
-            "lifecycle_violation",
-        ),
-        (("not canonical", "exact manifest-v1 projection"), "non_canonical_data"),
-        (("invalid json",), "invalid_json"),
-        (("invalid manifest",), "invalid_manifest"),
-        (("invalid frame v1", "cannot reconstruct audiosensorframe"), "invalid_frame"),
-        (("record fields", "record must", "blank lines"), "invalid_record"),
-        (("marker",), "invalid_marker"),
-    )
-    for needles, code in rules:
-        if any(needle.lower() in lowered for needle in needles):
-            return code
-    return "layout_violation"
-
-
-def _report(
-    findings: _FindingAccumulator, statistics: Statistics
-) -> ValidationReport:
+def _report(findings: _FindingAccumulator, statistics: Statistics) -> ValidationReport:
     errors = findings.severity_count("error")
     warnings = findings.severity_count("warning")
     status: ValidationStatus
