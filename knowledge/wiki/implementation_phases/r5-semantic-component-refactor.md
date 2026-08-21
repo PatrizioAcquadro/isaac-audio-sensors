@@ -161,11 +161,32 @@ Validation retains only capability cache, backend/device, and calibration state.
 
 Kit no longer combines UI state, USD authoring, recording, sensor, Replicator, and lifecycle implementation in one class. Acoustic models, serialized contracts, Isaac Lab, and downstream adapters are unchanged.
 
+## Subphase R5.7 — CLI
+
+#### Implementation
+
+R5.7 makes `cli.py` a lazy adapter whose leaf handlers own only argument parsing, public-service calls, rendering, and exit codes. Config-driven simulation moves to `core.simulation.simulate_from_config`; help and version paths no longer import concrete backends, recording, schemas, NumPy, or Kit.
+
+The v2 CLI contains `validate-config`, `simulate`, `export-schema`, `capabilities`, `dataset {validate,stats,split}`, and `guided run-headless`. `simulate --out` is the sole deterministic frame-trace export path; the duplicate `export-trace` command is removed without a shim. Dataset split delegates validation and split policy to recording services without a second post-write validation pass, while preserving the manifest overwrite guard.
+
+Focused CLI integration outcomes replace command-specific assertions embedded in recording and headless tests. The complete guided workflow remains owned by `kit.headless`, generator-authoritative schema export remains in `schemas.generate`, and dataset behavior remains owned by `recording`.
+
+#### Key Decisions
+
+- `core.simulation.simulate_from_config` is public from its owning module but is not added to the minimal package or `core` roots.
+- Expected command failures return `1`, `argparse` usage failures return `2`, and successful commands return `0`.
+- Existing frame, trace, schema, capability, dataset, guided-config, and serialized v1 semantics remain unchanged.
+
+#### Problems / Limitations
+
+Duplicate simulation setup, monolithic dispatch, eager command-subsystem imports, redundant split checks, and scattered CLI tests are fixed. R5.7 does not change backend numerics, schema generation, recording internals, Kit workflow stages, Isaac Sim, Isaac Lab, or downstream adapters.
+
 ## Artifacts
 
 - AST dependency contract and fresh-process import-boundary tests.
 - Synchronized `2.0.0` package, Kit, acoustic-pack, documentation, and fixture metadata.
 - Draft 2020-12 schema validity, generated/package parity, deterministic export, and preserved-payload contract tests.
+- Exact v2 command inventory, lazy-import contract, and focused CLI integration outcomes.
 
 ## Files
 
@@ -173,6 +194,7 @@ Kit no longer combines UI state, USD authoring, recording, sensor, Replicator, a
 - `src/isaac_audio_sensors/core/__init__.py`
 - `src/isaac_audio_sensors/core/config.py`
 - `src/isaac_audio_sensors/core/types.py`
+- `src/isaac_audio_sensors/core/simulation.py`
 - `src/isaac_audio_sensors/core/backends/room_acoustics/`
 - `src/isaac_audio_sensors/core/effects/`
 - `src/isaac_audio_sensors/core/plugins/registry.py`
@@ -190,5 +212,7 @@ Kit no longer combines UI state, USD authoring, recording, sensor, Replicator, a
 - `src/isaac_audio_sensors/kit/replicator_service.py`
 - `src/isaac_audio_sensors/kit/sensor_session.py`
 - `src/isaac_audio_sensors/schemas/generate.py`
+- `src/isaac_audio_sensors/cli.py`
 - `tests/contract/test_schemas.py`
 - `tests/contract/test_public_surface.py`
+- `tests/integration/test_cli.py`

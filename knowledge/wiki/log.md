@@ -81,3 +81,11 @@ Recorded the composed Kit services, thin controller/view/entrypoint boundaries, 
 ## 2026-08-21 — lint: R5.6 canonical documentation
 
 Verified canonical ownership, internal links, raw-file preservation, current Kit paths and contracts, host and GPU gates, downstream compatibility, audited builds, Ruff, and Markdown whitespace.
+
+## 2026-08-21 — update: R5.7 CLI
+
+Recorded the lazy leaf-command adapter, core-owned config simulation, frozen v2 command inventory, single trace-export path, consistent exit codes, consolidated command tests, and preserved schema, recording, Kit, and serialized contracts.
+
+## 2026-08-21 — lint: R5.7 canonical documentation
+
+Verified canonical ownership, internal links, raw-file preservation, current CLI commands and services, host and GPU gates, downstream compatibility, audited builds, Ruff, release documentation checks, schema parity, and Markdown whitespace.

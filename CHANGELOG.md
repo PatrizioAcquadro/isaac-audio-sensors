@@ -59,6 +59,14 @@ R5.6 modularizes the Kit UI without changing maintained workflows or config v1.
 - Kept only stateful capability, backend/device, and calibration validation; removed redundant capability revalidation, test-only panel PNG rendering, private parity matrices, and dead helpers.
 - Replaced the controller test monolith with focused service coverage and moved pure Kit instruments, audio-panel, and OmniGraph tests out of the Isaac/GPU lane.
 
+R5.7 reduces the CLI to a lazy adapter over subsystem-owned services.
+
+- Moved config-driven frame simulation to the public `core.simulation.simulate_from_config` service without changing backend selection, effects, runtime profiles, or frame semantics.
+- Replaced monolithic command branching with lazy leaf handlers for parsing, service calls, rendering, and exit codes; help and version paths no longer import concrete backends, recording, schemas, NumPy, or Kit.
+- Removed the duplicate `export-trace` command without a compatibility alias; `simulate --out` is the sole CLI path for deterministic frame-trace export.
+- Removed duplicate dataset split policy and post-write validation from the CLI while retaining manifest overwrite protection and the recording subsystem's canonical planning, application, and validation services.
+- Consolidated focused CLI outcomes in one integration module and removed command-specific duplication from recording and headless service tests.
+
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
 development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects
 and diagnostics are additive, every effect defaults off, and the compatibility

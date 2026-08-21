@@ -56,7 +56,7 @@ Privileged source pose, geometry, isolated-signal, or simulator state must remai
 
 ## Dependency Boundary
 
-The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> core`, `kit -> core + recording + isaac`, and `schemas -> core + recording`. The CLI composes public services; lower components do not import Kit, UI, or CLI.
+The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> core`, `kit -> core + recording + isaac`, and `schemas -> core + recording`. The CLI imports and composes an owning public service only after its leaf command is selected; lower components do not import Kit, UI, or CLI.
 
 The package root exports only `__version__`. Public types and services are imported from their semantic subsystem.
 
