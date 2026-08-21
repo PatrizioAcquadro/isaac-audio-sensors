@@ -7,6 +7,7 @@
 - Consolidated product documentation in the canonical wiki and cleaned root guidance, generated workspaces, and validation output under R6.1.
 - Replaced the temporary wheel/source workflow with one audited universal Python wheel installed in an isolated environment.
 - Standardized the self-contained Kit extension as a minimal Linux x86_64 Community Registry archive for Kit 110.1 and Python 3.12.
+- Removed the custom acoustics-pack workflow and bundled the locked room-acoustics and FLAC dependencies directly in the Kit archive without duplicating Kit's NumPy.
 
 ## 1.9.0 - Unreleased
 

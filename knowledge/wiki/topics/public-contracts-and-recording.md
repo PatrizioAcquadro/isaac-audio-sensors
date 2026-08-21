@@ -38,7 +38,7 @@ Capability declarations record identifiers, profiles, device support, `PluginDec
 
 Registry resolution rejects duplicate declarations, unknown identifiers, unavailable dependencies, unsupported devices/profiles, factory results that do not satisfy `PropagationBackend`, and mismatched `backend_id` values. Dependency and capability checks occur before backend construction.
 
-The built-in capability set includes the maintained acoustic backends and DOA estimators, while optional packs can add capabilities without changing core imports.
+`discover_capabilities()` reports each maintained level and optional feature as `bundled`, `external`, or `absent`. Standard Python resolves room and FLAC dependencies from the `room` extra; the packaged Kit extension resolves them from its internal `_bundled` directory.
 
 ## Trace IO
 

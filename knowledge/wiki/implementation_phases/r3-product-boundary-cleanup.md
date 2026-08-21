@@ -32,7 +32,7 @@ Ignored publication evidence is protected local state and is not a package input
 
 #### Implementation
 
-One recursive content policy audits wheels, source archives, Kit archives, optional packs, and nested wheels for forbidden paths, project identifiers, phase content, hard-coded test paths, and absolute workstation paths.
+One recursive content policy audits first-party wheel and Kit content for forbidden paths, project identifiers, phase content, hard-coded test paths, and absolute workstation paths. The Kit dependency audit separately owns its bundled third-party tree.
 
 Schemas ship from `src/isaac_audio_sensors/schemas/`; no runtime or build step reads public contracts from documentation.
 

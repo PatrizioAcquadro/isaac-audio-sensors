@@ -67,6 +67,11 @@ def _without_member(payload: bytes, member: str) -> bytes:
 
 def test_python_wheel_audit_installs_minimal_artifact(tmp_path, wheel_bytes):
     wheel = _write_wheel(tmp_path, _wheel(wheel_bytes))
+    kit_archive = (
+        tmp_path
+        / "PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v1.0.0.zip"
+    )
+    kit_archive.write_bytes(b"kit")
 
     assert audit_python_wheel(tmp_path) == wheel
 
@@ -84,6 +89,19 @@ def test_python_wheel_audit_rejects_unexpected_content(tmp_path, wheel_bytes):
     _write_wheel(tmp_path, payload)
 
     with pytest.raises(ContentPolicyError, match="unexpected wheel roots"):
+        audit_python_wheel(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "member",
+    ("isaac_audio_sensors/_bundled/sample.py", "isaac_audio_sensors/core/packs.py"),
+)
+def test_python_wheel_audit_rejects_kit_only_members(
+    tmp_path, wheel_bytes, member
+):
+    _write_wheel(tmp_path, _wheel(wheel_bytes, {member: ""}))
+
+    with pytest.raises(ContentPolicyError, match="forbidden wheel members"):
         audit_python_wheel(tmp_path)
 
 

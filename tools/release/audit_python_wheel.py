@@ -29,6 +29,9 @@ ROOM_REQUIREMENTS = frozenset({"pyroomacoustics", "scipy", "soundfile"})
 WHEEL_NAME = re.compile(
     r"^isaac_audio_sensors-(?P<version>[^-]+)-py3-none-any\.whl$"
 )
+KIT_ARCHIVE_NAME = re.compile(
+    r"^PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v[^/]+\.zip$"
+)
 
 
 def audit_python_wheel(dist_dir: Path) -> Path:
@@ -36,7 +39,12 @@ def audit_python_wheel(dist_dir: Path) -> Path:
 
     root_files = sorted(path for path in dist_dir.iterdir() if path.is_file())
     wheels = [path for path in root_files if path.suffix == ".whl"]
-    if len(wheels) != 1 or root_files != wheels:
+    unexpected = [
+        path
+        for path in root_files
+        if path not in wheels and KIT_ARCHIVE_NAME.fullmatch(path.name) is None
+    ]
+    if len(wheels) != 1 or unexpected:
         raise ContentPolicyError("dist root must contain exactly one Python wheel")
 
     wheel = wheels[0]
@@ -55,6 +63,14 @@ def audit_python_wheel(dist_dir: Path) -> Path:
 def _require_minimal_inventory(wheel: Path, version: str) -> None:
     entries = archive_entries(wheel)
     dist_info = f"{PACKAGE}-{version}.dist-info"
+    forbidden = sorted(
+        name
+        for name in entries
+        if name.startswith(f"{PACKAGE}/_bundled/")
+        or name == f"{PACKAGE}/core/packs.py"
+    )
+    if forbidden:
+        raise ContentPolicyError(f"forbidden wheel members: {', '.join(forbidden)}")
     roots = {PurePosixPath(name).parts[0] for name in entries}
     if roots != {PACKAGE, dist_info}:
         raise ContentPolicyError(

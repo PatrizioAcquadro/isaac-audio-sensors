@@ -37,6 +37,7 @@ format:
 	$(PYTHON) -m ruff format .
 
 build-python: check-version check-release-source
+	rm -rf -- build/lib build/bdist.*
 	rm -f -- dist/*.whl dist/*.tar.gz
 	$(PYTHON) -m build --wheel $(BUILD_FLAGS)
 	$(MAKE) audit-python

@@ -145,3 +145,11 @@ Recorded the minimal Community Registry archive, exact target metadata, temporar
 ## 2026-08-21 — lint: R6.3 canonical documentation
 
 Verified current Kit commands and inventory, wiki links and coverage, immutable raw content, host and release gates, source and packaged RTX lifecycle smokes, Ruff, and Markdown whitespace.
+
+## 2026-08-21 — update: R6.4 acoustic-pack removal
+
+Recorded the removed pack API and tooling, three-state capability provenance, locked room/FLAC Kit bundle, Kit-owned NumPy boundary, retained dependency licenses, and passing packaged-extension and downstream gates.
+
+## 2026-08-21 — lint: R6.4 canonical documentation
+
+Verified canonical ownership, index coverage, internal links, immutable raw content, current commands and artifacts, host and RTX gates, bundled dependency origins, downstream compatibility, Ruff, version synchronization, and Markdown whitespace.

@@ -12,7 +12,7 @@ Current package release: `2.0.0`.
 
 The package version and the serialized schema versions are independent; the current frame contract is `ias.audio_sensor_frame.v1`.
 
-The package root exports only `__version__`. `isaac_audio_sensors.core` exports the eleven fundamental sensor models; config, calibration, backend, plugin, capability, fidelity, and pack APIs remain public from their canonical modules. Dataset contracts belong to `recording`, schema generators to `schemas.generate`, simulator services to `isaac` or `lab`, and the `kit` root exports only `ExtensionController`.
+The package root exports only `__version__`. `isaac_audio_sensors.core` exports the eleven fundamental sensor models; config, calibration, backend, plugin, capability, and fidelity APIs remain public from their canonical modules. Dataset contracts belong to `recording`, schema generators to `schemas.generate`, simulator services to `isaac` or `lab`, and the `kit` root exports only `ExtensionController`.
 
 `AudioSensorConfig` is simulator-independent. Isaac Lab configuration uses `isaac_audio_sensors.lab.AudioArraySensorCfg`. Python generators are authoritative for the three public schemas; packaged JSON files and CLI exports are deterministic generated artifacts.
 
@@ -26,7 +26,7 @@ The package root exports only `__version__`. `isaac_audio_sensors.core` exports 
 - Lazy Isaac Sim discovery, stage binding, pose tracking, visualization, frame publication, and optional Replicator integration.
 - Lazy Isaac Lab `SensorBase` integration with scalar or batched multi-environment observation tensors and explicit GPU validation.
 - Reference Kit extension with guided and expert workflows, instruments, audio preview, OmniGraph, recording, and export.
-- Deterministic Python wheel, Kit, and optional acoustics-pack build and audit tooling.
+- Deterministic Python wheel and self-contained Kit archive build and audit tooling.
 
 ## Install
 
@@ -46,6 +46,8 @@ python -m pip install -e ".[room]"
 ```
 
 Isaac Sim, Isaac Lab, Kit, CUDA, Torch, and Replicator are user-managed runtime capabilities and are not PyPI dependencies of the core package.
+
+The Kit archive includes its locked room-acoustics and FLAC dependencies. It uses Kit's NumPy and `typing_extensions` and performs no runtime download or installation.
 
 ## Quickstart
 
@@ -132,7 +134,7 @@ make test-release
 make test-isaac
 make lint
 make build-python
-make build-kit
+make build-kit WHEELHOUSE=/path/to/locked-wheels
 git diff --check
 make clean
 ```

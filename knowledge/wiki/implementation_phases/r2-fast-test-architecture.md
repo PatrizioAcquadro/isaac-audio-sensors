@@ -18,7 +18,7 @@ The test tree is divided into `unit`, `contract`, `integration`, `isaac`, `relea
 
 `tests/isaac/` checks Isaac Sim, Isaac Lab, Kit, OmniGraph, visualization, stage motion, cache invalidation, and GPU/runtime behavior through the supported Isaac interpreter.
 
-`tests/release/` checks wheel, source archive, Kit extension, optional acoustic pack, version synchronization, and forbidden release content.
+`tests/release/` checks wheel and Kit artifacts, version synchronization, repository boundaries, and forbidden release content.
 
 #### Key Decisions
 

@@ -29,7 +29,7 @@ The former dependency cycles from `core` to `recording` and from `isaac` to `kit
 
 #### Implementation
 
-R5.1 reduces `core.__all__` to the eleven fundamental scene and sensor models. Importing `isaac_audio_sensors.core` loads only those pure contracts; config, calibration, backend, plugin, capability, fidelity, and pack APIs remain available from their owning modules.
+R5.1 reduces `core.__all__` to the eleven fundamental scene and sensor models. Importing `isaac_audio_sensors.core` loads only those pure contracts; config, calibration, backend, plugin, capability, and fidelity APIs remain available from their owning modules.
 
 `AudioSensorConfig` no longer stores Lab configuration or fixed-value `stage_units` and `up_axis` fields. Generic TOML loading still rejects non-meter and non-Z-up scenes, while Isaac Lab configuration remains owned by `AudioArraySensorCfg`.
 
@@ -205,7 +205,7 @@ The example set demonstrates package contracts and initialized runtime integrati
 ## Artifacts
 
 - AST dependency contract and fresh-process import-boundary tests.
-- Synchronized `2.0.0` package, Kit, acoustic-pack, documentation, and fixture metadata.
+- Synchronized `2.0.0` package, Kit, documentation, and fixture metadata.
 - Draft 2020-12 schema validity, generated/package parity, deterministic export, and preserved-payload contract tests.
 - Exact v2 command inventory, lazy-import contract, and focused CLI integration outcomes.
 - Exact curated v2 Python export inventory and fresh-process import isolation.

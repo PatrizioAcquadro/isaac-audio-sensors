@@ -6,7 +6,7 @@
 
 `.venv/bin/python -m pytest -q tests/integration` runs recording, replay, codecs, workflows, filesystem, and cross-component integration tests.
 
-`make test-release` runs release content, versioning, Python-wheel, Kit, pack, and repository-boundary tests.
+`make test-release` runs release content, versioning, Python-wheel, Kit, and repository-boundary tests.
 
 `make test-isaac` runs the Isaac lane through the configured Isaac Lab interpreter with `CUDA_VISIBLE_DEVICES=0`.
 
@@ -38,7 +38,7 @@ Runtime blockers must report the exact command and failure; sandbox restrictions
 
 `pyproject.toml` is authoritative for the package version.
 
-The version gate synchronizes the package `__version__`, Kit manifest, optional pack manifest/artifact name, Makefile expected version, root README, canonical wiki status, root changelog, and extension-specific changelog.
+The version gate synchronizes the package `__version__`, Kit manifest, Makefile expected version, root README, canonical wiki status, root changelog, and extension-specific changelog.
 
 The frame, dataset-manifest, and calibration-profile schema versions remain independent from the package version.
 
@@ -46,19 +46,19 @@ The frame, dataset-manifest, and calibration-profile schema versions remain inde
 
 `make build-python` creates the universal wheel after version and clean-source checks. Its audit enforces the minimal package, schema, metadata, entry-point, and license inventory, then installs the wheel without dependency downloads in a temporary environment and verifies the installed import, CLI, schemas, and `room` metadata.
 
-`make build-kit` creates the self-contained Community Registry archive `PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v<version>.zip`. Temporary staging contains the direct Python package, Kit configuration/resources/docs/entrypoint, and licenses. Its audit verifies the exact filename, Linux x86_64, CPython 3.12, Kit 110.1, release target, required content, and shared release policy.
+`make build-kit WHEELHOUSE=<path>` creates the self-contained Community Registry archive `PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v<version>.zip`. The explicit wheelhouse must match the hashes and exact five-distribution inventory in `tools/release/kit_dependencies.lock`.
 
-`make build-pack WHEELHOUSE=<path>` creates the optional acoustics pack from an explicit wheelhouse and verifies its locked content.
+Temporary staging contains the direct Python package, Kit configuration/resources/docs/entrypoint, licenses, and the locked room/FLAC dependencies under `isaac_audio_sensors/_bundled`. The audit verifies target metadata, runtime modules, distribution metadata, licenses, native libraries, no Kit-owned NumPy or `typing_extensions`, and no retired release surface.
 
-The shared recursive policy rejects tests, tools, scripts, local datasets, evidence, outputs, phase paths/content, downstream project identifiers, absolute workstation paths, and nested archive leaks.
+The shared recursive policy rejects first-party tests, tools, scripts, local datasets, evidence, outputs, phase paths/content, downstream project identifiers, absolute workstation paths, and nested archive leaks. Bundled third-party content receives safe-path and dedicated dependency/license audits instead of project-semantic filtering.
 
 ## Release Checklist
 
-Run the deterministic and runtime gates appropriate to the changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect the actual wheel, Kit, and pack inventories before publication.
+Run the deterministic and runtime gates appropriate to the changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect the actual wheel and Kit inventories before publication.
 
 Builds must originate from one clean committed tree; do not publish, tag, or push based on uncommitted artifacts or skipped required lanes.
 
-R6.2 removes the source archive and treats the GitHub repository as the public source. R6.3 standardizes the Kit archive and removes the custom local installer. The acoustic-pack workflow remains unchanged until R6.4.
+R6.2 removes the source archive and treats the GitHub repository as the public source. R6.3 standardizes the Kit archive. R6.4 removes the separate dependency artifact and makes the single Kit zip self-contained without runtime installation.
 
 ## Interpretation
 

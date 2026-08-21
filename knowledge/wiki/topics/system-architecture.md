@@ -64,6 +64,8 @@ Core runtime dependencies are NumPy and TOML support for Python versions that ne
 
 The `room` extra provides `pyroomacoustics`, SciPy, and SoundFile; Isaac, Kit, CUDA, Torch, and Replicator remain environment capabilities resolved lazily.
 
+The Kit archive build extracts locked `pyroomacoustics`, SciPy, SoundFile, CFFI, and pycparser wheels into `isaac_audio_sensors/_bundled`. The extension uses that tree without downloading packages and leaves NumPy and `typing_extensions` owned by Kit. The universal Python wheel never contains `_bundled`.
+
 Optional absence is a supported state for pure functionality, but a requested optional capability must fail with a precise error rather than degrade silently.
 
 ## Downstream Boundary

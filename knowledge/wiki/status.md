@@ -16,7 +16,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
 - Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, explicit entity/reference binding, fixed-shape tensor observations, partial reset, and fail-closed device validation.
-- Universal Python wheel, standard Kit Community Registry archive, and optional acoustics-pack content policy.
+- Universal Python wheel and a self-contained Kit Community Registry archive with audited room/FLAC dependencies.
 - Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
 - R5.1 core root limited to eleven fundamental models, simulator-independent config, quaternion-authoritative array pose, one propagation protocol, and generator-authoritative schemas.
 - R5.2 single-path backend resolution and declaration-derived inventory, separated effects parsing/validation, and modular room-acoustics orchestration with unchanged valid-input numerical results.
@@ -29,6 +29,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.1 concise root guidance and release history, temporary validation output under `build/validation/`, and a safe generated-workspace cleanup target.
 - R6.2 explicit wheel-only package data, one universal Python build, minimal installed-artifact audit, and no sdist or compatibility build aliases.
 - R6.3 minimal self-contained Kit archive, standard Linux/CPython/Kit target metadata, temporary-only staging, direct package layout, and Extension Manager lifecycle verification.
+- R6.4 removal of the dependency-pack API and tooling, three-state capability provenance, and locked room/FLAC dependencies inside the single Kit zip without a second NumPy.
 
 ## Documentation State
 
@@ -74,6 +75,8 @@ The R6.2 gate passes 418 unit/contract tests, 231 integration tests with the sam
 
 The R6.3 gate passes 418 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, and 36 release tests after removing the retired installer and duplicate Kit checks. Version synchronization, Ruff, archive audit, and whitespace checks pass. The checkout and isolated packaged extension each pass all 37 live workflow steps on the RTX 4090 with Kit 110.1.2, including Extension Manager enable/disable and clean shutdown; the packaged run imports the core package only from the extracted archive.
 
+The R6.4 gate passes 412 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, 39 release tests, and 88 Isaac tests on the RTX 4090. The Python wheel contains no `_bundled` tree or removed pack module. The Kit zip contains the five locked dependency distributions and licenses, with NumPy and `typing_extensions` still supplied by Kit. The isolated extension passes bundled capability, room waveform, FLAC export/read/replay, enable/disable, and shutdown gates. The same 34 SquadBot consumer tests pass without consumer changes.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; clean-source wheel, source, and Kit builds are verified after the implementation commit and reported in the phase handoff.
@@ -87,17 +90,18 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 - `make test-release` — repository and archive release policy.
 - `make test-isaac` — Isaac tests through the Isaac Lab interpreter.
 - `make test-all` — all lanes in dependency order.
-- `make build-python`, `make build-kit`, and `make build-pack` — audited release artifacts.
+- `make build-python` — audited universal Python wheel.
+- `make build-kit WHEELHOUSE=<path>` — audited self-contained Kit zip.
 - `make clean` — remove only regenerable local build, validation, cache, and Python metadata files.
 
 ## Limits
 
 - Isaac tests require a compatible user-managed runtime and visible GPU; required GPU checks do not use CPU fallback.
-- Room acoustics requires the optional `room` dependencies and remains an approximate shoebox model.
+- Standard Python room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. The model remains an approximate shoebox simulation.
 - Raycast occlusion and nominal transmission do not model diffraction or establish measured material behavior.
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Retained scientific evidence is local, ignored, protected, and excluded from distributions.
 
 ## Next Work
 
-R6.0 through R6.3 are implemented. R6.4 is next: reconcile the remaining acoustic-pack workflow with the approved release model.
+R6.0 through R6.4 are implemented. R6.5 is next: reduce local release orchestration to the approved clean, check, and release commands.

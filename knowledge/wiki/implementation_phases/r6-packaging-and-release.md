@@ -12,7 +12,7 @@ The release model is locked to the public GitHub repository, one universal Pytho
 
 #### Key Decisions
 
-There is no target source archive, separate acoustics pack, checksum artifact, automated publication, tag, or push. The temporary source command is removed in R6.2; the pack command remains operational until R6.4.
+There is no target source archive, separate dependency artifact, checksum artifact, automated publication, tag, or push. R6.2 through R6.4 implement the final wheel and Kit-only model.
 
 #### Problems / Limitations
 
@@ -46,7 +46,7 @@ The R6.1 run exposed two semantic blockers outside its cleanup diff. A subsequen
 
 Python packaging now produces only `isaac_audio_sensors-<version>-py3-none-any.whl`. `MANIFEST.in` and the source-distribution workflow are removed; package discovery and the three JSON Schema files are declared explicitly in `pyproject.toml`.
 
-`make build-python` clears only prior root Python artifacts under `dist/`, preserves Kit and pack subdirectories, builds the wheel from a clean version-synchronized commit, and runs one wheel-specific audit. The audit permits only the maintained package and matching distribution metadata, requires the schemas, console entry point, `LICENSE`, and `NOTICE`, and rejects source archives or repository-only content.
+`make build-python` clears prior Python artifacts and stale setuptools staging, preserves the Kit zip, builds the wheel from a clean version-synchronized commit, and runs one wheel-specific audit. The audit permits only the maintained package and matching distribution metadata, requires the schemas, console entry point, `LICENSE`, and `NOTICE`, and rejects source archives or repository-only content.
 
 The same audit installs the wheel with `--no-deps` in a temporary virtual environment with repository import paths removed. It verifies the installed package version, CLI, schema resources, metadata, and the `room` extra declarations without downloading optional dependencies.
 
@@ -54,7 +54,7 @@ The same audit installs the wheel with `--no-deps` in a temporary virtual enviro
 
 `make build` and `audit-dist` have no compatibility aliases. GitHub remains the public source distribution, and an sdist remains deferred until a separate PyPI decision.
 
-The standard `room` extra still declares `pyroomacoustics`, `scipy`, and `soundfile`. R6.2 checks this installed metadata but does not repeat the real room-runtime gate. Kit and acoustic-pack builders, audits, and tests remain unchanged for R6.3 and R6.4.
+The standard `room` extra still declares `pyroomacoustics`, `scipy`, and `soundfile`. R6.2 checks this installed metadata but does not repeat the real room-runtime gate.
 
 #### Problems / Limitations
 
@@ -74,7 +74,7 @@ The unconsumed local installer, `_vendor` layout, development sentinel, duplicat
 
 #### Key Decisions
 
-The Community Registry archive is the installation surface; no custom installer remains. The builder returns only the archive path and preserves unrelated wheel and acoustic-pack artifacts. Python APIs, CLI behavior, schemas, acoustic-pack behavior, and optional room dependencies are unchanged.
+The Community Registry archive is the installation surface; no custom installer remains. The builder returns only the archive path and preserves the Python wheel. Python APIs, CLI behavior, schemas, and optional room dependencies are unchanged.
 
 #### Problems / Limitations
 
@@ -82,9 +82,33 @@ All host and release gates pass. Both the checkout extension and an isolated ext
 
 Direct Extension Manager discovery requires the extracted root to use the extension name `isaac_audio_sensors.omni`; the Community Registry provides that installation layout.
 
+## Subphase R6.4 — Remove the Custom Acoustic Pack
+
+#### Implementation
+
+The separate dependency artifact and all of its source, installer, builder, audit, Make, version-sync, documentation, and test surfaces are removed. `isaac_audio_sensors.core.packs`, `active_pack`, pack artifact naming, and `discover_capabilities(pack_root=...)` have no compatibility shims. `discover_capabilities()` now reports only `bundled`, `external`, or `absent` origins.
+
+`make build-kit WHEELHOUSE=<path>` verifies one hash-locked wheel for pyroomacoustics 0.10.1, SciPy 1.18.0, SoundFile 0.14.0, CFFI 2.1.0, and pycparser 3.0. It extracts runtime and license content into `isaac_audio_sensors/_bundled` in the temporary Kit staging tree while discarding wheel records, tests, and benchmarks. The source tree and universal Python wheel never contain `_bundled`.
+
+The Kit audit requires the five module and metadata payloads, native CFFI, libsndfile, pyroomacoustics, and SciPy libraries, plus their licenses. It rejects NumPy, `typing_extensions`, undeclared wheelhouse files, unsafe paths, collisions, and retired release members. `NOTICE` records the distributed dependencies; their complete shipped license payload remains in the zip.
+
+The packaged entrypoint adds `_bundled` to `sys.path`. Because Kit's pip importer preloads CFFI, the entrypoint resolves CFFI and pycparser from their exact locked bundle paths during extension startup. There is no download or package installation.
+
+#### Key Decisions
+
+Standard Python continues to use `isaac-audio-sensors[room]`; Kit receives the same capability through its single archive. Kit remains authoritative for NumPy and `typing_extensions`, preventing duplicate numerical runtimes.
+
+The public API removal is intentional. Backend, DSP, recording, schema, Isaac Lab, and valid-input numerical behavior are unchanged.
+
+#### Problems / Limitations
+
+Kit 110.1 preloads CFFI before third-party extensions start, so `sys.path` ordering alone did not satisfy the provenance gate. Exact-path loading at extension startup resolves the bundled copy without replacing Kit's NumPy or `typing_extensions`.
+
+The gate passes 412 unit/contract tests, 230 integration tests with two expected SoundFile skips in the base venv, 39 release tests, and 88 Isaac tests on the RTX 4090. The packaged extension verifies all five dependency origins, bundled L2/room/FLAC capability, room waveform generation, FLAC export/read/replay, Extension Manager enable/disable, and shutdown. The unchanged SquadBot consumer subset passes 34 tests.
+
 ## Artifacts
 
-R6.1 retains no generated artifact. R6.2 leaves one ignored universal wheel under `dist/`. R6.3 leaves one ignored Community Registry zip beside it; all Kit staging remains temporary.
+R6.1 retains no generated artifact. R6.2 leaves one ignored universal wheel under `dist/`. R6.3 and R6.4 leave one self-contained Community Registry zip beside it; all Kit and dependency staging remains temporary.
 
 ## Files
 
@@ -96,4 +120,7 @@ R6.1 retains no generated artifact. R6.2 leaves one ignored universal wheel unde
 - `exts/isaac_audio_sensors.omni/config/extension.toml`
 - `tools/release/build_kit_extension.py`
 - `tools/release/audit_kit_archive.py`
+- `tools/release/kit_dependencies.lock`
+- `src/isaac_audio_sensors/core/capabilities.py`
+- `NOTICE`
 - `tools/smoke/live_omniverse_extension_ux.py`
