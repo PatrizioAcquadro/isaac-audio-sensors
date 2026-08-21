@@ -19,6 +19,18 @@ def test_kit_resolves_relative_validation_paths_against_repo(monkeypatch):
     )
 
 
+def test_live_ux_observes_orientation_without_controller_private_method(monkeypatch):
+    live_ux = _load_live_ux_script(monkeypatch)
+    controller = ExtensionController()
+    controller.state.array_yaw_deg = 90.0
+
+    observed = live_ux._observed_config_state(controller)
+
+    assert observed["array_orientation_world_quat"] == pytest.approx(
+        quaternion_from_yaw_deg(90.0)
+    )
+
+
 def test_extension_controller_config_paths_use_output_root_env(
     monkeypatch,
     tmp_path,

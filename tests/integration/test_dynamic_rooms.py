@@ -487,6 +487,22 @@ class _MovingRaycaster:
         return OcclusionHit(prim_path=WALL_PATH, distance_m=2.0)
 
 
+def test_live_sensor_preserves_static_room_without_anchor():
+    room = _room()
+    sensor = IsaacAudioArraySensor.from_stage(
+        stage=_Stage(),
+        array_prim_path=ARRAY_PATH,
+        backend="geometry_only",
+        room=room,
+    ).start()
+
+    sensor.update(sim_time_s=0.0, force=True)
+
+    assert sensor.room == room
+    assert sensor._latest_scene.room == room
+    sensor.close()
+
+
 def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_state():
     stage = _Stage()
     raycaster = _MovingRaycaster()

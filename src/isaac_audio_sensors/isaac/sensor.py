@@ -675,12 +675,13 @@ class IsaacAudioArraySensor:
                 diagnostics_out=diagnostics,
             )
         self._latest_stage_diagnostics = diagnostics
-        self.room = refresh_anchored_room(
-            self.stage,
-            self._anchor_room_template,
-            refresh_reasons=cache.current_acoustic_refresh_reasons,
-            time_code=usd_time_code,
-        )
+        if self._anchor_room_template is not None:
+            self.room = refresh_anchored_room(
+                self.stage,
+                self._anchor_room_template,
+                refresh_reasons=cache.current_acoustic_refresh_reasons,
+                time_code=usd_time_code,
+            )
 
         if self.room is not None:
             scene = replace(scene, room=self.room)

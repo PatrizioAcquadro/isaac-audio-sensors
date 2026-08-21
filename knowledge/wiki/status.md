@@ -62,7 +62,9 @@ The R5.7 gate passes 406 unit/contract tests, 229 integration tests with two exp
 
 The R5.8 gate passes 418 unit/contract tests, 229 integration tests with two expected host SoundFile skips, 40 release tests, and 88 Isaac tests on the RTX 4090. The 15 SoundFile tests and the retained room-acoustics example pass in the Isaac Lab runtime. Live Isaac Sim, Isaac Lab, and Kit smokes pass on the same GPU; the Lab smoke validates 4096 environments at 1.846 ms/step mean against the 20 ms budget. The same 34 SquadBot consumer tests pass with one expected skip and no consumer changes. Wheel/source and Kit archives pass their audits.
 
-The R6.1 host gate passes 418 unit/contract tests, 229 integration tests with the same two expected SoundFile skips, 40 release tests, 11 focused Kit-path tests, version synchronization, and Ruff. Clean-source wheel/source and Kit builds pass their audits from commit `c96a152`. The RTX 4090 rerun confirms all automatic artifacts stay under `build/validation/`; the Isaac Sim smoke produces three geometry and three TDOA frames before blocking because the optional room backend receives no `scene.room`, and the Kit smoke passes 31 steps before its stale private-method probe calls missing `_array_orientation_from_state`. These two live-gate blockers are outside the R6.1 workspace diff and remain unresolved rather than being weakened or bypassed.
+The R6.1 host gate passes 418 unit/contract tests, 229 integration tests with the same two expected SoundFile skips, 40 release tests, 11 focused Kit-path tests, version synchronization, and Ruff. Clean-source wheel/source and Kit builds pass their audits from commit `c96a152`.
+
+The subsequent live-blocker reconciliation passes 418 unit/contract tests, 231 integration tests with the same two expected SoundFile skips, 40 release tests, and 88 Isaac tests on the RTX 4090. The Isaac Sim smoke passes three frames for geometry, TDOA, and room acoustics. The Kit smoke passes all 37 workflow steps, UI inventory, editable and invalid-input models, config roundtrip, instruments, audio output, and both screenshots. All generated evidence remains under `build/validation/`.
 
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
@@ -90,4 +92,4 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 
 ## Next Work
 
-R6.0 is locked and R6.1 is implemented. R6.2 is the next unstarted subphase; the source archive and acoustic-pack commands remain current behavior until their explicitly assigned later R6 work. The two R6.1 live-smoke blockers above require separate semantic reconciliation and do not authorize changes outside R6.1.
+R6.0 is locked and R6.1 is implemented. Its two live-smoke blockers are reconciled without starting R6.2. R6.2 is the next unstarted subphase; the source archive and acoustic-pack commands remain current behavior until their explicitly assigned later R6 work.

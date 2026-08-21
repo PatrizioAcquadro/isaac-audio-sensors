@@ -28,6 +28,7 @@ from live_isaac_sim_audio_smoke import (
 )
 
 from isaac_audio_sensors.core.io.traces import frame_from_trace_dict
+from isaac_audio_sensors.core.math_utils import quaternion_from_euler_deg
 from isaac_audio_sensors.isaac.pose_resolver import IsaacStagePoseResolver
 from isaac_audio_sensors.kit import ExtensionController
 from isaac_audio_sensors.kit.constants import (
@@ -279,8 +280,7 @@ def main() -> int:
         controller.state.replicator_enabled = True
         controller.state.replicator_output_dir = str(replicator_dir)
         controller.state.usd_debug_enabled = True
-        if getattr(controller, "_ui_window", None) is not None:
-            controller._ui_window.push_state_to_widgets()
+        _push_state_to_widgets(controller)
 
         evidence["ui_available"] = extension.controller.ui_available
         evidence["ui_control_inventory"] = _inventory_ui_controls(controller)
@@ -298,16 +298,14 @@ def main() -> int:
         evidence["error_checks"] = _run_error_checks(stage)
 
         controller.state.config_export_path = str(pre_frame_config_path)
-        if getattr(controller, "_ui_window", None) is not None:
-            controller._ui_window.push_state_to_widgets()
+        _push_state_to_widgets(controller)
         _step(
             evidence,
             "export_config_summary_before_frame",
             controller.export_config_summary,
         )
         controller.state.config_export_path = str(config_path)
-        if getattr(controller, "_ui_window", None) is not None:
-            controller._ui_window.push_state_to_widgets()
+        _push_state_to_widgets(controller)
 
         generic_result = _step(
             evidence,
@@ -411,6 +409,16 @@ def _step(evidence: dict[str, Any], name: str, callback: Any) -> Any:
     return result
 
 
+def _reference_ui_window(controller: ExtensionController) -> Any | None:
+    return controller._lifecycle._ui_window
+
+
+def _push_state_to_widgets(controller: ExtensionController) -> None:
+    window = _reference_ui_window(controller)
+    if window is not None:
+        window.push_state_to_widgets()
+
+
 def _stringify_artifacts(artifacts: dict[str, Path]) -> dict[str, str]:
     return {key: str(value) for key, value in sorted(artifacts.items())}
 
@@ -485,8 +493,7 @@ def _run_object_attach_scenario(
     controller.state.array_local_roll_deg = 0.0
     controller.state.selected_rig_profile_id = ARRAY_RIG_PROFILE_ID
     controller.state.applied_array_rig_profile = {}
-    if getattr(controller, "_ui_window", None) is not None:
-        controller._ui_window.push_state_to_widgets()
+    _push_state_to_widgets(controller)
 
     result: dict[str, Any] = {
         "status": "started",
@@ -659,8 +666,7 @@ def _run_object_attach_scenario(
     controller.state.source_local_offset_x_m = local_offset_after[0]
     controller.state.source_local_offset_y_m = local_offset_after[1]
     controller.state.source_local_offset_z_m = local_offset_after[2]
-    if getattr(controller, "_ui_window", None) is not None:
-        controller._ui_window.push_state_to_widgets()
+    _push_state_to_widgets(controller)
     _step(
         evidence,
         f"{label}_apply_changed_local_offset",
@@ -717,8 +723,7 @@ def _run_object_attach_scenario(
         before_rotation_frame,
     )
     controller.state.array_yaw_deg = 90.0
-    if getattr(controller, "_ui_window", None) is not None:
-        controller._ui_window.push_state_to_widgets()
+    _push_state_to_widgets(controller)
     _step(
         evidence,
         f"{label}_apply_array_pose_yaw",
@@ -752,8 +757,7 @@ def _run_object_attach_scenario(
     controller.state.array_local_yaw_deg = 0.0
     controller.state.array_local_pitch_deg = 0.0
     controller.state.array_local_roll_deg = 0.0
-    if getattr(controller, "_ui_window", None) is not None:
-        controller._ui_window.push_state_to_widgets()
+    _push_state_to_widgets(controller)
     _step(
         evidence,
         f"{label}_attach_array_to_object",
@@ -761,8 +765,7 @@ def _run_object_attach_scenario(
     )
     controller.state.object_prim_path = saved_object_path
     controller.state.object_label = saved_object_label
-    if getattr(controller, "_ui_window", None) is not None:
-        controller._ui_window.push_state_to_widgets()
+    _push_state_to_widgets(controller)
     result["array_object_attachment"] = _array_object_state(controller)
     attached_array_path = controller.state.array_prim_path
     result["array_path"] = attached_array_path
@@ -837,8 +840,11 @@ def _run_object_attach_scenario(
         f"{label}_stop_sensor",
         lambda: controller.stop_sensor() or "stopped",
     )
-    _step(evidence, f"{label}_stop_replicator", controller.stop_replicator)
-    result["replicator_status"] = controller._replicator_status_dict()
+    result["replicator_status"] = _step(
+        evidence,
+        f"{label}_stop_replicator",
+        controller.stop_replicator,
+    )
     result["replicator_artifacts"] = _replicator_artifacts(artifacts["replicator_dir"])
     result["status"] = "passed"
     return result
@@ -1080,7 +1086,7 @@ def _prim_type_name(prim: Any) -> str:
 
 
 def _inventory_ui_controls(controller: ExtensionController) -> dict[str, Any]:
-    window = getattr(controller, "_ui_window", None)
+    window = _reference_ui_window(controller)
     if window is None:
         return {"status": "failed", "reason": "ui_window_unavailable"}
     sections = tuple(getattr(window, "_sections", ()))
@@ -1323,7 +1329,7 @@ def _enum_ui_name(value: Any) -> str:
 
 
 def _probe_ui_editable_models(controller: ExtensionController) -> dict[str, Any]:
-    window = getattr(controller, "_ui_window", None)
+    window = _reference_ui_window(controller)
     if window is None:
         return {"status": "skipped", "reason": "ui_window_unavailable"}
     duration = window._float_fields.get("source_duration_s")
@@ -1385,7 +1391,7 @@ def _probe_ui_editable_models(controller: ExtensionController) -> dict[str, Any]
 
 
 def _probe_ui_invalid_numeric(controller: ExtensionController) -> dict[str, Any]:
-    window = getattr(controller, "_ui_window", None)
+    window = _reference_ui_window(controller)
     if window is None:
         return {"status": "failed", "reason": "ui_window_unavailable"}
     duration = window._float_fields.get("source_duration_s")
@@ -1716,7 +1722,7 @@ def _probe_config_roundtrip(
     config_path: Path,
 ) -> dict[str, Any]:
     payload = json.loads(config_path.read_text(encoding="utf-8"))
-    window = getattr(controller, "_ui_window", None)
+    window = _reference_ui_window(controller)
     if window is not None:
         window.push_state_to_widgets()
         window.sync_state_from_widgets()
@@ -1802,7 +1808,11 @@ def _observed_config_state(controller: ExtensionController) -> dict[str, Any]:
             state.array_position_z_m,
         ],
         "array_orientation_world_quat": list(
-            controller._array_orientation_from_state()
+            quaternion_from_euler_deg(
+                roll_deg=state.array_roll_deg,
+                pitch_deg=state.array_pitch_deg,
+                yaw_deg=state.array_yaw_deg,
+            )
         ),
         "array_attached_to_object": state.array_attached_to_object,
         "attached_array_object_prim_path": (
@@ -2162,7 +2172,7 @@ def _collect_instruments_evidence(
     """Record compass/meter/timeline values and widget visibility evidence."""
 
     state = controller.state
-    window = getattr(controller, "_ui_window", None)
+    window = _reference_ui_window(controller)
     view_model = compass_view_model(
         bearing_deg=state.latest_bearing_deg,
         candidate_bearings=state.latest_candidate_bearings,
@@ -2340,7 +2350,7 @@ def _collect_audio_output_evidence(
             "frames": data.frame_count,
             "duration_s": data.duration_s,
         }
-        window = getattr(controller, "_ui_window", None)
+        window = _reference_ui_window(controller)
         if window is not None:
             record["panel_label"] = getattr(
                 window._labels.get("waveform"), "text", None
@@ -2598,9 +2608,9 @@ def _attempt_legacy_viewport_capture(
 
 def _attempt_renderer_swapchain_capture(path: Path) -> dict[str, Any]:
     try:
-        import omni.renderer_capture  # type: ignore
+        import omni.kit.renderer_capture as renderer_capture  # type: ignore
 
-        renderer = omni.renderer_capture.acquire_renderer_capture_interface()
+        renderer = renderer_capture.acquire_renderer_capture_interface()
         capture = getattr(renderer, "capture_next_frame_swapchain", None)
         if not callable(capture):
             return {

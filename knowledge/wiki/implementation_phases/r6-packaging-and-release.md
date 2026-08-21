@@ -38,7 +38,7 @@ The removed citation surface also left version synchronization and the temporary
 
 Host tests, version synchronization, Ruff, and current wheel/source and Kit archive audits pass. The RTX 4090 confirms that generated diagnostics use only `build/validation/`.
 
-The live Isaac Sim gate produces the required geometry and TDOA frames but blocks when the available optional room backend receives no configured `scene.room`. The live Kit gate passes 31 workflow steps but blocks when a stale smoke probe calls the removed private method `_array_orientation_from_state`. Neither issue was introduced by the R6.1 diff, and neither was weakened or repaired outside the phase boundary.
+The R6.1 run exposed two semantic blockers outside its cleanup diff. A subsequent reconciliation preserves static room configuration during live capture and aligns the Kit smoke with the composed controller and current renderer-capture namespace. On the RTX 4090, Isaac Sim now passes three frames for each maintained backend and Kit passes all 37 workflow steps, UI/config/instrument checks, audio output, and screenshots.
 
 ## Artifacts
 

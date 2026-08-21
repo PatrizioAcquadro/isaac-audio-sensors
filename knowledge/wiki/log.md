@@ -121,3 +121,11 @@ Recorded concise root guidance and release history, temporary validation output,
 ## 2026-08-21 — lint: R6.1 canonical documentation
 
 Verified index coverage, internal links, current paths and commands, removed root-policy references, raw-file preservation, host and archive gates, RTX output placement, explicit live-smoke blockers, Ruff, and Markdown whitespace.
+
+## 2026-08-21 — update: Reconciled R6.1 live-smoke blockers
+
+Recorded static-room preservation, current Kit service access, the renderer-capture namespace correction, and passing RTX 4090 Isaac Sim and Kit gates.
+
+## 2026-08-21 — lint: Live-smoke reconciliation
+
+Verified canonical phase ownership, current paths and symbols, host and RTX 4090 gates, wiki consistency, Ruff, and Markdown whitespace.

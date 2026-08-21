@@ -114,7 +114,7 @@ Lazy timeline/update subscriptions share `isaac.lifecycle`. Anchored-room refres
 
 #### Problems / Limitations
 
-The ambiguous sensor module name, duplicate discovery registries, duplicated Kit update subscription, and sensor-owned application persistence are fixed. R5.4 does not change serialized frames, backend acoustics, Isaac Lab behavior, Kit UI structure, or the optional-runtime requirements of live simulation and waveform export.
+The ambiguous sensor module name, duplicate discovery registries, duplicated Kit update subscription, and sensor-owned application persistence are fixed. A later live-gate reconciliation preserves static rooms during capture while retaining anchored-room refresh. Serialized frames, backend acoustics, Isaac Lab behavior, Kit UI structure, and optional-runtime requirements are unchanged.
 
 ## Subphase R5.5 — Isaac Lab Observations
 
@@ -159,7 +159,7 @@ Validation retains only capability cache, backend/device, and calibration state.
 
 #### Problems / Limitations
 
-Kit no longer combines UI state, USD authoring, recording, sensor, Replicator, and lifecycle implementation in one class. Acoustic models, serialized contracts, Isaac Lab, and downstream adapters are unchanged.
+Kit no longer combines UI state, USD authoring, recording, sensor, Replicator, and lifecycle implementation in one class. A later live-smoke reconciliation removed stale controller-private calls, follows the composed lifecycle, and uses the current `omni.kit.renderer_capture` namespace. Acoustic models, serialized contracts, Isaac Lab, and downstream adapters are unchanged.
 
 ## Subphase R5.7 — CLI
 
