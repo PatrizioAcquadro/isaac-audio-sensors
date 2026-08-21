@@ -17,11 +17,7 @@ import pytest
 
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.isaac.replicator import PAYLOAD_SCHEMA_VERSION
-from isaac_audio_sensors.kit import (
-    CurrentStageContext,
-    ExtensionController,
-    current_omni_stage_context,
-)
+from isaac_audio_sensors.kit import ExtensionController
 from isaac_audio_sensors.kit.constants import OUTPUT_ROOT_ENV_VAR
 from isaac_audio_sensors.kit.microphone_rig_profiles import (
     default_microphone_rig_profiles,
@@ -32,7 +28,11 @@ from isaac_audio_sensors.kit.sound_profiles import (
     default_object_profile_mappings,
     default_sound_profiles,
 )
-from isaac_audio_sensors.kit.stage_context import _stage_has_prim
+from isaac_audio_sensors.kit.stage_context import (
+    _stage_has_prim,
+    current_omni_stage_context,
+)
+from isaac_audio_sensors.kit.state import CurrentStageContext
 
 
 def _write_test_png(path: Path, *, width: int = 13, height: int = 17) -> None:

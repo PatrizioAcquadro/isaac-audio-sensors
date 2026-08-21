@@ -229,7 +229,7 @@ def test_extension_controller_reads_fake_omni_usd_selection(monkeypatch):
 def test_extension_controller_follows_viewport_selection_via_stage_events(
     monkeypatch,
 ):
-    from isaac_audio_sensors.kit import DiscoveredPrimSummary
+    from isaac_audio_sensors.kit.state import DiscoveredPrimSummary
 
     _install_fake_kit_integrations(monkeypatch)
     stream = _install_fake_stage_events(monkeypatch)
@@ -276,7 +276,7 @@ def test_extension_controller_follows_viewport_selection_via_stage_events(
 
 
 def test_extension_controller_polling_fallback_follows_selection():
-    from isaac_audio_sensors.kit import DiscoveredPrimSummary
+    from isaac_audio_sensors.kit.state import DiscoveredPrimSummary
 
     source_prim = _FakePrim(
         "/World/Sources/SpeakerA",

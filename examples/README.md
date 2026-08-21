@@ -5,23 +5,29 @@ mode:
 
 ```bash
 python -m pip install -e ".[dev]"
-python examples/core/single_source_bearing.py
-python examples/core/multi_mic_tdoa.py
 python examples/core/two_mic_ambiguity.py
+python examples/recording/read_manifest.py
+python examples/calibration/read_profile.py
+```
+
+Install the optional room dependencies before running:
+
+```bash
+python -m pip install -e ".[room]"
 python examples/core/room_acoustics_demo.py
 ```
 
-Isaac runtime examples:
+`examples/isaac_sim/` and `examples/isaac_lab/` contain concise recipes for an
+initialized compatible runtime. The maintained end-to-end GPU workflows are:
 
 ```bash
-PYTHONPATH=src ~/isaacsim/python.sh tools/smoke/live_isaac_sim_audio_smoke.py
-PYTHONPATH=src ~/IsaacLab/isaaclab.sh -p tools/smoke/live_isaac_lab_audio_smoke.py
+make smoke-isaac-sim
+make smoke-isaac-lab
 ```
 
-Frame trace examples are tracked under `examples/traces/` and match
-`src/isaac_audio_sensors/schemas/audio_sensor_frame.v1.schema.json`. They intentionally cover the
-stable v1 trace shape: an empty minimal frame, multiple detections, explicit
-two-microphone ambiguity, stable provenance namespaces, fixed units, and the
-corrected bearing-sector semantics.
+The tracked traces cover minimal, multi-detection, ambiguity, and diagnostic
+records. Manifest paths and hashes are compact references rather than bundled
+audio. The nominal ReSpeaker profile is a schema fixture, not measurement
+evidence.
 
 The examples are generic and do not depend on downstream project contracts.

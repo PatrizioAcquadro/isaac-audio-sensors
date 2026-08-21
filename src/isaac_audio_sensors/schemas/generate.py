@@ -27,6 +27,13 @@ from isaac_audio_sensors.recording.constants import (
     DATASET_MANIFEST_UNITS,
 )
 
+__all__ = [
+    "audio_calibration_profile_json_schema",
+    "audio_dataset_manifest_json_schema",
+    "audio_sensor_frame_json_schema",
+    "write_json_schema",
+]
+
 
 def audio_sensor_frame_json_schema() -> dict[str, Any]:
     """Return the v1 ``AudioSensorFrame`` JSON Schema."""

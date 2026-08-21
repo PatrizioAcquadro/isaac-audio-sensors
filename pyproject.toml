@@ -48,10 +48,6 @@ room = [
     "scipy>=1.11",
     "soundfile>=0.12",
 ]
-examples = [
-    "scipy>=1.11",
-    "soundfile>=0.12",
-]
 
 [project.scripts]
 isaac-audio-sensors = "isaac_audio_sensors.cli:main"

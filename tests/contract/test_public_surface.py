@@ -22,6 +22,89 @@ ALLOWED_DEPENDENCIES = {
     "schemas": frozenset({"core", "recording"}),
     "cli": frozenset({"core", "recording", "kit", "schemas"}),
 }
+PUBLIC_API_V2 = {
+    "isaac_audio_sensors": ("__version__",),
+    "isaac_audio_sensors.core": (
+        "AudioDetection",
+        "AudioSceneSnapshot",
+        "AudioSensorFrame",
+        "AudioSourceSpec",
+        "AudioTimeWindow",
+        "DoaEstimate",
+        "MicrophoneArraySpec",
+        "MicrophoneSpec",
+        "Pose3D",
+        "RoomAcousticsSpec",
+        "SourceOcclusion",
+    ),
+    "isaac_audio_sensors.recording": (
+        "AppendFrameResult",
+        "AudioDatasetManifest",
+        "CreationProvenance",
+        "DatasetLayoutError",
+        "DatasetSplitError",
+        "DeviceProvenance",
+        "Finding",
+        "LoadedFrame",
+        "ReplayEvent",
+        "SessionDataset",
+        "SessionRecorder",
+        "SessionRecorderError",
+        "SplitPlan",
+        "Statistics",
+        "ValidationReport",
+        "apply_split_plan",
+        "build_split_plan",
+        "export_session_flac",
+        "manifest_from_dict",
+        "manifest_to_dict",
+        "read_dataset_manifest",
+        "read_split_plan",
+        "replay_session",
+        "validate_dataset",
+        "write_dataset_manifest",
+        "write_split_plan",
+    ),
+    "isaac_audio_sensors.isaac": (
+        "AudioSensorReplicatorRecorder",
+        "DiscoveredAudioArray",
+        "DiscoveredAudioSource",
+        "IsaacAudioArraySensor",
+        "IsaacAudioDiscoveryCfg",
+        "IsaacAudioDiscoveryResult",
+        "IsaacAudioSceneBindingCfg",
+        "IsaacStagePoseResolver",
+        "ReplicatorIntegrationError",
+        "ReplicatorRecorderStatus",
+        "StagePose",
+        "audio_sensor_frame_replicator_payload",
+        "attach_microphone_array_attrs",
+        "attach_microphone_attrs",
+        "attach_sound_source_attrs",
+        "build_stage_snapshot",
+        "create_listener_prim",
+        "create_sound_prim",
+        "discover_stage_audio",
+        "require_isaac_usd",
+        "require_replicator_core",
+        "resolve_world_pose",
+    ),
+    "isaac_audio_sensors.lab": (
+        "AudioArraySensor",
+        "AudioArraySensorCfg",
+        "AudioArraySensorData",
+        "EntityBindingCfg",
+        "SourceEntityCfg",
+    ),
+    "isaac_audio_sensors.kit": ("ExtensionController",),
+    "isaac_audio_sensors.schemas": (),
+    "isaac_audio_sensors.schemas.generate": (
+        "audio_calibration_profile_json_schema",
+        "audio_dataset_manifest_json_schema",
+        "audio_sensor_frame_json_schema",
+        "write_json_schema",
+    ),
+}
 
 
 def _package_dependencies(package: str) -> set[str]:
@@ -100,91 +183,56 @@ def test_semantic_packages_follow_the_r5_dependency_graph():
         assert _package_dependencies(package) <= allowed
 
 
-def test_minimal_root_and_v2_public_surfaces_in_fresh_process():
+@pytest.mark.parametrize(("module_name", "exports"), PUBLIC_API_V2.items())
+def test_curated_v2_exports_in_fresh_process(module_name, exports):
+    resolve_exports = module_name != "isaac_audio_sensors.lab"
     completed = _run_fresh_process(
-        """
+        f"""
         import importlib
         import sys
 
-        package = importlib.import_module("isaac_audio_sensors")
-        assert package.__all__ == ["__version__"]
-        assert not hasattr(package, "AudioSensorFrame")
-        assert not any(
-            name.startswith("isaac_audio_sensors.") for name in sys.modules
-        )
+        module = importlib.import_module({module_name!r})
+        exports = {list(exports)!r}
+        assert module.__all__ == exports
+        if {resolve_exports!r}:
+            assert all(hasattr(module, name) for name in exports)
 
-        core = importlib.import_module("isaac_audio_sensors.core")
-        assert core.__all__ == [
-            "AudioDetection",
-            "AudioSceneSnapshot",
-            "AudioSensorFrame",
-            "AudioSourceSpec",
-            "AudioTimeWindow",
-            "DoaEstimate",
-            "MicrophoneArraySpec",
-            "MicrophoneSpec",
-            "Pose3D",
-            "RoomAcousticsSpec",
-            "SourceOcclusion",
-        ]
-        assert core.AudioSensorFrame.__module__ == "isaac_audio_sensors.core.types"
-        forbidden = (
-            "numpy",
-            "torch",
-            "omni",
-            "pxr",
-            "isaaclab",
-            "isaac_audio_sensors.recording",
-            "isaac_audio_sensors.isaac",
-            "isaac_audio_sensors.lab",
-            "isaac_audio_sensors.kit",
-            "isaac_audio_sensors.core.backends",
-            "isaac_audio_sensors.core.effects",
-        )
+        optional = ("omni", "pxr", "isaaclab", "torch")
         assert not any(
             name == prefix or name.startswith(prefix + ".")
             for name in sys.modules
-            for prefix in forbidden
+            for prefix in optional
         )
 
-        recording = importlib.import_module("isaac_audio_sensors.recording")
-        assert recording.__all__ == [
-            "AppendFrameResult",
-            "AudioDatasetManifest",
-            "CreationProvenance",
-            "DatasetLayoutError",
-            "DatasetSplitError",
-            "DeviceProvenance",
-            "Finding",
-            "LoadedFrame",
-            "ReplayEvent",
-            "SessionDataset",
-            "SessionRecorder",
-            "SessionRecorderError",
-            "SplitPlan",
-            "Statistics",
-            "ValidationReport",
-            "apply_split_plan",
-            "build_split_plan",
-            "export_session_flac",
-            "manifest_from_dict",
-            "manifest_to_dict",
-            "read_dataset_manifest",
-            "read_split_plan",
-            "replay_session",
-            "validate_dataset",
-            "write_dataset_manifest",
-            "write_split_plan",
-        ]
-        assert recording.AudioDatasetManifest.__module__.endswith(".manifest")
-        assert callable(recording.manifest_from_dict)
-        assert callable(recording.manifest_to_dict)
-
-        schemas = importlib.import_module("isaac_audio_sensors.schemas.generate")
-        assert callable(schemas.audio_sensor_frame_json_schema)
-
-        for optional in ("omni", "pxr", "isaaclab", "torch"):
-            assert optional not in sys.modules
+        if {module_name!r} == "isaac_audio_sensors":
+            assert not any(
+                name.startswith("isaac_audio_sensors.") for name in sys.modules
+            )
+        if {module_name!r} == "isaac_audio_sensors.core":
+            forbidden = (
+                "numpy",
+                "isaac_audio_sensors.recording",
+                "isaac_audio_sensors.isaac",
+                "isaac_audio_sensors.lab",
+                "isaac_audio_sensors.kit",
+                "isaac_audio_sensors.core.backends",
+                "isaac_audio_sensors.core.effects",
+            )
+            assert not any(
+                name == prefix or name.startswith(prefix + ".")
+                for name in sys.modules
+                for prefix in forbidden
+            )
+        if {module_name!r} == "isaac_audio_sensors.isaac":
+            forbidden = (
+                "isaac_audio_sensors.kit",
+                "isaac_audio_sensors.recording",
+            )
+            assert not any(
+                name == prefix or name.startswith(prefix + ".")
+                for name in sys.modules
+                for prefix in forbidden
+            )
         """
     )
     assert completed.stderr == ""
@@ -199,65 +247,4 @@ def test_cli_exposes_current_product_operations(capsys):
     assert (
         "{validate-config,simulate,export-schema,capabilities,dataset,guided}"
         in help_text
-    )
-
-
-def test_isaac_and_lab_import_without_loading_optional_runtimes():
-    _run_fresh_process(
-        """
-        import sys
-        import isaac_audio_sensors.isaac as isaac
-
-        assert isaac.__all__ == [
-            "AudioSensorReplicatorRecorder",
-            "DiscoveredAudioArray",
-            "DiscoveredAudioSource",
-            "IsaacAudioArraySensor",
-            "IsaacAudioDiscoveryCfg",
-            "IsaacAudioDiscoveryResult",
-            "IsaacAudioSceneBindingCfg",
-            "IsaacStagePoseResolver",
-            "ReplicatorIntegrationError",
-            "ReplicatorRecorderStatus",
-            "StagePose",
-            "audio_sensor_frame_replicator_payload",
-            "attach_microphone_array_attrs",
-            "attach_microphone_attrs",
-            "attach_sound_source_attrs",
-            "build_stage_snapshot",
-            "create_listener_prim",
-            "create_sound_prim",
-            "discover_stage_audio",
-            "require_isaac_usd",
-            "require_replicator_core",
-            "resolve_world_pose",
-        ]
-        forbidden = (
-            "omni",
-            "pxr",
-            "isaaclab",
-            "torch",
-            "isaac_audio_sensors.kit",
-            "isaac_audio_sensors.recording",
-        )
-        assert not any(
-            name == prefix or name.startswith(prefix + ".")
-            for name in sys.modules
-            for prefix in forbidden
-        )
-
-        import isaac_audio_sensors.lab as lab
-        assert lab.__all__ == [
-            "AudioArraySensor",
-            "AudioArraySensorCfg",
-            "AudioArraySensorData",
-            "EntityBindingCfg",
-            "SourceEntityCfg",
-        ]
-        assert not any(
-            name == prefix or name.startswith(prefix + ".")
-            for name in sys.modules
-            for prefix in forbidden
-        )
-        """
     )
