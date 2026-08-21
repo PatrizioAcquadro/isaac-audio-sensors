@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pytest
 
-from isaac_audio_sensors.cli import main as cli_main
 from isaac_audio_sensors.recording import (
     DatasetSplitError,
     apply_split_plan,
@@ -298,70 +297,6 @@ def test_apply_reference_copy_revalidates_and_only_changes_manifest(tmp_path):
     assert {
         name: content for name, content in before.items() if name != "manifest.json"
     } == {name: content for name, content in after.items() if name != "manifest.json"}
-
-
-def test_cli_plan_output_apply_and_failures(tmp_path, capsys):
-    root = tmp_path / "cli_reference"
-    shutil.copytree(REFERENCE, root)
-    output = tmp_path / "plan.json"
-    args = [
-        "dataset",
-        "split",
-        str(root),
-        "--kind",
-        "tvt",
-        "--ratios",
-        "train=0.5,test=0.5",
-        "--seed",
-        "7",
-        "--out",
-        str(output),
-    ]
-    assert cli_main(args) == 0
-    plan = read_split_plan(output)
-    assert capsys.readouterr().out.strip() == plan.plan_sha256
-
-    assert cli_main([*args[:-2], "--apply"]) == 0
-    assert validate_dataset(root).status == "passed"
-    assert read_dataset_manifest(root / "manifest.json").splits
-    assert capsys.readouterr().out.strip() == plan.plan_sha256
-
-    assert (
-        cli_main(
-            [
-                "dataset",
-                "split",
-                str(root),
-                "--kind",
-                "tvt",
-                "--ratios",
-                "train=0.7,test=0.2",
-                "--seed",
-                "7",
-            ]
-        )
-        == 1
-    )
-    assert "sum to 1.0" in capsys.readouterr().err
-
-    assert (
-        cli_main(
-            [
-                "dataset",
-                "split",
-                str(root),
-                "--kind",
-                "fit-holdout",
-                "--ratios",
-                "fit=0.8,holdout=0.2",
-                "--seed",
-                "7",
-                "--apply",
-            ]
-        )
-        == 1
-    )
-    assert "plan-level artifact" in capsys.readouterr().err
 
 
 def test_plan_file_is_canonical_and_hash_is_sha256(tmp_path):

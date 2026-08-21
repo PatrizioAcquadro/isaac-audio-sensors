@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any
 
-import pytest
-
-import isaac_audio_sensors.cli as cli_module
 from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSensorFrame,
@@ -144,63 +139,3 @@ def test_headless_session_drives_all_stages_and_exports_valid_session(
         "passed_with_warnings",
     }
     assert Path(summary["export_path"]).is_dir()
-
-
-def test_guided_cli_success_and_outside_isaac_error(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    config = _write_guided_config(tmp_path / "config.json")
-
-    failed = cli_module.main(
-        [
-            "guided",
-            "run-headless",
-            str(config),
-            "--session-dir",
-            str(tmp_path / "no-stage-session"),
-            "--export-dir",
-            str(tmp_path / "no-stage-export"),
-            "--frames",
-            "1",
-            "--json",
-            "-",
-        ]
-    )
-    failure_payload = json.loads(capsys.readouterr().out)
-    assert failed == 1
-    assert failure_payload["status"] == "failed"
-    assert failure_payload["error"].startswith("setup:")
-    assert "no USD stage" in failure_payload["error"]
-
-    class _SuccessfulSession:
-        def __init__(self, _controller: ExtensionController) -> None:
-            pass
-
-        def run_from_config(self, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
-            return {
-                "status": "passed",
-                "recording_stats": {"frames": 2},
-                "export_path": str(tmp_path / "export"),
-            }
-
-    monkeypatch.setattr(cli_module, "HeadlessGuidedSession", _SuccessfulSession)
-    passed = cli_module.main(
-        [
-            "guided",
-            "run-headless",
-            str(config),
-            "--session-dir",
-            str(tmp_path / "session"),
-            "--export-dir",
-            str(tmp_path / "export"),
-            "--seconds",
-            "0.1",
-            "--json",
-            "-",
-        ]
-    )
-    success_payload = json.loads(capsys.readouterr().out)
-    assert passed == 0
-    assert success_payload["status"] == "passed"

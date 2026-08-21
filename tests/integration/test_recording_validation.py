@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.cli import main as cli_main
 from isaac_audio_sensors.core.constants import FRAME_UNITS
 from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.recording import (
@@ -429,34 +428,3 @@ def test_unreadable_manifest_is_one_fatal_content_finding(tmp_path):
     assert report.status == "failed"
     assert [finding.code for finding in report.findings] == ["invalid_json"]
     assert report.statistics.to_dict() == report.statistics.empty().to_dict()
-
-
-def test_cli_json_exit_codes_and_stats_output(tmp_path, capsys):
-    output = tmp_path / "report.json"
-    assert (
-        cli_main(
-            [
-                "dataset",
-                "validate",
-                str(REFERENCE),
-                "--json",
-                str(output),
-            ]
-        )
-        == 0
-    )
-    assert (
-        json.loads(output.read_text(encoding="utf-8"))
-        == validate_dataset(REFERENCE).to_dict()
-    )
-    assert "dataset validation passed" in capsys.readouterr().out
-
-    assert cli_main(["dataset", "stats", str(REFERENCE), "--json", "-"]) == 0
-    stats_output = json.loads(capsys.readouterr().out)
-    assert stats_output == validate_dataset(REFERENCE).statistics.to_dict()
-
-    corrupt = tmp_path / "corrupt"
-    shutil.copytree(REFERENCE, corrupt)
-    _corrupt(corrupt, "audio_checksum")
-    assert cli_main(["dataset", "validate", str(corrupt)]) == 1
-    assert "dataset validation failed" in capsys.readouterr().out

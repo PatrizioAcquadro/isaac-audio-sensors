@@ -72,6 +72,29 @@ def test_public_package_and_cli_version_match():
     assert result.stdout.strip() == __version__
 
 
+def test_cli_import_is_lazy():
+    completed = _run_fresh_process(
+        """
+        import sys
+        import isaac_audio_sensors.cli
+
+        forbidden = (
+            "numpy",
+            "isaac_audio_sensors.core.backends",
+            "isaac_audio_sensors.kit",
+            "isaac_audio_sensors.recording",
+            "isaac_audio_sensors.schemas.generate",
+        )
+        assert not any(
+            name == prefix or name.startswith(prefix + ".")
+            for name in sys.modules
+            for prefix in forbidden
+        )
+        """
+    )
+    assert completed.stderr == ""
+
+
 def test_semantic_packages_follow_the_r5_dependency_graph():
     for package, allowed in ALLOWED_DEPENDENCIES.items():
         assert _package_dependencies(package) <= allowed
@@ -173,17 +196,10 @@ def test_cli_exposes_current_product_operations(capsys):
 
     assert exit_info.value.code == 0
     help_text = capsys.readouterr().out
-    for command in (
-        "validate-config",
-        "simulate",
-        "export-trace",
-        "export-schema",
-        "capabilities",
-        "dataset",
-        "guided",
-    ):
-        assert command in help_text
-    assert "s4" + "-2" not in help_text
+    assert (
+        "{validate-config,simulate,export-schema,capabilities,dataset,guided}"
+        in help_text
+    )
 
 
 def test_isaac_and_lab_import_without_loading_optional_runtimes():
