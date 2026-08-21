@@ -126,9 +126,43 @@ Redundant build, audit, version, source, and all-lane Make wrappers are removed.
 
 Release still requires a clean committed tree and an externally prepared wheelhouse matching all five locked hashes. The deterministic gate passes 412 unit/contract tests, 230 integration tests with two expected SoundFile skips, and 38 release tests. The clean-source release produces and audits exactly the current wheel and Kit ZIP.
 
+## Subphase R6.6 — Exact Artifact Audits
+
+#### Implementation
+
+One final release auditor now derives both artifact names and the package version from `pyproject.toml`. It requires `dist/` to contain exactly the universal wheel and Kit ZIP, then compares their complete first-party inventories with the maintained source tree.
+
+The wheel audit also enforces the exact distribution metadata, entry point, schemas, licenses, and isolated offline installation behavior. The Kit audit reconstructs the expected `_bundled` inventory from the five locked wheels and compares it file-for-file while retaining target, native-library, license, contamination, and Kit-owned dependency checks.
+
+#### Key Decisions
+
+The existing `make release WHEELHOUSE=<path>` interface and dependency lock remain unchanged. The audit adds no artifact manifest, checksum file, installer, compatibility alias, or test-only runtime surface.
+
+Only redundant release helpers and duplicate assertions were removed. Negative coverage for contamination, licenses, targets, collisions, and host-owned NumPy and `typing_extensions` remains.
+
+#### Problems / Limitations
+
+The exact audit requires all five locked wheels before replacing existing artifacts. Any missing or hash-mismatched wheel is a release failure; the workflow never downloads or substitutes dependencies.
+
+## Subphase R6.7 — Validation and Closeout
+
+#### Implementation
+
+The final host gate, release build, artifact inventories, Isaac tests, live Isaac Sim and Lab smokes, optional room/FLAC smoke, packaged Kit workflow, and SquadBot consumer subset were validated locally. The packaged run starts from the extracted ZIP with offline pip settings and no checkout package path.
+
+The RTX 4090 run verifies Extension Manager enable/disable, packaged first-party origin, all five bundled dependency origins, Kit-owned NumPy and `typing_extensions`, room waveform output, FLAC recording, and shutdown. No publication action was performed.
+
+#### Key Decisions
+
+R6 closes with the two ignored local artifacts built from the final documentation commit. R7 is the next semantic phase; R6.7 does not change runtime APIs, CLI behavior, schemas, or audio semantics.
+
+#### Problems / Limitations
+
+The deterministic gate passes 412 unit/contract tests, 230 integration tests with two expected host SoundFile skips, and 37 release tests. The RTX gate passes 88 Isaac tests, three live Isaac Sim backends, and 50 Lab steps over 4096 environments at 1.934 ms/step mean against the 20 ms budget. The Isaac Lab interpreter passes pyroomacoustics 0.10.1, SciPy 1.18.0, and SoundFile 0.14.0; the unchanged SquadBot subset passes 34 tests.
+
 ## Artifacts
 
-R6.1 retains no generated artifact. R6.2 adds the ignored universal wheel and R6.3–R6.4 add the self-contained Community Registry ZIP. R6.5 recreates the flat `dist/` outbox from empty and leaves exactly those two files; all staging remains temporary.
+R6.1 retains no generated artifact. R6.2 adds the ignored universal wheel and R6.3–R6.4 add the self-contained Community Registry ZIP. R6.5 recreates the flat `dist/` outbox, and R6.6–R6.7 validate its exact two-file inventory and installed runtime behavior; all staging remains temporary.
 
 ## Files
 
@@ -136,7 +170,7 @@ R6.1 retains no generated artifact. R6.2 adds the ignored universal wheel and R6
 - `Makefile`
 - `src/isaac_audio_sensors/kit/paths.py`
 - `pyproject.toml`
-- `tools/release/audit_python_wheel.py`
+- `tools/release/audit_release_artifacts.py`
 - `exts/isaac_audio_sensors.omni/config/extension.toml`
 - `tools/release/build_kit_extension.py`
 - `tools/release/audit_kit_archive.py`

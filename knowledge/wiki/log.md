@@ -161,3 +161,7 @@ Recorded the clean, deterministic check, and clean-source release interface; fla
 ## 2026-08-21 — lint: R6.5 canonical documentation
 
 Verified canonical ownership, index coverage, internal links, immutable raw content, current commands and artifact names, deterministic host and release gates, Ruff, version synchronization, and Markdown whitespace.
+
+## 2026-08-21 — update: Closed R6 artifact validation
+
+Recorded exact source-derived wheel and Kit inventories, reconstructed locked bundles, isolated offline installation, complete host and RTX 4090 gates, unchanged SquadBot compatibility, and the two-artifact local closeout without publication.

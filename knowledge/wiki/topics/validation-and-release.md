@@ -42,13 +42,13 @@ The frame, dataset-manifest, and calibration-profile schema versions remain inde
 
 ## Build and Audit
 
-`make release WHEELHOUSE=<path>` validates the locked wheelhouse, version synchronization, and clean Git source before clearing `dist/`. It builds and audits the universal wheel and self-contained Kit ZIP, leaves only those two flat artifacts, and never publishes, tags, or pushes.
+`make release WHEELHOUSE=<path>` validates the locked wheelhouse, version synchronization, and clean Git source before clearing `dist/`. It builds and audits the universal wheel and self-contained Kit ZIP, requires those exact synchronized filenames as the complete flat outbox, and never publishes, tags, or pushes.
 
-The wheel audit enforces the minimal package, schema, metadata, entry-point, and license inventory, then installs the wheel without dependency downloads in a temporary environment and verifies the installed import, CLI, schemas, and `room` metadata.
+The wheel audit derives the complete package and schema inventory from the maintained source tree and enforces the exact distribution metadata, entry point, and licenses. It then installs the wheel without dependency downloads or checkout import paths and verifies the installed import, CLI, schemas, and `room` metadata.
 
 The Kit build creates `PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v<version>.zip`. The explicit wheelhouse must match the hashes and exact five-distribution inventory in `tools/release/kit_dependencies.lock`.
 
-Temporary staging contains the direct Python package, Kit configuration/resources/docs/entrypoint, licenses, and the locked room/FLAC dependencies under `isaac_audio_sensors/_bundled`. The audit verifies target metadata, runtime modules, distribution metadata, licenses, native libraries, no Kit-owned NumPy or `typing_extensions`, and no retired release surface.
+Temporary staging contains the direct Python package, Kit configuration/resources/docs/entrypoint, licenses, and the locked room/FLAC dependencies under `isaac_audio_sensors/_bundled`. The audit derives the complete first-party inventory from source, reconstructs the complete bundled inventory from the five hash-locked wheels, and compares both file-for-file. It also verifies target metadata, licenses, native libraries, no bundled NumPy or `typing_extensions`, and no retired release surface.
 
 The shared policy rejects first-party tests, tools, scripts, local datasets, evidence, outputs, phase paths/content, downstream project identifiers, and absolute workstation paths. Bundled third-party content receives safe-path and dedicated dependency/license audits instead of project-semantic filtering.
 
@@ -58,7 +58,9 @@ Run `make clean`, `make check`, and `make release WHEELHOUSE=<path>`. Add the ru
 
 Builds must originate from one clean committed tree; do not publish, tag, or push based on uncommitted artifacts or skipped required lanes.
 
-R6.2 removes the source archive and treats the GitHub repository as the public source. R6.3 standardizes the Kit archive, R6.4 makes it self-contained, and R6.5 owns the three-command local workflow.
+R6.2 removes the source archive and treats the GitHub repository as the public source. R6.3 standardizes the Kit archive, R6.4 makes it self-contained, R6.5 owns the three-command local workflow, and R6.6–R6.7 close the exact artifact and runtime gates.
+
+Before closeout, run the packaged Kit smoke from an extracted ZIP with offline pip settings and no checkout package path. Verify Extension Manager enable/disable, first-party and bundled origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, and shutdown.
 
 ## Interpretation
 

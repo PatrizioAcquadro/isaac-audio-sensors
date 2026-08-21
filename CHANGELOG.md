@@ -9,6 +9,7 @@
 - Standardized the self-contained Kit extension as a minimal Linux x86_64 Community Registry archive for Kit 110.1 and Python 3.12.
 - Removed the custom acoustics-pack workflow and bundled the locked room-acoustics and FLAC dependencies directly in the Kit archive without duplicating Kit's NumPy.
 - Reduced the local release workflow to safe clean, deterministic check, and clean-source release commands that leave only the audited wheel and Kit ZIP.
+- Closed R6 with exact source-derived artifact inventories, offline installed-wheel validation, and packaged RTX runtime and consumer gates without publication.
 
 ## 1.9.0 - Unreleased
 
