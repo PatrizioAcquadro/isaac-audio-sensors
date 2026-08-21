@@ -229,7 +229,7 @@ def main() -> int:
         _write_evidence(args.out, evidence)
         if simulation_app is not None:
             try:
-                simulation_app.close()
+                simulation_app.close(exit_code=exit_code)
                 evidence["simulation_app_closed"] = True
             except Exception as exc:  # noqa: BLE001 - shutdown diagnostic only.
                 evidence["simulation_app_close_error"] = f"{type(exc).__name__}: {exc}"
