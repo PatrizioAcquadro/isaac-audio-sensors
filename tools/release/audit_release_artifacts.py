@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import venv
+from email import policy
+from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
 
 try:
@@ -18,7 +22,12 @@ try:
         read_project_version,
         stage_locked_dependencies,
     )
-    from .content_policy import ContentPolicyError, archive_entries, require_archive
+    from .content_policy import (
+        ContentPolicyError,
+        archive_entries,
+        require_archive,
+        require_entries,
+    )
 except ImportError:
     from audit_kit_archive import audit_kit_archive
     from build_kit_extension import (
@@ -27,7 +36,12 @@ except ImportError:
         read_project_version,
         stage_locked_dependencies,
     )
-    from content_policy import ContentPolicyError, archive_entries, require_archive
+    from content_policy import (
+        ContentPolicyError,
+        archive_entries,
+        require_archive,
+        require_entries,
+    )
 
 PACKAGE = "isaac_audio_sensors"
 PROJECT = "isaac-audio-sensors"
@@ -39,31 +53,53 @@ SCHEMAS = frozenset(
     }
 )
 ROOM_REQUIREMENTS = frozenset({"pyroomacoustics", "scipy", "soundfile"})
+SDIST_ROOT_FILES = frozenset(
+    {"LICENSE", "NOTICE", "PKG-INFO", "README.md", "pyproject.toml", "setup.cfg"}
+)
+EGG_INFO_FILES = frozenset(
+    {
+        "PKG-INFO",
+        "SOURCES.txt",
+        "dependency_links.txt",
+        "entry_points.txt",
+        "requires.txt",
+        "top_level.txt",
+    }
+)
 
 
 def audit_release_artifacts(
     *, dist_dir: Path, repo_root: Path, wheelhouse: Path
-) -> tuple[Path, Path]:
-    """Validate the exact wheel and Kit archive built from the current source."""
+) -> tuple[Path, Path, Path]:
+    """Validate the exact Python and Kit artifacts built from current source."""
 
     version = read_project_version(repo_root)
+    sdist_name = f"{PACKAGE}-{version}.tar.gz"
     wheel_name = f"{PACKAGE}-{version}-py3-none-any.whl"
     kit_name = community_archive_name(version)
-    expected_names = {wheel_name, kit_name}
+    expected_names = {sdist_name, wheel_name, kit_name}
     paths = {path.name: path for path in dist_dir.iterdir()}
     if set(paths) != expected_names or not all(
         path.is_file() for path in paths.values()
     ):
         raise ContentPolicyError(
-            "dist root must contain exactly the synchronized Python wheel and Kit ZIP"
+            "dist root must contain exactly the synchronized sdist, wheel, and Kit ZIP"
         )
 
+    sdist = paths[sdist_name]
     wheel = paths[wheel_name]
     kit_archive = paths[kit_name]
+    expected_package_files = _expected_source_package_files(repo_root)
+    audit_python_sdist(
+        sdist,
+        version=version,
+        repo_root=repo_root,
+        expected_package_files=expected_package_files,
+    )
     audit_python_wheel(
         wheel,
         version=version,
-        expected_package_files=_expected_wheel_package_files(repo_root),
+        expected_package_files={f"{PACKAGE}/{name}" for name in expected_package_files},
     )
     first_party, bundled = _expected_kit_files(
         repo_root=repo_root,
@@ -75,7 +111,106 @@ def audit_release_artifacts(
         expected_first_party=first_party,
         expected_bundled=bundled,
     )
-    return wheel, kit_archive
+    return sdist, wheel, kit_archive
+
+
+def audit_python_sdist(
+    sdist: Path,
+    *,
+    version: str,
+    repo_root: Path,
+    expected_package_files: set[str],
+) -> None:
+    """Validate one source distribution against the maintained source tree."""
+
+    expected_name = f"{PACKAGE}-{version}.tar.gz"
+    if sdist.name != expected_name:
+        raise ContentPolicyError(f"sdist filename must be {expected_name}")
+    entries = _sdist_entries(sdist, root=f"{PACKAGE}-{version}")
+    egg_info = f"src/{PACKAGE}.egg-info"
+    expected = set(SDIST_ROOT_FILES)
+    expected.update(f"src/{PACKAGE}/{name}" for name in expected_package_files)
+    expected.update(f"{egg_info}/{name}" for name in EGG_INFO_FILES)
+    _require_exact_inventory(set(entries), expected, label="sdist")
+    require_entries(entries)
+
+    for name in ("LICENSE", "NOTICE", "README.md", "pyproject.toml"):
+        if entries[name] != (repo_root / name).read_bytes():
+            raise ContentPolicyError(f"sdist {name} does not match source")
+
+    metadata_bytes = entries["PKG-INFO"]
+    if entries[f"{egg_info}/PKG-INFO"] != metadata_bytes:
+        raise ContentPolicyError("sdist PKG-INFO copies do not match")
+    metadata = BytesParser(policy=policy.default).parsebytes(metadata_bytes)
+    if metadata["Name"] != PROJECT or metadata["Version"] != version:
+        raise ContentPolicyError("sdist name or version metadata mismatch")
+    if metadata["Requires-Python"] != ">=3.10":
+        raise ContentPolicyError("sdist Requires-Python metadata mismatch")
+    if metadata["License-Expression"] != "Apache-2.0":
+        raise ContentPolicyError("sdist license expression mismatch")
+    if set(metadata.get_all("License-File", ())) != {"LICENSE", "NOTICE"}:
+        raise ContentPolicyError("sdist license file metadata mismatch")
+    description = metadata_bytes.partition(b"\n\n")[2]
+    if description != entries["README.md"]:
+        raise ContentPolicyError("sdist long description does not match README.md")
+
+    source_manifest = {
+        line
+        for line in entries[f"{egg_info}/SOURCES.txt"].decode("utf-8").splitlines()
+        if line
+    }
+    expected_manifest = {"LICENSE", "NOTICE", "README.md", "pyproject.toml"}
+    expected_manifest.update(f"src/{PACKAGE}/{name}" for name in expected_package_files)
+    expected_manifest.update(f"{egg_info}/{name}" for name in EGG_INFO_FILES)
+    if source_manifest != expected_manifest:
+        raise ContentPolicyError("sdist SOURCES.txt inventory mismatch")
+    if entries[f"{egg_info}/dependency_links.txt"].strip():
+        raise ContentPolicyError("sdist dependency_links.txt must be empty")
+    if entries[f"{egg_info}/top_level.txt"] != f"{PACKAGE}\n".encode():
+        raise ContentPolicyError("sdist top_level.txt mismatch")
+
+    entry_points = configparser.ConfigParser()
+    try:
+        entry_points.read_string(
+            entries[f"{egg_info}/entry_points.txt"].decode("utf-8")
+        )
+    except (UnicodeDecodeError, configparser.Error) as exc:
+        raise ContentPolicyError(f"invalid sdist entry points: {exc}") from exc
+    if dict(entry_points.items("console_scripts")) != {
+        PROJECT: "isaac_audio_sensors.cli:main"
+    }:
+        raise ContentPolicyError("sdist console entry point mismatch")
+
+
+def _sdist_entries(path: Path, *, root: str) -> dict[str, bytes]:
+    try:
+        with tarfile.open(path, mode="r:gz") as archive:
+            members = archive.getmembers()
+            names = [member.name for member in members]
+            if len(names) != len(set(names)):
+                raise ContentPolicyError("sdist contains duplicate members")
+            entries: dict[str, bytes] = {}
+            for member in members:
+                name = PurePosixPath(member.name)
+                if (
+                    name.is_absolute()
+                    or not name.parts
+                    or name.parts[0] != root
+                    or any(part in {"", ".", ".."} for part in name.parts)
+                ):
+                    raise ContentPolicyError(f"unsafe sdist path: {member.name}")
+                if member.isdir():
+                    continue
+                if not member.isfile():
+                    raise ContentPolicyError(f"unsupported sdist member: {member.name}")
+                stream = archive.extractfile(member)
+                if stream is None:
+                    raise ContentPolicyError(f"cannot read sdist member: {member.name}")
+                relative = PurePosixPath(*name.parts[1:]).as_posix()
+                entries[relative] = stream.read()
+    except (OSError, tarfile.TarError) as exc:
+        raise ContentPolicyError(f"unsupported sdist: {path}") from exc
+    return entries
 
 
 def audit_python_wheel(
@@ -91,7 +226,7 @@ def audit_python_wheel(
     _require_installed_contract(wheel, version)
 
 
-def _expected_wheel_package_files(repo_root: Path) -> set[str]:
+def _expected_source_package_files(repo_root: Path) -> set[str]:
     package_root = repo_root / "src" / PACKAGE
     source_files = _copyable_files(package_root)
     schema_files = {
@@ -116,7 +251,7 @@ def _expected_wheel_package_files(repo_root: Path) -> set[str]:
         raise ContentPolicyError(
             f"unsupported source package files: {', '.join(unexpected)}"
         )
-    return {f"{PACKAGE}/{name}" for name in allowed}
+    return allowed
 
 
 def _expected_kit_files(
@@ -127,13 +262,10 @@ def _expected_kit_files(
     if (package_root / "_bundled").exists():
         raise ContentPolicyError("source package must not contain _bundled")
 
-    first_party = {
-        f"{PACKAGE}/{name}" for name in _copyable_files(package_root)
-    }
+    first_party = {f"{PACKAGE}/{name}" for name in _copyable_files(package_root)}
     for name in ("config", "data", "docs", "isaac_audio_sensors_omni"):
         first_party.update(
-            f"{name}/{relative}"
-            for relative in _copyable_files(extension_root / name)
+            f"{name}/{relative}" for relative in _copyable_files(extension_root / name)
         )
     first_party.update({"LICENSE", "NOTICE"})
 
@@ -144,8 +276,7 @@ def _expected_kit_files(
             destination=destination,
         )
         bundled = {
-            f"{BUNDLED_ROOT.as_posix()}/{name}"
-            for name in _regular_files(destination)
+            f"{BUNDLED_ROOT.as_posix()}/{name}" for name in _regular_files(destination)
         }
     return first_party, bundled
 
@@ -166,9 +297,7 @@ def _regular_files(root: Path) -> set[str]:
     if not root.is_dir():
         raise FileNotFoundError(f"required source directory not found: {root}")
     return {
-        path.relative_to(root).as_posix()
-        for path in root.rglob("*")
-        if path.is_file()
+        path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()
     }
 
 
@@ -320,7 +449,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     repo_root = Path(__file__).resolve().parents[2]
     try:
-        wheel, kit_archive = audit_release_artifacts(
+        sdist, wheel, kit_archive = audit_release_artifacts(
             dist_dir=args.dist_dir,
             repo_root=repo_root,
             wheelhouse=args.wheelhouse,
@@ -328,7 +457,7 @@ def main(argv: list[str] | None = None) -> int:
     except (ContentPolicyError, OSError, ValueError) as exc:
         print(f"[release-artifact-audit] FAILED: {exc}", file=sys.stderr)
         return 1
-    print(f"[release-artifact-audit] OK {wheel.name} {kit_archive.name}")
+    print(f"[release-artifact-audit] OK {sdist.name} {wheel.name} {kit_archive.name}")
     return 0
 
 

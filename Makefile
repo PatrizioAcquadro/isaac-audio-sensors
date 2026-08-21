@@ -48,8 +48,8 @@ release:
 	$(PYTHON) tools/release/check_version_sync.py
 	$(PYTHON) tools/release/check_release_source.py
 	$(PYTHON) tools/release/build_kit_extension.py --wheelhouse "$(WHEELHOUSE)" --validate-wheelhouse
-	rm -rf -- dist build/lib build/bdist.*
-	$(PYTHON) -m build --wheel $(BUILD_FLAGS)
+	rm -rf -- dist build/lib build/bdist.* src/isaac_audio_sensors.egg-info
+	$(PYTHON) -m build $(BUILD_FLAGS)
 	$(PYTHON) tools/release/build_kit_extension.py --wheelhouse "$(WHEELHOUSE)"
 	$(PYTHON) tools/release/audit_release_artifacts.py --dist-dir dist --wheelhouse "$(WHEELHOUSE)"
 

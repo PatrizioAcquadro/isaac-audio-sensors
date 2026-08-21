@@ -65,7 +65,13 @@ def archive_entries(path: Path) -> dict[str, bytes]:
 def require_archive(path: Path) -> None:
     """Raise when an archive violates the shared policy."""
 
-    findings = tuple(_audit_entries(archive_entries(path)))
+    require_entries(archive_entries(path))
+
+
+def require_entries(entries: Mapping[str, bytes]) -> None:
+    """Raise when named archive entries violate the shared policy."""
+
+    findings = tuple(_audit_entries(entries))
     if findings:
         raise ContentPolicyError("; ".join(findings))
 
@@ -78,9 +84,7 @@ def _zip_entries(payload: bytes) -> dict[str, bytes]:
         return {name: archive.read(name) for name in names}
 
 
-def _audit_entries(
-    entries: Mapping[str, bytes], *, prefix: str = ""
-) -> Iterable[str]:
+def _audit_entries(entries: Mapping[str, bytes], *, prefix: str = "") -> Iterable[str]:
     for raw_name, payload in entries.items():
         name = PurePosixPath(raw_name)
         display = f"{prefix}{raw_name}"
