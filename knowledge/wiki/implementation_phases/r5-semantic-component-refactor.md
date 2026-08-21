@@ -181,12 +181,35 @@ Focused CLI integration outcomes replace command-specific assertions embedded in
 
 Duplicate simulation setup, monolithic dispatch, eager command-subsystem imports, redundant split checks, and scattered CLI tests are fixed. R5.7 does not change backend numerics, schema generation, recording internals, Kit workflow stages, Isaac Sim, Isaac Lab, or downstream adapters.
 
+## Subphase R5.8 — Examples and v2 API Freeze
+
+#### Implementation
+
+R5.8 keeps one root example set and freezes the curated v2 package entrypoints. Package-internal examples were already removed in R5.0. The broken `multi_mic_tdoa.py`, quickstart-duplicate `single_source_bearing.py`, and the `cli`, `calibration`, and `manifests` subfolder READMEs are removed; their essential usage moves to `examples/README.md`.
+
+The retained pure examples cover two-microphone ambiguity and optional room acoustics. New read-only recipes load the recording manifest and nominal calibration profile through the installed package. Isaac Sim and Isaac Lab examples remain concise initialization recipes; complete live GPU workflows remain in `tools/smoke/`.
+
+One parametrized contract is the exact inventory for the package, `core`, `recording`, `isaac`, `lab`, `kit`, `schemas`, and `schemas.generate` roots. The `kit` root exports only `ExtensionController`; `schemas` exports nothing from its root; `schemas.generate` exports the three schema generators and `write_json_schema`. One parametrized execution test covers every retained Python example. The unused `examples` extra is removed in favor of the canonical `room` extra.
+
+#### Key Decisions
+
+- The freeze covers curated entrypoints, not every public name in canonical submodules.
+- Config, trace, manifest, calibration, and dataset fixtures remain because they represent distinct contracts.
+- The root examples write no persistent output; runtime smokes remain the authoritative end-to-end Isaac checks.
+- Backend, recording, Isaac/Lab runtime, CLI, and serialized v1 semantics are unchanged.
+
+#### Problems / Limitations
+
+The example set demonstrates package contracts and initialized runtime integration; it does not duplicate live GPU smoke coverage or prove physical calibration and fidelity.
+
 ## Artifacts
 
 - AST dependency contract and fresh-process import-boundary tests.
 - Synchronized `2.0.0` package, Kit, acoustic-pack, documentation, and fixture metadata.
 - Draft 2020-12 schema validity, generated/package parity, deterministic export, and preserved-payload contract tests.
 - Exact v2 command inventory, lazy-import contract, and focused CLI integration outcomes.
+- Exact curated v2 Python export inventory and fresh-process import isolation.
+- One maintained root example set with installed-package execution coverage.
 
 ## Files
 
@@ -213,6 +236,10 @@ Duplicate simulation setup, monolithic dispatch, eager command-subsystem imports
 - `src/isaac_audio_sensors/kit/sensor_session.py`
 - `src/isaac_audio_sensors/schemas/generate.py`
 - `src/isaac_audio_sensors/cli.py`
+- `examples/README.md`
+- `examples/recording/read_manifest.py`
+- `examples/calibration/read_profile.py`
 - `tests/contract/test_schemas.py`
 - `tests/contract/test_public_surface.py`
+- `tests/contract/test_examples.py`
 - `tests/integration/test_cli.py`

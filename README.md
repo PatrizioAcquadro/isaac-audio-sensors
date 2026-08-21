@@ -12,7 +12,7 @@ Current package release: `2.0.0`.
 
 The package version and the serialized schema versions are independent; the current frame contract is `ias.audio_sensor_frame.v1`.
 
-The package root exports only `__version__`. `isaac_audio_sensors.core` exports the eleven fundamental sensor models; config, calibration, backend, plugin, capability, fidelity, and pack APIs remain public from their canonical modules. Dataset contracts belong to `recording`, schema generators to `schemas.generate`, and simulator services to `isaac`, `lab`, or `kit`.
+The package root exports only `__version__`. `isaac_audio_sensors.core` exports the eleven fundamental sensor models; config, calibration, backend, plugin, capability, fidelity, and pack APIs remain public from their canonical modules. Dataset contracts belong to `recording`, schema generators to `schemas.generate`, simulator services to `isaac` or `lab`, and the `kit` root exports only `ExtensionController`.
 
 `AudioSensorConfig` is simulator-independent. Isaac Lab configuration uses `isaac_audio_sensors.lab.AudioArraySensorCfg`. Python generators are authoritative for the three public schemas; packaged JSON files and CLI exports are deterministic generated artifacts.
 
@@ -98,6 +98,16 @@ frame = TdoaSyntheticBackend().simulate(
 )
 print(frame.schema_version, frame.detections[0].doa)
 ```
+
+Run the maintained pure examples from an installed checkout:
+
+```bash
+python examples/core/two_mic_ambiguity.py
+python examples/recording/read_manifest.py
+python examples/calibration/read_profile.py
+```
+
+See [examples/README.md](examples/README.md) for the optional room recipe, fixtures, and initialized Isaac Sim/Lab recipes.
 
 ## Isaac Runtime
 

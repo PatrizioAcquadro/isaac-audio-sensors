@@ -67,6 +67,15 @@ R5.7 reduces the CLI to a lazy adapter over subsystem-owned services.
 - Removed duplicate dataset split policy and post-write validation from the CLI while retaining manifest overwrite protection and the recording subsystem's canonical planning, application, and validation services.
 - Consolidated focused CLI outcomes in one integration module and removed command-specific duplication from recording and headless service tests.
 
+R5.8 freezes the curated v2 Python entrypoints and reduces public examples.
+
+- Removed the broken `multi_mic_tdoa.py`, the quickstart-duplicate `single_source_bearing.py`, and per-folder example READMEs; retained concise core and room recipes.
+- Added installed-package examples for reading a recording manifest and calibration profile without persistent output.
+- Kept Isaac Sim and Isaac Lab examples as initialization recipes while retaining end-to-end GPU workflows only under `tools/smoke/`.
+- Limited the `kit` root to `ExtensionController`, made the `schemas` root empty, and froze the exact root exports for `core`, `recording`, `isaac`, `lab`, and `schemas.generate` in one data-driven contract.
+- Removed the unused `examples` extra; `room` remains the canonical optional dependency group.
+- Preserved backend, recording, Isaac/Lab runtime, CLI, and serialized frame, manifest, and calibration-profile v1 semantics.
+
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
 development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects
 and diagnostics are additive, every effect defaults off, and the compatibility

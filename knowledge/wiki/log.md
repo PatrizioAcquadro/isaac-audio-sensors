@@ -89,3 +89,11 @@ Recorded the lazy leaf-command adapter, core-owned config simulation, frozen v2 
 ## 2026-08-21 — lint: R5.7 canonical documentation
 
 Verified canonical ownership, internal links, raw-file preservation, current CLI commands and services, host and GPU gates, downstream compatibility, audited builds, Ruff, release documentation checks, schema parity, and Markdown whitespace.
+
+## 2026-08-21 — update: R5.8 examples and v2 API freeze
+
+Recorded the exact curated v2 entrypoints, minimal Kit and schema roots, consolidated root examples, read-only manifest and calibration recipes, retained Isaac initialization recipes, and preserved runtime and serialized contracts.
+
+## 2026-08-21 — lint: R5.8 canonical documentation
+
+Verified canonical ownership, internal links, raw-file preservation, exact exports, executable examples, host and RTX 4090 gates, downstream compatibility, audited builds, Ruff, release documentation checks, and Markdown whitespace.

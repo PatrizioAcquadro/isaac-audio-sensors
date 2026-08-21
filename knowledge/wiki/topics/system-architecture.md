@@ -42,7 +42,7 @@ Its entity path converts official scene root/body pose tensors directly into bat
 
 ## Kit and Extension Layers
 
-`isaac_audio_sensors.kit` contains import-safe profiles, validation, state, workflow, instruments, presentation adapters, and internal application services for lifecycle, USD authoring, sensor sessions, recording/export, Replicator, and configuration.
+`isaac_audio_sensors.kit` exports only `ExtensionController`; profiles, validation, state, workflow, instruments, presentation adapters, and internal application services remain in their canonical Kit modules.
 
 `ExtensionController` composes those services, owns the flat `ExtensionUiState`, reports status/errors, and exposes the maintained GUI/headless actions. `window.py` and `sections.py` only render state and invoke actions. Pure validation checks remain dependency-free; the stateful validation controller owns capability discovery, backend/device facts, and calibration reads.
 

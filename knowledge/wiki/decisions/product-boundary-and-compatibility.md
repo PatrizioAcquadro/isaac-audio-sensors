@@ -12,7 +12,20 @@ Robot-specific mounts, assets, adapters, policies, task orchestration, acceptanc
 
 The current package is `2.0.0` on the v2 compatibility line. R5.0 intentionally removes the v1 root convenience imports without compatibility shims and makes semantic subsystem ownership the public API boundary.
 
-The root exposes only `__version__`; contracts and services live under `core`, `recording`, `schemas`, `isaac`, `lab`, or `kit`. The CLI composes those public services without becoming a dependency of lower components.
+The root exposes only `__version__`; contracts and services live under their owning modules. The CLI composes those public services without becoming a dependency of lower components.
+
+The curated v2 entrypoint inventory is:
+
+- `isaac_audio_sensors`: `__version__`.
+- `isaac_audio_sensors.core`: `AudioDetection`, `AudioSceneSnapshot`, `AudioSensorFrame`, `AudioSourceSpec`, `AudioTimeWindow`, `DoaEstimate`, `MicrophoneArraySpec`, `MicrophoneSpec`, `Pose3D`, `RoomAcousticsSpec`, and `SourceOcclusion`.
+- `isaac_audio_sensors.recording`: `AppendFrameResult`, `AudioDatasetManifest`, `CreationProvenance`, `DatasetLayoutError`, `DatasetSplitError`, `DeviceProvenance`, `Finding`, `LoadedFrame`, `ReplayEvent`, `SessionDataset`, `SessionRecorder`, `SessionRecorderError`, `SplitPlan`, `Statistics`, `ValidationReport`, `apply_split_plan`, `build_split_plan`, `export_session_flac`, `manifest_from_dict`, `manifest_to_dict`, `read_dataset_manifest`, `read_split_plan`, `replay_session`, `validate_dataset`, `write_dataset_manifest`, and `write_split_plan`.
+- `isaac_audio_sensors.isaac`: `AudioSensorReplicatorRecorder`, `DiscoveredAudioArray`, `DiscoveredAudioSource`, `IsaacAudioArraySensor`, `IsaacAudioDiscoveryCfg`, `IsaacAudioDiscoveryResult`, `IsaacAudioSceneBindingCfg`, `IsaacStagePoseResolver`, `ReplicatorIntegrationError`, `ReplicatorRecorderStatus`, `StagePose`, `audio_sensor_frame_replicator_payload`, `attach_microphone_array_attrs`, `attach_microphone_attrs`, `attach_sound_source_attrs`, `build_stage_snapshot`, `create_listener_prim`, `create_sound_prim`, `discover_stage_audio`, `require_isaac_usd`, `require_replicator_core`, and `resolve_world_pose`.
+- `isaac_audio_sensors.lab`: `AudioArraySensor`, `AudioArraySensorCfg`, `AudioArraySensorData`, `EntityBindingCfg`, and `SourceEntityCfg`.
+- `isaac_audio_sensors.kit`: `ExtensionController`.
+- `isaac_audio_sensors.schemas`: no root exports.
+- `isaac_audio_sensors.schemas.generate`: `audio_calibration_profile_json_schema`, `audio_dataset_manifest_json_schema`, `audio_sensor_frame_json_schema`, and `write_json_schema`.
+
+Advanced public services remain importable from their canonical modules; they are not implied package-root entrypoints. The exact inventory above is enforced in fresh processes by `tests/contract/test_public_surface.py`.
 
 Existing `ias.audio_sensor_frame.v1`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1` data contracts may remain valid in a future major package version when their serialized meanings remain useful.
 

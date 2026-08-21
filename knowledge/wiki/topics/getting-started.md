@@ -60,15 +60,20 @@ The CLI also exposes capability reporting, dataset validation/statistics/splitti
 Run the pure examples from the repository root:
 
 ```bash
-python examples/core/single_source_bearing.py
-python examples/core/multi_mic_tdoa.py
 python examples/core/two_mic_ambiguity.py
+python examples/recording/read_manifest.py
+python examples/calibration/read_profile.py
+```
+
+Run the optional room recipe with the Isaac Lab interpreter or another environment that includes the `room` extra:
+
+```bash
 python examples/core/room_acoustics_demo.py
 ```
 
-The tracked examples use generated audio identifiers or small deterministic JSON fixtures and do not require private recordings.
+The pure examples use generated audio identifiers or small deterministic JSON fixtures, write no output, and require no private recordings.
 
-Isaac examples live under `examples/isaac_sim/` and `examples/isaac_lab/`; launch them only from an initialized compatible runtime.
+Isaac examples under `examples/isaac_sim/` and `examples/isaac_lab/` are concise recipes for initialized compatible runtimes. The end-to-end GPU workflows remain under `tools/smoke/` and are invoked through the maintained commands below.
 
 ## Isaac Runtime Commands
 
