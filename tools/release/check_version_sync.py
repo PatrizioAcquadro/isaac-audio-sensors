@@ -6,6 +6,7 @@ import argparse
 import re
 import sys
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 
 try:  # pragma: no cover - Python 3.11+ path in CI
@@ -60,12 +61,17 @@ def _top_changelog_version(path: Path) -> str:
     )
     if not headings:
         raise ValueError("missing release heading")
-    match = re.fullmatch(r"([^\s]+)(?:\s+-\s+Unreleased)?", headings[0])
+    match = re.fullmatch(
+        r"([^\s]+)(?:\s+-\s+(Unreleased|\d{4}-\d{2}-\d{2}))?", headings[0]
+    )
     if match is None:
         raise ValueError(
-            "top release heading must contain a version with only an optional "
-            "'- Unreleased' suffix"
+            "top release heading must contain a version with an optional "
+            "'- Unreleased' or '- YYYY-MM-DD' suffix"
         )
+    suffix = match.group(2)
+    if suffix not in {None, "Unreleased"}:
+        date.fromisoformat(suffix)
     return match.group(1)
 
 

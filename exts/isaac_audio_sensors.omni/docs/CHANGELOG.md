@@ -1,6 +1,6 @@
 # Extension Changelog
 
-## 2.0.0 - Unreleased
+## 2.0.0 - 2026-08-21
 
 - Consolidated the maintained Kit workflow and runtime services.
 - Standardized the standalone Linux archive for the NVIDIA Community Registry.
