@@ -105,3 +105,11 @@ Recorded the explicitly approved GitHub source, Python wheel, and Kit zip releas
 ## 2026-08-21 — lint: Authorized R6 specification amendment
 
 Verified the authorized raw revision hash, wiki index coverage, internal links, removed root-doc boundary, standalone Kit metadata, and Markdown whitespace.
+
+## 2026-08-21 — update: Removed R0 hash pin
+
+Removed the release-test hash and existence checks for the mutable R0 planning specification while retaining the useful boundary that prevents restoration of the root `docs/` directory.
+
+## 2026-08-21 — lint: R0 test simplification
+
+Verified documentation tests, wiki consistency, absence of active R0 hash checks, and Markdown whitespace.

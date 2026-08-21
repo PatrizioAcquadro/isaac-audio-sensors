@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import re
 from pathlib import Path
 
@@ -12,23 +11,12 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WIKI_ROOT = REPO_ROOT / "knowledge" / "wiki"
-R0_SHA256 = "d87efa29c8efc94bbcc05c732e65e560e810a7ff8fcaca8e0cc2cd3ac9adc748"
 WIKILINK_RE = re.compile(r"\[\[([^\]\n]+)\]\]")
 MARKDOWN_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 
 
-def test_root_docs_are_removed_and_authorized_r0_spec_is_preserved() -> None:
+def test_root_docs_are_removed() -> None:
     assert not (REPO_ROOT / "docs").exists()
-    r0_spec = (
-        REPO_ROOT
-        / "knowledge"
-        / "raw"
-        / "docs"
-        / "00_repository_restructuring.md"
-    )
-    assert r0_spec.is_file()
-    assert hashlib.sha256(r0_spec.read_bytes()).hexdigest() == R0_SHA256
-    assert not (r0_spec.parent / ".gitkeep").exists()
 
 
 def test_wiki_index_lists_every_canonical_page() -> None:

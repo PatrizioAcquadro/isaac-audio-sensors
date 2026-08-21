@@ -18,7 +18,7 @@ The former combined R2-R3 record is separated into one page per top-level phase.
 
 The wiki contains current concepts, contracts, workflows, limitations, and phase outcomes; it does not reproduce old release narratives or machine-specific smoke reports.
 
-R4 retained the R0 restructuring specification byte-for-byte under `knowledge/raw/docs/` as explicitly authorized raw material. On 2026-08-21 the user explicitly authorized amending that file to record the locked R6 release model; the boundary test now pins this authorized revision. The specification receives no source page because it is the conceptual setup document for the knowledge system.
+R4 retained the R0 restructuring specification under `knowledge/raw/docs/` as explicitly authorized raw material. On 2026-08-21 the user explicitly authorized amending that file to record the locked R6 release model. The specification receives no source page because it is the conceptual setup document for the knowledge system, and its mutable planning content is not hash-pinned by release tests.
 
 #### Problems / Limitations
 
