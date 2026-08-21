@@ -65,3 +65,11 @@ Recorded the live-only Isaac sensor, Kit-owned profiles, validation and output w
 ## 2026-08-21 — lint: R5.4 canonical documentation
 
 Verified canonical ownership, internal links, raw-file preservation, current paths and contracts, host and GPU gates, live Isaac and Kit smokes, downstream compatibility, Ruff, and Markdown whitespace.
+
+## 2026-08-21 — update: R5.5 Isaac Lab observations
+
+Recorded the five-name lazy Lab API, explicit entity/reference paths, six-tensor contract, current SensorBase lifecycle, strict device boundary, removed stage/fallback compatibility surfaces, and verified live RTX gate.
+
+## 2026-08-21 — lint: R5.5 canonical documentation
+
+Verified canonical ownership, index coverage, internal links, raw-file preservation, current paths and symbols, deterministic host/Isaac/downstream evidence, Ruff, release documentation checks, Markdown whitespace, and the live RTX 4090 parity/reset/device/performance gate.

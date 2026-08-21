@@ -36,9 +36,9 @@ The layer turns live USD state into pure core dataclasses before backend computa
 
 ## Isaac Lab Layer
 
-`isaac_audio_sensors.lab` adapts core behavior to Isaac Lab `SensorBaseCfg` and `SensorBase`, fixed-shape Torch buffers, cloned-stage binding, scene/entity tensor binding, selected-environment update/reset, and scalar or batched computation.
+`isaac_audio_sensors.lab` is import-safe at its package root and resolves direct Isaac Lab `SensorBaseCfg` and `SensorBase` subclasses only after `AppLauncher` initialization.
 
-Fallback classes keep imports testable outside Lab, while `ensure_isaac_lab_sensor_classes()` recovers the real classes after `AppLauncher` initializes the runtime.
+Its entity path converts official scene root/body pose tensors directly into batched fixed-shape observations. Its separate reference path converts pure core snapshots through scalar backends. USD discovery, stage poses, and room anchoring remain in the Isaac Sim layer; Lab owns no stage adapter or device fallback.
 
 ## Kit and Extension Layers
 
@@ -56,7 +56,7 @@ Privileged source pose, geometry, isolated-signal, or simulator state must remai
 
 ## Dependency Boundary
 
-The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> core + isaac`, `kit -> core + recording + isaac`, and `schemas -> core + recording`. The CLI composes public services; lower components do not import Kit, UI, or CLI.
+The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> core`, `kit -> core + recording + isaac`, and `schemas -> core + recording`. The CLI composes public services; lower components do not import Kit, UI, or CLI.
 
 The package root exports only `__version__`. Public types and services are imported from their semantic subsystem.
 

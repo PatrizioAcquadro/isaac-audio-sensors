@@ -41,6 +41,15 @@ R5.4 narrows `isaac` to the live USD/Isaac bridge without changing frame semanti
 - Centralized lazy update/timeline subscriptions, anchored-room refresh, and live occlusion state while preserving discovery, cache, motion, stage time, debug, frame publication, and Replicator behavior.
 - Consolidated lifecycle tests around public behavior and strengthened the exact Isaac export and fresh-import isolation contracts.
 
+R5.5 reduces Isaac Lab integration to two explicit observation paths.
+
+- Made the Lab package root lazy and limited its public surface to the sensor, configuration, six-tensor data contract, and entity/source binding configuration.
+- Kept `bind_entities(scene, cfg)` as the vectorized training path and `bind_reference(snapshots, array_specs)` as the scalar core-backend path; removed stage binding, generic providers, constructor conveniences, fallback classes, reload helpers, and compatibility aliases without shims.
+- Reduced configuration to Lab-owned runtime fields and made the `SimulationContext` the sole device authority; unsupported debug visualization, entity backends, effects, geometry, shapes, dtypes, and devices fail explicitly.
+- Aligned update and partial reset with the current Warp-mask `SensorBase` lifecycle and removed Python environment loops and host round trips from entity computation.
+- Reduced observations to fixed-shape `event_presence`, `bearing_deg`, `confidence`, `sector_onehot`, `per_mic_rms`, and `ambiguity_mask` tensors on the sensor device.
+- Removed the Lab USD stage adapter and its fake-stage tests; live USD discovery, pose resolution, and room anchoring remain owned by `isaac`.
+
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
 development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects
 and diagnostics are additive, every effect defaults off, and the compatibility

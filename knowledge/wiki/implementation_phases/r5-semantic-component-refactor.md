@@ -116,6 +116,30 @@ Lazy timeline/update subscriptions share `isaac.lifecycle`. Anchored-room refres
 
 The ambiguous sensor module name, duplicate discovery registries, duplicated Kit update subscription, and sensor-owned application persistence are fixed. R5.4 does not change serialized frames, backend acoustics, Isaac Lab behavior, Kit UI structure, or the optional-runtime requirements of live simulation and waveform export.
 
+## Subphase R5.5 — Isaac Lab Observations
+
+#### Implementation
+
+R5.5 makes `isaac_audio_sensors.lab` a lazy, import-safe package whose public surface contains only `AudioArraySensor`, `AudioArraySensorCfg`, `AudioArraySensorData`, `EntityBindingCfg`, and `SourceEntityCfg`. Resolving those classes after `AppLauncher` yields direct subclasses of the current Isaac Lab `SensorBaseCfg` and `SensorBase`; fallback classes, reload helpers, legacy namespaces, aliases, and generic provider APIs are removed.
+
+The sensor has two binding modes. `bind_entities(scene, cfg)` is the vectorized training path and reads `scene[name]` root/body state tensors, mount geometry, source schedules, directivity, quaternion order, and optional environment origins. It accepts only `float32` tensors already on the sensor device and supports `geometry_only` or `tdoa_synthetic` with effects disabled. `bind_reference(snapshots, array_specs)` runs the maintained scalar core backends over pure dataclasses for semantic comparison and debugging.
+
+The observation is exactly six fixed-shape tensors: presence and ambiguity masks, bearing, confidence, eight-sector one-hot encoding, and per-microphone RMS. Padding is deterministic, device ownership comes only from `SimulationContext`, and partial reset clears only selected rows. Entity updates use tensor selection, compaction, and scatter operations without environment loops or host round trips; the scalar conversion is isolated in the reference backend.
+
+USD discovery, stage pose resolution, and room anchoring remain in `isaac`. The former Lab stage adapter and its fake-stage, fallback, metadata, alias, and helper-level tests are removed; compatible v1 traces may still contain legacy diagnostic namespaces.
+
+#### Key Decisions
+
+- The breaking cleanup has no compatibility shims.
+- Entity mode is the batched RL path; reference mode is the pure-snapshot semantic authority.
+- `debug_vis=True` fails until a real visualization exists.
+- Scalar and batched paths preserve source scheduling, event order, truncation, bearings, confidence, sector, RMS, ambiguity, and padding semantics for maintained entity backends.
+- Core backends, recording, Kit, CLI, and serialized v1 contracts are unchanged.
+
+#### Problems / Limitations
+
+Duplicate stage/entity ownership, silent device transfers, fallback inheritance, test-only metadata, and multiple binding routes are removed. The live-only RTX 4090 gate cannot be replaced by CPU execution; it passed entity/reference parity, partial reset, CUDA shape/dtype/device checks, and 50 steps over 4096 environments at 1.879 ms/step mean against the 20 ms budget.
+
 ## Artifacts
 
 - AST dependency contract and fresh-process import-boundary tests.
@@ -135,6 +159,7 @@ The ambiguous sensor module name, duplicate discovery registries, duplicated Kit
 - `src/isaac_audio_sensors/isaac/sensor.py`
 - `src/isaac_audio_sensors/isaac/lifecycle.py`
 - `src/isaac_audio_sensors/isaac/occlusion.py`
+- `src/isaac_audio_sensors/lab/`
 - `src/isaac_audio_sensors/kit/validation/`
 - `src/isaac_audio_sensors/kit/headless.py`
 - `src/isaac_audio_sensors/schemas/generate.py`

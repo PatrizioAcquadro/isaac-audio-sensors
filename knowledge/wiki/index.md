@@ -16,7 +16,7 @@
 - [[topics/public-contracts-and-recording|Public Contracts and Recording]] — frames, schemas, configuration, plugins, trace IO, sessions, replay, and compatibility.
 - [[topics/acoustic-modeling|Acoustic Modeling]] — arrays, backends, fidelity, room acoustics, motion, effects, occlusion, DOA, and interpretation limits.
 - [[topics/isaac-sim-and-kit|Isaac Sim and Kit]] — stage discovery, live sensing, extension workflows, OmniGraph, Replicator, and troubleshooting.
-- [[topics/isaac-lab-integration|Isaac Lab Integration]] — sensor configuration, observation tensors, bindings, compute paths, reset/update, and GPU validation.
+- [[topics/isaac-lab-integration|Isaac Lab Integration]] — sensor configuration, observation tensors, entity/reference binding, reset/update, and GPU validation.
 - [[topics/validation-and-release|Validation and Release]] — deterministic lanes, live gates, version authority, builds, audits, and claim boundaries.
 
 ## Key Decisions
