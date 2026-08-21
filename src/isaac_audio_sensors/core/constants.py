@@ -8,16 +8,7 @@ DEFAULT_SPEED_OF_SOUND_MPS = 343.0
 RUNTIME_PROFILES = ("training_features", "waveform_fidelity")
 DEFAULT_RUNTIME_PROFILE = "waveform_fidelity"
 
-DATASET_MANIFEST_SCHEMA_VERSION = "ias.audio_dataset_manifest.v1"
 CALIBRATION_PROFILE_SCHEMA_VERSION = "ias.audio_calibration_profile.v1"
-
-DATASET_MANIFEST_UNITS = {
-    "position": "m",
-    "orientation": "quaternion_xyzw",
-    "time": "s",
-    "timestamp": "ms",
-    "sample_rate": "Hz",
-}
 
 CALIBRATION_PROFILE_UNITS = {
     "position": "m",

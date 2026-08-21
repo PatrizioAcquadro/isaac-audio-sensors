@@ -36,7 +36,6 @@ from isaac_audio_sensors.core.io.traces import (
     frame_from_trace_dict,
     frame_to_trace_dict,
 )
-from isaac_audio_sensors.core.schema import audio_sensor_frame_json_schema
 from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSensorFrame,
@@ -44,11 +43,13 @@ from isaac_audio_sensors.core.types import (
     Pose3D,
 )
 from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
+from isaac_audio_sensors.schemas.generate import audio_sensor_frame_json_schema
 
 SCHEMA_PATH = files("isaac_audio_sensors.schemas").joinpath(
     "audio_sensor_frame.v1.schema.json"
 )
 TRACE_DIR = Path("examples/traces")
+
 
 def test_generated_schema_matches_checked_in_schema_exactly():
     generated = (
@@ -76,19 +77,20 @@ def test_backend_identifiers_are_stable_public_v1_ids():
 def test_schema_exposes_serialized_frame_semantics():
     schema = _checked_in_schema()
 
-    assert schema["properties"]["schema_version"]["const"] == (
-        FRAME_SCHEMA_VERSION
-    )
+    assert schema["properties"]["schema_version"]["const"] == (FRAME_SCHEMA_VERSION)
     assert "separate from the Python package version" in schema["description"]
     assert "bearing-sector semantics" in schema["description"]
     assert "stable backend identifiers" in schema["description"]
     assert schema["properties"]["backend_id"]["description"].endswith(
         "room_acoustics_srp."
     )
-    assert "half-open v1 sector semantics" in (
-        schema["properties"]["detections"]["items"]["properties"]["doa"]["properties"][
-            "bearing_sector"
-        ]["description"]
+    assert (
+        "half-open v1 sector semantics"
+        in (
+            schema["properties"]["detections"]["items"]["properties"]["doa"][
+                "properties"
+            ]["bearing_sector"]["description"]
+        )
     )
 
 

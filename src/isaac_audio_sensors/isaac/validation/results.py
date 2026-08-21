@@ -28,21 +28,5 @@ class ValidationReport:
 
         return not any(finding.severity == "error" for finding in self.findings)
 
-    def raise_first(self) -> None:
-        """Raise the GUI's established error type for the first error.
-
-        The import is deliberately lazy: importing :mod:`isaac.validation` does
-        not import the Omniverse-facing extension package or any Isaac runtime.
-        """
-
-        for finding in self.findings:
-            if finding.severity != "error":
-                continue
-            from isaac_audio_sensors.kit.state import (
-                ExtensionActionError,
-            )
-
-            raise ExtensionActionError(finding.message)
-
 
 __all__ = ["ValidationFinding", "ValidationReport"]

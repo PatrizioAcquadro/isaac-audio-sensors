@@ -1,9 +1,8 @@
 """World-aligned bounding boxes and room tags from USD or duck-typed prims.
 
-Shared by the Isaac Lab stage binding and the Isaac Sim extension, so it
-lives outside both packages and keeps ``core`` USD-free. Real pxr prims use
+Shared by Isaac Sim, Isaac Lab, and Kit. Real pxr prims use
 ``UsdGeom.BBoxCache``; fake prims (live-smoke fallback stages, unit tests)
-provide explicit ``ias:room_min_world``/``ias:room_max_world`` attributes or
+Fake prims provide explicit ``ias:room_min_world``/``ias:room_max_world`` attributes or
 ``ias:room_size_m`` centered on the prim's world position.
 """
 

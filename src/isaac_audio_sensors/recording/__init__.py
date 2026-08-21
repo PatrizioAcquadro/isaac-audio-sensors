@@ -44,6 +44,7 @@ from isaac_audio_sensors.recording.layout import (
     verify_shard_tiling,
 )
 from isaac_audio_sensors.recording.loader import LoadedFrame, SessionDataset
+from isaac_audio_sensors.recording.manifest import AudioDatasetManifest
 from isaac_audio_sensors.recording.recorder import (
     AppendFrameResult,
     SessionRecorder,
@@ -56,6 +57,12 @@ from isaac_audio_sensors.recording.replay import (
     ReplayEvent,
     ReplayEventKind,
     replay_session,
+)
+from isaac_audio_sensors.recording.serialization import (
+    manifest_from_dict,
+    manifest_to_dict,
+    read_dataset_manifest,
+    write_dataset_manifest,
 )
 from isaac_audio_sensors.recording.splits import (
     SPLIT_PLAN_SCHEMA,
@@ -86,6 +93,7 @@ __all__ = [
     "CancelledWrite",
     "CarryState",
     "AppendFrameResult",
+    "AudioDatasetManifest",
     "DatasetFrameRecord",
     "DatasetLayoutError",
     "DatasetSplitError",
@@ -125,6 +133,7 @@ __all__ = [
     "parse_dataset_frame_record",
     "plan_shards",
     "publish_file",
+    "read_dataset_manifest",
     "read_split_plan",
     "recover_finalization",
     "resume",
@@ -133,6 +142,8 @@ __all__ = [
     "serialize_shard_completion",
     "serialize_split_plan",
     "shard_id",
+    "manifest_from_dict",
+    "manifest_to_dict",
     "validate_record_sequence",
     "validate_dataset",
     "validate_session_layout",
@@ -142,6 +153,7 @@ __all__ = [
     "verify_shard_completion",
     "verify_shard_tiling",
     "write_json_atomic",
+    "write_dataset_manifest",
     "write_split_plan",
     "write_with_retry",
     "apply_split_plan",

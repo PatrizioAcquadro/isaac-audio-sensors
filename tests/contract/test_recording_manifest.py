@@ -11,8 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from isaac_audio_sensors.core.constants import DATASET_MANIFEST_SCHEMA_VERSION
-from isaac_audio_sensors.core.schema import audio_dataset_manifest_json_schema
+from isaac_audio_sensors.recording.constants import DATASET_MANIFEST_SCHEMA_VERSION
 from isaac_audio_sensors.recording.manifest import AssetRecord, ManifestPose
 from isaac_audio_sensors.recording.serialization import (
     manifest_from_dict,
@@ -20,6 +19,7 @@ from isaac_audio_sensors.recording.serialization import (
     read_dataset_manifest,
     write_dataset_manifest,
 )
+from isaac_audio_sensors.schemas.generate import audio_dataset_manifest_json_schema
 
 SCHEMA_PATH = files("isaac_audio_sensors.schemas").joinpath(
     "audio_dataset_manifest.v1.schema.json"
@@ -53,9 +53,7 @@ def test_generated_schema_matches_checked_in_schema_exactly():
 
     assert SCHEMA_PATH.read_text(encoding="utf-8") == generated
     assert (
-        audio_dataset_manifest_json_schema()["properties"]["schema_version"][
-            "const"
-        ]
+        audio_dataset_manifest_json_schema()["properties"]["schema_version"]["const"]
         == DATASET_MANIFEST_SCHEMA_VERSION
     )
 
@@ -73,9 +71,7 @@ def test_valid_manifest_fixtures_round_trip(tmp_path):
         assert manifest_to_dict(manifest) == payload
         assert manifest_from_dict(payload) == manifest
         written = write_dataset_manifest(manifest, tmp_path / path.name)
-        assert written.read_text(encoding="utf-8") == path.read_text(
-            encoding="utf-8"
-        )
+        assert written.read_text(encoding="utf-8") == path.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize(("case", "message"), sorted(INVALID_MESSAGES.items()))
@@ -191,9 +187,7 @@ def _invalid_manifest(case: str) -> dict:
         "coordinate_frame": lambda value: value.__setitem__(
             "coordinate_convention", "legacy_y_forward"
         ),
-        "frame_range": lambda value: value["episodes"][0].__setitem__(
-            "start_frame", 2
-        ),
+        "frame_range": lambda value: value["episodes"][0].__setitem__("start_frame", 2),
         "dataset_id": lambda value: value.__setitem__("dataset_id", "bad id"),
         "absolute_path": lambda value: value["shards"][0]["assets"][0].__setitem__(
             "path", "/tmp/frames.ndjson"

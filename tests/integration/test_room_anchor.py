@@ -20,6 +20,10 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     RoomAcousticsSpec,
 )
+from isaac_audio_sensors.isaac.usd_bounds import (
+    resolve_room_absorption,
+    world_aligned_bbox,
+)
 from isaac_audio_sensors.isaac.viz.overlays import (
     build_debug_primitives,
     room_outline_points,
@@ -27,10 +31,6 @@ from isaac_audio_sensors.isaac.viz.overlays import (
 from isaac_audio_sensors.lab.stage_binding import (
     LabAudioStageBindingCfg,
     build_lab_stage_provider,
-)
-from isaac_audio_sensors.usd_bounds import (
-    resolve_room_absorption,
-    world_aligned_bbox,
 )
 from tests.helpers import (
     FakeShoeBox as _FakeShoeBox,

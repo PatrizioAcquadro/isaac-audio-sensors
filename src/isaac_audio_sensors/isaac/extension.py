@@ -60,18 +60,18 @@ from isaac_audio_sensors.isaac.stage_snapshot import (
     build_stage_snapshot,
     enrich_snapshot_motion,
 )
-from isaac_audio_sensors.isaac.viz.debug_draw import IsaacDebugDrawer
-from isaac_audio_sensors.isaac.viz.overlays import (
-    DebugPrimitive,
-    build_debug_primitives,
-)
-from isaac_audio_sensors.usd_bounds import (
+from isaac_audio_sensors.isaac.usd_bounds import (
     ABSORPTION_ATTR,
     DEFAULT_SEMANTIC_ABSORPTION,
     MATERIAL_ATTR,
     prim_attributes,
     resolve_room_absorption,
     world_aligned_bbox,
+)
+from isaac_audio_sensors.isaac.viz.debug_draw import IsaacDebugDrawer
+from isaac_audio_sensors.isaac.viz.overlays import (
+    DebugPrimitive,
+    build_debug_primitives,
 )
 
 

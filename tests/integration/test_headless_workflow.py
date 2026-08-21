@@ -13,8 +13,8 @@ from isaac_audio_sensors.core.types import (
     DoaEstimate,
     Pose3D,
 )
-from isaac_audio_sensors.isaac.headless_workflow import HeadlessGuidedSession
 from isaac_audio_sensors.kit.controller import ExtensionController
+from isaac_audio_sensors.kit.headless import HeadlessGuidedSession
 from isaac_audio_sensors.kit.state import CurrentStageContext
 from isaac_audio_sensors.kit.workflow import GUIDED_STAGE_ORDER
 
@@ -175,6 +175,9 @@ def test_guided_cli_success_and_outside_isaac_error(
     assert "no USD stage" in failure_payload["error"]
 
     class _SuccessfulSession:
+        def __init__(self, _controller: ExtensionController) -> None:
+            pass
+
         def run_from_config(self, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
             return {
                 "status": "passed",

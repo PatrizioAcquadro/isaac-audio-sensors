@@ -9,6 +9,8 @@ from typing import Any
 
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
+)
+from isaac_audio_sensors.recording.constants import (
     DATASET_MANIFEST_SCHEMA_VERSION,
     DATASET_MANIFEST_UNITS,
 )

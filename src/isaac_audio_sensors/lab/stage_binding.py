@@ -33,7 +33,7 @@ from isaac_audio_sensors.core.types import (
     MicrophoneSpec,
     RoomAcousticsSpec,
 )
-from isaac_audio_sensors.usd_bounds import (
+from isaac_audio_sensors.isaac.usd_bounds import (
     DEFAULT_SEMANTIC_ABSORPTION,
     resolve_room_absorption,
     world_aligned_bbox,

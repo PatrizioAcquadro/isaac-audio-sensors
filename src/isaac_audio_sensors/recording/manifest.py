@@ -9,11 +9,13 @@ from pathlib import PurePosixPath, PureWindowsPath
 
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
-    DATASET_MANIFEST_SCHEMA_VERSION,
-    DATASET_MANIFEST_UNITS,
     RUNTIME_PROFILES,
 )
 from isaac_audio_sensors.core.math_utils import as_quaternion_xyzw
+from isaac_audio_sensors.recording.constants import (
+    DATASET_MANIFEST_SCHEMA_VERSION,
+    DATASET_MANIFEST_UNITS,
+)
 
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -372,7 +374,7 @@ class AudioDatasetManifest:
         object.__setattr__(self, "units", dict(self.units))
         if self.dtype not in _DTYPES:
             raise ValueError(
-                "AudioDatasetManifest.dtype must be one of " f"{sorted(_DTYPES)}."
+                f"AudioDatasetManifest.dtype must be one of {sorted(_DTYPES)}."
             )
         _require_sha256(
             self.configuration_sha256,
@@ -404,8 +406,7 @@ class AudioDatasetManifest:
             unknown = set(shard.episode_ids) - known_episode_ids
             if unknown:
                 raise ValueError(
-                    "ShardRecord references unknown episode ids: "
-                    f"{sorted(unknown)}."
+                    f"ShardRecord references unknown episode ids: {sorted(unknown)}."
                 )
         all_assets = tuple(asset for shard in shards for asset in shard.assets)
         _require_unique(
@@ -445,12 +446,12 @@ class AudioDatasetManifest:
             unknown = set(split.group_ids) - known_groups
             if unknown:
                 raise ValueError(
-                    "SplitRecord references unknown groups: " f"{sorted(unknown)}."
+                    f"SplitRecord references unknown groups: {sorted(unknown)}."
                 )
             overlap = assigned_groups.intersection(split.group_ids)
             if overlap:
                 raise ValueError(
-                    "SplitRecord groups must not cross splits: " f"{sorted(overlap)}."
+                    f"SplitRecord groups must not cross splits: {sorted(overlap)}."
                 )
             assigned_groups.update(split.group_ids)
         if self.completion_state == "complete":

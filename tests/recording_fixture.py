@@ -11,9 +11,9 @@ import numpy as np
 from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
-    DATASET_MANIFEST_UNITS,
 )
 from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.recording.constants import DATASET_MANIFEST_UNITS
 from isaac_audio_sensors.recording.layout import (
     build_dataset_frame_record,
     build_shard_completion,

@@ -165,6 +165,12 @@ from .workflow import (
 )
 
 
+def _raise_first(report: ValidationReport) -> None:
+    for finding in report.findings:
+        if finding.severity == "error":
+            raise ExtensionActionError(finding.message)
+
+
 class ExtensionController:
     """Stateful controller for the Isaac Audio Sensors reference extension."""
 
@@ -222,24 +228,15 @@ class ExtensionController:
                     "stage": lambda _finding: self.refresh_stage_selection(),
                     "preset": lambda _finding: (
                         self.guided_apply_preset(
-                            self.state.guided_preset_id
-                            or SAFE_PRESETS[0].preset_id
+                            self.state.guided_preset_id or SAFE_PRESETS[0].preset_id
                         ),
-                        self._validation.refresh_capabilities(
-                            "guided preset recovery"
-                        ),
+                        self._validation.refresh_capabilities("guided preset recovery"),
                     ),
                     "capabilities": lambda _finding: (
-                        self._validation.refresh_capabilities(
-                            "guided recovery action"
-                        )
+                        self._validation.refresh_capabilities("guided recovery action")
                     ),
-                    "recording": lambda _finding: (
-                        self._guided_restart_recording()
-                    ),
-                    "finish_recording": lambda _finding: (
-                        self.guided_stop_recording()
-                    ),
+                    "recording": lambda _finding: self._guided_restart_recording(),
+                    "finish_recording": lambda _finding: self.guided_stop_recording(),
                     "run": lambda _finding: self.guided_start_run(),
                     "inspect": lambda _finding: self.guided_mark_inspected(),
                     "focus": lambda finding: self._set_status(
@@ -272,10 +269,9 @@ class ExtensionController:
         state = self.state
         context = self._context()
         stage = context.stage
-        capabilities_were_stale = (
-            getattr(self._validation, "_capability_state", None) is not None
-            and getattr(self._validation, "_capabilities_stale", False)
-        )
+        capabilities_were_stale = getattr(
+            self._validation, "_capability_state", None
+        ) is not None and getattr(self._validation, "_capabilities_stale", False)
         reports = [
             self._validation.validate_stage_present(stage is not None),
             self._validation.validate_runtime(state),
@@ -330,11 +326,7 @@ class ExtensionController:
             )
         )
         findings = tuple(
-            dict.fromkeys(
-                finding
-                for report in reports
-                for finding in report.findings
-            )
+            dict.fromkeys(finding for report in reports for finding in report.findings)
         )
         capabilities_fresh = (
             getattr(self._validation, "_capability_state", None) is not None
@@ -438,9 +430,7 @@ class ExtensionController:
             "detection_count": self.state.latest_detection_count,
             "backend": self.state.latest_backend or self.state.backend,
             "capability_generation": (
-                None
-                if capability is None
-                else capability.captured_at_generation
+                None if capability is None else capability.captured_at_generation
             ),
         }
 
@@ -479,9 +469,7 @@ class ExtensionController:
                 )
             root = Path(session_dir)
             chosen_scene = scene_id or self.state.guided_scene_id
-            chosen_environment = (
-                environment_id or self.state.guided_environment_id
-            )
+            chosen_environment = environment_id or self.state.guided_environment_id
             chosen_group = split_group or self.state.guided_split_group
             chosen_seed = (
                 self.state.guided_session_seed
@@ -815,9 +803,7 @@ class ExtensionController:
         for shard in manifest.shards:
             marker_path = root / "shards" / shard.shard_id / "shard.complete.json"
             marker = json.loads(marker_path.read_text(encoding="utf-8"))
-            marker_files = {
-                str(item["path"]): item for item in marker.get("files", ())
-            }
+            marker_files = {str(item["path"]): item for item in marker.get("files", ())}
             for asset in shard.assets:
                 marker_entry = marker_files[Path(asset.path).name]
                 entries.append(
@@ -969,9 +955,7 @@ class ExtensionController:
             status = replace(
                 previous,
                 frames=previous.frames + int(result.accepted),
-                dropped_frames=(
-                    previous.dropped_frames + int(not result.accepted)
-                ),
+                dropped_frames=(previous.dropped_frames + int(not result.accepted)),
                 shards_promoted=len(self._guided_promotions),
                 bytes_written=self._guided_session_bytes(recorder.session_root),
             )
@@ -1484,9 +1468,7 @@ class ExtensionController:
             self._validate_stage_present(context.stage is not None)
             self.state.selected_prim_paths = context.selected_prim_paths
             path = (
-                context.selected_prim_paths[0]
-                if context.selected_prim_paths
-                else None
+                context.selected_prim_paths[0] if context.selected_prim_paths else None
             )
             self._validate_selection(path, exists=True)
             assert path is not None
@@ -1658,9 +1640,11 @@ class ExtensionController:
 
         try:
             stage_obj = self._stage_or_error(stage)
-            self._validation.validate_array_pose_editable(
-                self.state.array_attached_to_object
-            ).raise_first()
+            _raise_first(
+                self._validation.validate_array_pose_editable(
+                    self.state.array_attached_to_object
+                )
+            )
             position = self._array_position_from_state()
             orientation = self._array_orientation_from_state()
             record = self._author_array_on_stage(
@@ -1775,7 +1759,7 @@ class ExtensionController:
 
         try:
             key = preset.strip().lower()
-            self._validation.validate_source_position_preset(preset).raise_first()
+            _raise_first(self._validation.validate_source_position_preset(preset))
             self._set_source_position_state(SOURCE_POSITION_PRESETS[key])
             authored = self.apply_source_position(stage=stage)
             if authored is not None:
@@ -1821,7 +1805,7 @@ class ExtensionController:
                 stage=stage,
                 selected_paths=selected_paths,
             )
-            self._validation.validate_profile_labels(labels).raise_first()
+            _raise_first(self._validation.validate_profile_labels(labels))
             selected_object_path = self._selected_object_candidate_path(
                 stage=stage,
                 selected_paths=selected_paths,
@@ -1835,7 +1819,7 @@ class ExtensionController:
                 profiles=library,
                 object_profile_mappings=self.state.object_profile_mappings,
             )
-            self._validation.validate_profile_match(labels, profile_id).raise_first()
+            _raise_first(self._validation.validate_profile_match(labels, profile_id))
             assert profile_id is not None
             profile = self._sound_profile_by_id(profile_id)
             self.state.selected_profile_id = profile.profile_id
@@ -1949,10 +1933,12 @@ class ExtensionController:
             self._validate_abs_path(object_path, "object_prim_path")
             self._validate_abs_path(state.source_prim_path, "source_prim_path")
             self._validate_source_metadata_state()
-            self._validation.validate_source_attach_target_exists(
-                object_path,
-                _stage_has_prim(stage_obj, object_path),
-            ).raise_first()
+            _raise_first(
+                self._validation.validate_source_attach_target_exists(
+                    object_path,
+                    _stage_has_prim(stage_obj, object_path),
+                )
+            )
             source_name = _path_name(state.source_prim_path)
             attached_path = f"{object_path.rstrip('/')}/{source_name}"
             offset = self._source_local_offset_from_state()
@@ -2134,10 +2120,12 @@ class ExtensionController:
                 object_path,
                 kind="array",
             )
-            self._validation.validate_array_attach_target_exists(
-                object_path,
-                _stage_has_prim(stage_obj, object_path),
-            ).raise_first()
+            _raise_first(
+                self._validation.validate_array_attach_target_exists(
+                    object_path,
+                    _stage_has_prim(stage_obj, object_path),
+                )
+            )
             array_name = _path_name(state.array_prim_path)
             attached_path = f"{object_path.rstrip('/')}/{array_name}"
             offset = self._array_local_offset_from_state()
@@ -2584,7 +2572,7 @@ class ExtensionController:
         )
 
     def _validate_source_metadata_state(self) -> None:
-        self._validation.validate_source_metadata(self.state).raise_first()
+        _raise_first(self._validation.validate_source_metadata(self.state))
 
     def _source_position_from_state(self) -> tuple[float, float, float]:
         position = (
@@ -2592,7 +2580,7 @@ class ExtensionController:
             float(self.state.source_position_y_m),
             float(self.state.source_position_z_m),
         )
-        self._validation.validate_source_position_values(position).raise_first()
+        _raise_first(self._validation.validate_source_position_values(position))
         return position
 
     def _source_local_offset_from_state(self) -> tuple[float, float, float]:
@@ -2601,7 +2589,7 @@ class ExtensionController:
             float(self.state.source_local_offset_y_m),
             float(self.state.source_local_offset_z_m),
         )
-        self._validation.validate_source_local_offset_values(offset).raise_first()
+        _raise_first(self._validation.validate_source_local_offset_values(offset))
         return offset
 
     def _set_source_position_state(self, position: Iterable[float]) -> None:
@@ -2616,7 +2604,7 @@ class ExtensionController:
             float(self.state.array_position_y_m),
             float(self.state.array_position_z_m),
         )
-        self._validation.validate_array_position_values(position).raise_first()
+        _raise_first(self._validation.validate_array_position_values(position))
         return position
 
     def _array_orientation_from_state(self) -> tuple[float, float, float, float]:
@@ -2625,7 +2613,7 @@ class ExtensionController:
             float(self.state.array_pitch_deg),
             float(self.state.array_yaw_deg),
         )
-        self._validation.validate_array_orientation_values(angles).raise_first()
+        _raise_first(self._validation.validate_array_orientation_values(angles))
         return quaternion_from_euler_deg(
             roll_deg=angles[0],
             pitch_deg=angles[1],
@@ -2638,7 +2626,7 @@ class ExtensionController:
             float(self.state.array_local_offset_y_m),
             float(self.state.array_local_offset_z_m),
         )
-        self._validation.validate_array_local_offset_values(offset).raise_first()
+        _raise_first(self._validation.validate_array_local_offset_values(offset))
         return offset
 
     def _array_local_orientation_from_state(
@@ -2649,7 +2637,7 @@ class ExtensionController:
             float(self.state.array_local_pitch_deg),
             float(self.state.array_local_yaw_deg),
         )
-        self._validation.validate_array_local_orientation_values(angles).raise_first()
+        _raise_first(self._validation.validate_array_local_orientation_values(angles))
         return quaternion_from_euler_deg(
             roll_deg=angles[0],
             pitch_deg=angles[1],
@@ -2810,10 +2798,7 @@ class ExtensionController:
                 self.sensor.stop()
             self.state.sensor_running = False
             workflow = getattr(self, "_guided_workflow", None)
-            if (
-                workflow is not None
-                and workflow.run_status.running
-            ):
+            if workflow is not None and workflow.run_status.running:
                 workflow.stop_run()
             self._set_status("Sensor stopped.")
         except Exception as exc:
@@ -2919,7 +2904,7 @@ class ExtensionController:
             return None
         from isaac_audio_sensors.core.room_anchor import room_spec_from_bounds
         from isaac_audio_sensors.core.types import RoomAcousticsSpec
-        from isaac_audio_sensors.usd_bounds import (
+        from isaac_audio_sensors.isaac.usd_bounds import (
             DEFAULT_SEMANTIC_ABSORPTION,
             resolve_room_absorption,
             world_aligned_bbox,
@@ -2928,10 +2913,12 @@ class ExtensionController:
         anchor_path = state.room_anchor_prim_path.strip()
         if anchor_path:
             prim = _stage_prim_at_path(stage, anchor_path)
-            self._validation.validate_room_anchor_exists(
-                anchor_path,
-                prim is not None,
-            ).raise_first()
+            _raise_first(
+                self._validation.validate_room_anchor_exists(
+                    anchor_path,
+                    prim is not None,
+                )
+            )
             assert prim is not None
             minimum, maximum = world_aligned_bbox(prim, prim_path=anchor_path)
             absorption, absorption_provenance = resolve_room_absorption(
@@ -2957,9 +2944,7 @@ class ExtensionController:
                     state.array_prim_path,
                     field_name="room placement array",
                 )
-                array_position = tuple(
-                    float(value) for value in pose.position_world
-                )
+                array_position = tuple(float(value) for value in pose.position_world)
             dimensions = DEFAULT_ROOM_DIMENSIONS_M
             room = RoomAcousticsSpec(
                 room_id=DEFAULT_ROOM_ID,
@@ -2967,8 +2952,7 @@ class ExtensionController:
                 absorption=DEFAULT_ROOM_ABSORPTION,
                 max_order=DEFAULT_ROOM_MAX_ORDER,
                 origin_m=tuple(
-                    array_position[axis] - dimensions[axis] / 2.0
-                    for axis in range(3)
+                    array_position[axis] - dimensions[axis] / 2.0 for axis in range(3)
                 ),
                 out_of_bounds=state.room_out_of_bounds,
             )
@@ -3060,9 +3044,11 @@ class ExtensionController:
             requested_path = path or self.state.config_import_path
             input_path = _resolve_gui_output_path(requested_path)
             payload = json.loads(input_path.read_text(encoding="utf-8"))
-            self._validation.validate_config_schema_version(
-                payload.get("schema_version")
-            ).raise_first()
+            _raise_first(
+                self._validation.validate_config_schema_version(
+                    payload.get("schema_version")
+                )
+            )
             self._apply_config_summary(payload)
             self.state.config_import_path = str(requested_path)
             missing_attachment = self._attachment_status_for_current_stage()
@@ -3411,9 +3397,7 @@ class ExtensionController:
 
         self._unregister_simulation_reset_callback()
         try:
-            simulation = importlib.import_module(
-                "isaacsim.core.simulation_manager"
-            )
+            simulation = importlib.import_module("isaacsim.core.simulation_manager")
             manager = simulation.SimulationManager
             event = simulation.IsaacEvents.POST_RESET
             self._simulation_reset_callback_id = manager.register_callback(
@@ -3429,9 +3413,7 @@ class ExtensionController:
         if callback_id is None:
             return
         try:
-            simulation = importlib.import_module(
-                "isaacsim.core.simulation_manager"
-            )
+            simulation = importlib.import_module("isaacsim.core.simulation_manager")
             simulation.SimulationManager.deregister_callback(callback_id)
         except (AttributeError, ImportError, RuntimeError, TypeError, ValueError):
             pass
@@ -3595,22 +3577,26 @@ class ExtensionController:
         return sensor
 
     def _validate_runtime_state(self) -> None:
-        self._validation.validate_runtime(self.state).raise_first()
+        _raise_first(self._validation.validate_runtime(self.state))
 
     def _validate_backend_available(self) -> None:
-        self._validation.validate_backend_available(self.state.backend).raise_first()
+        _raise_first(self._validation.validate_backend_available(self.state.backend))
 
     def _validate_backend_device(self) -> None:
-        self._validation.validate_backend_device(
-            self.state.backend,
-            self.state.compute_device,
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_backend_device(
+                self.state.backend,
+                self.state.compute_device,
+            )
+        )
 
     def _validate_calibration_profile(self) -> None:
-        self._validation.validate_calibration_profile(
-            self.state.calibration_profile_path,
-            self._calibration_array_facts(),
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_calibration_profile(
+                self.state.calibration_profile_path,
+                self._calibration_array_facts(),
+            )
+        )
 
     def _calibration_array_facts(self) -> dict[str, Any]:
         return {
@@ -3622,7 +3608,7 @@ class ExtensionController:
         }
 
     def _validate_layout_state(self) -> None:
-        self._validation.validate_layout(self.state).raise_first()
+        _raise_first(self._validation.validate_layout(self.state))
 
     def _author_child_microphones(
         self,
@@ -3716,23 +3702,27 @@ class ExtensionController:
         }
         if bad_mappings:
             label, profile_id = next(iter(sorted(bad_mappings.items())))
-            self._validation.validate_object_profile_mapping_known(
-                label,
-                profile_id,
-                False,
-            ).raise_first()
+            _raise_first(
+                self._validation.validate_object_profile_mapping_known(
+                    label,
+                    profile_id,
+                    False,
+                )
+            )
         return profiles
 
     def _sound_profile_by_id(self, profile_id: str) -> SoundProfile:
         requested = profile_id.strip()
-        self._validation.validate_sound_profile_id_present(requested).raise_first()
+        _raise_first(self._validation.validate_sound_profile_id_present(requested))
         for profile in self._validated_sound_profiles():
             if profile.profile_id == requested:
                 return profile
-        self._validation.validate_sound_profile_id_known(
-            requested,
-            False,
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_sound_profile_id_known(
+                requested,
+                False,
+            )
+        )
         raise AssertionError("unreachable sound profile validation")
 
     def _validated_rig_profiles(self) -> tuple[MicrophoneRigProfile, ...]:
@@ -3744,14 +3734,16 @@ class ExtensionController:
 
     def _rig_profile_by_id(self, profile_id: str) -> MicrophoneRigProfile:
         requested = profile_id.strip()
-        self._validation.validate_rig_profile_id_present(requested).raise_first()
+        _raise_first(self._validation.validate_rig_profile_id_present(requested))
         for profile in self._validated_rig_profiles():
             if profile.profile_id == requested:
                 return profile
-        self._validation.validate_rig_profile_id_known(
-            requested,
-            False,
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_rig_profile_id_known(
+                requested,
+                False,
+            )
+        )
         raise AssertionError("unreachable rig profile validation")
 
     def _profile_object_label(self, stage_obj: Any | None) -> str:
@@ -3825,13 +3817,13 @@ class ExtensionController:
         return context.stage
 
     def _validate_abs_path(self, path: str, field_name: str) -> None:
-        self._validation.validate_abs_prim_path(path, field_name).raise_first()
+        _raise_first(self._validation.validate_abs_prim_path(path, field_name))
 
     def _validate_stage_present(self, stage_is_open: bool) -> None:
-        self._validation.validate_stage_present(stage_is_open).raise_first()
+        _raise_first(self._validation.validate_stage_present(stage_is_open))
 
     def _validate_selection(self, path: str | None, *, exists: bool) -> None:
-        self._validation.validate_selection(path, exists).raise_first()
+        _raise_first(self._validation.validate_selection(path, exists))
 
     def _validate_attach_target(
         self,
@@ -3840,11 +3832,13 @@ class ExtensionController:
         *,
         kind: str = "source",
     ) -> None:
-        self._validation.validate_attach_target(
-            source_path,
-            target_path,
-            kind=kind,
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_attach_target(
+                source_path,
+                target_path,
+                kind=kind,
+            )
+        )
 
     def _validate_attached_object_available(self, stage: Any | None) -> None:
         object_path = (
@@ -3857,11 +3851,13 @@ class ExtensionController:
             or not object_path
             else _stage_has_prim(stage, object_path)
         )
-        self._validation.validate_attached_source_target(
-            self.state.source_attached_to_object,
-            object_path,
-            exists,
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_attached_source_target(
+                self.state.source_attached_to_object,
+                object_path,
+                exists,
+            )
+        )
 
     def _validate_attached_array_available(self, stage: Any | None) -> None:
         object_path = (
@@ -3874,11 +3870,13 @@ class ExtensionController:
             or not object_path
             else _stage_has_prim(stage, object_path)
         )
-        self._validation.validate_attached_array_target(
-            self.state.array_attached_to_object,
-            object_path,
-            exists,
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_attached_array_target(
+                self.state.array_attached_to_object,
+                object_path,
+                exists,
+            )
+        )
 
     def _attachment_status_for_current_stage(self) -> str | None:
         if not self.state.source_attached_to_object:
@@ -4262,9 +4260,7 @@ class ExtensionController:
         )
 
         self.state.backend = str(payload.get("backend", self.state.backend))
-        self.state.device_id = str(
-            device.get("device_id", self.state.device_id)
-        )
+        self.state.device_id = str(device.get("device_id", self.state.device_id))
         self.state.compute_device = str(
             device.get("compute_device", self.state.compute_device)
         )
@@ -4434,9 +4430,7 @@ class ExtensionController:
             lifecycle.get("waveform_dir", self.state.waveform_dir)
             or self.state.waveform_dir
         )
-        waveform_mode = str(
-            lifecycle.get("waveform_mode", self.state.waveform_mode)
-        )
+        waveform_mode = str(lifecycle.get("waveform_mode", self.state.waveform_mode))
         if waveform_mode in {"per_frame", "session"}:
             self.state.waveform_mode = waveform_mode
         self.state.follow_viewport_selection = bool(
@@ -4534,9 +4528,7 @@ class ExtensionController:
         latest_frame = dict(payload.get("latest_frame", {}))
         self.state.latest_frame_id = latest_frame.get("frame_id")
         self.state.latest_backend = latest_frame.get("backend")
-        self.state.latest_detection_count = int(
-            latest_frame.get("detection_count", 0)
-        )
+        self.state.latest_detection_count = int(latest_frame.get("detection_count", 0))
         self.state.latest_source_prim_path = latest_frame.get("source_prim_path")
         source_position = latest_frame.get("source_position_m")
         self.state.latest_source_position_m = (
@@ -4555,9 +4547,7 @@ class ExtensionController:
         )
         self.state.latest_mic_world_positions = {
             str(key): vec3_from_any(value)
-            for key, value in dict(
-                latest_frame.get("mic_world_positions", {})
-            ).items()
+            for key, value in dict(latest_frame.get("mic_world_positions", {})).items()
         }
         overlay = dict(payload.get("overlay", {}))
         self.state.latest_overlay_primitive_count = int(
@@ -4573,23 +4563,33 @@ class ExtensionController:
         )
 
     def _apply_profile_config(self, payload: Any) -> None:
-        self._validation.validate_sound_profile_config_container(
-            isinstance(payload, Mapping)
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_sound_profile_config_container(
+                isinstance(payload, Mapping)
+            )
+        )
         raw_library = payload.get("profile_library")
-        self._validation.validate_sound_profile_library_present(
-            raw_library is not None
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_sound_profile_library_present(
+                raw_library is not None
+            )
+        )
         raw_mappings = payload.get("object_profile_mappings")
-        self._validation.validate_object_profile_mappings_present(
-            raw_mappings is not None
-        ).raise_first()
-        self._validation.validate_object_profile_mappings_mapping(
-            isinstance(raw_mappings, Mapping)
-        ).raise_first()
-        self._validation.validate_sound_profile_library_sequence(
-            isinstance(raw_library, list | tuple)
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_object_profile_mappings_present(
+                raw_mappings is not None
+            )
+        )
+        _raise_first(
+            self._validation.validate_object_profile_mappings_mapping(
+                isinstance(raw_mappings, Mapping)
+            )
+        )
+        _raise_first(
+            self._validation.validate_sound_profile_library_sequence(
+                isinstance(raw_library, list | tuple)
+            )
+        )
         profiles = validate_sound_profile_library(
             sound_profile_from_mapping(item) for item in raw_library
         )
@@ -4599,26 +4599,30 @@ class ExtensionController:
             for label, profile_id in raw_mappings.items()
             if normalize_object_label(str(label))
         }
-        self._validation.validate_object_profile_mappings_non_empty(
-            bool(mappings)
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_object_profile_mappings_non_empty(bool(mappings))
+        )
         for label, profile_id in sorted(mappings.items()):
             if profile_id not in profile_ids:
-                self._validation.validate_object_profile_mapping_known(
-                    label,
-                    profile_id,
-                    False,
-                    config=True,
-                ).raise_first()
+                _raise_first(
+                    self._validation.validate_object_profile_mapping_known(
+                        label,
+                        profile_id,
+                        False,
+                        config=True,
+                    )
+                )
         selected_profile_id = payload.get("selected_profile_id")
         selected_profile_id = (
             "" if selected_profile_id is None else str(selected_profile_id).strip()
         )
-        self._validation.validate_sound_profile_id_known(
-            selected_profile_id,
-            selected_profile_id in profile_ids,
-            config=True,
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_sound_profile_id_known(
+                selected_profile_id,
+                selected_profile_id in profile_ids,
+                config=True,
+            )
+        )
         self.state.profile_library = profiles
         self.state.object_profile_mappings = dict(sorted(mappings.items()))
         self.state.selected_profile_id = selected_profile_id
@@ -4628,16 +4632,22 @@ class ExtensionController:
         )
 
     def _apply_rig_profile_config(self, payload: Any) -> None:
-        self._validation.validate_rig_profile_config_container(
-            isinstance(payload, Mapping)
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_rig_profile_config_container(
+                isinstance(payload, Mapping)
+            )
+        )
         raw_library = payload.get("rig_library")
-        self._validation.validate_rig_profile_library_present(
-            raw_library is not None
-        ).raise_first()
-        self._validation.validate_rig_profile_library_sequence(
-            isinstance(raw_library, list | tuple)
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_rig_profile_library_present(
+                raw_library is not None
+            )
+        )
+        _raise_first(
+            self._validation.validate_rig_profile_library_sequence(
+                isinstance(raw_library, list | tuple)
+            )
+        )
         profiles = validate_microphone_rig_profile_library(
             microphone_rig_profile_from_mapping(item) for item in raw_library
         )
@@ -4646,11 +4656,13 @@ class ExtensionController:
         selected_rig_id = (
             "" if selected_rig_id is None else str(selected_rig_id).strip()
         )
-        self._validation.validate_rig_profile_id_known(
-            selected_rig_id,
-            selected_rig_id in profile_ids,
-            config=True,
-        ).raise_first()
+        _raise_first(
+            self._validation.validate_rig_profile_id_known(
+                selected_rig_id,
+                selected_rig_id in profile_ids,
+                config=True,
+            )
+        )
         self.state.rig_profile_library = profiles
         self.state.selected_rig_profile_id = selected_rig_id
         applied = payload.get("applied_array_rig_profile")

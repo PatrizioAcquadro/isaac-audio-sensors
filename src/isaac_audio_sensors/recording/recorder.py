@@ -17,7 +17,6 @@ import numpy as np
 from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
-    DATASET_MANIFEST_UNITS,
 )
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
 from isaac_audio_sensors.core.types import AudioSensorFrame
@@ -34,6 +33,7 @@ from isaac_audio_sensors.recording.audio_shards import (
     CarryState,
     StreamingWavShardWriter,
 )
+from isaac_audio_sensors.recording.constants import DATASET_MANIFEST_UNITS
 from isaac_audio_sensors.recording.layout import (
     DatasetLayoutError,
     ShardBoundary,
@@ -457,9 +457,7 @@ class SessionRecorder:
         if self._current_episode is None:
             raise RuntimeError("begin_episode() must be called first")
         payload = (
-            frame_to_trace_dict(frame)
-            if isinstance(frame, AudioSensorFrame)
-            else frame
+            frame_to_trace_dict(frame) if isinstance(frame, AudioSensorFrame) else frame
         )
         if not isinstance(payload, dict):
             raise ValueError("frame must project to an object")
@@ -551,9 +549,7 @@ class SessionRecorder:
                     dataset_index=dataset_index,
                     is_reset=is_reset,
                     gap_samples=(
-                        0
-                        if gap_plan is None
-                        else gap_plan.inserted_silence_samples
+                        0 if gap_plan is None else gap_plan.inserted_silence_samples
                     ),
                 )
                 self._handle_aligned_feed_boundaries(boundaries)
@@ -565,9 +561,7 @@ class SessionRecorder:
                     is_reset=is_reset,
                     boundaries=boundaries,
                     gap_samples=(
-                        0
-                        if gap_plan is None
-                        else gap_plan.inserted_silence_samples
+                        0 if gap_plan is None else gap_plan.inserted_silence_samples
                     ),
                 )
             return AppendFrameResult(True, dataset_index)
@@ -719,9 +713,7 @@ class SessionRecorder:
             self._time_gap_counters["inserted_silence_samples"] += inserted
         if absorbed:
             self._time_gap_counters["absorbed_drift_count"] += 1
-            self._time_gap_counters[
-                "absorbed_drift_samples_signed"
-            ] += absorbed
+            self._time_gap_counters["absorbed_drift_samples_signed"] += absorbed
         self._planned_session_audio_samples += inserted + self.hop_sample_count
 
     def _record_drop(self, frame: AudioSensorFrame | dict[str, Any]) -> None:
@@ -1630,21 +1622,13 @@ class SessionRecorder:
             planned = value.get("planned_session_audio_samples")
             summary = value.get("summary")
             if type(planned) is not int or planned < 0:
-                raise ValueError(
-                    "planned_session_audio_samples must be non-negative"
-                )
+                raise ValueError("planned_session_audio_samples must be non-negative")
             if not isinstance(summary, dict):
                 raise ValueError("summary must be an object")
-            counters = {
-                name: summary.get(name)
-                for name in _TIME_GAP_COUNTER_NAMES
-            }
+            counters = {name: summary.get(name) for name in _TIME_GAP_COUNTER_NAMES}
             if any(type(item) is not int for item in counters.values()):
                 raise ValueError("time-gap summary counters must be integers")
-            if any(
-                counters[name] < 0
-                for name in _TIME_GAP_COUNTER_NAMES[:-1]
-            ):
+            if any(counters[name] < 0 for name in _TIME_GAP_COUNTER_NAMES[:-1]):
                 raise ValueError("time-gap summary counts must be non-negative")
         except (TypeError, ValueError) as exc:
             raise SessionRecorderError(
@@ -1955,9 +1939,7 @@ class SessionRecorder:
         assert self._producer_db is not None
         episodes_by_ordinal = {item.ordinal: item for item in self._episodes}
         for marker in published:
-            frames_path = (
-                self._shards_root / marker["shard_id"] / "frames.jsonl"
-            )
+            frames_path = self._shards_root / marker["shard_id"] / "frames.jsonl"
             with frames_path.open("rb") as stream:
                 for line in stream:
                     record = json.loads(line)

@@ -1,16 +1,15 @@
-"""Import-safe headless driver for the Stage 1 guided workflow."""
+"""Headless driver for the guided Kit workflow."""
 
 from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 from isaac_audio_sensors.kit.controller import ExtensionController
-from isaac_audio_sensors.kit.state import CurrentStageContext
 from isaac_audio_sensors.kit.workflow import (
     SAFE_PRESETS,
     GuidedStage,
@@ -26,33 +25,11 @@ class HeadlessWorkflowError(RuntimeError):
         super().__init__(f"{self.stage.value}: {message}")
 
 
-FrameStepper = Callable[[ExtensionController, int], Any]
-
-
 class HeadlessGuidedSession:
-    """Drive the existing guided controller without constructing an omni.ui object.
+    """Drive an injected extension controller without constructing UI objects."""
 
-    A caller inside Isaac Sim normally supplies ``stage_context_provider``. Tests and
-    other embedders may instead supply an already configured controller and a custom
-    ``frame_stepper``. No synthetic stage is invented by this class: without either
-    an injected stage context or the current Isaac stage, Setup fails explicitly.
-    """
-
-    def __init__(
-        self,
-        *,
-        stage_context_provider: Callable[[], CurrentStageContext] | None = None,
-        controller: ExtensionController | None = None,
-        frame_stepper: FrameStepper | None = None,
-    ) -> None:
-        if controller is not None and stage_context_provider is not None:
-            raise ValueError(
-                "Pass either controller or stage_context_provider, not both."
-            )
-        self.controller = controller or ExtensionController(
-            stage_context_provider=stage_context_provider
-        )
-        self.frame_stepper = frame_stepper or self._default_frame_stepper
+    def __init__(self, controller: ExtensionController) -> None:
+        self.controller = controller
 
     def run_from_config(
         self,
@@ -83,8 +60,7 @@ class HeadlessGuidedSession:
             validation = controller.guided_validate()
             if not validation.ok:
                 details = "; ".join(
-                    f"{item.check_id}: {item.message}"
-                    for item in validation.findings
+                    f"{item.check_id}: {item.message}" for item in validation.findings
                 )
                 raise HeadlessWorkflowError(GuidedStage.VALIDATE, details)
             passed.append(GuidedStage.VALIDATE.value)
@@ -142,9 +118,7 @@ class HeadlessGuidedSession:
                 "export_path": str(exported),
                 "stages_passed": passed,
                 "recording_stats": asdict(recording),
-                "validator_report": (
-                    None if report is None else report.to_dict()
-                ),
+                "validator_report": (None if report is None else report.to_dict()),
                 "export_status": asdict(export_status),
                 "inspect": inspect,
                 "capture": {
@@ -185,14 +159,12 @@ class HeadlessGuidedSession:
         except Exception as exc:
             raise HeadlessWorkflowError(
                 GuidedStage.SETUP,
-                "no USD stage is available; run inside Isaac Sim or inject a "
-                f"stage_context_provider ({exc})",
+                f"no USD stage is available; run inside Isaac Sim ({exc})",
             ) from exc
         if context.stage is None:
             raise HeadlessWorkflowError(
                 GuidedStage.SETUP,
-                "no USD stage is available; run inside Isaac Sim or inject a "
-                "stage_context_provider",
+                "no USD stage is available; run inside Isaac Sim",
             )
         guided = payload.get("guided")
         configured_preset = (
@@ -206,17 +178,10 @@ class HeadlessGuidedSession:
             self._fail_from_controller(GuidedStage.SETUP, "config import failed")
 
     def _step(self, index: int, stage: GuidedStage) -> Any:
-        frame = self.frame_stepper(self.controller, index)
+        frame = self.controller.update_sensor(force=True)
         if frame is None:
             self._fail_from_controller(stage, f"frame {index} capture failed")
         return frame
-
-    @staticmethod
-    def _default_frame_stepper(
-        controller: ExtensionController,
-        _index: int,
-    ) -> Any:
-        return controller.update_sensor(force=True)
 
     def _require_complete(self, stage: GuidedStage) -> None:
         if self.controller.guided_workflow.status(stage) is not StageStatus.COMPLETE:
@@ -224,9 +189,7 @@ class HeadlessGuidedSession:
 
     def _fail_from_controller(self, stage: GuidedStage, fallback: str) -> None:
         findings = self.controller.guided_workflow.findings_for_stage(stage)
-        detail = "; ".join(
-            f"{item.check_id}: {item.message}" for item in findings
-        )
+        detail = "; ".join(f"{item.check_id}: {item.message}" for item in findings)
         error = self.controller.state.error_message
         raise HeadlessWorkflowError(stage, detail or error or fallback)
 
@@ -246,11 +209,7 @@ class HeadlessGuidedSession:
                 "frames and seconds are mutually exclusive",
             )
         if frames is not None:
-            if (
-                isinstance(frames, bool)
-                or not isinstance(frames, int)
-                or frames <= 0
-            ):
+            if isinstance(frames, bool) or not isinstance(frames, int) or frames <= 0:
                 raise HeadlessWorkflowError(
                     GuidedStage.RECORD,
                     "frames must be a positive integer",
@@ -265,25 +224,3 @@ class HeadlessGuidedSession:
             )
         period = float(self.controller.state.update_period_s)
         return max(1, int(math.ceil(seconds / period - 1e-12)))
-
-
-def run_from_config(
-    config_path: str | Path,
-    *,
-    session_dir: str | Path,
-    export_dir: str | Path,
-    frames: int | None = None,
-    seconds: float | None = None,
-    stage_context_provider: Callable[[], CurrentStageContext] | None = None,
-) -> dict[str, Any]:
-    """Convenience API for one default ``HeadlessGuidedSession`` run."""
-
-    return HeadlessGuidedSession(
-        stage_context_provider=stage_context_provider
-    ).run_from_config(
-        config_path,
-        session_dir=session_dir,
-        export_dir=export_dir,
-        frames=frames,
-        seconds=seconds,
-    )

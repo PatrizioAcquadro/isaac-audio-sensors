@@ -58,9 +58,8 @@ def _raised_message(action: Any) -> str:
 
 def _assert_parity(report: ValidationReport, controller_action: Any) -> None:
     assert report.ok is False
-    direct_message = _raised_message(report.raise_first)
     controller_message = _raised_message(controller_action)
-    assert direct_message == controller_message
+    assert report.findings[0].message == controller_message
 
 
 def _capability(
@@ -144,19 +143,14 @@ def test_validation_package_imports_without_isaac_runtime_dependencies():
         sys.meta_path.insert(0, IsaacRuntimeBlocker())
         module = importlib.import_module("isaac_audio_sensors.isaac.validation")
         assert module.ValidationController().validate_stage_present(True).ok
-        try:
-            module.ValidationController().validate_stage_present(False).raise_first()
-        except RuntimeError as exc:
-            assert type(exc).__name__ == "ExtensionActionError"
-            assert str(exc) == "No USD stage is open."
-        else:
-            raise AssertionError("invalid stage unexpectedly passed")
+        report = module.ValidationController().validate_stage_present(False)
+        assert not report.ok
+        assert report.findings[0].message == "No USD stage is open."
+        assert "isaac_audio_sensors.kit" not in sys.modules
         print("validation-import-ok")
         """)
     env = os.environ.copy()
-    env["PYTHONPATH"] = os.pathsep.join(
-        (str(repo / "src"), env.get("PYTHONPATH", ""))
-    )
+    env["PYTHONPATH"] = os.pathsep.join((str(repo / "src"), env.get("PYTHONPATH", "")))
 
     completed = subprocess.run(
         [sys.executable, "-c", code],
@@ -444,9 +438,7 @@ def test_device_and_calibration_checks_never_answer_from_stale_state(tmp_path):
             {"mic_id": channel} for channel in ("ch0", "ch1", "ch2", "ch3")
         ),
         "sample_rate_hz": 48_000,
-        "coordinate_convention": (
-            "x_forward_y_right_z_up_clockwise_bearing"
-        ),
+        "coordinate_convention": ("x_forward_y_right_z_up_clockwise_bearing"),
         "array_frame": "xvf3800_array",
     }
     validation = ValidationController()
@@ -544,18 +536,12 @@ def test_check_id_inventory_is_stable_and_unique():
         ValidationController().validate_runtime(_state(ambiguity_policy="bad")),
         ValidationController().validate_runtime(_state(update_period_s=0.0)),
         ValidationController().validate_runtime(_state(max_events=-1)),
-        ValidationController().validate_runtime(
-            _state(array_prim_path="World/Array")
-        ),
+        ValidationController().validate_runtime(_state(array_prim_path="World/Array")),
         ValidationController().validate_runtime(
             _state(robot_base_prim_path="World/Base")
         ),
-        ValidationController().validate_source_metadata(
-            _state(audio_asset_path="")
-        ),
-        ValidationController().validate_source_metadata(
-            _state(source_directivity="")
-        ),
+        ValidationController().validate_source_metadata(_state(audio_asset_path="")),
+        ValidationController().validate_source_metadata(_state(source_directivity="")),
         ValidationController().validate_source_metadata(
             _state(source_start_time_s=float("nan"))
         ),
@@ -565,9 +551,7 @@ def test_check_id_inventory_is_stable_and_unique():
         ValidationController().validate_source_metadata(
             _state(source_gain_db=float("nan"))
         ),
-        ValidationController().validate_source_metadata(
-            _state(source_duration_s=0.0)
-        ),
+        ValidationController().validate_source_metadata(_state(source_duration_s=0.0)),
         ValidationController().validate_source_geometry(
             _state(source_position_x_m=float("nan"))
         ),
@@ -589,14 +573,10 @@ def test_check_id_inventory_is_stable_and_unique():
         ValidationController().validate_layout(_state(layout_name="bad")),
         ValidationController().validate_layout(_state(sample_rate_hz=0)),
         ValidationReport(
-            validation_checks.check_device_supported(
-                "tdoa_synthetic", "", ("cpu",)
-            )
+            validation_checks.check_device_supported("tdoa_synthetic", "", ("cpu",))
         ),
         ValidationReport(
-            validation_checks.check_device_supported(
-                "tdoa_synthetic", "cuda", ("cpu",)
-            )
+            validation_checks.check_device_supported("tdoa_synthetic", "cuda", ("cpu",))
         ),
         ValidationReport(
             validation_checks.check_calibration_profile(
@@ -610,22 +590,16 @@ def test_check_id_inventory_is_stable_and_unique():
         ),
         ValidationReport(validation_checks.check_stage_present(False)),
         ValidationReport(validation_checks.check_selection(None, False)),
-        ValidationReport(
-            validation_checks.check_selection("/World/Missing", False)
-        ),
+        ValidationReport(validation_checks.check_selection("/World/Missing", False)),
         ValidationReport(
             validation_checks.check_abs_prim_path("World/Object", "object_prim_path")
         ),
         ValidationReport(
             validation_checks.check_abs_prim_path("World/Source", "source_prim_path")
         ),
+        ValidationReport(validation_checks.check_attach_target("/World/S", "/World/S")),
         ValidationReport(
-            validation_checks.check_attach_target("/World/S", "/World/S")
-        ),
-        ValidationReport(
-            validation_checks.check_attach_target(
-                "/World/A", "/World/A", kind="array"
-            )
+            validation_checks.check_attach_target("/World/A", "/World/A", kind="array")
         ),
         ValidationReport(validation_checks.check_array_pose_editable(True)),
         ValidationReport(validation_checks.check_source_position_preset("bad")),
@@ -648,21 +622,15 @@ def test_check_id_inventory_is_stable_and_unique():
         ValidationReport(
             validation_checks.check_rig_profile_id_known("missing", False)
         ),
-        ValidationReport(
-            validation_checks.check_sound_profile_config_container(False)
-        ),
-        ValidationReport(
-            validation_checks.check_sound_profile_library_present(False)
-        ),
+        ValidationReport(validation_checks.check_sound_profile_config_container(False)),
+        ValidationReport(validation_checks.check_sound_profile_library_present(False)),
         ValidationReport(
             validation_checks.check_object_profile_mappings_present(False)
         ),
         ValidationReport(
             validation_checks.check_object_profile_mappings_mapping(False)
         ),
-        ValidationReport(
-            validation_checks.check_sound_profile_library_sequence(False)
-        ),
+        ValidationReport(validation_checks.check_sound_profile_library_sequence(False)),
         ValidationReport(
             validation_checks.check_object_profile_mappings_non_empty(False)
         ),
@@ -676,45 +644,27 @@ def test_check_id_inventory_is_stable_and_unique():
                 "missing", False, config=True
             )
         ),
+        ValidationReport(validation_checks.check_rig_profile_config_container(False)),
+        ValidationReport(validation_checks.check_rig_profile_library_present(False)),
+        ValidationReport(validation_checks.check_rig_profile_library_sequence(False)),
         ValidationReport(
-            validation_checks.check_rig_profile_config_container(False)
+            validation_checks.check_rig_profile_id_known("missing", False, config=True)
         ),
         ValidationReport(
-            validation_checks.check_rig_profile_library_present(False)
+            validation_checks.check_source_attach_target_exists("/World/Object", False)
         ),
         ValidationReport(
-            validation_checks.check_rig_profile_library_sequence(False)
-        ),
-        ValidationReport(
-            validation_checks.check_rig_profile_id_known(
-                "missing", False, config=True
-            )
-        ),
-        ValidationReport(
-            validation_checks.check_source_attach_target_exists(
-                "/World/Object", False
-            )
-        ),
-        ValidationReport(
-            validation_checks.check_array_attach_target_exists(
-                "/World/Mount", False
-            )
+            validation_checks.check_array_attach_target_exists("/World/Mount", False)
         ),
         ValidationReport(
             validation_checks.check_attached_source_target(True, "", None)
         ),
         ValidationReport(
-            validation_checks.check_attached_source_target(
-                True, "/World/Object", False
-            )
+            validation_checks.check_attached_source_target(True, "/World/Object", False)
         ),
+        ValidationReport(validation_checks.check_attached_array_target(True, "", None)),
         ValidationReport(
-            validation_checks.check_attached_array_target(True, "", None)
-        ),
-        ValidationReport(
-            validation_checks.check_attached_array_target(
-                True, "/World/Mount", False
-            )
+            validation_checks.check_attached_array_target(True, "/World/Mount", False)
         ),
     ]
     check_ids = tuple(report.findings[0].check_id for report in reports)
@@ -783,7 +733,5 @@ def test_check_id_inventory_is_stable_and_unique():
     )
     assert len(check_ids) == len(set(check_ids))
     assert all(
-        finding.severity == "error"
-        for report in reports
-        for finding in report.findings
+        finding.severity == "error" for report in reports for finding in report.findings
     )

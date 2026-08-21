@@ -51,14 +51,6 @@ from isaac_audio_sensors.core.plugins import (
     get_default_registry,
     validate_declaration,
 )
-from isaac_audio_sensors.core.schema import (
-    audio_calibration_profile_json_schema,
-    audio_dataset_manifest_json_schema,
-    audio_sensor_frame_json_schema,
-    write_audio_calibration_profile_json_schema,
-    write_audio_dataset_manifest_json_schema,
-    write_audio_sensor_frame_json_schema,
-)
 from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSceneSnapshot,
@@ -72,12 +64,10 @@ from isaac_audio_sensors.core.types import (
     RoomAcousticsSpec,
     SourceOcclusion,
 )
-from isaac_audio_sensors.recording.manifest import AudioDatasetManifest
 
 __all__ = [
     "AudioDetection",
     "AudioCalibrationProfile",
-    "AudioDatasetManifest",
     "AudioSceneSnapshot",
     "AudioSensorConfig",
     "AudioSensorFrame",
@@ -109,9 +99,6 @@ __all__ = [
     "SourceOcclusion",
     "SrpPhatEstimator",
     "TdoaSyntheticBackend",
-    "audio_sensor_frame_json_schema",
-    "audio_calibration_profile_json_schema",
-    "audio_dataset_manifest_json_schema",
     "activate_pack",
     "build_scene_snapshot",
     "check_profile_compatibility",
@@ -126,7 +113,4 @@ __all__ = [
     "validate_audio_config",
     "validate_pack_install",
     "validate_declaration",
-    "write_audio_sensor_frame_json_schema",
-    "write_audio_calibration_profile_json_schema",
-    "write_audio_dataset_manifest_json_schema",
 ]

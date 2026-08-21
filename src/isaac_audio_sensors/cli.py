@@ -16,7 +16,8 @@ from isaac_audio_sensors.core.capabilities import discover_capabilities
 from isaac_audio_sensors.core.config import build_scene_snapshot, load_audio_config
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict, write_frame_trace
 from isaac_audio_sensors.core.types import AudioTimeWindow
-from isaac_audio_sensors.isaac.headless_workflow import (
+from isaac_audio_sensors.kit.controller import ExtensionController
+from isaac_audio_sensors.kit.headless import (
     HeadlessGuidedSession,
     HeadlessWorkflowError,
 )
@@ -25,13 +26,11 @@ from isaac_audio_sensors.recording import (
     DatasetSplitError,
     apply_split_plan,
     build_split_plan,
+    manifest_to_dict,
+    read_dataset_manifest,
     validate_dataset,
     write_json_atomic,
     write_split_plan,
-)
-from isaac_audio_sensors.recording.serialization import (
-    manifest_to_dict,
-    read_dataset_manifest,
 )
 
 
@@ -272,7 +271,7 @@ def _write_json_output(path: Path, payload: dict) -> None:
 
 def _guided_run_headless(args: argparse.Namespace) -> int:
     try:
-        payload = HeadlessGuidedSession().run_from_config(
+        payload = HeadlessGuidedSession(ExtensionController()).run_from_config(
             args.config,
             session_dir=args.session_dir,
             export_dir=args.export_dir,

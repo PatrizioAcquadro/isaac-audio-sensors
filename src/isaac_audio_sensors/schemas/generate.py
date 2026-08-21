@@ -1,4 +1,4 @@
-"""JSON Schema export for public audio sensor frame traces."""
+"""JSON Schema generation for public audio contracts."""
 
 from __future__ import annotations
 
@@ -10,8 +10,6 @@ from isaac_audio_sensors.core.constants import (
     CALIBRATION_PROFILE_SCHEMA_VERSION,
     CALIBRATION_PROFILE_UNITS,
     COORDINATE_CONVENTION,
-    DATASET_MANIFEST_SCHEMA_VERSION,
-    DATASET_MANIFEST_UNITS,
     DETECTION_FIELDS,
     DOA_FIELDS,
     FRAME_PROVENANCE_VALUES,
@@ -22,6 +20,10 @@ from isaac_audio_sensors.core.constants import (
     OPTIONAL_DOA_FIELDS,
     POSE3D_FIELDS,
     RUNTIME_PROFILES,
+)
+from isaac_audio_sensors.recording.constants import (
+    DATASET_MANIFEST_SCHEMA_VERSION,
+    DATASET_MANIFEST_UNITS,
 )
 
 
@@ -863,8 +865,7 @@ def audio_calibration_profile_json_schema() -> dict[str, Any]:
                             "type": "string",
                             "minLength": 1,
                             "pattern": (
-                                "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\."
-                                "(?:/|$))[^\\\\]+$"
+                                "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
                             ),
                         },
                         "sha256": {

@@ -18,11 +18,11 @@ from typing import Any
 
 import numpy as np
 
-from isaac_audio_sensors.core.constants import DATASET_MANIFEST_SCHEMA_VERSION
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.traces import frame_from_trace_dict
 from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.recording import layout as _layout
+from isaac_audio_sensors.recording.constants import DATASET_MANIFEST_SCHEMA_VERSION
 from isaac_audio_sensors.recording.layout import (
     DATASET_FRAME_RECORD_VERSION,
     SHARD_COMPLETION_VERSION,
@@ -314,7 +314,6 @@ class SessionDataset:
             )
         interleaved = np.frombuffer(payload, dtype="<f4")
         return np.ascontiguousarray(interleaved.reshape(-1, channels).T)
-
 
     def _iter_all_records(self) -> Iterator[LoadedFrame]:
         episodes = self.manifest.episodes

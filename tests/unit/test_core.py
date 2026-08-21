@@ -41,6 +41,7 @@ from isaac_audio_sensors.core.types import (
     DoaEstimate,
     Pose3D,
 )
+from isaac_audio_sensors.schemas.generate import audio_sensor_frame_json_schema
 
 
 def test_core_package_imports_and_exposes_version():
@@ -331,9 +332,7 @@ def test_tetrahedral_layout_is_rank_three_with_edge_length_spacing():
         ),
     ],
 )
-def test_layout_rank_xyz_detects_point_line_plane_and_volume(
-    positions, expected_rank
-):
+def test_layout_rank_xyz_detects_point_line_plane_and_volume(positions, expected_rank):
     array = arbitrary_microphone_array(
         array_id="rank",
         prim_path="/World/Rank",
@@ -541,7 +540,7 @@ def test_audio_sensor_frame_v1_schema_required_keys_match_trace_contract():
         ),
     )
     payload = frame_to_trace_dict(frame)
-    schema = isaac_audio_sensors.audio_sensor_frame_json_schema()
+    schema = audio_sensor_frame_json_schema()
 
     expected_top_level = {
         "schema_version",

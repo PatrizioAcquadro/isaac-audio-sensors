@@ -6,7 +6,6 @@ import importlib
 
 import pytest
 
-import isaac_audio_sensors
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.constants import KNOWN_BACKENDS
 from isaac_audio_sensors.core.fidelity import (
@@ -43,8 +42,7 @@ def test_implemented_l0_l1_l2_map_to_stable_backend_ids():
     assert by_level[AcousticFidelityLevel.L0].lifecycle_status == "stable_v1"
     assert by_level[AcousticFidelityLevel.L1].lifecycle_status == "stable_v1"
     assert (
-        by_level[AcousticFidelityLevel.L2].lifecycle_status
-        == "supported_optional_v1"
+        by_level[AcousticFidelityLevel.L2].lifecycle_status == "supported_optional_v1"
     )
 
     assert by_level[AcousticFidelityLevel.L0].backend_ids == ("geometry_only",)
@@ -60,9 +58,12 @@ def test_implemented_l0_l1_l2_map_to_stable_backend_ids():
         "soundfile",
     )
 
-    assert frozenset(
-        {"geometry_only", "tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}
-    ) == KNOWN_BACKENDS
+    assert (
+        frozenset(
+            {"geometry_only", "tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}
+        )
+        == KNOWN_BACKENDS
+    )
     for backend_id in KNOWN_BACKENDS:
         metadata = fidelity_level_for_backend(backend_id)
         assert backend_id in metadata.backend_ids
@@ -90,18 +91,15 @@ def test_l3_l4_are_metadata_only_not_runtime_backends():
             get_backend(future_family)
 
 
-def test_public_ladder_imports_are_import_safe_core_api():
+def test_ladder_imports_are_import_safe_core_api():
     core = importlib.import_module("isaac_audio_sensors.core")
     fidelity = importlib.import_module("isaac_audio_sensors.core.fidelity")
 
-    assert isaac_audio_sensors.ACOUSTIC_FIDELITY_LADDER is ACOUSTIC_FIDELITY_LADDER
     assert core.ACOUSTIC_FIDELITY_LADDER is ACOUSTIC_FIDELITY_LADDER
     assert fidelity.ACOUSTIC_FIDELITY_LADDER is ACOUSTIC_FIDELITY_LADDER
-    assert (
-        isaac_audio_sensors.fidelity_level_for_backend("geometry_only")
-        is fidelity_level_for_backend("geometry_only")
-    )
-
+    assert core.fidelity_level_for_backend(
+        "geometry_only"
+    ) is fidelity_level_for_backend("geometry_only")
 
 
 def _ladder_by_level() -> dict[AcousticFidelityLevel, AcousticFidelityMetadata]:
