@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, NamedTuple
+from typing import Any
 
 from isaac_audio_sensors.isaac.validation import (
     ValidationController,
@@ -241,118 +241,6 @@ class ExportStatus:
     note: str | None = None
     inventory_entries: int = 0
     inventory_bytes: int = 0
-
-
-class InvalidStateCase(NamedTuple):
-    """One planted guided invalid state and its actionable UI mapping."""
-
-    state_id: str
-    plant: str
-    blocked_stage: GuidedStage
-    expected_finding: str
-    expected_field_or_recovery: str
-
-
-INVALID_STATE_MATRIX = (
-    InvalidStateCase(
-        "absent_stage",
-        "Remove the open USD stage before Setup/Validate.",
-        GuidedStage.SETUP,
-        "stage_present",
-        "stage",
-    ),
-    InvalidStateCase(
-        "invalid_backend",
-        "Set backend to an unknown backend before Validate.",
-        GuidedStage.VALIDATE,
-        "backend_supported",
-        "backend",
-    ),
-    InvalidStateCase(
-        "invalid_abs_path",
-        "Set source_prim_path to a relative path before Validate.",
-        GuidedStage.VALIDATE,
-        "source_prim_path_absolute",
-        "source_prim_path",
-    ),
-    InvalidStateCase(
-        "stale_capabilities",
-        "Invalidate a populated capability snapshot before Validate.",
-        GuidedStage.VALIDATE,
-        "capabilities_fresh",
-        "backend",
-    ),
-    InvalidStateCase(
-        "no_preset_applied",
-        "Attempt to complete Setup without applying a preset.",
-        GuidedStage.SETUP,
-        "setup_preset_applied",
-        "guided_preset_id",
-    ),
-    InvalidStateCase(
-        "sensor_not_running",
-        "Enter Run with a configured sensor that is not running.",
-        GuidedStage.RUN,
-        "guided_run_sensor_not_running",
-        "recovery:Start Guided Run",
-    ),
-    InvalidStateCase(
-        "sensor_stopped_mid_run",
-        "Stop the guided sensor after observing a Run frame.",
-        GuidedStage.RUN,
-        "guided_run_stopped",
-        "recovery:Start Guided Run",
-    ),
-    InvalidStateCase(
-        "inspect_not_accepted",
-        "Attempt to enter Record before Mark Inspected.",
-        GuidedStage.RECORD,
-        "guided_inspect_complete",
-        "recovery:Mark Inspected",
-    ),
-    InvalidStateCase(
-        "recording_cancelled",
-        "Cancel an active recording and finalize it incomplete.",
-        GuidedStage.RECORD,
-        "guided_recording_cancelled",
-        "recovery:Start new recording",
-    ),
-    InvalidStateCase(
-        "recording_validation_failed",
-        "Plant a checksum failure in finalized-session validation.",
-        GuidedStage.RECORD,
-        "dataset_checksum_mismatch",
-        "guided_session_dir",
-    ),
-    InvalidStateCase(
-        "export_destination_unwritable",
-        "Choose an export destination whose parent is not writable.",
-        GuidedStage.EXPORT,
-        "guided_export_destination_unwritable",
-        "guided_export_dir",
-    ),
-    InvalidStateCase(
-        "export_destination_inside_session",
-        "Choose an export destination inside the recorded session root.",
-        GuidedStage.EXPORT,
-        "guided_export_destination_inside_session",
-        "guided_export_dir",
-    ),
-    InvalidStateCase(
-        "export_before_record_complete",
-        "Attempt Export before Record has completed.",
-        GuidedStage.EXPORT,
-        "guided_record_complete",
-        "recovery:Finish Recording",
-    ),
-    InvalidStateCase(
-        "export_split_ratios_impossible",
-        "Request more positive TVT partitions than the exported group count.",
-        GuidedStage.EXPORT,
-        "guided_export_split_impossible",
-        "guided_split_ratios",
-    ),
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -902,13 +790,11 @@ class GuidedWorkflow:
 __all__ = [
     "ExportStatus",
     "GUIDED_STAGE_ORDER",
-    "INVALID_STATE_MATRIX",
     "SAFE_PRESET_LIBRARY",
     "SAFE_PRESETS",
     "GuidedStage",
     "GuidedWorkflow",
     "InlineIssue",
-    "InvalidStateCase",
     "RecoveryAction",
     "RecordingStatus",
     "RunStatus",

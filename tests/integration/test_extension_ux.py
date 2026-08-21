@@ -26,14 +26,13 @@ from isaac_audio_sensors.isaac.sound_profiles import (
     default_sound_profiles,
 )
 from isaac_audio_sensors.kit import (
-    OUTPUT_ROOT_ENV_VAR,
     CurrentStageContext,
     ExtensionController,
-    _gui_output_root,
-    _resolve_gui_output_path,
-    _stage_has_prim,
     current_omni_stage_context,
 )
+from isaac_audio_sensors.kit.constants import OUTPUT_ROOT_ENV_VAR
+from isaac_audio_sensors.kit.paths import _gui_output_root, _resolve_gui_output_path
+from isaac_audio_sensors.kit.stage_context import _stage_has_prim
 
 
 def _write_test_png(path: Path, *, width: int = 13, height: int = 17) -> None:

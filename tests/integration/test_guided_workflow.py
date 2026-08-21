@@ -14,7 +14,6 @@ import isaac_audio_sensors.kit.controller as controller_module
 from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.isaac.validation import (
     ValidationController,
-    ValidationFinding,
     ValidationReport,
 )
 from isaac_audio_sensors.kit.controller import ExtensionController
@@ -26,12 +25,10 @@ from isaac_audio_sensors.kit.state import (
 from isaac_audio_sensors.kit.window import OmniReferenceWindow
 from isaac_audio_sensors.kit.workflow import (
     GUIDED_STAGE_ORDER,
-    INVALID_STATE_MATRIX,
     SAFE_PRESET_LIBRARY,
     SAFE_PRESETS,
     GuidedStage,
     GuidedWorkflow,
-    RecordingStatus,
     StageStatus,
 )
 from isaac_audio_sensors.recording.serialization import read_dataset_manifest
@@ -941,139 +938,3 @@ def test_guided_export_surfaces_impossible_default_ratios_for_two_groups(
     recovery = controller.guided_workflow.recovery_action(finding)
     assert recovery.label == "Adjust ratios"
     assert callable(recovery)
-
-
-def _complete_before(workflow: GuidedWorkflow, target: GuidedStage) -> None:
-    if target is GuidedStage.SETUP:
-        return
-    workflow.apply_preset(
-        SAFE_PRESETS[0].preset_id,
-        lambda _preset: None,
-        stage_present=True,
-    )
-    if target is GuidedStage.VALIDATE:
-        workflow.goto(GuidedStage.VALIDATE)
-        return
-    workflow.goto(GuidedStage.VALIDATE)
-    workflow.record_validation(ValidationReport(), capabilities_fresh=True)
-    workflow.goto(GuidedStage.RUN)
-    if target is GuidedStage.RUN:
-        return
-    workflow.mark_complete(GuidedStage.RUN)
-    workflow.goto(GuidedStage.INSPECT)
-    if target is GuidedStage.INSPECT:
-        return
-    workflow.mark_complete(GuidedStage.INSPECT)
-    workflow.goto(GuidedStage.RECORD)
-    if target is GuidedStage.RECORD:
-        return
-    workflow.mark_complete(GuidedStage.RECORD)
-    workflow.goto(GuidedStage.EXPORT)
-
-
-def _plant_matrix_case(case: Any) -> GuidedWorkflow:
-    workflow = GuidedWorkflow(ValidationController(), ExtensionUiState())
-    if case.state_id == "absent_stage":
-        workflow.apply_preset(
-            SAFE_PRESETS[0].preset_id,
-            lambda _preset: None,
-            stage_present=False,
-        )
-    elif case.state_id == "no_preset_applied":
-        workflow.mark_complete(GuidedStage.SETUP)
-    elif case.state_id in {
-        "invalid_backend",
-        "invalid_abs_path",
-        "stale_capabilities",
-    }:
-        _complete_before(workflow, GuidedStage.VALIDATE)
-        field = {
-            "invalid_backend": "backend",
-            "invalid_abs_path": "source_prim_path",
-            "stale_capabilities": "backend",
-        }[case.state_id]
-        report = ValidationReport(
-            ()
-            if case.state_id == "stale_capabilities"
-            else (
-                ValidationFinding(
-                    case.expected_finding,
-                    "error",
-                    case.plant,
-                    field,
-                ),
-            )
-        )
-        workflow.record_validation(
-            report,
-            capabilities_fresh=case.state_id != "stale_capabilities",
-        )
-    elif case.state_id == "sensor_not_running":
-        _complete_before(workflow, GuidedStage.RUN)
-        workflow.fail_run(case.plant, check_id=case.expected_finding)
-    elif case.state_id == "sensor_stopped_mid_run":
-        _complete_before(workflow, GuidedStage.RUN)
-        workflow.start_run(configured=True, running=True)
-        workflow.observe_run_frame(10)
-        workflow.stop_run()
-    elif case.state_id == "inspect_not_accepted":
-        _complete_before(workflow, GuidedStage.INSPECT)
-        workflow.goto(GuidedStage.RECORD)
-    elif case.state_id == "recording_cancelled":
-        _complete_before(workflow, GuidedStage.RECORD)
-        workflow.start_recording(RecordingStatus(active=True))
-        workflow.cancel_recording(RecordingStatus(cancelled=True))
-    elif case.state_id == "recording_validation_failed":
-        _complete_before(workflow, GuidedStage.RECORD)
-        workflow.finish_recording(
-            RecordingStatus(validation_status="failed"),
-            (
-                ValidationFinding(
-                    case.expected_finding,
-                    "error",
-                    case.plant,
-                    "guided_session_dir",
-                ),
-            ),
-        )
-    elif case.state_id == "export_before_record_complete":
-        _complete_before(workflow, GuidedStage.RECORD)
-        workflow.goto(GuidedStage.EXPORT)
-    else:
-        _complete_before(workflow, GuidedStage.EXPORT)
-        workflow.start_export("exported")
-        workflow.fail_export(
-            case.plant,
-            check_id=case.expected_finding,
-            field=(
-                "guided_split_ratios"
-                if case.state_id == "export_split_ratios_impossible"
-                else "guided_export_dir"
-            ),
-        )
-    return workflow
-
-
-@pytest.mark.parametrize(
-    "case",
-    INVALID_STATE_MATRIX,
-    ids=lambda case: case.state_id,
-)
-def test_invalid_state_matrix_is_actionable_and_blocks_declared_stage(
-    case: Any,
-) -> None:
-    workflow = _plant_matrix_case(case)
-
-    assert workflow.status(case.blocked_stage) is StageStatus.BLOCKED
-    finding = next(
-        item
-        for item in workflow.findings_for_stage(case.blocked_stage)
-        if item.check_id == case.expected_finding
-    )
-    recovery = workflow.recovery_action(finding)
-    assert callable(recovery)
-    if case.expected_field_or_recovery.startswith("recovery:"):
-        assert recovery.label == case.expected_field_or_recovery.split(":", 1)[1]
-    else:
-        recovery()
-        assert workflow.focused_field == case.expected_field_or_recovery

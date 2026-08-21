@@ -30,12 +30,14 @@ from live_isaac_sim_audio_smoke import (
 from isaac_audio_sensors.core.io.traces import frame_from_trace_dict
 from isaac_audio_sensors.isaac.pose_resolver import IsaacStagePoseResolver
 from isaac_audio_sensors.kit import (
+    CurrentStageContext,
+    ExtensionController,
+)
+from isaac_audio_sensors.kit.constants import (
     OMNI_ACTION_TOGGLE_WINDOW,
     OMNI_DEFAULT_HOTKEY,
     OMNI_MENU_GROUP,
     OMNI_WINDOW_TITLE,
-    CurrentStageContext,
-    ExtensionController,
 )
 from isaac_audio_sensors.kit.instruments import (
     compass_view_model,

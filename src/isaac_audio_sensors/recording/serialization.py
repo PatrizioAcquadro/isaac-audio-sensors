@@ -33,12 +33,6 @@ def manifest_to_dict(manifest: AudioDatasetManifest) -> dict[str, Any]:
     return _serialize(manifest)
 
 
-def dataset_manifest_to_dict(manifest: AudioDatasetManifest) -> dict[str, Any]:
-    """Return a JSON-ready dictionary for one dataset manifest."""
-
-    return manifest_to_dict(manifest)
-
-
 def write_dataset_manifest(
     manifest: AudioDatasetManifest,
     path: str | Path,
@@ -98,12 +92,6 @@ def manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
         ),
         completion_state=str(payload["completion_state"]),
     )
-
-
-def dataset_manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
-    """Rebuild an ``AudioDatasetManifest`` from a JSON dictionary."""
-
-    return manifest_from_dict(payload)
 
 
 def read_dataset_manifest(path: str | Path) -> AudioDatasetManifest:

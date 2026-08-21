@@ -26,8 +26,6 @@ from isaac_audio_sensors.core.io.waveforms import (
     write_multichannel_wav,
 )
 from isaac_audio_sensors.recording.serialization import (
-    dataset_manifest_from_dict,
-    dataset_manifest_to_dict,
     manifest_from_dict,
     manifest_to_dict,
     read_dataset_manifest,
@@ -43,8 +41,6 @@ __all__ = [
     "append_frame_jsonl",
     "calibration_profile_from_dict",
     "calibration_profile_to_dict",
-    "dataset_manifest_from_dict",
-    "dataset_manifest_to_dict",
     "frame_from_trace_dict",
     "frame_to_trace_dict",
     "generated_impulse_metadata",
