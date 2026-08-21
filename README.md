@@ -20,8 +20,8 @@ The package root exports only `__version__`. `isaac_audio_sensors.core` exports 
 
 - Import-safe Python models for scenes, sources, poses, rooms, microphone arrays, detections, DOA estimates, and sensor frames.
 - Versioned frame, dataset-manifest, and calibration-profile schemas with deterministic serialization and validation.
-- Stable `geometry_only` and `tdoa_synthetic` backends plus optional `room_acoustics` and `room_acoustics_srp` backends.
-- Motion, Doppler, directivity, material/occlusion, channel-response, noise, clock, and electronics effects with explicit diagnostics and compatibility-off defaults.
+- Stable `geometry_only` and `tdoa_synthetic` backends plus optional `room_acoustics` and `room_acoustics_srp` backends resolved through one plugin registry.
+- Motion, Doppler, directivity, material/occlusion, channel-response, noise, clock, and electronics effects with explicit diagnostics and identity defaults.
 - Generic atomic recording, verified shards, manifests, deterministic splits, statistics, codecs, validation, and read-only replay.
 - Lazy Isaac Sim discovery, stage binding, pose tracking, visualization, frame publication, and optional Replicator integration.
 - Lazy Isaac Lab `SensorBase` integration with scalar or batched multi-environment observation tensors and explicit GPU validation.

@@ -34,7 +34,9 @@ Unknown backends, profiles, coordinate conventions, invalid time windows, invali
 
 Import-safe protocols define propagation backends, DOA estimators, and audio feature extractors.
 
-Capability declarations record identifiers, profiles, device support, `PluginDeclaration.output_contract`, determinism, dependencies, and provider provenance; registry resolution rejects duplicate declarations, unavailable dependencies, unsupported devices/profiles, and mismatched output claims.
+Capability declarations record identifiers, profiles, device support, `PluginDeclaration.output_contract`, determinism, dependencies, and provider provenance. `get_backend()` is the sole public propagation-backend resolver, while `registered_backend_ids()` is the authoritative built-in inventory.
+
+Registry resolution rejects duplicate declarations, unknown identifiers, unavailable dependencies, unsupported devices/profiles, factory results that do not satisfy `PropagationBackend`, and mismatched `backend_id` values. Dependency and capability checks occur before backend construction.
 
 The built-in capability set includes the maintained acoustic backends and DOA estimators, while optional packs can add capabilities without changing core imports.
 

@@ -18,6 +18,13 @@ R5.1 narrows the simulator-independent core without changing serialized v1 contr
 - Preserved frame, calibration, manifest, trace, and provenance semantics; legacy v1 traces may omit the additive `units.elevation` field as originally intended.
 - Consolidated schema coverage and replaced the catch-all core test file with focused config, types, microphone-array, and math tests.
 
+R5.2 simplifies backends, DSP, and effects without changing valid-input results.
+
+- Made `get_backend()` the sole public backend resolver and `registered_backend_ids()` the authoritative inventory, with dependency, device, runtime-profile, and structural contract checks derived from plugin declarations.
+- Split immutable effects configuration, dict/TOML normalization, and active-stage semantic validation into focused modules while preserving the established DSP order and diagnostics.
+- Split room-acoustics orchestration, signal preparation, pyroomacoustics rendering, and diagnostic construction into a compatible package without changing formulas, source order, seeds, phase cursors, units, coordinates, or frame meaning.
+- Removed unused compatibility and test-only registry validation paths, legacy effects flags, private room helper tests, and redundant disabled-stage matrices while retaining direct backend imports and actionable optional-dependency errors.
+
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
 development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects
 and diagnostics are additive, every effect defaults off, and the compatibility

@@ -19,6 +19,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Wheel, source archive, Kit extension, and optional acoustics-pack version, provenance, determinism, and content policy.
 - Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
 - R5.1 core root limited to eleven fundamental models, simulator-independent config, quaternion-authoritative array pose, one propagation protocol, and generator-authoritative schemas.
+- R5.2 single-path backend resolution and declaration-derived inventory, separated effects parsing/validation, and modular room-acoustics orchestration with unchanged valid-input numerical results.
 
 ## Documentation State
 
@@ -37,6 +38,8 @@ The R4 deterministic gate passed 414 host tests in 9.58 seconds, 366 integration
 The R5.0 host gate passes 417 unit/contract tests, 343 integration tests, and 40 release tests after removing redundant test-only coverage.
 
 The R5.1 gate passes 416 unit/contract tests, 343 integration tests, 40 release tests, and 115 Isaac tests on the RTX 4090. The known SquadBot audio contract, replay, live-bridge, and adapter selection passes 34 downstream tests without consumer changes.
+
+The R5.2 gate passes 409 unit/contract tests in 6.26 seconds, 342 integration tests in 8.24 seconds, 40 release tests, and 112 Isaac tests on the RTX 4090. Geometry, TDOA, fake-room GCC, and fake-room SRP frames remain byte-identical to the pre-refactor baselines; the maintained real-room example renders with pyroomacoustics 0.10.1. The same 34 SquadBot tests pass without consumer changes.
 
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, authorized R0 hash preservation, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
@@ -63,4 +66,4 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 
 ## Next Work
 
-R5.2+ may simplify internals within one semantic subsystem at a time. General packaging and release cleanup remains R6 work.
+Later R5 work may simplify another semantic subsystem within the established boundaries. General packaging and release cleanup remains R6 work.

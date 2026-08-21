@@ -41,3 +41,11 @@ Recorded the minimal core export, simulator-independent config, quaternion-autho
 ## 2026-08-20 — lint: R5.1 canonical documentation
 
 Verified canonical ownership, index coverage, internal links, raw-file preservation, current paths and symbols, release documentation checks, Ruff, and Markdown whitespace.
+
+## 2026-08-20 — update: R5.2 backends, DSP, and effects
+
+Recorded the single backend resolver and declaration-derived inventory, focused effects configuration layers, modular room-acoustics implementation, removed compatibility and test-only surfaces, preserved numerical contracts, and bounded consumer compatibility.
+
+## 2026-08-20 — lint: R5.2 canonical documentation
+
+Verified canonical ownership, internal links, raw-file preservation, current paths and symbols, numerical baseline evidence, release checks, Ruff, real pyroomacoustics rendering, Isaac GPU execution, downstream compatibility, and Markdown whitespace.

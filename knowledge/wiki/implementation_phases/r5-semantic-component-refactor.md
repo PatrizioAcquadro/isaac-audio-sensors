@@ -48,6 +48,30 @@ The three Python schema generators are authoritative. `write_json_schema` provid
 
 The duplicated array basis could diverge from its quaternion, and core configuration previously contained unused Lab state; both issues are fixed. R5.1 does not change acoustic fidelity, recording layout, simulator behavior, or serialized schema versions.
 
+## Subphase R5.2 — Backends, DSP, and Effects
+
+#### Implementation
+
+R5.2 makes `get_backend()` the sole public resolver. It delegates to `PluginRegistry.resolve()`, distinguishes unknown identifiers from missing optional dependencies, and checks declared device and runtime-profile support before construction. `registered_backend_ids()` derives the maintained inventory from `PluginDeclaration` values used by core configuration, Isaac validation, Lab, Kit, and capability reporting.
+
+Effects configuration now separates immutable dataclasses, dict/TOML normalization, and semantic validation. Mapping shape, unknown keys, structural types, finite values, channel order, and used seeds fail closed; range and backend compatibility checks apply only when the corresponding stage is active.
+
+Room acoustics is a compatible package split into backend orchestration, signal scheduling and preparation, pyroomacoustics rendering, and diagnostic construction. Public backend class imports and `RoomAcousticsBackend.is_available()` remain stable, while direct construction reports a precise missing-dependency error.
+
+Unused compatibility and test-only surfaces were removed from the registry, effects configuration, TDOA estimation, material validation, and room backend. Focused numerical tests retain routing, dependency and capability failures, scheduling, mixtures, SRP, RIR, motion, effects placement, and diagnostics.
+
+#### Key Decisions
+
+- The public computation remains `AudioSceneSnapshot + MicrophoneArraySpec + AudioTimeWindow -> AudioSensorFrame` for every propagation backend.
+- Backend identifiers, serialized v1 schemas, units, coordinate conventions, provenance, diagnostics, formulas, DSP order, source order, seeds, and phase-cursor meaning remain unchanged.
+- Direct imports of maintained backend classes and actively used Isaac material aliases remain supported.
+- Invalid values in an inactive effects stage may be accepted when they cannot affect computation; structural errors are always rejected.
+- Recording and other R5 subsystems are outside R5.2.
+
+#### Problems / Limitations
+
+Backend inventory and optional dependency metadata no longer have parallel lists in configuration or simulator consumers. Large effects and room-acoustics modules no longer combine unrelated responsibilities. The acoustic fidelity limits described in the modeling documentation are unchanged.
+
 ## Artifacts
 
 - AST dependency contract and fresh-process import-boundary tests.
@@ -60,6 +84,9 @@ The duplicated array basis could diverge from its quaternion, and core configura
 - `src/isaac_audio_sensors/core/__init__.py`
 - `src/isaac_audio_sensors/core/config.py`
 - `src/isaac_audio_sensors/core/types.py`
+- `src/isaac_audio_sensors/core/backends/room_acoustics/`
+- `src/isaac_audio_sensors/core/effects/`
+- `src/isaac_audio_sensors/core/plugins/registry.py`
 - `src/isaac_audio_sensors/kit/headless.py`
 - `src/isaac_audio_sensors/schemas/generate.py`
 - `tests/contract/test_schemas.py`

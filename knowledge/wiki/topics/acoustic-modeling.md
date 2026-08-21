@@ -32,6 +32,8 @@ Rooms may be anchored to scene geometry, but they do not refit around each frame
 
 The backend schedules all active sources into one shared microphone mixture, preserves sample timing, computes per-source and aggregate diagnostics, and can export per-frame or continuous multichannel waveforms.
 
+Its implementation separates scene-to-frame orchestration, signal scheduling and waveform preparation, pyroomacoustics rendering, and diagnostic construction. This organization does not alter formulas, source ordering, phase cursors, effect placement, or numerical output.
+
 The model remains a shoebox approximation and does not implement arbitrary geometry, diffraction, a complete wave solver, calibrated materials, diffuse-field coherence, or production beamforming.
 
 ## Motion and Doppler
@@ -46,7 +48,9 @@ L1 records direct-path frequency-ratio behavior; L2 can resample waveform source
 
 The channel-effects chain supports configured per-channel gain, fractional delay, polarity, frequency response, seeded noise streams, ambient coherence controls, clock jitter/drift, source and microphone directivity, saturation/clipping, quantization, TPDF dither, and optional AGC.
 
-Effects default off and preserve the compatibility path; waveform-required effects reject metadata-only backends when an honest equivalent is unavailable.
+Effects default to identity; waveform-required effects reject metadata-only backends when an honest equivalent is unavailable.
+
+Configuration normalization always rejects malformed mappings, unknown keys, invalid structural types, and non-finite values. Range and backend compatibility checks apply only to stages that can affect the selected computation.
 
 Diagnostics retain applied settings and observable outputs so a consumer can distinguish generated stress from estimator behavior.
 
