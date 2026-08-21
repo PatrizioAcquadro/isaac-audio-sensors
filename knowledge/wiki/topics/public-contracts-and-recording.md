@@ -18,6 +18,8 @@ The shipped schemas are `ias.audio_sensor_frame.v1`, `ias.audio_dataset_manifest
 
 Code generation and checked package resources must remain identical; schema export never reads documentation files.
 
+Generators are public under `isaac_audio_sensors.schemas.generate`; dataset manifests and their canonical `manifest_from_dict`, `manifest_to_dict`, `read_dataset_manifest`, and `write_dataset_manifest` services are public under `isaac_audio_sensors.recording`.
+
 Package upgrades may preserve an existing schema version when serialized meaning is compatible; an incompatible field shape or semantic change requires a new schema version.
 
 ## Configuration and Runtime Profiles
@@ -70,6 +72,8 @@ Exported waveforms and recordings are runtime outputs, not tracked product sourc
 
 ## Compatibility
 
-Stable v1 fields, units, provenance, coordinate meaning, ambiguity representation, backend identifiers, sector mapping, and named diagnostic namespaces cannot be removed or redefined in a compatible release.
+Package `2.0.0` removes the former root and core convenience imports without compatibility shims. Import sensor contracts from `core`, dataset contracts from `recording`, and schema generators from `schemas.generate`.
+
+Stable serialized v1 fields, units, provenance, coordinate meaning, ambiguity representation, backend identifiers, sector mapping, and named diagnostic namespaces cannot be removed or redefined in a compatible release.
 
 Additive optional fields, diagnostics, capabilities, and bug fixes are compatible when older readers can ignore them and current readers preserve older records.

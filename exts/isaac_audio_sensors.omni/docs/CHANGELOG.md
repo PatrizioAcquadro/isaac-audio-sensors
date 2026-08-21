@@ -1,8 +1,9 @@
 # Extension Changelog
 
-## 1.10.0 - Unreleased
+## 2.0.0 - Unreleased
 
-- The extension uses the current dynamic-acoustics package behavior while preserving the existing extension binding and frame contracts.
+- The headless guided workflow now belongs to `isaac_audio_sensors.kit` and receives its controller explicitly.
+- The extension uses the current dynamic-acoustics package behavior while preserving its binding and serialized frame contracts.
 - The standalone metadata is reduced to extension-specific behavior; complete technical documentation lives in the repository wiki.
 
 ## 1.9.0 - Unreleased

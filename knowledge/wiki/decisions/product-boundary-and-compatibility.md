@@ -10,15 +10,15 @@ Robot-specific mounts, assets, adapters, policies, task orchestration, acceptanc
 
 ## Current Compatibility Line
 
-The current package is `1.10.0` on the v1 compatibility line, while the repository restructuring prepares a clean future `2.x` API boundary.
+The current package is `2.0.0` on the v2 compatibility line. R5.0 intentionally removes the v1 root convenience imports without compatibility shims and makes semantic subsystem ownership the public API boundary.
 
-R4 changes documentation ownership only; R5 will decide and freeze the exact v2 import and CLI inventory after obsolete source boundaries have been removed.
+The root exposes only `__version__`; contracts and services live under `core`, `recording`, `schemas`, `isaac`, `lab`, or `kit`. The CLI composes those public services without becoming a dependency of lower components.
 
 Existing `ias.audio_sensor_frame.v1`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1` data contracts may remain valid in a future major package version when their serialized meanings remain useful.
 
 ## Stable Promises
 
-The v1 line promises the documented sensor frame, dataset-manifest, and calibration-profile contracts; deterministic L0/L1 behavior; optional supported L2 behavior; generic plugin contracts; package JSON/JSONL; generic recording/replay; supported lazy Isaac Sim and Isaac Lab paths; and the Kit extension as the reference UX.
+The v2 line promises the documented semantic import boundary, sensor frame, dataset-manifest, and calibration-profile contracts; deterministic L0/L1 behavior; optional supported L2 behavior; generic plugin contracts; package JSON/JSONL; generic recording/replay; supported lazy Isaac Sim and Isaac Lab paths; and the Kit extension as the reference UX.
 
 Compatible releases preserve required fields, meanings, units, provenance values, coordinate convention, ambiguity representation, stable backend identifiers, sector behavior, and named diagnostic namespaces.
 

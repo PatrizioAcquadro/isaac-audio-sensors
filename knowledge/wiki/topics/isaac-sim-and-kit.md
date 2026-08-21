@@ -8,6 +8,8 @@ Discovery uses `ias:*` metadata, compatible native sound attributes, USD type/na
 
 The pose resolver prefers `UsdGeom` world-transform APIs and falls back to authored `ias:` positions, orientations, and simple `xformOp` parent stacks for import-safe tests and duck-typed stages.
 
+Import-safe world bounds and room-absorption helpers live in `isaac_audio_sensors.isaac.usd_bounds` and are shared by Isaac Sim, Isaac Lab, and Kit.
+
 Each emitted frame can carry `stage_snapshot` diagnostics for selected prims, discovery reasons, pose provenance, time code, source/array/microphone transforms, and optional object/base context.
 
 ## Discovery Cache and Motion
@@ -41,6 +43,8 @@ The guided path is `Setup -> Validate -> Run -> Inspect -> Record -> Export`.
 Setup applies a maintained safe preset and stage bindings; Validate runs stage, backend, device, source, array, room, attachment, calibration, and capability checks; Run starts the real sensor lifecycle; Inspect requires explicit user acceptance of the instrument output; Record writes a generic session; Export validates, splits when requested, and inventories the result.
 
 Simulator reset starts a new episode, and partial or failed recording output is not promoted as a complete session.
+
+The headless path is `isaac_audio_sensors.kit.headless.HeadlessGuidedSession`; callers inject an `ExtensionController`, and the CLI owns construction of the default controller.
 
 ## Expert Sections
 

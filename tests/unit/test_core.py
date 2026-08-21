@@ -45,7 +45,7 @@ from isaac_audio_sensors.schemas.generate import audio_sensor_frame_json_schema
 
 
 def test_core_package_imports_and_exposes_version():
-    assert isaac_audio_sensors.__version__ == "1.10.0"
+    assert isaac_audio_sensors.__version__ == "2.0.0"
 
 
 def test_config_validation_accepts_demo_config():

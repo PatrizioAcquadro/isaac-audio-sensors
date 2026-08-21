@@ -25,3 +25,11 @@ Reduced the root README and standalone Kit metadata, removed stale GUI screensho
 ## 2026-08-20 — lint: R4 canonical documentation
 
 Verified canonical ownership, index coverage, internal links, R0 hash preservation, removed-path references, Kit metadata, version synchronization, executable quickstart, deterministic test lanes, Ruff, and Markdown whitespace.
+
+## 2026-08-20 — update: R5.0 architectural foundation
+
+Recorded the `2.0.0` semantic import boundary, subsystem-owned APIs, headless and USD-helper ownership, bounded cleanup, and preserved serialized v1 contracts.
+
+## 2026-08-20 — lint: R5.0 canonical documentation
+
+Verified index coverage, internal links, R0 preservation, current paths, version synchronization, Markdown whitespace, and host test evidence.

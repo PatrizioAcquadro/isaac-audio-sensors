@@ -20,7 +20,7 @@
     "isaac_sim_version": null,
     "kit_version": null,
     "tool_name": "ias_fixture_generator",
-    "tool_version": "1.10.0"
+    "tool_version": "2.0.0"
   },
   "creation_timestamp_ms": 1767225600000,
   "dataset_id": "reference_session_v1",

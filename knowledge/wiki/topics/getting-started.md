@@ -28,7 +28,7 @@ python -m pip install -e ".[room]"
 Install a built wheel with:
 
 ```bash
-python -m pip install dist/isaac_audio_sensors-1.10.0-py3-none-any.whl
+python -m pip install dist/isaac_audio_sensors-2.0.0-py3-none-any.whl
 python -m isaac_audio_sensors --version
 ```
 

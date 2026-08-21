@@ -33,5 +33,5 @@
   "shard_id": "shard_00000",
   "start_frame": 0,
   "tail_samples": 80,
-  "writer_tool_version": "ias_fixture_generator/1.10.0"
+  "writer_tool_version": "ias_fixture_generator/2.0.0"
 }

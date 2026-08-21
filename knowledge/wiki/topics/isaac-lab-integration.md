@@ -28,6 +28,8 @@ Unused event slots are masked, bearings are `NaN`, confidences/RMS/one-hot value
 
 `bind_lab_stage()` maps cloned namespaces such as `/World/envs/env_{env_id}` to array/source prims and re-reads selected environment transforms through USD or fallback stage attributes.
 
+Stage binding reuses the import-safe bounds helpers owned by `isaac_audio_sensors.isaac`; this is the only additional semantic dependency beyond core.
+
 `bind_lab_scene()` and `bind_lab_env()` adapt common scene/env wrappers to the same stage path.
 
 `bind_lab_entities()` reads common articulation or rigid-object root/body pose tensors directly, composes body-mounted array offsets, orders sources deterministically, and converts selected rows to core dataclasses at the backend boundary.

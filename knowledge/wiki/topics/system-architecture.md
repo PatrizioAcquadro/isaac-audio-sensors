@@ -8,15 +8,21 @@ The design keeps simulator-independent contracts below optional simulator adapte
 
 ## Core Layer
 
-`isaac_audio_sensors.core` owns typed scene, source, pose, array, room, time-window, detection, DOA, occlusion, and frame models; configuration; schema generation; microphone geometry; deterministic DSP and effects; acoustic backends; plugins; calibration; trace IO; and waveform helpers.
+`isaac_audio_sensors.core` owns typed scene, source, pose, array, room, time-window, detection, DOA, occlusion, and frame models; configuration; microphone geometry; deterministic DSP and effects; acoustic backends; plugins; calibration; trace IO; and waveform helpers.
 
-This layer must not import Isaac, Omniverse, Isaac Lab, ROS 2, CUDA, Torch, or downstream project modules during normal import.
+This layer imports no other package subsystem and must not import Isaac, Omniverse, Isaac Lab, ROS 2, CUDA, Torch, or downstream project modules during normal import.
 
 ## Recording Layer
 
 `isaac_audio_sensors.recording` owns the generic session layout, manifests, shard lifecycle, atomic writes, audio codecs, loading, validation, statistics, deterministic splits, and read-only replay.
 
 Recording consumes `AudioSensorFrame` values and emits versioned generic dataset artifacts; it does not own a task-specific acquisition campaign or scientific acceptance policy.
+
+Dataset-manifest constants, models, and canonical JSON serializers are recording APIs rather than core APIs.
+
+## Schema Layer
+
+`isaac_audio_sensors.schemas` owns packaged JSON schemas and deterministic generation through `schemas.generate`. Generation depends only on core and recording contracts.
 
 ## Isaac Sim Layer
 
@@ -34,6 +40,8 @@ Fallback classes keep imports testable outside Lab, while `ensure_isaac_lab_sens
 
 `isaac_audio_sensors.kit` contains the import-safe state, controller, workflow, view-model, instruments, audio preview, validation, and UI-section logic.
 
+The guided headless service is a Kit application service and receives an `ExtensionController` explicitly. Isaac validation returns dependency-free findings; Kit converts its first error finding into the extension error type.
+
 `exts/isaac_audio_sensors.omni` is the thin Omniverse extension entry point and package metadata; it registers the window, menu/action/hotkey integration, and optional OmniGraph node while delegating reusable behavior to the Python package.
 
 ## Data Flow
@@ -43,6 +51,10 @@ Configuration or live stage/entity state defines sources, arrays, motion, room, 
 Privileged source pose, geometry, isolated-signal, or simulator state must remain distinguishable from observed waveform and estimator outputs so training supervision does not become an unlabelled runtime dependency.
 
 ## Dependency Boundary
+
+The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> core + isaac`, `kit -> core + recording + isaac`, and `schemas -> core + recording`. The CLI composes public services; lower components do not import Kit, UI, or CLI.
+
+The package root exports only `__version__`. Public types and services are imported from their semantic subsystem.
 
 Core dependencies are NumPy, JSON Schema validation, and TOML support for Python versions that need it.
 

@@ -1,7 +1,7 @@
 [package]
 # Kit extension manifests require SemVer spelling. The Python package release
-# uses the same final SemVer spelling for 1.10.0.
-version = "1.10.0"
+# uses the same final SemVer spelling for 2.0.0.
+version = "2.0.0"
 title = "Isaac Audio Sensors"
 description = "Reference Isaac Sim Kit workflow for audio-array metadata, live sensor control, overlays, and JSON/JSONL export."
 authors = ["Patrizio Acquadro"]

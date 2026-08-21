@@ -3,7 +3,7 @@ PYTHON ?= $(if $(wildcard $(VENV_PYTHON)),$(VENV_PYTHON),python3)
 ISAAC_LAB_ROOT ?= $(HOME)/IsaacLab
 ISAAC_LAB_PYTHON ?= $(if $(wildcard $(ISAAC_LAB_ROOT)/isaaclab.sh),$(ISAAC_LAB_ROOT)/isaaclab.sh -p,$(PYTHON))
 BUILD_FLAGS ?= --no-isolation
-EXPECTED_VERSION ?= 1.10.0
+EXPECTED_VERSION ?= 2.0.0
 WHEELHOUSE ?=
 SCHEMA_OUT ?= build/schemas
 

@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-08-20. Package version: `1.10.0`.
+Updated: 2026-08-20. Package version: `2.0.0`.
 
 ## Product Boundary
 
@@ -17,6 +17,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
 - Lazy Isaac Lab sensor recovery, cloned-stage and scene/entity binding, scalar/batched fixed-shape observations, selected update/reset, and explicit GPU validation.
 - Wheel, source archive, Kit extension, and optional acoustics-pack version, provenance, determinism, and content policy.
+- Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
 
 ## Documentation State
 
@@ -32,11 +33,13 @@ The R3 runtime baseline passed 116 Isaac tests on the RTX 4090 and the complete 
 
 The R4 deterministic gate passed 414 host tests in 9.58 seconds, 366 integration tests in 10.36 seconds, and 40 release tests in 0.36 seconds, including six documentation-boundary tests.
 
+The R5.0 host gate passes 417 unit/contract tests, 343 integration tests, and 40 release tests after removing redundant test-only coverage.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, authorized R0 hash preservation, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; clean-source wheel, source, and Kit builds are verified after the implementation commit and reported in the phase handoff.
 
-See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]], [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]], and [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]].
+See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]], [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]], [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]], and [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]].
 
 ## Maintained Commands
 
@@ -57,4 +60,4 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 
 ## Next Work
 
-R5 refactors one semantic subsystem at a time and freezes the exact clean v2 public import and CLI surface only after the documentation and repository boundaries are stable.
+R5.1+ may simplify internals within one semantic subsystem at a time. General packaging and release cleanup remains R6 work.

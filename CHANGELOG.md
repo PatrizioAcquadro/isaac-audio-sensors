@@ -1,6 +1,13 @@
 # Changelog
 
-## 1.10.0 - Unreleased
+## 2.0.0 - Unreleased
+
+R5.0 establishes the v2 semantic component boundary. This release intentionally removes the root v1 convenience imports and does not provide compatibility shims.
+
+- Reduced the package root to `__version__`; public contracts now live under their owning subsystems.
+- Moved dataset manifests and serializers to `recording`, schema generation to `schemas.generate`, USD bounds to `isaac.usd_bounds`, and the headless guided service to `kit.headless`.
+- Enforced import direction with an AST architecture contract while keeping Isaac, Lab, Kit, Torch, and Omniverse optional and lazy.
+- Removed duplicate package examples, manifest aliases, production test matrices, private Kit re-exports, and GUI/headless comparison scaffolding without changing serialized v1 schemas.
 
 Stage 1 dynamic acoustics required by SquadBot (phase S3 of the final sensor
 development plan). `ias.audio_sensor_frame.v1` is unchanged; all new effects

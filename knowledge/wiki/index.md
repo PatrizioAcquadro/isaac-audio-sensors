@@ -7,6 +7,7 @@
 - [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]] — semantic test ownership and maintained validation commands.
 - [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]] — generic SDK, downstream, evidence, and release-content boundaries.
 - [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]] — canonical wiki, root documentation removal, and documentation-boundary enforcement.
+- [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]] — v2 API ownership, dependency direction, and bounded semantic cleanup.
 
 ## Topics
 
@@ -20,7 +21,7 @@
 
 ## Key Decisions
 
-- [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — current promises, exclusions, compatibility rules, and the future v2 boundary.
+- [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — current v2 promises, exclusions, and compatibility rules.
 
 ## Experiments
 

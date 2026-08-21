@@ -8,9 +8,11 @@ The package complements NVIDIA Kit Audio and RTX Acoustic by providing reusable 
 
 Showcase: <https://isaac-audio-showcase-site.vercel.app>
 
-Current package release: `1.10.0`.
+Current package release: `2.0.0`.
 
 The package version and the serialized schema versions are independent; the current frame contract is `ias.audio_sensor_frame.v1`.
+
+The package root exports only `__version__`. Import sensor contracts from `isaac_audio_sensors.core`, dataset contracts and serializers from `isaac_audio_sensors.recording`, schema generators from `isaac_audio_sensors.schemas.generate`, and simulator services from their `isaac`, `lab`, or `kit` subsystem.
 
 ## Capabilities
 
@@ -55,7 +57,7 @@ isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --ba
 Create a frame directly from Python:
 
 ```python
-from isaac_audio_sensors import AudioSceneSnapshot, AudioSourceSpec, AudioTimeWindow
+from isaac_audio_sensors.core import AudioSceneSnapshot, AudioSourceSpec, AudioTimeWindow
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 
