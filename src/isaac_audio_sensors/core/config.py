@@ -11,12 +11,12 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10.
     import tomli as tomllib
 
+from isaac_audio_sensors.core.backends.base import registered_backend_ids
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     DEFAULT_RUNTIME_PROFILE,
     DEFAULT_SAMPLE_RATE_HZ,
     DEFAULT_SPEED_OF_SOUND_MPS,
-    KNOWN_BACKENDS,
     RUNTIME_PROFILES,
     TDOA_AMBIGUITY_POLICIES,
 )
@@ -84,9 +84,10 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         if sample_rate_hz <= 0:
             raise ConfigValidationError("audio.sample_rate_hz must be positive.")
         default_backend = str(audio.get("default_backend", "geometry_only"))
-        if default_backend not in KNOWN_BACKENDS:
+        backend_ids = registered_backend_ids()
+        if default_backend not in backend_ids:
             raise ConfigValidationError(
-                f"audio.default_backend must be one of {sorted(KNOWN_BACKENDS)}."
+                f"audio.default_backend must be one of {list(backend_ids)}."
             )
         runtime_profile = str(audio.get("runtime_profile", DEFAULT_RUNTIME_PROFILE))
         if runtime_profile not in RUNTIME_PROFILES:

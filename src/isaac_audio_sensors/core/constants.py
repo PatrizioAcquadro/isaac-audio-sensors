@@ -134,10 +134,6 @@ DETECTION_MODES = frozenset(
     }
 )
 
-KNOWN_BACKENDS = frozenset(
-    {"geometry_only", "tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}
-)
-
 ROOM_OUT_OF_BOUNDS_POLICIES = frozenset({"error", "clamp"})
 # Clamped positions are pulled this far inside the walls so pyroomacoustics
 # never receives a degenerate on-wall source/microphone.

@@ -13,14 +13,10 @@ import re
 from collections.abc import Iterable
 from typing import Protocol
 
+from isaac_audio_sensors.core.backends.base import registered_backend_ids
+
 from .results import ValidationFinding
 
-_BACKEND_CHOICES = (
-    "geometry_only",
-    "tdoa_synthetic",
-    "room_acoustics",
-    "room_acoustics_srp",
-)
 _AMBIGUITY_POLICY_CHOICES = ("front_hemisphere", "none")
 _LAYOUT_CHOICES = (
     "quad_front",
@@ -109,7 +105,7 @@ def check_abs_prim_path(
 def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]:
     """Check runtime configuration in the controller's fail-first order."""
 
-    if state.backend not in _BACKEND_CHOICES:
+    if state.backend not in registered_backend_ids():
         return _error(
             "backend_supported",
             f"Backend {state.backend!r} is not an implemented v1 backend.",

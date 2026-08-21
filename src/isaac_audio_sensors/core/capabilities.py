@@ -12,6 +12,7 @@ from isaac_audio_sensors.core.packs import (
     active_pack_manifest,
     active_pack_root,
 )
+from isaac_audio_sensors.core.plugins.registry import get_default_registry
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,18 +212,22 @@ def discover_capabilities(pack_root: str | Path | None = None) -> CapabilityRepo
     if pack_root is not None:
         activate_pack(pack_root)
 
-    room = _probe_optional(
-        capability_id="room_acoustics",
-        kind="backend",
-        fidelity_level="L2",
-        dependencies=("pyroomacoustics",),
+    backend_declarations = get_default_registry().declarations(
+        "propagation_backend"
     )
-    room_srp = _probe_optional(
-        capability_id="room_acoustics_srp",
-        kind="backend",
-        fidelity_level="L2",
-        dependencies=("pyroomacoustics",),
+    optional_backends = tuple(
+        _probe_optional(
+            capability_id=declaration.plugin_id,
+            kind="backend",
+            fidelity_level=declaration.fidelity_level or "",
+            dependencies=declaration.required_dependencies,
+        )
+        for declaration in backend_declarations
+        if declaration.required_dependencies
     )
+    backend_capabilities = {
+        capability.capability_id: capability for capability in optional_backends
+    }
     waveform_wav = _probe_optional(
         capability_id="waveform_export_wav",
         kind="waveform_export",
@@ -242,11 +247,25 @@ def discover_capabilities(pack_root: str | Path | None = None) -> CapabilityRepo
         if level in {"L0", "L1"}:
             fidelity_levels.append(_base_level(level, metadata.public_name))
         elif level == "L2":
-            origins = {room.origin, room_srp.origin}
-            available = room.available and room_srp.available
+            level_capabilities = tuple(
+                backend_capabilities[declaration.plugin_id]
+                for declaration in backend_declarations
+                if declaration.fidelity_level == level
+                and declaration.plugin_id in backend_capabilities
+            )
+            origins = {item.origin for item in level_capabilities}
+            available = bool(level_capabilities) and all(
+                item.available for item in level_capabilities
+            )
             origin = origins.pop() if available and len(origins) == 1 else "absent"
             missing = tuple(
-                sorted(set(room.missing_dependencies + room_srp.missing_dependencies))
+                sorted(
+                    {
+                        dependency
+                        for capability in level_capabilities
+                        for dependency in capability.missing_dependencies
+                    }
+                )
             )
             fidelity_levels.append(
                 CapabilityStatus(
@@ -280,7 +299,7 @@ def discover_capabilities(pack_root: str | Path | None = None) -> CapabilityRepo
     )
     return CapabilityReport(
         fidelity_levels=tuple(fidelity_levels),
-        optional_features=(room, room_srp, waveform_wav, waveform_flac),
+        optional_features=(*optional_backends, waveform_wav, waveform_flac),
         active_pack=active_pack,
     )
 

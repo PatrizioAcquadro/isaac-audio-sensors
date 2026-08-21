@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from isaac_audio_sensors.core.backends.base import get_backend
+from isaac_audio_sensors.core.backends.base import get_backend, registered_backend_ids
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import (
     RoomAcousticsBackend,
@@ -46,11 +46,15 @@ def test_backend_identifiers_are_stable_public_v1_ids():
     assert RoomAcousticsBackend.backend_id == "room_acoustics"
     assert RoomAcousticsSrpBackend.backend_id == "room_acoustics_srp"
 
+    assert registered_backend_ids() == (
+        "geometry_only",
+        "tdoa_synthetic",
+        "room_acoustics",
+        "room_acoustics_srp",
+    )
     for backend_id, backend_cls in (
         ("geometry_only", GeometryBackend),
         ("tdoa_synthetic", TdoaSyntheticBackend),
-        ("room_acoustics", RoomAcousticsBackend),
-        ("room_acoustics_srp", RoomAcousticsSrpBackend),
     ):
         assert isinstance(get_backend(backend_id), backend_cls)
 

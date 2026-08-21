@@ -5,18 +5,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
-from isaac_audio_sensors.core.constants import KNOWN_BACKENDS, TDOA_AMBIGUITY_POLICIES
+from isaac_audio_sensors.core.backends.base import registered_backend_ids
+from isaac_audio_sensors.core.constants import TDOA_AMBIGUITY_POLICIES
 
-BACKEND_CHOICES = tuple(
-    backend
-    for backend in (
-        "geometry_only",
-        "tdoa_synthetic",
-        "room_acoustics",
-        "room_acoustics_srp",
-    )
-    if backend in KNOWN_BACKENDS
-)
+BACKEND_CHOICES = registered_backend_ids()
 AMBIGUITY_POLICY_CHOICES = tuple(sorted(TDOA_AMBIGUITY_POLICIES))
 LAYOUT_CHOICES = (
     "quad_front",

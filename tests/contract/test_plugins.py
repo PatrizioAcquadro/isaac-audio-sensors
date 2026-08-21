@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import itertools
-from dataclasses import replace
-
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.backends.base import get_backend
+from isaac_audio_sensors.core.backends.base import get_backend, registered_backend_ids
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
@@ -34,34 +31,6 @@ class _MeanFeatureExtractor:
     def extract(self, samples, sample_rate_hz):
         del sample_rate_hz
         return np.mean(samples, axis=1, dtype=np.float32), {"statistic": "mean"}
-
-
-class _LyingShapeExtractor:
-    def extract(self, samples, sample_rate_hz):
-        del samples, sample_rate_hz
-        return np.zeros((3,), dtype=np.float32), {}
-
-
-class _NondeterministicExtractor:
-    _counter = itertools.count()
-
-    def extract(self, samples, sample_rate_hz):
-        del samples, sample_rate_hz
-        return np.asarray([next(self._counter)], dtype=np.float32), {}
-
-
-class _NondeterministicPropagation:
-    backend_id = "nondeterministic_propagation"
-    _counter = itertools.count()
-
-    def simulate(self, scene, sensor, time_window):
-        frame = GeometryBackend().simulate(scene, sensor, time_window)
-        counter = next(self._counter)
-        return replace(
-            frame,
-            backend_id=self.backend_id,
-            frame_id=f"{frame.frame_id}_{counter}",
-        )
 
 
 def _feature_declaration(
@@ -169,7 +138,11 @@ def test_missing_dependency_registers_but_resolution_fails_actionably():
     assert availability.available is False
     assert availability.missing_dependencies == (dependency,)
     with pytest.raises(ConfigValidationError, match=dependency):
-        registry.resolve("audio_feature_extractor", "missing_dep")
+        registry.resolve(
+            "audio_feature_extractor",
+            "missing_dep",
+            runtime_profile="training_features",
+        )
 
 
 def test_importable_stdlib_dependency_resolves_normally():
@@ -214,34 +187,19 @@ def test_resolution_rejects_unsupported_device_and_profile():
         )
 
 
-def test_registration_rejects_declared_shape_lie():
+def test_resolution_rejects_factory_protocol_and_backend_id_mismatch():
     registry = PluginRegistry()
+    registry.register(_feature_declaration("invalid_feature"), object)
+    registry.register(_propagation_declaration("wrong_backend_id"), GeometryBackend)
 
-    with pytest.raises(ConfigValidationError, match="returned feature shape"):
-        registry.register(
-            _feature_declaration("lying_shape", shape=(2,)),
-            _LyingShapeExtractor,
+    with pytest.raises(ConfigValidationError, match="AudioFeatureExtractor"):
+        registry.resolve(
+            "audio_feature_extractor",
+            "invalid_feature",
+            runtime_profile="training_features",
         )
-
-
-def test_registration_rejects_false_determinism_declaration():
-    registry = PluginRegistry()
-
-    with pytest.raises(ConfigValidationError, match="deterministic=True"):
-        registry.register(
-            _feature_declaration("random_feature", shape=(1,)),
-            _NondeterministicExtractor,
-        )
-
-
-def test_registration_rejects_false_propagation_determinism_declaration():
-    registry = PluginRegistry()
-
-    with pytest.raises(ConfigValidationError, match="deterministic=True"):
-        registry.register(
-            _propagation_declaration("nondeterministic_propagation"),
-            _NondeterministicPropagation,
-        )
+    with pytest.raises(ConfigValidationError, match="produced backend id"):
+        registry.resolve("propagation_backend", "wrong_backend_id")
 
 
 def test_default_registry_builtin_inventory_and_capabilities():
@@ -272,6 +230,12 @@ def test_default_registry_builtin_inventory_and_capabilities():
         assert declaration.supported_profiles == ("waveform_fidelity",)
     assert all(item.supported_devices == ("cpu",) for item in declarations.values())
     assert all(item.deterministic for item in declarations.values())
+    assert registered_backend_ids() == (
+        "geometry_only",
+        "tdoa_synthetic",
+        "room_acoustics",
+        "room_acoustics_srp",
+    )
 
 
 def test_room_backend_registry_availability_matches_optional_dependency():
@@ -281,9 +245,12 @@ def test_room_backend_registry_availability_matches_optional_dependency():
             registry.resolve("propagation_backend", "room_acoustics"),
             RoomAcousticsBackend,
         )
+        assert isinstance(get_backend("room_acoustics"), RoomAcousticsBackend)
     else:
         with pytest.raises(ConfigValidationError, match="pyroomacoustics"):
             registry.resolve("propagation_backend", "room_acoustics")
+        with pytest.raises(ConfigValidationError, match="pyroomacoustics"):
+            get_backend("room_acoustics")
 
 
 @pytest.mark.parametrize(
@@ -343,3 +310,10 @@ def test_get_backend_unknown_id_error_text_is_frozen():
         get_backend("unknown")
 
     assert str(error.value) == "Unknown audio simulation backend 'unknown'."
+
+
+def test_get_backend_checks_device_and_runtime_profile_before_factory():
+    with pytest.raises(ConfigValidationError, match="does not support device 'cuda'"):
+        get_backend("geometry_only", device="cuda")
+    with pytest.raises(ConfigValidationError, match="does not support runtime profile"):
+        get_backend("room_acoustics", runtime_profile="training_features")

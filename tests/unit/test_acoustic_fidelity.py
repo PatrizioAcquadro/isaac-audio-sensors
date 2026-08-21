@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from isaac_audio_sensors.core.backends.base import get_backend
-from isaac_audio_sensors.core.constants import KNOWN_BACKENDS
+from isaac_audio_sensors.core.backends.base import get_backend, registered_backend_ids
 from isaac_audio_sensors.core.fidelity import (
     ACOUSTIC_FIDELITY_LADDER,
     AcousticFidelityLevel,
@@ -60,9 +59,9 @@ def test_implemented_l0_l1_l2_map_to_stable_backend_ids():
         frozenset(
             {"geometry_only", "tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}
         )
-        == KNOWN_BACKENDS
+        == frozenset(registered_backend_ids())
     )
-    for backend_id in KNOWN_BACKENDS:
+    for backend_id in registered_backend_ids():
         metadata = fidelity_level_for_backend(backend_id)
         assert backend_id in metadata.backend_ids
         assert metadata.runtime_selectable_v1 is True
@@ -82,7 +81,7 @@ def test_l3_l4_are_metadata_only_not_runtime_backends():
     assert l4.runtime_selectable_v1 is False
 
     for future_family in (l3.backend_family, l4.backend_family):
-        assert future_family not in KNOWN_BACKENDS
+        assert future_family not in registered_backend_ids()
         with pytest.raises(ValueError, match="Unknown implemented v1 audio backend"):
             fidelity_level_for_backend(future_family)
         with pytest.raises(ValueError, match="Unknown audio simulation backend"):

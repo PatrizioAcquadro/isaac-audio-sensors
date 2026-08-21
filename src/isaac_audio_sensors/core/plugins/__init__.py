@@ -21,7 +21,6 @@ from isaac_audio_sensors.core.plugins.registry import (
     PluginFactory,
     PluginRegistry,
     get_default_registry,
-    validate_declaration,
 )
 
 __all__ = [
@@ -37,5 +36,4 @@ __all__ = [
     "PropagationBackend",
     "SrpPhatEstimator",
     "get_default_registry",
-    "validate_declaration",
 ]

@@ -17,7 +17,6 @@ from isaac_audio_sensors.core.capabilities import (
     CapabilityReport,
     discover_capabilities,
 )
-from isaac_audio_sensors.core.fidelity import ACOUSTIC_FIDELITY_LADDER
 
 from .checks import (
     ValidationState,
@@ -78,20 +77,18 @@ class CapabilityState:
 
 
 def _available_backend_ids(report: CapabilityReport) -> tuple[str, ...]:
-    available: list[str] = []
-    for metadata in ACOUSTIC_FIDELITY_LADDER:
-        try:
-            level = report.get(metadata.level.value)
-        except KeyError:
-            continue
-        if level.available:
-            available.extend(metadata.backend_ids)
-    available.extend(
-        capability.capability_id
-        for capability in report.capabilities
-        if capability.kind == "backend" and capability.available
+    from isaac_audio_sensors.core.backends.base import registered_backend_ids
+
+    optional = {
+        capability.capability_id: capability.available
+        for capability in report.optional_features
+        if capability.kind == "backend"
+    }
+    return tuple(
+        backend_id
+        for backend_id in registered_backend_ids()
+        if optional.get(backend_id, True)
     )
-    return tuple(dict.fromkeys(available))
 
 
 class ValidationController:

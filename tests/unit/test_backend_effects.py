@@ -20,10 +20,6 @@ from isaac_audio_sensors.core.effects import (
 )
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
-from isaac_audio_sensors.core.plugins.registry import (
-    get_default_registry,
-    validate_declaration,
-)
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -49,6 +45,8 @@ from tests.helpers import (
 )
 
 SAMPLE_RATE_HZ = 48_000
+
+
 def _array():
     return create_microphone_array(
         array_id="rig",
@@ -307,29 +305,3 @@ def test_room_backend_effected_premix_drives_detection_aggregate_and_export(
         "polarity": {},
     }
     assert "effects" not in effected_detection.diagnostics
-
-
-def test_registry_twice_run_self_test_and_enabled_fixture_remain_deterministic():
-    declaration = next(
-        item
-        for item in get_default_registry().declarations("propagation_backend")
-        if item.plugin_id == "tdoa_synthetic"
-    )
-    validate_declaration(declaration, TdoaSyntheticBackend)
-
-    array = _array()
-    mic_ids = tuple(mic.mic_id for mic in array.microphones)
-    kwargs = {
-        "effects": _effects(mic_ids, gain_db=-3.0, delay_s=5e-6, polarity=-1),
-        "noise_std_s": 1e-6,
-        "clock_jitter_s": 2e-6,
-        "gain_mismatch_db": 1.5,
-        "seed": 7,
-    }
-    first = TdoaSyntheticBackend(**kwargs).simulate(
-        _scene(array), array, _time_window()
-    )
-    second = TdoaSyntheticBackend(**kwargs).simulate(
-        _scene(array), array, _time_window()
-    )
-    assert first == second

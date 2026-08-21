@@ -4,21 +4,45 @@ from __future__ import annotations
 
 from typing import cast
 
+from isaac_audio_sensors.core.constants import DEFAULT_RUNTIME_PROFILE
 from isaac_audio_sensors.core.plugins.protocols import PropagationBackend
 
 
 def get_backend(backend_id: str, **kwargs: object) -> PropagationBackend:
     """Instantiate a backend by public id."""
 
-    from isaac_audio_sensors.core.exceptions import ConfigValidationError
     from isaac_audio_sensors.core.plugins.registry import get_default_registry
 
-    try:
-        backend = get_default_registry().instantiate_registered(
-            "propagation_backend",
-            backend_id,
-            **kwargs,
-        )
-    except ConfigValidationError as exc:
-        raise ValueError(f"Unknown audio simulation backend {backend_id!r}.") from exc
+    if backend_id not in registered_backend_ids():
+        raise ValueError(f"Unknown audio simulation backend {backend_id!r}.")
+    factory_kwargs = dict(kwargs)
+    device = str(factory_kwargs.pop("device", "cpu"))
+    runtime_profile = str(
+        factory_kwargs.get("runtime_profile", DEFAULT_RUNTIME_PROFILE)
+    )
+    backend = get_default_registry().resolve(
+        "propagation_backend",
+        backend_id,
+        device=device,
+        runtime_profile=runtime_profile,
+        factory_kwargs=factory_kwargs,
+    )
     return cast(PropagationBackend, backend)
+
+
+def registered_backend_ids() -> tuple[str, ...]:
+    """Return registered propagation backend ids in fidelity order."""
+
+    from isaac_audio_sensors.core.plugins.registry import get_default_registry
+
+    declarations = get_default_registry().declarations("propagation_backend")
+    return tuple(
+        declaration.plugin_id
+        for declaration in sorted(
+            declarations,
+            key=lambda item: (item.fidelity_level or "", item.plugin_id),
+        )
+    )
+
+
+__all__ = ["get_backend", "registered_backend_ids"]

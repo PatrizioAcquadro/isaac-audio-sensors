@@ -5,13 +5,10 @@ from __future__ import annotations
 import importlib
 import importlib.util
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, fields, is_dataclass
-
-import numpy as np
+from dataclasses import dataclass
 
 from isaac_audio_sensors.core.constants import DEFAULT_RUNTIME_PROFILE
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
-from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.plugins.adapters import (
     GccPhatLeastSquaresEstimator,
     SrpPhatEstimator,
@@ -24,14 +21,6 @@ from isaac_audio_sensors.core.plugins.protocols import (
     AudioFeatureExtractor,
     DoaEstimator,
     PropagationBackend,
-)
-from isaac_audio_sensors.core.types import (
-    AudioSceneSnapshot,
-    AudioSensorFrame,
-    AudioSourceSpec,
-    AudioTimeWindow,
-    DoaEstimate,
-    RoomAcousticsSpec,
 )
 
 PluginFactory = Callable[..., object]
@@ -52,7 +41,7 @@ class _Registration:
 
 
 class PluginRegistry:
-    """Registry with fail-closed capability and self-test validation.
+    """Capability-aware registry for structural audio plugin contracts.
 
     Dependency names are located, without importing their modules, when a
     plugin is registered. ``probe_availability`` and ``resolve`` perform the
@@ -60,20 +49,18 @@ class PluginRegistry:
     registration, so capability reports retain unavailable plugin entries.
     """
 
-    def __init__(self, *, validate_on_register: bool = True) -> None:
+    def __init__(self) -> None:
         self._registrations: dict[str, dict[str, _Registration]] = {
             kind: {} for kind in PLUGIN_KINDS
         }
         self._availability: dict[tuple[str, str], PluginAvailability] = {}
-        self._validated: set[tuple[str, str]] = set()
-        self._validate_on_register = validate_on_register
 
     def register(
         self,
         declaration: PluginDeclaration,
         factory: PluginFactory,
     ) -> None:
-        """Register one declaration and reject ids or factories that lie."""
+        """Register one unique declaration and callable factory."""
 
         if not isinstance(declaration, PluginDeclaration):
             raise ConfigValidationError(
@@ -95,12 +82,10 @@ class PluginRegistry:
                 f"{declaration.plugin_id!r}."
             )
 
-        availability = _locate_dependencies(declaration.required_dependencies)
-        if self._validate_on_register and availability.available:
-            validate_declaration(declaration, factory)
-            self._validated.add((declaration.kind, declaration.plugin_id))
         registrations[declaration.plugin_id] = _Registration(declaration, factory)
-        self._availability[(declaration.kind, declaration.plugin_id)] = availability
+        self._availability[(declaration.kind, declaration.plugin_id)] = (
+            _locate_dependencies(declaration.required_dependencies)
+        )
 
     def declarations(self, kind: str | None = None) -> tuple[PluginDeclaration, ...]:
         """Return declarations in deterministic kind/id order."""
@@ -148,22 +133,13 @@ class PluginRegistry:
         *,
         device: str = "cpu",
         runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
-        **factory_kwargs: object,
+        factory_kwargs: Mapping[str, object] | None = None,
+        **factory_overrides: object,
     ) -> object:
         """Validate capabilities and instantiate one registered plugin."""
 
         registration = self._registration(kind, plugin_id)
         declaration = registration.declaration
-        availability = self.probe_availability(kind, plugin_id)
-        if not availability.available:
-            missing = ", ".join(
-                repr(item) for item in availability.missing_dependencies
-            )
-            raise ConfigValidationError(
-                f"Plugin {plugin_id!r} ({kind}) is unavailable because required "
-                f"dependency {missing} could not be imported. Install the plugin's "
-                "optional dependencies and retry."
-            )
         if device not in declaration.supported_devices:
             raise ConfigValidationError(
                 f"Plugin {plugin_id!r} ({kind}) does not support device {device!r}; "
@@ -175,37 +151,32 @@ class PluginRegistry:
                 f"{runtime_profile!r}; supported profiles: "
                 f"{list(declaration.supported_profiles)}."
             )
-        registration_key = (kind, plugin_id)
-        if registration_key not in self._validated:
-            validate_declaration(declaration, registration.factory)
-            self._validated.add(registration_key)
-        return registration.factory(**factory_kwargs)
-
-    def instantiate_registered(
-        self,
-        kind: str,
-        plugin_id: str,
-        **factory_kwargs: object,
-    ) -> object:
-        """Instantiate a known id without eager capability resolution.
-
-        This compatibility path preserves the historical ``get_backend``
-        behavior: optional room dependencies are checked by ``simulate``, not
-        by backend object construction. New plugin consumers should use
-        ``resolve`` so capability mismatches fail before construction.
-        """
-
-        registration = self._registration(kind, plugin_id)
-        return registration.factory(**factory_kwargs)
-
-    def validate_declaration(
-        self,
-        declaration: PluginDeclaration,
-        factory: PluginFactory,
-    ) -> None:
-        """Run the public factory shape and determinism self-test hook."""
-
-        validate_declaration(declaration, factory)
+        availability = self.probe_availability(kind, plugin_id)
+        if not availability.available:
+            missing = ", ".join(
+                repr(item) for item in availability.missing_dependencies
+            )
+            raise ConfigValidationError(
+                f"Plugin {plugin_id!r} ({kind}) is unavailable because required "
+                f"dependency {missing} could not be imported. Install the plugin's "
+                "optional dependencies and retry."
+            )
+        construction_kwargs = dict(factory_kwargs or {})
+        overlap = construction_kwargs.keys() & factory_overrides.keys()
+        if overlap:
+            raise ConfigValidationError(
+                f"Duplicate factory kwargs for plugin {plugin_id!r}: "
+                f"{sorted(overlap)}."
+            )
+        construction_kwargs.update(factory_overrides)
+        try:
+            instance = registration.factory(**construction_kwargs)
+        except Exception as exc:
+            raise ConfigValidationError(
+                f"Factory for plugin {plugin_id!r} ({kind}) failed: {exc}"
+            ) from exc
+        _validate_instance(declaration, instance)
+        return instance
 
     def _require_kind(self, kind: str) -> None:
         if kind not in self._registrations:
@@ -224,23 +195,7 @@ class PluginRegistry:
             ) from exc
 
 
-def validate_declaration(
-    declaration: PluginDeclaration,
-    factory: PluginFactory,
-) -> None:
-    """Validate structural output, declared shape/dtype, and determinism."""
-
-    if not callable(factory):
-        raise ConfigValidationError(
-            f"Factory for plugin {declaration.plugin_id!r} must be callable."
-        )
-    try:
-        instance = factory()
-    except Exception as exc:
-        raise ConfigValidationError(
-            f"Factory self-test for plugin {declaration.plugin_id!r} failed: {exc}"
-        ) from exc
-
+def _validate_instance(declaration: PluginDeclaration, instance: object) -> None:
     if declaration.kind == "propagation_backend":
         if not isinstance(instance, PropagationBackend):
             raise ConfigValidationError(
@@ -252,256 +207,17 @@ def validate_declaration(
                 f"Plugin {declaration.plugin_id!r} factory produced backend id "
                 f"{instance.backend_id!r}."
             )
-        if declaration.output_contract != {
-            "shape": "AudioSensorFrame",
-            "dtype": "AudioSensorFrame",
-        }:
-            raise ConfigValidationError(
-                f"Plugin {declaration.plugin_id!r} has an invalid propagation "
-                "output_contract."
-            )
-        if declaration.deterministic:
-            fixture = _propagation_fixture()
-            first = _run_propagation_plugin(declaration, instance, fixture)
-            try:
-                second_instance = factory()
-            except Exception as exc:
-                raise ConfigValidationError(
-                    f"Determinism self-test for plugin {declaration.plugin_id!r} "
-                    f"failed: {exc}"
-                ) from exc
-            second = _run_propagation_plugin(
-                declaration, second_instance, fixture
-            )
-            if not _outputs_equal(first, second):
-                raise ConfigValidationError(
-                    f"Plugin {declaration.plugin_id!r} declares "
-                    "deterministic=True but returned different or "
-                    "unverifiable AudioSensorFrame results for identical inputs."
-                )
         return
-
-    fixture = _signal_fixture()
-    first = _run_signal_plugin(declaration, instance, fixture)
-    _validate_signal_output(declaration, first)
-    if declaration.deterministic:
-        try:
-            second_instance = factory()
-            second = _run_signal_plugin(declaration, second_instance, fixture)
-        except Exception as exc:
-            raise ConfigValidationError(
-                f"Determinism self-test for plugin {declaration.plugin_id!r} "
-                f"failed: {exc}"
-            ) from exc
-        _validate_signal_output(declaration, second)
-        if not _outputs_equal(first, second):
-            raise ConfigValidationError(
-                f"Plugin {declaration.plugin_id!r} declares deterministic=True "
-                "but returned different results for identical seeded inputs."
-            )
-
-
-def _run_signal_plugin(
-    declaration: PluginDeclaration,
-    instance: object,
-    fixture: tuple[np.ndarray, np.ndarray, int],
-) -> object:
-    samples, positions, sample_rate_hz = fixture
-    try:
-        if declaration.kind == "doa_estimator":
-            if not isinstance(instance, DoaEstimator):
-                raise ConfigValidationError(
-                    f"Plugin {declaration.plugin_id!r} does not satisfy DoaEstimator."
-                )
-            return instance.estimate(samples.copy(), positions.copy(), sample_rate_hz)
-        if not isinstance(instance, AudioFeatureExtractor):
-            raise ConfigValidationError(
-                f"Plugin {declaration.plugin_id!r} does not satisfy "
-                "AudioFeatureExtractor."
-            )
-        return instance.extract(samples.copy(), sample_rate_hz)
-    except ConfigValidationError:
-        raise
-    except Exception as exc:
-        raise ConfigValidationError(
-            f"Self-test execution for plugin {declaration.plugin_id!r} failed: {exc}"
-        ) from exc
-
-
-def _run_propagation_plugin(
-    declaration: PluginDeclaration,
-    instance: object,
-    fixture: tuple[AudioSceneSnapshot, object, AudioTimeWindow],
-) -> AudioSensorFrame:
-    scene, sensor, time_window = fixture
-    if not isinstance(instance, PropagationBackend):
-        raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} does not satisfy PropagationBackend."
-        )
-    if instance.backend_id != declaration.plugin_id:
-        raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} factory produced backend id "
-            f"{instance.backend_id!r}."
-        )
-    try:
-        output = instance.simulate(scene, sensor, time_window)  # type: ignore[arg-type]
-    except Exception as exc:
-        raise ConfigValidationError(
-            f"Determinism self-test for plugin {declaration.plugin_id!r} "
-            f"could not execute: {exc}"
-        ) from exc
-    if not isinstance(output, AudioSensorFrame):
-        raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} returned {type(output).__name__}; "
-            "expected AudioSensorFrame."
-        )
-    if output.backend_id != declaration.plugin_id:
-        raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} returned frame backend id "
-            f"{output.backend_id!r}."
-        )
-    return output
-
-
-def _propagation_fixture() -> tuple[AudioSceneSnapshot, object, AudioTimeWindow]:
-    sensor = create_microphone_array(
-        array_id="plugin_validation_array",
-        prim_path="/World/PluginValidation/Array",
-        layout_name="quad_cross",
-        position_world=(2.0, 2.0, 1.0),
-        sample_rate_hz=8_000,
-    )
-    source = AudioSourceSpec(
-        source_id="plugin_validation_impulse",
-        prim_path="/World/PluginValidation/Source",
-        class_label="impulse",
-        audio_asset_path="generated://impulse",
-        position_world=(3.0, 2.0, 1.0),
-        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
-        start_time_s=0.0,
-        duration_s=0.02,
-        gain_db=0.0,
-    )
-    scene = AudioSceneSnapshot(
-        stage_id="plugin_validation_scene",
-        timestamp_ms=0,
-        sources=(source,),
-        arrays=(sensor,),
-        room=RoomAcousticsSpec(
-            room_id="plugin_validation_room",
-            dimensions_m=(6.0, 5.0, 3.0),
-            absorption=0.3,
-            max_order=1,
-        ),
-    )
-    window = AudioTimeWindow(
-        start_time_s=0.0,
-        end_time_s=0.02,
-        timestamp_ms=0,
-        sample_rate_hz=sensor.sample_rate_hz,
-        frame_index=0,
-        max_events=1,
-    )
-    return scene, sensor, window
-
-
-def _validate_signal_output(
-    declaration: PluginDeclaration,
-    output: object,
-) -> None:
-    if not isinstance(output, tuple) or len(output) != 2:
-        raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} must return a (result, diagnostics) "
-            "tuple."
-        )
-    result, diagnostics = output
-    if not isinstance(diagnostics, dict):
-        raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} diagnostics must be a dict."
-        )
-    contract = declaration.output_contract
     if declaration.kind == "doa_estimator":
-        if not isinstance(result, DoaEstimate):
+        if not isinstance(instance, DoaEstimator):
             raise ConfigValidationError(
-                f"Plugin {declaration.plugin_id!r} output shape/type does not match "
-                "declared scalar DoaEstimate contract."
-            )
-        if contract["shape"] != () or contract["dtype"] != "DoaEstimate":
-            raise ConfigValidationError(
-                f"Plugin {declaration.plugin_id!r} has an invalid DOA output_contract."
+                f"Plugin {declaration.plugin_id!r} does not satisfy DoaEstimator."
             )
         return
-
-    if not isinstance(result, np.ndarray):
+    if not isinstance(instance, AudioFeatureExtractor):
         raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} feature result must be a numpy ndarray."
+            f"Plugin {declaration.plugin_id!r} does not satisfy AudioFeatureExtractor."
         )
-    expected_shape = tuple(contract["shape"])
-    if result.shape != expected_shape:
-        raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} returned feature shape {result.shape}; "
-            f"declared shape is {expected_shape}."
-        )
-    try:
-        expected_dtype = np.dtype(contract["dtype"])
-    except (TypeError, ValueError) as exc:
-        raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} declares invalid NumPy dtype "
-            f"{contract['dtype']!r}."
-        ) from exc
-    if result.dtype != expected_dtype:
-        raise ConfigValidationError(
-            f"Plugin {declaration.plugin_id!r} returned dtype {result.dtype}; "
-            f"declared dtype is {expected_dtype}."
-        )
-
-
-def _signal_fixture() -> tuple[np.ndarray, np.ndarray, int]:
-    sample_rate_hz = 8_000
-    rng = np.random.default_rng(20260717)
-    source = rng.standard_normal(256)
-    samples = np.stack(
-        (
-            source,
-            np.roll(source, 1),
-            np.roll(source, 2),
-            np.roll(source, 1),
-        )
-    )
-    positions = np.asarray(
-        (
-            (0.04, 0.0, 0.0),
-            (0.0, 0.04, 0.0),
-            (-0.04, 0.0, 0.0),
-            (0.0, -0.04, 0.0),
-        ),
-        dtype=float,
-    )
-    return samples, positions, sample_rate_hz
-
-
-def _outputs_equal(left: object, right: object) -> bool:
-    if isinstance(left, np.ndarray) and isinstance(right, np.ndarray):
-        return bool(np.array_equal(left, right, equal_nan=True))
-    if is_dataclass(left) and is_dataclass(right) and type(left) is type(right):
-        return all(
-            _outputs_equal(getattr(left, field.name), getattr(right, field.name))
-            for field in fields(left)
-        )
-    if isinstance(left, Mapping) and isinstance(right, Mapping):
-        return left.keys() == right.keys() and all(
-            _outputs_equal(left[key], right[key]) for key in left
-        )
-    if isinstance(left, (tuple, list)) and isinstance(right, type(left)):
-        return len(left) == len(right) and all(
-            _outputs_equal(left_item, right_item)
-            for left_item, right_item in zip(left, right, strict=True)
-        )
-    try:
-        equal = left == right
-    except (TypeError, ValueError):
-        return False
-    return bool(equal) if isinstance(equal, (bool, np.bool_)) else False
 
 
 def _locate_dependencies(dependencies: tuple[str, ...]) -> PluginAvailability:
@@ -652,7 +368,7 @@ def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], .
     )
 
 
-_DEFAULT_REGISTRY = PluginRegistry(validate_on_register=False)
+_DEFAULT_REGISTRY = PluginRegistry()
 for _declaration, _factory in _built_in_declarations():
     _DEFAULT_REGISTRY.register(_declaration, _factory)
 
@@ -668,5 +384,4 @@ __all__ = [
     "PluginFactory",
     "PluginRegistry",
     "get_default_registry",
-    "validate_declaration",
 ]

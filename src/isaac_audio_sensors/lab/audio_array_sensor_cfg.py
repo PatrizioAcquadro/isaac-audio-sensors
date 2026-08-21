@@ -6,10 +6,10 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any
 
+from isaac_audio_sensors.core.backends.base import registered_backend_ids
 from isaac_audio_sensors.core.constants import (
     COMPUTE_PATHS,
     DEFAULT_SAMPLE_RATE_HZ,
-    KNOWN_BACKENDS,
     TDOA_AMBIGUITY_POLICIES,
 )
 from isaac_audio_sensors.core.effects import EffectsConfig
@@ -30,7 +30,7 @@ def _validate_cfg(cfg: Any) -> None:
         raise ValueError("AudioArraySensorCfg.update_period must be non-negative.")
     if int(cfg.history_length) < 0:
         raise ValueError("AudioArraySensorCfg.history_length must be non-negative.")
-    if str(cfg.backend) not in KNOWN_BACKENDS:
+    if str(cfg.backend) not in registered_backend_ids():
         raise ValueError("AudioArraySensorCfg.backend is unknown.")
     if str(cfg.microphone_layout).strip() == "":
         raise ValueError("AudioArraySensorCfg.microphone_layout must be non-empty.")

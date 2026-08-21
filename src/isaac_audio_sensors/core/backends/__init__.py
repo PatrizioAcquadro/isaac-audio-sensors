@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from isaac_audio_sensors.core.backends.base import get_backend
+from isaac_audio_sensors.core.backends.base import get_backend, registered_backend_ids
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import (
     RoomAcousticsBackend,
@@ -16,4 +16,5 @@ __all__ = [
     "RoomAcousticsSrpBackend",
     "TdoaSyntheticBackend",
     "get_backend",
+    "registered_backend_ids",
 ]
