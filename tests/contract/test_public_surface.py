@@ -125,6 +125,34 @@ def test_minimal_root_and_v2_public_surfaces_in_fresh_process():
         )
 
         recording = importlib.import_module("isaac_audio_sensors.recording")
+        assert recording.__all__ == [
+            "AppendFrameResult",
+            "AudioDatasetManifest",
+            "CreationProvenance",
+            "DatasetLayoutError",
+            "DatasetSplitError",
+            "DeviceProvenance",
+            "Finding",
+            "LoadedFrame",
+            "ReplayEvent",
+            "SessionDataset",
+            "SessionRecorder",
+            "SessionRecorderError",
+            "SplitPlan",
+            "Statistics",
+            "ValidationReport",
+            "apply_split_plan",
+            "build_split_plan",
+            "export_session_flac",
+            "manifest_from_dict",
+            "manifest_to_dict",
+            "read_dataset_manifest",
+            "read_split_plan",
+            "replay_session",
+            "validate_dataset",
+            "write_dataset_manifest",
+            "write_split_plan",
+        ]
         assert recording.AudioDatasetManifest.__module__.endswith(".manifest")
         assert callable(recording.manifest_from_dict)
         assert callable(recording.manifest_to_dict)

@@ -515,7 +515,6 @@ def test_guided_recording_end_to_end_validates_and_reports_progress(
     assert active.shards_promoted == 1
     assert active.bytes_written > 0
     assert active.current_episode == "episode_00000"
-    assert len(controller.guided_recording_promotions) == 1
 
     assert controller.guided_stop_recording() is not None
 

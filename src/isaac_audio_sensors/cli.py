@@ -24,10 +24,9 @@ from isaac_audio_sensors.recording import (
     DatasetSplitError,
     apply_split_plan,
     build_split_plan,
-    manifest_to_dict,
     read_dataset_manifest,
     validate_dataset,
-    write_json_atomic,
+    write_dataset_manifest,
     write_split_plan,
 )
 from isaac_audio_sensors.schemas.generate import write_json_schema
@@ -319,7 +318,7 @@ def _dataset_split(args: argparse.Namespace) -> int:
         manifest_path = args.session_root / "manifest.json"
         manifest = read_dataset_manifest(manifest_path)
         updated = apply_split_plan(manifest, plan)
-        write_json_atomic(manifest_path, manifest_to_dict(updated))
+        write_dataset_manifest(updated, manifest_path)
         report = validate_dataset(args.session_root)
         if report.status == "failed":
             raise DatasetSplitError(

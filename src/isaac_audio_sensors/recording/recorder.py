@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 import shutil
-import sqlite3
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -15,58 +14,55 @@ from typing import Any, BinaryIO
 import numpy as np
 
 from isaac_audio_sensors import __version__
-from isaac_audio_sensors.core.constants import (
-    COORDINATE_CONVENTION,
-)
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
 from isaac_audio_sensors.core.types import AudioSensorFrame
-from isaac_audio_sensors.recording.atomic import (
-    CancellationToken,
-    CancelledWrite,
-    FilesystemSeam,
+from isaac_audio_sensors.recording._atomic import (
     JsonlShardFile,
     StagedFile,
     publish_file,
     write_json_atomic,
 )
-from isaac_audio_sensors.recording.audio_shards import (
-    CarryState,
-    StreamingWavShardWriter,
-)
-from isaac_audio_sensors.recording.constants import DATASET_MANIFEST_UNITS
-from isaac_audio_sensors.recording.layout import (
-    DatasetLayoutError,
+from isaac_audio_sensors.recording._manifest_builder import build_manifest
+from isaac_audio_sensors.recording._planning import (
     ShardBoundary,
     ShardPlanner,
+    episode_id,
+    episode_seed,
+    shard_id,
+)
+from isaac_audio_sensors.recording._records import (
+    DatasetLayoutError,
     build_dataset_frame_record,
     canonical_configuration_bytes,
     configuration_sha256,
-    episode_id,
-    episode_seed,
     serialize_dataset_frame_record,
-    shard_id,
     validate_trace_projection,
+)
+from isaac_audio_sensors.recording._recovery import RecoveryStore
+from isaac_audio_sensors.recording._shards import (
     verify_shard_completion,
     verify_shard_tiling,
 )
+from isaac_audio_sensors.recording._time_gaps import (
+    TimeGapCursor,
+    TimeGapPlan,
+    advance_time_gap_cursor,
+)
+from isaac_audio_sensors.recording._time_gaps import (
+    plan_time_gap as compute_time_gap_plan,
+)
+from isaac_audio_sensors.recording._writer import (
+    CarryState,
+    StreamingWavShardWriter,
+)
 from isaac_audio_sensors.recording.manifest import (
-    AssetRecord,
     AudioDatasetManifest,
     CreationProvenance,
     DeviceProvenance,
     EpisodeRecord,
     ResetMarker,
-    ShardRecord,
 )
 from isaac_audio_sensors.recording.serialization import manifest_to_dict
-from isaac_audio_sensors.recording.time_gaps import (
-    TimeGapCursor,
-    TimeGapPlan,
-    advance_time_gap_cursor,
-)
-from isaac_audio_sensors.recording.time_gaps import (
-    plan_time_gap as compute_time_gap_plan,
-)
 
 _REQUIRED_CONFIGURATION_KEYS = frozenset(
     {
@@ -98,17 +94,6 @@ class AppendFrameResult:
     accepted: bool
     dataset_frame_index: int | None
     reason: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class ShardPromotion:
-    """Notification emitted after a shard marker verifies."""
-
-    shard_id: str
-    shard_ordinal: int
-    start_frame: int
-    frame_count: int
-    monotonic_timestamp_s: float
 
 
 @dataclass(slots=True)
@@ -215,15 +200,10 @@ class SessionRecorder:
         coordinate_frames: Sequence[str],
         time_base: str,
         creation_timestamp_ms: int | None = None,
-        seam: FilesystemSeam | None = None,
-        cancellation_token: CancellationToken | None = None,
-        promotion_callback: Callable[[ShardPromotion], None] | None = None,
         _resume_payload: dict[str, Any] | None = None,
         _recover_finalization: bool = False,
     ) -> None:
         self.session_root = Path(session_root)
-        self.seam = seam or FilesystemSeam()
-        self.cancellation_token = cancellation_token or CancellationToken()
         self.creation = creation
         self.device = device
         self.license = license
@@ -236,14 +216,13 @@ class SessionRecorder:
             if creation_timestamp_ms is None
             else int(creation_timestamp_ms)
         )
-        self._promotion_callback = promotion_callback
         self._configuration_bytes = canonical_configuration_bytes(configuration)
         self.configuration: dict[str, Any] = json.loads(self._configuration_bytes)
         self._validate_configuration()
 
         self._staging_root = self.session_root / "_staging"
         self._shards_root = self.session_root / "shards"
-        self._state_path = self._staging_root / "recorder_state.json"
+        self._recovery_store = RecoveryStore(self._staging_root)
         self._planner = ShardPlanner(
             shard_max_frames=self.shard_max_frames,
             shard_episode_aligned=self.shard_episode_aligned,
@@ -260,8 +239,6 @@ class SessionRecorder:
         self._pending_drop_ids: list[str] = []
         self._published: list[dict[str, Any]] = []
         self._closed = False
-        self._handling_cancellation = False
-        self._producer_db: sqlite3.Connection | None = None
         self._pending_finalization_state: str | None = None
         self._time_gap_cursor = TimeGapCursor()
         self._planned_session_audio_samples = 0
@@ -369,15 +346,13 @@ class SessionRecorder:
             raise SessionRecorderError(
                 f"session {self.session_root}: new session root is not empty"
             )
-        self.seam.mkdir(self.session_root, parents=True, exist_ok=True)
-        self.seam.mkdir(self._staging_root, parents=True, exist_ok=True)
-        self.seam.mkdir(self._shards_root, parents=True, exist_ok=True)
+        self.session_root.mkdir(parents=True, exist_ok=True)
+        self._staging_root.mkdir(parents=True, exist_ok=True)
+        self._shards_root.mkdir(parents=True, exist_ok=True)
         self._open_producer_index()
         staged = StagedFile(
             self._staging_root / "config",
             "session_config.json",
-            seam=self.seam,
-            cancellation_token=self.cancellation_token,
         )
         try:
             staged.append(self._configuration_bytes)
@@ -396,178 +371,133 @@ class SessionRecorder:
     ) -> str:
         """Open the next episode and return its deterministic dataset id."""
 
-        try:
-            self._check_open()
-            self.cancellation_token.check()
-            if self._current_episode is not None:
-                raise RuntimeError("an episode is already open")
-            for name, value in (
-                ("scene_id", scene_id),
-                ("environment_id", environment_id),
-                ("split_group", split_group),
-            ):
-                if not isinstance(value, str) or not value:
-                    raise ValueError(f"{name} must be a non-empty string")
-            ordinal = len(self._episodes)
-            episode_value = episode_id(ordinal)
-            chosen_seed = (
-                episode_seed(
-                    self.configuration["dataset_id"],
-                    self.configuration["session_seed"],
-                    ordinal,
-                )
-                if seed is None
-                else seed
-            )
-            if (
-                isinstance(chosen_seed, bool)
-                or not isinstance(chosen_seed, int)
-                or chosen_seed < 0
-            ):
-                raise ValueError("episode seed must be a non-negative integer")
-            episode = _EpisodeState(
-                ordinal=ordinal,
-                scene_id=scene_id,
-                environment_id=environment_id,
-                split_group=split_group,
-                seed=chosen_seed,
-                start_frame=self._next_dataset_frame,
-            )
-            self._episodes.append(episode)
-            self._current_episode = episode
-            if self.preserve_time_gaps:
-                self._time_gap_cursor = TimeGapCursor()
-            self._write_state()
-            return episode_value
-        except CancelledWrite:
-            self._cancel_and_finalize()
-            raise
-
-    def plan_time_gap(
-        self,
-        frame: AudioSensorFrame | dict[str, Any],
-        *,
-        timestamp_ms: int | None = None,
-    ) -> dict[str, Any]:
-        """Plan one single-use placement diagnostic without mutating state."""
-
         self._check_open()
-        if not self.preserve_time_gaps:
-            raise RuntimeError("configuration.preserve_time_gaps is disabled")
-        if self._current_episode is None:
-            raise RuntimeError("begin_episode() must be called first")
-        payload = (
-            frame_to_trace_dict(frame) if isinstance(frame, AudioSensorFrame) else frame
+        if self._current_episode is not None:
+            raise RuntimeError("an episode is already open")
+        for name, value in (
+            ("scene_id", scene_id),
+            ("environment_id", environment_id),
+            ("split_group", split_group),
+        ):
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"{name} must be a non-empty string")
+        ordinal = len(self._episodes)
+        episode_value = episode_id(ordinal)
+        chosen_seed = (
+            episode_seed(
+                self.configuration["dataset_id"],
+                self.configuration["session_seed"],
+                ordinal,
+            )
+            if seed is None
+            else seed
         )
-        if not isinstance(payload, dict):
-            raise ValueError("frame must project to an object")
-        diagnostics = payload.get("diagnostics")
-        if not isinstance(diagnostics, dict):
-            raise ValueError("frame.diagnostics must be an object")
-        recording = diagnostics.get("recording")
-        if recording is not None and not isinstance(recording, dict):
-            raise ValueError("frame.diagnostics.recording must be an object")
-        if isinstance(recording, dict) and "time_gap" in recording:
-            raise ValueError("frame has a conflicting recording.time_gap diagnostic")
-        incoming_timestamp = (
-            payload.get("timestamp_ms") if timestamp_ms is None else timestamp_ms
+        if type(chosen_seed) is not int or chosen_seed < 0:
+            raise ValueError("episode seed must be a non-negative integer")
+        episode = _EpisodeState(
+            ordinal=ordinal,
+            scene_id=scene_id,
+            environment_id=environment_id,
+            split_group=split_group,
+            seed=chosen_seed,
+            start_frame=self._next_dataset_frame,
         )
-        plan = self._compute_time_gap_plan(payload, incoming_timestamp)
-        return plan.diagnostic()
+        self._episodes.append(episode)
+        self._current_episode = episode
+        if self.preserve_time_gaps:
+            self._time_gap_cursor = TimeGapCursor()
+        self._write_state()
+        return episode_value
 
     def append_frame(
         self,
-        frame: AudioSensorFrame | dict[str, Any],
+        frame: AudioSensorFrame,
         audio_block: np.ndarray | None,
-        timestamp_ms: int,
+        *,
         is_reset: bool = False,
     ) -> AppendFrameResult:
-        """Validate and append one producer frame.
+        """Append one typed frame; invalid payloads are accounted as drops."""
 
-        Projection or payload validation failures are accounted as drops and
-        return ``accepted=False`` without consuming a dataset frame index.
-        """
-
-        try:
-            self._check_open()
-            self.cancellation_token.check()
-            if self._current_episode is None:
-                raise RuntimeError("begin_episode() must be called first")
-            gap_plan: TimeGapPlan | None = None
-            if self.preserve_time_gaps:
-                payload, block, gap_plan, reason = self._validated_gap_append_inputs(
-                    frame, audio_block, timestamp_ms, is_reset
-                )
-            else:
-                payload, block, reason = self._validated_append_inputs(
-                    frame, audio_block, timestamp_ms, is_reset
-                )
-            if reason is not None:
-                self._record_drop(frame)
-                return AppendFrameResult(False, None, reason)
-            assert payload is not None
-            if self._pending_boundary is not None:
-                self._resolve_pending_boundary(mid_episode=True)
-
-            dataset_index = self._next_dataset_frame
-            producer_step = payload.get("frame_index")
-            if not isinstance(producer_step, int) or isinstance(producer_step, bool):
-                producer_step = None
-            episode = self._current_episode
-            episode.timestamps_ms.append(int(timestamp_ms))
-            if episode.frame_count == 0:
-                episode.first_producer_step = producer_step
-            episode.last_producer_step = producer_step
-            if is_reset:
-                episode.reset_markers.append(
-                    ResetMarker(
-                        step_index=(
-                            producer_step
-                            if producer_step is not None
-                            else dataset_index
-                        ),
-                        frame_index=dataset_index,
-                        timestamp_ms=int(timestamp_ms),
-                    )
-                )
-            boundaries = self._planner.feed_frame(
-                episode.ordinal,
-                episode.split_group,
+        if not isinstance(frame, AudioSensorFrame):
+            raise TypeError("frame must be an AudioSensorFrame")
+        self._check_open()
+        if self._current_episode is None:
+            raise RuntimeError("begin_episode() must be called first")
+        timestamp_ms = frame.timestamp_ms
+        gap_plan: TimeGapPlan | None = None
+        if self.preserve_time_gaps:
+            payload, block, gap_plan, reason = self._validated_gap_append_inputs(
+                frame, audio_block, timestamp_ms, is_reset
             )
-            self._next_dataset_frame += 1
-            episode.frame_count += 1
-            episode.last_timestamp_ms = int(timestamp_ms)
-            self._record_producer_id(episode.ordinal, str(payload["frame_id"]))
-
-            if gap_plan is not None:
-                self._commit_time_gap_plan(gap_plan, timestamp_ms=int(timestamp_ms))
-
-            if self.shard_episode_aligned:
-                self._buffer_aligned_frame(
-                    payload,
-                    block,
-                    dataset_index=dataset_index,
-                    is_reset=is_reset,
-                    gap_samples=(
-                        0 if gap_plan is None else gap_plan.inserted_silence_samples
-                    ),
+        else:
+            payload, block, reason = self._validated_append_inputs(
+                frame, audio_block, timestamp_ms, is_reset
+            )
+        if reason is not None:
+            self._record_drop(frame)
+            return AppendFrameResult(False, None, reason)
+        assert payload is not None
+        if gap_plan is not None:
+            diagnostics = dict(payload["diagnostics"])
+            recording = dict(diagnostics.get("recording", {}))
+            if "time_gap" in recording:
+                self._record_drop(frame)
+                return AppendFrameResult(
+                    False, None, "frame contains reserved recording.time_gap"
                 )
-                self._handle_aligned_feed_boundaries(boundaries)
-            else:
-                self._append_unaligned_frame(
-                    payload,
-                    block,
-                    dataset_index=dataset_index,
-                    is_reset=is_reset,
-                    boundaries=boundaries,
-                    gap_samples=(
-                        0 if gap_plan is None else gap_plan.inserted_silence_samples
-                    ),
+            recording["time_gap"] = gap_plan.diagnostic()
+            diagnostics["recording"] = recording
+            payload["diagnostics"] = diagnostics
+        if self._pending_boundary is not None:
+            self._resolve_pending_boundary(mid_episode=True)
+
+        dataset_index = self._next_dataset_frame
+        producer_step = payload.get("frame_index")
+        if type(producer_step) is not int:
+            producer_step = None
+        episode = self._current_episode
+        episode.timestamps_ms.append(timestamp_ms)
+        if episode.frame_count == 0:
+            episode.first_producer_step = producer_step
+        episode.last_producer_step = producer_step
+        if is_reset:
+            episode.reset_markers.append(
+                ResetMarker(
+                    step_index=producer_step
+                    if producer_step is not None
+                    else dataset_index,
+                    frame_index=dataset_index,
+                    timestamp_ms=timestamp_ms,
                 )
-            return AppendFrameResult(True, dataset_index)
-        except CancelledWrite:
-            self._cancel_and_finalize()
-            raise
+            )
+        boundaries = self._planner.feed_frame(episode.ordinal, episode.split_group)
+        self._next_dataset_frame += 1
+        episode.frame_count += 1
+        episode.last_timestamp_ms = timestamp_ms
+        self._record_producer_id(episode.ordinal, str(payload["frame_id"]))
+        if gap_plan is not None:
+            self._commit_time_gap_plan(gap_plan, timestamp_ms=timestamp_ms)
+
+        gap_samples = 0 if gap_plan is None else gap_plan.inserted_silence_samples
+        if self.shard_episode_aligned:
+            self._buffer_aligned_frame(
+                payload,
+                block,
+                dataset_index=dataset_index,
+                is_reset=is_reset,
+                gap_samples=gap_samples,
+            )
+            self._handle_aligned_feed_boundaries(boundaries)
+        else:
+            self._append_unaligned_frame(
+                payload,
+                block,
+                dataset_index=dataset_index,
+                is_reset=is_reset,
+                boundaries=boundaries,
+                gap_samples=gap_samples,
+            )
+        return AppendFrameResult(True, dataset_index)
 
     def _validated_append_inputs(
         self,
@@ -660,19 +590,6 @@ class SessionRecorder:
                     "audio_block channel row exceeds the 1 MiB gap allocation cap"
                 )
             plan = self._compute_time_gap_plan(payload, timestamp_ms)
-            diagnostics = payload.get("diagnostics")
-            if not isinstance(diagnostics, dict):
-                raise ValueError("time-gap diagnostic mismatch: diagnostics missing")
-            recording = diagnostics.get("recording")
-            if not isinstance(recording, dict):
-                raise ValueError(
-                    "time-gap diagnostic mismatch: recording mapping missing"
-                )
-            attached = recording.get("time_gap")
-            if attached != plan.diagnostic():
-                raise ValueError(
-                    "time-gap diagnostic mismatch: attached plan is missing or stale"
-                )
             return payload, block, plan, None
         except (KeyError, TypeError, ValueError) as exc:
             return None, None, None, str(exc)
@@ -738,14 +655,10 @@ class SessionRecorder:
             metadata=StagedFile(
                 directory,
                 "frames.buffer.jsonl",
-                seam=self.seam,
-                cancellation_token=self.cancellation_token,
             ),
             audio=StagedFile(
                 directory,
                 "audio.buffer.f32",
-                seam=self.seam,
-                cancellation_token=self.cancellation_token,
             ),
             start_frame=start_frame,
         )
@@ -808,7 +721,6 @@ class SessionRecorder:
         open_shard = self._open_shard
         if gap_samples:
             self._stream_time_gap(open_shard.wav, gap_samples)
-        self.cancellation_token.check()
         start, desired_end = self._mix_and_append_audio(
             open_shard.wav, block, is_reset=is_reset
         )
@@ -847,16 +759,12 @@ class SessionRecorder:
             staging_dir=staging_dir,
             jsonl=JsonlShardFile(
                 staging_dir,
-                seam=self.seam,
-                cancellation_token=self.cancellation_token,
             ),
             wav=StreamingWavShardWriter(
                 staging_dir,
                 channels=self.channels,
                 sample_rate_hz=self.sample_rate_hz,
-                seam=self.seam,
                 carry_state=self._carry,
-                cancellation_token=self.cancellation_token,
             ),
         )
 
@@ -908,7 +816,6 @@ class SessionRecorder:
         )
         remaining = sample_count
         while remaining:
-            self.cancellation_token.check()
             count = min(remaining, block_cap)
             chunk = np.zeros((self.channels, count), dtype=np.float32)
             carry = self._carry.pending_samples
@@ -993,8 +900,8 @@ class SessionRecorder:
             )
         open_shard = self._open_shard
         with (
-            self.seam.open(buffer.metadata.path, "rb") as metadata_stream,
-            self.seam.open(buffer.audio.path, "rb") as audio_stream,
+            buffer.metadata.path.open("rb") as metadata_stream,
+            buffer.audio.path.open("rb") as audio_stream,
         ):
             for line_number in range(buffer.frame_count):
                 line = metadata_stream.readline()
@@ -1009,7 +916,6 @@ class SessionRecorder:
                 gap_samples = int(item.get("gap_samples", 0))
                 if gap_samples:
                     self._stream_time_gap(open_shard.wav, gap_samples)
-                self.cancellation_token.check()
                 start, desired_end = self._mix_and_append_audio(
                     open_shard.wav,
                     block,
@@ -1056,7 +962,7 @@ class SessionRecorder:
         chunks: list[bytes] = []
         remaining = byte_count
         while remaining:
-            chunk = self.seam.read(stream, min(remaining, 1024 * 1024))
+            chunk = stream.read(min(remaining, 1024 * 1024))
             if not chunk:
                 raise SessionRecorderError(
                     f"session {self.session_root} episode buffer: truncated audio"
@@ -1070,47 +976,39 @@ class SessionRecorder:
     def end_episode(self) -> EpisodeRecord | None:
         """Close the current episode, flushing its overlap/reverb tail."""
 
-        try:
-            self._check_open()
-            self.cancellation_token.check()
-            episode = self._current_episode
-            if episode is None:
-                raise RuntimeError("no episode is open")
-            if episode.frame_count == 0:
-                raise ValueError(f"{episode_id(episode.ordinal)} has no written frames")
-            boundaries = self._planner.end_episode(episode.ordinal)
-            if self._pending_boundary is not None:
-                self._resolve_pending_boundary(mid_episode=False)
-                boundaries = tuple(
-                    item
-                    for item in boundaries
-                    if item.shard_id != shard_id(len(self._published) - 1)
-                )
-            if self.shard_episode_aligned:
-                buffer = self._episode_buffer
-                for boundary in boundaries:
-                    if (
-                        buffer is not None
-                        and boundary.start_frame == buffer.start_frame
-                    ):
-                        self._assemble_aligned_buffer(boundary, flush_tail=True)
-                        buffer = None
-                    else:
-                        self._promote_open_shard(boundary, flush_carry=False)
-                if self._episode_buffer is not None:
-                    self._append_aligned_buffer_to_open()
-            elif self._open_shard is not None:
-                self._flush_carry_to_writer(self._open_shard.wav)
-            episode.ended = True
-            episode.end_frame = self._next_dataset_frame - 1
-            self._current_episode = None
-            if self.preserve_time_gaps:
-                self._time_gap_cursor = TimeGapCursor()
-            self._write_state()
-            return None
-        except CancelledWrite:
-            self._cancel_and_finalize()
-            raise
+        self._check_open()
+        episode = self._current_episode
+        if episode is None:
+            raise RuntimeError("no episode is open")
+        if episode.frame_count == 0:
+            raise ValueError(f"{episode_id(episode.ordinal)} has no written frames")
+        boundaries = self._planner.end_episode(episode.ordinal)
+        if self._pending_boundary is not None:
+            self._resolve_pending_boundary(mid_episode=False)
+            boundaries = tuple(
+                item
+                for item in boundaries
+                if item.shard_id != shard_id(len(self._published) - 1)
+            )
+        if self.shard_episode_aligned:
+            buffer = self._episode_buffer
+            for boundary in boundaries:
+                if buffer is not None and boundary.start_frame == buffer.start_frame:
+                    self._assemble_aligned_buffer(boundary, flush_tail=True)
+                    buffer = None
+                else:
+                    self._promote_open_shard(boundary, flush_carry=False)
+            if self._episode_buffer is not None:
+                self._append_aligned_buffer_to_open()
+        elif self._open_shard is not None:
+            self._flush_carry_to_writer(self._open_shard.wav)
+        episode.ended = True
+        episode.end_frame = self._next_dataset_frame - 1
+        self._current_episode = None
+        if self.preserve_time_gaps:
+            self._time_gap_cursor = TimeGapCursor()
+        self._write_state()
+        return None
 
     def _append_aligned_buffer_to_open(self) -> None:
         buffer = self._episode_buffer
@@ -1144,8 +1042,8 @@ class SessionRecorder:
             )
         open_shard = self._open_shard
         with (
-            self.seam.open(buffer.metadata.path, "rb") as metadata_stream,
-            self.seam.open(buffer.audio.path, "rb") as audio_stream,
+            buffer.metadata.path.open("rb") as metadata_stream,
+            buffer.audio.path.open("rb") as audio_stream,
         ):
             for _ in range(buffer.frame_count):
                 item = json.loads(metadata_stream.readline())
@@ -1155,7 +1053,6 @@ class SessionRecorder:
                 gap_samples = int(item.get("gap_samples", 0))
                 if gap_samples:
                     self._stream_time_gap(open_shard.wav, gap_samples)
-                self.cancellation_token.check()
                 start, end = self._mix_and_append_audio(
                     open_shard.wav, block, is_reset=bool(item["is_reset"])
                 )
@@ -1235,19 +1132,14 @@ class SessionRecorder:
             write_json_atomic(
                 final_dir / "shard.complete.json",
                 marker,
-                seam=self.seam,
-                cancellation_token=self.cancellation_token,
             )
             verified = verify_shard_completion(
                 final_dir,
                 max_overlap_samples=self.window_sample_count - self.hop_sample_count,
-                retain_records=False,
             )
         except BaseException as exc:
             self._open_shard = None
             self._remove_failed_shard(final_dir, open_shard)
-            if isinstance(exc, CancelledWrite):
-                raise
             raise SessionRecorderError(
                 f"session {self.session_root} shard {boundary.shard_id}: "
                 f"promotion failed at {final_dir}: {exc}"
@@ -1262,15 +1154,6 @@ class SessionRecorder:
         self._prune_carry_checkpoints(boundary.start_frame + boundary.frame_count)
         if open_shard.staging_dir.exists():
             open_shard.staging_dir.rmdir()
-        event = ShardPromotion(
-            shard_id=boundary.shard_id,
-            shard_ordinal=boundary.shard_ordinal,
-            start_frame=boundary.start_frame,
-            frame_count=boundary.frame_count,
-            monotonic_timestamp_s=time.monotonic(),
-        )
-        if self._promotion_callback is not None:
-            self._promotion_callback(event)
         return marker_payload
 
     def _mark_published_boundary(self, boundary: ShardBoundary) -> None:
@@ -1309,8 +1192,6 @@ class SessionRecorder:
         staged = StagedFile(
             checkpoint_dir,
             f".{data_name}.tmp",
-            seam=self.seam,
-            cancellation_token=self.cancellation_token,
         )
         try:
             staged.append(pending.tobytes(order="C"))
@@ -1325,8 +1206,6 @@ class SessionRecorder:
             write_json_atomic(
                 checkpoint_dir / metadata_name,
                 metadata,
-                seam=self.seam,
-                cancellation_token=self.cancellation_token,
             )
         except BaseException:
             staged.abort()
@@ -1344,21 +1223,16 @@ class SessionRecorder:
     def finalize(self) -> AudioDatasetManifest:
         """Publish all remaining work and atomically write a complete manifest."""
 
-        try:
-            self._check_open()
-            self.cancellation_token.check()
-            if self._current_episode is not None:
-                raise RuntimeError("end_episode() must be called before finalize()")
-            for boundary in self._planner.finish():
-                self._promote_open_shard(boundary, flush_carry=True)
-            if not self._published:
-                raise ValueError("a zero-frame session can only finalize incomplete")
-            return self._finalize_manifest(completion_state="complete")
-        except CancelledWrite:
-            self._cancel_and_finalize()
-            raise
+        self._check_open()
+        if self._current_episode is not None:
+            raise RuntimeError("end_episode() must be called before finalize()")
+        for boundary in self._planner.finish():
+            self._promote_open_shard(boundary, flush_carry=True)
+        if not self._published:
+            raise ValueError("a zero-frame session can only finalize incomplete")
+        return self._finalize_manifest(completion_state="complete")
 
-    def finalize_incomplete(self) -> AudioDatasetManifest:
+    def cancel(self) -> AudioDatasetManifest:
         """Abandon unpublished staging and atomically finalize published shards."""
 
         if self._closed:
@@ -1372,22 +1246,6 @@ class SessionRecorder:
             raise RuntimeError("session recorder is closed")
         self._abandon_unpublished()
         return self._finalize_manifest(completion_state="incomplete")
-
-    def _cancel_and_finalize(self) -> None:
-        if self._handling_cancellation or self._closed:
-            return
-        self._handling_cancellation = True
-        try:
-            self._abandon_unpublished()
-            if self.preserve_time_gaps:
-                # Gap insertion is replay-atomic: retain the last published
-                # carry/time checkpoint and let resume regenerate this frame.
-                self._close_producer_index()
-                self._closed = True
-                return
-            self._finalize_manifest(completion_state="incomplete")
-        finally:
-            self._handling_cancellation = False
 
     def _abandon_unpublished(self) -> None:
         if self._episode_buffer is not None:
@@ -1412,7 +1270,6 @@ class SessionRecorder:
             verify_shard_completion(
                 path,
                 max_overlap_samples=self.window_sample_count - self.hop_sample_count,
-                retain_records=False,
             )
             for path in sorted(
                 self._shards_root.iterdir() if self._shards_root.exists() else (),
@@ -1427,28 +1284,18 @@ class SessionRecorder:
             )
         markers = tuple(item.marker for item in verified)
         episodes = self._episode_records(markers)
-        shards = tuple(self._manifest_shard(marker) for marker in markers)
-        manifest = AudioDatasetManifest(
-            dataset_id=self.configuration["dataset_id"],
+        manifest = build_manifest(
+            configuration=self.configuration,
+            configuration_sha256=configuration_sha256(self._configuration_bytes),
             creation_timestamp_ms=self.creation_timestamp_ms,
             creation=self.creation,
+            device=self.device,
             license=self.license,
             source=self.source,
-            runtime_profile="waveform_fidelity",
-            device=self.device,
-            coordinate_convention=COORDINATE_CONVENTION,
             coordinate_frames=self.coordinate_frames,
             time_base=self.time_base,
-            sample_rate_hz=self.sample_rate_hz,
-            channel_order=tuple(self.configuration["channel_order"]),
-            units=dict(DATASET_MANIFEST_UNITS),
-            dtype="float32",
             episodes=episodes,
-            shards=shards,
-            calibration_profile=None,
-            configuration_sha256=configuration_sha256(self._configuration_bytes),
-            split_grouping_key=self.configuration["split_grouping_key"],
-            splits=(),
+            markers=markers,
             completion_state=completion_state,
         )
         # The intent is a durable recovery journal. It must survive until the
@@ -1459,8 +1306,6 @@ class SessionRecorder:
         write_json_atomic(
             self.session_root / "manifest.json",
             manifest_to_dict(manifest),
-            seam=self.seam,
-            cancellation_token=None,
         )
         if self._staging_root.exists():
             shutil.rmtree(self._staging_root)
@@ -1549,30 +1394,6 @@ class SessionRecorder:
             )
         return tuple(result)
 
-    @staticmethod
-    def _manifest_shard(marker: Mapping[str, Any]) -> ShardRecord:
-        return ShardRecord(
-            shard_id=marker["shard_id"],
-            episode_ids=tuple(marker["episode_ids"]),
-            assets=tuple(
-                AssetRecord(
-                    asset_id=(
-                        f"{marker['shard_id']}."
-                        f"{'frames' if entry['path'] == 'frames.jsonl' else 'audio'}"
-                    ),
-                    path=f"shards/{marker['shard_id']}/{entry['path']}",
-                    kind=(
-                        "frame_trace_jsonl"
-                        if entry["path"] == "frames.jsonl"
-                        else "audio_wav"
-                    ),
-                    sha256=entry["sha256"],
-                )
-                for entry in marker["files"]
-            ),
-            completion_state="complete",
-        )
-
     def _write_state(self, *, finalization_state: str | None = None) -> None:
         if finalization_state not in {None, "complete", "incomplete"}:
             raise ValueError(
@@ -1595,14 +1416,7 @@ class SessionRecorder:
         }
         if self.preserve_time_gaps:
             payload["time_gap_state"] = self._time_gap_state_dict()
-        write_json_atomic(
-            self._state_path,
-            payload,
-            seam=self.seam,
-            cancellation_token=(
-                self.cancellation_token if finalization_state is None else None
-            ),
-        )
+        self._recovery_store.write_state(payload)
         self._pending_finalization_state = finalization_state
 
     def _time_gap_state_dict(self) -> dict[str, Any]:
@@ -1639,42 +1453,16 @@ class SessionRecorder:
         self._time_gap_counters = counters
 
     def _open_producer_index(self) -> None:
-        database_path = self._staging_root / "producer_ids.sqlite3"
-        self._producer_db = sqlite3.connect(database_path)
-        self._producer_db.execute("PRAGMA cache_size = -1024")
-        self._producer_db.execute("PRAGMA temp_store = FILE")
-        self._producer_db.execute(
-            "CREATE TABLE producer_ids ("
-            "episode_ordinal INTEGER NOT NULL, "
-            "producer_frame_id TEXT NOT NULL, "
-            "PRIMARY KEY (episode_ordinal, producer_frame_id)) WITHOUT ROWID"
-        )
-        self._producer_db.commit()
+        self._recovery_store.open_producer_index()
 
     def _producer_id_exists(self, episode_ordinal: int, producer_id: str) -> bool:
-        if self._producer_db is None:
-            raise RuntimeError("producer identity index is closed")
-        row = self._producer_db.execute(
-            "SELECT 1 FROM producer_ids "
-            "WHERE episode_ordinal = ? AND producer_frame_id = ?",
-            (episode_ordinal, producer_id),
-        ).fetchone()
-        return row is not None
+        return self._recovery_store.contains_producer_id(episode_ordinal, producer_id)
 
     def _record_producer_id(self, episode_ordinal: int, producer_id: str) -> None:
-        if self._producer_db is None:
-            raise RuntimeError("producer identity index is closed")
-        self._producer_db.execute(
-            "INSERT INTO producer_ids (episode_ordinal, producer_frame_id) "
-            "VALUES (?, ?)",
-            (episode_ordinal, producer_id),
-        )
+        self._recovery_store.record_producer_id(episode_ordinal, producer_id)
 
     def _close_producer_index(self) -> None:
-        if self._producer_db is not None:
-            self._producer_db.rollback()
-            self._producer_db.close()
-            self._producer_db = None
+        self._recovery_store.close_producer_index()
 
     def _check_open(self) -> None:
         if self._closed:
@@ -1693,9 +1481,6 @@ class SessionRecorder:
         coordinate_frames: Sequence[str],
         time_base: str,
         creation_timestamp_ms: int | None = None,
-        seam: FilesystemSeam | None = None,
-        cancellation_token: CancellationToken | None = None,
-        promotion_callback: Callable[[ShardPromotion], None] | None = None,
     ) -> SessionRecorder:
         """Resume at the next published frame, replaying discarded producer input.
 
@@ -1707,9 +1492,8 @@ class SessionRecorder:
         root = Path(session_root)
         if (root / "manifest.json").exists():
             raise SessionRecorderError(f"session {root}: already finalized")
-        state_path = root / "_staging/recorder_state.json"
         try:
-            state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+            state_payload = RecoveryStore(root / "_staging").read_state()
         except (OSError, json.JSONDecodeError) as exc:
             raise SessionRecorderError(
                 f"session {root}: cannot read recorder resume state: {exc}"
@@ -1724,9 +1508,6 @@ class SessionRecorder:
             coordinate_frames=coordinate_frames,
             time_base=time_base,
             creation_timestamp_ms=creation_timestamp_ms,
-            seam=seam,
-            cancellation_token=cancellation_token,
-            promotion_callback=promotion_callback,
             _resume_payload=state_payload,
         )
 
@@ -1734,8 +1515,6 @@ class SessionRecorder:
     def recover_finalization(
         cls,
         session_root: str | Path,
-        *,
-        seam: FilesystemSeam | None = None,
     ) -> AudioDatasetManifest:
         """Retry an interrupted manifest finalization from durable state.
 
@@ -1746,9 +1525,8 @@ class SessionRecorder:
         """
 
         root = Path(session_root)
-        state_path = root / "_staging/recorder_state.json"
         try:
-            state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+            state_payload = RecoveryStore(root / "_staging").read_state()
         except (OSError, json.JSONDecodeError) as exc:
             raise SessionRecorderError(
                 f"session {root}: cannot read finalization recovery state: {exc}"
@@ -1779,8 +1557,6 @@ class SessionRecorder:
             coordinate_frames=coordinate_frames,
             time_base=time_base,
             creation_timestamp_ms=creation_timestamp_ms,
-            seam=seam,
-            cancellation_token=CancellationToken(),
             _resume_payload=state_payload,
             _recover_finalization=True,
         )
@@ -1936,7 +1712,6 @@ class SessionRecorder:
         shutil.rmtree(self._staging_root)
         self._staging_root.mkdir(parents=True)
         self._open_producer_index()
-        assert self._producer_db is not None
         episodes_by_ordinal = {item.ordinal: item for item in self._episodes}
         for marker in published:
             frames_path = self._shards_root / marker["shard_id"] / "frames.jsonl"
@@ -2018,7 +1793,6 @@ class SessionRecorder:
                     path,
                     max_overlap_samples=self.window_sample_count
                     - self.hop_sample_count,
-                    retain_records=False,
                 ).marker
             )
         return tuple(verified)
@@ -2054,34 +1828,8 @@ class SessionRecorder:
         )
 
 
-def resume(
-    session_root: str | Path,
-    configuration: Mapping[str, Any],
-    **kwargs: Any,
-) -> SessionRecorder:
-    """Public convenience entry point for :meth:`SessionRecorder.resume`."""
-
-    return SessionRecorder.resume(session_root, configuration, **kwargs)
-
-
-def recover_finalization(
-    session_root: str | Path,
-    *,
-    seam: FilesystemSeam | None = None,
-) -> AudioDatasetManifest:
-    """Public convenience entry point for finalization-only recovery."""
-
-    return SessionRecorder.recover_finalization(
-        session_root,
-        seam=seam,
-    )
-
-
 __all__ = [
     "AppendFrameResult",
     "SessionRecorder",
     "SessionRecorderError",
-    "ShardPromotion",
-    "recover_finalization",
-    "resume",
 ]

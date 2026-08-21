@@ -80,12 +80,11 @@ from isaac_audio_sensors.isaac.viz.overlays import (
     debug_primitives_to_dicts,
 )
 from isaac_audio_sensors.isaac.viz.usd_debug import UsdDebugGeometryAuthor
-from isaac_audio_sensors.recording import CancellationToken, SessionRecorder
-from isaac_audio_sensors.recording.manifest import (
+from isaac_audio_sensors.recording import (
     CreationProvenance,
     DeviceProvenance,
+    SessionRecorder,
 )
-from isaac_audio_sensors.recording.recorder import ShardPromotion
 from isaac_audio_sensors.recording.serialization import (
     read_dataset_manifest,
     write_dataset_manifest,
@@ -203,9 +202,7 @@ class ExtensionController:
         self._last_followed_selection: tuple[str, ...] | None = None
         self._usd_debug_author: UsdDebugGeometryAuthor | None = None
         self._guided_recorder: SessionRecorder | None = None
-        self._guided_cancellation_token: CancellationToken | None = None
         self._guided_recording_request: dict[str, Any] | None = None
-        self._guided_promotions: list[ShardPromotion] = []
         self._guided_last_run_frame_id: str | None = None
         self._guided_last_recorded_frame_id: str | None = None
         self._guided_last_recorded_timestamp_ms: int | None = None
@@ -369,10 +366,6 @@ class ExtensionController:
         return self.guided_workflow.recording_status
 
     @property
-    def guided_recording_promotions(self) -> tuple[ShardPromotion, ...]:
-        return tuple(self._guided_promotions)
-
-    @property
     def guided_dataset_validation_report(self) -> Any | None:
         return self._guided_dataset_validation_report
 
@@ -496,8 +489,6 @@ class ExtensionController:
                 "preserve_time_gaps": preserve_time_gaps,
             }
             configuration = self._guided_recorder_configuration(request)
-            token = CancellationToken()
-            self._guided_promotions = []
             self._guided_last_recorded_frame_id = None
             self._guided_last_recorded_timestamp_ms = None
             self._guided_last_recorded_producer_index = None
@@ -522,8 +513,6 @@ class ExtensionController:
                 source="Isaac Audio Sensors guided extension",
                 coordinate_frames=("world", "array"),
                 time_base="simulation_time",
-                cancellation_token=token,
-                promotion_callback=self._guided_shard_promoted,
             )
             episode = recorder.begin_episode(
                 str(chosen_scene),
@@ -532,7 +521,6 @@ class ExtensionController:
                 seed=int(chosen_seed),
             )
             self._guided_recorder = recorder
-            self._guided_cancellation_token = token
             self._guided_recording_request = request
             self.guided_workflow.start_recording(
                 RecordingStatus(
@@ -554,22 +542,20 @@ class ExtensionController:
         """Cooperatively cancel and finalize an incomplete guided session."""
 
         recorder = self._guided_recorder
-        token = self._guided_cancellation_token
-        if recorder is None or token is None:
+        if recorder is None:
             return None
         try:
-            token.cancel()
-            manifest = recorder.finalize_incomplete()
+            manifest = recorder.cancel()
             previous = self.guided_workflow.recording_status
             status = replace(
                 previous,
                 active=False,
                 cancelled=True,
+                shards_promoted=recorder.promoted_shard_count,
                 bytes_written=self._guided_session_bytes(recorder.session_root),
                 current_episode=None,
             )
             self._guided_recorder = None
-            self._guided_cancellation_token = None
             self.guided_workflow.cancel_recording(status)
             self._set_status("Guided recording cancelled and finalized incomplete.")
             return manifest
@@ -593,6 +579,7 @@ class ExtensionController:
             status = replace(
                 previous,
                 active=False,
+                shards_promoted=recorder.promoted_shard_count,
                 bytes_written=self._guided_session_bytes(recorder.session_root),
                 current_episode=None,
                 validation_status=report.status,
@@ -608,7 +595,6 @@ class ExtensionController:
                     ),
                 )
             self._guided_recorder = None
-            self._guided_cancellation_token = None
             self.guided_workflow.finish_recording(status, findings)
             self._set_status(
                 f"Guided dataset validation {report.status}.",
@@ -930,20 +916,9 @@ class ExtensionController:
                     )
                 )
             recording_frame = replace(frame, waveform_paths=())
-            if recorder.preserve_time_gaps:
-                gap_diagnostic = recorder.plan_time_gap(recording_frame)
-                diagnostics = dict(recording_frame.diagnostics)
-                recording = dict(diagnostics.get("recording", {}))
-                recording["time_gap"] = gap_diagnostic
-                diagnostics["recording"] = recording
-                recording_frame = replace(
-                    recording_frame,
-                    diagnostics=diagnostics,
-                )
             result = recorder.append_frame(
                 recording_frame,
                 audio_block,
-                timestamp_ms,
                 is_reset=first_recorded_frame or reset_boundary,
             )
             if result.accepted:
@@ -956,7 +931,7 @@ class ExtensionController:
                 previous,
                 frames=previous.frames + int(result.accepted),
                 dropped_frames=(previous.dropped_frames + int(not result.accepted)),
-                shards_promoted=len(self._guided_promotions),
+                shards_promoted=recorder.promoted_shard_count,
                 bytes_written=self._guided_session_bytes(recorder.session_root),
             )
             self.guided_workflow.update_recording(status)
@@ -1005,22 +980,6 @@ class ExtensionController:
         if samples.shape[1] > recorder.window_sample_count:
             samples = samples[:, -recorder.window_sample_count :]
         return samples
-
-    def _guided_shard_promoted(self, event: ShardPromotion) -> None:
-        self._guided_promotions.append(event)
-        previous = self.guided_workflow.recording_status
-        root = previous.session_dir
-        self.guided_workflow.update_recording(
-            replace(
-                previous,
-                shards_promoted=len(self._guided_promotions),
-                bytes_written=(
-                    previous.bytes_written
-                    if root is None
-                    else self._guided_session_bytes(Path(root))
-                ),
-            )
-        )
 
     @staticmethod
     def _guided_session_bytes(root: Path) -> int:

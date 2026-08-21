@@ -4,7 +4,7 @@
     "container": "wav",
     "dtype": "float32",
     "path": "audio.wav",
-    "sample_count": 1360,
+    "sample_count": 1280,
     "sample_rate_hz": 48000,
     "subtype": "FLOAT"
   },
@@ -23,15 +23,15 @@
       "sha256": "82684b8b9de0c24c19bebc03ea38ed0e0ea2f5c7b438c0e7e28fd5a1b14587cd"
     },
     {
-      "bytes": 21804,
+      "bytes": 20524,
       "path": "audio.wav",
-      "sha256": "50981576d075891d5b9babb59856508c10bd58e09cd5f633cad6eec82ce4ae57"
+      "sha256": "a66c207b9d2725bb44bda1970726ce0a400ea749ce7755e2dccede983139dbfb"
     }
   ],
   "frame_count": 4,
   "marker_version": "ias.shard_completion.v1",
   "shard_id": "shard_00000",
   "start_frame": 0,
-  "tail_samples": 80,
-  "writer_tool_version": "ias_fixture_generator/2.0.0"
+  "tail_samples": 0,
+  "writer_tool_version": "2.0.0"
 }

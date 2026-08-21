@@ -38,9 +38,7 @@
       "end_step": 1,
       "environment_id": "environment_scene_a",
       "episode_id": "episode_00000",
-      "labels": [
-        "synthetic_reference"
-      ],
+      "labels": [],
       "reset_markers": [
         {
           "frame_index": 0,
@@ -66,9 +64,7 @@
       "end_step": 1,
       "environment_id": "environment_scene_a",
       "episode_id": "episode_00001",
-      "labels": [
-        "synthetic_reference"
-      ],
+      "labels": [],
       "reset_markers": [
         {
           "frame_index": 2,
@@ -94,9 +90,7 @@
       "end_step": 2,
       "environment_id": "environment_scene_b",
       "episode_id": "episode_00002",
-      "labels": [
-        "synthetic_reference"
-      ],
+      "labels": [],
       "reset_markers": [
         {
           "frame_index": 4,
@@ -135,7 +129,7 @@
           "asset_id": "shard_00000.audio",
           "kind": "audio_wav",
           "path": "shards/shard_00000/audio.wav",
-          "sha256": "50981576d075891d5b9babb59856508c10bd58e09cd5f633cad6eec82ce4ae57"
+          "sha256": "a66c207b9d2725bb44bda1970726ce0a400ea749ce7755e2dccede983139dbfb"
         }
       ],
       "completion_state": "complete",
@@ -151,13 +145,13 @@
           "asset_id": "shard_00001.frames",
           "kind": "frame_trace_jsonl",
           "path": "shards/shard_00001/frames.jsonl",
-          "sha256": "a5024da930c8c6cde33d395e6b822abff3b981cfd9923a6e69fd9674400dd9b8"
+          "sha256": "0c32e23e10c838f3e5eb953ebe804ef649db76698fa9097d1cf5bc67ee32ec6d"
         },
         {
           "asset_id": "shard_00001.audio",
           "kind": "audio_wav",
           "path": "shards/shard_00001/audio.wav",
-          "sha256": "dce914847f520ae157e237ce380a736ab436799610f641524a2afa95128165b2"
+          "sha256": "35c2de89d6ffe9abc067b0e0bde011944553b1c62213d1f8a6f2e90d8c45ae12"
         }
       ],
       "completion_state": "complete",
@@ -169,20 +163,7 @@
   ],
   "source": "Deterministic synthetic recording fixture",
   "split_grouping_key": "scene_id",
-  "splits": [
-    {
-      "group_ids": [
-        "scene_a"
-      ],
-      "name": "train"
-    },
-    {
-      "group_ids": [
-        "scene_b"
-      ],
-      "name": "test"
-    }
-  ],
+  "splits": [],
   "time_base": "simulation_time",
   "units": {
     "orientation": "quaternion_xyzw",

@@ -1,4 +1,4 @@
-"""Sample placement on a ties-to-even lattice."""
+"""Internal sample placement on a ties-to-even lattice."""
 
 from __future__ import annotations
 
@@ -106,9 +106,7 @@ def plan_time_gap(
         if type(value) is not int or value <= 0:
             raise ValueError(f"{name} must be a positive integer")
     if type(session_audio_start_sample) is not int or session_audio_start_sample < 0:
-        raise ValueError(
-            "session_audio_start_sample must be a non-negative integer"
-        )
+        raise ValueError("session_audio_start_sample must be a non-negative integer")
     start = _finite_real(start_time_s, "frame.start_time_s")
     end = _finite_real(end_time_s, "frame.end_time_s")
     if end <= start:
@@ -140,9 +138,7 @@ def plan_time_gap(
     inserted = delta_samples if delta_samples > tolerance_samples else 0
     absorbed = delta_samples if abs(delta_samples) <= tolerance_samples else 0
     expected_start = (
-        None
-        if anchor
-        else float(origin + expected_sample / sample_rate_hz)
+        None if anchor else float(origin + expected_sample / sample_rate_hz)
     )
     return TimeGapPlan(
         placement_sequence=placement_sequence,
@@ -190,9 +186,4 @@ def _finite_number(value: object, field_name: str) -> float:
     return float(_finite_real(value, field_name))
 
 
-__all__ = [
-    "TimeGapCursor",
-    "TimeGapPlan",
-    "advance_time_gap_cursor",
-    "plan_time_gap",
-]
+__all__: list[str] = []
