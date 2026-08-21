@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 from collections.abc import Sequence
-from importlib.resources import files
 from pathlib import Path
 
 from isaac_audio_sensors import __version__
@@ -32,6 +30,7 @@ from isaac_audio_sensors.recording import (
     write_json_atomic,
     write_split_plan,
 )
+from isaac_audio_sensors.schemas.generate import write_json_schema
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -146,19 +145,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "export-schema":
-        names = {
-            "frame": "audio_sensor_frame.v1.schema.json",
-            "dataset-manifest": "audio_dataset_manifest.v1.schema.json",
-            "calibration-profile": "audio_calibration_profile.v1.schema.json",
-        }
-        source = files("isaac_audio_sensors.schemas").joinpath(names[args.schema])
-        output_path = args.out or Path(names[args.schema])
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with (
-            source.open("rb") as source_stream,
-            output_path.open("wb") as output_stream,
-        ):
-            shutil.copyfileobj(source_stream, output_stream)
+        output_path = write_json_schema(args.schema, args.out)
         print(json.dumps({"wrote": str(output_path)}, sort_keys=True))
         return 0
 

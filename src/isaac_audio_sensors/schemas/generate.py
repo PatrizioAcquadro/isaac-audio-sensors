@@ -18,6 +18,7 @@ from isaac_audio_sensors.core.constants import (
     FRAME_UNITS,
     OPTIONAL_DETECTION_FIELDS,
     OPTIONAL_DOA_FIELDS,
+    OPTIONAL_FRAME_UNIT_KEYS,
     POSE3D_FIELDS,
     RUNTIME_PROFILES,
 )
@@ -144,7 +145,7 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
             "units": {
                 "type": "object",
                 "description": "Stable unit names and meanings for v1 fields.",
-                "required": sorted(FRAME_UNITS),
+                "required": sorted(set(FRAME_UNITS) - set(OPTIONAL_FRAME_UNIT_KEYS)),
                 "additionalProperties": {"type": "string"},
                 "properties": {
                     key: {"type": "string", "const": value}
@@ -308,18 +309,6 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
             },
         },
     }
-
-
-def write_audio_sensor_frame_json_schema(path: str | Path) -> Path:
-    """Write the v1 frame schema as stable, sorted JSON."""
-
-    output_path = Path(path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(audio_sensor_frame_json_schema(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    return output_path
 
 
 def audio_dataset_manifest_json_schema() -> dict[str, Any]:
@@ -608,12 +597,6 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
     }
 
 
-def write_audio_dataset_manifest_json_schema(path: str | Path) -> Path:
-    """Write the v1 dataset-manifest schema as stable, sorted JSON."""
-
-    return _write_schema(audio_dataset_manifest_json_schema(), path)
-
-
 def audio_calibration_profile_json_schema() -> dict[str, Any]:
     """Return the v1 ``AudioCalibrationProfile`` JSON Schema."""
 
@@ -892,10 +875,28 @@ def audio_calibration_profile_json_schema() -> dict[str, Any]:
     }
 
 
-def write_audio_calibration_profile_json_schema(path: str | Path) -> Path:
-    """Write the v1 calibration-profile schema as stable, sorted JSON."""
+def write_json_schema(schema_name: str, path: str | Path | None = None) -> Path:
+    """Write a generated public schema as deterministic JSON."""
 
-    return _write_schema(audio_calibration_profile_json_schema(), path)
+    schemas = {
+        "frame": (
+            audio_sensor_frame_json_schema,
+            "audio_sensor_frame.v1.schema.json",
+        ),
+        "dataset-manifest": (
+            audio_dataset_manifest_json_schema,
+            "audio_dataset_manifest.v1.schema.json",
+        ),
+        "calibration-profile": (
+            audio_calibration_profile_json_schema,
+            "audio_calibration_profile.v1.schema.json",
+        ),
+    }
+    try:
+        generator, filename = schemas[schema_name]
+    except KeyError as exc:
+        raise ValueError(f"Unknown schema {schema_name!r}.") from exc
+    return _write_schema(generator(), filename if path is None else path)
 
 
 def _fixed_number_array(length: int) -> dict[str, Any]:

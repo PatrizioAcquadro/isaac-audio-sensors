@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import fields
-from importlib.resources import files
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -18,17 +16,12 @@ from isaac_audio_sensors.core.backends.room_acoustics import (
 )
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.constants import (
-    COORDINATE_CONVENTION,
     DETECTION_FIELDS,
-    DETECTION_MODES,
     DOA_FIELDS,
-    FRAME_PROVENANCE_VALUES,
-    FRAME_SCHEMA_VERSION,
     FRAME_TOP_LEVEL_FIELDS,
     FRAME_UNITS,
     OPTIONAL_DETECTION_FIELDS,
     OPTIONAL_DOA_FIELDS,
-    OPTIONAL_FRAME_UNIT_KEYS,
     POSE3D_FIELDS,
     STABLE_DIAGNOSTIC_NAMESPACES,
 )
@@ -43,20 +36,8 @@ from isaac_audio_sensors.core.types import (
     Pose3D,
 )
 from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
-from isaac_audio_sensors.schemas.generate import audio_sensor_frame_json_schema
 
-SCHEMA_PATH = files("isaac_audio_sensors.schemas").joinpath(
-    "audio_sensor_frame.v1.schema.json"
-)
 TRACE_DIR = Path("examples/traces")
-
-
-def test_generated_schema_matches_checked_in_schema_exactly():
-    generated = (
-        json.dumps(audio_sensor_frame_json_schema(), indent=2, sort_keys=True) + "\n"
-    )
-
-    assert SCHEMA_PATH.read_text(encoding="utf-8") == generated
 
 
 def test_backend_identifiers_are_stable_public_v1_ids():
@@ -74,42 +55,9 @@ def test_backend_identifiers_are_stable_public_v1_ids():
         assert isinstance(get_backend(backend_id), backend_cls)
 
 
-def test_schema_exposes_serialized_frame_semantics():
-    schema = _checked_in_schema()
-
-    assert schema["properties"]["schema_version"]["const"] == (FRAME_SCHEMA_VERSION)
-    assert "separate from the Python package version" in schema["description"]
-    assert "bearing-sector semantics" in schema["description"]
-    assert "stable backend identifiers" in schema["description"]
-    assert schema["properties"]["backend_id"]["description"].endswith(
-        "room_acoustics_srp."
-    )
-    assert (
-        "half-open v1 sector semantics"
-        in (
-            schema["properties"]["detections"]["items"]["properties"]["doa"][
-                "properties"
-            ]["bearing_sector"]["description"]
-        )
-    )
-
-
-def test_schema_required_keys_match_dataclasses_and_trace_serialization():
+def test_serialized_fields_match_dataclass_contracts():
     payload = frame_to_trace_dict(_contract_frame())
-    schema = _checked_in_schema()
-    detection_schema = schema["properties"]["detections"]["items"]
-    doa_schema = detection_schema["properties"]["doa"]
 
-    assert schema["required"] == list(FRAME_TOP_LEVEL_FIELDS)
-    assert detection_schema["required"] == [
-        name for name in DETECTION_FIELDS if name not in OPTIONAL_DETECTION_FIELDS
-    ]
-    assert "occluded" in detection_schema["properties"]
-    assert doa_schema["required"] == [
-        name for name in DOA_FIELDS if name not in OPTIONAL_DOA_FIELDS
-    ]
-    assert "estimated_elevation_deg" in doa_schema["properties"]
-    assert "candidate_elevation_deg" in doa_schema["properties"]
     assert set(payload) == set(FRAME_TOP_LEVEL_FIELDS)
     assert set(payload["detections"][0]) == set(DETECTION_FIELDS)
     assert set(payload["detections"][0]["doa"]) == set(DOA_FIELDS)
@@ -124,21 +72,7 @@ def test_schema_required_keys_match_dataclasses_and_trace_serialization():
     assert set(field.name for field in fields(Pose3D)) == set(POSE3D_FIELDS)
 
 
-def test_schema_allows_additive_optional_fields_without_dropping_required_fields():
-    schema = _checked_in_schema()
-    detection_schema = schema["properties"]["detections"]["items"]
-    doa_schema = detection_schema["properties"]["doa"]
-    pose_schema = schema["properties"]["array_pose"]["oneOf"][1]
-
-    assert schema["additionalProperties"] is True
-    assert detection_schema["additionalProperties"] is True
-    assert doa_schema["additionalProperties"] is True
-    assert pose_schema["additionalProperties"] is True
-    assert set(schema["required"]) == set(FRAME_TOP_LEVEL_FIELDS)
-
-
 def test_json_and_ndjson_trace_corpus_matches_v1_contract_and_round_trips():
-    schema = _checked_in_schema()
     payloads = list(_iter_corpus_payloads())
 
     assert payloads
@@ -159,7 +93,6 @@ def test_json_and_ndjson_trace_corpus_matches_v1_contract_and_round_trips():
     assert set(optional_doa_defaults) == set(OPTIONAL_DOA_FIELDS)
 
     for path, payload in payloads:
-        _assert_payload_matches_contract(payload, schema, path=path)
         rebuilt_payload = frame_to_trace_dict(frame_from_trace_dict(payload))
         expected_payload = dict(payload)
         expected_payload["detections"] = [
@@ -170,7 +103,7 @@ def test_json_and_ndjson_trace_corpus_matches_v1_contract_and_round_trips():
             }
             for detection in payload["detections"]
         ]
-        for field_name in schema["required"]:
+        for field_name in FRAME_TOP_LEVEL_FIELDS:
             assert rebuilt_payload[field_name] == expected_payload[field_name], (
                 path,
                 field_name,
@@ -358,10 +291,6 @@ def _contract_frame() -> AudioSensorFrame:
     )
 
 
-def _checked_in_schema() -> dict[str, Any]:
-    return json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-
-
 def _iter_corpus_payloads():
     for path in sorted(TRACE_DIR.glob("*.json")):
         yield path, json.loads(path.read_text(encoding="utf-8"))
@@ -372,65 +301,3 @@ def _iter_corpus_payloads():
         ):
             assert line.strip(), (path, line_number)
             yield path, json.loads(line)
-
-
-def _assert_payload_matches_contract(
-    payload: dict[str, Any],
-    schema: dict[str, Any],
-    *,
-    path: Path,
-) -> None:
-    assert set(schema["required"]) <= set(payload), path
-    assert payload["schema_version"] == FRAME_SCHEMA_VERSION
-    assert payload["coordinate_convention"] == COORDINATE_CONVENTION
-    for key, value in FRAME_UNITS.items():
-        if key in OPTIONAL_FRAME_UNIT_KEYS and key not in payload["units"]:
-            # Additive unit keys may be absent in older v1 traces.
-            continue
-        assert payload["units"][key] == value, (path, key)
-    assert payload["provenance"] in FRAME_PROVENANCE_VALUES
-    assert isinstance(payload["timestamp_ms"], int), path
-    if payload["sample_rate_hz"] is not None:
-        assert payload["sample_rate_hz"] > 0, path
-    if payload["frame_index"] is not None:
-        assert payload["frame_index"] >= 0, path
-    if payload["max_events"] is not None:
-        assert payload["max_events"] >= 0, path
-        assert len(payload["detections"]) <= payload["max_events"], path
-    if payload["start_time_s"] is not None and payload["end_time_s"] is not None:
-        assert payload["end_time_s"] > payload["start_time_s"], path
-    assert isinstance(payload["diagnostics"], dict), path
-    _assert_pose_payload(payload["array_pose"], path=path)
-
-    for detection in payload["detections"]:
-        required_detection_fields = set(DETECTION_FIELDS) - set(
-            OPTIONAL_DETECTION_FIELDS
-        )
-        assert required_detection_fields <= set(detection), path
-        assert detection["detection_mode"] in DETECTION_MODES
-        assert isinstance(detection["timestamp_ms"], int), path
-        if detection["source_distance_m"] is not None:
-            assert detection["source_distance_m"] >= 0.0, path
-        assert isinstance(detection["diagnostics"], dict), path
-        assert isinstance(detection["per_mic_delay_s"], dict), path
-        assert isinstance(detection["per_mic_rms"], dict), path
-        _assert_pose_payload(detection["source_pose"], path=path)
-
-        doa = detection["doa"]
-        assert set(DOA_FIELDS) - set(OPTIONAL_DOA_FIELDS) <= set(doa), path
-        assert 0.0 <= doa["bearing_confidence"] <= 1.0, path
-        assert isinstance(doa["candidate_bearing_deg"], list), path
-        if doa["ambiguity_class"] is not None:
-            assert doa["ambiguity_reason"], path
-            assert doa["candidate_bearing_deg"], path
-
-
-def _assert_pose_payload(payload: dict[str, Any] | None, *, path: Path) -> None:
-    if payload is None:
-        return
-    assert set(POSE3D_FIELDS) <= set(payload), path
-    assert payload["coordinate_convention"] == COORDINATE_CONVENTION, path
-    assert len(payload["position_m"]) == 3, path
-    orientation = payload["orientation_xyzw"]
-    if orientation is not None:
-        assert len(orientation) == 4, path

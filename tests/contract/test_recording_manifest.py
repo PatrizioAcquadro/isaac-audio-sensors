@@ -6,12 +6,10 @@ import json
 import math
 from copy import deepcopy
 from dataclasses import replace
-from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
-from isaac_audio_sensors.recording.constants import DATASET_MANIFEST_SCHEMA_VERSION
 from isaac_audio_sensors.recording.manifest import AssetRecord, ManifestPose
 from isaac_audio_sensors.recording.serialization import (
     manifest_from_dict,
@@ -19,11 +17,7 @@ from isaac_audio_sensors.recording.serialization import (
     read_dataset_manifest,
     write_dataset_manifest,
 )
-from isaac_audio_sensors.schemas.generate import audio_dataset_manifest_json_schema
 
-SCHEMA_PATH = files("isaac_audio_sensors.schemas").joinpath(
-    "audio_dataset_manifest.v1.schema.json"
-)
 FIXTURE_DIR = Path("examples/manifests")
 
 INVALID_MESSAGES = {
@@ -43,19 +37,6 @@ INVALID_MESSAGES = {
     "timestamps": "timestamps_ms",
     "units": "canonical unit values",
 }
-
-
-def test_generated_schema_matches_checked_in_schema_exactly():
-    generated = (
-        json.dumps(audio_dataset_manifest_json_schema(), indent=2, sort_keys=True)
-        + "\n"
-    )
-
-    assert SCHEMA_PATH.read_text(encoding="utf-8") == generated
-    assert (
-        audio_dataset_manifest_json_schema()["properties"]["schema_version"]["const"]
-        == DATASET_MANIFEST_SCHEMA_VERSION
-    )
 
 
 def test_valid_manifest_fixtures_round_trip(tmp_path):

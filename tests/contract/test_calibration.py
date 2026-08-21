@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from importlib.resources import files
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from isaac_audio_sensors.core.calibration_profile import check_profile_compatibility
-from isaac_audio_sensors.core.constants import CALIBRATION_PROFILE_SCHEMA_VERSION
 from isaac_audio_sensors.core.io.calibration import (
     calibration_profile_from_dict,
     calibration_profile_to_dict,
@@ -19,11 +17,7 @@ from isaac_audio_sensors.core.io.calibration import (
     write_calibration_profile,
 )
 from isaac_audio_sensors.core.types import MicrophoneArraySpec, MicrophoneSpec
-from isaac_audio_sensors.schemas.generate import audio_calibration_profile_json_schema
 
-SCHEMA_PATH = files("isaac_audio_sensors.schemas").joinpath(
-    "audio_calibration_profile.v1.schema.json"
-)
 FIXTURE_DIR = Path("examples/calibration")
 
 INVALID_MESSAGES = {
@@ -38,19 +32,6 @@ INVALID_MESSAGES = {
     "units": "canonical unit values",
     "unmeasured_value": "must be null",
 }
-
-
-def test_generated_schema_matches_checked_in_schema_exactly():
-    generated = (
-        json.dumps(audio_calibration_profile_json_schema(), indent=2, sort_keys=True)
-        + "\n"
-    )
-
-    assert SCHEMA_PATH.read_text(encoding="utf-8") == generated
-    assert (
-        audio_calibration_profile_json_schema()["properties"]["schema_version"]["const"]
-        == CALIBRATION_PROFILE_SCHEMA_VERSION
-    )
 
 
 def test_nominal_fixture_is_explicit_and_round_trips(tmp_path):

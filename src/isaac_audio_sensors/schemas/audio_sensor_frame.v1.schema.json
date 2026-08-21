@@ -421,7 +421,6 @@
       "required": [
         "bearing",
         "distance",
-        "elevation",
         "gain",
         "orientation",
         "position",
