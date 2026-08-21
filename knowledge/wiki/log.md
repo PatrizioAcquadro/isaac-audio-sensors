@@ -137,3 +137,11 @@ Recorded the wheel-only Python workflow, explicit package data, installed-artifa
 ## 2026-08-21 — lint: R6.2 canonical documentation
 
 Verified current build commands, wheel inventory and installation, wiki consistency, raw-specification preservation, host and release gates, Ruff, and Markdown whitespace.
+
+## 2026-08-21 — update: R6.3 standard Kit archive
+
+Recorded the minimal Community Registry archive, exact target metadata, temporary staging, direct package layout, removed installer and test-only surfaces, and verified Extension Manager lifecycle from source and packaged paths.
+
+## 2026-08-21 — lint: R6.3 canonical documentation
+
+Verified current Kit commands and inventory, wiki links and coverage, immutable raw content, host and release gates, source and packaged RTX lifecycle smokes, Ruff, and Markdown whitespace.

@@ -6,6 +6,7 @@
 - Consolidated backends, effects, recording, Isaac Sim, Isaac Lab, Kit, and CLI around their maintained runtime responsibilities while removing duplicate, private, and test-only surfaces.
 - Consolidated product documentation in the canonical wiki and cleaned root guidance, generated workspaces, and validation output under R6.1.
 - Replaced the temporary wheel/source workflow with one audited universal Python wheel installed in an isolated environment.
+- Standardized the self-contained Kit extension as a minimal Linux x86_64 Community Registry archive for Kit 110.1 and Python 3.12.
 
 ## 1.9.0 - Unreleased
 

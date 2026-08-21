@@ -62,9 +62,29 @@ The host gate passes 418 unit/contract tests, 231 integration tests with two exp
 
 R6.2 changes packaging only. Isaac, GPU, physical-acoustics, and optional room-execution gates are not repeated; Python APIs, CLI behavior, and serialized schemas are unchanged.
 
+## Subphase R6.3 — Standard Kit Archive
+
+#### Implementation
+
+`make build-kit` now creates `dist/PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v2.0.0.zip` through temporary staging. The archive contains only the Kit manifest, Extension Manager resources, entrypoint, direct `isaac_audio_sensors` package, and required licenses. It leaves no extracted tree, checksum, vendoring manifest, or build metadata in `dist/`.
+
+The manifest declares the canonical package name and exact release target: Linux x86_64, CPython 3.12, Kit 110.1, and release configuration. The archive audit owns filename, target metadata, required content, and shared release policy. The entrypoint uses the included package, with one `src/` fallback for checkout development.
+
+The unconsumed local installer, `_vendor` layout, development sentinel, duplicated runtime checks, and their test-only surfaces were removed. One real-build test plus one negative audit test now cover the archive contract. The live smoke accepts an extension path and verifies package origin, Extension Manager enable/disable, and shutdown.
+
+#### Key Decisions
+
+The Community Registry archive is the installation surface; no custom installer remains. The builder returns only the archive path and preserves unrelated wheel and acoustic-pack artifacts. Python APIs, CLI behavior, schemas, acoustic-pack behavior, and optional room dependencies are unchanged.
+
+#### Problems / Limitations
+
+All host and release gates pass. Both the checkout extension and an isolated extraction of the archive pass the 37-step Kit workflow on the RTX 4090 with Kit 110.1.2; the packaged run resolves `isaac_audio_sensors` from the extracted archive and verifies disable and shutdown.
+
+Direct Extension Manager discovery requires the extracted root to use the extension name `isaac_audio_sensors.omni`; the Community Registry provides that installation layout.
+
 ## Artifacts
 
-R6.1 retains no generated artifact. R6.2 leaves one ignored universal wheel under `dist/`; build, cache, and installed-audit environments remain temporary.
+R6.1 retains no generated artifact. R6.2 leaves one ignored universal wheel under `dist/`. R6.3 leaves one ignored Community Registry zip beside it; all Kit staging remains temporary.
 
 ## Files
 
@@ -73,3 +93,7 @@ R6.1 retains no generated artifact. R6.2 leaves one ignored universal wheel unde
 - `src/isaac_audio_sensors/kit/paths.py`
 - `pyproject.toml`
 - `tools/release/audit_python_wheel.py`
+- `exts/isaac_audio_sensors.omni/config/extension.toml`
+- `tools/release/build_kit_extension.py`
+- `tools/release/audit_kit_archive.py`
+- `tools/smoke/live_omniverse_extension_ux.py`
