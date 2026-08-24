@@ -40,6 +40,10 @@ DEFAULT_TRACE_FILENAME = "extension_trace.frames.jsonl"
 DEFAULT_LATEST_FRAME_FILENAME = "extension_latest_frame.json"
 DEFAULT_CONFIG_FILENAME = "extension_binding.json"
 DEFAULT_REPLICATOR_DIRNAME = "replicator"
+DEFAULT_KIT_AUDIO_CAPTURE_DIRNAME = "kit_audio_captures"
+KIT_AUDIO_MIX_LABEL = (
+    "Kit listener/device mix — qualitative, not microphone-array channels"
+)
 OMNI_WINDOW_TITLE = "Isaac Audio Sensors"
 OMNI_MENU_GROUP = "Window"
 OMNI_ACTION_TOGGLE_WINDOW = "toggle_window"

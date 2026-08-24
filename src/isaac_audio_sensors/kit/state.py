@@ -214,7 +214,16 @@ class ExtensionUiState:
     latest_aggregate_rms: dict[str, float] = field(default_factory=dict)
     detection_history: list[dict[str, Any]] = field(default_factory=list)
     latest_waveform_paths: tuple[str, ...] = ()
-    audition_status: str = "Audition idle."
+    audition_status: str = "Sensor WAV audition idle."
+    kit_listener_prim_path: str | None = None
+    kit_listener_status: str = "Kit listener idle."
+    kit_mix_capture_running: bool = False
+    kit_mix_capture_status: str = "Kit mix capture idle."
+    latest_kit_mix_path: str | None = None
+    latest_kit_mix_channels: int | None = None
+    latest_kit_mix_sample_rate_hz: int | None = None
+    latest_kit_mix_duration_s: float | None = None
+    latest_kit_mix_peak: float | None = None
     omnigraph_status: str = "OmniGraph node not registered."
     latest_usd_debug_prim_paths: tuple[str, ...] = ()
     latest_overlay_primitive_count: int = 0

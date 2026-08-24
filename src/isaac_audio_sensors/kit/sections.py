@@ -548,6 +548,7 @@ def build_advanced_section(window: OmniReferenceWindow) -> None:
     build_control_section(window)
     build_room_section(window)
     build_audio_output_section(window)
+    build_kit_audio_section(window)
     build_replicator_section(window)
     build_export_section(window)
 
@@ -928,10 +929,10 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
 
 
 def build_audio_output_section(window: OmniReferenceWindow) -> None:
-    """Build the waveform/spectrogram preview and audition controls."""
+    """Build microphone-array WAV preview and playback controls."""
 
     ui = window.ui
-    with window._subsection("Audio Output"):
+    with window._subsection("Sensor WAV Output"):
         window._bool_row("WAV Export", "waveform_enabled")
         window._string_row("WAV Dir", "waveform_dir")
         window._combo_row("WAV Mode", "waveform_mode", WAVEFORM_MODE_CHOICES)
@@ -954,12 +955,39 @@ def build_audio_output_section(window: OmniReferenceWindow) -> None:
                 height=SPECTROGRAM_IMAGE_HEIGHT,
             )
         with ui.HStack(spacing=4):
-            window._button("Play", window.controller.play_latest_waveform)
-            window._button("Stop Audio", window.controller.stop_audition)
-            window._button("Open WAV Folder", window.controller.open_waveform_folder)
+            window._button("Play Sensor WAV", window.controller.play_latest_waveform)
+            window._button("Stop Sensor WAV", window.controller.stop_audition)
+            window._button(
+                "Open Sensor WAV Folder", window.controller.open_waveform_folder
+            )
         window._readonly_label("audition")
     window._audio_panel = {
         "waveform_provider": waveform_provider,
         "spectrogram_provider": spectrogram_provider,
         "rendered_path": None,
     }
+
+
+def build_kit_audio_section(window: OmniReferenceWindow) -> None:
+    """Build separate Kit scene-listener audition and mix-capture actions."""
+
+    with window._subsection("Kit Scene Audition"):
+        window._readonly_label("kit_mix_kind")
+        window._readonly_label("kit_timeline_policy")
+        with window.ui.HStack(spacing=4):
+            window._button(
+                "Activate Array Listener", window.controller.activate_kit_listener
+            )
+            window._button(
+                "Restore Previous Listener",
+                window.controller.restore_previous_kit_listener,
+            )
+        window._readonly_label("kit_listener")
+        with window.ui.HStack(spacing=4):
+            window._button(
+                "Start Kit Mix Capture", window.controller.start_kit_mix_capture
+            )
+            window._button(
+                "Stop Kit Mix Capture", window.controller.stop_kit_mix_capture
+            )
+        window._readonly_label("kit_mix_capture")

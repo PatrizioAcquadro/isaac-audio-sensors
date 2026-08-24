@@ -391,7 +391,8 @@ def test_kit_builds_against_fake_omni_ui(monkeypatch):
         "Audio Source",
         "Sensor Settings & Debug",
         "Room Acoustics",
-        "Audio Output",
+        "Sensor WAV Output",
+        "Kit Scene Audition",
         "Replicator",
         "Export & Config",
     ]
@@ -422,6 +423,13 @@ def test_kit_builds_against_fake_omni_ui(monkeypatch):
         "Detach Source",
         "Start Sensor",
         "Capture Once",
+        "Play Sensor WAV",
+        "Stop Sensor WAV",
+        "Open Sensor WAV Folder",
+        "Activate Array Listener",
+        "Restore Previous Listener",
+        "Start Kit Mix Capture",
+        "Stop Kit Mix Capture",
         "Start Replicator",
         "Flush Replicator",
         "Stop Replicator",
@@ -709,7 +717,12 @@ def test_kit_audio_panel_renders_waveform_preview(monkeypatch, tmp_path):
     assert panel["rendered_path"] == str(wav_path)
     assert panel["waveform_provider"].size == [420, 96]
     assert panel["spectrogram_provider"].size == [420, 128]
-    assert window._labels["audition"].text == "Audition idle."
+    assert window._labels["audition"].text == "Sensor WAV audition idle."
+    assert window._labels["kit_mix_kind"].text == (
+        "Kit listener/device mix — qualitative, not microphone-array channels"
+    )
+    assert window._labels["kit_listener"].text == "Kit listener idle."
+    assert window._labels["kit_mix_capture"].text == "Kit mix capture idle."
 
 
 def test_kit_audio_panel_reports_missing_waveform(monkeypatch):

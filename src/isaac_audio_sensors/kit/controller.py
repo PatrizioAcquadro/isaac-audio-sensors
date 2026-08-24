@@ -7,6 +7,7 @@ from typing import Any
 
 from .authoring import AuthoringService
 from .configuration import ConfigurationService
+from .kit_audio import KitAudioService
 from .lifecycle import LifecycleService
 from .recording_workflow import RecordingWorkflow
 from .replicator_service import ReplicatorService
@@ -28,6 +29,7 @@ class ExtensionController:
         self._validation = ValidationController()
         self.stage_context_provider = stage_context_provider
         self._recording = RecordingWorkflow(self)
+        self._kit_audio = KitAudioService(self)
         self._lifecycle = LifecycleService(self)
         self._authoring = AuthoringService(self)
         self._sensor_session = SensorSession(self)
@@ -270,6 +272,21 @@ class ExtensionController:
 
     def stop_audition(self, *args: Any, **kwargs: Any) -> Any:
         return self._sensor_session.stop_audition(*args, **kwargs)
+
+    def activate_kit_listener(self, *args: Any, **kwargs: Any) -> Any:
+        return self._kit_audio.activate_listener(*args, **kwargs)
+
+    def restore_previous_kit_listener(self, *args: Any, **kwargs: Any) -> Any:
+        return self._kit_audio.restore_listener(*args, **kwargs)
+
+    def start_kit_mix_capture(self, *args: Any, **kwargs: Any) -> Any:
+        return self._kit_audio.start_mix_capture(*args, **kwargs)
+
+    def stop_kit_mix_capture(self, *args: Any, **kwargs: Any) -> Any:
+        return self._kit_audio.stop_mix_capture(*args, **kwargs)
+
+    def cleanup_kit_audio(self, *args: Any, **kwargs: Any) -> Any:
+        return self._kit_audio.cleanup(*args, **kwargs)
 
     def open_waveform_folder(self, *args: Any, **kwargs: Any) -> Any:
         return self._sensor_session.open_waveform_folder(*args, **kwargs)

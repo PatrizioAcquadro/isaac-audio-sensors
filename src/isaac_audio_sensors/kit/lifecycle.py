@@ -69,6 +69,7 @@ class LifecycleService(ControllerService):
         workflow = vars(self._host._recording).get("_guided_workflow")
         cleanups = (
             ("recording", self.guided_cancel_recording if recording else None),
+            ("Kit audio", self.cleanup_kit_audio),
             ("audition", self.stop_audition),
             ("Replicator", self.stop_replicator),
             ("USD debug", self.clear_usd_debug_geometry),
@@ -448,6 +449,7 @@ class LifecycleService(ControllerService):
                 event_type = int(getattr(event, "type", -1))
                 stage_change = stage_change_types.get(event_type)
                 if stage_change is not None:
+                    self.cleanup_kit_audio(reason=f"USD stage {stage_change}")
                     self._validation.invalidate(f"USD stage {stage_change}")
                     return
                 if event_type != selection_changed:

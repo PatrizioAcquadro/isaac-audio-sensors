@@ -67,3 +67,12 @@ def test_kit_architecture_boundaries() -> None:
         node.name for node in extension.body if isinstance(node, ast.FunctionDef)
     }
     assert methods == {"__init__", "on_startup", "on_shutdown"}
+
+
+def test_kit_audio_bridge_has_no_timeline_control() -> None:
+    source = (KIT / "kit_audio.py").read_text(encoding="utf-8")
+
+    assert "omni.timeline" not in source
+    assert "set_current_time" not in source
+    assert "timeline.play" not in source
+    assert "timeline.stop" not in source

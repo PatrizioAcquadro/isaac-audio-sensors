@@ -51,6 +51,7 @@ class ControllerService:
             return descriptor.__get__(host, type(host))
         for key in (
             "_recording",
+            "_kit_audio",
             "_lifecycle",
             "_authoring",
             "_sensor_session",

@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from time import monotonic
 from typing import TYPE_CHECKING, Any
 
-from .constants import GUIDED_COLLAPSED_SETTING, OMNI_WINDOW_TITLE
+from .constants import (
+    GUIDED_COLLAPSED_SETTING,
+    KIT_AUDIO_MIX_LABEL,
+    OMNI_WINDOW_TITLE,
+)
 from .formatting import (
     _format_mic_positions_summary,
     _format_vec3,
@@ -333,6 +337,14 @@ class OmniReferenceWindow:
         self.refresh_instruments()
         self.refresh_audio_panel()
         self._set_label("audition", state.audition_status)
+        self._set_label("kit_mix_kind", KIT_AUDIO_MIX_LABEL)
+        self._set_label(
+            "kit_timeline_policy",
+            "Uses the current Kit timeline; this extension never starts, stops, "
+            "or repositions it.",
+        )
+        self._set_label("kit_listener", state.kit_listener_status)
+        self._set_label("kit_mix_capture", state.kit_mix_capture_status)
         self._set_label(
             "overlay",
             "Overlay: "

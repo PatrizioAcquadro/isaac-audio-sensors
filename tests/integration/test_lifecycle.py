@@ -22,6 +22,7 @@ def test_shutdown_releases_all_resources_after_one_cleanup_failure(monkeypatch):
         return _run
 
     monkeypatch.setattr(controller, "guided_cancel_recording", cleanup("recording"))
+    monkeypatch.setattr(controller, "cleanup_kit_audio", cleanup("kit_audio"))
     monkeypatch.setattr(controller, "stop_audition", cleanup("audition", fail=True))
     monkeypatch.setattr(controller, "stop_replicator", cleanup("replicator"))
     monkeypatch.setattr(controller, "clear_usd_debug_geometry", cleanup("debug"))
@@ -43,6 +44,7 @@ def test_shutdown_releases_all_resources_after_one_cleanup_failure(monkeypatch):
 
     assert calls == [
         "recording",
+        "kit_audio",
         "audition",
         "replicator",
         "debug",
@@ -198,6 +200,12 @@ def test_extension_controller_follows_viewport_selection_via_stage_events(
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, tuple(selection))
     )
+    cleanup_reasons: list[str] = []
+    monkeypatch.setattr(
+        controller,
+        "cleanup_kit_audio",
+        lambda *, reason="cleanup": cleanup_reasons.append(reason),
+    )
     controller.state.follow_viewport_selection = True
     controller.state.discovered_arrays = (
         DiscoveredPrimSummary(
@@ -222,6 +230,7 @@ def test_extension_controller_follows_viewport_selection_via_stage_events(
     selection[:] = ["/World/Rig/AudioArray"]
     stream.trigger(_FakeStageEventStream.OPENED)
     assert controller.state.object_prim_path == "/World/Oven"
+    assert cleanup_reasons == ["USD stage opened"]
     controller.state.follow_viewport_selection = False
     stream.trigger(_FakeStageEventStream.SELECTION_CHANGED)
     assert controller.state.object_prim_path == "/World/Oven"

@@ -7,11 +7,14 @@ import asyncio
 import importlib
 import inspect
 import json
+import math
 import platform
 import shutil
 import struct
 import sys
+import time
 import traceback
+import wave
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -93,9 +96,13 @@ EXPECTED_UI_BUTTONS = (
     "Attach Source To Object",
     "Detach Source",
     "Capture Once",
-    "Play",
-    "Stop Audio",
-    "Open WAV Folder",
+    "Play Sensor WAV",
+    "Stop Sensor WAV",
+    "Open Sensor WAV Folder",
+    "Activate Array Listener",
+    "Restore Previous Listener",
+    "Start Kit Mix Capture",
+    "Stop Kit Mix Capture",
     "Clear Debug Geometry",
     "Start Replicator",
     "Flush Replicator",
@@ -149,7 +156,7 @@ EXPECTED_FLOAT_FIELDS = (
     "source_start_time_s",
     "update_period_s",
 )
-EXPECTED_INT_FIELDS = ("max_events", "sample_rate_hz")
+EXPECTED_INT_FIELDS = ("max_events", "sample_rate_hz", "source_loop_count")
 EXPECTED_BOOL_FIELDS = (
     "author_child_microphones",
     "debug_overlay_enabled",
@@ -211,6 +218,7 @@ def main() -> int:
     screenshot_path = args.out.with_suffix(".viewport.png")
     advanced_error_screenshot_path = args.out.with_suffix(".advanced-error.png")
     flac_session_path = args.out.with_suffix(".flac-session")
+    kit_audio_source_path = args.out.with_suffix(".kit-audio-source.wav")
     generic_artifacts = {
         "frame_trace_path": frame_trace_path,
         "config_path": config_path,
@@ -226,6 +234,7 @@ def main() -> int:
         latest_frame_path,
         screenshot_path,
         advanced_error_screenshot_path,
+        kit_audio_source_path,
     )
     _prepare_output_dir(replicator_dir)
     shutil.rmtree(flac_session_path, ignore_errors=True)
@@ -245,6 +254,7 @@ def main() -> int:
         "screenshot_path": str(screenshot_path),
         "advanced_error_screenshot_path": str(advanced_error_screenshot_path),
         "flac_session_path": str(flac_session_path),
+        "kit_audio_source_path": str(kit_audio_source_path),
         "extension_id": EXTENSION_ID,
         "extension_path": str(args.extension_path),
         "headless": False,
@@ -398,6 +408,15 @@ def main() -> int:
                 controller,
                 stage=stage,
                 flac_destination=flac_session_path,
+            ),
+        )
+        evidence["kit_audio_mix"] = _step(
+            evidence,
+            "kit_audio_mix_live_qa",
+            lambda: _collect_kit_audio_mix_evidence(
+                controller,
+                stage=stage,
+                source_wav_path=kit_audio_source_path,
             ),
         )
 
@@ -2702,6 +2721,127 @@ def _collect_audio_output_evidence(
     return record
 
 
+def _collect_kit_audio_mix_evidence(
+    controller: ExtensionController,
+    *,
+    stage: Any,
+    source_wav_path: Path,
+) -> dict[str, Any]:
+    """Prove listener placement, device-mix capture, cleanup, and sensor isolation."""
+
+    import omni.usd.audio  # type: ignore
+
+    from isaac_audio_sensors.core.io.wave_read import read_wav
+    from isaac_audio_sensors.isaac.stage_audio import create_sound_prim, remove_prim
+
+    source_path = "/World/IasKitAudioCaptureProbe"
+    record: dict[str, Any] = {
+        "array_prim_path": controller.state.array_prim_path,
+        "source_prim_path": source_path,
+    }
+    audio = omni.usd.audio.get_stage_audio_interface()
+    previous_listener = audio.get_active_listener()
+    record["previous_listener_path"] = _prim_path(previous_listener)
+    sensor_channels_before = len(controller.state.latest_aggregate_rms)
+    record["sensor_channels_before"] = sensor_channels_before
+    _write_pcm16_tone(source_wav_path)
+    create_sound_prim(
+        stage,
+        prim_path=source_path,
+        audio_asset_path=str(source_wav_path),
+        spatial=True,
+        loop_count=0,
+        duration_s=1.0,
+        gain_db=-6.0,
+    )
+    _settle_kit_ui(updates=4)
+    try:
+        capture_path = controller.start_kit_mix_capture(stage=stage)
+        if not isinstance(capture_path, Path):
+            raise RuntimeError(
+                controller.state.error_message or "Kit mix capture did not start"
+            )
+        listener_path = str(controller.state.kit_listener_prim_path or "")
+        record["listener_path"] = listener_path
+        record["listener_under_array"] = listener_path.startswith(
+            f"{controller.state.array_prim_path.rstrip('/')}/"
+        )
+        listener = _require_stage_prim(stage, listener_path)
+        session_layer = stage.GetSessionLayer()
+        record["listener_in_session_layer"] = any(
+            spec.layer == session_layer for spec in listener.GetPrimStack()
+        )
+        sound = _require_stage_prim(stage, source_path)
+        audio.play_sound(sound)
+        time.sleep(0.4)
+        summary = controller.stop_kit_mix_capture()
+        audio.stop_sound(sound)
+        if summary is None:
+            raise RuntimeError(
+                controller.state.error_message or "Kit mix capture did not finalize"
+            )
+        captured = read_wav(summary.path)
+        record["capture"] = {
+            "path": str(summary.path),
+            "channels": captured.channel_count,
+            "sample_rate_hz": captured.sample_rate_hz,
+            "frames": captured.frame_count,
+            "duration_s": captured.duration_s,
+            "peak": summary.peak,
+            "readable": True,
+            "non_silent": summary.peak > 0.0,
+        }
+        sensor_channels_after = len(controller.state.latest_aggregate_rms)
+        record["sensor_channels_after"] = sensor_channels_after
+        record["sensor_channel_count_unchanged"] = (
+            sensor_channels_before > 0
+            and sensor_channels_before == sensor_channels_after
+        )
+        record["active_listener_after"] = _prim_path(audio.get_active_listener())
+        record["listener_removed"] = not _stage_has_prim(stage, listener_path)
+        record["capture_released"] = not controller.state.kit_mix_capture_running
+        record["listener_state_released"] = (
+            controller.state.kit_listener_prim_path is None
+        )
+        passed = (
+            record["listener_under_array"]
+            and record["listener_in_session_layer"]
+            and record["capture"]["readable"]
+            and record["capture"]["non_silent"]
+            and record["sensor_channel_count_unchanged"]
+            and record["listener_removed"]
+            and record["capture_released"]
+            and record["listener_state_released"]
+            and record["active_listener_after"]
+            == record["previous_listener_path"]
+        )
+        record["status"] = "passed" if passed else "failed"
+        return record
+    finally:
+        with suppress(Exception):
+            controller.cleanup_kit_audio(reason="live gate cleanup")
+        with suppress(Exception):
+            remove_prim(stage, source_path)
+
+
+def _write_pcm16_tone(path: Path) -> None:
+    sample_rate_hz = 48_000
+    frame_count = sample_rate_hz // 2
+    path.parent.mkdir(parents=True, exist_ok=True)
+    samples = b"".join(
+        struct.pack(
+            "<h",
+            int(0.25 * 32767 * math.sin(2.0 * math.pi * 440.0 * i / sample_rate_hz)),
+        )
+        for i in range(frame_count)
+    )
+    with wave.open(str(path), "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(sample_rate_hz)
+        output.writeframes(samples)
+
+
 def _capture_app_screenshot(path: Path) -> dict[str, Any]:
     """Capture the whole app swapchain (viewport plus Kit UI windows)."""
 
@@ -3142,6 +3282,9 @@ def _validate_live_extension_outputs(
     allowed_audio_status = {"passed"} if packaged else {"passed", "skipped"}
     if audio_output.get("status") not in allowed_audio_status:
         raise RuntimeError(f"audio_output evidence failed: {audio_output}")
+    kit_audio_mix = evidence.get("kit_audio_mix", {})
+    if kit_audio_mix.get("status") != "passed":
+        raise RuntimeError(f"kit_audio_mix evidence failed: {kit_audio_mix}")
     omnigraph = evidence.get("omnigraph", {})
     if omnigraph.get("status") not in {"passed", "skipped"}:
         raise RuntimeError(f"omnigraph evidence failed: {omnigraph}")
