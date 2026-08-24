@@ -42,21 +42,35 @@ The entrypoint exposes its `controller` and has no duplicate sensor, authoring, 
 
 Shutdown independently cancels an active recording as incomplete, stops audition, Replicator, and the sensor, clears debug/frame state, detaches workflow/window callbacks, and releases update, stage, reset, hotkey, menu, and action registrations even if one cleanup fails.
 
+## Native Kit Window
+
+The native `omni.ui` window has exactly three top-level areas: Guided Workflow, Live Monitor, and Advanced Tools. Guided and Live Monitor are open on first use, while Advanced Tools is closed. Guided and Advanced are mutually exclusive accordions; Live Monitor remains independently available as the primary operating surface.
+
+![Isaac Audio Sensors native Kit window](../../../exts/isaac_audio_sensors.omni/data/preview.png)
+
+The fixed status strip remains visible below the scrollable content. It reports short ready, active, warning, or error summaries; exact diagnostics stay inside Advanced Tools. View code reads controller state and invokes controller actions only. It does not access USD, files, or recording internals directly.
+
 ## Guided Workflow
 
 The guided path is `Setup -> Validate -> Run -> Inspect -> Record -> Export`.
 
-Setup applies a maintained safe preset and stage bindings; Validate runs stage, backend, device, source, array, room, attachment, calibration, and capability checks; Run starts the real sensor lifecycle; Inspect requires explicit user acceptance of the instrument output; Record writes a generic session; Export validates, splits when requested, and inventories the result. Capability validation refreshes stale cached facts within the same pass.
+Only the current step is expanded. It exposes one primary action, with Back and recovery actions secondary. Setup applies a maintained safe preset and stage bindings; Validate runs stage, backend, device, source, array, room, attachment, calibration, and capability checks; Run and Inspect reuse the same canonical sensor control as Live Monitor; Record exposes Start Recording, then Stop & Finalize, with Cancel separate; Export validates, splits when requested, and inventories the result. Capability validation refreshes stale cached facts within the same pass.
+
+Guided is open by default and stores its local collapse preference at `/persistent/exts/isaac_audio_sensors.omni/ui/guided_collapsed`. Missing `carb.settings` falls back safely to the default. `guided_mode_enabled=False` still removes Guided completely, and the local preference is not part of exported configuration.
 
 Simulator reset starts a new episode, and partial or failed recording output is not promoted as a complete session.
 
 The headless path is `isaac_audio_sensors.kit.headless.HeadlessGuidedSession`; callers inject an `ExtensionController`, and the CLI owns construction of the default controller.
 
-## Expert Sections
+## Live Monitor
 
-Stage selects discovery roots and current array, source, object, or base prims; Array and Source author the corresponding metadata and transforms; Sensor Control configures backend, device, update period, event bound, ambiguity, output, and lifecycle.
+Live Monitor shows sensor state, backend, the latest frame, detection count, and waveform availability. One contextual button starts or stops the sensor. The live instruments show the bearing compass, up to eight microphone RMS meters, and no more than three recent detections, with explicit empty states before frame or waveform data exists.
 
-Room configures the fixed acoustic room and anchor; Instruments show bearing, per-microphone RMS, and detection history; Audio Output previews waveforms and spectrograms and auditions exported WAVs.
+## Advanced Tools
+
+Advanced Tools contains the specialist controls for stage and selection, array, source, sensor settings and debug, room, audio output, Replicator, export, and configuration. Stage binding uses one `Bind selection as` selector and `Bind Selected`; position authoring uses a preset selector and `Apply Position Preset`. Known profiles and rigs are selected with combo boxes and validated by Apply rather than duplicate selection buttons.
+
+Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
 
 Replicator controls the optional Omniverse writer; Export writes the latest frame, JSONL streams, and reusable binding/configuration JSON.
 
@@ -83,3 +97,7 @@ If start/update fails, read the exact validation finding for backend, dependency
 If overlays or OmniGraph are unavailable, distinguish optional Kit-service absence from sensor failure; frame JSON and structured diagnostics remain the primary contract.
 
 If Replicator is unavailable, use package JSON/JSONL or the generic session recorder; a Replicator blocker must not be reported as a core package failure.
+
+## Version Notes
+
+- 2026-08-24: Rebuilt the native Kit UI around the three task-oriented areas, added persistent Guided collapse behavior, promoted Live Monitor to the canonical operating surface, and moved specialist controls into Advanced Tools without changing core APIs or serialized contracts.

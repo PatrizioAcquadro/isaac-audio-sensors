@@ -74,7 +74,7 @@ class OmniReferenceWindow:
         """Build a compact task-oriented Kit window."""
 
         ui = self.ui
-        self.window = ui.Window(OMNI_WINDOW_TITLE, width=680, height=820)
+        self.window = ui.Window(OMNI_WINDOW_TITLE, width=680, height=740)
         _set_window_visibility_changed_fn(
             self.window,
             self.controller.handle_window_visibility_changed,
@@ -212,7 +212,7 @@ class OmniReferenceWindow:
         )
         self._set_label(
             "live_frame",
-            f"Last frame: {state.latest_frame_id or 'none'}  |  "
+            f"Last frame: {self._compact_identifier(state.latest_frame_id)}  |  "
             f"Detections: {state.latest_detection_count}",
         )
         self._set_label(
@@ -283,10 +283,10 @@ class OmniReferenceWindow:
             with suppress(Exception):
                 status_icon.style = {
                     "color": (
-                        0xFFEF6A61
+                        0xFF616AEF
                         if state.error_message
                         else (
-                            0xFF4FC18C if state.sensor_running else 0xFFE4B95B
+                            0xFF8CC14F if state.sensor_running else 0xFF5BB9E4
                         )
                     )
                 }
@@ -440,7 +440,16 @@ class OmniReferenceWindow:
     @staticmethod
     def _compact_status(message: str, limit: int = 150) -> str:
         summary = " ".join(str(message).split())
-        return summary if len(summary) <= limit else summary[: limit - 1] + "…"
+        return summary if len(summary) <= limit else summary[: limit - 3] + "..."
+
+    @staticmethod
+    def _compact_identifier(value: str | None, limit: int = 36) -> str:
+        identifier = value or "none"
+        return (
+            identifier
+            if len(identifier) <= limit
+            else "..." + identifier[-(limit - 3) :]
+        )
 
     @contextmanager
     def _section(
@@ -597,13 +606,14 @@ class OmniReferenceWindow:
     ) -> Any:
         self._buttons.append(label)
         colors = {
-            "primary": 0xFF2E78D2,
-            "danger": 0xFFB8473D,
-            "secondary": 0xFF3D4652,
+            "primary": 0xFFD2782E,
+            "danger": 0xFF3D47B8,
+            "secondary": 0xFF52463D,
         }
         return self.ui.Button(
             label,
             clicked_fn=self._action(callback),
+            height=28,
             style={"Button": {"background_color": colors[kind]}},
         )
 

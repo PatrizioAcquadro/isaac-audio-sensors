@@ -309,7 +309,7 @@ def main() -> int:
             extension_id=EXTENSION_ID,
         )
         evidence["ui_editable_model_probe"] = _probe_ui_editable_models(controller)
-        evidence["ui_invalid_numeric_probe"] = _probe_ui_invalid_numeric(controller)
+        evidence["ui_numeric_widget_probe"] = _probe_ui_numeric_widgets(controller)
         evidence["export_latest_without_frame"] = _probe_export_latest_without_frame(
             controller
         )
@@ -1483,14 +1483,14 @@ def _probe_ui_editable_models(controller: ExtensionController) -> dict[str, Any]
         or object_path is None
     ):
         return {"status": "failed", "reason": "expected editable fields missing"}
-    duration.model.set_value("10.0")
-    position_x.model.set_value("2.0")
-    position_y.model.set_value("0.0")
-    position_z.model.set_value("0.0")
-    local_offset_x.model.set_value("0.0")
-    local_offset_y.model.set_value("0.0")
-    local_offset_z.model.set_value("0.0")
-    sample_rate.model.set_value("44100")
+    duration.model.set_value(10.0)
+    position_x.model.set_value(2.0)
+    position_y.model.set_value(0.0)
+    position_z.model.set_value(0.0)
+    local_offset_x.model.set_value(0.0)
+    local_offset_y.model.set_value(0.0)
+    local_offset_z.model.set_value(0.0)
+    sample_rate.model.set_value(44100)
     source_id.model.set_value("speaker_a")
     object_path.model.set_value("/World/Oven")
     window.sync_state_from_widgets()
@@ -1518,40 +1518,46 @@ def _probe_ui_editable_models(controller: ExtensionController) -> dict[str, Any]
     }
 
 
-def _probe_ui_invalid_numeric(controller: ExtensionController) -> dict[str, Any]:
+def _probe_ui_numeric_widgets(controller: ExtensionController) -> dict[str, Any]:
     window = _reference_ui_window(controller)
     if window is None:
         return {"status": "failed", "reason": "ui_window_unavailable"}
     duration = window._float_fields.get("source_duration_s")
-    if duration is None:
-        return {"status": "failed", "reason": "source_duration_s field missing"}
-    previous = _model_string(duration.model)
-    called = {"value": False}
-
-    def _callback() -> str:
-        called["value"] = True
-        return "called"
-
-    duration.model.set_value("not-a-number")
-    window._action(_callback)()
-    error = controller.state.error_message
+    sample_rate = window._int_fields.get("sample_rate_hz")
+    if duration is None or sample_rate is None:
+        return {"status": "failed", "reason": "numeric fields missing"}
+    previous_duration = controller.state.source_duration_s
+    previous_sample_rate = controller.state.sample_rate_hz
     restore_error = None
     try:
-        duration.model.set_value(previous or "10.0")
+        duration.model.set_value(2.5)
+        sample_rate.model.set_value(48000)
+        window.sync_state_from_widgets()
+        observed_duration = controller.state.source_duration_s
+        observed_sample_rate = controller.state.sample_rate_hz
+        duration.model.set_value(previous_duration)
+        sample_rate.model.set_value(previous_sample_rate)
         window.sync_state_from_widgets()
         window.refresh_labels()
     except Exception as exc:  # noqa: BLE001 - evidence should keep moving.
         restore_error = f"{type(exc).__name__}: {exc}"
+        observed_duration = None
+        observed_sample_rate = None
+    duration_kind = type(duration).__name__
+    sample_rate_kind = type(sample_rate).__name__
     passed = (
-        called["value"] is False
-        and error is not None
-        and "UI input failed" in error
+        observed_duration == 2.5
+        and observed_sample_rate == 48000
+        and "FloatDrag" in duration_kind
+        and "IntDrag" in sample_rate_kind
         and restore_error is None
     )
     return {
         "status": "passed" if passed else "failed",
-        "callback_called": called["value"],
-        "error_message": error,
+        "duration_widget_kind": duration_kind,
+        "sample_rate_widget_kind": sample_rate_kind,
+        "observed_duration": observed_duration,
+        "observed_sample_rate": observed_sample_rate,
         "restore_error": restore_error,
     }
 
@@ -2038,14 +2044,6 @@ def _combo_model_values(window: Any) -> dict[str, dict[str, Any]]:
             "state_value": getattr(window.controller.state, attr_name),
         }
     return values
-
-
-def _model_string(model: Any) -> str:
-    if hasattr(model, "get_value_as_string"):
-        return str(model.get_value_as_string())
-    if hasattr(model, "as_string"):
-        return str(model.as_string)
-    return str(getattr(model, "value", ""))
 
 
 def _combo_index(model: Any) -> int:
@@ -2948,7 +2946,7 @@ def _validate_live_extension_outputs(
         "package_origin",
         "dependency_origins",
         "ui_editable_model_probe",
-        "ui_invalid_numeric_probe",
+        "ui_numeric_widget_probe",
         "export_latest_without_frame",
         "config_roundtrip_probe",
         "instruments",

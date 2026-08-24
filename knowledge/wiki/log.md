@@ -193,3 +193,11 @@ Recorded the successful TestPyPI rehearsal, immutable GitHub release, exact PyPI
 ## 2026-08-21 — lint: v2.0.0 publication status
 
 Verified canonical ownership, index coverage, internal links, immutable raw content, final release metadata, public GitHub and PyPI state, version synchronization, release tests, and Markdown whitespace while keeping NVIDIA discovery explicitly pending.
+
+## 2026-08-24 — update: Native Kit UI redesign
+
+Recorded the three-area native window, compact guided workflow, persistent expert collapse preference, canonical live monitor, consolidated advanced tools, fixed status strip, real Isaac GUI preview, and unchanged controller and serialization contracts.
+
+## 2026-08-24 — lint: Native Kit UI redesign
+
+Verified canonical ownership, index coverage, internal links, immutable raw content, current UI and controller contracts, the real preview, deterministic checks, RTX 4090 live Kit behavior, Ruff, version synchronization, and Markdown whitespace.

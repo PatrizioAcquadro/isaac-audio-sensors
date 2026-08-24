@@ -224,7 +224,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
 
     def _refresh() -> None:
         current = workflow.current_stage
-        crumbs = "  →  ".join(
+        crumbs = "  >  ".join(
             f"[{stage.value.title()}]"
             if stage is current
             else stage.value.title()
@@ -741,7 +741,16 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                 for _ in range(METER_MAX_ROWS):
                     with ui.HStack(spacing=4, height=0) as meter_row:
                         label = ui.Label("", width=150)
-                        bar = progress_cls() if progress_cls is not None else None
+                        bar = (
+                            progress_cls(
+                                style={
+                                    "background_color": 0xFF312C27,
+                                    "color": 0xFF8CC14F,
+                                }
+                            )
+                            if progress_cls is not None
+                            else None
+                        )
                     meter_row.visible = False
                     meter_rows.append({"row": meter_row, "label": label, "bar": bar})
         empty_label = ui.Label("", word_wrap=True)
@@ -759,7 +768,7 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
             with ui.VStack(spacing=1, height=0):
                 _build_timeline_rows()
         else:
-            with scrolling_cls(height=140), ui.VStack(spacing=1, height=0):
+            with scrolling_cls(height=72), ui.VStack(spacing=1, height=0):
                 _build_timeline_rows()
     window._instruments = {
         "compass": compass_image,
