@@ -45,3 +45,6 @@ OMNI_MENU_GROUP = "Window"
 OMNI_ACTION_TOGGLE_WINDOW = "toggle_window"
 OMNI_DEFAULT_HOTKEY = "CTRL + ALT + A"
 OMNI_DEFAULT_HOTKEY_DISPLAY = "Ctrl+Alt+A"
+GUIDED_COLLAPSED_SETTING = (
+    "/persistent/exts/isaac_audio_sensors.omni/ui/guided_collapsed"
+)

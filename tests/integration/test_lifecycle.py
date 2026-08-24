@@ -296,7 +296,7 @@ def test_extension_controller_live_sync_pose_follows_prim_moves(monkeypatch):
     assert controller.state.source_position_x_m == 3.5
     assert controller.state.source_position_y_m == -1.0
     assert controller.state.array_position_y_m == 2.0
-    assert window._float_fields["source_position_x_m"].model.value == "3.5"
+    assert window._float_fields["source_position_x_m"].model.value == 3.5
 
     # Disabled sync stops mirroring.
     controller.state.live_sync_source_pose = False

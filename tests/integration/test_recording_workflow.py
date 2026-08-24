@@ -361,24 +361,26 @@ def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
 
     labels = [widget.text for widget in ui.created if widget.kind == "Label"]
     buttons = [widget.text for widget in ui.created if widget.kind == "Button"]
-    assert "Guided Workflow" in labels
-    assert any("Setup [in_progress]" in text for text in labels)
-    assert "Apply Guided Preset" in buttons
-    assert "Validate now" in buttons
-    assert "Start Guided Run" in buttons
+    assert any("[Setup]" in text for text in labels)
+    assert "Apply Safe Preset" in buttons
+    assert "Validate Setup" in buttons
+    assert "Start Guided Run" not in buttons
     assert "Mark Inspected" in buttons
     assert "Start Recording" in buttons
-    assert "Cancel Recording" in buttons
-    assert "Stop and Finalize" in buttons
-    assert "Export Guided Dataset" in buttons
+    assert "Cancel" in buttons
+    assert "Stop & Finalize" in buttons
+    assert "Export Dataset" in buttons
     assert len([widget for widget in ui.created if widget.kind == "ComboBox"]) == 1
+    assert window._guided_panel["start_recording_button"].visible is True
+    assert window._guided_panel["stop_recording_button"].visible is False
+    assert window._guided_panel["cancel_recording_button"].visible is False
 
     controller.guided_apply_preset("minimal_single_source")
     controller.guided_advance()
 
     assert window._guided_panel["setup_panel"].visible is False
     assert window._guided_panel["validate_panel"].visible is True
-    assert "Validate [in_progress]" in window._guided_panel["breadcrumb"].text
+    assert "[Validate]" in window._guided_panel["breadcrumb"].text
 
 
 def test_guided_run_observes_frame_then_stop_regresses(

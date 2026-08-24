@@ -233,6 +233,8 @@ class _FakeWidget:
         self.frame = self
         self.text = args[0] if args and isinstance(args[0], str) else ""
         self.visible = True
+        self._collapsed = bool(kwargs.get("collapsed", False))
+        self.collapsed_changed_fn = None
         self.visibility_changed_fn = None
         self.children: list[_FakeWidget] = []
         self.parent = (
@@ -253,6 +255,20 @@ class _FakeWidget:
 
     def set_visibility_changed_fn(self, callback: object) -> None:
         self.visibility_changed_fn = callback
+
+    @property
+    def collapsed(self) -> bool:
+        return self._collapsed
+
+    @collapsed.setter
+    def collapsed(self, value: bool) -> None:
+        changed = self._collapsed != bool(value)
+        self._collapsed = bool(value)
+        if changed and callable(self.collapsed_changed_fn):
+            self.collapsed_changed_fn(self._collapsed)
+
+    def set_collapsed_changed_fn(self, callback: object) -> None:
+        self.collapsed_changed_fn = callback
 
 
 class _FakeByteImageProvider:
@@ -432,6 +448,9 @@ class _FakeSettings:
     def get(self, path: str) -> object:
         return self.values.get(path)
 
+    def set_bool(self, path: str, value: bool) -> None:
+        self.values[path] = bool(value)
+
 
 class _FakeWriterRegistry:
     registered: dict[str, type] = {}
@@ -578,6 +597,7 @@ def _install_fake_kit_integrations(
 
     return SimpleNamespace(
         ui=omni_ui,
+        settings=fake_settings,
         actions=action_registry,
         menu=menu_utils,
         hotkeys=hotkey_registry,

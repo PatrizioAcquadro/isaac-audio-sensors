@@ -9,12 +9,12 @@ from .constants import (
     BACKEND_CHOICES,
     LAYOUT_CHOICES,
     ROOM_OUT_OF_BOUNDS_CHOICES,
+    SOURCE_POSITION_PRESETS,
     WAVEFORM_MODE_CHOICES,
 )
 from .instruments import (
     COMPASS_IMAGE_SIZE,
     METER_MAX_ROWS,
-    TIMELINE_MAX_ROWS,
     compass_view_model,
     meter_view_models,
 )
@@ -43,7 +43,6 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
     selected_index = preset_ids.index(selected_id) if selected_id in preset_ids else 0
 
     with ui.VStack(spacing=4, height=0) as root:
-        ui.Label("Guided Workflow")
         breadcrumb = ui.Label("", word_wrap=True)
         stage_title = ui.Label("")
         stage_status = ui.Label("", word_wrap=True)
@@ -65,14 +64,19 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                     preset_combo.model.add_value_changed_fn(_preset_changed)
                 )
             window._button(
-                "Apply Guided Preset",
+                "Apply Safe Preset",
                 lambda: window.controller.guided_apply_preset(
                     window.controller.state.guided_preset_id or preset_ids[0]
                 ),
+                kind="primary",
             )
             setup_summary = ui.Label("", word_wrap=True)
         with ui.VStack(spacing=4, height=0) as validate_panel:
-            window._button("Validate now", window.controller.guided_validate)
+            window._button(
+                "Validate Setup",
+                window.controller.guided_validate,
+                kind="primary",
+            )
             findings_summary = ui.Label("", word_wrap=True)
             finding_rows: list[dict[str, Any]] = []
             for index in range(12):
@@ -90,9 +94,10 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                     {"row": row, "label": issue_label, "button": action_button}
                 )
         with ui.VStack(spacing=4, height=0) as run_panel:
-            with ui.HStack(spacing=4, height=0):
-                window._button("Start Guided Run", window.controller.guided_start_run)
-                window._button("Stop Guided Run", window.controller.guided_stop_run)
+            ui.Label(
+                "Use the canonical Start Sensor control in Live Monitor.",
+                word_wrap=True,
+            )
             run_lifecycle = ui.Label("", word_wrap=True)
             run_frames = ui.Label("", word_wrap=True)
         with ui.VStack(spacing=4, height=0) as inspect_panel:
@@ -103,6 +108,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             window._button(
                 "Mark Inspected",
                 window.controller.guided_mark_inspected,
+                kind="primary",
             )
         with ui.VStack(spacing=4, height=0) as record_panel:
             window._string_row("Session Dir", "guided_session_dir")
@@ -114,7 +120,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             window._bool_row("Episode Aligned", "guided_record_aligned")
             aligned_field = window._bool_fields.pop("guided_record_aligned")
             with ui.HStack(spacing=4, height=0):
-                window._button(
+                start_recording_button = window._button(
                     "Start Recording",
                     lambda: window.controller.guided_start_recording(
                         window.controller.state.guided_session_dir,
@@ -122,14 +128,17 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                         window.controller.state.guided_shard_max_frames,
                         window.controller.state.guided_record_aligned,
                     ),
+                    kind="primary",
                 )
-                window._button(
-                    "Cancel Recording",
-                    window.controller.guided_cancel_recording,
-                )
-                window._button(
-                    "Stop and Finalize",
+                stop_recording_button = window._button(
+                    "Stop & Finalize",
                     window.controller.guided_stop_recording,
+                    kind="primary",
+                )
+                cancel_recording_button = window._button(
+                    "Cancel",
+                    window.controller.guided_cancel_recording,
+                    kind="danger",
                 )
             recording_progress = ui.Label("", word_wrap=True)
             recording_validation = ui.Label("", word_wrap=True)
@@ -153,17 +162,21 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             window._int_row("Split Seed", "guided_session_seed")
             split_seed_field = window._int_fields.pop("guided_session_seed")
             window._button(
-                "Export Guided Dataset",
+                "Export Dataset",
                 lambda: window.controller.guided_export(
                     window.controller.state.guided_export_dir
                 ),
+                kind="primary",
             )
             export_summary = ui.Label("", word_wrap=True)
             inventory_summary = ui.Label("", word_wrap=True)
             inventory_totals = ui.Label("", word_wrap=True)
         with ui.HStack(spacing=4, height=0):
-            window._button("Guided Back", window.controller.guided_back)
-            window._button("Guided Next", window.controller.guided_advance)
+            back_button = window._button("Back", window.controller.guided_back)
+            continue_button = window._button(
+                "Continue",
+                window.controller.guided_advance,
+            )
 
     panel = {
         "root": root,
@@ -191,6 +204,9 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
         "aligned_field": aligned_field,
         "recording_progress": recording_progress,
         "recording_validation": recording_validation,
+        "start_recording_button": start_recording_button,
+        "stop_recording_button": stop_recording_button,
+        "cancel_recording_button": cancel_recording_button,
         "export_panel": export_panel,
         "export_dir_field": export_dir_field,
         "split_enabled_field": split_enabled_field,
@@ -201,26 +217,26 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
         "export_summary": export_summary,
         "inventory_summary": inventory_summary,
         "inventory_totals": inventory_totals,
+        "back_button": back_button,
+        "continue_button": continue_button,
     }
     window._guided_panel = panel
 
     def _refresh() -> None:
         current = workflow.current_stage
-        crumbs = " > ".join(
-            f"{stage.value.title()} [{workflow.status(stage).value}]"
+        crumbs = "  →  ".join(
+            f"[{stage.value.title()}]"
+            if stage is current
+            else stage.value.title()
             for stage in GUIDED_STAGE_ORDER
         )
         _set_widget_text(breadcrumb, crumbs)
-        _set_widget_text(stage_title, f"Current stage: {current.value.title()}")
+        _set_widget_text(stage_title, current.value.title())
         current_findings = workflow.findings_for_stage(current)
         _set_widget_text(
             stage_status,
-            f"Status: {workflow.current_status.value}"
-            + (
-                ""
-                if not current_findings
-                else " | " + " | ".join(item.message for item in current_findings)
-            ),
+            f"Status: {workflow.current_status.value.replace('_', ' ')}"
+            + ("" if not current_findings else f" | {len(current_findings)} issue(s)"),
         )
         setup_panel.visible = current is GuidedStage.SETUP
         validate_panel.visible = current is GuidedStage.VALIDATE
@@ -304,6 +320,9 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             ),
         )
         recording = window.controller.guided_recording_status
+        start_recording_button.visible = not recording.active
+        stop_recording_button.visible = recording.active
+        cancel_recording_button.visible = recording.active
         _set_model_value(
             session_dir_field.model,
             window.controller.state.guided_session_dir,
@@ -314,7 +333,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
         )
         _set_model_value(
             shard_frames_field.model,
-            str(window.controller.state.guided_shard_max_frames),
+            window.controller.state.guided_shard_max_frames,
         )
         _set_model_value(
             aligned_field.model,
@@ -338,13 +357,13 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
         state = window.controller.state
         _set_model_value(export_dir_field.model, state.guided_export_dir)
         _set_model_value(split_enabled_field.model, state.guided_split_enabled)
-        _set_model_value(train_ratio_field.model, str(state.guided_split_train_ratio))
+        _set_model_value(train_ratio_field.model, state.guided_split_train_ratio)
         _set_model_value(
             validation_ratio_field.model,
-            str(state.guided_split_validation_ratio),
+            state.guided_split_validation_ratio,
         )
-        _set_model_value(test_ratio_field.model, str(state.guided_split_test_ratio))
-        _set_model_value(split_seed_field.model, str(state.guided_session_seed))
+        _set_model_value(test_ratio_field.model, state.guided_split_test_ratio)
+        _set_model_value(split_seed_field.model, state.guided_session_seed)
         export = window.controller.guided_export_status
         _set_widget_text(
             export_summary,
@@ -371,36 +390,93 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             f"Totals: {export.inventory_entries} files | "
             f"{export.inventory_bytes} bytes",
         )
+        back_button.visible = current is not GuidedStage.SETUP
+        continue_button.visible = current is not GuidedStage.EXPORT
 
     window._refresh_guided_section = _refresh
     _refresh()
 
 
+def build_live_monitor_section(window: OmniReferenceWindow) -> None:
+    """Build the primary sensor lifecycle and live evidence surface."""
+
+    ui = window.ui
+    with ui.VStack(spacing=6, height=0):
+        with ui.HStack(spacing=8, height=0):
+            with ui.VStack(spacing=2, height=0):
+                window._labels["live_status"] = ui.Label("", word_wrap=True)
+                window._labels["live_frame"] = ui.Label("", word_wrap=True)
+                window._labels["live_waveform"] = ui.Label("", word_wrap=True)
+
+            def _toggle_sensor() -> None:
+                state = window.controller.state
+                guided_run = (
+                    state.guided_mode_enabled
+                    and window.controller.guided_workflow.current_stage
+                    is GuidedStage.RUN
+                )
+                if state.sensor_running:
+                    if guided_run:
+                        window.controller.guided_stop_run()
+                    else:
+                        window.controller.stop_sensor()
+                elif guided_run:
+                    window.controller.guided_start_run()
+                else:
+                    window.controller.start_sensor()
+
+            sensor_button = window._button(
+                "Start Sensor",
+                _toggle_sensor,
+                kind="primary",
+            )
+        build_instruments_section(window)
+        window._instruments["sensor_button"] = sensor_button
+
+
+def build_advanced_section(window: OmniReferenceWindow) -> None:
+    """Build specialist controls behind one advanced accordion."""
+
+    build_stage_section(window)
+    build_array_section(window)
+    build_source_section(window)
+    build_control_section(window)
+    build_room_section(window)
+    build_audio_output_section(window)
+    build_replicator_section(window)
+    build_export_section(window)
+
+
 def build_stage_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
-    with window._section("Stage"):
+    with window._subsection("Stage & Selection", collapsed=False):
         window._labels["stage"] = ui.Label("", word_wrap=True)
+        binding_roles = (
+            ("Microphone Array", window.controller.use_selected_as_array),
+            ("Audio Source", window.controller.use_selected_as_source),
+            ("Object", window.controller.use_selected_as_object),
+            ("Robot Base", window.controller.use_selected_as_robot_base),
+        )
         with ui.HStack(spacing=4):
             window._button(
-                "Refresh",
+                "Refresh Selection",
                 window.controller.refresh_stage_selection,
             )
-            window._button(
-                "Use Array",
-                window.controller.use_selected_as_array,
+        with ui.HStack(spacing=4):
+            ui.Label("Bind selection as", width=120)
+            binding_combo = ui.ComboBox(
+                0,
+                *(label for label, _action in binding_roles),
+                width=220,
             )
-            window._button(
-                "Use Source",
-                window.controller.use_selected_as_source,
-            )
-            window._button(
-                "Use Object",
-                window.controller.use_selected_as_object,
-            )
-            window._button(
-                "Use Base",
-                window.controller.use_selected_as_robot_base,
-            )
+
+            def _bind_selected() -> None:
+                selected = _combo_index(binding_combo.model)
+                if 0 <= selected < len(binding_roles):
+                    binding_roles[selected][1]()
+
+            window._button("Bind Selected", _bind_selected)
+            window._stage_binding_combo = binding_combo
         window._bool_row("Follow Selection", "follow_viewport_selection")
         window._string_row("Discovery Roots", "discovery_roots_text")
         window._string_row("Robot/Base", "robot_base_prim_path")
@@ -412,7 +488,7 @@ def build_stage_section(window: OmniReferenceWindow) -> None:
             )
         window._labels["object"] = ui.Label("", word_wrap=True)
         window._button(
-            "Discover",
+            "Discover Sensors",
             window.controller.refresh_discovery,
         )
         window._labels["discovery"] = ui.Label("", word_wrap=True)
@@ -420,7 +496,7 @@ def build_stage_section(window: OmniReferenceWindow) -> None:
 
 def build_array_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
-    with window._section("Author Array"):
+    with window._subsection("Microphone Array"):
         window._string_row("Target Prim", "array_prim_path")
         window._string_row("Array ID", "array_id")
         window._combo_row("Layout", "layout_name", LAYOUT_CHOICES)
@@ -431,17 +507,20 @@ def build_array_section(window: OmniReferenceWindow) -> None:
             "Create/Attach Array",
             window.controller.author_array,
         )
-        window._string_row("Rig Profile ID", "selected_rig_profile_id")
+        rig_profile_ids = tuple(
+            profile.profile_id
+            for profile in window.controller.state.rig_profile_library
+        )
+        window._combo_row(
+            "Rig Profile",
+            "selected_rig_profile_id",
+            rig_profile_ids,
+        )
         window._labels["rig_profile"] = ui.Label("", word_wrap=True)
-        with ui.HStack(spacing=4):
-            window._button(
-                "Select Rig Profile",
-                window.controller.select_rig_profile,
-            )
-            window._button(
-                "Apply Rig Profile",
-                window.controller.apply_selected_rig_profile,
-            )
+        window._button(
+            "Apply Rig Profile",
+            window.controller.apply_selected_rig_profile,
+        )
         window._float_row("Array Pos X", "array_position_x_m")
         window._float_row("Array Pos Y", "array_position_y_m")
         window._float_row("Array Pos Z", "array_position_z_m")
@@ -477,19 +556,18 @@ def build_array_section(window: OmniReferenceWindow) -> None:
 
 
 def build_source_section(window: OmniReferenceWindow) -> None:
-    with window._section("Author Source"):
+    with window._subsection("Audio Source"):
         window._string_row("Target Prim", "source_prim_path")
         window._string_row("Source ID", "source_id")
         window._string_row("Class", "source_class_label")
         window._string_row("Audio URI", "audio_asset_path")
         window._string_row("Directivity", "source_directivity")
-        window._string_row("Profile ID", "selected_profile_id")
+        profile_ids = tuple(
+            profile.profile_id for profile in window.controller.state.profile_library
+        )
+        window._combo_row("Sound Profile", "selected_profile_id", profile_ids)
         window._labels["profile"] = window.ui.Label("", word_wrap=True)
         with window.ui.HStack(spacing=4):
-            window._button(
-                "Select Profile",
-                window.controller.select_sound_profile,
-            )
             window._button(
                 "Auto From Object",
                 window.controller.auto_select_profile_from_object,
@@ -514,23 +592,20 @@ def build_source_section(window: OmniReferenceWindow) -> None:
                 "Apply Position",
                 window.controller.apply_source_position,
             )
+        position_presets = tuple(SOURCE_POSITION_PRESETS)
         with window.ui.HStack(spacing=4):
-            window._button(
-                "Front",
-                lambda: window.controller.apply_source_position_preset("front"),
-            )
-            window._button(
-                "Right",
-                lambda: window.controller.apply_source_position_preset("right"),
-            )
-            window._button(
-                "Left",
-                lambda: window.controller.apply_source_position_preset("left"),
-            )
-            window._button(
-                "Behind",
-                lambda: window.controller.apply_source_position_preset("behind"),
-            )
+            window.ui.Label("Position Preset", width=120)
+            preset_combo = window.ui.ComboBox(0, *position_presets, width=220)
+
+            def _apply_position_preset() -> None:
+                selected = _combo_index(preset_combo.model)
+                if 0 <= selected < len(position_presets):
+                    window.controller.apply_source_position_preset(
+                        position_presets[selected]
+                    )
+
+            window._button("Apply Position Preset", _apply_position_preset)
+            window._position_preset_combo = preset_combo
         window._float_row("Start", "source_start_time_s")
         window._float_row("Duration", "source_duration_s")
         window._float_row("Gain dB", "source_gain_db")
@@ -551,7 +626,7 @@ def build_source_section(window: OmniReferenceWindow) -> None:
 
 def build_control_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
-    with window._section("Sensor"):
+    with window._subsection("Sensor Settings & Debug"):
         window._combo_row("Backend", "backend", BACKEND_CHOICES)
         window._combo_row("Ambiguity", "ambiguity_policy", AMBIGUITY_POLICY_CHOICES)
         window._float_row("Period s", "update_period_s")
@@ -562,16 +637,10 @@ def build_control_section(window: OmniReferenceWindow) -> None:
         window._string_row("Debug Root", "usd_debug_root")
         window._bool_row("JSONL", "trace_enabled")
         window._string_row("Writer Path", "jsonl_trace_path")
-        with ui.HStack(spacing=4):
-            window._button(
-                "Start",
-                window.controller.start_sensor,
-            )
-            window._button("Stop", window.controller.stop_sensor)
-            window._button(
-                "Update",
-                window.controller.update_sensor,
-            )
+        window._button(
+            "Capture Once",
+            window.controller.update_sensor,
+        )
         with ui.HStack(spacing=4):
             window._button(
                 "Clear Debug Geometry",
@@ -581,11 +650,13 @@ def build_control_section(window: OmniReferenceWindow) -> None:
         window._labels["overlay"] = ui.Label("", word_wrap=True)
         window._labels["usd_debug"] = ui.Label("", word_wrap=True)
         window._labels["omnigraph"] = ui.Label("", word_wrap=True)
+        ui.Label("Diagnostics")
+        window._labels["diagnostic"] = ui.Label("", word_wrap=True)
 
 
 def build_room_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
-    with window._section("Room"):
+    with window._subsection("Room Acoustics"):
         window._string_row("Anchor Prim", "room_anchor_prim_path")
         window._combo_row(
             "Out Of Bounds",
@@ -602,22 +673,22 @@ def build_room_section(window: OmniReferenceWindow) -> None:
 
 def build_replicator_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
-    with window._section("Replicator"):
+    with window._subsection("Replicator"):
         window._bool_row("Enable", "replicator_enabled")
         window._string_row("Output Dir", "replicator_output_dir")
         window._string_row("Writer", "replicator_writer_name")
         window._string_row("Annotator", "replicator_annotator_name")
         with ui.HStack(spacing=4):
             window._button(
-                "Start",
+                "Start Replicator",
                 window.controller.start_replicator,
             )
             window._button(
-                "Flush",
+                "Flush Replicator",
                 window.controller.flush_replicator,
             )
             window._button(
-                "Stop",
+                "Stop Replicator",
                 window.controller.stop_replicator,
             )
         window._labels["replicator"] = ui.Label("", word_wrap=True)
@@ -625,13 +696,13 @@ def build_replicator_section(window: OmniReferenceWindow) -> None:
 
 def build_export_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
-    with window._section("Export"):
+    with window._subsection("Export & Config"):
         window._string_row("Latest JSON", "latest_frame_export_path")
         window._string_row("Config JSON", "config_export_path")
         window._string_row("Load Config", "config_import_path")
         with ui.HStack(spacing=4):
             window._button(
-                "Export Latest",
+                "Export Latest Frame",
                 window.controller.export_latest_frame,
             )
             window._button(
@@ -648,7 +719,7 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
     """Build the compass, per-mic RMS meters, and detection timeline."""
 
     ui = window.ui
-    with window._section("Instruments"):
+    with ui.VStack(spacing=4, height=0):
         with ui.HStack(spacing=8, height=0):
             with ui.VStack(spacing=4, width=0):
                 provider = None
@@ -673,11 +744,12 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                         bar = progress_cls() if progress_cls is not None else None
                     meter_row.visible = False
                     meter_rows.append({"row": meter_row, "label": label, "bar": bar})
-        ui.Label("Detection timeline (newest first)")
+        empty_label = ui.Label("", word_wrap=True)
+        ui.Label("Recent detections")
         timeline_labels: list[object] = []
 
         def _build_timeline_rows() -> None:
-            for _ in range(TIMELINE_MAX_ROWS):
+            for _ in range(3):
                 row_label = ui.Label("")
                 row_label.visible = False
                 timeline_labels.append(row_label)
@@ -694,6 +766,7 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
         "compass_provider": provider,
         "meters": meter_rows,
         "timeline": timeline_labels,
+        "empty": empty_label,
     }
 
 
@@ -701,7 +774,7 @@ def build_audio_output_section(window: OmniReferenceWindow) -> None:
     """Build the waveform/spectrogram preview and audition controls."""
 
     ui = window.ui
-    with window._section("Audio Output"):
+    with window._subsection("Audio Output"):
         window._bool_row("WAV Export", "waveform_enabled")
         window._string_row("WAV Dir", "waveform_dir")
         window._combo_row("WAV Mode", "waveform_mode", WAVEFORM_MODE_CHOICES)

@@ -4,7 +4,33 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from contextlib import suppress
+from importlib import import_module
 from typing import Any
+
+
+def _get_bool_setting(path: str, default: bool) -> bool:
+    """Read a local Kit preference with an import-safe fallback."""
+
+    try:
+        settings = import_module("carb.settings").get_settings()
+        value = settings.get(path)
+    except Exception:
+        return default
+    return default if value is None else bool(value)
+
+
+def _set_bool_setting(path: str, value: bool) -> bool:
+    """Persist a local Kit preference when settings are available."""
+
+    try:
+        settings = import_module("carb.settings").get_settings()
+        setter = getattr(settings, "set_bool", None) or getattr(settings, "set", None)
+        if not callable(setter):
+            return False
+        setter(path, bool(value))
+    except Exception:
+        return False
+    return True
 
 
 def _new_simple_model(ui: Any, kind: str, value: Any) -> Any:

@@ -6,7 +6,7 @@ from collections.abc import Callable
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
-from .constants import OMNI_WINDOW_TITLE
+from .constants import GUIDED_COLLAPSED_SETTING, OMNI_WINDOW_TITLE
 from .formatting import (
     _format_mic_positions_summary,
     _format_vec3,
@@ -18,33 +18,26 @@ from .formatting import (
 )
 from .instruments import (
     COMPASS_IMAGE_SIZE,
-    TIMELINE_MAX_ROWS,
     compass_view_model,
     meter_view_models,
     render_compass_rgba,
     timeline_rows,
 )
 from .sections import (
-    build_array_section,
-    build_audio_output_section,
-    build_control_section,
-    build_export_section,
+    build_advanced_section,
     build_guided_section,
-    build_instruments_section,
-    build_replicator_section,
-    build_room_section,
-    build_source_section,
-    build_stage_section,
+    build_live_monitor_section,
 )
 from .spectro import render_spectrogram_rgba, render_waveform_rgba
 from .ui_models import (
     _combo_index,
-    _format_edit_value,
+    _get_bool_setting,
     _model_bool,
     _model_float,
     _model_int,
     _model_string,
     _new_simple_model,
+    _set_bool_setting,
     _set_combo_index,
     _set_model_value,
     _set_widget_text,
@@ -72,6 +65,7 @@ class OmniReferenceWindow:
         self._labels: dict[str, Any] = {}
         self._model_change_subscriptions: list[Any] = []
         self._sections: list[str] = []
+        self._section_frames: dict[str, Any] = {}
         self._buttons: list[str] = []
         self._instruments: dict[str, Any] = {}
         self._audio_panel: dict[str, Any] = {}
@@ -80,19 +74,27 @@ class OmniReferenceWindow:
         """Build a compact task-oriented Kit window."""
 
         ui = self.ui
-        self.window = ui.Window(OMNI_WINDOW_TITLE, width=620, height=760)
+        self.window = ui.Window(OMNI_WINDOW_TITLE, width=680, height=820)
         _set_window_visibility_changed_fn(
             self.window,
             self.controller.handle_window_visibility_changed,
         )
-        with self.window.frame:
+        with self.window.frame, ui.VStack(spacing=6):
             scrolling_frame = getattr(ui, "ScrollingFrame", None)
             if scrolling_frame is None:
-                with ui.VStack(spacing=6):
+                with ui.VStack(spacing=6, height=0):
                     self._build_body()
             else:
-                with scrolling_frame(), ui.VStack(spacing=6, height=0):
+                with scrolling_frame(
+                    height=_ui_fraction(ui, 1)
+                ), ui.VStack(spacing=6, height=0):
                     self._build_body()
+            with ui.HStack(spacing=8, height=32):
+                self._labels["status_icon"] = ui.Label("READY", width=58)
+                self._labels["status"] = ui.Label(
+                    self.controller.state.status_message,
+                    word_wrap=True,
+                )
         self.refresh_labels()
         return self.window
 
@@ -122,25 +124,42 @@ class OmniReferenceWindow:
         self._bool_fields.clear()
         self._combo_fields.clear()
         self._labels.clear()
+        self._section_frames.clear()
         self._instruments.clear()
         self._audio_panel.clear()
 
     def _build_body(self) -> None:
         if self.controller.state.guided_mode_enabled:
-            build_guided_section(self)
-        build_stage_section(self)
-        build_array_section(self)
-        build_source_section(self)
-        build_control_section(self)
-        build_room_section(self)
-        build_instruments_section(self)
-        build_audio_output_section(self)
-        build_replicator_section(self)
-        build_export_section(self)
-        self._labels["status"] = self.ui.Label(
-            self.controller.state.status_message,
-            word_wrap=True,
-        )
+            with self._section(
+                "Guided Workflow",
+                collapsed=_get_bool_setting(GUIDED_COLLAPSED_SETTING, False),
+                on_collapsed_changed=self._guided_collapsed_changed,
+            ):
+                build_guided_section(self)
+        with self._section("Live Monitor", collapsed=False):
+            build_live_monitor_section(self)
+        with self._section(
+            "Advanced Tools",
+            collapsed=True,
+            on_collapsed_changed=self._advanced_collapsed_changed,
+        ):
+            build_advanced_section(self)
+
+    def _guided_collapsed_changed(self, collapsed: bool) -> None:
+        _set_bool_setting(GUIDED_COLLAPSED_SETTING, collapsed)
+        if not collapsed:
+            self._set_section_collapsed("Advanced Tools", True)
+
+    def _advanced_collapsed_changed(self, collapsed: bool) -> None:
+        if not collapsed:
+            self._set_section_collapsed("Guided Workflow", True)
+
+    def _set_section_collapsed(self, title: str, collapsed: bool) -> None:
+        frame = self._section_frames.get(title)
+        if frame is None or not hasattr(frame, "collapsed"):
+            return
+        with suppress(Exception):
+            frame.collapsed = collapsed
 
     def refresh_labels(self) -> None:
         """Push current state summaries to visible labels."""
@@ -186,6 +205,22 @@ class OmniReferenceWindow:
             f"source={state.latest_source_prim_path or state.source_prim_path} | "
             f"pos={_optional_vec3_text(state.latest_source_position_m)}",
         )
+        self._set_label(
+            "live_status",
+            f"Sensor: {'Active' if state.sensor_running else 'Stopped'}  |  "
+            f"Backend: {state.latest_backend or state.backend}",
+        )
+        self._set_label(
+            "live_frame",
+            f"Last frame: {state.latest_frame_id or 'none'}  |  "
+            f"Detections: {state.latest_detection_count}",
+        )
+        self._set_label(
+            "live_waveform",
+            "Waveform: available"
+            if state.latest_waveform_paths
+            else "Waveform: none yet",
+        )
         room = state.latest_room_summary
         if room:
             self._set_label(
@@ -228,7 +263,39 @@ class OmniReferenceWindow:
             f"{state.replicator_status_message} | "
             f"latest={state.replicator_latest_write_path or 'none'}",
         )
-        self._set_label("status", state.status_message)
+        self._set_label(
+            "diagnostic",
+            state.error_message or "No active diagnostic error.",
+        )
+        status_text = state.status_message
+        if state.error_message:
+            headline = state.error_message.split(":", 1)[0].rstrip(".")
+            status_text = f"{headline}. Open Advanced Tools for details."
+        self._set_label("status", self._compact_status(status_text))
+        self._set_label(
+            "status_icon",
+            "ERROR"
+            if state.error_message
+            else ("ACTIVE" if state.sensor_running else "READY"),
+        )
+        status_icon = self._labels.get("status_icon")
+        if status_icon is not None:
+            with suppress(Exception):
+                status_icon.style = {
+                    "color": (
+                        0xFFEF6A61
+                        if state.error_message
+                        else (
+                            0xFF4FC18C if state.sensor_running else 0xFFE4B95B
+                        )
+                    )
+                }
+        sensor_button = self._instruments.get("sensor_button")
+        if sensor_button is not None:
+            _set_widget_text(
+                sensor_button,
+                "Stop Sensor" if state.sensor_running else "Start Sensor",
+            )
         guided_refresh = getattr(self, "_refresh_guided_section", None)
         if callable(guided_refresh):
             guided_refresh()
@@ -268,11 +335,18 @@ class OmniReferenceWindow:
             bar = row.get("bar")
             if bar is not None:
                 _set_model_value(bar.model, meter.fraction)
-        rows = timeline_rows(state.detection_history, max_rows=TIMELINE_MAX_ROWS)
+        rows = timeline_rows(state.detection_history, max_rows=3)
         for index, label in enumerate(self._instruments.get("timeline", ())):
             visible = index < len(rows)
             label.visible = visible
             _set_widget_text(label, rows[index].text if visible else "")
+        empty = self._instruments.get("empty")
+        if empty is not None:
+            empty.visible = not bool(state.latest_frame_id)
+            _set_widget_text(
+                empty,
+                "No sensor frame yet. Start the sensor to monitor audio.",
+            )
 
     def refresh_audio_panel(self) -> None:
         """Refresh the waveform/spectrogram preview for the latest WAV."""
@@ -353,13 +427,9 @@ class OmniReferenceWindow:
         for attr_name, widget in self._string_fields.items():
             _set_model_value(widget.model, getattr(state, attr_name))
         for attr_name, widget in self._float_fields.items():
-            _set_model_value(
-                widget.model, _format_edit_value(getattr(state, attr_name))
-            )
+            _set_model_value(widget.model, float(getattr(state, attr_name)))
         for attr_name, widget in self._int_fields.items():
-            _set_model_value(
-                widget.model, _format_edit_value(getattr(state, attr_name))
-            )
+            _set_model_value(widget.model, int(getattr(state, attr_name)))
         for attr_name, widget in self._bool_fields.items():
             _set_model_value(widget.model, getattr(state, attr_name))
         for attr_name, (widget, choices) in self._combo_fields.items():
@@ -367,15 +437,41 @@ class OmniReferenceWindow:
             if current in choices:
                 _set_combo_index(widget.model, choices.index(current))
 
+    @staticmethod
+    def _compact_status(message: str, limit: int = 150) -> str:
+        summary = " ".join(str(message).split())
+        return summary if len(summary) <= limit else summary[: limit - 1] + "…"
+
     @contextmanager
-    def _section(self, title: str) -> Any:
+    def _section(
+        self,
+        title: str,
+        *,
+        collapsed: bool = False,
+        on_collapsed_changed: Callable[[bool], None] | None = None,
+    ) -> Any:
         self._sections.append(title)
         frame_type = getattr(self.ui, "CollapsableFrame", None)
         if frame_type is None:
             with self.ui.VStack(spacing=4) as stack:
                 yield stack
             return
-        frame = frame_type(title, collapsed=False, height=0)
+        frame = frame_type(title, collapsed=collapsed, height=0)
+        self._section_frames[title] = frame
+        setter = getattr(frame, "set_collapsed_changed_fn", None)
+        if callable(setter) and on_collapsed_changed is not None:
+            setter(on_collapsed_changed)
+        with frame, self.ui.VStack(spacing=4, height=0) as stack:
+            yield stack
+
+    @contextmanager
+    def _subsection(self, title: str, *, collapsed: bool = True) -> Any:
+        frame_type = getattr(self.ui, "CollapsableFrame", None)
+        if frame_type is None:
+            with self.ui.VStack(spacing=4, height=0) as stack:
+                yield stack
+            return
+        frame = frame_type(title, collapsed=collapsed, height=0)
         with frame, self.ui.VStack(spacing=4, height=0) as stack:
             yield stack
 
@@ -408,14 +504,14 @@ class OmniReferenceWindow:
             self.ui.Label(label, width=120)
             model = _new_simple_model(
                 self.ui,
-                "string",
-                _format_edit_value(getattr(self.controller.state, attr_name)),
+                "float",
+                float(getattr(self.controller.state, attr_name)),
             )
-            widget = self.ui.StringField(
+            widget_type = getattr(self.ui, "FloatDrag", self.ui.StringField)
+            widget = widget_type(
                 model=model,
                 width=_ui_fraction(self.ui, 1),
                 height=0,
-                read_only=False,
             )
             self._bind_model_change(
                 widget.model,
@@ -431,14 +527,14 @@ class OmniReferenceWindow:
             self.ui.Label(label, width=120)
             model = _new_simple_model(
                 self.ui,
-                "string",
-                _format_edit_value(getattr(self.controller.state, attr_name)),
+                "int",
+                int(getattr(self.controller.state, attr_name)),
             )
-            widget = self.ui.StringField(
+            widget_type = getattr(self.ui, "IntDrag", self.ui.StringField)
+            widget = widget_type(
                 model=model,
                 width=_ui_fraction(self.ui, 1),
                 height=0,
-                read_only=False,
             )
             self._bind_model_change(
                 widget.model,
@@ -492,9 +588,24 @@ class OmniReferenceWindow:
                     widget.model.add_value_changed_fn(_on_changed)
                 )
 
-    def _button(self, label: str, callback: Callable[..., Any]) -> Any:
+    def _button(
+        self,
+        label: str,
+        callback: Callable[..., Any],
+        *,
+        kind: str = "secondary",
+    ) -> Any:
         self._buttons.append(label)
-        return self.ui.Button(label, clicked_fn=self._action(callback))
+        colors = {
+            "primary": 0xFF2E78D2,
+            "danger": 0xFFB8473D,
+            "secondary": 0xFF3D4652,
+        }
+        return self.ui.Button(
+            label,
+            clicked_fn=self._action(callback),
+            style={"Button": {"background_color": colors[kind]}},
+        )
 
     def _action(self, callback: Callable[..., Any]) -> Callable[[], None]:
         def _wrapped() -> None:

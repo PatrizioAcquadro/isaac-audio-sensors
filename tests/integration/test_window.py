@@ -1,6 +1,143 @@
 # ruff: noqa: F403, F405
 
+from isaac_audio_sensors.kit.constants import GUIDED_COLLAPSED_SETTING
+from isaac_audio_sensors.kit.workflow import GuidedStage
+
 from ._kit_ui_support import *
+
+
+def test_top_level_accordions_persist_guided_and_keep_status_fixed(monkeypatch):
+    env = _install_fake_kit_integrations(monkeypatch)
+    controller = ExtensionController()
+
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    guided = window._section_frames["Guided Workflow"]
+    live = window._section_frames["Live Monitor"]
+    advanced = window._section_frames["Advanced Tools"]
+    assert guided.collapsed is False
+    assert live.collapsed is False
+    assert advanced.collapsed is True
+
+    advanced.collapsed = False
+    assert guided.collapsed is True
+    assert env.settings.get(GUIDED_COLLAPSED_SETTING) is True
+
+    status_parent = window._labels["status"].parent
+    while status_parent is not None:
+        assert status_parent.kind != "ScrollingFrame"
+        status_parent = status_parent.parent
+
+    second = ExtensionController()
+    assert second.build_ui_if_available() is not None
+    second_window = second._lifecycle._ui_window
+    assert second_window is not None
+    second_guided = second_window._section_frames["Guided Workflow"]
+    second_advanced = second_window._section_frames["Advanced Tools"]
+    assert second_guided.collapsed is True
+
+    second_guided.collapsed = False
+    assert second_advanced.collapsed is True
+    assert env.settings.get(GUIDED_COLLAPSED_SETTING) is False
+
+
+def test_guided_setting_fallback_and_disabled_mode(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    broken_settings = ModuleType("carb.settings")
+    broken_settings.get_settings = lambda: (_ for _ in ()).throw(RuntimeError())
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    monkeypatch.setitem(sys.modules, "carb.settings", broken_settings)
+
+    controller = ExtensionController()
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    assert window._section_frames["Guided Workflow"].collapsed is False
+
+    hidden = ExtensionController()
+    hidden.state.guided_mode_enabled = False
+    assert hidden.build_ui_if_available() is not None
+    hidden_window = hidden._lifecycle._ui_window
+    assert hidden_window is not None
+    assert hidden_window._sections == ["Live Monitor", "Advanced Tools"]
+    assert "Guided Workflow" not in hidden_window._section_frames
+
+
+def test_compact_selection_controls_dispatch_existing_controller_actions(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    controller = ExtensionController()
+    calls = []
+    monkeypatch.setattr(
+        controller,
+        "use_selected_as_object",
+        lambda: calls.append("object"),
+    )
+    monkeypatch.setattr(
+        controller,
+        "apply_source_position_preset",
+        lambda preset: calls.append(preset),
+    )
+
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    window._stage_binding_combo.model.set_value(2)
+    bind_button = next(
+        widget
+        for widget in omni_ui.created
+        if widget.kind == "Button" and widget.text == "Bind Selected"
+    )
+    bind_button.kwargs["clicked_fn"]()
+    window._position_preset_combo.model.set_value(3)
+    preset_button = next(
+        widget
+        for widget in omni_ui.created
+        if widget.kind == "Button" and widget.text == "Apply Position Preset"
+    )
+    preset_button.kwargs["clicked_fn"]()
+
+    assert calls == ["object", "behind"]
+
+
+def test_live_sensor_button_reuses_guided_run_lifecycle(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    controller = ExtensionController()
+    calls = []
+    controller.guided_workflow.current_stage = GuidedStage.RUN
+
+    def _start():
+        calls.append("start")
+        controller.state.sensor_running = True
+
+    def _stop():
+        calls.append("stop")
+        controller.state.sensor_running = False
+
+    monkeypatch.setattr(controller, "guided_start_run", _start)
+    monkeypatch.setattr(controller, "guided_stop_run", _stop)
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    button = window._instruments["sensor_button"]
+
+    button.kwargs["clicked_fn"]()
+    assert button.text == "Stop Sensor"
+    button.kwargs["clicked_fn"]()
+
+    assert calls == ["start", "stop"]
+    assert button.text == "Start Sensor"
 
 
 def test_live_ux_screenshot_uses_viewport_utility_capture(monkeypatch, tmp_path):
@@ -166,6 +303,8 @@ def test_kit_builds_against_fake_omni_ui(monkeypatch):
         "backend",
         "layout_name",
         "room_out_of_bounds",
+        "selected_profile_id",
+        "selected_rig_profile_id",
         "waveform_mode",
     }
     assert set(controller._lifecycle._ui_window._int_fields) == {
@@ -213,27 +352,21 @@ def test_kit_builds_against_fake_omni_ui(monkeypatch):
     assert "array_prim_path" in controller._lifecycle._ui_window._string_fields
     assert "source_prim_path" in controller._lifecycle._ui_window._string_fields
     assert "source_directivity" in controller._lifecycle._ui_window._string_fields
-    assert "selected_profile_id" in controller._lifecycle._ui_window._string_fields
-    assert "selected_rig_profile_id" in controller._lifecycle._ui_window._string_fields
+    assert "selected_profile_id" in controller._lifecycle._ui_window._combo_fields
+    assert "selected_rig_profile_id" in controller._lifecycle._ui_window._combo_fields
     assert "object_prim_path" in controller._lifecycle._ui_window._string_fields
     assert "latest_frame_export_path" in controller._lifecycle._ui_window._string_fields
     assert {
         widget.kind
         for widget in controller._lifecycle._ui_window._float_fields.values()
-    } == {"StringField"}
+    } == {"FloatDrag"}
     assert {
         widget.kind for widget in controller._lifecycle._ui_window._int_fields.values()
-    } == {"StringField"}
+    } == {"IntDrag"}
     assert controller._lifecycle._ui_window._sections == [
-        "Stage",
-        "Author Array",
-        "Author Source",
-        "Sensor",
-        "Room",
-        "Instruments",
-        "Audio Output",
-        "Replicator",
-        "Export",
+        "Guided Workflow",
+        "Live Monitor",
+        "Advanced Tools",
     ]
 
     scrolling_frames = [
@@ -244,15 +377,17 @@ def test_kit_builds_against_fake_omni_ui(monkeypatch):
         widget for widget in omni_ui.created if widget.kind == "CollapsableFrame"
     ]
     assert [widget.text for widget in collapsable_frames] == [
-        "Stage",
-        "Author Array",
-        "Author Source",
-        "Sensor",
-        "Room",
-        "Instruments",
+        "Guided Workflow",
+        "Live Monitor",
+        "Advanced Tools",
+        "Stage & Selection",
+        "Microphone Array",
+        "Audio Source",
+        "Sensor Settings & Debug",
+        "Room Acoustics",
         "Audio Output",
         "Replicator",
-        "Export",
+        "Export & Config",
     ]
     for frame in collapsable_frames:
         assert [child.kind for child in frame.children] == ["VStack"]
@@ -261,15 +396,11 @@ def test_kit_builds_against_fake_omni_ui(monkeypatch):
         widget.text for widget in omni_ui.created if widget.kind == "Button"
     }
     assert {
-        "Refresh",
-        "Use Array",
-        "Use Source",
-        "Use Object",
-        "Use Base",
+        "Refresh Selection",
+        "Bind Selected",
         "Create Demo Object",
-        "Discover",
+        "Discover Sensors",
         "Create/Attach Array",
-        "Select Rig Profile",
         "Apply Rig Profile",
         "Read Array Transform",
         "Apply Array Pose",
@@ -277,59 +408,36 @@ def test_kit_builds_against_fake_omni_ui(monkeypatch):
         "Detach Array",
         "Read Selected Transform",
         "Apply Position",
-        "Select Profile",
         "Auto From Object",
         "Apply Profile",
-        "Front",
-        "Right",
-        "Left",
-        "Behind",
+        "Apply Position Preset",
         "Create/Attach Source",
         "Attach Source To Object",
         "Detach Source",
-        "Start",
-        "Stop",
-        "Update",
-        "Flush",
-        "Export Latest",
+        "Start Sensor",
+        "Capture Once",
+        "Start Replicator",
+        "Flush Replicator",
+        "Stop Replicator",
+        "Export Latest Frame",
         "Export Config",
         "Load Config",
     } <= button_labels
+    assert button_labels == set(controller._lifecycle._ui_window._buttons)
     assert {
-        "Refresh",
         "Use Array",
         "Use Source",
         "Use Object",
         "Use Base",
-        "Create Demo Object",
-        "Discover",
-        "Create/Attach Array",
         "Select Rig Profile",
-        "Apply Rig Profile",
-        "Read Array Transform",
-        "Apply Array Pose",
-        "Attach Array To Object",
-        "Detach Array",
-        "Read Selected Transform",
-        "Apply Position",
         "Select Profile",
-        "Auto From Object",
-        "Apply Profile",
         "Front",
         "Right",
         "Left",
         "Behind",
-        "Create/Attach Source",
-        "Attach Source To Object",
-        "Detach Source",
-        "Start",
-        "Stop",
-        "Update",
-        "Flush",
-        "Export Latest",
-        "Export Config",
-        "Load Config",
-    } <= set(controller._lifecycle._ui_window._buttons)
+        "Start Guided Run",
+        "Stop Guided Run",
+    }.isdisjoint(button_labels)
 
 
 def test_kit_instruments_show_compass_meters_and_timeline(monkeypatch):
@@ -410,6 +518,61 @@ def test_kit_instruments_show_compass_meters_and_timeline(monkeypatch):
     assert "clear" in timeline[0]
 
 
+@pytest.mark.parametrize(
+    ("mic_count", "detection_count"),
+    [(0, 0), (4, 3), (8, 5)],
+)
+def test_live_monitor_bounds_meters_and_recent_detections(
+    monkeypatch,
+    mic_count,
+    detection_count,
+):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+    controller = ExtensionController()
+    if mic_count:
+        controller.state.latest_frame_id = "frame_live"
+        controller.state.latest_aggregate_rms = {
+            f"mic_{index}": 0.1 + index * 0.01 for index in range(mic_count)
+        }
+    controller.state.detection_history = [
+        {
+            "frame_id": f"frame_{index}",
+            "timestamp_ms": index * 10,
+            "source_id": f"source_{index}",
+            "class_label": "speech",
+            "bearing_deg": float(index),
+            "sector": "front",
+            "occluded": False,
+        }
+        for index in range(detection_count)
+    ]
+    controller.state.latest_detection_count = detection_count
+
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    window.refresh_labels()
+
+    visible_meters = [
+        row for row in window._instruments["meters"] if row["row"].visible
+    ]
+    assert len(visible_meters) == mic_count
+    visible_detections = [
+        row for row in window._instruments["timeline"] if row.visible
+    ]
+    assert len(visible_detections) == min(detection_count, 3)
+    assert window._instruments["empty"].visible is (mic_count == 0)
+    assert window._instruments["sensor_button"].text == "Start Sensor"
+    controller.state.sensor_running = True
+    window.refresh_labels()
+    assert window._instruments["sensor_button"].text == "Stop Sensor"
+    assert "Active" in window._labels["live_status"].text
+
+
 def test_kit_audio_panel_renders_waveform_preview(monkeypatch, tmp_path):
     omni = ModuleType("omni")
     omni_ui = _FakeUI()
@@ -476,6 +639,10 @@ def test_kit_invalid_numeric_input_is_readable(monkeypatch):
     assert called is False
     assert controller.state.error_message is not None
     assert "UI input failed" in controller.state.error_message
+    assert window._labels["status"].text == (
+        "UI input failed. Open Advanced Tools for details."
+    )
+    assert "not-a-number" in window._labels["diagnostic"].text
 
 
 def test_extension_controller_reports_visible_errors_without_raising():
