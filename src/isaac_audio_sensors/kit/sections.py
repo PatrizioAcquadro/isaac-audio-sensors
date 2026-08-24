@@ -63,6 +63,12 @@ _GUIDED_STEP_STYLES = {
 }
 
 
+def _alignment(ui: Any, name: str) -> Any:
+    """Return an omni.ui alignment while keeping lightweight UI fakes usable."""
+
+    return getattr(getattr(ui, "Alignment", None), name, name.lower())
+
+
 def _guided_prompt(window: OmniReferenceWindow, stage: GuidedStage) -> str:
     workflow = window.controller.guided_workflow
     status = workflow.status(stage)
@@ -124,6 +130,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                     step_labels[stage] = ui.Label(
                         f"{index} {stage.value.title()}",
                         height=24,
+                        alignment=_alignment(ui, "CENTER"),
                         tooltip=stage.value.title(),
                     )
                 step_frames[stage] = background
@@ -848,11 +855,20 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
             with ui.VStack(spacing=3, height=0):
                 ui.Label("Per-mic RMS (dBFS)")
                 with ui.HStack(spacing=4, height=0):
-                    ui.Spacer(width=72)
+                    ui.Spacer(width=48)
                     with ui.HStack(spacing=0, height=0):
-                        ui.Label("-60", width=_ui_fraction(ui, 1))
-                        ui.Label("0", width=28)
-                    ui.Spacer(width=72)
+                        meter_min_label = ui.Label(
+                            "-60",
+                            width=48,
+                            alignment=_alignment(ui, "CENTER"),
+                        )
+                        ui.Spacer(width=_ui_fraction(ui, 1))
+                        meter_max_label = ui.Label(
+                            "0",
+                            width=48,
+                            alignment=_alignment(ui, "CENTER"),
+                        )
+                    ui.Spacer(width=48)
                 meter_rows: list[dict[str, object]] = []
                 for _ in range(METER_MAX_ROWS):
                     with ui.HStack(spacing=4, height=0) as meter_row:
@@ -900,6 +916,8 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
     window._instruments = {
         "compass": compass_image,
         "compass_provider": provider,
+        "meter_min_label": meter_min_label,
+        "meter_max_label": meter_max_label,
         "meters": meter_rows,
         "timeline": timeline_labels,
         "timeline_container": timeline_container,

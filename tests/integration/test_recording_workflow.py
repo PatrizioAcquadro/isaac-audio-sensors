@@ -368,6 +368,9 @@ def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
     step_frames = window._guided_panel["step_frames"]
     assert step_frames[GuidedStage.SETUP].style["border_width"] == 2
     assert step_labels[GuidedStage.SETUP].style["color"] == 0xFFF4E3D5
+    assert all(
+        label.kwargs["alignment"] == "center" for label in step_labels.values()
+    )
     assert window._guided_panel["stage_status"].text == (
         "Apply a safe preset to continue."
     )

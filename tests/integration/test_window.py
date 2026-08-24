@@ -510,6 +510,12 @@ def test_kit_instruments_show_compass_meters_and_timeline(monkeypatch):
     assert fractions[0] == max(fractions)
     assert all(row["value"].text.endswith(" dB") for row in visible_meters)
     assert all("%" not in row["value"].text for row in visible_meters)
+    assert window._instruments["meter_min_label"].text == "-60"
+    assert window._instruments["meter_min_label"].kwargs["alignment"] == "center"
+    assert window._instruments["meter_min_label"].kwargs["width"] == 48
+    assert window._instruments["meter_max_label"].text == "0"
+    assert window._instruments["meter_max_label"].kwargs["alignment"] == "center"
+    assert window._instruments["meter_max_label"].kwargs["width"] == 48
     hidden_meters = [
         row for row in window._instruments["meters"] if not row["row"].visible
     ]
