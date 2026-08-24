@@ -376,10 +376,12 @@ def _style_demo_object_prim(
 
 def _is_audio_metadata_prim(type_name: str, attrs: Mapping[str, Any]) -> bool:
     if type_name in {
+        "OmniSound",
         "Sound",
         "AudioSource",
         "OmniAudioSource",
         "Microphone",
+        "OmniListener",
         "Listener",
     }:
         return True

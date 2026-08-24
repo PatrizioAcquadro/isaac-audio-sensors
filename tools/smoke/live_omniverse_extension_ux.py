@@ -1777,10 +1777,18 @@ def _source_profile_state(
         "gain_db": state.source_gain_db,
         "directivity": state.source_directivity,
         "source_attached_to_object": state.source_attached_to_object,
+        "prim_type": None if prim is None else _prim_type_name(prim),
+        "file_path_authored": (
+            False if prim is None else _prim_attr_is_authored(prim, "filePath")
+        ),
         "authored_attrs": {
             key: _jsonable_value(attrs.get(key))
             for key in (
-                "filePath",
+                "auralMode",
+                "loopCount",
+                "startTime",
+                "endTime",
+                "gain",
                 "ias:source_id",
                 "ias:class_label",
                 "ias:audio_asset_path",
@@ -1792,7 +1800,7 @@ def _source_profile_state(
                 "ias:attached_object_prim_path",
                 "ias:source_local_offset_m",
             )
-            if key in attrs
+            if key in attrs and _prim_attr_is_authored(prim, key)
         },
         "status_message": state.status_message,
         "error_message": state.error_message,
@@ -2344,6 +2352,17 @@ def _prim_attrs(prim: Any) -> dict[str, Any]:
                 with suppress(Exception):
                     attrs[str(attr.GetName())] = attr.Get()
     return attrs
+
+
+def _prim_attr_is_authored(prim: Any, name: str) -> bool:
+    if hasattr(prim, "attributes"):
+        return name in prim.attributes
+    get_attribute = getattr(prim, "GetAttribute", None)
+    if not callable(get_attribute):
+        return False
+    attr = get_attribute(name)
+    has_authored_value = getattr(attr, "HasAuthoredValueOpinion", None)
+    return bool(callable(has_authored_value) and has_authored_value())
 
 
 def _jsonable_value(value: Any) -> Any:
@@ -3188,7 +3207,11 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
         )
     authored_attrs = profile_application.get("authored_attrs", {})
     for attr_name in (
-        "filePath",
+        "auralMode",
+        "loopCount",
+        "startTime",
+        "endTime",
+        "gain",
         "ias:source_id",
         "ias:class_label",
         "ias:audio_asset_path",
@@ -3202,6 +3225,16 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
                 f"{name} profile apply did not author {attr_name}: "
                 f"{profile_application}"
             )
+    if profile_application.get("prim_type") != "OmniSound":
+        raise RuntimeError(
+            f"{name} profile apply did not migrate to OmniSound: "
+            f"{profile_application}"
+        )
+    if profile_application.get("file_path_authored") is not False:
+        raise RuntimeError(
+            f"{name} generated audio unexpectedly authored filePath: "
+            f"{profile_application}"
+        )
     object_move = result.get("object_move_changed_frame", {})
     if object_move.get("status") != "passed":
         raise RuntimeError(f"{name} parent move did not change frame: {object_move}")

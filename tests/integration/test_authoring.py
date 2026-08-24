@@ -167,7 +167,8 @@ def test_extension_controller_manual_profile_apply_authors_source_metadata():
     assert controller.state.source_gain_db == -2.0
     source = stage.GetPrimAtPath("/World/Sources/SinkSpeaker")
     assert source is not None
-    assert source.attributes["filePath"] == "generated://pulse"
+    assert source.type_name == "OmniSound"
+    assert "filePath" not in source.attributes
     assert source.attributes["ias:source_id"] == "sink_source"
     assert source.attributes["ias:class_label"] == "Water"
     assert source.attributes["ias:audio_asset_path"] == "generated://pulse"
@@ -263,7 +264,8 @@ def test_extension_controller_profile_apply_preserves_attachment_and_frame_metad
     assert controller.state.source_id == "oven_source"
     source = stage.GetPrimAtPath("/World/Oven/SpeakerA")
     assert source is not None
-    assert source.attributes["filePath"] == "generated://pulse"
+    assert source.type_name == "OmniSound"
+    assert "filePath" not in source.attributes
     assert source.attributes["ias:source_id"] == "oven_source"
     assert source.attributes["ias:class_label"] == "Appliance"
     assert source.attributes["ias:audio_asset_path"] == "generated://pulse"

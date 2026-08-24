@@ -658,7 +658,7 @@ class AuthoringService(ControllerService):
                 stage_obj,
                 source_path=state.source_prim_path,
                 dest_path=attached_path,
-                prim_type="Sound",
+                prim_type="OmniSound",
             )
             state.source_prim_path = attached_path
             record = create_sound_prim(
@@ -668,6 +668,7 @@ class AuthoringService(ControllerService):
                 spatial=True,
                 loop=False,
                 start_time_s=state.source_start_time_s,
+                duration_s=state.source_duration_s,
                 gain_db=state.source_gain_db,
             )
             prim = get_or_define_prim(
@@ -758,7 +759,7 @@ class AuthoringService(ControllerService):
                 stage_obj,
                 source_path=source_path,
                 dest_path=standalone_path,
-                prim_type="Sound",
+                prim_type="OmniSound",
             )
             state.source_prim_path = standalone_path
             record = create_sound_prim(
@@ -768,6 +769,7 @@ class AuthoringService(ControllerService):
                 spatial=True,
                 loop=False,
                 start_time_s=state.source_start_time_s,
+                duration_s=state.source_duration_s,
                 gain_db=state.source_gain_db,
             )
             prim = get_or_define_prim(
@@ -982,6 +984,7 @@ class AuthoringService(ControllerService):
             spatial=True,
             loop=False,
             start_time_s=state.source_start_time_s,
+            duration_s=state.source_duration_s,
             gain_db=state.source_gain_db,
         )
         prim = get_or_define_prim(
@@ -1052,6 +1055,7 @@ class AuthoringService(ControllerService):
             spatial=True,
             loop=False,
             start_time_s=state.source_start_time_s,
+            duration_s=state.source_duration_s,
             gain_db=state.source_gain_db,
         )
         prim = get_or_define_prim(

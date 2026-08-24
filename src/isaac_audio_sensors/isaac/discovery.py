@@ -5,7 +5,7 @@ from __future__ import annotations
 import fnmatch
 import math
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -40,6 +40,10 @@ from isaac_audio_sensors.isaac.pose_resolver import (
 from isaac_audio_sensors.isaac.pose_resolver import (
     stage_id as resolve_stage_id,
 )
+from isaac_audio_sensors.isaac.stage_audio import (
+    _linear_gain_to_db,
+    _time_code_to_seconds,
+)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -71,6 +75,7 @@ class IsaacAudioDiscoveryCfg:
         "*AudioSource*",
     )
     source_type_names: tuple[str, ...] = (
+        "OmniSound",
         "Sound",
         "AudioSource",
         "OmniAudioSource",
@@ -150,6 +155,12 @@ class IsaacAudioDiscoveryCfg:
             or self.default_source_duration_s <= 0.0
         ):
             raise ValueError("default_source_duration_s must be positive.")
+        if set(self.metadata_precedence) != {"ias", "usd", "defaults"} or len(
+            self.metadata_precedence
+        ) != 3:
+            raise ValueError(
+                "metadata_precedence must contain ias, usd, and defaults exactly once."
+            )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -181,6 +192,7 @@ class IsaacAudioSceneBindingCfg:
         "*AudioSource*",
     )
     source_type_names: tuple[str, ...] = (
+        "OmniSound",
         "Sound",
         "AudioSource",
         "OmniAudioSource",
@@ -611,36 +623,84 @@ def _source_spec_from_prim(
     attrs = resolver.attrs(prim)
     path = prim_path(prim)
     pose = resolver.resolve_world_pose(prim, field_name=path)
-    source_id = str(attrs.get("ias:source_id", _path_name(path)))
+    source_id_value, source_id_provenance = _metadata_value(
+        cfg,
+        ias=_attr_candidate(attrs, "ias:source_id"),
+        defaults=(_path_name(path), "default"),
+    )
+    source_id = str(source_id_value)
     override_label = _class_label_override(cfg, source_id=source_id, prim_path=path)
-    class_label = override_label or str(
-        attrs.get("ias:class_label", cfg.default_class_label)
-    )
-    class_label_provenance = (
-        "override"
-        if override_label is not None
-        else ("ias:class_label" if "ias:class_label" in attrs else "default")
-    )
-    audio_asset_path = _asset_path(
-        _first_present(
-            attrs,
-            ("filePath", "inputs:file", "inputs:audio", "ias:audio_asset_path"),
-            default=None,
+    if override_label is not None:
+        class_label = override_label
+        class_label_provenance = "override"
+    else:
+        class_label_value, class_label_provenance = _metadata_value(
+            cfg,
+            ias=_attr_candidate(attrs, "ias:class_label"),
+            defaults=(cfg.default_class_label, "default"),
         )
+        class_label = str(class_label_value)
+
+    audio_asset_value, audio_asset_provenance = _metadata_value(
+        cfg,
+        ias=_asset_candidate(attrs, ("ias:audio_asset_path",)),
+        usd=_asset_candidate(attrs, ("filePath", "inputs:file", "inputs:audio")),
+        defaults=(None, "default"),
+    )
+    audio_asset_path = _asset_path(audio_asset_value)
+    start_value, start_provenance = _metadata_value(
+        cfg,
+        ias=lambda: _float_candidate(attrs, "ias:start_time_s"),
+        usd=lambda: _time_code_candidate(
+            attrs, "startTime", stage=resolver.stage
+        ),
+        defaults=(float(cfg.default_source_start_time_s), "default"),
+    )
+    start_time_s = float(start_value)
+    if start_provenance == "startTime" and start_time_s < 0.0:
+        raise ValueError(
+            "Native Kit Audio startTime is negative, so the source is disabled."
+        )
+
+    duration_value, duration_provenance = _metadata_value(
+        cfg,
+        ias=lambda: _float_candidate(attrs, "ias:duration_s"),
+        usd=lambda: _native_duration_candidate(
+            attrs,
+            stage=resolver.stage,
+            selected_start_time_s=start_time_s,
+        ),
+        defaults=(cfg.default_source_duration_s, "default"),
+    )
+    duration_s = None if duration_value is None else float(duration_value)
+
+    gain_value, gain_provenance = _metadata_value(
+        cfg,
+        ias=lambda: _float_candidate(attrs, "ias:gain_db"),
+        usd=lambda: _linear_gain_candidate(attrs),
+        defaults=(0.0, "default"),
+    )
+    gain_db = float(gain_value)
+    directivity_value, directivity_provenance = _metadata_value(
+        cfg,
+        ias=_attr_candidate(attrs, "ias:directivity"),
+        defaults=("omni", "default"),
     )
     source_diagnostics = {
         "prim_path": path,
         "source_id": source_id,
+        "source_id_provenance": source_id_provenance,
         "reasons": reasons,
         "transform": _pose_diagnostics(pose),
         "class_label_provenance": class_label_provenance,
         "audio_asset_path": audio_asset_path,
+        "audio_asset_path_provenance": audio_asset_provenance,
         "active_window_provenance": {
-            "start_time_s": _first_present_key(attrs, ("ias:start_time_s", "startTime"))
-            or "default",
-            "duration_s": _first_present_key(attrs, ("ias:duration_s", "duration"))
-            or "default",
+            "start_time_s": start_provenance,
+            "duration_s": duration_provenance,
         },
+        "gain_db_provenance": gain_provenance,
+        "directivity_provenance": directivity_provenance,
     }
     diagnostics["source_transforms"][path] = _pose_diagnostics(pose)
     diagnostics["source_candidates"][path] = source_diagnostics
@@ -652,18 +712,10 @@ def _source_spec_from_prim(
             audio_asset_path=audio_asset_path,
             position_world=pose.position_world,
             orientation_world_quat=pose.orientation_world_quat,
-            start_time_s=_float_attr(
-                attrs,
-                ("ias:start_time_s", "startTime"),
-                default=float(cfg.default_source_start_time_s),
-            ),
-            duration_s=_optional_float_attr(
-                attrs,
-                ("ias:duration_s", "duration"),
-                default=cfg.default_source_duration_s,
-            ),
-            gain_db=_float_attr(attrs, ("ias:gain_db", "gain"), default=0.0),
-            directivity=str(attrs.get("ias:directivity", "omni")),
+            start_time_s=start_time_s,
+            duration_s=duration_s,
+            gain_db=gain_db,
+            directivity=str(directivity_value),
         ),
         source_diagnostics,
     )
@@ -822,7 +874,7 @@ def _array_reasons(
     attrs = resolver.attrs(prim)
     path = prim_path(prim)
     type_name = prim_type_name(prim)
-    if not explicit and type_name.lower() == "listener":
+    if not explicit and type_name.lower() in {"listener", "omnilistener"}:
         return ()
     reasons: list[str] = []
     if explicit:
@@ -855,6 +907,8 @@ def _source_reasons(
     attrs = resolver.attrs(prim)
     path = prim_path(prim)
     type_name = prim_type_name(prim)
+    if type_name.lower() in {"listener", "omnilistener"}:
+        return ()
     reasons: list[str] = []
     if explicit:
         reasons.append("explicit_source_prim_path")
@@ -1102,6 +1156,106 @@ def _first_present(
     return default
 
 
+_MISSING = object()
+
+
+def _metadata_value(
+    cfg: IsaacAudioDiscoveryCfg,
+    *,
+    ias: tuple[Any, str] | Callable[[], object] | object = _MISSING,
+    usd: tuple[Any, str] | Callable[[], object] | object = _MISSING,
+    defaults: tuple[Any, str] | Callable[[], object] | object = _MISSING,
+) -> tuple[Any, str]:
+    candidates = {"ias": ias, "usd": usd, "defaults": defaults}
+    for source in cfg.metadata_precedence:
+        candidate = candidates[source]
+        if callable(candidate):
+            candidate = candidate()
+        if candidate is not _MISSING:
+            return candidate  # type: ignore[return-value]
+    raise ValueError("No metadata value or default is available.")
+
+
+def _attr_candidate(
+    attrs: Mapping[str, Any],
+    key: str,
+) -> tuple[Any, str] | object:
+    if key not in attrs or attrs[key] is None:
+        return _MISSING
+    return attrs[key], key
+
+
+def _float_candidate(
+    attrs: Mapping[str, Any],
+    key: str,
+) -> tuple[float, str] | object:
+    candidate = _attr_candidate(attrs, key)
+    if candidate is _MISSING:
+        return _MISSING
+    value, provenance = candidate
+    resolved = float(value)
+    if not math.isfinite(resolved):
+        raise ValueError(f"{key} must be finite.")
+    return resolved, provenance
+
+
+def _asset_candidate(
+    attrs: Mapping[str, Any],
+    keys: tuple[str, ...],
+) -> tuple[Any, str] | object:
+    for key in keys:
+        candidate = _attr_candidate(attrs, key)
+        if candidate is _MISSING:
+            continue
+        value, provenance = candidate
+        if _asset_path(value):
+            return value, provenance
+    return _MISSING
+
+
+def _time_code_candidate(
+    attrs: Mapping[str, Any],
+    key: str,
+    *,
+    stage: Any,
+) -> tuple[float, str] | object:
+    candidate = _attr_candidate(attrs, key)
+    if candidate is _MISSING:
+        return _MISSING
+    value, provenance = candidate
+    return _time_code_to_seconds(stage, value), provenance
+
+
+def _native_duration_candidate(
+    attrs: Mapping[str, Any],
+    *,
+    stage: Any,
+    selected_start_time_s: float,
+) -> tuple[float | None, str] | object:
+    end_candidate = _time_code_candidate(attrs, "endTime", stage=stage)
+    if end_candidate is not _MISSING:
+        end_time_s, _provenance = end_candidate
+        if end_time_s < 0.0:
+            return None, "endTime"
+        duration_s = end_time_s - selected_start_time_s
+        if duration_s <= 0.0:
+            raise ValueError(
+                "Native Kit Audio endTime must be later than the selected start time."
+            )
+        return duration_s, "endTime"
+    return _float_candidate(attrs, "duration")
+
+
+def _linear_gain_candidate(
+    attrs: Mapping[str, Any],
+) -> tuple[float, str] | object:
+    candidate = _attr_candidate(attrs, "gain")
+    if candidate is _MISSING:
+        return _MISSING
+    value, provenance = candidate
+    return _linear_gain_to_db(value), provenance
+
+
 def _first_present_key(attrs: Mapping[str, Any], keys: tuple[str, ...]) -> str | None:
     for key in keys:
         if key in attrs and attrs[key] is not None:
@@ -1127,7 +1281,8 @@ def _asset_path(value: Any) -> str | None:
     if value is None:
         return None
     path = getattr(value, "path", None)
-    return str(path if path is not None else value)
+    resolved = str(path if path is not None else value)
+    return resolved if resolved else None
 
 
 def _float_attr(

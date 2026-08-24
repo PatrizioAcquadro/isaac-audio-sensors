@@ -24,6 +24,7 @@ python = ["cp312"]
 "omni.kit.menu.utils" = {}
 "omni.ui" = {}
 "omni.usd" = {}
+"omni.usd.schema.audio" = {}
 "omni.kit.hotkeys.core" = { optional = true }
 "omni.replicator.core" = { optional = true }
 "omni.graph.core" = { optional = true }

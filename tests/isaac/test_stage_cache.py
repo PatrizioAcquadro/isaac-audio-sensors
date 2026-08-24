@@ -384,6 +384,7 @@ def test_discovery_relevant_property_predicate():
     assert _discovery_relevant_property("/World/X.ias:gain_db") is True
     assert _discovery_relevant_property("/World/X.filePath") is True
     assert _discovery_relevant_property("/World/X.startTime") is True
+    assert _discovery_relevant_property("/World/X.endTime") is True
     assert _discovery_relevant_property("/World/X.xformOp:translate") is False
     assert _discovery_relevant_property("/World/X.visibility") is False
     assert _discovery_relevant_property("/World/X") is False

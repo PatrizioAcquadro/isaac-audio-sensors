@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
@@ -39,6 +40,7 @@ def create_sound_prim(
     spatial: bool = True,
     loop: bool = False,
     start_time_s: float = 0.0,
+    duration_s: float | None = None,
     gain_db: float = 0.0,
 ) -> AuthoredPrimRecord:
     """Create or configure a USD sound prim using duck-typed stage APIs.
@@ -54,22 +56,49 @@ def create_sound_prim(
         raise ValueError("prim_path must be non-empty.")
     if audio_asset_path.strip() == "":
         raise ValueError("audio_asset_path must be non-empty.")
-    prim = get_or_define_prim(stage, prim_path=prim_path, prim_type="Sound")
-    _set_attr(prim, "filePath", audio_asset_path)
-    _set_attr(prim, "spatial", bool(spatial))
-    _set_attr(prim, "loop", bool(loop))
-    _set_attr(prim, "startTime", float(start_time_s))
-    _set_attr(prim, "gain", float(gain_db))
+    start_s = _finite_float(start_time_s, "start_time_s")
+    if start_s < 0.0:
+        raise ValueError("start_time_s must be non-negative for Kit Audio.")
+    duration = None
+    if duration_s is not None:
+        duration = _finite_float(duration_s, "duration_s")
+        if duration <= 0.0:
+            raise ValueError("duration_s must be positive when provided.")
+    resolved_gain_db = _finite_float(gain_db, "gain_db")
+    linear_gain = _db_to_linear_gain(resolved_gain_db)
+    time_codes_per_second = _stage_time_codes_per_second(stage)
+    start_time_code = start_s * time_codes_per_second
+    end_time_code = (
+        None if duration is None else (start_s + duration) * time_codes_per_second
+    )
+
+    prim = _define_or_retype_prim(
+        stage,
+        prim_path=prim_path,
+        prim_type="OmniSound",
+    )
+    clear_prim_attrs(prim, ("spatial", "loop"))
+    attributes: dict[str, object] = {
+        "ias:audio_asset_path": audio_asset_path,
+        "auralMode": "spatial" if spatial else "nonSpatial",
+        "loopCount": -1 if loop else 0,
+        "startTime": start_time_code,
+        "gain": linear_gain,
+    }
+    if audio_asset_path.startswith("generated://"):
+        clear_prim_attrs(prim, ("filePath",))
+    else:
+        attributes["filePath"] = audio_asset_path
+    if end_time_code is None:
+        clear_prim_attrs(prim, ("endTime",))
+    else:
+        attributes["endTime"] = end_time_code
+    for name, value in attributes.items():
+        _set_attr(prim, name, value)
     return AuthoredPrimRecord(
         prim_path=prim_path,
-        prim_type="Sound",
-        attributes={
-            "filePath": audio_asset_path,
-            "spatial": spatial,
-            "loop": loop,
-            "startTime": start_time_s,
-            "gain": gain_db,
-        },
+        prim_type="OmniSound",
+        attributes=attributes,
     )
 
 
@@ -276,6 +305,7 @@ def create_listener_prim(
     *,
     prim_path: str,
     array_id: str,
+    orientation_from_view: bool = False,
 ) -> AuthoredPrimRecord:
     """Create or configure a USD listener prim using duck-typed stage APIs."""
 
@@ -284,12 +314,21 @@ def create_listener_prim(
         raise ValueError("prim_path must be non-empty.")
     if array_id.strip() == "":
         raise ValueError("array_id must be non-empty.")
-    prim = get_or_define_prim(stage, prim_path=prim_path, prim_type="Listener")
-    _set_attr(prim, "ias:array_id", array_id)
+    prim = _define_or_retype_prim(
+        stage,
+        prim_path=prim_path,
+        prim_type="OmniListener",
+    )
+    attributes: dict[str, object] = {
+        "ias:array_id": array_id,
+        "orientationFromView": bool(orientation_from_view),
+    }
+    for name, value in attributes.items():
+        _set_attr(prim, name, value)
     return AuthoredPrimRecord(
         prim_path=prim_path,
-        prim_type="Listener",
-        attributes={"ias:array_id": array_id},
+        prim_type="OmniListener",
+        attributes=attributes,
     )
 
 
@@ -378,6 +417,25 @@ def get_or_define_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any:
         raise ValueError("prim_path must be non-empty.")
     prim = _existing_prim(stage, prim_path)
     if prim is not None:
+        return prim
+    return stage.DefinePrim(prim_path, prim_type)
+
+
+def _define_or_retype_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any:
+    """Define one typed prim, updating an existing prim's schema type."""
+
+    _require_stage(stage)
+    prim = _existing_prim(stage, prim_path)
+    if prim is None:
+        return stage.DefinePrim(prim_path, prim_type)
+    if _prim_type_name(prim) == prim_type:
+        return prim
+    set_type_name = getattr(prim, "SetTypeName", None)
+    if callable(set_type_name):
+        set_type_name(prim_type)
+        return prim
+    if hasattr(prim, "type_name"):
+        prim.type_name = prim_type
         return prim
     return stage.DefinePrim(prim_path, prim_type)
 
@@ -562,6 +620,10 @@ def _usd_value_type_name(value: object, *, attr_name: str) -> Any:
         return None
     if attr_name in {"filePath", "inputs:file"}:
         return Sdf.ValueTypeNames.Asset
+    if attr_name == "auralMode":
+        return Sdf.ValueTypeNames.Token
+    if attr_name in {"startTime", "endTime"}:
+        return Sdf.ValueTypeNames.TimeCode
     if isinstance(value, bool):
         return Sdf.ValueTypeNames.Bool
     if isinstance(value, int) and not isinstance(value, bool):
@@ -588,6 +650,8 @@ def _usd_value(value: object, *, attr_name: str) -> object:
         return value
     if attr_name in {"filePath", "inputs:file"} and isinstance(value, str):
         return Sdf.AssetPath(value)
+    if attr_name in {"startTime", "endTime"}:
+        return Sdf.TimeCode(float(value))
     if _is_sequence_of_numeric_tuples(value, 3):
         return [Gf.Vec3d(float(x), float(y), float(z)) for x, y, z in value]
     if _is_sequence_of_strings(value):
@@ -617,3 +681,57 @@ def _is_sequence_of_strings(value: object) -> bool:
     if not isinstance(value, tuple):
         return False
     return all(isinstance(item, str) for item in value)
+
+
+def _stage_time_codes_per_second(stage: Any) -> float:
+    """Return stage timecodes per second, with a duck-stage seconds fallback."""
+
+    getter = getattr(stage, "GetTimeCodesPerSecond", None)
+    if not callable(getter):
+        return 1.0
+    value = float(getter())
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError("stage timeCodesPerSecond must be positive and finite.")
+    return value
+
+
+def _time_code_to_seconds(stage: Any, value: object) -> float:
+    """Convert one USD timecode value to seconds for the SDK contract."""
+
+    getter = getattr(value, "GetValue", None)
+    resolved = getter() if callable(getter) else value
+    seconds = float(resolved) / _stage_time_codes_per_second(stage)
+    if not math.isfinite(seconds):
+        raise ValueError("Native Kit Audio timecode must be finite.")
+    return seconds
+
+
+def _db_to_linear_gain(gain_db: float) -> float:
+    """Convert the SDK's pressure-like dB gain to Kit's linear scale."""
+
+    try:
+        gain = 10.0 ** (float(gain_db) / 20.0)
+    except OverflowError as exc:
+        raise ValueError("gain_db is too large for Kit Audio linear gain.") from exc
+    if not math.isfinite(gain) or gain <= 0.0:
+        raise ValueError("gain_db must map to a positive finite Kit Audio gain.")
+    return gain
+
+
+def _linear_gain_to_db(gain: object) -> float:
+    """Convert positive Kit linear gain to the SDK's finite dB contract."""
+
+    value = float(gain)
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError(
+            "Native Kit Audio gain must be positive and finite when "
+            "ias:gain_db is absent."
+        )
+    return 20.0 * math.log10(value)
+
+
+def _finite_float(value: object, field_name: str) -> float:
+    resolved = float(value)
+    if not math.isfinite(resolved):
+        raise ValueError(f"{field_name} must be finite.")
+    return resolved

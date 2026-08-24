@@ -59,6 +59,7 @@ _DISCOVERY_ALIAS_PROPERTY_NAMES = frozenset(
         "inputs:file",
         "inputs:audio",
         "startTime",
+        "endTime",
         "duration",
         "gain",
     }

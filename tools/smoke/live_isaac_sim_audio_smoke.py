@@ -96,6 +96,7 @@ def main() -> int:
 
         stage = Usd.Stage.CreateInMemory("isaac_audio_live_smoke.usda")
         _author_stage(stage)
+        evidence["nvidia_audio_schema"] = _validate_nvidia_audio_schema(stage)
         _update_kit_once(evidence)
 
         binding_cfg = _binding_cfg()
@@ -690,6 +691,7 @@ def _author_stage(stage: Any) -> None:
         audio_asset_path="generated://impulse",
         spatial=True,
         start_time_s=0.0,
+        duration_s=0.25,
         gain_db=0.0,
     )
     sound = stage.GetPrimAtPath("/World/MovingSource/Sound")
@@ -755,6 +757,52 @@ def _author_stage(stage: Any) -> None:
         prim_path="/World/RobotBase/ArrayMount/AudioArray/Listener",
         array_id="rig_front",
     )
+
+
+def _validate_nvidia_audio_schema(stage: Any) -> dict[str, Any]:
+    from pxr import OmniAudioSchema  # type: ignore
+
+    sound_prim = stage.GetPrimAtPath("/World/MovingSource/Sound")
+    listener_prim = stage.GetPrimAtPath(
+        "/World/RobotBase/ArrayMount/AudioArray/Listener"
+    )
+    sound = OmniAudioSchema.OmniSound(sound_prim)
+    listener = OmniAudioSchema.OmniListener(listener_prim)
+    expected_end_time = 0.25 * float(stage.GetTimeCodesPerSecond())
+    checks = {
+        "sound_schema_valid": bool(sound),
+        "listener_schema_valid": bool(listener),
+        "sound_type_name": str(sound_prim.GetTypeName()),
+        "listener_type_name": str(listener_prim.GetTypeName()),
+        "aural_mode": str(sound.GetAuralModeAttr().Get()),
+        "loop_count": int(sound.GetLoopCountAttr().Get()),
+        "start_time": float(sound.GetStartTimeAttr().Get()),
+        "end_time": float(sound.GetEndTimeAttr().Get()),
+        "gain": float(sound.GetGainAttr().Get()),
+        "file_path_authored": sound.GetFilePathAttr().HasAuthoredValueOpinion(),
+        "obsolete_attrs": tuple(
+            name for name in ("spatial", "loop") if sound_prim.HasAttribute(name)
+        ),
+        "orientation_from_view": bool(listener.GetOrientationFromViewAttr().Get()),
+    }
+    passed = (
+        checks["sound_schema_valid"]
+        and checks["listener_schema_valid"]
+        and checks["sound_type_name"] == "OmniSound"
+        and checks["listener_type_name"] == "OmniListener"
+        and checks["aural_mode"] == "spatial"
+        and checks["loop_count"] == 0
+        and checks["start_time"] == 0.0
+        and abs(checks["end_time"] - expected_end_time) <= 1e-9
+        and checks["gain"] == 1.0
+        and checks["file_path_authored"] is False
+        and checks["obsolete_attrs"] == ()
+        and checks["orientation_from_view"] is False
+    )
+    checks["status"] = "passed" if passed else "failed"
+    if not passed:
+        raise RuntimeError(f"NVIDIA audio schema validation failed: {checks}")
+    return checks
 
 
 def _ensure_isaac_runtime(
