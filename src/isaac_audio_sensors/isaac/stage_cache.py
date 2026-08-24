@@ -62,6 +62,8 @@ _DISCOVERY_ALIAS_PROPERTY_NAMES = frozenset(
         "endTime",
         "duration",
         "gain",
+        "loopCount",
+        "auralMode",
     }
 )
 

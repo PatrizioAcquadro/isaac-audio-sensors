@@ -33,6 +33,17 @@ def test_specs_accept_optional_world_velocity():
         _source(source_id="nan", velocity_world_mps=(float("nan"), 0.0, 0.0))
 
 
+@pytest.mark.parametrize("loop_count", (-1, 0, 3))
+def test_audio_source_accepts_kit_loop_count_semantics(loop_count):
+    assert _source(loop_count=loop_count).loop_count == loop_count
+
+
+@pytest.mark.parametrize("loop_count", (-2, 1.5, True, "1"))
+def test_audio_source_rejects_invalid_loop_count(loop_count):
+    with pytest.raises(ValueError, match="loop_count"):
+        _source(loop_count=loop_count)
+
+
 def test_audio_time_window_requires_positive_duration():
     window = AudioTimeWindow(
         start_time_s=1.0,
@@ -134,6 +145,7 @@ def _source(
     source_id: str = "mover",
     prim_path: str = "/World/Mover",
     velocity_world_mps=None,
+    loop_count: int = 0,
 ) -> AudioSourceSpec:
     return AudioSourceSpec(
         source_id=source_id,
@@ -145,6 +157,7 @@ def _source(
         start_time_s=0.0,
         duration_s=None,
         gain_db=0.0,
+        loop_count=loop_count,
         velocity_world_mps=velocity_world_mps,
     )
 

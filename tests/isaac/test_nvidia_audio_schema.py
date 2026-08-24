@@ -114,6 +114,27 @@ def test_sound_authoring_migrates_legacy_alias_and_clears_obsolete_attrs() -> No
     assert "endTime" not in legacy.attributes
 
 
+def test_sound_authoring_preserves_finite_loop_count_and_rejects_ambiguity() -> None:
+    stage = _FakeStage()
+
+    record = create_sound_prim(
+        stage,
+        prim_path="/World/Speaker",
+        audio_asset_path="audio/speech.wav",
+        loop_count=3,
+    )
+
+    assert record.attributes["loopCount"] == 3
+    with pytest.raises(ValueError, match="not both"):
+        create_sound_prim(
+            stage,
+            prim_path="/World/Ambiguous",
+            audio_asset_path="audio/speech.wav",
+            loop=True,
+            loop_count=2,
+        )
+
+
 def test_listener_authoring_migrates_alias_and_disables_view_orientation() -> None:
     legacy = _FakePrim("/World/Listener", "Listener")
     stage = _FakeStage((legacy,))
@@ -147,6 +168,7 @@ def test_discovery_prefers_ias_metadata_but_can_prefer_native_usd() -> None:
             "startTime": 24.0,
             "endTime": 72.0,
             "gain": 0.5,
+            "loopCount": 2,
             "xformOp:translate": (1.0, 0.0, 0.0),
         },
     )
@@ -173,11 +195,60 @@ def test_discovery_prefers_ias_metadata_but_can_prefer_native_usd() -> None:
     assert usd_source.spec.start_time_s == 1.0
     assert usd_source.spec.duration_s == 2.0
     assert usd_source.spec.gain_db == pytest.approx(20.0 * math.log10(0.5))
+    assert usd_source.spec.loop_count == 2
     assert usd_source.diagnostics["active_window_provenance"] == {
         "start_time_s": "startTime",
         "duration_s": "endTime",
     }
     assert usd_source.diagnostics["gain_db_provenance"] == "gain"
+    assert usd_source.diagnostics["loop_count_provenance"] == "loopCount"
+
+
+def test_discovery_excludes_non_spatial_sound_with_clear_diagnostic() -> None:
+    stage = _FakeStage(
+        (
+            _FakePrim(
+                "/World/UiSound",
+                "OmniSound",
+                {
+                    "auralMode": "nonSpatial",
+                    "filePath": "audio/ui.wav",
+                    "xformOp:translate": (0.0, 0.0, 0.0),
+                },
+            ),
+        )
+    )
+    diagnostics: dict[str, object] = {}
+
+    result = discover_stage_audio(stage, diagnostics_out=diagnostics)
+
+    assert result.sources == ()
+    rejection = diagnostics["source_rejections"]["/World/UiSound"]
+    assert rejection["reason"] == "non_spatial_source"
+    assert "physical microphone-array discovery" in rejection["error"]
+
+
+def test_discovery_rejects_invalid_native_loop_count() -> None:
+    stage = _FakeStage(
+        (
+            _FakePrim(
+                "/World/Speaker",
+                "OmniSound",
+                {
+                    "filePath": "audio/native.wav",
+                    "loopCount": -2,
+                    "xformOp:translate": (0.0, 0.0, 0.0),
+                },
+            ),
+        )
+    )
+    diagnostics: dict[str, object] = {}
+
+    result = discover_stage_audio(stage, diagnostics_out=diagnostics)
+
+    assert result.sources == ()
+    rejection = diagnostics["source_rejections"]["/World/Speaker"]
+    assert "loopCount" in rejection["error"]
 
 
 def test_discovery_reads_legacy_sound_alias_with_native_unit_conversion() -> None:

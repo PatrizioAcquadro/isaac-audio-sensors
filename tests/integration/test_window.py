@@ -310,6 +310,7 @@ def test_kit_builds_against_fake_omni_ui(monkeypatch):
     assert set(controller._lifecycle._ui_window._int_fields) == {
         "max_events",
         "sample_rate_hz",
+        "source_loop_count",
     }
     assert set(controller._lifecycle._ui_window._float_fields) == {
         "array_position_x_m",

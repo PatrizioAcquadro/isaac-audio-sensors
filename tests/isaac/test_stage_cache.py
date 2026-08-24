@@ -355,6 +355,45 @@ def test_info_only_discovery_attr_change_invalidates_cache():
     sensor.close()
 
 
+def test_native_loop_and_aural_mode_changes_refresh_source_semantics():
+    stage, source = _counting_stage()
+    sensor = _live_sensor(stage)
+    sensor.update(sim_time_s=0.0)
+    warm_count = stage.traverse_count
+    cache = sensor._stage_cache
+
+    source.attributes["loopCount"] = 2
+    cache._on_objects_changed(
+        SimpleNamespace(
+            GetResyncedPaths=lambda: (),
+            GetChangedInfoOnlyPaths=lambda: (
+                "/World/Sources/SpeakerA.loopCount",
+            ),
+        ),
+        None,
+    )
+    sensor.update(sim_time_s=0.2)
+
+    assert stage.traverse_count == warm_count + 1
+    assert sensor._latest_scene.sources[0].loop_count == 2
+
+    source.attributes["auralMode"] = "nonSpatial"
+    cache._on_objects_changed(
+        SimpleNamespace(
+            GetResyncedPaths=lambda: (),
+            GetChangedInfoOnlyPaths=lambda: (
+                "/World/Sources/SpeakerA.auralMode",
+            ),
+        ),
+        None,
+    )
+    with pytest.raises(ValueError, match="nonSpatial"):
+        sensor.update(sim_time_s=0.4)
+
+    assert stage.traverse_count == warm_count + 2
+    sensor.close()
+
+
 def test_info_only_pose_and_unrelated_changes_keep_cache():
     stage, _source = _counting_stage()
     sensor = _live_sensor(stage)
@@ -385,6 +424,8 @@ def test_discovery_relevant_property_predicate():
     assert _discovery_relevant_property("/World/X.filePath") is True
     assert _discovery_relevant_property("/World/X.startTime") is True
     assert _discovery_relevant_property("/World/X.endTime") is True
+    assert _discovery_relevant_property("/World/X.loopCount") is True
+    assert _discovery_relevant_property("/World/X.auralMode") is True
     assert _discovery_relevant_property("/World/X.xformOp:translate") is False
     assert _discovery_relevant_property("/World/X.visibility") is False
     assert _discovery_relevant_property("/World/X") is False

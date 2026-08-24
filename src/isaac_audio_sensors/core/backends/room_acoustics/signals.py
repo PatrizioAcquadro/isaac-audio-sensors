@@ -106,9 +106,12 @@ def _scheduled_window_signal(
             Path(source.audio_asset_path),
             sample_rate_hz=sample_rate_hz,
         )
-        content = np.zeros(content_samples, dtype=float)
-        available = base[elapsed_samples : elapsed_samples + content_samples]
-        content[: available.size] = available
+        content = _file_source_content(
+            base,
+            elapsed_samples=elapsed_samples,
+            content_samples=content_samples,
+            loop_count=source.loop_count,
+        )
     else:
         mode = source.audio_asset_path or "generated://deterministic_pulse"
         content = _generated_source_content(
@@ -128,6 +131,34 @@ def _scheduled_window_signal(
         start_offset_samples=start_offset_samples,
         content_sample_count=content_samples,
     )
+
+
+def _file_source_content(
+    waveform: np.ndarray,
+    *,
+    elapsed_samples: int,
+    content_samples: int,
+    loop_count: int,
+) -> np.ndarray:
+    """Return a scheduled slice using Kit-compatible file loop semantics."""
+
+    content = np.zeros(content_samples, dtype=float)
+    base = np.asarray(waveform, dtype=float)
+    if content_samples <= 0 or base.size == 0:
+        return content
+    if loop_count == -1:
+        available_samples = content_samples
+    else:
+        total_samples = base.size * (loop_count + 1)
+        available_samples = max(
+            0,
+            min(content_samples, total_samples - elapsed_samples),
+        )
+    if available_samples <= 0:
+        return content
+    indices = (elapsed_samples + np.arange(available_samples)) % base.size
+    content[:available_samples] = base[indices]
+    return content
 
 
 def _generated_source_content(

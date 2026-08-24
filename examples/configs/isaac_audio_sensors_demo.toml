@@ -20,6 +20,7 @@ position_world = [4.0, 2.0, 0.0]
 gain_db = 0.0
 start_time_s = 0.0
 duration_s = 1.0
+loop_count = 0
 directivity = "omni"
 
 [[sources]]
@@ -31,6 +32,7 @@ position_world = [2.0, -3.0, 0.0]
 gain_db = -3.0
 start_time_s = 0.5
 duration_s = 1.0
+loop_count = 0
 directivity = "omni"
 
 [arrays.rig_front]

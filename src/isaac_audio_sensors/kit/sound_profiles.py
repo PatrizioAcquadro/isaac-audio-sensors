@@ -26,6 +26,7 @@ class SoundProfile:
     start_time_s: float
     duration_s: float
     gain_db: float
+    loop_count: int = 0
     directivity: str = "omni"
     source_id: str | None = None
     source_id_template: str | None = "{object_slug}_source"
@@ -118,6 +119,8 @@ def validate_sound_profile(profile: SoundProfile) -> None:
             raise ValueError(f"{field_name} must be finite.")
     if float(profile.duration_s) <= 0.0:
         raise ValueError("duration_s must be positive.")
+    if type(profile.loop_count) is not int or profile.loop_count < -1:
+        raise ValueError("loop_count must be -1 or a non-negative integer.")
 
 
 def default_sound_profiles() -> tuple[SoundProfile, ...]:
@@ -243,6 +246,7 @@ def sound_profile_from_mapping(value: Mapping[str, Any]) -> SoundProfile:
         start_time_s=float(value.get("start_time_s", 0.0)),
         duration_s=float(value.get("duration_s", 0.0)),
         gain_db=float(value.get("gain_db", 0.0)),
+        loop_count=value.get("loop_count", 0),
         directivity=str(value.get("directivity", "")),
     )
 

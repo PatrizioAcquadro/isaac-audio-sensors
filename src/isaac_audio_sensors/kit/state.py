@@ -127,6 +127,7 @@ class ExtensionUiState:
     source_start_time_s: float = 0.0
     source_duration_s: float = 1.0
     source_gain_db: float = 0.0
+    source_loop_count: int = 0
     source_directivity: str = "omni"
 
     profile_library: tuple[SoundProfile, ...] = field(

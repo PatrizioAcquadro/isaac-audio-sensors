@@ -666,7 +666,7 @@ class AuthoringService(ControllerService):
                 prim_path=attached_path,
                 audio_asset_path=state.audio_asset_path,
                 spatial=True,
-                loop=False,
+                loop_count=state.source_loop_count,
                 start_time_s=state.source_start_time_s,
                 duration_s=state.source_duration_s,
                 gain_db=state.source_gain_db,
@@ -767,7 +767,7 @@ class AuthoringService(ControllerService):
                 prim_path=standalone_path,
                 audio_asset_path=state.audio_asset_path,
                 spatial=True,
-                loop=False,
+                loop_count=state.source_loop_count,
                 start_time_s=state.source_start_time_s,
                 duration_s=state.source_duration_s,
                 gain_db=state.source_gain_db,
@@ -982,7 +982,7 @@ class AuthoringService(ControllerService):
             prim_path=state.source_prim_path,
             audio_asset_path=state.audio_asset_path,
             spatial=True,
-            loop=False,
+            loop_count=state.source_loop_count,
             start_time_s=state.source_start_time_s,
             duration_s=state.source_duration_s,
             gain_db=state.source_gain_db,
@@ -1045,6 +1045,7 @@ class AuthoringService(ControllerService):
         state.source_start_time_s = float(profile.start_time_s)
         state.source_duration_s = float(profile.duration_s)
         state.source_gain_db = float(profile.gain_db)
+        state.source_loop_count = profile.loop_count
         state.source_directivity = profile.directivity
         self._validate_source_metadata_state()
 
@@ -1053,7 +1054,7 @@ class AuthoringService(ControllerService):
             prim_path=state.source_prim_path,
             audio_asset_path=state.audio_asset_path,
             spatial=True,
-            loop=False,
+            loop_count=state.source_loop_count,
             start_time_s=state.source_start_time_s,
             duration_s=state.source_duration_s,
             gain_db=state.source_gain_db,
@@ -1166,6 +1167,7 @@ class AuthoringService(ControllerService):
                 "start_time_s": state.source_start_time_s,
                 "duration_s": state.source_duration_s,
                 "gain_db": state.source_gain_db,
+                "loop_count": state.source_loop_count,
                 "directivity": state.source_directivity,
                 "source_attached_to_object": state.source_attached_to_object,
                 "object_prim_path": state.object_prim_path or None,

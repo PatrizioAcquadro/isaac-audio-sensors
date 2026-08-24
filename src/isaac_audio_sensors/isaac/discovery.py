@@ -512,6 +512,20 @@ def _discover_sources(
         )
         if not reasons:
             continue
+        aural_mode = resolver.attrs(prim).get("auralMode")
+        if str(aural_mode).strip().lower() == "nonspatial":
+            error = (
+                "OmniSound auralMode=nonSpatial is a device-mix source and is "
+                "excluded from physical microphone-array discovery."
+            )
+            diagnostics["source_rejections"][path] = {
+                "reason": "non_spatial_source",
+                "error": error,
+                "candidate_reasons": reasons,
+            }
+            if explicit or cfg.strict_candidate_errors:
+                raise ValueError(error)
+            continue
         try:
             spec, source_diagnostics = _source_spec_from_prim(
                 prim,
@@ -674,6 +688,13 @@ def _source_spec_from_prim(
     )
     duration_s = None if duration_value is None else float(duration_value)
 
+    loop_count_value, loop_count_provenance = _metadata_value(
+        cfg,
+        usd=lambda: _loop_count_candidate(attrs),
+        defaults=(0, "default"),
+    )
+    loop_count = int(loop_count_value)
+
     gain_value, gain_provenance = _metadata_value(
         cfg,
         ias=lambda: _float_candidate(attrs, "ias:gain_db"),
@@ -700,6 +721,7 @@ def _source_spec_from_prim(
             "duration_s": duration_provenance,
         },
         "gain_db_provenance": gain_provenance,
+        "loop_count_provenance": loop_count_provenance,
         "directivity_provenance": directivity_provenance,
     }
     diagnostics["source_transforms"][path] = _pose_diagnostics(pose)
@@ -715,6 +737,7 @@ def _source_spec_from_prim(
             start_time_s=start_time_s,
             duration_s=duration_s,
             gain_db=gain_db,
+            loop_count=loop_count,
             directivity=str(directivity_value),
         ),
         source_diagnostics,
@@ -1197,6 +1220,20 @@ def _float_candidate(
     if not math.isfinite(resolved):
         raise ValueError(f"{key} must be finite.")
     return resolved, provenance
+
+
+def _loop_count_candidate(
+    attrs: Mapping[str, Any],
+) -> tuple[int, str] | object:
+    candidate = _attr_candidate(attrs, "loopCount")
+    if candidate is _MISSING:
+        return _MISSING
+    value, provenance = candidate
+    if type(value) is not int or value < -1:
+        raise ValueError(
+            "Native Kit Audio loopCount must be -1 or a non-negative integer."
+        )
+    return value, provenance
 
 
 def _asset_candidate(

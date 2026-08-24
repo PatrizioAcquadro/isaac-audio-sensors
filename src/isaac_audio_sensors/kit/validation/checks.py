@@ -42,6 +42,7 @@ class ValidationState(Protocol):
     source_start_time_s: float
     source_duration_s: float
     source_gain_db: float
+    source_loop_count: int
     source_position_x_m: float
     source_position_y_m: float
     source_position_z_m: float
@@ -239,6 +240,12 @@ def check_source_metadata(state: ValidationState) -> tuple[ValidationFinding, ..
             "source_duration_positive",
             "source_duration_s must be positive.",
             "source_duration_s",
+        )
+    if type(state.source_loop_count) is not int or state.source_loop_count < -1:
+        return _error(
+            "source_loop_count_valid",
+            "source_loop_count must be -1 or a non-negative integer.",
+            "source_loop_count",
         )
     return ()
 

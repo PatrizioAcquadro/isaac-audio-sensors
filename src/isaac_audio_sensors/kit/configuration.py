@@ -182,6 +182,7 @@ class ConfigurationService(ControllerService):
                     "start_time_s": state.source_start_time_s,
                     "duration_s": state.source_duration_s,
                     "gain_db": state.source_gain_db,
+                    "loop_count": state.source_loop_count,
                     "directivity": state.source_directivity,
                 },
                 "sound_profiles": {
@@ -479,6 +480,9 @@ class ConfigurationService(ControllerService):
         )
         self.state.source_gain_db = float(
             source.get("gain_db", self.state.source_gain_db)
+        )
+        self.state.source_loop_count = source.get(
+            "loop_count", self.state.source_loop_count
         )
         self.state.source_directivity = str(
             source.get("directivity", self.state.source_directivity)

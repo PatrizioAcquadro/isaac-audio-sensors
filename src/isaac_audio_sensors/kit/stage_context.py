@@ -197,6 +197,7 @@ def _refresh_applied_profile_binding_snapshot(
             "start_time_s": state.source_start_time_s,
             "duration_s": state.source_duration_s,
             "gain_db": state.source_gain_db,
+            "loop_count": state.source_loop_count,
             "directivity": state.source_directivity,
             "source_attached_to_object": True,
             "object_prim_path": object_path,

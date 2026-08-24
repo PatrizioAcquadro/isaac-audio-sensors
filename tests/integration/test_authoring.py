@@ -106,6 +106,7 @@ def test_sound_profiles_validate_default_library_and_safe_assets():
         "generated://impulse",
         "generated://pulse",
     }
+    assert {profile.loop_count for profile in profiles} == {0}
     assert default_object_profile_mappings(profiles)["oven"] == "oven_stove"
     assert default_object_profile_mappings(profiles)["sink"] == "sink_water"
 
@@ -133,6 +134,20 @@ def test_sound_profiles_validate_default_library_and_safe_assets():
             start_time_s=0.0,
             duration_s=0.0,
             gain_db=0.0,
+        )
+
+    with pytest.raises(ValueError, match="loop_count"):
+        SoundProfile(
+            profile_id="bad_loop",
+            display_label="Bad Loop",
+            object_label_aliases=("bad",),
+            source_id_template="{object_slug}_source",
+            class_label="Bad",
+            audio_asset_path="generated://impulse",
+            start_time_s=0.0,
+            duration_s=1.0,
+            gain_db=0.0,
+            loop_count=-2,
         )
 
 
@@ -175,6 +190,7 @@ def test_extension_controller_manual_profile_apply_authors_source_metadata():
     assert source.attributes["ias:start_time_s"] == 0.0
     assert source.attributes["ias:duration_s"] == 1.2
     assert source.attributes["ias:gain_db"] == -2.0
+    assert source.attributes["loopCount"] == 0
     assert source.attributes["ias:directivity"] == "omni"
     assert source.attributes["ias:sound_profile_id"] == "sink_water"
     assert source.attributes["xformOp:translate"] == (1.5, 0.25, 0.0)

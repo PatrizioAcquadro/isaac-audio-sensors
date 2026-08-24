@@ -717,6 +717,7 @@ def build_source_section(window: OmniReferenceWindow) -> None:
         window._float_row("Start", "source_start_time_s")
         window._float_row("Duration", "source_duration_s")
         window._float_row("Gain dB", "source_gain_db")
+        window._int_row("Additional Loops", "source_loop_count")
         window._button(
             "Create/Attach Source",
             window.controller.author_source,

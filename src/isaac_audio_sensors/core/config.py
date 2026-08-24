@@ -246,6 +246,7 @@ def _parse_sources(raw_sources: Any) -> tuple[AudioSourceSpec, ...]:
                     else float(raw_source["duration_s"])
                 ),
                 gain_db=float(raw_source.get("gain_db", 0.0)),
+                loop_count=raw_source.get("loop_count", 0),
                 directivity=str(raw_source.get("directivity", "omni")),
                 velocity_world_mps=(
                     None

@@ -391,6 +391,7 @@ def test_kit_config_roundtrips_edited_widget_state(tmp_path, monkeypatch):
         str(tmp_path / "replicator")
     )
     window._float_fields["source_duration_s"].model.set_value("60.0")
+    window._int_fields["source_loop_count"].model.set_value("2")
     window._float_fields["source_position_x_m"].model.set_value("0.0")
     window._float_fields["source_position_y_m"].model.set_value("2.0")
     window._float_fields["source_position_z_m"].model.set_value("0.5")
@@ -412,6 +413,7 @@ def test_kit_config_roundtrips_edited_widget_state(tmp_path, monkeypatch):
 
     assert controller.state.source_id == "edited_source"
     assert controller.state.source_duration_s == 60.0
+    assert controller.state.source_loop_count == 2
     assert controller.state.source_position_y_m == 2.0
     assert controller.state.source_local_offset_z_m == 0.75
     assert controller.state.object_prim_path == "/World/EditedObject"
@@ -430,6 +432,7 @@ def test_kit_config_roundtrips_edited_widget_state(tmp_path, monkeypatch):
     assert summary["source"]["source_id"] == "edited_source"
     assert summary["source"]["prim_path"] == "/World/EditedSource"
     assert summary["source"]["duration_s"] == 60.0
+    assert summary["source"]["loop_count"] == 2
     assert summary["source"]["position_world"] == [0.0, 2.0, 0.5]
     assert summary["source"]["local_offset_m"] == [0.25, 0.5, 0.75]
     assert summary["object_binding"]["selected_object_prim_path"] == (
@@ -454,6 +457,7 @@ def test_kit_config_roundtrips_edited_widget_state(tmp_path, monkeypatch):
     assert imported.state.layout_name == "mono"
     assert imported.state.source_id == "edited_source"
     assert imported.state.source_duration_s == 60.0
+    assert imported.state.source_loop_count == 2
     assert imported.state.source_position_x_m == 0.0
     assert imported.state.source_position_y_m == 2.0
     assert imported.state.source_position_z_m == 0.5

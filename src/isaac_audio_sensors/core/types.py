@@ -89,6 +89,7 @@ class AudioSourceSpec:
     start_time_s: float
     duration_s: float | None
     gain_db: float
+    loop_count: int = 0
     directivity: str = "omni"
     velocity_world_mps: Vector3 | None = None
 
@@ -122,6 +123,10 @@ class AudioSourceSpec:
             )
         _require_finite(self.start_time_s, "AudioSourceSpec.start_time_s")
         _require_finite(self.gain_db, "AudioSourceSpec.gain_db")
+        if type(self.loop_count) is not int or self.loop_count < -1:
+            raise ValueError(
+                "AudioSourceSpec.loop_count must be -1 or a non-negative integer."
+            )
         if self.duration_s is not None:
             _require_finite(self.duration_s, "AudioSourceSpec.duration_s")
             if self.duration_s <= 0.0:

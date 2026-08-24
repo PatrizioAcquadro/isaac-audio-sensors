@@ -77,6 +77,7 @@ class SafePreset:
                 "start_time_s": values["source_start_time_s"],
                 "duration_s": values["source_duration_s"],
                 "gain_db": values["source_gain_db"],
+                "loop_count": values["source_loop_count"],
                 "directivity": values["source_directivity"],
             },
             "stage_binding": {
@@ -118,6 +119,7 @@ SAFE_PRESETS = (
             "source_start_time_s": 0.0,
             "source_duration_s": 1.0,
             "source_gain_db": 0.0,
+            "source_loop_count": 0,
             "source_directivity": "omni",
             "update_period_s": 0.05,
             "max_events": 8,
@@ -145,6 +147,7 @@ SAFE_PRESETS = (
             "source_start_time_s": 0.0,
             "source_duration_s": 1.0,
             "source_gain_db": 0.0,
+            "source_loop_count": 0,
             "source_directivity": "omni",
             "update_period_s": 0.05,
             "max_events": 8,

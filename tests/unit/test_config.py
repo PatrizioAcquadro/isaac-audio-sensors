@@ -17,6 +17,7 @@ def test_config_parses_source_velocity_and_builds_scene():
             "prim_path": "/World/Mover",
             "class_label": "Vehicle",
             "velocity_world_mps": [-10.0, 0.0, 0.0],
+            "loop_count": 2,
         },
         {
             "source_id": "static",
@@ -31,7 +32,25 @@ def test_config_parses_source_velocity_and_builds_scene():
 
     assert scene.stage_id == "fixture"
     assert by_id["mover"].velocity_world_mps == (-10.0, 0.0, 0.0)
+    assert by_id["mover"].loop_count == 2
     assert by_id["static"].velocity_world_mps is None
+    assert by_id["static"].loop_count == 0
+
+
+@pytest.mark.parametrize("loop_count", (-2, 1.5, True, "1"))
+def test_config_rejects_invalid_source_loop_count(loop_count):
+    raw = _raw_config()
+    raw["sources"] = [
+        {
+            "source_id": "speaker",
+            "prim_path": "/World/Speaker",
+            "class_label": "Speech",
+            "loop_count": loop_count,
+        }
+    ]
+
+    with pytest.raises(ValueError, match="loop_count"):
+        validate_audio_config(raw)
 
 
 @pytest.mark.parametrize(

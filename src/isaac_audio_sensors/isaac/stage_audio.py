@@ -39,6 +39,7 @@ def create_sound_prim(
     audio_asset_path: str,
     spatial: bool = True,
     loop: bool = False,
+    loop_count: int | None = None,
     start_time_s: float = 0.0,
     duration_s: float | None = None,
     gain_db: float = 0.0,
@@ -56,6 +57,15 @@ def create_sound_prim(
         raise ValueError("prim_path must be non-empty.")
     if audio_asset_path.strip() == "":
         raise ValueError("audio_asset_path must be non-empty.")
+    if type(loop) is not bool:
+        raise ValueError("loop must be a boolean.")
+    if loop and loop_count is not None:
+        raise ValueError("Provide loop=True or loop_count, not both.")
+    resolved_loop_count = -1 if loop else 0
+    if loop_count is not None:
+        if type(loop_count) is not int or loop_count < -1:
+            raise ValueError("loop_count must be -1 or a non-negative integer.")
+        resolved_loop_count = loop_count
     start_s = _finite_float(start_time_s, "start_time_s")
     if start_s < 0.0:
         raise ValueError("start_time_s must be non-negative for Kit Audio.")
@@ -81,7 +91,7 @@ def create_sound_prim(
     attributes: dict[str, object] = {
         "ias:audio_asset_path": audio_asset_path,
         "auralMode": "spatial" if spatial else "nonSpatial",
-        "loopCount": -1 if loop else 0,
+        "loopCount": resolved_loop_count,
         "startTime": start_time_code,
         "gain": linear_gain,
     }
