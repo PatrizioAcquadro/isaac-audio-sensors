@@ -48,11 +48,11 @@ The native `omni.ui` window has exactly three top-level areas: Guided Workflow, 
 
 ![Isaac Audio Sensors native Kit window](../../../exts/isaac_audio_sensors.omni/data/preview.png)
 
-The fixed status strip remains visible below the scrollable content. It reports short ready, active, warning, or error summaries; exact diagnostics stay inside Advanced Tools. View code reads controller state and invokes controller actions only. It does not access USD, files, or recording internals directly.
+The fixed status strip remains visible below the scrollable content. Its priority is error, recording, active or stale-frame warning, last operational action, then ready. Errors identify the affected section and field or action with a direct recovery instruction. View code reads controller state and invokes controller actions only. It does not access USD, files, or recording internals directly.
 
 ## Guided Workflow
 
-The guided path is `Setup -> Validate -> Run -> Inspect -> Record -> Export`.
+The guided path is `Setup -> Validate -> Run -> Inspect -> Record -> Export`. Six non-interactive indicators distinguish completed, current, blocked, and upcoming steps, while one concise instruction states the next required action.
 
 Only the current step is expanded. It exposes one primary action, with Back and recovery actions secondary. Setup applies a maintained safe preset and stage bindings; Validate runs stage, backend, device, source, array, room, attachment, calibration, and capability checks; Run and Inspect reuse the same canonical sensor control as Live Monitor; Record exposes Start Recording, then Stop & Finalize, with Cancel separate; Export validates, splits when requested, and inventories the result. Capability validation refreshes stale cached facts within the same pass.
 
@@ -64,13 +64,15 @@ The headless path is `isaac_audio_sensors.kit.headless.HeadlessGuidedSession`; c
 
 ## Live Monitor
 
-Live Monitor shows sensor state, backend, the latest frame, detection count, and waveform availability. One contextual button starts or stops the sensor. The live instruments show the bearing compass, up to eight microphone RMS meters, and no more than three recent detections, with explicit empty states before frame or waveform data exists.
+Live Monitor shows sensor state, backend, frame freshness, detection count, and waveform availability on separate rows. Frame freshness uses an internal monotonic UI receipt clock, while the full frame ID and simulated timestamp remain in Advanced Tools. One compact contextual button starts or stops the sensor.
+
+The live instruments separate bearing, sector, confidence, and occlusion below the compass. Up to eight microphone RMS meters use a native `-60 ... 0 dBFS` scale with adjacent values and no percentages. Recent detections occupy zero to three rows without an internal scroll area, and the empty states distinguish no frame from a valid frame with no detections.
 
 ## Advanced Tools
 
 Advanced Tools contains the specialist controls for stage and selection, array, source, sensor settings and debug, room, audio output, Replicator, export, and configuration. Stage binding uses one `Bind selection as` selector and `Bind Selected`; position authoring uses a preset selector and `Apply Position Preset`. Known profiles and rigs are selected with combo boxes and validated by Apply rather than duplicate selection buttons.
 
-Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
+Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. Color styling distinguishes editable, action-populated, read-only, and invalid fields. Preset, binding, transform-read, and config-import changes are tracked only as transient window state; a manual edit restores the normal editable style. Invalid fields remain highlighted until a valid correction, without opening or changing accordions automatically. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
 
 Replicator controls the optional Omniverse writer; Export writes the latest frame, JSONL streams, and reusable binding/configuration JSON.
 
@@ -100,4 +102,5 @@ If Replicator is unavailable, use package JSON/JSONL or the generic session reco
 
 ## Version Notes
 
+- 2026-08-24: Refined the existing three-area UI with visual guided indicators, actionable feedback, monotonic frame freshness, dBFS meters, adaptive detections, field-specific recovery, and transient field provenance without changing controller, serialization, or audio contracts.
 - 2026-08-24: Rebuilt the native Kit UI around the three task-oriented areas, added persistent Guided collapse behavior, promoted Live Monitor to the canonical operating surface, and moved specialist controls into Advanced Tools without changing core APIs or serialized contracts.

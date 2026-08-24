@@ -131,6 +131,8 @@ class OmniReferenceWindow:
         self._model_change_subscriptions: list[Any] = []
         self._sections: list[str] = []
         self._section_frames: dict[str, Any] = {}
+        self._subsection_frames: dict[str, Any] = {}
+        self._scrolling_frame: Any | None = None
         self._buttons: list[str] = []
         self._instruments: dict[str, Any] = {}
         self._audio_panel: dict[str, Any] = {}
@@ -159,16 +161,20 @@ class OmniReferenceWindow:
                 with ui.VStack(spacing=6, height=0):
                     self._build_body()
             else:
-                with scrolling_frame(
+                self._scrolling_frame = scrolling_frame(
                     height=_ui_fraction(ui, 1)
-                ), ui.VStack(spacing=6, height=0):
-                    self._build_body()
-            with ui.HStack(spacing=8, height=32):
-                self._labels["status_icon"] = ui.Label("READY", width=82)
-                self._labels["status"] = ui.Label(
-                    self.controller.state.status_message,
-                    word_wrap=True,
                 )
+                with self._scrolling_frame, ui.VStack(spacing=6, height=0):
+                    self._build_body()
+            with ui.ZStack(height=32):
+                ui.Rectangle(style={"background_color": 0xFF454545})
+                with ui.HStack(spacing=8, height=32):
+                    self._labels["status_icon"] = ui.Label("READY", width=82)
+                    self._labels["status"] = ui.Label(
+                        self.controller.state.status_message,
+                        width=_ui_fraction(ui, 1),
+                        word_wrap=True,
+                    )
         self.refresh_labels()
         return self.window
 
@@ -199,6 +205,8 @@ class OmniReferenceWindow:
         self._combo_fields.clear()
         self._labels.clear()
         self._section_frames.clear()
+        self._subsection_frames.clear()
+        self._scrolling_frame = None
         self._instruments.clear()
         self._audio_panel.clear()
         self._field_metadata.clear()
@@ -772,6 +780,7 @@ class OmniReferenceWindow:
                     yield stack
                 return
             frame = frame_type(title, collapsed=collapsed, height=0)
+            self._subsection_frames[title] = frame
             with frame, self.ui.VStack(spacing=4, height=0) as stack:
                 yield stack
         finally:

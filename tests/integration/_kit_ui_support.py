@@ -291,6 +291,7 @@ class _FakeUI(ModuleType):
         self.VStack = self._widget_factory("VStack")
         self.HStack = self._widget_factory("HStack")
         self.ZStack = self._widget_factory("ZStack")
+        self.Frame = self._widget_factory("Frame")
         self.Spacer = self._widget_factory("Spacer")
         self.Rectangle = self._widget_factory("Rectangle")
         self.CollapsableFrame = self._widget_factory("CollapsableFrame")

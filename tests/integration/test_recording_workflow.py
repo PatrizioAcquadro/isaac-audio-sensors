@@ -93,6 +93,8 @@ class _FakeUi:
         self.created: list[_FakeWidget] = []
         self.VStack = self._factory("VStack")
         self.HStack = self._factory("HStack")
+        self.ZStack = self._factory("ZStack")
+        self.Rectangle = self._factory("Rectangle")
         self.Label = self._factory("Label")
         self.ComboBox = self._factory("ComboBox")
         self.Button = self._factory("Button")
@@ -363,7 +365,9 @@ def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
     buttons = [widget.text for widget in ui.created if widget.kind == "Button"]
     assert "1 Setup" in labels
     step_labels = window._guided_panel["step_labels"]
-    assert step_labels[GuidedStage.SETUP].style["border_width"] == 2
+    step_frames = window._guided_panel["step_frames"]
+    assert step_frames[GuidedStage.SETUP].style["border_width"] == 2
+    assert step_labels[GuidedStage.SETUP].style["color"] == 0xFFF4E3D5
     assert window._guided_panel["stage_status"].text == (
         "Apply a safe preset to continue."
     )
@@ -385,8 +389,8 @@ def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
 
     assert window._guided_panel["setup_panel"].visible is False
     assert window._guided_panel["validate_panel"].visible is True
-    assert step_labels[GuidedStage.SETUP].style["border_color"] == 0xFF4F9B62
-    assert step_labels[GuidedStage.VALIDATE].style["border_width"] == 2
+    assert step_frames[GuidedStage.SETUP].style["border_color"] == 0xFF4F9B62
+    assert step_frames[GuidedStage.VALIDATE].style["border_width"] == 2
     assert window._guided_panel["stage_status"].text == (
         "Run validation to continue."
     )

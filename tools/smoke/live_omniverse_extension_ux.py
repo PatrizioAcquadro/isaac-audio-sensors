@@ -247,8 +247,8 @@ def main() -> int:
         "flac_session_path": str(flac_session_path),
         "extension_id": EXTENSION_ID,
         "extension_path": str(args.extension_path),
-        "headless": True,
-        "viewport_mode": "headless_or_existing_viewport",
+        "headless": False,
+        "viewport_mode": "windowed_ui",
         "require_screenshot": args.require_screenshot,
         "workflow_steps": [],
         "object_attach_live_qa": {},
@@ -261,7 +261,7 @@ def main() -> int:
         _record_isaacsim_preflight(evidence)
         _record_gpu_preflight(evidence)
         _record_nvidia_smi(evidence)
-        simulation_app = _ensure_isaac_runtime(evidence)
+        simulation_app = _ensure_isaac_runtime(evidence, headless=False)
 
         import omni  # type: ignore
         from pxr import Usd  # type: ignore
@@ -275,6 +275,24 @@ def main() -> int:
             extension_id=EXTENSION_ID,
             extension_path=Path(evidence["extension_path"]),
         )
+        managed_id = _enabled_extension_id(evidence) or EXTENSION_ID
+        evidence["kit_extension_manager_pre_manual_disable"] = (
+            _try_disable_extension_manager(extension_id=managed_id)
+        )
+        if (
+            evidence["kit_extension_manager_pre_manual_disable"].get("status")
+            != "disabled"
+        ):
+            raise RuntimeError(
+                "Could not isolate the manager-owned extension before UX smoke: "
+                f"{evidence['kit_extension_manager_pre_manual_disable']}"
+            )
+        evidence["managed_window_cleanup"] = _destroy_workspace_extension_window()
+        if evidence["managed_window_cleanup"].get("status") == "failed":
+            raise RuntimeError(
+                "Could not remove the disabled manager window before UX smoke: "
+                f"{evidence['managed_window_cleanup']}"
+            )
         evidence["package_origin"] = _probe_package_origin(
             Path(evidence["extension_path"])
         )
@@ -1586,8 +1604,10 @@ def _capture_advanced_error_evidence(
         return {"status": "failed", "reason": "ui_window_unavailable"}
     duration = window._float_fields.get("source_duration_s")
     advanced = window._section_frames.get("Advanced Tools")
+    live = window._section_frames.get("Live Monitor")
     guided = window._section_frames.get("Guided Workflow")
-    if duration is None or advanced is None:
+    audio_source = window._subsection_frames.get("Audio Source")
+    if duration is None or advanced is None or live is None or audio_source is None:
         return {"status": "failed", "reason": "advanced error controls missing"}
 
     state = controller.state
@@ -1598,9 +1618,15 @@ def _capture_advanced_error_evidence(
         "diagnostic": window._diagnostic,
         "invalid_field": window._invalid_field,
         "advanced_collapsed": bool(getattr(advanced, "collapsed", True)),
+        "live_collapsed": bool(getattr(live, "collapsed", False)),
         "guided_collapsed": (
             bool(getattr(guided, "collapsed", True)) if guided is not None else None
         ),
+        "subsections": {
+            title: bool(getattr(frame, "collapsed", True))
+            for title, frame in window._subsection_frames.items()
+        },
+        "scroll_y": getattr(window._scrolling_frame, "scroll_y", None),
     }
     record: dict[str, Any] = {}
     try:
@@ -1616,20 +1642,31 @@ def _capture_advanced_error_evidence(
         state.status_message = "Invalid source duration."
         state.error_message = "Invalid source duration."
         window._apply_field_style("source_duration_s")
+        window._set_section_collapsed("Live Monitor", True)
         window._set_section_collapsed("Advanced Tools", False)
+        for frame in window._subsection_frames.values():
+            frame.collapsed = True
+        audio_source.collapsed = False
+        if window._scrolling_frame is not None:
+            window._scrolling_frame.scroll_y = 10_000
         window.refresh_labels()
         _update_kit_once(evidence)
+        _settle_kit_ui()
 
         footer = getattr(window._labels.get("status"), "text", "")
         screenshot = _capture_app_screenshot(screenshot_path)
         record = {
             "footer": footer,
             "advanced_open": not bool(getattr(advanced, "collapsed", True)),
+            "audio_source_open": not bool(
+                getattr(audio_source, "collapsed", True)
+            ),
             "duration_style": getattr(duration, "style", None),
             "screenshot": screenshot,
         }
         passed = (
             record["advanced_open"]
+            and record["audio_source_open"]
             and "Audio Source > Duration" in footer
             and "Enter a positive number, then retry" in footer
             and screenshot.get("status") == "captured"
@@ -1648,11 +1685,16 @@ def _capture_advanced_error_evidence(
             "Advanced Tools",
             previous["advanced_collapsed"],
         )
+        window._set_section_collapsed("Live Monitor", previous["live_collapsed"])
         if previous["guided_collapsed"] is not None:
             window._set_section_collapsed(
                 "Guided Workflow",
                 previous["guided_collapsed"],
             )
+        for title, collapsed in previous["subsections"].items():
+            window._subsection_frames[title].collapsed = collapsed
+        if window._scrolling_frame is not None and previous["scroll_y"] is not None:
+            window._scrolling_frame.scroll_y = previous["scroll_y"]
         window.refresh_labels()
 
 
@@ -2441,6 +2483,23 @@ def _collect_instruments_evidence(
             ),
         }
     record["widgets"] = widget_record
+    guided = (
+        window._section_frames.get("Guided Workflow") if window is not None else None
+    )
+    if window is not None:
+        window._set_section_collapsed("Guided Workflow", True)
+        if window._scrolling_frame is not None:
+            window._scrolling_frame.scroll_y = 0
+        window.refresh_labels()
+        _settle_kit_ui()
+        record["guided_collapsed_at_capture"] = bool(
+            getattr(guided, "collapsed", True)
+        )
+        record["footer_at_capture"] = getattr(
+            window._labels.get("status"),
+            "text",
+            "",
+        )
     record["app_screenshot"] = _capture_app_screenshot(screenshot_path)
     passed = (
         bool(view_model.needles)
@@ -2646,6 +2705,15 @@ def _capture_app_screenshot(path: Path) -> dict[str, Any]:
         attempts=attempts,
         framed_paths=(),
     )
+
+
+def _settle_kit_ui(*, updates: int = 4) -> None:
+    with suppress(Exception):
+        import omni.kit.app  # type: ignore
+
+        app = omni.kit.app.get_app()
+        for _ in range(updates):
+            app.update()
 
 
 def _capture_viewport_screenshot(
@@ -3302,6 +3370,30 @@ def _try_enable_extension_manager(
         return result
     except Exception as exc:  # noqa: BLE001 - direct startup may still work.
         return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
+
+
+def _destroy_workspace_extension_window() -> dict[str, Any]:
+    """Remove the disabled manager instance before the isolated UX probe."""
+
+    try:
+        import omni.ui  # type: ignore
+
+        workspace = getattr(omni.ui, "Workspace", None)
+        getter = getattr(workspace, "get_window", None)
+        window = getter(OMNI_WINDOW_TITLE) if callable(getter) else None
+        if window is None:
+            return {"status": "not_found"}
+        destroy = getattr(window, "destroy", None)
+        if not callable(destroy):
+            window.visible = False
+            status = "hidden"
+        else:
+            destroy()
+            status = "destroyed"
+        _settle_kit_ui(updates=8)
+        return {"status": status}
+    except Exception as exc:  # noqa: BLE001 - smoke records UI ownership drift.
+        return {"status": "failed", "reason": f"{type(exc).__name__}: {exc}"}
 
 
 def _try_disable_extension_manager(*, extension_id: str) -> dict[str, Any]:

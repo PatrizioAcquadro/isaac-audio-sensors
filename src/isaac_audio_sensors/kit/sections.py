@@ -112,14 +112,21 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
 
     with ui.VStack(spacing=5, height=0) as root:
         step_labels: dict[GuidedStage, Any] = {}
+        step_frames: dict[GuidedStage, Any] = {}
         with ui.HStack(spacing=4, height=26):
             for index, stage in enumerate(GUIDED_STAGE_ORDER, start=1):
-                step_labels[stage] = ui.Label(
-                    f"{index} {stage.value.title()}",
+                indicator = ui.ZStack(
                     width=_ui_fraction(ui, 1),
                     height=24,
-                    tooltip=stage.value.title(),
                 )
+                with indicator:
+                    background = ui.Rectangle()
+                    step_labels[stage] = ui.Label(
+                        f"{index} {stage.value.title()}",
+                        height=24,
+                        tooltip=stage.value.title(),
+                    )
+                step_frames[stage] = background
         stage_title = ui.Label("")
         stage_status = ui.Label("", word_wrap=True)
         with ui.VStack(spacing=4, height=0) as setup_panel:
@@ -257,6 +264,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
     panel = {
         "root": root,
         "step_labels": step_labels,
+        "step_frames": step_frames,
         "stage_title": stage_title,
         "stage_status": stage_status,
         "setup_panel": setup_panel,
@@ -315,7 +323,9 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                     )
                 )
             )
-            label.style = dict(_GUIDED_STEP_STYLES[style_name])
+            style = _GUIDED_STEP_STYLES[style_name]
+            step_frames[stage].style = dict(style)
+            label.style = {"color": style["color"], "margin": 5}
             label.tooltip = f"{stage.value.title()}: {status.value.replace('_', ' ')}"
         _set_widget_text(stage_title, current.value.title())
         _set_widget_text(stage_status, _guided_prompt(window, current))

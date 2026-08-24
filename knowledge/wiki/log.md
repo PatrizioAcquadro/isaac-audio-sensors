@@ -201,3 +201,11 @@ Recorded the three-area native window, compact guided workflow, persistent exper
 ## 2026-08-24 — lint: Native Kit UI redesign
 
 Verified canonical ownership, index coverage, internal links, immutable raw content, current UI and controller contracts, the real preview, deterministic checks, RTX 4090 live Kit behavior, Ruff, version synchronization, and Markdown whitespace.
+
+## 2026-08-24 — update: Native Kit UI precision pass
+
+Recorded visual guided states, actionable feedback, monotonic frame freshness, dBFS meters, adaptive detections, operational footer priority, field-specific recovery, transient field provenance, windowed smoke screenshots, and unchanged public and serialized contracts.
+
+## 2026-08-24 — lint: Native Kit UI precision pass
+
+Verified canonical ownership, internal links, immutable raw content, unchanged public and serialized contracts, deterministic UI coverage, full host gates, RTX 4090 windowed Kit smoke, both real screenshots, the refreshed preview, Ruff, version synchronization, and Markdown whitespace.

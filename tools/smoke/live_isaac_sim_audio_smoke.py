@@ -757,7 +757,11 @@ def _author_stage(stage: Any) -> None:
     )
 
 
-def _ensure_isaac_runtime(evidence: dict[str, Any]) -> Any | None:
+def _ensure_isaac_runtime(
+    evidence: dict[str, Any],
+    *,
+    headless: bool = True,
+) -> Any | None:
     try:
         import omni.kit.app  # type: ignore
 
@@ -776,7 +780,7 @@ def _ensure_isaac_runtime(evidence: dict[str, Any]) -> Any | None:
             "Could not import isaacsim.SimulationApp from the requested Python runtime."
         ) from exc
 
-    simulation_app = SimulationApp({"headless": True})
+    simulation_app = SimulationApp({"headless": headless})
     evidence["simulation_app_bootstrap"] = "created"
     import omni.kit.app  # type: ignore
 
