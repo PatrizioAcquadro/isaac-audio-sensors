@@ -225,3 +225,11 @@ Recorded complete `loopCount` semantics, non-spatial sensor exclusion, bounded r
 ## 2026-08-24 — lint: Native Kit Audio audition bridge
 
 Verified canonical ownership, internal links and index coverage, immutable raw content, host and RTX gates, session-layer listener placement, non-silent WAV capture, complete cleanup, unchanged four-channel sensor output, version synchronization, Ruff, and Markdown whitespace.
+
+## 2026-08-24 — update: Native audio discovery and listener safety
+
+Recorded non-fatal strict exclusion for implicitly discovered non-spatial sounds, explicit-selection failure, compatible direct-child listener reuse, and session-layer fallback for unrelated or misaligned listeners.
+
+## 2026-08-24 — lint: Native audio discovery and listener safety
+
+Verified canonical ownership, internal links and index coverage, immutable raw content, strict and explicit discovery behavior, compatible listener selection, full host gates, 103 Isaac tests, RTX 4090 Kit capture and cleanup, version synchronization, Ruff, and Markdown whitespace.

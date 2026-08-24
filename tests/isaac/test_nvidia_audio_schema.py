@@ -220,12 +220,38 @@ def test_discovery_excludes_non_spatial_sound_with_clear_diagnostic() -> None:
     )
     diagnostics: dict[str, object] = {}
 
-    result = discover_stage_audio(stage, diagnostics_out=diagnostics)
+    result = discover_stage_audio(
+        stage,
+        cfg=IsaacAudioDiscoveryCfg(strict_candidate_errors=True),
+        diagnostics_out=diagnostics,
+    )
 
     assert result.sources == ()
     rejection = diagnostics["source_rejections"]["/World/UiSound"]
     assert rejection["reason"] == "non_spatial_source"
     assert "physical microphone-array discovery" in rejection["error"]
+
+
+def test_discovery_rejects_explicit_non_spatial_sound() -> None:
+    stage = _FakeStage(
+        (
+            _FakePrim(
+                "/World/UiSound",
+                "OmniSound",
+                {
+                    "auralMode": "nonSpatial",
+                    "filePath": "audio/ui.wav",
+                    "xformOp:translate": (0.0, 0.0, 0.0),
+                },
+            ),
+        )
+    )
+
+    with pytest.raises(ValueError, match="nonSpatial"):
+        discover_stage_audio(
+            stage,
+            explicit_source_prim_path="/World/UiSound",
+        )
 
 
 def test_discovery_rejects_invalid_native_loop_count() -> None:
@@ -330,3 +356,55 @@ def test_discovery_rejects_disabled_or_nonrepresentable_native_source(
 def test_metadata_precedence_requires_each_supported_layer_once() -> None:
     with pytest.raises(ValueError, match="metadata_precedence"):
         IsaacAudioDiscoveryCfg(metadata_precedence=("ias", "ias", "defaults"))
+
+
+def test_real_usd_listener_compatibility_requires_static_identity_child() -> None:
+    pytest.importorskip("pxr")
+    from pxr import Gf, Sdf, Usd, UsdGeom
+
+    from isaac_audio_sensors.kit.kit_audio import _listener_is_compatible
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(stage, "/World/Array")
+
+    def listener(name: str):
+        prim = UsdGeom.Xform.Define(stage, f"/World/Array/{name}").GetPrim()
+        prim.CreateAttribute(
+            "orientationFromView",
+            Sdf.ValueTypeNames.Bool,
+        ).Set(False)
+        prim.CreateAttribute("ias:array_id", Sdf.ValueTypeNames.String).Set("rig")
+        return prim
+
+    identity = listener("Identity")
+    assert _listener_is_compatible(
+        identity,
+        array_prim_path="/World/Array",
+        array_id="rig",
+    )
+
+    offset = listener("Offset")
+    UsdGeom.Xformable(offset).AddTranslateOp().Set(Gf.Vec3d(0.1, 0.0, 0.0))
+    assert not _listener_is_compatible(
+        offset,
+        array_prim_path="/World/Array",
+        array_id="rig",
+    )
+
+    reset = listener("Reset")
+    UsdGeom.Xformable(reset).SetResetXformStack(True)
+    assert not _listener_is_compatible(
+        reset,
+        array_prim_path="/World/Array",
+        array_id="rig",
+    )
+
+    animated = listener("Animated")
+    translate = UsdGeom.Xformable(animated).AddTranslateOp()
+    translate.Set(Gf.Vec3d(0.0, 0.0, 0.0), Usd.TimeCode.Default())
+    translate.Set(Gf.Vec3d(0.1, 0.0, 0.0), Usd.TimeCode(1.0))
+    assert not _listener_is_compatible(
+        animated,
+        array_prim_path="/World/Array",
+        array_id="rig",
+    )

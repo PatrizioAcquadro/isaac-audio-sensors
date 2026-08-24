@@ -387,10 +387,13 @@ def test_native_loop_and_aural_mode_changes_refresh_source_semantics():
         ),
         None,
     )
-    with pytest.raises(ValueError, match="nonSpatial"):
-        sensor.update(sim_time_s=0.4)
+    frame = sensor.update(sim_time_s=0.4)
 
     assert stage.traverse_count == warm_count + 2
+    assert frame.detections == ()
+    assert sensor._latest_scene.sources == ()
+    rejection = frame.diagnostics["stage_snapshot"]["source_rejections"][source.path]
+    assert rejection["reason"] == "non_spatial_source"
     sensor.close()
 
 

@@ -28,6 +28,7 @@ from .state import ExtensionActionError
 _ACTIVATION_ATTEMPTS = 3
 _CAPTURE_WAIT_MS = 3_000
 _TEMP_LISTENER_NAME = "IasKitAudioListener"
+_IDENTITY_TRANSFORM_TOLERANCE = 1e-9
 
 
 @dataclass(frozen=True, slots=True)
@@ -434,19 +435,17 @@ def _listener_for_array(
         for prim in _stage_prims(stage)
         if prim_type_name(prim).lower() in {"omnilistener", "listener"}
     )
-    descendants = tuple(
+    compatible = tuple(
         listener
         for listener in listeners
-        if prim_path(listener).startswith(f"{array_prim_path.rstrip('/')}/")
+        if _listener_is_compatible(
+            listener,
+            array_prim_path=array_prim_path,
+            array_id=array_id,
+        )
     )
-    associated = tuple(
-        listener
-        for listener in listeners
-        if str(_prim_attribute(listener, "ias:array_id") or "") == array_id
-    )
-    matches = descendants or associated
-    if matches:
-        return sorted(matches, key=prim_path)[0], None
+    if compatible:
+        return sorted(compatible, key=prim_path)[0], None
     listener_path = _available_listener_path(stage, array_prim_path)
     with _session_edit_context(stage):
         create_listener_prim(
@@ -459,6 +458,53 @@ def _listener_for_array(
     if listener is None:
         raise ExtensionActionError("Temporary Kit listener could not be authored.")
     return listener, listener_path
+
+
+def _listener_is_compatible(
+    listener: Any,
+    *,
+    array_prim_path: str,
+    array_id: str,
+) -> bool:
+    path = prim_path(listener)
+    parent_path = path.rsplit("/", 1)[0]
+    if parent_path != array_prim_path.rstrip("/"):
+        return False
+    orientation_from_view = _prim_attribute(listener, "orientationFromView")
+    if orientation_from_view is None or bool(orientation_from_view):
+        return False
+    associated_array_id = str(_prim_attribute(listener, "ias:array_id") or "")
+    if associated_array_id and associated_array_id != array_id:
+        return False
+    return _listener_has_identity_local_transform(listener)
+
+
+def _listener_has_identity_local_transform(listener: Any) -> bool:
+    try:
+        from pxr import Gf, UsdGeom  # type: ignore
+
+        xformable = UsdGeom.Xformable(listener)
+        if not xformable or xformable.GetResetXformStack():
+            return False
+        if any(
+            op.GetAttr().GetNumTimeSamples() > 0
+            for op in xformable.GetOrderedXformOps()
+        ):
+            return False
+        return bool(
+            Gf.IsClose(
+                xformable.GetLocalTransformation(),
+                Gf.Matrix4d(1),
+                _IDENTITY_TRANSFORM_TOLERANCE,
+            )
+        )
+    except (ImportError, RuntimeError, TypeError):
+        attributes = getattr(listener, "attributes", None)
+        if not isinstance(attributes, dict):
+            return False
+        if attributes.get("xformOpOrder"):
+            return False
+        return not any(str(name).startswith("xformOp:") for name in attributes)
 
 
 def _available_listener_path(stage: Any, array_prim_path: str) -> str:

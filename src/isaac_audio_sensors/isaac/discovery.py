@@ -523,7 +523,7 @@ def _discover_sources(
                 "error": error,
                 "candidate_reasons": reasons,
             }
-            if explicit or cfg.strict_candidate_errors:
+            if explicit:
                 raise ValueError(error)
             continue
         try:

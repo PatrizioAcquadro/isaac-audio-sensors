@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
+import pytest
+
 from isaac_audio_sensors.kit import ExtensionController
 from isaac_audio_sensors.kit.kit_audio import KitAudioService
 from isaac_audio_sensors.kit.state import CurrentStageContext
@@ -151,11 +153,20 @@ def test_listener_creation_uses_session_child_retries_and_restores(
     assert [entry[0] for entry in edits] == ["enter", "exit", "enter", "exit"]
 
 
-def test_listener_reuses_array_association_and_preserves_manual_override():
+@pytest.mark.parametrize(
+    "attributes",
+    (
+        {"orientationFromView": False},
+        {"ias:array_id": "rig_front", "orientationFromView": False},
+    ),
+)
+def test_listener_reuses_compatible_array_child_and_preserves_manual_override(
+    attributes,
+):
     listener = _FakePrim(
-        "/World/RobotListener",
+        "/World/Rig/AudioArray/ExistingListener",
         "OmniListener",
-        {"ias:array_id": "rig_front"},
+        attributes,
     )
     previous = _FakePrim("/World/PreviousListener", "OmniListener")
     manual = _FakePrim("/World/ManualListener", "OmniListener")
@@ -170,6 +181,69 @@ def test_listener_reuses_array_association_and_preserves_manual_override():
     assert audio.active is manual
     assert stage.GetPrimAtPath(listener.path) is listener
     assert "user selection was preserved" in controller.state.kit_listener_status
+
+
+def test_listener_ignores_external_array_id_match_and_removes_fallback():
+    listener = _FakePrim(
+        "/World/RobotListener",
+        "OmniListener",
+        {
+            "ias:array_id": "rig_front",
+            "orientationFromView": False,
+        },
+    )
+    previous = _FakePrim("/World/PreviousListener", "OmniListener")
+    stage = _stage(listener=listener)
+    audio = _FakeAudio(active=previous)
+    controller = _controller(stage, audio)
+
+    path = controller.activate_kit_listener(stage=stage)
+
+    assert path == "/World/Rig/AudioArray/IasKitAudioListener"
+    assert audio.active is stage.GetPrimAtPath(path)
+    assert stage.GetPrimAtPath(listener.path) is listener
+    assert controller.restore_previous_kit_listener() is True
+    assert audio.active is previous
+    assert stage.GetPrimAtPath(path) is None
+    assert stage.GetPrimAtPath(listener.path) is listener
+
+
+@pytest.mark.parametrize(
+    "attributes",
+    (
+        {"ias:array_id": "rig_front", "orientationFromView": True},
+        {
+            "ias:array_id": "rig_front",
+            "orientationFromView": False,
+            "xformOp:translate": (0.1, 0.0, 0.0),
+        },
+        {"ias:array_id": "other_array", "orientationFromView": False},
+    ),
+)
+def test_listener_ignores_incompatible_array_child(attributes):
+    listener = _FakePrim(
+        "/World/Rig/AudioArray/ExistingListener",
+        "OmniListener",
+        attributes,
+    )
+    previous = _FakePrim("/World/PreviousListener", "OmniListener")
+    stage = _stage(listener=listener)
+    audio = _FakeAudio(active=previous)
+    controller = _controller(stage, audio)
+
+    path = controller.activate_kit_listener(stage=stage)
+
+    assert path == "/World/Rig/AudioArray/IasKitAudioListener"
+    fallback = stage.GetPrimAtPath(path)
+    assert fallback is audio.active
+    assert fallback.attributes == {
+        "ias:array_id": "rig_front",
+        "orientationFromView": False,
+    }
+    assert controller.restore_previous_kit_listener() is True
+    assert audio.active is previous
+    assert stage.GetPrimAtPath(path) is None
+    assert stage.GetPrimAtPath(listener.path) is listener
 
 
 def test_mix_capture_stop_wait_destroy_verifies_real_wav_and_releases_listener():
