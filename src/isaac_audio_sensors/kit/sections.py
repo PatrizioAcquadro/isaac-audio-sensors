@@ -24,11 +24,79 @@ from .spectro import (
     WAVEFORM_IMAGE_HEIGHT,
     WAVEFORM_IMAGE_WIDTH,
 )
-from .ui_models import _combo_index, _set_model_value, _set_widget_text
-from .workflow import GUIDED_STAGE_ORDER, SAFE_PRESETS, GuidedStage
+from .ui_models import _combo_index, _set_model_value, _set_widget_text, _ui_fraction
+from .workflow import GUIDED_STAGE_ORDER, SAFE_PRESETS, GuidedStage, StageStatus
 
 if TYPE_CHECKING:
     from .window import OmniReferenceWindow
+
+
+_GUIDED_STEP_STYLES = {
+    "complete": {
+        "background_color": 0xFF315A3A,
+        "color": 0xFFD7F3DD,
+        "border_color": 0xFF4F9B62,
+        "border_width": 1,
+        "margin": 5,
+    },
+    "current": {
+        "background_color": 0xFF5D3922,
+        "color": 0xFFF4E3D5,
+        "border_color": 0xFFD2782E,
+        "border_width": 2,
+        "margin": 5,
+    },
+    "blocked": {
+        "background_color": 0xFF382426,
+        "color": 0xFFF2D7D7,
+        "border_color": 0xFF616AEF,
+        "border_width": 2,
+        "margin": 5,
+    },
+    "upcoming": {
+        "background_color": 0xFF292725,
+        "color": 0xFF8E8A86,
+        "border_color": 0xFF3E3A37,
+        "border_width": 1,
+        "margin": 5,
+    },
+}
+
+
+def _guided_prompt(window: OmniReferenceWindow, stage: GuidedStage) -> str:
+    workflow = window.controller.guided_workflow
+    status = workflow.status(stage)
+    findings = workflow.findings_for_stage(stage)
+    if findings:
+        recovery = workflow.recovery_action(findings[0]).label
+        suffix = "" if len(findings) == 1 else f" · {len(findings)} issues"
+        return f"{recovery} to continue{suffix}."
+    if status is StageStatus.BLOCKED:
+        return "Review this step, then retry."
+    if status is StageStatus.COMPLETE:
+        return f"{stage.value.title()} complete. Continue when ready."
+    if stage is GuidedStage.SETUP:
+        return "Apply a safe preset to continue."
+    if stage is GuidedStage.VALIDATE:
+        return "Run validation to continue."
+    if stage is GuidedStage.RUN:
+        run = window.controller.guided_run_status
+        if run.running:
+            return f"Sensor running · {run.frame_count} frames observed."
+        return "Start the sensor in Live Monitor."
+    if stage is GuidedStage.INSPECT:
+        if not window.controller.state.latest_frame_id:
+            return "Capture a frame before inspection."
+        return "Review the latest frame, then mark it inspected."
+    if stage is GuidedStage.RECORD:
+        recording = window.controller.guided_recording_status
+        if recording.active:
+            return (
+                f"Recording · {recording.frames} frames · "
+                f"{recording.dropped_frames} dropped."
+            )
+        return "Start recording to continue."
+    return "Choose a destination, then export the dataset."
 
 
 def build_guided_section(window: OmniReferenceWindow) -> None:
@@ -42,8 +110,16 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
     selected_id = window.controller.state.guided_preset_id
     selected_index = preset_ids.index(selected_id) if selected_id in preset_ids else 0
 
-    with ui.VStack(spacing=4, height=0) as root:
-        breadcrumb = ui.Label("", word_wrap=True)
+    with ui.VStack(spacing=5, height=0) as root:
+        step_labels: dict[GuidedStage, Any] = {}
+        with ui.HStack(spacing=4, height=26):
+            for index, stage in enumerate(GUIDED_STAGE_ORDER, start=1):
+                step_labels[stage] = ui.Label(
+                    f"{index} {stage.value.title()}",
+                    width=_ui_fraction(ui, 1),
+                    height=24,
+                    tooltip=stage.value.title(),
+                )
         stage_title = ui.Label("")
         stage_status = ui.Label("", word_wrap=True)
         with ui.VStack(spacing=4, height=0) as setup_panel:
@@ -180,7 +256,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
 
     panel = {
         "root": root,
-        "breadcrumb": breadcrumb,
+        "step_labels": step_labels,
         "stage_title": stage_title,
         "stage_status": stage_status,
         "setup_panel": setup_panel,
@@ -224,20 +300,25 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
 
     def _refresh() -> None:
         current = workflow.current_stage
-        crumbs = "  >  ".join(
-            f"[{stage.value.title()}]"
-            if stage is current
-            else stage.value.title()
-            for stage in GUIDED_STAGE_ORDER
-        )
-        _set_widget_text(breadcrumb, crumbs)
+        for stage, label in step_labels.items():
+            status = workflow.status(stage)
+            style_name = (
+                "blocked"
+                if stage is current and status is StageStatus.BLOCKED
+                else (
+                    "current"
+                    if stage is current
+                    else (
+                        "complete"
+                        if status is StageStatus.COMPLETE
+                        else "upcoming"
+                    )
+                )
+            )
+            label.style = dict(_GUIDED_STEP_STYLES[style_name])
+            label.tooltip = f"{stage.value.title()}: {status.value.replace('_', ' ')}"
         _set_widget_text(stage_title, current.value.title())
-        current_findings = workflow.findings_for_stage(current)
-        _set_widget_text(
-            stage_status,
-            f"Status: {workflow.current_status.value.replace('_', ' ')}"
-            + ("" if not current_findings else f" | {len(current_findings)} issue(s)"),
-        )
+        _set_widget_text(stage_status, _guided_prompt(window, current))
         setup_panel.visible = current is GuidedStage.SETUP
         validate_panel.visible = current is GuidedStage.VALIDATE
         run_panel.visible = current is GuidedStage.RUN
@@ -401,35 +482,42 @@ def build_live_monitor_section(window: OmniReferenceWindow) -> None:
     """Build the primary sensor lifecycle and live evidence surface."""
 
     ui = window.ui
-    with ui.VStack(spacing=6, height=0):
-        with ui.HStack(spacing=8, height=0):
-            with ui.VStack(spacing=2, height=0):
-                window._labels["live_status"] = ui.Label("", word_wrap=True)
-                window._labels["live_frame"] = ui.Label("", word_wrap=True)
-                window._labels["live_waveform"] = ui.Label("", word_wrap=True)
-
-            def _toggle_sensor() -> None:
-                state = window.controller.state
-                guided_run = (
-                    state.guided_mode_enabled
-                    and window.controller.guided_workflow.current_stage
-                    is GuidedStage.RUN
-                )
-                if state.sensor_running:
-                    if guided_run:
-                        window.controller.guided_stop_run()
-                    else:
-                        window.controller.stop_sensor()
-                elif guided_run:
-                    window.controller.guided_start_run()
+    with ui.VStack(spacing=4, height=0):
+        def _toggle_sensor() -> None:
+            state = window.controller.state
+            guided_run = (
+                state.guided_mode_enabled
+                and window.controller.guided_workflow.current_stage
+                is GuidedStage.RUN
+            )
+            if state.sensor_running:
+                if guided_run:
+                    window.controller.guided_stop_run()
                 else:
-                    window.controller.start_sensor()
+                    window.controller.stop_sensor()
+            elif guided_run:
+                window.controller.guided_start_run()
+            else:
+                window.controller.start_sensor()
 
+        with ui.HStack(spacing=8, height=0):
+            ui.Label("Sensor", width=86)
+            window._readonly_label("live_status")
             sensor_button = window._button(
                 "Start Sensor",
                 _toggle_sensor,
                 kind="primary",
+                width=160,
             )
+        for label, key in (
+            ("Backend", "live_backend"),
+            ("Last frame", "live_frame"),
+            ("Detections", "live_detections"),
+            ("Waveform", "live_waveform"),
+        ):
+            with ui.HStack(spacing=8, height=0):
+                ui.Label(label, width=86)
+                window._readonly_label(key)
         build_instruments_section(window)
         window._instruments["sensor_button"] = sensor_button
 
@@ -450,7 +538,7 @@ def build_advanced_section(window: OmniReferenceWindow) -> None:
 def build_stage_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
     with window._subsection("Stage & Selection", collapsed=False):
-        window._labels["stage"] = ui.Label("", word_wrap=True)
+        window._readonly_label("stage")
         binding_roles = (
             ("Microphone Array", window.controller.use_selected_as_array),
             ("Audio Source", window.controller.use_selected_as_source),
@@ -486,12 +574,12 @@ def build_stage_section(window: OmniReferenceWindow) -> None:
                 "Create Demo Object",
                 window.controller.create_demo_object,
             )
-        window._labels["object"] = ui.Label("", word_wrap=True)
+        window._readonly_label("object")
         window._button(
             "Discover Sensors",
             window.controller.refresh_discovery,
         )
-        window._labels["discovery"] = ui.Label("", word_wrap=True)
+        window._readonly_label("discovery")
 
 
 def build_array_section(window: OmniReferenceWindow) -> None:
@@ -501,7 +589,10 @@ def build_array_section(window: OmniReferenceWindow) -> None:
         window._string_row("Array ID", "array_id")
         window._combo_row("Layout", "layout_name", LAYOUT_CHOICES)
         window._int_row("Sample Rate", "sample_rate_hz")
-        ui.Label(f"Convention: {window.controller.state.coordinate_convention}")
+        window._readonly_label(
+            "array_convention",
+            f"Convention: {window.controller.state.coordinate_convention}",
+        )
         window._bool_row("Child Mics", "author_child_microphones")
         window._button(
             "Create/Attach Array",
@@ -516,7 +607,7 @@ def build_array_section(window: OmniReferenceWindow) -> None:
             "selected_rig_profile_id",
             rig_profile_ids,
         )
-        window._labels["rig_profile"] = ui.Label("", word_wrap=True)
+        window._readonly_label("rig_profile")
         window._button(
             "Apply Rig Profile",
             window.controller.apply_selected_rig_profile,
@@ -552,7 +643,7 @@ def build_array_section(window: OmniReferenceWindow) -> None:
                 "Detach Array",
                 window.controller.detach_array_from_object,
             )
-        window._labels["array_latest"] = ui.Label("", word_wrap=True)
+        window._readonly_label("array_latest")
 
 
 def build_source_section(window: OmniReferenceWindow) -> None:
@@ -566,7 +657,7 @@ def build_source_section(window: OmniReferenceWindow) -> None:
             profile.profile_id for profile in window.controller.state.profile_library
         )
         window._combo_row("Sound Profile", "selected_profile_id", profile_ids)
-        window._labels["profile"] = window.ui.Label("", word_wrap=True)
+        window._readonly_label("profile")
         with window.ui.HStack(spacing=4):
             window._button(
                 "Auto From Object",
@@ -646,12 +737,12 @@ def build_control_section(window: OmniReferenceWindow) -> None:
                 "Clear Debug Geometry",
                 window.controller.clear_usd_debug_geometry,
             )
-        window._labels["latest"] = ui.Label("", word_wrap=True)
-        window._labels["overlay"] = ui.Label("", word_wrap=True)
-        window._labels["usd_debug"] = ui.Label("", word_wrap=True)
-        window._labels["omnigraph"] = ui.Label("", word_wrap=True)
+        window._readonly_label("latest")
+        window._readonly_label("overlay")
+        window._readonly_label("usd_debug")
+        window._readonly_label("omnigraph")
         ui.Label("Diagnostics")
-        window._labels["diagnostic"] = ui.Label("", word_wrap=True)
+        window._readonly_label("diagnostic")
 
 
 def build_room_section(window: OmniReferenceWindow) -> None:
@@ -668,7 +759,7 @@ def build_room_section(window: OmniReferenceWindow) -> None:
             "leave empty to center the default room on the array.",
             word_wrap=True,
         )
-        window._labels["room"] = ui.Label("", word_wrap=True)
+        window._readonly_label("room")
 
 
 def build_replicator_section(window: OmniReferenceWindow) -> None:
@@ -691,7 +782,7 @@ def build_replicator_section(window: OmniReferenceWindow) -> None:
                 "Stop Replicator",
                 window.controller.stop_replicator,
             )
-        window._labels["replicator"] = ui.Label("", word_wrap=True)
+        window._readonly_label("replicator")
 
 
 def build_export_section(window: OmniReferenceWindow) -> None:
@@ -719,7 +810,7 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
     """Build the compass, per-mic RMS meters, and detection timeline."""
 
     ui = window.ui
-    with ui.VStack(spacing=4, height=0):
+    with ui.VStack(spacing=5, height=0):
         with ui.HStack(spacing=8, height=0):
             with ui.VStack(spacing=4, width=0):
                 provider = None
@@ -733,27 +824,57 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                         width=COMPASS_IMAGE_SIZE,
                         height=COMPASS_IMAGE_SIZE,
                     )
-                window._labels["compass"] = ui.Label("no bearing", word_wrap=True)
-            with ui.VStack(spacing=2, height=0):
-                ui.Label("Per-mic RMS")
-                progress_cls = getattr(ui, "ProgressBar", None)
+                for label, key in (
+                    ("Bearing", "compass_bearing"),
+                    ("Sector", "compass_sector"),
+                    ("Confidence", "compass_confidence"),
+                    ("Occlusion", "compass_occlusion"),
+                ):
+                    with ui.HStack(spacing=4, height=0):
+                        ui.Label(label, width=82)
+                        value = window._readonly_label(key)
+                        if key == "compass_bearing":
+                            window._labels["compass"] = value
+            with ui.VStack(spacing=3, height=0):
+                ui.Label("Per-mic RMS (dBFS)")
+                with ui.HStack(spacing=4, height=0):
+                    ui.Spacer(width=72)
+                    with ui.HStack(spacing=0, height=0):
+                        ui.Label("-60", width=_ui_fraction(ui, 1))
+                        ui.Label("0", width=28)
+                    ui.Spacer(width=72)
                 meter_rows: list[dict[str, object]] = []
                 for _ in range(METER_MAX_ROWS):
                     with ui.HStack(spacing=4, height=0) as meter_row:
-                        label = ui.Label("", width=150)
-                        bar = (
-                            progress_cls(
-                                style={
-                                    "background_color": 0xFF312C27,
-                                    "color": 0xFF8CC14F,
-                                }
-                            )
-                            if progress_cls is not None
-                            else None
-                        )
+                        label = ui.Label("", width=72)
+                        fill = None
+                        remaining = None
+                        rectangle_cls = getattr(ui, "Rectangle", None)
+                        zstack_cls = getattr(ui, "ZStack", None)
+                        if rectangle_cls is not None and zstack_cls is not None:
+                            with zstack_cls(height=14):
+                                rectangle_cls(
+                                    style={"background_color": 0xFF312C27}
+                                )
+                                with ui.HStack(spacing=0, height=14):
+                                    fill = rectangle_cls(
+                                        width=_ui_fraction(ui, 0),
+                                        style={"background_color": 0xFF8CC14F},
+                                    )
+                                    remaining = ui.Spacer(width=_ui_fraction(ui, 1))
+                        value = ui.Label("", width=72)
                     meter_row.visible = False
-                    meter_rows.append({"row": meter_row, "label": label, "bar": bar})
+                    meter_rows.append(
+                        {
+                            "row": meter_row,
+                            "label": label,
+                            "fill": fill,
+                            "remaining": remaining,
+                            "value": value,
+                        }
+                    )
         empty_label = ui.Label("", word_wrap=True)
+        ui.Spacer(height=7)
         ui.Label("Recent detections")
         timeline_labels: list[object] = []
 
@@ -763,18 +884,16 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                 row_label.visible = False
                 timeline_labels.append(row_label)
 
-        scrolling_cls = getattr(ui, "ScrollingFrame", None)
-        if scrolling_cls is None:
-            with ui.VStack(spacing=1, height=0):
-                _build_timeline_rows()
-        else:
-            with scrolling_cls(height=72), ui.VStack(spacing=1, height=0):
-                _build_timeline_rows()
+        with ui.VStack(spacing=1, height=0) as timeline_container:
+            _build_timeline_rows()
+        detection_empty_label = ui.Label("No recent detections.")
     window._instruments = {
         "compass": compass_image,
         "compass_provider": provider,
         "meters": meter_rows,
         "timeline": timeline_labels,
+        "timeline_container": timeline_container,
+        "detection_empty": detection_empty_label,
         "empty": empty_label,
     }
 
@@ -787,7 +906,7 @@ def build_audio_output_section(window: OmniReferenceWindow) -> None:
         window._bool_row("WAV Export", "waveform_enabled")
         window._string_row("WAV Dir", "waveform_dir")
         window._combo_row("WAV Mode", "waveform_mode", WAVEFORM_MODE_CHOICES)
-        window._labels["waveform"] = ui.Label("", word_wrap=True)
+        window._readonly_label("waveform")
         waveform_provider = None
         spectrogram_provider = None
         provider_cls = getattr(ui, "ByteImageProvider", None)
@@ -809,7 +928,7 @@ def build_audio_output_section(window: OmniReferenceWindow) -> None:
             window._button("Play", window.controller.play_latest_waveform)
             window._button("Stop Audio", window.controller.stop_audition)
             window._button("Open WAV Folder", window.controller.open_waveform_folder)
-        window._labels["audition"] = ui.Label("", word_wrap=True)
+        window._readonly_label("audition")
     window._audio_panel = {
         "waveform_provider": waveform_provider,
         "spectrogram_provider": spectrogram_provider,

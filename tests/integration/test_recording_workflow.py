@@ -361,7 +361,12 @@ def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
 
     labels = [widget.text for widget in ui.created if widget.kind == "Label"]
     buttons = [widget.text for widget in ui.created if widget.kind == "Button"]
-    assert any("[Setup]" in text for text in labels)
+    assert "1 Setup" in labels
+    step_labels = window._guided_panel["step_labels"]
+    assert step_labels[GuidedStage.SETUP].style["border_width"] == 2
+    assert window._guided_panel["stage_status"].text == (
+        "Apply a safe preset to continue."
+    )
     assert "Apply Safe Preset" in buttons
     assert "Validate Setup" in buttons
     assert "Start Guided Run" not in buttons
@@ -380,7 +385,11 @@ def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
 
     assert window._guided_panel["setup_panel"].visible is False
     assert window._guided_panel["validate_panel"].visible is True
-    assert "[Validate]" in window._guided_panel["breadcrumb"].text
+    assert step_labels[GuidedStage.SETUP].style["border_color"] == 0xFF4F9B62
+    assert step_labels[GuidedStage.VALIDATE].style["border_width"] == 2
+    assert window._guided_panel["stage_status"].text == (
+        "Run validation to continue."
+    )
 
 
 def test_guided_run_observes_frame_then_stop_regresses(

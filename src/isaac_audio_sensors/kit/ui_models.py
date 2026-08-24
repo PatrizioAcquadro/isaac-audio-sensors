@@ -51,7 +51,7 @@ def _new_simple_model(ui: Any, kind: str, value: Any) -> Any:
         return model
 
 
-def _ui_fraction(ui: Any, value: int) -> Any:
+def _ui_fraction(ui: Any, value: float) -> Any:
     fraction = getattr(ui, "Fraction", None)
     if fraction is None:
         return value

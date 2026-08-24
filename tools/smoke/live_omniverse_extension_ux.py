@@ -45,6 +45,7 @@ from isaac_audio_sensors.kit.instruments import (
     timeline_rows,
 )
 from isaac_audio_sensors.kit.state import CurrentStageContext
+from isaac_audio_sensors.kit.window import _UiDiagnostic
 
 EXTENSION_ID = "isaac_audio_sensors.omni"
 EXPECTED_UI_SECTIONS = (
@@ -55,10 +56,12 @@ EXPECTED_UI_SECTIONS = (
 EXPECTED_INSTRUMENT_KEYS = (
     "compass",
     "compass_provider",
+    "detection_empty",
     "empty",
     "meters",
     "sensor_button",
     "timeline",
+    "timeline_container",
 )
 EXPECTED_UI_BUTTONS = (
     "Apply Safe Preset",
@@ -206,6 +209,7 @@ def main() -> int:
     latest_frame_path = args.out.with_suffix(".latest_frame.json")
     replicator_dir = args.out.with_suffix(".replicator")
     screenshot_path = args.out.with_suffix(".viewport.png")
+    advanced_error_screenshot_path = args.out.with_suffix(".advanced-error.png")
     flac_session_path = args.out.with_suffix(".flac-session")
     generic_artifacts = {
         "frame_trace_path": frame_trace_path,
@@ -221,6 +225,7 @@ def main() -> int:
         pre_frame_config_path,
         latest_frame_path,
         screenshot_path,
+        advanced_error_screenshot_path,
     )
     _prepare_output_dir(replicator_dir)
     shutil.rmtree(flac_session_path, ignore_errors=True)
@@ -238,6 +243,7 @@ def main() -> int:
         "latest_frame_path": str(latest_frame_path),
         "replicator_output_dir": str(replicator_dir),
         "screenshot_path": str(screenshot_path),
+        "advanced_error_screenshot_path": str(advanced_error_screenshot_path),
         "flac_session_path": str(flac_session_path),
         "extension_id": EXTENSION_ID,
         "extension_path": str(args.extension_path),
@@ -310,6 +316,11 @@ def main() -> int:
         )
         evidence["ui_editable_model_probe"] = _probe_ui_editable_models(controller)
         evidence["ui_numeric_widget_probe"] = _probe_ui_numeric_widgets(controller)
+        evidence["advanced_error_ui"] = _capture_advanced_error_evidence(
+            controller,
+            screenshot_path=advanced_error_screenshot_path,
+            evidence=evidence,
+        )
         evidence["export_latest_without_frame"] = _probe_export_latest_without_frame(
             controller
         )
@@ -1560,6 +1571,89 @@ def _probe_ui_numeric_widgets(controller: ExtensionController) -> dict[str, Any]
         "observed_sample_rate": observed_sample_rate,
         "restore_error": restore_error,
     }
+
+
+def _capture_advanced_error_evidence(
+    controller: ExtensionController,
+    *,
+    screenshot_path: Path,
+    evidence: dict[str, Any],
+) -> dict[str, Any]:
+    """Capture the field-specific error treatment with Advanced open."""
+
+    window = _reference_ui_window(controller)
+    if window is None:
+        return {"status": "failed", "reason": "ui_window_unavailable"}
+    duration = window._float_fields.get("source_duration_s")
+    advanced = window._section_frames.get("Advanced Tools")
+    guided = window._section_frames.get("Guided Workflow")
+    if duration is None or advanced is None:
+        return {"status": "failed", "reason": "advanced error controls missing"}
+
+    state = controller.state
+    previous = {
+        "duration": state.source_duration_s,
+        "status": state.status_message,
+        "error": state.error_message,
+        "diagnostic": window._diagnostic,
+        "invalid_field": window._invalid_field,
+        "advanced_collapsed": bool(getattr(advanced, "collapsed", True)),
+        "guided_collapsed": (
+            bool(getattr(guided, "collapsed", True)) if guided is not None else None
+        ),
+    }
+    record: dict[str, Any] = {}
+    try:
+        state.source_duration_s = 0.0
+        duration.model.set_value(0.0)
+        window._invalid_field = "source_duration_s"
+        window._diagnostic = _UiDiagnostic(
+            section="Audio Source",
+            field="Duration",
+            message="Duration must be greater than 0",
+            recovery="Enter a positive number, then retry",
+        )
+        state.status_message = "Invalid source duration."
+        state.error_message = "Invalid source duration."
+        window._apply_field_style("source_duration_s")
+        window._set_section_collapsed("Advanced Tools", False)
+        window.refresh_labels()
+        _update_kit_once(evidence)
+
+        footer = getattr(window._labels.get("status"), "text", "")
+        screenshot = _capture_app_screenshot(screenshot_path)
+        record = {
+            "footer": footer,
+            "advanced_open": not bool(getattr(advanced, "collapsed", True)),
+            "duration_style": getattr(duration, "style", None),
+            "screenshot": screenshot,
+        }
+        passed = (
+            record["advanced_open"]
+            and "Audio Source > Duration" in footer
+            and "Enter a positive number, then retry" in footer
+            and screenshot.get("status") == "captured"
+        )
+        record["status"] = "passed" if passed else "failed"
+        return record
+    finally:
+        state.source_duration_s = previous["duration"]
+        duration.model.set_value(previous["duration"])
+        state.status_message = previous["status"]
+        state.error_message = previous["error"]
+        window._diagnostic = previous["diagnostic"]
+        window._invalid_field = previous["invalid_field"]
+        window._apply_field_style("source_duration_s")
+        window._set_section_collapsed(
+            "Advanced Tools",
+            previous["advanced_collapsed"],
+        )
+        if previous["guided_collapsed"] is not None:
+            window._set_section_collapsed(
+                "Guided Workflow",
+                previous["guided_collapsed"],
+            )
+        window.refresh_labels()
 
 
 def _probe_export_latest_without_frame(
@@ -2947,6 +3041,7 @@ def _validate_live_extension_outputs(
         "dependency_origins",
         "ui_editable_model_probe",
         "ui_numeric_widget_probe",
+        "advanced_error_ui",
         "export_latest_without_frame",
         "config_roundtrip_probe",
         "instruments",

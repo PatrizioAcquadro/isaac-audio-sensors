@@ -178,7 +178,7 @@ def meter_view_models(
         if not math.isfinite(rms_linear) or rms_linear < 0.0:
             continue
         db = rms_db(rms_linear)
-        db_text = f"{db:.1f} dB" if db is not None else "silent"
+        db_text = f"{db:.1f} dBFS" if db is not None else "silent"
         rows.append(
             MeterViewModel(
                 mic_id=str(mic_id),

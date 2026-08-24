@@ -1,7 +1,7 @@
 # ruff: noqa: F403, F405
 
 from isaac_audio_sensors.kit.constants import GUIDED_COLLAPSED_SETTING
-from isaac_audio_sensors.kit.workflow import GuidedStage
+from isaac_audio_sensors.kit.workflow import GuidedStage, RecordingStatus
 
 from ._kit_ui_support import *
 
@@ -372,7 +372,12 @@ def test_kit_builds_against_fake_omni_ui(monkeypatch):
     scrolling_frames = [
         widget for widget in omni_ui.created if widget.kind == "ScrollingFrame"
     ]
-    assert len(scrolling_frames) == 2
+    assert len(scrolling_frames) == 1
+    timeline_container = controller._lifecycle._ui_window._instruments[
+        "timeline_container"
+    ]
+    assert timeline_container.kind == "VStack"
+    assert timeline_container.kwargs["height"] == 0
     collapsable_frames = [
         widget for widget in omni_ui.created if widget.kind == "CollapsableFrame"
     ]
@@ -483,11 +488,10 @@ def test_kit_instruments_show_compass_meters_and_timeline(monkeypatch):
     assert "Frame: frame_001" in latest
     assert "detections=1" in latest
 
-    compass = window._labels["compass"].text
-    assert "bearing 90.0 deg" in compass
-    assert "sector right" in compass
-    assert "confidence 0.80" in compass
-    assert "clear" in compass
+    assert window._labels["compass_bearing"].text == "90.0 deg"
+    assert window._labels["compass_sector"].text == "right"
+    assert window._labels["compass_confidence"].text == "0.80"
+    assert window._labels["compass_occlusion"].text == "Clear"
     provider = window._instruments["compass_provider"]
     assert provider.size == [192, 192]
     assert len(provider.data) == 192 * 192 * 4
@@ -501,9 +505,11 @@ def test_kit_instruments_show_compass_meters_and_timeline(monkeypatch):
         "rear",
         "left",
     ]
-    fractions = [row["bar"].model.value for row in visible_meters]
+    fractions = [row["fill"].width for row in visible_meters]
     assert all(0.0 < fraction <= 1.0 for fraction in fractions)
     assert fractions[0] == max(fractions)
+    assert all(row["value"].text.endswith(" dB") for row in visible_meters)
+    assert all("%" not in row["value"].text for row in visible_meters)
     hidden_meters = [
         row for row in window._instruments["meters"] if not row["row"].visible
     ]
@@ -566,11 +572,110 @@ def test_live_monitor_bounds_meters_and_recent_detections(
     ]
     assert len(visible_detections) == min(detection_count, 3)
     assert window._instruments["empty"].visible is (mic_count == 0)
+    assert window._instruments["detection_empty"].visible is (
+        mic_count > 0 and detection_count == 0
+    )
     assert window._instruments["sensor_button"].text == "Start Sensor"
     controller.state.sensor_running = True
     window.refresh_labels()
     assert window._instruments["sensor_button"].text == "Stop Sensor"
     assert "Active" in window._labels["live_status"].text
+
+
+def test_live_monitor_freshness_and_footer_priority(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+
+    controller = ExtensionController()
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    now = [100.0]
+    window._clock = lambda: now[0]
+    controller.state.sensor_running = True
+    controller.state.latest_frame_id = "frame_technical_identifier"
+    controller.state.latest_timestamp_ms = 5000
+    window.refresh_labels()
+
+    assert window._labels["live_frame"].text == "Updated just now"
+    assert window._labels["status_icon"].text == "ACTIVE"
+
+    now[0] += 0.042
+    window.refresh_labels()
+
+    assert window._labels["live_frame"].text == "Updated 42 ms ago"
+    assert "frame 42 ms ago" in window._labels["status"].text
+    assert "frame_technical_identifier" in window._labels["latest"].text
+
+    now[0] += 0.558
+    window.refresh_labels()
+
+    assert window._labels["status_icon"].text == "WARNING"
+    assert "frame stale 600 ms ago" in window._labels["status"].text
+
+    controller.guided_workflow._recording_status = RecordingStatus(
+        active=True,
+        dataset_id="guided_run",
+        frames=12,
+        dropped_frames=1,
+    )
+    window.refresh_labels()
+
+    assert window._labels["status_icon"].text == "RECORDING"
+    assert window._labels["status"].text == "guided_run · 12 frames · 1 dropped"
+
+    controller.state.error_message = "Sensor failed: stage missing"
+    window.refresh_labels()
+
+    assert window._labels["status_icon"].text == "ERROR"
+    assert window._labels["status"].text.startswith(
+        "Sensor Settings & Debug > Diagnostics — Sensor failed"
+    )
+
+    controller.state.error_message = None
+    controller.guided_workflow._recording_status = RecordingStatus()
+    controller.state.sensor_running = False
+    controller.state.status_message = "Window shown."
+    window.refresh_labels()
+
+    assert window._labels["status_icon"].text == "READY"
+    assert window._labels["status"].text == "Ready for setup."
+
+
+def test_advanced_field_styles_track_auto_fill_and_manual_edit(monkeypatch):
+    omni = ModuleType("omni")
+    omni_ui = _FakeUI()
+    omni.ui = omni_ui
+    monkeypatch.setitem(sys.modules, "omni", omni)
+    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+
+    controller = ExtensionController()
+    assert controller.build_ui_if_available() is not None
+    window = controller._lifecycle._ui_window
+    assert window is not None
+    field = window._float_fields["source_duration_s"]
+
+    assert field.style["border_color"] == 0xFF4A4541
+    assert window._labels["latest"].style["color"] == 0xFFAAA6A2
+
+    def _auto_fill() -> None:
+        controller.state.source_duration_s = 2.5
+
+    window._action(
+        _auto_fill,
+        action_label="Read Selected Transform",
+        section="Audio Source",
+    )()
+
+    assert field.style["border_color"] == 0xFFD2782E
+
+    field.model.set_value("3.0")
+
+    assert controller.state.source_duration_s == 3.0
+    assert field.style["border_color"] == 0xFF4A4541
 
 
 def test_kit_audio_panel_renders_waveform_preview(monkeypatch, tmp_path):
@@ -640,9 +745,19 @@ def test_kit_invalid_numeric_input_is_readable(monkeypatch):
     assert controller.state.error_message is not None
     assert "UI input failed" in controller.state.error_message
     assert window._labels["status"].text == (
-        "UI input failed. Open Advanced Tools for details."
+        "Audio Source > Duration — Invalid numeric value 'not-a-number'. "
+        "Enter a number, then retry."
     )
     assert "not-a-number" in window._labels["diagnostic"].text
+    invalid_style = window._float_fields["source_duration_s"].style
+    assert invalid_style["border_color"] == 0xFF616AEF
+
+    window._float_fields["source_duration_s"].model.set_value("2.5")
+
+    assert controller.state.error_message is None
+    assert window._labels["status"].text == "Corrected Duration."
+    corrected_style = window._float_fields["source_duration_s"].style
+    assert corrected_style["border_color"] == 0xFF4A4541
 
 
 def test_extension_controller_reports_visible_errors_without_raising():

@@ -133,7 +133,9 @@ def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     ]
     assert visible_meters
     assert all(
-        "dB" in row["label"].text or "silent" in row["label"].text
+        row["label"].text
+        and ("dB" in row["value"].text or "silent" in row["value"].text)
+        and "%" not in row["value"].text
         for row in visible_meters
     )
     assert controller.state.detection_history
