@@ -16,11 +16,13 @@ Each emitted frame can carry `stage_snapshot` diagnostics for selected prims, di
 
 The public helpers remain `create_sound_prim` and `create_listener_prim`, but they author only NVIDIA's current `OmniSound` and `OmniListener` types. Updating a deprecated `Sound` or `Listener` prim through these helpers retypes it to the current schema. Discovery checks the current types first and still reads both deprecated aliases for existing stages.
 
-The SDK-facing source arguments stay in ergonomic units. `spatial` maps to `auralMode`, `loop` maps to `loopCount` (`0` or `-1`), finite dB gain maps to positive linear `gain`, and source seconds map through the stage time-code rate to `startTime` and optional `endTime`. Robot-mounted listeners author `orientationFromView=false` by default. Microphone arrays remain `Xform` prims with `ias:*` metadata and microphone children; an `OmniListener` is only an optional Kit Audio bridge.
+The SDK-facing source arguments stay in ergonomic units. `spatial` maps to `auralMode`; `AudioSourceSpec.loop_count` maps to `loopCount`, where `-1` is infinite, `0` is one play, and positive values are additional repeats. The legacy authoring argument `loop` remains available for the `0`/`-1` cases, but conflicting combinations are rejected. Finite dB gain maps to positive linear `gain`, and source seconds map through the stage time-code rate to `startTime` and optional `endTime`. Robot-mounted listeners author `orientationFromView=false` by default. Microphone arrays remain `Xform` prims with `ias:*` metadata and microphone children; an `OmniListener` is only an optional Kit Audio bridge.
 
-Real audio assets author both native `filePath` and `ias:audio_asset_path`. SDK-generated identifiers such as `generated://pulse` author only `ias:audio_asset_path` because Kit Audio cannot play them as files. Discovery applies configurable `ias`, native USD, and default precedence, converts native time codes and linear gain back into SDK seconds and dB, treats negative native `startTime` as disabled, and rejects non-positive native gain when no finite `ias:gain_db` value takes precedence.
+Real audio assets author both native `filePath` and `ias:audio_asset_path`. SDK-generated identifiers such as `generated://pulse` author only `ias:audio_asset_path` because Kit Audio cannot play them as files. Discovery applies configurable `ias`, native USD, and default precedence, converts native time codes, loop count, and linear gain back into the portable contract, treats negative native `startTime` as disabled, and rejects non-positive native gain when no finite `ias:gain_db` value takes precedence. `auralMode=nonSpatial` sources are omitted from physical-sensor discovery with an explicit diagnostic because they do not represent spatial emitters whose poses should propagate to individual microphones.
 
-The Kit extension declares `omni.usd.schema.audio` directly. Discovery-cache invalidation includes `endTime`, and `discovery.py` is the sole stage-to-source reader.
+For the room-acoustics backend, a file-backed source repeats its decoded content up to the requested `loop_count` within the authoritative `duration_s` derived from `endTime`; any remaining finite window is silent. Infinite loops fill that window and therefore remain bounded. `generated://` sources stay duration-driven and do not acquire file-loop semantics.
+
+The Kit extension declares `omni.usd.schema.audio` directly. Discovery-cache invalidation includes `auralMode`, `loopCount`, and `endTime`, and `discovery.py` is the sole stage-to-source reader.
 
 ## Discovery Cache and Motion
 
@@ -48,9 +50,19 @@ The action ID is `isaac_audio_sensors.omni::toggle_window`; the default shortcut
 
 The extension imports without `omni`, `pxr`, CUDA, Torch, Replicator, or a display; live APIs are resolved only inside the operations that require them.
 
-The entrypoint exposes its `controller` and has no duplicate sensor, authoring, export, or Replicator proxies. The controller composes internal lifecycle, authoring, sensor-session, recording-workflow, Replicator, and configuration services; the window and sections only render state and invoke controller actions.
+The entrypoint exposes its `controller` and has no duplicate sensor, authoring, export, or Replicator proxies. The controller composes internal lifecycle, authoring, sensor-session, recording-workflow, Kit Audio, Replicator, and configuration services; the window and sections only render state and invoke controller actions.
 
-Shutdown independently cancels an active recording as incomplete, stops audition, Replicator, and the sensor, clears debug/frame state, detaches workflow/window callbacks, and releases update, stage, reset, hotkey, menu, and action registrations even if one cleanup fails.
+Shutdown independently cancels an active recording as incomplete, releases Kit Audio capture and listener state, stops Sensor WAV audition, Replicator, and the sensor, clears debug/frame state, detaches workflow/window callbacks, and releases update, stage, reset, hotkey, menu, and action registrations even if one cleanup fails. Opening, closing, or replacing a stage also releases the Kit Audio resources.
+
+## Kit Scene Audition and Mix Capture
+
+`OmniSound` remains the single NVIDIA stage representation of a passive source, while discovery converts it to `AudioSourceSpec` for the selected sensor backend. The Kit Audio service is a separate audition bridge: it never becomes a sensor backend and never writes `AudioSensorFrame`, recordings, datasets, Replicator output, or Isaac Lab observations.
+
+`Activate Array Listener` reuses an `OmniListener` below or associated with the array. If none exists, it creates a temporary child below the array in the USD session layer, so it follows the array pose without changing the saved stage. Activation retries Hydra registration for a bounded number of Kit updates. Restore and cleanup reactivate the previous listener only while the managed listener is still active; a user-selected replacement is preserved.
+
+`Start Kit Mix Capture` and `Stop Kit Mix Capture` own one capture streamer and use the current Kit timeline without starting, stopping, or repositioning it. Capture is refused unless the stage has a file-backed `OmniSound` that Kit reports as playable. Stop performs `stop_capture -> wait_for_capture -> destroy_capture_streamer`, then verifies the real WAV, rejects empty or silent output, and reports its actual path, channel count, sample rate, and duration. Files live under `build/validation/isaac_audio_sensors/kit_audio_captures/` by default. Concurrent third-party capture streamers are intentionally unsupported because Kit can restart and overwrite other streamers when one starts or stops.
+
+The UI permanently labels this path `Kit listener/device mix — qualitative, not microphone-array channels`. Its channels and format belong to the active audio device and speaker layout. Sensor WAV playback remains a separate microphone-array operation.
 
 ## Native Kit Window
 
@@ -80,7 +92,7 @@ The live instruments separate bearing, sector, confidence, and occlusion below t
 
 ## Advanced Tools
 
-Advanced Tools contains the specialist controls for stage and selection, array, source, sensor settings and debug, room, audio output, Replicator, export, and configuration. Stage binding uses one `Bind selection as` selector and `Bind Selected`; position authoring uses a preset selector and `Apply Position Preset`. Known profiles and rigs are selected with combo boxes and validated by Apply rather than duplicate selection buttons.
+Advanced Tools contains the specialist controls for stage and selection, array, source, sensor settings and debug, room, Sensor WAV output, Kit scene audition, Replicator, export, and configuration. Stage binding uses one `Bind selection as` selector and `Bind Selected`; position authoring uses a preset selector and `Apply Position Preset`. Known profiles and rigs are selected with combo boxes and validated by Apply rather than duplicate selection buttons.
 
 Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. Color styling distinguishes editable, action-populated, read-only, and invalid fields. Preset, binding, transform-read, and config-import changes are tracked only as transient window state; a manual edit restores the normal editable style. Invalid fields remain highlighted until a valid correction, without opening or changing accordions automatically. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
 
@@ -110,8 +122,11 @@ If overlays or OmniGraph are unavailable, distinguish optional Kit-service absen
 
 If Replicator is unavailable, use package JSON/JSONL or the generic session recorder; a Replicator blocker must not be reported as a core package failure.
 
+If Kit mix capture is refused, verify that at least one `OmniSound` has a real `filePath` and has finished loading. `generated://` sources are valid for SDK backends but are not playable Kit assets. Treat the captured WAV only as a qualitative active-listener/device mix; use Sensor WAV output for microphone-array channels.
+
 ## Version Notes
 
+- 2026-08-24: Added complete finite/infinite `loopCount` conversion and room-backend repetition, excluded non-spatial sources from physical-sensor discovery, and introduced array-listener reuse with a session-layer fallback plus qualitative Kit device-mix capture without changing sensor observations.
 - 2026-08-24: Migrated authoring and live validation to `OmniSound` and `OmniListener`, corrected native schema units and metadata precedence, and retained deprecated-alias read compatibility.
 - 2026-08-24: Refined the existing three-area UI with visual guided indicators, actionable feedback, monotonic frame freshness, dBFS meters, adaptive detections, field-specific recovery, and transient field provenance without changing controller, serialization, or audio contracts.
 - 2026-08-24: Rebuilt the native Kit UI around the three task-oriented areas, added persistent Guided collapse behavior, promoted Live Monitor to the canonical operating surface, and moved specialist controls into Advanced Tools without changing core APIs or serialized contracts.

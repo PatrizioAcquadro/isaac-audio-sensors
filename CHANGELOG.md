@@ -2,6 +2,8 @@
 
 ## 2.0.0 - 2026-08-21
 
+- Post-release, unreleased: completed finite/infinite `OmniSound.loopCount` conversion, excluded non-spatial stage sounds from physical-sensor discovery, and made file-backed room sources repeat within the authoritative playback window.
+- Post-release, unreleased: added array-listener reuse with a temporary session-layer fallback and manual Kit device-mix capture for qualitative audition, explicitly isolated from microphone-array frames, recordings, datasets, and Isaac Lab observations.
 - Post-release, unreleased: migrated Isaac/Kit authoring to NVIDIA's current `OmniSound` and `OmniListener` schemas, corrected native audio units and attributes, and retained read compatibility for deprecated `Sound` and `Listener` prims.
 - Established subsystem-owned v2 APIs, lazy optional runtimes, focused tests, and concise examples without compatibility shims; existing frame, manifest, and calibration schema v1 contracts remain supported.
 - Consolidated backends, effects, recording, Isaac Sim, Isaac Lab, Kit, and CLI around their maintained runtime responsibilities while removing duplicate, private, and test-only surfaces.

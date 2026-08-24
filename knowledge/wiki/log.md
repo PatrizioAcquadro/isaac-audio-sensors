@@ -217,3 +217,11 @@ Recorded `OmniSound` and `OmniListener` authoring, schema-native units and attri
 ## 2026-08-24 — lint: Current NVIDIA audio schemas
 
 Verified canonical ownership, internal links and index coverage, immutable raw content, current schema and compatibility claims, full host and RTX gates, Ruff, version synchronization, and Markdown whitespace.
+
+## 2026-08-24 — update: Native Kit Audio audition bridge
+
+Recorded complete `loopCount` semantics, non-spatial sensor exclusion, bounded room-source repetition, array-listener reuse with a session-layer fallback, qualitative Kit mix capture, lifecycle ownership, and the strict separation from microphone-array observations.
+
+## 2026-08-24 — lint: Native Kit Audio audition bridge
+
+Verified canonical ownership, internal links and index coverage, immutable raw content, host and RTX gates, session-layer listener placement, non-silent WAV capture, complete cleanup, unchanged four-channel sensor output, version synchronization, Ruff, and Markdown whitespace.
