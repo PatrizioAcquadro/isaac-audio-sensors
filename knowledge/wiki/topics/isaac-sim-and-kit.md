@@ -12,6 +12,16 @@ Import-safe world bounds and room-absorption helpers live in `isaac_audio_sensor
 
 Each emitted frame can carry `stage_snapshot` diagnostics for selected prims, discovery reasons, pose provenance, time code, source/array/microphone transforms, and optional object/base context.
 
+## NVIDIA Audio Schema Bridge
+
+The public helpers remain `create_sound_prim` and `create_listener_prim`, but they author only NVIDIA's current `OmniSound` and `OmniListener` types. Updating a deprecated `Sound` or `Listener` prim through these helpers retypes it to the current schema. Discovery checks the current types first and still reads both deprecated aliases for existing stages.
+
+The SDK-facing source arguments stay in ergonomic units. `spatial` maps to `auralMode`, `loop` maps to `loopCount` (`0` or `-1`), finite dB gain maps to positive linear `gain`, and source seconds map through the stage time-code rate to `startTime` and optional `endTime`. Robot-mounted listeners author `orientationFromView=false` by default. Microphone arrays remain `Xform` prims with `ias:*` metadata and microphone children; an `OmniListener` is only an optional Kit Audio bridge.
+
+Real audio assets author both native `filePath` and `ias:audio_asset_path`. SDK-generated identifiers such as `generated://pulse` author only `ias:audio_asset_path` because Kit Audio cannot play them as files. Discovery applies configurable `ias`, native USD, and default precedence, converts native time codes and linear gain back into SDK seconds and dB, treats negative native `startTime` as disabled, and rejects non-positive native gain when no finite `ias:gain_db` value takes precedence.
+
+The Kit extension declares `omni.usd.schema.audio` directly. Discovery-cache invalidation includes `endTime`, and `discovery.py` is the sole stage-to-source reader.
+
 ## Discovery Cache and Motion
 
 Steady-state updates reuse discovered prim identities and re-read their current transforms; stage notices invalidate the cache when relevant prims or properties change.
@@ -102,5 +112,6 @@ If Replicator is unavailable, use package JSON/JSONL or the generic session reco
 
 ## Version Notes
 
+- 2026-08-24: Migrated authoring and live validation to `OmniSound` and `OmniListener`, corrected native schema units and metadata precedence, and retained deprecated-alias read compatibility.
 - 2026-08-24: Refined the existing three-area UI with visual guided indicators, actionable feedback, monotonic frame freshness, dBFS meters, adaptive detections, field-specific recovery, and transient field provenance without changing controller, serialization, or audio contracts.
 - 2026-08-24: Rebuilt the native Kit UI around the three task-oriented areas, added persistent Guided collapse behavior, promoted Live Monitor to the canonical operating surface, and moved specialist controls into Advanced Tools without changing core APIs or serialized contracts.

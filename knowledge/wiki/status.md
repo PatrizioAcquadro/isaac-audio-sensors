@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-08-21. Package version: `2.0.0`.
+Updated: 2026-08-24. Package version: `2.0.0`.
 
 ## Product Boundary
 
@@ -15,6 +15,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Atomic generic recording, verified sharded sessions, codecs, validation, statistics, deterministic splits, and read-only replay.
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
+- Current NVIDIA `OmniSound` and `OmniListener` authoring with schema-native timing, gain, loop, spatial, and listener-orientation semantics; deprecated `Sound` and `Listener` remain read-compatible.
 - Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, explicit entity/reference binding, fixed-shape tensor observations, partial reset, and fail-closed device validation.
 - Python source and universal wheel distributions plus a self-contained Kit Community Registry archive with audited room/FLAC dependencies.
 - Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
@@ -88,6 +89,8 @@ The R6.6–R6.7 gate passes 412 unit/contract tests, 230 integration tests with 
 The final R6.8 freeze at commit `583d66e` passes 412 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, 45 release tests, and `twine check`. The clean-source build leaves exactly the audited sdist, universal wheel, and Kit ZIP; isolated wheel installation and sdist build/installation pass. The RTX 4090 passes 88 Isaac tests, all three live Isaac Sim backends, room/FLAC with pyroomacoustics 0.10.1, SciPy 1.18.0, and SoundFile 0.14.0, and the 4096-environment Lab smoke at 2.4035 ms/step mean against the 20 ms budget. The final extracted ZIP passes all 37 workflow steps with packaged first-party and bundled dependency origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, Extension Manager enable/disable, and shutdown. The unchanged SquadBot consumer subset passes 34 tests.
 
 The TestPyPI rehearsal and production workflow passed from the same commit. GitHub release `v2.0.0` is immutable, its tag targets `583d66e`, and its only asset is the validated Linux Kit ZIP with SHA-256 `cfaeea69ac79a711fc608329dad2a947cc66c4ff1c6a1f958fca4617c1c5ff8a`. PyPI exposes exactly the universal wheel and sdist with provenance attestations; clean Python 3.10, 3.11, 3.12, and `room`/FLAC installations passed. The public repository has the `omniverse-kit-extension` topic. NVIDIA Community Registry discovery and installation remain pending the periodic crawler.
+
+The post-release NVIDIA audio-schema migration at commit `152569f` passes 412 unit/contract tests, 239 integration tests with two expected host SoundFile skips, 45 release tests, and 97 Isaac tests on the RTX 4090. Live Isaac Sim passes geometry, TDOA, and room-acoustics backends while validating `OmniAudioSchema.OmniSound`, `OmniAudioSchema.OmniListener`, current native attributes, robot-mounted listener orientation, and no authored `filePath` for `generated://`. The live Kit workflow passes with deprecated `Sound` seeds migrated to `OmniSound` and the same generated-asset boundary.
 
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 

@@ -209,3 +209,11 @@ Recorded visual guided states, actionable feedback, monotonic frame freshness, d
 ## 2026-08-24 — lint: Native Kit UI precision pass
 
 Verified canonical ownership, internal links, immutable raw content, unchanged public and serialized contracts, deterministic UI coverage, full host gates, RTX 4090 windowed Kit smoke, both real screenshots, the refreshed preview, Ruff, version synchronization, and Markdown whitespace.
+
+## 2026-08-24 — update: Current NVIDIA audio schemas
+
+Recorded `OmniSound` and `OmniListener` authoring, schema-native units and attributes, deterministic metadata precedence, deprecated-alias read compatibility, generated-asset boundaries, direct Kit dependency ownership, and passing host and RTX gates.
+
+## 2026-08-24 — lint: Current NVIDIA audio schemas
+
+Verified canonical ownership, internal links and index coverage, immutable raw content, current schema and compatibility claims, full host and RTX gates, Ruff, version synchronization, and Markdown whitespace.

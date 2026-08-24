@@ -2,6 +2,7 @@
 
 ## 2.0.0 - 2026-08-21
 
+- Post-release, unreleased: migrated Isaac/Kit authoring to NVIDIA's current `OmniSound` and `OmniListener` schemas, corrected native audio units and attributes, and retained read compatibility for deprecated `Sound` and `Listener` prims.
 - Established subsystem-owned v2 APIs, lazy optional runtimes, focused tests, and concise examples without compatibility shims; existing frame, manifest, and calibration schema v1 contracts remain supported.
 - Consolidated backends, effects, recording, Isaac Sim, Isaac Lab, Kit, and CLI around their maintained runtime responsibilities while removing duplicate, private, and test-only surfaces.
 - Added dataset-manifest and calibration-profile contracts, runtime profiles, plugin protocols, version synchronization, and deterministic release audits.
