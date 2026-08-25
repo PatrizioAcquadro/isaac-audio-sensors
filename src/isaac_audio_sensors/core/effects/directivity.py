@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 
+from isaac_audio_sensors.core.constants import DIRECTIVITY_COEFFICIENTS
 from isaac_audio_sensors.core.effects.channel_response import (
     design_frequency_response_fir,
 )
@@ -33,12 +34,7 @@ from isaac_audio_sensors.core.math_utils import (
     subtract,
 )
 
-PATTERN_COEFFICIENTS: Mapping[str, float] = {
-    "omni": 1.0,
-    "cardioid": 0.5,
-    "figure_eight": 0.0,
-    "supercardioid": 0.37,
-}
+PATTERN_COEFFICIENTS: Mapping[str, float] = DIRECTIVITY_COEFFICIENTS
 DIRECTIVITY_MODE = "per_pair_direct_path"
 _IDENTITY_QUATERNION: Quaternion = (0.0, 0.0, 0.0, 1.0)
 

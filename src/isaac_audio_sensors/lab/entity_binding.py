@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 import torch
 
+from isaac_audio_sensors.core.constants import DIRECTIVITY_COEFFICIENTS
 from isaac_audio_sensors.core.math_utils import (
     Quaternion,
     Vector3,
@@ -15,13 +16,6 @@ from isaac_audio_sensors.core.math_utils import (
     as_vector3,
 )
 from isaac_audio_sensors.core.microphone_array import microphone_layout
-
-_DIRECTIVITY_COEFFICIENTS = {
-    "omni": 1.0,
-    "cardioid": 0.5,
-    "supercardioid": 0.37,
-    "figure_eight": 0.0,
-}
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -44,7 +38,7 @@ class SourceEntityCfg:
             _require_name(self.body_name, "body_name")
         if self.source_id is not None:
             _require_name(self.source_id, "source_id")
-        if self.directivity not in _DIRECTIVITY_COEFFICIENTS:
+        if self.directivity not in DIRECTIVITY_COEFFICIENTS:
             raise ValueError(f"Unsupported source directivity {self.directivity!r}.")
         _require_finite(self.start_time_s, "start_time_s")
         _require_finite(self.gain_db, "gain_db")
@@ -363,7 +357,7 @@ def _static_meta(
         ),
         source_directivity_coefficient=torch.tensor(
             tuple(
-                _DIRECTIVITY_COEFFICIENTS[source.directivity] for source in source_cfgs
+                DIRECTIVITY_COEFFICIENTS[source.directivity] for source in source_cfgs
             ),
             dtype=torch.float32,
             device=device,

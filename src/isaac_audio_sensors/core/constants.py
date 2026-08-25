@@ -7,6 +7,12 @@ DEFAULT_SAMPLE_RATE_HZ = 48_000
 DEFAULT_SPEED_OF_SOUND_MPS = 343.0
 RUNTIME_PROFILES = ("training_features", "waveform_fidelity")
 DEFAULT_RUNTIME_PROFILE = "waveform_fidelity"
+DIRECTIVITY_COEFFICIENTS = {
+    "omni": 1.0,
+    "cardioid": 0.5,
+    "figure_eight": 0.0,
+    "supercardioid": 0.37,
+}
 
 CALIBRATION_PROFILE_SCHEMA_VERSION = "ias.audio_calibration_profile.v1"
 

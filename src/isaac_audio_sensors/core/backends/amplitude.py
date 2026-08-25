@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 
-from isaac_audio_sensors.core.constants import EPSILON
+from isaac_audio_sensors.core.constants import DIRECTIVITY_COEFFICIENTS, EPSILON
 from isaac_audio_sensors.core.math_utils import (
     Vector3,
     clamp,
@@ -22,12 +22,6 @@ from isaac_audio_sensors.core.math_utils import (
 from isaac_audio_sensors.core.types import AudioSourceSpec, MicrophoneSpec
 
 DISTANCE_FLOOR_M = 0.1
-_DIRECTIVITY_COEFFICIENTS = {
-    "omni": 1.0,
-    "cardioid": 0.5,
-    "figure_eight": 0.0,
-    "supercardioid": 0.37,
-}
 
 
 def resolve_directivity(source: AudioSourceSpec) -> str:
@@ -39,7 +33,7 @@ def resolve_directivity(source: AudioSourceSpec) -> str:
     """
 
     if (
-        source.directivity in _DIRECTIVITY_COEFFICIENTS
+        source.directivity in DIRECTIVITY_COEFFICIENTS
         and source.directivity != "omni"
         and source.orientation_world_quat is not None
     ):
@@ -65,7 +59,7 @@ def directivity_factor(
     if distance <= EPSILON:
         return 1.0
     cos_theta = clamp(dot(forward, to_mic) / distance, -1.0, 1.0)
-    coefficient = _DIRECTIVITY_COEFFICIENTS[family]
+    coefficient = DIRECTIVITY_COEFFICIENTS[family]
     return coefficient + (1.0 - coefficient) * cos_theta
 
 
