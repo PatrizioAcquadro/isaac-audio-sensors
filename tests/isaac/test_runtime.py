@@ -251,6 +251,28 @@ def test_entity_and_reference_paths_match_with_schedule_and_truncation(backend_i
             rtol=1e-4,
         )
 
+    padded_result = reference.observations(
+        env_ids=env_ids,
+        timestamps_s=torch.tensor([2.0]),
+        frame_indices=torch.tensor([1]),
+        max_events=2,
+        update_period=0.1,
+        device="cpu",
+    )
+    expected_padding = AudioArraySensorData.allocate(
+        num_envs=1,
+        max_events=2,
+        num_mics=4,
+        device="cpu",
+    )
+    assert tuple(padded_result) == tuple(item.name for item in fields(expected_padding))
+    for item in fields(expected_padding):
+        torch.testing.assert_close(
+            padded_result[item.name],
+            getattr(expected_padding, item.name),
+            equal_nan=True,
+        )
+
 
 def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
     with pytest.raises(ValueError, match="source_entities"):

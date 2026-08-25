@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import fields
 
 import torch
 
@@ -15,6 +16,7 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     MicrophoneArraySpec,
 )
+from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 
 
 class ReferenceBackend:
@@ -69,21 +71,12 @@ class ReferenceBackend:
         device: str,
     ) -> dict[str, torch.Tensor]:
         count = int(env_ids.numel())
-        shape = (count, max_events)
-        result = {
-            "event_presence": torch.zeros(shape, dtype=torch.bool, device=device),
-            "bearing_deg": torch.full(
-                shape, float("nan"), dtype=torch.float32, device=device
-            ),
-            "confidence": torch.zeros(shape, dtype=torch.float32, device=device),
-            "sector_onehot": torch.zeros(
-                (*shape, len(SECTOR_ORDER)), dtype=torch.float32, device=device
-            ),
-            "per_mic_rms": torch.zeros(
-                (*shape, self.num_mics), dtype=torch.float32, device=device
-            ),
-            "ambiguity_mask": torch.zeros(shape, dtype=torch.bool, device=device),
-        }
+        result = AudioArraySensorData.allocate(
+            num_envs=count,
+            max_events=max_events,
+            num_mics=self.num_mics,
+            device=device,
+        )
         sector_indices = {name: index for index, name in enumerate(SECTOR_ORDER)}
         window_s = max(float(update_period), 1e-3)
         for row in range(count):
@@ -103,24 +96,22 @@ class ReferenceBackend:
                 ),
             )
             for event_index, detection in enumerate(frame.detections[:max_events]):
-                result["event_presence"][row, event_index] = True
+                result.event_presence[row, event_index] = True
                 bearing = detection.doa.estimated_bearing_deg
                 if bearing is not None:
-                    result["bearing_deg"][row, event_index] = float(bearing)
+                    result.bearing_deg[row, event_index] = float(bearing)
                     sector = detection.doa.bearing_sector
                     if sector is None:
                         sector = bearing_deg_to_sector_name(float(bearing))
-                    result["sector_onehot"][
-                        row, event_index, sector_indices[sector]
-                    ] = 1.0
-                result["confidence"][row, event_index] = float(
+                    result.sector_onehot[row, event_index, sector_indices[sector]] = 1.0
+                result.confidence[row, event_index] = float(
                     detection.doa.bearing_confidence
                 )
-                result["ambiguity_mask"][row, event_index] = (
+                result.ambiguity_mask[row, event_index] = (
                     detection.doa.ambiguity_class is not None
                 )
                 for mic_index, microphone in enumerate(spec.microphones):
-                    result["per_mic_rms"][row, event_index, mic_index] = float(
+                    result.per_mic_rms[row, event_index, mic_index] = float(
                         detection.per_mic_rms.get(microphone.mic_id, 0.0)
                     )
-        return result
+        return {item.name: getattr(result, item.name) for item in fields(result)}
