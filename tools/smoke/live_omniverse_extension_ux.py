@@ -274,8 +274,8 @@ def main() -> int:
         simulation_app = _ensure_isaac_runtime(evidence, headless=False)
 
         import omni  # type: ignore
-        from pxr import Usd  # type: ignore
 
+        importlib.import_module("pxr")
         evidence["pxr_imported"] = True
         evidence["omni_imported"] = True
         evidence["omni_module"] = str(getattr(omni, "__file__", "built-in"))
@@ -310,11 +310,8 @@ def main() -> int:
             Path(evidence["extension_path"])
         )
 
-        stage, stage_mode = _create_stage(evidence)
-        evidence["stage_mode"] = stage_mode
-        if stage is None:
-            stage = Usd.Stage.CreateInMemory("omniverse_extension_live_ux.usda")
-            evidence["stage_mode"] = "pxr_usd_in_memory_fallback"
+        stage = _create_stage(evidence)
+        evidence["stage_mode"] = "omni_usd_context_stage"
         _author_minimal_stage(stage)
         _update_kit_once(evidence)
 
@@ -386,7 +383,6 @@ def main() -> int:
             ),
         )
         evidence["object_attach_live_qa"]["generic_scene"] = generic_result
-        _promote_legacy_generic_evidence(evidence, generic_result)
 
         evidence["instruments"] = _step(
             evidence,
@@ -1103,15 +1099,11 @@ def _remove_stage_prim(stage: Any, path: str) -> dict[str, Any]:
 
         result = stage.RemovePrim(Sdf.Path(path))
     except Exception as exc:
-        try:
-            result = stage.RemovePrim(path)
-        except Exception as fallback_exc:
-            return {
-                "removed": False,
-                "error_type": type(fallback_exc).__name__,
-                "error": str(fallback_exc),
-                "first_error": f"{type(exc).__name__}: {exc}",
-            }
+        return {
+            "removed": False,
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
     return {
         "removed": bool(result),
         "path": path,
@@ -1123,40 +1115,6 @@ def _replicator_artifacts(replicator_dir: Path) -> list[str]:
     if not replicator_dir.is_dir():
         return []
     return [str(path) for path in sorted(replicator_dir.iterdir()) if path.is_file()]
-
-
-def _promote_legacy_generic_evidence(
-    evidence: dict[str, Any],
-    generic_result: dict[str, Any],
-) -> None:
-    evidence["source_position_after_read"] = generic_result.get(
-        "source_position_after_read"
-    )
-    evidence["source_position_after_front_preset"] = generic_result.get(
-        "source_position_after_front_preset"
-    )
-    evidence["source_object_attachment"] = generic_result.get(
-        "source_object_attachment"
-    )
-    evidence["object_source_frame_before_move"] = generic_result.get(
-        "frame_before_parent_move"
-    )
-    evidence["object_source_frame_after_move"] = generic_result.get(
-        "frame_after_parent_move"
-    )
-    evidence["object_transform_move_command"] = generic_result.get(
-        "parent_transform_move_command"
-    )
-    evidence["object_move_changed_frame"] = generic_result.get(
-        "object_move_changed_frame"
-    )
-    evidence["source_move_changed_frame"] = generic_result.get(
-        "object_move_changed_frame"
-    )
-    evidence["config_roundtrip_probe"] = generic_result.get(
-        "config_import_result", {}
-    ).get("roundtrip_probe")
-    evidence["screenshot"] = generic_result.get("screenshot")
 
 
 def _path_name(path: str) -> str:
@@ -1371,10 +1329,7 @@ def _probe_extension_manager_metadata(
 ) -> dict[str, Any]:
     manifest_path = ext_path / "config" / "extension.toml"
     try:
-        try:
-            import tomllib
-        except ModuleNotFoundError:  # pragma: no cover - Isaac 3.10 fallback.
-            import tomli as tomllib  # type: ignore
+        import tomllib
 
         manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
         package = manifest.get("package", {})
@@ -2249,20 +2204,16 @@ def _result_summary(result: Any) -> Any:
     return type(result).__name__
 
 
-def _create_stage(evidence: dict[str, Any]) -> tuple[Any | None, str]:
-    try:
-        import omni.usd  # type: ignore
+def _create_stage(evidence: dict[str, Any]) -> Any:
+    import omni.usd  # type: ignore
 
-        context = omni.usd.get_context()
-        if hasattr(context, "new_stage"):
-            context.new_stage()
-            _update_kit_once(evidence)
-        stage = context.get_stage() if hasattr(context, "get_stage") else None
-        if stage is not None:
-            return stage, "omni_usd_context_stage"
-    except Exception as exc:  # noqa: BLE001 - fallback recorded.
-        evidence["omni_usd_context_stage_error"] = f"{type(exc).__name__}: {exc}"
-    return None, "unavailable"
+    context = omni.usd.get_context()
+    context.new_stage()
+    _update_kit_once(evidence)
+    stage = context.get_stage()
+    if stage is None:
+        raise RuntimeError("omni.usd did not provide a stage after new_stage().")
+    return stage
 
 
 def _author_minimal_stage(stage: Any) -> None:
@@ -2904,63 +2855,16 @@ def _capture_viewport_screenshot(
             framed_paths=framed,
             attempts=attempts,
         )
-        utility_capture = getattr(viewport_utility, "capture_viewport_to_file", None)
-        if callable(utility_capture):
-            attempts.append(
-                _attempt_viewport_utility_capture(
-                    utility_capture=utility_capture,
-                    viewport=viewport,
-                    path=path,
-                )
-            )
-            record = _captured_screenshot_record(
+        attempts.append(
+            _attempt_viewport_utility_capture(
+                utility_capture=viewport_utility.capture_viewport_to_file,
+                viewport=viewport,
                 path=path,
-                method="viewport_utility.capture_viewport_to_file",
-                attempts=attempts,
-                framed_paths=framed,
-                viewport_info=viewport_info,
             )
-            if record is not None:
-                return record
-        else:
-            attempts.append(
-                {
-                    "method": "viewport_utility.capture_viewport_to_file",
-                    "status": "unavailable",
-                    "reason": "capture_viewport_to_file is not callable",
-                }
-            )
-
-        legacy_capture = getattr(viewport, "capture_to_file", None)
-        if callable(legacy_capture):
-            attempts.append(
-                _attempt_legacy_viewport_capture(
-                    legacy_capture=legacy_capture,
-                    path=path,
-                )
-            )
-            record = _captured_screenshot_record(
-                path=path,
-                method="viewport.capture_to_file",
-                attempts=attempts,
-                framed_paths=framed,
-                viewport_info=viewport_info,
-            )
-            if record is not None:
-                return record
-        else:
-            attempts.append(
-                {
-                    "method": "viewport.capture_to_file",
-                    "status": "unavailable",
-                    "reason": "active viewport has no capture_to_file method",
-                }
-            )
-
-        attempts.append(_attempt_renderer_swapchain_capture(path))
+        )
         record = _captured_screenshot_record(
             path=path,
-            method="renderer_capture.capture_next_frame_swapchain",
+            method="viewport_utility.capture_viewport_to_file",
             attempts=attempts,
             framed_paths=framed,
             viewport_info=viewport_info,
@@ -3048,33 +2952,9 @@ def _attempt_viewport_utility_capture(
             "wait_result": _result_summary(wait_result),
             "file_wait": _wait_for_screenshot_file(path),
         }
-    except Exception as exc:  # noqa: BLE001 - fall back to the next API.
+    except Exception as exc:  # noqa: BLE001 - record current API failure.
         return {
             "method": "viewport_utility.capture_viewport_to_file",
-            "status": "failed",
-            "error_type": type(exc).__name__,
-            "error": str(exc),
-        }
-
-
-def _attempt_legacy_viewport_capture(
-    *,
-    legacy_capture: Any,
-    path: Path,
-) -> dict[str, Any]:
-    try:
-        result = legacy_capture(str(path))
-        wait_result = _wait_for_capture_result(result)
-        return {
-            "method": "viewport.capture_to_file",
-            "status": "called",
-            "result": str(result),
-            "wait_result": _result_summary(wait_result),
-            "file_wait": _wait_for_screenshot_file(path),
-        }
-    except Exception as exc:  # noqa: BLE001 - fall back to renderer capture.
-        return {
-            "method": "viewport.capture_to_file",
             "status": "failed",
             "error_type": type(exc).__name__,
             "error": str(exc),
@@ -3270,7 +3150,6 @@ def _validate_live_extension_outputs(
         "ui_numeric_widget_probe",
         "advanced_error_ui",
         "export_latest_without_frame",
-        "config_roundtrip_probe",
         "instruments",
         "usd_debug",
     ):
@@ -3304,6 +3183,11 @@ def _validate_live_extension_outputs(
     generic_result = evidence.get("object_attach_live_qa", {}).get("generic_scene")
     if generic_result is None:
         raise RuntimeError("Missing generic object-attach scenario evidence.")
+    roundtrip_probe = generic_result.get("config_import_result", {}).get(
+        "roundtrip_probe", {}
+    )
+    if roundtrip_probe.get("status") != "passed":
+        raise RuntimeError(f"config_roundtrip_probe failed: {roundtrip_probe}")
     _validate_attach_scenario("generic_scene", generic_result)
 
 
@@ -3506,45 +3390,22 @@ def _try_enable_extension_manager(
         if manager is None:
             return {"status": "unavailable", "reason": "no extension manager"}
         result["manager_type"] = type(manager).__name__
-        result["manager_methods"] = _extension_manager_methods(manager)
-        for method_name in ("add_path", "add_search_path", "add_extension_search_path"):
-            method = getattr(manager, method_name, None)
-            if not callable(method):
-                continue
-            try:
-                method(str(extension_path.parent))
-                result["search_path_method"] = method_name
-                break
-            except Exception as exc:  # noqa: BLE001 - try next API name.
-                result[f"{method_name}_error"] = f"{type(exc).__name__}: {exc}"
-        enable_called = False
-        for method_name in ("set_extension_enabled_immediate", "set_extension_enabled"):
-            method = getattr(manager, method_name, None)
-            if not callable(method):
-                continue
-            try:
-                enable_result = method(extension_id, True)
-                result["enable_method"] = method_name
-                result["enable_result"] = str(enable_result)
-                enable_called = True
-                break
-            except Exception as exc:  # noqa: BLE001 - direct startup may still work.
-                result[f"{method_name}_error"] = f"{type(exc).__name__}: {exc}"
-        result["kit_update_after_enable"] = _pump_kit_app(app)
-        result["verification"] = _verify_extension_manager_load(
-            manager=manager,
-            extension_id=extension_id,
-            extension_path=extension_path,
-            module_name="isaac_audio_sensors_omni",
+        manager.add_path(str(extension_path.parent))
+        result["search_path_method"] = "add_path"
+        result["enable_result"] = str(
+            manager.set_extension_enabled_immediate(extension_id, True)
         )
-        if result["verification"].get("enabled") is True:
-            result["status"] = "enabled"
-        elif enable_called:
-            result["status"] = "enable_called_unverified"
-        else:
-            result["status"] = "enable_api_unavailable_or_failed"
+        result["enable_method"] = "set_extension_enabled_immediate"
+        result["kit_update_after_enable"] = _pump_kit_app(app)
+        enabled_id = manager.get_enabled_extension_id(extension_id)
+        enabled = bool(manager.is_extension_enabled(extension_id) and enabled_id)
+        result["verification"] = {
+            "enabled": enabled,
+            "enabled_extension_id": str(enabled_id) if enabled_id else None,
+        }
+        result["status"] = "enabled" if enabled else "enable_called_unverified"
         return result
-    except Exception as exc:  # noqa: BLE001 - direct startup may still work.
+    except Exception as exc:  # noqa: BLE001 - evidence records exact runtime issue.
         return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
 
 
@@ -3581,58 +3442,26 @@ def _try_disable_extension_manager(*, extension_id: str) -> dict[str, Any]:
         manager = app.get_extension_manager() if app is not None else None
         if manager is None:
             return {"status": "unavailable", "reason": "no extension manager"}
-        for method_name in ("set_extension_enabled_immediate", "set_extension_enabled"):
-            method = getattr(manager, method_name, None)
-            if not callable(method):
-                continue
-            try:
-                result["disable_result"] = str(method(extension_id, False))
-                result["disable_method"] = method_name
-                break
-            except Exception as exc:  # noqa: BLE001 - try next API name.
-                result[f"{method_name}_error"] = f"{type(exc).__name__}: {exc}"
-        result["kit_update_after_disable"] = _pump_kit_app(app)
-        result["verification"] = _verify_extension_manager_disabled(
-            manager=manager,
-            extension_id=extension_id,
+        result["disable_result"] = str(
+            manager.set_extension_enabled_immediate(extension_id, False)
         )
+        result["disable_method"] = "set_extension_enabled_immediate"
+        result["kit_update_after_disable"] = _pump_kit_app(app)
+        requested_enabled = bool(manager.is_extension_enabled(extension_id))
+        base_enabled = bool(manager.is_extension_enabled(EXTENSION_ID))
+        enabled_id = manager.get_enabled_extension_id(EXTENSION_ID)
+        result["verification"] = {
+            "disabled": not requested_enabled and not base_enabled and not enabled_id,
+            "requested_extension_enabled": requested_enabled,
+            "base_extension_enabled": base_enabled,
+            "enabled_extension_id": str(enabled_id) if enabled_id else None,
+        }
         result["status"] = (
             "disabled" if result["verification"]["disabled"] else "disable_failed"
         )
         return result
     except Exception as exc:  # noqa: BLE001 - evidence records exact failure.
         return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
-
-
-def _verify_extension_manager_disabled(
-    *, manager: Any, extension_id: str
-) -> dict[str, Any]:
-    checks = []
-    enabled = False
-    observed = False
-    for candidate in dict.fromkeys((extension_id, EXTENSION_ID)):
-        for method_name in (
-            "is_extension_enabled",
-            "is_extension_enabled_immediate",
-        ):
-            check = _call_manager_method(manager, method_name, candidate)
-            checks.append(check)
-            if check.get("status") == "called":
-                observed = True
-                enabled = enabled or check.get("value") is True
-    enabled_id_check = _call_manager_method(
-        manager,
-        "get_enabled_extension_id",
-        EXTENSION_ID,
-    )
-    checks.append(enabled_id_check)
-    if enabled_id_check.get("status") == "called":
-        observed = True
-        enabled = enabled or bool(enabled_id_check.get("value"))
-    return {
-        "disabled": observed and not enabled,
-        "checks": checks,
-    }
 
 
 def _enabled_extension_id(evidence: dict[str, Any]) -> str | None:
@@ -3644,15 +3473,6 @@ def _enabled_extension_id(evidence: dict[str, Any]) -> str | None:
     if value:
         return str(value)
     return None
-
-
-def _extension_manager_methods(manager: Any) -> list[str]:
-    names = []
-    for name in dir(manager):
-        lowered = name.lower()
-        if "extension" in lowered or "enabled" in lowered:
-            names.append(name)
-    return sorted(names)[:80]
 
 
 def _pump_kit_app(app: Any, *, updates: int = 4) -> dict[str, Any]:
@@ -3670,167 +3490,6 @@ def _pump_kit_app(app: Any, *, updates: int = 4) -> dict[str, Any]:
             return result
     result["status"] = "updated"
     return result
-
-
-def _verify_extension_manager_load(
-    *,
-    manager: Any,
-    extension_id: str,
-    extension_path: Path,
-    module_name: str,
-) -> dict[str, Any]:
-    result: dict[str, Any] = {"enabled": False, "checks": []}
-    full_ids: list[str] = []
-
-    for method_name in ("is_extension_enabled", "is_extension_enabled_immediate"):
-        check = _call_manager_method(manager, method_name, extension_id)
-        result["checks"].append(check)
-        if check.get("value") is True:
-            result["enabled"] = True
-
-    enabled_id_check = _call_manager_method(
-        manager,
-        "get_enabled_extension_id",
-        extension_id,
-    )
-    result["checks"].append(enabled_id_check)
-    enabled_id = enabled_id_check.get("value")
-    if enabled_id:
-        result["enabled"] = True
-        full_ids.append(str(enabled_id))
-        result["enabled_extension_id"] = str(enabled_id)
-
-    module_id_check = _call_manager_method(
-        manager,
-        "get_extension_id_by_module",
-        module_name,
-    )
-    result["checks"].append(module_id_check)
-    module_id = module_id_check.get("value")
-    if module_id:
-        result["enabled"] = True
-        full_ids.append(str(module_id))
-        result["module_extension_id"] = str(module_id)
-
-    for candidate_id in (extension_id, *full_ids):
-        dict_check = _call_manager_method(manager, "get_extension_dict", candidate_id)
-        result["checks"].append(dict_check)
-        entry = dict_check.get("value")
-        if isinstance(entry, dict):
-            summary = _extension_entry_summary(entry)
-            result.setdefault("extension_dicts", []).append(summary)
-            if _entry_says_enabled(summary):
-                result["enabled"] = True
-
-    list_method = getattr(manager, "get_extensions", None)
-    if callable(list_method):
-        try:
-            entries = list_method()
-        except Exception as exc:  # noqa: BLE001 - diagnostic only.
-            result["checks"].append(
-                {
-                    "method": "get_extensions",
-                    "status": "error",
-                    "error": f"{type(exc).__name__}: {exc}",
-                }
-            )
-        else:
-            result["checks"].append(
-                {
-                    "method": "get_extensions",
-                    "status": "called",
-                    "value": f"{len(entries)} extension entries",
-                }
-            )
-            result["extension_count"] = len(entries)
-            matches = []
-            for entry in entries:
-                if not isinstance(entry, dict):
-                    continue
-                summary = _extension_entry_summary(entry)
-                if _extension_entry_matches(
-                    summary,
-                    extension_id=extension_id,
-                    extension_path=extension_path,
-                    module_name=module_name,
-                ):
-                    matches.append(summary)
-                    if _entry_says_enabled(summary):
-                        result["enabled"] = True
-            result["matched_extensions"] = matches
-    else:
-        result["checks"].append({"method": "get_extensions", "status": "missing"})
-
-    return result
-
-
-def _call_manager_method(manager: Any, method_name: str, *args: Any) -> dict[str, Any]:
-    method = getattr(manager, method_name, None)
-    if not callable(method):
-        return {"method": method_name, "status": "missing"}
-    try:
-        value = method(*args)
-    except Exception as exc:  # noqa: BLE001 - diagnostic only.
-        return {
-            "method": method_name,
-            "status": "error",
-            "error": f"{type(exc).__name__}: {exc}",
-        }
-    return {
-        "method": method_name,
-        "status": "called",
-        "value": _compact_manager_value(value),
-    }
-
-
-def _compact_manager_value(value: Any) -> Any:
-    if isinstance(value, str | int | float | bool) or value is None:
-        return value
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, dict):
-        return _extension_entry_summary(value)
-    if isinstance(value, tuple | list):
-        return [_compact_manager_value(item) for item in value[:50]]
-    return str(value)
-
-
-def _extension_entry_summary(entry: dict[str, Any]) -> dict[str, Any]:
-    keys = (
-        "id",
-        "name",
-        "package_id",
-        "version",
-        "path",
-        "enabled",
-        "loaded",
-        "state",
-        "python_module",
-        "python_modules",
-        "modules",
-    )
-    return {key: _compact_manager_value(entry[key]) for key in keys if key in entry}
-
-
-def _entry_says_enabled(entry: dict[str, Any]) -> bool:
-    for key in ("enabled", "loaded"):
-        if entry.get(key) is True:
-            return True
-    state = str(entry.get("state", "")).lower()
-    return "enabled" in state or "loaded" in state or "started" in state
-
-
-def _extension_entry_matches(
-    entry: dict[str, Any],
-    *,
-    extension_id: str,
-    extension_path: Path,
-    module_name: str,
-) -> bool:
-    joined = json.dumps(entry, sort_keys=True)
-    return (
-        extension_id in joined or module_name in joined or str(extension_path) in joined
-    )
 
 
 def _prepare_output_dir(path: Path) -> None:

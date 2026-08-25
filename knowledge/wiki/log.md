@@ -233,3 +233,11 @@ Recorded non-fatal strict exclusion for implicitly discovered non-spatial sounds
 ## 2026-08-24 — lint: Native audio discovery and listener safety
 
 Verified canonical ownership, internal links and index coverage, immutable raw content, strict and explicit discovery behavior, compatible listener selection, full host gates, 103 Isaac tests, RTX 4090 Kit capture and cleanup, version synchronization, Ruff, and Markdown whitespace.
+
+## 2026-08-25 — update: Consumer-safe tools cleanup
+
+Recorded removal of unused runtime discovery, canonical nested Kit smoke evidence, direct Kit 110.1 lifecycle and viewport APIs, and preservation of installed APIs, release tooling, diagnostics, and historical ignored validation files.
+
+## 2026-08-25 — lint: Consumer-safe tools cleanup
+
+Verified canonical ownership, internal links and index coverage, immutable raw content, 426 unit/contract tests, 249 integration tests with two expected SoundFile skips, 45 release tests, RTX 4090 Kit lifecycle and screenshots, canonical nested evidence, version synchronization, Ruff, and Markdown whitespace.

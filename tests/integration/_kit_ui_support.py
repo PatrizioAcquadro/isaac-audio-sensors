@@ -69,7 +69,6 @@ def _install_viewport_modules(
     *,
     viewport: object | None,
     utility_capture: object | None = None,
-    renderer: object | None = None,
     app: object | None = None,
 ) -> SimpleNamespace:
     omni = ModuleType("omni")
@@ -104,12 +103,6 @@ def _install_viewport_modules(
     monkeypatch.setitem(sys.modules, "omni.kit", kit)
     monkeypatch.setitem(sys.modules, "omni.kit.viewport", viewport_pkg)
     monkeypatch.setitem(sys.modules, "omni.kit.viewport.utility", utility)
-
-    if renderer is not None:
-        renderer_module = ModuleType("omni.kit.renderer_capture")
-        renderer_module.acquire_renderer_capture_interface = lambda: renderer
-        kit.renderer_capture = renderer_module
-        monkeypatch.setitem(sys.modules, "omni.kit.renderer_capture", renderer_module)
 
     if app is not None:
         app_module = ModuleType("omni.kit.app")

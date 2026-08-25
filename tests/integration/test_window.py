@@ -176,32 +176,6 @@ def test_live_ux_screenshot_uses_viewport_utility_capture(monkeypatch, tmp_path)
     )
 
 
-def test_live_ux_screenshot_falls_back_to_legacy_capture(monkeypatch, tmp_path):
-    path = tmp_path / "legacy.viewport.png"
-
-    class LegacyViewport:
-        camera_path = SimpleNamespace(pathString="/World/LegacyCamera")
-
-        def capture_to_file(self, file_path: str) -> object:
-            _write_test_png(Path(file_path), width=23, height=29)
-            return SimpleNamespace(wait=lambda: "done")
-
-    _install_viewport_modules(monkeypatch, viewport=LegacyViewport())
-    live_ux = _load_live_ux_script(monkeypatch)
-
-    record = live_ux._capture_viewport_screenshot(path)
-
-    assert record["status"] == "captured"
-    assert record["method"] == "viewport.capture_to_file"
-    assert record["width"] == 23
-    assert record["height"] == 29
-    methods = [attempt["method"] for attempt in record["attempts"]]
-    assert methods == [
-        "viewport_utility.capture_viewport_to_file",
-        "viewport.capture_to_file",
-    ]
-
-
 def test_live_ux_screenshot_waits_for_scheduled_kit_capture(monkeypatch, tmp_path):
     path = tmp_path / "scheduled.viewport.png"
     viewport = SimpleNamespace(camera_path=SimpleNamespace(pathString="/World/Camera"))
@@ -234,39 +208,6 @@ def test_live_ux_screenshot_waits_for_scheduled_kit_capture(monkeypatch, tmp_pat
     assert record["width"] == 37
     assert record["height"] == 39
     assert record["attempts"][0]["file_wait"] == {"status": "ready", "updates": 3}
-
-
-def test_live_ux_screenshot_falls_back_to_renderer_capture(monkeypatch, tmp_path):
-    path = tmp_path / "renderer.viewport.png"
-    viewport = SimpleNamespace(camera_path=SimpleNamespace(pathString="/World/Camera"))
-
-    class RendererCapture:
-        def capture_next_frame_swapchain(self, file_path: str) -> object:
-            _write_test_png(Path(file_path), width=41, height=43)
-            return "scheduled"
-
-        def wait_async_capture(self) -> object:
-            return "done"
-
-    _install_viewport_modules(
-        monkeypatch,
-        viewport=viewport,
-        renderer=RendererCapture(),
-    )
-    live_ux = _load_live_ux_script(monkeypatch)
-
-    record = live_ux._capture_viewport_screenshot(path)
-
-    assert record["status"] == "captured"
-    assert record["method"] == "renderer_capture.capture_next_frame_swapchain"
-    assert record["width"] == 41
-    assert record["height"] == 43
-    methods = [attempt["method"] for attempt in record["attempts"]]
-    assert methods == [
-        "viewport_utility.capture_viewport_to_file",
-        "viewport.capture_to_file",
-        "renderer_capture.capture_next_frame_swapchain",
-    ]
 
 
 def test_live_ux_screenshot_records_no_active_viewport(monkeypatch, tmp_path):

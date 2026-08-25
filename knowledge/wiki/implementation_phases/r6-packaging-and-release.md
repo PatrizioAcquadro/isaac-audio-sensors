@@ -74,9 +74,11 @@ The manifest declares the canonical package name and exact release target: Linux
 
 The unconsumed local installer, `_vendor` layout, development sentinel, duplicated runtime checks, and their test-only surfaces were removed. One real-build test plus one negative audit test now cover the archive contract. The live smoke accepts an extension path and verifies package origin, Extension Manager enable/disable, and shutdown.
 
+The live smoke targets the declared Kit 110.1/CPython 3.12 APIs directly. Extension Manager verification uses the canonical enable, identity, and disable calls without scanning unrelated extensions; viewport capture uses the current viewport utility, while full-window UI capture retains the renderer swapchain. Generic object-attach evidence is written only under `object_attach_live_qa.generic_scene`, including its config roundtrip and screenshot records.
+
 #### Key Decisions
 
-The Community Registry archive is the installation surface; no custom installer remains. The builder returns only the archive path and preserves the Python wheel. Python APIs, CLI behavior, schemas, and optional room dependencies are unchanged.
+The Community Registry archive is the installation surface; no custom installer remains. The builder returns only the archive path and preserves the Python wheel. Legacy top-level aliases in newly generated Kit smoke evidence are not maintained; existing ignored validation files are not migrated. Python APIs, CLI behavior, schemas, and optional room dependencies are unchanged.
 
 #### Problems / Limitations
 
