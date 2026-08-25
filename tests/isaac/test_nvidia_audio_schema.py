@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import math
+from dataclasses import fields
+from inspect import signature
 
 import pytest
 
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioDiscoveryCfg,
+    IsaacAudioSceneBindingCfg,
     discover_stage_audio,
 )
 from isaac_audio_sensors.isaac.stage_audio import (
@@ -356,6 +359,50 @@ def test_discovery_rejects_disabled_or_nonrepresentable_native_source(
 def test_metadata_precedence_requires_each_supported_layer_once() -> None:
     with pytest.raises(ValueError, match="metadata_precedence"):
         IsaacAudioDiscoveryCfg(metadata_precedence=("ias", "ias", "defaults"))
+
+
+def test_discovery_configs_preserve_fields_defaults_and_conversion() -> None:
+    discovery = IsaacAudioDiscoveryCfg()
+    binding = IsaacAudioSceneBindingCfg()
+    discovery_fields = tuple(item.name for item in fields(discovery))
+    binding_fields = tuple(item.name for item in fields(binding))
+
+    assert tuple(signature(IsaacAudioDiscoveryCfg).parameters) == discovery_fields
+    assert tuple(signature(IsaacAudioSceneBindingCfg).parameters) == binding_fields
+    assert binding_fields == (
+        *discovery_fields[:-1],
+        "preferred_array",
+        "preferred_source",
+        "rediscover_each_update",
+        "strict_candidate_errors",
+    )
+    assert discovery.required_arrays is False
+    assert binding.required_arrays is True
+    assert binding.preferred_array is None
+    assert binding.preferred_source is None
+    assert binding.rediscover_each_update is False
+
+    binding = IsaacAudioSceneBindingCfg(
+        discovery_roots=("/World/",),
+        robot_base_prim_path="/World/Robot/",
+        array_roots=("/World/Robot/Arrays/",),
+        source_roots=("/World/Sources/",),
+        include_globs=("*Speaker*",),
+        default_sample_rate_hz=44_100,
+        metadata_precedence=("usd", "ias", "defaults"),
+        preferred_array="front",
+        preferred_source="speech",
+        rediscover_each_update=True,
+        strict_candidate_errors=True,
+    )
+    converted = binding.to_discovery_cfg()
+
+    assert binding.discovery_roots == ("/World",)
+    assert binding.robot_base_prim_path == "/World/Robot"
+    assert binding.array_roots == ("/World/Robot/Arrays",)
+    assert binding.source_roots == ("/World/Sources",)
+    for item in fields(converted):
+        assert getattr(converted, item.name) == getattr(binding, item.name)
 
 
 def test_real_usd_listener_compatibility_requires_static_identity_child() -> None:

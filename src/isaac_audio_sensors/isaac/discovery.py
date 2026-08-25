@@ -6,7 +6,7 @@ import fnmatch
 import math
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any
 
 from isaac_audio_sensors.core.constants import (
@@ -47,8 +47,8 @@ from isaac_audio_sensors.isaac.stage_audio import (
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class IsaacAudioDiscoveryCfg:
-    """Typed controls for semantic audio discovery on a USD-like stage."""
+class _IsaacAudioDiscoveryFields:
+    """Shared discovery fields and normalization."""
 
     discovery_roots: tuple[str, ...] = ("/World",)
     robot_base_prim_path: str | None = None
@@ -90,7 +90,6 @@ class IsaacAudioDiscoveryCfg:
     default_source_start_time_s: float = 0.0
     default_source_duration_s: float | None = None
     metadata_precedence: tuple[str, ...] = ("ias", "usd", "defaults")
-    strict_candidate_errors: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -162,51 +161,25 @@ class IsaacAudioDiscoveryCfg:
                 "metadata_precedence must contain ias, usd, and defaults exactly once."
             )
 
+    def _discovery_kwargs(self) -> dict[str, object]:
+        return {
+            item.name: getattr(self, item.name)
+            for item in fields(_IsaacAudioDiscoveryFields)
+        }
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class IsaacAudioSceneBindingCfg:
+class IsaacAudioDiscoveryCfg(_IsaacAudioDiscoveryFields):
+    """Typed controls for semantic audio discovery on a USD-like stage."""
+
+    strict_candidate_errors: bool = False
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class IsaacAudioSceneBindingCfg(_IsaacAudioDiscoveryFields):
     """Convenience config for binding an Isaac Sim stage by discovery."""
 
-    discovery_roots: tuple[str, ...] = ("/World",)
-    robot_base_prim_path: str | None = None
-    array_roots: tuple[str, ...] = ()
-    source_roots: tuple[str, ...] = ()
-    restrict_arrays_to_robot: bool = False
-    include_globs: tuple[str, ...] = ()
-    exclude_globs: tuple[str, ...] = ()
-    include_regexes: tuple[str, ...] = ()
-    exclude_regexes: tuple[str, ...] = ()
-    array_name_patterns: tuple[str, ...] = (
-        "*AudioArray*",
-        "*MicrophoneArray*",
-        "*MicArray*",
-    )
-    array_type_name_patterns: tuple[str, ...] = (
-        "*AudioArray*",
-        "*MicrophoneArray*",
-        "*MicArray*",
-    )
-    source_name_patterns: tuple[str, ...] = (
-        "*Speaker*",
-        "*Sound*",
-        "*AudioSource*",
-    )
-    source_type_names: tuple[str, ...] = (
-        "OmniSound",
-        "Sound",
-        "AudioSource",
-        "OmniAudioSource",
-    )
-    default_class_label: str = "Sound"
-    source_class_label_overrides: Mapping[str, str] = field(default_factory=dict)
-    default_microphone_layout: str | None = "quad_front"
-    default_sample_rate_hz: int = DEFAULT_SAMPLE_RATE_HZ
-    coordinate_convention: str = COORDINATE_CONVENTION
     required_arrays: bool = True
-    required_sources: bool = False
-    default_source_start_time_s: float = 0.0
-    default_source_duration_s: float | None = None
-    metadata_precedence: tuple[str, ...] = ("ias", "usd", "defaults")
     preferred_array: str | None = None
     preferred_source: str | None = None
     # False (default) keeps the cached live path: full discovery runs once
@@ -216,54 +189,11 @@ class IsaacAudioSceneBindingCfg:
     rediscover_each_update: bool = False
     strict_candidate_errors: bool = False
 
-    def __post_init__(self) -> None:
-        cfg = self.to_discovery_cfg()
-        for field_name in (
-            "discovery_roots",
-            "robot_base_prim_path",
-            "array_roots",
-            "source_roots",
-            "include_globs",
-            "exclude_globs",
-            "include_regexes",
-            "exclude_regexes",
-            "array_name_patterns",
-            "array_type_name_patterns",
-            "source_name_patterns",
-            "source_type_names",
-            "default_sample_rate_hz",
-            "source_class_label_overrides",
-            "metadata_precedence",
-        ):
-            object.__setattr__(self, field_name, getattr(cfg, field_name))
-
     def to_discovery_cfg(self) -> IsaacAudioDiscoveryCfg:
         """Return the lower-level discovery config represented by this binding."""
 
         return IsaacAudioDiscoveryCfg(
-            discovery_roots=self.discovery_roots,
-            robot_base_prim_path=self.robot_base_prim_path,
-            array_roots=self.array_roots,
-            source_roots=self.source_roots,
-            restrict_arrays_to_robot=self.restrict_arrays_to_robot,
-            include_globs=self.include_globs,
-            exclude_globs=self.exclude_globs,
-            include_regexes=self.include_regexes,
-            exclude_regexes=self.exclude_regexes,
-            array_name_patterns=self.array_name_patterns,
-            array_type_name_patterns=self.array_type_name_patterns,
-            source_name_patterns=self.source_name_patterns,
-            source_type_names=self.source_type_names,
-            default_class_label=self.default_class_label,
-            source_class_label_overrides=self.source_class_label_overrides,
-            default_microphone_layout=self.default_microphone_layout,
-            default_sample_rate_hz=self.default_sample_rate_hz,
-            coordinate_convention=self.coordinate_convention,
-            required_arrays=self.required_arrays,
-            required_sources=self.required_sources,
-            default_source_start_time_s=self.default_source_start_time_s,
-            default_source_duration_s=self.default_source_duration_s,
-            metadata_precedence=self.metadata_precedence,
+            **self._discovery_kwargs(),
             strict_candidate_errors=self.strict_candidate_errors,
         )
 
