@@ -6,7 +6,6 @@ from dataclasses import replace
 from typing import Any
 
 from isaac_audio_sensors.core.acoustics.materials import resolve_material
-from isaac_audio_sensors.core.config import AudioSensorConfig, build_scene_snapshot
 from isaac_audio_sensors.core.effects.config import MotionEffectsConfig
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.motion import PoseHistory, validate_pose_observation
@@ -28,16 +27,6 @@ from isaac_audio_sensors.isaac.usd_bounds import (
     resolve_room_absorption,
     world_aligned_bbox,
 )
-
-
-def export_config_snapshot(
-    config: AudioSensorConfig,
-    *,
-    timestamp_ms: int,
-) -> AudioSceneSnapshot:
-    """Return the config-authored snapshot used by offline Isaac smoke demos."""
-
-    return build_scene_snapshot(config, timestamp_ms=timestamp_ms)
 
 
 def build_stage_snapshot(
