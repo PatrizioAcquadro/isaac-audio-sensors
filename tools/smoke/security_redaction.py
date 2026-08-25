@@ -1,9 +1,8 @@
-"""Shared redaction helpers for diagnostic and discovery tooling."""
+"""Shared redaction helpers for diagnostic tooling."""
 
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
 from typing import Any
 
 REDACTION_MARKER = "<redacted>"
@@ -55,9 +54,3 @@ def redact_value_for_key(name: str, value: Any) -> str | None:
     if is_sensitive_key(name):
         return REDACTION_MARKER
     return redact_text(value)
-
-
-def redact_mapping_values(mapping: Mapping[str, Any]) -> dict[str, str | None]:
-    """Return a copy with sensitive values redacted by key and content."""
-
-    return {key: redact_value_for_key(key, value) for key, value in mapping.items()}

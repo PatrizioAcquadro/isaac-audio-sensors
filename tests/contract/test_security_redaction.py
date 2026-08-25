@@ -21,23 +21,6 @@ def _load_script(module_name: str, relative_path: str):
     return module
 
 
-def test_discover_redacts_sensitive_isaac_and_omni_environment(monkeypatch):
-    discover_module = _load_script(
-        "discover_isaac_runtimes_test",
-        "tools/smoke/discover_isaac_runtimes.py",
-    )
-    monkeypatch.setenv("ISAAC_SECRET_TOKEN", "isaac-token-secret")
-    monkeypatch.setenv("OMNI_API_KEY", "omni-api-key-secret")
-    monkeypatch.setenv("ISAAC_SIM_PATH", "/opt/isaac-sim")
-
-    result = discover_module.discover()
-    environment = result["environment"]
-
-    assert environment["ISAAC_SECRET_TOKEN"] == "<redacted>"
-    assert environment["OMNI_API_KEY"] == "<redacted>"
-    assert environment["ISAAC_SIM_PATH"] == "/opt/isaac-sim"
-
-
 def test_diagnostic_command_output_is_redacted_before_json_collection():
     diagnose_module = _load_script(
         "diagnose_isaac_gpu_audio_test",
