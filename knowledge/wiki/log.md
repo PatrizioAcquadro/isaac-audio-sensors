@@ -293,3 +293,11 @@ Recorded removal of dead internal workflow and validation surfaces, explicit ser
 ## 2026-08-26 — lint: Kit service wiring cleanup
 
 Verified 104 focused Kit tests, 465 unit/contract tests, 166 integration tests, 57 release tests, 70 Isaac tests, RTX 4090 Isaac Sim and Kit smokes, immutable raw content, Ruff, and whitespace.
+
+## 2026-08-26 — update: Recording internals cleanup
+
+Recorded the single bounded shard scan, bounded audio-header reads, removed dead internal seams, and unchanged public recording and v1 dataset contracts.
+
+## 2026-08-26 — lint: Recording internals cleanup
+
+Verified focused and full host lanes, real FLAC round-trip, fixture validation, documentation boundaries, immutable raw content, Ruff, scoped formatting, and whitespace.

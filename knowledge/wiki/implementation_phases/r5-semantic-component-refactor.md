@@ -76,11 +76,11 @@ Backend inventory and optional dependency metadata no longer have parallel lists
 
 #### Implementation
 
-R5.3 makes `SessionDataset` the single session-layout authority used by loading, validation, replay, FLAC export, and recording recovery. Internal modules now separate canonical frame records, deterministic shard planning, shard completion and streaming scans, durable writes, audio writing, recovery state, time gaps, and manifest construction.
+R5.3 makes `SessionDataset` the single session-layout authority used by loading, validation, replay, FLAC export, and recording recovery. Internal modules separate canonical frame records, deterministic shard planning, one bounded shard scan, durable writes, audio writing, recovery state, time gaps, and manifest construction.
 
 `SessionRecorder` remains the public orchestrator. `append_frame(frame, audio_block, *, is_reset=False)` accepts only `AudioSensorFrame`, reads `frame.timestamp_ms`, and records time-gap diagnostics internally. `cancel()` publishes a finalized-incomplete session; resume and finalization recovery remain class methods. Atomic helpers, writer state, filesystem seams, promotion callbacks, planner details, and module-level recovery wrappers are private or removed.
 
-Manifest parsing is strict canonical v1 parsing rather than coercion. Manifest and split-plan writes use durable atomic replacement. Shard checksum verification has one implementation, and `DatasetLayoutError` reports stable `code`, `location`, and `detail` fields consumed directly by validation.
+Manifest parsing is strict canonical v1 parsing rather than coercion. Manifest and split-plan writes use durable atomic replacement. Shard construction and verification share one streaming record scan, WAV and FLAC header reads are bounded, and `DatasetLayoutError` reports stable `code`, `location`, and `detail` fields consumed directly by validation.
 
 Focused black-box tests retain aligned and unaligned output, crash/resume/recovery safety, incomplete-session opt-in, bounded streaming, replay identity and read-only behavior, time-gap/reset diagnostics, corruption codes, exact statistics, split leakage, and real FLAC behavior. Duplicate seam, callback, retry, snapshot, retained-mode, and helper-level matrices were removed.
 
