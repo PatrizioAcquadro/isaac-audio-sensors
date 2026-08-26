@@ -1,5 +1,3 @@
-"""Contract tests for ``ias.audio_calibration_profile.v1``."""
-
 from __future__ import annotations
 
 import json

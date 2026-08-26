@@ -5,6 +5,10 @@ from copy import deepcopy
 import pytest
 
 from isaac_audio_sensors.core.config import build_scene_snapshot, validate_audio_config
+from isaac_audio_sensors.core.constants import (
+    DEFAULT_RUNTIME_PROFILE,
+    RUNTIME_PROFILES,
+)
 from isaac_audio_sensors.core.effects import MotionEffectsConfig
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 
@@ -144,6 +148,40 @@ def test_two_microphone_tdoa_config_requires_explicit_ambiguity_policy():
     raw["audio"]["default_backend"] = "tdoa_synthetic"
 
     with pytest.raises(ValueError, match="ambiguity policy"):
+        validate_audio_config(raw)
+
+
+def test_runtime_profile_defaults_to_waveform_fidelity():
+    config = validate_audio_config(_raw_config())
+
+    assert DEFAULT_RUNTIME_PROFILE == "waveform_fidelity"
+    assert config.runtime_profile == DEFAULT_RUNTIME_PROFILE
+
+
+@pytest.mark.parametrize("profile", RUNTIME_PROFILES)
+def test_known_runtime_profiles_are_accepted(profile):
+    raw = _raw_config()
+    raw["audio"]["runtime_profile"] = profile
+
+    assert validate_audio_config(raw).runtime_profile == profile
+
+
+def test_unknown_runtime_profile_fails_closed():
+    raw = _raw_config()
+    raw["audio"]["runtime_profile"] = "automatic"
+
+    with pytest.raises(ConfigValidationError, match="audio.runtime_profile"):
+        validate_audio_config(raw)
+
+
+def test_training_profile_rejects_waveform_export():
+    raw = _raw_config()
+    raw["audio"].update(
+        runtime_profile="training_features",
+        write_waveforms=True,
+    )
+
+    with pytest.raises(ConfigValidationError, match="incompatible.*write_waveforms"):
         validate_audio_config(raw)
 
 

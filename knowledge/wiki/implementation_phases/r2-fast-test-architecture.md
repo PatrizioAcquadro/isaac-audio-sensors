@@ -10,9 +10,9 @@ Replace phase- and filename-oriented validation with deterministic test lanes ow
 
 The test tree is divided into `unit`, `contract`, `integration`, `isaac`, `release`, and `fixtures` responsibilities.
 
-`tests/unit/` checks pure DSP, geometry, acoustic effects, motion, DOA, backend mathematics, Kit instruments, profiles, validation, and room/USD utilities without optional simulator runtimes.
+`tests/unit/` checks pure configuration, DSP, geometry, acoustic effects, motion, DOA, backend mathematics, Kit instruments, profiles, validation, and room/USD utilities without optional simulator runtimes.
 
-`tests/contract/` checks public imports, frame and schema compatibility, calibration, manifests, configuration, capabilities, plugins, Kit architecture, CLI behavior, security redaction, and lazy optional-runtime imports.
+`tests/contract/` checks public imports, frame and schema compatibility, calibration, manifests, capabilities, plugins, Kit architecture, CLI behavior, security redaction, and lazy optional-runtime imports.
 
 `tests/integration/` checks real cross-component composition: room acoustics, multi-source and dynamic scenes, motion, waveform and codec I/O, recording/replay/splits/validation, CLI, headless workflows, and Kit services. Simulated Omni UI coverage is limited to one host build/refresh smoke plus failure and cleanup semantics that the live happy path does not prove.
 

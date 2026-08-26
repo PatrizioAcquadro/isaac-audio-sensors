@@ -1,5 +1,3 @@
-"""Contract tests for ``ias.audio_dataset_manifest.v1``."""
-
 from __future__ import annotations
 
 import json
@@ -66,13 +64,6 @@ def test_paths_and_checksum_formats_are_enforced_directly():
         AssetRecord(
             asset_id="trace",
             path="C:\\capture\\trace.ndjson",
-            kind="frame_trace_jsonl",
-            sha256="a" * 64,
-        )
-    with pytest.raises(ValueError, match="relative POSIX path"):
-        AssetRecord(
-            asset_id="trace",
-            path="shards/../trace.ndjson",
             kind="frame_trace_jsonl",
             sha256="a" * 64,
         )

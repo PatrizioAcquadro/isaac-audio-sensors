@@ -1,5 +1,3 @@
-"""Security-focused tests for support-tool redaction."""
-
 from __future__ import annotations
 
 import importlib.util

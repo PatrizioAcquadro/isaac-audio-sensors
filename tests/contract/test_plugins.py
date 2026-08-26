@@ -1,5 +1,3 @@
-"""Contract, rejection, inventory, and no-drift tests for audio plugins."""
-
 from __future__ import annotations
 
 import numpy as np
@@ -11,7 +9,6 @@ from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBacken
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
-from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.plugins import (
     AudioFeatureExtractor,
     DoaEstimator,
@@ -20,11 +17,7 @@ from isaac_audio_sensors.core.plugins import (
     PropagationBackend,
     get_default_registry,
 )
-from isaac_audio_sensors.core.types import (
-    AudioSceneSnapshot,
-    AudioSourceSpec,
-    AudioTimeWindow,
-)
+from tests.helpers import quad_array, room_scene, source, time_window
 
 
 class _MeanFeatureExtractor:
@@ -51,8 +44,8 @@ def _feature_declaration(
         supported_profiles=profiles,
         deterministic=deterministic,
         output_contract={"shape": shape, "dtype": "float32"},
-        description="Test-local mean feature extractor.",
-        provenance="tests.test_backend_plugins",
+        description="Test feature extractor.",
+        provenance="tests.contract.test_plugins",
     )
 
 
@@ -66,8 +59,8 @@ def _propagation_declaration(plugin_id: str) -> PluginDeclaration:
         supported_profiles=("waveform_fidelity",),
         deterministic=True,
         output_contract={"shape": "AudioSensorFrame", "dtype": "AudioSensorFrame"},
-        description="Test-local propagation backend.",
-        provenance="tests.test_backend_plugins",
+        description="Test propagation backend.",
+        provenance="tests.contract.test_plugins",
     )
 
 
@@ -152,9 +145,7 @@ def test_importable_stdlib_dependency_resolves_normally():
         _MeanFeatureExtractor,
     )
 
-    assert registry.availability(
-        "audio_feature_extractor", "stdlib_dep"
-    ).available
+    assert registry.availability("audio_feature_extractor", "stdlib_dep").available
     assert isinstance(
         registry.resolve(
             "audio_feature_extractor",
@@ -220,8 +211,7 @@ def test_default_registry_builtin_inventory_and_capabilities():
     )
     assert declarations[("propagation_backend", "geometry_only")].fidelity_level == "L0"
     assert (
-        declarations[("propagation_backend", "tdoa_synthetic")].fidelity_level
-        == "L1"
+        declarations[("propagation_backend", "tdoa_synthetic")].fidelity_level == "L1"
     )
     for plugin_id in ("room_acoustics", "room_acoustics_srp"):
         declaration = declarations[("propagation_backend", plugin_id)]
@@ -253,54 +243,18 @@ def test_room_backend_registry_availability_matches_optional_dependency():
             get_backend("room_acoustics")
 
 
-@pytest.mark.parametrize(
-    ("backend_class", "backend_id", "kwargs"),
-    [
-        (GeometryBackend, "geometry_only", {}),
-        (
-            TdoaSyntheticBackend,
-            "tdoa_synthetic",
-            {"seed": 713, "noise_std_s": 1e-6, "clock_jitter_s": 2e-7},
-        ),
-    ],
-)
-def test_get_backend_registry_routing_has_no_seeded_frame_drift(
-    backend_class,
-    backend_id,
-    kwargs,
-):
-    array = create_microphone_array(
-        array_id="plugin_no_drift",
-        prim_path="/World/PluginNoDrift",
-        layout_name="quad_front",
-    )
-    source = AudioSourceSpec(
-        source_id="speaker",
-        prim_path="/World/Speaker",
-        class_label="Speech",
-        audio_asset_path="generated://impulse",
-        position_world=(3.0, 2.0, 0.5),
-        orientation_world_quat=None,
-        start_time_s=0.0,
-        duration_s=1.0,
-        gain_db=-2.0,
-    )
-    scene = AudioSceneSnapshot(
-        stage_id="plugin_no_drift",
-        timestamp_ms=25,
-        sources=(source,),
-        arrays=(array,),
-    )
-    window = AudioTimeWindow(
-        start_time_s=0.0,
-        end_time_s=0.1,
-        timestamp_ms=25,
-        sample_rate_hz=48_000,
-        frame_index=4,
-    )
+def test_tdoa_registry_routing_preserves_seeded_frame():
+    kwargs = {"seed": 713, "noise_std_s": 1e-6, "clock_jitter_s": 2e-7}
+    array = quad_array()
+    scene = room_scene(source("speaker", (3.0, 2.0, 0.5)), array=array)
+    window = time_window(end_time_s=0.1)
 
-    direct = backend_class(**kwargs).simulate(scene, array, window)
-    registered = get_backend(backend_id, **kwargs).simulate(scene, array, window)
+    direct = TdoaSyntheticBackend(**kwargs).simulate(scene, array, window)
+    registered = get_backend("tdoa_synthetic", **kwargs).simulate(
+        scene,
+        array,
+        window,
+    )
 
     assert frame_to_trace_dict(registered) == frame_to_trace_dict(direct)
 

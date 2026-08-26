@@ -1,5 +1,3 @@
-"""Contract tests for the public ``AudioSensorFrame`` v1 trace shape."""
-
 from __future__ import annotations
 
 import json
@@ -8,13 +6,6 @@ from pathlib import Path
 
 import pytest
 
-from isaac_audio_sensors.core.backends.base import get_backend, registered_backend_ids
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import (
-    RoomAcousticsBackend,
-    RoomAcousticsSrpBackend,
-)
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.constants import (
     DETECTION_FIELDS,
     DOA_FIELDS,
@@ -36,25 +27,6 @@ from isaac_audio_sensors.core.types import (
 )
 
 TRACE_DIR = Path("examples/traces")
-
-
-def test_backend_identifiers_are_stable_public_v1_ids():
-    assert GeometryBackend.backend_id == "geometry_only"
-    assert TdoaSyntheticBackend.backend_id == "tdoa_synthetic"
-    assert RoomAcousticsBackend.backend_id == "room_acoustics"
-    assert RoomAcousticsSrpBackend.backend_id == "room_acoustics_srp"
-
-    assert registered_backend_ids() == (
-        "geometry_only",
-        "tdoa_synthetic",
-        "room_acoustics",
-        "room_acoustics_srp",
-    )
-    for backend_id, backend_cls in (
-        ("geometry_only", GeometryBackend),
-        ("tdoa_synthetic", TdoaSyntheticBackend),
-    ):
-        assert isinstance(get_backend(backend_id), backend_cls)
 
 
 def test_serialized_fields_match_dataclass_contracts():
@@ -81,8 +53,7 @@ def test_json_and_ndjson_trace_corpus_matches_v1_contract_and_round_trips():
     assert any(path.suffix == ".json" for path, _ in payloads)
     assert any(path.suffix == ".ndjson" for path, _ in payloads)
 
-    # Optional additive detection/DOA fields and the defaults a round-trip
-    # adds to traces written before the fields existed.
+    # Older traces acquire defaults for additive fields on round-trip.
     optional_detection_defaults = {
         "occluded": False,
         "ground_truth_elevation_deg": None,

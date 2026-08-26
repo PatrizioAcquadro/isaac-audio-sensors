@@ -1,5 +1,3 @@
-"""Contract tests for generated and packaged JSON Schemas."""
-
 from __future__ import annotations
 
 import json

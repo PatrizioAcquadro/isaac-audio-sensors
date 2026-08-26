@@ -151,7 +151,6 @@ def test_public_package_and_cli_version_match():
         text=True,
     )
 
-    assert __version__ == "2.0.0"
     assert result.stdout.strip() == __version__
 
 

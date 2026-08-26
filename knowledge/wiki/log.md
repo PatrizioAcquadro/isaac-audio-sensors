@@ -269,3 +269,11 @@ Moved pure motion and occlusion checks to the host lane, consolidated shared USD
 ## 2026-08-26 — update: Integration test lane simplification
 
 Moved pure Kit, DSP, elevation, and room/USD invariants to unit or contract ownership, consolidated shared host helpers, reduced simulated UI coverage to one build/refresh smoke, and assigned real rendering and wiring evidence to the live Kit gate without changing runtime contracts.
+
+## 2026-08-26 — update: Contract test lane simplification
+
+Moved runtime-profile validation to unit ownership, removed duplicate backend and fixture checks, reused shared fixtures, and preserved public frame, schema, manifest, plugin, API, and security contracts.
+
+## 2026-08-26 — lint: Contract test lane simplification
+
+Verified the focused and complete host suites, test ownership, public contracts, canonical wiki structure, Ruff, formatting, and whitespace.

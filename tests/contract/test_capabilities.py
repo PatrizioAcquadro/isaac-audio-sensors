@@ -1,5 +1,3 @@
-"""Capability availability and provenance contracts."""
-
 from __future__ import annotations
 
 import json
