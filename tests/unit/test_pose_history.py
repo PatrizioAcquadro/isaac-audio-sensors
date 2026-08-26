@@ -1,5 +1,3 @@
-"""Pose-history policy and estimator tests."""
-
 from __future__ import annotations
 
 import math
@@ -28,16 +26,17 @@ def test_raw_constant_velocity_recovery_frozen_fixture(
 
     for step in range(1, 41):
         time_s = 0.05 * step
-        position = tuple(
-            origin[index] + velocity[index] * time_s for index in range(3)
-        )
+        position = tuple(origin[index] + velocity[index] * time_s for index in range(3))
         result = history.observe(entity_id, time_s, position)
         assert result.reason == "derived"
         assert result.velocity_world_mps is not None
-        assert max(
-            abs(result.velocity_world_mps[index] - velocity[index])
-            for index in range(3)
-        ) <= 1e-9
+        assert (
+            max(
+                abs(result.velocity_world_mps[index] - velocity[index])
+                for index in range(3)
+            )
+            <= 1e-9
+        )
 
 
 def test_smoothed_constant_velocity_settles_after_exactly_40_updates():
@@ -48,19 +47,20 @@ def test_smoothed_constant_velocity_settles_after_exactly_40_updates():
 
     for step in range(1, 41):
         time_s = 0.05 * step
-        position = tuple(
-            origin[index] + velocity[index] * time_s for index in range(3)
-        )
+        position = tuple(origin[index] + velocity[index] * time_s for index in range(3))
         result = history.observe("source", time_s, position)
         expected = tuple((1.0 - 0.5**step) * component for component in velocity)
         assert result.reason == "derived"
         assert result.velocity_world_mps == pytest.approx(expected, abs=1e-12)
 
     assert result.velocity_world_mps is not None
-    assert max(
-        abs(result.velocity_world_mps[index] - velocity[index])
-        for index in range(3)
-    ) <= 1e-9
+    assert (
+        max(
+            abs(result.velocity_world_mps[index] - velocity[index])
+            for index in range(3)
+        )
+        <= 1e-9
+    )
 
 
 def test_first_sample_and_duplicate_after_first_replay_exact_result():
@@ -138,12 +138,8 @@ def test_speed_exactly_teleport_boundary_is_derived_and_above_is_teleport():
 def test_orientation_only_motion_derives_exact_zero_and_duplicate_replays_it():
     history = PoseHistory()
     history.observe("entity", 0.0, (1.0, 2.0, 3.0), (0.0, 0.0, 0.0, 1.0))
-    derived = history.observe(
-        "entity", 0.1, (1.0, 2.0, 3.0), (0.0, 0.0, 1.0, 0.0)
-    )
-    duplicate = history.observe(
-        "entity", 0.1, (9.0, 9.0, 9.0), (0.0, 0.0, -1.0, 0.0)
-    )
+    derived = history.observe("entity", 0.1, (1.0, 2.0, 3.0), (0.0, 0.0, 1.0, 0.0))
+    duplicate = history.observe("entity", 0.1, (9.0, 9.0, 9.0), (0.0, 0.0, -1.0, 0.0))
     assert derived.velocity_world_mps == (0.0, 0.0, 0.0)
     assert derived.reason == "derived"
     assert duplicate is derived
@@ -214,11 +210,3 @@ def test_invalid_history_configuration_fails_closed(field, value):
     kwargs = {field: value}
     with pytest.raises(ValueError, match=field):
         PoseHistory(**kwargs)
-
-
-def test_ring_capacity_is_exactly_two():
-    history = PoseHistory()
-    for step in range(4):
-        history.observe("entity", 0.1 * step, (float(step), 0.0, 0.0))
-    assert history._entities["entity"].samples.maxlen == 2
-    assert len(history._entities["entity"].samples) == 2

@@ -1,5 +1,3 @@
-"""Fixed-seed regression tests for noise-aware SRP confidence."""
-
 from __future__ import annotations
 
 import math
@@ -43,8 +41,7 @@ def _frozen_ladder_inputs() -> tuple[
 ]:
     microphones = microphone_layout("tetrahedral", spacing_m=0.16)
     relative_positions = {
-        microphone.mic_id: microphone.relative_position_m
-        for microphone in microphones
+        microphone.mic_id: microphone.relative_position_m for microphone in microphones
     }
     world_positions = {
         mic_id: np.asarray(ARRAY_CENTER) + np.asarray(position)
@@ -76,9 +73,7 @@ def _frozen_ladder_inputs() -> tuple[
                     "cardioid",
                     source_position_world=SOURCE_POSITION,
                     source_orientation_world_xyzw=quaternion,
-                    microphone_position_world=tuple(
-                        world_positions[microphone.mic_id]
-                    ),
+                    microphone_position_world=tuple(world_positions[microphone.mic_id]),
                 )
                 for microphone in microphones
             ]
@@ -129,8 +124,7 @@ def test_mid_ladder_confidence_degrades_without_reversal(
 
     assert REAR_CEILING < confidence[2] < confidence[0]
     assert all(
-        left >= right
-        for left, right in zip(confidence, confidence[1:], strict=False)
+        left >= right for left, right in zip(confidence, confidence[1:], strict=False)
     )
 
 

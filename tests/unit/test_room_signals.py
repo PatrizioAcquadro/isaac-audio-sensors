@@ -1,5 +1,3 @@
-"""Deterministic room-acoustics source scheduling tests."""
-
 from __future__ import annotations
 
 import numpy as np

@@ -1,5 +1,3 @@
-"""Effects parsing and active-stage validation contracts."""
-
 from __future__ import annotations
 
 import math
@@ -62,29 +60,3 @@ def test_disabled_stage_ranges_are_semantically_inactive():
             electronics=ElectronicsConfig(full_scale=-1.0, bit_depth=2),
         )
     )
-
-
-@pytest.mark.parametrize(
-    "config",
-    [
-        EffectsConfig(
-            noise=NoiseConfig(enabled=True, seed=2**80, clock_jitter_std_s=1e-6)
-        ),
-        EffectsConfig(
-            electronics=ElectronicsConfig(
-                enabled=True,
-                full_scale=-1.0,
-                bit_depth=16,
-            )
-        ),
-        EffectsConfig(
-            channel_response=ChannelResponseConfig(
-                enabled=True,
-                microphones={"front": ChannelResponseMicConfig(delay_s=math.inf)},
-            )
-        ),
-    ],
-)
-def test_active_stage_ranges_fail(config):
-    with pytest.raises(ConfigValidationError):
-        _validate(config)

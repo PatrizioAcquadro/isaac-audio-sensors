@@ -1,5 +1,3 @@
-"""Float-representation tolerance for capture-lattice motion brackets."""
-
 from __future__ import annotations
 
 import math
@@ -33,9 +31,7 @@ def test_ulp_jittered_capture_lattice_brackets_many_windows() -> None:
         assert result.velocity_world_mps is not None
 
         start_time_s = slot * WINDOW_DURATION_S
-        computed_end_s = (
-            start_time_s + WINDOW_SAMPLE_COUNT / SAMPLE_RATE_HZ
-        )
+        computed_end_s = start_time_s + WINDOW_SAMPLE_COUNT / SAMPLE_RATE_HZ
         if computed_end_s > sample_end_s:
             later_window_end_count += 1
 
@@ -55,9 +51,7 @@ def test_ulp_jittered_capture_lattice_brackets_many_windows() -> None:
         )
         assert len(plan.segments) == SEGMENTS_PER_WINDOW
         assert (
-            plan.segments[-1]
-            .entities["source-a"]
-            .end_position_world_m[0]
+            plan.segments[-1].entities["source-a"].end_position_world_m[0]
             <= sample_end_s
         )
 

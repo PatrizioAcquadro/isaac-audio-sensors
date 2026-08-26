@@ -1,5 +1,3 @@
-"""Doppler tests: factor math, L1 metadata, and L2 resampled waveforms."""
-
 from __future__ import annotations
 
 from dataclasses import replace
@@ -139,9 +137,7 @@ def test_tdoa_backend_emits_doppler_metadata_only_with_velocity():
     )
     frame = TdoaSyntheticBackend().simulate(scene, array, _window())
 
-    by_source = {
-        detection.source_id: detection for detection in frame.detections
-    }
+    by_source = {detection.source_id: detection for detection in frame.detections}
     mover = by_source["mover"].diagnostics
     expected = SPEED_OF_SOUND_MPS / (SPEED_OF_SOUND_MPS - 20.0)
     assert mover["doppler_factor"] == pytest.approx(expected, rel=1e-9)

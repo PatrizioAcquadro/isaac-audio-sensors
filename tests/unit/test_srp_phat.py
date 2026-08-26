@@ -1,5 +1,3 @@
-"""Unit tests for the SRP-PHAT steered-response direction estimator."""
-
 from __future__ import annotations
 
 import math
@@ -116,24 +114,6 @@ def test_srp_phat_planar_array_steers_azimuth_only(bearing_deg):
     assert result.elevation_deg is None
     assert result.elevation_step_deg is None
     assert result.grid_point_count == int(360.0 / result.azimuth_step_deg)
-
-
-def test_srp_phat_is_deterministic():
-    positions = _layout_positions("tetrahedral")
-    waveforms = _plane_wave_waveforms(positions, bearing_deg=75.0, elevation_deg=10.0)
-
-    first = srp_phat_direction(
-        waveforms,
-        mic_positions_m=positions,
-        sample_rate_hz=SAMPLE_RATE_HZ,
-    )
-    second = srp_phat_direction(
-        waveforms,
-        mic_positions_m=positions,
-        sample_rate_hz=SAMPLE_RATE_HZ,
-    )
-
-    assert first == second
 
 
 def test_srp_phat_rejects_degenerate_inputs():

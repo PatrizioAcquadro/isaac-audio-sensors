@@ -1,5 +1,3 @@
-"""Acoustic material resolution and provenance tests."""
-
 from __future__ import annotations
 
 from dataclasses import replace

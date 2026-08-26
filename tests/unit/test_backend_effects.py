@@ -1,5 +1,3 @@
-"""Effect adapter, insertion, disabled-state, and determinism tests."""
-
 from __future__ import annotations
 
 import json
@@ -138,8 +136,7 @@ def test_l1_gain_and_delay_adapter_is_difference_of_matching_baselines(stress):
     effected_detection = effected.detections[0]
     for mic_id in mic_ids:
         recovered_gain = 20.0 * math.log10(
-            effected_detection.per_mic_rms[mic_id]
-            / base_detection.per_mic_rms[mic_id]
+            effected_detection.per_mic_rms[mic_id] / base_detection.per_mic_rms[mic_id]
         )
         recovered_delay = (
             effected_detection.per_mic_delay_s[mic_id]
@@ -158,14 +155,13 @@ def test_l1_polarity_is_honest_metadata_only_and_leaves_observables_exact():
     scene = _scene(array)
     window = _time_window()
     baseline = TdoaSyntheticBackend().simulate(scene, array, window)
-    effected = TdoaSyntheticBackend(
-        effects=_effects(mic_ids, polarity=-1)
-    ).simulate(scene, array, window)
+    effected = TdoaSyntheticBackend(effects=_effects(mic_ids, polarity=-1)).simulate(
+        scene, array, window
+    )
 
     assert effected.detections[0].per_mic_rms == baseline.detections[0].per_mic_rms
     assert (
-        effected.detections[0].per_mic_delay_s
-        == baseline.detections[0].per_mic_delay_s
+        effected.detections[0].per_mic_delay_s == baseline.detections[0].per_mic_delay_s
     )
     assert effected.diagnostics["effects"]["channel_response"]["polarity"] == (
         dict.fromkeys(mic_ids, -1)
@@ -207,9 +203,7 @@ def test_waveform_frequency_response_fails_typed_on_l0_l1_without_partial_frame(
     effects = EffectsConfig(
         channel_response=ChannelResponseConfig(
             enabled=True,
-            microphones={
-                "front": ChannelResponseMicConfig(frequency_response=points)
-            },
+            microphones={"front": ChannelResponseMicConfig(frequency_response=points)},
         )
     )
 

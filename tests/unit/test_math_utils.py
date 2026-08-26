@@ -1,5 +1,3 @@
-"""Tests for core coordinate and quaternion math."""
-
 from __future__ import annotations
 
 import pytest

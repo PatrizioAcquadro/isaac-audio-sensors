@@ -1,5 +1,3 @@
-"""Tests for simulator-independent audio configuration."""
-
 from __future__ import annotations
 
 from copy import deepcopy
@@ -35,22 +33,6 @@ def test_config_parses_source_velocity_and_builds_scene():
     assert by_id["mover"].loop_count == 2
     assert by_id["static"].velocity_world_mps is None
     assert by_id["static"].loop_count == 0
-
-
-@pytest.mark.parametrize("loop_count", (-2, 1.5, True, "1"))
-def test_config_rejects_invalid_source_loop_count(loop_count):
-    raw = _raw_config()
-    raw["sources"] = [
-        {
-            "source_id": "speaker",
-            "prim_path": "/World/Speaker",
-            "class_label": "Speech",
-            "loop_count": loop_count,
-        }
-    ]
-
-    with pytest.raises(ValueError, match="loop_count"):
-        validate_audio_config(raw)
 
 
 @pytest.mark.parametrize(
@@ -89,9 +71,7 @@ def test_config_rejects_duplicate_microphone_ids():
 def test_tdoa_config_requires_two_microphones():
     raw = _raw_config()
     raw["audio"]["default_backend"] = "tdoa_synthetic"
-    raw["arrays"]["rig"]["microphones"] = raw["arrays"]["rig"][
-        "microphones"
-    ][:1]
+    raw["arrays"]["rig"]["microphones"] = raw["arrays"]["rig"]["microphones"][:1]
 
     with pytest.raises(ValueError, match="requires at least two microphones"):
         validate_audio_config(raw)

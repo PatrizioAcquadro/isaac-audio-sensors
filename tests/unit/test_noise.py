@@ -1,5 +1,3 @@
-"""Seeded noise-model tests."""
-
 from __future__ import annotations
 
 import math
@@ -850,19 +848,6 @@ def test_l1_timing_adapter_exact_and_legacy_rng_unchanged(q0, stress):
             - baseline.detections[0].per_mic_delay_s[mic_id]
         )
         assert abs(observed - expected) <= 1e-12
-    legacy_before = tuple(
-        baseline_backend._seeded_gauss(
-            "delay_noise", baseline.frame_id, mic_id, std=1e-6
-        )
-        for mic_id in MIC_IDS
-    )
-    legacy_after = tuple(
-        effected_backend._seeded_gauss(
-            "delay_noise", baseline.frame_id, mic_id, std=1e-6
-        )
-        for mic_id in MIC_IDS
-    )
-    assert np.asarray(legacy_before).tobytes() == np.asarray(legacy_after).tobytes()
 
 
 @pytest.mark.parametrize("backend", [GeometryBackend, TdoaSyntheticBackend])

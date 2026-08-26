@@ -1,5 +1,3 @@
-"""Electronics model tests."""
-
 from __future__ import annotations
 
 import math
@@ -106,6 +104,17 @@ def _apply(
         sample_rate_hz=SAMPLE_RATE_HZ,
         frame_id=frame_id,
         backend_id="room_acoustics",
+    )
+
+
+def _validate(config: EffectsConfig) -> None:
+    validate_effects_config(
+        config,
+        microphone_orders=(MIC_IDS,),
+        sample_rate_hz=SAMPLE_RATE_HZ,
+        backend_id="room_acoustics",
+        runtime_profile="waveform_fidelity",
+        sample_count=16,
     )
 
 
@@ -296,30 +305,18 @@ def test_defaults_toml_and_shared_seed_ownership():
 def test_fail_closed_validation_matrix(electronics, seed, match):
     config = EffectsConfig(noise=NoiseConfig(seed=seed), electronics=electronics)
     with pytest.raises(ConfigValidationError, match=match):
-        validate_effects_config(
-            config,
-            microphone_orders=(MIC_IDS,),
-            sample_rate_hz=SAMPLE_RATE_HZ,
-            backend_id="room_acoustics",
-            runtime_profile="waveform_fidelity",
-            sample_count=16,
-        )
+        _validate(config)
 
 
 @pytest.mark.parametrize("full_scale", [math.inf, -math.inf])
 def test_nonfinite_full_scale_fails_closed(full_scale):
     with pytest.raises(ConfigValidationError, match="full_scale"):
-        validate_effects_config(
+        _validate(
             EffectsConfig(
                 electronics=ElectronicsConfig(
                     enabled=True, full_scale=full_scale, bit_depth=16
                 )
-            ),
-            microphone_orders=(MIC_IDS,),
-            sample_rate_hz=SAMPLE_RATE_HZ,
-            backend_id="room_acoustics",
-            runtime_profile="waveform_fidelity",
-            sample_count=16,
+            )
         )
 
 
@@ -337,7 +334,7 @@ def test_nonfinite_full_scale_fails_closed(full_scale):
 )
 def test_agc_nonfinite_and_out_of_range_values_fail_closed(field_name, value):
     with pytest.raises(ConfigValidationError, match=field_name):
-        validate_effects_config(
+        _validate(
             EffectsConfig(
                 electronics=ElectronicsConfig(
                     enabled=True,
@@ -345,12 +342,7 @@ def test_agc_nonfinite_and_out_of_range_values_fail_closed(field_name, value):
                     bit_depth=16,
                     agc=replace(_agc(), **{field_name: value}),
                 )
-            ),
-            microphone_orders=(MIC_IDS,),
-            sample_rate_hz=SAMPLE_RATE_HZ,
-            backend_id="room_acoustics",
-            runtime_profile="waveform_fidelity",
-            sample_count=16,
+            )
         )
 
 
@@ -372,39 +364,20 @@ def test_frozen_inclusive_endpoints_validate(bit_depth, target):
             ),
         )
     )
-    validate_effects_config(
-        config,
-        microphone_orders=(MIC_IDS,),
-        sample_rate_hz=SAMPLE_RATE_HZ,
-        backend_id="room_acoustics",
-        runtime_profile="waveform_fidelity",
-        sample_count=16,
-    )
+    _validate(config)
 
 
 def test_bit_depth_non_integer_and_shared_seed_out_of_range_fail_closed():
     with pytest.raises(ConfigValidationError, match="bit_depth"):
-        validate_effects_config(
+        _validate(
             EffectsConfig(
                 electronics=ElectronicsConfig(
                     enabled=True, full_scale=1.0, bit_depth=16.0
                 )
-            ),
-            microphone_orders=(MIC_IDS,),
-            sample_rate_hz=SAMPLE_RATE_HZ,
-            backend_id="room_acoustics",
-            runtime_profile="waveform_fidelity",
-            sample_count=16,
+            )
         )
     with pytest.raises(ConfigValidationError, match="seed"):
-        validate_effects_config(
-            _effects(dither=True, seed=2**63),
-            microphone_orders=(MIC_IDS,),
-            sample_rate_hz=SAMPLE_RATE_HZ,
-            backend_id="room_acoustics",
-            runtime_profile="waveform_fidelity",
-            sample_count=16,
-        )
+        _validate(_effects(dither=True, seed=2**63))
 
 
 def test_boundary_clipping_counts_ratio_and_diagnostics_contract_are_exact():

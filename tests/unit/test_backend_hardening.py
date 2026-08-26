@@ -1,5 +1,3 @@
-"""Hardening tests for stable L0/L1 backend semantics."""
-
 from __future__ import annotations
 
 import math
@@ -14,7 +12,6 @@ from isaac_audio_sensors.core.backends.tdoa import (
 )
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
-    DIRECTIVITY_COEFFICIENTS,
     FRAME_SCHEMA_VERSION,
     SECTOR_ORDER,
 )
@@ -23,7 +20,7 @@ from isaac_audio_sensors.core.doa.sector_mapping import (
     bearing_deg_to_sector_name,
     sector_bounds_deg,
 )
-from isaac_audio_sensors.core.effects.directivity import PATTERN_COEFFICIENTS
+from isaac_audio_sensors.core.effects.directivity import pattern_coefficient
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
     dot,
@@ -679,14 +676,14 @@ def test_l0_l1_cardioid_directivity_attenuates_off_axis() -> None:
             )
 
 
-def test_directivity_coefficients_have_one_locked_authority() -> None:
-    assert PATTERN_COEFFICIENTS is DIRECTIVITY_COEFFICIENTS
-    assert DIRECTIVITY_COEFFICIENTS == {
+def test_directivity_families_use_frozen_coefficients() -> None:
+    expected = {
         "omni": 1.0,
         "cardioid": 0.5,
         "figure_eight": 0.0,
         "supercardioid": 0.37,
     }
+    assert {family: pattern_coefficient(family) for family in expected} == expected
 
 
 def test_l0_l1_unmodeled_directivity_falls_back_to_omni() -> None:

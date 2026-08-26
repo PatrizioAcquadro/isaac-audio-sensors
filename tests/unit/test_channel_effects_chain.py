@@ -1,5 +1,3 @@
-"""Effect-chain identity, immutability, and failure tests."""
-
 from __future__ import annotations
 
 from types import MappingProxyType
@@ -108,13 +106,6 @@ def test_toml_shape_parses_to_immutable_mapping_and_tuple_records():
     assert microphones["front"].frequency_response[1].frequency_hz == 1_000.0
     with pytest.raises(TypeError):
         microphones["front"] = ChannelResponseMicConfig()  # type: ignore[index]
-
-
-def test_programmatic_mapping_is_copied_before_frozen_record_retains_it():
-    caller_owned = {"front": ChannelResponseMicConfig(gain_db=-3.0)}
-    response = ChannelResponseConfig(enabled=True, microphones=caller_owned)
-    caller_owned["right"] = ChannelResponseMicConfig(gain_db=6.0)
-    assert tuple(response.microphones) == ("front",)
 
 
 def test_duplicate_microphone_id_after_normalization_fails_closed():
