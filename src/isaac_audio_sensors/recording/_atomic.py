@@ -64,10 +64,6 @@ class StagedFile:
     def failed(self) -> bool:
         return self._failed
 
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
     def append(self, data: bytes | bytearray | memoryview) -> int:
         if self._closed:
             raise RuntimeError("staged file is closed")
@@ -164,23 +160,9 @@ class JsonlShardFile:
     def __init__(
         self,
         staging_dir: str | Path,
-        *,
-        filename: str = "frames.jsonl",
     ) -> None:
-        self._staged = StagedFile(staging_dir, filename)
+        self._staged = StagedFile(staging_dir, "frames.jsonl")
         self.line_count = 0
-
-    @property
-    def path(self) -> Path:
-        return self._staged.path
-
-    @property
-    def byte_count(self) -> int:
-        return self._staged.byte_count
-
-    @property
-    def sha256(self) -> str:
-        return self._staged.sha256
 
     def append(self, line: str) -> int:
         if not isinstance(line, str):

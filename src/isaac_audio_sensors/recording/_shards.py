@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.core.io.wave_read import read_wav
 from isaac_audio_sensors.recording._planning import shard_id
 from isaac_audio_sensors.recording._records import (
     _EPISODE_ID_RE,
@@ -69,18 +68,15 @@ _DROPPED_FIELDS = frozenset({"count", "producer_frame_ids"})
 
 @dataclass(frozen=True, slots=True)
 class VerifiedShard:
-    """A verified marker together with its parsed records."""
+    """A verified marker with bounded portability warnings."""
 
-    shard_dir: Path
     marker: dict[str, Any]
-    records: tuple[DatasetFrameRecord, ...]
     warnings: tuple[LayoutWarning, ...]
     warning_count: int
 
 
 @dataclass(frozen=True, slots=True)
 class _RecordFileScan:
-    records: tuple[DatasetFrameRecord, ...]
     warnings: tuple[LayoutWarning, ...]
     warning_count: int
     line_count: int
@@ -90,15 +86,13 @@ class _RecordFileScan:
     producer_error: DatasetLayoutError | None
 
 
-def build_shard_completion(
+def build_flac_shard_completion(
     shard_dir: str | Path,
     *,
     shard_id_value: str,
     start_frame: int,
     episode_ids: Sequence[str],
     writer_tool_version: str,
-    audio_filename: str = "audio.wav",
-    audio_subtype: str | None = None,
     dropped_frame_count: int = 0,
     dropped_producer_frame_ids: Sequence[str] = (),
     reset_frame_indices: Iterable[int] = (),
@@ -108,30 +102,27 @@ def build_shard_completion(
 
     directory = Path(shard_dir)
     frames_path = directory / "frames.jsonl"
+    audio_filename = "audio.flac"
     audio_path = directory / audio_filename
     header = _read_audio_header(audio_path)
-    records, warnings = _read_record_file(
+    scan = _scan_record_file(
         frames_path,
         sample_count=header["sample_count"],
         session_root=directory.parent.parent,
         reset_frame_indices=reset_frame_indices,
         max_overlap_samples=max_overlap_samples,
+        expected_start_frame=start_frame,
     )
     if directory.name != shard_id_value:
         raise DatasetLayoutError(
             f"shard {directory.name} file shard.complete.json: requested shard_id "
             f"{shard_id_value!r} does not equal containing directory."
         )
-    for offset, record in enumerate(records):
-        expected_index = start_frame + offset
-        if record.dataset_frame_index != expected_index:
-            raise DatasetLayoutError(
-                f"shard {shard_id_value} file frames.jsonl line {offset + 1}: "
-                f"dataset_frame_index {record.dataset_frame_index} != "
-                f"{expected_index}."
-            )
-    actual_episode_ids = _first_appearance(record.episode_id for record in records)
-    if tuple(episode_ids) != actual_episode_ids:
+    if scan.index_error is not None:
+        raise scan.index_error
+    if scan.producer_error is not None:
+        raise scan.producer_error
+    if tuple(episode_ids) != scan.episode_ids:
         raise DatasetLayoutError(
             f"shard {shard_id_value} file frames.jsonl: episode_ids do not match "
             "record first-appearance order."
@@ -146,19 +137,11 @@ def build_shard_completion(
         )
     if any(not isinstance(value, str) or not value for value in ids):
         raise ValueError("dropped producer frame ids must be non-empty strings.")
-    max_end = max((record.audio_end_sample for record in records), default=0)
-    subtype = header["subtype"] if audio_subtype is None else audio_subtype
-    if subtype != header["subtype"]:
-        raise DatasetLayoutError(
-            f"shard {shard_id_value} file {audio_filename}: subtype {subtype!r} "
-            f"disagrees with decoded header {header['subtype']!r}."
-        )
-    _validate_producer_ids(records, shard_id_value)
     marker = {
         "marker_version": SHARD_COMPLETION_VERSION,
         "shard_id": shard_id_value,
         "start_frame": start_frame,
-        "frame_count": len(records),
+        "frame_count": scan.line_count,
         "episode_ids": list(episode_ids),
         "files": [
             _file_entry(frames_path),
@@ -167,20 +150,19 @@ def build_shard_completion(
         "audio": {
             "path": audio_filename,
             "container": header["container"],
-            "subtype": subtype,
+            "subtype": header["subtype"],
             "channels": header["channels"],
             "sample_rate_hz": header["sample_rate_hz"],
             "dtype": header["dtype"],
             "sample_count": header["sample_count"],
         },
-        "tail_samples": header["sample_count"] - max_end,
+        "tail_samples": header["sample_count"] - scan.max_audio_end,
         "dropped_frames": {
             "count": dropped_frame_count,
             "producer_frame_ids": list(ids),
         },
         "writer_tool_version": writer_tool_version,
     }
-    del warnings
     _validate_marker_payload(marker, directory=directory)
     return marker
 
@@ -277,7 +259,7 @@ def verify_shard_completion(
                 location=f"shard {shard_label} file {name}",
             )
     audio_meta = payload["audio"]
-    header = _read_audio_header(directory / audio_meta["path"], streaming=True)
+    header = _read_audio_header(directory / audio_meta["path"])
     for field in (
         "container",
         "subtype",
@@ -309,7 +291,6 @@ def verify_shard_completion(
         reset_frame_indices=reset_indices,
         max_overlap_samples=max_overlap_samples,
         expected_start_frame=payload["start_frame"],
-        retain_records=False,
     )
     if scan.line_count != payload["frame_count"]:
         raise DatasetLayoutError(
@@ -345,9 +326,7 @@ def verify_shard_completion(
                     "disagrees with manifest."
                 )
     return VerifiedShard(
-        shard_dir=directory,
         marker=payload,
-        records=scan.records,
         warnings=scan.warnings,
         warning_count=scan.warning_count,
     )
@@ -473,26 +452,6 @@ def _validate_marker_payload(payload: dict[str, Any], *, directory: Path) -> Non
         raise DatasetLayoutError(f"{location}.writer_tool_version: must be non-empty.")
 
 
-def _read_record_file(
-    path: Path,
-    *,
-    sample_count: int,
-    session_root: Path,
-    reset_frame_indices: Iterable[int],
-    max_overlap_samples: int | None,
-) -> tuple[tuple[DatasetFrameRecord, ...], tuple[LayoutWarning, ...]]:
-    scan = _scan_record_file(
-        path,
-        sample_count=sample_count,
-        session_root=session_root,
-        reset_frame_indices=reset_frame_indices,
-        max_overlap_samples=max_overlap_samples,
-        expected_start_frame=None,
-        retain_records=True,
-    )
-    return scan.records, scan.warnings
-
-
 def _iter_record_file(
     path: Path,
     *,
@@ -548,10 +507,8 @@ def _scan_record_file(
     reset_frame_indices: Iterable[int],
     max_overlap_samples: int | None,
     expected_start_frame: int | None,
-    retain_records: bool,
 ) -> _RecordFileScan:
     shard_label = path.parent.name
-    records: list[DatasetFrameRecord] = []
     warnings: list[LayoutWarning] = []
     warning_count = 0
     episode_ids: list[str] = []
@@ -570,31 +527,24 @@ def _scan_record_file(
     except (TypeError, ValueError) as exc:
         resets = set()
         sequence_error = exc
-    producer_db: sqlite3.Connection | None = None
-    if not retain_records:
-        producer_db = sqlite3.connect("")
-        producer_db.execute("PRAGMA cache_size = -1024")
-        producer_db.execute("PRAGMA temp_store = FILE")
-        producer_db.execute(
-            "CREATE TABLE producer_ids ("
-            "episode_id TEXT NOT NULL, producer_frame_id TEXT NOT NULL, "
-            "PRIMARY KEY (episode_id, producer_frame_id)) WITHOUT ROWID"
-        )
+    producer_db = sqlite3.connect("")
+    producer_db.execute("PRAGMA cache_size = -1024")
+    producer_db.execute("PRAGMA temp_store = FILE")
+    producer_db.execute(
+        "CREATE TABLE producer_ids ("
+        "episode_id TEXT NOT NULL, producer_frame_id TEXT NOT NULL, "
+        "PRIMARY KEY (episode_id, producer_frame_id)) WITHOUT ROWID"
+    )
     previous: DatasetFrameRecord | None = None
     try:
         for line_number, record, record_warnings in _iter_record_file(
             path, sample_count=sample_count, session_root=session_root
         ):
             line_count = line_number
-            if retain_records:
-                records.append(record)
             warning_count += len(record_warnings)
-            if retain_records:
-                warnings.extend(record_warnings)
-            else:
-                remaining = MAX_STREAMING_WARNINGS_PER_SHARD - len(warnings)
-                if remaining > 0:
-                    warnings.extend(record_warnings[:remaining])
+            remaining = MAX_STREAMING_WARNINGS_PER_SHARD - len(warnings)
+            if remaining > 0:
+                warnings.extend(record_warnings[:remaining])
             if sequence_error is None:
                 try:
                     _validate_record_pair(
@@ -625,27 +575,24 @@ def _scan_record_file(
                 episode_seen.add(record.episode_id)
                 episode_ids.append(record.episode_id)
             max_audio_end = max(max_audio_end, record.audio_end_sample)
-            if producer_db is not None:
-                producer_id = record.frame["frame_id"]
-                try:
-                    producer_db.execute(
-                        "INSERT INTO producer_ids VALUES (?, ?)",
-                        (record.episode_id, producer_id),
+            producer_id = record.frame["frame_id"]
+            try:
+                producer_db.execute(
+                    "INSERT INTO producer_ids VALUES (?, ?)",
+                    (record.episode_id, producer_id),
+                )
+            except sqlite3.IntegrityError:
+                if producer_error is None:
+                    producer_error = DatasetLayoutError(
+                        f"shard {shard_label} file frames.jsonl line "
+                        f"{line_number}: duplicate producer frame_id "
+                        f"{producer_id!r} within {record.episode_id}."
                     )
-                except sqlite3.IntegrityError:
-                    if producer_error is None:
-                        producer_error = DatasetLayoutError(
-                            f"shard {shard_label} file frames.jsonl line "
-                            f"{line_number}: duplicate producer frame_id "
-                            f"{producer_id!r} within {record.episode_id}."
-                        )
     finally:
-        if producer_db is not None:
-            producer_db.close()
+        producer_db.close()
     if sequence_error is not None:
         raise sequence_error
     return _RecordFileScan(
-        records=tuple(records),
         warnings=tuple(warnings),
         warning_count=warning_count,
         line_count=line_count,
@@ -676,7 +623,7 @@ def verify_shard_tiling(shards: Sequence[VerifiedShard | Mapping[str, Any]]) -> 
 
 
 def classify_session_lifecycle(session_root: str | Path) -> str:
-    """Classify the three structural signatures from §7."""
+    """Classify the supported session lifecycle states."""
 
     root = Path(session_root)
     manifest_path = root / "manifest.json"
@@ -775,53 +722,10 @@ def _verify_manifest_marker_agreement(
         )
 
 
-def _validate_producer_ids(
-    records: Sequence[DatasetFrameRecord], shard_label: str
-) -> None:
-    seen: dict[str, set[str]] = {}
-    for line_number, record in enumerate(records, start=1):
-        producer_id = record.frame["frame_id"]
-        episode_seen = seen.setdefault(record.episode_id, set())
-        if producer_id in episode_seen:
-            raise DatasetLayoutError(
-                f"shard {shard_label} file frames.jsonl line {line_number}: duplicate "
-                f"producer frame_id {producer_id!r} within {record.episode_id}."
-            )
-        episode_seen.add(producer_id)
-
-
-def _read_audio_header(path: Path, *, streaming: bool = False) -> dict[str, Any]:
+def _read_audio_header(path: Path) -> dict[str, Any]:
     suffix = path.suffix.lower()
     if suffix == ".wav":
-        if streaming:
-            return _stream_wav_header(path)
-        try:
-            wave = read_wav(path)
-        except (OSError, ValueError) as exc:
-            raise DatasetLayoutError(
-                f"file {path}: cannot decode WAV header: {exc}"
-            ) from exc
-        audio_format, bits = _wav_format(path)
-        encodings = {
-            (3, 32): ("FLOAT", "float32"),
-            (1, 16): ("PCM_16", "int16"),
-            (1, 24): ("PCM_24", "int24"),
-            (1, 32): ("PCM_32", "int32"),
-        }
-        if (audio_format, bits) not in encodings:
-            raise DatasetLayoutError(
-                f"file {path}: unsupported WAV encoding format={audio_format}, "
-                f"bits={bits}."
-            )
-        subtype, dtype = encodings[(audio_format, bits)]
-        return {
-            "container": "wav",
-            "subtype": subtype,
-            "channels": wave.channel_count,
-            "sample_rate_hz": wave.sample_rate_hz,
-            "dtype": dtype,
-            "sample_count": wave.frame_count,
-        }
+        return _wav_header(path)
     if suffix == ".flac":
         return _flac_header(path)
     raise DatasetLayoutError(
@@ -829,7 +733,7 @@ def _read_audio_header(path: Path, *, streaming: bool = False) -> dict[str, Any]
     )
 
 
-def _stream_wav_header(path: Path) -> dict[str, Any]:
+def _wav_header(path: Path) -> dict[str, Any]:
     try:
         file_size = path.stat().st_size
         with path.open("rb") as stream:
@@ -907,28 +811,9 @@ def _stream_wav_header(path: Path) -> dict[str, Any]:
     }
 
 
-def _wav_format(path: Path) -> tuple[int, int]:
-    blob = path.read_bytes()
-    if len(blob) < 12 or blob[:4] != b"RIFF" or blob[8:12] != b"WAVE":
-        raise DatasetLayoutError(f"file {path}: not a RIFF/WAVE file.")
-    offset = 12
-    while offset + 8 <= len(blob):
-        chunk_id = blob[offset : offset + 4]
-        size = struct.unpack_from("<I", blob, offset + 4)[0]
-        body = blob[offset + 8 : offset + 8 + size]
-        if chunk_id == b"fmt ":
-            if len(body) < 16:
-                break
-            audio_format, _, _, _, _, bits = struct.unpack_from("<HHIIHH", body)
-            if audio_format == 0xFFFE and len(body) >= 26:
-                audio_format = struct.unpack_from("<H", body, 24)[0]
-            return int(audio_format), int(bits)
-        offset += 8 + size + size % 2
-    raise DatasetLayoutError(f"file {path}: WAV fmt chunk is missing or invalid.")
-
-
 def _flac_header(path: Path) -> dict[str, Any]:
-    blob = path.read_bytes()
+    with path.open("rb") as stream:
+        blob = stream.read(42)
     if len(blob) < 42 or blob[:4] != b"fLaC":
         raise DatasetLayoutError(f"file {path}: invalid FLAC stream.")
     block_type = blob[4] & 0x7F
@@ -999,16 +884,6 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def _first_appearance(values: Iterable[str]) -> tuple[str, ...]:
-    result: list[str] = []
-    seen: set[str] = set()
-    for value in values:
-        if value not in seen:
-            result.append(value)
-            seen.add(value)
-    return tuple(result)
 
 
 def _reject_symlinks(root: Path) -> None:

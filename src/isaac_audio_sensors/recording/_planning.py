@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable
 from dataclasses import dataclass
 
 from isaac_audio_sensors.recording._records import (
@@ -25,12 +24,6 @@ class ShardBoundary:
     episode_ids: tuple[str, ...]
     split_groups: tuple[str, ...]
     exclusive_oversized_episode: bool
-
-    @property
-    def end_frame(self) -> int:
-        """Return the inclusive final dataset-frame index."""
-
-        return self.start_frame + self.frame_count - 1
 
 
 def episode_id(ordinal: int) -> str:
@@ -55,13 +48,7 @@ def _ordinal_id(prefix: str, ordinal: int) -> str:
 
 
 class ShardPlanner:
-    """Incrementally compute §3 boundaries without inspecting frame payloads.
-
-    ``feed_frame`` and ``end_episode`` are explicit because an aligned writer
-    cannot know that the last received frame ends an episode.  Returned tuples
-    contain every boundary made final by that event.  ``finish`` returns the
-    final non-empty open shard.
-    """
+    """Incrementally compute deterministic episode and shard boundaries."""
 
     def __init__(
         self,
@@ -88,36 +75,14 @@ class ShardPlanner:
         self._next_dataset_frame = 0
         self._next_shard_ordinal = 0
         self._finished = False
-        self._max_buffered_frames = 0
-        self._max_open_shard_frames = 0
-
-    @property
-    def max_buffered_frames(self) -> int:
-        """Largest aligned episode-buffer inventory observed."""
-
-        return self._max_buffered_frames
-
-    @property
-    def max_open_shard_frames(self) -> int:
-        """Largest completed-episode open-shard inventory observed."""
-
-        return self._max_open_shard_frames
-
-    @property
-    def staging_inventory(self) -> tuple[int, int]:
-        """Return ``(episode_buffer_frames, open_shard_frames)``."""
-
-        return self._buffer_frames, self._open_frames
 
     def feed_frame(
         self,
         episode_ordinal: int,
         split_group: str,
-        frame: object = None,
     ) -> tuple[ShardBoundary, ...]:
         """Feed one written frame and return newly finalized boundaries."""
 
-        del frame
         if self._finished:
             raise RuntimeError("ShardPlanner is already finished.")
         self._start_or_validate_episode(episode_ordinal, split_group)
@@ -127,9 +92,6 @@ class ShardPlanner:
             if self._buffer_frames == 0:
                 self._buffer_start = self._next_dataset_frame
             self._buffer_frames += 1
-            self._max_buffered_frames = max(
-                self._max_buffered_frames, self._buffer_frames
-            )
             self._next_dataset_frame += 1
             if self._buffer_frames == self.shard_max_frames:
                 if self._open_frames:
@@ -154,9 +116,6 @@ class ShardPlanner:
             if split_group not in self._open_split_groups:
                 self._open_split_groups.append(split_group)
             self._open_frames += 1
-            self._max_open_shard_frames = max(
-                self._max_open_shard_frames, self._open_frames
-            )
             self._next_dataset_frame += 1
             if self._open_frames == self.shard_max_frames:
                 emitted.append(self._emit_open(exclusive=False))
@@ -201,9 +160,6 @@ class ShardPlanner:
                 self._open_episode_ids.append(episode_id(episode_ordinal))
                 if self._current_split_group not in self._open_split_groups:
                     self._open_split_groups.append(self._current_split_group)
-                self._max_open_shard_frames = max(
-                    self._max_open_shard_frames, self._open_frames
-                )
                 self._buffer_frames = 0
         self._current_episode_ordinal = None
         self._current_split_group = None
@@ -284,36 +240,8 @@ class ShardPlanner:
         return result
 
 
-def plan_shards(
-    episodes: Iterable[tuple[int, str, Iterable[object] | int]],
-    *,
-    shard_max_frames: int,
-    shard_episode_aligned: bool = True,
-) -> tuple[ShardBoundary, ...]:
-    """Compute a complete plan from ``(ordinal, group, frames-or-count)`` rows."""
-
-    planner = ShardPlanner(
-        shard_max_frames=shard_max_frames,
-        shard_episode_aligned=shard_episode_aligned,
-    )
-    boundaries: list[ShardBoundary] = []
-    for ordinal, split_group, frames in episodes:
-        iterable: Iterable[object]
-        if isinstance(frames, int) and not isinstance(frames, bool):
-            if frames < 0:
-                raise ValueError("Episode frame count must be non-negative.")
-            iterable = range(frames)
-        else:
-            iterable = frames  # type: ignore[assignment]
-        for frame in iterable:
-            boundaries.extend(planner.feed_frame(ordinal, split_group, frame))
-        boundaries.extend(planner.end_episode(ordinal))
-    boundaries.extend(planner.finish())
-    return tuple(boundaries)
-
-
 def episode_seed(dataset_id: str, session_seed: int, n: int) -> int:
-    """Derive the §4.3 reproducible 63-bit episode seed."""
+    """Derive the reproducible 63-bit episode seed."""
 
     if not isinstance(dataset_id, str) or not dataset_id:
         raise ValueError("dataset_id must be a non-empty string.")

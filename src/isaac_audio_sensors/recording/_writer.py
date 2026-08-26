@@ -15,18 +15,14 @@ from isaac_audio_sensors.recording._atomic import _publish_path, _write_all
 _WAV_HEADER_BYTES = 44
 _FLOAT32_BYTES = 4
 _UINT32_MAX = (1 << 32) - 1
+_CHECKSUM_CHUNK_BYTES = 1024 * 1024
 
 
 class CarryState:
     """Channel-first overlap samples awaiting later output."""
 
-    def __init__(self, pending_samples: np.ndarray | None = None) -> None:
-        samples = (
-            np.zeros((0, 0), dtype=np.float32)
-            if pending_samples is None
-            else pending_samples
-        )
-        self._pending = self._validated(samples)
+    def __init__(self, pending_samples: np.ndarray) -> None:
+        self._pending = self._validated(pending_samples)
 
     @staticmethod
     def _validated(samples: np.ndarray) -> np.ndarray:
@@ -57,9 +53,7 @@ class StreamingWavShardWriter:
         *,
         channels: int,
         sample_rate_hz: int,
-        carry_state: CarryState | None = None,
-        filename: str = "audio.wav",
-        checksum_chunk_size: int = 1024 * 1024,
+        carry_state: CarryState,
     ) -> None:
         if type(channels) is not int or channels <= 0:
             raise ValueError("channels must be a positive integer")
@@ -71,23 +65,13 @@ class StreamingWavShardWriter:
             raise ValueError("sample_rate_hz exceeds the WAV uint32 limit")
         if sample_rate_hz * channels * _FLOAT32_BYTES > _UINT32_MAX:
             raise ValueError("WAV byte rate exceeds the uint32 limit")
-        if filename != "audio.wav":
-            raise ValueError("filename must be 'audio.wav'")
-        if checksum_chunk_size <= 0:
-            raise ValueError("checksum_chunk_size must be positive")
-
         self.staging_dir = Path(staging_dir)
-        self.path = self.staging_dir / filename
+        self.path = self.staging_dir / "audio.wav"
         self.channels = channels
         self.sample_rate_hz = sample_rate_hz
-        self.checksum_chunk_size = checksum_chunk_size
-        self.carry_state = carry_state or CarryState(
-            np.zeros((channels, 0), dtype=np.float32)
-        )
+        self.carry_state = carry_state
         pending = self.carry_state.pending_samples
-        if pending.shape == (0, 0):
-            self.carry_state.replace(np.zeros((channels, 0), dtype=np.float32))
-        elif pending.shape[0] != channels:
+        if pending.shape[0] != channels:
             raise ValueError("carry channel count does not match WAV channel count")
 
         self._sample_count = 0
@@ -111,10 +95,6 @@ class StreamingWavShardWriter:
     def sample_count(self) -> int:
         return self._sample_count
 
-    @property
-    def failed(self) -> bool:
-        return self._failed
-
     def _header(self, riff_size: int, data_size: int) -> bytes:
         block_align = self.channels * _FLOAT32_BYTES
         byte_rate = self.sample_rate_hz * block_align
@@ -133,9 +113,6 @@ class StreamingWavShardWriter:
 
     def _write_bytes(self, payload: bytes) -> int:
         return _write_all(self._stream, payload)
-
-    def append(self, samples: np.ndarray) -> int:
-        return self.append_samples(samples)
 
     def append_samples(self, samples: np.ndarray) -> int:
         if self._closed or self._finalized:
@@ -171,7 +148,7 @@ class StreamingWavShardWriter:
         digest = hashlib.sha256()
         byte_count = 0
         self._stream.seek(0)
-        while chunk := self._stream.read(self.checksum_chunk_size):
+        while chunk := self._stream.read(_CHECKSUM_CHUNK_BYTES):
             digest.update(chunk)
             byte_count += len(chunk)
         return digest.hexdigest(), byte_count

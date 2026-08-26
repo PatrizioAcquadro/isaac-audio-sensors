@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
@@ -165,35 +165,6 @@ def parse_dataset_frame_record(
     return record
 
 
-def validate_record_sequence(
-    records: Sequence[DatasetFrameRecord],
-    *,
-    sample_count: int,
-    reset_frame_indices: Iterable[int] = (),
-    max_overlap_samples: int | None = None,
-    location: str = "frames.jsonl",
-) -> None:
-    """Validate local bounds, ordering, overlap, reset, and empty-range rules."""
-
-    resets = _prepare_sequence_validation(
-        sample_count=sample_count,
-        reset_frame_indices=reset_frame_indices,
-        max_overlap_samples=max_overlap_samples,
-    )
-    previous: DatasetFrameRecord | None = None
-    for line_number, record in enumerate(records, start=1):
-        _validate_record_pair(
-            previous,
-            record,
-            line_number=line_number,
-            sample_count=sample_count,
-            reset_frame_indices=resets,
-            max_overlap_samples=max_overlap_samples,
-            location=location,
-        )
-        previous = record
-
-
 def _prepare_sequence_validation(
     *,
     sample_count: int,
@@ -287,7 +258,7 @@ def validate_trace_projection(
     session_root: str | Path | None = None,
     location: str = "frame",
 ) -> tuple[LayoutWarning, ...]:
-    """Accept or reject the §4.5 projection without rewriting the frame."""
+    """Validate a canonical frame projection without rewriting it."""
 
     payload = (
         frame_to_trace_dict(frame) if isinstance(frame, AudioSensorFrame) else frame

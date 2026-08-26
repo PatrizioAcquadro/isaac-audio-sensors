@@ -18,7 +18,7 @@ from isaac_audio_sensors.recording._records import (
     canonical_configuration_bytes,
     configuration_sha256,
 )
-from isaac_audio_sensors.recording._shards import build_shard_completion
+from isaac_audio_sensors.recording._shards import build_flac_shard_completion
 from isaac_audio_sensors.recording.loader import SessionDataset
 from isaac_audio_sensors.recording.manifest import AssetRecord, ShardRecord
 from isaac_audio_sensors.recording.serialization import manifest_to_dict
@@ -45,13 +45,7 @@ def export_session_flac(
     dtype: str = "int16",
     creation_timestamp_ms: int | None = None,
 ) -> Path:
-    """Transcode one complete float32-WAV session into a new FLAC session.
-
-    Quantization is explicit because ``dataset_id`` and the integer target
-    ``dtype`` are required inputs. The source is never modified, and the
-    destination becomes visible only after its manifest, markers, and decoded
-    headers pass the canonical layout validator.
-    """
+    """Atomically transcode a complete float32-WAV session to integer FLAC."""
 
     soundfile = _import_soundfile()
     source = Path(source_root).expanduser().resolve()
@@ -129,13 +123,12 @@ def export_session_flac(
                 for marker in episode.reset_markers
             )
             dropped = source_marker["dropped_frames"]
-            target_marker = build_shard_completion(
+            target_marker = build_flac_shard_completion(
                 target_dir,
                 shard_id_value=source_shard.shard_id,
                 start_frame=int(source_marker["start_frame"]),
                 episode_ids=tuple(source_marker["episode_ids"]),
                 writer_tool_version=f"{__version__} flac-export",
-                audio_filename="audio.flac",
                 dropped_frame_count=int(dropped["count"]),
                 dropped_producer_frame_ids=tuple(dropped["producer_frame_ids"]),
                 reset_frame_indices=reset_indices,

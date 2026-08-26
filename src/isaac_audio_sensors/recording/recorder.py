@@ -182,11 +182,7 @@ _TIME_GAP_COUNTER_NAMES = (
 
 
 class SessionRecorder:
-    """Record and atomically publish one waveform-fidelity session.
-
-    Construction starts a new session. Use :meth:`resume` (or module-level
-    :func:`resume`) for an in-progress-or-aborted root.
-    """
+    """Record and atomically publish one waveform-fidelity session."""
 
     def __init__(
         self,
@@ -349,7 +345,7 @@ class SessionRecorder:
         self.session_root.mkdir(parents=True, exist_ok=True)
         self._staging_root.mkdir(parents=True, exist_ok=True)
         self._shards_root.mkdir(parents=True, exist_ok=True)
-        self._open_producer_index()
+        self._recovery_store.open_producer_index()
         staged = StagedFile(
             self._staging_root / "config",
             "session_config.json",
@@ -474,7 +470,9 @@ class SessionRecorder:
         self._next_dataset_frame += 1
         episode.frame_count += 1
         episode.last_timestamp_ms = timestamp_ms
-        self._record_producer_id(episode.ordinal, str(payload["frame_id"]))
+        self._recovery_store.record_producer_id(
+            episode.ordinal, str(payload["frame_id"])
+        )
         if gap_plan is not None:
             self._commit_time_gap_plan(gap_plan, timestamp_ms=timestamp_ms)
 
@@ -535,7 +533,9 @@ class SessionRecorder:
                 and timestamp_ms < episode.last_timestamp_ms
             ):
                 raise ValueError("timestamp_ms is non-monotonic within the episode")
-            if self._producer_id_exists(episode.ordinal, str(payload["frame_id"])):
+            if self._recovery_store.contains_producer_id(
+                episode.ordinal, str(payload["frame_id"])
+            ):
                 raise ValueError("duplicate producer frame_id within the episode")
             block: np.ndarray | None = None
             if audio_block is not None:
@@ -1029,8 +1029,7 @@ class SessionRecorder:
             split_groups=(),
             exclusive_oversized_episode=False,
         )
-        # Assembly normally promotes. For a packed open shard we stream the
-        # episode buffer into staging and deliberately retain that staging.
+        # Retain staging when packing this episode into an open shard.
         buffer.metadata.flush_and_fsync()
         buffer.audio.flush_and_fsync()
         buffer.metadata.close()
@@ -1094,8 +1093,7 @@ class SessionRecorder:
             wav_result = open_shard.wav.finalize(flush_carry=flush_carry)
             open_shard.jsonl.flush_and_fsync()
             self._write_carry_checkpoint(boundary.start_frame + boundary.frame_count)
-            # Persist all append-time episode metadata before the marker can make
-            # this boundary durable. A resume trims this state to verified markers.
+            # Persist episode state before the marker makes this boundary durable.
             self._write_state()
             frames_result = open_shard.jsonl.publish(final_dir / "frames.jsonl")
             open_shard.wav.publish(final_dir / "audio.wav")
@@ -1298,11 +1296,9 @@ class SessionRecorder:
             markers=markers,
             completion_state=completion_state,
         )
-        # The intent is a durable recovery journal. It must survive until the
-        # manifest payload, atomic replacement, and parent-directory fsync have
-        # all completed successfully.
+        # Keep recovery state until manifest replacement and directory fsync finish.
         self._write_state(finalization_state=completion_state)
-        self._close_producer_index()
+        self._recovery_store.close_producer_index()
         write_json_atomic(
             self.session_root / "manifest.json",
             manifest_to_dict(manifest),
@@ -1451,18 +1447,6 @@ class SessionRecorder:
         self._time_gap_cursor = cursor
         self._planned_session_audio_samples = planned
         self._time_gap_counters = counters
-
-    def _open_producer_index(self) -> None:
-        self._recovery_store.open_producer_index()
-
-    def _producer_id_exists(self, episode_ordinal: int, producer_id: str) -> bool:
-        return self._recovery_store.contains_producer_id(episode_ordinal, producer_id)
-
-    def _record_producer_id(self, episode_ordinal: int, producer_id: str) -> None:
-        self._recovery_store.record_producer_id(episode_ordinal, producer_id)
-
-    def _close_producer_index(self) -> None:
-        self._recovery_store.close_producer_index()
 
     def _check_open(self) -> None:
         if self._closed:
@@ -1711,7 +1695,7 @@ class SessionRecorder:
         self._carry.replace(carry)
         shutil.rmtree(self._staging_root)
         self._staging_root.mkdir(parents=True)
-        self._open_producer_index()
+        self._recovery_store.open_producer_index()
         episodes_by_ordinal = {item.ordinal: item for item in self._episodes}
         for marker in published:
             frames_path = self._shards_root / marker["shard_id"] / "frames.jsonl"
@@ -1746,7 +1730,9 @@ class SessionRecorder:
                                 timestamp_ms=timestamp,
                             )
                         )
-                    self._record_producer_id(ordinal, str(frame["frame_id"]))
+                    self._recovery_store.record_producer_id(
+                        ordinal, str(frame["frame_id"])
+                    )
 
         for episode in self._episodes:
             episode.published_frame_count = episode.frame_count
