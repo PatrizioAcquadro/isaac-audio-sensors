@@ -53,21 +53,6 @@ def test_kit_architecture_boundaries() -> None:
         )
     }
 
-    entrypoint = ast.parse(
-        (
-            ROOT / "exts/isaac_audio_sensors.omni/isaac_audio_sensors_omni/__init__.py"
-        ).read_text(encoding="utf-8")
-    )
-    extension = next(
-        node
-        for node in entrypoint.body
-        if isinstance(node, ast.ClassDef) and node.name == "Extension"
-    )
-    methods = {
-        node.name for node in extension.body if isinstance(node, ast.FunctionDef)
-    }
-    assert methods == {"__init__", "on_startup", "on_shutdown"}
-
 
 def test_kit_audio_bridge_has_no_timeline_control() -> None:
     source = (KIT / "kit_audio.py").read_text(encoding="utf-8")

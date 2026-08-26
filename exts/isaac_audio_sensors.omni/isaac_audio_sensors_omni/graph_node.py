@@ -1,37 +1,31 @@
-"""Runtime-registered OmniGraph node exposing the latest audio frame.
-
-The node reads ``isaac_audio_sensors.isaac.frame_registry`` (which the GUI
-controller publishes to on every recorded frame) so audio wires into Action
-Graphs the way cameras and lidars do. Registration uses the pure-Python
-``og.register_node_type`` path - no .ogn code generation - and is entirely
-optional: every failure mode is reported as a human-readable status string
-that the GUI and the live gate surface verbatim.
-"""
+"""Runtime OmniGraph node for the latest registered audio frame."""
 
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from isaac_audio_sensors.core.types import AudioSensorFrame
 
 NODE_TYPE_NAME = "isaac_audio_sensors.omni.IsaacAudioSensorFrame"
 NODE_TYPE_VERSION = 1
 
-# (name, omnigraph type, is_input)
-NODE_ATTRIBUTES = (
-    ("inputs:arrayKey", "token", True),
-    ("outputs:frameId", "token", False),
-    ("outputs:timestampMs", "int64", False),
-    ("outputs:detectionCount", "int", False),
-    ("outputs:bearingDeg", "double", False),
-    ("outputs:sector", "token", False),
-    ("outputs:micIds", "token[]", False),
-    ("outputs:micRms", "double[]", False),
-    ("outputs:occluded", "bool", False),
-    ("outputs:frameJson", "token", False),
+_NODE_INPUTS = (("inputs:arrayKey", "token"),)
+_NODE_OUTPUTS = (
+    ("outputs:frameId", "token"),
+    ("outputs:timestampMs", "int64"),
+    ("outputs:detectionCount", "int"),
+    ("outputs:bearingDeg", "double"),
+    ("outputs:sector", "token"),
+    ("outputs:micIds", "token[]"),
+    ("outputs:micRms", "double[]"),
+    ("outputs:occluded", "bool"),
+    ("outputs:frameJson", "token"),
 )
 
 
-def frame_output_values(frame: Any | None) -> dict[str, Any]:
+def frame_output_values(frame: AudioSensorFrame | None) -> dict[str, Any]:
     """Map an ``AudioSensorFrame`` (or ``None``) onto the node outputs."""
 
     if frame is None:
@@ -46,29 +40,27 @@ def frame_output_values(frame: Any | None) -> dict[str, Any]:
             "outputs:occluded": False,
             "outputs:frameJson": "",
         }
-    detections = tuple(getattr(frame, "detections", ()) or ())
+    detections = frame.detections
     first = detections[0] if detections else None
-    doa = getattr(first, "doa", None)
-    bearing = getattr(doa, "estimated_bearing_deg", None)
-    aggregate_rms = dict(getattr(frame, "aggregate_per_mic_rms", {}) or {})
+    doa = first.doa if first is not None else None
+    bearing = doa.estimated_bearing_deg if doa is not None else None
+    aggregate_rms = frame.aggregate_per_mic_rms
     mic_ids = sorted(aggregate_rms)
     try:
         from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
 
         frame_json = json.dumps(frame_to_trace_dict(frame), sort_keys=True)
-    except Exception:  # noqa: BLE001 - JSON payload is best-effort.
+    except Exception:  # noqa: BLE001 - optional output must not hide other fields.
         frame_json = ""
     return {
-        "outputs:frameId": str(getattr(frame, "frame_id", "") or ""),
-        "outputs:timestampMs": int(getattr(frame, "timestamp_ms", 0) or 0),
+        "outputs:frameId": frame.frame_id,
+        "outputs:timestampMs": frame.timestamp_ms,
         "outputs:detectionCount": len(detections),
-        "outputs:bearingDeg": (
-            float(bearing) if bearing is not None else float("nan")
-        ),
-        "outputs:sector": str(getattr(doa, "bearing_sector", "") or ""),
+        "outputs:bearingDeg": (float(bearing) if bearing is not None else float("nan")),
+        "outputs:sector": "" if doa is None else str(doa.bearing_sector or ""),
         "outputs:micIds": mic_ids,
         "outputs:micRms": [float(aggregate_rms[mic_id]) for mic_id in mic_ids],
-        "outputs:occluded": bool(getattr(first, "occluded", False)),
+        "outputs:occluded": False if first is None else first.occluded,
         "outputs:frameJson": frame_json,
     }
 
@@ -82,11 +74,10 @@ class OgnIsaacAudioSensorFrame:
 
     @staticmethod
     def initialize_type(node_type: Any) -> bool:
-        for name, type_name, is_input in NODE_ATTRIBUTES:
-            if is_input:
-                node_type.add_input(name, type_name, False)
-            else:
-                node_type.add_output(name, type_name, False)
+        for name, type_name in _NODE_INPUTS:
+            node_type.add_input(name, type_name, False)
+        for name, type_name in _NODE_OUTPUTS:
+            node_type.add_output(name, type_name, False)
         return True
 
     @staticmethod
@@ -119,6 +110,16 @@ def _set_attribute_value(node: Any, name: str, value: Any) -> bool:
         return False
 
 
+def _node_is_registered(og: Any) -> bool:
+    get_node_type = getattr(og, "get_node_type", None)
+    if not callable(get_node_type):
+        return False
+    try:
+        return bool(get_node_type(NODE_TYPE_NAME))
+    except Exception:  # noqa: BLE001 - optional API probe.
+        return False
+
+
 def register_omnigraph_node() -> str:
     """Register the node type; return a status string for GUI/evidence."""
 
@@ -126,31 +127,19 @@ def register_omnigraph_node() -> str:
         import omni.graph.core as og  # type: ignore
     except ImportError as exc:
         return f"OmniGraph unavailable: {exc}"
-    get_node_type = getattr(og, "get_node_type", None)
-    if callable(get_node_type):
-        try:
-            if get_node_type(NODE_TYPE_NAME):
-                return (
-                    f"OmniGraph node already registered: "
-                    f"{NODE_TYPE_NAME} v{NODE_TYPE_VERSION}."
-                )
-        except Exception:
-            pass
+    already_registered = (
+        f"OmniGraph node already registered: {NODE_TYPE_NAME} v{NODE_TYPE_VERSION}."
+    )
+    if _node_is_registered(og):
+        return already_registered
     register = getattr(og, "register_node_type", None)
     if not callable(register):
         return "OmniGraph registration failed: og.register_node_type is missing."
     try:
         register(OgnIsaacAudioSensorFrame, NODE_TYPE_VERSION)
     except Exception as exc:  # noqa: BLE001 - status string is the contract.
-        if callable(get_node_type):
-            try:
-                if get_node_type(NODE_TYPE_NAME):
-                    return (
-                        f"OmniGraph node already registered: "
-                        f"{NODE_TYPE_NAME} v{NODE_TYPE_VERSION}."
-                    )
-            except Exception:
-                pass
+        if _node_is_registered(og):
+            return already_registered
         return f"OmniGraph registration failed: {type(exc).__name__}: {exc}"
     return f"OmniGraph node registered: {NODE_TYPE_NAME} v{NODE_TYPE_VERSION}."
 

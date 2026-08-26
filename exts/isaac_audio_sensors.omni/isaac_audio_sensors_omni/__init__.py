@@ -12,8 +12,9 @@ _PACKAGE_ROOT = _EXTENSION_ROOT / "isaac_audio_sensors"
 _BUNDLED_ROOT = _PACKAGE_ROOT / "_bundled"
 
 
-def _load_bundled_cffi(bundled_root: Path) -> None:
+def _load_bundled_cffi() -> None:
     # Kit's pip importer preloads CFFI; load the locked copies by exact path.
+    bundled_root = _BUNDLED_ROOT.resolve()
     for root_name in (
         "pycparser",
         "_cffi_backend",
@@ -23,7 +24,7 @@ def _load_bundled_cffi(bundled_root: Path) -> None:
         origin = getattr(module, "__file__", None)
         if isinstance(origin, str):
             try:
-                Path(origin).resolve().relative_to(bundled_root.resolve())
+                Path(origin).resolve().relative_to(bundled_root)
                 continue
             except (OSError, ValueError):
                 pass
@@ -48,7 +49,7 @@ def _load_bundled_cffi(bundled_root: Path) -> None:
 if _PACKAGE_ROOT.is_dir():
     if _BUNDLED_ROOT.is_dir():
         sys.path.insert(0, str(_BUNDLED_ROOT))
-        _load_bundled_cffi(_BUNDLED_ROOT)
+        _load_bundled_cffi()
 else:
     repo_src = _EXTENSION_ROOT.parent.parent / "src"
     if not (repo_src / "isaac_audio_sensors").is_dir():
@@ -78,7 +79,7 @@ class Extension(_i_ext_base()):
 
     def on_startup(self, ext_id: str) -> None:
         if _BUNDLED_ROOT.is_dir():
-            _load_bundled_cffi(_BUNDLED_ROOT)
+            _load_bundled_cffi()
         self.controller.on_startup(ext_id)
         from .graph_node import register_omnigraph_node
 
