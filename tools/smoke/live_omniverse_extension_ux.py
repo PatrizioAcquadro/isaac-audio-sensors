@@ -34,7 +34,11 @@ from live_isaac_sim_audio_smoke import (
 
 from isaac_audio_sensors.core.io.traces import frame_from_trace_dict
 from isaac_audio_sensors.core.math_utils import quaternion_from_euler_deg
-from isaac_audio_sensors.isaac.pose_resolver import IsaacStagePoseResolver
+from isaac_audio_sensors.isaac.pose_resolver import (
+    IsaacStagePoseResolver,
+    prim_path,
+    prim_type_name,
+)
 from isaac_audio_sensors.kit import ExtensionController
 from isaac_audio_sensors.kit.constants import (
     OMNI_ACTION_TOGGLE_WINDOW,
@@ -121,7 +125,6 @@ EXPECTED_STRING_FIELDS = (
     "jsonl_trace_path",
     "latest_frame_export_path",
     "object_prim_path",
-    "replicator_annotator_name",
     "replicator_output_dir",
     "replicator_writer_name",
     "robot_base_prim_path",
@@ -590,7 +593,7 @@ def _run_object_attach_scenario(
         "stage_summary": _stage_summary(stage),
         "selected_object_path": object_path,
         "selected_object_label": _path_name(object_path),
-        "selected_object_type": _prim_type_name(object_prim),
+        "selected_object_type": prim_type_name(object_prim),
         "selection_method": "controller.use_selected_as_object",
         "source_seed_path": source_prim_path,
         "local_offset_before": list(local_offset_before),
@@ -966,7 +969,7 @@ def _stage_summary(stage: Any) -> dict[str, Any]:
     if callable(with_default):
         prim = with_default()
         if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
-            default_prim = _prim_path(prim)
+            default_prim = prim_path(prim)
     root_layer = getattr(stage, "GetRootLayer", lambda: None)()
     return {
         "default_prim": default_prim,
@@ -1119,18 +1122,6 @@ def _replicator_artifacts(replicator_dir: Path) -> list[str]:
 
 def _path_name(path: str) -> str:
     return path.rstrip("/").rsplit("/", 1)[-1] or "prim"
-
-
-def _prim_path(prim: Any) -> str:
-    if hasattr(prim, "GetPath"):
-        return str(prim.GetPath())
-    return str(getattr(prim, "path", ""))
-
-
-def _prim_type_name(prim: Any) -> str:
-    if hasattr(prim, "GetTypeName"):
-        return str(prim.GetTypeName())
-    return str(getattr(prim, "type_name", ""))
 
 
 def _inventory_ui_controls(controller: ExtensionController) -> dict[str, Any]:
@@ -1751,7 +1742,7 @@ def _source_profile_state(
         "gain_db": state.source_gain_db,
         "directivity": state.source_directivity,
         "source_attached_to_object": state.source_attached_to_object,
-        "prim_type": None if prim is None else _prim_type_name(prim),
+        "prim_type": None if prim is None else prim_type_name(prim),
         "file_path_authored": (
             False if prim is None else _prim_attr_is_authored(prim, "filePath")
         ),
@@ -2297,7 +2288,7 @@ def _stage_has_prim(stage: Any, path: str) -> bool:
     if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
         return True
     if hasattr(stage, "Traverse"):
-        return any(_prim_path(prim) == path for prim in stage.Traverse())
+        return any(prim_path(prim) == path for prim in stage.Traverse())
     return False
 
 
@@ -2692,7 +2683,7 @@ def _collect_kit_audio_mix_evidence(
     }
     audio = omni.usd.audio.get_stage_audio_interface()
     previous_listener = audio.get_active_listener()
-    record["previous_listener_path"] = _prim_path(previous_listener)
+    record["previous_listener_path"] = prim_path(previous_listener)
     sensor_channels_before = len(controller.state.latest_aggregate_rms)
     record["sensor_channels_before"] = sensor_channels_before
     _write_pcm16_tone(source_wav_path)
@@ -2748,7 +2739,7 @@ def _collect_kit_audio_mix_evidence(
             sensor_channels_before > 0
             and sensor_channels_before == sensor_channels_after
         )
-        record["active_listener_after"] = _prim_path(audio.get_active_listener())
+        record["active_listener_after"] = prim_path(audio.get_active_listener())
         record["listener_removed"] = not _stage_has_prim(stage, listener_path)
         record["capture_released"] = not controller.state.kit_mix_capture_running
         record["listener_state_released"] = (

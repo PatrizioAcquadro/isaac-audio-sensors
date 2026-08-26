@@ -44,7 +44,7 @@ class ReplicatorRecorderStatus:
     output_dir: str = ""
     writer_registered: bool = False
     annotator_registered: bool = False
-    annotator_status: str = "not_started"
+    annotator_status: str = "metadata_only"
     attach_status: str = "not_started"
     started: bool = False
     flushed: bool = False
@@ -83,7 +83,7 @@ class ReplicatorRecorderStatus:
 
 
 class AudioSensorReplicatorRecorder:
-    """Small registered Replicator writer facade for ``AudioSensorFrame`` data."""
+    """Replicator writer facade for ``AudioSensorFrame`` data."""
 
     def __init__(
         self,
@@ -126,10 +126,6 @@ class AudioSensorReplicatorRecorder:
             )
             self._register_writer(rep, self._writer_class)
             self.status.writer_registered = True
-            self.status.annotator_status = self._register_annotator(rep)
-            self.status.annotator_registered = (
-                self.status.annotator_status == "registered"
-            )
             self._writer = self._instantiate_writer(rep)
             self.status.attach_status = self._attach_writer()
             self._started = True
@@ -169,8 +165,7 @@ class AudioSensorReplicatorRecorder:
             )
             jsonl_path = Path(
                 getattr(self._writer, "latest_jsonl_path", "")
-                or self.output_dir
-                / "audio_sensor_frames.jsonl"
+                or self.output_dir / "audio_sensor_frames.jsonl"
             )
             self.status.write_count += 1
             self.status.latest_write_path = str(json_path)
@@ -186,9 +181,7 @@ class AudioSensorReplicatorRecorder:
             )
         except Exception as exc:
             self.status.latest_error = f"{type(exc).__name__}: {exc}"
-            raise ReplicatorIntegrationError(
-                f"Replicator write failed: {exc}"
-            ) from exc
+            raise ReplicatorIntegrationError(f"Replicator write failed: {exc}") from exc
 
     def flush(self) -> ReplicatorRecorderStatus:
         """Flush the writer if it exposes a flush method and update manifest."""
@@ -207,9 +200,7 @@ class AudioSensorReplicatorRecorder:
             return self.status
         except Exception as exc:
             self.status.latest_error = f"{type(exc).__name__}: {exc}"
-            raise ReplicatorIntegrationError(
-                f"Replicator flush failed: {exc}"
-            ) from exc
+            raise ReplicatorIntegrationError(f"Replicator flush failed: {exc}") from exc
 
     def stop(self) -> ReplicatorRecorderStatus:
         """Stop recording and detach/flush when supported."""
@@ -257,30 +248,6 @@ class AudioSensorReplicatorRecorder:
                 raise ReplicatorIntegrationError(
                     f"Replicator writer registration failed: {exc}"
                 ) from exc
-
-    def _register_annotator(self, rep: Any) -> str:
-        registry = getattr(rep, "AnnotatorRegistry", None)
-        if registry is None:
-            return "unavailable: omni.replicator.core.AnnotatorRegistry missing"
-        for method_name in ("register", "register_annotator"):
-            method = getattr(registry, method_name, None)
-            if not callable(method):
-                continue
-            try:
-                method(self.annotator_name, lambda: None)
-                return "registered"
-            except TypeError:
-                try:
-                    method(name=self.annotator_name, annotator=lambda: None)
-                    return "registered"
-                except Exception as exc:  # noqa: BLE001 - readable status only.
-                    return f"unavailable: {type(exc).__name__}: {exc}"
-            except Exception as exc:  # noqa: BLE001 - readable status only.
-                message = str(exc).lower()
-                if "already" in message or "exists" in message:
-                    return "registered"
-                return f"unavailable: {type(exc).__name__}: {exc}"
-        return "unavailable: AnnotatorRegistry has no supported register method"
 
     def _instantiate_writer(self, rep: Any) -> Any:
         registry = getattr(rep, "WriterRegistry", None)
@@ -381,8 +348,7 @@ def audio_sensor_frame_replicator_payload(
                 if item.get("source_id") is not None
             ],
             "bearing_deg": [
-                item.get("doa", {}).get("estimated_bearing_deg")
-                for item in detections
+                item.get("doa", {}).get("estimated_bearing_deg") for item in detections
             ],
             "bearing_sectors": [
                 item.get("doa", {}).get("bearing_sector") for item in detections

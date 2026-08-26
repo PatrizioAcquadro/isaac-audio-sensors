@@ -1,12 +1,4 @@
-"""Author debug primitives as persistent USD geometry.
-
-The transient drawer (``viz.debug_draw``) clears every frame; this module
-authors the same ``DebugPrimitive`` records as real prims (Spheres for
-microphones/sources, BasisCurves for bearing rays and sector wedges) so the
-debug picture survives pause, camera moves, and screenshots, and is visible
-to anything that reads the stage. Authoring targets the session layer by
-default so user stages are not dirtied.
-"""
+"""Author debug primitives as session-layer USD geometry."""
 
 from __future__ import annotations
 
@@ -76,10 +68,6 @@ class UsdDebugGeometryAuthor:
         self.use_session_layer = bool(use_session_layer)
         self._authored_paths: tuple[str, ...] = ()
 
-    @property
-    def authored_paths(self) -> tuple[str, ...]:
-        return self._authored_paths
-
     def author(
         self,
         stage: Any,
@@ -92,8 +80,7 @@ class UsdDebugGeometryAuthor:
             paths: list[str] = []
             for index, primitive in enumerate(primitives):
                 path = (
-                    f"{self.root}/"
-                    f"{primitive.kind}_{index:02d}_{_slug(primitive.label)}"
+                    f"{self.root}/{primitive.kind}_{index:02d}_{_slug(primitive.label)}"
                 )
                 self._author_primitive(stage, path, primitive)
                 paths.append(path)

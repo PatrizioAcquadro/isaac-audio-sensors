@@ -808,9 +808,7 @@ class RecordingWorkflow(ControllerService):
             self._guided_reset_pending = True
 
     def _attach_guided_reset_listener(self, sensor: Any) -> None:
-        add_listener = getattr(sensor, "_add_reset_listener", None)
-        if callable(add_listener):
-            add_listener(self.guided_notify_simulator_reset)
+        sensor.add_reset_listener(self.guided_notify_simulator_reset)
 
     def _handle_simulation_reset(self, _event: Any) -> None:
         """Reset the sensor and recorder boundary from Isaac's reset lifecycle."""

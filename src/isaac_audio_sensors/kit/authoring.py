@@ -20,6 +20,7 @@ from isaac_audio_sensors.isaac.discovery import (
 from isaac_audio_sensors.isaac.pose_resolver import (
     IsaacStagePoseResolver,
     prim_path,
+    prim_type_name,
     quat_from_any,
     vec3_from_any,
 )
@@ -66,7 +67,6 @@ from .stage_context import (
     _path_name,
     _prim_attrs,
     _prim_has_xform_pose,
-    _prim_type_name,
     _refresh_applied_profile_binding_snapshot,
     _set_prim_attr,
     _stage_has_prim,
@@ -1472,7 +1472,7 @@ class AuthoringService(ControllerService):
                 continue
             attrs = _prim_attrs(prim)
             is_microphone = (
-                _prim_type_name(prim) == "Microphone" or "ias:microphone_id" in attrs
+                prim_type_name(prim) == "Microphone" or "ias:microphone_id" in attrs
             )
             if not is_microphone:
                 continue

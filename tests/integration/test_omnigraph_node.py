@@ -66,7 +66,6 @@ def test_frame_registry_publish_get_and_clear():
     frame_registry.publish_latest_frame("/World/Rig/AudioArray", frame)
     assert frame_registry.get_latest_frame("/World/Rig/AudioArray") is frame
     assert frame_registry.get_latest_frame() is frame
-    assert frame_registry.latest_frame_keys() == ("/World/Rig/AudioArray",)
 
     other = _frame(frame_id="frame_002")
     frame_registry.publish_latest_frame("/World/Other", other)
@@ -75,7 +74,6 @@ def test_frame_registry_publish_get_and_clear():
     assert frame_registry.get_latest_frame() is frame
     frame_registry.clear_latest_frames()
     assert frame_registry.get_latest_frame() is None
-    assert frame_registry.latest_frame_keys() == ()
 
 
 def test_frame_output_values_maps_frame_and_none():

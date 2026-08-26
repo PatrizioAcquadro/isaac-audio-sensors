@@ -7,6 +7,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
+import isaac_audio_sensors.isaac.pose_resolver as usd
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 
 
@@ -138,7 +139,7 @@ def attach_sound_source_attrs(
         attrs["ias:duration_s"] = float(duration_s)
     for name, value in attrs.items():
         _set_attr(prim, name, value)
-    _set_xform_pose(
+    set_prim_xform_pose(
         prim,
         position=position_world,
         orientation=orientation_world_quat,
@@ -163,7 +164,7 @@ def attach_source_object_binding_attrs(
     }
     for name, value in attrs.items():
         _set_attr(prim, name, value)
-    _set_xform_pose(prim, position=offset, orientation=None)
+    set_prim_xform_pose(prim, position=offset)
     return attrs
 
 
@@ -201,7 +202,7 @@ def attach_array_object_binding_attrs(
         attrs["ias:array_local_orientation_quat"] = orientation
     for name, value in attrs.items():
         _set_attr(prim, name, value)
-    _set_xform_pose(prim, position=offset, orientation=orientation)
+    set_prim_xform_pose(prim, position=offset, orientation=orientation)
     return attrs
 
 
@@ -219,7 +220,7 @@ def clear_array_object_binding_attrs(prim: Any) -> None:
 
 
 def clear_prim_attrs(prim: Any, names: tuple[str, ...]) -> None:
-    """Best-effort removal of authored attributes on fake or real USD prims."""
+    """Remove authored attributes when present."""
 
     if hasattr(prim, "attributes"):
         for name in names:
@@ -237,9 +238,12 @@ def set_prim_xform_pose(
     position: tuple[float, float, float] | None = None,
     orientation: tuple[float, float, float, float] | None = None,
 ) -> None:
-    """Set a prim-local transform on fake or USD prims."""
+    """Set a prim-local transform."""
 
-    _set_xform_pose(prim, position=position, orientation=orientation)
+    if position is not None and not _set_usd_translate_op(prim, position):
+        _set_attr(prim, "xformOp:translate", position)
+    if orientation is not None and not _set_usd_orient_op(prim, orientation):
+        _set_attr(prim, "xformOp:orient", orientation)
 
 
 def move_prim_to_path(
@@ -261,7 +265,7 @@ def move_prim_to_path(
     if source_path == dest_path:
         return get_or_define_prim(stage, prim_path=dest_path, prim_type=prim_type)
     source = _existing_prim(stage, source_path)
-    effective_type = _prim_type_name(source) if source is not None else prim_type
+    effective_type = usd.prim_type_name(source) if source is not None else prim_type
     dest = get_or_define_prim(
         stage,
         prim_path=dest_path,
@@ -275,7 +279,7 @@ def move_prim_to_path(
                 source_path=source_path,
                 dest_path=dest_path,
             )
-        _remove_prim(stage, source_path)
+        remove_prim(stage, source_path)
     return dest
 
 
@@ -287,7 +291,7 @@ def _move_descendant_prims(stage: Any, *, source_path: str, dest_path: str) -> N
         (
             (path, prim)
             for prim in stage.Traverse()
-            for path in (_prim_path(prim),)
+            for path in (usd.prim_path(prim),)
             if path.startswith(prefix)
         ),
         key=lambda item: item[0],
@@ -297,11 +301,11 @@ def _move_descendant_prims(stage: Any, *, source_path: str, dest_path: str) -> N
         moved = get_or_define_prim(
             stage,
             prim_path=new_path,
-            prim_type=_prim_type_name(prim) or "Xform",
+            prim_type=usd.prim_type_name(prim) or "Xform",
         )
         _copy_prim_attrs(prim, moved)
     for path, _prim in reversed(descendants):
-        _remove_prim(stage, path)
+        remove_prim(stage, path)
 
 
 def create_listener_prim(
@@ -311,7 +315,7 @@ def create_listener_prim(
     array_id: str,
     orientation_from_view: bool = False,
 ) -> AuthoredPrimRecord:
-    """Create or configure a USD listener prim using duck-typed stage APIs."""
+    """Create or configure a USD listener prim through stage APIs."""
 
     _require_stage(stage)
     if prim_path.strip() == "":
@@ -369,7 +373,7 @@ def attach_microphone_array_attrs(
         attrs["ias:microphone_ids"] = tuple(str(mic_id) for mic_id in microphone_ids)
     for name, value in attrs.items():
         _set_attr(prim, name, value)
-    _set_xform_pose(
+    set_prim_xform_pose(
         prim,
         position=position_world,
         orientation=orientation_world_quat,
@@ -399,7 +403,7 @@ def attach_microphone_attrs(
         attrs["ias:self_noise_db"] = float(self_noise_db)
     for name, value in attrs.items():
         _set_attr(prim, name, value)
-    _set_xform_pose(
+    set_prim_xform_pose(
         prim,
         position=relative_position_m,
         orientation=relative_orientation_quat,
@@ -408,9 +412,21 @@ def attach_microphone_attrs(
 
 
 def remove_prim(stage: Any, prim_path: str) -> None:
-    """Best-effort prim removal on fake or USD stages."""
+    """Remove a prim when supported by the stage."""
 
-    _remove_prim(stage, prim_path)
+    if hasattr(stage, "RemovePrim"):
+        try:
+            stage.RemovePrim(usd.usd_path(prim_path))
+            return
+        except Exception:
+            try:
+                stage.RemovePrim(prim_path)
+                return
+            except Exception:
+                pass
+    prims = getattr(stage, "_prims", None)
+    if isinstance(prims, list):
+        stage._prims = [prim for prim in prims if usd.prim_path(prim) != prim_path]
 
 
 def get_or_define_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any:
@@ -432,7 +448,7 @@ def _define_or_retype_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any
     prim = _existing_prim(stage, prim_path)
     if prim is None:
         return stage.DefinePrim(prim_path, prim_type)
-    if _prim_type_name(prim) == prim_type:
+    if usd.prim_type_name(prim) == prim_type:
         return prim
     set_type_name = getattr(prim, "SetTypeName", None)
     if callable(set_type_name):
@@ -442,14 +458,6 @@ def _define_or_retype_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any
         prim.type_name = prim_type
         return prim
     return stage.DefinePrim(prim_path, prim_type)
-
-
-def _prim_type_name(prim: Any | None) -> str:
-    if prim is None:
-        return ""
-    if hasattr(prim, "GetTypeName"):
-        return str(prim.GetTypeName())
-    return str(getattr(prim, "type_name", ""))
 
 
 def _copy_prim_attrs(source: Any, dest: Any) -> None:
@@ -471,39 +479,6 @@ def _copy_prim_attrs(source: Any, dest: Any) -> None:
             continue
 
 
-def _remove_prim(stage: Any, prim_path: str) -> None:
-    if hasattr(stage, "RemovePrim"):
-        try:
-            stage.RemovePrim(_usd_path(prim_path))
-            return
-        except Exception:
-            try:
-                stage.RemovePrim(prim_path)
-                return
-            except Exception:
-                pass
-    prims = getattr(stage, "_prims", None)
-    if isinstance(prims, list):
-        stage._prims = [prim for prim in prims if _prim_path(prim) != prim_path]
-
-
-def _usd_path(path: str) -> Any:
-    try:
-        from pxr import Sdf  # type: ignore
-    except ImportError:
-        return path
-    try:
-        return Sdf.Path(path)
-    except Exception:
-        return path
-
-
-def _prim_path(prim: Any) -> str:
-    if hasattr(prim, "GetPath"):
-        return str(prim.GetPath())
-    return str(getattr(prim, "path", ""))
-
-
 def _require_stage(stage: Any) -> None:
     if stage is None or not hasattr(stage, "DefinePrim"):
         raise ValueError("stage must provide a DefinePrim method.")
@@ -511,7 +486,7 @@ def _require_stage(stage: Any) -> None:
 
 def _existing_prim(stage: Any, prim_path: str) -> Any | None:
     if hasattr(stage, "GetPrimAtPath"):
-        for candidate_path in (_usd_path(prim_path), prim_path):
+        for candidate_path in (usd.usd_path(prim_path), prim_path):
             try:
                 prim = stage.GetPrimAtPath(candidate_path)
             except TypeError:
@@ -553,18 +528,6 @@ def _set_attr(prim: Any, name: str, value: object) -> None:
         prim.attributes[name] = value
         return
     setattr(prim, name.replace(":", "_"), value)
-
-
-def _set_xform_pose(
-    prim: Any,
-    *,
-    position: tuple[float, float, float] | None,
-    orientation: tuple[float, float, float, float] | None,
-) -> None:
-    if position is not None and not _set_usd_translate_op(prim, position):
-        _set_attr(prim, "xformOp:translate", position)
-    if orientation is not None and not _set_usd_orient_op(prim, orientation):
-        _set_attr(prim, "xformOp:orient", orientation)
 
 
 def _set_usd_translate_op(

@@ -770,7 +770,6 @@ def build_replicator_section(window: OmniReferenceWindow) -> None:
         window._bool_row("Enable", "replicator_enabled")
         window._string_row("Output Dir", "replicator_output_dir")
         window._string_row("Writer", "replicator_writer_name")
-        window._string_row("Annotator", "replicator_annotator_name")
         with ui.HStack(spacing=4):
             window._button(
                 "Start Replicator",

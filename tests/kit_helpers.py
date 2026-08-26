@@ -330,23 +330,13 @@ class _FakeWriterRegistry:
         return cls.registered[name]()
 
 
-class _FakeAnnotatorRegistry:
-    registered: dict[str, object] = {}
-
-    @classmethod
-    def register(cls, name: str, annotator: object) -> None:
-        cls.registered[name] = annotator
-
-
 def _install_fake_replicator(monkeypatch):
     _FakeWriterRegistry.registered = {}
-    _FakeAnnotatorRegistry.registered = {}
     omni = sys.modules.get("omni") or ModuleType("omni")
     replicator = ModuleType("omni.replicator")
     core = ModuleType("omni.replicator.core")
     core.Writer = object
     core.WriterRegistry = _FakeWriterRegistry
-    core.AnnotatorRegistry = _FakeAnnotatorRegistry
     replicator.core = core
     omni.replicator = replicator
     monkeypatch.setitem(sys.modules, "omni", omni)

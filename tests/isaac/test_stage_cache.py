@@ -110,7 +110,7 @@ def test_cached_snapshot_matches_full_discovery_snapshot():
     sensor.capture(timestamp_ms=100, usd_time_code=0.1)
     source.attributes["ias:position_world"] = (1.0, 4.0, 0.5)
     sensor.capture(timestamp_ms=200, usd_time_code=0.2)
-    cached_scene = sensor._latest_scene
+    cached_scene = sensor.latest_scene
     assert sensor._latest_stage_diagnostics["discovery_cache"]["hit"] is True
 
     fresh_scene = build_stage_snapshot(
@@ -289,7 +289,8 @@ def test_native_loop_and_aural_mode_changes_refresh_source_semantics():
     sensor.update(sim_time_s=0.2)
 
     assert stage.traverse_count == warm_count + 1
-    assert sensor._latest_scene.sources[0].loop_count == 2
+    assert sensor.latest_scene is not None
+    assert sensor.latest_scene.sources[0].loop_count == 2
 
     source.attributes["auralMode"] = "nonSpatial"
     cache._on_objects_changed(
@@ -303,7 +304,8 @@ def test_native_loop_and_aural_mode_changes_refresh_source_semantics():
 
     assert stage.traverse_count == warm_count + 2
     assert frame.detections == ()
-    assert sensor._latest_scene.sources == ()
+    assert sensor.latest_scene is not None
+    assert sensor.latest_scene.sources == ()
     rejection = frame.diagnostics["stage_snapshot"]["source_rejections"][source.path]
     assert rejection["reason"] == "non_spatial_source"
     sensor.close()

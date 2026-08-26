@@ -9,7 +9,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from isaac_audio_sensors.core.math_utils import Vector3, as_vector3
+from isaac_audio_sensors.core.math_utils import Vector3
+from isaac_audio_sensors.isaac.pose_resolver import vec3_from_any
 
 ROOM_MIN_WORLD_ATTR = "ias:room_min_world"
 ROOM_MAX_WORLD_ATTR = "ias:room_max_world"
@@ -163,9 +164,7 @@ def _pxr_world_aligned_bbox(
 def _optional_vec3(value: Any) -> Vector3 | None:
     if value is None:
         return None
-    if hasattr(value, "GetLength") and callable(value.GetLength):
-        return as_vector3((value[0], value[1], value[2]), "usd_bounds vector")
-    return as_vector3(value, "usd_bounds vector")
+    return vec3_from_any(value)
 
 
 def _value_of(value: Any, time_code: Any | None) -> Any:

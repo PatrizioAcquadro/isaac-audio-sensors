@@ -277,3 +277,11 @@ Moved runtime-profile validation to unit ownership, removed duplicate backend an
 ## 2026-08-26 — lint: Contract test lane simplification
 
 Verified the focused and complete host suites, test ownership, public contracts, canonical wiki structure, Ruff, formatting, and whitespace.
+
+## 2026-08-26 — update: Direct Replicator writer
+
+Clarified that the Replicator writer receives frames directly while the v1 annotator name remains compatibility metadata and no runtime annotator is registered.
+
+## 2026-08-26 — lint: Isaac bridge cleanup
+
+Verified public contracts, canonical wiki links, immutable raw content, full host and Isaac suites, RTX 4090 Isaac Sim and Kit smokes, direct Replicator writes, Ruff, and whitespace.

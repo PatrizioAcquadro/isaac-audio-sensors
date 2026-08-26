@@ -359,12 +359,6 @@ class IsaacAudioArraySensor:
         for listener in tuple(self._reset_listeners):
             listener()
 
-    def _add_reset_listener(self, listener: Callable[[], None]) -> None:
-        """Attach an internal observer to the completed sensor reset lifecycle."""
-
-        if listener not in self._reset_listeners:
-            self._reset_listeners.append(listener)
-
     def close(self) -> None:
         """Stop the sensor and close owned live resources."""
 
@@ -391,6 +385,24 @@ class IsaacAudioArraySensor:
         """Return the most recently emitted frame."""
 
         return self.latest_frame
+
+    @property
+    def latest_scene(self) -> AudioSceneSnapshot | None:
+        """Return the scene used for the latest frame."""
+
+        return self._latest_scene
+
+    @property
+    def latest_array_spec(self) -> MicrophoneArraySpec | None:
+        """Return the array specification used for the latest frame."""
+
+        return self._latest_sensor
+
+    def add_reset_listener(self, listener: Callable[[], None]) -> None:
+        """Notify ``listener`` after each completed reset."""
+
+        if listener not in self._reset_listeners:
+            self._reset_listeners.append(listener)
 
     def update(
         self,

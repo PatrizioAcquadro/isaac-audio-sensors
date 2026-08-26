@@ -107,12 +107,12 @@ def test_author_prunes_stale_prims_when_primitives_shrink():
         assert stale not in stage.prims
 
 
-def test_clear_removes_whole_subtree_and_resets_paths():
+def test_clear_removes_whole_subtree():
     stage = FakeUsdStage()
     author = UsdDebugGeometryAuthor(root="/World/CustomDebug")
-    author.author(stage, _primitives())
-    assert author.authored_paths
+    paths = author.author(stage, _primitives())
+    assert all(path in stage.prims for path in paths)
 
     author.clear(stage)
-    assert author.authored_paths == ()
     assert "/World/CustomDebug" in stage.removed
+    assert all(path not in stage.prims for path in paths)

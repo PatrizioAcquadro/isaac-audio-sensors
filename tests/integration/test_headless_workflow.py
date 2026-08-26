@@ -29,9 +29,11 @@ class _FakeSensor:
         self.array_prim_path = "/World/AudioArray"
         self.source_prim_path: str | None = None
         self.stage = _FakeStage()
-        self._latest_sensor = None
+        self.latest_array_spec = None
+        self.latest_scene = None
         self.debug_drawer = None
         self.running = False
+        self.reset_listeners = []
 
     def start(self, *, subscribe_to_update_stream: bool = False) -> _FakeSensor:
         del subscribe_to_update_stream
@@ -43,6 +45,9 @@ class _FakeSensor:
 
     def close(self) -> None:
         self.running = False
+
+    def add_reset_listener(self, listener: object) -> None:
+        self.reset_listeners.append(listener)
 
     def update(self, *, force: bool = False) -> AudioSensorFrame:
         del force

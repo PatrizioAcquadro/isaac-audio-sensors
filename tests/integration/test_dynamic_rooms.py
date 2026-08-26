@@ -499,7 +499,8 @@ def test_live_sensor_preserves_static_room_without_anchor():
     sensor.update(sim_time_s=0.0, force=True)
 
     assert sensor.room == room
-    assert sensor._latest_scene.room == room
+    assert sensor.latest_scene is not None
+    assert sensor.latest_scene.room == room
     sensor.close()
 
 
@@ -541,8 +542,10 @@ def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_st
         None,
     )
     third = sensor.update(sim_time_s=0.2, force=True)
-    assert sensor._latest_scene.room.origin_m == (-0.75, -3.0, 0.0)
-    assert sensor._latest_scene.room.absorption == "pra.carpet_cotton"
+    assert sensor.latest_scene is not None
+    assert sensor.latest_scene.room is not None
+    assert sensor.latest_scene.room.origin_m == (-0.75, -3.0, 0.0)
+    assert sensor.latest_scene.room.absorption == "pra.carpet_cotton"
     assert third.diagnostics["acoustics_state"]["refresh_reasons"] == [
         "room_geometry_changed",
         "material_changed",

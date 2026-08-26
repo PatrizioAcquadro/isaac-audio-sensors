@@ -579,7 +579,7 @@ class SensorSession(ControllerService):
     def _latest_mic_world_positions(self) -> dict[str, tuple[float, float, float]]:
         if self.sensor is None:
             return {}
-        sensor_spec = getattr(self.sensor, "_latest_sensor", None)
+        sensor_spec = self.sensor.latest_array_spec
         if sensor_spec is None:
             return {}
         try:
@@ -590,9 +590,7 @@ class SensorSession(ControllerService):
     def _latest_source_prim_path(self, detection: Any | None) -> str | None:
         if detection is None:
             return None
-        scene = (
-            None if self.sensor is None else getattr(self.sensor, "_latest_scene", None)
-        )
+        scene = None if self.sensor is None else self.sensor.latest_scene
         if scene is not None and detection.source_id is not None:
             for source in scene.sources:
                 if source.source_id == detection.source_id and source.prim_path:

@@ -51,7 +51,8 @@ class _FakeSensor:
         self.array_prim_path = "/World/Rig/AudioArray"
         self.source_prim_path: str | None = None
         self.stage = _FakeStage()
-        self._latest_sensor = None
+        self.latest_array_spec = None
+        self.latest_scene = None
         self.debug_drawer = None
         self.running = False
         self.reset_listeners: list[Any] = []
@@ -72,7 +73,7 @@ class _FakeSensor:
         for listener in tuple(self.reset_listeners):
             listener()
 
-    def _add_reset_listener(self, listener: Any) -> None:
+    def add_reset_listener(self, listener: Any) -> None:
         self.reset_listeners.append(listener)
 
     def update(self, *, force: bool = False) -> AudioSensorFrame:

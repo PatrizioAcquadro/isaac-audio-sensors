@@ -1,4 +1,4 @@
-"""Lazy USD/fake-stage world-pose resolution for Isaac audio snapshots."""
+"""Lazy USD world-pose resolution for Isaac audio snapshots."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from isaac_audio_sensors.core.math_utils import (
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class StagePose:
-    """Resolved world-frame pose for one USD or USD-like prim."""
+    """Resolved world-frame pose for one USD-compatible prim."""
 
     prim_path: str
     position_world: Vector3
@@ -31,7 +31,7 @@ class StagePose:
 
 
 class IsaacStagePoseResolver:
-    """Resolve live world poses from real USD APIs or duck-typed test stages."""
+    """Resolve live world poses from USD-compatible stage APIs."""
 
     def __init__(
         self,
@@ -45,7 +45,7 @@ class IsaacStagePoseResolver:
         self.stage = stage
         self.time_code = time_code
         self.prims = tuple(stage.Traverse()) if prims is None else tuple(prims)
-        self.prims_by_path = {_prim_path(prim): prim for prim in self.prims}
+        self.prims_by_path = {prim_path(prim): prim for prim in self.prims}
 
     def resolve_world_pose(
         self,
@@ -56,7 +56,7 @@ class IsaacStagePoseResolver:
         """Resolve a prim's world pose at this resolver's time code."""
 
         prim = self.prim(prim_or_path)
-        path = _prim_path(prim)
+        path = prim_path(prim)
         field = field_name or path
         attrs = self.attrs(prim)
         has_world_attr = "ias:position_world" in attrs
@@ -81,7 +81,7 @@ class IsaacStagePoseResolver:
                     ("ias:position_world",),
                     field_name=field,
                 ),
-                orientation_world_quat=_quat_attr(
+                orientation_world_quat=quat_attr(
                     attrs,
                     ("ias:orientation_world_quat", "xformOp:orient"),
                     default=None,
@@ -121,10 +121,10 @@ class IsaacStagePoseResolver:
         return prim_or_path
 
     def has_xform_stack(self, prim_or_path: Any) -> bool:
-        """Return whether the prim or one of its ancestors has xform ops."""
+        """Return whether the prim or an ancestor has xform ops."""
 
         prim = self.prim(prim_or_path)
-        for ancestor_path in _ancestor_paths(_prim_path(prim)):
+        for ancestor_path in _ancestor_paths(prim_path(prim)):
             ancestor = self.prims_by_path.get(ancestor_path)
             if ancestor is None:
                 continue
@@ -133,7 +133,7 @@ class IsaacStagePoseResolver:
         return False
 
     def _fallback_xform_stack_pose(self, prim: Any) -> StagePose | None:
-        path = _prim_path(prim)
+        path = prim_path(prim)
         position = (0.0, 0.0, 0.0)
         orientation = (0.0, 0.0, 0.0, 1.0)
         found_transform = False
@@ -142,8 +142,8 @@ class IsaacStagePoseResolver:
             if ancestor is None:
                 continue
             attrs = self.attrs(ancestor)
-            local_position = _optional_vec3_attr(attrs, ("xformOp:translate",))
-            local_orientation = _quat_attr(attrs, ("xformOp:orient",), default=None)
+            local_position = optional_vec3_attr(attrs, ("xformOp:translate",))
+            local_orientation = quat_attr(attrs, ("xformOp:orient",), default=None)
             if local_position is None and local_orientation is None:
                 continue
             found_transform = True
@@ -196,13 +196,30 @@ def diagnostic_time_code(time_code: Any | None) -> Any | None:
 def prim_path(prim: Any) -> str:
     """Return a USD-compatible prim path."""
 
-    return _prim_path(prim)
+    if hasattr(prim, "GetPath"):
+        return str(prim.GetPath())
+    return str(getattr(prim, "path", ""))
 
 
 def prim_type_name(prim: Any) -> str:
     """Return a USD-compatible prim type name."""
 
-    return _prim_type_name(prim)
+    if hasattr(prim, "GetTypeName"):
+        return str(prim.GetTypeName())
+    return str(getattr(prim, "type_name", ""))
+
+
+def usd_path(path: str) -> Any:
+    """Return an ``Sdf.Path`` when USD is available."""
+
+    try:
+        from pxr import Sdf  # type: ignore
+    except ImportError:
+        return path
+    try:
+        return Sdf.Path(path)
+    except Exception:
+        return path
 
 
 def stage_id(stage: Any) -> str:
@@ -218,15 +235,23 @@ def stage_id(stage: Any) -> str:
 
 
 def vec3_from_any(value: Any) -> Vector3:
-    """Coerce a USD/fake vector value into a core 3-vector."""
+    """Coerce a USD-compatible value into a core 3-vector."""
 
-    return _vec3_from_any(value)
+    if hasattr(value, "GetLength") and callable(value.GetLength):
+        return as_vector3((value[0], value[1], value[2]), "Vector3")
+    return as_vector3(value, "Vector3")
 
 
 def quat_from_any(value: Any) -> Quaternion:
-    """Coerce a USD/fake quaternion into core ``(x, y, z, w)`` order."""
+    """Coerce a USD-compatible quaternion into ``(x, y, z, w)`` order."""
 
-    return _quat_from_any(value)
+    if hasattr(value, "GetImaginary") and hasattr(value, "GetReal"):
+        x, y, z = value.GetImaginary()
+        return as_quaternion_xyzw(
+            (float(x), float(y), float(z), float(value.GetReal())),
+            "Quaternion",
+        )
+    return as_quaternion_xyzw(value, "Quaternion")
 
 
 def optional_vec3_attr(
@@ -235,7 +260,10 @@ def optional_vec3_attr(
 ) -> Vector3 | None:
     """Return the first present vector attribute."""
 
-    return _optional_vec3_attr(attrs, keys)
+    for key in keys:
+        if key in attrs and attrs[key] is not None:
+            return vec3_from_any(attrs[key])
+    return None
 
 
 def quat_attr(
@@ -246,7 +274,10 @@ def quat_attr(
 ) -> Quaternion | None:
     """Return the first present quaternion attribute."""
 
-    return _quat_attr(attrs, keys, default=default)
+    for key in keys:
+        if key in attrs and attrs[key] is not None:
+            return quat_from_any(attrs[key])
+    return default
 
 
 def _usd_world_pose(prim: Any, *, time_code: Any | None) -> StagePose:
@@ -261,8 +292,8 @@ def _usd_world_pose(prim: Any, *, time_code: Any | None) -> StagePose:
         provenance = "usd:ComputeLocalToWorldTransform"
     translation = matrix.ExtractTranslation()
     return StagePose(
-        prim_path=_prim_path(prim),
-        position_world=_vec3_from_any(translation),
+        prim_path=prim_path(prim),
+        position_world=vec3_from_any(translation),
         orientation_world_quat=_quat_from_matrix(matrix),
         provenance=provenance,
         time_code=time_code,
@@ -330,62 +361,24 @@ def _required_vec3_attr(
     *,
     field_name: str,
 ) -> Vector3:
-    value = _optional_vec3_attr(attrs, keys)
+    value = optional_vec3_attr(attrs, keys)
     if value is not None:
         return value
     expected = " or ".join(keys)
     raise ValueError(f"{field_name!r} is missing required transform {expected}.")
 
 
-def _optional_vec3_attr(
-    attrs: Mapping[str, Any],
-    keys: tuple[str, ...],
-) -> Vector3 | None:
-    for key in keys:
-        if key in attrs and attrs[key] is not None:
-            return _vec3_from_any(attrs[key])
-    return None
-
-
-def _vec3_from_any(value: Any) -> Vector3:
-    if hasattr(value, "GetLength") and callable(value.GetLength):
-        return as_vector3((value[0], value[1], value[2]), "Vector3")
-    return as_vector3(value, "Vector3")
-
-
-def _quat_attr(
-    attrs: Mapping[str, Any],
-    keys: tuple[str, ...],
-    *,
-    default: Quaternion | None,
-) -> Quaternion | None:
-    for key in keys:
-        if key in attrs and attrs[key] is not None:
-            return _quat_from_any(attrs[key])
-    return default
-
-
-def _quat_from_any(value: Any) -> Quaternion:
-    if hasattr(value, "GetImaginary") and hasattr(value, "GetReal"):
-        x, y, z = value.GetImaginary()
-        return as_quaternion_xyzw(
-            (float(x), float(y), float(z), float(value.GetReal())),
-            "Quaternion",
-        )
-    return as_quaternion_xyzw(value, "Quaternion")
-
-
 def _quat_from_matrix(matrix: Any) -> Quaternion:
     if hasattr(matrix, "ExtractRotationQuat"):
         try:
-            return _quat_from_any(matrix.ExtractRotationQuat())
+            return quat_from_any(matrix.ExtractRotationQuat())
         except Exception:
             pass
     if hasattr(matrix, "ExtractRotation"):
         try:
             rotation = matrix.ExtractRotation()
             if hasattr(rotation, "GetQuat"):
-                return _quat_from_any(rotation.GetQuat())
+                return quat_from_any(rotation.GetQuat())
         except Exception:
             pass
     if hasattr(matrix, "ExtractRotationMatrix"):
@@ -456,15 +449,3 @@ def _has_xform_attrs(attrs: Mapping[str, Any]) -> bool:
 def _ancestor_paths(path: str) -> tuple[str, ...]:
     parts = [part for part in path.strip("/").split("/") if part]
     return tuple("/" + "/".join(parts[:index]) for index in range(1, len(parts) + 1))
-
-
-def _prim_path(prim: Any) -> str:
-    if hasattr(prim, "GetPath"):
-        return str(prim.GetPath())
-    return str(getattr(prim, "path", ""))
-
-
-def _prim_type_name(prim: Any) -> str:
-    if hasattr(prim, "GetTypeName"):
-        return str(prim.GetTypeName())
-    return str(getattr(prim, "type_name", ""))

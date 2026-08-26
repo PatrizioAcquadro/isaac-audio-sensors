@@ -80,7 +80,8 @@ def test_extension_controller_replicator_lifecycle_and_payload(
 
     assert status is not None
     assert status["writer_registered"] is True
-    assert status["annotator_registered"] is True
+    assert status["annotator_registered"] is False
+    assert status["annotator_status"] == "metadata_only"
     assert frame is not None
     assert flushed is not None
     assert flushed["flushed"] is True
@@ -90,6 +91,9 @@ def test_extension_controller_replicator_lifecycle_and_payload(
     payload_path = Path(controller.state.replicator_latest_write_path or "")
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
     assert payload["schema_version"] == PAYLOAD_SCHEMA_VERSION
+    assert payload["replicator"]["annotator_name"] == (
+        controller.state.replicator_annotator_name
+    )
     assert payload["summary"]["backend_id"] == "geometry_only"
     assert payload["summary"]["detection_count"] == 1
     assert payload["metadata"]["extension_id"] == "test.ext"

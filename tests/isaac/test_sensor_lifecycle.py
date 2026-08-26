@@ -90,6 +90,20 @@ def test_manual_capture_and_update_throttling():
     second = sensor.update(sim_time_s=0.06)
     assert second.frame_index == 1
     assert sensor.get_latest_frame() is second
+    assert sensor.latest_scene is not None
+    assert sensor.latest_array_spec is not None
+
+    reset_events = []
+
+    def listener():
+        reset_events.append("reset")
+
+    sensor.add_reset_listener(listener)
+    sensor.add_reset_listener(listener)
+    sensor.reset()
+    assert reset_events == ["reset"]
+    assert sensor.latest_scene is None
+    assert sensor.latest_array_spec is None
     sensor.close()
 
 

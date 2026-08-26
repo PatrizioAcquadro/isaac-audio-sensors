@@ -9,7 +9,9 @@ from typing import Any
 
 from isaac_audio_sensors.isaac.pose_resolver import (
     prim_path,
+    prim_type_name,
     quat_from_any,
+    usd_path,
     vec3_from_any,
 )
 from isaac_audio_sensors.isaac.stage_audio import (
@@ -52,7 +54,7 @@ def _stage_has_prim(stage: Any, path: str) -> bool:
     if not path:
         return False
     if hasattr(stage, "GetPrimAtPath"):
-        for candidate_path in (_usd_path(path), path):
+        for candidate_path in (usd_path(path), path):
             try:
                 prim = stage.GetPrimAtPath(candidate_path)
             except TypeError:
@@ -68,7 +70,7 @@ def _stage_prim_at_path(stage: Any | None, path: str) -> Any | None:
     if stage is None or not path:
         return None
     if hasattr(stage, "GetPrimAtPath"):
-        for candidate_path in (_usd_path(path), path):
+        for candidate_path in (usd_path(path), path):
             try:
                 prim = stage.GetPrimAtPath(candidate_path)
             except TypeError:
@@ -80,17 +82,6 @@ def _stage_prim_at_path(stage: Any | None, path: str) -> Any | None:
             if prim_path(prim) == path:
                 return prim
     return None
-
-
-def _usd_path(path: str) -> Any:
-    try:
-        from pxr import Sdf  # type: ignore
-    except ImportError:
-        return path
-    try:
-        return Sdf.Path(path)
-    except Exception:
-        return path
 
 
 def _author_position_arg(
@@ -271,7 +262,7 @@ def _discover_scene_objects(
         if any(path == item or path.startswith(f"{item}/") for item in excluded):
             continue
         attrs = _prim_attrs(prim)
-        type_name = _prim_type_name(prim)
+        type_name = prim_type_name(prim)
         if _is_audio_metadata_prim(type_name, attrs):
             continue
         if not _looks_like_scene_object(path, type_name, attrs):
@@ -305,7 +296,8 @@ def _style_demo_object_prim(
     position_world: tuple[float, float, float],
 ) -> None:
     if hasattr(prim, "attributes"):
-        prim.attributes.setdefault("xformOp:translate", position_world)
+        if "xformOp:translate" not in prim.attributes:
+            set_prim_xform_pose(prim, position=position_world)
         prim.attributes["size"] = 0.9
         prim.attributes["displayColor"] = (0.95, 0.48, 0.08)
         prim.attributes["displayOpacity"] = 1.0
@@ -334,7 +326,7 @@ def _style_demo_object_prim(
         if hasattr(fill, "attributes"):
             fill.attributes["inputs:intensity"] = 1800.0
             fill.attributes["inputs:radius"] = 3.0
-            fill.attributes["xformOp:translate"] = (-3.0, -4.0, 3.0)
+            set_prim_xform_pose(fill, position=(-3.0, -4.0, 3.0))
         return
     try:
         from pxr import Gf, UsdGeom, UsdLux  # type: ignore
@@ -411,9 +403,3 @@ def _looks_like_scene_object(
     if type_name in {"Xform", "Mesh", "Cube", "Sphere", "Cylinder", "Capsule"}:
         return True
     return any(key.startswith("xformOp:") for key in attrs)
-
-
-def _prim_type_name(prim: Any) -> str:
-    if hasattr(prim, "GetTypeName"):
-        return str(prim.GetTypeName())
-    return str(getattr(prim, "type_name", ""))

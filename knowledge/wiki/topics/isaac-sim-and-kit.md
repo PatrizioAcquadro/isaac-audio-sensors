@@ -106,7 +106,7 @@ When `omni.graph.core` is available, the extension registers `isaac_audio_sensor
 
 The node publishes the latest frame ID, timestamp, detection count, bearing, sector, microphone IDs/RMS, occlusion state, and JSON payload, optionally filtered by array key.
 
-Replicator integration is a lazy Isaac bridge used by the extension; core frames, package JSON/JSONL writers, the base sensor capture path, and Isaac Lab do not require it.
+Replicator integration is a lazy Isaac bridge used by the extension; core frames, package JSON/JSONL writers, the base sensor capture path, and Isaac Lab do not require it. The registered writer receives frames directly from extension updates. The v1 payload and configuration retain `annotator_name` as compatibility metadata, but no runtime annotator is registered.
 
 Kit services own profile libraries, validation, output paths, and application persistence. The sensor-session service appends JSONL only for new frames and injects a constructed core `WaveformSink`; the live sensor uses and closes that sink without knowing UI paths or output modes.
 
@@ -126,6 +126,7 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 
 ## Version Notes
 
+- 2026-08-26: Clarified direct Replicator writer updates and retained the v1 annotator name as metadata without registering a runtime annotator.
 - 2026-08-24: Made non-spatial exclusion non-fatal during strict scans and restricted listener reuse to compatible direct array children.
 - 2026-08-24: Added complete finite/infinite `loopCount` conversion and room-backend repetition, excluded non-spatial sources from physical-sensor discovery, and introduced array-listener reuse with a session-layer fallback plus qualitative Kit device-mix capture without changing sensor observations.
 - 2026-08-24: Migrated authoring and live validation to `OmniSound` and `OmniListener`, corrected native schema units and metadata precedence, and retained deprecated-alias read compatibility.

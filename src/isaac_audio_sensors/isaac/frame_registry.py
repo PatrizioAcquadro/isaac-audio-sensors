@@ -1,11 +1,4 @@
-"""Process-wide registry of the latest audio frames.
-
-The GUI controller publishes every recorded frame here so graph consumers
-(the OmniGraph node, scripts, Script Nodes) can read the newest
-``AudioSensorFrame`` without holding a reference to the sensor. Keys are
-array prim paths (falling back to array ids); ``get_latest_frame()`` without
-a key returns the most recently published frame.
-"""
+"""Process-wide latest-frame registry for graph consumers."""
 
 from __future__ import annotations
 
@@ -38,13 +31,6 @@ def get_latest_frame(key: str | None = None) -> Any | None:
         if _last_key is None:
             return None
         return _frames.get(_last_key)
-
-
-def latest_frame_keys() -> tuple[str, ...]:
-    """Return the published keys, sorted."""
-
-    with _lock:
-        return tuple(sorted(_frames))
 
 
 def clear_latest_frames(key: str | None = None) -> None:

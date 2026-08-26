@@ -22,17 +22,6 @@ ROOM_OUTLINE_COLOR = (0.95, 0.85, 0.1, 1.0)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class BearingOverlayRecord:
-    """Serializable description of a source-to-array or estimated bearing ray."""
-
-    label: str
-    start_world: tuple[float, float, float]
-    bearing_deg: float | None
-    confidence: float
-    ambiguity_class: str | None = None
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
 class DebugPrimitive:
     """Backend-neutral debug primitive that can be drawn in Isaac or serialized."""
 
@@ -173,9 +162,22 @@ def room_outline_points(
     c_top = corner(True, True, True)
     d_top = corner(False, True, True)
     return (
-        a, b, c, d, a,
-        a_top, b_top, c_top, d_top, a_top,
-        b_top, b, c, c_top, d_top, d,
+        a,
+        b,
+        c,
+        d,
+        a,
+        a_top,
+        b_top,
+        c_top,
+        d_top,
+        a_top,
+        b_top,
+        b,
+        c,
+        c_top,
+        d_top,
+        d,
     )
 
 
