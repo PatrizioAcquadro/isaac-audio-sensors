@@ -11,6 +11,10 @@ class ConfigValidationError(IsaacAudioSensorsError, ValueError):
     """Raised when an audio-sensor config is invalid."""
 
 
+class UnsupportedEffectError(ConfigValidationError):
+    """Raised when an effect is outside the selected backend envelope."""
+
+
 class OptionalDependencyUnavailable(IsaacAudioSensorsError, ImportError):
     """Raised when an optional backend or integration dependency is missing."""
 
