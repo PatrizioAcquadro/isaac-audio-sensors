@@ -19,12 +19,15 @@ from tools.release.build_kit_extension import (
 )
 from tools.release.content_policy import ContentPolicyError
 
+VERSION = "2.0.0"
+KIT_TARGET = "110.1"
 
-def _manifest(*, kit: str = "110.1") -> str:
+
+def _manifest(*, kit: str = KIT_TARGET) -> str:
     return f"""
 [package]
 name = "isaac_audio_sensors.omni"
-version = "2.0.0"
+version = "{VERSION}"
 readme = "docs/README.md"
 changelog = "docs/CHANGELOG.md"
 icon = "data/icon.svg"
@@ -59,13 +62,11 @@ def _audit(archive, expected_entries: dict[str, str]) -> None:
     prefix = f"{BUNDLED_ROOT.as_posix()}/"
     audit_kit_archive(
         archive,
-        version="2.0.0",
+        version=VERSION,
         expected_first_party={
             name for name in expected_entries if not name.startswith(prefix)
         },
-        expected_bundled={
-            name for name in expected_entries if name.startswith(prefix)
-        },
+        expected_bundled={name for name in expected_entries if name.startswith(prefix)},
     )
 
 
@@ -152,8 +153,7 @@ def test_required_bundled_members_use_lock_versions():
         "soundfile": "9.5",
     }
     dependencies = tuple(
-        LockedDependency(name, version, "0" * 64)
-        for name, version in versions.items()
+        LockedDependency(name, version, "0" * 64) for name, version in versions.items()
     )
 
     members = required_bundled_members(dependencies)
@@ -166,7 +166,7 @@ def test_required_bundled_members_use_lock_versions():
 def test_kit_audit_accepts_bundled_dependencies(tmp_path, write_zip):
     entries = _valid_entries()
     archive = write_zip(
-        tmp_path / community_archive_name("2.0.0"),
+        tmp_path / community_archive_name(VERSION),
         entries,
     )
 
@@ -177,7 +177,7 @@ def test_kit_audit_rejects_wrong_registry_target(tmp_path, write_zip):
     expected = _valid_entries()
     entries = dict(expected)
     entries["config/extension.toml"] = _manifest(kit="999.0")
-    archive = write_zip(tmp_path / community_archive_name("2.0.0"), entries)
+    archive = write_zip(tmp_path / community_archive_name(VERSION), entries)
 
     with pytest.raises(ContentPolicyError, match="package.target"):
         _audit(archive, expected)
@@ -188,7 +188,7 @@ def test_kit_audit_rejects_bundled_numpy(tmp_path, write_zip):
     entries = dict(expected)
     prefix = f"{BUNDLED_ROOT.as_posix()}/"
     entries[f"{prefix}numpy/__init__.py"] = ""
-    archive = write_zip(tmp_path / community_archive_name("2.0.0"), entries)
+    archive = write_zip(tmp_path / community_archive_name(VERSION), entries)
 
     with pytest.raises(ContentPolicyError, match="host-owned bundled"):
         _audit(archive, expected)
@@ -198,7 +198,7 @@ def test_kit_audit_requires_critical_bundled_member(tmp_path, write_zip):
     entries = _valid_entries()
     prefix = f"{BUNDLED_ROOT.as_posix()}/"
     del entries[f"{prefix}cffi/__init__.py"]
-    archive = write_zip(tmp_path / community_archive_name("2.0.0"), entries)
+    archive = write_zip(tmp_path / community_archive_name(VERSION), entries)
 
     with pytest.raises(ContentPolicyError, match="missing bundled dependency members"):
         _audit(archive, entries)
@@ -215,7 +215,7 @@ def test_kit_audit_rejects_unexpected_inventory(tmp_path, write_zip, member):
     expected = _valid_entries()
     entries = dict(expected)
     entries[member] = ""
-    archive = write_zip(tmp_path / community_archive_name("2.0.0"), entries)
+    archive = write_zip(tmp_path / community_archive_name(VERSION), entries)
 
     with pytest.raises(ContentPolicyError, match="unexpected Kit"):
         _audit(archive, expected)

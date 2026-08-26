@@ -27,15 +27,16 @@ def wheel_bytes():
         package: str = "sample",
         source: str = "VALUE = 1\n",
         *,
+        version: str = "1.0.0",
         metadata: str | None = None,
         extra_entries: dict[str, bytes | str] | None = None,
     ) -> bytes:
-        dist_info = f"{package}-1.0.0.dist-info"
+        dist_info = f"{package}-{version}.dist-info"
         payloads = {
             f"{package}/__init__.py": source.encode(),
             f"{dist_info}/METADATA": (
                 metadata
-                or f"Metadata-Version: 2.1\nName: {package}\nVersion: 1.0.0\n"
+                or f"Metadata-Version: 2.1\nName: {package}\nVersion: {version}\n"
             ).encode(),
             f"{dist_info}/WHEEL": b"Wheel-Version: 1.0\nTag: py3-none-any\n",
             f"{dist_info}/top_level.txt": f"{package}\n".encode(),

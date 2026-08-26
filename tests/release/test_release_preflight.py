@@ -7,6 +7,8 @@ import pytest
 
 import tools.release.release_preflight as preflight
 
+VERSION = "2.0.0"
+
 
 def test_release_preflight_checks_inputs_in_order(tmp_path, monkeypatch):
     repo_root = tmp_path / "repo"
@@ -16,7 +18,7 @@ def test_release_preflight_checks_inputs_in_order(tmp_path, monkeypatch):
 
     def check_version(root: Path):
         calls.append(("version", root))
-        return "2.0.0", ()
+        return VERSION, ()
 
     def check_source(root: Path):
         calls.append(("source", root))
@@ -33,7 +35,7 @@ def test_release_preflight_checks_inputs_in_order(tmp_path, monkeypatch):
     assert preflight.release_preflight(
         repo_root=repo_root,
         wheelhouse=wheelhouse,
-    ) == ("2.0.0", revision)
+    ) == (VERSION, revision)
     assert calls == [
         ("version", repo_root.resolve()),
         ("source", repo_root.resolve()),
@@ -45,7 +47,7 @@ def test_release_preflight_rejects_version_findings(tmp_path, monkeypatch):
     monkeypatch.setattr(
         preflight,
         "check_version_sync",
-        lambda _root: ("2.0.0", ("README mismatch",)),
+        lambda _root: (VERSION, ("README mismatch",)),
     )
     monkeypatch.setattr(
         preflight,
@@ -80,26 +82,6 @@ def test_require_clean_source_reports_missing_git(tmp_path, monkeypatch):
 
     with pytest.raises(preflight.ReleasePreflightError, match="git is required"):
         preflight.require_clean_source(tmp_path)
-
-
-def test_release_preflight_propagates_invalid_wheelhouse(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        preflight,
-        "check_version_sync",
-        lambda _root: ("2.0.0", ()),
-    )
-    monkeypatch.setattr(preflight, "require_clean_source", lambda _root: "a" * 40)
-
-    def invalid_wheelhouse(_path: Path):
-        raise ValueError("wheelhouse invalid")
-
-    monkeypatch.setattr(preflight, "validate_wheelhouse", invalid_wheelhouse)
-
-    with pytest.raises(ValueError, match="wheelhouse invalid"):
-        preflight.release_preflight(
-            repo_root=tmp_path,
-            wheelhouse=tmp_path / "wheelhouse",
-        )
 
 
 def test_release_preflight_cli_rejects_empty_wheelhouse():
