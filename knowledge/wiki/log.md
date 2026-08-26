@@ -309,3 +309,11 @@ Recorded private per-contract schema generation and command-domain CLI adapters 
 ## 2026-08-26 — lint: Schema and CLI modularization
 
 Verified 22 focused tests, 465 unit/contract tests, 166 integration tests, 57 release tests, byte-identical v1 schemas, wheel and sdist builds, installed-package CLI smokes, immutable raw content, Ruff, scoped formatting, and whitespace.
+
+## 2026-08-26 — update: Core source organization
+
+Recorded effect-domain configuration ownership, the explicit room-acoustics frame pipeline, canonical motion/acoustics/DOA helper locations, unchanged supported exports and serialized contracts, and exact numerical equivalence.
+
+## 2026-08-26 — lint: Core source organization
+
+Verified canonical ownership, internal links and index coverage, immutable raw content, exact deterministic frame and waveform equivalence, complete host and RTX 4090 Isaac gates, the real room backend, unchanged SquadBot consumers, isolated wheel and sdist installs, Ruff, version synchronization, and whitespace.

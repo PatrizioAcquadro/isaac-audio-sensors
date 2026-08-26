@@ -10,7 +10,9 @@ The design keeps simulator-independent contracts below optional simulator adapte
 
 `isaac_audio_sensors.core` owns typed scene, source, pose, array, room, time-window, detection, DOA, occlusion, and frame models; configuration; microphone geometry; deterministic DSP and effects; acoustic backends; plugins; calibration; trace IO; and waveform helpers. Its package root exports only the eleven fundamental models; the other APIs remain public from their canonical modules.
 
-All propagation backends implement the same scene, array, and time-window to sensor-frame contract. Plugin declarations own backend inventory and capability metadata; effects separate immutable configuration, parsing, and validation; room acoustics separates orchestration, signal preparation, rendering, and diagnostics.
+All propagation backends implement the same scene, array, and time-window to sensor-frame contract. Plugin declarations own backend inventory and capability metadata. Effects keep their immutable records at the unchanged `core.effects.config` entrypoint while domain modules own channel-response, noise, electronics, directivity, and motion parsing and validation behind the existing public facades. Room acoustics coordinates explicit preparation, rendering, effects, detection, diagnostics, and frame-assembly stages without changing their order.
+
+Motion owns Doppler and pose/window state; acoustics owns materials, occlusion interpretation, and room construction; DOA owns the numerical least-squares solver as well as GCC-PHAT, SRP-PHAT, ambiguity, and sector mapping. Fundamental data contracts remain centralized in `core.types`.
 
 This layer imports no other package subsystem. Importing the core package root loads no NumPy, recording, concrete backend/effect, Isaac, Omniverse, Isaac Lab, Kit, CUDA, Torch, or downstream module.
 

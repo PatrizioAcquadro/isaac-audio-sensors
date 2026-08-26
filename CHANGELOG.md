@@ -2,6 +2,7 @@
 
 ## 2.0.0 - 2026-08-21
 
+- Post-release, unreleased: reorganized current core sources by effect domain, room-pipeline stage, and semantic motion/acoustics/DOA ownership while preserving public exports, schemas, diagnostics, error behavior, and numerical output.
 - Post-release, unreleased: completed finite/infinite `OmniSound.loopCount` conversion, excluded non-spatial stage sounds from physical-sensor discovery without failing strict scans unless explicitly selected, and made file-backed room sources repeat within the authoritative playback window.
 - Post-release, unreleased: added compatible array-child listener reuse with a temporary session-layer fallback and manual Kit device-mix capture for qualitative audition, explicitly isolated from microphone-array frames, recordings, datasets, and Isaac Lab observations.
 - Post-release, unreleased: migrated Isaac/Kit authoring to NVIDIA's current `OmniSound` and `OmniListener` schemas, corrected native audio units and attributes, and retained read compatibility for deprecated `Sound` and `Listener` prims.

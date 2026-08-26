@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-08-25. Package version: `2.0.0`.
+Updated: 2026-08-26. Package version: `2.0.0`.
 
 ## Product Boundary
 
@@ -28,6 +28,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R5.6 composed Kit services, thin controller/view/entrypoint boundaries, stateful-only validation controller, complete best-effort shutdown, and focused service tests.
 - R5.7 lazy CLI leaf handlers, subsystem-owned config simulation, frozen v2 command inventory, one trace-export path, consistent exit codes, and consolidated command tests.
 - R5.8 exact curated v2 entrypoint inventory, minimal Kit/schema roots, one maintained root example set, installed-package execution coverage, and no duplicate example documentation.
+- Post-release targeted core source organization with effect-domain configuration modules behind unchanged facades, an explicit room-acoustics frame pipeline, and canonical motion/Doppler, acoustics/occlusion/room, and DOA/least-squares ownership without changing supported APIs or runtime behavior.
 - R6.1 concise root guidance and release history, temporary validation output under `build/validation/`, and a safe generated-workspace cleanup target.
 - R6.2 explicit wheel-only package data, one universal Python build, minimal installed-artifact audit, and no sdist or compatibility build aliases.
 - R6.3 minimal self-contained Kit archive, standard Linux/CPython/Kit target metadata, temporary-only staging, direct package layout, and Extension Manager lifecycle verification.
@@ -96,6 +97,8 @@ The post-release NVIDIA audio-schema migration at commit `152569f` passes 412 un
 The post-release native Kit Audio integration passes 426 unit/contract tests, 251 integration tests with two expected host SoundFile skips, 45 release tests, and 103 Isaac tests. Strict discovery now omits implicit non-spatial sources with diagnostics while retaining explicit-selection failure, and listener reuse requires a static identity direct array child with array orientation. On the RTX 4090, live Isaac Sim passes three frames each for geometry, TDOA, and room acoustics; live Isaac Lab passes entity/reference parity, partial reset, and 50 steps over 4096 environments at 1.908 ms/step mean against the 20 ms budget. The live Kit gate on Kit build 110.1.2 creates the temporary listener below the four-microphone array in the session layer, captures a readable non-silent 2-channel 48 kHz device-mix WAV, restores the previous active listener, removes the temporary prim, destroys the streamer, and confirms that the sensor remains four-channel.
 
 The release-tooling simplification gate passes 426 unit/contract tests, 249 integration tests with two expected host SoundFile skips, and 58 release tests. Version synchronization, Ruff, whitespace, preflight ordering and failure paths, exact wheelhouse validation, and lock-derived bundled metadata requirements pass without changing product APIs, schemas, runtime behavior, or artifact formats.
+
+The post-release core source-organization gate passes 465 unit/contract tests, 166 integration tests, 57 release tests, and 70 Isaac tests on the RTX 4090. Geometry, synthetic TDOA, fake-room GCC/SRP frames, and room mixtures remain hash-identical to the pre-refactor checkout. The maintained real-room example passes with pyroomacoustics 0.10.1, the unchanged SquadBot consumer subset passes 34 tests, and no-dependency temporary installs from both the wheel and sdist expose the unchanged public APIs plus the new canonical internal module paths.
 
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
