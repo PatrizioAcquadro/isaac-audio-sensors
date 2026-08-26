@@ -1,4 +1,4 @@
-"""Unit tests for the runtime OmniGraph node and the frame registry."""
+"""Runtime OmniGraph node and frame-registry tests."""
 
 from __future__ import annotations
 

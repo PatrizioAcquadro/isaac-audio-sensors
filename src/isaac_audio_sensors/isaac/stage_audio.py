@@ -44,13 +44,7 @@ def create_sound_prim(
     duration_s: float | None = None,
     gain_db: float = 0.0,
 ) -> AuthoredPrimRecord:
-    """Create or configure a USD sound prim using duck-typed stage APIs.
-
-    The helper intentionally does not require importing ``pxr`` before it
-    authors attributes. Isaac's real USD stage and the lightweight fake stages
-    used by tests both expose ``DefinePrim``; environment validation remains
-    available through ``require_isaac_usd`` for live Isaac smoke checks.
-    """
+    """Create or configure a USD sound prim through stage APIs."""
 
     _require_stage(stage)
     if prim_path.strip() == "":
@@ -299,7 +293,7 @@ def _move_descendant_prims(stage: Any, *, source_path: str, dest_path: str) -> N
         key=lambda item: item[0],
     )
     for path, prim in descendants:
-        new_path = f"{dest_path.rstrip('/')}/{path[len(prefix):]}"
+        new_path = f"{dest_path.rstrip('/')}/{path[len(prefix) :]}"
         moved = get_or_define_prim(
             stage,
             prim_path=new_path,

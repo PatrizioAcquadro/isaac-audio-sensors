@@ -10,11 +10,11 @@ Replace phase- and filename-oriented validation with deterministic test lanes ow
 
 The test tree is divided into `unit`, `contract`, `integration`, `isaac`, `release`, and `fixtures` responsibilities.
 
-`tests/unit/` checks pure DSP, geometry, acoustic effects, motion, DOA, and backend mathematics without optional simulator runtimes.
+`tests/unit/` checks pure DSP, geometry, acoustic effects, motion, DOA, backend mathematics, Kit instruments, profiles, validation, and room/USD utilities without optional simulator runtimes.
 
-`tests/contract/` checks public imports, frame and schema compatibility, calibration, manifests, configuration, capabilities, plugins, CLI behavior, security redaction, and lazy optional-runtime imports.
+`tests/contract/` checks public imports, frame and schema compatibility, calibration, manifests, configuration, capabilities, plugins, Kit architecture, CLI behavior, security redaction, and lazy optional-runtime imports.
 
-`tests/integration/` checks recording, replay, codecs, plugins, filesystem behavior, guided/headless workflows, and cross-component acoustic behavior.
+`tests/integration/` checks real cross-component composition: room acoustics, multi-source and dynamic scenes, motion, waveform and codec I/O, recording/replay/splits/validation, CLI, headless workflows, and Kit services. Simulated Omni UI coverage is limited to one host build/refresh smoke plus failure and cleanup semantics that the live happy path does not prove.
 
 `tests/isaac/` checks Isaac and real-USD integration, visualization, stage motion, cache invalidation, lifecycle behavior, and Isaac Lab parity through the supported Isaac interpreter.
 
@@ -38,7 +38,7 @@ Release builders require a clean Git source because their provenance is bound to
 
 #### Implementation
 
-The focused entry points are `make test`, `make test-release`, and `make test-isaac`. R6.5 adds `make check` as the deterministic host umbrella; live smoke and release behavior are documented in [[topics/validation-and-release|Validation and Release]].
+The focused entry points are `make test`, `make test-integration`, `make test-release`, and `make test-isaac`. R6.5 adds `make check` as the deterministic host umbrella; live smoke and release behavior are documented in [[topics/validation-and-release|Validation and Release]].
 
 #### Key Decisions
 
@@ -47,6 +47,8 @@ Test commands express ownership and runtime requirements directly.
 #### Problems / Limitations
 
 Isaac validation remains a separate runtime lane and is not part of the portable host check. GPU behavior belongs to the live Isaac Lab smoke.
+
+Real Kit rendering, widget wiring, instruments, OmniGraph, audio output, device-mix capture, and cleanup belong to `make smoke-kit`; host fakes are not runtime evidence.
 
 ## Artifacts
 

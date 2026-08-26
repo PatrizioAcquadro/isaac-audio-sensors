@@ -1,4 +1,4 @@
-"""Stateful validation cache, device, and calibration tests."""
+"""Kit validation cache, device, and calibration tests."""
 
 from __future__ import annotations
 
@@ -28,9 +28,7 @@ def _capability(
         status="available" if available else "unavailable",
         origin="bundled" if available else "absent",
         missing_dependencies=() if available else ("pyroomacoustics",),
-        actionable_message=(
-            "" if available else "Install isaac-audio-sensors[room]."
-        ),
+        actionable_message=("" if available else "Install isaac-audio-sensors[room]."),
     )
 
 

@@ -670,7 +670,7 @@ def _path_excluded(path: str, excluded_prefixes: tuple[str, ...]) -> bool:
 
 
 def _prim_attr(prim: Any, name: str) -> Any | None:
-    """Read one attribute from a real USD prim or a duck-typed fake prim."""
+    """Read one attribute from a USD-compatible prim."""
 
     attributes = getattr(prim, "attributes", None)
     if isinstance(attributes, dict):

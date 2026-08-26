@@ -6,7 +6,7 @@
 
 `make check` is the deterministic host gate. It runs version synchronization, Ruff, `git diff --check`, and the unit/contract, integration, and release lanes without requiring a GPU or clean worktree.
 
-`make test` remains the focused pure unit and contract lane. `.venv/bin/python -m pytest -q tests/integration` remains the focused recording, replay, codecs, workflows, filesystem, and cross-component lane.
+`make test` remains the focused pure unit and contract lane. `make test-integration` runs the focused cross-component lane for room acoustics, motion, waveform and codec I/O, recording/replay/splits/validation, CLI, headless workflows, and Kit services.
 
 `make test-release` remains the focused release content, versioning, Python sdist/wheel, Kit, and repository-boundary lane.
 
@@ -28,7 +28,7 @@ Use focused tests during iteration, then run the complete relevant lane before c
 
 `make smoke-isaac-lab` exercises real Lab inheritance, multi-environment bindings, fixed-shape tensors, selected reset/update, and CUDA placement; it fails when the GPU path is unavailable.
 
-`make smoke-kit` exercises the real extension manager, UI/controller workflow, USD stage operations, frame output, optional services, and clean shutdown.
+`make smoke-kit` is the authority for real Kit rendering and wiring. It exercises the extension manager, window, instruments, OmniGraph, USD operations, frame and audio output, qualitative device-mix capture, cleanup, and shutdown on the supported runtime and GPU. Changes that remove simulated UI coverage require this gate to finish with `passed` and every workflow step passing.
 
 Automatic smoke and diagnostic artifacts use temporary paths under `build/validation/isaac_audio_sensors/`. `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT` remains the explicit Kit override.
 

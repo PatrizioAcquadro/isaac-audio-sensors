@@ -63,12 +63,6 @@ _GUIDED_STEP_STYLES = {
 }
 
 
-def _alignment(ui: Any, name: str) -> Any:
-    """Return an omni.ui alignment while keeping lightweight UI fakes usable."""
-
-    return getattr(getattr(ui, "Alignment", None), name, name.lower())
-
-
 def _guided_prompt(window: OmniReferenceWindow, stage: GuidedStage) -> str:
     workflow = window.controller.guided_workflow
     status = workflow.status(stage)
@@ -130,7 +124,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                     step_labels[stage] = ui.Label(
                         f"{index} {stage.value.title()}",
                         height=24,
-                        alignment=_alignment(ui, "CENTER"),
+                        alignment=ui.Alignment.CENTER,
                         tooltip=stage.value.title(),
                     )
                 step_frames[stage] = background
@@ -238,17 +232,13 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             window._bool_row("Apply TVT Split", "guided_split_enabled")
             split_enabled_field = window._bool_fields.pop("guided_split_enabled")
             window._float_row("Train Ratio", "guided_split_train_ratio")
-            train_ratio_field = window._float_fields.pop(
-                "guided_split_train_ratio"
-            )
+            train_ratio_field = window._float_fields.pop("guided_split_train_ratio")
             window._float_row("Validation Ratio", "guided_split_validation_ratio")
             validation_ratio_field = window._float_fields.pop(
                 "guided_split_validation_ratio"
             )
             window._float_row("Test Ratio", "guided_split_test_ratio")
-            test_ratio_field = window._float_fields.pop(
-                "guided_split_test_ratio"
-            )
+            test_ratio_field = window._float_fields.pop("guided_split_test_ratio")
             window._int_row("Split Seed", "guided_session_seed")
             split_seed_field = window._int_fields.pop("guided_session_seed")
             window._button(
@@ -323,11 +313,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                 else (
                     "current"
                     if stage is current
-                    else (
-                        "complete"
-                        if status is StageStatus.COMPLETE
-                        else "upcoming"
-                    )
+                    else ("complete" if status is StageStatus.COMPLETE else "upcoming")
                 )
             )
             style = _GUIDED_STEP_STYLES[style_name]
@@ -369,9 +355,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
                 "stage" if finding.check_id == "stage_present" else "guided_stage"
             )
             _set_widget_text(row["label"], f"{field}: {finding.message}")
-            _set_widget_text(
-                row["button"], workflow.recovery_action(finding).label
-            )
+            _set_widget_text(row["button"], workflow.recovery_action(finding).label)
         run_status = window.controller.guided_run_status
         _set_widget_text(
             run_lifecycle,
@@ -405,8 +389,7 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
         meters = meter_view_models(window.controller.state.latest_aggregate_rms)
         _set_widget_text(
             inspect_meters,
-            "Per-mic RMS: "
-            + (" | ".join(meter.text for meter in meters) or "none"),
+            "Per-mic RMS: " + (" | ".join(meter.text for meter in meters) or "none"),
         )
         _set_widget_text(
             inspect_spectrogram,
@@ -500,12 +483,12 @@ def build_live_monitor_section(window: OmniReferenceWindow) -> None:
 
     ui = window.ui
     with ui.VStack(spacing=4, height=0):
+
         def _toggle_sensor() -> None:
             state = window.controller.state
             guided_run = (
                 state.guided_mode_enabled
-                and window.controller.guided_workflow.current_stage
-                is GuidedStage.RUN
+                and window.controller.guided_workflow.current_stage is GuidedStage.RUN
             )
             if state.sensor_running:
                 if guided_run:
@@ -862,13 +845,13 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                         meter_min_label = ui.Label(
                             "-60",
                             width=48,
-                            alignment=_alignment(ui, "CENTER"),
+                            alignment=ui.Alignment.CENTER,
                         )
                         ui.Spacer(width=_ui_fraction(ui, 1))
                         meter_max_label = ui.Label(
                             "0",
                             width=48,
-                            alignment=_alignment(ui, "CENTER"),
+                            alignment=ui.Alignment.CENTER,
                         )
                     ui.Spacer(width=48)
                 meter_rows: list[dict[str, object]] = []
@@ -881,9 +864,7 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                         zstack_cls = getattr(ui, "ZStack", None)
                         if rectangle_cls is not None and zstack_cls is not None:
                             with zstack_cls(height=14):
-                                rectangle_cls(
-                                    style={"background_color": 0xFF312C27}
-                                )
+                                rectangle_cls(style={"background_color": 0xFF312C27})
                                 with ui.HStack(spacing=0, height=14):
                                     fill = rectangle_cls(
                                         width=_ui_fraction(ui, 0),

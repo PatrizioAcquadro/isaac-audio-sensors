@@ -1,4 +1,4 @@
-"""Unit tests for the pure instrument view-models (no omni.ui required)."""
+"""Kit compass, meter, and detection-timeline tests."""
 
 from __future__ import annotations
 

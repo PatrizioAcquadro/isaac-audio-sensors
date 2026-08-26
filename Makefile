@@ -17,17 +17,20 @@ _require-target:
 	@exit 2
 
 # Quality gates
-.PHONY: check test test-isaac test-release lint format
+.PHONY: check test test-integration test-isaac test-release lint format
 check:
 	$(PYTHON) tools/release/check_version_sync.py
 	$(MAKE) lint
 	git diff --check
 	$(MAKE) test
-	$(PYTHON) -m pytest -q tests/integration
+	$(MAKE) test-integration
 	$(MAKE) test-release
 
 test:
 	$(PYTHON) -m pytest -q
+
+test-integration:
+	$(PYTHON) -m pytest -q tests/integration
 
 test-isaac:
 	PYTHONPATH=$(SOURCE_PYTHONPATH) $(ISAAC_LAB_PYTHON) -m pytest -q tests/isaac

@@ -844,6 +844,22 @@ def _position_for_bearing(
     return (distance * math.cos(radians), distance * math.sin(radians), 0.0)
 
 
+def _position_for_bearing_elevation(
+    bearing_deg: float,
+    elevation_deg: float,
+    *,
+    distance: float = 5.0,
+) -> tuple[float, float, float]:
+    bearing = math.radians(bearing_deg)
+    elevation = math.radians(elevation_deg)
+    horizontal = distance * math.cos(elevation)
+    return (
+        horizontal * math.cos(bearing),
+        horizontal * math.sin(bearing),
+        distance * math.sin(elevation),
+    )
+
+
 def _window(
     array: MicrophoneArraySpec,
     *,
@@ -857,3 +873,90 @@ def _window(
         frame_index=0,
         max_events=max_events,
     )
+
+
+@pytest.mark.parametrize(
+    ("bearing_deg", "elevation_deg"),
+    (
+        (0.0, 0.0),
+        (0.0, 45.0),
+        (90.0, -30.0),
+        (210.0, 20.0),
+        (315.0, -45.0),
+    ),
+)
+def test_tdoa_tetrahedral_clean_elevation_matches_ground_truth(
+    bearing_deg: float,
+    elevation_deg: float,
+) -> None:
+    array = _array("tetrahedral")
+    source = _source(
+        "speaker",
+        _position_for_bearing_elevation(bearing_deg, elevation_deg),
+    )
+    frame = TdoaSyntheticBackend().simulate(
+        _scene(source, array=array),
+        array,
+        _window(array),
+    )
+
+    detection = frame.detections[0]
+    assert detection.ground_truth_elevation_deg == pytest.approx(
+        elevation_deg, abs=1e-6
+    )
+    assert detection.doa.estimated_bearing_deg == pytest.approx(bearing_deg, abs=2.0)
+    assert detection.doa.estimated_elevation_deg == pytest.approx(
+        elevation_deg, abs=2.0
+    )
+    assert detection.doa.candidate_elevation_deg == pytest.approx(
+        (detection.doa.estimated_elevation_deg,)
+    )
+    assert detection.diagnostics["array_geometry_rank_xyz"] == 3
+    assert detection.diagnostics["oracle_elevation_error_deg"] < 2.0
+    assert detection.doa.bearing_confidence > 0.7
+
+
+def test_tdoa_planar_array_keeps_elevation_none() -> None:
+    array = _array("quad_front")
+    source = _source(
+        "speaker",
+        _position_for_bearing_elevation(90.0, 35.0),
+    )
+    detection = (
+        TdoaSyntheticBackend()
+        .simulate(
+            _scene(source, array=array),
+            array,
+            _window(array),
+        )
+        .detections[0]
+    )
+
+    assert detection.doa.estimated_elevation_deg is None
+    assert detection.doa.candidate_elevation_deg == ()
+    assert detection.doa.estimated_bearing_deg == pytest.approx(90.0, abs=2.0)
+    assert detection.ground_truth_elevation_deg == pytest.approx(35.0, abs=1e-6)
+    assert detection.diagnostics["array_geometry_rank_xyz"] == 2
+    assert detection.diagnostics["oracle_elevation_error_deg"] is None
+
+
+def test_geometry_backend_emits_exact_elevation() -> None:
+    array = _array("quad_front")
+    detection = (
+        GeometryBackend()
+        .simulate(
+            _scene(_source("speaker", (3.0, 0.0, 4.0)), array=array),
+            array,
+            _window(array),
+        )
+        .detections[0]
+    )
+
+    expected_elevation = math.degrees(math.asin(4.0 / 5.0))
+    assert detection.doa.estimated_elevation_deg == pytest.approx(
+        expected_elevation, abs=1e-9
+    )
+    assert detection.ground_truth_elevation_deg == pytest.approx(
+        expected_elevation, abs=1e-9
+    )
+    assert detection.doa.candidate_elevation_deg == pytest.approx((expected_elevation,))

@@ -194,13 +194,13 @@ def diagnostic_time_code(time_code: Any | None) -> Any | None:
 
 
 def prim_path(prim: Any) -> str:
-    """Return a prim path for real or fake prims."""
+    """Return a USD-compatible prim path."""
 
     return _prim_path(prim)
 
 
 def prim_type_name(prim: Any) -> str:
-    """Return a prim type name for real or fake prims."""
+    """Return a USD-compatible prim type name."""
 
     return _prim_type_name(prim)
 

@@ -1,4 +1,4 @@
-"""Integration tests for Kit configuration profiles."""
+"""Kit sound and microphone-rig profile tests."""
 
 from __future__ import annotations
 
@@ -12,6 +12,72 @@ from isaac_audio_sensors.kit.microphone_rig_profiles import (
     microphone_rig_profile_from_mapping,
     validate_microphone_rig_profile_library,
 )
+from isaac_audio_sensors.kit.sound_profiles import (
+    SoundProfile,
+    default_object_profile_mappings,
+    default_sound_profiles,
+)
+
+
+def test_sound_profiles_validate_default_library_and_safe_assets():
+    profiles = default_sound_profiles()
+    profile_ids = tuple(profile.profile_id for profile in profiles)
+
+    assert profile_ids == (
+        "speech_generic",
+        "oven_stove",
+        "sink_water",
+        "door_knock",
+        "footsteps_movement",
+    )
+    assert len(set(profile_ids)) == len(profile_ids)
+    assert {profile.audio_asset_path for profile in profiles} <= {
+        "generated://impulse",
+        "generated://pulse",
+    }
+    assert {profile.loop_count for profile in profiles} == {0}
+    assert default_object_profile_mappings(profiles)["oven"] == "oven_stove"
+    assert default_object_profile_mappings(profiles)["sink"] == "sink_water"
+
+    with pytest.raises(ValueError, match="audio_asset_path"):
+        SoundProfile(
+            profile_id="unsafe",
+            display_label="Unsafe",
+            object_label_aliases=("unsafe",),
+            source_id_template="{object_slug}_source",
+            class_label="Unsafe",
+            audio_asset_path="/tmp/private.wav",
+            start_time_s=0.0,
+            duration_s=1.0,
+            gain_db=0.0,
+        )
+
+    with pytest.raises(ValueError, match="duration_s"):
+        SoundProfile(
+            profile_id="bad_duration",
+            display_label="Bad Duration",
+            object_label_aliases=("bad",),
+            source_id_template="{object_slug}_source",
+            class_label="Bad",
+            audio_asset_path="generated://impulse",
+            start_time_s=0.0,
+            duration_s=0.0,
+            gain_db=0.0,
+        )
+
+    with pytest.raises(ValueError, match="loop_count"):
+        SoundProfile(
+            profile_id="bad_loop",
+            display_label="Bad Loop",
+            object_label_aliases=("bad",),
+            source_id_template="{object_slug}_source",
+            class_label="Bad",
+            audio_asset_path="generated://impulse",
+            start_time_s=0.0,
+            duration_s=1.0,
+            gain_db=0.0,
+            loop_count=-2,
+        )
 
 
 def test_default_rig_library_contains_named_presets_with_valid_geometry():
@@ -24,9 +90,7 @@ def test_default_rig_library_contains_named_presets_with_valid_geometry():
     assert [len(profile.microphone_ids) for profile in profiles] == [4, 2]
     for profile in profiles:
         assert profile.layout_name in RIG_LAYOUT_CHOICES
-        assert len(profile.microphone_relative_offsets_m) == len(
-            profile.microphone_ids
-        )
+        assert len(profile.microphone_relative_offsets_m) == len(profile.microphone_ids)
         assert len(profile.microphone_gains_db) == len(profile.microphone_ids)
         assert profile.sample_rate_hz == 48_000
         assert profile.mount_local_offset_m == (0.0, 0.0, 0.0)
@@ -115,9 +179,7 @@ def test_rig_profile_validation_rejects_bad_inputs():
     with pytest.raises(ValueError, match="sample_rate_hz"):
         MicrophoneRigProfile(**{**base, "sample_rate_hz": 0})
     with pytest.raises(ValueError, match="absolute USD prim path"):
-        MicrophoneRigProfile(
-            **{**base, "recommended_mount_prim_path": "relative/path"}
-        )
+        MicrophoneRigProfile(**{**base, "recommended_mount_prim_path": "relative/path"})
 
 
 def test_rig_profile_library_rejects_duplicates_and_empty():

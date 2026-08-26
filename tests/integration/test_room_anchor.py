@@ -6,7 +6,6 @@ import math
 
 import pytest
 
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.constants import ROOM_CLAMP_MARGIN_M
 from isaac_audio_sensors.core.microphone_array import (
@@ -20,14 +19,6 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     RoomAcousticsSpec,
 )
-from isaac_audio_sensors.isaac.usd_bounds import (
-    resolve_room_absorption,
-    world_aligned_bbox,
-)
-from isaac_audio_sensors.isaac.viz.overlays import (
-    build_debug_primitives,
-    room_outline_points,
-)
 from tests.helpers import (
     FakeShoeBox as _FakeShoeBox,
 )
@@ -39,18 +30,6 @@ ROOM_MIN_WORLD = (2.0, 1.0, 0.0)
 ROOM_MAX_WORLD = (8.0, 5.0, 3.0)
 ARRAY_POSITION = (4.0, 3.0, 1.5)
 SOURCE_POSITION = (6.0, 2.0, 1.0)
-
-
-class _FakePrim:
-    def __init__(
-        self,
-        path: str,
-        type_name: str,
-        attributes: dict[str, object],
-    ) -> None:
-        self.path = path
-        self.type_name = type_name
-        self.attributes = attributes
 
 
 def _array(position=ARRAY_POSITION):
@@ -106,36 +85,6 @@ def _window() -> AudioTimeWindow:
         timestamp_ms=0,
         sample_rate_hz=48_000,
     )
-
-
-def test_room_spec_from_bounds_sets_dimensions_and_origin():
-    room = _anchored_room()
-
-    assert room.dimensions_m == (6.0, 4.0, 3.0)
-    assert room.origin_m == ROOM_MIN_WORLD
-    assert room.anchor_prim_path == "/World/Room"
-    assert room.out_of_bounds == "error"
-
-
-def test_room_spec_from_bounds_rejects_degenerate_bounds():
-    with pytest.raises(ValueError, match=r"/World/FlatRoom.*degenerate"):
-        room_spec_from_bounds(
-            min_world=(0.0, 0.0, 0.0),
-            max_world=(4.0, 3.0, 0.0),
-            room_id="flat",
-            anchor_prim_path="/World/FlatRoom",
-        )
-
-
-def test_room_spec_rejects_unknown_out_of_bounds_policy():
-    with pytest.raises(ValueError, match="out_of_bounds"):
-        RoomAcousticsSpec(
-            room_id="bad_policy",
-            dimensions_m=(4.0, 4.0, 3.0),
-            absorption=0.35,
-            max_order=0,
-            out_of_bounds="ignore",
-        )
 
 
 def test_room_anchored_mic_wall_distances_match_stage_geometry(monkeypatch):
@@ -206,163 +155,3 @@ def test_room_out_of_bounds_clamp_pulls_inside_and_reports(monkeypatch):
     assert source_room[0] == pytest.approx(6.0 - ROOM_CLAMP_MARGIN_M)
     assert source_room[1] == pytest.approx(1.0)
     assert source_room[2] == pytest.approx(1.0)
-
-
-def test_world_aligned_bbox_from_explicit_attrs():
-    prim = _FakePrim(
-        "/World/Room",
-        "Xform",
-        {
-            "ias:room_min_world": ROOM_MIN_WORLD,
-            "ias:room_max_world": ROOM_MAX_WORLD,
-        },
-    )
-
-    minimum, maximum = world_aligned_bbox(prim, prim_path="/World/Room")
-
-    assert minimum == ROOM_MIN_WORLD
-    assert maximum == ROOM_MAX_WORLD
-
-
-def test_world_aligned_bbox_from_size_and_position():
-    prim = _FakePrim(
-        "/World/Room",
-        "Xform",
-        {
-            "ias:position_world": (5.0, 3.0, 1.5),
-            "ias:room_size_m": (6.0, 4.0, 3.0),
-        },
-    )
-
-    minimum, maximum = world_aligned_bbox(prim, prim_path="/World/Room")
-
-    assert minimum == (2.0, 1.0, 0.0)
-    assert maximum == (8.0, 5.0, 3.0)
-
-
-def test_world_aligned_bbox_errors_without_bounds():
-    prim = _FakePrim("/World/Room", "Xform", {})
-
-    with pytest.raises(ValueError, match="/World/Room"):
-        world_aligned_bbox(prim, prim_path="/World/Room")
-
-
-def test_room_absorption_precedence_attr_then_tag_then_default():
-    semantic_table = {"concrete": 0.05, "carpet": 0.30}
-
-    explicit = _FakePrim(
-        "/World/Room",
-        "Xform",
-        {"ias:absorption": 0.6, "ias:material": "concrete"},
-    )
-    assert resolve_room_absorption(
-        explicit,
-        semantic_absorption=semantic_table,
-        default=0.35,
-    ) == (0.6, "attr:ias:absorption")
-
-    material = _FakePrim("/World/Room", "Xform", {"ias:material": "Concrete"})
-    assert resolve_room_absorption(
-        material,
-        semantic_absorption=semantic_table,
-        default=0.35,
-    ) == (0.05, "semantic:Concrete")
-
-    semantic = _FakePrim(
-        "/World/Room",
-        "Xform",
-        {"semantic:Semantics:params:semanticData": "carpet"},
-    )
-    assert resolve_room_absorption(
-        semantic,
-        semantic_absorption=semantic_table,
-        default=0.35,
-    ) == (0.30, "semantic:carpet")
-
-    untagged = _FakePrim("/World/Room", "Xform", {"ias:material": "marble"})
-    assert resolve_room_absorption(
-        untagged,
-        semantic_absorption=semantic_table,
-        default=0.35,
-    ) == (0.35, "config")
-
-
-def test_room_outline_polyline_covers_all_box_edges():
-    origin = (2.0, 1.0, 0.0)
-    dimensions = (6.0, 4.0, 3.0)
-
-    points = room_outline_points(origin_m=origin, dimensions_m=dimensions)
-
-    assert len(points) == 16
-    drawn_edges = {
-        frozenset((start, end)) for start, end in zip(points, points[1:], strict=False)
-    }
-
-    def corner(x_max: bool, y_max: bool, z_max: bool):
-        return (
-            origin[0] + (dimensions[0] if x_max else 0.0),
-            origin[1] + (dimensions[1] if y_max else 0.0),
-            origin[2] + (dimensions[2] if z_max else 0.0),
-        )
-
-    expected_edges = set()
-    for z_max in (False, True):
-        expected_edges.add(
-            frozenset((corner(False, False, z_max), corner(True, False, z_max)))
-        )
-        expected_edges.add(
-            frozenset((corner(True, False, z_max), corner(True, True, z_max)))
-        )
-        expected_edges.add(
-            frozenset((corner(True, True, z_max), corner(False, True, z_max)))
-        )
-        expected_edges.add(
-            frozenset((corner(False, True, z_max), corner(False, False, z_max)))
-        )
-    for x_max in (False, True):
-        for y_max in (False, True):
-            expected_edges.add(
-                frozenset((corner(x_max, y_max, False), corner(x_max, y_max, True)))
-            )
-    assert len(expected_edges) == 12
-    assert expected_edges <= drawn_edges
-
-
-def test_debug_primitives_include_room_outline_only_with_room():
-    array = _array()
-    room_scene = _scene(_anchored_room())
-    frame = GeometryBackend().simulate(room_scene, array, _window())
-
-    primitives = build_debug_primitives(
-        frame=frame,
-        scene=room_scene,
-        sensor=array,
-    )
-
-    outlines = [
-        primitive for primitive in primitives if primitive.kind == "room_outline"
-    ]
-    assert len(outlines) == 1
-    outline = outlines[0]
-    assert outline.label == "room:anchored_room"
-    assert len(outline.points_world) == 16
-    assert outline.metadata == {
-        "room_id": "anchored_room",
-        "dimensions_m": (6.0, 4.0, 3.0),
-        "origin_m": ROOM_MIN_WORLD,
-        "anchor_prim_path": "/World/Room",
-    }
-
-    roomless_scene = AudioSceneSnapshot(
-        stage_id="room_anchor_test",
-        timestamp_ms=0,
-        sources=(_source(),),
-        arrays=(array,),
-    )
-    roomless_frame = GeometryBackend().simulate(roomless_scene, array, _window())
-    roomless_primitives = build_debug_primitives(
-        frame=roomless_frame,
-        scene=roomless_scene,
-        sensor=array,
-    )
-    assert all(primitive.kind != "room_outline" for primitive in roomless_primitives)

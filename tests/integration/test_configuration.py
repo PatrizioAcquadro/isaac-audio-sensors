@@ -1,8 +1,18 @@
-# ruff: noqa: F403, F405
+import json
+from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
+
+from isaac_audio_sensors.kit import ExtensionController
+from isaac_audio_sensors.kit.constants import OUTPUT_ROOT_ENV_VAR
+from isaac_audio_sensors.kit.microphone_rig_profiles import (
+    default_microphone_rig_profiles,
+)
+from isaac_audio_sensors.kit.paths import _gui_output_root, _resolve_gui_output_path
 from isaac_audio_sensors.kit.sensor_session import SensorSession
-
-from ._kit_ui_support import *
+from isaac_audio_sensors.kit.state import CurrentStageContext
+from tests.kit_helpers import _FakePrim, _FakeStage
 
 
 def test_kit_resolves_relative_validation_paths_against_repo(monkeypatch):
@@ -16,18 +26,6 @@ def test_kit_resolves_relative_validation_paths_against_repo(monkeypatch):
     )
     assert _resolve_gui_output_path("manual/binding.json") == (
         root / "manual" / "binding.json"
-    )
-
-
-def test_live_ux_observes_orientation_without_controller_private_method(monkeypatch):
-    live_ux = _load_live_ux_script(monkeypatch)
-    controller = ExtensionController()
-    controller.state.array_yaw_deg = 90.0
-
-    observed = live_ux._observed_config_state(controller)
-
-    assert observed["array_orientation_world_quat"] == pytest.approx(
-        quaternion_from_yaw_deg(90.0)
     )
 
 
@@ -361,118 +359,3 @@ def test_extension_controller_waveform_settings_flow_to_sensor_and_config(
     assert restored.state.waveform_enabled is True
     assert restored.state.waveform_dir == "wavs"
     assert restored.state.waveform_mode == "session"
-
-
-def test_kit_config_roundtrips_edited_widget_state(tmp_path, monkeypatch):
-    omni = ModuleType("omni")
-    omni_ui = _FakeUI()
-    omni.ui = omni_ui
-    monkeypatch.setitem(sys.modules, "omni", omni)
-    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
-    stage = _FakeStage(
-        (_FakePrim("/World", "Xform", {"xformOp:translate": (0, 0, 0)}),)
-    )
-    controller = ExtensionController(
-        stage_context_provider=lambda: CurrentStageContext(stage, ())
-    )
-    controller.state.config_export_path = str(tmp_path / "binding.json")
-    assert controller.build_ui_if_available() is not None
-    window = controller._lifecycle._ui_window
-    assert window is not None
-
-    window._string_fields["source_id"].model.set_value("edited_source")
-    window._string_fields["array_prim_path"].model.set_value("/World/EditedArray")
-    window._string_fields["source_prim_path"].model.set_value("/World/EditedSource")
-    window._string_fields["object_prim_path"].model.set_value("/World/EditedObject")
-    window._string_fields["jsonl_trace_path"].model.set_value(
-        str(tmp_path / "edited.frames.jsonl")
-    )
-    window._string_fields["replicator_output_dir"].model.set_value(
-        str(tmp_path / "replicator")
-    )
-    window._float_fields["source_duration_s"].model.set_value("60.0")
-    window._int_fields["source_loop_count"].model.set_value("2")
-    window._float_fields["source_position_x_m"].model.set_value("0.0")
-    window._float_fields["source_position_y_m"].model.set_value("2.0")
-    window._float_fields["source_position_z_m"].model.set_value("0.5")
-    window._float_fields["source_local_offset_x_m"].model.set_value("0.25")
-    window._float_fields["source_local_offset_y_m"].model.set_value("0.5")
-    window._float_fields["source_local_offset_z_m"].model.set_value("0.75")
-    window._int_fields["sample_rate_hz"].model.set_value("44100")
-    backend_widget, backend_choices = window._combo_fields["backend"]
-    backend_widget.model.set_value(backend_choices.index("geometry_only"))
-    layout_widget, layout_choices = window._combo_fields["layout_name"]
-    layout_widget.model.set_value(layout_choices.index("mono"))
-    ambiguity_widget, ambiguity_choices = window._combo_fields["ambiguity_policy"]
-    ambiguity_widget.model.set_value(len(ambiguity_choices) - 1)
-    window._bool_fields["debug_overlay_enabled"].model.set_value(False)
-    window._bool_fields["occlusion_enabled"].model.set_value(True)
-    window._bool_fields["trace_enabled"].model.set_value(True)
-    window._bool_fields["replicator_enabled"].model.set_value(True)
-    window.sync_state_from_widgets()
-
-    assert controller.state.source_id == "edited_source"
-    assert controller.state.source_duration_s == 60.0
-    assert controller.state.source_loop_count == 2
-    assert controller.state.source_position_y_m == 2.0
-    assert controller.state.source_local_offset_z_m == 0.75
-    assert controller.state.object_prim_path == "/World/EditedObject"
-    assert controller.state.sample_rate_hz == 44100
-    assert controller.state.backend == "geometry_only"
-    assert controller.state.layout_name == "mono"
-    assert controller.state.debug_overlay_enabled is False
-    assert controller.state.occlusion_enabled is True
-    assert controller.state.replicator_enabled is True
-
-    path = controller.export_config_summary()
-    summary = json.loads(path.read_text(encoding="utf-8"))
-    assert summary["array"]["sample_rate_hz"] == 44100
-    assert summary["array"]["prim_path"] == "/World/EditedArray"
-    assert summary["array"]["layout_name"] == "mono"
-    assert summary["source"]["source_id"] == "edited_source"
-    assert summary["source"]["prim_path"] == "/World/EditedSource"
-    assert summary["source"]["duration_s"] == 60.0
-    assert summary["source"]["loop_count"] == 2
-    assert summary["source"]["position_world"] == [0.0, 2.0, 0.5]
-    assert summary["source"]["local_offset_m"] == [0.25, 0.5, 0.75]
-    assert summary["object_binding"]["selected_object_prim_path"] == (
-        "/World/EditedObject"
-    )
-    assert summary["object_binding"]["source_local_offset_m"] == [0.25, 0.5, 0.75]
-    assert summary["backend"] == "geometry_only"
-    assert summary["lifecycle"]["debug_overlay_enabled"] is False
-    assert summary["lifecycle"]["occlusion_enabled"] is True
-    assert summary["recording"]["package_jsonl"]["enabled"] is True
-    assert summary["recording"]["replicator"]["enabled"] is True
-
-    imported = ExtensionController()
-    assert imported.build_ui_if_available() is not None
-    imported_window = imported._lifecycle._ui_window
-    assert imported_window is not None
-    assert imported.import_config_summary(path) == path
-    imported_window.push_state_to_widgets()
-    imported_window.sync_state_from_widgets()
-
-    assert imported.state.backend == "geometry_only"
-    assert imported.state.layout_name == "mono"
-    assert imported.state.source_id == "edited_source"
-    assert imported.state.source_duration_s == 60.0
-    assert imported.state.source_loop_count == 2
-    assert imported.state.source_position_x_m == 0.0
-    assert imported.state.source_position_y_m == 2.0
-    assert imported.state.source_position_z_m == 0.5
-    assert imported.state.source_local_offset_x_m == 0.25
-    assert imported.state.source_local_offset_y_m == 0.5
-    assert imported.state.source_local_offset_z_m == 0.75
-    assert imported.state.sample_rate_hz == 44100
-    assert imported.state.array_prim_path == "/World/EditedArray"
-    assert imported.state.source_prim_path == "/World/EditedSource"
-    assert imported.state.object_prim_path == "/World/EditedObject"
-    assert imported.state.debug_overlay_enabled is False
-    assert imported.state.occlusion_enabled is True
-    assert imported.state.trace_enabled is True
-    assert imported.state.replicator_enabled is True
-    imported_backend_widget, _ = imported_window._combo_fields["backend"]
-    imported_layout_widget, _ = imported_window._combo_fields["layout_name"]
-    assert imported_backend_widget.model.value == backend_choices.index("geometry_only")
-    assert imported_layout_widget.model.value == layout_choices.index("mono")

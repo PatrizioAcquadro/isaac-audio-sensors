@@ -1,6 +1,16 @@
-# ruff: noqa: F403, F405
+import json
+from pathlib import Path
 
-from ._kit_ui_support import *
+from isaac_audio_sensors.isaac.replicator import PAYLOAD_SCHEMA_VERSION
+from isaac_audio_sensors.kit import ExtensionController
+from isaac_audio_sensors.kit.constants import OUTPUT_ROOT_ENV_VAR
+from isaac_audio_sensors.kit.state import CurrentStageContext
+from tests.kit_helpers import (
+    _FakePrim,
+    _FakeStage,
+    _install_fake_kit_update_stream,
+    _install_fake_replicator,
+)
 
 
 def test_extension_controller_auto_update_skips_duplicate_replicator_writes(

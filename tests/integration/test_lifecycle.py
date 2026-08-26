@@ -1,6 +1,21 @@
-# ruff: noqa: F403, F405
+import json
+import os
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
 
-from ._kit_ui_support import *
+from isaac_audio_sensors.kit import ExtensionController
+from isaac_audio_sensors.kit.stage_context import current_omni_stage_context
+from isaac_audio_sensors.kit.state import CurrentStageContext
+from tests.kit_helpers import (
+    _FakePrim,
+    _FakeStage,
+    _FakeStageEventStream,
+    _install_fake_kit_integrations,
+    _install_fake_stage_events,
+)
 
 
 def test_shutdown_releases_all_resources_after_one_cleanup_failure(monkeypatch):
@@ -267,13 +282,7 @@ def test_extension_controller_polling_fallback_follows_selection():
     assert "adopted as source" in controller.state.status_message
 
 
-def test_extension_controller_live_sync_pose_follows_prim_moves(monkeypatch):
-    omni = ModuleType("omni")
-    omni.__path__ = []
-    omni_ui = _FakeUI()
-    omni.ui = omni_ui
-    monkeypatch.setitem(sys.modules, "omni", omni)
-    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
+def test_extension_controller_live_sync_pose_follows_prim_moves():
     source_prim = _FakePrim(
         "/World/Sources/SpeakerA",
         "Xform",
@@ -292,8 +301,6 @@ def test_extension_controller_live_sync_pose_follows_prim_moves(monkeypatch):
     controller.state.array_prim_path = "/World/Rig/AudioArray"
     controller.state.live_sync_source_pose = True
     controller.state.live_sync_array_pose = True
-    assert controller.build_ui_if_available() is not None
-    window = controller._lifecycle._ui_window
 
     controller._lifecycle._viewport_follow_tick()
     assert controller.state.source_position_x_m == 2.0
@@ -305,64 +312,11 @@ def test_extension_controller_live_sync_pose_follows_prim_moves(monkeypatch):
     assert controller.state.source_position_x_m == 3.5
     assert controller.state.source_position_y_m == -1.0
     assert controller.state.array_position_y_m == 2.0
-    assert window._float_fields["source_position_x_m"].model.value == 3.5
 
-    # Disabled sync stops mirroring.
     controller.state.live_sync_source_pose = False
     source_prim.attributes["xformOp:translate"] = (9.0, 9.0, 9.0)
     controller._lifecycle._viewport_follow_tick()
     assert controller.state.source_position_x_m == 3.5
-
-
-def test_extension_controller_registers_menu_action_hotkey_and_cleans_up(
-    monkeypatch,
-):
-    kit = _install_fake_kit_integrations(monkeypatch)
-    controller = ExtensionController()
-
-    controller.on_startup("isaac_audio_sensors.omni")
-
-    assert controller.window is not None
-    assert controller.window.visible is True
-    assert ("isaac_audio_sensors.omni", "toggle_window") in kit.actions.actions
-    assert kit.menu.added[0][0] == "Window"
-    menu_item = kit.menu.added[0][1][0]
-    assert menu_item.name == "Isaac Audio Sensors"
-    assert menu_item.onclick_action == ("isaac_audio_sensors.omni", "toggle_window")
-    assert menu_item.ticked_fn() is True
-    assert kit.hotkeys is not None
-    assert [(item.key, item.action_id) for item in kit.hotkeys.hotkeys] == [
-        ("CTRL + ALT + A", "toggle_window")
-    ]
-
-    kit.actions.execute_action("isaac_audio_sensors.omni", "toggle_window")
-    assert controller.window.visible is False
-    assert menu_item.ticked_fn() is False
-
-    kit.actions.execute_action("isaac_audio_sensors.omni", "toggle_window")
-    assert controller.window.visible is True
-
-    controller.on_shutdown()
-
-    assert kit.hotkeys.hotkeys == []
-    assert kit.menu.removed[0][0] == "Window"
-    assert ("isaac_audio_sensors.omni", "toggle_window") not in kit.actions.actions
-
-
-def test_extension_controller_reopens_window_after_close_x(monkeypatch):
-    kit = _install_fake_kit_integrations(monkeypatch)
-    controller = ExtensionController()
-    controller.on_startup("isaac_audio_sensors.omni")
-    window = controller.window
-    assert window is not None
-
-    window.visible = False
-    assert controller.is_window_visible() is False
-
-    reopened = kit.actions.execute_action("isaac_audio_sensors.omni", "toggle_window")
-
-    assert reopened is window
-    assert window.visible is True
 
 
 def test_extension_controller_keeps_menu_action_when_hotkeys_unavailable(monkeypatch):
@@ -375,16 +329,3 @@ def test_extension_controller_keeps_menu_action_when_hotkeys_unavailable(monkeyp
     assert kit.menu.added
     assert "hotkey unavailable" in controller.hotkey_status.lower()
     assert "menu/action remain registered" in controller.hotkey_status
-
-
-def test_extension_controller_versioned_id_reads_base_shortcut_setting(monkeypatch):
-    kit = _install_fake_kit_integrations(monkeypatch, shortcut="SHIFT + A")
-    controller = ExtensionController()
-
-    controller.on_startup("isaac_audio_sensors.omni-1.0.0")
-
-    assert kit.hotkeys is not None
-    assert [(item.key, item.action_id) for item in kit.hotkeys.hotkeys] == [
-        ("SHIFT + A", "toggle_window")
-    ]
-    assert "SHIFT + A" in controller.hotkey_status

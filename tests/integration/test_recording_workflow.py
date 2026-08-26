@@ -13,13 +13,11 @@ import pytest
 import isaac_audio_sensors.kit.recording_workflow as recording_workflow_module
 from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.kit.controller import ExtensionController
-from isaac_audio_sensors.kit.sections import build_guided_section
 from isaac_audio_sensors.kit.state import (
     CurrentStageContext,
     ExtensionUiState,
 )
 from isaac_audio_sensors.kit.validation import ValidationReport
-from isaac_audio_sensors.kit.window import OmniReferenceWindow
 from isaac_audio_sensors.kit.workflow import (
     GUIDED_STAGE_ORDER,
     SAFE_PRESET_LIBRARY,
@@ -35,83 +33,6 @@ from isaac_audio_sensors.recording.validate import Finding, validate_dataset
 class _FakeStage:
     def GetPrimAtPath(self, _path: object) -> object:
         return object()
-
-
-class _FakeModel:
-    def __init__(self, value: object = None) -> None:
-        self.value = value
-        self.changed: list[Any] = []
-
-    @property
-    def as_int(self) -> int:
-        return int(self.value or 0)
-
-    def get_item_value_model(self) -> _FakeModel:
-        return self
-
-    def add_item_changed_fn(self, callback: Any) -> Any:
-        self.changed.append(callback)
-        return callback
-
-    def add_value_changed_fn(self, callback: Any) -> Any:
-        self.changed.append(callback)
-        return callback
-
-    def set_value(self, value: object) -> None:
-        self.value = value
-        for callback in self.changed:
-            callback(self)
-
-
-class _FakeWidget:
-    stack: list[_FakeWidget] = []
-
-    def __init__(self, *args: object, kind: str, **kwargs: object) -> None:
-        self.kind = kind
-        self.text = args[0] if args and isinstance(args[0], str) else ""
-        self.model = kwargs.get("model") or _FakeModel(
-            args[0] if args and isinstance(args[0], int) else None
-        )
-        self.visible = True
-        self.kwargs = kwargs
-        self.children: list[_FakeWidget] = []
-        if self.stack:
-            self.stack[-1].children.append(self)
-
-    def __enter__(self) -> _FakeWidget:
-        self.stack.append(self)
-        return self
-
-    def __exit__(self, *_args: object) -> bool:
-        self.stack.pop()
-        return False
-
-
-class _FakeUi:
-    def __init__(self) -> None:
-        _FakeWidget.stack = []
-        self.created: list[_FakeWidget] = []
-        self.VStack = self._factory("VStack")
-        self.HStack = self._factory("HStack")
-        self.ZStack = self._factory("ZStack")
-        self.Rectangle = self._factory("Rectangle")
-        self.Label = self._factory("Label")
-        self.ComboBox = self._factory("ComboBox")
-        self.Button = self._factory("Button")
-        self.StringField = self._factory("StringField")
-        self.CheckBox = self._factory("CheckBox")
-        self.SimpleStringModel = _FakeModel
-        self.SimpleBoolModel = _FakeModel
-        self.SimpleIntModel = _FakeModel
-        self.SimpleFloatModel = _FakeModel
-
-    def _factory(self, kind: str) -> Any:
-        def _create(*args: object, **kwargs: object) -> _FakeWidget:
-            widget = _FakeWidget(*args, kind=kind, **kwargs)
-            self.created.append(widget)
-            return widget
-
-        return _create
 
 
 def _controller(stage_box: dict[str, object | None]) -> ExtensionController:
@@ -310,7 +231,7 @@ def test_xvf3800_preset_matches_demo_config_claims() -> None:
         ),
     ),
 )
-def test_invalid_field_maps_to_exact_widget_and_recovery_unblocks(
+def test_invalid_field_maps_to_recovery_and_unblocks(
     field: str,
     bad_value: object,
     check_id: str,
@@ -351,52 +272,6 @@ def test_absent_stage_has_open_stage_recovery() -> None:
     stage_box["stage"] = _FakeStage()
     action()
     assert controller.guided_validate().ok
-
-
-def test_guided_section_builds_and_refreshes_on_workflow_change() -> None:
-    stage_box: dict[str, object | None] = {"stage": _FakeStage()}
-    controller = _controller(stage_box)
-    ui = _FakeUi()
-    window = OmniReferenceWindow(controller, ui)
-
-    build_guided_section(window)
-
-    labels = [widget.text for widget in ui.created if widget.kind == "Label"]
-    buttons = [widget.text for widget in ui.created if widget.kind == "Button"]
-    assert "1 Setup" in labels
-    step_labels = window._guided_panel["step_labels"]
-    step_frames = window._guided_panel["step_frames"]
-    assert step_frames[GuidedStage.SETUP].style["border_width"] == 2
-    assert step_labels[GuidedStage.SETUP].style["color"] == 0xFFF4E3D5
-    assert all(
-        label.kwargs["alignment"] == "center" for label in step_labels.values()
-    )
-    assert window._guided_panel["stage_status"].text == (
-        "Apply a safe preset to continue."
-    )
-    assert "Apply Safe Preset" in buttons
-    assert "Validate Setup" in buttons
-    assert "Start Guided Run" not in buttons
-    assert "Mark Inspected" in buttons
-    assert "Start Recording" in buttons
-    assert "Cancel" in buttons
-    assert "Stop & Finalize" in buttons
-    assert "Export Dataset" in buttons
-    assert len([widget for widget in ui.created if widget.kind == "ComboBox"]) == 1
-    assert window._guided_panel["start_recording_button"].visible is True
-    assert window._guided_panel["stop_recording_button"].visible is False
-    assert window._guided_panel["cancel_recording_button"].visible is False
-
-    controller.guided_apply_preset("minimal_single_source")
-    controller.guided_advance()
-
-    assert window._guided_panel["setup_panel"].visible is False
-    assert window._guided_panel["validate_panel"].visible is True
-    assert step_frames[GuidedStage.SETUP].style["border_color"] == 0xFF4F9B62
-    assert step_frames[GuidedStage.VALIDATE].style["border_width"] == 2
-    assert window._guided_panel["stage_status"].text == (
-        "Run validation to continue."
-    )
 
 
 def test_guided_run_observes_frame_then_stop_regresses(
@@ -854,15 +729,6 @@ def test_guided_export_validates_relocated_copy_and_inventory_without_symlinks(
         assert entry["sha256"] == marker_entry["sha256"]
     assert status.inventory_entries == len(inventory)
     assert status.inventory_bytes == sum(entry["bytes"] for entry in inventory)
-
-    ui = _FakeUi()
-    window = OmniReferenceWindow(controller, ui)
-    build_guided_section(window)
-    assert window._guided_panel["export_panel"].visible is True
-    assert "Output inventory:" in window._guided_panel["inventory_summary"].text
-    assert f"Totals: {len(inventory)} files" in (
-        window._guided_panel["inventory_totals"].text
-    )
 
 
 def test_guided_export_rejects_destination_inside_session(

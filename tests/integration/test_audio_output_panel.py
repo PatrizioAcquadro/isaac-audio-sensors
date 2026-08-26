@@ -1,4 +1,4 @@
-"""Unit tests for WAV reading, waveform/spectrogram rasters, and audition."""
+"""WAV reader and audition integration tests."""
 
 from __future__ import annotations
 
@@ -11,13 +11,6 @@ import pytest
 
 from isaac_audio_sensors.core.io.wave_read import read_wav
 from isaac_audio_sensors.kit.audition import AuditionPlayer
-from isaac_audio_sensors.kit.spectro import (
-    mixdown,
-    render_spectrogram_rgba,
-    render_waveform_rgba,
-    stft_db,
-    waveform_envelope,
-)
 
 
 def _wav_bytes(
@@ -63,7 +56,7 @@ def _sine(frequency_hz: float, *, sample_rate_hz: int, duration_s: float = 0.25)
 
 @pytest.mark.parametrize("audio_format", [3, 1])
 def test_read_wav_stdlib_parses_float32_and_pcm16(tmp_path, monkeypatch, audio_format):
-    monkeypatch.setitem(sys.modules, "soundfile", None)  # force stdlib reader
+    monkeypatch.setitem(sys.modules, "soundfile", None)
     sample_rate = 8000
     samples = np.stack(
         [
@@ -106,47 +99,6 @@ def test_read_wav_uses_soundfile_when_available(tmp_path):
     assert data.channel_count == 1
     assert data.sample_rate_hz == sample_rate
     np.testing.assert_allclose(data.samples, samples, atol=1e-6)
-
-
-def test_mixdown_and_envelope():
-    samples = np.array([[1.0, -1.0, 0.5, -0.5], [0.0, 0.0, 0.5, -0.5]])
-    mono = mixdown(samples)
-    np.testing.assert_allclose(mono, [0.5, -0.5, 0.5, -0.5])
-    envelope = waveform_envelope(samples, bins=2)
-    assert envelope.shape == (2, 2)
-    assert envelope[0, 0] == -0.5
-    assert envelope[0, 1] == 0.5
-    assert waveform_envelope(np.zeros((1, 0)), bins=4).shape == (4, 2)
-
-
-def test_stft_db_peaks_at_sine_frequency():
-    sample_rate = 8000
-    samples = np.stack([_sine(1000.0, sample_rate_hz=sample_rate, duration_s=0.5)])
-    db = stft_db(samples, n_fft=512, hop=256)
-    assert db.shape[0] == 257
-    assert db.max() == 0.0
-    assert db.min() >= -80.0
-    peak_bin = int(db.mean(axis=1).argmax())
-    expected_bin = round(1000.0 * 512 / sample_rate)
-    assert abs(peak_bin - expected_bin) <= 1
-
-
-def test_render_waveform_and_spectrogram_shapes():
-    sample_rate = 8000
-    samples = np.stack([_sine(440.0, sample_rate_hz=sample_rate)])
-    wave = render_waveform_rgba(samples, width=200, height=60)
-    assert wave.shape == (60, 200, 4)
-    assert wave.dtype == np.uint8
-    # The sine fills a tall green band around the center line.
-    assert int((wave[:, 100, 1] > 150).sum()) > 10
-
-    spec = render_spectrogram_rgba(samples, width=120, height=64)
-    assert spec.shape == (64, 120, 4)
-    assert spec.dtype == np.uint8
-    assert int(spec[..., 1].max()) > 150  # bright energy somewhere
-
-    silent = render_waveform_rgba(np.zeros((1, 256)), width=50, height=20)
-    assert silent.shape == (20, 50, 4)
 
 
 class _FakeKitAudioPlayer:

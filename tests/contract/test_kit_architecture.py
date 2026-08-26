@@ -1,4 +1,4 @@
-"""Single contract for Kit service and presentation boundaries."""
+"""Kit service and presentation boundaries."""
 
 from __future__ import annotations
 

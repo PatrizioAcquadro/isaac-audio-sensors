@@ -11,8 +11,7 @@ import pytest
 from isaac_audio_sensors.kit import ExtensionController
 from isaac_audio_sensors.kit.kit_audio import KitAudioService
 from isaac_audio_sensors.kit.state import CurrentStageContext
-
-from ._kit_ui_support import _FakePrim, _FakeStage, _float32_wav_bytes
+from tests.kit_helpers import _FakePrim, _FakeStage, _float32_wav_bytes
 
 
 class _SessionStage(_FakeStage):

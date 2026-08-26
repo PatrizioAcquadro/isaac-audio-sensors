@@ -1,6 +1,12 @@
-# ruff: noqa: F403, F405
+import json
 
-from ._kit_ui_support import *
+from isaac_audio_sensors.kit import ExtensionController
+from isaac_audio_sensors.kit.state import CurrentStageContext
+from tests.kit_helpers import (
+    _FakePrim,
+    _FakeStage,
+    _install_fake_kit_update_stream,
+)
 
 
 def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
@@ -74,12 +80,6 @@ def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     monkeypatch,
     tmp_path,
 ):
-    omni = ModuleType("omni")
-    omni.__path__ = []
-    omni_ui = _FakeUI()
-    omni.ui = omni_ui
-    monkeypatch.setitem(sys.modules, "omni", omni)
-    monkeypatch.setitem(sys.modules, "omni.ui", omni_ui)
     stream = _install_fake_kit_update_stream(monkeypatch)
     oven = _FakePrim(
         "/World/Oven",
@@ -98,9 +98,6 @@ def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     controller.state.backend = "tdoa_synthetic"
     controller.state.update_period_s = 0.01
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
-    assert controller.build_ui_if_available() is not None
-    window = controller._lifecycle._ui_window
-    assert window is not None
 
     assert controller.author_array(stage=stage) is not None
     assert controller.use_selected_as_object(
@@ -109,7 +106,6 @@ def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     )
     assert controller.attach_source_to_object(stage=stage) is not None
     assert controller.start_sensor(stage=stage) is not None
-    window._float_fields["source_position_x_m"].model.set_value("typing")
 
     stream.trigger()
     first_position = controller.state.latest_source_position_m
@@ -126,20 +122,7 @@ def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     assert controller.state.latest_bearing_deg != first_bearing
     assert controller.state.latest_sector == "right"
     assert controller.state.latest_aggregate_rms != first_rms
-    assert window._float_fields["source_position_x_m"].model.value == "typing"
-    assert "Frame: " in window._labels["latest"].text
-    visible_meters = [
-        row for row in window._instruments["meters"] if row["row"].visible
-    ]
-    assert visible_meters
-    assert all(
-        row["label"].text
-        and ("dB" in row["value"].text or "silent" in row["value"].text)
-        and "%" not in row["value"].text
-        for row in visible_meters
-    )
     assert controller.state.detection_history
-    assert any(label.visible for label in window._instruments["timeline"])
 
 
 def test_extension_controller_attached_source_outside_world_is_captured(tmp_path):

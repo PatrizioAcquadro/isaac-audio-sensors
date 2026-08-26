@@ -265,3 +265,7 @@ Recorded removal of manual TestPyPI publication and duplicate artifact rechecks,
 ## 2026-08-26 — update: Isaac test lane simplification
 
 Moved pure motion and occlusion checks to the host lane, consolidated shared USD fixtures and redundant Isaac coverage, and made the live Isaac Lab smoke the sole CUDA and RTX gate without changing runtime contracts.
+
+## 2026-08-26 — update: Integration test lane simplification
+
+Moved pure Kit, DSP, elevation, and room/USD invariants to unit or contract ownership, consolidated shared host helpers, reduced simulated UI coverage to one build/refresh smoke, and assigned real rendering and wiring evidence to the live Kit gate without changing runtime contracts.

@@ -1,16 +1,13 @@
-# ruff: noqa: F403, F405
+import sys
+from types import ModuleType
 
-from ._kit_ui_support import *
+import pytest
 
-
-def test_live_ux_required_screenshot_raises_for_unavailable(monkeypatch):
-    live_ux = _load_live_ux_script(monkeypatch)
-
-    with pytest.raises(RuntimeError, match="Viewport screenshot capture is required"):
-        live_ux._enforce_required_screenshot(
-            {"status": "unavailable", "reason": "no active viewport"},
-            "generic_scene",
-        )
+from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
+from isaac_audio_sensors.kit import ExtensionController
+from isaac_audio_sensors.kit.stage_context import _stage_has_prim
+from isaac_audio_sensors.kit.state import CurrentStageContext
+from tests.kit_helpers import _FakePrim, _FakeStage
 
 
 def test_kit_stage_has_prim_uses_sdf_path_for_strict_isaac_stage(
@@ -56,99 +53,6 @@ def test_kit_stage_has_prim_falls_back_to_traverse_after_type_error():
     stage = RejectingStage((_FakePrim("/World/Oven", "Xform"),))
 
     assert _stage_has_prim(stage, "/World/Oven") is True
-
-
-def test_live_ux_stage_helpers_use_sdf_path_for_strict_isaac_stage(
-    monkeypatch,
-):
-    live_ux = _load_live_ux_script(monkeypatch)
-    pxr = ModuleType("pxr")
-    sdf = ModuleType("pxr.Sdf")
-
-    class SdfPath:
-        def __init__(self, value: str) -> None:
-            self.value = value
-
-        def __str__(self) -> str:
-            return self.value
-
-    sdf.Path = SdfPath
-    pxr.Sdf = sdf
-    monkeypatch.setitem(sys.modules, "pxr", pxr)
-    monkeypatch.setitem(sys.modules, "pxr.Sdf", sdf)
-
-    class StrictStage(_FakeStage):
-        def GetPrimAtPath(self, path: object) -> _FakePrim | None:
-            if isinstance(path, str):
-                raise TypeError("expected Sdf.Path")
-            return super().GetPrimAtPath(str(path))
-
-    prim = _FakePrim("/World/Oven", "Xform")
-    stage = StrictStage((prim,))
-
-    assert live_ux._stage_get_prim_at_path(stage, "/World/Oven") is prim
-    assert live_ux._stage_has_prim(stage, "/World/Oven") is True
-
-
-def test_sound_profiles_validate_default_library_and_safe_assets():
-    profiles = default_sound_profiles()
-    profile_ids = tuple(profile.profile_id for profile in profiles)
-
-    assert profile_ids == (
-        "speech_generic",
-        "oven_stove",
-        "sink_water",
-        "door_knock",
-        "footsteps_movement",
-    )
-    assert len(set(profile_ids)) == len(profile_ids)
-    assert {profile.audio_asset_path for profile in profiles} <= {
-        "generated://impulse",
-        "generated://pulse",
-    }
-    assert {profile.loop_count for profile in profiles} == {0}
-    assert default_object_profile_mappings(profiles)["oven"] == "oven_stove"
-    assert default_object_profile_mappings(profiles)["sink"] == "sink_water"
-
-    with pytest.raises(ValueError, match="audio_asset_path"):
-        SoundProfile(
-            profile_id="unsafe",
-            display_label="Unsafe",
-            object_label_aliases=("unsafe",),
-            source_id_template="{object_slug}_source",
-            class_label="Unsafe",
-            audio_asset_path="/tmp/private.wav",
-            start_time_s=0.0,
-            duration_s=1.0,
-            gain_db=0.0,
-        )
-
-    with pytest.raises(ValueError, match="duration_s"):
-        SoundProfile(
-            profile_id="bad_duration",
-            display_label="Bad Duration",
-            object_label_aliases=("bad",),
-            source_id_template="{object_slug}_source",
-            class_label="Bad",
-            audio_asset_path="generated://impulse",
-            start_time_s=0.0,
-            duration_s=0.0,
-            gain_db=0.0,
-        )
-
-    with pytest.raises(ValueError, match="loop_count"):
-        SoundProfile(
-            profile_id="bad_loop",
-            display_label="Bad Loop",
-            object_label_aliases=("bad",),
-            source_id_template="{object_slug}_source",
-            class_label="Bad",
-            audio_asset_path="generated://impulse",
-            start_time_s=0.0,
-            duration_s=1.0,
-            gain_db=0.0,
-            loop_count=-2,
-        )
 
 
 def test_extension_controller_manual_profile_apply_authors_source_metadata():

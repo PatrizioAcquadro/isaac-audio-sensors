@@ -1,9 +1,7 @@
-"""World-aligned bounding boxes and room tags from USD or duck-typed prims.
+"""World-aligned room bounds and tags from USD-compatible prims.
 
-Shared by Isaac Sim, Isaac Lab, and Kit. Real pxr prims use
-``UsdGeom.BBoxCache``; fake prims (live-smoke fallback stages, unit tests)
-Fake prims provide explicit ``ias:room_min_world``/``ias:room_max_world`` attributes or
-``ias:room_size_m`` centered on the prim's world position.
+Real USD prims use ``UsdGeom.BBoxCache``. Compatible hosts may provide explicit
+world bounds or a room size centered on the prim position.
 """
 
 from __future__ import annotations
