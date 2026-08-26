@@ -1,5 +1,3 @@
-"""Kit sound and microphone-rig profile tests."""
-
 from __future__ import annotations
 
 import pytest

@@ -1,5 +1,3 @@
-"""Kit compass, meter, and detection-timeline tests."""
-
 from __future__ import annotations
 
 import math

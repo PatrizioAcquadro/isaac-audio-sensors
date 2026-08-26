@@ -1,5 +1,3 @@
-"""Pure room-anchor and USD-boundary tests."""
-
 from __future__ import annotations
 
 import pytest

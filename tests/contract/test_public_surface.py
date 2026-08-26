@@ -196,7 +196,7 @@ def test_curated_v2_exports_in_fresh_process(module_name, exports):
         if {resolve_exports!r}:
             assert all(hasattr(module, name) for name in exports)
 
-        optional = ("omni", "pxr", "isaaclab", "torch")
+        optional = ("carb", "omni", "pxr", "isaaclab", "torch")
         assert not any(
             name == prefix or name.startswith(prefix + ".")
             for name in sys.modules

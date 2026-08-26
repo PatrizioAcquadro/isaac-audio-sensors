@@ -1,10 +1,5 @@
-"""Kit validation cache, device, and calibration tests."""
-
 from __future__ import annotations
 
-import os
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -57,37 +52,6 @@ def _capability_report(*, room_available: bool) -> CapabilityReport:
             ),
         ),
     )
-
-
-def test_validation_package_is_import_safe() -> None:
-    repo = Path(__file__).resolve().parents[2]
-    code = """
-import importlib
-import importlib.abc
-import sys
-
-class Blocker(importlib.abc.MetaPathFinder):
-    def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.', 1)[0] in {'omni', 'pxr', 'carb', 'torch'}:
-            raise ImportError(fullname)
-        return None
-
-sys.meta_path.insert(0, Blocker())
-module = importlib.import_module('isaac_audio_sensors.kit.validation')
-assert module.check_stage_present(True) == ()
-assert module.check_stage_present(False)[0].check_id == 'stage_present'
-print('validation-import-ok')
-"""
-    env = os.environ.copy()
-    env["PYTHONPATH"] = os.pathsep.join((str(repo / "src"), env.get("PYTHONPATH", "")))
-    completed = subprocess.run(
-        [sys.executable, "-c", code],
-        check=True,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    assert completed.stdout.strip() == "validation-import-ok"
 
 
 def test_capability_cache_refreshes_once_after_invalidation(monkeypatch) -> None:

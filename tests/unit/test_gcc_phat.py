@@ -1,5 +1,3 @@
-"""GCC-PHAT pairwise delay invariants."""
-
 from __future__ import annotations
 
 import math

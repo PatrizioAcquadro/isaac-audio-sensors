@@ -24,25 +24,14 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
 )
 from tests.helpers import (
-    CaptureSink as _CaptureSink,
+    SAMPLE_RATE_HZ,
+    CaptureSink,
+    install_fake_pyroom,
+    quad_array,
+    room_scene,
+    source,
+    time_window,
 )
-from tests.helpers import (
-    install_fake_pyroom as _install_fake_pyroom,
-)
-from tests.helpers import (
-    quad_array as _quad_array,
-)
-from tests.helpers import (
-    room_scene as _room_scene_with_sources,
-)
-from tests.helpers import (
-    source as _source,
-)
-from tests.helpers import (
-    time_window as _window,
-)
-
-SAMPLE_RATE_HZ = 48_000
 
 
 def _array():
@@ -225,22 +214,22 @@ def _serialized_frame_bytes(frame) -> bytes:
 def test_room_backend_off_state_matches_pristine_reference(
     monkeypatch,
 ):
-    _install_fake_pyroom(monkeypatch)
-    array = _quad_array()
-    scene = _room_scene_with_sources(
-        _source("speaker", (3.0, 0.0, 0.0)),
+    install_fake_pyroom(monkeypatch)
+    array = quad_array()
+    scene = room_scene(
+        source("speaker", (3.0, 0.0, 0.0)),
         array=array,
     )
-    baseline_sink = _CaptureSink()
-    disabled_sink = _CaptureSink()
+    baseline_sink = CaptureSink()
+    disabled_sink = CaptureSink()
 
     baseline = RoomAcousticsBackend(waveform_writer=baseline_sink).simulate(
-        scene, array, _window()
+        scene, array, time_window()
     )
     disabled = RoomAcousticsBackend(
         waveform_writer=disabled_sink,
         effects=EffectsConfig(),
-    ).simulate(scene, array, _window())
+    ).simulate(scene, array, time_window())
 
     baseline_frame = _serialized_frame_bytes(baseline)
     disabled_frame = _serialized_frame_bytes(disabled)
@@ -255,16 +244,16 @@ def test_room_backend_off_state_matches_pristine_reference(
 def test_room_backend_effected_premix_drives_detection_aggregate_and_export(
     monkeypatch,
 ):
-    _install_fake_pyroom(monkeypatch)
-    array = _quad_array()
-    scene = _room_scene_with_sources(
-        _source("speaker", (3.0, 0.0, 0.0)),
+    install_fake_pyroom(monkeypatch)
+    array = quad_array()
+    scene = room_scene(
+        source("speaker", (3.0, 0.0, 0.0)),
         array=array,
     )
-    baseline_sink = _CaptureSink()
-    effected_sink = _CaptureSink()
+    baseline_sink = CaptureSink()
+    effected_sink = CaptureSink()
     baseline = RoomAcousticsBackend(waveform_writer=baseline_sink).simulate(
-        scene, array, _window()
+        scene, array, time_window()
     )
     effects = EffectsConfig(
         channel_response=ChannelResponseConfig(
@@ -275,7 +264,7 @@ def test_room_backend_effected_premix_drives_detection_aggregate_and_export(
     effected = RoomAcousticsBackend(
         waveform_writer=effected_sink,
         effects=effects,
-    ).simulate(scene, array, _window())
+    ).simulate(scene, array, time_window())
 
     baseline_detection = baseline.detections[0]
     effected_detection = effected.detections[0]

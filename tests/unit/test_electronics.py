@@ -34,33 +34,17 @@ from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from tests.helpers import (
     MOTION_SEGMENTS,
-)
-from tests.helpers import (
-    CaptureSink as _CaptureSink,
-)
-from tests.helpers import (
-    install_fake_pyroom as _install_fake_pyroom,
-)
-from tests.helpers import (
-    motion_plan as _plan_for_trajectory,
-)
-from tests.helpers import (
-    motion_room_fixture as _room_fixture,
-)
-from tests.helpers import (
-    quad_array as _quad_array,
-)
-from tests.helpers import (
-    room_scene as _room_scene_with_sources,
-)
-from tests.helpers import (
-    source as _source,
-)
-from tests.helpers import (
-    time_window as _window,
+    SAMPLE_RATE_HZ,
+    CaptureSink,
+    install_fake_pyroom,
+    motion_plan,
+    motion_room_fixture,
+    quad_array,
+    room_scene,
+    source,
+    time_window,
 )
 
-SAMPLE_RATE_HZ = 48_000
 MIC_IDS = ("front", "right", "rear", "left")
 SEED = 20_260_718
 ALT_SEED = 20_260_719
@@ -555,9 +539,9 @@ def test_enabled_electronics_is_typed_unsupported_on_l0_l1(backend):
         prim_path="/World/Rig/AudioArray",
         layout_name="quad_front",
     )
-    scene = _room_scene_with_sources(_source("speaker", (3.0, 0.0, 0.0)), array=array)
+    scene = room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array)
     with pytest.raises(UnsupportedEffectError, match="electronics"):
-        backend(effects=_effects()).simulate(scene, array, _window())
+        backend(effects=_effects()).simulate(scene, array, time_window())
 
 
 def _primary_premix(_room, *, source_count: int, mic_count: int):
@@ -581,7 +565,7 @@ def _primary_premix(_room, *, source_count: int, mic_count: int):
 
 
 def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch):
-    fake = _install_fake_pyroom(monkeypatch)
+    fake = install_fake_pyroom(monkeypatch)
     base_shoebox = fake.ShoeBox
 
     class ControlledShoebox(base_shoebox):
@@ -595,21 +579,21 @@ def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch
             return premix if return_premix else None
 
     fake.ShoeBox = ControlledShoebox
-    array = _quad_array()
+    array = quad_array()
     results = []
     for source_count in (1, 4):
-        scene = _room_scene_with_sources(
+        scene = room_scene(
             *(
-                _source(f"speaker_{index}", (3.0, 0.1 * index, 0.0))
+                source(f"speaker_{index}", (3.0, 0.1 * index, 0.0))
                 for index in range(source_count)
             ),
             array=array,
         )
-        sink = _CaptureSink()
+        sink = CaptureSink()
         frame = RoomAcousticsBackend(
             waveform_writer=sink,
             effects=_effects(dither=True, agc=_agc()),
-        ).simulate(scene, array, _window())
+        ).simulate(scene, array, time_window())
         mixture = sink.calls[0]["mixture"]
         electronics = frame.diagnostics["effects"]["electronics"]
         results.append((mixture, electronics))
@@ -619,15 +603,15 @@ def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch
     assert results[0][0].tobytes() == results[1][0].tobytes()
     assert results[0][1] == results[1][1]
 
-    replay_sinks = (_CaptureSink(), _CaptureSink())
+    replay_sinks = (CaptureSink(), CaptureSink())
     replay_frames = tuple(
         RoomAcousticsBackend(
             waveform_writer=sink,
             effects=_effects(dither=True, agc=_agc()),
         ).simulate(
-            _room_scene_with_sources(_source("speaker", (3.0, 0.0, 0.0)), array=array),
+            room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
             array,
-            _window(),
+            time_window(),
         )
         for sink in replay_sinks
     )
@@ -639,9 +623,9 @@ def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch
 
 
 def test_segmented_room_noise_and_electronics_compose_once(monkeypatch):
-    _install_fake_pyroom(monkeypatch)
-    scene, array, window = _room_fixture()
-    _history, plan = _plan_for_trajectory(
+    install_fake_pyroom(monkeypatch)
+    scene, array, window = motion_room_fixture()
+    _history, plan = motion_plan(
         lambda time_s: (1.0 + 20.0 * time_s, 2.0, 1.0),
         (20.0, 0.0, 0.0),
     )
@@ -677,13 +661,13 @@ def test_off_state_identity_backend_has_no_effects_key(monkeypatch):
     assert output is samples
     assert diagnostics == {}
 
-    _install_fake_pyroom(monkeypatch)
-    array = _quad_array()
-    sink = _CaptureSink()
+    install_fake_pyroom(monkeypatch)
+    array = quad_array()
+    sink = CaptureSink()
     frame = RoomAcousticsBackend(waveform_writer=sink).simulate(
-        _room_scene_with_sources(_source("speaker", (3.0, 0.0, 0.0)), array=array),
+        room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
         array,
-        _window(),
+        time_window(),
     )
     assert sink.calls[0]["mixture"].size > 0
     assert "effects" not in frame.diagnostics
