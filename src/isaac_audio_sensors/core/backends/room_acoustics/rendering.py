@@ -14,7 +14,11 @@ from isaac_audio_sensors.core.acoustics.materials import (
 from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
     _room_material_resolution,
 )
+from isaac_audio_sensors.core.backends.room_acoustics.preparation import (
+    PreparedRoomFrame,
+)
 from isaac_audio_sensors.core.backends.room_acoustics.signals import (
+    _doppler_resampled_signal,
     _piecewise_phase_signal,
     _scheduled_window_signal,
     _ScheduledSignal,
@@ -23,8 +27,10 @@ from isaac_audio_sensors.core.constants import (
     ROOM_CLAMP_MARGIN_M,
 )
 from isaac_audio_sensors.core.doppler import source_doppler_factor
+from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import (
     DirectivityConfig,
+    EffectsConfig,
 )
 from isaac_audio_sensors.core.effects.directivity import (
     apply_pair_directivity,
@@ -43,6 +49,10 @@ from isaac_audio_sensors.core.microphone_array import (
 from isaac_audio_sensors.core.motion import (
     WindowMotionPlan,
 )
+from isaac_audio_sensors.core.scene import (
+    occlusion_band_attenuation_db,
+    occlusion_per_mic_extra_gain_db,
+)
 from isaac_audio_sensors.core.types import (
     AudioSourceSpec,
     AudioTimeWindow,
@@ -60,6 +70,278 @@ class _PiecewiseRoomResult:
     microphone_room_positions: dict[str, tuple[float, float, float]]
     clamped_position_ids: tuple[str, ...]
     doppler_factor_by_segment: tuple[dict[str, float], ...]
+
+
+@dataclass(slots=True)
+class RenderedRoom:
+    """Rendered stems and mutable effect state for one prepared room frame."""
+
+    room: Any | None
+    scheduled: tuple[_ScheduledSignal, ...]
+    doppler_factors: dict[str, float]
+    premix: np.ndarray
+    mixture: np.ndarray
+    source_room_positions: dict[str, tuple[float, float, float]]
+    microphone_room_positions: dict[str, tuple[float, float, float]]
+    clamped_position_ids: tuple[str, ...]
+    effect_diagnostics: dict[str, Any]
+    segment_factor_rows: tuple[dict[str, float], ...]
+
+
+def render_room(
+    prepared: PreparedRoomFrame,
+    *,
+    effects: EffectsConfig,
+    speed_of_sound_mps: float,
+    window_motion: WindowMotionPlan | None,
+) -> RenderedRoom:
+    """Schedule, Doppler-render, and spatialize every active source stem."""
+
+    mixture = np.zeros(
+        (len(prepared.mic_ids), prepared.window_sample_count),
+        dtype=float,
+    )
+    if not prepared.active:
+        return RenderedRoom(
+            room=None,
+            scheduled=(),
+            doppler_factors={},
+            premix=np.zeros(
+                (0, len(prepared.mic_ids), prepared.window_sample_count),
+                dtype=float,
+            ),
+            mixture=mixture,
+            source_room_positions={},
+            microphone_room_positions={},
+            clamped_position_ids=(),
+            effect_diagnostics={},
+            segment_factor_rows=prepared.segment_factor_rows,
+        )
+
+    effect_diagnostics: dict[str, Any] = {}
+    if prepared.segments_per_window > 1:
+        assert window_motion is not None
+        piecewise = _simulate_piecewise_room(
+            pra=prepared.pra,
+            room_spec=prepared.scene.room,
+            active=prepared.active,
+            sensor=prepared.sensor,
+            time_window=prepared.time_window,
+            plan=window_motion,
+            speed_of_sound_mps=speed_of_sound_mps,
+            directivity_config=effects.directivity,
+        )
+        room = piecewise.last_room
+        scheduled = piecewise.scheduled
+        doppler_factors: dict[str, float] = {}
+        premix = piecewise.premix
+        source_room_positions = piecewise.source_room_positions
+        microphone_room_positions = piecewise.microphone_room_positions
+        clamped_position_ids = piecewise.clamped_position_ids
+        segment_factor_rows = piecewise.doppler_factor_by_segment
+    else:
+        source_positions = {
+            f"source:{source.source_id}": source.position_world
+            for source in prepared.active
+        }
+        microphone_positions = {
+            f"mic:{mic_id}": position
+            for mic_id, position in prepared.microphone_positions_world.items()
+        }
+        room_positions, clamped_position_ids = _world_to_room_positions(
+            room_spec=prepared.scene.room,
+            positions={**source_positions, **microphone_positions},
+        )
+        source_room_positions = {
+            source.source_id: room_positions[f"source:{source.source_id}"]
+            for source in prepared.active
+        }
+        microphone_room_positions = {
+            mic_id: room_positions[f"mic:{mic_id}"] for mic_id in prepared.mic_ids
+        }
+        room = _build_shoebox_room(
+            pra=prepared.pra,
+            room_spec=prepared.scene.room,
+            sample_rate_hz=prepared.sample_rate_hz,
+            speed_of_sound_mps=speed_of_sound_mps,
+        )
+        scheduled_list: list[_ScheduledSignal] = []
+        doppler_factors = {}
+        for source in prepared.active:
+            signal = _scheduled_window_signal(
+                source,
+                time_window=prepared.time_window,
+            )
+            factor = source_doppler_factor(
+                source,
+                prepared.sensor,
+                speed_of_sound_mps=speed_of_sound_mps,
+            )
+            if factor is None and effects.motion.derive_velocity_from_poses:
+                factor = 1.0
+            if factor is not None:
+                doppler_factors[source.source_id] = factor
+                if abs(factor - 1.0) > 1e-9:
+                    signal = replace(
+                        signal,
+                        signal=_doppler_resampled_signal(signal.signal, factor=factor),
+                    )
+            scheduled_list.append(signal)
+            room.add_source(
+                source_room_positions[source.source_id],
+                signal=signal.signal,
+            )
+        scheduled = tuple(scheduled_list)
+        mic_matrix = np.asarray(
+            [
+                microphone_room_positions[mic_id]
+                for mic_id in prepared.mic_ids
+            ],
+            dtype=float,
+        ).T
+        _add_microphone_array(
+            prepared.pra,
+            room,
+            mic_matrix,
+            sample_rate_hz=prepared.sample_rate_hz,
+        )
+        room.compute_rir()
+        premix = _simulate_premix(
+            room,
+            source_count=len(prepared.active),
+            mic_count=len(prepared.mic_ids),
+        )
+        if effects.directivity.enabled:
+            premix, diagnostics = _apply_directivity_to_premix(
+                premix,
+                active=prepared.active,
+                sensor=prepared.sensor,
+                microphone_positions_world=prepared.microphone_positions_world,
+                sample_rate_hz=prepared.sample_rate_hz,
+                config=effects.directivity,
+            )
+            if diagnostics:
+                effect_diagnostics["directivity"] = diagnostics
+        segment_factor_rows = prepared.segment_factor_rows
+    if prepared.segments_per_window > 1 and effects.directivity.enabled:
+        diagnostics = directivity_diagnostics(
+            effects.directivity,
+            active_source_ids=tuple(
+                source.source_id for source in prepared.active
+            ),
+            microphone_ids=prepared.mic_ids,
+        )
+        if diagnostics:
+            effect_diagnostics["directivity"] = diagnostics
+    return RenderedRoom(
+        room=room,
+        scheduled=scheduled,
+        doppler_factors=doppler_factors,
+        premix=premix,
+        mixture=mixture,
+        source_room_positions=source_room_positions,
+        microphone_room_positions=microphone_room_positions,
+        clamped_position_ids=clamped_position_ids,
+        effect_diagnostics=effect_diagnostics,
+        segment_factor_rows=segment_factor_rows,
+    )
+
+
+def apply_room_effects(
+    prepared: PreparedRoomFrame,
+    rendered: RenderedRoom,
+    *,
+    effects: EffectsConfig,
+    effects_chain: ChannelEffectsChain,
+    backend_id: str,
+    runtime_profile: str,
+) -> None:
+    """Apply stem effects, sum the room, then process the complete mixture."""
+
+    if prepared.active:
+        for index, source in enumerate(prepared.active):
+            occlusion = prepared.scene.occlusion_for(
+                prepared.sensor.array_id,
+                source.source_id,
+            )
+            if occlusion is None:
+                continue
+            per_mic_gain_db = occlusion_per_mic_extra_gain_db(
+                occlusion,
+                prepared.mic_ids,
+            )
+            for mic_index, mic_id in enumerate(prepared.mic_ids):
+                band = occlusion_band_attenuation_db(occlusion, mic_id)
+                if band is not None:
+                    rendered.premix[index, mic_index] = _apply_band_attenuation(
+                        rendered.premix[index, mic_index],
+                        sample_rate_hz=prepared.sample_rate_hz,
+                        band_centers_hz=band[0],
+                        band_attenuation_db=band[1],
+                    )
+                elif per_mic_gain_db[mic_id] != 0.0:
+                    rendered.premix[index, mic_index] *= 10.0 ** (
+                        per_mic_gain_db[mic_id] / 20.0
+                    )
+        if effects.channel_response.enabled:
+            for index in range(len(prepared.active)):
+                processed, diagnostics = effects_chain.apply_premix(
+                    rendered.premix[index],
+                    mic_ids=prepared.mic_ids,
+                    sample_rate_hz=prepared.sample_rate_hz,
+                    frame_id=prepared.frame_id,
+                    backend_id=backend_id,
+                    runtime_profile=runtime_profile,
+                    microphone_self_noise_db=prepared.microphone_self_noise_db,
+                )
+                rendered.premix[index] = processed
+                if diagnostics:
+                    rendered.effect_diagnostics.update(diagnostics)
+        summed = np.sum(rendered.premix, axis=0)
+        if summed.shape[1] >= prepared.window_sample_count:
+            rendered.mixture = summed
+        else:
+            rendered.mixture[:, : summed.shape[1]] = summed
+        if effects.noise.enabled or effects.electronics.enabled:
+            rendered.mixture, diagnostics = effects_chain.apply_mixture(
+                rendered.mixture,
+                mic_ids=prepared.mic_ids,
+                sample_rate_hz=prepared.sample_rate_hz,
+                frame_id=prepared.frame_id,
+                backend_id=backend_id,
+                runtime_profile=runtime_profile,
+                nominal_window_start_sample=prepared.nominal_window_start_sample,
+                microphone_self_noise_db=prepared.microphone_self_noise_db,
+            )
+            if diagnostics:
+                rendered.effect_diagnostics.update(diagnostics)
+        return
+
+    if effects.channel_response.enabled:
+        rendered.mixture, diagnostics = effects_chain.apply_premix(
+            rendered.mixture,
+            mic_ids=prepared.mic_ids,
+            sample_rate_hz=prepared.sample_rate_hz,
+            frame_id=prepared.frame_id,
+            backend_id=backend_id,
+            runtime_profile=runtime_profile,
+            microphone_self_noise_db=prepared.microphone_self_noise_db,
+        )
+        if diagnostics:
+            rendered.effect_diagnostics.update(diagnostics)
+    if effects.noise.enabled or effects.electronics.enabled:
+        rendered.mixture, diagnostics = effects_chain.apply_mixture(
+            rendered.mixture,
+            mic_ids=prepared.mic_ids,
+            sample_rate_hz=prepared.sample_rate_hz,
+            frame_id=prepared.frame_id,
+            backend_id=backend_id,
+            runtime_profile=runtime_profile,
+            nominal_window_start_sample=prepared.nominal_window_start_sample,
+            microphone_self_noise_db=prepared.microphone_self_noise_db,
+        )
+        if diagnostics:
+            rendered.effect_diagnostics.update(diagnostics)
 
 
 def _simulate_piecewise_room(
