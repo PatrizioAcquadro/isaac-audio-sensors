@@ -19,9 +19,9 @@ try:
     from .build_kit_extension import (
         BUNDLED_ROOT,
         community_archive_name,
-        read_project_version,
         stage_locked_dependencies,
     )
+    from .check_version_sync import read_project_version
     from .content_policy import (
         ContentPolicyError,
         archive_entries,
@@ -33,9 +33,9 @@ except ImportError:
     from build_kit_extension import (
         BUNDLED_ROOT,
         community_archive_name,
-        read_project_version,
         stage_locked_dependencies,
     )
+    from check_version_sync import read_project_version
     from content_policy import (
         ContentPolicyError,
         archive_entries,

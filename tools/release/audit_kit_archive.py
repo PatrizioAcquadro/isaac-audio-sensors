@@ -12,20 +12,25 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
 try:
     from .build_kit_extension import (
         BUNDLED_ROOT,
+        EXTENSION_NAME,
+        LockedDependency,
         community_archive_name,
         is_host_owned_path,
+        read_dependency_lock,
     )
     from .content_policy import ContentPolicyError, archive_entries, require_archive
 except ImportError:
     from build_kit_extension import (
         BUNDLED_ROOT,
+        EXTENSION_NAME,
+        LockedDependency,
         community_archive_name,
         is_host_owned_path,
+        read_dependency_lock,
     )
     from content_policy import ContentPolicyError, archive_entries, require_archive
 
 
-EXTENSION_NAME = "isaac_audio_sensors.omni"
 EXPECTED_TARGET = {
     "config": ["release"],
     "kit": ["110.1"],
@@ -50,25 +55,57 @@ REQUIRED_MEMBERS = {
     "isaac_audio_sensors_omni/__init__.py",
 }
 _BUNDLE_PREFIX = f"{BUNDLED_ROOT.as_posix()}/"
-REQUIRED_BUNDLED_MEMBERS = {
-    "_soundfile_data/COPYING",
-    "cffi/__init__.py",
-    "cffi-2.1.0.dist-info/METADATA",
-    "cffi-2.1.0.dist-info/licenses/LICENSE",
-    "licensing/license_notes.md",
-    "pycparser/__init__.py",
-    "pycparser-3.0.dist-info/METADATA",
-    "pycparser-3.0.dist-info/licenses/LICENSE",
-    "pyroomacoustics/__init__.py",
-    "pyroomacoustics-0.10.1.dist-info/METADATA",
-    "pyroomacoustics-0.10.1.dist-info/licenses/LICENSE",
-    "scipy/__init__.py",
-    "scipy-1.18.0.dist-info/LICENSE.txt",
-    "scipy-1.18.0.dist-info/METADATA",
-    "soundfile.py",
-    "soundfile-0.14.0.dist-info/LICENSE",
-    "soundfile-0.14.0.dist-info/METADATA",
+_REQUIRED_BUNDLED_TEMPLATES = {
+    "cffi": (
+        "cffi/__init__.py",
+        "{dist_info}/METADATA",
+        "{dist_info}/licenses/LICENSE",
+    ),
+    "pycparser": (
+        "pycparser/__init__.py",
+        "{dist_info}/METADATA",
+        "{dist_info}/licenses/LICENSE",
+    ),
+    "pyroomacoustics": (
+        "pyroomacoustics/__init__.py",
+        "{dist_info}/METADATA",
+        "{dist_info}/licenses/LICENSE",
+    ),
+    "scipy": (
+        "scipy/__init__.py",
+        "{dist_info}/LICENSE.txt",
+        "{dist_info}/METADATA",
+    ),
+    "soundfile": (
+        "soundfile.py",
+        "{dist_info}/LICENSE",
+        "{dist_info}/METADATA",
+    ),
 }
+_REQUIRED_UNVERSIONED_BUNDLED_MEMBERS = {
+    "_soundfile_data/COPYING",
+    "licensing/license_notes.md",
+}
+
+
+def required_bundled_members(
+    dependencies: tuple[LockedDependency, ...] | None = None,
+) -> frozenset[str]:
+    """Return critical bundled paths using versions from the dependency lock."""
+
+    locked = dependencies if dependencies is not None else read_dependency_lock()
+    by_name = {dependency.normalized_name: dependency for dependency in locked}
+    if set(by_name) != set(_REQUIRED_BUNDLED_TEMPLATES):
+        raise ValueError("locked distributions do not match bundled audit policy")
+
+    members = set(_REQUIRED_UNVERSIONED_BUNDLED_MEMBERS)
+    for name, templates in _REQUIRED_BUNDLED_TEMPLATES.items():
+        dependency = by_name[name]
+        dist_info = f"{dependency.normalized_name}-{dependency.version}.dist-info"
+        members.update(
+            template.format(dist_info=dist_info) for template in templates
+        )
+    return frozenset(members)
 
 
 def audit_kit_archive(
@@ -109,7 +146,7 @@ def audit_kit_archive(
         for name in entries
         if name.startswith(_BUNDLE_PREFIX)
     }
-    missing_bundled = sorted(REQUIRED_BUNDLED_MEMBERS - bundle_entries)
+    missing_bundled = sorted(required_bundled_members() - bundle_entries)
     if missing_bundled:
         findings.append(
             f"missing bundled dependency members: {', '.join(missing_bundled)}"

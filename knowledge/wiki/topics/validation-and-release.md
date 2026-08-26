@@ -46,11 +46,11 @@ The frame, dataset-manifest, and calibration-profile schema versions remain inde
 
 The `dev` extra installs the build frontend, Setuptools 77 or newer, and wheel, matching the default non-isolated source/wheel build and its PEP 639 license metadata.
 
-`make release WHEELHOUSE=<path>` validates the locked wheelhouse, version synchronization, and clean Git source before clearing `dist/`. It builds the source distribution, builds the universal wheel from that source distribution, creates the self-contained Kit ZIP, and requires those exact synchronized filenames as the complete flat outbox. It never publishes, tags, or pushes.
+`make release WHEELHOUSE=<path>` runs one preflight for version synchronization, clean Git source, and the locked wheelhouse before clearing `dist/`. It builds the source distribution, builds the universal wheel from that source distribution, creates the self-contained Kit ZIP, and requires those exact synchronized filenames as the complete flat outbox. It never publishes, tags, or pushes.
 
 The source-distribution audit requires safe tar paths, exact source and generated-metadata inventories, matching root files, package metadata, licenses, console entry point, and README description. It rejects repository-only and project-specific content. The wheel audit derives the complete package and schema inventory from the maintained source tree, then installs the exact wheel without dependency downloads or checkout import paths and verifies the import, CLI, schemas, and `room` metadata.
 
-The Kit build creates `PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v<version>.zip`. The explicit wheelhouse must match the hashes and exact five-distribution inventory in `tools/release/kit_dependencies.lock`.
+The Kit build creates `PatrizioAcquadro-isaac-audio-sensors-linux-x86_64-v<version>.zip`. The explicit wheelhouse must match the hashes and exact five-distribution inventory in `tools/release/kit_dependencies.lock`. Acquisition verifies hashes while downloading; the preflight, builder, and post-build audit independently validate their input or artifact boundary.
 
 Temporary staging contains the direct Python package, Kit configuration/resources/docs/entrypoint, licenses, and the locked room/FLAC dependencies under `isaac_audio_sensors/_bundled`. The audit derives the complete first-party inventory from source, reconstructs the complete bundled inventory from the five hash-locked wheels, and compares both file-for-file. It also verifies target metadata, licenses, native libraries, no bundled NumPy or `typing_extensions`, and no retired release surface.
 

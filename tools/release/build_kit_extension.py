@@ -17,6 +17,11 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
     import tomli as tomllib  # type: ignore[no-redef]
 
+try:
+    from .check_version_sync import read_project_version
+except ImportError:
+    from check_version_sync import read_project_version
+
 
 EXTENSION_NAME = "isaac_audio_sensors.omni"
 COMMUNITY_PREFIX = "PatrizioAcquadro-isaac-audio-sensors-linux-x86_64"
@@ -83,15 +88,6 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def read_project_version(repo_root: Path) -> str:
-    path = repo_root / "pyproject.toml"
-    with path.open("rb") as stream:
-        version = tomllib.load(stream).get("project", {}).get("version")
-    if not isinstance(version, str) or not version:
-        raise ValueError(f"missing project.version in {path}")
-    return version
-
-
 def read_extension_version(extension_dir: Path) -> str:
     path = extension_dir / "config" / "extension.toml"
     with path.open("rb") as stream:
@@ -116,9 +112,13 @@ def is_host_owned_path(path: str | PurePosixPath) -> bool:
     )
 
 
-def _resolve_locked_wheels(
-    wheelhouse: Path, dependencies: tuple[LockedDependency, ...]
+def validate_wheelhouse(
+    wheelhouse: Path,
 ) -> tuple[tuple[LockedDependency, Path], ...]:
+    """Validate and resolve the exact hash-locked Kit wheelhouse."""
+
+    dependencies = read_dependency_lock()
+    wheelhouse = wheelhouse.resolve()
     if not wheelhouse.is_dir():
         raise ValueError(f"wheelhouse directory not found: {wheelhouse}")
     available = tuple(path for path in wheelhouse.iterdir() if path.is_file())
@@ -198,8 +198,7 @@ def _extract_wheel(
 
 
 def stage_locked_dependencies(*, wheelhouse: Path, destination: Path) -> None:
-    dependencies = read_dependency_lock()
-    resolved = _resolve_locked_wheels(wheelhouse.resolve(), dependencies)
+    resolved = validate_wheelhouse(wheelhouse)
     if destination.exists():
         raise ValueError(f"bundled dependency root already exists: {destination}")
     destination.mkdir(parents=True)
@@ -272,11 +271,6 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wheelhouse", required=True, type=Path)
     parser.add_argument(
-        "--validate-wheelhouse",
-        action="store_true",
-        help="Validate the locked wheelhouse without building.",
-    )
-    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("dist"),
@@ -285,16 +279,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     repo_root = Path(__file__).resolve().parents[2]
     try:
-        if args.validate_wheelhouse:
-            _resolve_locked_wheels(args.wheelhouse.resolve(), read_dependency_lock())
-            print(f"[kit-wheelhouse] OK {args.wheelhouse}")
-            return 0
         archive_path = build_kit_extension(
             repo_root=repo_root,
             output_dir=args.output_dir,
             wheelhouse=args.wheelhouse,
         )
-    except Exception as exc:  # noqa: BLE001 - CLI reports build failures
+    except (OSError, ValueError) as exc:
         print(f"[kit-build] FAILED: {exc}", file=sys.stderr)
         return 1
     print(f"[kit-build] OK {archive_path}")

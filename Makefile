@@ -44,10 +44,7 @@ format:
 # Release
 .PHONY: release
 release:
-	@test -n "$(WHEELHOUSE)" || { echo "WHEELHOUSE is required" >&2; exit 2; }
-	$(PYTHON) tools/release/check_version_sync.py
-	$(PYTHON) tools/release/check_release_source.py
-	$(PYTHON) tools/release/build_kit_extension.py --wheelhouse "$(WHEELHOUSE)" --validate-wheelhouse
+	$(PYTHON) tools/release/release_preflight.py --wheelhouse "$(WHEELHOUSE)"
 	rm -rf -- dist build/lib build/bdist.* src/isaac_audio_sensors.egg-info
 	$(PYTHON) -m build $(BUILD_FLAGS)
 	$(PYTHON) tools/release/build_kit_extension.py --wheelhouse "$(WHEELHOUSE)"

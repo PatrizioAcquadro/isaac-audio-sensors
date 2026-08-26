@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-08-24. Package version: `2.0.0`.
+Updated: 2026-08-25. Package version: `2.0.0`.
 
 ## Product Boundary
 
@@ -32,7 +32,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.2 explicit wheel-only package data, one universal Python build, minimal installed-artifact audit, and no sdist or compatibility build aliases.
 - R6.3 minimal self-contained Kit archive, standard Linux/CPython/Kit target metadata, temporary-only staging, direct package layout, and Extension Manager lifecycle verification.
 - R6.4 removal of the dependency-pack API and tooling, three-state capability provenance, and locked room/FLAC dependencies inside the single Kit zip without a second NumPy.
-- R6.5 three-command local workflow, deterministic host check, clean-source release preflight, flat two-artifact outbox, and removal of redundant release orchestration.
+- R6.5 three-command maintainer workflow with one release preflight, deterministic host check, flat release outbox, and no duplicate CI wheelhouse command.
 - R6.6 one exact two-artifact audit derived from source and locked wheels, including isolated offline wheel installation and packaged dependency provenance.
 - R6.7 complete host, RTX 4090, packaged Kit, artifact, and downstream-consumer closeout without publication.
 - R6.8 exact source distribution, Python 3.10–3.12 CI, and verified tokenless TestPyPI/PyPI publication with isolated OIDC permissions.
@@ -94,6 +94,8 @@ The TestPyPI rehearsal and production workflow passed from the same commit. GitH
 The post-release NVIDIA audio-schema migration at commit `152569f` passes 412 unit/contract tests, 239 integration tests with two expected host SoundFile skips, 45 release tests, and 97 Isaac tests on the RTX 4090. Live Isaac Sim passes geometry, TDOA, and room-acoustics backends while validating `OmniAudioSchema.OmniSound`, `OmniAudioSchema.OmniListener`, current native attributes, robot-mounted listener orientation, and no authored `filePath` for `generated://`. The live Kit workflow passes with deprecated `Sound` seeds migrated to `OmniSound` and the same generated-asset boundary.
 
 The post-release native Kit Audio integration passes 426 unit/contract tests, 251 integration tests with two expected host SoundFile skips, 45 release tests, and 103 Isaac tests. Strict discovery now omits implicit non-spatial sources with diagnostics while retaining explicit-selection failure, and listener reuse requires a static identity direct array child with array orientation. On the RTX 4090, live Isaac Sim passes three frames each for geometry, TDOA, and room acoustics; live Isaac Lab passes entity/reference parity, partial reset, and 50 steps over 4096 environments at 1.908 ms/step mean against the 20 ms budget. The live Kit gate on Kit build 110.1.2 creates the temporary listener below the four-microphone array in the session layer, captures a readable non-silent 2-channel 48 kHz device-mix WAV, restores the previous active listener, removes the temporary prim, destroys the streamer, and confirms that the sensor remains four-channel.
+
+The release-tooling simplification gate passes 426 unit/contract tests, 249 integration tests with two expected host SoundFile skips, and 58 release tests. Version synchronization, Ruff, whitespace, preflight ordering and failure paths, exact wheelhouse validation, and lock-derived bundled metadata requirements pass without changing product APIs, schemas, runtime behavior, or artifact formats.
 
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 

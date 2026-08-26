@@ -120,9 +120,11 @@ At R6.5 closeout, the release command validated the exact locked wheelhouse, syn
 
 Redundant build, audit, version, source, and all-lane Make wrappers are removed. The Makefile no longer duplicates the package version. Clean-source logic now has one implementation, and the retired tar and nested-archive policy/test surfaces are gone. Focused host, Isaac, smoke, schema, and diagnostic targets remain available.
 
+A later maintenance pass consolidates version synchronization, clean-source provenance, and locked-wheel validation behind `release_preflight.py`. The Kit builder exposes and reuses one wheelhouse validator, the publication workflow delegates pre-build validation to `make release`, and the builder and final artifact audit retain their independent boundary checks.
+
 #### Key Decisions
 
-`pyproject.toml` is the only package-version authority. The explicit R6.4 wheelhouse remains required; release orchestration never downloads or changes dependency versions. Preflight failures preserve existing `dist/` contents.
+`pyproject.toml` is the only package-version authority. The explicit R6.4 wheelhouse remains required; release orchestration never downloads or changes dependency versions. The dependency lock is also authoritative for versioned bundled metadata paths, while explicit runtime, native-library, and license requirements remain audit policy. Preflight failures preserve existing `dist/` contents.
 
 `dist/python/` and `dist/kit/` were not introduced because the flat outbox matched the approved workflow. R6.8 retains the flat layout while adding the sdist. `make check` remains deterministic and CPU-only; GPU and live runtime gates remain separate.
 
@@ -196,7 +198,7 @@ R6.1 retains no generated artifact. R6.2 adds the ignored universal wheel and R6
 - `exts/isaac_audio_sensors.omni/config/extension.toml`
 - `tools/release/build_kit_extension.py`
 - `tools/release/audit_kit_archive.py`
-- `tools/release/check_release_source.py`
+- `tools/release/release_preflight.py`
 - `tools/release/content_policy.py`
 - `.github/workflows/ci.yml`
 - `.github/workflows/release.yml`

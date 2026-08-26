@@ -15,7 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
     import tomli as tomllib  # type: ignore[no-redef]
 
 
-def _read_project_version(repo_root: Path) -> str:
+def read_project_version(repo_root: Path) -> str:
     path = repo_root / "pyproject.toml"
     with path.open("rb") as stream:
         data = tomllib.load(stream)
@@ -79,7 +79,7 @@ def check_version_sync(repo_root: Path) -> tuple[str, tuple[str, ...]]:
     """Return the authoritative version and all derived-surface findings."""
 
     repo_root = repo_root.resolve()
-    version = _read_project_version(repo_root)
+    version = read_project_version(repo_root)
     findings: list[str] = []
 
     def check(

@@ -241,3 +241,11 @@ Recorded removal of unused runtime discovery, canonical nested Kit smoke evidenc
 ## 2026-08-25 — lint: Consumer-safe tools cleanup
 
 Verified canonical ownership, internal links and index coverage, immutable raw content, 426 unit/contract tests, 249 integration tests with two expected SoundFile skips, 45 release tests, RTX 4090 Kit lifecycle and screenshots, canonical nested evidence, version synchronization, Ruff, and Markdown whitespace.
+
+## 2026-08-25 — update: Release tooling simplification
+
+Recorded one pre-build release preflight, shared version and wheelhouse authorities, lock-derived bundled metadata versions, retained builder and artifact boundary checks, and removal of the duplicate workflow validation command.
+
+## 2026-08-25 — lint: Release tooling simplification
+
+Verified canonical ownership, internal links and index coverage, immutable raw content, 426 unit/contract tests, 249 integration tests with two expected SoundFile skips, 58 release tests, version synchronization, Ruff, and Markdown whitespace.

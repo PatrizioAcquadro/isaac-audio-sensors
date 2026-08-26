@@ -51,9 +51,6 @@ jobs:
             --no-deps \
             --dest "${wheelhouse}" \
             --requirement tools/release/kit_dependencies.lock
-          python tools/release/build_kit_extension.py \
-            --wheelhouse "${wheelhouse}" \
-            --validate-wheelhouse
       - name: Build and audit exact release outbox
         shell: bash
         run: |

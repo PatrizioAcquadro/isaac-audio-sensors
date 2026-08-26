@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 
+import tools.release.build_kit_extension as kit_builder
 from tools.release.audit_kit_archive import (
-    REQUIRED_BUNDLED_MEMBERS,
     REQUIRED_MEMBERS,
     audit_kit_archive,
+    required_bundled_members,
 )
 from tools.release.build_kit_extension import (
     BUNDLED_ROOT,
+    LockedDependency,
     _extract_wheel,
     community_archive_name,
+    validate_wheelhouse,
 )
 from tools.release.content_policy import ContentPolicyError
 
@@ -37,7 +42,7 @@ python = ["cp312"]
 def _valid_entries() -> dict[str, str]:
     prefix = f"{BUNDLED_ROOT.as_posix()}/"
     entries = {name: "" for name in REQUIRED_MEMBERS}
-    entries.update({f"{prefix}{name}": "" for name in REQUIRED_BUNDLED_MEMBERS})
+    entries.update({f"{prefix}{name}": "" for name in required_bundled_members()})
     entries.update(
         {
             f"{prefix}_cffi_backend.cpython-312-x86_64-linux-gnu.so": "",
@@ -92,6 +97,72 @@ def test_wheel_staging_rejects_host_owned_numpy(tmp_path, wheel_bytes):
         _extract_wheel(wheel, tmp_path / "bundle")
 
 
+def test_validate_wheelhouse_returns_exact_locked_wheel(tmp_path, monkeypatch):
+    payload = b"locked wheel"
+    wheel = tmp_path / "sample-1.0.0-py3-none-any.whl"
+    wheel.write_bytes(payload)
+    dependency = LockedDependency(
+        name="sample",
+        version="1.0.0",
+        sha256=hashlib.sha256(payload).hexdigest(),
+    )
+    monkeypatch.setattr(kit_builder, "read_dependency_lock", lambda: (dependency,))
+
+    assert validate_wheelhouse(tmp_path) == ((dependency, wheel),)
+
+
+def test_validate_wheelhouse_rejects_missing_wheel(tmp_path, monkeypatch):
+    dependency = LockedDependency("sample", "1.0.0", "0" * 64)
+    monkeypatch.setattr(kit_builder, "read_dependency_lock", lambda: (dependency,))
+
+    with pytest.raises(ValueError, match="must contain one wheel"):
+        validate_wheelhouse(tmp_path)
+
+
+def test_validate_wheelhouse_rejects_extra_file(tmp_path, monkeypatch):
+    payload = b"locked wheel"
+    (tmp_path / "sample-1.0.0-py3-none-any.whl").write_bytes(payload)
+    (tmp_path / "extra.whl").write_bytes(b"extra")
+    dependency = LockedDependency(
+        "sample",
+        "1.0.0",
+        hashlib.sha256(payload).hexdigest(),
+    )
+    monkeypatch.setattr(kit_builder, "read_dependency_lock", lambda: (dependency,))
+
+    with pytest.raises(ValueError, match="undeclared files"):
+        validate_wheelhouse(tmp_path)
+
+
+def test_validate_wheelhouse_rejects_wrong_hash(tmp_path, monkeypatch):
+    (tmp_path / "sample-1.0.0-py3-none-any.whl").write_bytes(b"wrong")
+    dependency = LockedDependency("sample", "1.0.0", "0" * 64)
+    monkeypatch.setattr(kit_builder, "read_dependency_lock", lambda: (dependency,))
+
+    with pytest.raises(ValueError, match="wheel hash mismatch"):
+        validate_wheelhouse(tmp_path)
+
+
+def test_required_bundled_members_use_lock_versions():
+    versions = {
+        "cffi": "9.1",
+        "pycparser": "9.2",
+        "pyroomacoustics": "9.3",
+        "scipy": "9.4",
+        "soundfile": "9.5",
+    }
+    dependencies = tuple(
+        LockedDependency(name, version, "0" * 64)
+        for name, version in versions.items()
+    )
+
+    members = required_bundled_members(dependencies)
+
+    for name, version in versions.items():
+        assert f"{name}-{version}.dist-info/METADATA" in members
+    assert "cffi-2.1.0.dist-info/METADATA" not in members
+
+
 def test_kit_audit_accepts_bundled_dependencies(tmp_path, write_zip):
     entries = _valid_entries()
     archive = write_zip(
@@ -121,6 +192,16 @@ def test_kit_audit_rejects_bundled_numpy(tmp_path, write_zip):
 
     with pytest.raises(ContentPolicyError, match="host-owned bundled"):
         _audit(archive, expected)
+
+
+def test_kit_audit_requires_critical_bundled_member(tmp_path, write_zip):
+    entries = _valid_entries()
+    prefix = f"{BUNDLED_ROOT.as_posix()}/"
+    del entries[f"{prefix}cffi/__init__.py"]
+    archive = write_zip(tmp_path / community_archive_name("2.0.0"), entries)
+
+    with pytest.raises(ContentPolicyError, match="missing bundled dependency members"):
+        _audit(archive, entries)
 
 
 @pytest.mark.parametrize(
