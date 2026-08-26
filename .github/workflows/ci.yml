@@ -51,4 +51,4 @@ jobs:
       - name: Run optional audio gate
         run: |
           python -m pytest -q tests/integration/test_recording_codecs.py tests/integration/test_audio_output_panel.py
-          PYTHONPATH=src python tools/smoke/optional_audio.py
+          make smoke-optional PYTHON=python

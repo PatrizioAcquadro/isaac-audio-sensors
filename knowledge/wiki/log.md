@@ -257,3 +257,7 @@ Recorded removal of the temporary examples index and two trivial loader scripts,
 ## 2026-08-25 — lint: Lean examples surface
 
 Verified canonical ownership, internal links and index coverage, immutable raw content, no stale removed-example references, 424 unit/contract tests, 249 integration tests with two expected SoundFile skips, 58 release tests, version synchronization, Ruff, and Markdown whitespace.
+
+## 2026-08-25 — update: Production-only GitHub publication
+
+Recorded removal of manual TestPyPI publication and duplicate artifact rechecks, retention of isolated OIDC publishing, and consolidation of public-index installation checks.

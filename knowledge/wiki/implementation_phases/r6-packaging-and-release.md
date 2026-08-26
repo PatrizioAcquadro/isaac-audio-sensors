@@ -176,13 +176,17 @@ GitHub Actions runs the deterministic host gate on Python 3.10–3.12 and the op
 
 #### Key Decisions
 
-Setuptools default discovery already creates the required minimal sdist, so no `MANIFEST.in` is restored. TestPyPI is available only by manual dispatch from `main`; production PyPI is available only from a published GitHub release whose tag matches `pyproject.toml`. The Kit ZIP remains a GitHub Release asset and is never sent to a Python index.
+Setuptools default discovery already creates the required minimal sdist, so no `MANIFEST.in` is restored. At R6.8 completion, TestPyPI was available only by manual dispatch from `main`; production PyPI was available only from a published GitHub release whose tag matched `pyproject.toml`. The Kit ZIP remains a GitHub Release asset and is never sent to a Python index.
 
 #### Problems / Limitations
 
 The final freeze at commit `583d66e` passes 412 unit/contract tests, 230 integration tests with two expected SoundFile skips, 45 release tests, `twine check`, isolated wheel installation, and isolated sdist build/installation. The clean-source release produces exactly the three audited artifacts. The RTX 4090 passes 88 Isaac tests, all live Sim/Lab and room/FLAC gates, and the extracted ZIP's 37-step packaged workflow; the unchanged SquadBot subset passes 34 tests.
 
 The TestPyPI rehearsal and production workflow complete successfully through their protected environments and trusted publishers. The immutable GitHub release and tag target commit `583d66e`; the sole release asset is the validated Linux Kit ZIP. PyPI publishes exactly `isaac_audio_sensors-2.0.0.tar.gz` and `isaac_audio_sensors-2.0.0-py3-none-any.whl`, reports one provenance bundle for each, and passes clean base installations on Python 3.10–3.12 plus the Python 3.12 `room`/FLAC gate. Community Registry discovery remains pending the NVIDIA crawler; the public repository and release already satisfy the required topic and archive-name inputs.
+
+#### Version Notes
+
+On 2026-08-25, later maintenance removed manual TestPyPI publication and duplicate artifact rechecks. Production publishing remains isolated behind a matching non-prerelease GitHub Release and the protected `pypi` environment; one matrix now owns all public-index installation checks.
 
 ## Artifacts
 
