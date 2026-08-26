@@ -5,10 +5,8 @@ from __future__ import annotations
 import math
 
 from isaac_audio_sensors.core.math_utils import (
-    Vector3,
     bearing_from_components,
     clamp,
-    normalize,
     normalize_bearing_deg,
 )
 
@@ -90,13 +88,6 @@ def choose_front_hemisphere_candidate(candidates: tuple[float, ...]) -> float | 
     if not front:
         return candidates[0]
     return min(front, key=lambda candidate: min(candidate, 360.0 - candidate))
-
-
-def direction_vector_from_bearing_deg(bearing_deg: float) -> Vector3:
-    """Return a local unit direction vector for a clockwise bearing."""
-
-    rad = math.radians(normalize_bearing_deg(bearing_deg))
-    return normalize((math.cos(rad), math.sin(rad), 0.0), "bearing direction")
 
 
 def _angular_distance(left: float, right: float) -> float:

@@ -1,4 +1,4 @@
-"""Trace and generated-audio helpers."""
+"""Core trace, calibration, and waveform I/O."""
 
 from __future__ import annotations
 
