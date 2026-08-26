@@ -91,6 +91,7 @@ from .validation.checks import (
     check_attach_target,
     check_attached_array_target,
     check_attached_source_target,
+    check_layout,
     check_object_profile_mapping_known,
     check_profile_labels,
     check_profile_match,
@@ -111,9 +112,6 @@ from .validation.results import ValidationReport
 
 class AuthoringService(ControllerService):
     """Own authoring behavior."""
-
-    def __init__(self, host: object) -> None:
-        super().__init__(host)
 
     def refresh_stage_selection(
         self,
@@ -388,7 +386,7 @@ class AuthoringService(ControllerService):
 
         state = self.state
         self._validate_abs_path(state.array_prim_path, "array_prim_path")
-        self._validate_layout_state()
+        _raise_first(ValidationReport(check_layout(self.state)))
 
         prim = get_or_define_prim(
             stage_obj,
@@ -1746,8 +1744,8 @@ class AuthoringService(ControllerService):
                 stage=None,
                 selected_prim_paths=_normalize_paths(selected_paths),
             )
-        if self.stage_context_provider is not None:
-            return self.stage_context_provider()
+        if self._host.stage_context_provider is not None:
+            return self._host.stage_context_provider()
         return current_omni_stage_context()
 
     def _first_selected_path(

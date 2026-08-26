@@ -149,6 +149,7 @@ class OmniReferenceWindow:
         self._pushing_state = False
         self._last_frame_key: tuple[str, int | None] | None = None
         self._last_frame_received_s: float | None = None
+        self._refresh_guided_section: Callable[[], None] | None = None
 
     def build(self) -> Any:
         """Build a compact task-oriented Kit window."""
@@ -219,6 +220,7 @@ class OmniReferenceWindow:
         self._diagnostic = None
         self._last_frame_key = None
         self._last_frame_received_s = None
+        self._refresh_guided_section = None
 
     def _build_body(self) -> None:
         if self.controller.state.guided_mode_enabled:
@@ -382,7 +384,7 @@ class OmniReferenceWindow:
                 sensor_button,
                 "Stop Sensor" if state.sensor_running else "Start Sensor",
             )
-        guided_refresh = getattr(self, "_refresh_guided_section", None)
+        guided_refresh = self._refresh_guided_section
         if callable(guided_refresh):
             guided_refresh()
 

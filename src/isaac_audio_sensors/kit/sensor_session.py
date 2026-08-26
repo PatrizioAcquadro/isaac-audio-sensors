@@ -58,9 +58,9 @@ from .state import (
     ExtensionActionError,
 )
 from .validation.checks import (
-    check_layout,
     check_room_anchor_exists,
     check_runtime_state,
+    check_stage_present,
 )
 from .validation.results import ValidationReport
 
@@ -116,11 +116,11 @@ class SensorSession(ControllerService):
                 self.state.jsonl_trace_path = str(writer_path)
 
             self._validation.invalidate()
-            stage_obj = self._stage_or_error(stage)
+            stage_obj = self._host._authoring._stage_or_error(stage)
             sensor = self._build_sensor(stage_obj)
             self.close_sensor()
             self.sensor = sensor
-            self._attach_guided_reset_listener(sensor)
+            self._host._recording._attach_guided_reset_listener(sensor)
             self.state.sensor_running = False
             self._set_status(
                 f"Configured {sensor.backend} sensor for array {sensor.array_id}."
@@ -143,11 +143,11 @@ class SensorSession(ControllerService):
                 return None
             self._validate_backend_available()
             assert self.sensor is not None
-            self._stop_controller_update_subscription()
+            self._host._lifecycle._stop_controller_update_subscription()
             self.sensor.start(subscribe_to_update_stream=False)
             try:
                 if subscribe_to_update_stream:
-                    self._start_controller_update_subscription()
+                    self._host._lifecycle._start_controller_update_subscription()
             except IsaacIntegrationUnavailable as exc:
                 self._set_status(
                     "Started without Kit update subscription: " + str(exc),
@@ -165,11 +165,11 @@ class SensorSession(ControllerService):
         """Stop the live sensor without dropping the latest frame."""
 
         try:
-            self._stop_controller_update_subscription()
+            self._host._lifecycle._stop_controller_update_subscription()
             if self.sensor is not None:
                 self.sensor.stop()
             self.state.sensor_running = False
-            workflow = getattr(self, "_guided_workflow", None)
+            workflow = self._host._recording._guided_workflow
             if workflow is not None and workflow.run_status.running:
                 workflow.stop_run()
             self._set_status("Sensor stopped.")
@@ -239,8 +239,10 @@ class SensorSession(ControllerService):
         """Remove the authored debug subtree from the current stage."""
 
         try:
-            context = self._context()
-            self._validate_stage_present(context.stage is not None)
+            context = self._host.current_stage_context()
+            _raise_first(
+                ValidationReport(check_stage_present(context.stage is not None))
+            )
             if self._usd_debug_author is not None:
                 self._usd_debug_author.clear(context.stage)
             self.state.latest_usd_debug_prim_paths = ()
@@ -258,7 +260,7 @@ class SensorSession(ControllerService):
                 self.clear_usd_debug_geometry()
             return
         try:
-            context = self._context()
+            context = self._host.current_stage_context()
             if context.stage is None:
                 return
             author = self._usd_debug_author
@@ -321,7 +323,7 @@ class SensorSession(ControllerService):
         else:
             # No anchor designated: place the default shoebox explicitly,
             # centered on the array (rooms no longer refit per frame).
-            array_position = self._array_position_from_state()
+            array_position = self._host._authoring._array_position_from_state()
             with suppress(Exception):
                 pose = IsaacStagePoseResolver(stage).resolve_world_pose(
                     state.array_prim_path,
@@ -359,8 +361,12 @@ class SensorSession(ControllerService):
             if self.sensor is None:
                 raise ExtensionActionError("Sensor is not configured.")
             previous_frame = self.sensor.latest_frame
-            self._validate_attached_object_available(self.sensor.stage)
-            self._validate_attached_array_available(self.sensor.stage)
+            self._host._authoring._validate_attached_object_available(
+                self.sensor.stage
+            )
+            self._host._authoring._validate_attached_array_available(
+                self.sensor.stage
+            )
             if self.state.array_prim_path.strip():
                 self.sensor.array_prim_path = self.state.array_prim_path
             self.sensor.source_prim_path = (
@@ -378,7 +384,7 @@ class SensorSession(ControllerService):
                 )
             self._record_latest_frame(frame)
             if self.state.replicator_enabled and (force or is_new):
-                self._write_replicator_frame(frame)
+                self._host._replicator._write_replicator_frame(frame)
             return frame
         except Exception as exc:
             self._record_error("Sensor update failed", exc)
@@ -406,7 +412,7 @@ class SensorSession(ControllerService):
     def close_sensor(self) -> None:
         """Close the live sensor and writer/debug handles."""
 
-        self._stop_controller_update_subscription()
+        self._host._lifecycle._stop_controller_update_subscription()
         if self.sensor is not None:
             self.sensor.close()
         self.sensor = None
@@ -440,11 +446,11 @@ class SensorSession(ControllerService):
             )
         else:
             binding_cfg = IsaacAudioSceneBindingCfg(
-                discovery_roots=self._discovery_roots(),
+                discovery_roots=self._host._authoring._discovery_roots(),
                 robot_base_prim_path=state.robot_base_prim_path or None,
                 required_arrays=True,
                 required_sources=False,
-                preferred_array=self._preferred_discovered_array(),
+                preferred_array=self._host._authoring._preferred_discovered_array(),
                 preferred_source=None,
             )
             sensor = IsaacAudioArraySensor.from_discovered_stage(
@@ -478,9 +484,6 @@ class SensorSession(ControllerService):
             "sample_rate_hz": self.state.sample_rate_hz,
             "coordinate_convention": self.state.coordinate_convention,
         }
-
-    def _validate_layout_state(self) -> None:
-        _raise_first(ValidationReport(check_layout(self.state)))
 
     def _record_latest_frame(self, frame: Any) -> None:
         detections = tuple(frame.detections)
@@ -544,17 +547,18 @@ class SensorSession(ControllerService):
             self.state.latest_array_prim_path or frame.array_id,
             frame,
         )
-        workflow = getattr(self, "_guided_workflow", None)
+        workflow = self._host._recording._guided_workflow
         if workflow is not None:
             run_status = workflow.run_status
             if (
                 run_status.configured
                 and run_status.running
-                and frame.frame_id != self._guided_last_run_frame_id
+                and frame.frame_id
+                != self._host._recording._guided_last_run_frame_id
             ):
-                self._guided_last_run_frame_id = str(frame.frame_id)
+                self._host._recording._guided_last_run_frame_id = str(frame.frame_id)
                 workflow.observe_run_frame(getattr(frame, "timestamp_ms", None))
-            self._guided_record_frame(frame)
+            self._host._recording._guided_record_frame(frame)
         self._set_status(
             f"Updated {frame.frame_id}: {len(detections)} detection(s), "
             f"{len(primitives)} overlay primitive(s)."

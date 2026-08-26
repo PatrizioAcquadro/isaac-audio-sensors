@@ -83,17 +83,18 @@ class RecordingWorkflow(ControllerService):
         self._guided_dataset_validation_report = None
         self._guided_export_validation_report = None
         self._guided_output_entries = ()
+        self._guided_workflow: GuidedWorkflow | None = None
 
     @property
     def guided_workflow(self) -> GuidedWorkflow:
         """Return the lazily constructed import-safe guided workflow."""
 
-        workflow = getattr(self, "_guided_workflow", None)
+        workflow = self._guided_workflow
         if workflow is None:
             workflow = GuidedWorkflow(
                 self.state,
                 recovery_handlers={
-                    "stage": lambda _finding: self.refresh_stage_selection(),
+                    "stage": lambda _finding: self._host.refresh_stage_selection(),
                     "preset": lambda _finding: self.guided_apply_preset(
                         self.state.guided_preset_id or SAFE_PRESETS[0].preset_id
                     ),
@@ -113,10 +114,12 @@ class RecordingWorkflow(ControllerService):
         """Apply one safe preset through the existing config-summary path."""
 
         try:
-            stage_present = self._context().stage is not None
+            stage_present = self._host.current_stage_context().stage is not None
             preset = self.guided_workflow.apply_preset(
                 preset_id,
-                lambda item: self._apply_config_summary(item.config_summary()),
+                lambda item: self._host._configuration._apply_config_summary(
+                    item.config_summary()
+                ),
                 stage_present=stage_present,
             )
             self._set_status(f"Applied guided preset {preset.label}.")
@@ -129,7 +132,7 @@ class RecordingWorkflow(ControllerService):
         """Run the shared validation matrix and record the Validate gate."""
 
         state = self.state
-        context = self._context()
+        context = self._host.current_stage_context()
         stage = context.stage
         reports = [
             ValidationReport(check_stage_present(stage is not None)),
@@ -151,7 +154,7 @@ class RecordingWorkflow(ControllerService):
             ValidationReport(check_layout(state)),
             self._validation.validate_calibration_profile(
                 state.calibration_profile_path,
-                self._calibration_array_facts(),
+                self._host._sensor_session._calibration_array_facts(),
             ),
         ]
         if state.room_anchor_prim_path:
@@ -246,7 +249,7 @@ class RecordingWorkflow(ControllerService):
             return None
         self._guided_last_run_frame_id = None
         self.guided_workflow.start_run(configured=False, running=False)
-        sensor = self.configure_sensor()
+        sensor = self._host.configure_sensor()
         if sensor is None:
             self.guided_workflow.fail_run(
                 "Sensor configuration failed.",
@@ -257,7 +260,7 @@ class RecordingWorkflow(ControllerService):
             configured=True,
             running=False,
         )
-        started = self.start_sensor()
+        started = self._host.start_sensor()
         if started is None:
             self.guided_workflow.fail_run(
                 "The configured sensor is not running; start Run again.",
@@ -273,7 +276,7 @@ class RecordingWorkflow(ControllerService):
     def guided_stop_run(self) -> None:
         """Stop the sensor through the existing lifecycle action."""
 
-        self.stop_sensor()
+        self._host.stop_sensor()
 
     def guided_inspect_summary(self) -> dict[str, Any]:
         """Return compact live evidence for the human Inspect decision."""
@@ -318,7 +321,7 @@ class RecordingWorkflow(ControllerService):
                 return None
             if self._guided_recorder is not None:
                 raise ExtensionActionError("A guided recording is already active.")
-            if not self.state.sensor_running or self.sensor is None:
+            if not self.state.sensor_running or self._host.sensor is None:
                 raise ExtensionActionError(
                     "The sensor must remain running to start recording."
                 )
@@ -702,7 +705,7 @@ class RecordingWorkflow(ControllerService):
             1,
             int(round(self.state.sample_rate_hz * self.state.update_period_s)),
         )
-        latest = None if self.sensor is None else self.sensor.latest_frame
+        latest = None if self._host.sensor is None else self._host.sensor.latest_frame
         diagnostics = getattr(latest, "diagnostics", {}) if latest else {}
         diagnostic_window = diagnostics.get("window_sample_count")
         if (
@@ -814,8 +817,8 @@ class RecordingWorkflow(ControllerService):
         """Reset the sensor and recorder boundary from Isaac's reset lifecycle."""
 
         self.guided_notify_simulator_reset()
-        if self.sensor is not None:
-            self.sensor.reset()
+        if self._host.sensor is not None:
+            self._host.sensor.reset()
 
     @staticmethod
     def _guided_audio_block_for_frame(

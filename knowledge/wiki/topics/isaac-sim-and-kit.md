@@ -50,7 +50,7 @@ The action ID is `isaac_audio_sensors.omni::toggle_window`; the default shortcut
 
 The extension imports without `omni`, `pxr`, CUDA, Torch, Replicator, or a display; live APIs are resolved only inside the operations that require them.
 
-The entrypoint exposes its `controller` and has no duplicate sensor, authoring, export, or Replicator proxies. The controller composes internal lifecycle, authoring, sensor-session, recording-workflow, Kit Audio, Replicator, and configuration services; the window and sections only render state and invoke controller actions.
+The entrypoint exposes its `controller` and has no duplicate sensor, authoring, export, or Replicator proxies. The controller composes internal lifecycle, authoring, sensor-session, recording-workflow, Kit Audio, Replicator, and configuration services; those services reference their controller or sibling owner explicitly, without dynamic attribute lookup. The window and sections only render state and invoke controller actions.
 
 Shutdown independently cancels an active recording as incomplete, releases Kit Audio capture and listener state, stops Sensor WAV audition, Replicator, and the sensor, clears debug/frame state, detaches workflow/window callbacks, and releases update, stage, reset, hotkey, menu, and action registrations even if one cleanup fails. Opening, closing, or replacing a stage also releases the Kit Audio resources.
 
@@ -126,6 +126,7 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 
 ## Version Notes
 
+- 2026-08-26: Removed dead Kit internals and dynamic sibling-service lookup while preserving the controller, UI, configuration, and runtime contracts.
 - 2026-08-26: Clarified direct Replicator writer updates and retained the v1 annotator name as metadata without registering a runtime annotator.
 - 2026-08-24: Made non-spatial exclusion non-fatal during strict scans and restricted listener reuse to compatible direct array children.
 - 2026-08-24: Added complete finite/infinite `loopCount` conversion and room-backend repetition, excluded non-spatial sources from physical-sensor discovery, and introduced array-listener reuse with a session-layer fallback plus qualitative Kit device-mix capture without changing sensor observations.

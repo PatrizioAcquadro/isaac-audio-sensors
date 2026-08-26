@@ -98,7 +98,9 @@ class ConfigurationService(ControllerService):
             )
             self._apply_config_summary(payload)
             self.state.config_import_path = str(requested_path)
-            missing_attachment = self._attachment_status_for_current_stage()
+            missing_attachment = (
+                self._host._authoring._attachment_status_for_current_stage()
+            )
             if missing_attachment:
                 self._set_status(
                     f"Imported config summary from {input_path}; {missing_attachment}",
@@ -116,11 +118,13 @@ class ConfigurationService(ControllerService):
 
         state = self.state
         primitives = (
-            () if self.sensor is None else tuple(self.sensor.latest_debug_primitives)
+            ()
+            if self._host.sensor is None
+            else tuple(self._host.sensor.latest_debug_primitives)
         )
         serialized_primitives = (
-            list(getattr(self, "_imported_overlay_primitives", ()))
-            if self.sensor is None
+            list(self._imported_overlay_primitives)
+            if self._host.sensor is None
             else debug_primitives_to_dicts(primitives)
         )
         writer_path = (
@@ -164,8 +168,12 @@ class ConfigurationService(ControllerService):
                     "layout_name": state.layout_name,
                     "sample_rate_hz": state.sample_rate_hz,
                     "coordinate_convention": state.coordinate_convention,
-                    "position_world": self._array_position_from_state(),
-                    "orientation_world_quat": self._array_orientation_from_state(),
+                    "position_world": (
+                        self._host._authoring._array_position_from_state()
+                    ),
+                    "orientation_world_quat": (
+                        self._host._authoring._array_orientation_from_state()
+                    ),
                     "orientation_euler_deg": (
                         state.array_roll_deg,
                         state.array_pitch_deg,
@@ -177,8 +185,12 @@ class ConfigurationService(ControllerService):
                     "source_id": state.source_id,
                     "class_label": state.source_class_label,
                     "audio_asset_path": state.audio_asset_path,
-                    "position_world": self._source_position_from_state(),
-                    "local_offset_m": self._source_local_offset_from_state(),
+                    "position_world": (
+                        self._host._authoring._source_position_from_state()
+                    ),
+                    "local_offset_m": (
+                        self._host._authoring._source_local_offset_from_state()
+                    ),
                     "start_time_s": state.source_start_time_s,
                     "duration_s": state.source_duration_s,
                     "gain_db": state.source_gain_db,
@@ -205,16 +217,20 @@ class ConfigurationService(ControllerService):
                     "attached": state.source_attached_to_object,
                     "attached_object_prim_path": state.attached_object_prim_path
                     or None,
-                    "source_local_offset_m": self._source_local_offset_from_state(),
+                    "source_local_offset_m": (
+                        self._host._authoring._source_local_offset_from_state()
+                    ),
                 },
                 "array_binding": {
                     "attached": state.array_attached_to_object,
                     "attached_object_prim_path": (
                         state.attached_array_object_prim_path or None
                     ),
-                    "array_local_offset_m": self._array_local_offset_from_state(),
+                    "array_local_offset_m": (
+                        self._host._authoring._array_local_offset_from_state()
+                    ),
                     "array_local_orientation_quat": (
-                        self._array_local_orientation_from_state()
+                        self._host._authoring._array_local_orientation_from_state()
                     ),
                     "array_local_euler_deg": (
                         state.array_local_roll_deg,
@@ -237,7 +253,7 @@ class ConfigurationService(ControllerService):
                 },
                 "stage_binding": {
                     "robot_base_prim_path": state.robot_base_prim_path or None,
-                    "discovery_roots": self._discovery_roots(),
+                    "discovery_roots": self._host._authoring._discovery_roots(),
                     "preferred_source": state.source_id or None,
                     "selected_prim_paths": state.selected_prim_paths,
                     "discovered_arrays": state.discovered_arrays,
@@ -273,7 +289,7 @@ class ConfigurationService(ControllerService):
                         "enabled": state.trace_enabled,
                         "path": writer_path,
                     },
-                    "replicator": self._replicator_status_dict(),
+                    "replicator": self._host._replicator._replicator_status_dict(),
                 },
                 "authored_metadata": state.authored_metadata,
                 "latest_frame": {
@@ -405,7 +421,9 @@ class ConfigurationService(ControllerService):
             array.get("coordinate_convention", self.state.coordinate_convention)
         )
         if array.get("position_world") is not None:
-            self._set_array_pose_state(array["position_world"], None)
+            self._host._authoring._set_array_pose_state(
+                array["position_world"], None
+            )
         if array.get("orientation_world_quat") is not None:
             (
                 self.state.array_roll_deg,
@@ -461,7 +479,9 @@ class ConfigurationService(ControllerService):
             source.get("audio_asset_path", self.state.audio_asset_path)
         )
         if source.get("position_world") is not None:
-            self._set_source_position_state(source["position_world"])
+            self._host._authoring._set_source_position_state(
+                source["position_world"]
+            )
         local_offset = object_binding.get(
             "source_local_offset_m",
             source.get("local_offset_m"),
@@ -514,7 +534,9 @@ class ConfigurationService(ControllerService):
                 else ""
             )
         )
-        roots = binding.get("discovery_roots", self._discovery_roots())
+        roots = binding.get(
+            "discovery_roots", self._host._authoring._discovery_roots()
+        )
         self.state.discovery_roots_text = ", ".join(str(root) for root in roots)
         self.state.selected_prim_paths = _normalize_paths(
             binding.get("selected_prim_paths", ())

@@ -285,3 +285,11 @@ Clarified that the Replicator writer receives frames directly while the v1 annot
 ## 2026-08-26 — lint: Isaac bridge cleanup
 
 Verified public contracts, canonical wiki links, immutable raw content, full host and Isaac suites, RTX 4090 Isaac Sim and Kit smokes, direct Replicator writes, Ruff, and whitespace.
+
+## 2026-08-26 — update: Kit service wiring cleanup
+
+Recorded removal of dead internal workflow and validation surfaces, explicit service ownership, and preservation of the public controller, serialized configuration, and Kit Audio boundaries.
+
+## 2026-08-26 — lint: Kit service wiring cleanup
+
+Verified 104 focused Kit tests, 465 unit/contract tests, 166 integration tests, 57 release tests, 70 Isaac tests, RTX 4090 Isaac Sim and Kit smokes, immutable raw content, Ruff, and whitespace.

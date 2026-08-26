@@ -59,3 +59,18 @@ def test_kit_audio_bridge_has_no_timeline_control() -> None:
     assert "set_current_time" not in source
     assert "timeline.play" not in source
     assert "timeline.stop" not in source
+
+
+def test_kit_services_use_explicit_controller_wiring() -> None:
+    tree = ast.parse((KIT / "_service.py").read_text(encoding="utf-8"))
+
+    assert not any(
+        isinstance(node, ast.FunctionDef) and node.name == "__getattr__"
+        for node in ast.walk(tree)
+    )
+    assert not any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "vars"
+        for node in ast.walk(tree)
+    )

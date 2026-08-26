@@ -87,7 +87,7 @@ class ExtensionController:
         return self._sensor_session.latest_waveform_data()
 
     def detach_window_callbacks(self) -> None:
-        workflow = vars(self._recording).get("_guided_workflow")
+        workflow = self._recording._guided_workflow
         if workflow is not None:
             workflow.on_change = None
 

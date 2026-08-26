@@ -1,4 +1,4 @@
-"""Internal replicator service service."""
+"""Internal Replicator service."""
 
 from __future__ import annotations
 
@@ -100,30 +100,38 @@ class ReplicatorService(ControllerService):
         )
         return _json_ready(
             {
-                "extension_id": self.ext_id,
+                "extension_id": self._host.ext_id,
                 "extension_state": {
                     "backend": self.state.backend,
                     "array_prim_path": self.state.array_prim_path,
                     "source_prim_path": self.state.source_prim_path,
-                    "source_position_m": self._source_position_from_state(),
+                    "source_position_m": (
+                        self._host._authoring._source_position_from_state()
+                    ),
                     "selected_profile_id": self.state.selected_profile_id or None,
                     "applied_source_profile": self.state.applied_source_profile or None,
                     "source_attached_to_object": self.state.source_attached_to_object,
                     "attached_object_prim_path": self.state.attached_object_prim_path
                     or None,
-                    "source_local_offset_m": self._source_local_offset_from_state(),
+                    "source_local_offset_m": (
+                        self._host._authoring._source_local_offset_from_state()
+                    ),
                     "latest_source_position_m": self.state.latest_source_position_m,
-                    "array_position_m": self._array_position_from_state(),
+                    "array_position_m": (
+                        self._host._authoring._array_position_from_state()
+                    ),
                     "array_attached_to_object": self.state.array_attached_to_object,
                     "attached_array_object_prim_path": (
                         self.state.attached_array_object_prim_path or None
                     ),
-                    "array_local_offset_m": self._array_local_offset_from_state(),
+                    "array_local_offset_m": (
+                        self._host._authoring._array_local_offset_from_state()
+                    ),
                     "selected_rig_profile_id": (
                         self.state.selected_rig_profile_id or None
                     ),
                     "robot_base_prim_path": self.state.robot_base_prim_path or None,
-                    "discovery_roots": self._discovery_roots(),
+                    "discovery_roots": self._host._authoring._discovery_roots(),
                     "selected_prim_paths": self.state.selected_prim_paths,
                     "update_period_s": self.state.update_period_s,
                     "max_events": self.state.max_events,

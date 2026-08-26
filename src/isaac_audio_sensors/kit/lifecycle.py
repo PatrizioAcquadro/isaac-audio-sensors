@@ -65,15 +65,18 @@ class LifecycleService(ControllerService):
         """Release every owned resource even when one cleanup fails."""
 
         failures: list[str] = []
-        recording = vars(self._host._recording).get("_guided_recorder")
-        workflow = vars(self._host._recording).get("_guided_workflow")
+        recording = self._host._recording._guided_recorder
+        workflow = self._host._recording._guided_workflow
         cleanups = (
-            ("recording", self.guided_cancel_recording if recording else None),
-            ("Kit audio", self.cleanup_kit_audio),
-            ("audition", self.stop_audition),
-            ("Replicator", self.stop_replicator),
-            ("USD debug", self.clear_usd_debug_geometry),
-            ("sensor", self.close_sensor),
+            (
+                "recording",
+                self._host.guided_cancel_recording if recording else None,
+            ),
+            ("Kit audio", self._host.cleanup_kit_audio),
+            ("audition", self._host.stop_audition),
+            ("Replicator", self._host.stop_replicator),
+            ("USD debug", self._host.clear_usd_debug_geometry),
+            ("sensor", self._host.close_sensor),
             ("reset callback", self._unregister_simulation_reset_callback),
             ("stage subscription", self._unregister_stage_event_subscription),
             ("update subscription", self._stop_controller_update_subscription),
@@ -412,9 +415,9 @@ class LifecycleService(ControllerService):
     def _start_controller_update_subscription(self) -> None:
         def _on_update(_event: Any) -> None:
             self._viewport_follow_tick()
-            if self.sensor is None or not self.state.sensor_running:
+            if self._host.sensor is None or not self.state.sensor_running:
                 return
-            frame = self.update_sensor(force=False)
+            frame = self._host.update_sensor(force=False)
             if frame is not None and self._ui_window is not None:
                 self._ui_window.refresh_labels()
 
@@ -449,7 +452,7 @@ class LifecycleService(ControllerService):
                 event_type = int(getattr(event, "type", -1))
                 stage_change = stage_change_types.get(event_type)
                 if stage_change is not None:
-                    self.cleanup_kit_audio(reason=f"USD stage {stage_change}")
+                    self._host.cleanup_kit_audio(reason=f"USD stage {stage_change}")
                     self._validation.invalidate()
                     return
                 if event_type != selection_changed:
@@ -475,7 +478,7 @@ class LifecycleService(ControllerService):
             manager = simulation.SimulationManager
             event = simulation.IsaacEvents.POST_RESET
             self._simulation_reset_callback_id = manager.register_callback(
-                self._handle_simulation_reset,
+                self._host._recording._handle_simulation_reset,
                 event=event,
             )
         except (AttributeError, ImportError, RuntimeError, TypeError, ValueError):
@@ -504,7 +507,7 @@ class LifecycleService(ControllerService):
 
     def _handle_viewport_selection_changed(self) -> None:
         try:
-            context = self._context()
+            context = self._host.current_stage_context()
         except Exception:
             return
         selection = tuple(context.selected_prim_paths)
@@ -530,7 +533,7 @@ class LifecycleService(ControllerService):
             self.state.source_prim_path = path
             self._set_status(f"Viewport selection adopted as source: {path}")
             return
-        self.use_selected_as_object(stage=stage, selected_paths=(path,))
+        self._host.use_selected_as_object(stage=stage, selected_paths=(path,))
 
     def _live_sync_pose_tick(self) -> None:
         """Mirror manipulator-driven prim poses into the numeric fields."""
@@ -539,7 +542,7 @@ class LifecycleService(ControllerService):
         if not (state.live_sync_array_pose or state.live_sync_source_pose):
             return
         try:
-            context = self._context()
+            context = self._host.current_stage_context()
         except Exception:
             return
         if context.stage is None:
@@ -562,9 +565,11 @@ class LifecycleService(ControllerService):
         except Exception:
             return False
         position = tuple(float(value) for value in pose.position_world)
-        if _vec_close(self._source_position_from_state(), position):
+        if _vec_close(
+            self._host._authoring._source_position_from_state(), position
+        ):
             return False
-        self._set_source_position_state(position)
+        self._host._authoring._set_source_position_state(position)
         return True
 
     def _sync_array_pose_from_prim(self, stage: Any) -> bool:
@@ -580,9 +585,11 @@ class LifecycleService(ControllerService):
             float(value)
             for value in (pose.orientation_world_quat or (0.0, 0.0, 0.0, 1.0))
         )
-        if _vec_close(self._array_position_from_state(), position) and _vec_close(
-            self._array_orientation_from_state(), orientation
+        if _vec_close(
+            self._host._authoring._array_position_from_state(), position
+        ) and _vec_close(
+            self._host._authoring._array_orientation_from_state(), orientation
         ):
             return False
-        self._set_array_pose_state(position, orientation)
+        self._host._authoring._set_array_pose_state(position, orientation)
         return True
