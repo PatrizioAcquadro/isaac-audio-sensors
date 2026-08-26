@@ -185,9 +185,9 @@ Duplicate simulation setup, monolithic dispatch, eager command-subsystem imports
 
 #### Implementation
 
-R5.8 keeps one root example set and freezes the curated v2 package entrypoints. Package-internal examples were already removed in R5.0. The broken `multi_mic_tdoa.py`, quickstart-duplicate `single_source_bearing.py`, and the `cli`, `calibration`, and `manifests` subfolder READMEs are removed; their essential usage moves to `examples/README.md`.
+R5.8 keeps one root example set and freezes the curated v2 package entrypoints. Package-internal examples were already removed in R5.0. The broken `multi_mic_tdoa.py`, quickstart-duplicate `single_source_bearing.py`, and the `cli`, `calibration`, and `manifests` subfolder READMEs were removed; their essential usage initially moved to a root examples index. A later cleanup removed that temporary index in preparation for the user guide.
 
-The retained pure examples cover two-microphone ambiguity and optional room acoustics. New read-only recipes load the recording manifest and nominal calibration profile through the installed package. Isaac Sim and Isaac Lab examples remain concise initialization recipes; complete live GPU workflows remain in `tools/smoke/`.
+The retained pure examples cover two-microphone ambiguity and optional room acoustics. R5.8 also added read-only recipes that loaded the recording manifest and nominal calibration profile through the installed package; the later cleanup removed those two trivial loaders while retaining the manifest and calibration artifacts and their direct contract tests. Isaac Sim and Isaac Lab examples remain concise initialization recipes; complete live GPU workflows remain in `tools/smoke/`.
 
 One parametrized contract is the exact inventory for the package, `core`, `recording`, `isaac`, `lab`, `kit`, `schemas`, and `schemas.generate` roots. The `kit` root exports only `ExtensionController`; `schemas` exports nothing from its root; `schemas.generate` exports the three schema generators and `write_json_schema`. One parametrized execution test covers every retained Python example. The unused `examples` extra is removed in favor of the canonical `room` extra.
 
@@ -236,9 +236,6 @@ The example set demonstrates package contracts and initialized runtime integrati
 - `src/isaac_audio_sensors/kit/sensor_session.py`
 - `src/isaac_audio_sensors/schemas/generate.py`
 - `src/isaac_audio_sensors/cli.py`
-- `examples/README.md`
-- `examples/recording/read_manifest.py`
-- `examples/calibration/read_profile.py`
 - `tests/contract/test_schemas.py`
 - `tests/contract/test_public_surface.py`
 - `tests/contract/test_examples.py`

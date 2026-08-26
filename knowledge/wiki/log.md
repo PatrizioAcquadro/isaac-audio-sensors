@@ -249,3 +249,11 @@ Recorded one pre-build release preflight, shared version and wheelhouse authorit
 ## 2026-08-25 — lint: Release tooling simplification
 
 Verified canonical ownership, internal links and index coverage, immutable raw content, 426 unit/contract tests, 249 integration tests with two expected SoundFile skips, 58 release tests, version synchronization, Ruff, and Markdown whitespace.
+
+## 2026-08-25 — update: Lean examples surface
+
+Recorded removal of the temporary examples index and two trivial loader scripts, retention of practical configs, fixtures, Core and Isaac recipes, and unchanged APIs, schemas, and runtime behavior.
+
+## 2026-08-25 — lint: Lean examples surface
+
+Verified canonical ownership, internal links and index coverage, immutable raw content, no stale removed-example references, 424 unit/contract tests, 249 integration tests with two expected SoundFile skips, 58 release tests, version synchronization, Ruff, and Markdown whitespace.

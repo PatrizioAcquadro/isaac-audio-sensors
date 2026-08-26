@@ -9,12 +9,10 @@ import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_EXAMPLES = (
-    "examples/calibration/read_profile.py",
     "examples/core/room_acoustics_demo.py",
     "examples/core/two_mic_ambiguity.py",
     "examples/isaac_lab/isaac_lab_audio_observation.py",
     "examples/isaac_sim/live_audio_lab.py",
-    "examples/recording/read_manifest.py",
 )
 
 

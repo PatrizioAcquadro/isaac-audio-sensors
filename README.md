@@ -56,7 +56,6 @@ These commands require only the core package; no Isaac runtime or GPU is needed.
 - [Technical wiki](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/index.md)
 - [Current verified status](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/status.md)
 - [Getting started](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/topics/getting-started.md)
-- [Examples](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/examples/README.md)
 - [Changelog](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/CHANGELOG.md)
 
 ## Contributing and Security
