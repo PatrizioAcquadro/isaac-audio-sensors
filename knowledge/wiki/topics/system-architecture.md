@@ -26,7 +26,7 @@ Dataset-manifest constants, models, and canonical JSON serializers are recording
 
 ## Schema Layer
 
-`isaac_audio_sensors.schemas` owns deterministic generation through `schemas.generate`; its three Python generators are authoritative and packaged JSON schemas are generated release artifacts. Generation depends only on core and recording contracts.
+`isaac_audio_sensors.schemas` owns deterministic generation. `schemas.generate` is the public facade over one private module per contract and shared schema fragments; its three Python generators are authoritative, and packaged JSON schemas are byte-identical generated release artifacts. Generation depends only on core and recording contracts.
 
 ## Isaac Sim Layer
 
@@ -56,7 +56,7 @@ Privileged source pose, geometry, isolated-signal, or simulator state must remai
 
 ## Dependency Boundary
 
-The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> core`, `kit -> core + recording + isaac`, and `schemas -> core + recording`. The CLI imports and composes an owning public service only after its leaf command is selected; lower components do not import Kit, UI, or CLI.
+The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> core`, `kit -> core + recording + isaac`, and `schemas -> core + recording`. `cli.py` owns the entrypoint and parser topology; private `_cli` modules adapt standard, dataset, and guided commands and import owning public services only after a leaf command is selected. Lower components do not import Kit, UI, or CLI.
 
 The package root exports only `__version__`. Public types and services are imported from their semantic subsystem.
 

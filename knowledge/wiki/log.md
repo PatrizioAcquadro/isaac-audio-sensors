@@ -301,3 +301,11 @@ Recorded the single bounded shard scan, bounded audio-header reads, removed dead
 ## 2026-08-26 — lint: Recording internals cleanup
 
 Verified focused and full host lanes, real FLAC round-trip, fixture validation, documentation boundaries, immutable raw content, Ruff, scoped formatting, and whitespace.
+
+## 2026-08-26 — update: Schema and CLI modularization
+
+Recorded private per-contract schema generation and command-domain CLI adapters while preserving public APIs, deterministic v1 artifacts, lazy imports, commands, output, and exit codes.
+
+## 2026-08-26 — lint: Schema and CLI modularization
+
+Verified 22 focused tests, 465 unit/contract tests, 166 integration tests, 57 release tests, byte-identical v1 schemas, wheel and sdist builds, installed-package CLI smokes, immutable raw content, Ruff, scoped formatting, and whitespace.

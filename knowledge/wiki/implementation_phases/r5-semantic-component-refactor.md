@@ -35,7 +35,7 @@ R5.1 reduces `core.__all__` to the eleven fundamental scene and sensor models. I
 
 `MicrophoneArraySpec.orientation_world_quat` is the sole array orientation authority. Internal consumers derive the normalized forward/right/up basis once where needed. The cleanup also consolidates backends on `PropagationBackend` and removes duplicate plugin-output, custom-array, basis-check, and occlusion-amplitude APIs.
 
-The three Python schema generators are authoritative. `write_json_schema` provides one deterministic export path used by the CLI, and packaged JSON files must remain byte-identical generated artifacts. The compatible frame schema now permits legacy v1 traces that predate the additive `units.elevation` key. JSON Schema validation is development-only.
+The three Python schema generators are authoritative. `write_json_schema` provides one deterministic export path used by the CLI, and packaged JSON files must remain byte-identical generated artifacts. A later maintainability cleanup kept `schemas.generate` as the public facade while isolating each contract and the few shared fragments in private modules. The compatible frame schema permits legacy v1 traces that predate the additive `units.elevation` key. JSON Schema validation is development-only.
 
 #### Key Decisions
 
@@ -165,7 +165,7 @@ Kit no longer combines UI state, USD authoring, recording, sensor, Replicator, a
 
 #### Implementation
 
-R5.7 makes `cli.py` a lazy adapter whose leaf handlers own only argument parsing, public-service calls, rendering, and exit codes. Config-driven simulation moves to `core.simulation.simulate_from_config`; help and version paths no longer import concrete backends, recording, schemas, NumPy, or Kit.
+R5.7 makes the CLI a lazy adapter whose leaf handlers own only public-service calls, rendering, and exit codes. `cli.py` retains the stable entrypoint and parser topology; a later maintainability cleanup grouped the handlers in private `_cli` modules without changing commands or behavior. Config-driven simulation moves to `core.simulation.simulate_from_config`; help and version paths do not import concrete backends, recording, schemas, NumPy, or Kit.
 
 The v2 CLI contains `validate-config`, `simulate`, `export-schema`, `capabilities`, `dataset {validate,stats,split}`, and `guided run-headless`. `simulate --out` is the sole deterministic frame-trace export path; the duplicate `export-trace` command is removed without a shim. Dataset split delegates validation and split policy to recording services without a second post-write validation pass, while preserving the manifest overwrite guard.
 
