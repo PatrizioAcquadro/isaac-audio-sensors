@@ -55,7 +55,7 @@ class LifecycleService(ControllerService):
     def on_startup(self, ext_id: str) -> None:
         """Initialize the import-safe controller and lazily build Kit UI."""
 
-        self._validation.invalidate("extension startup")
+        self._validation.invalidate()
         self.ext_id = ext_id
         self._set_status(f"Loaded {ext_id}.")
         self.build_ui_if_available()
@@ -450,7 +450,7 @@ class LifecycleService(ControllerService):
                 stage_change = stage_change_types.get(event_type)
                 if stage_change is not None:
                     self.cleanup_kit_audio(reason=f"USD stage {stage_change}")
-                    self._validation.invalidate(f"USD stage {stage_change}")
+                    self._validation.invalidate()
                     return
                 if event_type != selection_changed:
                     return

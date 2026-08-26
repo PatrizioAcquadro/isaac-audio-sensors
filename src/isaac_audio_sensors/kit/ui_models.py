@@ -61,16 +61,6 @@ def _ui_fraction(ui: Any, value: float) -> Any:
         return value
 
 
-def _format_edit_value(value: Any) -> str:
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, int):
-        return str(value)
-    if isinstance(value, float):
-        return f"{value:g}"
-    return str(value)
-
-
 def _set_widget_text(widget: Any, text: str) -> None:
     """Set a label-like widget's text via attribute or model."""
 

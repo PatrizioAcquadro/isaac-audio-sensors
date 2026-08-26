@@ -115,7 +115,7 @@ class SensorSession(ControllerService):
                 self.state.trace_enabled = True
                 self.state.jsonl_trace_path = str(writer_path)
 
-            self._validation.invalidate("sensor configuration apply")
+            self._validation.invalidate()
             stage_obj = self._stage_or_error(stage)
             sensor = self._build_sensor(stage_obj)
             self.close_sensor()
@@ -469,22 +469,6 @@ class SensorSession(ControllerService):
 
     def _validate_backend_available(self) -> None:
         _raise_first(self._validation.validate_backend_available(self.state.backend))
-
-    def _validate_backend_device(self) -> None:
-        _raise_first(
-            self._validation.validate_backend_device(
-                self.state.backend,
-                self.state.compute_device,
-            )
-        )
-
-    def _validate_calibration_profile(self) -> None:
-        _raise_first(
-            self._validation.validate_calibration_profile(
-                self.state.calibration_profile_path,
-                self._calibration_array_facts(),
-            )
-        )
 
     def _calibration_array_facts(self) -> dict[str, Any]:
         return {

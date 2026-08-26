@@ -725,7 +725,7 @@ class AuthoringService(ControllerService):
                 ),
             )
             self._append_authored_record(authored)
-            self._validation.invalidate("source attached to stage object")
+            self._validation.invalidate()
             self._set_status(
                 "Attached source "
                 f"{authored.id} to {_path_name(object_path)} at {object_path} "
@@ -801,7 +801,7 @@ class AuthoringService(ControllerService):
                 attributes=_jsonable_mapping({**record.attributes, **attrs}),
             )
             self._append_authored_record(authored)
-            self._validation.invalidate("source detached from stage object")
+            self._validation.invalidate()
             self._set_status(
                 "Detached source "
                 f"{authored.id} to {standalone_path} at "
@@ -892,7 +892,7 @@ class AuthoringService(ControllerService):
                 attributes=_jsonable_mapping(binding_attrs),
             )
             self._append_authored_record(authored)
-            self._validation.invalidate("array attached to stage object")
+            self._validation.invalidate()
             self._set_status(
                 "Attached array "
                 f"{authored.id} to {_path_name(object_path)} at {object_path} "
@@ -954,7 +954,7 @@ class AuthoringService(ControllerService):
                 attributes=_jsonable_mapping(attrs),
             )
             self._append_authored_record(authored)
-            self._validation.invalidate("array detached from stage object")
+            self._validation.invalidate()
             self._set_status(
                 "Detached array "
                 f"{authored.id} to {standalone_path} at "

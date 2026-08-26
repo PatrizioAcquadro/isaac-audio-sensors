@@ -48,26 +48,21 @@ class ValidationController:
         self._capability_state: CapabilityState | None = None
         self._capability_generation = 0
         self._capabilities_stale = False
-        self._capability_invalidation_reason: str | None = None
 
     @property
     def capability_state(self) -> CapabilityState:
         if self._capability_state is None:
             raise RuntimeError(
                 "Capability state has never been refreshed; call "
-                "refresh_capabilities(reason) first."
+                "refresh_capabilities() first."
             )
         if self._capabilities_stale:
-            reason = self._capability_invalidation_reason or "unspecified change"
-            return self.refresh_capabilities(
-                f"lazy refresh after invalidation: {reason}"
-            )
+            return self.refresh_capabilities()
         return self._capability_state
 
-    def refresh_capabilities(self, reason: str) -> CapabilityState:
+    def refresh_capabilities(self) -> CapabilityState:
         """Discover optional capabilities and cache one fresh snapshot."""
 
-        del reason
         report = discover_capabilities()
         generation = self._capability_generation + 1
         snapshot = CapabilityState(
@@ -78,18 +73,14 @@ class ValidationController:
         self._capability_generation = generation
         self._capability_state = snapshot
         self._capabilities_stale = False
-        self._capability_invalidation_reason = None
         return snapshot
 
-    def invalidate(self, reason: str) -> None:
+    def invalidate(self) -> None:
         self._capabilities_stale = True
-        self._capability_invalidation_reason = reason
 
     def validate_backend_available(self, backend_id: str) -> ValidationReport:
         if self._capability_state is None:
-            state = self.refresh_capabilities(
-                f"initial backend availability validation: {backend_id}"
-            )
+            state = self.refresh_capabilities()
         else:
             state = self.capability_state
         try:

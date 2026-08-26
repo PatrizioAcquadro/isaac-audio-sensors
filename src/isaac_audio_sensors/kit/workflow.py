@@ -170,19 +170,6 @@ class RecoveryAction:
 
 
 @dataclass(frozen=True, slots=True)
-class InlineIssue:
-    """One finding indexed by the widget field where it should be rendered."""
-
-    field: str
-    finding: ValidationFinding
-    recovery: RecoveryAction
-
-    @property
-    def message(self) -> str:
-        return self.finding.message
-
-
-@dataclass(frozen=True, slots=True)
 class RunStatus:
     """Immutable guided Run lifecycle snapshot."""
 
@@ -228,11 +215,6 @@ class RecordingStatus:
     @property
     def byte_count(self) -> int:
         return self.bytes_written
-
-    @property
-    def current_episode_id(self) -> str | None:
-        return self.current_episode
-
 
 @dataclass(frozen=True, slots=True)
 class ExportStatus:
@@ -344,16 +326,7 @@ class GuidedWorkflow:
         self._export_status = ExportStatus()
         self.on_change = on_change
         self._recovery_handlers = dict(recovery_handlers or {})
-        self.focused_field: str | None = None
         self._mirror_stage()
-
-    @property
-    def statuses(self) -> Mapping[GuidedStage, StageStatus]:
-        return dict(self._statuses)
-
-    @property
-    def current_status(self) -> StageStatus:
-        return self._statuses[self.current_stage]
 
     @property
     def current_findings(self) -> tuple[ValidationFinding, ...]:
@@ -698,19 +671,6 @@ class GuidedWorkflow:
         self._findings[GuidedStage.EXPORT] = (_finding(check_id, message, field),)
         self._emit_change()
 
-    def issues_for_field(self, field: str) -> tuple[InlineIssue, ...]:
-        """Return current-stage findings for one exact widget field hint."""
-
-        return tuple(
-            InlineIssue(
-                field=self._field_for_finding(finding),
-                finding=finding,
-                recovery=self.recovery_action(finding),
-            )
-            for finding in self.current_findings
-            if self._field_for_finding(finding) == field
-        )
-
     def recovery_action(self, finding: ValidationFinding) -> RecoveryAction:
         """Resolve a finding through the extensible recovery-rule registry."""
 
@@ -720,7 +680,6 @@ class GuidedWorkflow:
         handler = self._recovery_handlers.get(rule.handler_id)
 
         def _recover() -> None:
-            self.focused_field = self._field_for_finding(finding)
             if handler is not None:
                 handler(finding)
             self._emit_change()
@@ -765,7 +724,6 @@ __all__ = [
     "SAFE_PRESETS",
     "GuidedStage",
     "GuidedWorkflow",
-    "InlineIssue",
     "RecoveryAction",
     "RecordingStatus",
     "RunStatus",

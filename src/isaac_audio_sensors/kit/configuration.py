@@ -302,7 +302,7 @@ class ConfigurationService(ControllerService):
         )
 
     def _apply_config_summary(self, payload: Mapping[str, Any]) -> None:
-        self._validation.invalidate("configuration summary apply")
+        self._validation.invalidate()
         array = dict(payload.get("array", {}))
         source = dict(payload.get("source", {}))
         sound_profiles = payload.get("sound_profiles")

@@ -67,8 +67,8 @@ def test_capability_cache_refreshes_once_after_invalidation(monkeypatch) -> None
     with pytest.raises(RuntimeError, match="never been refreshed"):
         _ = validation.capability_state
 
-    first = validation.refresh_capabilities("initial")
-    validation.invalidate("dependency change")
+    first = validation.refresh_capabilities()
+    validation.invalidate()
     second = validation.capability_state
 
     assert calls == 2
@@ -90,8 +90,8 @@ def test_backend_validation_uses_refreshed_capability_state(monkeypatch) -> None
         lambda: next(reports),
     )
     validation = ValidationController()
-    validation.refresh_capabilities("room dependency available")
-    validation.invalidate("room dependency unavailable")
+    validation.refresh_capabilities()
+    validation.invalidate()
 
     report = validation.validate_backend_available("room_acoustics")
 

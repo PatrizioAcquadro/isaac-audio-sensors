@@ -149,12 +149,12 @@ def test_stage_machine_enforces_order_and_records_blocked_transitions() -> None:
     workflow = GuidedWorkflow(
         state,
         on_change=lambda: changes.append(
-            (workflow.current_stage, workflow.current_status)
+            (workflow.current_stage, workflow.status(workflow.current_stage))
         ),
     )
 
     assert workflow.current_stage is GuidedStage.SETUP
-    assert workflow.current_status is StageStatus.IN_PROGRESS
+    assert workflow.status(workflow.current_stage) is StageStatus.IN_PROGRESS
     assert workflow.goto(GuidedStage.VALIDATE) is False
     assert workflow.current_stage is GuidedStage.SETUP
     assert workflow.status(GuidedStage.VALIDATE) is StageStatus.BLOCKED
@@ -247,8 +247,11 @@ def test_invalid_field_maps_to_recovery_and_unblocks(
     report = controller.guided_validate()
 
     finding = next(item for item in report.findings if item.check_id == check_id)
-    issues = controller.guided_workflow.issues_for_field(field)
-    assert [issue.finding for issue in issues] == [
+    assert [
+        item
+        for item in controller.guided_workflow.current_findings
+        if item.field == field
+    ] == [
         item for item in report.findings if item.field == field
     ]
     action = controller.guided_workflow.recovery_action(finding)
@@ -266,7 +269,7 @@ def test_absent_stage_has_open_stage_recovery() -> None:
 
     report = controller.guided_validate()
     finding = next(item for item in report.findings if item.check_id == "stage_present")
-    assert controller.guided_workflow.issues_for_field("stage")[0].finding is finding
+    assert finding in controller.guided_workflow.current_findings
     action = controller.guided_workflow.recovery_action(finding)
     assert action.label == "Open stage"
 
