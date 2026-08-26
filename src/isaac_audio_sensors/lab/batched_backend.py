@@ -12,6 +12,7 @@ from isaac_audio_sensors.core.constants import (
     EPSILON,
     SECTOR_ORDER,
 )
+from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 from isaac_audio_sensors.lab.entity_binding import EntityPoseTensorBatch
 
 
@@ -194,7 +195,7 @@ def compact_active_events(
     *,
     active_mask: torch.Tensor,
     max_events: int,
-) -> dict[str, torch.Tensor]:
+) -> AudioArraySensorData:
     num_envs, num_sources = active_mask.shape
     num_mics = observations.per_mic_rms.shape[-1]
     ranks = active_mask.long().cumsum(dim=1) - 1
@@ -230,11 +231,11 @@ def compact_active_events(
     confidence = torch.where(
         presence, confidence[:, :max_events], torch.zeros_like(bearing)
     )
-    return {
-        "event_presence": presence,
-        "bearing_deg": bearing,
-        "confidence": confidence,
-        "sector_onehot": _sector_onehot(bearing, presence & ~torch.isnan(bearing)),
-        "per_mic_rms": rms[:, :max_events] * presence.unsqueeze(-1),
-        "ambiguity_mask": ambiguity[:, :max_events] & presence,
-    }
+    return AudioArraySensorData(
+        event_presence=presence,
+        bearing_deg=bearing,
+        confidence=confidence,
+        sector_onehot=_sector_onehot(bearing, presence & ~torch.isnan(bearing)),
+        per_mic_rms=rms[:, :max_events] * presence.unsqueeze(-1),
+        ambiguity_mask=ambiguity[:, :max_events] & presence,
+    )

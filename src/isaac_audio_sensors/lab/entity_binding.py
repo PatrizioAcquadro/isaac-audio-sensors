@@ -137,7 +137,6 @@ class EntityBinding:
 
     def __init__(self, scene: Any, cfg: EntityBindingCfg) -> None:
         self.cfg = cfg
-        self._scene = scene
         self._robot = scene[cfg.robot_entity_name]
         self._source_cfgs = tuple(
             sorted(

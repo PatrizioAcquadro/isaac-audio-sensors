@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import fields
 
 import torch
 
@@ -69,7 +68,7 @@ class ReferenceBackend:
         max_events: int,
         update_period: float,
         device: str,
-    ) -> dict[str, torch.Tensor]:
+    ) -> AudioArraySensorData:
         count = int(env_ids.numel())
         result = AudioArraySensorData.allocate(
             num_envs=count,
@@ -114,4 +113,4 @@ class ReferenceBackend:
                     result.per_mic_rms[row, event_index, mic_index] = float(
                         detection.per_mic_rms.get(microphone.mic_id, 0.0)
                     )
-        return {item.name: getattr(result, item.name) for item in fields(result)}
+        return result

@@ -54,7 +54,9 @@ class AudioArraySensorData:
         self.ambiguity_mask[env_mask] = False
 
     def write(
-        self, env_ids: torch.Tensor, observations: dict[str, torch.Tensor]
+        self, env_ids: torch.Tensor, observations: AudioArraySensorData
     ) -> None:
         for field_name in self.__dataclass_fields__:
-            getattr(self, field_name).index_copy_(0, env_ids, observations[field_name])
+            getattr(self, field_name).index_copy_(
+                0, env_ids, getattr(observations, field_name)
+            )

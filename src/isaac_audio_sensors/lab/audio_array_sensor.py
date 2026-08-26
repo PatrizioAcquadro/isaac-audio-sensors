@@ -146,7 +146,7 @@ class AudioArraySensor(SensorBase):
 
     def _entity_observations(
         self, env_ids: torch.Tensor, timestamps: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
+    ) -> AudioArraySensorData:
         assert self._entity_binding is not None
         batch = self._entity_binding.pose_batch(env_ids, device=self.device)
         static = batch.static

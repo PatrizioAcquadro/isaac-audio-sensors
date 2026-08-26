@@ -224,10 +224,10 @@ def test_entity_and_reference_paths_match_with_schedule_and_truncation(backend_i
         device="cpu",
     )
 
-    for name in entity_result:
+    for item in fields(entity_result):
         torch.testing.assert_close(
-            entity_result[name],
-            reference_result[name],
+            getattr(entity_result, item.name),
+            getattr(reference_result, item.name),
             equal_nan=True,
             atol=1e-4,
             rtol=1e-4,
@@ -247,10 +247,9 @@ def test_entity_and_reference_paths_match_with_schedule_and_truncation(backend_i
         num_mics=4,
         device="cpu",
     )
-    assert tuple(padded_result) == tuple(item.name for item in fields(expected_padding))
     for item in fields(expected_padding):
         torch.testing.assert_close(
-            padded_result[item.name],
+            getattr(padded_result, item.name),
             getattr(expected_padding, item.name),
             equal_nan=True,
         )
