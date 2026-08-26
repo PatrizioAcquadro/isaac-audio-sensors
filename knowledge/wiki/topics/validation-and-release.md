@@ -10,7 +10,7 @@
 
 `make test-release` remains the focused release content, versioning, Python sdist/wheel, Kit, and repository-boundary lane.
 
-`make test-isaac` runs the Isaac lane through the configured Isaac Lab interpreter with `CUDA_VISIBLE_DEVICES=0`.
+`make test-isaac` runs the deterministic Isaac lane through the configured Isaac Lab interpreter without requiring a GPU.
 
 ## Focused Checks
 

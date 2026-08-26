@@ -1,5 +1,3 @@
-"""Motion config, snapshot precedence, and stage enrichment tests."""
-
 from __future__ import annotations
 
 import math
@@ -9,12 +7,10 @@ from dataclasses import replace
 import pytest
 
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
-from isaac_audio_sensors.core.config import validate_audio_config
 from isaac_audio_sensors.core.effects import (
     EffectsConfig,
     MotionEffectsConfig,
 )
-from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.motion import PoseHistory
@@ -28,34 +24,7 @@ from isaac_audio_sensors.isaac.stage_snapshot import (
     build_stage_snapshot,
     enrich_snapshot_motion,
 )
-
-
-def _raw_config() -> dict[str, object]:
-    return {
-        "scene": {"scene_id": "motion_config"},
-        "audio": {
-            "default_backend": "tdoa_synthetic",
-            "sample_rate_hz": 48_000,
-            "tdoa_ambiguity_policy": "none",
-        },
-        "sources": [
-            {
-                "source_id": "speaker",
-                "prim_path": "/World/Speaker",
-                "class_label": "Speech",
-            }
-        ],
-        "arrays": {
-            "rig": {
-                "array_id": "rig",
-                "prim_path": "/World/Rig",
-                "microphones": [
-                    {"mic_id": "left"},
-                    {"mic_id": "right"},
-                ],
-            }
-        },
-    }
+from tests.helpers import FakeUsdPrim, motion_stage
 
 
 def _motion(enabled: bool = True, **kwargs) -> MotionEffectsConfig:
@@ -94,96 +63,6 @@ def _scene(source, array) -> AudioSceneSnapshot:
         sources=(source,),
         arrays=(array,),
     )
-
-
-def test_motion_config_defaults_and_normalized_fields_are_frozen():
-    config = validate_audio_config(_raw_config())
-    assert config.effects.motion == MotionEffectsConfig(
-        derive_velocity_from_poses=False,
-        teleport_speed_threshold_mps=50.0,
-        stale_time_s=0.5,
-        smoothing_alpha=None,
-    )
-    assert config.effects.all_disabled
-
-    raw = _raw_config()
-    raw["audio"]["effects"] = {
-        "motion": {
-            "derive_velocity_from_poses": True,
-            "teleport_speed_threshold_mps": 75,
-            "stale_time_s": 1,
-            "smoothing_alpha": 0.5,
-        }
-    }
-    configured = validate_audio_config(raw).effects.motion
-    assert configured == MotionEffectsConfig(
-        derive_velocity_from_poses=True,
-        teleport_speed_threshold_mps=75.0,
-        stale_time_s=1.0,
-        smoothing_alpha=0.5,
-    )
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("unknown", 1),
-        ("enabled", True),
-        ("derive_velocity_from_poses", 1),
-        ("derive_velocity_from_poses", 0.0),
-        ("teleport_speed_threshold_mps", True),
-        ("teleport_speed_threshold_mps", "50.0"),
-        ("teleport_speed_threshold_mps", float("nan")),
-        ("stale_time_s", False),
-        ("stale_time_s", float("inf")),
-        ("smoothing_alpha", True),
-        ("smoothing_alpha", float("-inf")),
-    ],
-)
-def test_invalid_motion_config_matrix_fails_closed(field, value):
-    raw = _raw_config()
-    raw["audio"]["effects"] = {"motion": {field: value}}
-    with pytest.raises(ConfigValidationError, match=f"audio.effects.motion.*{field}"):
-        validate_audio_config(raw)
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("teleport_speed_threshold_mps", 0.0),
-        ("stale_time_s", 60.0001),
-        ("smoothing_alpha", 1.0001),
-    ],
-)
-def test_active_motion_rejects_out_of_range_values(field, value):
-    raw = _raw_config()
-    raw["audio"]["effects"] = {
-        "motion": {"derive_velocity_from_poses": True, field: value}
-    }
-    with pytest.raises(ConfigValidationError, match=f"audio.effects.motion.*{field}"):
-        validate_audio_config(raw)
-
-
-def test_direct_motion_record_validation_rejects_bool_as_number():
-    effects = EffectsConfig(
-        motion=MotionEffectsConfig(teleport_speed_threshold_mps=True)
-    )
-    with pytest.raises(ConfigValidationError, match="teleport_speed_threshold_mps"):
-        validate_effects_config(
-            effects,
-            microphone_orders=(("left", "right"),),
-            sample_rate_hz=48_000,
-            backend_id="tdoa_synthetic",
-            runtime_profile="waveform_fidelity",
-        )
-
-
-def test_config_source_selected_array_collision_fails_before_snapshot():
-    raw = _raw_config()
-    raw["sources"][0]["source_id"] = "rig"
-    raw["audio"]["effects"] = {"motion": {"derive_velocity_from_poses": True}}
-    with pytest.raises(ConfigValidationError, match="collisions.*rig"):
-        validate_audio_config(raw)
 
 
 def test_disabled_motion_enrichment_is_literal_identity_and_no_history_update():
@@ -255,60 +134,8 @@ def test_snapshot_collision_fails_before_any_history_mutation():
     assert history._entities == {}
 
 
-class _FakePrim:
-    def __init__(self, path: str, type_name: str, attributes: dict[str, object]):
-        self.path = path
-        self.type_name = type_name
-        self.attributes = attributes
-
-
-class _FakeStage:
-    def __init__(self, prims: tuple[_FakePrim, ...]):
-        self._prims = list(prims)
-
-    def Traverse(self):
-        return tuple(self._prims)
-
-    def GetPrimAtPath(self, path: str):
-        return next((prim for prim in self._prims if prim.path == path), None)
-
-    def RemovePrim(self, path: str):
-        self._prims = [
-            prim
-            for prim in self._prims
-            if prim.path != path and not prim.path.startswith(f"{path}/")
-        ]
-
-    def add(self, prim: _FakePrim):
-        self._prims.append(prim)
-
-
-def _fake_stage():
-    source = _FakePrim(
-        "/World/Speaker",
-        "Sound",
-        {
-            "filePath": "generated://impulse",
-            "ias:source_id": "speaker",
-            "ias:class_label": "Speech",
-            "ias:position_world": (1.0, 0.0, 0.0),
-            "ias:duration_s": 10.0,
-        },
-    )
-    array = _FakePrim(
-        "/World/Rig",
-        "Xform",
-        {
-            "ias:array_id": "rig",
-            "ias:position_world": (0.0, 0.0, 0.0),
-            "ias:layout_name": "quad_front",
-        },
-    )
-    return _FakeStage((source, array)), source, array
-
-
 def test_fake_stage_snapshot_seam_uses_explicit_simulation_time_not_time_code():
-    stage, source_prim, array_prim = _fake_stage()
+    stage, source_prim, array_prim = motion_stage()
     history = PoseHistory()
     diagnostics = {}
     first = build_stage_snapshot(
@@ -350,7 +177,7 @@ def test_fake_stage_snapshot_seam_uses_explicit_simulation_time_not_time_code():
 
 
 def test_enabled_stage_snapshot_requires_finite_explicit_simulation_time():
-    stage, _, _ = _fake_stage()
+    stage, _, _ = motion_stage()
     history = PoseHistory()
     with pytest.raises(ValueError, match="simulation_time_s"):
         build_stage_snapshot(
@@ -405,7 +232,7 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
 
 
 def test_live_extension_enriches_frame_diagnostics_and_rediscovery_keeps_history():
-    stage, source_prim, _ = _fake_stage()
+    stage, source_prim, _ = motion_stage()
     effects = EffectsConfig(motion=_motion())
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
@@ -448,7 +275,7 @@ def test_live_extension_enriches_frame_diagnostics_and_rediscovery_keeps_history
 
 
 def test_live_direct_capture_requires_explicit_motion_time():
-    stage, _, _ = _fake_stage()
+    stage, _, _ = motion_stage()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig",
@@ -462,7 +289,7 @@ def test_live_direct_capture_requires_explicit_motion_time():
 
 
 def test_stage_replacement_clears_history_before_new_stage_sample():
-    first_stage, first_source, _ = _fake_stage()
+    first_stage, first_source, _ = motion_stage()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=first_stage,
         array_prim_path="/World/Rig",
@@ -479,7 +306,7 @@ def test_stage_replacement_clears_history_before_new_stage_sample():
         == "derived"
     )
 
-    second_stage, _, _ = _fake_stage()
+    second_stage, _, _ = motion_stage()
     sensor.stage = second_stage
     replaced = sensor.update(sim_time_s=0.10)
     assert replaced.diagnostics["motion"]["velocity_source"] == {
@@ -490,8 +317,8 @@ def test_stage_replacement_clears_history_before_new_stage_sample():
 
 
 def test_entity_removal_and_same_id_new_prim_purges_only_removed_history():
-    stage, _, _ = _fake_stage()
-    second_source = _FakePrim(
+    stage, _, _ = motion_stage()
+    second_source = FakeUsdPrim(
         "/World/Second",
         "Sound",
         {
@@ -519,7 +346,7 @@ def test_entity_removal_and_same_id_new_prim_purges_only_removed_history():
     assert survivor.diagnostics["motion"]["velocity_source"]["speaker"] == "derived"
 
     stage.add(
-        _FakePrim(
+        FakeUsdPrim(
             "/World/ReusedSecond",
             "Sound",
             {

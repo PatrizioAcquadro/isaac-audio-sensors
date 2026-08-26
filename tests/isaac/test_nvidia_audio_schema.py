@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import fields
-from inspect import signature
 
 import pytest
 
@@ -15,52 +14,11 @@ from isaac_audio_sensors.isaac.stage_audio import (
     create_listener_prim,
     create_sound_prim,
 )
-
-
-class _FakePrim:
-    def __init__(
-        self,
-        path: str,
-        type_name: str,
-        attributes: dict[str, object] | None = None,
-    ) -> None:
-        self.path = path
-        self.type_name = type_name
-        self.attributes = attributes or {}
-
-
-class _FakeStage:
-    def __init__(
-        self,
-        prims: tuple[_FakePrim, ...] = (),
-        *,
-        time_codes_per_second: float = 1.0,
-    ) -> None:
-        self._prims = list(prims)
-        self._time_codes_per_second = time_codes_per_second
-
-    def Traverse(self) -> tuple[_FakePrim, ...]:
-        return tuple(self._prims)
-
-    def DefinePrim(self, path: str, type_name: str) -> _FakePrim:
-        existing = self.GetPrimAtPath(path)
-        if existing is not None:
-            existing.type_name = type_name
-            return existing
-        prim = _FakePrim(path, type_name)
-        self._prims.append(prim)
-        return prim
-
-    def GetPrimAtPath(self, path: object) -> _FakePrim | None:
-        resolved = str(path)
-        return next((prim for prim in self._prims if prim.path == resolved), None)
-
-    def GetTimeCodesPerSecond(self) -> float:
-        return self._time_codes_per_second
+from tests.helpers import FakeUsdPrim, FakeUsdStage
 
 
 def test_sound_authoring_uses_current_schema_and_converts_sdk_units() -> None:
-    stage = _FakeStage(time_codes_per_second=24.0)
+    stage = FakeUsdStage(time_codes_per_second=24.0)
 
     record = create_sound_prim(
         stage,
@@ -89,7 +47,7 @@ def test_sound_authoring_uses_current_schema_and_converts_sdk_units() -> None:
 
 
 def test_sound_authoring_migrates_legacy_alias_and_clears_obsolete_attrs() -> None:
-    legacy = _FakePrim(
+    legacy = FakeUsdPrim(
         "/World/Speaker",
         "Sound",
         {
@@ -99,7 +57,7 @@ def test_sound_authoring_migrates_legacy_alias_and_clears_obsolete_attrs() -> No
             "endTime": 99.0,
         },
     )
-    stage = _FakeStage((legacy,))
+    stage = FakeUsdStage((legacy,))
 
     create_sound_prim(
         stage,
@@ -118,7 +76,7 @@ def test_sound_authoring_migrates_legacy_alias_and_clears_obsolete_attrs() -> No
 
 
 def test_sound_authoring_preserves_finite_loop_count_and_rejects_ambiguity() -> None:
-    stage = _FakeStage()
+    stage = FakeUsdStage()
 
     record = create_sound_prim(
         stage,
@@ -139,8 +97,8 @@ def test_sound_authoring_preserves_finite_loop_count_and_rejects_ambiguity() -> 
 
 
 def test_listener_authoring_migrates_alias_and_disables_view_orientation() -> None:
-    legacy = _FakePrim("/World/Listener", "Listener")
-    stage = _FakeStage((legacy,))
+    legacy = FakeUsdPrim("/World/Listener", "Listener")
+    stage = FakeUsdStage((legacy,))
 
     record = create_listener_prim(
         stage,
@@ -157,7 +115,7 @@ def test_listener_authoring_migrates_alias_and_disables_view_orientation() -> No
 
 
 def test_discovery_prefers_ias_metadata_but_can_prefer_native_usd() -> None:
-    source = _FakePrim(
+    source = FakeUsdPrim(
         "/World/Speaker",
         "OmniSound",
         {
@@ -175,7 +133,7 @@ def test_discovery_prefers_ias_metadata_but_can_prefer_native_usd() -> None:
             "xformOp:translate": (1.0, 0.0, 0.0),
         },
     )
-    stage = _FakeStage((source,), time_codes_per_second=24.0)
+    stage = FakeUsdStage((source,), time_codes_per_second=24.0)
 
     default_result = discover_stage_audio(stage)
     default_source = default_result.sources[0]
@@ -189,9 +147,7 @@ def test_discovery_prefers_ias_metadata_but_can_prefer_native_usd() -> None:
 
     usd_result = discover_stage_audio(
         stage,
-        cfg=IsaacAudioDiscoveryCfg(
-            metadata_precedence=("usd", "ias", "defaults")
-        ),
+        cfg=IsaacAudioDiscoveryCfg(metadata_precedence=("usd", "ias", "defaults")),
     )
     usd_source = usd_result.sources[0]
     assert usd_source.spec.audio_asset_path == "audio/native.wav"
@@ -208,9 +164,9 @@ def test_discovery_prefers_ias_metadata_but_can_prefer_native_usd() -> None:
 
 
 def test_discovery_excludes_non_spatial_sound_with_clear_diagnostic() -> None:
-    stage = _FakeStage(
+    stage = FakeUsdStage(
         (
-            _FakePrim(
+            FakeUsdPrim(
                 "/World/UiSound",
                 "OmniSound",
                 {
@@ -236,9 +192,9 @@ def test_discovery_excludes_non_spatial_sound_with_clear_diagnostic() -> None:
 
 
 def test_discovery_rejects_explicit_non_spatial_sound() -> None:
-    stage = _FakeStage(
+    stage = FakeUsdStage(
         (
-            _FakePrim(
+            FakeUsdPrim(
                 "/World/UiSound",
                 "OmniSound",
                 {
@@ -257,33 +213,10 @@ def test_discovery_rejects_explicit_non_spatial_sound() -> None:
         )
 
 
-def test_discovery_rejects_invalid_native_loop_count() -> None:
-    stage = _FakeStage(
-        (
-            _FakePrim(
-                "/World/Speaker",
-                "OmniSound",
-                {
-                    "filePath": "audio/native.wav",
-                    "loopCount": -2,
-                    "xformOp:translate": (0.0, 0.0, 0.0),
-                },
-            ),
-        )
-    )
-    diagnostics: dict[str, object] = {}
-
-    result = discover_stage_audio(stage, diagnostics_out=diagnostics)
-
-    assert result.sources == ()
-    rejection = diagnostics["source_rejections"]["/World/Speaker"]
-    assert "loopCount" in rejection["error"]
-
-
 def test_discovery_reads_legacy_sound_alias_with_native_unit_conversion() -> None:
-    stage = _FakeStage(
+    stage = FakeUsdStage(
         (
-            _FakePrim(
+            FakeUsdPrim(
                 "/World/LegacySound",
                 "Sound",
                 {
@@ -308,9 +241,9 @@ def test_discovery_reads_legacy_sound_alias_with_native_unit_conversion() -> Non
 
 
 def test_ias_gain_precedence_bypasses_nonrepresentable_native_gain() -> None:
-    stage = _FakeStage(
+    stage = FakeUsdStage(
         (
-            _FakePrim(
+            FakeUsdPrim(
                 "/World/Speaker",
                 "OmniSound",
                 {
@@ -332,6 +265,7 @@ def test_ias_gain_precedence_bypasses_nonrepresentable_native_gain() -> None:
 @pytest.mark.parametrize(
     ("attributes", "message"),
     (
+        ({"loopCount": -2}, "loopCount"),
         ({"startTime": -1.0, "gain": 1.0}, "source is disabled"),
         ({"startTime": 0.0, "gain": 0.0}, "gain must be positive"),
     ),
@@ -346,7 +280,7 @@ def test_discovery_rejects_disabled_or_nonrepresentable_native_source(
             "xformOp:translate": (0.0, 0.0, 0.0),
         }
     )
-    stage = _FakeStage((_FakePrim("/World/Speaker", "OmniSound", attributes),))
+    stage = FakeUsdStage((FakeUsdPrim("/World/Speaker", "OmniSound", attributes),))
     diagnostics: dict[str, object] = {}
 
     result = discover_stage_audio(stage, diagnostics_out=diagnostics)
@@ -361,21 +295,9 @@ def test_metadata_precedence_requires_each_supported_layer_once() -> None:
         IsaacAudioDiscoveryCfg(metadata_precedence=("ias", "ias", "defaults"))
 
 
-def test_discovery_configs_preserve_fields_defaults_and_conversion() -> None:
+def test_discovery_configs_preserve_defaults_and_conversion() -> None:
     discovery = IsaacAudioDiscoveryCfg()
     binding = IsaacAudioSceneBindingCfg()
-    discovery_fields = tuple(item.name for item in fields(discovery))
-    binding_fields = tuple(item.name for item in fields(binding))
-
-    assert tuple(signature(IsaacAudioDiscoveryCfg).parameters) == discovery_fields
-    assert tuple(signature(IsaacAudioSceneBindingCfg).parameters) == binding_fields
-    assert binding_fields == (
-        *discovery_fields[:-1],
-        "preferred_array",
-        "preferred_source",
-        "rediscover_each_update",
-        "strict_candidate_errors",
-    )
     assert discovery.required_arrays is False
     assert binding.required_arrays is True
     assert binding.preferred_array is None

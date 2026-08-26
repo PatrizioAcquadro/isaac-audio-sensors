@@ -56,16 +56,7 @@ def _snapshot(array, sources: tuple[AudioSourceSpec, ...]) -> AudioSceneSnapshot
     )
 
 
-def test_public_surface_uses_real_isaac_lab_bases():
-    import isaac_audio_sensors.lab as lab
-
-    assert lab.__all__ == [
-        "AudioArraySensor",
-        "AudioArraySensorCfg",
-        "AudioArraySensorData",
-        "EntityBindingCfg",
-        "SourceEntityCfg",
-    ]
+def test_runtime_uses_real_isaac_lab_bases():
     assert issubclass(AudioArraySensor, SensorBase)
     assert issubclass(AudioArraySensorCfg, SensorBaseCfg)
 
@@ -73,15 +64,6 @@ def test_public_surface_uses_real_isaac_lab_bases():
 def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
     cfg = AudioArraySensorCfg(prim_path="/World/Audio", max_events=2)
     cfg.validate()
-    for removed in (
-        "device",
-        "compute_path",
-        "microphone_layout",
-        "sample_rate_hz",
-        "history_length",
-        "write_waveforms",
-    ):
-        assert not hasattr(cfg, removed)
 
     data = AudioArraySensorData.allocate(
         num_envs=2, max_events=2, num_mics=4, device="cpu"
@@ -306,8 +288,3 @@ def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
     )
     with pytest.raises(ValueError, match="sensor is on cuda"):
         binding.pose_batch(torch.tensor([0]), device="cuda:0")
-
-
-def test_rtx_4090_is_visible_to_isaac_lab():
-    assert torch.cuda.is_available()
-    assert "RTX 4090" in torch.cuda.get_device_name(0)

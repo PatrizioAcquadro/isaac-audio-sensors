@@ -1,5 +1,3 @@
-"""Public lifecycle behavior for the live Isaac sensor."""
-
 from __future__ import annotations
 
 import math
@@ -10,7 +8,7 @@ import pytest
 
 from isaac_audio_sensors.core.effects import EffectsConfig, MotionEffectsConfig
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
-from tests.isaac.test_stage_motion import _fake_stage, _motion
+from tests.helpers import motion_stage
 
 UPDATE_PERIOD_S = 0.05
 
@@ -58,30 +56,24 @@ def test_forced_exact_lattice_with_ulp_jitter_passes_many_steps(monkeypatch):
     assert sensor.get_latest_frame() is not None
 
 
-def test_forced_genuine_overlap_still_raises(monkeypatch):
+@pytest.mark.parametrize(
+    "next_time_s",
+    [UPDATE_PERIOD_S, UPDATE_PERIOD_S * 1.5],
+    ids=["duplicate", "overlap"],
+)
+def test_forced_duplicate_or_overlap_preserves_latest_frame(monkeypatch, next_time_s):
     sensor, captures = _segmented_sensor(monkeypatch)
     first = sensor.update(sim_time_s=UPDATE_PERIOD_S, force=True)
 
     with pytest.raises(ValueError, match="duplicates or overlaps"):
-        sensor.update(sim_time_s=UPDATE_PERIOD_S * 1.5, force=True)
-
-    assert sensor.latest_frame is first
-    assert len(captures) == 1
-
-
-def test_forced_duplicate_time_still_raises(monkeypatch):
-    sensor, captures = _segmented_sensor(monkeypatch)
-    first = sensor.update(sim_time_s=UPDATE_PERIOD_S, force=True)
-
-    with pytest.raises(ValueError, match="duplicates or overlaps"):
-        sensor.update(sim_time_s=UPDATE_PERIOD_S, force=True)
+        sensor.update(sim_time_s=next_time_s, force=True)
 
     assert sensor.latest_frame is first
     assert len(captures) == 1
 
 
 def test_manual_capture_and_update_throttling():
-    stage, _, _ = _fake_stage()
+    stage, _, _ = motion_stage()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig",
@@ -102,7 +94,7 @@ def test_manual_capture_and_update_throttling():
 
 
 def test_non_monotonic_time_preserves_latest_frame():
-    stage, _, _ = _fake_stage()
+    stage, _, _ = motion_stage()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig",
@@ -160,13 +152,15 @@ def test_update_subscription_timeline_reset_and_close(monkeypatch, event_name):
     update_stream, timeline_stream, timeline_module = _install_lifecycle_streams(
         monkeypatch
     )
-    stage, source_prim, _ = _fake_stage()
+    stage, source_prim, _ = motion_stage()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig",
         source_prim_path="/World/Speaker",
         backend="geometry_only",
-        effects=EffectsConfig(motion=_motion()),
+        effects=EffectsConfig(
+            motion=MotionEffectsConfig(derive_velocity_from_poses=True)
+        ),
     ).start(subscribe_to_update_stream=True)
 
     update_stream.trigger()

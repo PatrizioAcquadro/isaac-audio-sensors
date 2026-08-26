@@ -1,5 +1,3 @@
-"""Unit tests for persistent USD debug geometry authoring."""
-
 from __future__ import annotations
 
 from isaac_audio_sensors.isaac.viz.overlays import DebugPrimitive
@@ -7,40 +5,7 @@ from isaac_audio_sensors.isaac.viz.usd_debug import (
     DEFAULT_DEBUG_ROOT,
     UsdDebugGeometryAuthor,
 )
-
-
-class _FakePrim:
-    def __init__(self, path: str, type_name: str) -> None:
-        self.path = path
-        self.type_name = type_name
-        self.attributes: dict[str, object] = {}
-
-    def IsValid(self) -> bool:  # noqa: N802 - USD spelling
-        return True
-
-    def GetPath(self) -> str:  # noqa: N802 - USD spelling
-        return self.path
-
-
-class _FakeStage:
-    def __init__(self) -> None:
-        self.prims: dict[str, _FakePrim] = {}
-        self.removed: list[str] = []
-
-    def DefinePrim(self, path: str, type_name: str = "") -> _FakePrim:  # noqa: N802
-        prim = _FakePrim(str(path), type_name)
-        self.prims[str(path)] = prim
-        return prim
-
-    def GetPrimAtPath(self, path: str) -> _FakePrim | None:  # noqa: N802
-        return self.prims.get(str(path))
-
-    def RemovePrim(self, path: str) -> bool:  # noqa: N802
-        self.removed.append(str(path))
-        return self.prims.pop(str(path), None) is not None
-
-    def Traverse(self):  # noqa: N802 - USD spelling
-        return list(self.prims.values())
+from tests.helpers import FakeUsdStage
 
 
 def _primitives(bearing_color=(0.05, 0.9, 0.35, 1.0)):
@@ -70,14 +35,14 @@ def _primitives(bearing_color=(0.05, 0.9, 0.35, 1.0)):
 
 
 def test_author_creates_spheres_and_curves_with_stable_paths():
-    stage = _FakeStage()
+    stage = FakeUsdStage()
     author = UsdDebugGeometryAuthor()
 
     paths = author.author(stage, _primitives())
 
     assert len(paths) == 3
     assert all(path.startswith(DEFAULT_DEBUG_ROOT + "/") for path in paths)
-    assert DEFAULT_DEBUG_ROOT in stage.prims  # Scope root
+    assert DEFAULT_DEBUG_ROOT in stage.prims
 
     mic = stage.prims[paths[0]]
     assert mic.type_name == "Sphere"
@@ -92,7 +57,6 @@ def test_author_creates_spheres_and_curves_with_stable_paths():
     assert ray.attributes["points"] == [(0.0, 0.0, 0.5), (2.0, 0.0, 0.5)]
     assert ray.attributes["primvars:displayColor"] == [(0.05, 0.9, 0.35)]
 
-    # Re-author: same paths, updated values, nothing pruned.
     second = author.author(stage, _primitives(bearing_color=(0.95, 0.15, 0.1, 1.0)))
     assert second == paths
     assert stage.prims[paths[2]].attributes["primvars:displayColor"] == [
@@ -104,7 +68,7 @@ def test_author_creates_spheres_and_curves_with_stable_paths():
 def test_author_writes_room_outline_as_basis_curves_polyline():
     from isaac_audio_sensors.isaac.viz.overlays import room_outline_points
 
-    stage = _FakeStage()
+    stage = FakeUsdStage()
     author = UsdDebugGeometryAuthor()
     points = room_outline_points(
         origin_m=(2.0, 1.0, 0.0),
@@ -132,7 +96,7 @@ def test_author_writes_room_outline_as_basis_curves_polyline():
 
 
 def test_author_prunes_stale_prims_when_primitives_shrink():
-    stage = _FakeStage()
+    stage = FakeUsdStage()
     author = UsdDebugGeometryAuthor()
     first = author.author(stage, _primitives())
     second = author.author(stage, _primitives()[:1])
@@ -144,7 +108,7 @@ def test_author_prunes_stale_prims_when_primitives_shrink():
 
 
 def test_clear_removes_whole_subtree_and_resets_paths():
-    stage = _FakeStage()
+    stage = FakeUsdStage()
     author = UsdDebugGeometryAuthor(root="/World/CustomDebug")
     author.author(stage, _primitives())
     assert author.authored_paths

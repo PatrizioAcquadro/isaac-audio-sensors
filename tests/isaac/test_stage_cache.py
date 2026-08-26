@@ -1,5 +1,3 @@
-"""Steady-state live-path caching: no per-tick stage Traverse."""
-
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -8,68 +6,13 @@ import pytest
 
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
-from isaac_audio_sensors.isaac.stage_cache import (
-    StageAudioCache,
-    _discovery_relevant_property,
-)
+from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
+from tests.helpers import FakeUsdPrim, FakeUsdStage
 
 
-class _FakePrim:
-    def __init__(
-        self,
-        path: str,
-        type_name: str,
-        attributes: dict[str, object],
-    ) -> None:
-        self.path = path
-        self.type_name = type_name
-        self.attributes = attributes
-
-
-class _FakeStage:
-    def __init__(self, prims: tuple[_FakePrim, ...]) -> None:
-        self._prims = list(prims)
-
-    def Traverse(self) -> tuple[_FakePrim, ...]:
-        return tuple(self._prims)
-
-    def DefinePrim(self, path: str, type_name: str) -> _FakePrim:
-        prim = _FakePrim(path, type_name, {})
-        self._prims.append(prim)
-        return prim
-
-    def GetPrimAtPath(self, path: str) -> _FakePrim | None:
-        for prim in self._prims:
-            if prim.path == path:
-                return prim
-        return None
-
-    def RemovePrim(self, path: object) -> bool:
-        path_string = str(path)
-        before = len(self._prims)
-        self._prims = [
-            prim
-            for prim in self._prims
-            if prim.path != path_string and not prim.path.startswith(f"{path_string}/")
-        ]
-        return len(self._prims) != before
-
-
-class _CountingFakeStage(_FakeStage):
-    """Fake stage that counts full traversals for steady-state assertions."""
-
-    def __init__(self, prims: tuple[_FakePrim, ...]) -> None:
-        super().__init__(prims)
-        self.traverse_count = 0
-
-    def Traverse(self) -> tuple[_FakePrim, ...]:
-        self.traverse_count += 1
-        return super().Traverse()
-
-
-def _source_prim(path: str = "/World/Sources/SpeakerA") -> _FakePrim:
-    return _FakePrim(
+def _source_prim(path: str = "/World/Sources/SpeakerA") -> FakeUsdPrim:
+    return FakeUsdPrim(
         path,
         "Sound",
         {
@@ -83,9 +26,9 @@ def _source_prim(path: str = "/World/Sources/SpeakerA") -> _FakePrim:
     )
 
 
-def _array_prims() -> tuple[_FakePrim, ...]:
+def _array_prims() -> tuple[FakeUsdPrim, ...]:
     return (
-        _FakePrim(
+        FakeUsdPrim(
             "/World/Rig/AudioArray",
             "Xform",
             {
@@ -95,7 +38,7 @@ def _array_prims() -> tuple[_FakePrim, ...]:
                 "ias:orientation_world_quat": (0.0, 0.0, 0.0, 1.0),
             },
         ),
-        _FakePrim(
+        FakeUsdPrim(
             "/World/Rig/AudioArray/front",
             "Xform",
             {
@@ -103,7 +46,7 @@ def _array_prims() -> tuple[_FakePrim, ...]:
                 "ias:relative_position_m": (0.08, 0.0, 0.0),
             },
         ),
-        _FakePrim(
+        FakeUsdPrim(
             "/World/Rig/AudioArray/right",
             "Xform",
             {
@@ -114,12 +57,20 @@ def _array_prims() -> tuple[_FakePrim, ...]:
     )
 
 
-def _counting_stage() -> tuple[_CountingFakeStage, _FakePrim]:
+def _counting_stage() -> tuple[FakeUsdStage, FakeUsdPrim]:
     source = _source_prim()
-    return _CountingFakeStage((source, *_array_prims())), source
+    return FakeUsdStage((source, *_array_prims())), source
 
 
-def _live_sensor(stage: _FakeStage) -> IsaacAudioArraySensor:
+def _live_sensor(
+    stage: FakeUsdStage, *, discovered: bool = False
+) -> IsaacAudioArraySensor:
+    if discovered:
+        return IsaacAudioArraySensor.from_discovered_stage(
+            stage=stage,
+            backend="geometry_only",
+            update_period_s=0.1,
+        ).start()
     return IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig/AudioArray",
@@ -128,9 +79,10 @@ def _live_sensor(stage: _FakeStage) -> IsaacAudioArraySensor:
     ).start()
 
 
-def test_steady_state_updates_perform_no_full_traverse():
+@pytest.mark.parametrize("discovered", [False, True], ids=["explicit", "discovered"])
+def test_steady_state_updates_reuse_discovery_cache(discovered):
     stage, source = _counting_stage()
-    sensor = _live_sensor(stage)
+    sensor = _live_sensor(stage, discovered=discovered)
     assert stage.traverse_count == 1
 
     first = sensor.update(sim_time_s=0.0)
@@ -145,7 +97,9 @@ def test_steady_state_updates_perform_no_full_traverse():
     assert first.detections[0].source_pose.position_m == (5.0, 0.0, 0.0)
     assert frame.detections[0].source_pose.position_m == (0.0, 5.0, 0.0)
     assert first.diagnostics["stage_snapshot"]["discovery_cache"]["hit"] is False
-    assert frame.diagnostics["stage_snapshot"]["discovery_cache"]["hit"] is True
+    cache_diag = frame.diagnostics["stage_snapshot"]["discovery_cache"]
+    assert cache_diag["hit"] is True
+    assert cache_diag["policy"] == "cache_until_invalidated"
     sensor.close()
 
 
@@ -265,27 +219,6 @@ def test_capture_with_different_source_path_changes_cache_key():
     sensor.close()
 
 
-def test_discovered_stage_sensor_caches_semantic_discovery():
-    stage, source = _counting_stage()
-    sensor = IsaacAudioArraySensor.from_discovered_stage(
-        stage=stage,
-        backend="geometry_only",
-        update_period_s=0.1,
-    ).start()
-    construction_count = stage.traverse_count
-    assert construction_count == 1
-
-    sensor.update(sim_time_s=0.0)
-    warm_count = stage.traverse_count
-    assert warm_count == construction_count + 1
-
-    source.attributes["ias:position_world"] = (0.0, 6.0, 0.0)
-    frame = sensor.update(sim_time_s=0.4)
-    assert stage.traverse_count == warm_count
-    assert frame.detections[0].source_pose.position_m == (0.0, 6.0, 0.0)
-    sensor.close()
-
-
 def test_rediscover_each_update_forces_full_discovery_every_capture():
     stage, _source = _counting_stage()
     sensor = IsaacAudioArraySensor.from_discovered_stage(
@@ -304,21 +237,6 @@ def test_rediscover_each_update_forces_full_discovery_every_capture():
         assert cache_diag["hit"] is False
         assert cache_diag["policy"] == "rediscover_each_update"
     assert sensor._stage_cache.full_discovery_count == 3
-    sensor.close()
-
-
-def test_default_policy_keeps_cache_and_reports_policy():
-    stage, _source = _counting_stage()
-    sensor = _live_sensor(stage)
-    sensor.update(sim_time_s=0.0)
-    warm_count = stage.traverse_count
-
-    frame = sensor.update(sim_time_s=0.2)
-
-    assert stage.traverse_count == warm_count
-    cache_diag = frame.diagnostics["stage_snapshot"]["discovery_cache"]
-    assert cache_diag["hit"] is True
-    assert cache_diag["policy"] == "cache_until_invalidated"
     sensor.close()
 
 
@@ -341,9 +259,7 @@ def test_info_only_discovery_attr_change_invalidates_cache():
     cache._on_objects_changed(
         SimpleNamespace(
             GetResyncedPaths=lambda: (),
-            GetChangedInfoOnlyPaths=lambda: (
-                "/World/Sources/SpeakerB.ias:source_id",
-            ),
+            GetChangedInfoOnlyPaths=lambda: ("/World/Sources/SpeakerB.ias:source_id",),
         ),
         None,
     )
@@ -366,9 +282,7 @@ def test_native_loop_and_aural_mode_changes_refresh_source_semantics():
     cache._on_objects_changed(
         SimpleNamespace(
             GetResyncedPaths=lambda: (),
-            GetChangedInfoOnlyPaths=lambda: (
-                "/World/Sources/SpeakerA.loopCount",
-            ),
+            GetChangedInfoOnlyPaths=lambda: ("/World/Sources/SpeakerA.loopCount",),
         ),
         None,
     )
@@ -381,9 +295,7 @@ def test_native_loop_and_aural_mode_changes_refresh_source_semantics():
     cache._on_objects_changed(
         SimpleNamespace(
             GetResyncedPaths=lambda: (),
-            GetChangedInfoOnlyPaths=lambda: (
-                "/World/Sources/SpeakerA.auralMode",
-            ),
+            GetChangedInfoOnlyPaths=lambda: ("/World/Sources/SpeakerA.auralMode",),
         ),
         None,
     )
@@ -419,35 +331,6 @@ def test_info_only_pose_and_unrelated_changes_keep_cache():
     assert stage.traverse_count == warm_count
     assert "usd_info_only_discovery_attr" not in cache.invalidation_reasons
     sensor.close()
-
-
-def test_discovery_relevant_property_predicate():
-    assert _discovery_relevant_property("/World/X.ias:source_id") is True
-    assert _discovery_relevant_property("/World/X.ias:gain_db") is True
-    assert _discovery_relevant_property("/World/X.filePath") is True
-    assert _discovery_relevant_property("/World/X.startTime") is True
-    assert _discovery_relevant_property("/World/X.endTime") is True
-    assert _discovery_relevant_property("/World/X.loopCount") is True
-    assert _discovery_relevant_property("/World/X.auralMode") is True
-    assert _discovery_relevant_property("/World/X.xformOp:translate") is False
-    assert _discovery_relevant_property("/World/X.visibility") is False
-    assert _discovery_relevant_property("/World/X") is False
-    assert _discovery_relevant_property(SimpleNamespace(name="ias:array_id")) is True
-    assert (
-        _discovery_relevant_property(SimpleNamespace(name="xformOp:orient")) is False
-    )
-
-
-def test_stage_cache_policy_unit_counts_full_discoveries():
-    stage, _source = _counting_stage()
-    cache = StageAudioCache(stage, rediscover_each_update=True)
-
-    cache.snapshot(timestamp_ms=0, array_prim_path="/World/Rig/AudioArray")
-    cache.snapshot(timestamp_ms=100, array_prim_path="/World/Rig/AudioArray")
-
-    assert cache.full_discovery_count == 2
-    assert cache.cached_tick_count == 0
-    assert "rediscover_each_update_policy" in cache.invalidation_reasons
 
 
 def test_cache_close_revokes_listener_and_requires_traverse_method():

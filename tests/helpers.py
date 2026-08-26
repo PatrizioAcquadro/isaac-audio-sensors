@@ -24,6 +24,97 @@ WINDOW_SAMPLE_COUNT = 2_400
 MOTION_SEGMENTS = 8
 
 
+class FakeUsdPrim:
+    def __init__(
+        self,
+        path: str,
+        type_name: str,
+        attributes: dict[str, object] | None = None,
+    ) -> None:
+        self.path = str(path)
+        self.type_name = type_name
+        self.attributes = attributes if attributes is not None else {}
+
+    def IsValid(self) -> bool:
+        return True
+
+    def GetPath(self) -> str:
+        return self.path
+
+
+class FakeUsdStage:
+    def __init__(
+        self,
+        prims: tuple[FakeUsdPrim, ...] = (),
+        *,
+        time_codes_per_second: float = 1.0,
+    ) -> None:
+        self.prims = {prim.path: prim for prim in prims}
+        self.removed: list[str] = []
+        self.traverse_count = 0
+        self.time_codes_per_second = time_codes_per_second
+
+    def Traverse(self) -> tuple[FakeUsdPrim, ...]:
+        self.traverse_count += 1
+        return tuple(self.prims.values())
+
+    def DefinePrim(self, path: str, type_name: str = "") -> FakeUsdPrim:
+        resolved = str(path)
+        prim = self.prims.get(resolved)
+        if prim is None:
+            prim = FakeUsdPrim(resolved, type_name)
+            self.prims[resolved] = prim
+        else:
+            prim.type_name = type_name
+        return prim
+
+    def GetPrimAtPath(self, path: object) -> FakeUsdPrim | None:
+        return self.prims.get(str(path))
+
+    def RemovePrim(self, path: object) -> bool:
+        resolved = str(path)
+        removed = [
+            prim_path
+            for prim_path in self.prims
+            if prim_path == resolved or prim_path.startswith(f"{resolved}/")
+        ]
+        for prim_path in removed:
+            del self.prims[prim_path]
+        if removed:
+            self.removed.append(resolved)
+        return bool(removed)
+
+    def GetTimeCodesPerSecond(self) -> float:
+        return self.time_codes_per_second
+
+    def add(self, prim: FakeUsdPrim) -> None:
+        self.prims[prim.path] = prim
+
+
+def motion_stage() -> tuple[FakeUsdStage, FakeUsdPrim, FakeUsdPrim]:
+    source_prim = FakeUsdPrim(
+        "/World/Speaker",
+        "Sound",
+        {
+            "filePath": "generated://impulse",
+            "ias:source_id": "speaker",
+            "ias:class_label": "Speech",
+            "ias:position_world": (1.0, 0.0, 0.0),
+            "ias:duration_s": 10.0,
+        },
+    )
+    array_prim = FakeUsdPrim(
+        "/World/Rig",
+        "Xform",
+        {
+            "ias:array_id": "rig",
+            "ias:position_world": (0.0, 0.0, 0.0),
+            "ias:layout_name": "quad_front",
+        },
+    )
+    return FakeUsdStage((source_prim, array_prim)), source_prim, array_prim
+
+
 class CaptureSink:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []

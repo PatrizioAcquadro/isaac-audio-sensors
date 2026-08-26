@@ -30,7 +30,7 @@ test:
 	$(PYTHON) -m pytest -q
 
 test-isaac:
-	CUDA_VISIBLE_DEVICES=0 PYTHONPATH=$(SOURCE_PYTHONPATH) $(ISAAC_LAB_PYTHON) -m pytest -q tests/isaac
+	PYTHONPATH=$(SOURCE_PYTHONPATH) $(ISAAC_LAB_PYTHON) -m pytest -q tests/isaac
 
 test-release:
 	$(PYTHON) -m pytest -q tests/release

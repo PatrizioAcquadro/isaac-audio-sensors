@@ -261,3 +261,7 @@ Verified canonical ownership, internal links and index coverage, immutable raw c
 ## 2026-08-25 — update: Production-only GitHub publication
 
 Recorded removal of manual TestPyPI publication and duplicate artifact rechecks, retention of isolated OIDC publishing, and consolidation of public-index installation checks.
+
+## 2026-08-26 — update: Isaac test lane simplification
+
+Moved pure motion and occlusion checks to the host lane, consolidated shared USD fixtures and redundant Isaac coverage, and made the live Isaac Lab smoke the sole CUDA and RTX gate without changing runtime contracts.

@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+from dataclasses import replace
+
+import pytest
+
+from isaac_audio_sensors.core.backends.geometry import GeometryBackend
+from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
+from isaac_audio_sensors.core.types import AudioSceneSnapshot, SourceOcclusion
+from tests.helpers import quad_array, source, time_window
+
+
+def _scene(*, occlusion=None) -> AudioSceneSnapshot:
+    array = quad_array()
+    return AudioSceneSnapshot(
+        stage_id="occlusion_unit",
+        timestamp_ms=0,
+        sources=(source("speaker", (4.0, 0.0, 0.0)),),
+        arrays=(array,),
+        occlusion=occlusion,
+    )
+
+
+def _record() -> SourceOcclusion:
+    per_mic_db = {mic.mic_id: 0.0 for mic in quad_array().microphones}
+    per_mic_db["front"] = 20.0
+    return SourceOcclusion(
+        array_id="rig",
+        source_id="speaker",
+        per_mic_blocked={
+            mic_id: loss_db > 0.0 for mic_id, loss_db in per_mic_db.items()
+        },
+        occlusion_factor=0.25,
+        attenuation_db=5.0,
+        per_mic_attenuation_db=per_mic_db,
+        occlusion_model="raycast_transmission_v1",
+    )
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"occlusion_factor": 1.5}, "occlusion_factor"),
+        ({"attenuation_db": -1.0}, "attenuation_db"),
+        (
+            {
+                "per_mic_band_attenuation_db": {"front": (1.0, 2.0)},
+                "band_centers_hz": OCCLUSION_BAND_CENTERS_HZ,
+            },
+            "band_centers_hz length",
+        ),
+        ({"per_mic_attenuation_db": {"front": -1.0}}, "non-negative"),
+    ],
+)
+def test_source_occlusion_rejects_invalid_values(kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        SourceOcclusion(array_id="rig", source_id="speaker", **kwargs)
+
+
+def test_scene_rejects_duplicate_occlusion_records_and_resolves_valid_pair():
+    record = _record()
+    scene = _scene(occlusion=(record,))
+
+    assert scene.occlusion_for("rig", "speaker") is record
+    assert scene.occlusion_for("rig", "unknown") is None
+    with pytest.raises(ValueError, match="occlusion record id"):
+        replace(scene, occlusion=(record, record))
+
+
+def test_geometry_backend_applies_per_mic_attenuation_independently():
+    array = quad_array()
+    baseline = GeometryBackend().simulate(_scene(), array, time_window())
+    attenuated = GeometryBackend().simulate(
+        _scene(occlusion=(_record(),)), array, time_window()
+    )
+
+    baseline_rms = baseline.detections[0].per_mic_rms
+    attenuated_rms = attenuated.detections[0].per_mic_rms
+    assert attenuated_rms["front"] == pytest.approx(0.1 * baseline_rms["front"])
+    for mic_id in set(baseline_rms) - {"front"}:
+        assert attenuated_rms[mic_id] == pytest.approx(baseline_rms[mic_id])
+
+
+def test_tdoa_backend_attenuates_rms_without_changing_delays_or_bearing():
+    array = quad_array()
+    backend = TdoaSyntheticBackend(ambiguity_policy="front_hemisphere")
+    baseline = backend.simulate(_scene(), array, time_window()).detections[0]
+    attenuated = backend.simulate(
+        _scene(occlusion=(_record(),)), array, time_window()
+    ).detections[0]
+
+    assert attenuated.per_mic_rms["front"] == pytest.approx(
+        0.1 * baseline.per_mic_rms["front"]
+    )
+    assert attenuated.per_mic_delay_s == baseline.per_mic_delay_s
+    assert attenuated.doa.estimated_bearing_deg == baseline.doa.estimated_bearing_deg

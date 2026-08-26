@@ -16,7 +16,7 @@ The test tree is divided into `unit`, `contract`, `integration`, `isaac`, `relea
 
 `tests/integration/` checks recording, replay, codecs, plugins, filesystem behavior, guided/headless workflows, and cross-component acoustic behavior.
 
-`tests/isaac/` checks Isaac Sim, Isaac Lab, Kit, OmniGraph, visualization, stage motion, cache invalidation, and GPU/runtime behavior through the supported Isaac interpreter.
+`tests/isaac/` checks Isaac and real-USD integration, visualization, stage motion, cache invalidation, lifecycle behavior, and Isaac Lab parity through the supported Isaac interpreter.
 
 `tests/release/` checks wheel and Kit artifacts, version synchronization, repository boundaries, and forbidden release content.
 
@@ -30,7 +30,7 @@ The same public contracts are exercised from focused tests before broader integr
 
 #### Problems / Limitations
 
-Isaac tests require a compatible installed runtime and visible GPU; the suite fails with a concrete blocker instead of falling back to CPU.
+Isaac tests require a compatible installed runtime. Live CUDA placement, parity, reset, and performance remain explicit GPU smoke gates rather than hardware sentinels in the deterministic suite.
 
 Release builders require a clean Git source because their provenance is bound to one commit.
 
@@ -46,7 +46,7 @@ Test commands express ownership and runtime requirements directly.
 
 #### Problems / Limitations
 
-Isaac validation remains a separate GPU/runtime lane and is not part of the portable host check.
+Isaac validation remains a separate runtime lane and is not part of the portable host check. GPU behavior belongs to the live Isaac Lab smoke.
 
 ## Artifacts
 
