@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import math
 
+from isaac_audio_sensors.core.acoustics.occlusion import (
+    occlusion_detection_diagnostics,
+    occlusion_flag,
+    occlusion_per_mic_extra_gain_db,
+)
 from isaac_audio_sensors.core.backends.amplitude import (
     aggregate_rms_power_sum,
     resolve_directivity,
@@ -28,9 +33,6 @@ from isaac_audio_sensors.core.scene import (
     deterministic_detection_id,
     deterministic_frame_id,
     deterministic_frame_name,
-    occlusion_detection_diagnostics,
-    occlusion_flag,
-    occlusion_per_mic_extra_gain_db,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,

@@ -11,6 +11,10 @@ import numpy as np
 from isaac_audio_sensors.core.acoustics.materials import (
     MATERIAL_BAND_CENTERS_HZ,
 )
+from isaac_audio_sensors.core.acoustics.occlusion import (
+    occlusion_band_attenuation_db,
+    occlusion_per_mic_extra_gain_db,
+)
 from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
     _room_material_resolution,
 )
@@ -26,7 +30,6 @@ from isaac_audio_sensors.core.backends.room_acoustics.signals import (
 from isaac_audio_sensors.core.constants import (
     ROOM_CLAMP_MARGIN_M,
 )
-from isaac_audio_sensors.core.doppler import source_doppler_factor
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import (
     DirectivityConfig,
@@ -49,10 +52,7 @@ from isaac_audio_sensors.core.microphone_array import (
 from isaac_audio_sensors.core.motion import (
     WindowMotionPlan,
 )
-from isaac_audio_sensors.core.scene import (
-    occlusion_band_attenuation_db,
-    occlusion_per_mic_extra_gain_db,
-)
+from isaac_audio_sensors.core.motion.doppler import source_doppler_factor
 from isaac_audio_sensors.core.types import (
     AudioSourceSpec,
     AudioTimeWindow,

@@ -6,10 +6,10 @@ from dataclasses import replace
 from typing import Any
 
 from isaac_audio_sensors.core.acoustics.materials import resolve_material
+from isaac_audio_sensors.core.acoustics.rooms import room_spec_from_bounds
 from isaac_audio_sensors.core.effects.config import MotionEffectsConfig
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.motion import PoseHistory, validate_pose_observation
-from isaac_audio_sensors.core.room_anchor import room_spec_from_bounds
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     RoomAcousticsSpec,

@@ -1,5 +1,9 @@
 """Pure pose-motion estimation utilities."""
 
+from isaac_audio_sensors.core.motion.doppler import (
+    doppler_factor,
+    source_doppler_factor,
+)
 from isaac_audio_sensors.core.motion.pose_history import (
     PoseHistory,
     PoseHistorySample,
@@ -27,7 +31,9 @@ __all__ = [
     "WindowMotionPlan",
     "WindowMotionSegment",
     "build_window_motion",
+    "doppler_factor",
     "motion_segment_diagnostics",
     "segment_boundaries",
+    "source_doppler_factor",
     "validate_pose_observation",
 ]

@@ -5,8 +5,11 @@ from dataclasses import replace
 import pytest
 
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
-from isaac_audio_sensors.core.doppler import doppler_factor, source_doppler_factor
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
+from isaac_audio_sensors.core.motion.doppler import (
+    doppler_factor,
+    source_doppler_factor,
+)
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,

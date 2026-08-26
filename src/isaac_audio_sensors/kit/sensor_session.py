@@ -285,7 +285,7 @@ class SensorSession(ControllerService):
         state.latest_room_summary = None
         if state.backend != "room_acoustics":
             return None
-        from isaac_audio_sensors.core.room_anchor import room_spec_from_bounds
+        from isaac_audio_sensors.core.acoustics.rooms import room_spec_from_bounds
         from isaac_audio_sensors.core.types import RoomAcousticsSpec
         from isaac_audio_sensors.isaac.usd_bounds import (
             DEFAULT_SEMANTIC_ABSORPTION,

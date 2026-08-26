@@ -48,3 +48,6 @@ def room_spec_from_bounds(
         out_of_bounds=out_of_bounds,
         anchor_prim_path=anchor_prim_path,
     )
+
+
+__all__ = ["room_spec_from_bounds"]

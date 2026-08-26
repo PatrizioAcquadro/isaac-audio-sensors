@@ -6,6 +6,10 @@ from typing import Any
 
 import numpy as np
 
+from isaac_audio_sensors.core.acoustics.occlusion import (
+    occlusion_detection_diagnostics,
+    occlusion_flag,
+)
 from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
     _ground_truth_bearing,
     _ground_truth_elevation,
@@ -36,8 +40,6 @@ from isaac_audio_sensors.core.microphone_array import (
 )
 from isaac_audio_sensors.core.scene import (
     deterministic_detection_id,
-    occlusion_detection_diagnostics,
-    occlusion_flag,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,

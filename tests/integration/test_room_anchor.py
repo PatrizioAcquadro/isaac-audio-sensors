@@ -6,13 +6,13 @@ import math
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics.rooms import room_spec_from_bounds
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.constants import ROOM_CLAMP_MARGIN_M
 from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
     microphone_world_positions,
 )
-from isaac_audio_sensors.core.room_anchor import room_spec_from_bounds
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,

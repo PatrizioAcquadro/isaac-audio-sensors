@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics.rooms import room_spec_from_bounds
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
-from isaac_audio_sensors.core.room_anchor import room_spec_from_bounds
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
