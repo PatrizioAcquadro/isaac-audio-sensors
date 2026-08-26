@@ -110,7 +110,15 @@ PUBLIC_API_V2 = {
 def _package_dependencies(package: str) -> set[str]:
     dependencies: set[str] = set()
     target = PACKAGE_ROOT / package
-    paths = (target.with_suffix(".py"),) if package == "cli" else target.rglob("*.py")
+    if package == "cli":
+        paths = (
+            target.with_suffix(".py"),
+            *(PACKAGE_ROOT / "_cli").rglob("*.py"),
+        )
+        owned_packages = {"cli", "_cli"}
+    else:
+        paths = tuple(target.rglob("*.py"))
+        owned_packages = {package}
     for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
@@ -124,7 +132,7 @@ def _package_dependencies(package: str) -> set[str]:
                 parts = module.split(".")
                 if len(parts) > 1 and parts[0] == "isaac_audio_sensors":
                     dependency = parts[1]
-                    if dependency != package:
+                    if dependency not in owned_packages:
                         dependencies.add(dependency)
     return dependencies
 
