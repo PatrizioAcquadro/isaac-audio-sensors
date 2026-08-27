@@ -341,3 +341,11 @@ Specified explicit analytic-environment inputs, fail-closed room resolution, phy
 ## 2026-08-27 — lint: Geometry-aware acoustic realism plan
 
 Verified the allowed wiki structure, phase-page index coverage, internal links, immutable raw content, planned-versus-current wording, and Markdown whitespace.
+
+## 2026-08-27 — update: Split acoustic realism roadmap
+
+Replaced the monolithic R7 plan with separate phase specifications for the environment contract, analytic backend, provider selection, and geometry-aware Isaac integration.
+
+## 2026-08-27 — lint: Split acoustic realism roadmap
+
+Verified phase ownership, index coverage, cross-phase links, immutable raw content, planned-versus-current wording, and Markdown whitespace.

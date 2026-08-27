@@ -9,7 +9,10 @@
 - [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]] — canonical wiki, root documentation removal, and documentation-boundary enforcement.
 - [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]] — v2 API ownership, dependency direction, and bounded semantic cleanup.
 - [[implementation_phases/r6-packaging-and-release|R6 Packaging and Release]] — published Python source/wheel distributions, trusted publication, and self-contained Kit archive.
-- [[implementation_phases/r7-geometry-aware-acoustic-realism|R7 Geometry-Aware Acoustic Realism]] — explicit analytic environments and one geometry-aware passive-audio backend for Isaac.
+- [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]] — unified analytic environment meaning, configuration entry paths, and fail-closed Isaac resolution.
+- [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — automatic solver routing, coherent relative propagation, and scalable Isaac Lab acoustics.
+- [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — passive microphone-array requirements and selection between existing advanced engines.
+- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — USD geometry, materials, dynamic objects, and provider-backed passive multichannel propagation.
 
 ## Topics
 
