@@ -10,7 +10,7 @@ Robot-specific mounts, assets, adapters, policies, task orchestration, acceptanc
 
 ## Current Compatibility Line
 
-The current package is `3.0.0` on the v3 compatibility line. R5.0 previously removed the v1 root convenience imports; v3 keeps that semantic subsystem boundary and makes entity-owned directivity and amplitude-gain semantics authoritative without compatibility shims.
+The current package is `3.0.0` on the v3 compatibility line. R5.0 previously removed the v1 root convenience imports; v3 keeps that semantic subsystem boundary, makes entity-owned directivity and amplitude-gain semantics authoritative, and makes `AudioSceneSnapshot` the sole propagation-backend array-state authority without compatibility shims.
 
 The root exposes only `__version__`; contracts and services live under their owning modules. The CLI composes those public services without becoming a dependency of lower components.
 
@@ -31,7 +31,7 @@ Existing `ias.audio_sensor_frame.v1`, `ias.audio_dataset_manifest.v1`, and `ias.
 
 ## Stable Promises
 
-The v3 line promises the documented semantic import boundary, sensor frame, dataset-manifest, and calibration-profile contracts; the exact four-value entity directivity contract; amplitude `gain_db` semantics; deterministic L0/L1 behavior; optional supported L2 behavior; generic plugin contracts; package JSON/JSONL; generic recording/replay; supported lazy Isaac Sim and Isaac Lab paths; and the Kit extension as the reference UX.
+The v3 line promises the documented semantic import boundary, sensor frame, dataset-manifest, and calibration-profile contracts; the exact four-value entity directivity contract; amplitude `gain_db` semantics; snapshot-authoritative `simulate(scene, array_id, time_window)` propagation; deterministic L0/L1 behavior; optional supported L2 behavior; generic plugin contracts; package JSON/JSONL; generic recording/replay; supported lazy Isaac Sim and Isaac Lab paths; and the Kit extension as the reference UX.
 
 Compatible releases preserve required fields, meanings, units, provenance values, coordinate convention, ambiguity representation, stable backend identifiers, sector behavior, and named diagnostic namespaces.
 

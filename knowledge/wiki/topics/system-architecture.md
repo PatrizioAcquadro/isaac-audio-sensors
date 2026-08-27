@@ -10,7 +10,7 @@ The design keeps simulator-independent contracts below optional simulator adapte
 
 `isaac_audio_sensors.core` owns typed scene, source, pose, array, room, time-window, detection, DOA, occlusion, and frame models; canonical directivity and gain utilities; configuration; microphone geometry; deterministic DSP and effects; acoustic backends; plugins; calibration; trace IO; and waveform helpers. Its package root exports the fundamental models plus `DirectivityPattern`; the other APIs remain public from their canonical modules.
 
-All propagation backends implement the same scene, array, and time-window to sensor-frame contract. Plugin declarations own backend inventory and capability metadata. `AudioSourceSpec` and `MicrophoneSpec` are the directivity and nominal-gain authorities; `core.directivity` owns the one enum/coefficient model and `core.gain` owns fail-closed scalar dB conversion. Effects keep their immutable records at `core.effects.config`, while domain modules own channel-response, noise, electronics, and motion parsing and validation. Room acoustics coordinates explicit preparation, rendering, effects, detection, diagnostics, and frame-assembly stages without changing their physical model.
+All propagation backends implement `simulate(scene, array_id, time_window) -> AudioSensorFrame`. `AudioSceneSnapshot` owns the complete canonical state of every microphone array, and `array_id` only selects which array observes that scene; each backend resolves it through `scene.array_by_id(array_id)` and fails if it is absent. Plugin declarations own backend inventory and capability metadata. `AudioSourceSpec` and `MicrophoneSpec` are the directivity and nominal-gain authorities; `core.directivity` owns the one enum/coefficient model and `core.gain` owns fail-closed scalar dB conversion. Effects keep their immutable records at `core.effects.config`, while domain modules own channel-response, noise, electronics, and motion parsing and validation. Room acoustics coordinates explicit preparation, rendering, effects, detection, diagnostics, and frame-assembly stages without changing their physical model.
 
 Motion owns Doppler and pose/window state; acoustics owns materials, occlusion interpretation, and room construction; DOA owns the numerical least-squares solver as well as GCC-PHAT, SRP-PHAT, ambiguity, and sector mapping. Fundamental data contracts remain centralized in `core.types`.
 
@@ -40,7 +40,7 @@ The layer turns live USD state into pure core dataclasses before backend computa
 
 `isaac_audio_sensors.lab` is import-safe at its package root and resolves direct Isaac Lab `SensorBaseCfg` and `SensorBase` subclasses only after `AppLauncher` initialization.
 
-Its entity path converts official scene root/body pose tensors directly into batched fixed-shape observations. Its separate reference path converts pure core snapshots through scalar backends. USD discovery, stage poses, and room anchoring remain in the Isaac Sim layer; Lab owns no stage adapter or device fallback.
+Its entity path converts official scene root/body pose tensors directly into batched fixed-shape observations. Its separate reference path converts pure core snapshots through scalar backends and accepts only one array identifier per snapshot; it owns no parallel array specifications. USD discovery, stage poses, and room anchoring remain in the Isaac Sim layer; Lab owns no stage adapter or device fallback.
 
 ## Kit and Extension Layers
 
@@ -52,7 +52,7 @@ The guided headless service receives an `ExtensionController` explicitly. `exts/
 
 ## Data Flow
 
-Configuration or live stage/entity state defines sources, arrays, motion, room, and effects; a selected backend emits `AudioSensorFrame`; optional writers serialize traces or session shards; Isaac Lab converts the same semantic output into bounded observation tensors; downstream projects adapt those outputs outside this repository.
+Configuration or live stage/entity state produces an authoritative `AudioSceneSnapshot`; an array identifier selects the observer and a backend emits `AudioSensorFrame`; optional writers serialize traces or session shards; Isaac Lab converts the same semantic output into bounded observation tensors; downstream projects adapt those outputs outside this repository.
 
 Privileged source pose, geometry, isolated-signal, or simulator state must remain distinguishable from observed waveform and estimator outputs so training supervision does not become an unlabelled runtime dependency.
 

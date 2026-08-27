@@ -36,6 +36,8 @@ Unknown backends, profiles, coordinate conventions, invalid time windows, invali
 
 Import-safe protocols define propagation backends, DOA estimators, and audio feature extractors.
 
+Every propagation backend implements `simulate(scene, array_id, time_window) -> AudioSensorFrame`. The snapshot is the only array-state authority; the identifier is a selector, and missing identifiers raise the clear `AudioSceneSnapshot.array_by_id()` error before simulation.
+
 Capability declarations record identifiers, profiles, device support, `PluginDeclaration.output_contract`, determinism, dependencies, and provider provenance. `get_backend()` is the sole public propagation-backend resolver, while `registered_backend_ids()` is the authoritative built-in inventory.
 
 Registry resolution rejects duplicate declarations, unknown identifiers, unavailable dependencies, unsupported devices/profiles, factory results that do not satisfy `PropagationBackend`, and mismatched `backend_id` values. Dependency and capability checks occur before backend construction.
@@ -82,9 +84,9 @@ Exported waveforms and recordings are runtime outputs, not tracked product sourc
 
 Package `3.0.0` is a breaking directivity and gain consistency release. Import sensor contracts from `core`, dataset contracts from `recording`, and schema generators from `schemas.generate`.
 
-Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
+Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Call propagation backends with the snapshot array identifier instead of a `MicrophoneArraySpec`, and bind Lab reference mode with `array_ids` instead of `array_specs`. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
 
-The frame, dataset-manifest, and calibration-profile schemas remain v1 because their serialized meanings did not change. The v3 package does not retain v2 aliases or parallel runtime paths for the removed Python/configuration surfaces.
+The frame, dataset-manifest, and calibration-profile schemas remain v1 because their serialized meanings did not change. The v3 package does not retain v2 aliases or parallel runtime paths for the removed Python/configuration surfaces, backend sensor-object argument, or Lab `array_specs` reference binding.
 
 Stable serialized v1 fields, units, provenance, coordinate meaning, ambiguity representation, backend identifiers, sector mapping, and named diagnostic namespaces cannot be removed or redefined in a compatible release.
 

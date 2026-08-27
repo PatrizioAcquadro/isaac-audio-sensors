@@ -39,9 +39,9 @@ The fast path uses tensor indexing, selection, stacking, compaction, and scatter
 
 ## Reference Binding
 
-`bind_reference(snapshots, array_specs)` accepts equal non-empty sequences of pure `AudioSceneSnapshot` and `MicrophoneArraySpec` values. It runs maintained core backends per environment and converts frames into the same six observation tensors.
+`bind_reference(snapshots, array_ids)` accepts equal non-empty sequences of pure `AudioSceneSnapshot` values and string selectors. Each selected array must exist in its corresponding snapshot, and selected arrays must share one microphone count. Lab derives sample rate, microphone order, gain, directivity, and geometry only from those snapshot-owned arrays before converting maintained core-backend frames into the same six observation tensors.
 
-This path is the scalar semantic reference and debug boundary. It consumes the same entity-owned directivity and nominal-gain values as Core and preserves relative amplitude ratios for all four backends. It does not inspect a USD stage or accept a scene/provider object.
+This path is the scalar semantic reference and debug boundary. It consumes the same entity-owned directivity and nominal-gain values as Core and preserves relative amplitude ratios for all four backends. It does not inspect a USD stage, accept a scene/provider object, or retain parallel `MicrophoneArraySpec` inputs.
 
 ## Update and Reset
 

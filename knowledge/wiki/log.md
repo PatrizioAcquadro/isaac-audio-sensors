@@ -325,3 +325,11 @@ Recorded one entity-owned four-pattern directivity contract, one fail-closed amp
 ## 2026-08-27 — lint: Directivity and gain consistency v3
 
 Verified 502 unit/contract tests, 172 integration tests, 57 release tests, 101 Isaac tests, configuration and optional-audio smokes, RTX 4090 Isaac Sim/Lab/Kit gates, a temporary sdist and wheel build, a fresh installed-package import/config run, canonical wiki boundaries, Ruff, version synchronization, and whitespace.
+
+## 2026-08-27 — update: Snapshot-authoritative backend contract
+
+Recorded `simulate(scene, array_id, time_window)`, snapshot-only array authority, `bind_reference(snapshots, array_ids)`, removal of parallel compatibility paths, and unchanged package and serialized-schema versions.
+
+## 2026-08-27 — lint: Snapshot-authoritative backend contract
+
+Verified 503 unit/contract tests, 180 integration tests, 57 release tests, 103 Isaac tests, the CLI and optional-audio smokes, RTX 4090 Isaac Sim/Lab/Kit gates, canonical wiki boundaries, immutable raw content, Ruff, version synchronization, and whitespace.
