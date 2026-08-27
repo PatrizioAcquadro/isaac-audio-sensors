@@ -30,18 +30,15 @@ from isaac_audio_sensors.core.backends.room_acoustics.signals import (
 from isaac_audio_sensors.core.constants import (
     ROOM_CLAMP_MARGIN_M,
 )
-from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
-from isaac_audio_sensors.core.effects.config import (
-    DirectivityConfig,
-    EffectsConfig,
-)
-from isaac_audio_sensors.core.effects.directivity import (
-    apply_pair_directivity,
-    directivity_diagnostics,
+from isaac_audio_sensors.core.directivity import (
+    DIRECTIVITY_MODE,
     microphone_world_orientation,
-    resolve_pattern,
+    pair_directivity_gain,
 )
+from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
+from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.math_utils import (
     norm,
     subtract,
@@ -129,7 +126,6 @@ def render_room(
             time_window=prepared.time_window,
             plan=window_motion,
             speed_of_sound_mps=speed_of_sound_mps,
-            directivity_config=effects.directivity,
         )
         room = piecewise.last_room
         scheduled = piecewise.scheduled
@@ -211,28 +207,30 @@ def render_room(
             source_count=len(prepared.active),
             mic_count=len(prepared.mic_ids),
         )
-        if effects.directivity.enabled:
-            premix, diagnostics = _apply_directivity_to_premix(
-                premix,
-                active=prepared.active,
-                sensor=prepared.sensor,
-                microphone_positions_world=prepared.microphone_positions_world,
-                sample_rate_hz=prepared.sample_rate_hz,
-                config=effects.directivity,
-            )
-            if diagnostics:
-                effect_diagnostics["directivity"] = diagnostics
-        segment_factor_rows = prepared.segment_factor_rows
-    if prepared.segments_per_window > 1 and effects.directivity.enabled:
-        diagnostics = directivity_diagnostics(
-            effects.directivity,
-            active_source_ids=tuple(
-                source.source_id for source in prepared.active
-            ),
-            microphone_ids=prepared.mic_ids,
+        premix = _apply_entity_directivity_to_premix(
+            premix,
+            active=prepared.active,
+            sensor=prepared.sensor,
+            microphone_positions_world=prepared.microphone_positions_world,
         )
-        if diagnostics:
-            effect_diagnostics["directivity"] = diagnostics
+        segment_factor_rows = prepared.segment_factor_rows
+    effect_diagnostics["directivity"] = {
+        "mode": DIRECTIVITY_MODE,
+        "source_pattern": {
+            source.source_id: source.directivity.value for source in prepared.active
+        },
+        "microphone_patterns": {
+            microphone.mic_id: microphone.directivity.value
+            for microphone in prepared.sensor.microphones
+        },
+    }
+    effect_diagnostics["source_gain_db"] = {
+        source.source_id: source.gain_db for source in prepared.active
+    }
+    effect_diagnostics["microphone_gain_db"] = {
+        microphone.mic_id: microphone.gain_db
+        for microphone in prepared.sensor.microphones
+    }
     return RenderedRoom(
         room=room,
         scheduled=scheduled,
@@ -280,9 +278,15 @@ def apply_room_effects(
                         band_attenuation_db=band[1],
                     )
                 elif per_mic_gain_db[mic_id] != 0.0:
-                    rendered.premix[index, mic_index] *= 10.0 ** (
-                        per_mic_gain_db[mic_id] / 20.0
+                    rendered.premix[index, mic_index] *= db_to_amplitude_gain(
+                        per_mic_gain_db[mic_id],
+                        f"occlusion_gain_delta_db.{mic_id}",
                     )
+        for mic_index, microphone in enumerate(prepared.sensor.microphones):
+            rendered.premix[:, mic_index] *= db_to_amplitude_gain(
+                microphone.gain_db,
+                f"MicrophoneSpec[{microphone.mic_id!r}].gain_db",
+            )
         if effects.channel_response.enabled:
             for index in range(len(prepared.active)):
                 processed, diagnostics = effects_chain.apply_premix(
@@ -353,7 +357,6 @@ def _simulate_piecewise_room(
     time_window: AudioTimeWindow,
     plan: WindowMotionPlan,
     speed_of_sound_mps: float,
-    directivity_config: DirectivityConfig,
 ) -> _PiecewiseRoomResult:
     """Simulate segment midpoint geometry and overlap-add every RIR tail."""
 
@@ -472,15 +475,12 @@ def _simulate_piecewise_room(
             source_count=len(active),
             mic_count=len(mic_ids),
         )
-        if directivity_config.enabled:
-            segment_premix, _diagnostics = _apply_directivity_to_premix(
-                segment_premix,
-                active=segment_sources,
-                sensor=segment_sensor,
-                microphone_positions_world=mic_world,
-                sample_rate_hz=plan.sample_rate_hz,
-                config=directivity_config,
-            )
+        segment_premix = _apply_entity_directivity_to_premix(
+            segment_premix,
+            active=segment_sources,
+            sensor=segment_sensor,
+            microphone_positions_world=mic_world,
+        )
         required = segment.start_sample + segment_premix.shape[2]
         if required > assembled.shape[2]:
             expanded = np.zeros(
@@ -508,25 +508,15 @@ def _simulate_piecewise_room(
     )
 
 
-def _apply_directivity_to_premix(
+def _apply_entity_directivity_to_premix(
     premix: np.ndarray,
     *,
     active: tuple[AudioSourceSpec, ...],
     sensor: MicrophoneArraySpec,
     microphone_positions_world: dict[str, tuple[float, float, float]],
-    sample_rate_hz: int,
-    config: DirectivityConfig,
-) -> tuple[np.ndarray, dict[str, Any]]:
+) -> np.ndarray:
     """Weight every complete pair stem using its direct-path angle."""
 
-    mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
-    diagnostics = directivity_diagnostics(
-        config,
-        active_source_ids=tuple(source.source_id for source in active),
-        microphone_ids=mic_ids,
-    )
-    if not diagnostics:
-        return premix, {}
     output = premix.copy()
     microphone_orientations = {
         microphone.mic_id: microphone_world_orientation(
@@ -536,20 +526,18 @@ def _apply_directivity_to_premix(
         for microphone in sensor.microphones
     }
     for source_index, source in enumerate(active):
-        source_pattern = resolve_pattern(config.source_patterns, source.source_id)
-        for mic_index, mic_id in enumerate(mic_ids):
-            microphone_pattern = resolve_pattern(config.mic_patterns, mic_id)
-            output[source_index, mic_index] = apply_pair_directivity(
-                output[source_index, mic_index],
-                source_pattern=source_pattern,
-                microphone_pattern=microphone_pattern,
+        for mic_index, microphone in enumerate(sensor.microphones):
+            mic_id = microphone.mic_id
+            gain = pair_directivity_gain(
+                source_pattern=source.directivity,
+                microphone_pattern=microphone.directivity,
                 source_position_world=source.position_world,
                 source_orientation_world_xyzw=source.orientation_world_quat,
                 microphone_position_world=microphone_positions_world[mic_id],
                 microphone_orientation_world_xyzw=microphone_orientations[mic_id],
-                sample_rate_hz=sample_rate_hz,
             )
-    return output, diagnostics
+            output[source_index, mic_index] *= gain
+    return output
 
 
 def _import_pyroomacoustics() -> Any:

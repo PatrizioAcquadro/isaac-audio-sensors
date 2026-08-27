@@ -65,6 +65,7 @@ def occlusion_band_attenuation_db(
 
 def occlusion_detection_diagnostics(
     occlusion: SourceOcclusion | None,
+    mic_ids: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
     """Additive per-detection diagnostics; empty when occlusion is absent."""
 
@@ -76,6 +77,11 @@ def occlusion_detection_diagnostics(
         "per_mic_blocked": dict(occlusion.per_mic_blocked),
         "hit_prim_paths": list(occlusion.hit_prim_paths),
     }
+    if mic_ids is not None:
+        diagnostics["applied_gain_delta_db"] = occlusion_per_mic_extra_gain_db(
+            occlusion,
+            mic_ids,
+        )
     if occlusion.per_mic_attenuation_db:
         diagnostics["per_mic_attenuation_db"] = dict(
             occlusion.per_mic_attenuation_db

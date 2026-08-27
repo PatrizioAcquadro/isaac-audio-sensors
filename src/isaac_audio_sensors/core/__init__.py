@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from isaac_audio_sensors.core.directivity import DirectivityPattern
 from isaac_audio_sensors.core.types import (
     AudioDetection,
     AudioSceneSnapshot,
@@ -22,6 +23,7 @@ __all__ = [
     "AudioSensorFrame",
     "AudioSourceSpec",
     "AudioTimeWindow",
+    "DirectivityPattern",
     "DoaEstimate",
     "MicrophoneArraySpec",
     "MicrophoneSpec",

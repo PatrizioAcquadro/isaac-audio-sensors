@@ -70,14 +70,14 @@ def test_chain_all_disabled_returns_exact_input_identity_and_empty_diagnostics()
     assert output.tobytes(order="A") == before
 
 
-def test_absent_effects_table_normalizes_all_five_stages_disabled():
+def test_absent_effects_table_normalizes_all_four_stages_disabled():
     config = validate_audio_config(_base_raw())
     assert isinstance(config.effects, EffectsConfig)
     assert config.effects.all_disabled
     assert not config.effects.channel_response.enabled
     assert not config.effects.noise.enabled
     assert not config.effects.electronics.enabled
-    assert not config.effects.directivity.enabled
+    assert not hasattr(config.effects, "directivity")
     assert not config.effects.motion.derive_velocity_from_poses
 
 
@@ -280,10 +280,10 @@ def test_empty_and_one_sample_gain_inputs_do_not_invent_samples(sample_count):
         frame_id="minimum_window",
     )
     assert output.shape == samples.shape
-    assert diagnostics["channel_response"]["gain_db"] == {"front": -6.0}
+    assert diagnostics["channel_response"]["gain_delta_db"] == {"front": -6.0}
 
 
-@pytest.mark.parametrize("stage", ["noise", "electronics", "directivity"])
+@pytest.mark.parametrize("stage", ["noise", "electronics"])
 def test_later_effect_stages_fail_typed_instead_of_silently_running(stage):
     raw = {stage: {"enabled": True}}
     effects = parse_effects_config(raw)
@@ -294,6 +294,11 @@ def test_later_effect_stages_fail_typed_instead_of_silently_running(stage):
             sample_rate_hz=SAMPLE_RATE_HZ,
             frame_id="deferred_stage",
         )
+
+
+def test_removed_directivity_effect_is_an_unknown_config_key() -> None:
+    with pytest.raises(ConfigValidationError, match="unsupported fields.*directivity"):
+        parse_effects_config({"directivity": {"enabled": True}})
 
 
 def test_enabled_noop_channel_is_not_reported_as_applied():

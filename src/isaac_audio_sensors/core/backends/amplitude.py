@@ -1,86 +1,87 @@
 """Shared synthetic source-amplitude physics for the L0/L1 backends.
 
-The reference convention is pressure-like: ``AudioSourceSpec.gain_db`` is the
-source level re 1 m, so an omnidirectional source emits an RMS amplitude of
-``10 ** (gain_db / 20)`` at one meter and falls off as ``1 / distance``.
+The reference convention is amplitude-relative: the analytical asset reference
+is multiplied by source gain, entity directivity magnitude, propagation, then
+the microphone and documented per-channel deltas.
 """
 
 from __future__ import annotations
 
 import math
 
-from isaac_audio_sensors.core.constants import DIRECTIVITY_COEFFICIENTS, EPSILON
-from isaac_audio_sensors.core.math_utils import (
-    Vector3,
-    clamp,
-    dot,
-    norm,
-    normalize_quaternion,
-    rotate_vector_by_quaternion,
-    subtract,
+from isaac_audio_sensors.core.directivity import (
+    microphone_world_orientation,
+    pair_directivity_gain,
 )
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
+from isaac_audio_sensors.core.math_utils import Quaternion, Vector3, norm, subtract
 from isaac_audio_sensors.core.types import AudioSourceSpec, MicrophoneSpec
 
 DISTANCE_FLOOR_M = 0.1
 
 
-def resolve_directivity(source: AudioSourceSpec) -> str:
-    """Return the directivity model the L0/L1 backends actually apply.
-
-    Frozen first-order families require an orientation to point any non-omni
-    lobe. Legacy unknown values and unoriented non-omni values retain the
-    legacy metadata fallback to ``"omni"``.
-    """
-
-    if (
-        source.directivity in DIRECTIVITY_COEFFICIENTS
-        and source.directivity != "omni"
-        and source.orientation_world_quat is not None
-    ):
-        return source.directivity
-    return "omni"
-
-
 def directivity_factor(
     source: AudioSourceSpec,
+    microphone: MicrophoneSpec,
     mic_position_world: Vector3,
+    array_orientation_world_xyzw: Quaternion,
 ) -> float:
-    """Signed first-order directivity gain toward one microphone."""
+    """Signed canonical source-times-microphone direct-path gain."""
 
-    family = resolve_directivity(source)
-    if family == "omni":
-        return 1.0
-    forward = rotate_vector_by_quaternion(
-        (1.0, 0.0, 0.0),
-        normalize_quaternion(source.orientation_world_quat),
+    return pair_directivity_gain(
+        source_pattern=source.directivity,
+        microphone_pattern=microphone.directivity,
+        source_position_world=source.position_world,
+        source_orientation_world_xyzw=source.orientation_world_quat,
+        microphone_position_world=mic_position_world,
+        microphone_orientation_world_xyzw=microphone_world_orientation(
+            array_orientation_world_xyzw,
+            microphone.relative_orientation_quat,
+        ),
     )
-    to_mic = subtract(mic_position_world, source.position_world)
-    distance = norm(to_mic)
-    if distance <= EPSILON:
-        return 1.0
-    cos_theta = clamp(dot(forward, to_mic) / distance, -1.0, 1.0)
-    coefficient = DIRECTIVITY_COEFFICIENTS[family]
-    return coefficient + (1.0 - coefficient) * cos_theta
 
 
 def source_amplitude_at(
     source: AudioSourceSpec,
+    microphone: MicrophoneSpec,
     mic_position_world: Vector3,
+    array_orientation_world_xyzw: Quaternion,
     *,
-    extra_gain_db: float = 0.0,
+    occlusion_gain_delta_db: float = 0.0,
+    tdoa_gain_mismatch_delta_db: float = 0.0,
+    channel_response_gain_delta_db: float = 0.0,
     air_absorption_db_per_m: float = 0.0,
 ) -> float:
     """Synthetic RMS amplitude of one source at one microphone position."""
 
     distance = norm(subtract(source.position_world, mic_position_world))
-    gain_scale = 10.0 ** ((source.gain_db + extra_gain_db) / 20.0)
     amplitude = (
-        gain_scale
-        * abs(directivity_factor(source, mic_position_world))
+        db_to_amplitude_gain(source.gain_db, "AudioSourceSpec.gain_db")
+        * abs(
+            directivity_factor(
+                source,
+                microphone,
+                mic_position_world,
+                array_orientation_world_xyzw,
+            )
+        )
         / max(distance, DISTANCE_FLOOR_M)
     )
     if air_absorption_db_per_m > 0.0:
         amplitude *= 10.0 ** (-air_absorption_db_per_m * distance / 20.0)
+    amplitude *= db_to_amplitude_gain(
+        occlusion_gain_delta_db,
+        "occlusion_gain_delta_db",
+    )
+    amplitude *= db_to_amplitude_gain(microphone.gain_db, "MicrophoneSpec.gain_db")
+    amplitude *= db_to_amplitude_gain(
+        tdoa_gain_mismatch_delta_db,
+        "tdoa_gain_mismatch_delta_db",
+    )
+    amplitude *= db_to_amplitude_gain(
+        channel_response_gain_delta_db,
+        "channel_response_gain_delta_db",
+    )
     return amplitude
 
 

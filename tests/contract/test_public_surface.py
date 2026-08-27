@@ -30,6 +30,7 @@ PUBLIC_API_V2 = {
         "AudioSensorFrame",
         "AudioSourceSpec",
         "AudioTimeWindow",
+        "DirectivityPattern",
         "DoaEstimate",
         "MicrophoneArraySpec",
         "MicrophoneSpec",

@@ -24,6 +24,7 @@ from isaac_audio_sensors.core.backends.room_acoustics.rendering import (
     _max_microphone_spacing,
 )
 from isaac_audio_sensors.core.backends.tdoa import estimate_doa_from_delays
+from isaac_audio_sensors.core.directivity import DIRECTIVITY_MODE
 from isaac_audio_sensors.core.doa.gcc_phat import (
     estimate_tdoa_diagnostics,
     relative_delays_from_tdoa_matrix,
@@ -220,6 +221,19 @@ def assemble_detections(
                     "rir_peak_delay_s": rir_peak_delay_s,
                     "waveform_sample_count": waveform_sample_count,
                     "source_waveform_mode": rendered.scheduled[index].mode,
+                    "source_gain_db": source.gain_db,
+                    "microphone_gain_db": {
+                        microphone.mic_id: microphone.gain_db
+                        for microphone in prepared.sensor.microphones
+                    },
+                    "directivity": {
+                        "mode": DIRECTIVITY_MODE,
+                        "source_pattern": source.directivity.value,
+                        "microphone_patterns": {
+                            microphone.mic_id: microphone.directivity.value
+                            for microphone in prepared.sensor.microphones
+                        },
+                    },
                     "scheduled_start_offset_samples": (
                         rendered.scheduled[index].start_offset_samples
                     ),
@@ -243,7 +257,7 @@ def assemble_detections(
                     "room_microphone_positions_m": (
                         rendered.microphone_room_positions
                     ),
-                    **occlusion_detection_diagnostics(occlusion),
+                    **occlusion_detection_diagnostics(occlusion, prepared.mic_ids),
                 },
             )
         )

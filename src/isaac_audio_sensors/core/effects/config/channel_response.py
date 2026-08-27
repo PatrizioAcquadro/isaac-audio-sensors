@@ -21,6 +21,7 @@ from isaac_audio_sensors.core.exceptions import (
     ConfigValidationError,
     UnsupportedEffectError,
 )
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 
 
 def parse_channel_response(raw: object) -> ChannelResponseConfig:
@@ -198,10 +199,14 @@ def _validate_mic_config(
             f"{type(config).__name__}, backend={backend_id!r}, "
             f"profile={runtime_profile!r}."
         )
-    for field_name, value in (("gain_db", config.gain_db), ("delay_s", config.delay_s)):
-        if value is not None and not math.isfinite(float(value)):
+    if config.gain_db is not None:
+        try:
+            db_to_amplitude_gain(config.gain_db, f"{table}.gain_db")
+        except ValueError as exc:
+            raise ConfigValidationError(str(exc)) from exc
+    if config.delay_s is not None and not math.isfinite(float(config.delay_s)):
             raise ConfigValidationError(
-                f"{table}.{field_name} must be finite; received {value!r}, "
+                f"{table}.delay_s must be finite; received {config.delay_s!r}, "
                 f"backend={backend_id!r}, profile={runtime_profile!r}."
             )
     if config.polarity is not None and (

@@ -13,6 +13,7 @@ from isaac_audio_sensors.core.effects.config import (
     ChannelResponseMicConfig,
     FrequencyResponsePointConfig,
 )
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 
 
 def apply_channel_response(
@@ -46,7 +47,10 @@ def apply_channel_response(
             )
             waveform = _linear_convolve_compensated(waveform, taps)
         if mic_config.gain_db is not None:
-            waveform = waveform * (10.0 ** (mic_config.gain_db / 20.0))
+            waveform = waveform * db_to_amplitude_gain(
+                mic_config.gain_db,
+                f"audio.effects.channel_response.{mic_id}.gain_db",
+            )
         if mic_config.polarity is not None:
             waveform = (
                 np.negative(waveform) if mic_config.polarity == -1 else waveform * 1
@@ -139,7 +143,7 @@ def channel_response_diagnostics(
         return {}
     return {
         "applied_mic_ids": applied,
-        "gain_db": {
+        "gain_delta_db": {
             mic_id: microphones[mic_id].gain_db
             for mic_id in applied
             if microphones[mic_id].gain_db is not None

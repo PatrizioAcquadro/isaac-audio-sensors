@@ -11,13 +11,12 @@ from isaac_audio_sensors.core.acoustics.occlusion import (
 )
 from isaac_audio_sensors.core.backends.amplitude import (
     aggregate_rms_power_sum,
-    resolve_directivity,
     source_amplitude_at,
 )
+from isaac_audio_sensors.core.directivity import DIRECTIVITY_MODE
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
 from isaac_audio_sensors.core.effects.channel_response import metadata_channel_values
 from isaac_audio_sensors.core.effects.config import EffectsConfig
-from isaac_audio_sensors.core.effects.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.noise import metadata_noise_timing_values
 from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.math_utils import (
@@ -103,18 +102,6 @@ class GeometryBackend:
                 sample_count=sample_count,
                 microphone_self_noise_db={
                     microphone.mic_id: microphone.self_noise_db
-                    for microphone in sensor.microphones
-                },
-                source_ids=tuple(source.source_id for source in scene.sources),
-                source_orientations={
-                    source.source_id: source.orientation_world_quat
-                    for source in scene.sources
-                },
-                microphone_orientations={
-                    microphone.mic_id: microphone_world_orientation(
-                        sensor.orientation_world_quat,
-                        microphone.relative_orientation_quat,
-                    )
                     for microphone in sensor.microphones
                 },
             )
@@ -218,9 +205,19 @@ class GeometryBackend:
                         "up_component_m": up_component,
                         "horizontal_distance_m": horizontal_distance,
                         "source_gain_db": source.gain_db,
-                        "directivity": source.directivity,
-                        "directivity_applied": resolve_directivity(source),
-                        **occlusion_detection_diagnostics(occlusion),
+                        "microphone_gain_db": {
+                            microphone.mic_id: microphone.gain_db
+                            for microphone in sensor.microphones
+                        },
+                        "directivity": {
+                            "mode": DIRECTIVITY_MODE,
+                            "source_pattern": source.directivity.value,
+                            "microphone_patterns": {
+                                microphone.mic_id: microphone.directivity.value
+                                for microphone in sensor.microphones
+                            },
+                        },
+                        **occlusion_detection_diagnostics(occlusion, mic_ids),
                     },
                 )
             )
@@ -274,12 +271,15 @@ def _rms_proxy_for_source(
     per_mic: dict[str, float] = {}
     extra_gains = per_mic_extra_gain_db or {}
     effect_gains = effect_gain_db or {}
-    for mic_id, mic_position in microphone_world_positions(sensor).items():
+    positions = microphone_world_positions(sensor)
+    for microphone in sensor.microphones:
+        mic_id = microphone.mic_id
         per_mic[mic_id] = source_amplitude_at(
             source,
-            mic_position,
-            extra_gain_db=(
-                extra_gains.get(mic_id, 0.0) + effect_gains.get(mic_id, 0.0)
-            ),
+            microphone,
+            positions[mic_id],
+            sensor.orientation_world_quat,
+            occlusion_gain_delta_db=extra_gains.get(mic_id, 0.0),
+            channel_response_gain_delta_db=effect_gains.get(mic_id, 0.0),
         )
     return per_mic

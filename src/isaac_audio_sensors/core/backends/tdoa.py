@@ -13,10 +13,10 @@ from isaac_audio_sensors.core.acoustics.occlusion import (
 )
 from isaac_audio_sensors.core.backends.amplitude import (
     aggregate_rms_power_sum,
-    resolve_directivity,
     source_amplitude_at,
 )
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS, EPSILON
+from isaac_audio_sensors.core.directivity import DIRECTIVITY_MODE
 from isaac_audio_sensors.core.doa.ambiguity import (
     TWO_MIC_ENDPOINT_TOLERANCE,
     choose_front_hemisphere_candidate,
@@ -27,7 +27,6 @@ from isaac_audio_sensors.core.doa.least_squares import least_squares_direction
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
 from isaac_audio_sensors.core.effects.channel_response import metadata_channel_values
 from isaac_audio_sensors.core.effects.config import EffectsConfig
-from isaac_audio_sensors.core.effects.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.noise import metadata_noise_timing_values
 from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.math_utils import (
@@ -152,18 +151,6 @@ class TdoaSyntheticBackend:
                     microphone.mic_id: microphone.self_noise_db
                     for microphone in sensor.microphones
                 },
-                source_ids=tuple(source.source_id for source in scene.sources),
-                source_orientations={
-                    source.source_id: source.orientation_world_quat
-                    for source in scene.sources
-                },
-                microphone_orientations={
-                    microphone.mic_id: microphone_world_orientation(
-                        sensor.orientation_world_quat,
-                        microphone.relative_orientation_quat,
-                    )
-                    for microphone in sensor.microphones
-                },
             )
             (
                 effect_gain_db,
@@ -269,18 +256,30 @@ class TdoaSyntheticBackend:
                         "tdoa_matrix_s": _tdoa_matrix(delay_result.per_mic_delay_s),
                         "noise_std_s": self.noise_std_s,
                         "clock_jitter_s": self.clock_jitter_s,
-                        "gain_mismatch_db": self.gain_mismatch_db,
+                        "tdoa_gain_mismatch_std_db": self.gain_mismatch_db,
                         "noise_seed": self.seed,
                         "air_absorption_db_per_m": self.air_absorption_db_per_m,
                         "source_gain_db": source.gain_db,
-                        "directivity": source.directivity,
-                        "directivity_applied": resolve_directivity(source),
+                        "microphone_gain_db": {
+                            microphone.mic_id: microphone.gain_db
+                            for microphone in sensor.microphones
+                        },
+                        "directivity": {
+                            "mode": DIRECTIVITY_MODE,
+                            "source_pattern": source.directivity.value,
+                            "microphone_patterns": {
+                                microphone.mic_id: microphone.directivity.value
+                                for microphone in sensor.microphones
+                            },
+                        },
                         "oracle_bearing_error_deg": oracle_bearing_error,
                         "oracle_elevation_error_deg": oracle_elevation_error,
-                        "per_mic_gain_offset_db": (delay_result.per_mic_gain_offset_db),
+                        "tdoa_gain_mismatch_delta_db": (
+                            delay_result.per_mic_gain_offset_db
+                        ),
                         "stress_controls_deterministic": True,
                         **doppler_diagnostics,
-                        **occlusion_detection_diagnostics(occlusion),
+                        **occlusion_detection_diagnostics(occlusion, mic_ids),
                     },
                 )
             )
@@ -291,7 +290,7 @@ class TdoaSyntheticBackend:
             "ambiguity_policy": self.ambiguity_policy,
             "noise_std_s": self.noise_std_s,
             "clock_jitter_s": self.clock_jitter_s,
-            "gain_mismatch_db": self.gain_mismatch_db,
+            "tdoa_gain_mismatch_std_db": self.gain_mismatch_db,
             "noise_seed": self.seed,
             "air_absorption_db_per_m": self.air_absorption_db_per_m,
             "array_geometry_rank_xy": layout_rank_xy(sensor),
@@ -363,12 +362,14 @@ class TdoaSyntheticBackend:
             gain_offset_db = self._gain_offset_db(microphone.mic_id)
             amplitude = source_amplitude_at(
                 source,
+                microphone,
                 mic_position,
-                extra_gain_db=(
-                    microphone.gain_db
-                    + gain_offset_db
-                    + effect_gains.get(microphone.mic_id, 0.0)
-                    + extra_gains.get(microphone.mic_id, 0.0)
+                sensor.orientation_world_quat,
+                occlusion_gain_delta_db=extra_gains.get(microphone.mic_id, 0.0),
+                tdoa_gain_mismatch_delta_db=gain_offset_db,
+                channel_response_gain_delta_db=effect_gains.get(
+                    microphone.mic_id,
+                    0.0,
                 ),
                 air_absorption_db_per_m=self.air_absorption_db_per_m,
             )

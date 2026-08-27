@@ -134,7 +134,7 @@ def test_l1_gain_and_delay_adapter_is_difference_of_matching_baselines(stress):
         assert abs(recovered_gain - gain_db) <= 0.05
         assert recovered_delay == pytest.approx(delay_s, abs=1e-12)
     diagnostics = effected.diagnostics["effects"]["channel_response"]
-    assert diagnostics["gain_db"] == dict.fromkeys(mic_ids, gain_db)
+    assert diagnostics["gain_delta_db"] == dict.fromkeys(mic_ids, gain_db)
     assert diagnostics["delay_s"] == dict.fromkeys(mic_ids, delay_s)
 
 
@@ -237,7 +237,9 @@ def test_room_backend_off_state_matches_pristine_reference(
     disabled_waveform = disabled_sink.calls[0]["mixture"].tobytes(order="C")
     assert baseline_frame == disabled_frame
     assert baseline_waveform == disabled_waveform
-    assert "effects" not in baseline.diagnostics
+    assert baseline.diagnostics["directivity"]["mode"] == (
+        "per_pair_direct_path"
+    )
     assert "effects" not in disabled.diagnostics
 
 
@@ -283,7 +285,7 @@ def test_room_backend_effected_premix_drives_detection_aggregate_and_export(
         assert effected.aggregate_per_mic_rms[mic_id] == pytest.approx(expected_rms)
     assert effected.diagnostics["effects"]["channel_response"] == {
         "applied_mic_ids": ("front",),
-        "gain_db": {"front": -6.0},
+        "gain_delta_db": {"front": -6.0},
         "delay_s": {},
         "polarity": {},
     }

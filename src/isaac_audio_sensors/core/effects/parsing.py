@@ -7,7 +7,6 @@ from isaac_audio_sensors.core.effects.config.channel_response import (
     parse_channel_response,
 )
 from isaac_audio_sensors.core.effects.config.common import mapping, reject_unknown
-from isaac_audio_sensors.core.effects.config.directivity import parse_directivity
 from isaac_audio_sensors.core.effects.config.electronics import parse_electronics
 from isaac_audio_sensors.core.effects.config.motion import parse_motion
 from isaac_audio_sensors.core.effects.config.noise import parse_noise
@@ -21,14 +20,13 @@ def parse_effects_config(raw: object) -> EffectsConfig:
     effects = mapping(raw, "audio.effects")
     reject_unknown(
         effects,
-        {"channel_response", "noise", "electronics", "directivity", "motion"},
+        {"channel_response", "noise", "electronics", "motion"},
         "audio.effects",
     )
     return EffectsConfig(
         channel_response=parse_channel_response(effects.get("channel_response")),
         noise=parse_noise(effects.get("noise")),
         electronics=parse_electronics(effects.get("electronics")),
-        directivity=parse_directivity(effects.get("directivity")),
         motion=parse_motion(effects.get("motion")),
     )
 

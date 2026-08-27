@@ -23,9 +23,6 @@ from isaac_audio_sensors.core.constants import (
 from isaac_audio_sensors.core.effects.config import (
     EffectsConfig,
 )
-from isaac_audio_sensors.core.effects.directivity import (
-    microphone_world_orientation,
-)
 from isaac_audio_sensors.core.effects.parsing import parse_effects_config
 from isaac_audio_sensors.core.effects.validation import (
     UnsupportedEffectError,
@@ -153,18 +150,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             backend_id=default_backend,
             runtime_profile=runtime_profile,
             microphone_self_noise_db=microphone_self_noise_db,
-            source_ids=tuple(source.source_id for source in sources),
-            source_orientations={
-                source.source_id: source.orientation_world_quat for source in sources
-            },
-            microphone_orientations={
-                microphone.mic_id: microphone_world_orientation(
-                    array.orientation_world_quat,
-                    microphone.relative_orientation_quat,
-                )
-                for array in arrays.values()
-                for microphone in array.microphones
-            },
         )
         room = _parse_room(raw.get("room"))
         _validate_backend_requirements(
@@ -315,6 +300,7 @@ def _parse_microphones(raw_microphones: Any) -> tuple[MicrophoneSpec, ...]:
                 ),
                 gain_db=float(raw_microphone.get("gain_db", 0.0)),
                 self_noise_db=raw_microphone.get("self_noise_db"),
+                directivity=str(raw_microphone.get("directivity", "omni")),
             )
         )
     return tuple(microphones)

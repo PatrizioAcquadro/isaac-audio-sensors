@@ -15,12 +15,12 @@ from isaac_audio_sensors.core.constants import (
     FRAME_SCHEMA_VERSION,
     SECTOR_ORDER,
 )
+from isaac_audio_sensors.core.directivity import pattern_coefficient
 from isaac_audio_sensors.core.doa import two_mic_candidate_bearings
 from isaac_audio_sensors.core.doa.sector_mapping import (
     bearing_deg_to_sector_name,
     sector_bounds_deg,
 )
-from isaac_audio_sensors.core.effects.directivity import pattern_coefficient
 from isaac_audio_sensors.core.math_utils import (
     angular_error_deg,
     dot,
@@ -550,8 +550,10 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
     assert stressed.diagnostics["stress_controls_deterministic"] is True
     assert stressed.diagnostics["noise_std_s"] == pytest.approx(1e-5)
     assert stressed.diagnostics["clock_jitter_s"] == pytest.approx(2e-5)
-    assert stressed.diagnostics["gain_mismatch_db"] == pytest.approx(6.0)
-    gain_offsets = stressed_detection.diagnostics["per_mic_gain_offset_db"]
+    assert stressed.diagnostics["tdoa_gain_mismatch_std_db"] == pytest.approx(6.0)
+    gain_offsets = stressed_detection.diagnostics[
+        "tdoa_gain_mismatch_delta_db"
+    ]
     assert set(gain_offsets) == {"left", "right"}
     assert gain_offsets["left"] != gain_offsets["right"]
 
@@ -562,7 +564,9 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
         ambiguity_policy="none",
         seed=99,
     ).simulate(scene, array, _window(array))
-    reseeded_offsets = reseeded.detections[0].diagnostics["per_mic_gain_offset_db"]
+    reseeded_offsets = reseeded.detections[0].diagnostics[
+        "tdoa_gain_mismatch_delta_db"
+    ]
     assert reseeded_offsets != gain_offsets
     assert reseeded.diagnostics["noise_seed"] == 99
     assert stressed.diagnostics["noise_seed"] is None
@@ -662,7 +666,9 @@ def test_l0_l1_cardioid_directivity_attenuates_off_axis() -> None:
             _scene(away, array=array), array, _window(array)
         ).detections[0]
 
-        assert facing_detection.diagnostics["directivity_applied"] == "cardioid"
+        assert facing_detection.diagnostics["directivity"]["source_pattern"] == (
+            "cardioid"
+        )
         for mic_id in positions:
             assert facing_detection.per_mic_rms[mic_id] == pytest.approx(
                 _expected_rms(180.0, mic_id)
@@ -686,29 +692,17 @@ def test_directivity_families_use_frozen_coefficients() -> None:
     assert {family: pattern_coefficient(family) for family in expected} == expected
 
 
-def test_l0_l1_unmodeled_directivity_falls_back_to_omni() -> None:
-    array = _array("quad_front")
+def test_source_directivity_unknown_and_missing_orientation_fail_closed() -> None:
     position = (4.0, 1.0, 0.0)
-    omni = _source("omni", position)
-    unmodeled = _source(
-        "unmodeled",
-        position,
-        directivity="hypercardioid",
-        orientation_world_quat=quaternion_from_yaw_deg(90.0),
-    )
-    unoriented = _source("unoriented", position, directivity="cardioid")
-
-    for backend in (GeometryBackend(), TdoaSyntheticBackend()):
-        base = backend.simulate(
-            _scene(omni, array=array), array, _window(array)
-        ).detections[0]
-        for source in (unmodeled, unoriented):
-            detection = backend.simulate(
-                _scene(source, array=array), array, _window(array)
-            ).detections[0]
-            assert detection.per_mic_rms == pytest.approx(base.per_mic_rms)
-            assert detection.diagnostics["directivity"] == source.directivity
-            assert detection.diagnostics["directivity_applied"] == "omni"
+    with pytest.raises(ValueError, match="AudioSourceSpec.directivity"):
+        _source(
+            "unmodeled",
+            position,
+            directivity="hypercardioid",
+            orientation_world_quat=quaternion_from_yaw_deg(90.0),
+        )
+    with pytest.raises(ValueError, match="orientation_world_quat"):
+        _source("unoriented", position, directivity="cardioid")
 
 
 def test_l1_air_absorption_toggle_attenuates_rms_with_distance() -> None:
@@ -759,8 +753,8 @@ def test_seeded_noise_is_deterministic_per_seed_frame_and_mic() -> None:
         other_frame.detections[0].per_mic_delay_s != first.detections[0].per_mic_delay_s
     )
     assert (
-        other_frame.detections[0].diagnostics["per_mic_gain_offset_db"]
-        == first.detections[0].diagnostics["per_mic_gain_offset_db"]
+        other_frame.detections[0].diagnostics["tdoa_gain_mismatch_delta_db"]
+        == first.detections[0].diagnostics["tdoa_gain_mismatch_delta_db"]
     )
 
     other_seed = TdoaSyntheticBackend(

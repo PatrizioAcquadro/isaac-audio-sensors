@@ -1,0 +1,323 @@
+from __future__ import annotations
+
+import math
+from dataclasses import replace
+
+import numpy as np
+import pytest
+
+from isaac_audio_sensors.core.backends.geometry import GeometryBackend
+from isaac_audio_sensors.core.backends.room_acoustics import (
+    RoomAcousticsBackend,
+    RoomAcousticsSrpBackend,
+    signals,
+)
+from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.directivity import (
+    DirectivityPattern,
+    evaluate_polar_pattern,
+    pair_directivity_gain,
+)
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
+from isaac_audio_sensors.core.microphone_array import (
+    create_microphone_array,
+    microphone_world_positions,
+)
+from isaac_audio_sensors.core.types import (
+    AudioSceneSnapshot,
+    AudioSourceSpec,
+    AudioTimeWindow,
+    MicrophoneArraySpec,
+    MicrophoneSpec,
+    RoomAcousticsSpec,
+)
+from tests.helpers import CaptureSink, install_fake_pyroom
+
+DB_DOUBLE = 20.0 * math.log10(2.0)
+IDENTITY = (0.0, 0.0, 0.0, 1.0)
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected"),
+    [
+        (DirectivityPattern.OMNI, (1.0, 1.0, 1.0)),
+        (DirectivityPattern.CARDIOID, (1.0, 0.5, 0.0)),
+        (DirectivityPattern.SUPERCARDIOID, (1.0, 0.37, -0.26)),
+        (DirectivityPattern.FIGURE_EIGHT, (1.0, 0.0, -1.0)),
+    ],
+)
+def test_all_directivity_patterns_have_canonical_front_side_rear_values(
+    pattern: DirectivityPattern,
+    expected: tuple[float, float, float],
+) -> None:
+    observed = tuple(
+        evaluate_polar_pattern(
+            pattern,
+            orientation_xyzw=IDENTITY,
+            direction=direction,
+        )
+        for direction in ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (-1.0, 0.0, 0.0))
+    )
+    assert observed == pytest.approx(expected)
+    assert tuple(abs(value) for value in observed) == pytest.approx(
+        tuple(abs(value) for value in expected)
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [True, False, "0", None, math.nan, math.inf, -math.inf, 10_000.0, -10_000.0],
+)
+def test_db_to_amplitude_gain_rejects_invalid_or_unrepresentable_values(value) -> None:
+    with pytest.raises(ValueError):
+        db_to_amplitude_gain(value)
+
+
+def test_db_to_amplitude_gain_uses_relative_amplitude_semantics() -> None:
+    assert db_to_amplitude_gain(0.0) == 1.0
+    assert db_to_amplitude_gain(DB_DOUBLE) == pytest.approx(2.0)
+    assert db_to_amplitude_gain(-DB_DOUBLE) == pytest.approx(0.5)
+
+
+def test_entity_records_resolve_directivity_and_require_orientation() -> None:
+    source = _source(directivity="cardioid", orientation=IDENTITY)
+    microphone = MicrophoneSpec(
+        mic_id="mic",
+        relative_position_m=(0.0, 0.0, 0.0),
+        relative_orientation_quat=IDENTITY,
+        directivity="figure_eight",
+    )
+    assert source.directivity is DirectivityPattern.CARDIOID
+    assert microphone.directivity is DirectivityPattern.FIGURE_EIGHT
+    with pytest.raises(ValueError, match="directivity"):
+        _source(directivity="unknown", orientation=IDENTITY)
+    with pytest.raises(ValueError, match="orientation_world_quat"):
+        _source(directivity="cardioid")
+    with pytest.raises(ValueError, match="relative_orientation_quat"):
+        MicrophoneSpec(
+            mic_id="mic",
+            relative_position_m=(0.0, 0.0, 0.0),
+            directivity="supercardioid",
+        )
+
+
+@pytest.mark.parametrize("backend", [GeometryBackend(), TdoaSyntheticBackend()])
+@pytest.mark.parametrize("gain_db,expected", [(DB_DOUBLE, 2.0), (-DB_DOUBLE, 0.5)])
+def test_l0_l1_source_and_microphone_gain_ratios(backend, gain_db, expected) -> None:
+    baseline_array = _array()
+    source_baseline = _source()
+    source_changed = replace(source_baseline, gain_db=gain_db)
+    source_ratio = _detection_rms(backend, source_changed, baseline_array) / (
+        _detection_rms(backend, source_baseline, baseline_array)
+    )
+    assert source_ratio == pytest.approx(expected)
+
+    changed_array = replace(
+        baseline_array,
+        microphones=tuple(
+            replace(microphone, gain_db=gain_db)
+            if microphone.mic_id == "front"
+            else microphone
+            for microphone in baseline_array.microphones
+        ),
+    )
+    microphone_ratio = _detection_rms(backend, source_baseline, changed_array) / (
+        _detection_rms(backend, source_baseline, baseline_array)
+    )
+    assert microphone_ratio == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    "backend_type",
+    [RoomAcousticsBackend, RoomAcousticsSrpBackend],
+)
+@pytest.mark.parametrize("gain_db,expected", [(DB_DOUBLE, 2.0), (-DB_DOUBLE, 0.5)])
+def test_room_backend_source_and_microphone_gain_ratios(
+    monkeypatch,
+    backend_type,
+    gain_db,
+    expected,
+) -> None:
+    install_fake_pyroom(monkeypatch)
+    baseline_array = _array()
+    source_baseline = _source()
+    source_changed = replace(source_baseline, gain_db=gain_db)
+    assert _detection_rms(backend_type(), source_changed, baseline_array) / (
+        _detection_rms(backend_type(), source_baseline, baseline_array)
+    ) == pytest.approx(expected)
+
+    changed_array = replace(
+        baseline_array,
+        microphones=tuple(
+            replace(microphone, gain_db=gain_db)
+            if microphone.mic_id == "front"
+            else microphone
+            for microphone in baseline_array.microphones
+        ),
+    )
+    assert _detection_rms(backend_type(), source_baseline, changed_array) / (
+        _detection_rms(backend_type(), source_baseline, baseline_array)
+    ) == pytest.approx(expected)
+
+
+def test_room_waveform_keeps_signed_directivity_while_rms_uses_magnitude(
+    monkeypatch,
+) -> None:
+    install_fake_pyroom(monkeypatch)
+    array = _array()
+    omni = _source()
+    figure_eight = replace(
+        omni,
+        directivity=DirectivityPattern.FIGURE_EIGHT,
+        orientation_world_quat=IDENTITY,
+    )
+    omni_sink = CaptureSink()
+    directional_sink = CaptureSink()
+    omni_frame = RoomAcousticsBackend(waveform_writer=omni_sink).simulate(
+        _scene(omni, array), array, _window()
+    )
+    directional_frame = RoomAcousticsBackend(
+        waveform_writer=directional_sink
+    ).simulate(_scene(figure_eight, array), array, _window())
+    omni_waveforms = omni_sink.calls[0]["mixture"]
+    directional_waveforms = directional_sink.calls[0]["mixture"]
+    positions = microphone_world_positions(array)
+    for index, microphone in enumerate(array.microphones):
+        factor = pair_directivity_gain(
+            source_pattern=figure_eight.directivity,
+            microphone_pattern=microphone.directivity,
+            source_position_world=figure_eight.position_world,
+            source_orientation_world_xyzw=figure_eight.orientation_world_quat,
+            microphone_position_world=positions[microphone.mic_id],
+            microphone_orientation_world_xyzw=IDENTITY,
+        )
+        assert factor < 0.0
+        assert directional_waveforms[index] == pytest.approx(
+            omni_waveforms[index] * factor
+        )
+        assert directional_frame.detections[0].per_mic_rms[
+            microphone.mic_id
+        ] == pytest.approx(
+            omni_frame.detections[0].per_mic_rms[microphone.mic_id] * abs(factor)
+        )
+
+
+def test_scheduler_applies_gain_once_without_normalizing_file_or_generated_assets(
+    monkeypatch,
+) -> None:
+    base = np.asarray((0.2, -0.4, 0.8, -0.1), dtype=float)
+    monkeypatch.setattr(
+        signals,
+        "_load_public_waveform",
+        lambda _path, *, sample_rate_hz: (base.copy(), "file:test.wav"),
+    )
+    window = AudioTimeWindow(
+        start_time_s=0.0,
+        end_time_s=0.004,
+        timestamp_ms=0,
+        sample_rate_hz=1_000,
+    )
+    file_source = _source(
+        audio_asset_path="assets/test.wav",
+        duration_s=0.004,
+        position=(1.0, 0.0, 0.0),
+    )
+    assert signals._scheduled_window_signal(file_source, time_window=window).signal == (
+        pytest.approx(base)
+    )
+    assert signals._scheduled_window_signal(
+        replace(file_source, gain_db=DB_DOUBLE),
+        time_window=window,
+    ).signal == pytest.approx(base * 2.0)
+
+    generated = replace(file_source, audio_asset_path="generated://impulse")
+    generated_base = signals._scheduled_window_signal(generated, time_window=window)
+    generated_double = signals._scheduled_window_signal(
+        replace(generated, gain_db=DB_DOUBLE),
+        time_window=window,
+    )
+    assert generated_double.signal == pytest.approx(generated_base.signal * 2.0)
+
+
+def test_pyroom_rir_is_the_only_room_distance_scaling(monkeypatch) -> None:
+    install_fake_pyroom(monkeypatch)
+    array = _array()
+    near = _source(position=(1.0, 0.0, 0.0))
+    far = replace(near, position_world=(2.0, 0.0, 0.0))
+    near_sink = CaptureSink()
+    far_sink = CaptureSink()
+    RoomAcousticsBackend(waveform_writer=near_sink).simulate(
+        _scene(near, array), array, _window()
+    )
+    RoomAcousticsBackend(waveform_writer=far_sink).simulate(
+        _scene(far, array), array, _window()
+    )
+    near_peak = float(np.max(np.abs(near_sink.calls[0]["mixture"][0])))
+    far_peak = float(np.max(np.abs(far_sink.calls[0]["mixture"][0])))
+    front_position = microphone_world_positions(array)["front"]
+    near_distance = math.dist(near.position_world, front_position)
+    far_distance = math.dist(far.position_world, front_position)
+    assert near_peak / far_peak == pytest.approx(far_distance / near_distance)
+    assert near_peak / far_peak != pytest.approx((far_distance / near_distance) ** 2)
+
+
+def _array() -> MicrophoneArraySpec:
+    return create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig",
+        layout_name="quad_front",
+    )
+
+
+def _source(
+    *,
+    gain_db: float = 0.0,
+    directivity: DirectivityPattern | str = DirectivityPattern.OMNI,
+    orientation=None,
+    audio_asset_path: str = "generated://impulse",
+    duration_s: float = 0.05,
+    position: tuple[float, float, float] = (3.0, 0.0, 0.0),
+) -> AudioSourceSpec:
+    return AudioSourceSpec(
+        source_id="speaker",
+        prim_path="/World/Speaker",
+        class_label="Speech",
+        audio_asset_path=audio_asset_path,
+        position_world=position,
+        orientation_world_quat=orientation,
+        start_time_s=0.0,
+        duration_s=duration_s,
+        gain_db=gain_db,
+        directivity=directivity,
+    )
+
+
+def _scene(source: AudioSourceSpec, array: MicrophoneArraySpec) -> AudioSceneSnapshot:
+    return AudioSceneSnapshot(
+        stage_id="gain_consistency",
+        timestamp_ms=0,
+        sources=(source,),
+        arrays=(array,),
+        room=RoomAcousticsSpec(
+            room_id="room",
+            dimensions_m=(6.0, 5.0, 3.0),
+            origin_m=(-1.0, -2.5, -1.5),
+            absorption=0.35,
+            max_order=0,
+        ),
+    )
+
+
+def _window() -> AudioTimeWindow:
+    return AudioTimeWindow(
+        start_time_s=0.0,
+        end_time_s=0.05,
+        timestamp_ms=0,
+        sample_rate_hz=48_000,
+    )
+
+
+def _detection_rms(backend, source: AudioSourceSpec, array: MicrophoneArraySpec):
+    return backend.simulate(_scene(source, array), array, _window()).detections[
+        0
+    ].per_mic_rms["front"]

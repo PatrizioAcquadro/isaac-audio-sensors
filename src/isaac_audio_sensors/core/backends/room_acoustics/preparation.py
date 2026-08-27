@@ -9,8 +9,8 @@ from typing import Any
 from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
     _room_config_summary,
 )
+from isaac_audio_sensors.core.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.config import EffectsConfig
-from isaac_audio_sensors.core.effects.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.validation import (
     UnsupportedEffectError,
     validate_effects_config,
@@ -119,12 +119,6 @@ def prepare_room_frame(
             runtime_profile=runtime_profile,
             sample_count=window_sample_count,
             microphone_self_noise_db=microphone_self_noise_db,
-            source_ids=tuple(source.source_id for source in scene.sources),
-            source_orientations={
-                source.source_id: source.orientation_world_quat
-                for source in scene.sources
-            },
-            microphone_orientations=microphone_orientations,
         )
     if segments_per_window > 1:
         assert window_motion is not None

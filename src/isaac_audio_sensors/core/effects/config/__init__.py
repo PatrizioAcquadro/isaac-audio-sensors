@@ -117,42 +117,6 @@ class ElectronicsConfig:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class DirectivityFrequencyPointConfig:
-    freq_hz: float | None = None
-    gain_db: float | None = None
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class DirectivityPatternConfig:
-    family: str | None = None
-    frequency_points: tuple[DirectivityFrequencyPointConfig, ...] | None = None
-
-    def __post_init__(self) -> None:
-        if self.frequency_points is not None:
-            object.__setattr__(self, "frequency_points", tuple(self.frequency_points))
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class DirectivityPatternSetConfig:
-    default: DirectivityPatternConfig | None = None
-    overrides: Mapping[str, DirectivityPatternConfig] | None = None
-
-    def __post_init__(self) -> None:
-        if self.overrides is not None:
-            object.__setattr__(
-                self, "overrides", MappingProxyType(dict(self.overrides))
-            )
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class DirectivityConfig:
-    enabled: bool = False
-    source_patterns: DirectivityPatternSetConfig | None = None
-    mic_patterns: DirectivityPatternSetConfig | None = None
-    mode: str | None = None
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
 class MotionEffectsConfig:
     derive_velocity_from_poses: bool = False
     teleport_speed_threshold_mps: float = 50.0
@@ -166,7 +130,6 @@ class EffectsConfig:
     channel_response: ChannelResponseConfig = ChannelResponseConfig()
     noise: NoiseConfig = NoiseConfig()
     electronics: ElectronicsConfig = ElectronicsConfig()
-    directivity: DirectivityConfig = DirectivityConfig()
     motion: MotionEffectsConfig = MotionEffectsConfig()
 
     @property
@@ -176,7 +139,6 @@ class EffectsConfig:
                 self.channel_response.enabled,
                 self.noise.enabled,
                 self.electronics.enabled,
-                self.directivity.enabled,
                 self.motion.derive_velocity_from_poses,
             )
         )
@@ -187,10 +149,6 @@ __all__ = [
     "AmbientNoiseConfig",
     "ChannelResponseConfig",
     "ChannelResponseMicConfig",
-    "DirectivityConfig",
-    "DirectivityFrequencyPointConfig",
-    "DirectivityPatternConfig",
-    "DirectivityPatternSetConfig",
     "EffectsConfig",
     "ElectronicsConfig",
     "FrequencyResponsePointConfig",

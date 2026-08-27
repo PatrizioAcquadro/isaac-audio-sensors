@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.types import (
     AudioSourceSpec,
     AudioTimeWindow,
@@ -122,6 +123,11 @@ def _scheduled_window_signal(
             content_samples=content_samples,
             source_end_s=source_end_s,
         )
+    content = np.asarray(
+        content
+        * db_to_amplitude_gain(source.gain_db, "AudioSourceSpec.gain_db"),
+        dtype=float,
+    )
     signal = np.concatenate([np.zeros(start_offset_samples, dtype=float), content])
     if signal.size == 0:
         signal = np.zeros(1, dtype=float)
@@ -213,8 +219,7 @@ def _generated_source_content(
             elapsed_samples=elapsed_samples,
         )
         waveform /= 1.15
-    gain = 10.0 ** (source.gain_db / 20.0)
-    return np.asarray(waveform * gain, dtype=float)
+    return np.asarray(waveform, dtype=float)
 
 
 def _emission_edge_envelope(

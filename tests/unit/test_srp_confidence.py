@@ -6,13 +6,13 @@ from dataclasses import astuple
 import numpy as np
 import pytest
 
+from isaac_audio_sensors.core.directivity import source_polar_gain
 from isaac_audio_sensors.core.doa.srp_phat import (
     SrpPhatResult,
     srp_phat_confidence,
     srp_phat_direction,
 )
 from isaac_audio_sensors.core.effects.channel_response import fractional_delay
-from isaac_audio_sensors.core.effects.directivity import source_polar_gain
 from isaac_audio_sensors.core.microphone_array import (
     microphone_layout,
 )

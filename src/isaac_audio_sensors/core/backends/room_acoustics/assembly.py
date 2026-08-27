@@ -85,8 +85,12 @@ def assemble_frame(
             "room_state_hash": _room_state_hash(prepared.scene.room),
             "material_evidence": material_evidence,
         }
-    if rendered.effect_diagnostics:
-        frame_diagnostics["effects"] = rendered.effect_diagnostics
+    effect_diagnostics = dict(rendered.effect_diagnostics)
+    for key in ("directivity", "source_gain_db", "microphone_gain_db"):
+        if key in effect_diagnostics:
+            frame_diagnostics[key] = effect_diagnostics.pop(key)
+    if effect_diagnostics:
+        frame_diagnostics["effects"] = effect_diagnostics
     if prepared.segments_per_window > 1:
         assert window_motion is not None
         frame_diagnostics["motion"] = {

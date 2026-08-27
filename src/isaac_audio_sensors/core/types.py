@@ -16,7 +16,12 @@ from isaac_audio_sensors.core.constants import (
     OPTIONAL_FRAME_UNIT_KEYS,
     ROOM_OUT_OF_BOUNDS_POLICIES,
 )
+from isaac_audio_sensors.core.directivity import (
+    DirectivityPattern,
+    resolve_directivity_pattern,
+)
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.math_utils import (
     Quaternion,
     Vector3,
@@ -90,14 +95,18 @@ class AudioSourceSpec:
     duration_s: float | None
     gain_db: float
     loop_count: int = 0
-    directivity: str = "omni"
+    directivity: DirectivityPattern = DirectivityPattern.OMNI
     velocity_world_mps: Vector3 | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty(self.source_id, "AudioSourceSpec.source_id")
         _require_non_empty(self.prim_path, "AudioSourceSpec.prim_path")
         _require_non_empty(self.class_label, "AudioSourceSpec.class_label")
-        _require_non_empty(self.directivity, "AudioSourceSpec.directivity")
+        directivity = resolve_directivity_pattern(
+            self.directivity,
+            "AudioSourceSpec.directivity",
+        )
+        object.__setattr__(self, "directivity", directivity)
         object.__setattr__(
             self,
             "position_world",
@@ -122,7 +131,16 @@ class AudioSourceSpec:
                 ),
             )
         _require_finite(self.start_time_s, "AudioSourceSpec.start_time_s")
-        _require_finite(self.gain_db, "AudioSourceSpec.gain_db")
+        db_to_amplitude_gain(self.gain_db, "AudioSourceSpec.gain_db")
+        object.__setattr__(self, "gain_db", float(self.gain_db))
+        if (
+            directivity is not DirectivityPattern.OMNI
+            and self.orientation_world_quat is None
+        ):
+            raise ValueError(
+                "AudioSourceSpec.orientation_world_quat is required for "
+                f"non-omni directivity {directivity.value!r}."
+            )
         if type(self.loop_count) is not int or self.loop_count < -1:
             raise ValueError(
                 "AudioSourceSpec.loop_count must be -1 or a non-negative integer."
@@ -150,6 +168,7 @@ class MicrophoneSpec:
     relative_orientation_quat: Quaternion | None = None
     gain_db: float = 0.0
     self_noise_db: float | None = None
+    directivity: DirectivityPattern = DirectivityPattern.OMNI
 
     def __post_init__(self) -> None:
         _require_non_empty(self.mic_id, "MicrophoneSpec.mic_id")
@@ -170,7 +189,21 @@ class MicrophoneSpec:
                     "MicrophoneSpec.relative_orientation_quat",
                 ),
             )
-        _require_finite(self.gain_db, "MicrophoneSpec.gain_db")
+        directivity = resolve_directivity_pattern(
+            self.directivity,
+            "MicrophoneSpec.directivity",
+        )
+        object.__setattr__(self, "directivity", directivity)
+        db_to_amplitude_gain(self.gain_db, "MicrophoneSpec.gain_db")
+        object.__setattr__(self, "gain_db", float(self.gain_db))
+        if (
+            directivity is not DirectivityPattern.OMNI
+            and self.relative_orientation_quat is None
+        ):
+            raise ValueError(
+                "MicrophoneSpec.relative_orientation_quat is required for "
+                f"non-omni directivity {directivity.value!r}."
+            )
         if self.self_noise_db is not None:
             _require_finite(self.self_noise_db, "MicrophoneSpec.self_noise_db")
 
