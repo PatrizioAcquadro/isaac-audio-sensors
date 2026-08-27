@@ -317,3 +317,11 @@ Recorded effect-domain configuration ownership, the explicit room-acoustics fram
 ## 2026-08-26 — lint: Core source organization
 
 Verified canonical ownership, internal links and index coverage, immutable raw content, exact deterministic frame and waveform equivalence, complete host and RTX 4090 Isaac gates, the real room backend, unchanged SquadBot consumers, isolated wheel and sdist installs, Ruff, version synchronization, and whitespace.
+
+## 2026-08-27 — update: Directivity and gain consistency v3
+
+Recorded one entity-owned four-pattern directivity contract, one fail-closed amplitude-gain conversion and ordering, removal of the competing directivity effect and obsolete Lab offsets, aligned Core/Isaac/Lab/Kit behavior, preserved v1 serialized schemas, and the breaking 3.0.0 migration.
+
+## 2026-08-27 — lint: Directivity and gain consistency v3
+
+Verified 502 unit/contract tests, 172 integration tests, 57 release tests, 101 Isaac tests, configuration and optional-audio smokes, RTX 4090 Isaac Sim/Lab/Kit gates, a temporary sdist and wheel build, a fresh installed-package import/config run, canonical wiki boundaries, Ruff, version synchronization, and whitespace.

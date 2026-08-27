@@ -86,7 +86,11 @@ def assemble_frame(
             "material_evidence": material_evidence,
         }
     effect_diagnostics = dict(rendered.effect_diagnostics)
-    for key in ("directivity", "source_gain_db", "microphone_gain_db"):
+    for key in (
+        "directivity",
+        "source_nominal_gain_db",
+        "microphone_nominal_gain_db",
+    ):
         if key in effect_diagnostics:
             frame_diagnostics[key] = effect_diagnostics.pop(key)
     if effect_diagnostics:

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from isaac_audio_sensors.core.directivity import DirectivityPattern
 from isaac_audio_sensors.kit import ExtensionController
 from isaac_audio_sensors.kit.constants import OUTPUT_ROOT_ENV_VAR
 from isaac_audio_sensors.kit.microphone_rig_profiles import (
@@ -163,6 +164,10 @@ def test_extension_controller_profile_config_roundtrip_legacy_and_errors(tmp_pat
             "source.directivity",
         ),
         (
+            lambda payload: payload["source"].__setitem__("directivity", "cardioid"),
+            "source.orientation_world_quat",
+        ),
+        (
             lambda payload: payload["sound_profiles"]["profile_library"][0].__setitem__(
                 "directivity", "unsupported"
             ),
@@ -185,6 +190,32 @@ def test_config_import_rejects_directivity_before_mutating_state(
     assert controller.import_config_summary(path) is None
     assert controller.state.array_id == "rig_front"
     assert message in str(controller.state.error_message)
+
+
+def test_config_import_rejects_boolean_gain_before_mutating_state(tmp_path) -> None:
+    controller = ExtensionController()
+    payload = controller.config_summary_dict()
+    payload["array"]["array_id"] = "must_not_apply"
+    payload["sound_profiles"]["profile_library"][0]["gain_db"] = True
+    path = tmp_path / "invalid_gain.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert controller.import_config_summary(path) is None
+    assert controller.state.array_id == "rig_front"
+    assert "gain_db" in str(controller.state.error_message)
+
+
+def test_config_roundtrip_preserves_non_omni_source_orientation(tmp_path) -> None:
+    controller = ExtensionController()
+    controller.state.source_directivity = DirectivityPattern.FIGURE_EIGHT
+    controller.state.source_orientation_world_quat = (0.0, 0.0, 1.0, 0.0)
+    path = tmp_path / "directional.json"
+
+    assert controller.export_config_summary(path) == path
+    imported = ExtensionController()
+    assert imported.import_config_summary(path) == path
+    assert imported.state.source_directivity is DirectivityPattern.FIGURE_EIGHT
+    assert imported.state.source_orientation_world_quat == (0.0, 0.0, 1.0, 0.0)
 
 
 def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(

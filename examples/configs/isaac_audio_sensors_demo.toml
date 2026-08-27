@@ -46,18 +46,26 @@ coordinate_convention = "x_forward_y_right_z_up_clockwise_bearing"
 [[arrays.rig_front.microphones]]
 mic_id = "front"
 relative_position_m = [0.08, 0.0, 0.0]
+gain_db = 0.0
+directivity = "omni"
 
 [[arrays.rig_front.microphones]]
 mic_id = "right"
 relative_position_m = [0.0, 0.08, 0.0]
+gain_db = 0.0
+directivity = "omni"
 
 [[arrays.rig_front.microphones]]
 mic_id = "rear"
 relative_position_m = [-0.08, 0.0, 0.0]
+gain_db = 0.0
+directivity = "omni"
 
 [[arrays.rig_front.microphones]]
 mic_id = "left"
 relative_position_m = [0.0, -0.08, 0.0]
+gain_db = 0.0
+directivity = "omni"
 
 [arrays.rig_stereo]
 array_id = "rig_stereo"
@@ -70,10 +78,14 @@ coordinate_convention = "x_forward_y_right_z_up_clockwise_bearing"
 [[arrays.rig_stereo.microphones]]
 mic_id = "left"
 relative_position_m = [0.0, -0.08, 0.0]
+gain_db = 0.0
+directivity = "omni"
 
 [[arrays.rig_stereo.microphones]]
 mic_id = "right"
 relative_position_m = [0.0, 0.08, 0.0]
+gain_db = 0.0
+directivity = "omni"
 
 [room]
 room_id = "lab_room_a"

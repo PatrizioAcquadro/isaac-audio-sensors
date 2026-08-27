@@ -34,7 +34,7 @@ python -m pip install --editable ".[dev]"
 Install an audited local wheel with:
 
 ```bash
-python -m pip install dist/isaac_audio_sensors-2.0.0-py3-none-any.whl
+python -m pip install dist/isaac_audio_sensors-3.0.0-py3-none-any.whl
 python -m isaac_audio_sensors --version
 ```
 

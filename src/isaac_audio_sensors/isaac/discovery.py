@@ -14,6 +14,7 @@ from isaac_audio_sensors.core.constants import (
     DEFAULT_SAMPLE_RATE_HZ,
 )
 from isaac_audio_sensors.core.directivity import DirectivityValidationError
+from isaac_audio_sensors.core.gain import GainValidationError, db_to_amplitude_gain
 from isaac_audio_sensors.core.math_utils import (
     Quaternion,
     Vector3,
@@ -401,7 +402,7 @@ def _discover_arrays(
                 "candidate_reasons": reasons,
             }
             if (
-                isinstance(exc, DirectivityValidationError)
+                isinstance(exc, (DirectivityValidationError, GainValidationError))
                 or explicit
                 or cfg.strict_candidate_errors
             ):
@@ -476,7 +477,7 @@ def _discover_sources(
                 "candidate_reasons": reasons,
             }
             if (
-                isinstance(exc, DirectivityValidationError)
+                isinstance(exc, (DirectivityValidationError, GainValidationError))
                 or explicit
                 or cfg.strict_candidate_errors
             ):
@@ -636,7 +637,7 @@ def _source_spec_from_prim(
 
     gain_value, gain_provenance = _metadata_value(
         cfg,
-        ias=lambda: _float_candidate(attrs, "ias:gain_db"),
+        ias=lambda: _gain_db_candidate(attrs, "ias:gain_db"),
         usd=lambda: _linear_gain_candidate(attrs),
         defaults=(0.0, "default"),
     )
@@ -774,7 +775,7 @@ def _child_microphones_for_array(
             mic_id=str(attrs.get("ias:microphone_id", _path_name(path))),
             relative_position_m=relative_position,
             relative_orientation_quat=relative_orientation,
-            gain_db=_float_attr(attrs, ("ias:gain_db", "gain"), default=0.0),
+            gain_db=_gain_db_attr(attrs, "ias:gain_db", default=0.0),
             self_noise_db=_optional_float_attr(
                 attrs,
                 ("ias:self_noise_db", "selfNoise"),
@@ -1161,6 +1162,18 @@ def _float_candidate(
     return resolved, provenance
 
 
+def _gain_db_candidate(
+    attrs: Mapping[str, Any],
+    key: str,
+) -> tuple[float, str] | object:
+    candidate = _attr_candidate(attrs, key)
+    if candidate is _MISSING:
+        return _MISSING
+    value, provenance = candidate
+    db_to_amplitude_gain(value, key)
+    return float(value), provenance
+
+
 def _loop_count_candidate(
     attrs: Mapping[str, Any],
 ) -> tuple[int, str] | object:
@@ -1269,6 +1282,18 @@ def _float_attr(
 ) -> float:
     value = _optional_float_attr(attrs, keys, default=None)
     return default if value is None else value
+
+
+def _gain_db_attr(
+    attrs: Mapping[str, Any],
+    key: str,
+    *,
+    default: float,
+) -> float:
+    if key not in attrs or attrs[key] is None:
+        return default
+    db_to_amplitude_gain(attrs[key], key)
+    return float(attrs[key])
 
 
 def _optional_float_attr(

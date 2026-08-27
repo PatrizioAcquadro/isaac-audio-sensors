@@ -224,10 +224,10 @@ def render_room(
             for microphone in prepared.sensor.microphones
         },
     }
-    effect_diagnostics["source_gain_db"] = {
+    effect_diagnostics["source_nominal_gain_db"] = {
         source.source_id: source.gain_db for source in prepared.active
     }
-    effect_diagnostics["microphone_gain_db"] = {
+    effect_diagnostics["microphone_nominal_gain_db"] = {
         microphone.mic_id: microphone.gain_db
         for microphone in prepared.sensor.microphones
     }

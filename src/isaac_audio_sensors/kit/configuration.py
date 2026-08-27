@@ -7,7 +7,10 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.core.directivity import resolve_directivity_pattern
+from isaac_audio_sensors.core.directivity import (
+    DirectivityPattern,
+    resolve_directivity_pattern,
+)
 from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.math_utils import (
     euler_deg_from_quaternion,
@@ -193,6 +196,7 @@ class ConfigurationService(ControllerService):
                     "position_world": (
                         self._host._authoring._source_position_from_state()
                     ),
+                    "orientation_world_quat": state.source_orientation_world_quat,
                     "local_offset_m": (
                         self._host._authoring._source_local_offset_from_state()
                     ),
@@ -487,6 +491,10 @@ class ConfigurationService(ControllerService):
             self._host._authoring._set_source_position_state(
                 source["position_world"]
             )
+        source_orientation = source.get("orientation_world_quat")
+        self.state.source_orientation_world_quat = (
+            None if source_orientation is None else quat_from_any(source_orientation)
+        )
         local_offset = object_binding.get(
             "source_local_offset_m",
             source.get("local_offset_m"),
@@ -725,10 +733,18 @@ class ConfigurationService(ControllerService):
         source = payload.get("source", {})
         if not isinstance(source, Mapping):
             raise ValueError("source must be a JSON object.")
-        resolve_directivity_pattern(
+        directivity = resolve_directivity_pattern(
             source.get("directivity", self.state.source_directivity),
             "source.directivity",
         )
+        orientation = source.get("orientation_world_quat")
+        if orientation is not None:
+            quat_from_any(orientation)
+        if directivity is not DirectivityPattern.OMNI and orientation is None:
+            raise ValueError(
+                "source.orientation_world_quat is required for non-omni "
+                f"source.directivity {directivity.value!r}."
+            )
         db_to_amplitude_gain(
             source.get("gain_db", self.state.source_gain_db),
             "source.gain_db",

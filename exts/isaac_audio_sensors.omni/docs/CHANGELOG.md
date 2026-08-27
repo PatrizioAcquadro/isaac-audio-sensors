@@ -1,5 +1,11 @@
 # Extension Changelog
 
+## 3.0.0 - Unreleased
+
+- Breaking: replaced free-form source directivity with the shared four-value `DirectivityPattern` selector and removed the obsolete effects-owned directivity configuration without compatibility aliases.
+- Validate source directivity, orientation, nominal gain, saved configuration, sound profiles, and child-microphone `ias:directivity` metadata before authoring mutations.
+- Use the shared fail-closed amplitude-gain conversion for native Kit Audio and microphone-rig gains; `gain_db = 0` remains unity and file-backed WAV amplitude is not normalized.
+
 ## 2.0.0 - 2026-08-21
 
 - Post-release, unreleased: added compatible array-child listener reuse with a session-layer fallback plus manual qualitative Kit mix capture with verified WAV metadata, safe active-listener restoration, and lifecycle cleanup; Sensor WAV playback and microphone-array observations remain separate.

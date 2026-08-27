@@ -1,6 +1,6 @@
 [package]
 name = "isaac_audio_sensors.omni"
-version = "2.0.0"
+version = "3.0.0"
 title = "Isaac Audio Sensors"
 description = "Reference Isaac Sim Kit workflow for audio-array metadata, live sensor control, overlays, and JSON/JSONL export."
 authors = ["Patrizio Acquadro"]

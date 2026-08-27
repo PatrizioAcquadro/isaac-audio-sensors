@@ -15,6 +15,7 @@ from isaac_audio_sensors.kit.sound_profiles import (
     SoundProfile,
     default_object_profile_mappings,
     default_sound_profiles,
+    sound_profile_from_mapping,
 )
 
 
@@ -109,6 +110,13 @@ def test_sound_profiles_store_the_canonical_directivity_enum() -> None:
 
     assert profile.directivity is DirectivityPattern.SUPERCARDIOID
     assert profile.to_dict()["directivity"] == "supercardioid"
+
+
+def test_profile_mapping_rejects_boolean_gain_before_coercion() -> None:
+    payload = default_sound_profiles()[0].to_dict()
+    payload["gain_db"] = True
+    with pytest.raises(ValueError, match="gain_db"):
+        sound_profile_from_mapping(payload)
 
 
 def test_default_rig_library_contains_named_presets_with_valid_geometry():
@@ -207,6 +215,10 @@ def test_rig_profile_validation_rejects_bad_inputs():
         )
     with pytest.raises(ValueError, match="match microphone_ids length"):
         MicrophoneRigProfile(**{**base, "microphone_gains_db": (1.0,)})
+    with pytest.raises(ValueError, match="microphone_gains_db"):
+        MicrophoneRigProfile(
+            **{**base, "microphone_gains_db": (True, 0.0)}
+        )
     with pytest.raises(ValueError, match="sample_rate_hz"):
         MicrophoneRigProfile(**{**base, "sample_rate_hz": 0})
     with pytest.raises(ValueError, match="absolute USD prim path"):

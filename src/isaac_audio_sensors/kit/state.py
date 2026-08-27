@@ -125,6 +125,7 @@ class ExtensionUiState:
     source_position_x_m: float = 2.0
     source_position_y_m: float = 0.0
     source_position_z_m: float = 0.0
+    source_orientation_world_quat: tuple[float, float, float, float] | None = None
     source_start_time_s: float = 0.0
     source_duration_s: float = 1.0
     source_gain_db: float = 0.0

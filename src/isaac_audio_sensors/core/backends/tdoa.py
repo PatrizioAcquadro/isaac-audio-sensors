@@ -90,7 +90,7 @@ class TdoaSyntheticBackend:
             raise ValueError("noise_std_s must be non-negative and finite.")
         if clock_jitter_s < 0.0 or not math.isfinite(clock_jitter_s):
             raise ValueError("clock_jitter_s must be non-negative and finite.")
-        if not math.isfinite(gain_mismatch_db):
+        if isinstance(gain_mismatch_db, bool) or not math.isfinite(gain_mismatch_db):
             raise ValueError("gain_mismatch_db must be finite.")
         if ambiguity_policy not in {"none", "front_hemisphere"}:
             raise ValueError("ambiguity_policy must be 'none' or 'front_hemisphere'.")
@@ -259,8 +259,8 @@ class TdoaSyntheticBackend:
                         "tdoa_gain_mismatch_std_db": self.gain_mismatch_db,
                         "noise_seed": self.seed,
                         "air_absorption_db_per_m": self.air_absorption_db_per_m,
-                        "source_gain_db": source.gain_db,
-                        "microphone_gain_db": {
+                        "source_nominal_gain_db": source.gain_db,
+                        "microphone_nominal_gain_db": {
                             microphone.mic_id: microphone.gain_db
                             for microphone in sensor.microphones
                         },

@@ -129,7 +129,6 @@ EXPECTED_STRING_FIELDS = (
     "replicator_writer_name",
     "robot_base_prim_path",
     "source_class_label",
-    "source_directivity",
     "source_id",
     "source_prim_path",
     "usd_debug_root",

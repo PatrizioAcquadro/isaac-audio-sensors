@@ -19,7 +19,7 @@ from tools.release.build_kit_extension import (
 )
 from tools.release.content_policy import ContentPolicyError
 
-VERSION = "2.0.0"
+VERSION = "3.0.0"
 KIT_TARGET = "110.1"
 
 

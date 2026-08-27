@@ -204,8 +204,8 @@ class GeometryBackend:
                         "right_component_m": right_component,
                         "up_component_m": up_component,
                         "horizontal_distance_m": horizontal_distance,
-                        "source_gain_db": source.gain_db,
-                        "microphone_gain_db": {
+                        "source_nominal_gain_db": source.gain_db,
+                        "microphone_nominal_gain_db": {
                             microphone.mic_id: microphone.gain_db
                             for microphone in sensor.microphones
                         },

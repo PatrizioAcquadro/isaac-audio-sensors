@@ -6,7 +6,7 @@ import pytest
 
 from tools.release.check_version_sync import _top_changelog_version
 
-VERSION = "2.0.0"
+VERSION = "3.0.0"
 
 
 @pytest.mark.parametrize(
@@ -14,7 +14,7 @@ VERSION = "2.0.0"
     (
         f"## {VERSION}\n",
         f"## {VERSION} - Unreleased\n",
-        f"## {VERSION} - 2026-08-21\n",
+        f"## {VERSION} - 2026-08-27\n",
     ),
 )
 def test_top_changelog_version_accepts_release_states(tmp_path: Path, heading: str):

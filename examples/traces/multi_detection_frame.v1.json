@@ -31,13 +31,27 @@
       "detection_mode": "scheduled_known_source",
       "diagnostics": {
         "backend": "geometry_only",
-        "directivity": "omni",
-        "directivity_applied": "omni",
+        "directivity": {
+          "microphone_patterns": {
+            "front": "omni",
+            "left": "omni",
+            "rear": "omni",
+            "right": "omni"
+          },
+          "mode": "per_pair_direct_path",
+          "source_pattern": "omni"
+        },
         "forward_component_m": 4.0,
         "horizontal_distance_m": 4.47213595499958,
+        "microphone_nominal_gain_db": {
+          "front": 0.0,
+          "left": 0.0,
+          "rear": 0.0,
+          "right": 0.0
+        },
         "physical_waveform": false,
         "right_component_m": 2.0,
-        "source_gain_db": 0.0,
+        "source_nominal_gain_db": 0.0,
         "up_component_m": 0.0
       },
       "doa": {
@@ -85,13 +99,27 @@
       "detection_mode": "scheduled_known_source",
       "diagnostics": {
         "backend": "geometry_only",
-        "directivity": "omni",
-        "directivity_applied": "omni",
+        "directivity": {
+          "microphone_patterns": {
+            "front": "omni",
+            "left": "omni",
+            "rear": "omni",
+            "right": "omni"
+          },
+          "mode": "per_pair_direct_path",
+          "source_pattern": "omni"
+        },
         "forward_component_m": 2.0,
         "horizontal_distance_m": 3.605551275463989,
+        "microphone_nominal_gain_db": {
+          "front": 0.0,
+          "left": 0.0,
+          "rear": 0.0,
+          "right": 0.0
+        },
         "physical_waveform": false,
         "right_component_m": -3.0,
-        "source_gain_db": -3.0,
+        "source_nominal_gain_db": -3.0,
         "up_component_m": 0.0
       },
       "doa": {

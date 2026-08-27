@@ -43,6 +43,9 @@ ACOUSTIC_FIDELITY_LADDER = (
             "deterministic bearing from scene geometry",
             "source distance",
             "eight-sector labels",
+            "analytical 1/distance RMS with source and microphone nominal gain",
+            "first-order omni, cardioid, supercardioid, and figure_eight source "
+            "and microphone directivity with magnitude-only RMS",
         ),
         does_not_model=(
             "acoustic propagation",
@@ -63,8 +66,9 @@ ACOUSTIC_FIDELITY_LADDER = (
         backend_family="tdoa_synthetic",
         models=(
             "direct-path per-microphone delay",
-            "synthetic 1/distance RMS diagnostics with source gain",
-            "first-order omni/cardioid source directivity",
+            "analytical 1/distance RMS with source and microphone nominal gain",
+            "first-order omni, cardioid, supercardioid, and figure_eight source "
+            "and microphone directivity with magnitude-only RMS",
             "per-microphone self-noise floors in aggregate RMS",
             "seeded Gaussian delay-noise, clock-jitter, and gain-mismatch stress",
             "optional broadband air-absorption attenuation",
@@ -89,6 +93,9 @@ ACOUSTIC_FIDELITY_LADDER = (
         models=(
             "approximate shoebox room response",
             "generated per-microphone waveforms",
+            "asset-amplitude source gain and post-propagation microphone gain",
+            "signed first-order omni, cardioid, supercardioid, and figure_eight "
+            "source and microphone directivity on complete pair stems",
             "GCC-PHAT delay diagnostics",
             "SRP-PHAT steered-response DOA over the L2 waveforms",
         ),

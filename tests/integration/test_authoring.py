@@ -5,9 +5,40 @@ import pytest
 
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.kit import ExtensionController
+from isaac_audio_sensors.kit.sound_profiles import SoundProfile
 from isaac_audio_sensors.kit.stage_context import _stage_has_prim
 from isaac_audio_sensors.kit.state import CurrentStageContext
 from tests.kit_helpers import _FakePrim, _FakeStage
+
+
+def test_non_omni_sound_profile_requires_orientation_before_mutation() -> None:
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    profile = SoundProfile(
+        profile_id="directional",
+        display_label="Directional",
+        object_label_aliases=("speaker",),
+        source_id_template="{object_slug}_source",
+        class_label="Speech",
+        audio_asset_path="generated://impulse",
+        start_time_s=0.0,
+        duration_s=1.0,
+        gain_db=0.0,
+        directivity="cardioid",
+    )
+    controller.state.profile_library = (profile,)
+    controller.state.object_profile_mappings = {"speaker": "directional"}
+    controller.state.selected_profile_id = "directional"
+    original_source_id = controller.state.source_id
+
+    assert controller.apply_selected_profile(stage=stage) is None
+    assert controller.state.source_id == original_source_id
+    assert stage.GetPrimAtPath(controller.state.source_prim_path) is None
+    assert "orientation" in str(controller.state.error_message)
 
 
 def test_kit_stage_has_prim_uses_sdf_path_for_strict_isaac_stage(

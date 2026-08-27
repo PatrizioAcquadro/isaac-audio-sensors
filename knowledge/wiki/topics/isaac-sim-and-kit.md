@@ -6,6 +6,8 @@
 
 Discovery uses `ias:*` metadata, compatible native sound attributes, USD type/name signals, child microphone prims, optional object/base context, filters, and deterministic preference rules.
 
+Source `ias:directivity` resolves into `AudioSourceSpec.directivity`; child-microphone `ias:directivity` resolves into `MicrophoneSpec.directivity`. Only `omni`, `cardioid`, `supercardioid`, and `figure_eight` are accepted. Unknown values and missing required source-world or microphone-relative orientations propagate as errors even during ordinary non-strict candidate scanning; they are never downgraded to omni.
+
 The pose resolver prefers `UsdGeom` world-transform APIs and falls back to authored `ias:` positions, orientations, and simple `xformOp` parent stacks for import-safe tests and duck-typed stages.
 
 Import-safe world bounds and room-absorption helpers live in `isaac_audio_sensors.isaac.usd_bounds` and are shared by Isaac Sim, Isaac Lab, and Kit.
@@ -16,7 +18,7 @@ Each emitted frame can carry `stage_snapshot` diagnostics for selected prims, di
 
 The public helpers remain `create_sound_prim` and `create_listener_prim`, but they author only NVIDIA's current `OmniSound` and `OmniListener` types. Updating a deprecated `Sound` or `Listener` prim through these helpers retypes it to the current schema. Discovery checks the current types first and still reads both deprecated aliases for existing stages.
 
-The SDK-facing source arguments stay in ergonomic units. `spatial` maps to `auralMode`; `AudioSourceSpec.loop_count` maps to `loopCount`, where `-1` is infinite, `0` is one play, and positive values are additional repeats. The legacy authoring argument `loop` remains available for the `0`/`-1` cases, but conflicting combinations are rejected. Finite dB gain maps to positive linear `gain`, and source seconds map through the stage time-code rate to `startTime` and optional `endTime`. Robot-mounted listeners author `orientationFromView=false` by default. Microphone arrays remain `Xform` prims with `ias:*` metadata and microphone children; an `OmniListener` is only an optional Kit Audio bridge.
+The SDK-facing source arguments stay in ergonomic units. `spatial` maps to `auralMode`; `AudioSourceSpec.loop_count` maps to `loopCount`, where `-1` is infinite, `0` is one play, and positive values are additional repeats. The legacy authoring argument `loop` remains available for the `0`/`-1` cases, but conflicting combinations are rejected. Nominal dB amplitude gain maps through the shared fail-closed conversion to positive linear `gain`, and source seconds map through the stage time-code rate to `startTime` and optional `endTime`. Robot-mounted listeners author `orientationFromView=false` by default. Microphone arrays remain `Xform` prims with `ias:*` metadata and microphone children; an `OmniListener` is only an optional Kit Audio bridge.
 
 Real audio assets author both native `filePath` and `ias:audio_asset_path`. SDK-generated identifiers such as `generated://pulse` author only `ias:audio_asset_path` because Kit Audio cannot play them as files. Discovery applies configurable `ias`, native USD, and default precedence, converts native time codes, loop count, and linear gain back into the portable contract, treats negative native `startTime` as disabled, and rejects non-positive native gain when no finite `ias:gain_db` value takes precedence. `auralMode=nonSpatial` sources are omitted from physical-sensor discovery with an explicit diagnostic, including during strict candidate scans, because they do not represent spatial emitters whose poses should propagate to individual microphones. Explicitly selecting one as a physical source remains an error.
 
@@ -94,7 +96,7 @@ The live instruments separate bearing, sector, confidence, and occlusion below t
 
 Advanced Tools contains the specialist controls for stage and selection, array, source, sensor settings and debug, room, Sensor WAV output, Kit scene audition, Replicator, export, and configuration. Stage binding uses one `Bind selection as` selector and `Bind Selected`; position authoring uses a preset selector and `Apply Position Preset`. Known profiles and rigs are selected with combo boxes and validated by Apply rather than duplicate selection buttons.
 
-Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. Color styling distinguishes editable, action-populated, read-only, and invalid fields. Preset, binding, transform-read, and config-import changes are tracked only as transient window state; a manual edit restores the normal editable style. Invalid fields remain highlighted until a valid correction, without opening or changing accordions automatically. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
+Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. Source directivity is the shared four-value enum selector rather than free text. Saved configuration and sound-profile directivity/gain are validated before UI state or USD is mutated. Color styling distinguishes editable, action-populated, read-only, and invalid fields. Preset, binding, transform-read, and config-import changes are tracked only as transient window state; a manual edit restores the normal editable style. Invalid fields remain highlighted until a valid correction, without opening or changing accordions automatically. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
 
 Replicator controls the optional Omniverse writer; Export writes the latest frame, JSONL streams, and reusable binding/configuration JSON.
 
@@ -126,6 +128,7 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 
 ## Version Notes
 
+- 2026-08-27: Made source and child-microphone directivity enum-backed and fail-closed, aligned native gain conversion, and removed the effects-owned directivity path for v3.
 - 2026-08-26: Removed dead Kit internals and dynamic sibling-service lookup while preserving the controller, UI, configuration, and runtime contracts.
 - 2026-08-26: Clarified direct Replicator writer updates and retained the v1 annotator name as metadata without registering a runtime annotator.
 - 2026-08-24: Made non-spatial exclusion non-fatal during strict scans and restricted listener reuse to compatible direct array children.

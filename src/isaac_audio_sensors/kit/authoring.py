@@ -6,6 +6,10 @@ from collections.abc import Iterable, Mapping
 from contextlib import suppress
 from typing import Any
 
+from isaac_audio_sensors.core.directivity import (
+    DirectivityPattern,
+    resolve_directivity_pattern,
+)
 from isaac_audio_sensors.core.math_utils import (
     euler_deg_from_quaternion,
     quaternion_from_euler_deg,
@@ -70,6 +74,7 @@ from .stage_context import (
     _refresh_applied_profile_binding_snapshot,
     _set_prim_attr,
     _stage_has_prim,
+    _stage_prim_at_path,
     _style_demo_object_prim,
     current_omni_stage_context,
 )
@@ -244,6 +249,7 @@ class AuthoringService(ControllerService):
             )
             self.state.source_prim_path = selected_path
             self._set_source_position_state(pose.position_world)
+            self.state.source_orientation_world_quat = pose.orientation_world_quat
             self._set_status(
                 "Read source transform "
                 f"{_format_vec3(pose.position_world)} from {selected_path}."
@@ -641,6 +647,11 @@ class AuthoringService(ControllerService):
             self._validate_abs_path(object_path, "object_prim_path")
             self._validate_abs_path(state.source_prim_path, "source_prim_path")
             self._validate_source_metadata_state()
+            self._source_orientation_for_authoring(
+                stage_obj,
+                state.source_directivity,
+                allow_configured=False,
+            )
             _raise_first(
                 ValidationReport(
                     check_source_attach_target_exists(
@@ -974,6 +985,11 @@ class AuthoringService(ControllerService):
         state = self.state
         self._validate_abs_path(state.source_prim_path, "source_prim_path")
         self._validate_source_metadata_state()
+        orientation = self._source_orientation_for_authoring(
+            stage_obj,
+            state.source_directivity,
+            allow_configured=True,
+        )
 
         record = create_sound_prim(
             stage_obj,
@@ -995,10 +1011,7 @@ class AuthoringService(ControllerService):
             source_id=state.source_id.strip() or _path_name(state.source_prim_path),
             class_label=state.source_class_label.strip() or "Sound",
             position_world=position_world,
-            orientation_world_quat=_author_orientation_arg(
-                prim,
-                default=(0.0, 0.0, 0.0, 1.0),
-            ),
+            orientation_world_quat=orientation,
             audio_asset_path=state.audio_asset_path,
             start_time_s=state.source_start_time_s,
             duration_s=state.source_duration_s,
@@ -1024,6 +1037,11 @@ class AuthoringService(ControllerService):
         attached = state.source_attached_to_object
         object_path = state.attached_object_prim_path or state.object_prim_path
         object_label = self._profile_object_label(stage_obj)
+        orientation = self._source_orientation_for_authoring(
+            stage_obj,
+            profile.directivity,
+            allow_configured=not attached,
+        )
         if attached:
             self._validate_abs_path(object_path, "object_prim_path")
             self._validate_attached_object_available(stage_obj)
@@ -1097,10 +1115,7 @@ class AuthoringService(ControllerService):
                 source_id=state.source_id,
                 class_label=state.source_class_label,
                 position_world=position_world,
-                orientation_world_quat=_author_orientation_arg(
-                    prim,
-                    default=(0.0, 0.0, 0.0, 1.0),
-                ),
+                orientation_world_quat=orientation,
                 audio_asset_path=state.audio_asset_path,
                 start_time_s=state.source_start_time_s,
                 duration_s=state.source_duration_s,
@@ -1291,6 +1306,36 @@ class AuthoringService(ControllerService):
 
     def _validate_source_metadata_state(self) -> None:
         _raise_first(ValidationReport(check_source_metadata(self.state)))
+
+    def _source_orientation_for_authoring(
+        self,
+        stage_obj: Any,
+        directivity: DirectivityPattern | str,
+        *,
+        allow_configured: bool,
+    ) -> tuple[float, float, float, float] | None:
+        pattern = resolve_directivity_pattern(directivity, "source_directivity")
+        prim = _stage_prim_at_path(stage_obj, self.state.source_prim_path)
+        if prim is not None:
+            attrs = _prim_attrs(prim)
+            for name in (
+                "xformOp:orient",
+                "usd_world_orientation",
+                "ias:orientation_world_quat",
+            ):
+                if attrs.get(name) is not None:
+                    quat_from_any(attrs[name])
+                    return None
+        configured = self.state.source_orientation_world_quat
+        if allow_configured and configured is not None:
+            return quat_from_any(configured)
+        if pattern is not DirectivityPattern.OMNI:
+            raise ValueError(
+                "A source orientation is required before authoring non-omni "
+                f"directivity {pattern.value!r}. Read an oriented source transform "
+                "or import orientation_world_quat."
+            )
+        return (0.0, 0.0, 0.0, 1.0)
 
     def _source_position_from_state(self) -> tuple[float, float, float]:
         position = (

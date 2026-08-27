@@ -54,7 +54,10 @@ class MicrophoneRigProfile:
                 for offset in self.microphone_relative_offsets_m
             ),
         )
-        gains = tuple(float(gain) for gain in self.microphone_gains_db)
+        raw_gains = tuple(self.microphone_gains_db)
+        for gain in raw_gains:
+            db_to_amplitude_gain(gain, "microphone_gains_db")
+        gains = tuple(float(gain) for gain in raw_gains)
         if not gains:
             gains = tuple(0.0 for _ in self.microphone_ids)
         object.__setattr__(self, "microphone_gains_db", gains)
@@ -187,9 +190,7 @@ def microphone_rig_profile_from_mapping(
             tuple(float(component) for component in offset)
             for offset in value.get("microphone_relative_offsets_m", ())
         ),
-        microphone_gains_db=tuple(
-            float(gain) for gain in value.get("microphone_gains_db", ())
-        ),
+        microphone_gains_db=tuple(value.get("microphone_gains_db", ())),
         mount_local_offset_m=tuple(
             float(component)
             for component in value.get("mount_local_offset_m", (0.0, 0.0, 0.0))

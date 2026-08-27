@@ -60,6 +60,18 @@ def test_implemented_l0_l1_l2_map_to_stable_backend_ids():
             assert fidelity_level_for_backend(backend_id) is metadata
 
 
+def test_implemented_levels_name_all_canonical_directivity_families():
+    by_level = _ladder_by_level()
+    for level in (
+        AcousticFidelityLevel.L0,
+        AcousticFidelityLevel.L1,
+        AcousticFidelityLevel.L2,
+    ):
+        modeled = " ".join(by_level[level].models)
+        for family in ("omni", "cardioid", "supercardioid", "figure_eight"):
+            assert family in modeled
+
+
 def test_l3_l4_are_metadata_only_not_runtime_backends():
     by_level = _ladder_by_level()
 

@@ -162,6 +162,31 @@ def test_entity_directivity_authoring_is_validated_before_mutation() -> None:
     assert microphone_attrs["ias:directivity"] == "supercardioid"
 
 
+def test_usd_nominal_gain_rejects_boolean_before_mutation_and_discovery() -> None:
+    source = FakeUsdPrim("/World/Speaker", "OmniSound")
+    with pytest.raises(ValueError, match="gain_db"):
+        attach_sound_source_attrs(
+            source,
+            source_id="speaker",
+            class_label="Speech",
+            gain_db=True,
+        )
+    assert source.attributes == {}
+
+    discovered = FakeUsdPrim(
+        "/World/DiscoveredSpeaker",
+        "OmniSound",
+        {
+            "ias:source_id": "speaker",
+            "ias:audio_asset_path": "generated://impulse",
+            "ias:position_world": (1.0, 0.0, 0.0),
+            "ias:gain_db": True,
+        },
+    )
+    with pytest.raises(ValueError, match="ias:gain_db"):
+        discover_stage_audio(FakeUsdStage((discovered,)))
+
+
 @pytest.mark.parametrize("directivity", ["unsupported", "cardioid"])
 def test_source_discovery_propagates_directivity_errors_when_non_strict(
     directivity: str,

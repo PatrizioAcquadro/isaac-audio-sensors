@@ -258,7 +258,7 @@ def sound_profile_from_mapping(value: Mapping[str, Any]) -> SoundProfile:
         audio_asset_path=str(value.get("audio_asset_path", "")),
         start_time_s=float(value.get("start_time_s", 0.0)),
         duration_s=float(value.get("duration_s", 0.0)),
-        gain_db=float(value.get("gain_db", 0.0)),
+        gain_db=value.get("gain_db", 0.0),
         loop_count=value.get("loop_count", 0),
         directivity=str(value.get("directivity", "")),
     )

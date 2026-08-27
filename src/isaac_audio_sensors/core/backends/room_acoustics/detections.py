@@ -221,8 +221,8 @@ def assemble_detections(
                     "rir_peak_delay_s": rir_peak_delay_s,
                     "waveform_sample_count": waveform_sample_count,
                     "source_waveform_mode": rendered.scheduled[index].mode,
-                    "source_gain_db": source.gain_db,
-                    "microphone_gain_db": {
+                    "source_nominal_gain_db": source.gain_db,
+                    "microphone_nominal_gain_db": {
                         microphone.mic_id: microphone.gain_db
                         for microphone in prepared.sensor.microphones
                     },

@@ -130,6 +130,76 @@ def test_config_rejects_duplicate_microphone_ids():
         validate_audio_config(raw)
 
 
+@pytest.mark.parametrize(
+    ("directivity", "orientation", "message"),
+    (
+        ("unsupported", [0.0, 0.0, 0.0, 1.0], "directivity"),
+        ("cardioid", None, "orientation_world_quat"),
+    ),
+)
+def test_config_rejects_invalid_or_unoriented_source_directivity(
+    directivity,
+    orientation,
+    message,
+):
+    raw = _raw_config()
+    source = {
+        "source_id": "speaker",
+        "prim_path": "/World/Speaker",
+        "class_label": "Speech",
+        "position_world": [2.0, 0.0, 0.0],
+        "directivity": directivity,
+    }
+    if orientation is not None:
+        source["orientation_world_quat"] = orientation
+    raw["sources"] = [source]
+
+    with pytest.raises(ValueError, match=message):
+        validate_audio_config(raw)
+
+
+@pytest.mark.parametrize(
+    ("directivity", "orientation", "message"),
+    (
+        ("unsupported", [0.0, 0.0, 0.0, 1.0], "directivity"),
+        ("figure_eight", None, "relative_orientation_quat"),
+    ),
+)
+def test_config_rejects_invalid_or_unoriented_microphone_directivity(
+    directivity,
+    orientation,
+    message,
+):
+    raw = _raw_config()
+    microphone = raw["arrays"]["rig"]["microphones"][0]
+    microphone["directivity"] = directivity
+    if orientation is not None:
+        microphone["relative_orientation_quat"] = orientation
+
+    with pytest.raises(ValueError, match=message):
+        validate_audio_config(raw)
+
+
+@pytest.mark.parametrize("entity", ("source", "microphone"))
+def test_config_rejects_boolean_nominal_gain(entity: str) -> None:
+    raw = _raw_config()
+    if entity == "source":
+        raw["sources"] = [
+            {
+                "source_id": "speaker",
+                "prim_path": "/World/Speaker",
+                "class_label": "Speech",
+                "position_world": [2.0, 0.0, 0.0],
+                "gain_db": True,
+            }
+        ]
+    else:
+        raw["arrays"]["rig"]["microphones"][0]["gain_db"] = True
+
+    with pytest.raises(ValueError, match="gain_db"):
+        validate_audio_config(raw)
+
+
 def test_tdoa_config_requires_two_microphones():
     raw = _raw_config()
     raw["audio"]["default_backend"] = "tdoa_synthetic"

@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.0.0 - Unreleased
+
+- Breaking: made `AudioSourceSpec.directivity` and `MicrophoneSpec.directivity` the only runtime authorities, backed by public `DirectivityPattern` values `omni`, `cardioid`, `supercardioid`, and `figure_eight` and one canonical coefficient table.
+- Breaking: removed `audio.effects.directivity`, all pattern-set and frequency-point records, and `EntityBindingCfg.microphone_relative_offsets_m` without aliases or compatibility runtime paths. Lab custom microphones now use `EntityBindingCfg.microphones` with `MicrophoneSpec` values.
+- Added fail-closed directivity and orientation validation across Core TOML, USD discovery/authoring, Kit configuration and sound profiles, and Isaac Lab bindings. Child microphones use `ias:directivity`; the Kit source field is an enum-backed selector.
+- Standardized nominal `gain_db` as amplitude gain `10 ** (gain_db / 20)`. Source gain is applied once to generated or original-amplitude WAV assets before propagation; microphone gain is applied once after propagation in every frame and Lab path.
+- Preserved L0/L1 analytical `1/d` with the existing distance floor and L2 PyRoom RIR distance/reflection behavior without a second manual `1/d`. L2 waveform directivity remains signed while RMS uses magnitude.
+- Retained channel-response gain, TDOA gain mismatch, and occlusion as separately ordered and diagnosed deltas. Calibration-profile gain remains data-only and is never applied automatically.
+- Preserved `ias.audio_sensor_frame.v1`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1` serialized schemas.
+
 ## 2.0.0 - 2026-08-21
 
 - Post-release, unreleased: reorganized current core sources by effect domain, room-pipeline stage, and semantic motion/acoustics/DOA ownership while preserving public exports, schemas, diagnostics, error behavior, and numerical output.

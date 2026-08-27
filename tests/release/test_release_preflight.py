@@ -7,7 +7,7 @@ import pytest
 
 import tools.release.release_preflight as preflight
 
-VERSION = "2.0.0"
+VERSION = "3.0.0"
 
 
 def test_release_preflight_checks_inputs_in_order(tmp_path, monkeypatch):

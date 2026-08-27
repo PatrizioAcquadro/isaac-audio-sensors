@@ -22,7 +22,7 @@ ALLOWED_DEPENDENCIES = {
     "schemas": frozenset({"core", "recording"}),
     "cli": frozenset({"core", "recording", "kit", "schemas"}),
 }
-PUBLIC_API_V2 = {
+PUBLIC_API_V3 = {
     "isaac_audio_sensors": ("__version__",),
     "isaac_audio_sensors.core": (
         "AudioDetection",
@@ -191,8 +191,8 @@ def test_semantic_packages_follow_the_r5_dependency_graph():
         assert _package_dependencies(package) <= allowed
 
 
-@pytest.mark.parametrize(("module_name", "exports"), PUBLIC_API_V2.items())
-def test_curated_v2_exports_in_fresh_process(module_name, exports):
+@pytest.mark.parametrize(("module_name", "exports"), PUBLIC_API_V3.items())
+def test_curated_v3_exports_in_fresh_process(module_name, exports):
     resolve_exports = module_name != "isaac_audio_sensors.lab"
     completed = _run_fresh_process(
         f"""

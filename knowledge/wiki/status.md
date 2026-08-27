@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-08-26. Package version: `2.0.0`.
+Updated: 2026-08-27. Package version: `3.0.0`.
 
 ## Product Boundary
 
@@ -10,8 +10,10 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 ## Verified Capabilities
 
-- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts.
-- Deterministic geometry and synthetic TDOA backends plus optional room acoustics, SRP-PHAT, motion, Doppler, channel response, noise, electronics, directivity, and material/occlusion behavior.
+- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the frame, dataset-manifest, and calibration-profile schemas remain v1.
+- Deterministic geometry and synthetic TDOA backends plus optional room acoustics, SRP-PHAT, motion, Doppler, channel response, noise, electronics, and material/occlusion behavior.
+- Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.
+- One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
 - Atomic generic recording, verified sharded sessions, codecs, validation, statistics, deterministic splits, and read-only replay.
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
@@ -100,6 +102,8 @@ The release-tooling simplification gate passes 426 unit/contract tests, 249 inte
 
 The post-release core source-organization gate passes 465 unit/contract tests, 166 integration tests, 57 release tests, and 70 Isaac tests on the RTX 4090. Geometry, synthetic TDOA, fake-room GCC/SRP frames, and room mixtures remain hash-identical to the pre-refactor checkout. The maintained real-room example passes with pyroomacoustics 0.10.1, the unchanged SquadBot consumer subset passes 34 tests, and no-dependency temporary installs from both the wheel and sdist expose the unchanged public APIs plus the new canonical internal module paths.
 
+The v3 directivity-and-gain consistency gate passes 502 unit/contract tests, 172 integration tests, 57 release tests, and 101 Isaac tests. Configuration validation and the optional audio smoke pass with pyroomacoustics 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. On the RTX 4090, the maintained Isaac Sim, Isaac Lab, and Kit smokes pass; the Lab entity/reference parity, partial-reset, and 4096-environment performance gate completes at 2.374 ms/step mean against the 20 ms budget. A temporary `3.0.0` sdist and universal wheel build succeeds, and a fresh wheel environment imports the canonical Core enum, confirms the removed directivity module is absent, and executes the maintained configuration. No artifact was published.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -125,4 +129,4 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-Verify `isaac_audio_sensors.omni` 2.0.0 discovery, installation, and launch from the NVIDIA Community Registry after its crawler runs. R7 follows after that publication closeout.
+The published `2.0.0` Community Registry crawler closeout remains separate historical release work. Review and publish `3.0.0` only under separate authorization; this implementation does not push, tag, or publish.

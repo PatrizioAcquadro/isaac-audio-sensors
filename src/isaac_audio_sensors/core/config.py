@@ -230,7 +230,7 @@ def _parse_sources(raw_sources: Any) -> tuple[AudioSourceSpec, ...]:
                     if raw_source.get("duration_s") is None
                     else float(raw_source["duration_s"])
                 ),
-                gain_db=float(raw_source.get("gain_db", 0.0)),
+                gain_db=raw_source.get("gain_db", 0.0),
                 loop_count=raw_source.get("loop_count", 0),
                 directivity=str(raw_source.get("directivity", "omni")),
                 velocity_world_mps=(
@@ -298,7 +298,7 @@ def _parse_microphones(raw_microphones: Any) -> tuple[MicrophoneSpec, ...]:
                 relative_orientation_quat=raw_microphone.get(
                     "relative_orientation_quat"
                 ),
-                gain_db=float(raw_microphone.get("gain_db", 0.0)),
+                gain_db=raw_microphone.get("gain_db", 0.0),
                 self_noise_db=raw_microphone.get("self_noise_db"),
                 directivity=str(raw_microphone.get("directivity", "omni")),
             )

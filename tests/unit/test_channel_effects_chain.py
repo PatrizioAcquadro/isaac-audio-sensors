@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 from types import MappingProxyType
 
 import numpy as np
@@ -299,6 +300,27 @@ def test_later_effect_stages_fail_typed_instead_of_silently_running(stage):
 def test_removed_directivity_effect_is_an_unknown_config_key() -> None:
     with pytest.raises(ConfigValidationError, match="unsupported fields.*directivity"):
         parse_effects_config({"directivity": {"enabled": True}})
+
+    raw = _base_raw()
+    raw["audio"]["effects"] = {"directivity": {"enabled": True}}
+    with pytest.raises(ConfigValidationError, match="unsupported fields.*directivity"):
+        validate_audio_config(raw)
+
+
+def test_removed_directivity_effect_has_no_import_or_export_surface() -> None:
+    effects = importlib.import_module("isaac_audio_sensors.core.effects")
+    config = importlib.import_module("isaac_audio_sensors.core.effects.config")
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("isaac_audio_sensors.core.effects.directivity")
+    for removed_name in (
+        "DirectivityConfig",
+        "DirectivityFrequencyPointConfig",
+        "DirectivityPatternConfig",
+        "DirectivityPatternSetConfig",
+    ):
+        assert not hasattr(effects, removed_name)
+        assert not hasattr(config, removed_name)
 
 
 def test_enabled_noop_channel_is_not_reported_as_applied():

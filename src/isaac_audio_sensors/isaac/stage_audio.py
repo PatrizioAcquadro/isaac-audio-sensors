@@ -745,6 +745,8 @@ def _time_code_to_seconds(stage: Any, value: object) -> float:
 def _linear_gain_to_db(gain: object) -> float:
     """Convert positive Kit linear gain to the SDK's finite dB contract."""
 
+    if isinstance(gain, bool):
+        raise ValueError("Native Kit Audio gain must be a real number.")
     value = float(gain)
     if not math.isfinite(value) or value <= 0.0:
         raise ValueError(

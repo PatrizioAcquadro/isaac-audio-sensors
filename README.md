@@ -6,11 +6,12 @@ It complements NVIDIA Kit Audio and RTX Acoustic with reusable sensor and data c
 
 [View the project showcase](https://isaac-audio-showcase-site.vercel.app).
 
-Current package release: `2.0.0`.
+Current package release: `3.0.0`. This release is not yet published.
 
 ## What It Provides
 
 - Simulator-independent, versioned contracts for scenes, microphone arrays, sensor frames, calibration, and dataset manifests, with deterministic geometry and synthetic TDOA backends plus optional room acoustics.
+- Entity-owned source and microphone directivity with four first-order families, plus one amplitude-gain convention shared by Core, Isaac Sim, Isaac Lab, and Kit.
 - Generic multichannel recording, validation, sharded datasets, deterministic splits, statistics, FLAC export, and read-only replay.
 - Lazy Isaac Sim and Isaac Lab integrations for live stages and fixed-shape, batched observations without making NVIDIA runtimes core dependencies.
 - Audited Python source/wheel distributions plus a reference, self-contained Kit archive.

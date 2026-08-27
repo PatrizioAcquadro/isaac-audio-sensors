@@ -29,11 +29,11 @@ Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and 
 
 `bind_entities(scene, cfg)` is the batched training path. It resolves entities only through `scene[name]` and reads official `root_state_w` or `body_state_w` tensors.
 
-`EntityBindingCfg` defines the robot entity, optional mount body and relative pose, microphone geometry, source entities, world/environment position frame, optional environment origins, and WXYZ/XYZW state quaternion order. `SourceEntityCfg` defines source body, identifier, schedule, gain, directivity, and relative pose.
+`EntityBindingCfg` defines the robot entity, optional mount body and relative pose, a named microphone layout or `microphones: tuple[MicrophoneSpec, ...]`, source entities, world/environment position frame, optional environment origins, and WXYZ/XYZW state quaternion order. The removed `microphone_relative_offsets_m` field has no alias. `SourceEntityCfg` defines source body, identifier, schedule, nominal gain, canonical directivity enum, and relative pose.
 
 Inputs must already be rank-correct `float32` tensors on the sensor device. World positions receive no origin offset; environment-frame positions receive exactly one explicit origin offset. WXYZ state quaternions convert to the package XYZW convention before relative poses are composed.
 
-Entity mode supports only `geometry_only` and `tdoa_synthetic`, with effects disabled. Unsupported backends, effects, devices, shapes, dtypes, microphone counts, or degenerate TDOA geometry fail explicitly; there is no CUDA-to-CPU fallback.
+Entity mode supports only `geometry_only` and `tdoa_synthetic`, with effects disabled. Both apply source gain, source/microphone directivity magnitude, analytical `1/d`, and microphone nominal gain in the same order as Core. Unknown directivity, missing non-omni orientation, invalid gain, unsupported backends/effects/devices/shapes/dtypes/microphone counts, and degenerate TDOA geometry fail explicitly; there is no omni or CUDA-to-CPU fallback.
 
 The fast path uses tensor indexing, selection, stacking, compaction, and scatter operations. It does not loop over environments or convert environment IDs through the host.
 
@@ -41,7 +41,7 @@ The fast path uses tensor indexing, selection, stacking, compaction, and scatter
 
 `bind_reference(snapshots, array_specs)` accepts equal non-empty sequences of pure `AudioSceneSnapshot` and `MicrophoneArraySpec` values. It runs maintained core backends per environment and converts frames into the same six observation tensors.
 
-This path is the scalar semantic reference and debug/compatibility boundary. It does not inspect a USD stage or accept a scene/provider object.
+This path is the scalar semantic reference and debug boundary. It consumes the same entity-owned directivity and nominal-gain values as Core and preserves relative amplitude ratios for all four backends. It does not inspect a USD stage or accept a scene/provider object.
 
 ## Update and Reset
 

@@ -18,6 +18,11 @@ from isaac_audio_sensors.core.directivity import (
     evaluate_polar_pattern,
     pair_directivity_gain,
 )
+from isaac_audio_sensors.core.effects import (
+    ChannelResponseConfig,
+    ChannelResponseMicConfig,
+    EffectsConfig,
+)
 from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
@@ -30,6 +35,7 @@ from isaac_audio_sensors.core.types import (
     MicrophoneArraySpec,
     MicrophoneSpec,
     RoomAcousticsSpec,
+    SourceOcclusion,
 )
 from tests.helpers import CaptureSink, install_fake_pyroom
 
@@ -261,6 +267,74 @@ def test_pyroom_rir_is_the_only_room_distance_scaling(monkeypatch) -> None:
     assert near_peak / far_peak != pytest.approx((far_distance / near_distance) ** 2)
 
 
+def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics() -> None:
+    base_array = _array()
+    array = replace(
+        base_array,
+        microphones=tuple(
+            replace(microphone, gain_db=DB_DOUBLE)
+            if microphone.mic_id == "front"
+            else microphone
+            for microphone in base_array.microphones
+        ),
+    )
+    source = _source(gain_db=DB_DOUBLE)
+    occlusion = SourceOcclusion(
+        array_id=array.array_id,
+        source_id=source.source_id,
+        occlusion_factor=1.0,
+        attenuation_db=4.0,
+    )
+    effects = EffectsConfig(
+        channel_response=ChannelResponseConfig(
+            enabled=True,
+            microphones={
+                "front": ChannelResponseMicConfig(gain_db=-3.0),
+            },
+        )
+    )
+    backend = TdoaSyntheticBackend(
+        ambiguity_policy="none",
+        gain_mismatch_db=2.0,
+        seed=17,
+        effects=effects,
+    )
+
+    frame = backend.simulate(
+        _scene(source, array, occlusion=(occlusion,)),
+        array,
+        _window(),
+    )
+    assert frame == backend.simulate(
+        _scene(source, array, occlusion=(occlusion,)),
+        array,
+        _window(),
+    )
+    detection = frame.detections[0]
+    mismatch_db = detection.diagnostics["tdoa_gain_mismatch_delta_db"]["front"]
+    front_position = microphone_world_positions(array)["front"]
+    distance = math.dist(source.position_world, front_position)
+    expected = (
+        2.0
+        / distance
+        * 10.0 ** (-4.0 / 20.0)
+        * 2.0
+        * 10.0 ** (mismatch_db / 20.0)
+        * 10.0 ** (-3.0 / 20.0)
+    )
+    assert detection.per_mic_rms["front"] == pytest.approx(expected)
+    assert detection.diagnostics["source_nominal_gain_db"] == pytest.approx(DB_DOUBLE)
+    assert detection.diagnostics["microphone_nominal_gain_db"][
+        "front"
+    ] == pytest.approx(DB_DOUBLE)
+    assert detection.diagnostics["occlusion"]["applied_gain_delta_db"][
+        "front"
+    ] == pytest.approx(-4.0)
+    assert frame.diagnostics["effects"]["channel_response"]["gain_delta_db"] == {
+        "front": -3.0,
+    }
+
+
 def _array() -> MicrophoneArraySpec:
     return create_microphone_array(
         array_id="rig",
@@ -292,12 +366,18 @@ def _source(
     )
 
 
-def _scene(source: AudioSourceSpec, array: MicrophoneArraySpec) -> AudioSceneSnapshot:
+def _scene(
+    source: AudioSourceSpec,
+    array: MicrophoneArraySpec,
+    *,
+    occlusion: tuple[SourceOcclusion, ...] | None = None,
+) -> AudioSceneSnapshot:
     return AudioSceneSnapshot(
         stage_id="gain_consistency",
         timestamp_ms=0,
         sources=(source,),
         arrays=(array,),
+        occlusion=occlusion,
         room=RoomAcousticsSpec(
             room_id="room",
             dimensions_m=(6.0, 5.0, 3.0),
