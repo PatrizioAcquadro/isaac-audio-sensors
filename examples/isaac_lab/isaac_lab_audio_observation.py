@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from isaac_audio_sensors.core.types import AudioSceneSnapshot, MicrophoneArraySpec
+from isaac_audio_sensors.core.types import AudioSceneSnapshot
 
 
 def bind_entities(scene: object):
@@ -39,7 +39,7 @@ def bind_entities(scene: object):
 
 def bind_reference(
     snapshots: Sequence[AudioSceneSnapshot],
-    array_specs: Sequence[MicrophoneArraySpec],
+    array_ids: Sequence[str],
 ):
     """Create the scalar debug/reference sensor after AppLauncher starts."""
 
@@ -53,7 +53,7 @@ def bind_reference(
             max_events=2,
         )
     )
-    return sensor.bind_reference(snapshots, array_specs)
+    return sensor.bind_reference(snapshots, array_ids)
 
 
 def audio_observation(

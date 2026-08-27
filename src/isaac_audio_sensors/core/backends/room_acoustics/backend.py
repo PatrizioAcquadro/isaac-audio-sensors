@@ -27,7 +27,6 @@ from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSensorFrame,
     AudioTimeWindow,
-    MicrophoneArraySpec,
 )
 
 DOA_ESTIMATOR_IDS = ("tdoa_least_squares", "srp_phat")
@@ -86,9 +85,10 @@ class RoomAcousticsBackend:
     def simulate(
         self,
         scene: AudioSceneSnapshot,
-        sensor: MicrophoneArraySpec,
+        array_id: str,
         time_window: AudioTimeWindow,
     ) -> AudioSensorFrame:
+        sensor = scene.array_by_id(array_id)
         prepared = prepare_room_frame(
             scene,
             sensor,

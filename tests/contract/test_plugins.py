@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import inspect
+
 import numpy as np
 import pytest
 
 from isaac_audio_sensors.core.backends.base import get_backend, registered_backend_ids
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.room_acoustics import (
+    RoomAcousticsBackend,
+    RoomAcousticsSrpBackend,
+)
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
@@ -75,6 +80,19 @@ def test_protocols_are_structural_and_existing_backends_satisfy_propagation():
         DoaEstimator,
     )
     assert isinstance(registry.resolve("doa_estimator", "srp_phat"), DoaEstimator)
+
+
+def test_propagation_backend_signature_selects_snapshot_array_by_id():
+    expected = ("self", "scene", "array_id", "time_window")
+
+    for backend_type in (
+        PropagationBackend,
+        GeometryBackend,
+        TdoaSyntheticBackend,
+        RoomAcousticsBackend,
+        RoomAcousticsSrpBackend,
+    ):
+        assert tuple(inspect.signature(backend_type.simulate).parameters) == expected
 
 
 def test_declaration_rejects_invalid_identity_kind_and_capabilities():
@@ -249,10 +267,10 @@ def test_tdoa_registry_routing_preserves_seeded_frame():
     scene = room_scene(source("speaker", (3.0, 2.0, 0.5)), array=array)
     window = time_window(end_time_s=0.1)
 
-    direct = TdoaSyntheticBackend(**kwargs).simulate(scene, array, window)
+    direct = TdoaSyntheticBackend(**kwargs).simulate(scene, array.array_id, window)
     registered = get_backend("tdoa_synthetic", **kwargs).simulate(
         scene,
-        array,
+        array.array_id,
         window,
     )
 

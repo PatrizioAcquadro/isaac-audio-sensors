@@ -220,7 +220,7 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
     assert enriched.sources == ()
     frame = TdoaSyntheticBackend(effects=EffectsConfig(motion=_motion())).simulate(
         enriched,
-        enriched.array_by_id("rig"),
+        "rig",
         AudioTimeWindow(
             start_time_s=0.0,
             end_time_s=0.05,

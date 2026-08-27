@@ -169,7 +169,7 @@ def test_room_outline_and_debug_primitive():
     )
     frame = GeometryBackend().simulate(
         scene,
-        array,
+        array.array_id,
         AudioTimeWindow(
             start_time_s=0.0,
             end_time_s=0.2,

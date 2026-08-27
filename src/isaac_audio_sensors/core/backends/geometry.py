@@ -67,9 +67,10 @@ class GeometryBackend:
     def simulate(
         self,
         scene: AudioSceneSnapshot,
-        sensor: MicrophoneArraySpec,
+        array_id: str,
         time_window: AudioTimeWindow,
     ) -> AudioSensorFrame:
+        sensor = scene.array_by_id(array_id)
         mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
         frame_id = deterministic_frame_id(
             backend_id=self.backend_id,

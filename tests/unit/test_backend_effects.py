@@ -115,11 +115,11 @@ def test_l1_gain_and_delay_adapter_is_difference_of_matching_baselines(stress):
     window = _time_window()
     gain_db = -3.0
     delay_s = 12.5e-6
-    baseline = TdoaSyntheticBackend(**stress).simulate(scene, array, window)
+    baseline = TdoaSyntheticBackend(**stress).simulate(scene, array.array_id, window)
     effected = TdoaSyntheticBackend(
         effects=_effects(mic_ids, gain_db=gain_db, delay_s=delay_s),
         **stress,
-    ).simulate(scene, array, window)
+    ).simulate(scene, array.array_id, window)
 
     base_detection = baseline.detections[0]
     effected_detection = effected.detections[0]
@@ -143,9 +143,9 @@ def test_l1_polarity_is_honest_metadata_only_and_leaves_observables_exact():
     mic_ids = tuple(mic.mic_id for mic in array.microphones)
     scene = _scene(array)
     window = _time_window()
-    baseline = TdoaSyntheticBackend().simulate(scene, array, window)
+    baseline = TdoaSyntheticBackend().simulate(scene, array.array_id, window)
     effected = TdoaSyntheticBackend(effects=_effects(mic_ids, polarity=-1)).simulate(
-        scene, array, window
+        scene, array.array_id, window
     )
 
     assert effected.detections[0].per_mic_rms == baseline.detections[0].per_mic_rms
@@ -162,10 +162,10 @@ def test_l0_gain_adapter_and_effect_offset_diagnostics_do_not_reclassify_doa():
     scene = _scene(array)
     window = _time_window()
     mic_ids = tuple(mic.mic_id for mic in array.microphones)
-    baseline = GeometryBackend().simulate(scene, array, window)
+    baseline = GeometryBackend().simulate(scene, array.array_id, window)
     effected = GeometryBackend(
         effects=_effects(mic_ids, gain_db=6.0, delay_s=10e-6, polarity=-1)
-    ).simulate(scene, array, window)
+    ).simulate(scene, array.array_id, window)
 
     for mic_id in mic_ids:
         ratio_db = 20.0 * math.log10(
@@ -197,7 +197,9 @@ def test_waveform_frequency_response_fails_typed_on_l0_l1_without_partial_frame(
     )
 
     with pytest.raises(UnsupportedEffectError, match="waveform-only"):
-        backend_type(effects=effects).simulate(_scene(array), array, _time_window())
+        backend_type(effects=effects).simulate(
+            _scene(array), array.array_id, _time_window()
+        )
 
 
 def _serialized_frame_bytes(frame) -> bytes:
@@ -224,12 +226,12 @@ def test_room_backend_off_state_matches_pristine_reference(
     disabled_sink = CaptureSink()
 
     baseline = RoomAcousticsBackend(waveform_writer=baseline_sink).simulate(
-        scene, array, time_window()
+        scene, array.array_id, time_window()
     )
     disabled = RoomAcousticsBackend(
         waveform_writer=disabled_sink,
         effects=EffectsConfig(),
-    ).simulate(scene, array, time_window())
+    ).simulate(scene, array.array_id, time_window())
 
     baseline_frame = _serialized_frame_bytes(baseline)
     disabled_frame = _serialized_frame_bytes(disabled)
@@ -237,9 +239,7 @@ def test_room_backend_off_state_matches_pristine_reference(
     disabled_waveform = disabled_sink.calls[0]["mixture"].tobytes(order="C")
     assert baseline_frame == disabled_frame
     assert baseline_waveform == disabled_waveform
-    assert baseline.diagnostics["directivity"]["mode"] == (
-        "per_pair_direct_path"
-    )
+    assert baseline.diagnostics["directivity"]["mode"] == ("per_pair_direct_path")
     assert "effects" not in disabled.diagnostics
 
 
@@ -255,7 +255,7 @@ def test_room_backend_effected_premix_drives_detection_aggregate_and_export(
     baseline_sink = CaptureSink()
     effected_sink = CaptureSink()
     baseline = RoomAcousticsBackend(waveform_writer=baseline_sink).simulate(
-        scene, array, time_window()
+        scene, array.array_id, time_window()
     )
     effects = EffectsConfig(
         channel_response=ChannelResponseConfig(
@@ -266,7 +266,7 @@ def test_room_backend_effected_premix_drives_detection_aggregate_and_export(
     effected = RoomAcousticsBackend(
         waveform_writer=effected_sink,
         effects=effects,
-    ).simulate(scene, array, time_window())
+    ).simulate(scene, array.array_id, time_window())
 
     baseline_detection = baseline.detections[0]
     effected_detection = effected.detections[0]

@@ -570,9 +570,7 @@ class AudioSensorFrame:
                 raise ValueError("AudioSensorFrame.max_events must be non-negative.")
             object.__setattr__(self, "max_events", max_events)
         units = {str(key): str(value) for key, value in self.units.items()}
-        missing_units = (
-            set(FRAME_UNITS) - set(units) - set(OPTIONAL_FRAME_UNIT_KEYS)
-        )
+        missing_units = set(FRAME_UNITS) - set(units) - set(OPTIONAL_FRAME_UNIT_KEYS)
         if missing_units:
             raise ValueError(
                 "AudioSensorFrame.units is missing required keys "
@@ -669,9 +667,7 @@ class SourceOcclusion:
                 non_negative=True,
             ),
         )
-        band_centers = tuple(
-            float(center) for center in self.band_centers_hz
-        )
+        band_centers = tuple(float(center) for center in self.band_centers_hz)
         for center in band_centers:
             _require_finite(center, "SourceOcclusion.band_centers_hz value")
             if center <= 0.0:
@@ -715,14 +711,12 @@ class SourceOcclusion:
             },
         )
         if self.occlusion_model is not None:
-            _require_non_empty(
-                self.occlusion_model, "SourceOcclusion.occlusion_model"
-            )
+            _require_non_empty(self.occlusion_model, "SourceOcclusion.occlusion_model")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class AudioSceneSnapshot:
-    """Static scene state consumed by simulation backends."""
+    """Static scene state and canonical arrays consumed by simulation backends."""
 
     stage_id: str
     timestamp_ms: int
@@ -749,7 +743,7 @@ class AudioSceneSnapshot:
             object.__setattr__(self, "occlusion", occlusion)
 
     def array_by_id(self, array_id: str) -> MicrophoneArraySpec:
-        """Return an array by id or raise a clear error."""
+        """Return the canonical array by id or raise a clear error."""
 
         for array in self.arrays:
             if array.array_id == array_id:

@@ -221,7 +221,9 @@ def _render(fake_room, record=None, room=None):
         occlusion=None if record is None else (record,),
     )
     sink = _CaptureSink()
-    frame = RoomAcousticsBackend(waveform_writer=sink).simulate(scene, array, _window())
+    frame = RoomAcousticsBackend(waveform_writer=sink).simulate(
+        scene, array.array_id, _window()
+    )
     return frame, sink.mixtures[0]
 
 
@@ -356,7 +358,7 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
     array_sink = _CaptureSink()
     array_frame = RoomAcousticsBackend(waveform_writer=array_sink).simulate(
         array_scene,
-        array,
+        array.array_id,
         _window(),
     )
     source_scene = replace(
@@ -367,7 +369,7 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
     source_sink = _CaptureSink()
     source_frame = RoomAcousticsBackend(waveform_writer=source_sink).simulate(
         source_scene,
-        source_scene.arrays[0],
+        source_scene.arrays[0].array_id,
         _window(),
     )
     assert array_frame.array_pose.position_m == (0.0, 0.25, 1.0)
@@ -583,8 +585,8 @@ def test_off_state_frame_has_no_acoustics_namespace_and_is_byte_deterministic():
         sources=(_source(),),
         arrays=(array,),
     )
-    first = GeometryBackend().simulate(scene, array, _window())
-    second = GeometryBackend().simulate(scene, array, _window())
+    first = GeometryBackend().simulate(scene, array.array_id, _window())
+    second = GeometryBackend().simulate(scene, array.array_id, _window())
     assert "acoustics_state" not in first.diagnostics
     first_bytes = json.dumps(frame_to_trace_dict(first), sort_keys=True).encode()
     second_bytes = json.dumps(frame_to_trace_dict(second), sort_keys=True).encode()

@@ -144,7 +144,7 @@ def test_circular_speed_dependent_error_obeys_frozen_bound():
 def test_l0_l1_explicitly_reject_multiple_segments_before_output(backend):
     scene, array, window = motion_room_fixture()
     with pytest.raises(UnsupportedEffectError, match="segments_per_window"):
-        backend(effects=_motion_effects(2)).simulate(scene, array, window)
+        backend(effects=_motion_effects(2)).simulate(scene, array.array_id, window)
 
 
 def test_segments_one_is_byte_identical_to_default_motion_config(monkeypatch):
@@ -154,9 +154,9 @@ def test_segments_one_is_byte_identical_to_default_motion_config(monkeypatch):
         effects=EffectsConfig(
             motion=MotionEffectsConfig(derive_velocity_from_poses=True)
         )
-    ).simulate(scene, array, window)
+    ).simulate(scene, array.array_id, window)
     explicit = RoomAcousticsBackend(effects=_motion_effects(1)).simulate(
-        scene, array, window
+        scene, array.array_id, window
     )
     absent_bytes = json.dumps(
         frame_to_trace_dict(absent), sort_keys=True, separators=(",", ":")
@@ -180,7 +180,7 @@ def test_piecewise_room_assembles_exact_window_and_segment_diagnostics(monkeypat
         effects=_motion_effects(MOTION_SEGMENTS),
         window_motion=plan,
         waveform_writer=sink,
-    ).simulate(scene, array, window)
+    ).simulate(scene, array.array_id, window)
     mixture = sink.calls[0]["mixture"]
     assert mixture.shape[1] >= WINDOW_SAMPLE_COUNT
     assert np.isfinite(mixture).all()
@@ -221,7 +221,7 @@ def test_policy_absent_segments_hold_current_pose_and_use_exact_unity(monkeypatc
     )
     frame = RoomAcousticsBackend(
         effects=_motion_effects(MOTION_SEGMENTS), window_motion=plan
-    ).simulate(scene, array, window)
+    ).simulate(scene, array.array_id, window)
     for row in frame.diagnostics["motion"]["segments"]:
         assert row["doppler_factor_by_source"]["source"] == 1.0
         entity = row["entities"]["source"]

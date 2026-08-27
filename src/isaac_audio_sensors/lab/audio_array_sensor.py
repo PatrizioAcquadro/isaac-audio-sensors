@@ -11,7 +11,7 @@ from isaaclab.sensors import SensorBase
 
 from isaac_audio_sensors.core.constants import EPSILON
 from isaac_audio_sensors.core.effects import EffectsConfig
-from isaac_audio_sensors.core.types import AudioSceneSnapshot, MicrophoneArraySpec
+from isaac_audio_sensors.core.types import AudioSceneSnapshot
 from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 from isaac_audio_sensors.lab.batched_backend import (
     compact_active_events,
@@ -60,7 +60,7 @@ class AudioArraySensor(SensorBase):
     def bind_reference(
         self,
         snapshots: Sequence[AudioSceneSnapshot],
-        array_specs: Sequence[MicrophoneArraySpec],
+        array_ids: Sequence[str],
     ) -> AudioArraySensor:
         """Bind the scalar core backend to pure snapshots."""
 
@@ -73,7 +73,7 @@ class AudioArraySensor(SensorBase):
             ambiguity_policy=self.cfg.ambiguity_policy,
             effects=self.cfg.effects,
             snapshots=snapshots,
-            array_specs=array_specs,
+            array_ids=array_ids,
         )
         self._entity_binding = None
         self._tdoa_operator = None

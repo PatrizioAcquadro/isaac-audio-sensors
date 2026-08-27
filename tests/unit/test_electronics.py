@@ -541,7 +541,7 @@ def test_enabled_electronics_is_typed_unsupported_on_l0_l1(backend):
     )
     scene = room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array)
     with pytest.raises(UnsupportedEffectError, match="electronics"):
-        backend(effects=_effects()).simulate(scene, array, time_window())
+        backend(effects=_effects()).simulate(scene, array.array_id, time_window())
 
 
 def _primary_premix(_room, *, source_count: int, mic_count: int):
@@ -593,7 +593,7 @@ def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch
         frame = RoomAcousticsBackend(
             waveform_writer=sink,
             effects=_effects(dither=True, agc=_agc()),
-        ).simulate(scene, array, time_window())
+        ).simulate(scene, array.array_id, time_window())
         mixture = sink.calls[0]["mixture"]
         electronics = frame.diagnostics["effects"]["electronics"]
         results.append((mixture, electronics))
@@ -610,7 +610,7 @@ def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch
             effects=_effects(dither=True, agc=_agc()),
         ).simulate(
             room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
-            array,
+            array.array_id,
             time_window(),
         )
         for sink in replay_sinks
@@ -643,7 +643,7 @@ def test_segmented_room_noise_and_electronics_compose_once(monkeypatch):
         ),
     )
     frame = RoomAcousticsBackend(effects=effects, window_motion=plan).simulate(
-        scene, array, window
+        scene, array.array_id, window
     )
     assert frame.diagnostics["motion"]["segments_per_window"] == MOTION_SEGMENTS
     assert "noise" in frame.diagnostics["effects"]
@@ -666,7 +666,7 @@ def test_off_state_identity_backend_has_no_effects_key(monkeypatch):
     sink = CaptureSink()
     frame = RoomAcousticsBackend(waveform_writer=sink).simulate(
         room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
-        array,
+        array.array_id,
         time_window(),
     )
     assert sink.calls[0]["mixture"].size > 0

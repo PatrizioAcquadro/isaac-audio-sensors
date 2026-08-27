@@ -19,9 +19,7 @@ from isaac_audio_sensors.isaac.stage_snapshot import enrich_snapshot_motion
 
 
 def _effects(enabled: bool = True) -> EffectsConfig:
-    return EffectsConfig(
-        motion=MotionEffectsConfig(derive_velocity_from_poses=enabled)
-    )
+    return EffectsConfig(motion=MotionEffectsConfig(derive_velocity_from_poses=enabled))
 
 
 def _array(position=(1.0, 1.0, 1.0)):
@@ -125,7 +123,7 @@ def test_tdoa_teleport_frame_has_exact_unity_central_and_per_mic_factors():
     scene, diagnostics = _teleport_snapshot()
     sensor = scene.array_by_id("rig")
     frame = TdoaSyntheticBackend(effects=_effects()).simulate(
-        scene, sensor, _window()
+        scene, sensor.array_id, _window()
     )
     detection = frame.detections[0]
     assert diagnostics["speaker"] == "none:teleport"
@@ -145,9 +143,7 @@ def test_enabled_first_sample_with_both_velocities_absent_records_unity():
         pose_history=history,
         motion_config=_effects().motion,
     )
-    frame = TdoaSyntheticBackend(effects=_effects()).simulate(
-        scene, scene.array_by_id("rig"), _window()
-    )
+    frame = TdoaSyntheticBackend(effects=_effects()).simulate(scene, "rig", _window())
     detection = frame.detections[0]
     assert diagnostics == {
         "speaker": "none:first_sample",
@@ -161,9 +157,9 @@ def test_enabled_first_sample_with_both_velocities_absent_records_unity():
 def test_tdoa_motion_off_state_is_byte_identical_and_omits_doppler():
     scene = _scene((2.0, 1.0, 1.0))
     sensor = scene.array_by_id("rig")
-    baseline = TdoaSyntheticBackend().simulate(scene, sensor, _window())
+    baseline = TdoaSyntheticBackend().simulate(scene, sensor.array_id, _window())
     explicit_disabled = TdoaSyntheticBackend(effects=_effects(False)).simulate(
-        scene, sensor, _window()
+        scene, sensor.array_id, _window()
     )
     assert _frame_bytes(baseline) == _frame_bytes(explicit_disabled)
     assert "doppler_factor" not in baseline.detections[0].diagnostics

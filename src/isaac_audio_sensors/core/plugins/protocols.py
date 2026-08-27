@@ -11,7 +11,6 @@ from isaac_audio_sensors.core.types import (
     AudioSensorFrame,
     AudioTimeWindow,
     DoaEstimate,
-    MicrophoneArraySpec,
 )
 
 
@@ -24,10 +23,10 @@ class PropagationBackend(Protocol):
     def simulate(
         self,
         scene: AudioSceneSnapshot,
-        sensor: MicrophoneArraySpec,
+        array_id: str,
         time_window: AudioTimeWindow,
     ) -> AudioSensorFrame:
-        """Simulate one ordered microphone-array observation frame."""
+        """Simulate one snapshot-owned microphone-array observation frame."""
 
 
 @runtime_checkable

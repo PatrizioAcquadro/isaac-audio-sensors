@@ -109,9 +109,10 @@ class TdoaSyntheticBackend:
     def simulate(
         self,
         scene: AudioSceneSnapshot,
-        sensor: MicrophoneArraySpec,
+        array_id: str,
         time_window: AudioTimeWindow,
     ) -> AudioSensorFrame:
+        sensor = scene.array_by_id(array_id)
         validate_tdoa_array(sensor)
         mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
         frame_id = deterministic_frame_id(

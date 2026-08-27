@@ -35,7 +35,7 @@ scene = AudioSceneSnapshot(
 )
 frame = TdoaSyntheticBackend(ambiguity_policy="none").simulate(
     scene,
-    array,
+    array.array_id,
     AudioTimeWindow(
         start_time_s=0.0,
         end_time_s=1.0,

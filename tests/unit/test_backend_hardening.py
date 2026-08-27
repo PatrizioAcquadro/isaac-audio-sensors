@@ -106,7 +106,7 @@ def test_geometry_backend_covers_all_sector_centers_and_boundaries() -> None:
                 _source("speaker", _position_for_bearing(bearing_deg)),
                 array=array,
             ),
-            array,
+            array.array_id,
             _window(array),
         )
         doa = frame.detections[0].doa
@@ -125,7 +125,7 @@ def test_geometry_backend_zero_horizontal_vectors_have_no_fake_bearing() -> None
             _source("above", (0.0, 0.0, 3.0)),
             array=array,
         ),
-        array,
+        array.array_id,
         _window(array),
     )
 
@@ -143,7 +143,7 @@ def test_geometry_backend_clamps_coplanar_confidence() -> None:
     array = _array("stereo_y")
     frame = GeometryBackend().simulate(
         _scene(_source("speaker", (3.0, 2.2, 0.0)), array=array),
-        array,
+        array.array_id,
         _window(array),
     )
     doa = frame.detections[0].doa
@@ -167,7 +167,7 @@ def test_geometry_backend_respects_rotated_array_forward_right_basis() -> None:
             _source("local_left", (5.0, 0.0, 0.0)),
             array=array,
         ),
-        array,
+        array.array_id,
         _window(array),
     )
 
@@ -188,8 +188,8 @@ def test_geometry_backend_v1_frame_is_deterministic_and_non_physical() -> None:
     )
     window = _window(array, max_events=2)
 
-    first = GeometryBackend().simulate(scene, array, window)
-    second = GeometryBackend().simulate(scene, array, window)
+    first = GeometryBackend().simulate(scene, array.array_id, window)
+    second = GeometryBackend().simulate(scene, array.array_id, window)
 
     assert first == second
     assert first.schema_version == FRAME_SCHEMA_VERSION
@@ -212,7 +212,7 @@ def test_tdoa_two_mic_layouts_expose_front_back_ambiguity(
     array = _array(layout_name)
     frame = TdoaSyntheticBackend(ambiguity_policy="none").simulate(
         _scene(_source("front", (8.0, 0.0, 0.0)), array=array),
-        array,
+        array.array_id,
         _window(array),
     )
     detection = frame.detections[0]
@@ -330,7 +330,7 @@ def test_tdoa_two_mic_noisy_endpoint_fails_closed(
         )
         .simulate(
             _scene(_source("speaker", position), array=array),
-            array,
+            array.array_id,
             _window(array),
         )
         .detections[0]
@@ -362,7 +362,7 @@ def test_tdoa_two_mic_baseline_axis_is_unambiguous(
         TdoaSyntheticBackend(ambiguity_policy=ambiguity_policy)
         .simulate(
             _scene(_source("speaker", position), array=array),
-            array,
+            array.array_id,
             _window(array),
         )
         .detections[0]
@@ -409,7 +409,7 @@ def test_tdoa_two_mic_non_axis_sources_remain_front_back_ambiguous(
         TdoaSyntheticBackend(ambiguity_policy="none")
         .simulate(
             _scene(_source("speaker", position), array=array),
-            array,
+            array.array_id,
             _window(array),
         )
         .detections[0]
@@ -428,7 +428,7 @@ def test_tdoa_two_mic_front_prior_preserves_behind_limitation() -> None:
         TdoaSyntheticBackend(ambiguity_policy="front_hemisphere")
         .simulate(
             _scene(_source("behind", (-3.0, 0.0, 0.0)), array=array),
-            array,
+            array.array_id,
             _window(array),
         )
         .detections[0]
@@ -448,12 +448,12 @@ def test_tdoa_two_mic_front_prior_stays_lower_than_clean_four_mic() -> None:
     source = _source("front", (8.0, 0.0, 0.0))
     two_mic = TdoaSyntheticBackend(ambiguity_policy="front_hemisphere").simulate(
         _scene(source, array=stereo),
-        stereo,
+        stereo.array_id,
         _window(stereo),
     )
     four_mic = TdoaSyntheticBackend().simulate(
         _scene(source, array=quad),
-        quad,
+        quad.array_id,
         _window(quad),
     )
     two_mic_doa = two_mic.detections[0].doa
@@ -477,7 +477,7 @@ def test_tdoa_four_mic_layouts_recover_all_sector_centers(
                 _source("speaker", _position_for_bearing(bearing_deg, distance=8.0)),
                 array=array,
             ),
-            array,
+            array.array_id,
             _window(array),
         )
         detection = frame.detections[0]
@@ -498,7 +498,7 @@ def test_tdoa_rejects_invalid_and_degenerate_mic_counts() -> None:
     with pytest.raises(ValueError, match="at least two microphones"):
         TdoaSyntheticBackend().simulate(
             _scene(_source("speaker", (5.0, 0.0, 0.0)), array=mono),
-            mono,
+            mono.array_id,
             _window(mono),
         )
 
@@ -515,7 +515,7 @@ def test_tdoa_rejects_invalid_and_degenerate_mic_counts() -> None:
     with pytest.raises(ValueError, match="degenerate"):
         TdoaSyntheticBackend().simulate(
             _scene(_source("speaker", (5.0, 0.0, 0.0)), array=degenerate),
-            degenerate,
+            degenerate.array_id,
             _window(degenerate),
         )
 
@@ -525,7 +525,7 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
     scene = _scene(_source("front", (8.0, 0.0, 0.0)), array=array)
     clean = TdoaSyntheticBackend(ambiguity_policy="none").simulate(
         scene,
-        array,
+        array.array_id,
         _window(array),
     )
     backend = TdoaSyntheticBackend(
@@ -534,9 +534,9 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
         gain_mismatch_db=6.0,
         ambiguity_policy="none",
     )
-    stressed = backend.simulate(scene, array, _window(array))
+    stressed = backend.simulate(scene, array.array_id, _window(array))
 
-    assert stressed == backend.simulate(scene, array, _window(array))
+    assert stressed == backend.simulate(scene, array.array_id, _window(array))
     clean_detection = clean.detections[0]
     stressed_detection = stressed.detections[0]
     assert stressed_detection.per_mic_delay_s != clean_detection.per_mic_delay_s
@@ -551,9 +551,7 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
     assert stressed.diagnostics["noise_std_s"] == pytest.approx(1e-5)
     assert stressed.diagnostics["clock_jitter_s"] == pytest.approx(2e-5)
     assert stressed.diagnostics["tdoa_gain_mismatch_std_db"] == pytest.approx(6.0)
-    gain_offsets = stressed_detection.diagnostics[
-        "tdoa_gain_mismatch_delta_db"
-    ]
+    gain_offsets = stressed_detection.diagnostics["tdoa_gain_mismatch_delta_db"]
     assert set(gain_offsets) == {"left", "right"}
     assert gain_offsets["left"] != gain_offsets["right"]
 
@@ -563,10 +561,8 @@ def test_tdoa_stress_knobs_are_deterministic_and_diagnosed() -> None:
         gain_mismatch_db=6.0,
         ambiguity_policy="none",
         seed=99,
-    ).simulate(scene, array, _window(array))
-    reseeded_offsets = reseeded.detections[0].diagnostics[
-        "tdoa_gain_mismatch_delta_db"
-    ]
+    ).simulate(scene, array.array_id, _window(array))
+    reseeded_offsets = reseeded.detections[0].diagnostics["tdoa_gain_mismatch_delta_db"]
     assert reseeded_offsets != gain_offsets
     assert reseeded.diagnostics["noise_seed"] == 99
     assert stressed.diagnostics["noise_seed"] is None
@@ -582,7 +578,9 @@ def test_l0_l1_per_mic_rms_follows_pressure_law_with_source_gain() -> None:
     }
 
     for backend in (GeometryBackend(), TdoaSyntheticBackend()):
-        detection = backend.simulate(scene, array, _window(array)).detections[0]
+        detection = backend.simulate(scene, array.array_id, _window(array)).detections[
+            0
+        ]
         assert detection.per_mic_rms == pytest.approx(expected)
 
 
@@ -595,7 +593,7 @@ def test_l0_l1_aggregate_rms_is_power_sum_of_detections() -> None:
     )
 
     for backend in (GeometryBackend(), TdoaSyntheticBackend()):
-        frame = backend.simulate(scene, array, _window(array))
+        frame = backend.simulate(scene, array.array_id, _window(array))
         for microphone in array.microphones:
             power = sum(
                 detection.per_mic_rms[microphone.mic_id] ** 2
@@ -619,13 +617,13 @@ def test_l0_l1_mic_self_noise_floor_contributes_to_aggregate_rms() -> None:
     silent_scene = _scene(array=array)
 
     for backend in (GeometryBackend(), TdoaSyntheticBackend()):
-        frame = backend.simulate(scene, array, _window(array))
+        frame = backend.simulate(scene, array.array_id, _window(array))
         signal_rms = frame.detections[0].per_mic_rms["front"]
         assert frame.aggregate_per_mic_rms["front"] == pytest.approx(
             math.sqrt(signal_rms**2 + 0.1**2)
         )
 
-        silent = backend.simulate(silent_scene, array, _window(array))
+        silent = backend.simulate(silent_scene, array.array_id, _window(array))
         assert silent.aggregate_per_mic_rms["front"] == pytest.approx(0.1)
         assert silent.aggregate_per_mic_rms["rear"] == 0.0
 
@@ -660,10 +658,10 @@ def test_l0_l1_cardioid_directivity_attenuates_off_axis() -> None:
 
     for backend in (GeometryBackend(), TdoaSyntheticBackend()):
         facing_detection = backend.simulate(
-            _scene(facing, array=array), array, _window(array)
+            _scene(facing, array=array), array.array_id, _window(array)
         ).detections[0]
         away_detection = backend.simulate(
-            _scene(away, array=array), array, _window(array)
+            _scene(away, array=array), array.array_id, _window(array)
         ).detections[0]
 
         assert facing_detection.diagnostics["directivity"]["source_pattern"] == (
@@ -709,10 +707,14 @@ def test_l1_air_absorption_toggle_attenuates_rms_with_distance() -> None:
     array = _array("quad_front")
     source = _source("speaker", (8.0, 0.0, 0.0))
     scene = _scene(source, array=array)
-    base = TdoaSyntheticBackend().simulate(scene, array, _window(array)).detections[0]
+    base = (
+        TdoaSyntheticBackend()
+        .simulate(scene, array.array_id, _window(array))
+        .detections[0]
+    )
     damped = (
         TdoaSyntheticBackend(air_absorption_db_per_m=0.25)
-        .simulate(scene, array, _window(array))
+        .simulate(scene, array.array_id, _window(array))
         .detections[0]
     )
     positions = microphone_world_positions(array)
@@ -745,10 +747,10 @@ def test_seeded_noise_is_deterministic_per_seed_frame_and_mic() -> None:
         gain_mismatch_db=3.0,
         seed=7,
     )
-    first = backend.simulate(scene, array, _window_at(1_000))
-    assert backend.simulate(scene, array, _window_at(1_000)) == first
+    first = backend.simulate(scene, array.array_id, _window_at(1_000))
+    assert backend.simulate(scene, array.array_id, _window_at(1_000)) == first
 
-    other_frame = backend.simulate(scene, array, _window_at(2_000))
+    other_frame = backend.simulate(scene, array.array_id, _window_at(2_000))
     assert (
         other_frame.detections[0].per_mic_delay_s != first.detections[0].per_mic_delay_s
     )
@@ -762,7 +764,7 @@ def test_seeded_noise_is_deterministic_per_seed_frame_and_mic() -> None:
         clock_jitter_s=2e-5,
         gain_mismatch_db=3.0,
         seed=8,
-    ).simulate(scene, array, _window_at(1_000))
+    ).simulate(scene, array.array_id, _window_at(1_000))
     assert (
         other_seed.detections[0].per_mic_delay_s != first.detections[0].per_mic_delay_s
     )
@@ -771,10 +773,12 @@ def test_seeded_noise_is_deterministic_per_seed_frame_and_mic() -> None:
 def test_zero_noise_seeded_backend_matches_default_bit_exactly() -> None:
     array = _array("quad_front")
     scene = _scene(_source("speaker", (5.0, 2.0, 0.0)), array=array)
-    default_frame = TdoaSyntheticBackend().simulate(scene, array, _window(array))
+    default_frame = TdoaSyntheticBackend().simulate(
+        scene, array.array_id, _window(array)
+    )
     seeded_frame = TdoaSyntheticBackend(seed=12_345).simulate(
         scene,
-        array,
+        array.array_id,
         _window(array),
     )
 
@@ -890,7 +894,7 @@ def test_tdoa_tetrahedral_clean_elevation_matches_ground_truth(
     )
     frame = TdoaSyntheticBackend().simulate(
         _scene(source, array=array),
-        array,
+        array.array_id,
         _window(array),
     )
 
@@ -920,7 +924,7 @@ def test_tdoa_planar_array_keeps_elevation_none() -> None:
         TdoaSyntheticBackend()
         .simulate(
             _scene(source, array=array),
-            array,
+            array.array_id,
             _window(array),
         )
         .detections[0]
@@ -940,7 +944,7 @@ def test_geometry_backend_emits_exact_elevation() -> None:
         GeometryBackend()
         .simulate(
             _scene(_source("speaker", (3.0, 0.0, 4.0)), array=array),
-            array,
+            array.array_id,
             _window(array),
         )
         .detections[0]

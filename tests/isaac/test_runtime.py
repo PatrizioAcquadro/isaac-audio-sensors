@@ -73,6 +73,48 @@ def _snapshot(
     )
 
 
+def test_reference_backend_resolves_selected_array_from_each_snapshot() -> None:
+    first = create_microphone_array(
+        array_id="first",
+        prim_path="/World/First",
+        layout_name="mono",
+    )
+    selected = create_microphone_array(
+        array_id="selected",
+        prim_path="/World/Selected",
+        layout_name="quad_front",
+    )
+    snapshot = replace(_snapshot(selected, ()), arrays=(first, selected))
+
+    reference = ReferenceBackend(
+        backend_id="geometry_only",
+        ambiguity_policy="none",
+        effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
+        snapshots=(snapshot,),
+        array_ids=("selected",),
+    )
+
+    assert reference.array_ids == ("selected",)
+    assert reference.num_mics == len(selected.microphones)
+
+
+def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:
+    array = create_microphone_array(
+        array_id="array",
+        prim_path="/World/Array",
+        layout_name="quad_front",
+    )
+
+    with pytest.raises(KeyError, match="AudioSceneSnapshot has no array 'missing'"):
+        ReferenceBackend(
+            backend_id="geometry_only",
+            ambiguity_policy="none",
+            effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
+            snapshots=(_snapshot(array, ()),),
+            array_ids=("missing",),
+        )
+
+
 def test_runtime_uses_real_isaac_lab_bases():
     assert issubclass(AudioArraySensor, SensorBase)
     assert issubclass(AudioArraySensorCfg, SensorBaseCfg)
@@ -230,7 +272,7 @@ def test_entity_and_reference_paths_match_with_schedule_and_truncation(backend_i
             prim_path="/World/Audio", backend=backend_id
         ).effects,
         snapshots=(_snapshot(array, sources),),
-        array_specs=(array,),
+        array_ids=(array.array_id,),
     )
     reference_result = reference.observations(
         env_ids=env_ids,
@@ -508,7 +550,7 @@ def _reference_mode_rms(
             backend=backend_id,
         ).effects,
         snapshots=(_snapshot(array, (source,), room=room),),
-        array_specs=(array,),
+        array_ids=(array.array_id,),
     )
     result = reference.observations(
         env_ids=torch.tensor([0]),

@@ -95,7 +95,7 @@ def test_room_anchored_mic_wall_distances_match_stage_geometry(monkeypatch):
     array = _array()
     scene = _scene(room)
 
-    frame = RoomAcousticsBackend().simulate(scene, array, _window())
+    frame = RoomAcousticsBackend().simulate(scene, array.array_id, _window())
 
     shoebox = _FakeShoeBox.instances[-1]
     assert tuple(shoebox.dimensions) == (6.0, 4.0, 3.0)
@@ -132,7 +132,7 @@ def test_room_out_of_bounds_error_names_offending_prim(monkeypatch):
     scene = _scene(_anchored_room(), source=_source((9.0, 2.0, 1.0)))
 
     with pytest.raises(ValueError) as excinfo:
-        RoomAcousticsBackend().simulate(scene, _array(), _window())
+        RoomAcousticsBackend().simulate(scene, "rig", _window())
 
     message = str(excinfo.value)
     assert "source:speaker" in message
@@ -148,7 +148,7 @@ def test_room_out_of_bounds_clamp_pulls_inside_and_reports(monkeypatch):
         source=_source((9.0, 2.0, 1.0)),
     )
 
-    frame = RoomAcousticsBackend().simulate(scene, _array(), _window())
+    frame = RoomAcousticsBackend().simulate(scene, "rig", _window())
 
     assert frame.diagnostics["room_clamped_position_ids"] == ("source:speaker",)
     source_room = frame.detections[0].diagnostics["room_source_position_m"]

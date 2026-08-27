@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 
 import numpy as np
 import pytest
 
+from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import (
     RoomAcousticsBackend,
     RoomAcousticsSrpBackend,
 )
+from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.types import (
@@ -74,6 +77,72 @@ def _window(
     )
 
 
+@pytest.mark.parametrize(
+    "backend_type",
+    (
+        GeometryBackend,
+        TdoaSyntheticBackend,
+        RoomAcousticsBackend,
+        RoomAcousticsSrpBackend,
+    ),
+)
+def test_backends_select_canonical_array_state_from_snapshot(
+    monkeypatch, backend_type
+) -> None:
+    install_fake_pyroom(monkeypatch)
+    first = create_microphone_array(
+        array_id="first",
+        prim_path="/World/Rig/First",
+        layout_name="quad_front",
+    )
+    selected = replace(
+        first,
+        array_id="selected",
+        prim_path="/World/Rig/Selected",
+        position_world=(1.0, 0.5, 0.25),
+    )
+    scene = replace(
+        _room_scene_with_sources(
+            _source("speaker", (3.0, 0.0, 0.0)),
+            array=first,
+        ),
+        arrays=(first, selected),
+    )
+
+    frame = backend_type().simulate(scene, "selected", _window(end_time_s=0.1))
+
+    assert frame.array_id == "selected"
+    assert frame.array_pose is not None
+    assert frame.array_pose.position_m == selected.position_world
+
+
+@pytest.mark.parametrize(
+    "backend_type",
+    (
+        GeometryBackend,
+        TdoaSyntheticBackend,
+        RoomAcousticsBackend,
+        RoomAcousticsSrpBackend,
+    ),
+)
+def test_backends_reject_array_id_absent_from_snapshot(
+    monkeypatch, backend_type
+) -> None:
+    install_fake_pyroom(monkeypatch)
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    scene = _room_scene_with_sources(
+        _source("speaker", (3.0, 0.0, 0.0)),
+        array=array,
+    )
+
+    with pytest.raises(KeyError, match="AudioSceneSnapshot has no array 'missing'"):
+        backend_type().simulate(scene, "missing", _window(end_time_s=0.1))
+
+
 def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch) -> None:
     install_fake_pyroom(monkeypatch)
     array = create_microphone_array(
@@ -86,7 +155,7 @@ def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch) -> None:
         array=array,
     )
 
-    frame = RoomAcousticsBackend().simulate(scene, array, _window())
+    frame = RoomAcousticsBackend().simulate(scene, array.array_id, _window())
     detection = frame.detections[0]
 
     assert frame.backend_id == "room_acoustics"
@@ -151,8 +220,8 @@ def test_room_acoustics_schedules_multiple_sources(monkeypatch) -> None:
     backend = RoomAcousticsBackend()
     window = _window(max_events=2)
 
-    first = backend.simulate(scene, array, window)
-    second = backend.simulate(scene, array, window)
+    first = backend.simulate(scene, array.array_id, window)
+    second = backend.simulate(scene, array.array_id, window)
 
     assert first == second
     assert tuple(detection.source_id for detection in first.detections) == (
@@ -215,7 +284,7 @@ def test_room_acoustics_srp_emits_frames(monkeypatch) -> None:
     )
     backend = RoomAcousticsSrpBackend()
 
-    frame = backend.simulate(scene, array, _window())
+    frame = backend.simulate(scene, array.array_id, _window())
     detection = frame.detections[0]
 
     assert frame.backend_id == "room_acoustics_srp"
@@ -230,7 +299,7 @@ def test_room_acoustics_srp_emits_frames(monkeypatch) -> None:
     assert detection.doa.estimated_bearing_deg == pytest.approx(0.0, abs=15.0)
     assert detection.doa.estimated_elevation_deg is None
     assert detection.diagnostics["estimated_tdoa_matrix_s"]["rear->front"] > 0.0
-    assert frame == backend.simulate(scene, array, _window())
+    assert frame == backend.simulate(scene, array.array_id, _window())
 
 
 def test_room_acoustics_rejects_non_public_file_asset_paths(
@@ -251,7 +320,7 @@ def test_room_acoustics_rejects_non_public_file_asset_paths(
     scene = _room_scene_with_sources(source, array=array)
 
     with pytest.raises(ValueError, match="relative public package path"):
-        RoomAcousticsBackend().simulate(scene, array, _window())
+        RoomAcousticsBackend().simulate(scene, array.array_id, _window())
 
 
 def test_room_acoustics_rejects_malformed_pyroom_signals(monkeypatch) -> None:
@@ -265,7 +334,7 @@ def test_room_acoustics_rejects_malformed_pyroom_signals(monkeypatch) -> None:
     scene = _room_scene_with_sources(_source("speaker", (3.0, 0.0, 0.0)), array=array)
 
     with pytest.raises(ValueError, match="unexpected mic signal shape"):
-        RoomAcousticsBackend().simulate(scene, array, _window())
+        RoomAcousticsBackend().simulate(scene, array.array_id, _window())
 
 
 def test_room_acoustics_unavailable_error_is_clear(monkeypatch) -> None:

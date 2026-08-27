@@ -695,12 +695,12 @@ def test_room_noise_is_dispatched_once_on_equal_summed_mixtures(monkeypatch):
         baseline_sink = CaptureSink()
         effected_sink = CaptureSink()
         RoomAcousticsBackend(waveform_writer=baseline_sink).simulate(
-            scene, array, time_window()
+            scene, array.array_id, time_window()
         )
         effected = RoomAcousticsBackend(
             waveform_writer=effected_sink,
             effects=noise,
-        ).simulate(scene, array, time_window())
+        ).simulate(scene, array.array_id, time_window())
         baseline_mix = baseline_sink.calls[0]["mixture"]
         effected_mix = effected_sink.calls[0]["mixture"]
         deltas.append(effected_mix - baseline_mix)
@@ -733,7 +733,9 @@ def test_self_noise_metadata_fallback_requires_seed_before_room_synthesis(
 
     effects = _noise_effects(self_noise=SelfNoiseConfig())
     with pytest.raises(ConfigValidationError, match="seed"):
-        RoomAcousticsBackend(effects=effects).simulate(scene, array, time_window())
+        RoomAcousticsBackend(effects=effects).simulate(
+            scene, array.array_id, time_window()
+        )
 
 
 def test_segmented_room_paths_compose_with_one_mixture_noise_dispatch(monkeypatch):
@@ -765,7 +767,7 @@ def test_segmented_room_paths_compose_with_one_mixture_noise_dispatch(monkeypatc
             effects=effects,
             window_motion=plan,
             waveform_writer=sink,
-        ).simulate(scene, array, window)
+        ).simulate(scene, array.array_id, window)
         for sink in sinks
     )
     assert frames[0] == frames[1]
@@ -803,7 +805,7 @@ def test_l1_timing_adapter_exact_and_legacy_rng_unchanged(q0, stress):
     start = q0 / SAMPLE_RATE_HZ
     window = time_window(start_time_s=start, end_time_s=start + 1.0)
     baseline_backend = TdoaSyntheticBackend(**stress)
-    baseline = baseline_backend.simulate(scene, array, window)
+    baseline = baseline_backend.simulate(scene, array.array_id, window)
     sigmas = dict(zip(MIC_IDS, (10e-6, 20e-6, 30e-6, 40e-6), strict=True))
     drift = dict(zip(MIC_IDS, (125.0, -80.0, 0.0, 37.5), strict=True))
     effects = _noise_effects(
@@ -812,7 +814,7 @@ def test_l1_timing_adapter_exact_and_legacy_rng_unchanged(q0, stress):
         clock_drift_ppm=drift,
     )
     effected_backend = TdoaSyntheticBackend(effects=effects, **stress)
-    effected = effected_backend.simulate(scene, array, window)
+    effected = effected_backend.simulate(scene, array.array_id, window)
     q_mid = q0 + (48_000 - 1) / 2.0
     for mic_id in MIC_IDS:
         jitter = float(
@@ -847,7 +849,7 @@ def test_l0_l1_waveform_noise_is_typed_unsupported(backend):
     )
     scene = room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array)
     with pytest.raises(UnsupportedEffectError, match="waveform-only"):
-        backend(effects=effects).simulate(scene, array, time_window())
+        backend(effects=effects).simulate(scene, array.array_id, time_window())
 
 
 def test_backend_off_state_and_enabled_determinism(monkeypatch):
@@ -856,7 +858,7 @@ def test_backend_off_state_and_enabled_determinism(monkeypatch):
     scene = room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array)
     baseline_sink = CaptureSink()
     baseline = RoomAcousticsBackend(waveform_writer=baseline_sink).simulate(
-        scene, array, time_window()
+        scene, array.array_id, time_window()
     )
     assert baseline_sink.calls[0]["mixture"].size > 0
     assert "effects" not in baseline.diagnostics
@@ -870,7 +872,7 @@ def test_backend_off_state_and_enabled_determinism(monkeypatch):
     sinks = (CaptureSink(), CaptureSink())
     frames = tuple(
         RoomAcousticsBackend(waveform_writer=sink, effects=effects).simulate(
-            scene, array, time_window()
+            scene, array.array_id, time_window()
         )
         for sink in sinks
     )

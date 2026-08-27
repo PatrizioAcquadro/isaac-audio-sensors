@@ -70,9 +70,9 @@ def test_scene_rejects_duplicate_occlusion_records_and_resolves_valid_pair():
 
 def test_geometry_backend_applies_per_mic_attenuation_independently():
     array = quad_array()
-    baseline = GeometryBackend().simulate(_scene(), array, time_window())
+    baseline = GeometryBackend().simulate(_scene(), array.array_id, time_window())
     attenuated = GeometryBackend().simulate(
-        _scene(occlusion=(_record(),)), array, time_window()
+        _scene(occlusion=(_record(),)), array.array_id, time_window()
     )
 
     baseline_rms = baseline.detections[0].per_mic_rms
@@ -85,9 +85,9 @@ def test_geometry_backend_applies_per_mic_attenuation_independently():
 def test_tdoa_backend_attenuates_rms_without_changing_delays_or_bearing():
     array = quad_array()
     backend = TdoaSyntheticBackend(ambiguity_policy="front_hemisphere")
-    baseline = backend.simulate(_scene(), array, time_window()).detections[0]
+    baseline = backend.simulate(_scene(), array.array_id, time_window()).detections[0]
     attenuated = backend.simulate(
-        _scene(occlusion=(_record(),)), array, time_window()
+        _scene(occlusion=(_record(),)), array.array_id, time_window()
     ).detections[0]
 
     assert attenuated.per_mic_rms["front"] == pytest.approx(

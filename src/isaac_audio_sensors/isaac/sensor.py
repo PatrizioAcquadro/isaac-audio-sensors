@@ -541,7 +541,7 @@ class IsaacAudioArraySensor:
         if window_motion is not None:
             kwargs["window_motion"] = window_motion
         backend = get_backend(self.backend, **kwargs)
-        frame = backend.simulate(scene, sensor, time_window)
+        frame = backend.simulate(scene, self.array_id, time_window)
         frame = self._merge_acoustics_state(frame)
         stage_diagnostics = dict(self._latest_stage_diagnostics or {})
         motion_diagnostics = stage_diagnostics.pop("motion", None)

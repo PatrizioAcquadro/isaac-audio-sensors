@@ -44,7 +44,7 @@ def simulate_from_config(
             ambiguity_policy=config.tdoa_ambiguity_policy,
         )
     backend = get_backend(selected_backend, **backend_kwargs)
-    return backend.simulate(scene, sensor, time_window)
+    return backend.simulate(scene, selected_array, time_window)
 
 
 __all__ = ["simulate_from_config"]

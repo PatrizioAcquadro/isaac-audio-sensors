@@ -180,11 +180,11 @@ def test_room_waveform_keeps_signed_directivity_while_rms_uses_magnitude(
     omni_sink = CaptureSink()
     directional_sink = CaptureSink()
     omni_frame = RoomAcousticsBackend(waveform_writer=omni_sink).simulate(
-        _scene(omni, array), array, _window()
+        _scene(omni, array), array.array_id, _window()
     )
-    directional_frame = RoomAcousticsBackend(
-        waveform_writer=directional_sink
-    ).simulate(_scene(figure_eight, array), array, _window())
+    directional_frame = RoomAcousticsBackend(waveform_writer=directional_sink).simulate(
+        _scene(figure_eight, array), array.array_id, _window()
+    )
     omni_waveforms = omni_sink.calls[0]["mixture"]
     directional_waveforms = directional_sink.calls[0]["mixture"]
     positions = microphone_world_positions(array)
@@ -253,10 +253,10 @@ def test_pyroom_rir_is_the_only_room_distance_scaling(monkeypatch) -> None:
     near_sink = CaptureSink()
     far_sink = CaptureSink()
     RoomAcousticsBackend(waveform_writer=near_sink).simulate(
-        _scene(near, array), array, _window()
+        _scene(near, array), array.array_id, _window()
     )
     RoomAcousticsBackend(waveform_writer=far_sink).simulate(
-        _scene(far, array), array, _window()
+        _scene(far, array), array.array_id, _window()
     )
     near_peak = float(np.max(np.abs(near_sink.calls[0]["mixture"][0])))
     far_peak = float(np.max(np.abs(far_sink.calls[0]["mixture"][0])))
@@ -302,12 +302,12 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics() -> Non
 
     frame = backend.simulate(
         _scene(source, array, occlusion=(occlusion,)),
-        array,
+        array.array_id,
         _window(),
     )
     assert frame == backend.simulate(
         _scene(source, array, occlusion=(occlusion,)),
-        array,
+        array.array_id,
         _window(),
     )
     detection = frame.detections[0]
@@ -398,6 +398,8 @@ def _window() -> AudioTimeWindow:
 
 
 def _detection_rms(backend, source: AudioSourceSpec, array: MicrophoneArraySpec):
-    return backend.simulate(_scene(source, array), array, _window()).detections[
-        0
-    ].per_mic_rms["front"]
+    return (
+        backend.simulate(_scene(source, array), array.array_id, _window())
+        .detections[0]
+        .per_mic_rms["front"]
+    )

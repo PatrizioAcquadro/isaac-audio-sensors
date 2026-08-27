@@ -47,7 +47,7 @@ scene = AudioSceneSnapshot(
 try:
     frame = RoomAcousticsBackend().simulate(
         scene,
-        array,
+        array.array_id,
         AudioTimeWindow(
             start_time_s=0.0,
             end_time_s=1.0,
@@ -62,9 +62,7 @@ else:
         {
             "backend": frame.backend_id,
             "active_source_count": frame.diagnostics["active_source_count"],
-            "pyroomacoustics_version": frame.diagnostics[
-                "pyroomacoustics_version"
-            ],
+            "pyroomacoustics_version": frame.diagnostics["pyroomacoustics_version"],
             "room_config": frame.diagnostics["room_config"],
             "rir_summary": frame.diagnostics["per_source_rir_summary"],
         }

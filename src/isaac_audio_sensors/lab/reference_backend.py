@@ -13,7 +13,6 @@ from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioTimeWindow,
-    MicrophoneArraySpec,
 )
 from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 
@@ -28,19 +27,23 @@ class ReferenceBackend:
         ambiguity_policy: str,
         effects: EffectsConfig,
         snapshots: Sequence[AudioSceneSnapshot],
-        array_specs: Sequence[MicrophoneArraySpec],
+        array_ids: Sequence[str],
     ) -> None:
         self.snapshots = tuple(snapshots)
-        self.array_specs = tuple(array_specs)
-        if not self.snapshots or len(self.snapshots) != len(self.array_specs):
+        self.array_ids = tuple(array_ids)
+        if not self.snapshots or len(self.snapshots) != len(self.array_ids):
             raise ValueError(
-                "snapshots and array_specs must be non-empty and have equal length."
+                "snapshots and array_ids must be non-empty and have equal length."
             )
         if not all(isinstance(item, AudioSceneSnapshot) for item in self.snapshots):
             raise TypeError("snapshots must contain AudioSceneSnapshot values.")
-        if not all(isinstance(item, MicrophoneArraySpec) for item in self.array_specs):
-            raise TypeError("array_specs must contain MicrophoneArraySpec values.")
-        mic_counts = {len(item.microphones) for item in self.array_specs}
+        if not all(isinstance(item, str) for item in self.array_ids):
+            raise TypeError("array_ids must contain str values.")
+        selected_arrays = tuple(
+            snapshot.array_by_id(array_id)
+            for snapshot, array_id in zip(self.snapshots, self.array_ids, strict=True)
+        )
+        mic_counts = {len(item.microphones) for item in selected_arrays}
         if len(mic_counts) != 1:
             raise ValueError(
                 "All reference arrays must have the same microphone count."
@@ -81,10 +84,12 @@ class ReferenceBackend:
         for row in range(count):
             env_id = int(env_ids[row].item())
             start_s = float(timestamps_s[row].item())
-            spec = self.array_specs[env_id]
+            snapshot = self.snapshots[env_id]
+            array_id = self.array_ids[env_id]
+            spec = snapshot.array_by_id(array_id)
             frame = self._backend.simulate(
-                self.snapshots[env_id],
-                spec,
+                snapshot,
+                array_id,
                 AudioTimeWindow(
                     start_time_s=start_s,
                     end_time_s=start_s + window_s,

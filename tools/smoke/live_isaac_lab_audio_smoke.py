@@ -56,7 +56,7 @@ def main() -> int:
             ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
             ((4.0, 0.0, 0.0), (0.0, 4.0, 0.0)),
         )
-        array_specs, snapshots = _reference_scenes()
+        array_ids, snapshots = _reference_scenes()
         parity_sensors = []
         for backend_id in ("geometry_only", "tdoa_synthetic"):
             entity_sensor = AudioArraySensor(
@@ -77,7 +77,7 @@ def main() -> int:
                     backend=backend_id,
                     max_events=2,
                 )
-            ).bind_reference(snapshots, array_specs)
+            ).bind_reference(snapshots, array_ids)
             parity_sensors.append((backend_id, entity_sensor, reference_sensor))
 
         perf_scene = _entity_scene(
@@ -234,7 +234,7 @@ def _reference_scenes():
         )
         for env_id in range(2)
     )
-    return arrays, snapshots
+    return tuple(array.array_id for array in arrays), snapshots
 
 
 def _assert_contract(data, *, num_envs: int, max_events: int, num_mics: int) -> None:

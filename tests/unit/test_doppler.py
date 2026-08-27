@@ -138,7 +138,7 @@ def test_tdoa_backend_emits_doppler_metadata_only_with_velocity():
         sources=(moving, static),
         arrays=(array,),
     )
-    frame = TdoaSyntheticBackend().simulate(scene, array, _window())
+    frame = TdoaSyntheticBackend().simulate(scene, array.array_id, _window())
 
     by_source = {detection.source_id: detection for detection in frame.detections}
     mover = by_source["mover"].diagnostics

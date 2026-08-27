@@ -221,7 +221,7 @@ def test_debug_primitives_color_bearing_rays_by_occlusion(
     record, expected_color, expected_factor
 ):
     scene = _scene(occlusion=None if record is None else (record,))
-    frame = GeometryBackend().simulate(scene, _array(), _window())
+    frame = GeometryBackend().simulate(scene, "rig_front", _window())
     primitives = build_debug_primitives(
         frame=frame,
         scene=scene,
@@ -406,7 +406,9 @@ def test_occlusion_diagnostics_round_trip_new_fields():
             "right": (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
         },
     )
-    frame = GeometryBackend().simulate(_scene(occlusion=(record,)), _array(), _window())
+    frame = GeometryBackend().simulate(
+        _scene(occlusion=(record,)), "rig_front", _window()
+    )
 
     restored = frame_from_trace_dict(frame_to_trace_dict(frame))
     diagnostics = restored.detections[0].diagnostics["occlusion"]

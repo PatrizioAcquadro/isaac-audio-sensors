@@ -27,7 +27,7 @@ def test_room_backend_exports_mixture_and_trace_path(monkeypatch, tmp_path):
     sink = CaptureSink()
     frame = RoomAcousticsBackend(waveform_writer=sink).simulate(
         room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
-        array,
+        array.array_id,
         time_window(),
     )
 
