@@ -5,12 +5,18 @@ from dataclasses import fields
 
 import pytest
 
+from isaac_audio_sensors.core.directivity import (
+    DirectivityPattern,
+    DirectivityValidationError,
+)
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioDiscoveryCfg,
     IsaacAudioSceneBindingCfg,
     discover_stage_audio,
 )
 from isaac_audio_sensors.isaac.stage_audio import (
+    attach_microphone_attrs,
+    attach_sound_source_attrs,
     create_listener_prim,
     create_sound_prim,
 )
@@ -94,6 +100,120 @@ def test_sound_authoring_preserves_finite_loop_count_and_rejects_ambiguity() -> 
             loop=True,
             loop_count=2,
         )
+
+
+def test_entity_directivity_authoring_is_validated_before_mutation() -> None:
+    source = FakeUsdPrim("/World/Speaker", "OmniSound")
+
+    with pytest.raises(DirectivityValidationError, match="ias:directivity"):
+        attach_sound_source_attrs(
+            source,
+            source_id="speaker",
+            class_label="Speech",
+            directivity="unsupported",
+        )
+    assert source.attributes == {}
+
+    with pytest.raises(DirectivityValidationError, match="orientation_world_quat"):
+        attach_sound_source_attrs(
+            source,
+            source_id="speaker",
+            class_label="Speech",
+            directivity="cardioid",
+        )
+    assert source.attributes == {}
+
+    source_attrs = attach_sound_source_attrs(
+        source,
+        source_id="speaker",
+        class_label="Speech",
+        position_world=(1.0, 0.0, 0.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
+        directivity=DirectivityPattern.CARDIOID,
+    )
+    assert source_attrs["ias:directivity"] == "cardioid"
+
+    microphone = FakeUsdPrim("/World/Array/front", "Microphone")
+    with pytest.raises(DirectivityValidationError, match="directivity"):
+        attach_microphone_attrs(
+            microphone,
+            mic_id="front",
+            relative_position_m=(0.05, 0.0, 0.0),
+            directivity="unsupported",
+        )
+    assert microphone.attributes == {}
+
+    with pytest.raises(DirectivityValidationError, match="relative_orientation_quat"):
+        attach_microphone_attrs(
+            microphone,
+            mic_id="front",
+            relative_position_m=(0.05, 0.0, 0.0),
+            directivity="supercardioid",
+        )
+    assert microphone.attributes == {}
+
+    microphone_attrs = attach_microphone_attrs(
+        microphone,
+        mic_id="front",
+        relative_position_m=(0.05, 0.0, 0.0),
+        relative_orientation_quat=(0.0, 0.0, 0.0, 1.0),
+        directivity=DirectivityPattern.SUPERCARDIOID,
+    )
+    assert microphone_attrs["ias:directivity"] == "supercardioid"
+
+
+@pytest.mark.parametrize("directivity", ["unsupported", "cardioid"])
+def test_source_discovery_propagates_directivity_errors_when_non_strict(
+    directivity: str,
+) -> None:
+    source = FakeUsdPrim(
+        "/World/Speaker",
+        "OmniSound",
+        {
+            "ias:source_id": "speaker",
+            "ias:audio_asset_path": "generated://impulse",
+            "ias:position_world": (1.0, 0.0, 0.0),
+            "ias:directivity": directivity,
+        },
+    )
+    if directivity == "unsupported":
+        source.attributes["ias:orientation_world_quat"] = (0.0, 0.0, 0.0, 1.0)
+
+    with pytest.raises(DirectivityValidationError):
+        discover_stage_audio(FakeUsdStage((source,)))
+
+
+@pytest.mark.parametrize("directivity", ["unsupported", "figure_eight"])
+def test_microphone_discovery_propagates_directivity_errors_when_non_strict(
+    directivity: str,
+) -> None:
+    array = FakeUsdPrim(
+        "/World/Array",
+        "Xform",
+        {
+            "ias:array_id": "array",
+            "ias:position_world": (0.0, 0.0, 0.0),
+        },
+    )
+    microphone = FakeUsdPrim(
+        "/World/Array/front",
+        "Microphone",
+        {
+            "ias:microphone_id": "front",
+            "ias:relative_position_m": (0.05, 0.0, 0.0),
+            "ias:directivity": directivity,
+        },
+    )
+    if directivity == "unsupported":
+        microphone.attributes["ias:relative_orientation_quat"] = (
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+        )
+
+    with pytest.raises(DirectivityValidationError):
+        discover_stage_audio(FakeUsdStage((array, microphone)))
 
 
 def test_listener_authoring_migrates_alias_and_disables_view_orientation() -> None:

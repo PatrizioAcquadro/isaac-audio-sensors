@@ -11,6 +11,7 @@ from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     DEFAULT_SAMPLE_RATE_HZ,
 )
+from isaac_audio_sensors.core.directivity import DirectivityPattern
 from isaac_audio_sensors.isaac.replicator import (
     DEFAULT_REPLICATOR_ANNOTATOR_NAME,
     DEFAULT_REPLICATOR_WRITER_NAME,
@@ -128,7 +129,7 @@ class ExtensionUiState:
     source_duration_s: float = 1.0
     source_gain_db: float = 0.0
     source_loop_count: int = 0
-    source_directivity: str = "omni"
+    source_directivity: DirectivityPattern = DirectivityPattern.OMNI
 
     profile_library: tuple[SoundProfile, ...] = field(
         default_factory=default_sound_profiles

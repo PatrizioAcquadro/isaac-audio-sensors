@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from isaac_audio_sensors.core.directivity import DirectivityPattern
 from isaac_audio_sensors.core.types import MicrophoneSpec
 from isaac_audio_sensors.kit.microphone_rig_profiles import (
     RIG_LAYOUT_CHOICES,
@@ -76,6 +77,38 @@ def test_sound_profiles_validate_default_library_and_safe_assets():
             gain_db=0.0,
             loop_count=-2,
         )
+
+    with pytest.raises(ValueError, match="directivity"):
+        SoundProfile(
+            profile_id="bad_directivity",
+            display_label="Bad Directivity",
+            object_label_aliases=("bad",),
+            source_id_template="{object_slug}_source",
+            class_label="Bad",
+            audio_asset_path="generated://impulse",
+            start_time_s=0.0,
+            duration_s=1.0,
+            gain_db=0.0,
+            directivity="unknown",
+        )
+
+
+def test_sound_profiles_store_the_canonical_directivity_enum() -> None:
+    profile = SoundProfile(
+        profile_id="directional",
+        display_label="Directional",
+        object_label_aliases=("speaker",),
+        source_id_template="{object_slug}_source",
+        class_label="Speech",
+        audio_asset_path="generated://impulse",
+        start_time_s=0.0,
+        duration_s=1.0,
+        gain_db=0.0,
+        directivity="supercardioid",
+    )
+
+    assert profile.directivity is DirectivityPattern.SUPERCARDIOID
+    assert profile.to_dict()["directivity"] == "supercardioid"
 
 
 def test_default_rig_library_contains_named_presets_with_valid_geometry():

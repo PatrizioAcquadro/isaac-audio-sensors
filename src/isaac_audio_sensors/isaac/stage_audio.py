@@ -8,7 +8,15 @@ from dataclasses import dataclass
 from typing import Any
 
 import isaac_audio_sensors.isaac.pose_resolver as usd
+from isaac_audio_sensors.core.directivity import (
+    DirectivityPattern,
+    DirectivityValidationError,
+    resolve_directivity_pattern,
+)
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
+from isaac_audio_sensors.core.math_utils import as_quaternion_xyzw, as_vector3
+from isaac_audio_sensors.core.types import MicrophoneSpec
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -69,8 +77,7 @@ def create_sound_prim(
         duration = _finite_float(duration_s, "duration_s")
         if duration <= 0.0:
             raise ValueError("duration_s must be positive when provided.")
-    resolved_gain_db = _finite_float(gain_db, "gain_db")
-    linear_gain = _db_to_linear_gain(resolved_gain_db)
+    linear_gain = db_to_amplitude_gain(gain_db, "gain_db")
     time_codes_per_second = _stage_time_codes_per_second(stage)
     start_time_code = start_s * time_codes_per_second
     end_time_code = (
@@ -118,33 +125,85 @@ def attach_sound_source_attrs(
     start_time_s: float = 0.0,
     duration_s: float | None = None,
     gain_db: float = 0.0,
-    directivity: str = "omni",
+    directivity: DirectivityPattern | str = DirectivityPattern.OMNI,
 ) -> dict[str, object]:
     """Attach ``isaac_audio_sensors`` metadata to a sound source prim."""
 
+    if not source_id.strip() or not class_label.strip():
+        raise ValueError("source_id and class_label must be non-empty.")
+    resolved_directivity = resolve_directivity_pattern(
+        directivity,
+        "ias:directivity",
+    )
+    resolved_position = (
+        None if position_world is None else as_vector3(position_world, "position_world")
+    )
+    resolved_orientation = (
+        None
+        if orientation_world_quat is None
+        else as_quaternion_xyzw(orientation_world_quat, "orientation_world_quat")
+    )
+    if (
+        resolved_directivity is not DirectivityPattern.OMNI
+        and resolved_orientation is None
+        and not _prim_has_authored_orientation(prim)
+    ):
+        raise DirectivityValidationError(
+            "orientation_world_quat is required when authoring non-omni "
+            f"ias:directivity {resolved_directivity.value!r}."
+        )
+    resolved_start_time_s = _finite_float(start_time_s, "start_time_s")
+    db_to_amplitude_gain(gain_db, "gain_db")
+    resolved_gain_db = float(gain_db)
+    resolved_duration_s = None
+    if duration_s is not None:
+        resolved_duration_s = _finite_float(duration_s, "duration_s")
+        if resolved_duration_s <= 0.0:
+            raise ValueError("duration_s must be positive when provided.")
     attrs: dict[str, object] = {
         "ias:source_id": source_id,
         "ias:class_label": class_label,
-        "ias:start_time_s": float(start_time_s),
-        "ias:gain_db": float(gain_db),
-        "ias:directivity": directivity,
+        "ias:start_time_s": resolved_start_time_s,
+        "ias:gain_db": resolved_gain_db,
+        "ias:directivity": resolved_directivity.value,
     }
     if audio_asset_path is not None:
         attrs["ias:audio_asset_path"] = audio_asset_path
-    if position_world is not None:
-        attrs["ias:position_world"] = position_world
-    if orientation_world_quat is not None:
-        attrs["ias:orientation_world_quat"] = orientation_world_quat
-    if duration_s is not None:
-        attrs["ias:duration_s"] = float(duration_s)
+    if resolved_position is not None:
+        attrs["ias:position_world"] = resolved_position
+    if resolved_orientation is not None:
+        attrs["ias:orientation_world_quat"] = resolved_orientation
+    if resolved_duration_s is not None:
+        attrs["ias:duration_s"] = resolved_duration_s
     for name, value in attrs.items():
         _set_attr(prim, name, value)
     set_prim_xform_pose(
         prim,
-        position=position_world,
-        orientation=orientation_world_quat,
+        position=resolved_position,
+        orientation=resolved_orientation,
     )
     return attrs
+
+
+def _prim_has_authored_orientation(prim: Any) -> bool:
+    attrs: dict[str, Any] = {}
+    if hasattr(prim, "attributes"):
+        attrs = dict(prim.attributes)
+    else:
+        getter = getattr(prim, "GetAttributes", None)
+        if callable(getter):
+            for attribute in getter():
+                if hasattr(attribute, "GetName") and hasattr(attribute, "Get"):
+                    attrs[str(attribute.GetName())] = attribute.Get()
+    for name in (
+        "xformOp:orient",
+        "usd_world_orientation",
+        "ias:orientation_world_quat",
+    ):
+        if name in attrs and attrs[name] is not None:
+            usd.quat_from_any(attrs[name])
+            return True
+    return False
 
 
 def attach_source_object_binding_attrs(
@@ -389,24 +448,34 @@ def attach_microphone_attrs(
     relative_orientation_quat: tuple[float, float, float, float] | None = None,
     gain_db: float = 0.0,
     self_noise_db: float | None = None,
+    directivity: DirectivityPattern | str = DirectivityPattern.OMNI,
 ) -> dict[str, object]:
     """Attach one microphone's metadata to an array child prim."""
 
+    microphone = MicrophoneSpec(
+        mic_id=mic_id,
+        relative_position_m=relative_position_m,
+        relative_orientation_quat=relative_orientation_quat,
+        gain_db=gain_db,
+        self_noise_db=self_noise_db,
+        directivity=directivity,
+    )
     attrs: dict[str, object] = {
-        "ias:microphone_id": mic_id,
-        "ias:relative_position_m": relative_position_m,
-        "ias:gain_db": float(gain_db),
+        "ias:microphone_id": microphone.mic_id,
+        "ias:relative_position_m": microphone.relative_position_m,
+        "ias:gain_db": microphone.gain_db,
+        "ias:directivity": microphone.directivity.value,
     }
-    if relative_orientation_quat is not None:
-        attrs["ias:relative_orientation_quat"] = relative_orientation_quat
-    if self_noise_db is not None:
-        attrs["ias:self_noise_db"] = float(self_noise_db)
+    if microphone.relative_orientation_quat is not None:
+        attrs["ias:relative_orientation_quat"] = microphone.relative_orientation_quat
+    if microphone.self_noise_db is not None:
+        attrs["ias:self_noise_db"] = microphone.self_noise_db
     for name, value in attrs.items():
         _set_attr(prim, name, value)
     set_prim_xform_pose(
         prim,
-        position=relative_position_m,
-        orientation=relative_orientation_quat,
+        position=microphone.relative_position_m,
+        orientation=microphone.relative_orientation_quat,
     )
     return attrs
 
@@ -671,18 +740,6 @@ def _time_code_to_seconds(stage: Any, value: object) -> float:
     if not math.isfinite(seconds):
         raise ValueError("Native Kit Audio timecode must be finite.")
     return seconds
-
-
-def _db_to_linear_gain(gain_db: float) -> float:
-    """Convert the SDK's pressure-like dB gain to Kit's linear scale."""
-
-    try:
-        gain = 10.0 ** (float(gain_db) / 20.0)
-    except OverflowError as exc:
-        raise ValueError("gain_db is too large for Kit Audio linear gain.") from exc
-    if not math.isfinite(gain) or gain <= 0.0:
-        raise ValueError("gain_db must map to a positive finite Kit Audio gain.")
-    return gain
 
 
 def _linear_gain_to_db(gain: object) -> float:

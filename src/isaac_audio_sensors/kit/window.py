@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from time import monotonic
 from typing import TYPE_CHECKING, Any
 
+from isaac_audio_sensors.core.directivity import resolve_directivity_pattern
+
 from .constants import (
     GUIDED_COLLAPSED_SETTING,
     KIT_AUDIO_MIX_LABEL,
@@ -911,7 +913,10 @@ class OmniReferenceWindow:
             def _on_changed(model: Any, _item: Any = None) -> None:
                 selected = _combo_index(model)
                 if 0 <= selected < len(choices):
-                    setattr(self.controller.state, attr_name, choices[selected])
+                    value = choices[selected]
+                    if attr_name == "source_directivity":
+                        value = resolve_directivity_pattern(value)
+                    setattr(self.controller.state, attr_name, value)
                     self._manual_field_changed(attr_name)
 
             if hasattr(widget.model, "add_item_changed_fn"):

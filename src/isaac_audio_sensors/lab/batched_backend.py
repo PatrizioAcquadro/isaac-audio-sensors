@@ -89,8 +89,6 @@ def _mic_world_positions(
 def _source_amplitudes(
     batch: EntityPoseTensorBatch,
     mic_world_positions: torch.Tensor,
-    *,
-    apply_mic_gain: bool,
 ) -> torch.Tensor:
     to_mic = mic_world_positions.unsqueeze(1) - batch.source_positions.unsqueeze(2)
     distance = torch.linalg.vector_norm(to_mic, dim=-1)
@@ -101,8 +99,22 @@ def _source_amplitudes(
         -1.0,
         1.0,
     )
-    coefficient = batch.static.source_directivity_coefficient.view(1, -1, 1)
-    directivity = torch.abs(coefficient + (1.0 - coefficient) * cosine)
+    source_coefficient = batch.static.source_directivity_coefficient.view(1, -1, 1)
+    source_directivity = source_coefficient + (1.0 - source_coefficient) * cosine
+    mic_world_quats = _quat_mul(
+        batch.array_quats_xyzw.unsqueeze(1),
+        batch.static.mic_relative_quats_xyzw.unsqueeze(0),
+    )
+    mic_forward = basis_from_quat_xyzw(mic_world_quats)[..., 0, :]
+    mic_cosine = torch.clamp(
+        (mic_forward.unsqueeze(1) * -to_mic).sum(dim=-1)
+        / torch.clamp(distance, min=EPSILON),
+        -1.0,
+        1.0,
+    )
+    mic_coefficient = batch.static.mic_directivity_coefficient.view(1, 1, -1)
+    microphone_directivity = mic_coefficient + (1.0 - mic_coefficient) * mic_cosine
+    directivity = torch.abs(source_directivity * microphone_directivity)
     directivity = torch.where(
         distance > EPSILON, directivity, torch.ones_like(directivity)
     )
@@ -110,12 +122,23 @@ def _source_amplitudes(
         batch.static.source_gain_scale.view(1, -1, 1)
         * directivity
         / torch.clamp(distance, min=DISTANCE_FLOOR_M)
+        * batch.static.mic_gain_scale.view(1, 1, -1)
     )
-    if apply_mic_gain:
-        amplitude = amplitude * (10.0 ** (batch.static.mic_gains_db / 20.0)).view(
-            1, 1, -1
-        )
     return amplitude
+
+
+def _quat_mul(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+    lx, ly, lz, lw = left.unbind(dim=-1)
+    rx, ry, rz, rw = right.unbind(dim=-1)
+    return torch.stack(
+        (
+            lw * rx + lx * rw + ly * rz - lz * ry,
+            lw * ry - lx * rz + ly * rw + lz * rx,
+            lw * rz + lx * ry - ly * rx + lz * rw,
+            lw * rw - lx * rx - ly * ry - lz * rz,
+        ),
+        dim=-1,
+    )
 
 
 def geometry_observations(batch: EntityPoseTensorBatch) -> BatchedObservations:
@@ -139,7 +162,7 @@ def geometry_observations(batch: EntityPoseTensorBatch) -> BatchedObservations:
         bearing_deg=bearing,
         confidence=confidence,
         ambiguity=torch.zeros_like(valid),
-        per_mic_rms=_source_amplitudes(batch, mic_world, apply_mic_gain=False),
+        per_mic_rms=_source_amplitudes(batch, mic_world),
     )
 
 
@@ -186,7 +209,7 @@ def tdoa_observations(
         bearing_deg=bearing,
         confidence=confidence,
         ambiguity=invalid,
-        per_mic_rms=_source_amplitudes(batch, mic_world, apply_mic_gain=True),
+        per_mic_rms=_source_amplitudes(batch, mic_world),
     )
 
 

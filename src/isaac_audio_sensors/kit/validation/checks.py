@@ -14,6 +14,11 @@ from collections.abc import Iterable
 from typing import Protocol
 
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
+from isaac_audio_sensors.core.directivity import (
+    DirectivityPattern,
+    resolve_directivity_pattern,
+)
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 
 from .results import ValidationFinding
 
@@ -38,7 +43,7 @@ class ValidationState(Protocol):
     array_prim_path: str
     robot_base_prim_path: str
     audio_asset_path: str
-    source_directivity: str
+    source_directivity: DirectivityPattern | str
     source_start_time_s: float
     source_duration_s: float
     source_gain_db: float
@@ -218,16 +223,20 @@ def check_source_metadata(state: ValidationState) -> tuple[ValidationFinding, ..
             "audio_asset_path must be non-empty.",
             "audio_asset_path",
         )
-    if state.source_directivity.strip() == "":
+    try:
+        resolve_directivity_pattern(
+            state.source_directivity,
+            "source_directivity",
+        )
+    except ValueError as exc:
         return _error(
-            "source_directivity_non_empty",
-            "source_directivity must be non-empty.",
+            "source_directivity_supported",
+            str(exc),
             "source_directivity",
         )
     for field_name, value in (
         ("source_start_time_s", state.source_start_time_s),
         ("source_duration_s", state.source_duration_s),
-        ("source_gain_db", state.source_gain_db),
     ):
         if not math.isfinite(float(value)):
             return _error(
@@ -235,6 +244,14 @@ def check_source_metadata(state: ValidationState) -> tuple[ValidationFinding, ..
                 f"{field_name} must be finite.",
                 field_name,
             )
+    try:
+        db_to_amplitude_gain(state.source_gain_db, "source_gain_db")
+    except ValueError as exc:
+        return _error(
+            "source_gain_db_valid",
+            str(exc),
+            "source_gain_db",
+        )
     if state.source_duration_s <= 0.0:
         return _error(
             "source_duration_positive",

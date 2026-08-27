@@ -8,6 +8,12 @@ from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from isaac_audio_sensors.core.directivity import (
+    DirectivityPattern,
+    resolve_directivity_pattern,
+)
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
+
 SUPPORTED_GENERATED_AUDIO_ASSETS = ("generated://impulse", "generated://pulse")
 
 _PROFILE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
@@ -27,7 +33,7 @@ class SoundProfile:
     duration_s: float
     gain_db: float
     loop_count: int = 0
-    directivity: str = "omni"
+    directivity: DirectivityPattern = DirectivityPattern.OMNI
     source_id: str | None = None
     source_id_template: str | None = "{object_slug}_source"
 
@@ -36,7 +42,14 @@ class SoundProfile:
         object.__setattr__(self, "display_label", self.display_label.strip())
         object.__setattr__(self, "class_label", self.class_label.strip())
         object.__setattr__(self, "audio_asset_path", self.audio_asset_path.strip())
-        object.__setattr__(self, "directivity", self.directivity.strip())
+        object.__setattr__(
+            self,
+            "directivity",
+            resolve_directivity_pattern(
+                self.directivity,
+                "SoundProfile.directivity",
+            ),
+        )
         object.__setattr__(
             self,
             "object_label_aliases",
@@ -83,6 +96,7 @@ class SoundProfile:
 
         payload = asdict(self)
         payload["object_label_aliases"] = list(self.object_label_aliases)
+        payload["directivity"] = self.directivity.value
         return {key: payload[key] for key in sorted(payload)}
 
 
@@ -102,7 +116,6 @@ def validate_sound_profile(profile: SoundProfile) -> None:
         _require_profile_text(alias, "object_label_alias")
     _require_profile_text(profile.class_label, "class_label")
     _require_profile_text(profile.audio_asset_path, "audio_asset_path")
-    _require_profile_text(profile.directivity, "directivity")
     if profile.source_id is None and profile.source_id_template is None:
         raise ValueError("source_id or source_id_template must be configured.")
     if profile.audio_asset_path not in SUPPORTED_GENERATED_AUDIO_ASSETS:
@@ -113,10 +126,10 @@ def validate_sound_profile(profile: SoundProfile) -> None:
     for field_name, value in (
         ("start_time_s", profile.start_time_s),
         ("duration_s", profile.duration_s),
-        ("gain_db", profile.gain_db),
     ):
         if not math.isfinite(float(value)):
             raise ValueError(f"{field_name} must be finite.")
+    db_to_amplitude_gain(profile.gain_db, "SoundProfile.gain_db")
     if float(profile.duration_s) <= 0.0:
         raise ValueError("duration_s must be positive.")
     if type(profile.loop_count) is not int or profile.loop_count < -1:

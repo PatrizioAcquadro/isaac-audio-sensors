@@ -7,6 +7,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from isaac_audio_sensors.core.directivity import resolve_directivity_pattern
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.math_utils import (
     euler_deg_from_quaternion,
 )
@@ -18,10 +20,12 @@ from isaac_audio_sensors.isaac.viz.overlays import (
     debug_primitives_to_dicts,
 )
 from isaac_audio_sensors.kit.microphone_rig_profiles import (
+    MicrophoneRigProfile,
     microphone_rig_profile_from_mapping,
     validate_microphone_rig_profile_library,
 )
 from isaac_audio_sensors.kit.sound_profiles import (
+    SoundProfile,
     normalize_object_label,
     sound_profile_from_mapping,
     validate_sound_profile_library,
@@ -96,6 +100,7 @@ class ConfigurationService(ControllerService):
                     check_config_schema_version(payload.get("schema_version"))
                 )
             )
+            self._preflight_config_summary(payload)
             self._apply_config_summary(payload)
             self.state.config_import_path = str(requested_path)
             missing_attachment = (
@@ -504,8 +509,9 @@ class ConfigurationService(ControllerService):
         self.state.source_loop_count = source.get(
             "loop_count", self.state.source_loop_count
         )
-        self.state.source_directivity = str(
-            source.get("directivity", self.state.source_directivity)
+        self.state.source_directivity = resolve_directivity_pattern(
+            source.get("directivity", self.state.source_directivity),
+            "source.directivity",
         )
         if sound_profiles is not None:
             self._apply_profile_config(sound_profiles)
@@ -711,7 +717,48 @@ class ConfigurationService(ControllerService):
             dict(item) for item in overlay.get("primitives", ())
         )
 
+    def _preflight_config_summary(self, payload: Any) -> None:
+        """Validate entity gains/directivity and profile libraries before mutation."""
+
+        if not isinstance(payload, Mapping):
+            raise ValueError("Config summary must be a JSON object.")
+        source = payload.get("source", {})
+        if not isinstance(source, Mapping):
+            raise ValueError("source must be a JSON object.")
+        resolve_directivity_pattern(
+            source.get("directivity", self.state.source_directivity),
+            "source.directivity",
+        )
+        db_to_amplitude_gain(
+            source.get("gain_db", self.state.source_gain_db),
+            "source.gain_db",
+        )
+        sound_profiles = payload.get("sound_profiles")
+        if sound_profiles is not None:
+            self._parse_sound_profile_config(sound_profiles)
+        rig_profiles = payload.get("microphone_rig_profiles")
+        if rig_profiles is not None:
+            self._parse_rig_profile_config(rig_profiles)
+
     def _apply_profile_config(self, payload: Any) -> None:
+        profiles, mappings, selected_profile_id, applied = (
+            self._parse_sound_profile_config(payload)
+        )
+        self.state.profile_library = profiles
+        self.state.object_profile_mappings = mappings
+        self.state.selected_profile_id = selected_profile_id
+        self.state.applied_source_profile = applied
+
+    def _apply_rig_profile_config(self, payload: Any) -> None:
+        profiles, selected_rig_id, applied = self._parse_rig_profile_config(payload)
+        self.state.rig_profile_library = profiles
+        self.state.selected_rig_profile_id = selected_rig_id
+        self.state.applied_array_rig_profile = applied
+
+    def _parse_sound_profile_config(
+        self,
+        payload: Any,
+    ) -> tuple[tuple[SoundProfile, ...], dict[str, str], str, dict[str, Any]]:
         _raise_first(
             ValidationReport(
                 check_sound_profile_config_container(isinstance(payload, Mapping))
@@ -731,7 +778,9 @@ class ConfigurationService(ControllerService):
         )
         _raise_first(
             ValidationReport(
-                check_object_profile_mappings_mapping(isinstance(raw_mappings, Mapping))
+                check_object_profile_mappings_mapping(
+                    isinstance(raw_mappings, Mapping)
+                )
             )
         )
         _raise_first(
@@ -778,15 +827,18 @@ class ConfigurationService(ControllerService):
                 )
             )
         )
-        self.state.profile_library = profiles
-        self.state.object_profile_mappings = dict(sorted(mappings.items()))
-        self.state.selected_profile_id = selected_profile_id
         applied = payload.get("applied_source_profile")
-        self.state.applied_source_profile = (
-            dict(applied) if isinstance(applied, Mapping) else {}
+        return (
+            profiles,
+            dict(sorted(mappings.items())),
+            selected_profile_id,
+            dict(applied) if isinstance(applied, Mapping) else {},
         )
 
-    def _apply_rig_profile_config(self, payload: Any) -> None:
+    def _parse_rig_profile_config(
+        self,
+        payload: Any,
+    ) -> tuple[tuple[MicrophoneRigProfile, ...], str, dict[str, Any]]:
         _raise_first(
             ValidationReport(
                 check_rig_profile_config_container(isinstance(payload, Mapping))
@@ -794,7 +846,9 @@ class ConfigurationService(ControllerService):
         )
         raw_library = payload.get("rig_library")
         _raise_first(
-            ValidationReport(check_rig_profile_library_present(raw_library is not None))
+            ValidationReport(
+                check_rig_profile_library_present(raw_library is not None)
+            )
         )
         _raise_first(
             ValidationReport(
@@ -820,9 +874,9 @@ class ConfigurationService(ControllerService):
                 )
             )
         )
-        self.state.rig_profile_library = profiles
-        self.state.selected_rig_profile_id = selected_rig_id
         applied = payload.get("applied_array_rig_profile")
-        self.state.applied_array_rig_profile = (
-            dict(applied) if isinstance(applied, Mapping) else {}
+        return (
+            profiles,
+            selected_rig_id,
+            dict(applied) if isinstance(applied, Mapping) else {},
         )

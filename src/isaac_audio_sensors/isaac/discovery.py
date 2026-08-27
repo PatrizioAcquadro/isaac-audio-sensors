@@ -13,6 +13,7 @@ from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     DEFAULT_SAMPLE_RATE_HZ,
 )
+from isaac_audio_sensors.core.directivity import DirectivityValidationError
 from isaac_audio_sensors.core.math_utils import (
     Quaternion,
     Vector3,
@@ -399,7 +400,11 @@ def _discover_arrays(
                 "error": str(exc),
                 "candidate_reasons": reasons,
             }
-            if explicit or cfg.strict_candidate_errors:
+            if (
+                isinstance(exc, DirectivityValidationError)
+                or explicit
+                or cfg.strict_candidate_errors
+            ):
                 raise
             continue
         arrays.append(
@@ -470,7 +475,11 @@ def _discover_sources(
                 "error": str(exc),
                 "candidate_reasons": reasons,
             }
-            if explicit or cfg.strict_candidate_errors:
+            if (
+                isinstance(exc, DirectivityValidationError)
+                or explicit
+                or cfg.strict_candidate_errors
+            ):
                 raise
             continue
         sources.append(
@@ -637,6 +646,19 @@ def _source_spec_from_prim(
         ias=_attr_candidate(attrs, "ias:directivity"),
         defaults=("omni", "default"),
     )
+    source = AudioSourceSpec(
+        source_id=source_id,
+        prim_path=path,
+        class_label=class_label,
+        audio_asset_path=audio_asset_path,
+        position_world=pose.position_world,
+        orientation_world_quat=pose.orientation_world_quat,
+        start_time_s=start_time_s,
+        duration_s=duration_s,
+        gain_db=gain_db,
+        loop_count=loop_count,
+        directivity=str(directivity_value),
+    )
     source_diagnostics = {
         "prim_path": path,
         "source_id": source_id,
@@ -652,26 +674,12 @@ def _source_spec_from_prim(
         },
         "gain_db_provenance": gain_provenance,
         "loop_count_provenance": loop_count_provenance,
+        "directivity": source.directivity.value,
         "directivity_provenance": directivity_provenance,
     }
     diagnostics["source_transforms"][path] = _pose_diagnostics(pose)
     diagnostics["source_candidates"][path] = source_diagnostics
-    return (
-        AudioSourceSpec(
-            source_id=source_id,
-            prim_path=path,
-            class_label=class_label,
-            audio_asset_path=audio_asset_path,
-            position_world=pose.position_world,
-            orientation_world_quat=pose.orientation_world_quat,
-            start_time_s=start_time_s,
-            duration_s=duration_s,
-            gain_db=gain_db,
-            loop_count=loop_count,
-            directivity=str(directivity_value),
-        ),
-        source_diagnostics,
-    )
+    return source, source_diagnostics
 
 
 def _microphones_for_array(
@@ -762,25 +770,26 @@ def _child_microphones_for_array(
                     child_pose,
                     array_pose,
                 )
+        microphone = MicrophoneSpec(
+            mic_id=str(attrs.get("ias:microphone_id", _path_name(path))),
+            relative_position_m=relative_position,
+            relative_orientation_quat=relative_orientation,
+            gain_db=_float_attr(attrs, ("ias:gain_db", "gain"), default=0.0),
+            self_noise_db=_optional_float_attr(
+                attrs,
+                ("ias:self_noise_db", "selfNoise"),
+            ),
+            directivity=str(attrs.get("ias:directivity", "omni")),
+        )
         diagnostics[path] = {
             "relative_position_m": relative_position,
             "relative_orientation_quat": relative_orientation,
+            "directivity": microphone.directivity.value,
             "world_transform": (
                 None if child_pose is None else _pose_diagnostics(child_pose)
             ),
         }
-        microphones.append(
-            MicrophoneSpec(
-                mic_id=str(attrs.get("ias:microphone_id", _path_name(path))),
-                relative_position_m=relative_position,
-                relative_orientation_quat=relative_orientation,
-                gain_db=_float_attr(attrs, ("ias:gain_db", "gain"), default=0.0),
-                self_noise_db=_optional_float_attr(
-                    attrs,
-                    ("ias:self_noise_db", "selfNoise"),
-                ),
-            )
-        )
+        microphones.append(microphone)
     return tuple(microphones), diagnostics
 
 

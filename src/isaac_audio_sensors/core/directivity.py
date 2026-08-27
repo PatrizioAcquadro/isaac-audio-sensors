@@ -21,6 +21,10 @@ from isaac_audio_sensors.core.math_utils import (
 DIRECTIVITY_MODE = "per_pair_direct_path"
 
 
+class DirectivityValidationError(ValueError):
+    """Invalid entity-owned directivity or missing required orientation."""
+
+
 class DirectivityPattern(str, Enum):
     """Supported first-order polar-pattern families."""
 
@@ -49,12 +53,14 @@ def resolve_directivity_pattern(
     if isinstance(value, DirectivityPattern):
         return value
     if not isinstance(value, str):
-        raise ValueError(f"{field_name} must be a DirectivityPattern or string.")
+        raise DirectivityValidationError(
+            f"{field_name} must be a DirectivityPattern or string."
+        )
     try:
         return DirectivityPattern(value)
     except ValueError as exc:
         supported = tuple(pattern.value for pattern in DirectivityPattern)
-        raise ValueError(
+        raise DirectivityValidationError(
             f"{field_name} must be one of {supported!r}; received {value!r}."
         ) from exc
 
@@ -78,7 +84,7 @@ def evaluate_polar_pattern(
     if direction_norm <= EPSILON or resolved is DirectivityPattern.OMNI:
         return 1.0
     if orientation_xyzw is None:
-        raise ValueError(
+        raise DirectivityValidationError(
             f"non-omni directivity {resolved.value!r} requires an orientation."
         )
     axis = rotate_vector_by_quaternion(

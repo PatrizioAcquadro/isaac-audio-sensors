@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import math
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.math_utils import as_quaternion_xyzw, as_vector3
 from isaac_audio_sensors.core.types import MicrophoneSpec
 
@@ -141,8 +141,7 @@ def validate_microphone_rig_profile(profile: MicrophoneRigProfile) -> None:
     if len(profile.microphone_gains_db) != len(profile.microphone_ids):
         raise ValueError("microphone_gains_db must match microphone_ids length.")
     for gain_db in profile.microphone_gains_db:
-        if not math.isfinite(float(gain_db)):
-            raise ValueError("microphone_gains_db must contain only finite values.")
+        db_to_amplitude_gain(gain_db, "microphone_gains_db")
     if int(profile.sample_rate_hz) <= 0:
         raise ValueError("sample_rate_hz must be positive.")
     if profile.recommended_mount_prim_path is not None and not str(

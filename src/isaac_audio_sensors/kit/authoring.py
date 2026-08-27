@@ -1451,6 +1451,7 @@ class AuthoringService(ControllerService):
                 relative_orientation_quat=microphone.relative_orientation_quat,
                 gain_db=microphone.gain_db,
                 self_noise_db=microphone.self_noise_db,
+                directivity=microphone.directivity,
             )
 
     def _remove_stale_child_microphones(

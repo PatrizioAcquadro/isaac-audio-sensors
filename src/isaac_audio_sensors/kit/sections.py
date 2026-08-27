@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from .constants import (
     AMBIGUITY_POLICY_CHOICES,
     BACKEND_CHOICES,
+    DIRECTIVITY_CHOICES,
     LAYOUT_CHOICES,
     ROOM_OUT_OF_BOUNDS_CHOICES,
     SOURCE_POSITION_PRESETS,
@@ -653,7 +654,7 @@ def build_source_section(window: OmniReferenceWindow) -> None:
         window._string_row("Source ID", "source_id")
         window._string_row("Class", "source_class_label")
         window._string_row("Audio URI", "audio_asset_path")
-        window._string_row("Directivity", "source_directivity")
+        window._combo_row("Directivity", "source_directivity", DIRECTIVITY_CHOICES)
         profile_ids = tuple(
             profile.profile_id for profile in window.controller.state.profile_library
         )

@@ -1,15 +1,23 @@
 from __future__ import annotations
 
 import math
-from dataclasses import fields
+from dataclasses import fields, replace
 from types import SimpleNamespace
 
 import pytest
 import torch
 from isaaclab.sensors import SensorBase, SensorBaseCfg
 
-from isaac_audio_sensors.core.microphone_array import create_microphone_array
-from isaac_audio_sensors.core.types import AudioSceneSnapshot, AudioSourceSpec
+from isaac_audio_sensors.core.directivity import DirectivityPattern
+from isaac_audio_sensors.core.microphone_array import (
+    create_microphone_array,
+    microphone_layout,
+)
+from isaac_audio_sensors.core.types import (
+    AudioSceneSnapshot,
+    AudioSourceSpec,
+    RoomAcousticsSpec,
+)
 from isaac_audio_sensors.lab import (
     AudioArraySensor,
     AudioArraySensorCfg,
@@ -25,6 +33,9 @@ from isaac_audio_sensors.lab.batched_backend import (
 )
 from isaac_audio_sensors.lab.entity_binding import EntityBinding
 from isaac_audio_sensors.lab.reference_backend import ReferenceBackend
+from tests.helpers import install_fake_pyroom
+
+DB_DOUBLE = 20.0 * math.log10(2.0)
 
 
 class _Scene(dict):
@@ -47,12 +58,18 @@ def _root_state(positions: tuple[tuple[float, float, float], ...]) -> torch.Tens
     return state
 
 
-def _snapshot(array, sources: tuple[AudioSourceSpec, ...]) -> AudioSceneSnapshot:
+def _snapshot(
+    array,
+    sources: tuple[AudioSourceSpec, ...],
+    *,
+    room: RoomAcousticsSpec | None = None,
+) -> AudioSceneSnapshot:
     return AudioSceneSnapshot(
         stage_id="reference",
         timestamp_ms=0,
         arrays=(array,),
         sources=sources,
+        room=room,
     )
 
 
@@ -260,6 +277,20 @@ def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
         EntityBindingCfg()
     with pytest.raises(ValueError, match="directivity"):
         SourceEntityCfg(entity_name="speaker", directivity="unknown")
+    with pytest.raises((TypeError, ValueError), match="relative_orientation_quat"):
+        SourceEntityCfg(
+            entity_name="speaker",
+            directivity=DirectivityPattern.CARDIOID,
+            relative_orientation_quat=None,
+        )
+    assert "microphone_relative_offsets_m" not in {
+        field.name for field in fields(EntityBindingCfg)
+    }
+    with pytest.raises(TypeError, match="microphone_relative_offsets_m"):
+        EntityBindingCfg(
+            source_entities=(SourceEntityCfg(entity_name="speaker"),),
+            microphone_relative_offsets_m=((0.0, 0.0, 0.0),),
+        )
 
     bad_state = torch.zeros((1, 6), dtype=torch.float32)
     scene = _Scene(robot=_entity(bad_state), speaker=_entity(bad_state))
@@ -287,3 +318,204 @@ def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
     )
     with pytest.raises(ValueError, match="sensor is on cuda"):
         binding.pose_batch(torch.tensor([0]), device="cuda:0")
+
+
+@pytest.mark.parametrize("backend_id", ["geometry_only", "tdoa_synthetic"])
+@pytest.mark.parametrize(
+    ("gain_target", "gain_db", "expected_ratio"),
+    (
+        ("source", DB_DOUBLE, 2.0),
+        ("source", -DB_DOUBLE, 0.5),
+        ("microphone", DB_DOUBLE, 2.0),
+        ("microphone", -DB_DOUBLE, 0.5),
+    ),
+)
+def test_entity_modes_apply_source_and_microphone_gain_once(
+    backend_id: str,
+    gain_target: str,
+    gain_db: float,
+    expected_ratio: float,
+) -> None:
+    baseline = _entity_mode_rms(backend_id)
+    changed = _entity_mode_rms(
+        backend_id,
+        source_gain_db=gain_db if gain_target == "source" else 0.0,
+        microphone_gain_db=gain_db if gain_target == "microphone" else 0.0,
+    )
+
+    assert changed / baseline == pytest.approx(expected_ratio, rel=1e-5)
+
+
+@pytest.mark.parametrize(
+    "backend_id",
+    [
+        "geometry_only",
+        "tdoa_synthetic",
+        "room_acoustics",
+        "room_acoustics_srp",
+    ],
+)
+@pytest.mark.parametrize(
+    ("gain_target", "gain_db", "expected_ratio"),
+    (
+        ("source", DB_DOUBLE, 2.0),
+        ("source", -DB_DOUBLE, 0.5),
+        ("microphone", DB_DOUBLE, 2.0),
+        ("microphone", -DB_DOUBLE, 0.5),
+    ),
+)
+def test_reference_mode_preserves_relative_gain_ratios(
+    monkeypatch,
+    backend_id: str,
+    gain_target: str,
+    gain_db: float,
+    expected_ratio: float,
+) -> None:
+    if backend_id.startswith("room_acoustics"):
+        install_fake_pyroom(monkeypatch)
+    baseline = _reference_mode_rms(backend_id)
+    changed = _reference_mode_rms(
+        backend_id,
+        source_gain_db=gain_db if gain_target == "source" else 0.0,
+        microphone_gain_db=gain_db if gain_target == "microphone" else 0.0,
+    )
+
+    assert changed / baseline == pytest.approx(expected_ratio, rel=1e-5)
+
+
+def test_entity_binding_uses_canonical_entity_directivity_and_microphone_gain() -> None:
+    state = _root_state(((0.0, 0.0, 0.0),))
+    microphones = tuple(
+        replace(
+            microphone,
+            gain_db=DB_DOUBLE,
+            directivity=DirectivityPattern.SUPERCARDIOID,
+            relative_orientation_quat=(0.0, 0.0, 0.0, 1.0),
+        )
+        for microphone in microphone_layout("quad_front")
+    )
+    binding = EntityBinding(
+        _Scene(robot=_entity(state), speaker=_entity(state.clone())),
+        EntityBindingCfg(
+            microphone_layout=None,
+            microphones=microphones,
+            source_entities=(
+                SourceEntityCfg(
+                    entity_name="speaker",
+                    gain_db=DB_DOUBLE,
+                    directivity=DirectivityPattern.FIGURE_EIGHT,
+                ),
+            ),
+        ),
+    )
+
+    torch.testing.assert_close(
+        binding.static.mic_gain_scale,
+        torch.full((4,), 2.0),
+    )
+    torch.testing.assert_close(
+        binding.static.mic_directivity_coefficient,
+        torch.full((4,), 0.37),
+    )
+    torch.testing.assert_close(binding.static.source_gain_scale, torch.tensor([2.0]))
+    torch.testing.assert_close(
+        binding.static.source_directivity_coefficient,
+        torch.tensor([0.0]),
+    )
+
+
+def _entity_mode_rms(
+    backend_id: str,
+    *,
+    source_gain_db: float = 0.0,
+    microphone_gain_db: float = 0.0,
+) -> float:
+    robot = _root_state(((0.0, 0.0, 0.0),))
+    source = _root_state(((4.0, 0.0, 0.0),))
+    microphones = tuple(
+        replace(microphone, gain_db=microphone_gain_db)
+        for microphone in microphone_layout("quad_front")
+    )
+    binding = EntityBinding(
+        _Scene(robot=_entity(robot), speaker=_entity(source)),
+        EntityBindingCfg(
+            microphone_layout=None,
+            microphones=microphones,
+            source_entities=(
+                SourceEntityCfg(entity_name="speaker", gain_db=source_gain_db),
+            ),
+        ),
+    )
+    batch = binding.pose_batch(torch.tensor([0]), device="cpu")
+    if backend_id == "geometry_only":
+        observations = geometry_observations(batch)
+    else:
+        solve, baseline, determinant = precompute_tdoa_operator(
+            binding.static.mic_offsets_local
+        )
+        assert determinant > 0.0
+        observations = tdoa_observations(
+            batch,
+            solve_operator=solve,
+            baseline_matrix=baseline,
+        )
+    return float(observations.per_mic_rms[0, 0, 0].item())
+
+
+def _reference_mode_rms(
+    backend_id: str,
+    *,
+    source_gain_db: float = 0.0,
+    microphone_gain_db: float = 0.0,
+) -> float:
+    array = create_microphone_array(
+        array_id="array",
+        prim_path="/World/Array",
+        layout_name="quad_front",
+    )
+    array = replace(
+        array,
+        microphones=tuple(
+            replace(microphone, gain_db=microphone_gain_db)
+            for microphone in array.microphones
+        ),
+    )
+    source = AudioSourceSpec(
+        source_id="speaker",
+        prim_path="/World/Speaker",
+        class_label="Speech",
+        audio_asset_path="generated://impulse",
+        position_world=(4.0, 0.0, 0.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
+        start_time_s=0.0,
+        duration_s=1.0,
+        gain_db=source_gain_db,
+    )
+    room = None
+    if backend_id.startswith("room_acoustics"):
+        room = RoomAcousticsSpec(
+            room_id="room",
+            dimensions_m=(20.0, 20.0, 20.0),
+            origin_m=(-10.0, -10.0, -10.0),
+            absorption=0.2,
+            max_order=1,
+        )
+    reference = ReferenceBackend(
+        backend_id=backend_id,
+        ambiguity_policy="none",
+        effects=AudioArraySensorCfg(
+            prim_path="/World/Audio",
+            backend=backend_id,
+        ).effects,
+        snapshots=(_snapshot(array, (source,), room=room),),
+        array_specs=(array,),
+    )
+    result = reference.observations(
+        env_ids=torch.tensor([0]),
+        timestamps_s=torch.tensor([0.0]),
+        frame_indices=torch.tensor([0]),
+        max_events=1,
+        update_period=0.05,
+        device="cpu",
+    )
+    return float(result.per_mic_rms[0, 0, 0].item())

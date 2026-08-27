@@ -155,6 +155,38 @@ def test_extension_controller_profile_config_roundtrip_legacy_and_errors(tmp_pat
     )
 
 
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    (
+        (
+            lambda payload: payload["source"].__setitem__("directivity", "unsupported"),
+            "source.directivity",
+        ),
+        (
+            lambda payload: payload["sound_profiles"]["profile_library"][0].__setitem__(
+                "directivity", "unsupported"
+            ),
+            "SoundProfile.directivity",
+        ),
+    ),
+)
+def test_config_import_rejects_directivity_before_mutating_state(
+    tmp_path,
+    mutate,
+    message,
+):
+    controller = ExtensionController()
+    payload = controller.config_summary_dict()
+    payload["array"]["array_id"] = "must_not_apply"
+    mutate(payload)
+    path = tmp_path / "invalid_directivity.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert controller.import_config_summary(path) is None
+    assert controller.state.array_id == "rig_front"
+    assert message in str(controller.state.error_message)
+
+
 def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     tmp_path,
 ):
@@ -190,6 +222,7 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     front_mic = stage.GetPrimAtPath("/World/Rig/AudioArray/front")
     assert front_mic is not None
     assert front_mic.attributes["ias:gain_db"] == 0.0
+    assert front_mic.attributes["ias:directivity"] == "omni"
     assert front_mic.attributes["ias:relative_position_m"] == (0.06, 0.0, 0.0)
     assert controller.state.applied_array_rig_profile["profile_id"] == (
         "quad_cross_120mm"

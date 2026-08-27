@@ -8,7 +8,12 @@ from typing import Any, Literal
 
 import torch
 
-from isaac_audio_sensors.core.constants import DIRECTIVITY_COEFFICIENTS
+from isaac_audio_sensors.core.directivity import (
+    DIRECTIVITY_COEFFICIENTS,
+    DirectivityPattern,
+    resolve_directivity_pattern,
+)
+from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.math_utils import (
     Quaternion,
     Vector3,
@@ -16,6 +21,7 @@ from isaac_audio_sensors.core.math_utils import (
     as_vector3,
 )
 from isaac_audio_sensors.core.microphone_array import microphone_layout
+from isaac_audio_sensors.core.types import MicrophoneSpec
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -28,7 +34,7 @@ class SourceEntityCfg:
     start_time_s: float = 0.0
     duration_s: float | None = 1.0
     gain_db: float = 0.0
-    directivity: str = "omni"
+    directivity: DirectivityPattern = DirectivityPattern.OMNI
     relative_position_m: Vector3 = (0.0, 0.0, 0.0)
     relative_orientation_quat: Quaternion = (0.0, 0.0, 0.0, 1.0)
 
@@ -38,10 +44,17 @@ class SourceEntityCfg:
             _require_name(self.body_name, "body_name")
         if self.source_id is not None:
             _require_name(self.source_id, "source_id")
-        if self.directivity not in DIRECTIVITY_COEFFICIENTS:
-            raise ValueError(f"Unsupported source directivity {self.directivity!r}.")
+        object.__setattr__(
+            self,
+            "directivity",
+            resolve_directivity_pattern(
+                self.directivity,
+                "SourceEntityCfg.directivity",
+            ),
+        )
         _require_finite(self.start_time_s, "start_time_s")
-        _require_finite(self.gain_db, "gain_db")
+        db_to_amplitude_gain(self.gain_db, "SourceEntityCfg.gain_db")
+        object.__setattr__(self, "gain_db", float(self.gain_db))
         if self.duration_s is not None:
             _require_finite(self.duration_s, "duration_s")
             if self.duration_s <= 0.0:
@@ -69,7 +82,7 @@ class EntityBindingCfg:
     array_relative_position_m: Vector3 = (0.0, 0.0, 0.0)
     array_relative_orientation_quat: Quaternion = (0.0, 0.0, 0.0, 1.0)
     microphone_layout: str | None = "quad_front"
-    microphone_relative_offsets_m: tuple[tuple[str, Vector3], ...] | None = None
+    microphones: tuple[MicrophoneSpec, ...] | None = None
     source_entities: tuple[SourceEntityCfg, ...] = ()
     state_position_frame: Literal["world", "env"] = "world"
     env_origins: torch.Tensor | None = None
@@ -83,20 +96,19 @@ class EntityBindingCfg:
             raise ValueError("state_position_frame must be 'world' or 'env'.")
         if self.state_quat_order not in {"wxyz", "xyzw"}:
             raise ValueError("state_quat_order must be 'wxyz' or 'xyzw'.")
-        if self.microphone_layout is None and not self.microphone_relative_offsets_m:
-            raise ValueError(
-                "Provide microphone_layout or microphone_relative_offsets_m."
-            )
+        if self.microphone_layout is None and not self.microphones:
+            raise ValueError("Provide microphone_layout or microphones.")
         if not self.source_entities:
             raise ValueError("source_entities must not be empty.")
-        if self.microphone_relative_offsets_m is not None:
-            offsets = tuple(
-                (str(mic_id), as_vector3(position, "microphone offset"))
-                for mic_id, position in self.microphone_relative_offsets_m
-            )
-            if len({mic_id for mic_id, _ in offsets}) != len(offsets):
+        if self.microphones is not None:
+            microphones = tuple(self.microphones)
+            if not all(isinstance(item, MicrophoneSpec) for item in microphones):
+                raise TypeError("microphones must contain MicrophoneSpec values.")
+            if len({microphone.mic_id for microphone in microphones}) != len(
+                microphones
+            ):
                 raise ValueError("Microphone ids must be unique.")
-            object.__setattr__(self, "microphone_relative_offsets_m", offsets)
+            object.__setattr__(self, "microphones", microphones)
         object.__setattr__(self, "source_entities", tuple(self.source_entities))
         object.__setattr__(
             self,
@@ -116,7 +128,9 @@ class EntityBindingCfg:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class EntityStaticBatchMeta:
     mic_offsets_local: torch.Tensor
-    mic_gains_db: torch.Tensor
+    mic_relative_quats_xyzw: torch.Tensor
+    mic_gain_scale: torch.Tensor
+    mic_directivity_coefficient: torch.Tensor
     source_start_s: torch.Tensor
     source_end_s: torch.Tensor
     source_gain_scale: torch.Tensor
@@ -328,15 +342,17 @@ def _static_meta(
     source_cfgs: tuple[SourceEntityCfg, ...],
     device: torch.device,
 ) -> EntityStaticBatchMeta:
-    if cfg.microphone_relative_offsets_m is None:
+    if cfg.microphones is None:
         microphones = microphone_layout(str(cfg.microphone_layout))
-        offsets = tuple(microphone.relative_position_m for microphone in microphones)
-        gains = tuple(microphone.gain_db for microphone in microphones)
     else:
-        offsets = tuple(position for _, position in cfg.microphone_relative_offsets_m)
-        gains = tuple(0.0 for _ in offsets)
+        microphones = cfg.microphones
+    offsets = tuple(microphone.relative_position_m for microphone in microphones)
     if not offsets:
         raise ValueError("Microphone geometry must not be empty.")
+    mic_orientations = tuple(
+        microphone.relative_orientation_quat or (0.0, 0.0, 0.0, 1.0)
+        for microphone in microphones
+    )
     starts = tuple(source.start_time_s for source in source_cfgs)
     ends = tuple(
         math.inf
@@ -346,11 +362,40 @@ def _static_meta(
     )
     return EntityStaticBatchMeta(
         mic_offsets_local=torch.tensor(offsets, dtype=torch.float32, device=device),
-        mic_gains_db=torch.tensor(gains, dtype=torch.float32, device=device),
+        mic_relative_quats_xyzw=torch.tensor(
+            mic_orientations,
+            dtype=torch.float32,
+            device=device,
+        ),
+        mic_gain_scale=torch.tensor(
+            tuple(
+                db_to_amplitude_gain(
+                    microphone.gain_db,
+                    f"MicrophoneSpec[{microphone.mic_id!r}].gain_db",
+                )
+                for microphone in microphones
+            ),
+            dtype=torch.float32,
+            device=device,
+        ),
+        mic_directivity_coefficient=torch.tensor(
+            tuple(
+                DIRECTIVITY_COEFFICIENTS[microphone.directivity]
+                for microphone in microphones
+            ),
+            dtype=torch.float32,
+            device=device,
+        ),
         source_start_s=torch.tensor(starts, dtype=torch.float32, device=device),
         source_end_s=torch.tensor(ends, dtype=torch.float32, device=device),
         source_gain_scale=torch.tensor(
-            tuple(10.0 ** (source.gain_db / 20.0) for source in source_cfgs),
+            tuple(
+                db_to_amplitude_gain(
+                    source.gain_db,
+                    f"SourceEntityCfg[{_source_id(source)!r}].gain_db",
+                )
+                for source in source_cfgs
+            ),
             dtype=torch.float32,
             device=device,
         ),

@@ -3,6 +3,7 @@
 import sys
 from types import ModuleType
 
+from isaac_audio_sensors.core.directivity import DirectivityPattern
 from isaac_audio_sensors.kit import ExtensionController
 from tests.kit_helpers import _FakeUI
 
@@ -24,3 +25,8 @@ def test_kit_window_builds_and_refreshes(monkeypatch) -> None:
     controller.refresh_window()
 
     assert window._labels["status"].text == "Host refresh complete"
+
+    directivity_widget, choices = window._combo_fields["source_directivity"]
+    assert choices == ("omni", "cardioid", "supercardioid", "figure_eight")
+    directivity_widget.model.set_value(3)
+    assert controller.state.source_directivity is DirectivityPattern.FIGURE_EIGHT
