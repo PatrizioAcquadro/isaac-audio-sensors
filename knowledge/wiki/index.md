@@ -9,6 +9,7 @@
 - [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]] — canonical wiki, root documentation removal, and documentation-boundary enforcement.
 - [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]] — v2 API ownership, dependency direction, and bounded semantic cleanup.
 - [[implementation_phases/r6-packaging-and-release|R6 Packaging and Release]] — published Python source/wheel distributions, trusted publication, and self-contained Kit archive.
+- [[implementation_phases/r7-geometry-aware-acoustic-realism|R7 Geometry-Aware Acoustic Realism]] — explicit analytic environments and one geometry-aware passive-audio backend for Isaac.
 
 ## Topics
 

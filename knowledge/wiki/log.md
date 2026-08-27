@@ -333,3 +333,11 @@ Recorded `simulate(scene, array_id, time_window)`, snapshot-only array authority
 ## 2026-08-27 — lint: Snapshot-authoritative backend contract
 
 Verified 503 unit/contract tests, 180 integration tests, 57 release tests, 103 Isaac tests, the CLI and optional-audio smokes, RTX 4090 Isaac Sim/Lab/Kit gates, canonical wiki boundaries, immutable raw content, Ruff, version synchronization, and whitespace.
+
+## 2026-08-27 — update: Geometry-aware acoustic realism plan
+
+Specified explicit analytic-environment inputs, fail-closed room resolution, physically coherent relative propagation, and the provider boundary for a primary geometry-aware passive-audio backend.
+
+## 2026-08-27 — lint: Geometry-aware acoustic realism plan
+
+Verified the allowed wiki structure, phase-page index coverage, internal links, immutable raw content, planned-versus-current wording, and Markdown whitespace.
