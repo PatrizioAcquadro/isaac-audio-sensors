@@ -4,7 +4,9 @@
 
 Implement one fast, deterministic `AnalyticAcoustics` backend over the [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]]. It is the pure-Core path for tests, non-Isaac use, and large Isaac Lab workloads.
 
-`AnalyticAcoustics` replaces the existing room-specific backend surface. Useful PyRoom, GCC-PHAT, and SRP-PHAT behavior remains available through the canonical design where still required, while obsolete `room_acoustics`/`room_acoustics_srp` plugin identifiers, classes, adapters, parsers, modules, and documentation are removed after active consumers migrate. No compatibility aliases or duplicate backend paths remain.
+The target public propagation surface contains only `AnalyticAcoustics` and `GeometryAcoustics`. After active consumers migrate, `geometry_only`, `tdoa_synthetic`, `room_acoustics`, and `room_acoustics_srp` are removed as backend identifiers and implementations; their useful direct-geometry, TDOA, and PyRoom behavior becomes internal `AnalyticAcoustics` solver logic, not compatibility aliases or duplicate backend paths.
+
+GCC-PHAT, TDOA least-squares, and SRP-PHAT remain separate DOA-estimation algorithms selected after propagation. They are not propagation backends and are not removed by the two-backend consolidation.
 
 ## Subphase R8.1 — Solver Routing
 

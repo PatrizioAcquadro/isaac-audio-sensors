@@ -357,3 +357,11 @@ Clarified direct replacement of `RoomAcousticsSpec` and room-specific backends, 
 ## 2026-08-27 — lint: Lean acoustic contract migration
 
 Verified phase ownership, cross-phase links, explicit removal boundaries, single-application occlusion semantics, immutable raw content, and Markdown whitespace.
+
+## 2026-08-27 — update: Two-backend and DOA boundary
+
+Clarified removal of all four legacy propagation backends, migration of their useful behavior into `AnalyticAcoustics`, and preservation of DOA estimators as separate post-propagation algorithms.
+
+## 2026-08-27 — lint: Two-backend and DOA boundary
+
+Verified phase ownership, index coverage, legacy-backend removal wording, DOA-estimator separation, internal links, immutable raw content, and Markdown whitespace.
