@@ -349,3 +349,11 @@ Replaced the monolithic R7 plan with separate phase specifications for the envir
 ## 2026-08-27 — lint: Split acoustic realism roadmap
 
 Verified phase ownership, index coverage, cross-phase links, immutable raw content, planned-versus-current wording, and Markdown whitespace.
+
+## 2026-08-27 — update: Lean acoustic contract migration
+
+Clarified direct replacement of `RoomAcousticsSpec` and room-specific backends, direct-stem-only `SourceOcclusion` authority in analytic propagation, and single provider-owned occlusion in `GeometryAcoustics` without diagnostic-only reconstruction.
+
+## 2026-08-27 — lint: Lean acoustic contract migration
+
+Verified phase ownership, cross-phase links, explicit removal boundaries, single-application occlusion semantics, immutable raw content, and Markdown whitespace.

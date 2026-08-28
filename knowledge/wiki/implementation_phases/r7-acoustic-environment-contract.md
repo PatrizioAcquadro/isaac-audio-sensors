@@ -20,16 +20,19 @@ The contract supports five concise configurations without a public class hierarc
 
 Common configurations use builders or presets. `dimensions_m` is a shoebox convenience, while general shapes use local surface vertices. The environment world pose handles translated, rotated, or inclined configurations without encoding world coordinates into reusable local geometry.
 
+The new contract replaces `RoomAcousticsSpec` outright. R7 migrates `AudioSceneSnapshot.room`, configuration, schemas, Isaac, Kit, examples, and every active consumer to one canonical environment field, then removes the old type and room-only configuration surface. It does not retain a wrapper, alias, parallel `room`/`environment` fields, or compatibility parser once the migration is complete.
+
 #### Key Decisions
 
 - One analytic environment contract replaces separate public room classes and backends.
+- `RoomAcousticsSpec` is removed after its active consumers migrate; it is not preserved as a deprecated shoebox wrapper.
 - A floor-only scene is half-space, not free field.
 - An L-shaped room is one polygon prism, not overlapping shoeboxes.
 - Separate real rooms are not merged into one analytic box.
 
 #### Problems / Limitations
 
-The contract intentionally represents simple analytic surfaces, not arbitrary scene meshes, portals, or a complete multi-room acoustic graph.
+The contract intentionally represents simple analytic surfaces, not arbitrary scene meshes, portals, or a complete multi-room acoustic graph. This is a deliberate breaking cleanup: obsolete room-specific types and duplicate configuration paths do not remain in the maintained package.
 
 ## Subphase R7.2 — Input and Isaac Resolution
 

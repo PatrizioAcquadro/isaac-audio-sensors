@@ -30,15 +30,20 @@ Map arbitrary passive source content, source pose and directivity, every microph
 
 Isaac Audio Sensors owns provider lifecycle, source and array translation, per-channel effects, diagnostics, frame assembly, and public sensor semantics. The external engine owns mesh acceleration, ray traversal, multi-bounce reflection, scattering, indirect path search, and approximate diffraction.
 
+The provider owns geometry-path occlusion and transmission exactly once. Isaac therefore does not run the legacy `SourceOcclusion` raycast-and-attenuation path for `GeometryAcoustics`, and the backend does not accept a precomputed `SourceOcclusion` record as another gain stage. Conflicting external attenuation input fails validation rather than being ignored or double-applied.
+
+Do not reconstruct `SourceOcclusion` solely to mirror legacy diagnostics. Expose only concise provider-derived occlusion state that remains meaningful to the public frame contract or an active consumer; do not duplicate provider path data without a concrete use. Legacy occlusion machinery remains only where R8 still needs direct-path analytic attenuation, and geometry-path wrappers or duplicate material resolution are removed after consumer migration.
+
 #### Key Decisions
 
 - The backend simulates a robot-mounted microphone array, not a human listener or qualitative device mix.
+- Geometry-provider occlusion is applied once; `SourceOcclusion` is neither an additional attenuation stage nor a mandatory diagnostic artifact.
 - Relative physical coherence is required; absolute calibration remains deployment-specific and optional.
 - Structural vibration, a complete wave-equation solver, and active ultrasound are outside this phase.
 
 #### Problems / Limitations
 
-The provider's supported physics define the advanced-fidelity ceiling. Unsupported effects must remain explicit rather than being replaced with undocumented heuristics.
+The provider's supported physics define the advanced-fidelity ceiling. Unsupported effects must remain explicit rather than being replaced with undocumented heuristics. Diagnostics retain only actionable provenance, limitations, and observable sensor state; they do not preserve obsolete internal structures for their own sake.
 
 ## Subphase R10.3 — Operating Boundary
 
