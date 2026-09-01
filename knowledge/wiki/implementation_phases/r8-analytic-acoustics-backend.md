@@ -46,11 +46,15 @@ The caller chooses the environment, not the solver. The selected solver is repor
 
 #### Implementation
 
-Produce a separate phase-coherent received waveform for every microphone. Preserve relative timing, phase, distance loss, air absorption, material effects, channel relationships, and source/microphone directivity.
+R8.2 produces one phase-coherent received waveform per microphone while preserving relative timing, polarity, distance loss, air absorption, material effects, channel relationships, source gain, Doppler, and source/microphone directivity. The public output remains the combined multichannel waveform; direct and indirect stems are internal implementation state.
 
-Keep direct and indirect propagation as distinct stems. `SourceOcclusion` has authority only over the analytic direct path: for direct stem `D`, reflected stem `R`, and direct-path attenuation `a`, the result is `a * D + R`, not `a * (D + R)`. Occlusion remains per source and microphone and may depend on the hit object, acoustic material, frequency band, and multiple blocking surfaces. Obstacle loss is not multiplied by an arbitrary source-obstacle distance factor.
+Core free field exposes its direct impulse as `D`; half space separates that impulse from the floor image-source reflection `R`. Each PyRoom shoebox or polygon-prism render computes both the configured full RIR and an order-zero direct RIR, pads them to one shape, and derives `R = full - D`. The same decomposition is assembled segment by segment for motion windows. PyRoom receives the requested sound speed before RIR computation through `Room.set_sound_speed()` when available; constructor-configured legacy providers are accepted only when `room.c` proves that they preserved the exact value, otherwise the backend fails explicitly.
 
-Retain `SourceOcclusion` only for this necessary direct-path contract and meaningful public state. Audit its fields and consumers during the migration, remove duplicate or unused diagnostic-only data, and do not expand it into a container for reflected paths, diffraction, provider impulse responses, or general geometry propagation.
+For direct stem `D`, indirect stem `R`, and direct-path attenuation `a`, the backend computes `a * D + R`, never `a * (D + R)`. Broadband or banded loss is applied once to each affected source/microphone pair after source gain, Doppler, and `per_pair_direct_path` directivity. Microphone gain, channel response, source summation, noise/electronics, DOA estimation, and frame assembly follow recombination. With no attenuation, the original full premix is used directly; only actually attenuated pairs are replaced, preserving the previous no-occlusion waveform byte for byte. Geometry-only and synthetic-TDOA propagation remain direct-only, and retained PyRoom backends now use the same direct-stem rule when `SourceOcclusion` is present.
+
+`SourceOcclusion` now requires `array_id`, `source_id`, exact `per_mic_blocked` and `per_mic_attenuation_db` maps, and `occlusion_model`. Optional aligned band attenuation, band centers, per-microphone hit paths, and hit-material provenance remain. Construction and scene assembly validate identifiers, exact microphone coverage, finite non-negative rows, unblocked zero state, path references, and material references. Aggregate `occlusion_factor`, `attenuation_db`, and `hit_prim_paths` fields and duplicate applied-gain diagnostics were removed without aliases. `AudioDetection.occluded` and the concise UI `occlusion_factor` diagnostic are derived from `per_mic_blocked`.
+
+The live Isaac sensor accepts `analytic_acoustics` with enabled raycast occlusion. Its lifecycle evidence covers a blocked-to-clear transition after source/array motion, using the same public frame and Kit paths as ordinary captures.
 
 Absolute SPL is not a package default. Source power, microphone sensitivity, measured materials, and absolute calibration remain optional user-owned extensions with explicit provenance.
 
@@ -58,12 +62,14 @@ Absolute SPL is not a package default. Source power, microphone sensitivity, mea
 
 - Physically coherent relative signals are the maintained public target.
 - `SourceOcclusion` is applied exactly once and only to the analytic direct stem.
+- The unoccluded full-premix path remains the numerical compatibility authority.
 - Nominal material fallback remains visible in diagnostics and is never presented as measured truth.
 - Passive audible sources are the current scope; active acoustics is deferred to a separate future backend.
+- Legacy public backend identifiers remain until R8.3 and downstream consumers are migrated; R8.2 does not add aliases or edit downstream repositories.
 
 #### Problems / Limitations
 
-Analytic surfaces cannot reproduce arbitrary objects, full scattering, general pathing, or diffraction. Those limitations are deliberate and handled by R10 rather than hidden. The old room-specific backend structure is not retained merely for compatibility after equivalent maintained behavior moves to `AnalyticAcoustics`.
+Analytic surfaces cannot reproduce arbitrary objects, full scattering, general pathing, reflected-path occlusion, or diffraction. Those limitations are deliberate and handled by R10 rather than hidden. `surface_set` and entity-batched analytic Isaac Lab execution remain unsupported. The old room-specific backend structure is retained only for the staged R8 consumer migration, not as the final product architecture.
 
 ## Subphase R8.3 — Isaac Lab Scale
 
@@ -82,20 +88,27 @@ The scalable analytic model approximates the distribution of geometry-aware beha
 
 ## Artifacts
 
-R8.1 includes deterministic routing and propagation tests, fake-provider coverage for both closed-room routes, real PyRoom 0.10.1 smoke execution for shoebox and a concave prism, CLI/config and Isaac reference coverage, legacy-backend regression coverage, and an updated live Isaac Sim smoke requirement for the Core free-field route.
+R8.1 includes deterministic routing and propagation tests, fake-provider coverage for both closed-room routes, real PyRoom 0.10.1 smoke execution for shoebox and a concave prism, CLI/config and Isaac reference coverage, legacy-backend regression coverage, and a live Isaac Sim Core free-field route.
 
-R8.2 and R8.3 remain future work.
+R8.2 adds deterministic `a * D + R` coverage for all four supported analytic topologies, broadband and banded attenuation, no-attenuation byte equality, timing, polarity, distance, air absorption, materials, directivity, motion segmentation, multiple sources, multi-hit caps/provenance, and clear/partial/full occlusion. The closure gate passes 551 host tests, 216 focused integration tests, 57 release tests, 111 Isaac tests, real optional PyRoom/SciPy/SoundFile execution, and live RTX 4090 Isaac Sim, Isaac Lab, and 38-step Kit workflows. Live analytic evidence records `occlusion_factor` changing from `1.0` blocked to `0.0` clear. Temporary source, wheel, and Kit artifacts pass the release audit; all three serialized v1 schemas remain byte-identical. The unchanged SquadBot suite has the exact same 31-test failure set as baseline `3a8b078`.
+
+R8.3 remains future work.
 
 ## Files
 
 - `src/isaac_audio_sensors/core/backends/analytic.py`
 - `src/isaac_audio_sensors/core/backends/room_acoustics/`
+- `src/isaac_audio_sensors/core/types.py`
+- `src/isaac_audio_sensors/core/acoustics/occlusion.py`
 - `src/isaac_audio_sensors/core/plugins/registry.py`
 - `src/isaac_audio_sensors/core/config.py`
 - `src/isaac_audio_sensors/isaac/sensor.py`
+- `src/isaac_audio_sensors/isaac/occlusion.py`
 - `src/isaac_audio_sensors/lab/reference_backend.py`
 - `tests/integration/test_analytic_acoustics.py`
+- `tests/isaac/test_occlusion.py`
 
 ## Version Notes
 
 - 2026-09-01: Implemented R8.1 solver routing while retaining the four legacy backend identifiers and all three serialized v1 schemas.
+- 2026-09-01: Implemented R8.2 direct/indirect propagation and direct-path-only occlusion while preserving the public combined waveform and all three serialized v1 schemas.

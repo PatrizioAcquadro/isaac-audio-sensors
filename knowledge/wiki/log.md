@@ -389,3 +389,11 @@ Recorded the public `AnalyticAcoustics` backend, environment-only Core/PyRoom so
 ## 2026-09-01 — lint: R8.1 analytic solver routing
 
 Verified 549 host tests, 207 focused integration tests, 57 release tests, 109 Isaac tests, real optional audio, temporary sdist/wheel installation, RTX 4090 Isaac Sim and Kit smokes, zero new SquadBot regressions, unchanged v1 schemas, canonical wiki links, Ruff, version synchronization, and whitespace.
+
+## 2026-09-01 — update: R8.2 relative propagation and occlusion
+
+Recorded internal direct/indirect stems, direct-only broadband and spectral occlusion, the per-microphone `SourceOcclusion` contract, Isaac lifecycle integration, retained legacy backends, unchanged serialized schemas, and the validated consumer boundary.
+
+## 2026-09-01 — lint: R8.2 relative propagation and occlusion
+
+Verified 551 host tests, 216 focused integration tests, 57 release tests, 111 Isaac tests, real optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, temporary artifact audits, exact SquadBot failure-set parity, unchanged v1 schemas, canonical wiki links, Ruff, version synchronization, and whitespace.

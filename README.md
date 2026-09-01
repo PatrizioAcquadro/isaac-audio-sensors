@@ -10,7 +10,7 @@ Current package release: `3.0.0`. This release is not yet published.
 
 ## What It Provides
 
-- Simulator-independent, versioned contracts for sources, arrays, five analytic acoustic environments, sensor frames, calibration, and datasets, with deterministic topology-routed analytic propagation plus the retained geometry, synthetic TDOA, and optional room backends.
+- Simulator-independent, versioned contracts for sources, arrays, five analytic acoustic environments, sensor frames, calibration, and datasets, with deterministic topology-routed analytic propagation and per-microphone direct-path occlusion plus the retained geometry, synthetic TDOA, and optional room backends.
 - Entity-owned source and microphone directivity with four first-order families, plus one amplitude-gain convention shared by Core, Isaac Sim, Isaac Lab, and Kit.
 - Generic multichannel recording, validation, sharded datasets, deterministic splits, statistics, FLAC export, and read-only replay.
 - Lazy Isaac Sim and Isaac Lab integrations for live stages and fixed-shape, batched observations without making NVIDIA runtimes core dependencies.
@@ -48,7 +48,7 @@ These commands require only the core package; no Isaac runtime or GPU is needed.
 
 ## Limitations
 
-- `analytic_acoustics` supports Core free field and half space plus optional PyRoom shoebox and polygon prisms. `surface_set`, analytic occlusion, and mass-parallel Isaac Lab routing remain future work; none of these controlled models is a complete wave solver or calibrated acoustic twin.
+- `analytic_acoustics` supports Core free field and half space plus optional PyRoom shoebox and polygon prisms. Occlusion attenuates only the direct source-to-microphone path; it does not model diffraction or reflected-path blocking. `surface_set` and mass-parallel Isaac Lab routing remain future work, and none of these controlled models is a complete wave solver or calibrated acoustic twin.
 - Software and GPU validation do not establish hardware calibration, physical acoustic fidelity, downstream task success, or sim-to-real transfer.
 - This SDK does not provide robot-specific tasks or policies and is not a safety-critical perception component.
 

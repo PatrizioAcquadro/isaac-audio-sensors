@@ -12,6 +12,8 @@ The coordinate convention is `x_forward_y_right_z_up_clockwise_bearing`: local `
 
 Detections keep source identity and class, timing, known source pose and oracle geometry when available, DOA estimates, ambiguity, per-microphone delay/RMS, audio asset reference, occlusion state, and diagnostics distinct.
 
+`SourceOcclusion` is the simulator-independent direct-path attenuation input. It requires array/source identity, exact blocked and broadband-attenuation maps for every microphone, and a model identifier. Optional spectral rows align with positive ordered band centers; per-microphone hit paths may carry material provenance. Invalid identifiers, microphone coverage, non-finite or negative attenuation, inconsistent unblocked state, row lengths, or path/material references fail closed. Aggregate attenuation and hit-path fields have no v3 alias; `AudioDetection.occluded` and the UI `occlusion_factor` diagnostic are derived from the per-microphone blocked map.
+
 ## Versioned Schemas
 
 The shipped schemas are `ias.audio_sensor_frame.v1`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1` under `src/isaac_audio_sensors/schemas/`.
@@ -84,7 +86,7 @@ Exported waveforms and recordings are runtime outputs, not tracked product sourc
 
 Package `3.0.0` is a breaking directivity and gain consistency release. Import sensor contracts from `core`, dataset contracts from `recording`, and schema generators from `schemas.generate`.
 
-Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Call propagation backends with the snapshot array identifier instead of a `MicrophoneArraySpec`, and bind Lab reference mode with `array_ids` instead of `array_specs`. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
+Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Construct `SourceOcclusion` from its required per-microphone maps rather than removed aggregate fields. Call propagation backends with the snapshot array identifier instead of a `MicrophoneArraySpec`, and bind Lab reference mode with `array_ids` instead of `array_specs`. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
 
 The frame, dataset-manifest, and calibration-profile schemas remain v1 because their serialized meanings did not change. The v3 package does not retain v2 aliases or parallel runtime paths for the removed Python/configuration surfaces, backend sensor-object argument, or Lab `array_specs` reference binding.
 
