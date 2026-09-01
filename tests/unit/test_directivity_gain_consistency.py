@@ -282,8 +282,9 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics() -> Non
     occlusion = SourceOcclusion(
         array_id=array.array_id,
         source_id=source.source_id,
-        occlusion_factor=1.0,
-        attenuation_db=4.0,
+        per_mic_blocked={mic.mic_id: True for mic in array.microphones},
+        per_mic_attenuation_db={mic.mic_id: 4.0 for mic in array.microphones},
+        occlusion_model="raycast_transmission_v1",
     )
     effects = EffectsConfig(
         channel_response=ChannelResponseConfig(
@@ -327,9 +328,10 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics() -> Non
     assert detection.diagnostics["microphone_nominal_gain_db"][
         "front"
     ] == pytest.approx(DB_DOUBLE)
-    assert detection.diagnostics["occlusion"]["applied_gain_delta_db"][
+    assert detection.diagnostics["occlusion"]["per_mic_attenuation_db"][
         "front"
-    ] == pytest.approx(-4.0)
+    ] == pytest.approx(4.0)
+    assert "applied_gain_delta_db" not in detection.diagnostics["occlusion"]
     assert frame.diagnostics["effects"]["channel_response"]["gain_delta_db"] == {
         "front": -3.0,
     }

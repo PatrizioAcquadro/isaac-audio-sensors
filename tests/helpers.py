@@ -306,6 +306,9 @@ class FakeShoeBox:
             (np.asarray(position, dtype=float), np.asarray(signal, dtype=float))
         )
 
+    def set_sound_speed(self, speed_of_sound_mps):
+        self.c = float(speed_of_sound_mps)
+
     def add_microphone_array(self, mic_array):
         self.mic_array = mic_array
 

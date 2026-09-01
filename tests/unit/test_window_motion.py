@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -23,6 +24,7 @@ from isaac_audio_sensors.core.motion import (
     build_window_motion,
     segment_boundaries,
 )
+from isaac_audio_sensors.core.types import SourceOcclusion
 from tests.helpers import (
     MOTION_SEGMENTS,
     SAMPLE_RATE_HZ,
@@ -192,6 +194,53 @@ def test_piecewise_room_assembles_exact_window_and_segment_diagnostics(monkeypat
     )
     assert all(set(row["doppler_factor_by_source"]) == {"source"} for row in rows)
     assert len(fake.ShoeBox.instances) == MOTION_SEGMENTS
+
+
+def test_piecewise_room_occlusion_recombines_only_direct_stems(monkeypatch):
+    install_fake_pyroom(monkeypatch)
+    scene, array, window = motion_room_fixture()
+    _history, plan = motion_plan(
+        lambda time_s: (1.0 + 20.0 * time_s, 2.0, 1.0),
+        (20.0, 0.0, 0.0),
+    )
+
+    def render(max_order, selected_scene):
+        sink = CaptureSink()
+        RoomAcousticsBackend(
+            max_order=max_order,
+            effects=_motion_effects(MOTION_SEGMENTS),
+            window_motion=plan,
+            waveform_writer=sink,
+        ).simulate(selected_scene, array.array_id, window)
+        return sink.calls[0]["mixture"]
+
+    direct = render(0, scene)
+    full = render(1, scene)
+    occlusion = SourceOcclusion(
+        array_id=array.array_id,
+        source_id=scene.sources[0].source_id,
+        per_mic_blocked={mic.mic_id: True for mic in array.microphones},
+        per_mic_attenuation_db={mic.mic_id: 20.0 for mic in array.microphones},
+        occlusion_model="raycast_transmission_v1",
+    )
+    observed = render(1, replace(scene, occlusion=(occlusion,)))
+
+    sample_count = max(direct.shape[1], full.shape[1], observed.shape[1])
+
+    def pad(waveform):
+        padded = np.zeros((waveform.shape[0], sample_count), dtype=waveform.dtype)
+        padded[:, : waveform.shape[1]] = waveform
+        return padded
+
+    direct = pad(direct)
+    full = pad(full)
+    observed = pad(observed)
+    np.testing.assert_allclose(
+        observed,
+        0.1 * direct + (full - direct),
+        rtol=0.0,
+        atol=1e-15,
+    )
 
 
 def test_policy_absent_segments_hold_current_pose_and_use_exact_unity(monkeypatch):

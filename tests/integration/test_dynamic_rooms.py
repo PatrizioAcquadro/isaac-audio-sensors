@@ -74,6 +74,7 @@ class _StatefulShoeBox:
     def __init__(self, dimensions, *, fs, materials=None, **_kwargs):
         self.dimensions = tuple(float(value) for value in dimensions)
         self.fs = int(fs)
+        self.c = float(_kwargs.get("c", 343.0))
         self.materials = materials
         self.sources = []
         self.mic_array = None
@@ -82,6 +83,9 @@ class _StatefulShoeBox:
 
     def add_source(self, position, signal):
         self.sources.append((tuple(position), np.asarray(signal, dtype=float)))
+
+    def set_sound_speed(self, speed_of_sound_mps):
+        self.c = float(speed_of_sound_mps)
 
     def add_microphone_array(self, mic_array):
         self.mic_array = mic_array
@@ -203,9 +207,6 @@ def _record(blocked, bands=None, flat_db=0.0, material=None):
         array_id="rig_front",
         source_id="tone",
         per_mic_blocked=per_mic_blocked,
-        occlusion_factor=len(blocked) / 4,
-        attenuation_db=sum(broadband.values()) / 4,
-        hit_prim_paths=(WALL_PATH,) if blocked else (),
         per_mic_attenuation_db=broadband,
         per_mic_band_attenuation_db=band_rows,
         band_centers_hz=OCCLUSION_BAND_CENTERS_HZ if bands is not None else (),

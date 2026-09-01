@@ -26,7 +26,6 @@ from isaac_audio_sensors.core.acoustics.occlusion import (
     OCCLUDED_FACTOR_THRESHOLD,
     occlusion_band_attenuation_db,
     occlusion_detection_diagnostics,
-    occlusion_extra_gain_db,
     occlusion_flag,
     occlusion_per_mic_extra_gain_db,
 )
@@ -46,7 +45,6 @@ __all__ = [
     "known_material_ids",
     "occlusion_band_attenuation_db",
     "occlusion_detection_diagnostics",
-    "occlusion_extra_gain_db",
     "occlusion_flag",
     "occlusion_per_mic_extra_gain_db",
     "polygon_prism_environment",

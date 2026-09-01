@@ -33,8 +33,6 @@ def _record() -> SourceOcclusion:
         per_mic_blocked={
             mic_id: loss_db > 0.0 for mic_id, loss_db in per_mic_db.items()
         },
-        occlusion_factor=0.25,
-        attenuation_db=5.0,
         per_mic_attenuation_db=per_mic_db,
         occlusion_model="raycast_transmission_v1",
     )
@@ -43,8 +41,8 @@ def _record() -> SourceOcclusion:
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
-        ({"occlusion_factor": 1.5}, "occlusion_factor"),
-        ({"attenuation_db": -1.0}, "attenuation_db"),
+        ({"per_mic_attenuation_db": {"front": -1.0}}, "non-negative"),
+        ({"per_mic_attenuation_db": {"rear": 0.0}}, "exactly"),
         (
             {
                 "per_mic_band_attenuation_db": {"front": (1.0, 2.0)},
@@ -52,12 +50,29 @@ def _record() -> SourceOcclusion:
             },
             "band_centers_hz length",
         ),
-        ({"per_mic_attenuation_db": {"front": -1.0}}, "non-negative"),
+        (
+            {
+                "per_mic_blocked": {"front": False},
+                "per_mic_attenuation_db": {"front": 1.0},
+            },
+            "unblocked microphones",
+        ),
     ],
 )
 def test_source_occlusion_rejects_invalid_values(kwargs, message):
+    values = {
+        "per_mic_blocked": {"front": True},
+        "per_mic_attenuation_db": {"front": 1.0},
+        "occlusion_model": "raycast_transmission_v1",
+    }
+    values.update(kwargs)
     with pytest.raises(ValueError, match=message):
-        SourceOcclusion(array_id="rig", source_id="speaker", **kwargs)
+        SourceOcclusion(array_id="rig", source_id="speaker", **values)
+
+
+def test_source_occlusion_requires_per_microphone_contract() -> None:
+    with pytest.raises(TypeError, match="per_mic_blocked"):
+        SourceOcclusion(array_id="rig", source_id="speaker")
 
 
 def test_scene_rejects_duplicate_occlusion_records_and_resolves_valid_pair():
@@ -68,6 +83,14 @@ def test_scene_rejects_duplicate_occlusion_records_and_resolves_valid_pair():
     assert scene.occlusion_for("rig", "unknown") is None
     with pytest.raises(ValueError, match="occlusion record id"):
         replace(scene, occlusion=(record, record))
+
+    mismatched = replace(
+        record,
+        per_mic_blocked={"front": True},
+        per_mic_attenuation_db={"front": 20.0},
+    )
+    with pytest.raises(ValueError, match="microphone ids"):
+        _scene(occlusion=(mismatched,))
 
 
 def test_geometry_backend_applies_per_mic_attenuation_independently():

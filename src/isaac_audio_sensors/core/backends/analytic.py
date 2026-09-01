@@ -149,11 +149,6 @@ class AnalyticAcoustics:
             )
         solver_id = self._solver_for(environment)
         self._validate_solver_options(solver_id)
-        if scene.occlusion:
-            raise UnsupportedEffectError(
-                "analytic_acoustics rejects SourceOcclusion during R8.1; "
-                "direct-stem-only occlusion belongs to R8.2."
-            )
         if (
             solver_id in _CORE_SOLVERS
             and self.effects.motion.segments_per_window > 1
@@ -194,6 +189,7 @@ class AnalyticAcoustics:
                 effects=self.effects,
                 speed_of_sound_mps=self.speed_of_sound_mps,
                 window_motion=self.window_motion,
+                split_stems=bool(scene.occlusion),
             )
         apply_room_effects(
             prepared,
@@ -280,6 +276,12 @@ def _render_core(
             scheduled=(),
             doppler_factors={},
             premix=np.zeros((0, mic_count, prepared.window_sample_count), dtype=float),
+            direct_premix=np.zeros(
+                (0, mic_count, prepared.window_sample_count), dtype=float
+            ),
+            indirect_premix=np.zeros(
+                (0, mic_count, prepared.window_sample_count), dtype=float
+            ),
             mixture=mixture,
             source_environment_positions={},
             microphone_environment_positions={},
@@ -319,9 +321,9 @@ def _render_core(
                 )
         scheduled_list.append(signal)
     scheduled = tuple(scheduled_list)
-    rir = [
+    rir_stems = [
         [
-            _core_rir(
+            _core_rir_stems(
                 environment,
                 source_position=source_positions[source.source_id],
                 microphone_position=microphone_positions[mic_id],
@@ -333,6 +335,18 @@ def _render_core(
         ]
         for mic_id in prepared.mic_ids
     ]
+    direct_rir = [
+        [stems[0] for stems in microphone_stems]
+        for microphone_stems in rir_stems
+    ]
+    indirect_rir = [
+        [stems[1] for stems in microphone_stems]
+        for microphone_stems in rir_stems
+    ]
+    rir = [
+        [stems[2] for stems in microphone_stems]
+        for microphone_stems in rir_stems
+    ]
     max_length = max(
         prepared.window_sample_count,
         *(
@@ -342,12 +356,36 @@ def _render_core(
         ),
     )
     premix = np.zeros((len(prepared.active), mic_count, max_length), dtype=float)
+    direct_premix = np.zeros_like(premix)
+    indirect_premix = np.zeros_like(premix)
     for source_index, signal in enumerate(scheduled):
         for mic_index in range(mic_count):
             convolved = np.convolve(signal.signal, rir[mic_index][source_index])
             premix[source_index, mic_index, : convolved.size] = convolved
+            direct = np.convolve(
+                signal.signal,
+                direct_rir[mic_index][source_index],
+            )
+            indirect = np.convolve(
+                signal.signal,
+                indirect_rir[mic_index][source_index],
+            )
+            direct_premix[source_index, mic_index, : direct.size] = direct
+            indirect_premix[source_index, mic_index, : indirect.size] = indirect
     premix = _apply_entity_directivity_to_premix(
         premix,
+        active=prepared.active,
+        sensor=prepared.sensor,
+        microphone_positions_world=prepared.microphone_positions_world,
+    )
+    direct_premix = _apply_entity_directivity_to_premix(
+        direct_premix,
+        active=prepared.active,
+        sensor=prepared.sensor,
+        microphone_positions_world=prepared.microphone_positions_world,
+    )
+    indirect_premix = _apply_entity_directivity_to_premix(
+        indirect_premix,
         active=prepared.active,
         sensor=prepared.sensor,
         microphone_positions_world=prepared.microphone_positions_world,
@@ -376,6 +414,8 @@ def _render_core(
         scheduled=scheduled,
         doppler_factors=doppler_factors,
         premix=premix,
+        direct_premix=direct_premix,
+        indirect_premix=indirect_premix,
         mixture=mixture,
         source_environment_positions=source_positions,
         microphone_environment_positions=microphone_positions,
@@ -384,7 +424,7 @@ def _render_core(
     )
 
 
-def _core_rir(
+def _core_rir_stems(
     environment: AcousticEnvironmentSpec,
     *,
     source_position: tuple[float, float, float],
@@ -392,7 +432,7 @@ def _core_rir(
     sample_rate_hz: int,
     speed_of_sound_mps: float,
     max_order: int,
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     direct_distance = norm(subtract(source_position, microphone_position))
     direct = _path_impulse(
         direct_distance,
@@ -400,7 +440,7 @@ def _core_rir(
         speed_of_sound_mps=speed_of_sound_mps,
     )
     if environment.kind == "free_field" or max_order == 0:
-        return direct
+        return direct, np.zeros_like(direct), direct
     floor = environment.surfaces[0]
     image_source = (source_position[0], source_position[1], -source_position[2])
     reflected_distance = norm(subtract(image_source, microphone_position))
@@ -416,11 +456,11 @@ def _core_rir(
         application=f"surface {floor.surface_id!r}",
     )
     if not np.any(reflected):
-        return direct
+        return direct, np.zeros_like(direct), direct
     combined = np.zeros(max(direct.size, reflected.size), dtype=float)
     combined[: direct.size] += direct
     combined[: reflected.size] += reflected
-    return combined
+    return direct, reflected, combined
 
 
 def _path_impulse(

@@ -15,6 +15,10 @@ from isaac_audio_sensors.core.acoustics.environments import (
     surface_set_environment,
 )
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
+from isaac_audio_sensors.core.backends.room_acoustics.rendering import (
+    _apply_band_attenuation,
+)
+from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.effects.validation import UnsupportedEffectError
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
@@ -75,6 +79,47 @@ def _scene(environment, *, array=None, source=None) -> AudioSceneSnapshot:
         arrays=(array,),
         environment=environment,
     )
+
+
+def _occlusion(
+    array,
+    *,
+    attenuation_db: float = 20.0,
+    band_attenuation_db: tuple[float, ...] | None = None,
+) -> SourceOcclusion:
+    mic_ids = tuple(microphone.mic_id for microphone in array.microphones)
+    return SourceOcclusion(
+        array_id=array.array_id,
+        source_id="speaker",
+        per_mic_blocked={mic_id: attenuation_db > 0.0 for mic_id in mic_ids},
+        per_mic_attenuation_db={mic_id: attenuation_db for mic_id in mic_ids},
+        occlusion_model="raycast_transmission_v1",
+        per_mic_band_attenuation_db=(
+            {mic_id: band_attenuation_db for mic_id in mic_ids}
+            if band_attenuation_db is not None
+            else {}
+        ),
+        band_centers_hz=(
+            OCCLUSION_BAND_CENTERS_HZ
+            if band_attenuation_db is not None
+            else ()
+        ),
+    )
+
+
+def _waveform(backend, scene) -> tuple[object, np.ndarray]:
+    sink = CaptureSink()
+    backend.waveform_writer = sink
+    frame = backend.simulate(scene, "rig", WINDOW)
+    return frame, np.asarray(sink.calls[0]["mixture"], dtype=float)
+
+
+def _pad_samples(waveform: np.ndarray, sample_count: int) -> np.ndarray:
+    if waveform.shape[1] == sample_count:
+        return waveform
+    padded = np.zeros((waveform.shape[0], sample_count), dtype=waveform.dtype)
+    padded[:, : waveform.shape[1]] = waveform
+    return padded
 
 
 def test_free_field_uses_core_without_importing_pyroom(monkeypatch) -> None:
@@ -202,7 +247,7 @@ def test_core_solver_options_fail_closed(environment, kwargs, message) -> None:
         AnalyticAcoustics(**kwargs).simulate(_scene(environment), "rig", WINDOW)
 
 
-def test_surface_set_and_source_occlusion_are_rejected() -> None:
+def test_surface_set_is_rejected() -> None:
     surface = AcousticSurfaceSpec(
         surface_id="panel",
         role="wall",
@@ -216,19 +261,190 @@ def test_surface_set_and_source_occlusion_are_rejected() -> None:
     with pytest.raises(UnsupportedEffectError, match="GeometryAcoustics"):
         AnalyticAcoustics().simulate(_scene(environment), "rig", WINDOW)
 
-    occluded = replace(
-        _scene(free_field_environment(environment_id="free")),
-        occlusion=(
-            SourceOcclusion(
-                array_id="rig",
-                source_id="speaker",
-                occlusion_factor=1.0,
-                attenuation_db=20.0,
+
+def test_free_field_occlusion_attenuates_direct_path_once() -> None:
+    array = _array()
+    scene = _scene(free_field_environment(environment_id="free"), array=array)
+    _baseline_frame, baseline = _waveform(AnalyticAcoustics(), scene)
+    occluded_scene = replace(scene, occlusion=(_occlusion(array),))
+    occluded_frame, occluded = _waveform(AnalyticAcoustics(), occluded_scene)
+
+    np.testing.assert_allclose(occluded, baseline * 0.1, rtol=0.0, atol=1e-15)
+    assert occluded_frame.detections[0].occluded is True
+    mic_ids = tuple(microphone.mic_id for microphone in array.microphones)
+    assert occluded_frame.detections[0].diagnostics["occlusion"] == {
+        "occlusion_factor": 1.0,
+        "per_mic_blocked": {mic_id: True for mic_id in mic_ids},
+        "per_mic_attenuation_db": {mic_id: 20.0 for mic_id in mic_ids},
+        "occlusion_model": "raycast_transmission_v1",
+    }
+
+
+def test_half_space_occlusion_recombines_attenuated_direct_and_reflection() -> None:
+    array = _array()
+    scene = _scene(
+        half_space_environment(environment_id="floor", absorption=0.0),
+        array=array,
+    )
+    _direct_frame, direct = _waveform(AnalyticAcoustics(max_order=0), scene)
+    _full_frame, full = _waveform(AnalyticAcoustics(max_order=1), scene)
+    occluded_scene = replace(scene, occlusion=(_occlusion(array),))
+    _occluded_frame, occluded = _waveform(
+        AnalyticAcoustics(max_order=1), occluded_scene
+    )
+
+    sample_count = max(direct.shape[1], full.shape[1], occluded.shape[1])
+    direct = _pad_samples(direct, sample_count)
+    full = _pad_samples(full, sample_count)
+    occluded = _pad_samples(occluded, sample_count)
+    np.testing.assert_allclose(
+        occluded,
+        0.1 * direct + (full - direct),
+        rtol=0.0,
+        atol=1e-15,
+    )
+
+
+def test_zero_occlusion_preserves_complete_premix_bytes(monkeypatch) -> None:
+    _install_closed_room_fake(monkeypatch)
+    environment = shoebox_environment(
+        environment_id="room",
+        dimensions_m=(6.0, 5.0, 3.0),
+        absorption=0.2,
+    )
+    array = _array((1.0, 1.0, 1.0))
+    scene = _scene(environment, array=array, source=_source((3.0, 1.0, 1.0)))
+    _baseline_frame, baseline = _waveform(AnalyticAcoustics(max_order=1), scene)
+    zero_bands = (0.0,) * len(OCCLUSION_BAND_CENTERS_HZ)
+    clear = _occlusion(
+        array,
+        attenuation_db=0.0,
+        band_attenuation_db=zero_bands,
+    )
+    _clear_frame, observed = _waveform(
+        AnalyticAcoustics(max_order=1),
+        replace(scene, occlusion=(clear,)),
+    )
+
+    assert observed.tobytes() == baseline.tobytes()
+
+
+@pytest.mark.parametrize("environment_kind", ("shoebox", "polygon_prism"))
+def test_pyroom_occlusion_recombines_direct_and_indirect_stems(
+    monkeypatch,
+    environment_kind,
+) -> None:
+    _install_closed_room_fake(monkeypatch)
+    if environment_kind == "shoebox":
+        environment = shoebox_environment(
+            environment_id="room",
+            dimensions_m=(6.0, 5.0, 3.0),
+            absorption=0.2,
+        )
+    else:
+        environment = polygon_prism_environment(
+            environment_id="prism",
+            floor_vertices_local_m=(
+                (0.0, 0.0, 0.0),
+                (6.0, 0.0, 0.0),
+                (6.0, 5.0, 0.0),
+                (0.0, 5.0, 0.0),
+            ),
+            height_m=3.0,
+            absorption=0.2,
+        )
+    array = _array((1.0, 1.0, 1.0))
+    scene = _scene(environment, array=array, source=_source((3.0, 1.0, 1.0)))
+    _direct_frame, direct = _waveform(AnalyticAcoustics(max_order=0), scene)
+    _full_frame, full = _waveform(AnalyticAcoustics(max_order=1), scene)
+    _occluded_frame, occluded = _waveform(
+        AnalyticAcoustics(max_order=1),
+        replace(scene, occlusion=(_occlusion(array),)),
+    )
+
+    sample_count = max(direct.shape[1], full.shape[1], occluded.shape[1])
+    direct = _pad_samples(direct, sample_count)
+    full = _pad_samples(full, sample_count)
+    occluded = _pad_samples(occluded, sample_count)
+    np.testing.assert_allclose(
+        occluded,
+        0.1 * direct + (full - direct),
+        rtol=0.0,
+        atol=1e-15,
+    )
+
+
+def test_pyroom_band_occlusion_filters_only_the_direct_stem(monkeypatch) -> None:
+    _install_closed_room_fake(monkeypatch)
+    environment = shoebox_environment(
+        environment_id="room",
+        dimensions_m=(6.0, 5.0, 3.0),
+        absorption=0.2,
+    )
+    array = _array((1.0, 1.0, 1.0))
+    scene = _scene(environment, array=array, source=_source((3.0, 1.0, 1.0)))
+    _direct_frame, direct = _waveform(AnalyticAcoustics(max_order=0), scene)
+    _full_frame, full = _waveform(AnalyticAcoustics(max_order=1), scene)
+    bands = (3.0, 6.0, 9.0, 12.0, 15.0, 18.0)
+    _occluded_frame, occluded = _waveform(
+        AnalyticAcoustics(max_order=1),
+        replace(
+            scene,
+            occlusion=(
+                _occlusion(
+                    array,
+                    attenuation_db=sum(bands) / len(bands),
+                    band_attenuation_db=bands,
+                ),
             ),
         ),
     )
-    with pytest.raises(UnsupportedEffectError, match="R8.1"):
-        AnalyticAcoustics().simulate(occluded, "rig", WINDOW)
+
+    sample_count = max(direct.shape[1], full.shape[1], occluded.shape[1])
+    direct = _pad_samples(direct, sample_count)
+    full = _pad_samples(full, sample_count)
+    occluded = _pad_samples(occluded, sample_count)
+    expected = np.stack(
+        [
+            _apply_band_attenuation(
+                direct[mic_index],
+                sample_rate_hz=SAMPLE_RATE_HZ,
+                band_centers_hz=OCCLUSION_BAND_CENTERS_HZ,
+                band_attenuation_db=bands,
+            )
+            + (full[mic_index] - direct[mic_index])
+            for mic_index in range(direct.shape[0])
+        ]
+    )
+    np.testing.assert_allclose(occluded, expected, rtol=0.0, atol=1e-15)
+
+
+def test_pyroom_uses_requested_sound_speed_and_fails_closed(monkeypatch) -> None:
+    module = _install_closed_room_fake(monkeypatch)
+    environment = shoebox_environment(
+        environment_id="room",
+        dimensions_m=(6.0, 5.0, 3.0),
+        absorption=0.2,
+    )
+    scene = _scene(
+        environment,
+        array=_array((1.0, 1.0, 1.0)),
+        source=_source((3.0, 1.0, 1.0)),
+    )
+    frame = AnalyticAcoustics(
+        max_order=1,
+        speed_of_sound_mps=300.0,
+    ).simulate(scene, "rig", WINDOW)
+
+    assert module.ShoeBox.instances[-1].c == 300.0
+    assert frame.diagnostics["speed_of_sound_mps"] == 300.0
+
+    class NoSoundSpeedShoeBox(FakeShoeBox):
+        set_sound_speed = None
+
+    module.ShoeBox = NoSoundSpeedShoeBox
+    with pytest.raises(ValueError, match="cannot apply speed_of_sound_mps"):
+        AnalyticAcoustics(max_order=1).simulate(scene, "rig", WINDOW)
 
 
 def test_closed_room_import_error_is_actionable(monkeypatch) -> None:

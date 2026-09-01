@@ -121,6 +121,7 @@ class RoomAcousticsBackend:
             effects=self.effects,
             speed_of_sound_mps=self.speed_of_sound_mps,
             window_motion=self.window_motion,
+            split_stems=bool(scene.occlusion),
         )
         apply_room_effects(
             prepared,

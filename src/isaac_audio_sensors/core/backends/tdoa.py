@@ -280,7 +280,7 @@ class TdoaSyntheticBackend:
                         ),
                         "stress_controls_deterministic": True,
                         **doppler_diagnostics,
-                        **occlusion_detection_diagnostics(occlusion, mic_ids),
+                        **occlusion_detection_diagnostics(occlusion),
                     },
                 )
             )

@@ -84,11 +84,13 @@ def assemble_frame(
         any(isinstance(surface.absorption, str) for surface in environment.surfaces)
         or prepared.scene.occlusion
     ):
-        environment_resolution = _environment_material_resolution(environment)
-        material_evidence = {
-            "environment": environment_resolution[1],
-            **_occluder_material_evidence(prepared.scene),
-        }
+        material_evidence = _occluder_material_evidence(prepared.scene)
+        if environment.surfaces:
+            environment_resolution = _environment_material_resolution(environment)
+            material_evidence = {
+                "environment": environment_resolution[1],
+                **material_evidence,
+            }
         frame_diagnostics["acoustics_state"] = {
             "environment_state_hash": _environment_state_hash(environment),
             "material_evidence": material_evidence,

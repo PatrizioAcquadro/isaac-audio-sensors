@@ -257,7 +257,7 @@ def assemble_detections(
                     "environment_microphone_positions_m": (
                         rendered.microphone_environment_positions
                     ),
-                    **occlusion_detection_diagnostics(occlusion, prepared.mic_ids),
+                    **occlusion_detection_diagnostics(occlusion),
                 },
             )
         )

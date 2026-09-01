@@ -201,15 +201,12 @@ def _canonical_pair(record: SourceOcclusion) -> tuple[Any, ...]:
         record.array_id,
         record.source_id,
         tuple(record.per_mic_blocked.items()),
-        record.occlusion_factor,
-        record.attenuation_db,
         tuple(record.per_mic_attenuation_db.items()),
         tuple(record.band_centers_hz),
         tuple(
             (mic_id, tuple(values))
             for mic_id, values in record.per_mic_band_attenuation_db.items()
         ),
-        tuple(record.hit_prim_paths),
         tuple(
             (mic_id, tuple(paths))
             for mic_id, paths in record.per_mic_hit_prim_paths.items()
@@ -500,9 +497,8 @@ def compute_scene_occlusion(
     ``max_hits_per_ray``); hits on the source prim or the array prim are
     skipped by re-casting just past them. Per-microphone attenuation is the
     capped sum of per-hit transmission losses (flat ``max_attenuation_db``
-    when no resolver is configured). The per-source ``attenuation_db`` is the
-    mean of the per-microphone values, which for single-hit defaults equals
-    the legacy ``occlusion_factor * max_attenuation_db``.
+    when no resolver is configured). No aggregate attenuation or geometric
+    distance multiplier is added.
     """
 
     if not math.isfinite(max_attenuation_db) or max_attenuation_db < 0.0:
@@ -524,7 +520,6 @@ def compute_scene_occlusion(
             per_mic_attenuation_db: dict[str, float] = {}
             per_mic_band_attenuation_db: dict[str, tuple[float, ...]] = {}
             per_mic_hit_prim_paths: dict[str, tuple[str, ...]] = {}
-            hit_prim_paths: list[str] = []
             hit_materials: dict[str, str] = {}
             any_band_data = False
             for mic_id, mic_position in mic_positions.items():
@@ -539,9 +534,6 @@ def compute_scene_occlusion(
                 )
                 per_mic_blocked[mic_id] = bool(hits)
                 per_mic_hit_prim_paths[mic_id] = hits
-                for hit_path in hits:
-                    if hit_path not in hit_prim_paths:
-                        hit_prim_paths.append(hit_path)
                 broadband = 0.0
                 bands = [0.0] * band_count
                 mic_has_band_data = False
@@ -592,29 +584,19 @@ def compute_scene_occlusion(
                 )
             if not any_band_data:
                 per_mic_band_attenuation_db = {}
-            blocked_count = sum(per_mic_blocked.values())
-            factor = blocked_count / len(per_mic_blocked) if per_mic_blocked else 0.0
-            attenuation_db = (
-                sum(per_mic_attenuation_db.values()) / len(per_mic_attenuation_db)
-                if per_mic_attenuation_db
-                else 0.0
-            )
             records.append(
                 SourceOcclusion(
                     array_id=array.array_id,
                     source_id=source.source_id,
                     per_mic_blocked=per_mic_blocked,
-                    occlusion_factor=factor,
-                    attenuation_db=attenuation_db,
-                    hit_prim_paths=tuple(hit_prim_paths),
                     per_mic_attenuation_db=per_mic_attenuation_db,
+                    occlusion_model=OCCLUSION_MODEL_RAYCAST_TRANSMISSION,
                     per_mic_band_attenuation_db=per_mic_band_attenuation_db,
                     band_centers_hz=(
                         OCCLUSION_BAND_CENTERS_HZ if per_mic_band_attenuation_db else ()
                     ),
                     per_mic_hit_prim_paths=per_mic_hit_prim_paths,
                     hit_materials=hit_materials,
-                    occlusion_model=OCCLUSION_MODEL_RAYCAST_TRANSMISSION,
                 )
             )
     return tuple(records)

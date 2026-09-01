@@ -22,8 +22,9 @@ from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
+    SourceOcclusion,
 )
-from tests.helpers import FakeShoeBox, install_fake_pyroom
+from tests.helpers import CaptureSink, FakeShoeBox, install_fake_pyroom
 
 
 def _source(
@@ -263,6 +264,69 @@ def test_room_acoustics_schedules_multiple_sources(monkeypatch) -> None:
     )
 
 
+def test_room_acoustics_occlusion_replaces_only_the_affected_source_stem(
+    monkeypatch,
+) -> None:
+    install_fake_pyroom(monkeypatch)
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    first = _source("first", (3.0, 0.0, 0.0))
+    second = _source("second", (0.0, 3.0, 0.0))
+    scene = _room_scene_with_sources(first, second, array=array)
+    window = _window(end_time_s=0.1)
+
+    def render(selected_scene, max_order):
+        sink = CaptureSink()
+        RoomAcousticsBackend(
+            max_order=max_order,
+            waveform_writer=sink,
+        ).simulate(selected_scene, array.array_id, window)
+        return sink.calls[0]["mixture"]
+
+    first_scene = replace(scene, sources=(first,))
+    second_scene = replace(scene, sources=(second,))
+    direct_first = render(first_scene, 0)
+    full_first = render(first_scene, 1)
+    full_second = render(second_scene, 1)
+    baseline = render(scene, 1)
+    occlusion = SourceOcclusion(
+        array_id=array.array_id,
+        source_id=first.source_id,
+        per_mic_blocked={mic.mic_id: True for mic in array.microphones},
+        per_mic_attenuation_db={mic.mic_id: 20.0 for mic in array.microphones},
+        occlusion_model="raycast_transmission_v1",
+    )
+    observed = render(replace(scene, occlusion=(occlusion,)), 1)
+    sample_count = max(
+        waveform.shape[1]
+        for waveform in (direct_first, full_first, full_second, baseline, observed)
+    )
+
+    def pad(waveform):
+        padded = np.zeros((waveform.shape[0], sample_count), dtype=waveform.dtype)
+        padded[:, : waveform.shape[1]] = waveform
+        return padded
+
+    direct_first = pad(direct_first)
+    full_first = pad(full_first)
+    full_second = pad(full_second)
+    baseline = pad(baseline)
+    observed = pad(observed)
+    np.testing.assert_allclose(
+        baseline,
+        full_first + full_second,
+        rtol=0.0,
+        atol=1e-15,
+    )
+    np.testing.assert_allclose(
+        observed,
+        0.1 * direct_first + (full_first - direct_first) + full_second,
+        rtol=0.0,
+        atol=1e-15,
+    )
 def test_room_acoustics_rejects_unknown_doa_estimator() -> None:
     with pytest.raises(ValueError, match="doa_estimator"):
         RoomAcousticsBackend(doa_estimator="music")

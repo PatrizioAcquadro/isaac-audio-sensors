@@ -104,15 +104,24 @@ def _environment_material_resolution(
 def _environment_state_hash(environment: AcousticEnvironmentSpec) -> str:
     """Hash the complete canonical acoustic-environment state."""
 
-    applied, evidence, resolution = _environment_material_resolution(environment)
-    if isinstance(applied, dict):
-        absorption_payload: object = {
-            str(key): float(value) for key, value in sorted(applied.items())
-        }
-    elif isinstance(applied, tuple):
-        absorption_payload = list(applied)
+    if environment.surfaces:
+        applied, evidence, resolution = _environment_material_resolution(environment)
+        if isinstance(applied, dict):
+            absorption_payload: object = {
+                str(key): float(value) for key, value in sorted(applied.items())
+            }
+        elif isinstance(applied, tuple):
+            absorption_payload = list(applied)
+        else:
+            absorption_payload = [float(applied)] * 6
+        material_id = evidence["material_id"]
+        material_evidence = evidence["evidence"]
+        citation = None if resolution is None else resolution.citation
     else:
-        absorption_payload = [float(applied)] * 6
+        absorption_payload = None
+        material_id = None
+        material_evidence = None
+        citation = None
     state = (
         environment.environment_id,
         environment.kind,
@@ -129,9 +138,9 @@ def _environment_state_hash(environment: AcousticEnvironmentSpec) -> str:
             for surface in environment.surfaces
         ),
         absorption_payload,
-        evidence["material_id"],
-        evidence["evidence"],
-        None if resolution is None else resolution.citation,
+        material_id,
+        material_evidence,
+        citation,
     )
     encoded = json.dumps(
         state,
