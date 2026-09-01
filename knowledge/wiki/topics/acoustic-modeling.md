@@ -50,11 +50,11 @@ Cross-backend validation concerns relative amplitude: a `+20*log10(2)` dB change
 
 `AcousticEnvironmentSpec` provides one world pose and canonical local `AcousticSurfaceSpec` values for `free_field`, `half_space`, `shoebox`, `polygon_prism`, and bounded non-empty `surface_set` topologies. Public builders validate surfaces, materials, complete poses, simple polygons, positive dimensions, and topology invariants; quaternion transforms map source and microphone points between world and environment coordinates.
 
-`AudioSceneSnapshot.environment` remains optional through R7.1. TOML uses one `[environment]` table, with the `environment.surfaces` array of tables for `surface_set`; `[room]` and obsolete room keys fail explicitly.
+`AudioSceneSnapshot.environment` is mandatory for every backend. TOML likewise requires one `[environment]` table, with the `environment.surfaces` array of tables for `surface_set`; `[room]`, obsolete room keys, and missing environments fail explicitly.
 
 The current `room_acoustics` and `room_acoustics_srp` backends accept only `kind="shoebox"` until R8. Reflection order, air absorption, and ray tracing are solver settings supplied to backend construction or `[audio.room_acoustics]`, not environment properties. Any source or microphone outside the local shoebox fails; clamping is removed.
 
-Isaac may derive a shoebox from one manually designated anchor's world bounds, but the anchor remains outside the simulator-independent Core contract. Kit keeps a temporary array-centered shoebox only for R7.1 when a room backend has no anchor; automatic USD resolution and mandatory environments belong to R7.2.
+Isaac resolves the same Core contract from a manual environment, an explicit anchor, or marked USD candidates. Automatic discovery accepts marked shoebox volumes and half-space floors, tests every microphone with a 1 mm default tolerance, and fails on malformed or unresolved ambiguity; it never guesses from unmarked geometry. Kit uses the explicit `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes and has no implicit shoebox fallback. `polygon_prism` and `surface_set` remain manual Python/TOML inputs until R10.
 
 The backend schedules all active sources into one shared microphone mixture, preserves sample timing, computes per-source and aggregate diagnostics, and can export per-frame or continuous multichannel waveforms.
 

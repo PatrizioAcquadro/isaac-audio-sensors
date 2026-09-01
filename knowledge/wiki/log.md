@@ -373,3 +373,11 @@ Replaced the room-only scene contract with five fail-closed analytic environment
 ## 2026-09-01 — lint: R7.1 acoustic environment contract
 
 Verified 528 host tests, 186 focused integration tests, 57 release tests, optional audio, temporary sdist/wheel build and installed import, 103 Isaac tests, RTX 4090 Isaac Sim/Lab/Kit smokes, the focused downstream contract, canonical wiki boundaries, Ruff, version synchronization, and whitespace.
+
+## 2026-09-01 — update: R7.2 mandatory environment resolution
+
+Recorded mandatory Core and TOML environments, fail-closed Isaac manual/anchor/auto resolution, marked USD candidate selection and cache refresh, Kit binding v3 modes, migrated downstream fixtures, preserved v1 serialized schemas, and the unreleased 3.0.0 boundary.
+
+## 2026-09-01 — lint: R7.2 mandatory environment resolution
+
+Verified 539 unit/contract tests, 192 integration tests, 57 release tests, configuration and README quickstarts, optional audio, temporary sdist/wheel audits, 103 Isaac tests, RTX 4090 Isaac Sim/Lab/Kit smokes, zero new SquadBot regressions, canonical wiki links and index coverage, version synchronization, Ruff, and whitespace.
