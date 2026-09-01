@@ -6,6 +6,7 @@ from dataclasses import replace
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.effects import (
     EffectsConfig,
@@ -62,6 +63,7 @@ def _scene(source, array) -> AudioSceneSnapshot:
         timestamp_ms=0,
         sources=(source,),
         arrays=(array,),
+        environment=free_field_environment(environment_id="motion_free_field"),
     )
 
 
@@ -208,6 +210,9 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
         timestamp_ms=0,
         sources=(),
         arrays=(array,),
+        environment=free_field_environment(
+            environment_id="empty_motion_free_field"
+        ),
     )
     enriched, diagnostics = enrich_snapshot_motion(
         scene,

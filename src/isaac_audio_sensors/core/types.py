@@ -820,7 +820,7 @@ class AudioSceneSnapshot:
     timestamp_ms: int
     sources: tuple[AudioSourceSpec, ...]
     arrays: tuple[MicrophoneArraySpec, ...]
-    environment: AcousticEnvironmentSpec | None = None
+    environment: AcousticEnvironmentSpec
     occlusion: tuple[SourceOcclusion, ...] | None = None
 
     def __post_init__(self) -> None:
@@ -830,6 +830,10 @@ class AudioSceneSnapshot:
         arrays = tuple(self.arrays)
         _require_unique_ids([source.source_id for source in sources], "source id")
         _require_unique_ids([array.array_id for array in arrays], "array id")
+        if not isinstance(self.environment, AcousticEnvironmentSpec):
+            raise ValueError(
+                "AudioSceneSnapshot.environment must be an AcousticEnvironmentSpec."
+            )
         object.__setattr__(self, "sources", sources)
         object.__setattr__(self, "arrays", arrays)
         if self.occlusion is not None:

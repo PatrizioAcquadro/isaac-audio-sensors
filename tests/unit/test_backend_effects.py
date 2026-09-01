@@ -6,6 +6,7 @@ import math
 import numpy as np
 import pytest
 
+from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
@@ -61,6 +62,7 @@ def _scene(array) -> AudioSceneSnapshot:
             ),
         ),
         arrays=(array,),
+        environment=free_field_environment(environment_id="effects_free_field"),
     )
 
 

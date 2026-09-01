@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 
-from isaac_audio_sensors.core.acoustics import shoebox_environment
+from isaac_audio_sensors.core.acoustics import (
+    free_field_environment,
+    shoebox_environment,
+)
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.effects import EffectsConfig, MotionEffectsConfig
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
@@ -60,7 +63,7 @@ def _scene(position, *, environment=False):
                 absorption=0.35,
             )
             if environment
-            else None
+            else free_field_environment(environment_id="motion_free_field")
         ),
     )
 

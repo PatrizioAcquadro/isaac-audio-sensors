@@ -243,5 +243,5 @@ def test_room_backend_reserves_non_shoebox_topologies_for_r8(
 def test_room_backend_requires_environment(monkeypatch) -> None:
     install_fake_pyroom(monkeypatch)
 
-    with pytest.raises(ValueError, match="scene.environment"):
+    with pytest.raises(ValueError, match="AudioSceneSnapshot.environment"):
         RoomAcousticsBackend().simulate(_scene(None), "rig", _window())

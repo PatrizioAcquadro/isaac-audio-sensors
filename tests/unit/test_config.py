@@ -41,6 +41,14 @@ def test_config_parses_source_velocity_and_builds_scene():
     assert by_id["static"].loop_count == 0
 
 
+def test_config_requires_explicit_environment_for_every_backend():
+    raw = _raw_config()
+    raw.pop("environment")
+
+    with pytest.raises(ConfigValidationError, match=r"\[environment\].*R7\.2"):
+        validate_audio_config(raw)
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
@@ -455,6 +463,10 @@ def _raw_config() -> dict:
         {
             "scene": {"scene_id": "fixture"},
             "audio": {"default_backend": "geometry_only"},
+            "environment": {
+                "environment_id": "fixture_free_field",
+                "kind": "free_field",
+            },
             "arrays": {
                 "rig": {
                     "prim_path": "/World/Rig/AudioArray",

@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
@@ -18,6 +19,7 @@ def _scene(*, occlusion=None) -> AudioSceneSnapshot:
         timestamp_ms=0,
         sources=(source("speaker", (4.0, 0.0, 0.0)),),
         arrays=(array,),
+        environment=free_field_environment(environment_id="occlusion_free_field"),
         occlusion=occlusion,
     )
 

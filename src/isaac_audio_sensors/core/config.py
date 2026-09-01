@@ -61,7 +61,7 @@ class AudioSensorConfig:
     tdoa_ambiguity_policy: str
     sources: tuple[AudioSourceSpec, ...]
     arrays: dict[str, MicrophoneArraySpec]
-    environment: AcousticEnvironmentSpec | None
+    environment: AcousticEnvironmentSpec
     room_acoustics_max_order: int
     room_acoustics_air_absorption: bool
     room_acoustics_ray_tracing: bool
@@ -330,9 +330,9 @@ def _parse_microphones(raw_microphones: Any) -> tuple[MicrophoneSpec, ...]:
     return tuple(microphones)
 
 
-def _parse_environment(raw_environment: Any) -> AcousticEnvironmentSpec | None:
+def _parse_environment(raw_environment: Any) -> AcousticEnvironmentSpec:
     if raw_environment is None:
-        return None
+        raise ConfigValidationError("[environment] table is required by R7.2.")
     if not isinstance(raw_environment, dict):
         raise ConfigValidationError("[environment] must be a table.")
     environment_id = _required_str(
@@ -498,7 +498,7 @@ def _validate_backend_requirements(
     arrays: dict[str, MicrophoneArraySpec],
     ambiguity_policy: str,
     ambiguity_policy_explicit: bool,
-    environment: AcousticEnvironmentSpec | None,
+    environment: AcousticEnvironmentSpec,
 ) -> None:
     if default_backend == "geometry_only":
         return
@@ -517,7 +517,7 @@ def _validate_backend_requirements(
                     "2-mic TDOA configs must select an ambiguity policy."
                 )
     if default_backend in {"room_acoustics", "room_acoustics_srp"} and (
-        environment is None or environment.kind != "shoebox"
+        environment.kind != "shoebox"
     ):
         raise ConfigValidationError(
             f"{default_backend} requires environment.kind='shoebox' in R7.1."

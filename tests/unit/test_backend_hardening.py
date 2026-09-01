@@ -5,6 +5,7 @@ from dataclasses import replace
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.tdoa import (
     TdoaSyntheticBackend,
@@ -808,6 +809,7 @@ def _scene(
         timestamp_ms=1_775_496_559_292,
         sources=sources,
         arrays=(array,),
+        environment=free_field_environment(environment_id="hardening_free_field"),
     )
 
 

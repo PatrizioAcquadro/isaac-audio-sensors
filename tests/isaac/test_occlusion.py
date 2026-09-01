@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
@@ -107,6 +108,7 @@ def _scene(**overrides) -> AudioSceneSnapshot:
         timestamp_ms=0,
         sources=(_source(),),
         arrays=(_array(),),
+        environment=free_field_environment(environment_id="occlusion_free_field"),
     )
     return replace(base, **overrides) if overrides else base
 

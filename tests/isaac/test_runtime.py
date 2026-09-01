@@ -8,7 +8,10 @@ import pytest
 import torch
 from isaaclab.sensors import SensorBase, SensorBaseCfg
 
-from isaac_audio_sensors.core.acoustics import shoebox_environment
+from isaac_audio_sensors.core.acoustics import (
+    free_field_environment,
+    shoebox_environment,
+)
 from isaac_audio_sensors.core.directivity import DirectivityPattern
 from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
@@ -70,7 +73,11 @@ def _snapshot(
         timestamp_ms=0,
         arrays=(array,),
         sources=sources,
-        environment=environment,
+        environment=(
+            environment
+            if environment is not None
+            else free_field_environment(environment_id="reference_free_field")
+        ),
     )
 
 

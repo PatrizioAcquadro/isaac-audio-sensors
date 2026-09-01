@@ -13,7 +13,10 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.acoustics import shoebox_environment
+from isaac_audio_sensors.core.acoustics import (
+    free_field_environment,
+    shoebox_environment,
+)
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
@@ -605,6 +608,7 @@ def test_off_state_frame_has_no_acoustics_namespace_and_is_byte_deterministic():
         timestamp_ms=0,
         sources=(_source(),),
         arrays=(array,),
+        environment=free_field_environment(environment_id="off_free_field"),
     )
     first = GeometryBackend().simulate(scene, array.array_id, _window())
     second = GeometryBackend().simulate(scene, array.array_id, _window())

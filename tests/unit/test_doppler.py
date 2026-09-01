@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.motion.doppler import (
@@ -137,6 +138,7 @@ def test_tdoa_backend_emits_doppler_metadata_only_with_velocity():
         timestamp_ms=0,
         sources=(moving, static),
         arrays=(array,),
+        environment=free_field_environment(environment_id="doppler_free_field"),
     )
     frame = TdoaSyntheticBackend().simulate(scene, array.array_id, _window())
 
