@@ -14,10 +14,9 @@ from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.core.types import AudioSceneSnapshot
 from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 from isaac_audio_sensors.lab.batched_backend import (
+    analytic_free_field_observations,
     compact_active_events,
-    geometry_observations,
     precompute_tdoa_operator,
-    tdoa_observations,
 )
 from isaac_audio_sensors.lab.entity_binding import EntityBinding, EntityBindingCfg
 from isaac_audio_sensors.lab.reference_backend import ReferenceBackend
@@ -34,7 +33,7 @@ class AudioArraySensor(SensorBase):
         self._entity_binding: EntityBinding | None = None
         self._reference_backend: ReferenceBackend | None = None
         self._reference_frame_indices: torch.Tensor | None = None
-        self._tdoa_operator: tuple[torch.Tensor, torch.Tensor] | None = None
+        self._analytic_tdoa_operator: tuple[torch.Tensor, torch.Tensor] | None = None
         super().__init__(cfg)
 
     @property
@@ -71,12 +70,17 @@ class AudioArraySensor(SensorBase):
         self._reference_backend = ReferenceBackend(
             backend_id=self.cfg.backend,
             ambiguity_policy=self.cfg.ambiguity_policy,
+            speed_of_sound_mps=float(self.cfg.speed_of_sound_mps),
+            doa_estimator=self.cfg.doa_estimator,
+            analytic_max_order=int(self.cfg.analytic_max_order),
+            analytic_air_absorption=bool(self.cfg.analytic_air_absorption),
+            analytic_ray_tracing=bool(self.cfg.analytic_ray_tracing),
             effects=self.cfg.effects,
             snapshots=snapshots,
             array_ids=array_ids,
         )
         self._entity_binding = None
-        self._tdoa_operator = None
+        self._analytic_tdoa_operator = None
         self._validate_bound_runtime()
         return self
 
@@ -107,16 +111,16 @@ class AudioArraySensor(SensorBase):
             self._reference_frame_indices = torch.zeros(
                 self._num_envs, dtype=torch.long, device=self.device
             )
-        elif self.cfg.backend == "tdoa_synthetic":
+        else:
             assert self._entity_binding is not None
             solve, baseline, determinant = precompute_tdoa_operator(
                 self._entity_binding.static.mic_offsets_local
             )
             if abs(determinant) <= EPSILON:
                 raise ValueError(
-                    "tdoa_synthetic requires non-degenerate least-squares geometry."
+                    "analytic_acoustics requires non-degenerate least-squares geometry."
                 )
-            self._tdoa_operator = (solve, baseline)
+            self._analytic_tdoa_operator = (solve, baseline)
 
     def _update_buffers_impl(self, env_mask: wp.array) -> None:
         if self._data is None:
@@ -154,15 +158,13 @@ class AudioArraySensor(SensorBase):
         active = (static.source_start_s.unsqueeze(0) < end_time.unsqueeze(1)) & (
             static.source_end_s.unsqueeze(0) > timestamps.unsqueeze(1)
         )
-        if self.cfg.backend == "geometry_only":
-            source_observations = geometry_observations(batch)
-        else:
-            assert self._tdoa_operator is not None
-            source_observations = tdoa_observations(
-                batch,
-                solve_operator=self._tdoa_operator[0],
-                baseline_matrix=self._tdoa_operator[1],
-            )
+        assert self._analytic_tdoa_operator is not None
+        source_observations = analytic_free_field_observations(
+            batch,
+            solve_operator=self._analytic_tdoa_operator[0],
+            baseline_matrix=self._analytic_tdoa_operator[1],
+            speed_of_sound_mps=float(self.cfg.speed_of_sound_mps),
+        )
         return compact_active_events(
             source_observations,
             active_mask=active,
@@ -177,16 +179,33 @@ class AudioArraySensor(SensorBase):
                 )
             return
         if self._entity_binding is not None:
-            if self.cfg.backend not in {"geometry_only", "tdoa_synthetic"}:
+            if self.cfg.backend != "analytic_acoustics":
                 raise ValueError(
-                    "Entity binding supports only geometry_only and tdoa_synthetic; "
-                    "analytic_acoustics mass-parallel routing belongs to R8.3."
+                    "Entity binding supports only analytic_acoustics."
+                )
+            if self._entity_binding.cfg.environment.kind != "free_field":
+                raise ValueError(
+                    "Entity-bound analytic_acoustics supports only an explicit "
+                    "free_field environment."
                 )
             if self.cfg.effects != EffectsConfig():
                 raise ValueError("Entity binding requires effects to be disabled.")
-            if self.cfg.backend == "tdoa_synthetic" and self._bound_num_mics() < 3:
+            if self.cfg.doa_estimator != "tdoa_least_squares":
                 raise ValueError(
-                    "tdoa_synthetic entity binding requires at least 3 microphones."
+                    "Entity binding supports only doa_estimator='tdoa_least_squares'."
+                )
+            if (
+                self.cfg.analytic_max_order != 0
+                or self.cfg.analytic_air_absorption
+                or self.cfg.analytic_ray_tracing
+            ):
+                raise ValueError(
+                    "Entity-bound free_field analytic_acoustics requires max_order=0 "
+                    "with air absorption and ray tracing disabled."
+                )
+            if self._bound_num_mics() < 3:
+                raise ValueError(
+                    "Entity-bound analytic_acoustics requires at least 3 microphones."
                 )
         if runtime_ready or self.is_initialized:
             if self._bound_num_envs() != self._num_envs:

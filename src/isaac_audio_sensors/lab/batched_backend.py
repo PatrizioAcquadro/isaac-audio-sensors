@@ -179,7 +179,7 @@ def precompute_tdoa_operator(
     return torch.linalg.solve(normal, baseline.T), baseline, determinant
 
 
-def tdoa_observations(
+def analytic_free_field_observations(
     batch: EntityPoseTensorBatch,
     *,
     solve_operator: torch.Tensor,

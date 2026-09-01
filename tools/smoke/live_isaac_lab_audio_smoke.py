@@ -35,6 +35,7 @@ def main() -> int:
         if "RTX 4090" not in gpu_name:
             raise RuntimeError(f"Expected RTX 4090, found {gpu_name!r}.")
 
+        from isaac_audio_sensors.core.acoustics import free_field_environment
         from isaac_audio_sensors.lab import (
             AudioArraySensor,
             AudioArraySensorCfg,
@@ -58,7 +59,7 @@ def main() -> int:
         )
         array_ids, snapshots = _reference_scenes()
         parity_sensors = []
-        for backend_id in ("geometry_only", "tdoa_synthetic"):
+        for backend_id in ("analytic_acoustics",):
             entity_sensor = AudioArraySensor(
                 AudioArraySensorCfg(
                     prim_path="/World/parity/env_.*/AudioSensor",
@@ -68,6 +69,9 @@ def main() -> int:
             ).bind_entities(
                 parity_scene,
                 EntityBindingCfg(
+                    environment=free_field_environment(
+                        environment_id="lab_parity_free_field"
+                    ),
                     source_entities=(SourceEntityCfg(entity_name="speaker"),)
                 ),
             )
@@ -88,12 +92,17 @@ def main() -> int:
         perf_sensor = AudioArraySensor(
             AudioArraySensorCfg(
                 prim_path="/World/perf/env_.*/AudioSensor",
-                backend="tdoa_synthetic",
+                backend="analytic_acoustics",
                 max_events=1,
             )
         ).bind_entities(
             perf_scene,
-            EntityBindingCfg(source_entities=(SourceEntityCfg(entity_name="speaker"),)),
+            EntityBindingCfg(
+                environment=free_field_environment(
+                    environment_id="lab_performance_free_field"
+                ),
+                source_entities=(SourceEntityCfg(entity_name="speaker"),),
+            ),
         )
 
         simulation_context.reset()

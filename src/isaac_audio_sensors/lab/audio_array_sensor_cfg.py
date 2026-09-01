@@ -8,7 +8,11 @@ from isaaclab.sensors import SensorBaseCfg
 from isaaclab.utils.configclass import configclass
 
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
-from isaac_audio_sensors.core.constants import TDOA_AMBIGUITY_POLICIES
+from isaac_audio_sensors.core.constants import (
+    DEFAULT_SPEED_OF_SOUND_MPS,
+    DOA_ESTIMATOR_IDS,
+    TDOA_AMBIGUITY_POLICIES,
+)
 from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.lab.audio_array_sensor import AudioArraySensor
 
@@ -18,9 +22,14 @@ class AudioArraySensorCfg(SensorBaseCfg):
     """Configuration for fixed-shape Isaac Lab audio observations."""
 
     class_type: type[AudioArraySensor] = AudioArraySensor
-    backend: str = "tdoa_synthetic"
+    backend: str = "analytic_acoustics"
     max_events: int = 8
     ambiguity_policy: str = "none"
+    speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
+    doa_estimator: str = "tdoa_least_squares"
+    analytic_max_order: int = 0
+    analytic_air_absorption: bool = False
+    analytic_ray_tracing: bool = False
     effects: EffectsConfig = EffectsConfig()
 
     def validate_config(self) -> None:
@@ -36,6 +45,23 @@ class AudioArraySensorCfg(SensorBaseCfg):
             raise ValueError("max_events must be non-negative.")
         if self.ambiguity_policy not in TDOA_AMBIGUITY_POLICIES:
             raise ValueError(f"Unknown ambiguity policy {self.ambiguity_policy!r}.")
+        if (
+            not math.isfinite(float(self.speed_of_sound_mps))
+            or self.speed_of_sound_mps <= 0.0
+        ):
+            raise ValueError("speed_of_sound_mps must be positive and finite.")
+        if self.doa_estimator not in DOA_ESTIMATOR_IDS:
+            raise ValueError(f"Unknown DOA estimator {self.doa_estimator!r}.")
+        if (
+            isinstance(self.analytic_max_order, bool)
+            or not isinstance(self.analytic_max_order, int)
+            or self.analytic_max_order < 0
+        ):
+            raise ValueError("analytic_max_order must be a non-negative integer.")
+        if not isinstance(self.analytic_air_absorption, bool):
+            raise TypeError("analytic_air_absorption must be a boolean.")
+        if not isinstance(self.analytic_ray_tracing, bool):
+            raise TypeError("analytic_ray_tracing must be a boolean.")
         if not isinstance(self.effects, EffectsConfig):
             raise TypeError("effects must be an EffectsConfig.")
         if self.debug_vis:

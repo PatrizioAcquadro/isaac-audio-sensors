@@ -18,9 +18,6 @@ from isaac_audio_sensors.core.acoustics.materials import (
     resolve_material_coefficients,
 )
 from isaac_audio_sensors.core.backends.room_acoustics.assembly import assemble_frame
-from isaac_audio_sensors.core.backends.room_acoustics.backend import (
-    DOA_ESTIMATOR_IDS,
-)
 from isaac_audio_sensors.core.backends.room_acoustics.detections import (
     assemble_detections,
 )
@@ -41,6 +38,7 @@ from isaac_audio_sensors.core.backends.room_acoustics.signals import (
 )
 from isaac_audio_sensors.core.constants import (
     DEFAULT_SPEED_OF_SOUND_MPS,
+    DOA_ESTIMATOR_IDS,
     EPSILON,
 )
 from isaac_audio_sensors.core.directivity import DIRECTIVITY_MODE

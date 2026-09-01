@@ -18,7 +18,10 @@ from isaac_audio_sensors.core.backends.room_acoustics.rendering import (
     apply_room_effects,
     render_room,
 )
-from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
+from isaac_audio_sensors.core.constants import (
+    DEFAULT_SPEED_OF_SOUND_MPS,
+    DOA_ESTIMATOR_IDS,
+)
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
@@ -28,8 +31,6 @@ from isaac_audio_sensors.core.types import (
     AudioSensorFrame,
     AudioTimeWindow,
 )
-
-DOA_ESTIMATOR_IDS = ("tdoa_least_squares", "srp_phat")
 
 
 class RoomAcousticsBackend:

@@ -21,7 +21,7 @@ from isaac_audio_sensors.core.math_utils import (
     as_vector3,
 )
 from isaac_audio_sensors.core.microphone_array import microphone_layout
-from isaac_audio_sensors.core.types import MicrophoneSpec
+from isaac_audio_sensors.core.types import AcousticEnvironmentSpec, MicrophoneSpec
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -77,6 +77,7 @@ class SourceEntityCfg:
 class EntityBindingCfg:
     """Define the array mount, microphones, and source entities."""
 
+    environment: AcousticEnvironmentSpec
     robot_entity_name: str = "robot"
     array_mount_body_name: str | None = None
     array_relative_position_m: Vector3 = (0.0, 0.0, 0.0)
@@ -89,6 +90,8 @@ class EntityBindingCfg:
     state_quat_order: Literal["wxyz", "xyzw"] = "wxyz"
 
     def __post_init__(self) -> None:
+        if not isinstance(self.environment, AcousticEnvironmentSpec):
+            raise TypeError("environment must be an AcousticEnvironmentSpec.")
         _require_name(self.robot_entity_name, "robot_entity_name")
         if self.array_mount_body_name is not None:
             _require_name(self.array_mount_body_name, "array_mount_body_name")

@@ -7,7 +7,7 @@ from collections.abc import Sequence
 import torch
 
 from isaac_audio_sensors.core.backends.base import get_backend
-from isaac_audio_sensors.core.constants import SECTOR_ORDER
+from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS, SECTOR_ORDER
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
 from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.core.types import (
@@ -25,6 +25,11 @@ class ReferenceBackend:
         *,
         backend_id: str,
         ambiguity_policy: str,
+        speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
+        doa_estimator: str = "tdoa_least_squares",
+        analytic_max_order: int = 0,
+        analytic_air_absorption: bool = False,
+        analytic_ray_tracing: bool = False,
         effects: EffectsConfig,
         snapshots: Sequence[AudioSceneSnapshot],
         array_ids: Sequence[str],
@@ -57,6 +62,14 @@ class ReferenceBackend:
             "room_acoustics_srp",
         }:
             kwargs["ambiguity_policy"] = ambiguity_policy
+            kwargs["speed_of_sound_mps"] = speed_of_sound_mps
+        if backend_id == "analytic_acoustics":
+            kwargs.update(
+                doa_estimator=doa_estimator,
+                max_order=analytic_max_order,
+                air_absorption=analytic_air_absorption,
+                ray_tracing=analytic_ray_tracing,
+            )
         self._backend = get_backend(backend_id, **kwargs)
 
     @property

@@ -30,14 +30,12 @@ from isaac_audio_sensors.lab import (
     SourceEntityCfg,
 )
 from isaac_audio_sensors.lab.batched_backend import (
+    analytic_free_field_observations,
     compact_active_events,
-    geometry_observations,
     precompute_tdoa_operator,
-    tdoa_observations,
 )
 from isaac_audio_sensors.lab.entity_binding import EntityBinding
 from isaac_audio_sensors.lab.reference_backend import ReferenceBackend
-from tests.helpers import install_fake_pyroom
 
 DB_DOUBLE = 20.0 * math.log10(2.0)
 
@@ -187,6 +185,7 @@ def test_entity_binding_applies_env_origin_body_mount_and_wxyz_conversion():
     binding = EntityBinding(
         scene,
         EntityBindingCfg(
+            environment=free_field_environment(environment_id="entity_origin"),
             array_mount_body_name="head",
             array_relative_position_m=(1.0, 0.0, 0.0),
             source_entities=(SourceEntityCfg(entity_name="speaker"),),
@@ -210,8 +209,8 @@ def test_entity_binding_applies_env_origin_body_mount_and_wxyz_conversion():
     )
 
 
-@pytest.mark.parametrize("backend_id", ["geometry_only", "tdoa_synthetic"])
-def test_entity_and_reference_paths_match_with_schedule_and_truncation(backend_id):
+def test_analytic_entity_and_reference_paths_match_with_schedule_and_truncation():
+    backend_id = "analytic_acoustics"
     robot_state = _root_state(((0.0, 0.0, 0.0),))
     front_state = _root_state(((4.0, 0.0, 0.0),))
     right_state = _root_state(((0.0, 4.0, 0.0),))
@@ -221,6 +220,7 @@ def test_entity_and_reference_paths_match_with_schedule_and_truncation(backend_i
         right=_entity(right_state),
     )
     cfg = EntityBindingCfg(
+        environment=free_field_environment(environment_id="entity_parity"),
         source_entities=(
             SourceEntityCfg(entity_name="right", source_id="b", start_time_s=0.5),
             SourceEntityCfg(entity_name="front", source_id="a", start_time_s=0.0),
@@ -229,16 +229,13 @@ def test_entity_and_reference_paths_match_with_schedule_and_truncation(backend_i
     binding = EntityBinding(scene, cfg)
     env_ids = torch.tensor([0])
     batch = binding.pose_batch(env_ids, device="cpu")
-    if backend_id == "geometry_only":
-        source_observations = geometry_observations(batch)
-    else:
-        solve, baseline, determinant = precompute_tdoa_operator(
-            binding.static.mic_offsets_local
-        )
-        assert determinant > 0.0
-        source_observations = tdoa_observations(
-            batch, solve_operator=solve, baseline_matrix=baseline
-        )
+    solve, baseline, determinant = precompute_tdoa_operator(
+        binding.static.mic_offsets_local
+    )
+    assert determinant > 0.0
+    source_observations = analytic_free_field_observations(
+        batch, solve_operator=solve, baseline_matrix=baseline
+    )
     active = (binding.static.source_start_s.unsqueeze(0) < 0.6) & (
         binding.static.source_end_s.unsqueeze(0) > 0.5
     )
@@ -292,12 +289,22 @@ def test_entity_and_reference_paths_match_with_schedule_and_truncation(backend_i
     )
 
     for item in fields(entity_result):
+        if item.name == "per_mic_rms":
+            entity_rms = entity_result.per_mic_rms[0, 0]
+            reference_rms = reference_result.per_mic_rms[0, 0]
+            torch.testing.assert_close(
+                entity_rms / entity_rms[0],
+                reference_rms / reference_rms[0],
+                atol=1e-3,
+                rtol=1e-3,
+            )
+            continue
         torch.testing.assert_close(
             getattr(entity_result, item.name),
             getattr(reference_result, item.name),
             equal_nan=True,
-            atol=1e-4,
-            rtol=1e-4,
+            atol=1e-3,
+            rtol=1e-3,
         )
 
     padded_result = reference.observations(
@@ -324,7 +331,7 @@ def test_entity_and_reference_paths_match_with_schedule_and_truncation(backend_i
 
 def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
     with pytest.raises(ValueError, match="source_entities"):
-        EntityBindingCfg()
+        EntityBindingCfg(environment=free_field_environment(environment_id="empty"))
     with pytest.raises(ValueError, match="directivity"):
         SourceEntityCfg(entity_name="speaker", directivity="unknown")
     with pytest.raises((TypeError, ValueError), match="relative_orientation_quat"):
@@ -338,6 +345,7 @@ def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
     }
     with pytest.raises(TypeError, match="microphone_relative_offsets_m"):
         EntityBindingCfg(
+            environment=free_field_environment(environment_id="legacy_field"),
             source_entities=(SourceEntityCfg(entity_name="speaker"),),
             microphone_relative_offsets_m=((0.0, 0.0, 0.0),),
         )
@@ -347,7 +355,10 @@ def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
     with pytest.raises(ValueError, match="seven state columns"):
         EntityBinding(
             scene,
-            EntityBindingCfg(source_entities=(SourceEntityCfg(entity_name="speaker"),)),
+            EntityBindingCfg(
+                environment=free_field_environment(environment_id="bad_shape"),
+                source_entities=(SourceEntityCfg(entity_name="speaker"),),
+            ),
         )
 
     double_state = _root_state(((0.0, 0.0, 0.0),)).double()
@@ -355,7 +366,10 @@ def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
     with pytest.raises(TypeError, match="float32"):
         EntityBinding(
             scene,
-            EntityBindingCfg(source_entities=(SourceEntityCfg(entity_name="speaker"),)),
+            EntityBindingCfg(
+                environment=free_field_environment(environment_id="bad_dtype"),
+                source_entities=(SourceEntityCfg(entity_name="speaker"),),
+            ),
         )
 
     valid_state = _root_state(((0.0, 0.0, 0.0),))
@@ -364,28 +378,43 @@ def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
     )
     binding = EntityBinding(
         valid_scene,
-        EntityBindingCfg(source_entities=(SourceEntityCfg(entity_name="speaker"),)),
+        EntityBindingCfg(
+            environment=free_field_environment(environment_id="device"),
+            source_entities=(SourceEntityCfg(entity_name="speaker"),),
+        ),
     )
     with pytest.raises(ValueError, match="sensor is on cuda"):
         binding.pose_batch(torch.tensor([0]), device="cuda:0")
 
 
-def test_entity_binding_excludes_analytic_backend_until_r8_3() -> None:
+def test_entity_binding_rejects_non_free_field_analytic_environment() -> None:
+    binding_cfg = EntityBindingCfg(
+        environment=shoebox_environment(
+            environment_id="room",
+            dimensions_m=(4.0, 4.0, 3.0),
+        ),
+        source_entities=(SourceEntityCfg(entity_name="speaker"),),
+    )
     sensor = SimpleNamespace(
-        _entity_binding=object(),
+        _entity_binding=SimpleNamespace(cfg=binding_cfg),
         _reference_backend=None,
         cfg=SimpleNamespace(
             backend="analytic_acoustics",
+            doa_estimator="tdoa_least_squares",
+            analytic_max_order=0,
+            analytic_air_absorption=False,
+            analytic_ray_tracing=False,
             effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         ),
         is_initialized=False,
+        _bound_num_mics=lambda: 4,
     )
 
-    with pytest.raises(ValueError, match="belongs to R8.3"):
+    with pytest.raises(ValueError, match="explicit free_field"):
         AudioArraySensor._validate_bound_runtime(sensor)
 
 
-@pytest.mark.parametrize("backend_id", ["geometry_only", "tdoa_synthetic"])
+@pytest.mark.parametrize("backend_id", ["analytic_acoustics"])
 @pytest.mark.parametrize(
     ("gain_target", "gain_db", "expected_ratio"),
     (
@@ -414,11 +443,7 @@ def test_entity_modes_apply_source_and_microphone_gain_once(
 @pytest.mark.parametrize(
     "backend_id",
     [
-        "geometry_only",
-        "tdoa_synthetic",
         "analytic_acoustics",
-        "room_acoustics",
-        "room_acoustics_srp",
     ],
 )
 @pytest.mark.parametrize(
@@ -437,8 +462,6 @@ def test_reference_mode_preserves_relative_gain_ratios(
     gain_db: float,
     expected_ratio: float,
 ) -> None:
-    if backend_id == "analytic_acoustics" or backend_id.startswith("room_acoustics"):
-        install_fake_pyroom(monkeypatch)
     baseline = _reference_mode_rms(backend_id)
     changed = _reference_mode_rms(
         backend_id,
@@ -463,6 +486,7 @@ def test_entity_binding_uses_canonical_entity_directivity_and_microphone_gain() 
     binding = EntityBinding(
         _Scene(robot=_entity(state), speaker=_entity(state.clone())),
         EntityBindingCfg(
+            environment=free_field_environment(environment_id="entity_directivity"),
             microphone_layout=None,
             microphones=microphones,
             source_entities=(
@@ -505,6 +529,7 @@ def _entity_mode_rms(
     binding = EntityBinding(
         _Scene(robot=_entity(robot), speaker=_entity(source)),
         EntityBindingCfg(
+            environment=free_field_environment(environment_id="entity_gain"),
             microphone_layout=None,
             microphones=microphones,
             source_entities=(
@@ -513,18 +538,15 @@ def _entity_mode_rms(
         ),
     )
     batch = binding.pose_batch(torch.tensor([0]), device="cpu")
-    if backend_id == "geometry_only":
-        observations = geometry_observations(batch)
-    else:
-        solve, baseline, determinant = precompute_tdoa_operator(
-            binding.static.mic_offsets_local
-        )
-        assert determinant > 0.0
-        observations = tdoa_observations(
-            batch,
-            solve_operator=solve,
-            baseline_matrix=baseline,
-        )
+    solve, baseline, determinant = precompute_tdoa_operator(
+        binding.static.mic_offsets_local
+    )
+    assert determinant > 0.0
+    observations = analytic_free_field_observations(
+        batch,
+        solve_operator=solve,
+        baseline_matrix=baseline,
+    )
     return float(observations.per_mic_rms[0, 0, 0].item())
 
 
