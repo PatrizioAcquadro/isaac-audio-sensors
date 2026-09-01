@@ -413,3 +413,11 @@ Recorded the CUDA-native free-field Lab path, single `analytic_acoustics` runtim
 ## 2026-09-01 — lint: R8.3 Isaac Lab scale and backend consolidation
 
 Verified 457 unit/contract tests, 200 integration tests, 57 release tests, 90 Isaac tests, optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, 4096-environment performance, 373-pass SquadBot validation, clean-source artifact audits, registry consolidation, resolved wiki links, index coverage, and whitespace.
+
+## 2026-09-01 — update: R8.4 occlusion contract and transmission closeout
+
+Recorded the minimal Core occlusion record, uncapped acoustic-partition transmission, explicit unknown-material fallback, frame-level provenance, optional transient Isaac debug traces, preserved analytic/Lab behavior, and unchanged v1 schemas.
+
+## 2026-09-01 — lint: R8.4 occlusion contract and transmission closeout
+
+Verified the complete host and Isaac suites, optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, clean-source release artifacts, unchanged SquadBot, byte-identical v1 schemas, canonical wiki links and index coverage, Ruff, version synchronization, and whitespace.
