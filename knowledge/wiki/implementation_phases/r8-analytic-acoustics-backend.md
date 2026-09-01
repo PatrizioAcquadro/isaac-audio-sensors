@@ -86,13 +86,39 @@ Use `AnalyticAcoustics` as the scalable path for mass-parallel Isaac Lab workloa
 
 The scalable analytic model approximates the distribution of geometry-aware behavior; it does not reproduce every advanced scene path per environment.
 
+## Subphase R8.4 — Occlusion Contract and Transmission Closeout
+
+#### Implementation
+
+Complete the analytic occlusion cleanup after R8.3 has stabilized the scalable backend and migrated the legacy consumers. Keep `SourceOcclusion` limited to `array_id`, `source_id`, exact `per_mic_blocked` and `per_mic_attenuation_db` maps, plus optional aligned band attenuation and band centers. Remove `per_mic_hit_prim_paths`, `hit_materials`, and per-record `occlusion_model` without aliases. Report the producing model and material-resolution provenance once in frame or sensor diagnostics instead of repeating geometry-internal state in every Core record.
+
+Replace hit-path persistence with an optional Isaac-internal trace. The normal path emits only the minimal `SourceOcclusion`; debug or artifact capture may additionally collect source, microphone, ray endpoints, hit points, acoustic-partition ids, resolved materials, and applied losses. Convert that trace to the existing `DebugPrimitive` surface for live overlays, sidecar JSON, or review video. Do not add it to `AudioSceneSnapshot`, the stable `AudioSensorFrame` schema, or ordinary datasets, and do not allocate or serialize it when debug capture is disabled.
+
+Define accumulation over acoustic partitions rather than arbitrary visual or collision prims. Multiple prims assigned to one partition contribute one authored assembly transmission curve; distinct sequential partitions multiply transmission and therefore add their losses in dB. Alternative direct, reflected, diffracted, or around-opening paths remain separate waveform contributions and are never represented by summing obstacle losses. The analytic model accepts an authored whole-assembly curve for constructions such as double-leaf walls and does not implement structural wall physics.
+
+Remove the fixed `60 dB` total-loss clamp. Retain `max_hits_per_ray` only as a bounded-work guard. Rename `occlusion_max_attenuation_db` to `unknown_material_loss_db`, use it only as an explicit nominal fallback for unresolved materials, and report every fallback application without presenting it as measured behavior. Exact authored losses remain unchanged by undocumented clipping.
+
+#### Key Decisions
+
+- R8.3 closes before this contract cleanup begins; its in-progress scale work is not reopened or expanded.
+- Core stores the attenuation needed by analytic propagation, while Isaac owns transient ray, hit, and material-resolution detail.
+- One acoustic partition may own many visual or collision prims; fragmentation must not increase attenuation.
+- Sequential partition losses add in dB, while alternative propagation paths remain separate signals.
+- There is no default total attenuation cap and no missing-microphone fallback.
+- Debug rays are optional review data outside stable frames and ordinary datasets.
+- No compatibility aliases are retained for the removed unreleased v3 Python fields.
+
+#### Problems / Limitations
+
+Nominal unknown-material loss remains an explicit approximation rather than calibrated material truth. Assembly curves must be authored or resolved from a qualified source; R8.4 does not infer thickness, cavity resonance, structural coupling, or coincidence behavior from rendered meshes. Analytic occlusion remains direct-path-only and does not acquire general geometry pathing or diffraction.
+
 ## Artifacts
 
 R8.1 includes deterministic routing and propagation tests, fake-provider coverage for both closed-room routes, real PyRoom 0.10.1 smoke execution for shoebox and a concave prism, CLI/config and Isaac reference coverage, legacy-backend regression coverage, and a live Isaac Sim Core free-field route.
 
 R8.2 adds deterministic `a * D + R` coverage for all four supported analytic topologies, broadband and banded attenuation, no-attenuation byte equality, timing, polarity, distance, air absorption, materials, directivity, motion segmentation, multiple sources, multi-hit caps/provenance, and clear/partial/full occlusion. The closure gate passes 551 host tests, 216 focused integration tests, 57 release tests, 111 Isaac tests, real optional PyRoom/SciPy/SoundFile execution, and live RTX 4090 Isaac Sim, Isaac Lab, and 38-step Kit workflows. Live analytic evidence records `occlusion_factor` changing from `1.0` blocked to `0.0` clear. Temporary source, wheel, and Kit artifacts pass the release audit; all three serialized v1 schemas remain byte-identical. The unchanged SquadBot suite has the exact same 31-test failure set as baseline `3a8b078`.
 
-R8.3 remains future work.
+R8.3 is in implementation. R8.4 remains future work after the R8.3 closure.
 
 ## Files
 

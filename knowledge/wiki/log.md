@@ -397,3 +397,11 @@ Recorded internal direct/indirect stems, direct-only broadband and spectral occl
 ## 2026-09-01 — lint: R8.2 relative propagation and occlusion
 
 Verified 551 host tests, 216 focused integration tests, 57 release tests, 111 Isaac tests, real optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, temporary artifact audits, exact SquadBot failure-set parity, unchanged v1 schemas, canonical wiki links, Ruff, version synchronization, and whitespace.
+
+## 2026-09-01 — update: Post-R8.3 occlusion and geometry-provider plan
+
+Added the planned R8.4 lean occlusion and partition-transmission closeout, expanded R9 with provider qualification fixtures and native-capability reuse, and refined R10 acoustic-assembly mapping, optional path review, and simulation-derived parameter transfer without adding real-world validation scope.
+
+## 2026-09-01 — lint: Post-R8.3 occlusion and geometry-provider plan
+
+Verified phase ordering, subphase structure, index coverage, internal documentation links, Markdown whitespace, stable-schema boundaries, simulation-only scope, and preservation of the in-progress R8.3 worktree.
