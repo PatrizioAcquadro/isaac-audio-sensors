@@ -50,6 +50,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.6 one exact two-artifact audit derived from source and locked wheels, including isolated offline wheel installation and packaged dependency provenance.
 - R6.7 complete host, RTX 4090, packaged Kit, artifact, and downstream-consumer closeout without publication.
 - R6.8 exact source distribution, Python 3.10–3.12 CI, and verified tokenless TestPyPI/PyPI publication with isolated OIDC permissions.
+- R9.1 internal fail-closed `GeometryAcoustics` provider qualification with an exact criterion inventory, typed evidence, derived `qualified`/`rejected`/`incomplete` outcomes, and non-blocking path-diagnostic limitations. No provider or runtime backend is selected.
 
 ## Documentation State
 
@@ -121,6 +122,12 @@ R7/R8 are complete. The final surface has one mandatory five-topology environmen
 
 The final R7/R8 cleanup gate passes 460 unit/contract tests, 197 Core-only integration tests with two expected optional-audio skips, and 57 release tests on both Python 3.10 and 3.12. The maintained CLI quickstart runs through `free_field` without PyRoom; the optional lane passes 12 codec/panel tests plus real shoebox and polygon-prism execution with pyroomacoustics 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. The RTX 4090 passes 100 Isaac-runtime tests, live Isaac Sim, 4096-environment Lab parity/reset/performance at 2.336 ms/step, and all 38 Kit workflow steps. The unchanged SquadBot checkout passes 373 tests with 10 expected skips, the complete clean-source release audit passes, and all three v1 schemas regenerate byte-identically. Package `3.0.0` remains unreleased; nothing was tagged or published.
 
+The R9.1 gate passes 23 focused qualification-contract tests, 483
+unit/contract tests, 199 integration tests, and 57 release tests. Version
+synchronization, Ruff, internal wikilinks, documentation boundaries, and
+whitespace pass. No provider probe, Isaac runtime change, GPU execution,
+package API, dependency, schema, or version change is part of R9.1.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -147,4 +154,9 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-R9 is next and owns `GeometryAcoustics` provider qualification. R10 geometry integration, per-environment acoustic randomization, and publication of `3.0.0` remain separate future work. The published `2.0.0` Community Registry crawler closeout remains separate historical release work.
+R9.1 is complete. R9.2 is next and owns measured `GeometryAcoustics`
+candidate qualification through temporary adapters and shared fixtures; R9.3
+owns the provider decision. R10 geometry integration, per-environment acoustic
+randomization, and publication of `3.0.0` remain separate future work. The
+published `2.0.0` Community Registry crawler closeout remains separate
+historical release work.

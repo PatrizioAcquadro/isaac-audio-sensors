@@ -429,3 +429,11 @@ Made the maintained quickstart Core-only, removed obsolete amplitude, Lab geomet
 ## 2026-09-01 — lint: Final R7/R8 cleanup
 
 Verified Python 3.10/3.12 host gates, real optional audio, configuration and fixture workflows, byte-identical schemas, 100 Isaac-runtime tests, RTX 4090 Isaac Sim/Lab/Kit smokes, 4096-environment Lab performance, 373-pass SquadBot compatibility, clean-source release artifacts, canonical wiki links, Ruff, version synchronization, and whitespace.
+
+## 2026-09-01 — update: R9.1 provider qualification contract
+
+Added the internal fail-closed provider-report validator, exact blocking criterion inventory, typed evidence requirements, derived qualification outcomes, and non-blocking path-diagnostic limitation without adding a runtime backend or public API.
+
+## 2026-09-01 — lint: R9.1 provider qualification contract
+
+Verified 23 focused contract tests, 483 unit/contract tests, 199 integration tests, 57 release tests, canonical R9 phase ownership, internal wikilinks, immutable raw content, version synchronization, Ruff, and whitespace.

@@ -1,5 +1,7 @@
 # Phase R9 — Geometry Acoustics Provider Selection
 
+Status: R9.1 completed on 2026-09-01; R9.2 and R9.3 are planned.
+
 ## Objective
 
 Select the existing acoustic engine that can satisfy the passive-audio requirements before building a maintained Isaac integration. This phase owns provider qualification and the final provider decision; R10 owns product integration.
@@ -8,7 +10,21 @@ Select the existing acoustic engine that can satisfy the passive-audio requireme
 
 #### Implementation
 
-Require the provider to support:
+R9.1 is implemented as the repository-internal
+`tools/qualification/geometry_acoustics_contract.py` validator. It accepts one
+JSON report with exact `r9.1` contract version, candidate identity and version,
+the evaluated Isaac Sim/Kit runtime, and one result for every canonical
+criterion. It does not register a backend, change package configuration, or
+claim that a provider exists.
+
+Each result uses `pass`, `fail`, or `blocked`, a non-empty explanation, and one
+or more typed evidence references. Behavioral passes require a runtime probe or
+measurement; phase coherence, propagation, relative amplitude, assembly,
+transmission, and performance require measurements. Packaging requires a
+packaging probe and licensing requires the official license. Documentation can
+support a result but cannot by itself pass a behavioral gate.
+
+The blocking contract requires the provider to support:
 
 - passive audible sources with arbitrary file-backed or generated content;
 - separate phase-coherent raw output for every physical microphone;
@@ -18,10 +34,18 @@ Require the provider to support:
 - physically coherent relative amplitudes without requiring universal dB SPL calibration;
 - acoustic-partition or assembly semantics that do not multiply loss merely because one physical barrier uses several meshes or colliders;
 - authored frequency-dependent assembly transmission without undocumented total-loss clipping;
-- bounded optional path or ray diagnostics that can support review artifacts without becoming public sensor state;
 - a viable Isaac runtime, packaging, licensing, and performance path.
 
-Human-listener, binaural, device-speaker-mix, metadata-only, or active-ultrasound-only output does not satisfy the microphone-array contract.
+Bounded provider-native path or ray diagnostics are recorded as the one
+non-blocking criterion. Their absence remains an explicit limitation but does
+not reject an otherwise qualified provider or add path data to public sensor
+state.
+
+The validator derives the outcome: any failed gate is `rejected`; otherwise any
+blocked gate is `incomplete`; otherwise the candidate is `qualified`. A report
+cannot declare or override its outcome. Human-listener, binaural,
+device-speaker-mix, metadata-only, or active-ultrasound-only output does not
+satisfy the microphone-array contract.
 
 #### Key Decisions
 
@@ -29,10 +53,17 @@ Human-listener, binaural, device-speaker-mix, metadata-only, or active-ultrasoun
 - Approximate pathing/diffraction is required; a complete wave solver is not.
 - The maintained product should select one primary passive provider.
 - Native provider capabilities take precedence over repository-owned reimplementations when they satisfy the sensor contract and maintenance boundary.
+- `qualified` means only that the R9.1 gates have evidence; R9.3 still owns provider selection.
 
 #### Problems / Limitations
 
-No provider is selected by this specification. Provider marketing or a plausible rendered signal is insufficient if the microphone-array contract cannot be met. A provider that cannot represent one acoustic assembly across fragmented geometry, or that silently changes authored transmission values, does not satisfy the material contract.
+No provider is selected by R9.1. The validator checks report completeness,
+evidence classes, and outcome semantics; it cannot establish that referenced
+evidence is true. R9.2 must produce the runtime measurements. Provider
+marketing or a plausible rendered signal remains insufficient. A provider that
+cannot represent one acoustic assembly across fragmented geometry, or that
+silently changes authored transmission values, does not satisfy the material
+contract.
 
 ## Subphase R9.2 — Candidate Qualification
 
@@ -76,8 +107,10 @@ If no candidate meets passive, per-microphone, dynamic-geometry, and distributio
 
 ## Artifacts
 
-This page is the R9 phase specification. No provider decision exists yet.
+R9.1 provides the internal qualification validator and its deterministic unit
+and CLI tests. No candidate report or provider decision exists yet.
 
 ## Files
 
-No source files are changed by this planning step.
+- `tools/qualification/geometry_acoustics_contract.py`
+- `tests/unit/test_geometry_acoustics_contract.py`
