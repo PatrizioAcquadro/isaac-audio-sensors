@@ -385,3 +385,7 @@ Verified 539 unit/contract tests, 192 integration tests, 57 release tests, confi
 ## 2026-09-01 — update: R8.1 analytic solver routing
 
 Recorded the public `AnalyticAcoustics` backend, environment-only Core/PyRoom solver routing, per-surface and containment behavior, lazy optional dependencies, runtime bindings, retained legacy identifiers, preserved v1 schemas, and explicit R8.2/R8.3 boundaries.
+
+## 2026-09-01 — lint: R8.1 analytic solver routing
+
+Verified 549 host tests, 207 focused integration tests, 57 release tests, 109 Isaac tests, real optional audio, temporary sdist/wheel installation, RTX 4090 Isaac Sim and Kit smokes, zero new SquadBot regressions, unchanged v1 schemas, canonical wiki links, Ruff, version synchronization, and whitespace.
