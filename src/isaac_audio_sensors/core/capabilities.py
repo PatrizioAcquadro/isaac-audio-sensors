@@ -173,9 +173,6 @@ def discover_capabilities() -> CapabilityReport:
         for declaration in backend_declarations
         if declaration.required_dependencies
     )
-    backend_capabilities = {
-        capability.capability_id: capability for capability in optional_backends
-    }
     waveform_wav = _probe_optional(
         capability_id="waveform_export_wav",
         kind="waveform_export",
@@ -188,51 +185,18 @@ def discover_capabilities() -> CapabilityReport:
         fidelity_level="L2",
         dependencies=("soundfile",),
     )
+    analytic_closed_rooms = _probe_optional(
+        capability_id="analytic_acoustics_closed_rooms",
+        kind="backend_feature",
+        fidelity_level="L2",
+        dependencies=("pyroomacoustics",),
+    )
 
     fidelity_levels: list[CapabilityStatus] = []
     for metadata in ACOUSTIC_FIDELITY_LADDER:
         level = metadata.level.value
-        if level in {"L0", "L1"}:
+        if level in {"L0", "L1", "L2"}:
             fidelity_levels.append(_base_level(level, metadata.public_name))
-        elif level == "L2":
-            level_capabilities = tuple(
-                backend_capabilities[declaration.plugin_id]
-                for declaration in backend_declarations
-                if declaration.fidelity_level == level
-                and declaration.plugin_id in backend_capabilities
-            )
-            available = bool(level_capabilities) and all(
-                item.available for item in level_capabilities
-            )
-            origins = {item.origin for item in level_capabilities}
-            origin = origins.pop() if available and len(origins) == 1 else "absent"
-            missing = tuple(
-                sorted(
-                    {
-                        dependency
-                        for capability in level_capabilities
-                        for dependency in capability.missing_dependencies
-                    }
-                )
-            )
-            fidelity_levels.append(
-                CapabilityStatus(
-                    capability_id="L2",
-                    kind="fidelity_level",
-                    fidelity_level="L2",
-                    status="available" if available else "unavailable",
-                    origin=origin,
-                    missing_dependencies=missing,
-                    actionable_message=(
-                        ""
-                        if available
-                        else (
-                            "Install isaac-audio-sensors[room] to enable the "
-                            "L2 room backends."
-                        )
-                    ),
-                )
-            )
         else:
             fidelity_levels.append(
                 _unavailable_future_level(level, metadata.public_name)
@@ -240,7 +204,12 @@ def discover_capabilities() -> CapabilityReport:
 
     return CapabilityReport(
         fidelity_levels=tuple(fidelity_levels),
-        optional_features=(*optional_backends, waveform_wav, waveform_flac),
+        optional_features=(
+            *optional_backends,
+            analytic_closed_rooms,
+            waveform_wav,
+            waveform_flac,
+        ),
     )
 
 

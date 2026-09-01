@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from isaac_audio_sensors.core.acoustics.environments import shoebox_environment
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import (
     RoomAcousticsBackend,
@@ -81,6 +82,7 @@ def _window(
     (
         GeometryBackend,
         TdoaSyntheticBackend,
+        AnalyticAcoustics,
         RoomAcousticsBackend,
         RoomAcousticsSrpBackend,
     ),
@@ -120,6 +122,7 @@ def test_backends_select_canonical_array_state_from_snapshot(
     (
         GeometryBackend,
         TdoaSyntheticBackend,
+        AnalyticAcoustics,
         RoomAcousticsBackend,
         RoomAcousticsSrpBackend,
     ),

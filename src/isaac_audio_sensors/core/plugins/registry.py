@@ -254,6 +254,12 @@ def _lazy_tdoa_backend(**kwargs: object) -> object:
     return TdoaSyntheticBackend(**kwargs)
 
 
+def _lazy_analytic_backend(**kwargs: object) -> object:
+    from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
+
+    return AnalyticAcoustics(**kwargs)
+
+
 def _lazy_room_backend(**kwargs: object) -> object:
     from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 
@@ -302,6 +308,24 @@ def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], .
                 provenance="isaac_audio_sensors.core.backends.tdoa",
             ),
             _lazy_tdoa_backend,
+        ),
+        (
+            PluginDeclaration(
+                plugin_id="analytic_acoustics",
+                kind="propagation_backend",
+                fidelity_level="L2",
+                required_dependencies=(),
+                supported_devices=("cpu",),
+                supported_profiles=("waveform_fidelity",),
+                deterministic=True,
+                output_contract=backend_contract,
+                description=(
+                    "Environment-routed analytic propagation with optional "
+                    "closed-room solvers."
+                ),
+                provenance="isaac_audio_sensors.core.backends.analytic",
+            ),
+            _lazy_analytic_backend,
         ),
         (
             PluginDeclaration(

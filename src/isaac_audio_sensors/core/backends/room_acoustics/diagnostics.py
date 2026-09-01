@@ -29,8 +29,19 @@ from isaac_audio_sensors.core.types import (
 
 def _environment_config_summary(
     environment: AcousticEnvironmentSpec,
+    *,
+    per_surface_materials: bool = False,
 ) -> dict[str, object]:
     orientation = environment.world_pose.orientation_xyzw
+    if not environment.surfaces:
+        absorption: object = None
+    elif per_surface_materials:
+        absorption = {
+            surface.surface_id: _absorption_summary(surface.absorption)
+            for surface in environment.surfaces
+        }
+    else:
+        absorption = _absorption_summary(_uniform_environment_absorption(environment))
     return {
         "environment_id": environment.environment_id,
         "kind": environment.kind,
@@ -38,7 +49,7 @@ def _environment_config_summary(
         "position_world": environment.world_pose.position_m,
         "orientation_world_quat": orientation,
         "surface_count": len(environment.surfaces),
-        "absorption": _absorption_summary(_uniform_environment_absorption(environment)),
+        "absorption": absorption,
     }
 
 

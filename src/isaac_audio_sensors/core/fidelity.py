@@ -86,12 +86,19 @@ ACOUSTIC_FIDELITY_LADDER = (
     ),
     AcousticFidelityMetadata(
         level=AcousticFidelityLevel.L2,
-        public_name="room_acoustics",
+        public_name="analytic_acoustics",
         lifecycle_status="supported_optional_v1",
-        backend_ids=("room_acoustics", "room_acoustics_srp"),
-        backend_family="room_acoustics",
+        backend_ids=(
+            "analytic_acoustics",
+            "room_acoustics",
+            "room_acoustics_srp",
+        ),
+        backend_family="analytic_acoustics",
         models=(
-            "approximate shoebox room response",
+            "Core direct-path free-field propagation",
+            "Core half-space image-source floor reflection",
+            "optional PyRoom shoebox and polygon-prism room responses",
+            "environment-local coordinates and per-surface materials",
             "generated per-microphone waveforms",
             "asset-amplitude source gain and post-propagation microphone gain",
             "signed first-order omni, cardioid, supercardioid, and figure_eight "
@@ -101,7 +108,7 @@ ACOUSTIC_FIDELITY_LADDER = (
         ),
         does_not_model=(
             "calibrated acoustic twins",
-            "non-shoebox room geometry",
+            "arbitrary open surface-set propagation",
             "diffraction or a complete wave solver",
             "reflected-path angular directivity (per_pair_direct_path uses the "
             "direct-path angle for the full convolved pair stem)",

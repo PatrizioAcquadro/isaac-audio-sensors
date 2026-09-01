@@ -5,6 +5,7 @@ import inspect
 import numpy as np
 import pytest
 
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.backends.base import get_backend, registered_backend_ids
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import (
@@ -72,6 +73,7 @@ def _propagation_declaration(plugin_id: str) -> PluginDeclaration:
 def test_protocols_are_structural_and_existing_backends_satisfy_propagation():
     assert isinstance(GeometryBackend(), PropagationBackend)
     assert isinstance(TdoaSyntheticBackend(), PropagationBackend)
+    assert isinstance(AnalyticAcoustics(), PropagationBackend)
     assert isinstance(_MeanFeatureExtractor(), AudioFeatureExtractor)
 
     registry = get_default_registry()
@@ -89,6 +91,7 @@ def test_propagation_backend_signature_selects_snapshot_array_by_id():
         PropagationBackend,
         GeometryBackend,
         TdoaSyntheticBackend,
+        AnalyticAcoustics,
         RoomAcousticsBackend,
         RoomAcousticsSrpBackend,
     ):
@@ -219,6 +222,7 @@ def test_default_registry_builtin_inventory_and_capabilities():
     assert set(declarations) == {
         ("propagation_backend", "geometry_only"),
         ("propagation_backend", "tdoa_synthetic"),
+        ("propagation_backend", "analytic_acoustics"),
         ("propagation_backend", "room_acoustics"),
         ("propagation_backend", "room_acoustics_srp"),
         ("doa_estimator", "tdoa_least_squares"),
@@ -231,6 +235,10 @@ def test_default_registry_builtin_inventory_and_capabilities():
     assert (
         declarations[("propagation_backend", "tdoa_synthetic")].fidelity_level == "L1"
     )
+    analytic = declarations[("propagation_backend", "analytic_acoustics")]
+    assert analytic.fidelity_level == "L2"
+    assert analytic.required_dependencies == ()
+    assert analytic.supported_profiles == ("waveform_fidelity",)
     for plugin_id in ("room_acoustics", "room_acoustics_srp"):
         declaration = declarations[("propagation_backend", plugin_id)]
         assert declaration.fidelity_level == "L2"
@@ -241,6 +249,7 @@ def test_default_registry_builtin_inventory_and_capabilities():
     assert registered_backend_ids() == (
         "geometry_only",
         "tdoa_synthetic",
+        "analytic_acoustics",
         "room_acoustics",
         "room_acoustics_srp",
     )
@@ -259,6 +268,20 @@ def test_room_backend_registry_availability_matches_optional_dependency():
             registry.resolve("propagation_backend", "room_acoustics")
         with pytest.raises(ConfigValidationError, match="pyroomacoustics"):
             get_backend("room_acoustics")
+
+
+def test_analytic_registry_is_available_without_pyroom() -> None:
+    registry = get_default_registry()
+
+    assert registry.availability(
+        "propagation_backend",
+        "analytic_acoustics",
+    ).available
+    assert isinstance(
+        registry.resolve("propagation_backend", "analytic_acoustics"),
+        AnalyticAcoustics,
+    )
+    assert isinstance(get_backend("analytic_acoustics"), AnalyticAcoustics)
 
 
 def test_tdoa_registry_routing_preserves_seeded_frame():

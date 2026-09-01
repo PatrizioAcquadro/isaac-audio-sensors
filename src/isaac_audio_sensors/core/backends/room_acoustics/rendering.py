@@ -13,6 +13,7 @@ from isaac_audio_sensors.core.acoustics.environments import (
 )
 from isaac_audio_sensors.core.acoustics.materials import (
     MATERIAL_BAND_CENTERS_HZ,
+    resolve_material_coefficients,
 )
 from isaac_audio_sensors.core.acoustics.occlusion import (
     occlusion_band_attenuation_db,
@@ -126,6 +127,7 @@ def render_room(
             max_order=prepared.max_order,
             air_absorption=prepared.air_absorption,
             ray_tracing=prepared.ray_tracing,
+            per_surface_materials=prepared.per_surface_materials,
         )
         room = piecewise.last_room
         scheduled = piecewise.scheduled
@@ -135,6 +137,16 @@ def render_room(
         microphone_environment_positions = piecewise.microphone_environment_positions
         segment_factor_rows = piecewise.doppler_factor_by_segment
     else:
+        room = _build_pyroom_room(
+            pra=prepared.pra,
+            environment=prepared.scene.environment,
+            sample_rate_hz=prepared.sample_rate_hz,
+            speed_of_sound_mps=speed_of_sound_mps,
+            max_order=prepared.max_order,
+            air_absorption=prepared.air_absorption,
+            ray_tracing=prepared.ray_tracing,
+            per_surface_materials=prepared.per_surface_materials,
+        )
         source_positions = {
             f"source:{source.source_id}": source.position_world
             for source in prepared.active
@@ -146,6 +158,7 @@ def render_room(
         environment_positions = _world_to_environment_positions(
             environment=prepared.scene.environment,
             positions={**source_positions, **microphone_positions},
+            room=room,
         )
         source_environment_positions = {
             source.source_id: environment_positions[f"source:{source.source_id}"]
@@ -155,15 +168,6 @@ def render_room(
             mic_id: environment_positions[f"mic:{mic_id}"]
             for mic_id in prepared.mic_ids
         }
-        room = _build_shoebox_room(
-            pra=prepared.pra,
-            environment=prepared.scene.environment,
-            sample_rate_hz=prepared.sample_rate_hz,
-            speed_of_sound_mps=speed_of_sound_mps,
-            max_order=prepared.max_order,
-            air_absorption=prepared.air_absorption,
-            ray_tracing=prepared.ray_tracing,
-        )
         scheduled_list: list[_ScheduledSignal] = []
         doppler_factors = {}
         for source in prepared.active:
@@ -359,6 +363,7 @@ def _simulate_piecewise_room(
     max_order: int,
     air_absorption: bool,
     ray_tracing: bool,
+    per_surface_materials: bool = False,
 ) -> _PiecewiseRoomResult:
     """Simulate segment midpoint geometry and overlap-add every RIR tail."""
 
@@ -440,9 +445,20 @@ def _simulate_piecewise_room(
         microphone_positions = {
             f"mic:{mic_id}": position for mic_id, position in mic_world.items()
         }
+        room = _build_pyroom_room(
+            pra=pra,
+            environment=environment,
+            sample_rate_hz=plan.sample_rate_hz,
+            speed_of_sound_mps=speed_of_sound_mps,
+            max_order=max_order,
+            air_absorption=air_absorption,
+            ray_tracing=ray_tracing,
+            per_surface_materials=per_surface_materials,
+        )
         environment_positions = _world_to_environment_positions(
             environment=environment,
             positions={**source_positions, **microphone_positions},
+            room=room,
         )
         source_environment = {
             source.source_id: environment_positions[f"source:{source.source_id}"]
@@ -451,15 +467,6 @@ def _simulate_piecewise_room(
         mic_environment = {
             mic_id: environment_positions[f"mic:{mic_id}"] for mic_id in mic_ids
         }
-        room = _build_shoebox_room(
-            pra=pra,
-            environment=environment,
-            sample_rate_hz=plan.sample_rate_hz,
-            speed_of_sound_mps=speed_of_sound_mps,
-            max_order=max_order,
-            air_absorption=air_absorption,
-            ray_tracing=ray_tracing,
-        )
         for source in active:
             room.add_source(
                 source_environment[source.source_id],
@@ -565,16 +572,37 @@ def _build_shoebox_room(
     max_order: int,
     air_absorption: bool,
     ray_tracing: bool,
+    per_surface_materials: bool = False,
 ) -> Any:
     authored_absorption = environment.surfaces[0].absorption
-    absorption, _evidence, resolution = _environment_material_resolution(environment)
-    if resolution is not None:
-        absorption = {
-            "description": resolution.description,
-            "coeffs": resolution.values,
-            "center_freqs": MATERIAL_BAND_CENTERS_HZ,
+    if per_surface_materials:
+        by_id = {surface.surface_id: surface for surface in environment.surfaces}
+        materials = {
+            pyroom_name: _pyroom_material(
+                pra,
+                by_id[surface_id].absorption,
+                application=f"surface {surface_id!r}",
+            )
+            for pyroom_name, surface_id in {
+                "west": "wall_x_min",
+                "east": "wall_x_max",
+                "south": "wall_y_min",
+                "north": "wall_y_max",
+                "floor": "floor",
+                "ceiling": "ceiling",
+            }.items()
         }
-    materials = pra.Material(absorption) if hasattr(pra, "Material") else absorption
+    else:
+        absorption, _evidence, resolution = _environment_material_resolution(
+            environment
+        )
+        if resolution is not None:
+            absorption = {
+                "description": resolution.description,
+                "coeffs": resolution.values,
+                "center_freqs": MATERIAL_BAND_CENTERS_HZ,
+            }
+        materials = pra.Material(absorption) if hasattr(pra, "Material") else absorption
     kwargs: dict[str, Any] = {
         "fs": sample_rate_hz,
         "materials": materials,
@@ -590,7 +618,7 @@ def _build_shoebox_room(
         except TypeError as exc:
             removed = False
             optional_keys = ("c", "ray_tracing", "air_absorption")
-            if not isinstance(authored_absorption, str):
+            if not per_surface_materials and not isinstance(authored_absorption, str):
                 optional_keys = (*optional_keys, "materials")
             for optional_key in optional_keys:
                 if optional_key in kwargs:
@@ -599,6 +627,272 @@ def _build_shoebox_room(
                     break
             if not removed:
                 raise exc
+
+
+def _build_pyroom_room(
+    *,
+    pra: Any,
+    environment: AcousticEnvironmentSpec,
+    sample_rate_hz: int,
+    speed_of_sound_mps: float,
+    max_order: int,
+    air_absorption: bool,
+    ray_tracing: bool,
+    per_surface_materials: bool,
+) -> Any:
+    if environment.kind == "shoebox":
+        return _build_shoebox_room(
+            pra=pra,
+            environment=environment,
+            sample_rate_hz=sample_rate_hz,
+            speed_of_sound_mps=speed_of_sound_mps,
+            max_order=max_order,
+            air_absorption=air_absorption,
+            ray_tracing=ray_tracing,
+            per_surface_materials=per_surface_materials,
+        )
+    if environment.kind == "polygon_prism":
+        return _build_polygon_room(
+            pra=pra,
+            environment=environment,
+            sample_rate_hz=sample_rate_hz,
+            speed_of_sound_mps=speed_of_sound_mps,
+            max_order=max_order,
+            air_absorption=air_absorption,
+            ray_tracing=ray_tracing,
+        )
+    raise ValueError(
+        f"PyRoom solver does not support environment.kind={environment.kind!r}."
+    )
+
+
+def _build_polygon_room(
+    *,
+    pra: Any,
+    environment: AcousticEnvironmentSpec,
+    sample_rate_hz: int,
+    speed_of_sound_mps: float,
+    max_order: int,
+    air_absorption: bool,
+    ray_tracing: bool,
+) -> Any:
+    floor = next(surface for surface in environment.surfaces if surface.role == "floor")
+    ceiling = next(
+        surface for surface in environment.surfaces if surface.role == "ceiling"
+    )
+    walls = tuple(surface for surface in environment.surfaces if surface.role == "wall")
+    floor_vertices = tuple(floor.vertices_local_m)
+    floor_z = {round(vertex[2], 12) for vertex in floor_vertices}
+    ceiling_z = {round(vertex[2], 12) for vertex in ceiling.vertices_local_m}
+    if floor_z != {0.0} or len(ceiling_z) != 1:
+        raise ValueError(
+            "polygon_prism PyRoom routing requires a local z=0 floor and one "
+            "horizontal ceiling."
+        )
+    height = float(next(iter(ceiling_z)))
+    if height <= 0.0 or len(walls) != len(floor_vertices):
+        raise ValueError(
+            "polygon_prism PyRoom routing requires one wall per floor edge and "
+            "a positive ceiling height."
+        )
+    ceiling_xy = {(round(x, 12), round(y, 12)) for x, y, _z in ceiling.vertices_local_m}
+    floor_xy = {(round(x, 12), round(y, 12)) for x, y, _z in floor_vertices}
+    if ceiling_xy != floor_xy:
+        raise ValueError(
+            "polygon_prism floor and ceiling must have the same local XY footprint."
+        )
+    _validate_simple_polygon_xy(floor_vertices)
+    wall_by_edge = _validated_prism_walls(
+        walls,
+        floor_vertices=floor_vertices,
+        height=height,
+    )
+    ordered_vertices = floor_vertices
+    if _signed_polygon_area_xy(ordered_vertices) < 0.0:
+        ordered_vertices = tuple(reversed(ordered_vertices))
+    ordered_walls = tuple(
+        wall_by_edge[
+            frozenset(
+                {
+                    (left[0], left[1]),
+                    (right[0], right[1]),
+                }
+            )
+        ]
+        for left, right in zip(
+            ordered_vertices,
+            ordered_vertices[1:] + ordered_vertices[:1],
+            strict=True,
+        )
+    )
+    corners = np.asarray([(x, y) for x, y, _z in ordered_vertices], dtype=float).T
+    wall_materials = [
+        _pyroom_material(
+            pra,
+            wall.absorption,
+            application=f"surface {wall.surface_id!r}",
+        )
+        for wall in ordered_walls
+    ]
+    kwargs: dict[str, Any] = {
+        "fs": sample_rate_hz,
+        "max_order": max_order,
+        "materials": wall_materials,
+        "air_absorption": air_absorption,
+        "ray_tracing": ray_tracing,
+        "c": speed_of_sound_mps,
+    }
+    while True:
+        try:
+            room = pra.Room.from_corners(corners, **kwargs)
+            break
+        except TypeError as exc:
+            for optional_key in ("c", "ray_tracing", "air_absorption"):
+                if optional_key in kwargs:
+                    kwargs.pop(optional_key)
+                    break
+            else:
+                raise exc
+    room.extrude(
+        height,
+        materials={
+            "floor": _pyroom_material(
+                pra,
+                floor.absorption,
+                application=f"surface {floor.surface_id!r}",
+            ),
+            "ceiling": _pyroom_material(
+                pra,
+                ceiling.absorption,
+                application=f"surface {ceiling.surface_id!r}",
+            ),
+        },
+    )
+    return room
+
+
+def _pyroom_material(pra: Any, absorption: object, *, application: str) -> Any:
+    if isinstance(absorption, str):
+        resolution = resolve_material_coefficients(
+            absorption,
+            "absorption",
+            application=application,
+        )
+        value: object = {
+            "description": resolution.description,
+            "coeffs": resolution.values,
+            "center_freqs": MATERIAL_BAND_CENTERS_HZ,
+        }
+    elif isinstance(absorption, dict):
+        try:
+            pairs = sorted(
+                (float(key), float(value)) for key, value in absorption.items()
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"{application} absorption mapping keys must be frequencies in Hz."
+            ) from exc
+        value = {
+            "coeffs": [coefficient for _frequency, coefficient in pairs],
+            "center_freqs": [frequency for frequency, _coefficient in pairs],
+        }
+    else:
+        value = float(absorption)
+    return pra.Material(value) if hasattr(pra, "Material") else value
+
+
+def _signed_polygon_area_xy(
+    vertices: tuple[tuple[float, float, float], ...],
+) -> float:
+    return 0.5 * sum(
+        left[0] * right[1] - right[0] * left[1]
+        for left, right in zip(vertices, vertices[1:] + vertices[:1], strict=True)
+    )
+
+
+def _validate_simple_polygon_xy(
+    vertices: tuple[tuple[float, float, float], ...],
+) -> None:
+    if len(vertices) < 3 or len({(x, y) for x, y, _z in vertices}) != len(vertices):
+        raise ValueError(
+            "polygon_prism PyRoom routing requires at least three distinct floor "
+            "vertices."
+        )
+    if abs(_signed_polygon_area_xy(vertices)) <= 1e-9:
+        raise ValueError("polygon_prism floor polygon has zero area.")
+    for left_index in range(len(vertices)):
+        a = vertices[left_index]
+        b = vertices[(left_index + 1) % len(vertices)]
+        for right_index in range(left_index + 1, len(vertices)):
+            if right_index in {
+                left_index,
+                (left_index + 1) % len(vertices),
+                (left_index - 1) % len(vertices),
+            }:
+                continue
+            c = vertices[right_index]
+            d = vertices[(right_index + 1) % len(vertices)]
+            if _segments_cross_xy(a, b, c, d):
+                raise ValueError(
+                    "polygon_prism floor polygon must not self-intersect."
+                )
+
+
+def _segments_cross_xy(
+    a: tuple[float, float, float],
+    b: tuple[float, float, float],
+    c: tuple[float, float, float],
+    d: tuple[float, float, float],
+) -> bool:
+    def orientation(
+        left: tuple[float, float, float],
+        middle: tuple[float, float, float],
+        right: tuple[float, float, float],
+    ) -> float:
+        return (middle[1] - left[1]) * (right[0] - middle[0]) - (
+            middle[0] - left[0]
+        ) * (right[1] - middle[1])
+
+    return (
+        orientation(a, b, c) * orientation(a, b, d) < 0.0
+        and orientation(c, d, a) * orientation(c, d, b) < 0.0
+    )
+
+
+def _validated_prism_walls(
+    walls: tuple[Any, ...],
+    *,
+    floor_vertices: tuple[tuple[float, float, float], ...],
+    height: float,
+) -> dict[frozenset[tuple[float, float]], Any]:
+    expected_edges = {
+        frozenset({(left[0], left[1]), (right[0], right[1])})
+        for left, right in zip(
+            floor_vertices,
+            floor_vertices[1:] + floor_vertices[:1],
+            strict=True,
+        )
+    }
+    wall_by_edge: dict[frozenset[tuple[float, float]], Any] = {}
+    for wall in walls:
+        vertices = tuple(wall.vertices_local_m)
+        bottom = {(x, y) for x, y, z in vertices if abs(z) <= 1e-9}
+        top = {(x, y) for x, y, z in vertices if abs(z - height) <= 1e-9}
+        if len(vertices) != 4 or len(bottom) != 2 or bottom != top:
+            raise ValueError(
+                f"polygon_prism wall {wall.surface_id!r} must be one vertical "
+                "quad spanning the floor and ceiling."
+            )
+        edge = frozenset(bottom)
+        if edge not in expected_edges or edge in wall_by_edge:
+            raise ValueError(
+                f"polygon_prism wall {wall.surface_id!r} does not map uniquely "
+                "to a floor edge."
+            )
+        wall_by_edge[edge] = wall
+    if set(wall_by_edge) != expected_edges:
+        raise ValueError("polygon_prism requires exactly one wall per floor edge.")
+    return wall_by_edge
 
 
 def _add_microphone_array(
@@ -662,25 +956,40 @@ def _world_to_environment_positions(
     *,
     environment: AcousticEnvironmentSpec,
     positions: dict[str, tuple[float, float, float]],
+    room: Any | None = None,
 ) -> dict[str, tuple[float, float, float]]:
-    """Transform world positions into the shoebox-local solver frame."""
+    """Transform world positions into a supported closed solver frame."""
 
     dimensions = environment.dimensions_m
-    assert dimensions is not None
     environment_positions: dict[str, tuple[float, float, float]] = {}
     for key, position in positions.items():
         environment_position = world_to_environment_point(environment, position)
-        out_of_bounds = any(
-            environment_position[axis] < 0.0
-            or environment_position[axis] > dimensions[axis]
-            for axis in range(3)
-        )
+        if environment.kind == "shoebox":
+            assert dimensions is not None
+            out_of_bounds = any(
+                environment_position[axis] < 0.0
+                or environment_position[axis] > dimensions[axis]
+                for axis in range(3)
+            )
+            boundary = f"shoebox bounds [(0, 0, 0), {dimensions}]"
+        else:
+            if room is None or not hasattr(room, "is_inside"):
+                raise ValueError(
+                    "polygon_prism PyRoom routing requires room containment support."
+                )
+            out_of_bounds = not bool(room.is_inside(environment_position))
+            boundary = "polygon-prism boundary"
         if out_of_bounds:
+            prefix = (
+                "outside shoebox environment"
+                if environment.kind == "shoebox"
+                else "outside polygon-prism environment"
+            )
             raise ValueError(
                 f"room_acoustics position {key!r} at world "
                 f"{tuple(float(value) for value in position)} maps to local "
-                f"{environment_position}, outside shoebox environment "
-                f"{environment.environment_id!r} bounds [(0, 0, 0), {dimensions}]."
+                f"{environment_position}, {prefix} {environment.environment_id!r} "
+                f"{boundary}."
             )
         environment_positions[key] = (
             environment_position[0],

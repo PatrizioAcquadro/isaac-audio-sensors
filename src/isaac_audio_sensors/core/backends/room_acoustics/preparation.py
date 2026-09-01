@@ -53,6 +53,7 @@ class PreparedRoomFrame:
     microphone_positions_world: dict[str, Vector3]
     segments_per_window: int
     segment_factor_rows: tuple[dict[str, float], ...]
+    per_surface_materials: bool
 
 
 def prepare_room_frame(
@@ -68,18 +69,30 @@ def prepare_room_frame(
     ray_tracing: bool,
     window_motion: WindowMotionPlan | None,
     import_pyroomacoustics: Callable[[], Any],
+    allowed_environment_kinds: tuple[str, ...] = ("shoebox",),
+    per_surface_materials: bool = False,
+    require_three_mics: bool = False,
 ) -> PreparedRoomFrame:
     """Validate one capture window and normalize its shared frame state."""
 
-    if backend_id == "room_acoustics_srp" and len(sensor.microphones) == 2:
+    if (backend_id == "room_acoustics_srp" or require_three_mics) and len(
+        sensor.microphones
+    ) == 2:
         raise UnsupportedEffectError(
-            "room_acoustics_srp requires at least three microphones for an "
+            f"{backend_id} requires at least three microphones for an "
             "unambiguous localization claim"
         )
     validate_tdoa_array(sensor)
     if scene.environment is None:
-        raise ValueError("room_acoustics requires scene.environment to be configured.")
-    if scene.environment.kind != "shoebox":
+        raise ValueError(
+            f"{backend_id} requires scene.environment to be configured."
+        )
+    if scene.environment.kind not in allowed_environment_kinds:
+        if allowed_environment_kinds != ("shoebox",):
+            raise ValueError(
+                f"{backend_id} does not support environment.kind="
+                f"{scene.environment.kind!r}."
+            )
         raise ValueError(
             "R7.1 room_acoustics requires environment.kind='shoebox'; "
             f"received {scene.environment.kind!r}. Other solver routing belongs to R8."
@@ -156,13 +169,17 @@ def prepare_room_frame(
         window_sample_count=window_sample_count,
         pra=pra,
         active=active,
-        environment_config=_environment_config_summary(scene.environment),
+        environment_config=_environment_config_summary(
+            scene.environment,
+            per_surface_materials=per_surface_materials,
+        ),
         max_order=max_order,
         air_absorption=air_absorption,
         ray_tracing=ray_tracing,
         microphone_positions_world=microphone_world_positions(sensor),
         segments_per_window=segments_per_window,
         segment_factor_rows=segment_factor_rows,
+        per_surface_materials=per_surface_materials,
     )
 
 

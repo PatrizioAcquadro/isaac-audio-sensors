@@ -35,6 +35,7 @@ def assemble_frame(
     doa_estimator: str,
     waveform_writer: WaveformSink | None,
     window_motion: WindowMotionPlan | None,
+    provenance: str = "room_acoustics",
 ) -> AudioSensorFrame:
     """Assemble the public frame after rendering and localization complete."""
 
@@ -141,7 +142,7 @@ def assemble_frame(
         sample_rate_hz=prepared.sample_rate_hz,
         frame_index=prepared.time_window.frame_index,
         coordinate_convention=prepared.sensor.coordinate_convention,
-        provenance="room_acoustics",
+        provenance=provenance,
         max_events=prepared.time_window.max_events,
         detections=tuple(detections),
         aggregate_per_mic_rms=aggregate_per_mic_rms,

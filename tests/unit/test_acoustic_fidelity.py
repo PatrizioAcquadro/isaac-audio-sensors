@@ -21,7 +21,7 @@ def test_ladder_exposes_exact_five_v1_levels_in_order():
     assert tuple(item.public_name for item in ACOUSTIC_FIDELITY_LADDER) == (
         "geometry_only",
         "tdoa_synthetic",
-        "room_acoustics",
+        "analytic_acoustics",
         "advanced_realism",
         "sim_real_calibration",
     )
@@ -39,6 +39,7 @@ def test_implemented_l0_l1_l2_map_to_stable_backend_ids():
     assert by_level[AcousticFidelityLevel.L0].backend_ids == ("geometry_only",)
     assert by_level[AcousticFidelityLevel.L1].backend_ids == ("tdoa_synthetic",)
     assert by_level[AcousticFidelityLevel.L2].backend_ids == (
+        "analytic_acoustics",
         "room_acoustics",
         "room_acoustics_srp",
     )
