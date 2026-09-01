@@ -387,6 +387,7 @@ def _summarize_backend(
     moved_source_pose = _first_source_pose(moved)
     before_array_pose = _array_pose(before)
     moved_array_pose = _array_pose(moved)
+    before_debug_primitives = debug_primitives.get("before", [])
     moved_debug_primitives = debug_primitives.get("moved", [])
     moved_kinds = sorted({str(item.get("kind")) for item in moved_debug_primitives})
     moved_labels = sorted(
@@ -464,6 +465,20 @@ def _summarize_backend(
             "moved_occluded": moved_detection.occluded,
             "moved_factor": moved_occlusion.get("occlusion_factor"),
         }
+        result["occlusion_debug_trace"] = {
+            "before_has_hit": any(
+                item.get("kind") == "occlusion_hit"
+                for item in before_debug_primitives
+            ),
+            "moved_has_ray": any(
+                item.get("kind") == "occlusion_ray"
+                for item in moved_debug_primitives
+            ),
+            "detection_diagnostics_are_geometry_free": (
+                "prim_path" not in str(moved_detection.diagnostics)
+                and "hit_point" not in str(moved_detection.diagnostics)
+            ),
+        }
     return result
 
 
@@ -528,6 +543,16 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         raise RuntimeError(
             "analytic_acoustics did not prove the live blocked-to-clear "
             "occlusion transition."
+        )
+    if backend_id == "analytic_acoustics" and result.get(
+        "occlusion_debug_trace"
+    ) != {
+        "before_has_hit": True,
+        "moved_has_ray": True,
+        "detection_diagnostics_are_geometry_free": True,
+    }:
+        raise RuntimeError(
+            "analytic_acoustics did not prove the transient occlusion debug trace."
         )
 
 

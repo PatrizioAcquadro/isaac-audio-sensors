@@ -22,7 +22,6 @@ from isaac_audio_sensors.core.math_utils import (
 )
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
-    AudioSceneSnapshot,
     MicrophoneArraySpec,
 )
 
@@ -170,31 +169,6 @@ def _uniform_environment_absorption(
             "per-surface solver routing belongs to R8."
         )
     return absorption
-
-
-def _occluder_material_evidence(
-    scene: AudioSceneSnapshot,
-) -> dict[str, dict[str, str]]:
-    """Derive pure-core evidence for material ids carried by occlusion records."""
-
-    evidence: dict[str, dict[str, str]] = {}
-    for occlusion in scene.occlusion or ():
-        for prim_path, authored_id in sorted(occlusion.hit_materials.items()):
-            application = f"occluder:{prim_path}"
-            if authored_id == "usd_attribute":
-                record = {
-                    "material_id": f"usd_attribute:{prim_path}",
-                    "coefficient": "transmission_db",
-                    "evidence": "nominal",
-                }
-            else:
-                record = resolve_material_coefficients(
-                    authored_id,
-                    "transmission_db",
-                    application=application,
-                ).evidence_record()
-            evidence[application] = record
-    return {key: evidence[key] for key in sorted(evidence)}
 
 
 def _rir_lengths(

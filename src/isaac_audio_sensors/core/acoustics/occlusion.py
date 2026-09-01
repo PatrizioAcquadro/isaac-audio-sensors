@@ -77,7 +77,6 @@ def occlusion_detection_diagnostics(
         "occlusion_factor": _occlusion_factor(occlusion),
         "per_mic_blocked": dict(occlusion.per_mic_blocked),
         "per_mic_attenuation_db": dict(occlusion.per_mic_attenuation_db),
-        "occlusion_model": occlusion.occlusion_model,
     }
     if occlusion.per_mic_band_attenuation_db:
         diagnostics["per_mic_band_attenuation_db"] = {
@@ -85,13 +84,6 @@ def occlusion_detection_diagnostics(
             for mic_id, bands in occlusion.per_mic_band_attenuation_db.items()
         }
         diagnostics["band_centers_hz"] = list(occlusion.band_centers_hz)
-    if occlusion.per_mic_hit_prim_paths:
-        diagnostics["per_mic_hit_prim_paths"] = {
-            mic_id: list(paths)
-            for mic_id, paths in occlusion.per_mic_hit_prim_paths.items()
-        }
-    if occlusion.hit_materials:
-        diagnostics["hit_materials"] = dict(occlusion.hit_materials)
     return {"occlusion": diagnostics}
 
 

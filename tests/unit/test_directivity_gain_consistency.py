@@ -254,7 +254,6 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics(
         source_id=source.source_id,
         per_mic_blocked={mic.mic_id: True for mic in array.microphones},
         per_mic_attenuation_db={mic.mic_id: 4.0 for mic in array.microphones},
-        occlusion_model="raycast_transmission_v1",
     )
     effects = EffectsConfig(
         channel_response=ChannelResponseConfig(

@@ -193,7 +193,7 @@ def _window():
     )
 
 
-def _record(blocked, bands=None, flat_db=0.0, material=None):
+def _record(blocked, bands=None, flat_db=0.0):
     per_mic_blocked = {mic_id: mic_id in blocked for mic_id in MIC_IDS}
     broadband = {
         mic_id: (sum(bands) / len(bands) if bands is not None else flat_db)
@@ -213,11 +213,6 @@ def _record(blocked, bands=None, flat_db=0.0, material=None):
         per_mic_attenuation_db=broadband,
         per_mic_band_attenuation_db=band_rows,
         band_centers_hz=OCCLUSION_BAND_CENTERS_HZ if bands is not None else (),
-        per_mic_hit_prim_paths={
-            mic_id: ((WALL_PATH,) if mic_id in blocked else ()) for mic_id in MIC_IDS
-        },
-        hit_materials=({WALL_PATH: material} if blocked and material else {}),
-        occlusion_model="raycast_transmission_v1",
     )
 
 
@@ -258,17 +253,17 @@ def test_clear_blocked_partial_and_material_swap_consistency(fake_room):
     concrete = (33.0, 36.0, 40.0, 44.0, 50.0, 55.0)
     blocked_frame, blocked = _render(
         fake_room,
-        _record(set(MIC_IDS), concrete, material="nominal.concrete"),
+        _record(set(MIC_IDS), concrete),
     )
     wood = (15.0, 19.0, 23.0, 26.0, 29.0, 32.0)
     partial_frame, partial = _render(
         fake_room,
-        _record({"right"}, wood, material="nominal.wood"),
+        _record({"right"}, wood),
     )
     glass = (18.0, 22.0, 26.0, 30.0, 33.0, 36.0)
     glass_frame, glass_wave = _render(
         fake_room,
-        _record(set(MIC_IDS), glass, material="nominal.glass"),
+        _record(set(MIC_IDS), glass),
     )
     blocked_losses = _center_losses(clear, blocked)
     partial_losses = _center_losses(clear, partial)
@@ -470,6 +465,7 @@ def test_stage_cache_reason_taxonomy_order_and_actions():
         _notice(
             f"{ENVIRONMENT_PATH}.xformOp:translate",
             f"{ENVIRONMENT_PATH}.ias:acoustic_material_id",
+            f"{WALL_PATH}.ias:acoustic_partition_id",
         ),
         None,
     )

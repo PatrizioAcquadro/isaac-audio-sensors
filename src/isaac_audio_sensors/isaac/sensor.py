@@ -50,9 +50,9 @@ from isaac_audio_sensors.isaac.lifecycle import (
     subscribe_to_updates,
 )
 from isaac_audio_sensors.isaac.occlusion import (
-    DEFAULT_OCCLUSION_ATTENUATION_CAP_DB,
-    DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
+    DEFAULT_UNKNOWN_MATERIAL_LOSS_DB,
     LiveOcclusionState,
+    occlusion_trace_debug_primitives,
 )
 from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
 from isaac_audio_sensors.isaac.stage_snapshot import (
@@ -96,8 +96,7 @@ class IsaacAudioArraySensor:
     debug_draw_enabled: bool = False
     debug_drawer: IsaacDebugDrawer | None = None
     occlusion_enabled: bool = False
-    occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB
-    occlusion_attenuation_cap_db: float = DEFAULT_OCCLUSION_ATTENUATION_CAP_DB
+    unknown_material_loss_db: float = DEFAULT_UNKNOWN_MATERIAL_LOSS_DB
     occlusion_raycaster: Any | None = None
     occlusion_transmission_resolver: Any | None = None
     latest_frame: AudioSensorFrame | None = field(default=None, init=False)
@@ -163,8 +162,8 @@ class IsaacAudioArraySensor:
             raise ValueError("analytic_ray_tracing must be a boolean.")
         self._occlusion_state = LiveOcclusionState(
             enabled=self.occlusion_enabled,
-            max_attenuation_db=self.occlusion_max_attenuation_db,
-            attenuation_cap_db=self.occlusion_attenuation_cap_db,
+            unknown_material_loss_db=self.unknown_material_loss_db,
+            trace_enabled=self.debug_draw_enabled,
             raycaster=self.occlusion_raycaster,
             transmission_resolver=self.occlusion_transmission_resolver,
         )
@@ -201,11 +200,11 @@ class IsaacAudioArraySensor:
         if not math.isfinite(float(self.usd_time_code_offset)):
             raise ValueError("usd_time_code_offset must be finite.")
         if (
-            not math.isfinite(float(self.occlusion_max_attenuation_db))
-            or float(self.occlusion_max_attenuation_db) < 0.0
+            not math.isfinite(float(self.unknown_material_loss_db))
+            or float(self.unknown_material_loss_db) < 0.0
         ):
             raise ValueError(
-                "occlusion_max_attenuation_db must be finite and non-negative."
+                "unknown_material_loss_db must be finite and non-negative."
             )
 
     def _validate_analytic_options(self) -> None:
@@ -255,7 +254,7 @@ class IsaacAudioArraySensor:
         analytic_ray_tracing: bool = False,
         debug_draw: bool = False,
         occlusion_enabled: bool = False,
-        occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
+        unknown_material_loss_db: float = DEFAULT_UNKNOWN_MATERIAL_LOSS_DB,
         occlusion_raycaster: Any | None = None,
         waveform_sink: WaveformSink | None = None,
         effects: EffectsConfig | None = None,
@@ -300,7 +299,7 @@ class IsaacAudioArraySensor:
             doa_estimator=doa_estimator,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
-            occlusion_max_attenuation_db=occlusion_max_attenuation_db,
+            unknown_material_loss_db=unknown_material_loss_db,
             occlusion_raycaster=occlusion_raycaster,
             waveform_sink=waveform_sink,
         )
@@ -330,7 +329,7 @@ class IsaacAudioArraySensor:
         analytic_ray_tracing: bool = False,
         debug_draw: bool = False,
         occlusion_enabled: bool = False,
-        occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
+        unknown_material_loss_db: float = DEFAULT_UNKNOWN_MATERIAL_LOSS_DB,
         occlusion_raycaster: Any | None = None,
         waveform_sink: WaveformSink | None = None,
         effects: EffectsConfig | None = None,
@@ -382,7 +381,7 @@ class IsaacAudioArraySensor:
             doa_estimator=doa_estimator,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
-            occlusion_max_attenuation_db=occlusion_max_attenuation_db,
+            unknown_material_loss_db=unknown_material_loss_db,
             occlusion_raycaster=occlusion_raycaster,
             waveform_sink=waveform_sink,
         )
@@ -955,6 +954,10 @@ class IsaacAudioArraySensor:
             frame=frame,
             scene=self._latest_scene,
             sensor=self._latest_sensor,
+        )
+        primitives = (
+            *primitives,
+            *occlusion_trace_debug_primitives(self._occlusion_state.latest_trace),
         )
         if self.debug_drawer is None:
             self.debug_drawer = IsaacDebugDrawer()

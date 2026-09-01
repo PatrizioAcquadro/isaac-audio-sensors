@@ -89,6 +89,7 @@ _MATERIAL_PROPERTIES = frozenset(
     {
         "ias:acoustic_material_id",
         "ias:material",
+        "ias:acoustic_partition_id",
         "ias:absorption",
         "ias:transmission_loss_db",
         "ias:transmission_loss_db_bands",

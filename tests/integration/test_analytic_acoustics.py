@@ -93,7 +93,6 @@ def _occlusion(
         source_id="speaker",
         per_mic_blocked={mic_id: attenuation_db > 0.0 for mic_id in mic_ids},
         per_mic_attenuation_db={mic_id: attenuation_db for mic_id in mic_ids},
-        occlusion_model="raycast_transmission_v1",
         per_mic_band_attenuation_db=(
             {mic_id: band_attenuation_db for mic_id in mic_ids}
             if band_attenuation_db is not None
@@ -276,7 +275,6 @@ def test_free_field_occlusion_attenuates_direct_path_once() -> None:
         "occlusion_factor": 1.0,
         "per_mic_blocked": {mic_id: True for mic_id in mic_ids},
         "per_mic_attenuation_db": {mic_id: 20.0 for mic_id in mic_ids},
-        "occlusion_model": "raycast_transmission_v1",
     }
 
 

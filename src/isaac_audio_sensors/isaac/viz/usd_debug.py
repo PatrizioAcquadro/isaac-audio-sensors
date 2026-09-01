@@ -15,7 +15,7 @@ from isaac_audio_sensors.isaac.stage_audio import (
 from isaac_audio_sensors.isaac.viz.overlays import DebugPrimitive
 
 DEFAULT_DEBUG_ROOT = "/World/IasAudioDebug"
-_SPHERE_KINDS = frozenset({"microphone", "source"})
+_SPHERE_KINDS = frozenset({"microphone", "source", "occlusion_hit"})
 
 
 def _slug(label: str) -> str:

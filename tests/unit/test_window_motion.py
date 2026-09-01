@@ -212,7 +212,6 @@ def test_piecewise_room_occlusion_recombines_only_direct_stems(monkeypatch):
         source_id=scene.sources[0].source_id,
         per_mic_blocked={mic.mic_id: True for mic in array.microphones},
         per_mic_attenuation_db={mic.mic_id: 20.0 for mic in array.microphones},
-        occlusion_model="raycast_transmission_v1",
     )
     observed = render(1, replace(scene, occlusion=(occlusion,)))
 

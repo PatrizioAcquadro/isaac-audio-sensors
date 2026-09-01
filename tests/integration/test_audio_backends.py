@@ -274,7 +274,6 @@ def test_room_acoustics_occlusion_replaces_only_the_affected_source_stem(
         source_id=first.source_id,
         per_mic_blocked={mic.mic_id: True for mic in array.microphones},
         per_mic_attenuation_db={mic.mic_id: 20.0 for mic in array.microphones},
-        occlusion_model="raycast_transmission_v1",
     )
     observed = render(replace(scene, occlusion=(occlusion,)), 1)
     sample_count = max(

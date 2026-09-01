@@ -127,7 +127,6 @@ def _exercise_analytic_rooms() -> list[str]:
             source_id=source.source_id,
             per_mic_blocked={mic_id: True for mic_id in mic_ids},
             per_mic_attenuation_db={mic_id: 20.0 for mic_id in mic_ids},
-            occlusion_model="raycast_transmission_v1",
         )
         occluded_scene = AudioSceneSnapshot(
             stage_id=scene.stage_id,

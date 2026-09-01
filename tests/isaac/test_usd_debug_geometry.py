@@ -99,6 +99,38 @@ def test_author_writes_environment_outline_as_basis_curves_polyline():
     assert outline.attributes["ias:debug:kind"] == "environment_outline"
 
 
+def test_author_writes_occlusion_ray_and_hit_through_existing_geometry_paths():
+    stage = FakeUsdStage()
+    author = UsdDebugGeometryAuthor()
+    primitives = (
+        DebugPrimitive(
+            kind="occlusion_ray",
+            label="occlusion:rig:source:front",
+            points_world=((2.0, 0.0, 0.5), (1.0, 0.0, 0.5), (0.0, 0.0, 0.5)),
+            color_rgba=(0.95, 0.15, 0.1, 0.85),
+            radius_m=0.01,
+        ),
+        DebugPrimitive(
+            kind="occlusion_hit",
+            label="occlusion-hit:rig:source:front:0",
+            points_world=((1.0, 0.0, 0.5),),
+            color_rgba=(0.95, 0.15, 0.1, 1.0),
+            radius_m=0.025,
+        ),
+    )
+
+    paths = author.author(stage, primitives)
+
+    ray = stage.prims[paths[0]]
+    assert ray.type_name == "BasisCurves"
+    assert ray.attributes["curveVertexCounts"] == [3]
+    assert ray.attributes["ias:debug:kind"] == "occlusion_ray"
+    hit = stage.prims[paths[1]]
+    assert hit.type_name == "Sphere"
+    assert hit.attributes["xformOp:translate"] == (1.0, 0.0, 0.5)
+    assert hit.attributes["ias:debug:kind"] == "occlusion_hit"
+
+
 def test_author_prunes_stale_prims_when_primitives_shrink():
     stage = FakeUsdStage()
     author = UsdDebugGeometryAuthor()

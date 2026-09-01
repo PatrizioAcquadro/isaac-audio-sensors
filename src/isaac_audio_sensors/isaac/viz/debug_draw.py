@@ -123,7 +123,7 @@ def _draw_points(interface: Any, primitives: tuple[DebugPrimitive, ...]) -> None
     colors = []
     sizes = []
     for primitive in primitives:
-        if primitive.kind not in {"microphone", "source"}:
+        if primitive.kind not in {"microphone", "source", "occlusion_hit"}:
             continue
         size_px = _pixel_size(primitive.radius_m or 0.035, MIN_POINT_SIZE_PX)
         points.extend(primitive.points_world)
@@ -154,6 +154,20 @@ def _draw_lines(interface: Any, primitives: tuple[DebugPrimitive, ...]) -> None:
                 widths.append(
                     _pixel_size(primitive.radius_m or 0.01, MIN_LINE_WIDTH_PX)
                 )
+        elif primitive.kind == "occlusion_ray" and len(primitive.points_world) >= 2:
+            width_px = _pixel_size(
+                primitive.radius_m or 0.01,
+                MIN_LINE_WIDTH_PX,
+            )
+            for line_start, line_end in zip(
+                primitive.points_world,
+                primitive.points_world[1:],
+                strict=False,
+            ):
+                starts.append(line_start)
+                ends.append(line_end)
+                colors.append(primitive.color_rgba)
+                widths.append(width_px)
         elif (
             primitive.kind
             in {

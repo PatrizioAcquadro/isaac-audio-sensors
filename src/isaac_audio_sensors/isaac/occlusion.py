@@ -2,9 +2,10 @@
 
 The Isaac layer computes per-source, per-microphone occlusion by walking each
 source-to-microphone ray through the PhysX scene query interface, accumulating
-transmission loss for every blocking surface hit along the path. Material loss
+transmission loss for every distinct acoustic partition along the path. Material loss
 comes from explicit USD attributes on the hit prim, from a small preset table
-matched against bound-material or prim-path tokens, or from a flat default.
+matched against bound-material or prim-path tokens, or from an explicit nominal
+unknown-material fallback.
 The pure core only consumes the resulting ``SourceOcclusion`` records from
 ``AudioSceneSnapshot.occlusion``.
 
@@ -34,8 +35,7 @@ from isaac_audio_sensors.core.types import (
     SourceOcclusion,
 )
 
-DEFAULT_OCCLUSION_MAX_ATTENUATION_DB = 20.0
-DEFAULT_OCCLUSION_ATTENUATION_CAP_DB = 60.0
+DEFAULT_UNKNOWN_MATERIAL_LOSS_DB = 20.0
 DEFAULT_ENDPOINT_EPSILON_M = 0.01
 DEFAULT_MAX_RECASTS = 4
 DEFAULT_MAX_HITS_PER_RAY = 8
@@ -45,8 +45,9 @@ OCCLUSION_MODEL_RAYCAST_TRANSMISSION = "raycast_transmission_v1"
 TRANSMISSION_LOSS_ATTR = "ias:transmission_loss_db"
 TRANSMISSION_LOSS_BANDS_ATTR = "ias:transmission_loss_db_bands"
 ACOUSTIC_MATERIAL_ID_ATTR = "ias:acoustic_material_id"
+ACOUSTIC_PARTITION_ID_ATTR = "ias:acoustic_partition_id"
 
-# Illustrative octave-band transmission-loss presets (dB per surface hit),
+# Illustrative octave-band whole-partition transmission-loss presets (dB),
 # aligned with OCCLUSION_BAND_CENTERS_HZ. These are documentation-grade
 # approximations for simulation plausibility, not measured material truth.
 DEFAULT_MATERIAL_TRANSMISSION_DB: dict[str, tuple[float, ...]] = {
@@ -60,10 +61,14 @@ class LiveOcclusionState:
     """Own live pair comparison, refresh reasons, and diagnostics."""
 
     enabled: bool = False
-    max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB
-    attenuation_cap_db: float = DEFAULT_OCCLUSION_ATTENUATION_CAP_DB
+    unknown_material_loss_db: float = DEFAULT_UNKNOWN_MATERIAL_LOSS_DB
+    trace_enabled: bool = False
     raycaster: Any | None = None
     transmission_resolver: Any | None = None
+    latest_trace: tuple[_OcclusionRayTrace, ...] = field(
+        default_factory=tuple,
+        init=False,
+    )
     _previous_pairs: dict[tuple[str, str], tuple[Any, ...]] = field(
         default_factory=dict
     )
@@ -74,6 +79,7 @@ class LiveOcclusionState:
     def begin_capture(self) -> None:
         self._pending_pairs = None
         self._frame_state = None
+        self.latest_trace = ()
 
     def reset(self) -> None:
         self._previous_pairs.clear()
@@ -96,14 +102,17 @@ class LiveOcclusionState:
             if self.transmission_resolver is None:
                 self.transmission_resolver = UsdTransmissionLossResolver(
                     stage,
-                    default_db=self.max_attenuation_db,
+                    unknown_material_loss_db=self.unknown_material_loss_db,
                 )
+            trace: list[_OcclusionRayTrace] | None = [] if self.trace_enabled else None
+            occlusion_diagnostics: dict[str, Any] = {}
             records = compute_scene_occlusion(
                 scene,
                 self.raycaster,
-                max_attenuation_db=self.max_attenuation_db,
+                unknown_material_loss_db=self.unknown_material_loss_db,
                 transmission_resolver=self.transmission_resolver,
-                attenuation_cap_db=self.attenuation_cap_db,
+                diagnostics_out=occlusion_diagnostics,
+                trace_out=trace,
             )
         except IsaacIntegrationUnavailable as exc:
             stage_diagnostics["occlusion"] = {
@@ -112,6 +121,8 @@ class LiveOcclusionState:
             }
             self._frame_state = {"occlusion_recompute_count": 0}
             return scene
+
+        self.latest_trace = () if trace is None else tuple(trace)
 
         current_pairs = {
             (record.array_id, record.source_id): _canonical_pair(record)
@@ -128,21 +139,16 @@ class LiveOcclusionState:
         if cache is not None and cache.pending_non_audio_pose_paths and changed_pairs:
             cache.record_acoustic_refresh("occluder_moved")
         self._pending_pairs = current_pairs
-        state: dict[str, Any] = {"occlusion_recompute_count": 1}
+        state: dict[str, Any] = {
+            "occlusion_recompute_count": 1,
+            "occlusion": occlusion_diagnostics,
+        }
         if self._has_previous_capture:
             state["changed_occlusion_pairs"] = changed_pairs
-        material_evidence = getattr(self.transmission_resolver, "material_evidence", {})
-        if isinstance(material_evidence, dict) and material_evidence:
-            state["material_evidence"] = {
-                key: dict(material_evidence[key]) for key in sorted(material_evidence)
-            }
         self._frame_state = state
         stage_diagnostics["occlusion"] = {
             "status": "computed",
             "record_count": len(records),
-            "max_attenuation_db": float(self.max_attenuation_db),
-            "attenuation_cap_db": float(self.attenuation_cap_db),
-            "occlusion_model": OCCLUSION_MODEL_RAYCAST_TRANSMISSION,
         }
         return replace(scene, occlusion=records)
 
@@ -157,26 +163,7 @@ class LiveOcclusionState:
         backend_state = diagnostics.get("acoustics_state")
         state = dict(backend_state) if isinstance(backend_state, dict) else {}
         if self._frame_state is not None:
-            live_materials = self._frame_state.get("material_evidence")
-            environment_materials = state.get("material_evidence")
-            merged_materials: dict[str, Any] = {}
-            if (
-                isinstance(environment_materials, dict)
-                and "environment" in environment_materials
-            ):
-                merged_materials["environment"] = environment_materials["environment"]
-            for mapping in (environment_materials, live_materials):
-                if isinstance(mapping, dict):
-                    for key in sorted(mapping):
-                        if key != "environment":
-                            merged_materials[key] = mapping[key]
-            if merged_materials:
-                state["material_evidence"] = merged_materials
-            state.update(
-                (key, value)
-                for key, value in self._frame_state.items()
-                if key != "material_evidence"
-            )
+            state.update(self._frame_state)
         reasons = () if cache is None else cache.consume_acoustic_refresh_reasons()
         if state or self.enabled:
             state["refresh_reasons"] = list(reasons)
@@ -207,12 +194,6 @@ def _canonical_pair(record: SourceOcclusion) -> tuple[Any, ...]:
             (mic_id, tuple(values))
             for mic_id, values in record.per_mic_band_attenuation_db.items()
         ),
-        tuple(
-            (mic_id, tuple(paths))
-            for mic_id, paths in record.per_mic_hit_prim_paths.items()
-        ),
-        tuple(sorted(record.hit_materials.items())),
-        record.occlusion_model,
     )
 
 
@@ -235,6 +216,35 @@ class TransmissionLoss:
     material_id: str | None = None
     evidence: str = "nominal"
     citation: str | None = None
+    unknown_material_fallback: bool = False
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class _RayHit:
+    prim_path: str
+    point_world: Vector3
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class _OcclusionTraceHit:
+    prim_path: str
+    point_world: Vector3
+    partition_id: str
+    material_id: str | None
+    broadband_db: float
+    band_db: tuple[float, ...] | None
+    unknown_material_fallback: bool
+    applied: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class _OcclusionRayTrace:
+    array_id: str
+    source_id: str
+    mic_id: str
+    source_world: Vector3
+    microphone_world: Vector3
+    hits: tuple[_OcclusionTraceHit, ...]
 
 
 class TransmissionLossResolver(Protocol):
@@ -296,12 +306,12 @@ class IsaacPhysxRaycaster:
 
 
 class UsdTransmissionLossResolver:
-    """Default per-hit loss lookup: USD attrs, then presets, then default.
+    """Default per-hit loss lookup: USD attrs, presets, then nominal fallback.
 
     Precedence per blocking prim: explicit ``ias:transmission_loss_db`` /
     ``ias:transmission_loss_db_bands`` attributes on the hit prim (when a
     stage is available), then a preset matched case-insensitively against the
-    bound-material name or prim-path tokens, then a flat ``default_db``.
+    bound-material name or prim-path tokens, then ``unknown_material_loss_db``.
     """
 
     def __init__(
@@ -309,34 +319,31 @@ class UsdTransmissionLossResolver:
         stage: Any | None = None,
         *,
         presets: dict[str, tuple[float, ...]] | None = None,
-        default_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
+        unknown_material_loss_db: float = DEFAULT_UNKNOWN_MATERIAL_LOSS_DB,
     ) -> None:
         self.stage = stage
         self.presets = (
             DEFAULT_MATERIAL_TRANSMISSION_DB if presets is None else dict(presets)
         )
-        self.default_db = float(default_db)
-        if not math.isfinite(self.default_db) or self.default_db < 0.0:
-            raise ValueError("default_db must be finite and non-negative.")
+        self.unknown_material_loss_db = float(unknown_material_loss_db)
+        if (
+            not math.isfinite(self.unknown_material_loss_db)
+            or self.unknown_material_loss_db < 0.0
+        ):
+            raise ValueError(
+                "unknown_material_loss_db must be finite and non-negative."
+            )
         for name, bands in self.presets.items():
             _validated_transmission_vector(
                 bands,
                 application=f"transmission preset {name!r}",
             )
-        self.material_evidence: dict[str, dict[str, str]] = {}
-
-    def begin_capture(self) -> None:
-        """Clear per-capture material applications before fresh raycasts."""
-
-        self.material_evidence.clear()
-
     def loss_for(self, prim_path: str) -> TransmissionLoss:
         """Return the transmission loss for one blocking prim path."""
 
         prim = self._prim(prim_path)
         explicit = self._explicit_loss(prim, prim_path=prim_path)
         if explicit is not None:
-            self._record_evidence(prim_path, explicit)
             return explicit
         bound_path, bound_prim = _bound_material(prim)
         if bound_prim is not None:
@@ -345,22 +352,35 @@ class UsdTransmissionLossResolver:
                 prim_path=bound_path or prim_path,
             )
             if bound_explicit is not None:
-                self._record_evidence(prim_path, bound_explicit)
                 return bound_explicit
         referenced = self._referenced_material_loss(prim, prim_path=prim_path)
         if referenced is not None:
-            self._record_evidence(prim_path, referenced)
             return referenced
         preset = self._preset_loss(prim, prim_path)
         if preset is not None:
-            self._record_evidence(prim_path, preset)
             return preset
         fallback = TransmissionLoss(
-            broadband_db=self.default_db,
-            material_id=f"configured_fallback:{self.default_db:g}-db",
+            broadband_db=self.unknown_material_loss_db,
+            material_id=(
+                f"configured_unknown_material:{self.unknown_material_loss_db:g}-db"
+            ),
+            unknown_material_fallback=True,
         )
-        self._record_evidence(prim_path, fallback)
         return fallback
+
+    def partition_id_for(self, prim_path: str) -> str:
+        """Resolve one authored acoustic partition or use the collider path."""
+
+        prim = self._prim(prim_path)
+        value = None if prim is None else _prim_attr(prim, ACOUSTIC_PARTITION_ID_ATTR)
+        if value is None:
+            return prim_path
+        partition_id = str(value).strip()
+        if not partition_id:
+            raise ValueError(
+                f"{ACOUSTIC_PARTITION_ID_ATTR} on {prim_path!r} must be non-empty."
+            )
+        return partition_id
 
     def _prim(self, prim_path: str) -> Any | None:
         if self.stage is None or not prim_path:
@@ -391,7 +411,7 @@ class UsdTransmissionLossResolver:
                 broadband_db=sum(bands) / len(bands),
                 band_db=bands,
                 material="usd_attribute",
-                material_id=f"usd_attribute:{prim_path}",
+                material_id="usd_attribute",
             )
         broadband_value = _prim_attr(prim, TRANSMISSION_LOSS_ATTR)
         if broadband_value is not None:
@@ -403,7 +423,7 @@ class UsdTransmissionLossResolver:
                 broadband_db=broadband,
                 material="usd_attribute",
                 expanded_band_db=(broadband,) * len(OCCLUSION_BAND_CENTERS_HZ),
-                material_id=f"usd_attribute:{prim_path}",
+                material_id="usd_attribute",
             )
         return None
 
@@ -466,50 +486,49 @@ class UsdTransmissionLossResolver:
                     )
         return None
 
-    def _record_evidence(self, prim_path: str, loss: TransmissionLoss) -> None:
-        if loss.material_id is None:
-            return
-        record = {
-            "material_id": loss.material_id,
-            "coefficient": "transmission_db",
-            "evidence": loss.evidence,
-        }
-        if loss.evidence == "measured":
-            assert loss.citation is not None
-            record["citation"] = loss.citation
-        self.material_evidence[f"occluder:{prim_path}"] = record
-
-
 def compute_scene_occlusion(
     scene: AudioSceneSnapshot,
     raycaster: Any,
     *,
-    max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
+    unknown_material_loss_db: float = DEFAULT_UNKNOWN_MATERIAL_LOSS_DB,
     endpoint_epsilon_m: float = DEFAULT_ENDPOINT_EPSILON_M,
     max_recasts: int = DEFAULT_MAX_RECASTS,
     transmission_resolver: TransmissionLossResolver | None = None,
-    attenuation_cap_db: float = DEFAULT_OCCLUSION_ATTENUATION_CAP_DB,
     max_hits_per_ray: int = DEFAULT_MAX_HITS_PER_RAY,
+    diagnostics_out: dict[str, Any] | None = None,
+    trace_out: list[_OcclusionRayTrace] | None = None,
 ) -> tuple[SourceOcclusion, ...]:
     """Raycast every source toward every microphone of every array.
 
-    Each ray is walked past every blocking surface (bounded by
-    ``max_hits_per_ray``); hits on the source prim or the array prim are
-    skipped by re-casting just past them. Per-microphone attenuation is the
-    capped sum of per-hit transmission losses (flat ``max_attenuation_db``
-    when no resolver is configured). No aggregate attenuation or geometric
-    distance multiplier is added.
+    Multiple colliders assigned to one acoustic partition contribute one
+    whole-assembly transmission curve. Distinct sequential partitions add in
+    dB without a total-loss clamp. ``max_hits_per_ray`` bounds traversal and
+    fails closed rather than returning a truncated attenuation.
     """
 
-    if not math.isfinite(max_attenuation_db) or max_attenuation_db < 0.0:
-        raise ValueError("max_attenuation_db must be finite and non-negative.")
-    if not math.isfinite(attenuation_cap_db) or attenuation_cap_db < 0.0:
-        raise ValueError("attenuation_cap_db must be finite and non-negative.")
-    begin_capture = getattr(transmission_resolver, "begin_capture", None)
-    if callable(begin_capture):
-        begin_capture()
+    if (
+        not math.isfinite(unknown_material_loss_db)
+        or unknown_material_loss_db < 0.0
+    ):
+        raise ValueError("unknown_material_loss_db must be finite and non-negative.")
+    if not math.isfinite(endpoint_epsilon_m) or endpoint_epsilon_m <= 0.0:
+        raise ValueError("endpoint_epsilon_m must be finite and positive.")
+    for value, name, minimum in (
+        (max_recasts, "max_recasts", 0),
+        (max_hits_per_ray, "max_hits_per_ray", 1),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+            qualifier = "non-negative" if minimum == 0 else "positive"
+            raise ValueError(f"{name} must be a {qualifier} integer.")
     band_count = len(OCCLUSION_BAND_CENTERS_HZ)
     records: list[SourceOcclusion] = []
+    partition_signatures: dict[str, tuple[Any, ...]] = {}
+    material_resolution: dict[str, dict[str, Any]] | None = (
+        {} if diagnostics_out is not None else None
+    )
+    fallback_applications: list[dict[str, Any]] | None = (
+        [] if diagnostics_out is not None else None
+    )
     for array in scene.arrays:
         mic_positions = microphone_world_positions(array)
         for source in scene.sources:
@@ -519,8 +538,6 @@ def compute_scene_occlusion(
             per_mic_blocked: dict[str, bool] = {}
             per_mic_attenuation_db: dict[str, float] = {}
             per_mic_band_attenuation_db: dict[str, tuple[float, ...]] = {}
-            per_mic_hit_prim_paths: dict[str, tuple[str, ...]] = {}
-            hit_materials: dict[str, str] = {}
             any_band_data = False
             for mic_id, mic_position in mic_positions.items():
                 hits = _ray_hits(
@@ -532,22 +549,37 @@ def compute_scene_occlusion(
                     max_recasts=max_recasts,
                     max_hits=max_hits_per_ray,
                 )
-                per_mic_blocked[mic_id] = bool(hits)
-                per_mic_hit_prim_paths[mic_id] = hits
+                resolved_partitions: dict[
+                    str,
+                    tuple[TransmissionLoss, float, tuple[float, ...] | None],
+                ] = {}
+                trace_hits: list[_OcclusionTraceHit] | None = (
+                    [] if trace_out is not None else None
+                )
                 broadband = 0.0
                 bands = [0.0] * band_count
                 mic_has_band_data = False
-                for hit_path in hits:
+                for hit in hits:
+                    partition_id = _partition_id_for(
+                        transmission_resolver,
+                        hit.prim_path,
+                    )
                     loss = (
-                        transmission_resolver.loss_for(hit_path)
+                        transmission_resolver.loss_for(hit.prim_path)
                         if transmission_resolver is not None
-                        else TransmissionLoss(broadband_db=float(max_attenuation_db))
+                        else TransmissionLoss(
+                            broadband_db=float(unknown_material_loss_db),
+                            material_id=(
+                                "configured_unknown_material:"
+                                f"{unknown_material_loss_db:g}-db"
+                            ),
+                            unknown_material_fallback=True,
+                        )
                     )
                     broadband_loss = _validated_nonnegative_float(
                         loss.broadband_db,
-                        application=f"transmission loss for {hit_path!r}",
+                        application=f"transmission loss for {hit.prim_path!r}",
                     )
-                    broadband += broadband_loss
                     raw_hit_bands = (
                         loss.band_db
                         if loss.band_db is not None
@@ -558,30 +590,94 @@ def compute_scene_occlusion(
                         if raw_hit_bands is None
                         else _validated_transmission_vector(
                             raw_hit_bands,
-                            application=f"transmission loss for {hit_path!r}",
+                            application=f"transmission loss for {hit.prim_path!r}",
                         )
                     )
-                    if hit_bands is not None:
-                        mic_has_band_data = True
-                    for index in range(band_count):
-                        bands[index] += max(
-                            0.0,
-                            float(
+                    signature = _loss_signature(
+                        loss,
+                        broadband_db=broadband_loss,
+                        band_db=hit_bands,
+                    )
+                    previous_signature = partition_signatures.get(partition_id)
+                    if (
+                        previous_signature is not None
+                        and previous_signature != signature
+                    ):
+                        raise ValueError(
+                            f"Acoustic partition {partition_id!r} resolves conflicting "
+                            "transmission curves or provenance."
+                        )
+                    partition_signatures.setdefault(partition_id, signature)
+                    applied = partition_id not in resolved_partitions
+                    if applied:
+                        resolved_partitions[partition_id] = (
+                            loss,
+                            broadband_loss,
+                            hit_bands,
+                        )
+                        broadband += broadband_loss
+                        if hit_bands is not None:
+                            mic_has_band_data = True
+                        for index in range(band_count):
+                            bands[index] += float(
                                 hit_bands[index]
                                 if hit_bands is not None
                                 else broadband_loss
-                            ),
+                            )
+                        if material_resolution is not None:
+                            material_resolution.setdefault(
+                                partition_id,
+                                _loss_evidence_record(
+                                    loss,
+                                    broadband_db=broadband_loss,
+                                    band_db=hit_bands,
+                                ),
+                            )
+                        if (
+                            loss.unknown_material_fallback
+                            and fallback_applications is not None
+                        ):
+                            fallback_applications.append(
+                                {
+                                    "array_id": array.array_id,
+                                    "source_id": source.source_id,
+                                    "mic_id": mic_id,
+                                    "partition_id": partition_id,
+                                    "attenuation_db": broadband_loss,
+                                }
+                            )
+                    if trace_hits is not None:
+                        trace_hits.append(
+                            _OcclusionTraceHit(
+                                prim_path=hit.prim_path,
+                                point_world=hit.point_world,
+                                partition_id=partition_id,
+                                material_id=loss.material_id,
+                                broadband_db=broadband_loss,
+                                band_db=hit_bands,
+                                unknown_material_fallback=(
+                                    loss.unknown_material_fallback
+                                ),
+                                applied=applied,
+                            )
                         )
-                    if loss.material is not None:
-                        hit_materials.setdefault(hit_path, loss.material)
-                per_mic_attenuation_db[mic_id] = min(
-                    broadband, float(attenuation_cap_db)
-                )
+                per_mic_blocked[mic_id] = bool(resolved_partitions)
+                per_mic_attenuation_db[mic_id] = broadband
                 if mic_has_band_data:
                     any_band_data = True
-                per_mic_band_attenuation_db[mic_id] = tuple(
-                    min(value, float(attenuation_cap_db)) for value in bands
-                )
+                per_mic_band_attenuation_db[mic_id] = tuple(bands)
+                if trace_out is not None:
+                    assert trace_hits is not None
+                    trace_out.append(
+                        _OcclusionRayTrace(
+                            array_id=array.array_id,
+                            source_id=source.source_id,
+                            mic_id=mic_id,
+                            source_world=source.position_world,
+                            microphone_world=mic_position,
+                            hits=tuple(trace_hits),
+                        )
+                    )
             if not any_band_data:
                 per_mic_band_attenuation_db = {}
             records.append(
@@ -590,16 +686,152 @@ def compute_scene_occlusion(
                     source_id=source.source_id,
                     per_mic_blocked=per_mic_blocked,
                     per_mic_attenuation_db=per_mic_attenuation_db,
-                    occlusion_model=OCCLUSION_MODEL_RAYCAST_TRANSMISSION,
                     per_mic_band_attenuation_db=per_mic_band_attenuation_db,
                     band_centers_hz=(
                         OCCLUSION_BAND_CENTERS_HZ if per_mic_band_attenuation_db else ()
                     ),
-                    per_mic_hit_prim_paths=per_mic_hit_prim_paths,
-                    hit_materials=hit_materials,
                 )
             )
+    if diagnostics_out is not None:
+        assert material_resolution is not None
+        assert fallback_applications is not None
+        diagnostics_out.clear()
+        diagnostics_out.update(
+            {
+                "model": OCCLUSION_MODEL_RAYCAST_TRANSMISSION,
+                "unknown_material_loss_db": float(unknown_material_loss_db),
+                "material_resolution": {
+                    partition_id: material_resolution[partition_id]
+                    for partition_id in sorted(material_resolution)
+                },
+                "unknown_material_fallbacks": fallback_applications,
+            }
+        )
     return tuple(records)
+
+
+def _partition_id_for(
+    transmission_resolver: TransmissionLossResolver | None,
+    prim_path: str,
+) -> str:
+    resolver = getattr(transmission_resolver, "partition_id_for", None)
+    partition_id = prim_path if not callable(resolver) else str(resolver(prim_path))
+    partition_id = partition_id.strip()
+    if not partition_id:
+        raise ValueError(
+            f"Acoustic partition id resolved from {prim_path!r} must be non-empty."
+        )
+    return partition_id
+
+
+def _loss_signature(
+    loss: TransmissionLoss,
+    *,
+    broadband_db: float,
+    band_db: tuple[float, ...] | None,
+) -> tuple[Any, ...]:
+    return (
+        broadband_db,
+        band_db,
+        loss.material,
+        loss.material_id,
+        loss.evidence,
+        loss.citation,
+        loss.unknown_material_fallback,
+    )
+
+
+def _loss_evidence_record(
+    loss: TransmissionLoss,
+    *,
+    broadband_db: float,
+    band_db: tuple[float, ...] | None,
+) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "material_id": loss.material_id,
+        "coefficient": "transmission_db",
+        "evidence": loss.evidence,
+        "broadband_db": broadband_db,
+        "unknown_material_fallback": loss.unknown_material_fallback,
+    }
+    if band_db is not None:
+        record["band_centers_hz"] = list(OCCLUSION_BAND_CENTERS_HZ)
+        record["band_db"] = list(band_db)
+    if loss.citation is not None:
+        record["citation"] = loss.citation
+    return record
+
+
+def occlusion_trace_debug_primitives(
+    traces: tuple[_OcclusionRayTrace, ...],
+) -> tuple[Any, ...]:
+    """Convert transient Isaac occlusion traces to the shared debug surface."""
+
+    from isaac_audio_sensors.isaac.viz.overlays import DebugPrimitive
+
+    primitives: list[DebugPrimitive] = []
+    for trace in traces:
+        applied_hits = tuple(hit for hit in trace.hits if hit.applied)
+        color = (
+            (0.95, 0.15, 0.1, 0.85)
+            if applied_hits
+            else (0.05, 0.9, 0.35, 0.55)
+        )
+        primitives.append(
+            DebugPrimitive(
+                kind="occlusion_ray",
+                label=(
+                    f"occlusion:{trace.array_id}:{trace.source_id}:{trace.mic_id}"
+                ),
+                points_world=(
+                    trace.source_world,
+                    *(hit.point_world for hit in trace.hits),
+                    trace.microphone_world,
+                ),
+                color_rgba=color,
+                radius_m=0.01,
+                metadata={
+                    "array_id": trace.array_id,
+                    "source_id": trace.source_id,
+                    "mic_id": trace.mic_id,
+                    "partitions": [
+                        {
+                            "partition_id": hit.partition_id,
+                            "prim_path": hit.prim_path,
+                            "material_id": hit.material_id,
+                            "broadband_db": hit.broadband_db,
+                            "band_db": (
+                                None if hit.band_db is None else list(hit.band_db)
+                            ),
+                            "unknown_material_fallback": (
+                                hit.unknown_material_fallback
+                            ),
+                            "applied": hit.applied,
+                        }
+                        for hit in trace.hits
+                    ],
+                },
+            )
+        )
+        for index, hit in enumerate(trace.hits):
+            primitives.append(
+                DebugPrimitive(
+                    kind="occlusion_hit",
+                    label=(
+                        f"occlusion-hit:{trace.array_id}:{trace.source_id}:"
+                        f"{trace.mic_id}:{index}"
+                    ),
+                    points_world=(hit.point_world,),
+                    color_rgba=(0.95, 0.15, 0.1, 1.0),
+                    radius_m=0.025,
+                    metadata={
+                        "partition_id": hit.partition_id,
+                        "prim_path": hit.prim_path,
+                        "applied": hit.applied,
+                    },
+                )
+            )
+    return tuple(primitives)
 
 
 def _ray_hits(
@@ -611,13 +843,12 @@ def _ray_hits(
     endpoint_epsilon_m: float,
     max_recasts: int,
     max_hits: int,
-) -> tuple[str, ...]:
-    """Ordered distinct blocking prim paths along one source-to-mic ray.
+) -> tuple[_RayHit, ...]:
+    """Ordered distinct collider hits along one source-to-microphone ray.
 
     Repeated hits on the same prim (e.g. the entry and exit faces of one
-    thick collider, or zero-distance re-hits from inside it) count as one
-    partition traversal: transmission loss accumulates per blocking prim,
-    not per surface face.
+    thick collider, or zero-distance re-hits from inside it) are recast past.
+    Acoustic-partition deduplication happens after material resolution.
     """
 
     delta = subtract(target, origin)
@@ -627,24 +858,42 @@ def _ray_hits(
     direction = scale(delta, 1.0 / total_distance)
     start = add(origin, scale(direction, endpoint_epsilon_m))
     remaining = total_distance - 2.0 * endpoint_epsilon_m
-    blocking_paths: list[str] = []
-    for _ in range(max_recasts + max_hits):
+    blocking_hits: list[_RayHit] = []
+    blocking_paths: set[str] = set()
+    ignored_recasts = 0
+    while remaining > 0.0:
         hit = raycaster.raycast_closest(start, direction, remaining)
         if hit is None:
             break
-        if (
-            not _path_excluded(hit.prim_path, excluded_prefixes)
-            and hit.prim_path not in blocking_paths
-        ):
-            blocking_paths.append(hit.prim_path)
-            if len(blocking_paths) >= max_hits:
-                break
-        advance = max(float(hit.distance_m), 0.0) + endpoint_epsilon_m
+        prim_path = str(hit.prim_path).strip()
+        if not prim_path:
+            raise ValueError("Occlusion raycast returned an empty prim path.")
+        distance_m = _validated_nonnegative_float(
+            hit.distance_m,
+            application=f"occlusion hit distance for {prim_path!r}",
+        )
+        point_world = add(start, scale(direction, distance_m))
+        if _path_excluded(prim_path, excluded_prefixes) or prim_path in blocking_paths:
+            ignored_recasts += 1
+            if ignored_recasts > max_recasts:
+                raise ValueError(
+                    "Occlusion ray exceeded max_recasts while skipping endpoint "
+                    "or repeated collider hits."
+                )
+        else:
+            if len(blocking_hits) >= max_hits:
+                raise ValueError(
+                    "Occlusion ray exceeded max_hits_per_ray; refusing truncated "
+                    "transmission loss."
+                )
+            blocking_paths.add(prim_path)
+            blocking_hits.append(
+                _RayHit(prim_path=prim_path, point_world=point_world)
+            )
+        advance = distance_m + endpoint_epsilon_m
         start = add(start, scale(direction, advance))
         remaining -= advance
-        if remaining <= 0.0:
-            break
-    return tuple(blocking_paths)
+    return tuple(blocking_hits)
 
 
 def _path_excluded(path: str, excluded_prefixes: tuple[str, ...]) -> bool:
