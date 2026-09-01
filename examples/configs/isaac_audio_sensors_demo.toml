@@ -89,11 +89,8 @@ gain_db = 0.0
 directivity = "omni"
 
 [environment]
-environment_id = "lab_room_a"
-kind = "shoebox"
-dimensions_m = [5.0, 6.0, 2.7]
-absorption = 0.35
-position_world = [-0.5, -3.5, -0.5]
+environment_id = "open_field"
+kind = "free_field"
 
 [audio.analytic_acoustics]
-max_order = 2
+max_order = 0

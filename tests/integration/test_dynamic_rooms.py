@@ -506,7 +506,7 @@ class _MovingRaycaster:
         return OcclusionHit(prim_path=WALL_PATH, distance_m=2.0)
 
 
-def test_live_sensor_preserves_static_environment_without_anchor():
+def test_live_sensor_preserves_static_environment_without_anchor(fake_room):
     environment = _environment()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=_Stage(),
@@ -524,7 +524,7 @@ def test_live_sensor_preserves_static_environment_without_anchor():
     sensor.close()
 
 
-def test_auto_resolution_switches_marked_volume_when_complete_array_moves():
+def test_auto_resolution_switches_marked_volume_when_complete_array_moves(fake_room):
     stage = _Stage()
     stage.prims[ENVIRONMENT_PATH].attributes.update(
         {
@@ -567,7 +567,9 @@ def test_auto_resolution_switches_marked_volume_when_complete_array_moves():
     sensor.close()
 
 
-def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_state():
+def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_state(
+    fake_room,
+):
     stage = _Stage()
     raycaster = _MovingRaycaster()
     sensor = IsaacAudioArraySensor.from_stage(
@@ -631,7 +633,7 @@ def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_st
     sensor.close()
 
 
-def test_anchor_deletion_fails_before_backend_frame_and_keeps_reason_pending():
+def test_anchor_deletion_fails_before_backend_frame_and_keeps_reason_pending(fake_room):
     stage = _Stage()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,

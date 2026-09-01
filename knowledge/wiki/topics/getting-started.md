@@ -52,7 +52,7 @@ Generate a deterministic analytic frame:
 isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front
 ```
 
-The maintained configuration uses a shoebox environment. Simulation therefore requires the optional `room` extra, while validation remains core-only; neither command needs Isaac or a GPU.
+The maintained configuration uses `free_field`, so neither command needs Isaac, a GPU, or the optional `room` extra.
 
 Export an analytic trace and the public frame schema:
 

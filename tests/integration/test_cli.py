@@ -40,6 +40,13 @@ def test_core_commands_render_service_results(tmp_path, capsys):
         == 0
     )
     assert json.loads(capsys.readouterr().out) == json.loads(trace_path.read_text())
+    frame = json.loads(trace_path.read_text())
+    assert frame["backend_id"] == "analytic_acoustics"
+    assert frame["diagnostics"]["analytic_solver"] == {
+        "solver_id": "free_field_direct",
+        "provider": "core",
+        "environment_kind": "free_field",
+    }
 
     schema_path = tmp_path / "frame.schema.json"
     assert main(["export-schema", "--out", str(schema_path)]) == 0
@@ -52,32 +59,6 @@ def test_core_commands_render_service_results(tmp_path, capsys):
     assert main(["capabilities", "--json"]) == 0
     capabilities = json.loads(capsys.readouterr().out)
     assert capabilities["fidelity_levels"]
-
-
-def test_cli_simulates_analytic_free_field_without_room_extra(tmp_path, capsys):
-    config_path = tmp_path / "analytic_free_field.toml"
-    config_path.write_text(
-        CONFIG.read_text(encoding="utf-8").replace(
-            "environment_id = \"lab_room_a\"\n"
-            "kind = \"shoebox\"\n"
-            "dimensions_m = [5.0, 6.0, 2.7]\n"
-            "absorption = 0.35\n"
-            "position_world = [-0.5, -3.5, -0.5]",
-            "environment_id = \"open_field\"\nkind = \"free_field\"",
-        ).replace("max_order = 2", "max_order = 0"),
-        encoding="utf-8",
-    )
-
-    assert main(["simulate", str(config_path), "--array-id", "rig_front"]) == 0
-    frame = json.loads(capsys.readouterr().out)
-
-    assert frame["backend_id"] == "analytic_acoustics"
-    assert frame["diagnostics"]["analytic_solver"] == {
-        "solver_id": "free_field_direct",
-        "provider": "core",
-        "environment_kind": "free_field",
-    }
-
 
 def test_dataset_commands_delegate_to_recording_services(tmp_path, capsys):
     assert main(["dataset", "validate", str(REFERENCE), "--json", "-"]) == 0

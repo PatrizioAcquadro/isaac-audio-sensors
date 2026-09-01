@@ -44,7 +44,7 @@ isaac-audio-sensors validate-config examples/configs/isaac_audio_sensors_demo.to
 isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front
 ```
 
-Neither command needs Isaac or a GPU. The maintained configuration uses a shoebox environment, so simulation also needs the optional `room` extra; configuration validation remains core-only.
+Neither command needs Isaac, a GPU, or the optional `room` extra. Closed-room examples remain available when PyRoom is installed.
 
 ## Limitations
 
