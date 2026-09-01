@@ -105,6 +105,18 @@ def _source(position=(4.0, 0.0, 0.0)) -> AudioSourceSpec:
     )
 
 
+def _quad_array() -> MicrophoneArraySpec:
+    base = _array()
+    return replace(
+        base,
+        microphones=(
+            *base.microphones,
+            MicrophoneSpec(mic_id="rear", relative_position_m=(-0.08, 0.0, 0.0)),
+            MicrophoneSpec(mic_id="left", relative_position_m=(0.0, -0.08, 0.0)),
+        ),
+    )
+
+
 def _scene(**overrides) -> AudioSceneSnapshot:
     base = AudioSceneSnapshot(
         stage_id="occlusion_test",
@@ -121,13 +133,22 @@ def _occlusion_record(
     factor: float = 1.0,
     attenuation_db: float = 20.0,
 ) -> SourceOcclusion:
+    mic_ids = ("front", "right", "rear", "left")
+    blocked_count = int(round(factor * len(mic_ids)))
+    blocked_ids = set(mic_ids[:blocked_count])
     return SourceOcclusion(
         array_id="rig_front",
         source_id="speaker_a",
-        per_mic_blocked={"front": factor > 0.0, "right": factor >= 1.0},
-        occlusion_factor=factor,
-        attenuation_db=attenuation_db,
-        hit_prim_paths=(WALL_PRIM_PATH,),
+        per_mic_blocked={mic_id: mic_id in blocked_ids for mic_id in mic_ids},
+        per_mic_attenuation_db={
+            mic_id: attenuation_db if mic_id in blocked_ids else 0.0
+            for mic_id in mic_ids
+        },
+        per_mic_hit_prim_paths={
+            mic_id: (WALL_PRIM_PATH,) if mic_id in blocked_ids else ()
+            for mic_id in mic_ids
+        },
+        occlusion_model="raycast_transmission_v1",
     )
 
 
@@ -149,9 +170,8 @@ def test_compute_scene_occlusion_clear_path_yields_zero_factor():
     assert record.array_id == "rig_front"
     assert record.source_id == "speaker_a"
     assert record.per_mic_blocked == {"front": False, "right": False}
-    assert record.occlusion_factor == 0.0
-    assert record.attenuation_db == 0.0
-    assert record.hit_prim_paths == ()
+    assert record.per_mic_attenuation_db == {"front": 0.0, "right": 0.0}
+    assert record.per_mic_hit_prim_paths == {"front": (), "right": ()}
     assert len(raycaster.casts) == 2
 
 
@@ -161,10 +181,11 @@ def test_compute_scene_occlusion_single_wall_preserves_scalar_and_per_mic_values
 
     record = records[0]
     assert record.per_mic_blocked == {"front": True, "right": True}
-    assert record.occlusion_factor == 1.0
-    assert record.attenuation_db == 20.0
-    assert record.hit_prim_paths == (WALL_PRIM_PATH,)
     assert record.per_mic_attenuation_db == {"front": 20.0, "right": 20.0}
+    assert record.per_mic_hit_prim_paths == {
+        "front": (WALL_PRIM_PATH,),
+        "right": (WALL_PRIM_PATH,),
+    }
 
 
 def test_compute_scene_occlusion_partial_wall_yields_fractional_factor():
@@ -179,8 +200,20 @@ def test_compute_scene_occlusion_partial_wall_yields_fractional_factor():
 
     record = records[0]
     assert record.per_mic_blocked == {"front": False, "right": True}
-    assert record.occlusion_factor == pytest.approx(0.5)
-    assert record.attenuation_db == pytest.approx(15.0)
+    assert record.per_mic_attenuation_db == {"front": 0.0, "right": 30.0}
+
+
+def test_occlusion_loss_does_not_depend_on_obstacle_distance() -> None:
+    near = compute_scene_occlusion(
+        _scene(),
+        FakeRaycaster(walls=((WALL_PRIM_PATH, 1.0, None),)),
+    )[0]
+    far = compute_scene_occlusion(
+        _scene(),
+        FakeRaycaster(walls=((WALL_PRIM_PATH, 3.0, None),)),
+    )[0]
+
+    assert near.per_mic_attenuation_db == far.per_mic_attenuation_db
 
 
 def test_compute_scene_occlusion_skips_source_and_array_hits_with_recast():
@@ -190,13 +223,16 @@ def test_compute_scene_occlusion_skips_source_and_array_hits_with_recast():
     )
     clear = FakeRaycaster(walls=self_hits)
     records = compute_scene_occlusion(_scene(), clear)
-    assert records[0].occlusion_factor == 0.0
+    assert not any(records[0].per_mic_blocked.values())
     assert len(clear.casts) > 2
 
     walled = FakeRaycaster(walls=(*self_hits, (WALL_PRIM_PATH, 2.0, None)))
     records = compute_scene_occlusion(_scene(), walled)
-    assert records[0].occlusion_factor == 1.0
-    assert records[0].hit_prim_paths == (WALL_PRIM_PATH,)
+    assert all(records[0].per_mic_blocked.values())
+    assert records[0].per_mic_hit_prim_paths == {
+        "front": (WALL_PRIM_PATH,),
+        "right": (WALL_PRIM_PATH,),
+    }
 
 
 def test_compute_scene_occlusion_degenerate_short_ray_is_clear():
@@ -225,12 +261,16 @@ def test_compute_scene_occlusion_degenerate_short_ray_is_clear():
 def test_debug_primitives_color_bearing_rays_by_occlusion(
     record, expected_color, expected_factor
 ):
-    scene = _scene(occlusion=None if record is None else (record,))
+    array = _quad_array()
+    scene = _scene(
+        arrays=(array,),
+        occlusion=None if record is None else (record,),
+    )
     frame = GeometryBackend().simulate(scene, "rig_front", _window())
     primitives = build_debug_primitives(
         frame=frame,
         scene=scene,
-        sensor=_array(),
+        sensor=array,
     )
     rays = [primitive for primitive in primitives if primitive.kind == "bearing_ray"]
     assert rays[0].color_rgba == expected_color
@@ -281,13 +321,18 @@ def _fake_stage() -> FakeUsdStage:
     )
 
 
-def _live_sensor(stage, **kwargs) -> IsaacAudioArraySensor:
+def _live_sensor(
+    stage,
+    *,
+    backend: str = "geometry_only",
+    **kwargs,
+) -> IsaacAudioArraySensor:
     return IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path=ARRAY_PRIM_PATH,
         environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
         environment=free_field_environment(environment_id="live_occlusion_free_field"),
-        backend="geometry_only",
+        backend=backend,
         update_period_s=0.1,
         **kwargs,
     ).start()
@@ -303,10 +348,38 @@ def test_live_sensor_occlusion_attenuates_flags_and_reports_diagnostics():
 
     detection = frame.detections[0]
     assert detection.occluded is True
-    assert detection.diagnostics["occlusion"]["hit_prim_paths"] == [WALL_PRIM_PATH]
+    assert detection.diagnostics["occlusion"]["per_mic_hit_prim_paths"] == {
+        "front": [WALL_PRIM_PATH],
+        "right": [WALL_PRIM_PATH],
+    }
     occlusion_diag = frame.diagnostics["stage_snapshot"]["occlusion"]
     assert occlusion_diag["status"] == "computed"
     assert occlusion_diag["record_count"] == 1
+    sensor.close()
+
+
+def test_live_analytic_sensor_tracks_blocked_to_clear_transition() -> None:
+    raycaster = FakeRaycaster(walls=((WALL_PRIM_PATH, 2.0, None),))
+    sensor = _live_sensor(
+        _fake_stage(),
+        backend="analytic_acoustics",
+        occlusion_enabled=True,
+        occlusion_raycaster=raycaster,
+    )
+
+    blocked = sensor.update(sim_time_s=0.0)
+    raycaster.walls = ()
+    clear = sensor.update(sim_time_s=0.1)
+
+    assert blocked.backend_id == "analytic_acoustics"
+    assert blocked.detections[0].occluded is True
+    assert blocked.detections[0].diagnostics["occlusion"][
+        "occlusion_factor"
+    ] == 1.0
+    assert clear.detections[0].occluded is False
+    assert clear.detections[0].diagnostics["occlusion"][
+        "occlusion_factor"
+    ] == 0.0
     sensor.close()
 
 
@@ -355,13 +428,15 @@ def test_compute_scene_occlusion_accumulates_and_caps_multi_hit_transmission(
         "front": expected_db,
         "right": expected_db,
     }
-    assert record.attenuation_db == expected_db
     assert record.occlusion_model == "raycast_transmission_v1"
     assert record.per_mic_hit_prim_paths["front"] == (
         "/World/Wall2",
         WALL_PRIM_PATH,
     )
-    assert set(record.hit_prim_paths) == {WALL_PRIM_PATH, "/World/Wall2"}
+    assert set(record.per_mic_hit_prim_paths["right"]) == {
+        WALL_PRIM_PATH,
+        "/World/Wall2",
+    }
     assert record.per_mic_band_attenuation_db == {}
 
 
@@ -380,7 +455,7 @@ def test_compute_scene_occlusion_resolves_material_bands_from_path():
         == (DEFAULT_MATERIAL_TRANSMISSION_DB["concrete"])
     )
     assert record.hit_materials == {"/World/ConcreteWall": "concrete"}
-    assert record.attenuation_db == pytest.approx(
+    assert record.per_mic_attenuation_db["front"] == pytest.approx(
         sum(DEFAULT_MATERIAL_TRANSMISSION_DB["concrete"])
         / len(DEFAULT_MATERIAL_TRANSMISSION_DB["concrete"])
     )
@@ -397,8 +472,6 @@ def _per_mic_record(
         array_id="rig_front",
         source_id=source_id,
         per_mic_blocked={"front": front_db > 0.0, "right": right_db > 0.0},
-        occlusion_factor=0.5,
-        attenuation_db=(front_db + right_db) / 2.0,
         per_mic_attenuation_db={"front": front_db, "right": right_db},
         per_mic_band_attenuation_db=band_rows or {},
         band_centers_hz=OCCLUSION_BAND_CENTERS_HZ if band_rows else (),

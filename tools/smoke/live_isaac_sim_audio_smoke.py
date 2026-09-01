@@ -32,6 +32,7 @@ from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
 from isaac_audio_sensors.isaac.environment_resolution import (
     IsaacEnvironmentResolutionCfg,
 )
+from isaac_audio_sensors.isaac.occlusion import OcclusionHit
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
@@ -50,6 +51,18 @@ SMOKE_PHASES = (
     ("inactive", 0.5),
 )
 WAVEFORM_EVIDENCE_DIR = Path("build/validation/isaac_audio_sensors/live_waveforms")
+
+
+class _AnalyticOcclusionTransitionRaycaster:
+    """Deterministic blocked-before/clear-after lifecycle fixture."""
+
+    def raycast_closest(self, origin, direction, max_distance_m):
+        if float(origin[0]) <= 3.0:
+            return None
+        return OcclusionHit(
+            prim_path="/World/OcclusionFixture",
+            distance_m=0.5 * float(max_distance_m),
+        )
 
 
 def main() -> int:
@@ -299,6 +312,12 @@ def _run_backend_smoke(
             if backend_id == "room_acoustics"
             else None
         ),
+        occlusion_enabled=backend_id == "analytic_acoustics",
+        occlusion_raycaster=(
+            _AnalyticOcclusionTransitionRaycaster()
+            if backend_id == "analytic_acoustics"
+            else None
+        ),
     )
     sensor.start()
     frames: dict[str, AudioSensorFrame] = {}
@@ -478,6 +497,17 @@ def _summarize_backend(
         result["analytic_solver"] = moved_detection.diagnostics.get(
             "analytic_solver"
         )
+        before_occlusion = (
+            {} if before_detection is None else before_detection.diagnostics
+        ).get("occlusion", {})
+        moved_occlusion = moved_detection.diagnostics.get("occlusion", {})
+        result["occlusion_transition"] = {
+            "raycaster": "deterministic_live_lifecycle_fixture",
+            "before_occluded": bool(before_detection and before_detection.occluded),
+            "before_factor": before_occlusion.get("occlusion_factor"),
+            "moved_occluded": moved_detection.occluded,
+            "moved_factor": moved_occlusion.get("occlusion_factor"),
+        }
     if backend_id == "room_acoustics" and moved_detection is not None:
         environment_keys = (
             "environment_config",
@@ -624,6 +654,19 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
     }:
         raise RuntimeError(
             "analytic_acoustics did not expose the free-field solver diagnostic."
+        )
+    if backend_id == "analytic_acoustics" and result.get(
+        "occlusion_transition"
+    ) != {
+        "raycaster": "deterministic_live_lifecycle_fixture",
+        "before_occluded": True,
+        "before_factor": 1.0,
+        "moved_occluded": False,
+        "moved_factor": 0.0,
+    }:
+        raise RuntimeError(
+            "analytic_acoustics did not prove the live blocked-to-clear "
+            "occlusion transition."
         )
     if backend_id == "room_acoustics" and not (
         result.get("environment_diagnostics_present")

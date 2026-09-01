@@ -14,12 +14,26 @@ from isaac_audio_sensors.core.acoustics import (
     shoebox_environment,
 )
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
+from isaac_audio_sensors.core.io.waveforms import WaveformWriteResult
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
+    SourceOcclusion,
 )
+
+
+class _CaptureSink:
+    def __init__(self) -> None:
+        self.mixture: np.ndarray | None = None
+
+    def write_frame_mixture(self, **kwargs) -> WaveformWriteResult:
+        self.mixture = np.asarray(kwargs["mixture"], dtype=float).copy()
+        return WaveformWriteResult(paths=("memory://optional.wav",))
+
+    def close(self) -> None:
+        return None
 
 
 def main() -> int:
@@ -105,11 +119,66 @@ def _exercise_analytic_rooms() -> list[str]:
             arrays=(array,),
             environment=environment,
         )
-        frame = AnalyticAcoustics(max_order=1).simulate(scene, "rig", window)
+        direct_frame, direct = _render(scene, window, max_order=0)
+        frame, full = _render(scene, window, max_order=1)
+        mic_ids = tuple(microphone.mic_id for microphone in array.microphones)
+        occlusion = SourceOcclusion(
+            array_id=array.array_id,
+            source_id=source.source_id,
+            per_mic_blocked={mic_id: True for mic_id in mic_ids},
+            per_mic_attenuation_db={mic_id: 20.0 for mic_id in mic_ids},
+            occlusion_model="raycast_transmission_v1",
+        )
+        occluded_scene = AudioSceneSnapshot(
+            stage_id=scene.stage_id,
+            timestamp_ms=scene.timestamp_ms,
+            sources=scene.sources,
+            arrays=scene.arrays,
+            environment=scene.environment,
+            occlusion=(occlusion,),
+        )
+        _occluded_frame, occluded = _render(
+            occluded_scene,
+            window,
+            max_order=1,
+        )
+        sample_count = max(direct.shape[1], full.shape[1], occluded.shape[1])
+        direct = _pad(direct, sample_count)
+        full = _pad(full, sample_count)
+        occluded = _pad(occluded, sample_count)
+        np.testing.assert_allclose(
+            occluded,
+            0.1 * direct + (full - direct),
+            rtol=0.0,
+            atol=1e-12,
+        )
         solver_ids.append(str(frame.diagnostics["analytic_solver"]["solver_id"]))
+        assert direct_frame.diagnostics["speed_of_sound_mps"] == 330.0
         assert frame.detections
         assert all(value > 0.0 for value in frame.aggregate_per_mic_rms.values())
     return solver_ids
+
+
+def _render(
+    scene: AudioSceneSnapshot,
+    window: AudioTimeWindow,
+    *,
+    max_order: int,
+) -> tuple[object, np.ndarray]:
+    sink = _CaptureSink()
+    frame = AnalyticAcoustics(
+        max_order=max_order,
+        speed_of_sound_mps=330.0,
+        waveform_writer=sink,
+    ).simulate(scene, "rig", window)
+    assert sink.mixture is not None
+    return frame, sink.mixture
+
+
+def _pad(waveform: np.ndarray, sample_count: int) -> np.ndarray:
+    padded = np.zeros((waveform.shape[0], sample_count), dtype=waveform.dtype)
+    padded[:, : waveform.shape[1]] = waveform
+    return padded
 
 
 if __name__ == "__main__":

@@ -470,3 +470,23 @@ def test_extension_controller_waveform_settings_flow_to_sensor_and_config(
     assert restored.state.waveform_enabled is True
     assert restored.state.waveform_dir == "wavs"
     assert restored.state.waveform_mode == "session"
+
+
+def test_kit_session_accepts_analytic_occlusion() -> None:
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.backend = "analytic_acoustics"
+    controller.state.environment_resolution_mode = "manual_free_field"
+    controller.state.occlusion_enabled = True
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.start_sensor(stage=stage) is not None
+    sensor = controller.sensor
+    assert sensor is not None
+    assert sensor.backend == "analytic_acoustics"
+    assert sensor.occlusion_enabled is True
+    controller.close_sensor()

@@ -207,7 +207,7 @@ class IsaacAudioArraySensor:
         kind = self.environment.kind
         if kind == "surface_set":
             raise UnsupportedEffectError(
-                "analytic_acoustics does not support surface_set in R8.1; "
+                "analytic_acoustics does not support surface_set; "
                 "use GeometryAcoustics when it becomes available."
             )
         if kind == "free_field" and self.room_acoustics_max_order != 0:
@@ -226,11 +226,6 @@ class IsaacAudioArraySensor:
                 "air_absorption and ray_tracing are available only for PyRoom "
                 "analytic solvers."
             )
-        if self.occlusion_enabled:
-            raise UnsupportedEffectError(
-                "analytic_acoustics rejects SourceOcclusion during R8.1."
-            )
-
     @classmethod
     def from_stage(
         cls,
