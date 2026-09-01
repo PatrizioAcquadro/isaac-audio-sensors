@@ -30,6 +30,7 @@ from isaac_audio_sensors.lab import (
     SourceEntityCfg,
 )
 from isaac_audio_sensors.lab.batched_backend import (
+    BatchedObservations,
     analytic_free_field_observations,
     compact_active_events,
     precompute_tdoa_operator,
@@ -68,7 +69,6 @@ def _snapshot(
 ) -> AudioSceneSnapshot:
     return AudioSceneSnapshot(
         stage_id="reference",
-        timestamp_ms=0,
         arrays=(array,),
         sources=sources,
         environment=(
@@ -95,6 +95,7 @@ def test_reference_backend_resolves_selected_array_from_each_snapshot() -> None:
     reference = ReferenceBackend(
         backend_id="analytic_acoustics",
         ambiguity_policy="none",
+        max_detections=8,
         effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         snapshots=(snapshot,),
         array_ids=("selected",),
@@ -115,6 +116,7 @@ def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:
         ReferenceBackend(
             backend_id="analytic_acoustics",
             ambiguity_policy="none",
+            max_detections=8,
             effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
             snapshots=(_snapshot(array, ()),),
             array_ids=("missing",),
@@ -127,11 +129,11 @@ def test_runtime_uses_real_isaac_lab_bases():
 
 
 def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
-    cfg = AudioArraySensorCfg(prim_path="/World/Audio", max_events=2)
+    cfg = AudioArraySensorCfg(prim_path="/World/Audio", max_detections=2)
     cfg.validate()
 
     data = AudioArraySensorData.allocate(
-        num_envs=2, max_events=2, num_mics=4, device="cpu"
+        num_envs=2, max_detections=2, num_mics=4, device="cpu"
     )
     assert [field.name for field in fields(data)] == [
         "event_presence",
@@ -160,7 +162,7 @@ def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
     with pytest.raises(ValueError, match="Unknown backend"):
         AudioArraySensorCfg(prim_path="/World/Audio", backend="unknown").validate()
     with pytest.raises(TypeError, match="integer"):
-        AudioArraySensorCfg(prim_path="/World/Audio", max_events=1.5).validate()
+        AudioArraySensorCfg(prim_path="/World/Audio", max_detections=1.5).validate()
     with pytest.raises(ValueError, match="finite"):
         AudioArraySensorCfg(
             prim_path="/World/Audio", update_period=float("nan")
@@ -209,7 +211,7 @@ def test_entity_binding_applies_env_origin_body_mount_and_wxyz_conversion():
     )
 
 
-def test_analytic_entity_and_reference_paths_match_with_schedule_and_truncation():
+def test_analytic_entity_and_reference_paths_match_with_rms_selection():
     backend_id = "analytic_acoustics"
     robot_state = _root_state(((0.0, 0.0, 0.0),))
     front_state = _root_state(((4.0, 0.0, 0.0),))
@@ -240,7 +242,7 @@ def test_analytic_entity_and_reference_paths_match_with_schedule_and_truncation(
         binding.static.source_end_s.unsqueeze(0) > 0.5
     )
     entity_result = compact_active_events(
-        source_observations, active_mask=active, max_events=1
+        source_observations, active_mask=active, max_detections=1
     )
 
     array = create_microphone_array(
@@ -273,6 +275,7 @@ def test_analytic_entity_and_reference_paths_match_with_schedule_and_truncation(
     reference = ReferenceBackend(
         backend_id=backend_id,
         ambiguity_policy="none",
+        max_detections=1,
         effects=AudioArraySensorCfg(
             prim_path="/World/Audio", backend=backend_id
         ).effects,
@@ -283,7 +286,6 @@ def test_analytic_entity_and_reference_paths_match_with_schedule_and_truncation(
         env_ids=env_ids,
         timestamps_s=torch.tensor([0.5]),
         frame_indices=torch.tensor([0]),
-        max_events=1,
         update_period=0.1,
         device="cpu",
     )
@@ -311,13 +313,12 @@ def test_analytic_entity_and_reference_paths_match_with_schedule_and_truncation(
         env_ids=env_ids,
         timestamps_s=torch.tensor([2.0]),
         frame_indices=torch.tensor([1]),
-        max_events=2,
         update_period=0.1,
         device="cpu",
     )
     expected_padding = AudioArraySensorData.allocate(
         num_envs=1,
-        max_events=2,
+        max_detections=1,
         num_mics=4,
         device="cpu",
     )
@@ -327,6 +328,41 @@ def test_analytic_entity_and_reference_paths_match_with_schedule_and_truncation(
             getattr(expected_padding, item.name),
             equal_nan=True,
         )
+
+
+def test_tensor_detection_selection_uses_rms_and_preserves_fixed_shape():
+    observations = BatchedObservations(
+        bearing_deg=torch.tensor(((0.0, 90.0, 180.0),)),
+        confidence=torch.tensor(((0.1, 0.9, 0.5),)),
+        ambiguity=torch.tensor(((False, False, True),)),
+        per_mic_rms=torch.tensor(
+            (((0.1, 0.1), (0.9, 0.9), (0.5, 0.5)),)
+        ),
+    )
+    active = torch.tensor(((True, True, True),))
+
+    selected = compact_active_events(
+        observations,
+        active_mask=active,
+        max_detections=2,
+    )
+    padded = compact_active_events(
+        observations,
+        active_mask=active,
+        max_detections=5,
+    )
+    zero = compact_active_events(
+        observations,
+        active_mask=active,
+        max_detections=0,
+    )
+
+    torch.testing.assert_close(selected.bearing_deg, torch.tensor(((90.0, 180.0),)))
+    assert selected.event_presence.tolist() == [[True, True]]
+    assert padded.event_presence.tolist() == [[True, True, True, False, False]]
+    assert padded.bearing_deg.shape == (1, 5)
+    assert zero.event_presence.shape == (1, 0)
+    assert zero.per_mic_rms.shape == (1, 0, 2)
 
 
 def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
@@ -590,6 +626,7 @@ def _reference_mode_rms(
     reference = ReferenceBackend(
         backend_id=backend_id,
         ambiguity_policy="none",
+        max_detections=1,
         effects=AudioArraySensorCfg(
             prim_path="/World/Audio",
             backend=backend_id,
@@ -601,7 +638,6 @@ def _reference_mode_rms(
         env_ids=torch.tensor([0]),
         timestamps_s=torch.tensor([0.0]),
         frame_indices=torch.tensor([0]),
-        max_events=1,
         update_period=0.05,
         device="cpu",
     )

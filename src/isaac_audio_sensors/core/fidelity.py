@@ -65,7 +65,7 @@ ACOUSTIC_FIDELITY_LADDER = (
         ),
         optional_dependencies=("room", "pyroomacoustics", "scipy", "soundfile"),
         frame_contract=(
-            "emits AudioSensorFrame v1 records when optional dependencies are "
+            "emits AudioSensorFrame v2 records when optional dependencies are "
             "installed"
         ),
         runtime_selectable_v1=True,
@@ -96,7 +96,7 @@ ACOUSTIC_FIDELITY_LADDER = (
         ),
         optional_dependencies=("future advanced-acoustics extras",),
         frame_contract=(
-            "future implementations must emit AudioSensorFrame v1-compatible "
+            "future implementations must emit AudioSensorFrame v2-compatible "
             "records until a new schema version is introduced"
         ),
         runtime_selectable_v1=False,
@@ -119,7 +119,7 @@ ACOUSTIC_FIDELITY_LADDER = (
         optional_dependencies=("future calibration-tooling extras",),
         frame_contract=(
             "future artifacts and diagnostics must stay optional for "
-            "AudioSensorFrame v1 readers"
+            "AudioSensorFrame v2 readers"
         ),
         runtime_selectable_v1=False,
     ),

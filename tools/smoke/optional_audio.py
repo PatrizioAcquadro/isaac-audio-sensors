@@ -87,8 +87,6 @@ def _exercise_analytic_rooms() -> list[str]:
     window = AudioTimeWindow(
         start_time_s=0.0,
         end_time_s=0.05,
-        timestamp_ms=0,
-        sample_rate_hz=16_000,
         frame_index=0,
     )
     environments = (
@@ -114,7 +112,6 @@ def _exercise_analytic_rooms() -> list[str]:
     for environment in environments:
         scene = AudioSceneSnapshot(
             stage_id="optional_audio_smoke",
-            timestamp_ms=0,
             sources=(source,),
             arrays=(array,),
             environment=environment,
@@ -130,7 +127,6 @@ def _exercise_analytic_rooms() -> list[str]:
         )
         occluded_scene = AudioSceneSnapshot(
             stage_id=scene.stage_id,
-            timestamp_ms=scene.timestamp_ms,
             sources=scene.sources,
             arrays=scene.arrays,
             environment=scene.environment,

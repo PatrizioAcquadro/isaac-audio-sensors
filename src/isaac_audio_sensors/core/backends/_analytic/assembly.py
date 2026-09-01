@@ -34,6 +34,7 @@ def assemble_frame(
     doa_estimator: str,
     waveform_writer: WaveformSink | None,
     window_motion: WindowMotionPlan | None,
+    max_detections: int | None,
     provenance: str = "room_acoustics",
 ) -> AudioSensorFrame:
     """Assemble the public frame after rendering and localization complete."""
@@ -48,7 +49,7 @@ def assemble_frame(
     assert environment is not None
     frame_diagnostics: dict[str, Any] = {
         "backend": backend_id,
-        "active_source_count": len(detections),
+        "active_source_count": len(prepared.active),
         "scheduled_source_ids": tuple(source.source_id for source in prepared.active),
         "physical_waveform": True,
         "environment_id": environment.environment_id,
@@ -66,7 +67,7 @@ def assemble_frame(
         "speed_of_sound_mps": speed_of_sound_mps,
         "sample_rate_hz": prepared.sample_rate_hz,
         "ambiguity_policy": ambiguity_policy,
-        "max_events": prepared.time_window.max_events,
+        "max_detections": max_detections,
         "time_window_s": (
             prepared.time_window.start_time_s,
             prepared.time_window.end_time_s,
@@ -122,10 +123,9 @@ def assemble_frame(
             backend_id=backend_id,
             stage_id=prepared.scene.stage_id,
             array_id=prepared.sensor.array_id,
-            timestamp_ms=prepared.time_window.timestamp_ms,
+            start_time_s=prepared.time_window.start_time_s,
             frame_index=prepared.time_window.frame_index,
         ),
-        timestamp_ms=prepared.time_window.timestamp_ms,
         backend_id=backend_id,
         array_id=prepared.sensor.array_id,
         array_pose=Pose3D.from_array(prepared.sensor),
@@ -135,7 +135,7 @@ def assemble_frame(
         frame_index=prepared.time_window.frame_index,
         coordinate_convention=prepared.sensor.coordinate_convention,
         provenance=provenance,
-        max_events=prepared.time_window.max_events,
+        max_detections=max_detections,
         detections=tuple(detections),
         aggregate_per_mic_rms=aggregate_per_mic_rms,
         waveform_paths=waveform_paths,

@@ -188,6 +188,7 @@ def render_room(
             signal = _scheduled_window_signal(
                 source,
                 time_window=prepared.time_window,
+                sample_rate_hz=prepared.sample_rate_hz,
             )
             factor = source_doppler_factor(
                 source,
@@ -447,7 +448,12 @@ def _simulate_piecewise_room(
 
     mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
     scheduled = tuple(
-        _scheduled_window_signal(source, time_window=time_window) for source in active
+        _scheduled_window_signal(
+            source,
+            time_window=time_window,
+            sample_rate_hz=sensor.sample_rate_hz,
+        )
+        for source in active
     )
     factor_rows: list[dict[str, float]] = []
     factors_by_source: dict[str, list[float]] = {

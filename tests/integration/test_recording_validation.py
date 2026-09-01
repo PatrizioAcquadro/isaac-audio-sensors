@@ -76,7 +76,6 @@ def _frame(index: int, *, diagnostic_path_count: int = 0) -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id=f"producer_{index}",
         frame_name=f"frame_{index}",
-        timestamp_ms=index * 10,
         start_time_s=index / 100.0,
         end_time_s=index / 100.0 + 0.01,
         sample_rate_hz=48_000,
@@ -250,7 +249,11 @@ def _corrupt(root: Path, case: str) -> None:
         _mutate_record(
             root,
             2,
-            lambda payload: payload["frame"].__setitem__("timestamp_ms", 0),
+            lambda payload: payload["frame"].update(
+                timestamp_ms=0,
+                start_time_s=0.0,
+                end_time_s=400 / 48_000,
+            ),
             shard_id="shard_00001",
         )
     elif case == "index_gap":

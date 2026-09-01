@@ -62,7 +62,6 @@ def _frame(index: int, timestamp_ms: int) -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id=f"frame_{index}",
         frame_name=f"frame_{index}",
-        timestamp_ms=timestamp_ms,
         start_time_s=timestamp_ms / 1_000,
         end_time_s=timestamp_ms / 1_000 + 0.006,
         sample_rate_hz=1_000,

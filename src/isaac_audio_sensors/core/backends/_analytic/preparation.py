@@ -21,7 +21,10 @@ from isaac_audio_sensors.core.microphone_array import (
     validate_tdoa_array,
 )
 from isaac_audio_sensors.core.motion import WindowMotionPlan
-from isaac_audio_sensors.core.scene import active_sources, deterministic_frame_id
+from isaac_audio_sensors.core.scene import (
+    active_sources,
+    deterministic_frame_id,
+)
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -105,11 +108,11 @@ def prepare_room_frame(
         backend_id=backend_id,
         stage_id=scene.stage_id,
         array_id=sensor.array_id,
-        timestamp_ms=time_window.timestamp_ms,
+        start_time_s=time_window.start_time_s,
         frame_index=time_window.frame_index,
     )
     mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
-    sample_rate_hz = time_window.sample_rate_hz
+    sample_rate_hz = sensor.sample_rate_hz
     nominal_window_start_sample = int(round(time_window.start_time_s * sample_rate_hz))
     microphone_self_noise_db = {
         microphone.mic_id: microphone.self_noise_db for microphone in sensor.microphones

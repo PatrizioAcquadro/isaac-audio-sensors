@@ -26,7 +26,6 @@ from isaac_audio_sensors.isaac.environment_resolution import (
 def build_stage_snapshot(
     stage: Any,
     *,
-    timestamp_ms: int,
     environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
     environment: AcousticEnvironmentSpec | None = None,
     stage_id: str | None = None,
@@ -63,7 +62,6 @@ def build_stage_snapshot(
     result = discover_stage_audio(
         stage,
         cfg=cfg,
-        timestamp_ms=timestamp_ms,
         stage_id=stage_id,
         usd_time_code=usd_time_code,
         time_code=time_code,
@@ -91,7 +89,6 @@ def build_stage_snapshot(
     diagnostics["environment_resolution"] = environment_diagnostics
     snapshot = snapshot_from_discovery(
         result,
-        timestamp_ms=timestamp_ms,
         preferred_source=preferred_source,
         environment=resolved_environment,
     )
@@ -151,7 +148,6 @@ def effective_discovery_cfg(
 def snapshot_from_discovery(
     result: IsaacAudioDiscoveryResult,
     *,
-    timestamp_ms: int,
     preferred_source: str | None,
     environment: AcousticEnvironmentSpec,
 ) -> AudioSceneSnapshot:
@@ -159,7 +155,6 @@ def snapshot_from_discovery(
 
     return AudioSceneSnapshot(
         stage_id=result.stage_id,
-        timestamp_ms=timestamp_ms,
         sources=(
             (result.selected_source.spec,)
             if preferred_source is not None and result.selected_source is not None

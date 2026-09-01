@@ -39,10 +39,9 @@ def _simulate(args: argparse.Namespace) -> int:
             args.config,
             backend_id=args.backend,
             array_id=args.array_id,
-            timestamp_ms=args.timestamp_ms,
             start_time_s=args.start_time_s,
             end_time_s=args.end_time_s,
-            max_events=args.max_events,
+            max_detections=args.max_detections,
         )
         if args.out is not None:
             write_frame_trace(frame, args.out)

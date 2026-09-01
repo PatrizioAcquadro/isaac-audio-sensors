@@ -7,6 +7,8 @@ import shutil
 from importlib.resources import files
 from pathlib import Path
 
+import pytest
+
 from isaac_audio_sensors.cli import main
 from isaac_audio_sensors.recording import (
     read_dataset_manifest,
@@ -52,13 +54,31 @@ def test_core_commands_render_service_results(tmp_path, capsys):
     assert main(["export-schema", "--out", str(schema_path)]) == 0
     assert json.loads(capsys.readouterr().out) == {"wrote": str(schema_path)}
     packaged = files("isaac_audio_sensors.schemas").joinpath(
-        "audio_sensor_frame.v1.schema.json"
+        "audio_sensor_frame.v2.schema.json"
     )
     assert schema_path.read_bytes() == packaged.read_bytes()
 
     assert main(["capabilities", "--json"]) == 0
     capabilities = json.loads(capsys.readouterr().out)
     assert capabilities["fidelity_levels"]
+
+
+@pytest.mark.parametrize("removed", ("--max-events", "--timestamp-ms"))
+def test_simulate_rejects_removed_cli_arguments(removed):
+    with pytest.raises(SystemExit):
+        main(["simulate", str(CONFIG), removed, "0"])
+
+
+def test_zero_detection_cap_keeps_active_soundscape(capsys):
+    assert main(["simulate", str(CONFIG), "--max-detections", "0"]) == 0
+    frame = json.loads(capsys.readouterr().out)
+
+    assert frame["detections"] == []
+    assert frame["diagnostics"]["active_source_count"] == 2
+    assert frame["diagnostics"]["scheduled_source_ids"] == [
+        "speaker_front_right",
+        "speaker_left",
+    ]
 
 def test_dataset_commands_delegate_to_recording_services(tmp_path, capsys):
     assert main(["dataset", "validate", str(REFERENCE), "--json", "-"]) == 0

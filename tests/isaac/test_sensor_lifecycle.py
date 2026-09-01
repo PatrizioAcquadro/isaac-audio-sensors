@@ -90,7 +90,7 @@ def test_manual_capture_and_update_throttling():
         backend="analytic_acoustics",
         update_period_s=UPDATE_PERIOD_S,
     )
-    manual = sensor.capture(timestamp_ms=0)
+    manual = sensor.capture()
     assert manual.provenance == "isaac_live"
 
     sensor.start()
@@ -127,7 +127,7 @@ def test_live_sensor_recognizes_analytic_core_backend() -> None:
         backend="analytic_acoustics",
     )
 
-    frame = sensor.capture(timestamp_ms=0)
+    frame = sensor.capture()
 
     assert frame.backend_id == "analytic_acoustics"
     assert frame.provenance == "isaac_live"

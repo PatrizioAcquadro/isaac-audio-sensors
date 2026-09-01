@@ -75,6 +75,7 @@ class AudioArraySensor(SensorBase):
             analytic_max_order=int(self.cfg.analytic_max_order),
             analytic_air_absorption=bool(self.cfg.analytic_air_absorption),
             analytic_ray_tracing=bool(self.cfg.analytic_ray_tracing),
+            max_detections=int(self.cfg.max_detections),
             effects=self.cfg.effects,
             snapshots=snapshots,
             array_ids=array_ids,
@@ -103,7 +104,7 @@ class AudioArraySensor(SensorBase):
         num_mics = self._bound_num_mics()
         self._data = AudioArraySensorData.allocate(
             num_envs=self._num_envs,
-            max_events=int(self.cfg.max_events),
+            max_detections=int(self.cfg.max_detections),
             num_mics=num_mics,
             device=self.device,
         )
@@ -139,7 +140,6 @@ class AudioArraySensor(SensorBase):
                 env_ids=env_ids,
                 timestamps_s=timestamps,
                 frame_indices=indices,
-                max_events=int(self.cfg.max_events),
                 update_period=float(self.cfg.update_period),
                 device=self.device,
             )
@@ -168,7 +168,7 @@ class AudioArraySensor(SensorBase):
         return compact_active_events(
             source_observations,
             active_mask=active,
-            max_events=int(self.cfg.max_events),
+            max_detections=int(self.cfg.max_detections),
         )
 
     def _validate_bound_runtime(self, *, runtime_ready: bool = False) -> None:

@@ -197,13 +197,14 @@ def record_detection_events(frame: Any) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     frame_id = getattr(frame, "frame_id", None)
     backend_id = getattr(frame, "backend_id", None)
+    timestamp_ms = getattr(frame, "timestamp_ms", None)
     for detection in getattr(frame, "detections", ()) or ():
         doa = getattr(detection, "doa", None)
         events.append(
             {
                 "frame_id": frame_id,
                 "backend": backend_id,
-                "timestamp_ms": getattr(detection, "timestamp_ms", None),
+                "timestamp_ms": timestamp_ms,
                 "source_id": getattr(detection, "source_id", None),
                 "class_label": getattr(detection, "class_label", None),
                 "bearing_deg": getattr(doa, "estimated_bearing_deg", None),

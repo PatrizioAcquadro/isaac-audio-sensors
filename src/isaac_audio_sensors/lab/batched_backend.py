@@ -193,48 +193,45 @@ def compact_active_events(
     observations: BatchedObservations,
     *,
     active_mask: torch.Tensor,
-    max_events: int,
+    max_detections: int,
 ) -> AudioArraySensorData:
-    num_envs, num_sources = active_mask.shape
+    scores = torch.sqrt(torch.mean(observations.per_mic_rms.square(), dim=-1))
+    scores = torch.where(active_mask, scores, scores.new_full((), float("-inf")))
+    order = torch.argsort(scores, dim=1, descending=True, stable=True)
+    selected_count = min(max_detections, active_mask.shape[1])
+    selected = order[:, :selected_count]
+    if selected_count < max_detections:
+        selected = torch.cat(
+            (
+                selected,
+                torch.zeros(
+                    (active_mask.shape[0], max_detections - selected_count),
+                    dtype=torch.long,
+                    device=active_mask.device,
+                ),
+            ),
+            dim=1,
+        )
+    valid_slot = (
+        torch.arange(max_detections, device=active_mask.device) < selected_count
+    ).unsqueeze(0)
+    presence = torch.gather(active_mask, 1, selected) & valid_slot
+    bearing = torch.gather(observations.bearing_deg, 1, selected)
+    bearing = torch.where(presence, bearing, torch.full_like(bearing, float("nan")))
+    confidence = torch.gather(observations.confidence, 1, selected)
+    confidence = torch.where(presence, confidence, torch.zeros_like(confidence))
+    ambiguity = torch.gather(observations.ambiguity, 1, selected) & presence
     num_mics = observations.per_mic_rms.shape[-1]
-    ranks = active_mask.long().cumsum(dim=1) - 1
-    keep = active_mask & (ranks < max_events)
-    destination = torch.where(keep, ranks, torch.full_like(ranks, max_events))
-    shape = (num_envs, max_events + 1)
-
-    presence = torch.zeros(shape, dtype=torch.bool, device=active_mask.device)
-    presence.scatter_(1, destination, keep)
-    bearing = torch.full(
-        shape, float("nan"), dtype=torch.float32, device=active_mask.device
-    )
-    bearing.scatter_(1, destination, observations.bearing_deg)
-    confidence = torch.zeros(shape, dtype=torch.float32, device=active_mask.device)
-    confidence.scatter_(1, destination, observations.confidence)
-    ambiguity = torch.zeros(shape, dtype=torch.bool, device=active_mask.device)
-    ambiguity.scatter_(1, destination, observations.ambiguity & keep)
-    rms = torch.zeros(
-        (*shape, num_mics), dtype=torch.float32, device=active_mask.device
-    )
-    rms.scatter_(
-        1,
-        destination.unsqueeze(-1).expand(num_envs, num_sources, num_mics),
+    rms = torch.gather(
         observations.per_mic_rms,
-    )
-
-    presence = presence[:, :max_events]
-    bearing = torch.where(
-        presence,
-        bearing[:, :max_events],
-        torch.full_like(bearing[:, :max_events], float("nan")),
-    )
-    confidence = torch.where(
-        presence, confidence[:, :max_events], torch.zeros_like(bearing)
-    )
+        1,
+        selected.unsqueeze(-1).expand(-1, -1, num_mics),
+    ) * presence.unsqueeze(-1)
     return AudioArraySensorData(
         event_presence=presence,
         bearing_deg=bearing,
         confidence=confidence,
         sector_onehot=_sector_onehot(bearing, presence & ~torch.isnan(bearing)),
-        per_mic_rms=rms[:, :max_events] * presence.unsqueeze(-1),
-        ambiguity_mask=ambiguity[:, :max_events] & presence,
+        per_mic_rms=rms,
+        ambiguity_mask=ambiguity,
     )

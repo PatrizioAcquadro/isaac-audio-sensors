@@ -20,7 +20,7 @@ SchemaGenerator = Callable[[], dict[str, Any]]
 SCHEMAS: dict[str, tuple[SchemaGenerator, str]] = {
     "frame": (
         audio_sensor_frame_json_schema,
-        "audio_sensor_frame.v1.schema.json",
+        "audio_sensor_frame.v2.schema.json",
     ),
     "dataset-manifest": (
         audio_dataset_manifest_json_schema,
@@ -58,15 +58,21 @@ def test_schema_export_is_deterministic(schema_name, entry, tmp_path, monkeypatc
     assert first.decode() == _schema_text(generator())
 
 
-def test_preserved_v1_payloads_conform_to_generated_schemas():
+def test_current_payloads_conform_to_generated_schemas():
     frame_payloads = list(_trace_payloads())
-    assert any("elevation" not in payload["units"] for payload in frame_payloads)
+    assert all("elevation" in payload["units"] for payload in frame_payloads)
 
     _validate_all(audio_sensor_frame_json_schema(), frame_payloads)
     _validate_all(
         audio_calibration_profile_json_schema(),
         _json_payloads(Path("examples/calibration")),
     )
+
+
+def test_frame_v1_schema_is_not_packaged() -> None:
+    assert not files("isaac_audio_sensors.schemas").joinpath(
+        "audio_sensor_frame.v1.schema.json"
+    ).is_file()
     _validate_all(
         audio_dataset_manifest_json_schema(),
         (

@@ -9,13 +9,18 @@ import numpy as np
 import pytest
 
 from isaac_audio_sensors.core.acoustics.environments import shoebox_environment
+from isaac_audio_sensors.core.backends._analytic.detections import (
+    prioritize_detections,
+)
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.types import (
+    AudioDetection,
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
+    DoaEstimate,
     SourceOcclusion,
 )
 from tests.helpers import CaptureSink, FakeShoeBox, install_fake_pyroom
@@ -28,24 +33,25 @@ def _source(
     audio_asset_path: str | None = "generated://impulse",
     start_time_s: float = 0.0,
     duration_s: float | None = 1.0,
+    gain_db: float = 0.0,
+    prim_path: str | None = None,
 ) -> AudioSourceSpec:
     return AudioSourceSpec(
         source_id=source_id,
-        prim_path=f"/World/Sources/{source_id}",
+        prim_path=prim_path or f"/World/Sources/{source_id}",
         class_label="Speech",
         audio_asset_path=audio_asset_path,
         position_world=position,
         orientation_world_quat=None,
         start_time_s=start_time_s,
         duration_s=duration_s,
-        gain_db=0.0,
+        gain_db=gain_db,
     )
 
 
 def _room_scene_with_sources(*sources: AudioSourceSpec, array):
     return AudioSceneSnapshot(
         stage_id="room_backend_test",
-        timestamp_ms=0,
         sources=sources,
         arrays=(array,),
         environment=shoebox_environment(
@@ -61,14 +67,11 @@ def _window(
     *,
     start_time_s: float = 0.0,
     end_time_s: float = 1.0,
-    max_events: int | None = None,
 ) -> AudioTimeWindow:
     return AudioTimeWindow(
         start_time_s=start_time_s,
         end_time_s=end_time_s,
-        timestamp_ms=0,
-        sample_rate_hz=48_000,
-        max_events=max_events,
+        frame_index=0,
     )
 
 
@@ -198,12 +201,12 @@ def test_room_acoustics_schedules_multiple_sources(monkeypatch) -> None:
         _source("ended", (4.0, 0.0, 0.0), start_time_s=-1.0, duration_s=1.0),
         _source("b_second", (0.0, 3.0, 0.0), start_time_s=0.1, duration_s=0.5),
         _source("a_first", (3.0, 0.0, 0.0), start_time_s=0.0, duration_s=0.5),
-        _source("c_truncated", (-3.0, 0.0, 0.0), start_time_s=0.2, duration_s=0.5),
+        _source("c_third", (0.0, 4.0, 0.0), start_time_s=0.2, duration_s=0.5),
         _source("future", (0.0, -3.0, 0.0), start_time_s=1.0, duration_s=0.5),
         array=array,
     )
-    backend = AnalyticAcoustics()
-    window = _window(max_events=2)
+    backend = AnalyticAcoustics(max_detections=2)
+    window = _window()
 
     first = backend.simulate(scene, array.array_id, window)
     second = backend.simulate(scene, array.array_id, window)
@@ -222,23 +225,164 @@ def test_room_acoustics_schedules_multiple_sources(monkeypatch) -> None:
         90.0,
         abs=20.0,
     )
-    assert first.diagnostics["active_source_count"] == 2
-    assert first.diagnostics["scheduled_source_ids"] == ("a_first", "b_second")
+    assert first.diagnostics["active_source_count"] == 3
+    assert first.diagnostics["scheduled_source_ids"] == (
+        "a_first",
+        "b_second",
+        "c_third",
+    )
     assert set(first.diagnostics["per_source_rir_summary"]) == {
         "a_first",
         "b_second",
+        "c_third",
     }
-    assert len(first.detections) == first.max_events == 2
+    assert len(first.detections) == first.max_detections == 2
     assert first.detections[0].detection_id == (
-        "analytic_acoustics_room_backend_test_rig_0_a_first_00"
+        "analytic_acoustics_room_backend_test_rig_0_0_a_first_00"
     )
     assert first.detections[1].detection_id == (
-        "analytic_acoustics_room_backend_test_rig_0_b_second_01"
+        "analytic_acoustics_room_backend_test_rig_0_0_b_second_01"
     )
     assert (
         first.detections[0].diagnostics["environment_microphone_positions_m"]
         == first.detections[1].diagnostics["environment_microphone_positions_m"]
     )
+
+
+def test_detection_cap_never_changes_rendered_soundscape(monkeypatch) -> None:
+    install_fake_pyroom(monkeypatch)
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    scene = _room_scene_with_sources(
+        _source("weak_first", (3.0, 0.0, 0.0), gain_db=-20.0),
+        _source(
+            "strong_later",
+            (0.0, 3.0, 0.0),
+            start_time_s=0.01,
+            gain_db=20.0,
+        ),
+        array=array,
+    )
+    window = _window(end_time_s=0.1)
+    frames = []
+    mixtures = []
+    for cap in (None, 1, 0):
+        sink = CaptureSink()
+        frame = AnalyticAcoustics(
+            max_detections=cap,
+            waveform_writer=sink,
+        ).simulate(scene, array.array_id, window)
+        frames.append(frame)
+        mixtures.append(sink.calls[0]["mixture"])
+
+    assert np.array_equal(mixtures[0], mixtures[1])
+    assert np.array_equal(mixtures[0], mixtures[2])
+    assert frames[0].aggregate_per_mic_rms == frames[1].aggregate_per_mic_rms
+    assert frames[0].aggregate_per_mic_rms == frames[2].aggregate_per_mic_rms
+    assert tuple(detection.source_id for detection in frames[1].detections) == (
+        "strong_later",
+    )
+    assert frames[2].detections == ()
+    assert all(frame.diagnostics["active_source_count"] == 2 for frame in frames)
+
+
+def test_detection_ties_use_source_id_and_ignore_prim_path(monkeypatch) -> None:
+    install_fake_pyroom(monkeypatch)
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    sources = (
+        _source("b", (3.0, 0.0, 0.0), prim_path="/World/A"),
+        _source("a", (3.0, 0.0, 0.0), prim_path="/World/Z"),
+    )
+    scene = _room_scene_with_sources(*sources, array=array)
+    changed_paths = replace(
+        scene,
+        sources=(
+            replace(sources[0], prim_path="/World/Z2"),
+            replace(sources[1], prim_path="/World/A2"),
+        ),
+    )
+    backend = AnalyticAcoustics()
+
+    first = backend.simulate(scene, array.array_id, _window(end_time_s=0.1))
+    second = backend.simulate(
+        changed_paths,
+        array.array_id,
+        _window(end_time_s=0.1),
+    )
+
+    assert tuple(detection.source_id for detection in first.detections) == ("a", "b")
+    assert tuple(detection.source_id for detection in second.detections) == ("a", "b")
+    assert tuple(detection.detection_id for detection in first.detections) == tuple(
+        detection.detection_id for detection in second.detections
+    )
+
+
+def test_selected_array_controls_sample_rate_and_sample_count(monkeypatch) -> None:
+    install_fake_pyroom(monkeypatch)
+    first = create_microphone_array(
+        array_id="rate_8k",
+        prim_path="/World/Rig/Rate8k",
+        layout_name="quad_front",
+        sample_rate_hz=8_000,
+    )
+    second = replace(
+        first,
+        array_id="rate_16k",
+        prim_path="/World/Rig/Rate16k",
+        sample_rate_hz=16_000,
+    )
+    scene = replace(
+        _room_scene_with_sources(
+            _source("speaker", (3.0, 0.0, 0.0)),
+            array=first,
+        ),
+        arrays=(first, second),
+    )
+
+    observed = []
+    for array in (first, second):
+        sink = CaptureSink()
+        frame = AnalyticAcoustics(waveform_writer=sink).simulate(
+            scene,
+            array.array_id,
+            _window(end_time_s=0.01),
+        )
+        observed.append((frame, sink.calls[0]))
+
+    assert [frame.sample_rate_hz for frame, _ in observed] == [8_000, 16_000]
+    assert [call["sample_rate_hz"] for _, call in observed] == [8_000, 16_000]
+    assert [call["window_sample_count"] for _, call in observed] == [80, 160]
+
+
+def test_detection_tie_without_source_id_uses_detection_id() -> None:
+    detections = tuple(
+        AudioDetection(
+            detection_id=detection_id,
+            source_id=None,
+            class_label=None,
+            detection_mode="external_metadata",
+            ground_truth_bearing_deg=None,
+            source_distance_m=None,
+            doa=DoaEstimate(
+                estimated_bearing_deg=None,
+                bearing_confidence=0.0,
+            ),
+            per_mic_rms={"left": 0.5, "right": 0.5},
+        )
+        for detection_id in ("z", "a")
+    )
+
+    assert tuple(
+        detection.detection_id
+        for detection in prioritize_detections(detections, max_detections=None)
+    ) == ("a", "z")
 
 
 def test_room_acoustics_occlusion_replaces_only_the_affected_source_stem(

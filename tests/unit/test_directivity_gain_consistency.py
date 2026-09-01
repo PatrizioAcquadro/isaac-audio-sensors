@@ -187,27 +187,34 @@ def test_scheduler_applies_gain_once_without_normalizing_file_or_generated_asset
     window = AudioTimeWindow(
         start_time_s=0.0,
         end_time_s=0.004,
-        timestamp_ms=0,
-        sample_rate_hz=1_000,
+        frame_index=0,
     )
     file_source = _source(
         audio_asset_path="assets/test.wav",
         duration_s=0.004,
         position=(1.0, 0.0, 0.0),
     )
-    assert signals._scheduled_window_signal(file_source, time_window=window).signal == (
-        pytest.approx(base)
-    )
+    assert signals._scheduled_window_signal(
+        file_source,
+        time_window=window,
+        sample_rate_hz=1_000,
+    ).signal == pytest.approx(base)
     assert signals._scheduled_window_signal(
         replace(file_source, gain_db=DB_DOUBLE),
         time_window=window,
+        sample_rate_hz=1_000,
     ).signal == pytest.approx(base * 2.0)
 
     generated = replace(file_source, audio_asset_path="generated://impulse")
-    generated_base = signals._scheduled_window_signal(generated, time_window=window)
+    generated_base = signals._scheduled_window_signal(
+        generated,
+        time_window=window,
+        sample_rate_hz=1_000,
+    )
     generated_double = signals._scheduled_window_signal(
         replace(generated, gain_db=DB_DOUBLE),
         time_window=window,
+        sample_rate_hz=1_000,
     )
     assert generated_double.signal == pytest.approx(generated_base.signal * 2.0)
 
@@ -351,7 +358,6 @@ def _scene(
 ) -> AudioSceneSnapshot:
     return AudioSceneSnapshot(
         stage_id="gain_consistency",
-        timestamp_ms=0,
         sources=(source,),
         arrays=(array,),
         occlusion=occlusion,
@@ -368,8 +374,7 @@ def _window() -> AudioTimeWindow:
     return AudioTimeWindow(
         start_time_s=0.0,
         end_time_s=0.05,
-        timestamp_ms=0,
-        sample_rate_hz=48_000,
+        frame_index=0,
     )
 
 

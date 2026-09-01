@@ -158,7 +158,7 @@ class EntityBinding:
         self._source_cfgs = tuple(
             sorted(
                 cfg.source_entities,
-                key=lambda item: (item.start_time_s, _source_id(item)),
+                key=_source_id,
             )
         )
         source_ids = tuple(_source_id(item) for item in self._source_cfgs)

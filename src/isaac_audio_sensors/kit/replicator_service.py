@@ -134,7 +134,7 @@ class ReplicatorService(ControllerService):
                     "discovery_roots": self._host._authoring._discovery_roots(),
                     "selected_prim_paths": self.state.selected_prim_paths,
                     "update_period_s": self.state.update_period_s,
-                    "max_events": self.state.max_events,
+                    "max_detections": self.state.max_detections,
                     "ambiguity_policy": self.state.ambiguity_policy,
                     "debug_overlay_enabled": self.state.debug_overlay_enabled,
                     "occlusion_enabled": self.state.occlusion_enabled,

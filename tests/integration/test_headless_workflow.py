@@ -58,10 +58,8 @@ class _FakeSensor:
 
 
 def _frame(index: int) -> AudioSensorFrame:
-    timestamp = index * 10
     return AudioSensorFrame(
         frame_id=f"guided_frame_{index:03d}",
-        timestamp_ms=timestamp,
         backend_id="analytic_acoustics",
         array_id="minimal_array",
         start_time_s=index / 100.0,
@@ -74,7 +72,6 @@ def _frame(index: int) -> AudioSensorFrame:
                 source_id="source",
                 class_label="Speech",
                 detection_mode="scheduled_known_source",
-                timestamp_ms=timestamp,
                 ground_truth_bearing_deg=0.0,
                 source_distance_m=2.0,
                 doa=DoaEstimate(

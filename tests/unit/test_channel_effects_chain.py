@@ -27,7 +27,6 @@ def _base_raw() -> dict[str, object]:
         "audio": {
             "default_backend": "analytic_acoustics",
             "runtime_profile": "waveform_fidelity",
-            "sample_rate_hz": SAMPLE_RATE_HZ,
         },
         "environment": {
             "environment_id": "effects_environment",
@@ -37,6 +36,7 @@ def _base_raw() -> dict[str, object]:
         "arrays": {
             "rig": {
                 "prim_path": "/World/Rig",
+                "sample_rate_hz": SAMPLE_RATE_HZ,
                 "microphones": [
                     {"mic_id": "front"},
                     {"mic_id": "right"},

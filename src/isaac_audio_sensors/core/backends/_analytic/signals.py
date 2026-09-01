@@ -69,6 +69,7 @@ def _scheduled_window_signal(
     source: AudioSourceSpec,
     *,
     time_window: AudioTimeWindow,
+    sample_rate_hz: int,
 ) -> _ScheduledSignal:
     """Position a source's emission inside a window with sample accuracy.
 
@@ -77,7 +78,6 @@ def _scheduled_window_signal(
     truncated at whichever comes first of the source end and the window end.
     """
 
-    sample_rate_hz = time_window.sample_rate_hz
     start_offset_samples = int(
         round(max(0.0, source.start_time_s - time_window.start_time_s) * sample_rate_hz)
     )

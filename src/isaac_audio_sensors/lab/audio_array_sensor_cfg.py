@@ -23,7 +23,7 @@ class AudioArraySensorCfg(SensorBaseCfg):
 
     class_type: type[AudioArraySensor] = AudioArraySensor
     backend: str = "analytic_acoustics"
-    max_events: int = 8
+    max_detections: int = 8
     ambiguity_policy: str = "none"
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     doa_estimator: str = "tdoa_least_squares"
@@ -39,10 +39,12 @@ class AudioArraySensorCfg(SensorBaseCfg):
             raise ValueError("update_period must be finite and non-negative.")
         if self.backend not in registered_backend_ids():
             raise ValueError(f"Unknown backend {self.backend!r}.")
-        if isinstance(self.max_events, bool) or not isinstance(self.max_events, int):
-            raise TypeError("max_events must be an integer.")
-        if self.max_events < 0:
-            raise ValueError("max_events must be non-negative.")
+        if isinstance(self.max_detections, bool) or not isinstance(
+            self.max_detections, int
+        ):
+            raise TypeError("max_detections must be an integer.")
+        if self.max_detections < 0:
+            raise ValueError("max_detections must be non-negative.")
         if self.ambiguity_policy not in TDOA_AMBIGUITY_POLICIES:
             raise ValueError(f"Unknown ambiguity policy {self.ambiguity_policy!r}.")
         if (

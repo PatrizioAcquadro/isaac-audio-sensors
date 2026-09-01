@@ -42,7 +42,7 @@ class ValidationState(Protocol):
     ambiguity_policy: str
     doa_estimator: str
     update_period_s: float
-    max_events: int
+    max_detections: int
     analytic_max_order: int
     analytic_air_absorption: bool
     analytic_ray_tracing: bool
@@ -144,11 +144,11 @@ def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]
             "update_period_s must be positive and finite.",
             "update_period_s",
         )
-    if state.max_events < 0:
+    if state.max_detections < 0:
         return _error(
-            "max_events_non_negative",
-            "max_events must be non-negative.",
-            "max_events",
+            "max_detections_non_negative",
+            "max_detections must be non-negative.",
+            "max_detections",
         )
     environment_findings = check_environment_resolution(
         state.environment_resolution_mode,

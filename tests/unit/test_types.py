@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from dataclasses import fields, replace
+
 import pytest
 
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.types import (
     AudioDetection,
+    AudioSceneSnapshot,
+    AudioSensorFrame,
     AudioSourceSpec,
     AudioTimeWindow,
     DoaEstimate,
@@ -45,8 +49,7 @@ def test_audio_time_window_requires_positive_duration():
     window = AudioTimeWindow(
         start_time_s=1.0,
         end_time_s=1.5,
-        timestamp_ms=1500,
-        sample_rate_hz=48_000,
+        frame_index=0,
     )
     assert window.start_time_s == 1.0
 
@@ -54,9 +57,67 @@ def test_audio_time_window_requires_positive_duration():
         AudioTimeWindow(
             start_time_s=1.0,
             end_time_s=1.0,
-            timestamp_ms=1000,
+            frame_index=0,
+        )
+
+
+def test_capture_contract_has_one_authority_per_value():
+    assert tuple(field.name for field in fields(AudioTimeWindow)) == (
+        "start_time_s",
+        "end_time_s",
+        "frame_index",
+    )
+    timestamp_field = next(
+        field for field in fields(AudioSensorFrame) if field.name == "timestamp_ms"
+    )
+    assert timestamp_field.init is False
+
+    with pytest.raises(TypeError, match="timestamp_ms"):
+        AudioTimeWindow(
+            start_time_s=0.0,
+            end_time_s=1.0,
+            frame_index=0,
+            timestamp_ms=0,
+        )
+    with pytest.raises(TypeError, match="sample_rate_hz"):
+        AudioTimeWindow(
+            start_time_s=0.0,
+            end_time_s=1.0,
+            frame_index=0,
             sample_rate_hz=48_000,
         )
+    with pytest.raises(TypeError, match="timestamp_ms"):
+        AudioSceneSnapshot(stage_id="scene", sources=(), arrays=(), timestamp_ms=0)
+    with pytest.raises(TypeError, match="timestamp_ms"):
+        _detection(timestamp_ms=0)
+
+
+@pytest.mark.parametrize(
+    "values",
+    (
+        {"start_time_s": float("nan"), "end_time_s": 1.0, "frame_index": 0},
+        {"start_time_s": 0.0, "end_time_s": float("inf"), "frame_index": 0},
+        {"start_time_s": 0.0, "end_time_s": 1.0, "frame_index": True},
+        {"start_time_s": 0.0, "end_time_s": 1.0, "frame_index": -1},
+    ),
+)
+def test_audio_time_window_rejects_invalid_required_values(values):
+    with pytest.raises(ValueError):
+        AudioTimeWindow(**values)
+
+
+def test_array_sample_rate_is_a_strict_positive_integer():
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig",
+        layout_name="quad_front",
+    )
+
+    assert array.sample_rate_hz == 48_000
+    with pytest.raises(ValueError, match="sample_rate_hz"):
+        replace(array, sample_rate_hz=True)
+    with pytest.raises(ValueError, match="sample_rate_hz"):
+        replace(array, sample_rate_hz=0)
 
 
 def test_doa_estimate_validates_optional_elevation_fields():
@@ -128,7 +189,6 @@ def _detection(**overrides) -> AudioDetection:
         "source_id": "src",
         "class_label": "Speech",
         "detection_mode": "scheduled_known_source",
-        "timestamp_ms": 0,
         "ground_truth_bearing_deg": 0.0,
         "source_distance_m": 1.0,
         "doa": DoaEstimate(estimated_bearing_deg=None, bearing_confidence=0.0),

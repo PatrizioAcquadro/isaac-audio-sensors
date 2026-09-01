@@ -150,7 +150,6 @@ def test_environment_outline_and_debug_primitive(monkeypatch) -> None:
     array = _array()
     scene = AudioSceneSnapshot(
         stage_id="environment_anchor_test",
-        timestamp_ms=0,
         sources=(_source(),),
         arrays=(array,),
         environment=environment,
@@ -161,8 +160,7 @@ def test_environment_outline_and_debug_primitive(monkeypatch) -> None:
         AudioTimeWindow(
             start_time_s=0.0,
             end_time_s=0.2,
-            timestamp_ms=0,
-            sample_rate_hz=48_000,
+            frame_index=0,
         ),
     )
     outlines = [

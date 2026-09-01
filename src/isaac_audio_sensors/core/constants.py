@@ -24,7 +24,7 @@ CALIBRATION_PROFILE_UNITS = {
 # room backend's per-band attenuation filter.
 OCCLUSION_BAND_CENTERS_HZ = (125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0)
 EPSILON = 1e-9
-FRAME_SCHEMA_VERSION = "ias.audio_sensor_frame.v1"
+FRAME_SCHEMA_VERSION = "ias.audio_sensor_frame.v2"
 
 FRAME_UNITS = {
     "position": "m",
@@ -39,9 +39,7 @@ FRAME_UNITS = {
     "gain": "dB",
 }
 
-# Additive v1 unit keys: emitted by current writers but tolerated as absent
-# when reading frames or traces written before the key existed.
-OPTIONAL_FRAME_UNIT_KEYS = ("elevation",)
+OPTIONAL_FRAME_UNIT_KEYS: tuple[str, ...] = ()
 
 FRAME_TOP_LEVEL_FIELDS = (
     "schema_version",
@@ -58,7 +56,7 @@ FRAME_TOP_LEVEL_FIELDS = (
     "coordinate_convention",
     "units",
     "provenance",
-    "max_events",
+    "max_detections",
     "detections",
     "aggregate_per_mic_rms",
     "waveform_paths",
@@ -70,7 +68,6 @@ DETECTION_FIELDS = (
     "source_id",
     "class_label",
     "detection_mode",
-    "timestamp_ms",
     "ground_truth_bearing_deg",
     "source_distance_m",
     "doa",
@@ -83,9 +80,7 @@ DETECTION_FIELDS = (
     "diagnostics",
 )
 
-# Additive v1 detection fields: always serialized by current writers but kept
-# out of the JSON schema's required list so pre-existing v1 traces stay valid.
-OPTIONAL_DETECTION_FIELDS = ("occluded", "ground_truth_elevation_deg")
+OPTIONAL_DETECTION_FIELDS: tuple[str, ...] = ()
 
 DOA_FIELDS = (
     "estimated_bearing_deg",
@@ -98,9 +93,7 @@ DOA_FIELDS = (
     "candidate_elevation_deg",
 )
 
-# Additive v1 DOA fields: serialized by current writers but kept out of the
-# JSON schema's required list so pre-existing v1 traces stay valid.
-OPTIONAL_DOA_FIELDS = ("estimated_elevation_deg", "candidate_elevation_deg")
+OPTIONAL_DOA_FIELDS: tuple[str, ...] = ()
 
 POSE3D_FIELDS = (
     "position_m",

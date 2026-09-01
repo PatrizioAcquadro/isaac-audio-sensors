@@ -69,7 +69,7 @@
       "surface_count": 6
     },
     "environment_id": "lab_room_a",
-    "max_events": 0,
+    "max_detections": 0,
     "per_source_rir_length_samples": {},
     "per_source_rir_summary": {},
     "physical_waveform": true,
@@ -87,10 +87,10 @@
   "frame_id": "analytic_acoustics_demo_audio_lab_single_source_rig_front_0_0",
   "frame_index": 0,
   "frame_name": "demo_audio_lab_single_source/rig_front/analytic_acoustics/frame0_t0ms",
-  "max_events": 0,
+  "max_detections": 0,
   "provenance": "room_acoustics",
   "sample_rate_hz": 48000,
-  "schema_version": "ias.audio_sensor_frame.v1",
+  "schema_version": "ias.audio_sensor_frame.v2",
   "start_time_s": 0.0,
   "timestamp_ms": 0,
   "units": {

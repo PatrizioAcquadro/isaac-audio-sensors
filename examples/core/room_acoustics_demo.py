@@ -19,7 +19,6 @@ array = create_microphone_array(
 )
 scene = AudioSceneSnapshot(
     stage_id="analytic_acoustics_example",
-    timestamp_ms=0,
     sources=(
         AudioSourceSpec(
             source_id="speaker",
@@ -50,8 +49,7 @@ try:
         AudioTimeWindow(
             start_time_s=0.0,
             end_time_s=1.0,
-            timestamp_ms=0,
-            sample_rate_hz=array.sample_rate_hz,
+            frame_index=0,
         ),
     )
 except OptionalDependencyUnavailable as exc:

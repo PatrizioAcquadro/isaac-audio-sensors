@@ -269,10 +269,10 @@ def validate_trace_projection(
         rebuilt = frame_from_trace_dict(payload)
         canonical = frame_to_trace_dict(rebuilt)
     except (KeyError, TypeError, ValueError) as exc:
-        raise DatasetLayoutError(f"{location}: invalid frame v1: {exc}") from exc
+        raise DatasetLayoutError(f"{location}: invalid frame v2: {exc}") from exc
     if canonical != payload:
         raise DatasetLayoutError(
-            f"{location}: frame is not an unmodified canonical frame v1 trace dict."
+            f"{location}: frame is not an unmodified canonical frame v2 trace dict."
         )
     root = None if session_root is None else Path(session_root)
     waveform_paths = payload.get("waveform_paths", [])

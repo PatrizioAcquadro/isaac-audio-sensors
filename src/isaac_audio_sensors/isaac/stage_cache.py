@@ -215,7 +215,6 @@ class StageAudioCache:
     def snapshot(
         self,
         *,
-        timestamp_ms: int,
         environment: AcousticEnvironmentSpec,
         stage_id: str | None = None,
         array_prim_path: str | None = None,
@@ -262,7 +261,6 @@ class StageAudioCache:
             try:
                 return self._cached_snapshot(
                     cached,
-                    timestamp_ms=timestamp_ms,
                     environment=environment,
                     array_prim_path=array_prim_path,
                     source_prim_path=source_prim_path,
@@ -275,7 +273,6 @@ class StageAudioCache:
         return self._full_snapshot(
             key=key,
             cfg=cfg,
-            timestamp_ms=timestamp_ms,
             environment=environment,
             stage_id=stage_id,
             array_prim_path=array_prim_path,
@@ -291,7 +288,6 @@ class StageAudioCache:
         *,
         key: tuple[Any, ...],
         cfg: IsaacAudioDiscoveryCfg,
-        timestamp_ms: int,
         environment: AcousticEnvironmentSpec,
         stage_id: str | None,
         array_prim_path: str | None,
@@ -307,7 +303,6 @@ class StageAudioCache:
         result = discover_stage_audio(
             self.stage,
             cfg=cfg,
-            timestamp_ms=timestamp_ms,
             stage_id=stage_id,
             time_code=time_code,
             explicit_array_prim_path=array_prim_path,
@@ -348,7 +343,6 @@ class StageAudioCache:
             diagnostics_out.update(diagnostics)
         return snapshot_from_discovery(
             result,
-            timestamp_ms=timestamp_ms,
             preferred_source=preferred_source,
             environment=environment,
         )
@@ -357,7 +351,6 @@ class StageAudioCache:
         self,
         cached: _CachedDiscovery,
         *,
-        timestamp_ms: int,
         environment: AcousticEnvironmentSpec,
         array_prim_path: str | None,
         source_prim_path: str | None,
@@ -372,7 +365,6 @@ class StageAudioCache:
         )
         diagnostics = _base_diagnostics(
             stage_id=cached.stage_id,
-            timestamp_ms=timestamp_ms,
             cfg=cached.cfg,
             explicit_array_prim_path=array_prim_path,
             explicit_source_prim_path=source_prim_path,
@@ -433,7 +425,6 @@ class StageAudioCache:
         )
         return AudioSceneSnapshot(
             stage_id=cached.stage_id,
-            timestamp_ms=timestamp_ms,
             sources=sources,
             arrays=tuple(spec for _, spec in array_specs),
             environment=environment,

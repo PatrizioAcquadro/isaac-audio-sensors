@@ -32,8 +32,6 @@ SAMPLE_RATE_HZ = 48_000
 WINDOW = AudioTimeWindow(
     start_time_s=0.0,
     end_time_s=0.1,
-    timestamp_ms=0,
-    sample_rate_hz=SAMPLE_RATE_HZ,
     frame_index=0,
 )
 
@@ -71,7 +69,6 @@ def _scene(environment, *, array=None, source=None) -> AudioSceneSnapshot:
     source = _source() if source is None else source
     return AudioSceneSnapshot(
         stage_id="analytic_test",
-        timestamp_ms=0,
         sources=(source,),
         arrays=(array,),
         environment=environment,
@@ -143,7 +140,7 @@ def test_free_field_uses_core_without_importing_pyroom(monkeypatch) -> None:
     assert "pyroomacoustics_version" not in first.diagnostics
     assert first.waveform_paths == (f"stub://{first.frame_id}.wav",)
     assert sink.calls[0]["mixture"].shape[0] == 4
-    assert sink.calls[0]["window_sample_count"] == WINDOW.sample_rate_hz // 10
+    assert sink.calls[0]["window_sample_count"] == scene.arrays[0].sample_rate_hz // 10
     assert first.detections[0].diagnostics["analytic_solver"] == (
         first.diagnostics["analytic_solver"]
     )

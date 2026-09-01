@@ -107,17 +107,22 @@ def test_meter_view_models_order_and_text():
     assert meter_view_models({"front": float("nan")}) == ()
 
 
-def _frame(detections, frame_id="frame_001", backend_id="tdoa_synthetic"):
+def _frame(
+    detections,
+    frame_id="frame_001",
+    backend_id="tdoa_synthetic",
+    timestamp_ms=1000,
+):
     return SimpleNamespace(
         frame_id=frame_id,
         backend_id=backend_id,
+        timestamp_ms=timestamp_ms,
         detections=tuple(detections),
     )
 
 
 def _detection(
     *,
-    timestamp_ms=1000,
     source_id="speaker_a",
     class_label="speech_generic",
     bearing=90.0,
@@ -126,7 +131,6 @@ def _detection(
     occluded=False,
 ):
     return SimpleNamespace(
-        timestamp_ms=timestamp_ms,
         source_id=source_id,
         class_label=class_label,
         occluded=occluded,
@@ -155,7 +159,7 @@ def test_append_detection_history_trims_to_limit():
     for index in range(DETECTION_HISTORY_LIMIT + 10):
         append_detection_history(
             history,
-            _frame([_detection(timestamp_ms=index)], frame_id=f"frame_{index}"),
+            _frame([_detection()], frame_id=f"frame_{index}", timestamp_ms=index),
         )
     assert len(history) == DETECTION_HISTORY_LIMIT
     assert history[-1]["frame_id"] == f"frame_{DETECTION_HISTORY_LIMIT + 9}"

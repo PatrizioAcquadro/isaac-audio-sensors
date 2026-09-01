@@ -290,7 +290,7 @@ class ConfigurationService(ControllerService):
                 },
                 "lifecycle": {
                     "update_period_s": state.update_period_s,
-                    "max_events": state.max_events,
+                    "max_detections": state.max_detections,
                     "ambiguity_policy": state.ambiguity_policy,
                     "doa_estimator": state.doa_estimator,
                     "debug_overlay_enabled": state.debug_overlay_enabled,
@@ -583,7 +583,9 @@ class ConfigurationService(ControllerService):
         self.state.update_period_s = float(
             lifecycle.get("update_period_s", self.state.update_period_s)
         )
-        self.state.max_events = int(lifecycle.get("max_events", self.state.max_events))
+        self.state.max_detections = int(
+            lifecycle.get("max_detections", self.state.max_detections)
+        )
         self.state.ambiguity_policy = str(
             lifecycle.get("ambiguity_policy", self.state.ambiguity_policy)
         )

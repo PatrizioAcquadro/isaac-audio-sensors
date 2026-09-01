@@ -187,8 +187,6 @@ def _window():
     return AudioTimeWindow(
         start_time_s=0.0,
         end_time_s=1.0,
-        timestamp_ms=0,
-        sample_rate_hz=SAMPLE_RATE_HZ,
         frame_index=0,
     )
 
@@ -220,7 +218,6 @@ def _render(fake_room, record=None, environment=None):
     array = _array()
     scene = AudioSceneSnapshot(
         stage_id="dynamic_room_fixture",
-        timestamp_ms=0,
         sources=(_source(),),
         arrays=(array,),
         environment=environment or _environment(),
@@ -358,7 +355,6 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
     array = _array(position=(0.0, 0.25, 1.0))
     array_scene = AudioSceneSnapshot(
         stage_id="dynamic_room_fixture",
-        timestamp_ms=0,
         sources=(_source(),),
         arrays=(array,),
         environment=_environment(),
@@ -456,7 +452,6 @@ def test_stage_cache_reason_taxonomy_order_and_actions():
     stage = _Stage()
     cache = StageAudioCache(stage, environment_anchor_prim_path=ENVIRONMENT_PATH)
     cache.snapshot(
-        timestamp_ms=0,
         environment=_environment(),
         array_prim_path=ARRAY_PATH,
     )
@@ -474,7 +469,6 @@ def test_stage_cache_reason_taxonomy_order_and_actions():
         "material_changed",
     )
     cache.snapshot(
-        timestamp_ms=1,
         environment=_environment(),
         array_prim_path=ARRAY_PATH,
     )
@@ -664,7 +658,6 @@ def test_off_state_frame_has_no_acoustics_namespace_and_is_byte_deterministic():
     array = _array()
     scene = AudioSceneSnapshot(
         stage_id="off",
-        timestamp_ms=0,
         sources=(_source(),),
         arrays=(array,),
         environment=free_field_environment(environment_id="off_free_field"),

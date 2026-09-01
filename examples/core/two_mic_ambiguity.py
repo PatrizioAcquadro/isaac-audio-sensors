@@ -18,7 +18,6 @@ array = create_microphone_array(
 )
 scene = AudioSceneSnapshot(
     stage_id="two_mic_ambiguity_example",
-    timestamp_ms=0,
     sources=(
         AudioSourceSpec(
             source_id="speaker_front",
@@ -41,8 +40,7 @@ frame = AnalyticAcoustics(ambiguity_policy="none").simulate(
     AudioTimeWindow(
         start_time_s=0.0,
         end_time_s=1.0,
-        timestamp_ms=0,
-        sample_rate_hz=array.sample_rate_hz,
+        frame_index=0,
     ),
 )
 print(frame.detections[0].doa)

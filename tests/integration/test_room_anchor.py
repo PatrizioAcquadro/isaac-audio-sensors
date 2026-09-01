@@ -74,7 +74,6 @@ def _scene(
     selected_array = _array() if array is None else array
     return AudioSceneSnapshot(
         stage_id="environment_backend_test",
-        timestamp_ms=0,
         sources=((_source() if source is None else source),),
         arrays=(selected_array,),
         environment=environment,
@@ -85,8 +84,7 @@ def _window() -> AudioTimeWindow:
     return AudioTimeWindow(
         start_time_s=0.0,
         end_time_s=0.2,
-        timestamp_ms=0,
-        sample_rate_hz=48_000,
+        frame_index=0,
     )
 
 

@@ -40,7 +40,7 @@ def test_implemented_l2_maps_to_the_canonical_backend():
 
     for metadata in (by_level[AcousticFidelityLevel.L2],):
         assert metadata.runtime_selectable_v1 is True
-        assert "AudioSensorFrame v1" in metadata.frame_contract
+        assert "AudioSensorFrame v2" in metadata.frame_contract
         for backend_id in metadata.backend_ids:
             assert fidelity_level_for_backend(backend_id) is metadata
 

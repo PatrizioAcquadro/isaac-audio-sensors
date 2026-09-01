@@ -66,7 +66,6 @@ def _source(*, position=(1.0, 0.0, 0.0), velocity=None, source_id="speaker"):
 def _scene(source, array) -> AudioSceneSnapshot:
     return AudioSceneSnapshot(
         stage_id="motion_scene",
-        timestamp_ms=0,
         sources=(source,),
         arrays=(array,),
         environment=free_field_environment(environment_id="motion_free_field"),
@@ -148,7 +147,6 @@ def test_fake_stage_snapshot_seam_uses_explicit_simulation_time_not_time_code():
     diagnostics = {}
     first = build_stage_snapshot(
         stage,
-        timestamp_ms=1_000,
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         array_prim_path="/World/Rig",
@@ -169,7 +167,6 @@ def test_fake_stage_snapshot_seam_uses_explicit_simulation_time_not_time_code():
     array_prim.attributes["ias:position_world"] = (0.0, 0.1, 0.0)
     second = build_stage_snapshot(
         stage,
-        timestamp_ms=9_999,
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         array_prim_path="/World/Rig",
@@ -194,7 +191,6 @@ def test_enabled_stage_snapshot_requires_finite_explicit_simulation_time():
     with pytest.raises(ValueError, match="simulation_time_s"):
         build_stage_snapshot(
             stage,
-            timestamp_ms=0,
             environment_resolution_cfg=MANUAL_RESOLUTION,
             environment=MANUAL_ENVIRONMENT,
             array_prim_path="/World/Rig",
@@ -205,7 +201,6 @@ def test_enabled_stage_snapshot_requires_finite_explicit_simulation_time():
     with pytest.raises(ValueError, match="time_s.*finite"):
         build_stage_snapshot(
             stage,
-            timestamp_ms=0,
             environment_resolution_cfg=MANUAL_RESOLUTION,
             environment=MANUAL_ENVIRONMENT,
             array_prim_path="/World/Rig",
@@ -221,7 +216,6 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
     array = _array()
     scene = AudioSceneSnapshot(
         stage_id="empty_motion_scene",
-        timestamp_ms=0,
         sources=(),
         arrays=(array,),
         environment=free_field_environment(environment_id="empty_motion_free_field"),
@@ -241,8 +235,7 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
         AudioTimeWindow(
             start_time_s=0.0,
             end_time_s=0.05,
-            timestamp_ms=0,
-            sample_rate_hz=48_000,
+            frame_index=0,
         ),
     )
     assert frame.detections == ()
@@ -304,7 +297,7 @@ def test_live_direct_capture_requires_explicit_motion_time():
         effects=EffectsConfig(motion=_motion()),
     )
     with pytest.raises(ValueError, match="explicit sim_time_s"):
-        sensor.capture(timestamp_ms=0)
+        sensor.capture()
     assert sensor._pose_history._entities == {}
     sensor.close()
 

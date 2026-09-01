@@ -1,8 +1,8 @@
 {
-  "$id": "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v1.schema.json",
+  "$id": "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v2.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": true,
-  "description": "Stable AudioSensorFrame v1 trace contract. The schema_version is separate from the Python package version. Public fields, unit meanings, timestamp semantics, provenance values, coordinate convention, ambiguity representation, stable backend identifiers, and bearing-sector semantics are compatibility commitments for v1.",
+  "additionalProperties": false,
+  "description": "AudioSensorFrame v2 trace contract. timestamp_ms is derived from start_time_s, sample_rate_hz records the selected array rate, and max_detections limits only the detection output.",
   "properties": {
     "aggregate_per_mic_rms": {
       "additionalProperties": {
@@ -22,16 +22,16 @@
           "type": "null"
         },
         {
-          "additionalProperties": true,
+          "additionalProperties": false,
           "description": "World-frame pose using x_forward_y_right_z_up_clockwise_bearing.",
           "properties": {
             "coordinate_convention": {
               "const": "x_forward_y_right_z_up_clockwise_bearing",
-              "description": "Stable v1 coordinate and bearing convention.",
+              "description": "Stable coordinate and bearing convention.",
               "type": "string"
             },
             "frame": {
-              "description": "Coordinate frame name; v1 examples use world.",
+              "description": "Coordinate frame name; current examples use world.",
               "minLength": 1,
               "type": "string"
             },
@@ -78,13 +78,13 @@
     },
     "coordinate_convention": {
       "const": "x_forward_y_right_z_up_clockwise_bearing",
-      "description": "Stable v1 coordinate and bearing convention.",
+      "description": "Stable coordinate and bearing convention.",
       "type": "string"
     },
     "detections": {
       "description": "Detected, scheduled, or externally described events.",
       "items": {
-        "additionalProperties": true,
+        "additionalProperties": false,
         "properties": {
           "audio_asset_path": {
             "type": [
@@ -110,7 +110,7 @@
             "type": "object"
           },
           "doa": {
-            "additionalProperties": true,
+            "additionalProperties": false,
             "description": "Direction-of-arrival estimate with explicit candidate and ambiguity representation.",
             "properties": {
               "ambiguity_class": {
@@ -147,7 +147,7 @@
                 "type": "array"
               },
               "candidate_elevation_deg": {
-                "description": "Optional additive v1 field: candidate elevations in degrees up from the array's forward/right plane. Absent in older v1 traces.",
+                "description": "Candidate elevations in degrees up from the array's forward/right plane.",
                 "items": {
                   "maximum": 90.0,
                   "minimum": -90.0,
@@ -162,7 +162,7 @@
                 ]
               },
               "estimated_elevation_deg": {
-                "description": "Optional additive v1 field: elevation in degrees up from the array's forward/right plane when the producer can resolve it (rank-3 layouts). Absent in older v1 traces.",
+                "description": "Elevation in degrees up from the array's forward/right plane when the producer can resolve it (rank-3 layouts).",
                 "maximum": 90.0,
                 "minimum": -90.0,
                 "type": [
@@ -177,7 +177,9 @@
               "bearing_sector",
               "bearing_confidence",
               "ambiguity_class",
-              "ambiguity_reason"
+              "ambiguity_reason",
+              "estimated_elevation_deg",
+              "candidate_elevation_deg"
             ],
             "type": "object"
           },
@@ -188,7 +190,7 @@
             ]
           },
           "ground_truth_elevation_deg": {
-            "description": "Optional additive v1 field: oracle source elevation in degrees up from the array's forward/right plane. Absent in older v1 traces.",
+            "description": "Oracle source elevation in degrees up from the array's forward/right plane.",
             "maximum": 90.0,
             "minimum": -90.0,
             "type": [
@@ -197,7 +199,7 @@
             ]
           },
           "occluded": {
-            "description": "Optional additive v1 field: true when the producer determined the direct source-to-array path is occluded (e.g. Isaac raycast occlusion). Absent in older v1 traces.",
+            "description": "True when the producer determined the direct source-to-array path is occluded (e.g. Isaac raycast occlusion).",
             "type": "boolean"
           },
           "per_mic_delay_s": {
@@ -230,16 +232,16 @@
                 "type": "null"
               },
               {
-                "additionalProperties": true,
+                "additionalProperties": false,
                 "description": "World-frame pose using x_forward_y_right_z_up_clockwise_bearing.",
                 "properties": {
                   "coordinate_convention": {
                     "const": "x_forward_y_right_z_up_clockwise_bearing",
-                    "description": "Stable v1 coordinate and bearing convention.",
+                    "description": "Stable coordinate and bearing convention.",
                     "type": "string"
                   },
                   "frame": {
-                    "description": "Coordinate frame name; v1 examples use world.",
+                    "description": "Coordinate frame name; current examples use world.",
                     "minLength": 1,
                     "type": "string"
                   },
@@ -278,9 +280,6 @@
                 "type": "object"
               }
             ]
-          },
-          "timestamp_ms": {
-            "type": "integer"
           }
         },
         "required": [
@@ -288,14 +287,15 @@
           "source_id",
           "class_label",
           "detection_mode",
-          "timestamp_ms",
           "ground_truth_bearing_deg",
           "source_distance_m",
           "doa",
+          "ground_truth_elevation_deg",
           "source_pose",
           "per_mic_delay_s",
           "per_mic_rms",
           "audio_asset_path",
+          "occluded",
           "diagnostics"
         ],
         "type": "object"
@@ -308,10 +308,7 @@
     },
     "end_time_s": {
       "description": "Exclusive frame-window end time in seconds.",
-      "type": [
-        "number",
-        "null"
-      ]
+      "type": "number"
     },
     "frame_id": {
       "description": "Stable machine-readable frame identifier.",
@@ -319,20 +316,17 @@
       "type": "string"
     },
     "frame_index": {
-      "description": "Non-negative producer frame index when present.",
+      "description": "Non-negative producer frame index.",
       "minimum": 0,
-      "type": [
-        "integer",
-        "null"
-      ]
+      "type": "integer"
     },
     "frame_name": {
       "description": "Human-readable frame name; defaults to frame_id.",
       "minLength": 1,
       "type": "string"
     },
-    "max_events": {
-      "description": "Non-negative deterministic detection cap when set.",
+    "max_detections": {
+      "description": "Output-only detection cap; null means unlimited.",
       "minimum": 0,
       "type": [
         "integer",
@@ -349,33 +343,25 @@
       ]
     },
     "sample_rate_hz": {
-      "description": "Audio sample rate in Hz when known.",
+      "description": "Sample rate copied from the selected array.",
       "minimum": 1,
-      "type": [
-        "integer",
-        "null"
-      ]
+      "type": "integer"
     },
     "schema_version": {
-      "const": "ias.audio_sensor_frame.v1",
-      "description": "Stable frame schema id for all compatible v1 frames."
+      "const": "ias.audio_sensor_frame.v2",
+      "description": "Frame schema id for the breaking v2 contract."
     },
     "start_time_s": {
       "description": "Inclusive frame-window start time in seconds.",
-      "type": [
-        "number",
-        "null"
-      ]
+      "type": "number"
     },
     "timestamp_ms": {
-      "description": "Frame timestamp in integer milliseconds.",
+      "description": "Derived frame timestamp: round(start_time_s * 1000).",
       "type": "integer"
     },
     "units": {
-      "additionalProperties": {
-        "type": "string"
-      },
-      "description": "Stable unit names and meanings for v1 fields.",
+      "additionalProperties": false,
+      "description": "Stable unit names and meanings for frame fields.",
       "properties": {
         "bearing": {
           "const": "deg_clockwise_from_array_forward",
@@ -421,6 +407,7 @@
       "required": [
         "bearing",
         "distance",
+        "elevation",
         "gain",
         "orientation",
         "position",
@@ -454,12 +441,12 @@
     "coordinate_convention",
     "units",
     "provenance",
-    "max_events",
+    "max_detections",
     "detections",
     "aggregate_per_mic_rms",
     "waveform_paths",
     "diagnostics"
   ],
-  "title": "Isaac Audio Sensors AudioSensorFrame v1",
+  "title": "Isaac Audio Sensors AudioSensorFrame v2",
   "type": "object"
 }

@@ -264,9 +264,10 @@ class MicrophoneArraySpec:
             "microphone id",
         )
         object.__setattr__(self, "microphones", microphones)
-        if int(self.sample_rate_hz) <= 0:
-            raise ValueError("MicrophoneArraySpec.sample_rate_hz must be positive.")
-        object.__setattr__(self, "sample_rate_hz", int(self.sample_rate_hz))
+        if type(self.sample_rate_hz) is not int or self.sample_rate_hz <= 0:
+            raise ValueError(
+                "MicrophoneArraySpec.sample_rate_hz must be a positive integer."
+            )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -431,34 +432,24 @@ class AudioTimeWindow:
 
     start_time_s: float
     end_time_s: float
-    timestamp_ms: int
-    sample_rate_hz: int
-    frame_index: int | None = None
-    max_events: int | None = None
+    frame_index: int
 
     def __post_init__(self) -> None:
         _require_finite(self.start_time_s, "AudioTimeWindow.start_time_s")
         _require_finite(self.end_time_s, "AudioTimeWindow.end_time_s")
         if self.end_time_s <= self.start_time_s:
             raise ValueError("AudioTimeWindow end must be after start.")
-        if int(self.sample_rate_hz) <= 0:
-            raise ValueError("AudioTimeWindow.sample_rate_hz must be positive.")
-        object.__setattr__(self, "sample_rate_hz", int(self.sample_rate_hz))
-        object.__setattr__(self, "timestamp_ms", int(self.timestamp_ms))
-        if self.frame_index is not None and int(self.frame_index) < 0:
-            raise ValueError("AudioTimeWindow.frame_index must be non-negative.")
-        if self.max_events is not None:
-            max_events = int(self.max_events)
-            if max_events < 0:
-                raise ValueError("AudioTimeWindow.max_events must be non-negative.")
-            object.__setattr__(self, "max_events", max_events)
+        if type(self.frame_index) is not int or self.frame_index < 0:
+            raise ValueError(
+                "AudioTimeWindow.frame_index must be a non-negative integer."
+            )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class DoaEstimate:
     """Direction-of-arrival estimate with explicit ambiguity representation.
 
-    Elevation fields are additive optional v1 fields measured in degrees up
+    Elevation fields are measured in degrees up
     from the array's forward/right plane (positive toward array-local +Z),
     in ``[-90.0, +90.0]``. They stay ``None``/empty unless the producer can
     resolve elevation (e.g. a rank-3 microphone layout); planar arrays keep
@@ -527,7 +518,6 @@ class AudioDetection:
     source_id: str | None
     class_label: str | None
     detection_mode: str
-    timestamp_ms: int
     ground_truth_bearing_deg: float | None
     source_distance_m: float | None
     doa: DoaEstimate
@@ -550,7 +540,6 @@ class AudioDetection:
                 "AudioDetection.detection_mode must be one of "
                 f"{sorted(DETECTION_MODES)}."
             )
-        object.__setattr__(self, "timestamp_ms", int(self.timestamp_ms))
         if self.ground_truth_bearing_deg is not None:
             _require_finite(
                 self.ground_truth_bearing_deg,
@@ -600,20 +589,20 @@ class AudioSensorFrame:
     """One microphone-array observation window."""
 
     frame_id: str
-    timestamp_ms: int
     backend_id: str
     array_id: str
+    start_time_s: float
+    end_time_s: float
+    sample_rate_hz: int
+    frame_index: int
+    timestamp_ms: int = field(init=False)
     schema_version: str = FRAME_SCHEMA_VERSION
     frame_name: str | None = None
     array_pose: Pose3D | None = None
-    start_time_s: float | None = None
-    end_time_s: float | None = None
-    sample_rate_hz: int | None = None
-    frame_index: int | None = None
     coordinate_convention: str = COORDINATE_CONVENTION
     units: dict[str, str] = field(default_factory=lambda: dict(FRAME_UNITS))
     provenance: str = "synthetic/core"
-    max_events: int | None = None
+    max_detections: int | None = None
     detections: tuple[AudioDetection, ...] = field(default_factory=tuple)
     aggregate_per_mic_rms: dict[str, float] = field(default_factory=dict)
     waveform_paths: tuple[str, ...] = field(default_factory=tuple)
@@ -642,31 +631,29 @@ class AudioSensorFrame:
                 "AudioSensorFrame.provenance must be one of "
                 f"{sorted(FRAME_PROVENANCE_VALUES)}."
             )
-        object.__setattr__(self, "timestamp_ms", int(self.timestamp_ms))
-        if self.start_time_s is not None:
-            _require_finite(self.start_time_s, "AudioSensorFrame.start_time_s")
-        if self.end_time_s is not None:
-            _require_finite(self.end_time_s, "AudioSensorFrame.end_time_s")
-        if (
-            self.start_time_s is not None
-            and self.end_time_s is not None
-            and self.end_time_s <= self.start_time_s
-        ):
+        _require_finite(self.start_time_s, "AudioSensorFrame.start_time_s")
+        _require_finite(self.end_time_s, "AudioSensorFrame.end_time_s")
+        if self.end_time_s <= self.start_time_s:
             raise ValueError("AudioSensorFrame end time must be after start time.")
-        if self.sample_rate_hz is not None:
-            if int(self.sample_rate_hz) <= 0:
-                raise ValueError("AudioSensorFrame.sample_rate_hz must be positive.")
-            object.__setattr__(self, "sample_rate_hz", int(self.sample_rate_hz))
-        if self.frame_index is not None:
-            frame_index = int(self.frame_index)
-            if frame_index < 0:
-                raise ValueError("AudioSensorFrame.frame_index must be non-negative.")
-            object.__setattr__(self, "frame_index", frame_index)
-        if self.max_events is not None:
-            max_events = int(self.max_events)
-            if max_events < 0:
-                raise ValueError("AudioSensorFrame.max_events must be non-negative.")
-            object.__setattr__(self, "max_events", max_events)
+        object.__setattr__(
+            self,
+            "timestamp_ms",
+            int(round(self.start_time_s * 1000.0)),
+        )
+        if type(self.sample_rate_hz) is not int or self.sample_rate_hz <= 0:
+            raise ValueError(
+                "AudioSensorFrame.sample_rate_hz must be a positive integer."
+            )
+        if type(self.frame_index) is not int or self.frame_index < 0:
+            raise ValueError(
+                "AudioSensorFrame.frame_index must be a non-negative integer."
+            )
+        if self.max_detections is not None and (
+            type(self.max_detections) is not int or self.max_detections < 0
+        ):
+            raise ValueError(
+                "AudioSensorFrame.max_detections must be a non-negative integer."
+            )
         units = {str(key): str(value) for key, value in self.units.items()}
         missing_units = set(FRAME_UNITS) - set(units) - set(OPTIONAL_FRAME_UNIT_KEYS)
         if missing_units:
@@ -685,8 +672,11 @@ class AudioSensorFrame:
             )
         object.__setattr__(self, "units", units)
         detections = tuple(self.detections)
-        if self.max_events is not None and len(detections) > self.max_events:
-            detections = detections[: self.max_events]
+        if self.max_detections is not None and len(detections) > self.max_detections:
+            raise ValueError(
+                "AudioSensorFrame.detections exceeds max_detections; producers "
+                "must apply the output limit after localization."
+            )
         object.__setattr__(self, "detections", detections)
         object.__setattr__(
             self,
@@ -817,7 +807,6 @@ class AudioSceneSnapshot:
     """Static scene state and canonical arrays consumed by simulation backends."""
 
     stage_id: str
-    timestamp_ms: int
     sources: tuple[AudioSourceSpec, ...]
     arrays: tuple[MicrophoneArraySpec, ...]
     environment: AcousticEnvironmentSpec
@@ -825,7 +814,6 @@ class AudioSceneSnapshot:
 
     def __post_init__(self) -> None:
         _require_non_empty(self.stage_id, "AudioSceneSnapshot.stage_id")
-        object.__setattr__(self, "timestamp_ms", int(self.timestamp_ms))
         sources = tuple(self.sources)
         arrays = tuple(self.arrays)
         _require_unique_ids([source.source_id for source in sources], "source id")

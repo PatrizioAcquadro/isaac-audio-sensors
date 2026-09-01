@@ -20,6 +20,7 @@ from isaac_audio_sensors.core.acoustics.materials import (
 from isaac_audio_sensors.core.backends._analytic.assembly import assemble_frame
 from isaac_audio_sensors.core.backends._analytic.detections import (
     assemble_detections,
+    prioritize_detections,
 )
 from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
@@ -87,6 +88,7 @@ class AnalyticAcoustics:
         effects: EffectsConfig | None = None,
         runtime_profile: str = "waveform_fidelity",
         window_motion: WindowMotionPlan | None = None,
+        max_detections: int | None = None,
     ) -> None:
         if speed_of_sound_mps <= 0.0 or not math.isfinite(speed_of_sound_mps):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
@@ -104,6 +106,10 @@ class AnalyticAcoustics:
             raise TypeError("air_absorption must be a boolean.")
         if not isinstance(ray_tracing, bool):
             raise TypeError("ray_tracing must be a boolean.")
+        if max_detections is not None and (
+            type(max_detections) is not int or max_detections < 0
+        ):
+            raise ValueError("max_detections must be a non-negative integer.")
         self.speed_of_sound_mps = float(speed_of_sound_mps)
         self.ambiguity_policy = ambiguity_policy
         self.gcc_phat_interp = int(gcc_phat_interp)
@@ -115,6 +121,7 @@ class AnalyticAcoustics:
         self.effects = EffectsConfig() if effects is None else effects
         self.runtime_profile = runtime_profile
         self.window_motion = window_motion
+        self.max_detections = max_detections
         self.effects_chain = ChannelEffectsChain(self.effects)
 
     @staticmethod
@@ -209,6 +216,10 @@ class AnalyticAcoustics:
             gcc_phat_interp=self.gcc_phat_interp,
             doa_estimator=self.doa_estimator,
         )
+        detections = prioritize_detections(
+            detections,
+            max_detections=self.max_detections,
+        )
         frame = assemble_frame(
             prepared,
             rendered,
@@ -220,6 +231,7 @@ class AnalyticAcoustics:
             doa_estimator=self.doa_estimator,
             waveform_writer=self.waveform_writer,
             window_motion=self.window_motion,
+            max_detections=self.max_detections,
             provenance=(
                 "synthetic/core" if solver_id in _CORE_SOLVERS else "room_acoustics"
             ),
@@ -308,7 +320,11 @@ def _render_core(
     scheduled_list = []
     doppler_factors: dict[str, float] = {}
     for source in prepared.active:
-        signal = _scheduled_window_signal(source, time_window=prepared.time_window)
+        signal = _scheduled_window_signal(
+            source,
+            time_window=prepared.time_window,
+            sample_rate_hz=prepared.sample_rate_hz,
+        )
         factor = source_doppler_factor(
             source,
             prepared.sensor,

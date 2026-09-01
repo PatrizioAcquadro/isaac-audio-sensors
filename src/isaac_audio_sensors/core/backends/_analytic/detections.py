@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
@@ -174,7 +175,6 @@ def assemble_detections(
                 source_id=source.source_id,
                 class_label=source.class_label,
                 detection_mode="scheduled_known_source",
-                timestamp_ms=prepared.time_window.timestamp_ms,
                 ground_truth_bearing_deg=ground_truth_bearing,
                 ground_truth_elevation_deg=ground_truth_elevation,
                 source_distance_m=norm(
@@ -274,6 +274,33 @@ def assemble_detections(
     return detections, per_source_rir_summary
 
 
+def prioritize_detections(
+    detections: list[AudioDetection],
+    *,
+    max_detections: int | None,
+) -> list[AudioDetection]:
+    """Order detections by array RMS and apply the output-only limit."""
+
+    prioritized = sorted(
+        detections,
+        key=lambda detection: (
+            -_array_rms(detection),
+            detection.source_id or detection.detection_id,
+            detection.detection_id,
+        ),
+    )
+    if max_detections is None:
+        return prioritized
+    return prioritized[:max_detections]
+
+
+def _array_rms(detection: AudioDetection) -> float:
+    values = tuple(detection.per_mic_rms.values())
+    if not values:
+        return 0.0
+    return math.sqrt(sum(value * value for value in values) / len(values))
+
+
 def _estimate_source_doa(
     *,
     sensor: MicrophoneArraySpec,
@@ -337,4 +364,4 @@ def _estimate_source_doa(
     )
 
 
-__all__ = ["assemble_detections"]
+__all__ = ["assemble_detections", "prioritize_detections"]

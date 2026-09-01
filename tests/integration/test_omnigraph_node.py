@@ -33,9 +33,12 @@ from isaac_audio_sensors.isaac import frame_registry  # noqa: E402
 def _frame(frame_id: str = "frame_001", bearing: float = 90.0) -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id=frame_id,
-        timestamp_ms=1500,
         backend_id="tdoa_synthetic",
         array_id="rig_front",
+        start_time_s=1.5,
+        end_time_s=1.6,
+        sample_rate_hz=48_000,
+        frame_index=0,
         aggregate_per_mic_rms={"front": 0.2, "left": 0.1},
         detections=(
             AudioDetection(
@@ -43,7 +46,6 @@ def _frame(frame_id: str = "frame_001", bearing: float = 90.0) -> AudioSensorFra
                 source_id="speaker_a",
                 class_label="Speech",
                 detection_mode="scheduled_known_source",
-                timestamp_ms=1500,
                 ground_truth_bearing_deg=bearing,
                 source_distance_m=2.0,
                 doa=DoaEstimate(

@@ -4,7 +4,6 @@ stage_units = "meters"
 up_axis = "z"
 
 [audio]
-sample_rate_hz = 48000
 speed_of_sound_mps = 343.0
 default_backend = "analytic_acoustics"
 write_waveforms = false

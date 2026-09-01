@@ -88,7 +88,7 @@ class IsaacAudioArraySensor:
     usd_time_code_scale: float | None = None
     usd_time_code_offset: float = 0.0
     update_period_s: float = 0.05
-    max_events: int | None = None
+    max_detections: int | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     ambiguity_policy: str = "none"
     doa_estimator: str = "tdoa_least_squares"
@@ -191,8 +191,10 @@ class IsaacAudioArraySensor:
             self._pose_history_stage = self.stage
         if self.update_period_s <= 0.0:
             raise ValueError("update_period_s must be positive.")
-        if self.max_events is not None and self.max_events < 0:
-            raise ValueError("max_events must be non-negative.")
+        if self.max_detections is not None and (
+            type(self.max_detections) is not int or self.max_detections < 0
+        ):
+            raise ValueError("max_detections must be a non-negative integer.")
         if self.usd_time_code_scale is not None and not math.isfinite(
             float(self.usd_time_code_scale)
         ):
@@ -239,12 +241,11 @@ class IsaacAudioArraySensor:
         environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
         source_prim_path: str | None = None,
         backend: str = "analytic_acoustics",
-        timestamp_ms: int = 0,
         robot_base_prim_path: str | None = None,
         usd_time_code_scale: float | None = None,
         usd_time_code_offset: float = 0.0,
         update_period_s: float = 0.05,
-        max_events: int | None = None,
+        max_detections: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
         doa_estimator: str = "tdoa_least_squares",
@@ -264,7 +265,6 @@ class IsaacAudioArraySensor:
         diagnostics: dict[str, Any] = {}
         snapshot = build_stage_snapshot(
             stage,
-            timestamp_ms=timestamp_ms,
             environment_resolution_cfg=environment_resolution_cfg,
             environment=environment,
             array_prim_path=array_prim_path,
@@ -293,7 +293,7 @@ class IsaacAudioArraySensor:
             usd_time_code_scale=usd_time_code_scale,
             usd_time_code_offset=usd_time_code_offset,
             update_period_s=update_period_s,
-            max_events=max_events,
+            max_detections=max_detections,
             speed_of_sound_mps=speed_of_sound_mps,
             ambiguity_policy=ambiguity_policy,
             doa_estimator=doa_estimator,
@@ -314,12 +314,11 @@ class IsaacAudioArraySensor:
         environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
         binding_cfg: IsaacAudioSceneBindingCfg | None = None,
         backend: str = "analytic_acoustics",
-        timestamp_ms: int = 0,
         usd_time_code: Any | None = None,
         usd_time_code_scale: float | None = None,
         usd_time_code_offset: float = 0.0,
         update_period_s: float = 0.05,
-        max_events: int | None = None,
+        max_detections: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
         doa_estimator: str = "tdoa_least_squares",
@@ -341,7 +340,6 @@ class IsaacAudioArraySensor:
         result = discover_stage_audio(
             stage,
             cfg=binding.to_discovery_cfg(),
-            timestamp_ms=timestamp_ms,
             usd_time_code=usd_time_code,
             preferred_array=binding.preferred_array,
             preferred_source=binding.preferred_source,
@@ -375,7 +373,7 @@ class IsaacAudioArraySensor:
             usd_time_code_scale=usd_time_code_scale,
             usd_time_code_offset=usd_time_code_offset,
             update_period_s=update_period_s,
-            max_events=max_events,
+            max_detections=max_detections,
             speed_of_sound_mps=speed_of_sound_mps,
             ambiguity_policy=ambiguity_policy,
             doa_estimator=doa_estimator,
@@ -426,14 +424,12 @@ class IsaacAudioArraySensor:
             prime_time_s = 0.0
         if not math.isfinite(prime_time_s):
             raise ValueError("piecewise motion prime time must be finite")
-        timestamp_ms = int(round(prime_time_s * 1000.0))
         self._scene_for_capture(
-            timestamp_ms=timestamp_ms,
             source_prim_path=self.source_prim_path,
             usd_time_code=self._resolve_usd_time_code(
                 explicit_time_code=None,
                 sim_time_s=prime_time_s,
-                timestamp_ms=timestamp_ms,
+                capture_time_s=prime_time_s,
             ),
             sim_time_s=prime_time_s,
         )
@@ -515,7 +511,6 @@ class IsaacAudioArraySensor:
         *,
         sim_time_s: float | None = None,
         dt: float | None = None,
-        timestamp_ms: int | None = None,
         usd_time_code: Any | None = None,
         force: bool = False,
     ) -> AudioSensorFrame:
@@ -565,21 +560,14 @@ class IsaacAudioArraySensor:
         )
         start_time_s = update_time_s - window_s if piecewise else update_time_s
         end_time_s = update_time_s if piecewise else update_time_s + window_s
-        timestamp = (
-            int(timestamp_ms)
-            if timestamp_ms is not None
-            else int(round(start_time_s * 1000.0))
-        )
         frame = self.capture(
-            timestamp_ms=timestamp,
             start_time_s=start_time_s,
             end_time_s=end_time_s,
             frame_index=self._frame_index,
-            max_events=self.max_events,
             usd_time_code=self._resolve_usd_time_code(
                 explicit_time_code=usd_time_code,
                 sim_time_s=update_time_s,
-                timestamp_ms=timestamp,
+                capture_time_s=start_time_s,
             ),
             sim_time_s=update_time_s,
         )
@@ -594,11 +582,9 @@ class IsaacAudioArraySensor:
     def capture(
         self,
         *,
-        timestamp_ms: int,
         start_time_s: float = 0.0,
         end_time_s: float = 1.0,
-        frame_index: int | None = 0,
-        max_events: int | None = None,
+        frame_index: int = 0,
         source_prim_path: str | None = None,
         usd_time_code: Any | None = None,
         sim_time_s: float | None = None,
@@ -606,7 +592,6 @@ class IsaacAudioArraySensor:
         """Capture one frame from the live stage."""
 
         scene = self._scene_for_capture(
-            timestamp_ms=timestamp_ms,
             source_prim_path=source_prim_path,
             usd_time_code=(
                 usd_time_code
@@ -614,7 +599,7 @@ class IsaacAudioArraySensor:
                 else self._resolve_usd_time_code(
                     explicit_time_code=None,
                     sim_time_s=None,
-                    timestamp_ms=timestamp_ms,
+                    capture_time_s=start_time_s,
                 )
             ),
             sim_time_s=sim_time_s,
@@ -623,10 +608,7 @@ class IsaacAudioArraySensor:
         time_window = AudioTimeWindow(
             start_time_s=start_time_s,
             end_time_s=end_time_s,
-            timestamp_ms=timestamp_ms,
-            sample_rate_hz=sensor.sample_rate_hz,
             frame_index=frame_index,
-            max_events=self.max_events if max_events is None else max_events,
         )
         window_motion: WindowMotionPlan | None = None
         if self.effects.motion.segments_per_window > 1:
@@ -638,6 +620,7 @@ class IsaacAudioArraySensor:
             "max_order": self.analytic_max_order,
             "air_absorption": self.analytic_air_absorption,
             "ray_tracing": self.analytic_ray_tracing,
+            "max_detections": self.max_detections,
         }
         if self.waveform_sink is not None:
             kwargs["waveform_writer"] = self.waveform_sink
@@ -703,7 +686,7 @@ class IsaacAudioArraySensor:
         )
         window_sample_count = round(
             (time_window.end_time_s - time_window.start_time_s)
-            * time_window.sample_rate_hz
+            * sensor.sample_rate_hz
         )
         if self.effects.motion.segments_per_window > window_sample_count:
             raise UnsupportedEffectError(
@@ -714,7 +697,7 @@ class IsaacAudioArraySensor:
             history,
             entities=entities,
             start_time_s=time_window.start_time_s,
-            sample_rate_hz=time_window.sample_rate_hz,
+            sample_rate_hz=sensor.sample_rate_hz,
             window_sample_count=window_sample_count,
             segments_per_window=self.effects.motion.segments_per_window,
         )
@@ -766,7 +749,6 @@ class IsaacAudioArraySensor:
     def _scene_for_capture(
         self,
         *,
-        timestamp_ms: int,
         source_prim_path: str | None,
         usd_time_code: Any | None,
         sim_time_s: float | None,
@@ -778,7 +760,6 @@ class IsaacAudioArraySensor:
         if self.scene_binding_cfg is not None:
             binding = self.scene_binding_cfg
             scene = cache.snapshot(
-                timestamp_ms=timestamp_ms,
                 environment=self.environment,
                 robot_base_prim_path=binding.robot_base_prim_path,
                 source_prim_path=effective_source_prim_path,
@@ -792,7 +773,6 @@ class IsaacAudioArraySensor:
             raise RuntimeError("Live Isaac stage sensor has no array prim path.")
         else:
             scene = cache.snapshot(
-                timestamp_ms=timestamp_ms,
                 environment=self.environment,
                 array_prim_path=self.array_prim_path,
                 robot_base_prim_path=self.robot_base_prim_path,
@@ -927,7 +907,7 @@ class IsaacAudioArraySensor:
         *,
         explicit_time_code: Any | None,
         sim_time_s: float | None,
-        timestamp_ms: int,
+        capture_time_s: float,
     ) -> Any | None:
         if explicit_time_code is not None:
             return explicit_time_code
@@ -935,14 +915,14 @@ class IsaacAudioArraySensor:
             base_time_s = (
                 float(sim_time_s)
                 if sim_time_s is not None
-                else float(timestamp_ms) / 1000.0
+                else float(capture_time_s)
             )
             return base_time_s * float(self.usd_time_code_scale) + float(
                 self.usd_time_code_offset
             )
         if sim_time_s is not None:
             return sim_time_s
-        return float(timestamp_ms) / 1000.0
+        return float(capture_time_s)
 
     def _emit_debug_primitives(
         self,

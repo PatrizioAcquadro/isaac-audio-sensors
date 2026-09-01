@@ -49,7 +49,7 @@ SCHEMAS = frozenset(
     {
         "audio_calibration_profile.v1.schema.json",
         "audio_dataset_manifest.v1.schema.json",
-        "audio_sensor_frame.v1.schema.json",
+        "audio_sensor_frame.v2.schema.json",
     }
 )
 ROOM_REQUIREMENTS = frozenset({"pyroomacoustics", "scipy", "soundfile"})

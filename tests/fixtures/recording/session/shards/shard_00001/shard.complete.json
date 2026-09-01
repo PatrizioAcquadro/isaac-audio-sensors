@@ -17,9 +17,9 @@
   ],
   "files": [
     {
-      "bytes": 3044,
+      "bytes": 3056,
       "path": "frames.jsonl",
-      "sha256": "0c32e23e10c838f3e5eb953ebe804ef649db76698fa9097d1cf5bc67ee32ec6d"
+      "sha256": "68c6ed7b4c2ccd70e35f26a1fbdc67a55f9e10a391d595ead6c5945487352631"
     },
     {
       "bytes": 14124,
@@ -32,5 +32,5 @@
   "shard_id": "shard_00001",
   "start_frame": 4,
   "tail_samples": 0,
-  "writer_tool_version": "2.0.0"
+  "writer_tool_version": "3.0.0"
 }

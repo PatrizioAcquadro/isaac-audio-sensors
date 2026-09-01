@@ -179,7 +179,6 @@ def source(
 def room_scene(*sources: AudioSourceSpec, array):
     return AudioSceneSnapshot(
         stage_id="room_backend_test",
-        timestamp_ms=0,
         sources=sources,
         arrays=(array,),
         environment=shoebox_environment(
@@ -195,14 +194,11 @@ def time_window(
     *,
     start_time_s: float = 0.0,
     end_time_s: float = 1.0,
-    max_events: int | None = None,
 ) -> AudioTimeWindow:
     return AudioTimeWindow(
         start_time_s=start_time_s,
         end_time_s=end_time_s,
-        timestamp_ms=0,
-        sample_rate_hz=SAMPLE_RATE_HZ,
-        max_events=max_events,
+        frame_index=0,
     )
 
 
@@ -245,7 +241,6 @@ def motion_room_fixture():
     )
     scene = AudioSceneSnapshot(
         stage_id="motion_test",
-        timestamp_ms=0,
         sources=(source("source", (2.0, 2.0, 1.0)),),
         arrays=(array,),
         environment=shoebox_environment(
@@ -257,8 +252,6 @@ def motion_room_fixture():
     window = AudioTimeWindow(
         start_time_s=0.0,
         end_time_s=WINDOW_SAMPLE_COUNT / SAMPLE_RATE_HZ,
-        timestamp_ms=0,
-        sample_rate_hz=SAMPLE_RATE_HZ,
         frame_index=0,
     )
     return scene, array, window

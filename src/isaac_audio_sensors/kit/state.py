@@ -158,7 +158,7 @@ class ExtensionUiState:
     ambiguity_policy: str = "none"
     doa_estimator: str = "tdoa_least_squares"
     update_period_s: float = 0.05
-    max_events: int = 8
+    max_detections: int = 8
     debug_overlay_enabled: bool = True
     occlusion_enabled: bool = False
     trace_enabled: bool = True

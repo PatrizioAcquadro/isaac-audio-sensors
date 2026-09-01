@@ -39,10 +39,9 @@ def _build_parser() -> argparse.ArgumentParser:
     simulate.add_argument("config", type=Path)
     simulate.add_argument("--backend", default=None)
     simulate.add_argument("--array-id", default=None)
-    simulate.add_argument("--timestamp-ms", type=int, default=0)
     simulate.add_argument("--start-time-s", type=float, default=0.0)
     simulate.add_argument("--end-time-s", type=float, default=1.0)
-    simulate.add_argument("--max-events", type=int, default=None)
+    simulate.add_argument("--max-detections", type=int, default=None)
     simulate.add_argument("--out", type=Path, default=None)
     simulate.set_defaults(handler=_simulate)
 

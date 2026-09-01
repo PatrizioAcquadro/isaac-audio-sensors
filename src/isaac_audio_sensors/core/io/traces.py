@@ -9,9 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from isaac_audio_sensors.core.constants import (
-    COORDINATE_CONVENTION,
+    DETECTION_FIELDS,
+    DOA_FIELDS,
     FRAME_SCHEMA_VERSION,
-    FRAME_UNITS,
+    FRAME_TOP_LEVEL_FIELDS,
+    POSE3D_FIELDS,
 )
 from isaac_audio_sensors.core.types import (
     AudioDetection,
@@ -59,33 +61,37 @@ def append_frame_jsonl(frame: AudioSensorFrame, path: str | Path) -> Path:
 def frame_from_trace_dict(payload: dict[str, Any]) -> AudioSensorFrame:
     """Rebuild an ``AudioSensorFrame`` from a trace dictionary."""
 
+    if payload.get("schema_version") != FRAME_SCHEMA_VERSION:
+        raise ValueError(
+            f"AudioSensorFrame.schema_version must be {FRAME_SCHEMA_VERSION!r}."
+        )
+    _require_exact_fields(payload, FRAME_TOP_LEVEL_FIELDS, "AudioSensorFrame")
     detections = tuple(_detection_from_dict(item) for item in payload["detections"])
-    return AudioSensorFrame(
+    frame = AudioSensorFrame(
         frame_id=str(payload["frame_id"]),
-        timestamp_ms=int(payload["timestamp_ms"]),
         backend_id=str(payload["backend_id"]),
         array_id=str(payload["array_id"]),
-        schema_version=str(payload.get("schema_version", FRAME_SCHEMA_VERSION)),
-        frame_name=payload.get("frame_name"),
-        array_pose=_pose_from_dict(payload.get("array_pose")),
-        start_time_s=_optional_float(payload.get("start_time_s")),
-        end_time_s=_optional_float(payload.get("end_time_s")),
-        sample_rate_hz=_optional_int(payload.get("sample_rate_hz")),
-        frame_index=_optional_int(payload.get("frame_index")),
-        coordinate_convention=str(
-            payload.get(
-                "coordinate_convention",
-                COORDINATE_CONVENTION,
-            )
-        ),
-        units=dict(payload.get("units", FRAME_UNITS)),
-        provenance=str(payload.get("provenance", "replay/trace")),
-        max_events=_optional_int(payload.get("max_events")),
+        start_time_s=float(payload["start_time_s"]),
+        end_time_s=float(payload["end_time_s"]),
+        sample_rate_hz=int(payload["sample_rate_hz"]),
+        frame_index=int(payload["frame_index"]),
+        schema_version=str(payload["schema_version"]),
+        frame_name=str(payload["frame_name"]),
+        array_pose=_pose_from_dict(payload["array_pose"]),
+        coordinate_convention=str(payload["coordinate_convention"]),
+        units=dict(payload["units"]),
+        provenance=str(payload["provenance"]),
+        max_detections=_optional_int(payload["max_detections"]),
         detections=detections,
-        aggregate_per_mic_rms=dict(payload.get("aggregate_per_mic_rms", {})),
-        waveform_paths=tuple(payload.get("waveform_paths", ())),
-        diagnostics=dict(payload.get("diagnostics", {})),
+        aggregate_per_mic_rms=dict(payload["aggregate_per_mic_rms"]),
+        waveform_paths=tuple(payload["waveform_paths"]),
+        diagnostics=dict(payload["diagnostics"]),
     )
+    if int(payload["timestamp_ms"]) != frame.timestamp_ms:
+        raise ValueError(
+            "AudioSensorFrame.timestamp_ms must equal round(start_time_s * 1000)."
+        )
+    return frame
 
 
 def read_frame_trace(path: str | Path) -> AudioSensorFrame:
@@ -112,66 +118,79 @@ def _serialize(value: Any) -> Any:
 
 
 def _detection_from_dict(payload: dict[str, Any]) -> AudioDetection:
+    _require_exact_fields(payload, DETECTION_FIELDS, "AudioDetection")
     doa_payload = dict(payload["doa"])
+    _require_exact_fields(doa_payload, DOA_FIELDS, "DoaEstimate")
     return AudioDetection(
         detection_id=str(payload["detection_id"]),
-        source_id=payload.get("source_id"),
-        class_label=payload.get("class_label"),
+        source_id=payload["source_id"],
+        class_label=payload["class_label"],
         detection_mode=str(payload["detection_mode"]),
-        timestamp_ms=int(payload["timestamp_ms"]),
         ground_truth_bearing_deg=_optional_float(
-            payload.get("ground_truth_bearing_deg")
+            payload["ground_truth_bearing_deg"]
         ),
         ground_truth_elevation_deg=_optional_float(
-            payload.get("ground_truth_elevation_deg")
+            payload["ground_truth_elevation_deg"]
         ),
-        source_distance_m=_optional_float(payload.get("source_distance_m")),
+        source_distance_m=_optional_float(payload["source_distance_m"]),
         doa=DoaEstimate(
             estimated_bearing_deg=_optional_float(
-                doa_payload.get("estimated_bearing_deg")
+                doa_payload["estimated_bearing_deg"]
             ),
             candidate_bearing_deg=tuple(
-                float(value) for value in doa_payload.get("candidate_bearing_deg", ())
+                float(value) for value in doa_payload["candidate_bearing_deg"]
             ),
-            bearing_sector=doa_payload.get("bearing_sector"),
-            bearing_confidence=float(doa_payload.get("bearing_confidence", 0.0)),
-            ambiguity_class=doa_payload.get("ambiguity_class"),
-            ambiguity_reason=doa_payload.get("ambiguity_reason"),
+            bearing_sector=doa_payload["bearing_sector"],
+            bearing_confidence=float(doa_payload["bearing_confidence"]),
+            ambiguity_class=doa_payload["ambiguity_class"],
+            ambiguity_reason=doa_payload["ambiguity_reason"],
             estimated_elevation_deg=_optional_float(
-                doa_payload.get("estimated_elevation_deg")
+                doa_payload["estimated_elevation_deg"]
             ),
             candidate_elevation_deg=tuple(
                 float(value)
-                for value in doa_payload.get("candidate_elevation_deg", ())
+                for value in doa_payload["candidate_elevation_deg"]
             ),
         ),
-        source_pose=_pose_from_dict(payload.get("source_pose")),
-        per_mic_delay_s=dict(payload.get("per_mic_delay_s", {})),
-        per_mic_rms=dict(payload.get("per_mic_rms", {})),
-        audio_asset_path=payload.get("audio_asset_path"),
-        occluded=bool(payload.get("occluded", False)),
-        diagnostics=dict(payload.get("diagnostics", {})),
+        source_pose=_pose_from_dict(payload["source_pose"]),
+        per_mic_delay_s=dict(payload["per_mic_delay_s"]),
+        per_mic_rms=dict(payload["per_mic_rms"]),
+        audio_asset_path=payload["audio_asset_path"],
+        occluded=bool(payload["occluded"]),
+        diagnostics=dict(payload["diagnostics"]),
     )
 
 
 def _pose_from_dict(payload: dict[str, Any] | None) -> Pose3D | None:
     if payload is None:
         return None
+    _require_exact_fields(payload, POSE3D_FIELDS, "Pose3D")
     return Pose3D(
         position_m=tuple(payload["position_m"]),
         orientation_xyzw=(
             None
-            if payload.get("orientation_xyzw") is None
+            if payload["orientation_xyzw"] is None
             else tuple(payload["orientation_xyzw"])
         ),
-        frame=str(payload.get("frame", "world")),
-        coordinate_convention=str(
-            payload.get(
-                "coordinate_convention",
-                COORDINATE_CONVENTION,
-            )
-        ),
+        frame=str(payload["frame"]),
+        coordinate_convention=str(payload["coordinate_convention"]),
     )
+
+
+def _require_exact_fields(
+    payload: dict[str, Any],
+    expected_fields: tuple[str, ...],
+    label: str,
+) -> None:
+    actual = set(payload)
+    expected = set(expected_fields)
+    if actual != expected:
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        raise ValueError(
+            f"{label} fields must be exactly {sorted(expected)!r}; "
+            f"missing={missing!r}, extra={extra!r}."
+        )
 
 
 def _optional_float(value: Any) -> float | None:

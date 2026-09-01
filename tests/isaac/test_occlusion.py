@@ -122,7 +122,6 @@ def _quad_array() -> MicrophoneArraySpec:
 def _scene(**overrides) -> AudioSceneSnapshot:
     base = AudioSceneSnapshot(
         stage_id="occlusion_test",
-        timestamp_ms=0,
         sources=(_source(),),
         arrays=(_array(),),
         environment=free_field_environment(environment_id="occlusion_free_field"),
@@ -153,8 +152,7 @@ def _window() -> AudioTimeWindow:
     return AudioTimeWindow(
         start_time_s=0.0,
         end_time_s=1.0,
-        timestamp_ms=0,
-        sample_rate_hz=48_000,
+        frame_index=0,
     )
 
 

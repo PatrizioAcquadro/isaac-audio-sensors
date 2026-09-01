@@ -80,7 +80,7 @@ def main() -> int:
                 AudioArraySensorCfg(
                     prim_path="/World/parity/env_.*/AudioSensor",
                     backend=backend_id,
-                    max_events=2,
+                    max_detections=2,
                 )
             ).bind_entities(
                 parity_scene,
@@ -95,7 +95,7 @@ def main() -> int:
                 AudioArraySensorCfg(
                     prim_path="/World/parity/env_.*/AudioSensor",
                     backend=backend_id,
-                    max_events=2,
+                    max_detections=2,
                 )
             ).bind_reference(snapshots, array_ids)
             parity_sensors.append((backend_id, entity_sensor, reference_sensor))
@@ -109,7 +109,7 @@ def main() -> int:
             AudioArraySensorCfg(
                 prim_path="/World/perf/env_.*/AudioSensor",
                 backend="analytic_acoustics",
-                max_events=1,
+                max_detections=1,
             )
         ).bind_entities(
             perf_scene,
@@ -130,7 +130,7 @@ def main() -> int:
             reference_sensor.update(0.0, force_recompute=True)
             entity_data = entity_sensor.data
             reference_data = reference_sensor.data
-            _assert_contract(entity_data, num_envs=2, max_events=2, num_mics=4)
+            _assert_contract(entity_data, num_envs=2, max_detections=2, num_mics=4)
             _assert_parity(torch, entity_data, reference_data)
             parity[backend_id] = True
 
@@ -163,7 +163,7 @@ def main() -> int:
         _assert_contract(
             perf_sensor.data,
             num_envs=args.perf_envs,
-            max_events=1,
+            max_detections=1,
             num_mics=4,
         )
         if mean_ms >= args.perf_budget_ms:
@@ -287,7 +287,6 @@ def _reference_scenes():
     snapshots = tuple(
         AudioSceneSnapshot(
             stage_id=f"reference_{env_id}",
-            timestamp_ms=0,
             arrays=(arrays[env_id],),
             sources=(
                 AudioSourceSpec(
@@ -311,16 +310,22 @@ def _reference_scenes():
     return tuple(array.array_id for array in arrays), snapshots
 
 
-def _assert_contract(data, *, num_envs: int, max_events: int, num_mics: int) -> None:
+def _assert_contract(
+    data,
+    *,
+    num_envs: int,
+    max_detections: int,
+    num_mics: int,
+) -> None:
     import torch
 
     expected = {
-        "event_presence": ((num_envs, max_events), torch.bool),
-        "bearing_deg": ((num_envs, max_events), torch.float32),
-        "confidence": ((num_envs, max_events), torch.float32),
-        "sector_onehot": ((num_envs, max_events, 8), torch.float32),
-        "per_mic_rms": ((num_envs, max_events, num_mics), torch.float32),
-        "ambiguity_mask": ((num_envs, max_events), torch.bool),
+        "event_presence": ((num_envs, max_detections), torch.bool),
+        "bearing_deg": ((num_envs, max_detections), torch.float32),
+        "confidence": ((num_envs, max_detections), torch.float32),
+        "sector_onehot": ((num_envs, max_detections, 8), torch.float32),
+        "per_mic_rms": ((num_envs, max_detections, num_mics), torch.float32),
+        "ambiguity_mask": ((num_envs, max_detections), torch.bool),
     }
     for name, (shape, dtype) in expected.items():
         value = getattr(data, name)

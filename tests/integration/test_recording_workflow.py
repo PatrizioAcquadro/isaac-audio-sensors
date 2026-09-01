@@ -93,7 +93,6 @@ def _frame(
 ) -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id=f"guided_frame_{index:03d}",
-        timestamp_ms=index * 10,
         backend_id="analytic_acoustics",
         array_id="rig_front",
         start_time_s=index / 100.0,

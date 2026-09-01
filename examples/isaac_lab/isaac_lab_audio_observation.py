@@ -24,7 +24,7 @@ def bind_entities(scene: object):
             prim_path="{ENV_REGEX_NS}/Robot/audio_array",
             update_period=0.05,
             backend="analytic_acoustics",
-            max_events=2,
+            max_detections=2,
         )
     )
     return sensor.bind_entities(
@@ -52,7 +52,7 @@ def bind_reference(
             prim_path="{ENV_REGEX_NS}/Robot/audio_array",
             update_period=0.05,
             backend="analytic_acoustics",
-            max_events=2,
+            max_detections=2,
         )
     )
     return sensor.bind_reference(snapshots, array_ids)

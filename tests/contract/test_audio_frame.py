@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import fields
+from dataclasses import fields, replace
 from pathlib import Path
 
 import pytest
@@ -46,23 +46,16 @@ def test_serialized_fields_match_dataclass_contracts():
     assert set(field.name for field in fields(Pose3D)) == set(POSE3D_FIELDS)
 
 
-def test_json_and_ndjson_trace_corpus_matches_v1_contract_and_round_trips():
+def test_json_and_ndjson_trace_corpus_matches_v2_contract_and_round_trips():
     payloads = list(_iter_corpus_payloads())
 
     assert payloads
     assert any(path.suffix == ".json" for path, _ in payloads)
     assert any(path.suffix == ".ndjson" for path, _ in payloads)
 
-    # Older traces acquire defaults for additive fields on round-trip.
-    optional_detection_defaults = {
-        "occluded": False,
-        "ground_truth_elevation_deg": None,
-    }
+    optional_detection_defaults = {}
     assert set(optional_detection_defaults) == set(OPTIONAL_DETECTION_FIELDS)
-    optional_doa_defaults = {
-        "estimated_elevation_deg": None,
-        "candidate_elevation_deg": [],
-    }
+    optional_doa_defaults = {}
     assert set(optional_doa_defaults) == set(OPTIONAL_DOA_FIELDS)
 
     for path, payload in payloads:
@@ -94,6 +87,8 @@ def test_trace_corpus_has_required_representative_cases():
         for detection in payload["detections"]
     )
     assert any(payload["provenance"] == "replay/trace" for payload in payloads)
+    assert not tuple(TRACE_DIR.glob("*.v1.json"))
+    assert not tuple(TRACE_DIR.glob("*.v1.ndjson"))
 
 
 def test_trace_corpus_files_are_deterministically_formatted():
@@ -116,12 +111,9 @@ def test_trace_corpus_files_are_deterministically_formatted():
 
 def test_dataclasses_enforce_contract_policy_values():
     with pytest.raises(ValueError, match="schema_version"):
-        AudioSensorFrame(
+        _minimal_frame(
             frame_id="bad_schema",
-            timestamp_ms=0,
-            backend_id="geometry_only",
-            array_id="rig",
-            schema_version="ias.audio_sensor_frame.v2",
+            schema_version="ias.audio_sensor_frame.v1",
         )
 
     with pytest.raises(ValueError, match="coordinate_convention"):
@@ -131,70 +123,85 @@ def test_dataclasses_enforce_contract_policy_values():
         )
 
     with pytest.raises(ValueError, match="coordinate_convention"):
-        AudioSensorFrame(
+        _minimal_frame(
             frame_id="bad_coordinate",
-            timestamp_ms=0,
-            backend_id="geometry_only",
-            array_id="rig",
             coordinate_convention="legacy_y_forward",
         )
 
     changed_units = dict(FRAME_UNITS)
     changed_units["position"] = "ft"
     with pytest.raises(ValueError, match="stable unit values"):
-        AudioSensorFrame(
+        _minimal_frame(
             frame_id="bad_units",
-            timestamp_ms=0,
-            backend_id="geometry_only",
-            array_id="rig",
             units=changed_units,
         )
 
     missing_units = dict(FRAME_UNITS)
     del missing_units["timestamp"]
     with pytest.raises(ValueError, match="missing required keys"):
-        AudioSensorFrame(
+        _minimal_frame(
             frame_id="missing_units",
-            timestamp_ms=0,
-            backend_id="geometry_only",
-            array_id="rig",
             units=missing_units,
         )
 
     with pytest.raises(ValueError, match="provenance"):
-        AudioSensorFrame(
+        _minimal_frame(
             frame_id="bad_provenance",
-            timestamp_ms=0,
-            backend_id="geometry_only",
-            array_id="rig",
             provenance="private_capture",
         )
 
     with pytest.raises(ValueError, match="end time"):
-        AudioSensorFrame(
+        _minimal_frame(
             frame_id="bad_time",
-            timestamp_ms=0,
-            backend_id="geometry_only",
-            array_id="rig",
             start_time_s=1.0,
             end_time_s=1.0,
         )
 
     with pytest.raises(ValueError, match="frame_index"):
-        AudioSensorFrame(
+        _minimal_frame(
             frame_id="bad_index",
-            timestamp_ms=0,
-            backend_id="geometry_only",
-            array_id="rig",
             frame_index=-1,
         )
+
+
+def test_frame_timestamp_is_derived_and_detection_overflow_is_rejected():
+    frame = _minimal_frame(start_time_s=1.234, end_time_s=1.334)
+    assert frame.timestamp_ms == 1_234
+    with pytest.raises(TypeError, match="timestamp_ms"):
+        _minimal_frame(timestamp_ms=99)
+
+    detection = _contract_frame().detections[0]
+    with pytest.raises(ValueError, match="exceeds max_detections"):
+        replace(
+            _contract_frame(),
+            detections=(detection, replace(detection, detection_id="det_2")),
+        )
+
+
+def test_trace_reader_rejects_inconsistent_derived_timestamp():
+    payload = frame_to_trace_dict(_contract_frame())
+    payload["timestamp_ms"] += 1
+
+    with pytest.raises(ValueError, match=r"round\(start_time_s"):
+        frame_from_trace_dict(payload)
+
+
+def test_trace_reader_rejects_v1_and_removed_detection_timestamp():
+    payload = frame_to_trace_dict(_contract_frame())
+    payload["schema_version"] = "ias.audio_sensor_frame.v1"
+    with pytest.raises(ValueError, match="schema_version"):
+        frame_from_trace_dict(payload)
+
+    payload = frame_to_trace_dict(_contract_frame())
+    payload["detections"][0]["timestamp_ms"] = 0
+    with pytest.raises(ValueError, match="extra=.*timestamp_ms"):
+        frame_from_trace_dict(payload)
 
 
 def _contract_frame() -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id="contract",
         frame_name="contract/frame",
-        timestamp_ms=10,
         start_time_s=0.0,
         end_time_s=0.1,
         sample_rate_hz=48_000,
@@ -202,14 +209,13 @@ def _contract_frame() -> AudioSensorFrame:
         backend_id="geometry_only",
         array_id="rig_front",
         array_pose=Pose3D(position_m=(0.0, 0.0, 0.0)),
-        max_events=1,
+        max_detections=1,
         detections=(
             AudioDetection(
                 detection_id="det_1",
                 source_id="speaker",
                 class_label="Speech",
                 detection_mode="scheduled_known_source",
-                timestamp_ms=10,
                 ground_truth_bearing_deg=0.0,
                 source_distance_m=1.0,
                 doa=DoaEstimate(
@@ -221,6 +227,20 @@ def _contract_frame() -> AudioSensorFrame:
             ),
         ),
     )
+
+
+def _minimal_frame(**overrides) -> AudioSensorFrame:
+    values = {
+        "frame_id": "frame",
+        "backend_id": "geometry_only",
+        "array_id": "rig",
+        "start_time_s": 0.0,
+        "end_time_s": 0.1,
+        "sample_rate_hz": 48_000,
+        "frame_index": 0,
+    }
+    values.update(overrides)
+    return AudioSensorFrame(**values)
 
 
 def _iter_corpus_payloads():

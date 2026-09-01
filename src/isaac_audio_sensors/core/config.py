@@ -55,7 +55,6 @@ class AudioSensorConfig:
     default_backend: str
     runtime_profile: str = DEFAULT_RUNTIME_PROFILE
     effects: EffectsConfig = field(default_factory=EffectsConfig)
-    sample_rate_hz: int
     speed_of_sound_mps: float
     write_waveforms: bool
     waveform_dir: str | None
@@ -93,6 +92,11 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
                 "[audio.room_acoustics] was removed by R8.3; use "
                 "[audio.analytic_acoustics]."
             )
+        if "sample_rate_hz" in audio:
+            raise ConfigValidationError(
+                "audio.sample_rate_hz was removed; configure "
+                "arrays.*.sample_rate_hz."
+            )
         scene_id = _required_str(scene, "scene_id", table="scene")
         stage_units = str(scene.get("stage_units", "meters"))
         up_axis = str(scene.get("up_axis", "z")).lower()
@@ -101,9 +105,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         if up_axis != "z":
             raise ConfigValidationError("scene.up_axis must be 'z'.")
 
-        sample_rate_hz = int(audio.get("sample_rate_hz", DEFAULT_SAMPLE_RATE_HZ))
-        if sample_rate_hz <= 0:
-            raise ConfigValidationError("audio.sample_rate_hz must be positive.")
         default_backend = str(audio.get("default_backend", "analytic_acoustics"))
         backend_ids = registered_backend_ids()
         if default_backend not in backend_ids:
@@ -140,7 +141,7 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             )
 
         sources = _parse_sources(raw.get("sources"))
-        arrays = _parse_arrays(raw.get("arrays", {}), sample_rate_hz=sample_rate_hz)
+        arrays = _parse_arrays(raw.get("arrays", {}))
         effects = parse_effects_config(audio.get("effects"))
         if effects.motion.segments_per_window > 1:
             raise UnsupportedEffectError(
@@ -157,27 +158,20 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
                     "source ids and selected array ids to be disjoint; received "
                     f"collisions {collisions!r}."
                 )
-        microphone_self_noise_db: dict[str, float | None] = {}
         for array in arrays.values():
-            for microphone in array.microphones:
-                if (
-                    microphone.mic_id not in microphone_self_noise_db
-                    or microphone_self_noise_db[microphone.mic_id] is None
-                ):
-                    microphone_self_noise_db[microphone.mic_id] = (
-                        microphone.self_noise_db
-                    )
-        validate_effects_config(
-            effects,
-            microphone_orders=tuple(
-                tuple(microphone.mic_id for microphone in array.microphones)
-                for array in arrays.values()
-            ),
-            sample_rate_hz=sample_rate_hz,
-            backend_id=default_backend,
-            runtime_profile=runtime_profile,
-            microphone_self_noise_db=microphone_self_noise_db,
-        )
+            validate_effects_config(
+                effects,
+                microphone_orders=(
+                    tuple(microphone.mic_id for microphone in array.microphones),
+                ),
+                sample_rate_hz=array.sample_rate_hz,
+                backend_id=default_backend,
+                runtime_profile=runtime_profile,
+                microphone_self_noise_db={
+                    microphone.mic_id: microphone.self_noise_db
+                    for microphone in array.microphones
+                },
+            )
         environment = _parse_environment(raw.get("environment"))
         (
             analytic_max_order,
@@ -199,7 +193,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             default_backend=default_backend,
             runtime_profile=runtime_profile,
             effects=effects,
-            sample_rate_hz=sample_rate_hz,
             speed_of_sound_mps=speed_of_sound,
             write_waveforms=write_waveforms,
             waveform_dir=(
@@ -226,16 +219,11 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         raise ConfigValidationError(str(exc)) from exc
 
 
-def build_scene_snapshot(
-    config: AudioSensorConfig,
-    *,
-    timestamp_ms: int,
-) -> AudioSceneSnapshot:
+def build_scene_snapshot(config: AudioSensorConfig) -> AudioSceneSnapshot:
     """Build a scene snapshot from a validated config."""
 
     return AudioSceneSnapshot(
         stage_id=config.scene_id,
-        timestamp_ms=timestamp_ms,
         sources=config.sources,
         arrays=tuple(config.arrays.values()),
         environment=config.environment,
@@ -283,11 +271,7 @@ def _parse_sources(raw_sources: Any) -> tuple[AudioSourceSpec, ...]:
     return tuple(sources)
 
 
-def _parse_arrays(
-    raw_arrays: Any,
-    *,
-    sample_rate_hz: int,
-) -> dict[str, MicrophoneArraySpec]:
+def _parse_arrays(raw_arrays: Any) -> dict[str, MicrophoneArraySpec]:
     if not isinstance(raw_arrays, dict) or not raw_arrays:
         raise ConfigValidationError("[arrays] must define at least one array.")
     arrays: dict[str, MicrophoneArraySpec] = {}
@@ -309,7 +293,10 @@ def _parse_arrays(
             position_world=tuple(raw_array.get("position_world", (0.0, 0.0, 0.0))),
             orientation_world_quat=orientation,
             microphones=microphones,
-            sample_rate_hz=int(raw_array.get("sample_rate_hz", sample_rate_hz)),
+            sample_rate_hz=raw_array.get(
+                "sample_rate_hz",
+                DEFAULT_SAMPLE_RATE_HZ,
+            ),
             coordinate_convention=str(
                 raw_array.get("coordinate_convention", COORDINATE_CONVENTION)
             ),

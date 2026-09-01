@@ -87,7 +87,7 @@ class SensorSession(ControllerService):
         array_prim_path: str | None = None,
         backend: str | None = None,
         update_period_s: float | None = None,
-        max_events: int | None = None,
+        max_detections: int | None = None,
         debug_draw: bool | None = None,
         occlusion: bool | None = None,
         writer_path: str | Path | None = None,
@@ -101,8 +101,8 @@ class SensorSession(ControllerService):
                 self.state.backend = str(backend)
             if update_period_s is not None:
                 self.state.update_period_s = float(update_period_s)
-            if max_events is not None:
-                self.state.max_events = int(max_events)
+            if max_detections is not None:
+                self.state.max_detections = int(max_detections)
             if debug_draw is not None:
                 self.state.debug_overlay_enabled = bool(debug_draw)
             if occlusion is not None:
@@ -426,7 +426,7 @@ class SensorSession(ControllerService):
                 robot_base_prim_path=state.robot_base_prim_path or None,
                 backend=state.backend,
                 update_period_s=state.update_period_s,
-                max_events=state.max_events,
+                max_detections=state.max_detections,
                 ambiguity_policy=state.ambiguity_policy,
                 doa_estimator=state.doa_estimator,
                 debug_draw=state.debug_overlay_enabled,
@@ -451,7 +451,7 @@ class SensorSession(ControllerService):
                 binding_cfg=binding_cfg,
                 backend=state.backend,
                 update_period_s=state.update_period_s,
-                max_events=state.max_events,
+                max_detections=state.max_detections,
                 ambiguity_policy=state.ambiguity_policy,
                 doa_estimator=state.doa_estimator,
                 debug_draw=state.debug_overlay_enabled,

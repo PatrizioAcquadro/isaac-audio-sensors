@@ -30,6 +30,7 @@ class ReferenceBackend:
         analytic_max_order: int = 0,
         analytic_air_absorption: bool = False,
         analytic_ray_tracing: bool = False,
+        max_detections: int,
         effects: EffectsConfig,
         snapshots: Sequence[AudioSceneSnapshot],
         array_ids: Sequence[str],
@@ -54,6 +55,7 @@ class ReferenceBackend:
                 "All reference arrays must have the same microphone count."
             )
         self.num_mics = mic_counts.pop()
+        self.max_detections = max_detections
         kwargs: dict[str, object] = {
             "effects": effects,
             "ambiguity_policy": ambiguity_policy,
@@ -62,6 +64,7 @@ class ReferenceBackend:
             "max_order": analytic_max_order,
             "air_absorption": analytic_air_absorption,
             "ray_tracing": analytic_ray_tracing,
+            "max_detections": max_detections,
         }
         self._backend = get_backend(backend_id, **kwargs)
 
@@ -75,14 +78,13 @@ class ReferenceBackend:
         env_ids: torch.Tensor,
         timestamps_s: torch.Tensor,
         frame_indices: torch.Tensor,
-        max_events: int,
         update_period: float,
         device: str,
     ) -> AudioArraySensorData:
         count = int(env_ids.numel())
         result = AudioArraySensorData.allocate(
             num_envs=count,
-            max_events=max_events,
+            max_detections=self.max_detections,
             num_mics=self.num_mics,
             device=device,
         )
@@ -100,13 +102,10 @@ class ReferenceBackend:
                 AudioTimeWindow(
                     start_time_s=start_s,
                     end_time_s=start_s + window_s,
-                    timestamp_ms=round(start_s * 1000.0),
-                    sample_rate_hz=spec.sample_rate_hz,
                     frame_index=int(frame_indices[row].item()),
-                    max_events=max_events,
                 ),
             )
-            for event_index, detection in enumerate(frame.detections[:max_events]):
+            for event_index, detection in enumerate(frame.detections):
                 result.event_presence[row, event_index] = True
                 bearing = detection.doa.estimated_bearing_deg
                 if bearing is not None:

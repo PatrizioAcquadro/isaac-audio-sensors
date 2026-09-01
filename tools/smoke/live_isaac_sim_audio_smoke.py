@@ -126,7 +126,6 @@ def main() -> int:
         initial_diagnostics: dict[str, Any] = {}
         initial_snapshot = build_stage_snapshot(
             stage,
-            timestamp_ms=0,
             environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
             environment=environment_spec,
             stage_id="isaac_sim_live_smoke",
@@ -270,11 +269,10 @@ def _run_backend_smoke(
         environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
         binding_cfg=binding_cfg,
         backend=backend_id,
-        timestamp_ms=0,
         usd_time_code=0.0,
         usd_time_code_scale=1.0,
         update_period_s=0.05,
-        max_events=1,
+        max_detections=1,
         environment=resolved_environment,
         debug_draw=True,
         occlusion_enabled=backend_id == "analytic_acoustics",
@@ -1095,7 +1093,7 @@ def _write_config(
             "optional_backends": list(OPTIONAL_BACKENDS),
             "usd_time_code_scale": 1.0,
             "update_period_s": 0.05,
-            "max_events": 1,
+            "max_detections": 1,
             "debug_draw": True,
         },
         "environment": {

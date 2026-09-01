@@ -234,7 +234,6 @@ def discover_stage_audio(
     stage: Any,
     *,
     cfg: IsaacAudioDiscoveryCfg | None = None,
-    timestamp_ms: int = 0,
     stage_id: str | None = None,
     usd_time_code: Any | None = None,
     time_code: Any | None = None,
@@ -264,7 +263,6 @@ def discover_stage_audio(
     resolved_stage_id = stage_id or resolve_stage_id(stage)
     diagnostics = _base_diagnostics(
         stage_id=resolved_stage_id,
-        timestamp_ms=timestamp_ms,
         cfg=discovery_cfg,
         explicit_array_prim_path=explicit_array_prim_path,
         explicit_source_prim_path=explicit_source_prim_path,
@@ -969,7 +967,6 @@ def _matches_preference(preference: str, *, item_id: str, prim_path: str) -> boo
 def _base_diagnostics(
     *,
     stage_id: str,
-    timestamp_ms: int,
     cfg: IsaacAudioDiscoveryCfg,
     explicit_array_prim_path: str | None,
     explicit_source_prim_path: str | None,
@@ -981,7 +978,6 @@ def _base_diagnostics(
         "provenance": "isaac_sim_live_usd_stage_snapshot",
         "discovery_provenance": "isaac_semantic_discovery",
         "stage_id": stage_id,
-        "timestamp_ms": int(timestamp_ms),
         "time_code": diagnostic_time_code(time_code),
         "array_prim_path": explicit_array_prim_path,
         "robot_base_prim_path": cfg.robot_base_prim_path,

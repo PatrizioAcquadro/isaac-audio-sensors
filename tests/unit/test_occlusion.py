@@ -15,7 +15,6 @@ def _scene(*, occlusion=None) -> AudioSceneSnapshot:
     array = quad_array()
     return AudioSceneSnapshot(
         stage_id="occlusion_unit",
-        timestamp_ms=0,
         sources=(source("speaker", (4.0, 0.0, 0.0)),),
         arrays=(array,),
         environment=free_field_environment(environment_id="occlusion_free_field"),

@@ -14,29 +14,25 @@ def simulate_from_config(
     *,
     backend_id: str | None = None,
     array_id: str | None = None,
-    timestamp_ms: int = 0,
     start_time_s: float = 0.0,
     end_time_s: float = 1.0,
-    max_events: int | None = None,
+    max_detections: int | None = None,
 ) -> AudioSensorFrame:
     """Simulate one frame from a validated audio configuration."""
 
     config = load_audio_config(path)
     selected_backend = backend_id or config.default_backend
     selected_array = array_id or next(iter(config.arrays))
-    scene = build_scene_snapshot(config, timestamp_ms=timestamp_ms)
-    sensor = scene.array_by_id(selected_array)
+    scene = build_scene_snapshot(config)
     time_window = AudioTimeWindow(
         start_time_s=start_time_s,
         end_time_s=end_time_s,
-        timestamp_ms=timestamp_ms,
-        sample_rate_hz=sensor.sample_rate_hz,
         frame_index=0,
-        max_events=max_events,
     )
     backend_kwargs: dict[str, object] = {
         "effects": config.effects,
         "runtime_profile": config.runtime_profile,
+        "max_detections": max_detections,
     }
     backend_kwargs.update(
         speed_of_sound_mps=config.speed_of_sound_mps,

@@ -118,15 +118,14 @@ def test_cached_snapshot_matches_full_discovery_snapshot():
     stage, source = _counting_stage()
     sensor = _live_sensor(stage)
 
-    sensor.capture(timestamp_ms=100, usd_time_code=0.1)
+    sensor.capture(start_time_s=0.1, end_time_s=1.1, usd_time_code=0.1)
     source.attributes["ias:position_world"] = (1.0, 4.0, 0.5)
-    sensor.capture(timestamp_ms=200, usd_time_code=0.2)
+    sensor.capture(start_time_s=0.2, end_time_s=1.2, usd_time_code=0.2)
     cached_scene = sensor.latest_scene
     assert sensor._latest_stage_diagnostics["discovery_cache"]["hit"] is True
 
     fresh_scene = build_stage_snapshot(
         stage,
-        timestamp_ms=200,
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         array_prim_path="/World/Rig/AudioArray",
@@ -224,7 +223,6 @@ def test_capture_with_different_source_path_changes_cache_key():
     warm_count = stage.traverse_count
 
     narrowed = sensor.capture(
-        timestamp_ms=300,
         source_prim_path="/World/Sources/SpeakerB",
     )
     assert stage.traverse_count == warm_count + 1

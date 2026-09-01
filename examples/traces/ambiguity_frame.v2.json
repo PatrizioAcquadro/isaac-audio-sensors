@@ -190,8 +190,7 @@
           2.0,
           0.0
         ]
-      },
-      "timestamp_ms": 0
+      }
     }
   ],
   "diagnostics": {
@@ -249,7 +248,7 @@
       "surface_count": 6
     },
     "environment_id": "lab_room_a",
-    "max_events": 1,
+    "max_detections": 1,
     "microphone_nominal_gain_db": {
       "left": 0.0,
       "right": 0.0
@@ -314,10 +313,10 @@
   "frame_id": "analytic_acoustics_demo_audio_lab_single_source_rig_stereo_0_0",
   "frame_index": 0,
   "frame_name": "demo_audio_lab_single_source/rig_stereo/analytic_acoustics/frame0_t0ms",
-  "max_events": 1,
+  "max_detections": 1,
   "provenance": "room_acoustics",
   "sample_rate_hz": 48000,
-  "schema_version": "ias.audio_sensor_frame.v1",
+  "schema_version": "ias.audio_sensor_frame.v2",
   "start_time_s": 0.0,
   "timestamp_ms": 0,
   "units": {

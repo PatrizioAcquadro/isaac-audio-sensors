@@ -49,7 +49,6 @@ def _frame(episode: int, index: int, timestamp_ms: int) -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id=f"producer_frame_{index}",
         frame_name=f"reference_episode_{episode}_frame_{index}",
-        timestamp_ms=timestamp_ms,
         start_time_s=timestamp_ms / 1_000.0,
         end_time_s=timestamp_ms / 1_000.0 + WINDOW_SAMPLE_COUNT / SAMPLE_RATE_HZ,
         sample_rate_hz=SAMPLE_RATE_HZ,

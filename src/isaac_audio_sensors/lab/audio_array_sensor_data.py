@@ -25,11 +25,11 @@ class AudioArraySensorData:
         cls,
         *,
         num_envs: int,
-        max_events: int,
+        max_detections: int,
         num_mics: int,
         device: str,
     ) -> AudioArraySensorData:
-        shape = (num_envs, max_events)
+        shape = (num_envs, max_detections)
         return cls(
             event_presence=torch.zeros(shape, dtype=torch.bool, device=device),
             bearing_deg=torch.full(

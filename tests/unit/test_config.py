@@ -31,7 +31,7 @@ def test_config_parses_source_velocity_and_builds_scene():
     ]
 
     config = validate_audio_config(raw)
-    scene = build_scene_snapshot(config, timestamp_ms=1234)
+    scene = build_scene_snapshot(config)
     by_id = {source.source_id: source for source in config.sources}
 
     assert scene.stage_id == "fixture"
@@ -72,6 +72,18 @@ def test_config_does_not_store_fixed_scene_or_lab_configuration():
     assert not hasattr(config, "stage_units")
     assert not hasattr(config, "up_axis")
     assert not hasattr(config, "lab")
+
+
+def test_array_sample_rate_is_the_only_config_authority():
+    raw = _raw_config()
+    raw["audio"]["sample_rate_hz"] = 16_000
+    with pytest.raises(ConfigValidationError, match=r"arrays\.\*\.sample_rate_hz"):
+        validate_audio_config(raw)
+
+    raw = _raw_config()
+    assert validate_audio_config(raw).arrays["rig"].sample_rate_hz == 48_000
+    raw["arrays"]["rig"]["sample_rate_hz"] = 16_000
+    assert validate_audio_config(raw).arrays["rig"].sample_rate_hz == 16_000
 
 
 def test_config_parses_motion_defaults_and_values():
@@ -311,7 +323,7 @@ def test_config_parses_all_environment_topologies(
     raw["environment"] = environment
 
     config = validate_audio_config(raw)
-    scene = build_scene_snapshot(config, timestamp_ms=9)
+    scene = build_scene_snapshot(config)
 
     assert config.environment is not None
     assert config.environment.kind == kind

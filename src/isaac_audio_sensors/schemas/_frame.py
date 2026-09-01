@@ -20,14 +20,14 @@ from isaac_audio_sensors.core.constants import (
 
 
 def audio_sensor_frame_json_schema() -> dict[str, Any]:
-    """Return the v1 ``AudioSensorFrame`` JSON Schema."""
+    """Return the v2 ``AudioSensorFrame`` JSON Schema."""
 
     pose_schema: dict[str, Any] = {
         "type": "object",
         "description": (
             "World-frame pose using x_forward_y_right_z_up_clockwise_bearing."
         ),
-        "additionalProperties": True,
+        "additionalProperties": False,
         "required": list(POSE3D_FIELDS),
         "properties": {
             "position_m": {
@@ -51,12 +51,12 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
             },
             "frame": {
                 "type": "string",
-                "description": "Coordinate frame name; v1 examples use world.",
+                "description": "Coordinate frame name; current examples use world.",
                 "minLength": 1,
             },
             "coordinate_convention": {
                 "type": "string",
-                "description": "Stable v1 coordinate and bearing convention.",
+                "description": "Stable coordinate and bearing convention.",
                 "const": COORDINATE_CONVENTION,
             },
         },
@@ -64,22 +64,20 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": (
-            "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v1.schema.json"
+            "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v2.schema.json"
         ),
-        "title": "Isaac Audio Sensors AudioSensorFrame v1",
+        "title": "Isaac Audio Sensors AudioSensorFrame v2",
         "description": (
-            "Stable AudioSensorFrame v1 trace contract. The schema_version is "
-            "separate from the Python package version. Public fields, unit "
-            "meanings, timestamp semantics, provenance values, coordinate "
-            "convention, ambiguity representation, stable backend identifiers, "
-            "and bearing-sector semantics are compatibility commitments for v1."
+            "AudioSensorFrame v2 trace contract. timestamp_ms is derived from "
+            "start_time_s, sample_rate_hz records the selected array rate, and "
+            "max_detections limits only the detection output."
         ),
         "type": "object",
-        "additionalProperties": True,
+        "additionalProperties": False,
         "required": list(FRAME_TOP_LEVEL_FIELDS),
         "properties": {
             "schema_version": {
-                "description": "Stable frame schema id for all compatible v1 frames.",
+                "description": "Frame schema id for the breaking v2 contract.",
                 "const": FRAME_SCHEMA_VERSION,
             },
             "frame_id": {
@@ -94,24 +92,26 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
             },
             "timestamp_ms": {
                 "type": "integer",
-                "description": "Frame timestamp in integer milliseconds.",
+                "description": (
+                    "Derived frame timestamp: round(start_time_s * 1000)."
+                ),
             },
             "start_time_s": {
-                "type": ["number", "null"],
+                "type": "number",
                 "description": "Inclusive frame-window start time in seconds.",
             },
             "end_time_s": {
-                "type": ["number", "null"],
+                "type": "number",
                 "description": "Exclusive frame-window end time in seconds.",
             },
             "sample_rate_hz": {
-                "type": ["integer", "null"],
-                "description": "Audio sample rate in Hz when known.",
+                "type": "integer",
+                "description": "Sample rate copied from the selected array.",
                 "minimum": 1,
             },
             "frame_index": {
-                "type": ["integer", "null"],
-                "description": "Non-negative producer frame index when present.",
+                "type": "integer",
+                "description": "Non-negative producer frame index.",
                 "minimum": 0,
             },
             "backend_id": {
@@ -130,14 +130,14 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
             "array_pose": {"oneOf": [{"type": "null"}, pose_schema]},
             "coordinate_convention": {
                 "type": "string",
-                "description": "Stable v1 coordinate and bearing convention.",
+                "description": "Stable coordinate and bearing convention.",
                 "const": COORDINATE_CONVENTION,
             },
             "units": {
                 "type": "object",
-                "description": "Stable unit names and meanings for v1 fields.",
+                "description": "Stable unit names and meanings for frame fields.",
                 "required": sorted(set(FRAME_UNITS) - set(OPTIONAL_FRAME_UNIT_KEYS)),
-                "additionalProperties": {"type": "string"},
+                "additionalProperties": False,
                 "properties": {
                     key: {"type": "string", "const": value}
                     for key, value in sorted(FRAME_UNITS.items())
@@ -147,9 +147,9 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                 "description": "Stable producer provenance namespace.",
                 "enum": sorted(FRAME_PROVENANCE_VALUES),
             },
-            "max_events": {
+            "max_detections": {
                 "type": ["integer", "null"],
-                "description": "Non-negative deterministic detection cap when set.",
+                "description": "Output-only detection cap; null means unlimited.",
                 "minimum": 0,
             },
             "detections": {
@@ -157,7 +157,7 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                 "description": "Detected, scheduled, or externally described events.",
                 "items": {
                     "type": "object",
-                    "additionalProperties": True,
+                    "additionalProperties": False,
                     "required": [
                         name
                         for name in DETECTION_FIELDS
@@ -168,17 +168,14 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                         "source_id": {"type": ["string", "null"]},
                         "class_label": {"type": ["string", "null"]},
                         "detection_mode": {"type": "string", "minLength": 1},
-                        "timestamp_ms": {"type": "integer"},
                         "ground_truth_bearing_deg": {"type": ["number", "null"]},
                         "ground_truth_elevation_deg": {
                             "type": ["number", "null"],
                             "minimum": -90.0,
                             "maximum": 90.0,
                             "description": (
-                                "Optional additive v1 field: oracle source "
-                                "elevation in degrees up from the array's "
-                                "forward/right plane. Absent in older v1 "
-                                "traces."
+                                "Oracle source elevation in degrees up from the "
+                                "array's forward/right plane."
                             ),
                         },
                         "source_distance_m": {"type": ["number", "null"]},
@@ -188,7 +185,7 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                                 "Direction-of-arrival estimate with explicit "
                                 "candidate and ambiguity representation."
                             ),
-                            "additionalProperties": True,
+                            "additionalProperties": False,
                             "required": [
                                 name
                                 for name in DOA_FIELDS
@@ -235,11 +232,10 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                                     "minimum": -90.0,
                                     "maximum": 90.0,
                                     "description": (
-                                        "Optional additive v1 field: elevation "
+                                        "Elevation "
                                         "in degrees up from the array's "
                                         "forward/right plane when the producer "
-                                        "can resolve it (rank-3 layouts). "
-                                        "Absent in older v1 traces."
+                                        "can resolve it (rank-3 layouts)."
                                     ),
                                 },
                                 "candidate_elevation_deg": {
@@ -250,10 +246,9 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                                         "maximum": 90.0,
                                     },
                                     "description": (
-                                        "Optional additive v1 field: candidate "
+                                        "Candidate "
                                         "elevations in degrees up from the "
-                                        "array's forward/right plane. Absent "
-                                        "in older v1 traces."
+                                        "array's forward/right plane."
                                     ),
                                 },
                             },
@@ -271,10 +266,10 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                         "occluded": {
                             "type": "boolean",
                             "description": (
-                                "Optional additive v1 field: true when the "
+                                "True when the "
                                 "producer determined the direct source-to-"
                                 "array path is occluded (e.g. Isaac raycast "
-                                "occlusion). Absent in older v1 traces."
+                                "occlusion)."
                             ),
                         },
                         "diagnostics": {"type": "object"},

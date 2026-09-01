@@ -158,7 +158,7 @@ EXPECTED_FLOAT_FIELDS = (
     "source_start_time_s",
     "update_period_s",
 )
-EXPECTED_INT_FIELDS = ("max_events", "sample_rate_hz", "source_loop_count")
+EXPECTED_INT_FIELDS = ("max_detections", "sample_rate_hz", "source_loop_count")
 EXPECTED_BOOL_FIELDS = (
     "author_child_microphones",
     "debug_overlay_enabled",

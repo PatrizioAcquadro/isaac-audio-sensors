@@ -20,7 +20,7 @@
     "isaac_sim_version": null,
     "kit_version": null,
     "tool_name": "ias_fixture_generator",
-    "tool_version": "2.0.0"
+    "tool_version": "3.0.0"
   },
   "creation_timestamp_ms": 1767225600000,
   "dataset_id": "reference_session_v1",
@@ -123,7 +123,7 @@
           "asset_id": "shard_00000.frames",
           "kind": "frame_trace_jsonl",
           "path": "shards/shard_00000/frames.jsonl",
-          "sha256": "82684b8b9de0c24c19bebc03ea38ed0e0ea2f5c7b438c0e7e28fd5a1b14587cd"
+          "sha256": "1df3bc7c284804b5d06fa0197d090564b9ec7a240fdefab0f920c80bdab5170b"
         },
         {
           "asset_id": "shard_00000.audio",
@@ -145,7 +145,7 @@
           "asset_id": "shard_00001.frames",
           "kind": "frame_trace_jsonl",
           "path": "shards/shard_00001/frames.jsonl",
-          "sha256": "0c32e23e10c838f3e5eb953ebe804ef649db76698fa9097d1cf5bc67ee32ec6d"
+          "sha256": "68c6ed7b4c2ccd70e35f26a1fbdc67a55f9e10a391d595ead6c5945487352631"
         },
         {
           "asset_id": "shard_00001.audio",
