@@ -49,7 +49,7 @@ Kit exposes `unconfigured`, `manual_free_field`, `anchor`, and `auto`. `unconfig
 - `surface_set` expresses simple authored surfaces but is not accepted by the R8 analytic provider.
 - Portals, multi-room graphs, arbitrary meshes, diffraction, and cross-room propagation remain outside R7.
 
-The package remains unreleased at `3.0.0`. Frame, dataset-manifest, and calibration-profile schemas remain v1 because they do not serialize the scene.
+At the R7 closeout, the unreleased package remained `3.0.0` and all three schemas remained v1 because R7 did not change their serialized shape. R9.1.1 later replaced only the frame contract with v2.
 
 ## Current Implementation
 

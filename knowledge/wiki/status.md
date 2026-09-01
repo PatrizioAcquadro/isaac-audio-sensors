@@ -10,11 +10,12 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 ## Verified Capabilities
 
-- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the frame, dataset-manifest, and calibration-profile schemas remain v1.
+- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the frame schema is v2 while dataset-manifest and calibration-profile wrappers remain v1.
 - One runtime propagation backend, `analytic_acoustics`, with deterministic direct geometry, TDOA least-squares or SRP-PHAT estimation, optional PyRoom closed-room propagation, motion, Doppler, channel response, noise, electronics, and material behavior.
 - Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.
 - One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
 - Snapshot-authoritative propagation through `simulate(scene, array_id, time_window)`, with no parallel backend sensor object or Lab reference `array_specs` state.
+- R9.1.1 capture semantics with a three-field `AudioTimeWindow`, array-authoritative sample rate, derived-only frame timestamp, all-source rendering, and output-only RMS-prioritized `max_detections`; frame v1 and the removed parallel inputs have no compatibility path.
 - R7 `AcousticSurfaceSpec` and `AcousticEnvironmentSpec` with fail-closed builders for `free_field`, `half_space`, `shoebox`, `polygon_prism`, and `surface_set`, complete world/environment quaternion transforms, and mandatory `AudioSceneSnapshot.environment` ownership.
 - One required `[environment]` TOML model, with an `environment.surfaces` array of tables for surface sets and solver-only `[audio.analytic_acoustics]`; legacy `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, `[room]`, `[audio.room_acoustics]`, missing environments, clamping, and old diagnostic names have no compatibility path.
 - Public `AnalyticAcoustics` routing selected only from `scene.environment.kind`: Core direct propagation for `free_field`, Core floor image source for `half_space`, PyRoom `ShoeBox` for `shoebox`, and PyRoom polygon extrusion for `polygon_prism`, with solver/provider/topology diagnostics on frames and detections.
@@ -22,7 +23,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Minimal `SourceOcclusion` records contain only array/source identity, exact blocked and broadband-attenuation maps, and optional aligned spectral rows. Model, geometry, and material fields were removed without aliases; detection/UI state is derived from `per_mic_blocked`.
 - Isaac raycast occlusion accumulates one authored curve per optional `ias:acoustic_partition_id` or implicit prim-path partition, adds distinct sequential partitions without a fixed loss clamp, reports unknown-material fallback applications under frame `acoustics_state`, and fails closed on conflicts or hit limits. Existing `debug_draw` can emit transient ray/hit `DebugPrimitive` records without adding geometry to stable frames or datasets.
 - Core analytic routes require no `room` extra; closed-room routes import PyRoom lazily, preserve per-surface materials and local containment, configure and verify custom sound speed, and fail actionably when the dependency or requested capability is absent. `surface_set` remains unsupported.
-- `analytic_acoustics` is the only registered propagation backend. The four legacy identifiers, classes, modules, capability records, configuration paths, and runtime validation branches were removed without aliases. Historical v1 frames and manifests that record those identifiers remain readable and reproducible through replay but cannot select a runtime backend.
+- `analytic_acoustics` is the only registered propagation backend. The four legacy identifiers, classes, modules, capability records, configuration paths, and runtime validation branches were removed without aliases. Recorded backend identifiers remain provenance only and cannot select a runtime backend; current frame replay requires v2.
 - Atomic generic recording, verified sharded sessions, codecs, validation, statistics, deterministic splits, and read-only replay.
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
@@ -128,6 +129,15 @@ synchronization, Ruff, internal wikilinks, documentation boundaries, and
 whitespace pass. No provider probe, Isaac runtime change, GPU execution,
 package API, dependency, schema, or version change is part of R9.1.
 
+The R9.1.1 gate passes 494 unit/contract tests, 206 integration tests, 57
+release tests, and 101 tests in the supported Isaac runtime. Configuration,
+frame-v2 schema parity, recorded fixtures, and real optional audio pass. The
+RTX 4090 passes the Isaac Sim, Isaac Lab, and Kit live smokes; Lab preserves
+entity/reference parity and partial reset across 4096 environments at 2.041
+ms/step mean against the 20 ms budget. A content-equivalent clean-source build
+passes the exact sdist, wheel, and Kit ZIP audit. No downstream checkout was
+changed or validated, and nothing was pushed, tagged, or published.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -154,7 +164,8 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-R9.1 is complete. R9.2 is next and owns measured `GeometryAcoustics`
+R9.1 and the intervening R9.1.1 Core capture cleanup are complete. R9.2 is
+next and owns measured `GeometryAcoustics`
 candidate qualification through temporary adapters and shared fixtures; R9.3
 owns the provider decision. R10 geometry integration, per-environment acoustic
 randomization, and publication of `3.0.0` remain separate future work. The

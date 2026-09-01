@@ -1,6 +1,6 @@
 # Phase R9 — Geometry Acoustics Provider Selection
 
-Status: R9.1 completed on 2026-09-01; R9.2 and R9.3 are planned.
+Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.2 and R9.3 are planned.
 
 ## Objective
 
@@ -65,6 +65,51 @@ cannot represent one acoustic assembly across fragmented geometry, or that
 silently changes authored transmission values, does not satisfy the material
 contract.
 
+## Subphase R9.1.1 — Core Capture Contract Cleanup
+
+#### Implementation
+
+R9.1.1 is a breaking repository-wide migration of the Core capture contract,
+completed before provider qualification. `AudioTimeWindow` now contains only
+required `start_time_s`, `end_time_s`, and `frame_index` fields.
+`MicrophoneArraySpec.sample_rate_hz` is the sole runtime sample-rate authority;
+the selected array determines render length and the projected frame sample
+rate. Scene snapshots, time windows, and detections no longer carry
+`timestamp_ms`. `AudioSensorFrame.timestamp_ms` remains serialized but is
+derived exclusively from `int(round(start_time_s * 1000.0))`.
+
+The former source limit was removed. Every source overlapping the time window
+is rendered and localized in deterministic `(start_time_s, source_id)` order,
+independent of any output bound. `max_detections` is applied only after
+localization by descending array RMS, computed as
+`sqrt(mean(per_mic_rms^2))`, with deterministic source-id and detection-id
+tie-breaking. A zero limit therefore produces a complete waveform and
+aggregate RMS with no detections. The Isaac Lab tensor path applies the same
+acoustic priority while retaining fixed-size padded observations.
+
+The incompatible frame contract is `ias.audio_sensor_frame.v2`. Current trace
+readers require its exact shape and reject a serialized timestamp that differs
+from the derived value. The frame v1 schema, generator resource, and current
+trace fixtures were removed; dataset-manifest, calibration-profile, and
+dataset-wrapper versions remain v1 because their own contracts did not change.
+Core, CLI, Isaac Sim, Isaac Lab, Kit, OmniGraph, Replicator, recording/replay,
+examples, smoke tests, and fixtures migrated directly without aliases or
+fallback parsers.
+
+#### Key Decisions
+
+- Array configuration owns sample rate; a frame only projects the selected value.
+- Output capacity never changes the simulated soundscape or aggregate measurements.
+- Deterministic render order exists only for reproducibility and is not an exclusion priority.
+- Acoustic RMS is a practical detection priority without adding a more complex salience model.
+
+#### Problems / Limitations
+
+Frame v1 traces are intentionally not accepted by the current frame reader.
+`max_detections` controls reported detections, not detectability, audibility, or
+physical source contribution. R9.1.1 does not qualify a provider, add a new
+backend, or begin R10 integration.
+
 ## Subphase R9.2 — Candidate Qualification
 
 #### Implementation
@@ -108,9 +153,13 @@ If no candidate meets passive, per-microphone, dynamic-geometry, and distributio
 ## Artifacts
 
 R9.1 provides the internal qualification validator and its deterministic unit
-and CLI tests. No candidate report or provider decision exists yet.
+and CLI tests. R9.1.1 provides the simplified Core capture contract and v2
+frame artifacts. No candidate report or provider decision exists yet.
 
 ## Files
 
 - `tools/qualification/geometry_acoustics_contract.py`
 - `tests/unit/test_geometry_acoustics_contract.py`
+- `src/isaac_audio_sensors/core/types.py`
+- `src/isaac_audio_sensors/core/backends/analytic.py`
+- `src/isaac_audio_sensors/schemas/audio_sensor_frame.v2.schema.json`

@@ -10,7 +10,7 @@ Robot-specific mounts, assets, adapters, policies, task orchestration, acceptanc
 
 ## Current Compatibility Line
 
-The current package is `3.0.0` on the v3 compatibility line. R5.0 previously removed the v1 root convenience imports; v3 keeps that semantic subsystem boundary, makes entity-owned directivity and amplitude-gain semantics authoritative, makes `AudioSceneSnapshot` the sole propagation-backend array-state authority, and replaces the room-only scene contract with one analytic acoustic-environment contract without compatibility shims.
+The current package is `3.0.0` on the v3 compatibility line. R5.0 previously removed the v1 root convenience imports; v3 keeps that semantic subsystem boundary, makes entity-owned directivity and amplitude-gain semantics authoritative, makes `AudioSceneSnapshot` the sole propagation-backend array-state authority, replaces the room-only scene contract with one analytic acoustic-environment contract, and adopts the breaking `ias.audio_sensor_frame.v2` capture contract without compatibility shims.
 
 The root exposes only `__version__`; contracts and services live under their owning modules. The CLI composes those public services without becoming a dependency of lower components.
 
@@ -27,7 +27,7 @@ The curated v3 entrypoint inventory is:
 
 Advanced public services remain importable from their canonical modules; they are not implied package-root entrypoints. The exact inventory above is enforced in fresh processes by `tests/contract/test_public_surface.py`.
 
-Existing `ias.audio_sensor_frame.v1`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1` data contracts may remain valid in a future major package version when their serialized meanings remain useful.
+The current serialized contracts are `ias.audio_sensor_frame.v2`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1`. Dataset and calibration wrapper versions remain unchanged because their own meanings are stable; dataset records embed the current frame v2 shape. Frame v1 is not a current package contract.
 
 ## Stable Promises
 
@@ -47,9 +47,9 @@ Optional Replicator, room-acoustics, Isaac, Kit, GPU, and pack capabilities do n
 
 ## Breaking Changes
 
-Removing or renaming stable public fields, changing their semantics, changing units/provenance/coordinates/ambiguity/sector meaning, or silently changing a v1 serialized shape is breaking and requires a new schema or major compatibility decision.
+Removing or renaming stable public fields, changing their semantics, changing units/provenance/coordinates/ambiguity/sector meaning, or silently changing a serialized shape is breaking and requires a new schema or major compatibility decision.
 
-Version 3 intentionally removes `audio.effects.directivity`, its pattern/frequency-point records, Lab `microphone_relative_offsets_m`, `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, and `[room]`. Consumers must migrate to entity-owned directivity, `EntityBindingCfg.microphones`, `AcousticEnvironmentSpec`, `AudioSceneSnapshot.environment`, and `[environment]`. No alias, fallback parser, or parallel runtime implementation is retained. The package major changes while the three serialized schemas remain v1 because they do not serialize the scene and their meanings are preserved.
+Version 3 intentionally removes `audio.effects.directivity`, its pattern/frequency-point records, Lab `microphone_relative_offsets_m`, `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, `[room]`, the parallel sample-rate inputs, `max_events`, and frame v1. Consumers must migrate to entity-owned directivity, `EntityBindingCfg.microphones`, `AcousticEnvironmentSpec`, `AudioSceneSnapshot.environment`, `[environment]`, array-owned sample rates, output-only `max_detections`, and frame v2. No alias, fallback parser, or parallel runtime implementation is retained.
 
 Experimental or private names may change with clear release notes, but downstream project-specific surfaces are not preserved through permanent shims.
 

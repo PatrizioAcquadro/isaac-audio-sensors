@@ -46,7 +46,7 @@ Entity mode requires explicit free-field environment state, at least three micro
 - R8.3 removed the four legacy runtimes and configuration paths, added the CUDA-native Lab route, migrated SquadBot, and introduced `ias.omni_extension_binding.v4`.
 - R8.4 finalized the minimal occlusion record, partition-based uncapped transmission, explicit unknown-material fallback, and optional transient debug traces.
 
-Historical frame identifiers remain readable replay data but cannot select a runtime backend. The frame, dataset-manifest, and calibration-profile schemas remain v1.
+At the R8 closeout, historical frame identifiers remained readable replay data but could not select a runtime backend, and all three schemas remained v1. R9.1.1 later removed frame v1 reading and replaced only the frame contract with v2.
 
 ## Final Validation
 

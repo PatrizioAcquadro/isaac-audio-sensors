@@ -437,3 +437,11 @@ Added the internal fail-closed provider-report validator, exact blocking criteri
 ## 2026-09-01 — lint: R9.1 provider qualification contract
 
 Verified 23 focused contract tests, 483 unit/contract tests, 199 integration tests, 57 release tests, canonical R9 phase ownership, internal wikilinks, immutable raw content, version synchronization, Ruff, and whitespace.
+
+## 2026-09-01 — update: R9.1.1 Core capture contract cleanup
+
+Recorded the three-field time window, array-authoritative sample rate, derived frame timestamp, all-source rendering, output-only RMS-prioritized detection cap, direct consumer migration, and exact frame v2 boundary before R9.2.
+
+## 2026-09-01 — lint: R9.1.1 Core capture contract cleanup
+
+Verified 494 unit/contract tests, 206 integration tests, 57 release tests, 101 Isaac-runtime tests, config and frame-v2 schema workflows, real optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, clean-source release artifacts, canonical wiki links and index coverage, Ruff, version synchronization, and whitespace.

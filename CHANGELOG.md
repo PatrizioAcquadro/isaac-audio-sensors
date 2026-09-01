@@ -2,8 +2,12 @@
 
 ## 3.0.0 - Unreleased
 
+- Breaking (R9.1.1): reduced `AudioTimeWindow` to required start, end, and frame-index fields; removed independent timestamps from scene snapshots, time windows, and detections; and made frame timestamps derived exclusively from frame start time.
+- Breaking (R9.1.1): made each `MicrophoneArraySpec.sample_rate_hz` the sole runtime rate authority, removed the parallel Core and `[audio]` rate inputs, and projected the selected array rate into `AudioSensorFrame`.
+- Breaking (R9.1.1): removed `max_events` and pre-render source truncation. All active sources now contribute to waveform and aggregate RMS; output-only `max_detections` selects localized detections afterward by descending array RMS with deterministic identifier tie-breaking.
+- Breaking (R9.1.1): replaced the incompatible frame v1 contract and current trace fixtures with `ias.audio_sensor_frame.v2`; current readers require v2 and validate the derived timestamp. Dataset-manifest and calibration-profile wrappers remain v1 and embed the v2 frame where applicable.
 - Added public `AnalyticAcoustics`/`analytic_acoustics` with environment-only routing to Core free-field and half-space solvers or lazy PyRoom shoebox and polygon-prism solvers, including per-surface materials, fail-closed containment, and solver diagnostics on frames and detections.
-- Breaking: consolidated runtime propagation on `analytic_acoustics` and removed `geometry_only`, `tdoa_synthetic`, `room_acoustics`, `room_acoustics_srp`, their public classes, modules, registry declarations, and compatibility aliases. Historical v1 frame and manifest backend identifiers remain readable but are not selectable at runtime.
+- Breaking: consolidated runtime propagation on `analytic_acoustics` and removed `geometry_only`, `tdoa_synthetic`, `room_acoustics`, `room_acoustics_srp`, their public classes, modules, registry declarations, and compatibility aliases. Recorded backend identifiers remain provenance only and are not selectable at runtime.
 - Added the CUDA-native free-field Isaac Lab entity path for `analytic_acoustics`, including batched poses, delay, spreading, gain/directivity, TDOA least-squares, confidence, scheduling, compaction, and all six public tensors without per-environment loops or CPU transfers. Entity binding requires an explicit free-field environment, at least three microphones, identity effects, and `tdoa_least_squares`; scalar reference binding retains the broader analytic topology and estimator surface.
 - Added phase-coherent direct/indirect stem decomposition for Core and PyRoom propagation, including segmented motion, custom sound speed, broadband or banded per-microphone attenuation, and exact `a * D + R` recombination without exposing stems in the public waveform contract.
 - Integrated `analytic_acoustics` occlusion with Isaac lifecycle raycasts. `surface_set` remains deferred to the future `GeometryAcoustics` backend.
@@ -21,7 +25,7 @@
 - Standardized nominal `gain_db` as amplitude gain `10 ** (gain_db / 20)`. Source gain is applied once to generated or original-amplitude WAV assets before propagation; microphone gain is applied once after propagation in every frame and Lab path.
 - Preserved L0/L1 analytical `1/d` with the existing distance floor and L2 PyRoom RIR distance/reflection behavior without a second manual `1/d`. L2 waveform directivity remains signed while RMS uses magnitude.
 - Retained channel-response gain, TDOA gain mismatch, and occlusion as separately ordered and diagnosed deltas. Calibration-profile gain remains data-only and is never applied automatically.
-- Preserved `ias.audio_sensor_frame.v1`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1` serialized schemas.
+- Preserved `ias.audio_dataset_manifest.v1` and `ias.audio_calibration_profile.v1`; the frame contract is now `ias.audio_sensor_frame.v2`.
 
 ## 2.0.0 - 2026-08-21
 

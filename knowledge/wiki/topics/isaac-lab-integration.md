@@ -8,7 +8,7 @@ After launch, `AudioArraySensorCfg` directly inherits `SensorBaseCfg` and `Audio
 
 ## Configuration
 
-`AudioArraySensorCfg` retains the inherited `prim_path`, `update_period`, and `debug_vis` fields plus `backend`, `max_events`, `ambiguity_policy`, `effects`, `speed_of_sound_mps`, `doa_estimator`, `analytic_max_order`, `analytic_air_absorption`, and `analytic_ray_tracing`. The backend defaults to `analytic_acoustics`; legacy backend identifiers are rejected.
+`AudioArraySensorCfg` retains the inherited `prim_path`, `update_period`, and `debug_vis` fields plus `backend`, `max_detections`, `ambiguity_policy`, `effects`, `speed_of_sound_mps`, `doa_estimator`, `analytic_max_order`, `analytic_air_absorption`, and `analytic_ray_tracing`. The backend defaults to `analytic_acoustics`; legacy backend identifiers are rejected.
 
 The active `SimulationContext` is the only device authority. `debug_vis=True` fails explicitly because the sensor has no real visualization implementation.
 
@@ -23,7 +23,7 @@ The active `SimulationContext` is the only device authority. `debug_vis=True` fa
 - `per_mic_rms [N,E,M] float32`
 - `ambiguity_mask [N,E] bool`
 
-Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and RMS values. Source order is deterministic and active events compact before `max_events` truncation.
+Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and RMS values. All active sources are computed before output selection. Slots are filled by descending `sqrt(mean(per_mic_rms^2))`, with the deterministic source configuration order as the source-id tie-break; `max_detections` controls only the fixed observation capacity and zero produces a correctly padded empty observation.
 
 ## Entity Binding
 
@@ -33,7 +33,7 @@ Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and 
 
 Inputs must already be rank-correct `float32` tensors on the sensor device. World positions receive no origin offset; environment-frame positions receive exactly one explicit origin offset. WXYZ state quaternions convert to the package XYZW convention before relative poses are composed.
 
-Entity mode supports only `analytic_acoustics` over explicit `free_field`, with at least three microphones, `tdoa_least_squares`, order zero, disabled air absorption/ray tracing, and identity effects. It computes microphone/source pose, `distance / speed_of_sound_mps` delay, source and microphone gain/directivity magnitude, analytical `1/d`, TDOA least-squares, confidence, ambiguity, scheduling, compaction, and truncation on the sensor device. `per_mic_rms` is a relative direct-path feature, not waveform RMS or calibrated SPL. Unknown directivity, missing non-omni orientation, invalid gain, unsupported topology/estimator/options/effects/devices/shapes/dtypes/microphone counts, and degenerate TDOA geometry fail explicitly; there is no omni or CUDA-to-CPU fallback.
+Entity mode supports only `analytic_acoustics` over explicit `free_field`, with at least three microphones, `tdoa_least_squares`, order zero, disabled air absorption/ray tracing, and identity effects. It computes microphone/source pose, `distance / speed_of_sound_mps` delay, source and microphone gain/directivity magnitude, analytical `1/d`, TDOA least-squares, confidence, ambiguity, scheduling, RMS-prioritized selection, and padding on the sensor device. `per_mic_rms` is a relative direct-path feature, not waveform RMS or calibrated SPL. Unknown directivity, missing non-omni orientation, invalid gain, unsupported topology/estimator/options/effects/devices/shapes/dtypes/microphone counts, and degenerate TDOA geometry fail explicitly; there is no omni or CUDA-to-CPU fallback.
 
 The fast path uses tensor indexing, selection, batched linear algebra, compaction, and scatter operations. It does not loop over environments, transfer tensors to the CPU, or convert environment IDs through the host. It does not produce waveforms, reverberation, occlusion, SPL, calibration, closed-room behavior, or per-environment acoustic randomization.
 
