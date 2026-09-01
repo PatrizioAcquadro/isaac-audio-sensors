@@ -1,4 +1,4 @@
-"""Room, material, RIR, and localization diagnostics."""
+"""Analytic environment, material, RIR, and localization diagnostics."""
 
 from __future__ import annotations
 
@@ -166,7 +166,7 @@ def _uniform_environment_absorption(
         for surface in environment.surfaces[1:]
     ):
         raise ValueError(
-            "R7.1 room_acoustics supports uniform shoebox absorption only; "
+            "analytic_acoustics supports uniform shoebox absorption only; "
             "per-surface solver routing belongs to R8."
         )
     return absorption

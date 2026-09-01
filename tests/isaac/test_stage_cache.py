@@ -77,7 +77,7 @@ def _live_sensor(
             stage=stage,
             environment_resolution_cfg=MANUAL_RESOLUTION,
             environment=MANUAL_ENVIRONMENT,
-            backend="geometry_only",
+            backend="analytic_acoustics",
             update_period_s=0.1,
         ).start()
     return IsaacAudioArraySensor.from_stage(
@@ -85,7 +85,7 @@ def _live_sensor(
         array_prim_path="/World/Rig/AudioArray",
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
-        backend="geometry_only",
+        backend="analytic_acoustics",
         update_period_s=0.1,
     ).start()
 
@@ -239,7 +239,7 @@ def test_rediscover_each_update_forces_full_discovery_every_capture():
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         binding_cfg=IsaacAudioSceneBindingCfg(rediscover_each_update=True),
-        backend="geometry_only",
+        backend="analytic_acoustics",
         update_period_s=0.1,
     ).start()
     construction_count = stage.traverse_count

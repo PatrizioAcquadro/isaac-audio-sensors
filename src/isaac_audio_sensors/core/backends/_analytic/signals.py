@@ -1,4 +1,4 @@
-"""Source scheduling and waveform preparation for room acoustics."""
+"""Source scheduling and waveform preparation for analytic acoustics."""
 
 from __future__ import annotations
 
@@ -265,7 +265,7 @@ def _load_public_waveform(
 ) -> tuple[np.ndarray, str]:
     if path.is_absolute() or ".." in path.parts:
         raise ValueError(
-            "audio_asset_path for room_acoustics must be a relative public "
+            "audio_asset_path for analytic_acoustics must be a relative public "
             "package path."
         )
     resolved = path.resolve()
@@ -273,7 +273,7 @@ def _load_public_waveform(
         resolved.relative_to(Path.cwd().resolve())
     except ValueError as exc:
         raise ValueError(
-            "audio_asset_path for room_acoustics must stay under the current "
+            "audio_asset_path for analytic_acoustics must stay under the current "
             "package checkout."
         ) from exc
     if not path.exists():

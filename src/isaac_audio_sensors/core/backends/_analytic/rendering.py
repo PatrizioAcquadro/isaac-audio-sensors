@@ -1,4 +1,4 @@
-"""pyroomacoustics adapter, room rendering, and RIR setup."""
+"""PyRoom adapter, analytic rendering, and RIR setup."""
 
 from __future__ import annotations
 
@@ -19,13 +19,13 @@ from isaac_audio_sensors.core.acoustics.occlusion import (
     occlusion_band_attenuation_db,
     occlusion_per_mic_extra_gain_db,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
+from isaac_audio_sensors.core.backends._analytic.diagnostics import (
     _environment_material_resolution,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.preparation import (
+from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.signals import (
+from isaac_audio_sensors.core.backends._analytic.signals import (
     _doppler_resampled_signal,
     _piecewise_phase_signal,
     _scheduled_window_signal,
@@ -709,7 +709,7 @@ def _import_pyroomacoustics() -> Any:
         return importlib.import_module("pyroomacoustics")
     except ImportError as exc:
         raise OptionalDependencyUnavailable(
-            "room_acoustics backend requires the optional 'room' extra "
+            "analytic_acoustics closed-room solvers require the optional 'room' extra "
             "(pyroomacoustics, scipy, and soundfile)."
         ) from exc
 
@@ -1177,7 +1177,7 @@ def _world_to_environment_positions(
                 else "outside polygon-prism environment"
             )
             raise ValueError(
-                f"room_acoustics position {key!r} at world "
+                f"analytic_acoustics position {key!r} at world "
                 f"{tuple(float(value) for value in position)} maps to local "
                 f"{environment_position}, {prefix} {environment.environment_id!r} "
                 f"{boundary}."

@@ -16,7 +16,7 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
     controller.state.latest_frame_export_path = str(tmp_path / "latest.json")
@@ -51,12 +51,12 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert latest_path == tmp_path / "latest.json"
     assert config_path == tmp_path / "binding.json"
     assert json.loads(latest_path.read_text(encoding="utf-8"))["backend_id"] == (
-        "geometry_only"
+        "analytic_acoustics"
     )
     trace_lines = (tmp_path / "frames.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(trace_lines) == 1
     summary = json.loads(config_path.read_text(encoding="utf-8"))
-    assert summary["schema_version"] == "ias.omni_extension_binding.v3"
+    assert summary["schema_version"] == "ias.omni_extension_binding.v4"
     assert summary["environment"]["mode"] == "manual_free_field"
     assert summary["environment"]["resolved"]["kind"] == "free_field"
     assert summary["array"]["prim_path"] == "/World/Rig/AudioArray"
@@ -79,7 +79,7 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert imported.state.jsonl_trace_path.endswith("frames.jsonl")
     assert imported.state.environment_anchor_prim_path == ""
     assert imported.state.environment_resolution_mode == "manual_free_field"
-    assert imported.state.room_acoustics_max_order == 0
+    assert imported.state.analytic_max_order == 0
 
 
 def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
@@ -101,7 +101,7 @@ def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "tdoa_synthetic"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.update_period_s = 0.01
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
@@ -151,7 +151,7 @@ def test_extension_controller_attached_source_outside_world_is_captured(tmp_path
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
@@ -178,7 +178,7 @@ def test_extension_controller_authors_persistent_usd_debug_geometry(tmp_path):
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "tdoa_synthetic"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.usd_debug_enabled = True
     controller.state.trace_enabled = False
@@ -209,7 +209,7 @@ def test_extension_controller_unconfigured_environment_fails_closed():
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "room_acoustics"
+    controller.state.backend = "analytic_acoustics"
     assert controller.author_array(stage=stage) is not None
     assert controller.configure_sensor(stage=stage) is None
     assert controller.sensor is None
@@ -223,7 +223,7 @@ def test_extension_controller_unconfigured_environment_blocks_restart():
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     assert controller.author_array(stage=stage) is not None
     assert controller.configure_sensor(stage=stage) is not None
@@ -254,10 +254,10 @@ def test_extension_controller_environment_anchors_to_designated_prim():
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "room_acoustics"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "anchor"
     controller.state.environment_anchor_prim_path = "/World/Environment"
-    controller.state.room_acoustics_max_order = 2
+    controller.state.analytic_max_order = 2
     assert controller.author_array(stage=stage) is not None
     assert controller.configure_sensor(stage=stage) is not None
     environment = controller.sensor.environment
@@ -271,7 +271,7 @@ def test_extension_controller_environment_anchors_to_designated_prim():
     summary = controller.state.latest_environment_summary
     assert summary is not None
     assert summary["absorption_provenance"] == "semantic:carpet"
-    assert summary["room_acoustics"]["max_order"] == 2
+    assert summary["analytic_acoustics"]["max_order"] == 2
 
 
 def test_extension_controller_auto_resolves_marked_environment():
@@ -294,7 +294,7 @@ def test_extension_controller_auto_resolves_marked_environment():
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "auto"
     assert controller.author_array(stage=stage) is not None
 
@@ -315,7 +315,7 @@ def test_extension_controller_environment_anchor_missing_prim_records_error():
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "room_acoustics"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "anchor"
     controller.state.environment_anchor_prim_path = "/World/MissingEnvironment"
     assert controller.author_array(stage=stage) is not None

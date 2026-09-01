@@ -6,10 +6,11 @@ up_axis = "z"
 [audio]
 sample_rate_hz = 48000
 speed_of_sound_mps = 343.0
-default_backend = "tdoa_synthetic"
+default_backend = "analytic_acoustics"
 write_waveforms = false
 default_array_layout = "quad_front"
 tdoa_ambiguity_policy = "none"
+doa_estimator = "tdoa_least_squares"
 
 [[sources]]
 source_id = "speaker_front_right"
@@ -90,8 +91,9 @@ directivity = "omni"
 [environment]
 environment_id = "lab_room_a"
 kind = "shoebox"
-dimensions_m = [5.0, 4.0, 2.7]
+dimensions_m = [5.0, 6.0, 2.7]
 absorption = 0.35
+position_world = [-0.5, -3.5, -0.5]
 
-[audio.room_acoustics]
+[audio.analytic_acoustics]
 max_order = 2

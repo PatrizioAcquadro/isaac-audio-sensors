@@ -7,7 +7,7 @@ from dataclasses import replace
 import pytest
 
 from isaac_audio_sensors.core.acoustics import free_field_environment
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.effects import (
     EffectsConfig,
     MotionEffectsConfig,
@@ -235,7 +235,7 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
     )
     assert diagnostics == {"rig": "none:first_sample"}
     assert enriched.sources == ()
-    frame = TdoaSyntheticBackend(effects=EffectsConfig(motion=_motion())).simulate(
+    frame = AnalyticAcoustics(effects=EffectsConfig(motion=_motion())).simulate(
         enriched,
         "rig",
         AudioTimeWindow(
@@ -257,7 +257,7 @@ def test_live_extension_enriches_frame_diagnostics_and_rediscovery_keeps_history
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
-        backend="tdoa_synthetic",
+        backend="analytic_acoustics",
         update_period_s=0.05,
         effects=effects,
     ).start()
@@ -317,7 +317,7 @@ def test_stage_replacement_clears_history_before_new_stage_sample():
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
-        backend="geometry_only",
+        backend="analytic_acoustics",
         effects=EffectsConfig(motion=_motion()),
     ).start()
     sensor.update(sim_time_s=0.0)
@@ -356,7 +356,7 @@ def test_entity_removal_and_same_id_new_prim_purges_only_removed_history():
         stage=stage,
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
-        backend="geometry_only",
+        backend="analytic_acoustics",
         effects=EffectsConfig(motion=_motion()),
     ).start()
     sensor.update(sim_time_s=0.0)

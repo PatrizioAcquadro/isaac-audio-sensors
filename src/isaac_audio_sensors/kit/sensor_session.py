@@ -181,7 +181,7 @@ class SensorSession(ControllerService):
             if not paths:
                 raise ExtensionActionError(
                     "No exported waveform yet. Enable WAV Export and run the "
-                    "room_acoustics backend, then Update."
+                    "analytic_acoustics backend, then Update."
                 )
             status = self._audition_player.play(paths[-1])
             self.state.audition_status = status
@@ -336,10 +336,10 @@ class SensorSession(ControllerService):
             "priority": resolution.get("priority"),
             "candidate_count": resolution.get("candidate_count", 0),
             "containment_tolerance_m": (state.environment_containment_tolerance_m),
-            "room_acoustics": {
-                "max_order": state.room_acoustics_max_order,
-                "air_absorption": state.room_acoustics_air_absorption,
-                "ray_tracing": state.room_acoustics_ray_tracing,
+            "analytic_acoustics": {
+                "max_order": state.analytic_max_order,
+                "air_absorption": state.analytic_air_absorption,
+                "ray_tracing": state.analytic_ray_tracing,
             },
         }
 
@@ -428,13 +428,14 @@ class SensorSession(ControllerService):
                 update_period_s=state.update_period_s,
                 max_events=state.max_events,
                 ambiguity_policy=state.ambiguity_policy,
+                doa_estimator=state.doa_estimator,
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,
                 environment_resolution_cfg=environment_resolution_cfg,
-                room_acoustics_max_order=state.room_acoustics_max_order,
-                room_acoustics_air_absorption=(state.room_acoustics_air_absorption),
-                room_acoustics_ray_tracing=state.room_acoustics_ray_tracing,
+                analytic_max_order=state.analytic_max_order,
+                analytic_air_absorption=(state.analytic_air_absorption),
+                analytic_ray_tracing=state.analytic_ray_tracing,
             )
         else:
             binding_cfg = IsaacAudioSceneBindingCfg(
@@ -452,13 +453,14 @@ class SensorSession(ControllerService):
                 update_period_s=state.update_period_s,
                 max_events=state.max_events,
                 ambiguity_policy=state.ambiguity_policy,
+                doa_estimator=state.doa_estimator,
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,
                 environment_resolution_cfg=environment_resolution_cfg,
-                room_acoustics_max_order=state.room_acoustics_max_order,
-                room_acoustics_air_absorption=(state.room_acoustics_air_absorption),
-                room_acoustics_ray_tracing=state.room_acoustics_ray_tracing,
+                analytic_max_order=state.analytic_max_order,
+                analytic_air_absorption=(state.analytic_air_absorption),
+                analytic_ray_tracing=state.analytic_ray_tracing,
             )
         sensor.waveform_sink = self._waveform_sink_or_none(sensor.array_id)
         if sensor.array_prim_path:

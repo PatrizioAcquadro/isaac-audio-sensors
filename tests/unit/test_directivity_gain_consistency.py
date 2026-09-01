@@ -6,14 +6,12 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.acoustics import shoebox_environment
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import (
-    RoomAcousticsBackend,
-    RoomAcousticsSrpBackend,
-    signals,
+from isaac_audio_sensors.core.acoustics import (
+    free_field_environment,
+    shoebox_environment,
 )
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.backends import AnalyticAcoustics
+from isaac_audio_sensors.core.backends._analytic import signals
 from isaac_audio_sensors.core.directivity import (
     DirectivityPattern,
     evaluate_polar_pattern,
@@ -107,40 +105,9 @@ def test_entity_records_resolve_directivity_and_require_orientation() -> None:
         )
 
 
-@pytest.mark.parametrize("backend", [GeometryBackend(), TdoaSyntheticBackend()])
 @pytest.mark.parametrize("gain_db,expected", [(DB_DOUBLE, 2.0), (-DB_DOUBLE, 0.5)])
-def test_l0_l1_source_and_microphone_gain_ratios(backend, gain_db, expected) -> None:
-    baseline_array = _array()
-    source_baseline = _source()
-    source_changed = replace(source_baseline, gain_db=gain_db)
-    source_ratio = _detection_rms(backend, source_changed, baseline_array) / (
-        _detection_rms(backend, source_baseline, baseline_array)
-    )
-    assert source_ratio == pytest.approx(expected)
-
-    changed_array = replace(
-        baseline_array,
-        microphones=tuple(
-            replace(microphone, gain_db=gain_db)
-            if microphone.mic_id == "front"
-            else microphone
-            for microphone in baseline_array.microphones
-        ),
-    )
-    microphone_ratio = _detection_rms(backend, source_baseline, changed_array) / (
-        _detection_rms(backend, source_baseline, baseline_array)
-    )
-    assert microphone_ratio == pytest.approx(expected)
-
-
-@pytest.mark.parametrize(
-    "backend_type",
-    [RoomAcousticsBackend, RoomAcousticsSrpBackend],
-)
-@pytest.mark.parametrize("gain_db,expected", [(DB_DOUBLE, 2.0), (-DB_DOUBLE, 0.5)])
-def test_room_backend_source_and_microphone_gain_ratios(
+def test_analytic_source_and_microphone_gain_ratios(
     monkeypatch,
-    backend_type,
     gain_db,
     expected,
 ) -> None:
@@ -148,8 +115,8 @@ def test_room_backend_source_and_microphone_gain_ratios(
     baseline_array = _array()
     source_baseline = _source()
     source_changed = replace(source_baseline, gain_db=gain_db)
-    assert _detection_rms(backend_type(), source_changed, baseline_array) / (
-        _detection_rms(backend_type(), source_baseline, baseline_array)
+    assert _detection_rms(AnalyticAcoustics(), source_changed, baseline_array) / (
+        _detection_rms(AnalyticAcoustics(), source_baseline, baseline_array)
     ) == pytest.approx(expected)
 
     changed_array = replace(
@@ -161,8 +128,8 @@ def test_room_backend_source_and_microphone_gain_ratios(
             for microphone in baseline_array.microphones
         ),
     )
-    assert _detection_rms(backend_type(), source_baseline, changed_array) / (
-        _detection_rms(backend_type(), source_baseline, baseline_array)
+    assert _detection_rms(AnalyticAcoustics(), source_baseline, changed_array) / (
+        _detection_rms(AnalyticAcoustics(), source_baseline, baseline_array)
     ) == pytest.approx(expected)
 
 
@@ -179,10 +146,10 @@ def test_room_waveform_keeps_signed_directivity_while_rms_uses_magnitude(
     )
     omni_sink = CaptureSink()
     directional_sink = CaptureSink()
-    omni_frame = RoomAcousticsBackend(waveform_writer=omni_sink).simulate(
+    omni_frame = AnalyticAcoustics(waveform_writer=omni_sink).simulate(
         _scene(omni, array), array.array_id, _window()
     )
-    directional_frame = RoomAcousticsBackend(waveform_writer=directional_sink).simulate(
+    directional_frame = AnalyticAcoustics(waveform_writer=directional_sink).simulate(
         _scene(figure_eight, array), array.array_id, _window()
     )
     omni_waveforms = omni_sink.calls[0]["mixture"]
@@ -252,10 +219,10 @@ def test_pyroom_rir_is_the_only_room_distance_scaling(monkeypatch) -> None:
     far = replace(near, position_world=(2.0, 0.0, 0.0))
     near_sink = CaptureSink()
     far_sink = CaptureSink()
-    RoomAcousticsBackend(waveform_writer=near_sink).simulate(
+    AnalyticAcoustics(waveform_writer=near_sink).simulate(
         _scene(near, array), array.array_id, _window()
     )
-    RoomAcousticsBackend(waveform_writer=far_sink).simulate(
+    AnalyticAcoustics(waveform_writer=far_sink).simulate(
         _scene(far, array), array.array_id, _window()
     )
     near_peak = float(np.max(np.abs(near_sink.calls[0]["mixture"][0])))
@@ -267,7 +234,10 @@ def test_pyroom_rir_is_the_only_room_distance_scaling(monkeypatch) -> None:
     assert near_peak / far_peak != pytest.approx((far_distance / near_distance) ** 2)
 
 
-def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics() -> None:
+def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics(
+    monkeypatch,
+) -> None:
+    install_fake_pyroom(monkeypatch)
     base_array = _array()
     array = replace(
         base_array,
@@ -294,36 +264,42 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics() -> Non
             },
         )
     )
-    backend = TdoaSyntheticBackend(
-        ambiguity_policy="none",
-        gain_mismatch_db=2.0,
-        seed=17,
-        effects=effects,
-    )
-
-    frame = backend.simulate(
+    backend = AnalyticAcoustics(ambiguity_policy="none", effects=effects)
+    scene = replace(
         _scene(source, array, occlusion=(occlusion,)),
+        environment=free_field_environment(environment_id="gain_free_field"),
+    )
+    frame = backend.simulate(
+        scene,
         array.array_id,
         _window(),
     )
     assert frame == backend.simulate(
-        _scene(source, array, occlusion=(occlusion,)),
+        scene,
         array.array_id,
         _window(),
     )
     detection = frame.detections[0]
-    mismatch_db = detection.diagnostics["tdoa_gain_mismatch_delta_db"]["front"]
-    front_position = microphone_world_positions(array)["front"]
-    distance = math.dist(source.position_world, front_position)
-    expected = (
+    baseline_scene = replace(
+        _scene(_source(), base_array),
+        environment=free_field_environment(environment_id="gain_free_field"),
+    )
+    baseline = AnalyticAcoustics().simulate(
+        baseline_scene,
+        base_array.array_id,
+        _window(),
+    )
+    expected_ratio = (
         2.0
-        / distance
         * 10.0 ** (-4.0 / 20.0)
         * 2.0
-        * 10.0 ** (mismatch_db / 20.0)
         * 10.0 ** (-3.0 / 20.0)
     )
-    assert detection.per_mic_rms["front"] == pytest.approx(expected)
+    observed_ratio = (
+        detection.per_mic_rms["front"]
+        / baseline.detections[0].per_mic_rms["front"]
+    )
+    assert observed_ratio == pytest.approx(expected_ratio)
     assert detection.diagnostics["source_nominal_gain_db"] == pytest.approx(DB_DOUBLE)
     assert detection.diagnostics["microphone_nominal_gain_db"][
         "front"

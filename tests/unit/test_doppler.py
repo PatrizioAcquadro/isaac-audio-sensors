@@ -4,18 +4,12 @@ from dataclasses import replace
 
 import pytest
 
-from isaac_audio_sensors.core.acoustics import free_field_environment
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.motion.doppler import (
     doppler_factor,
     source_doppler_factor,
 )
-from isaac_audio_sensors.core.types import (
-    AudioSceneSnapshot,
-    AudioSourceSpec,
-    AudioTimeWindow,
-)
+from isaac_audio_sensors.core.types import AudioSourceSpec
 
 SPEED_OF_SOUND_MPS = 343.0
 
@@ -36,15 +30,6 @@ def _moving_source(
         duration_s=None,
         gain_db=0.0,
         velocity_world_mps=velocity,
-    )
-
-
-def _window() -> AudioTimeWindow:
-    return AudioTimeWindow(
-        start_time_s=0.0,
-        end_time_s=1.0,
-        timestamp_ms=0,
-        sample_rate_hz=48_000,
     )
 
 
@@ -123,38 +108,3 @@ def test_source_doppler_factor_is_none_without_velocities():
         static, moving_array, speed_of_sound_mps=SPEED_OF_SOUND_MPS
     )
     assert factor == pytest.approx((SPEED_OF_SOUND_MPS + 10.0) / SPEED_OF_SOUND_MPS)
-
-
-def test_tdoa_backend_emits_doppler_metadata_only_with_velocity():
-    array = create_microphone_array(
-        array_id="rig",
-        prim_path="/World/Rig/AudioArray",
-        layout_name="quad_front",
-    )
-    moving = _moving_source("mover", (10.0, 0.0, 0.0), (-20.0, 0.0, 0.0))
-    static = _moving_source("static", (0.0, 5.0, 0.0), None)
-    scene = AudioSceneSnapshot(
-        stage_id="doppler_l1",
-        timestamp_ms=0,
-        sources=(moving, static),
-        arrays=(array,),
-        environment=free_field_environment(environment_id="doppler_free_field"),
-    )
-    frame = TdoaSyntheticBackend().simulate(scene, array.array_id, _window())
-
-    by_source = {detection.source_id: detection for detection in frame.detections}
-    mover = by_source["mover"].diagnostics
-    expected = SPEED_OF_SOUND_MPS / (SPEED_OF_SOUND_MPS - 20.0)
-    assert mover["doppler_factor"] == pytest.approx(expected, rel=1e-9)
-    assert mover["doppler_waveform_rendered"] is False
-    assert set(mover["per_mic_doppler_factor"]) == {
-        "front",
-        "right",
-        "rear",
-        "left",
-    }
-    for value in mover["per_mic_doppler_factor"].values():
-        assert value == pytest.approx(expected, rel=1e-2)
-
-    assert "doppler_factor" not in by_source["static"].diagnostics
-    assert "per_mic_doppler_factor" not in by_source["static"].diagnostics

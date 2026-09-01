@@ -30,7 +30,7 @@ def test_core_commands_render_service_results(tmp_path, capsys):
                 "simulate",
                 str(CONFIG),
                 "--backend",
-                "geometry_only",
+                "analytic_acoustics",
                 "--array-id",
                 "rig_front",
                 "--out",
@@ -57,19 +57,14 @@ def test_core_commands_render_service_results(tmp_path, capsys):
 def test_cli_simulates_analytic_free_field_without_room_extra(tmp_path, capsys):
     config_path = tmp_path / "analytic_free_field.toml"
     config_path.write_text(
-        CONFIG.read_text(encoding="utf-8")
-        .replace(
-            'default_backend = "tdoa_synthetic"',
-            'default_backend = "analytic_acoustics"',
-        )
-        .replace(
+        CONFIG.read_text(encoding="utf-8").replace(
             "environment_id = \"lab_room_a\"\n"
             "kind = \"shoebox\"\n"
-            "dimensions_m = [5.0, 4.0, 2.7]\n"
-            "absorption = 0.35",
+            "dimensions_m = [5.0, 6.0, 2.7]\n"
+            "absorption = 0.35\n"
+            "position_world = [-0.5, -3.5, -0.5]",
             "environment_id = \"open_field\"\nkind = \"free_field\"",
-        )
-        .replace("max_order = 2", "max_order = 0"),
+        ).replace("max_order = 2", "max_order = 0"),
         encoding="utf-8",
     )
 

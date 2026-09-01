@@ -8,6 +8,7 @@ from .constants import (
     AMBIGUITY_POLICY_CHOICES,
     BACKEND_CHOICES,
     DIRECTIVITY_CHOICES,
+    DOA_ESTIMATOR_CHOICES,
     ENVIRONMENT_MODE_CHOICES,
     LAYOUT_CHOICES,
     SOURCE_POSITION_PRESETS,
@@ -723,6 +724,7 @@ def build_control_section(window: OmniReferenceWindow) -> None:
     with window._subsection("Sensor Settings & Debug"):
         window._combo_row("Backend", "backend", BACKEND_CHOICES)
         window._combo_row("Ambiguity", "ambiguity_policy", AMBIGUITY_POLICY_CHOICES)
+        window._combo_row("DOA Estimator", "doa_estimator", DOA_ESTIMATOR_CHOICES)
         window._float_row("Period s", "update_period_s")
         window._int_row("Max Events", "max_events")
         window._bool_row("Overlay", "debug_overlay_enabled")
@@ -761,9 +763,9 @@ def build_environment_section(window: OmniReferenceWindow) -> None:
             "Containment Tolerance m",
             "environment_containment_tolerance_m",
         )
-        window._int_row("Max Order", "room_acoustics_max_order")
-        window._bool_row("Air Absorption", "room_acoustics_air_absorption")
-        window._bool_row("Ray Tracing", "room_acoustics_ray_tracing")
+        window._int_row("Max Order", "analytic_max_order")
+        window._bool_row("Air Absorption", "analytic_air_absorption")
+        window._bool_row("Ray Tracing", "analytic_ray_tracing")
         ui.Label(
             "R7.2 is fail-closed: select explicit free field, an anchor, or "
             "marked USD environment auto-discovery before configuring.",

@@ -54,22 +54,15 @@ class ReferenceBackend:
                 "All reference arrays must have the same microphone count."
             )
         self.num_mics = mic_counts.pop()
-        kwargs: dict[str, object] = {"effects": effects}
-        if backend_id in {
-            "analytic_acoustics",
-            "tdoa_synthetic",
-            "room_acoustics",
-            "room_acoustics_srp",
-        }:
-            kwargs["ambiguity_policy"] = ambiguity_policy
-            kwargs["speed_of_sound_mps"] = speed_of_sound_mps
-        if backend_id == "analytic_acoustics":
-            kwargs.update(
-                doa_estimator=doa_estimator,
-                max_order=analytic_max_order,
-                air_absorption=analytic_air_absorption,
-                ray_tracing=analytic_ray_tracing,
-            )
+        kwargs: dict[str, object] = {
+            "effects": effects,
+            "ambiguity_policy": ambiguity_policy,
+            "speed_of_sound_mps": speed_of_sound_mps,
+            "doa_estimator": doa_estimator,
+            "max_order": analytic_max_order,
+            "air_absorption": analytic_air_absorption,
+            "ray_tracing": analytic_ray_tracing,
+        }
         self._backend = get_backend(backend_id, **kwargs)
 
     @property

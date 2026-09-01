@@ -19,12 +19,10 @@ from isaac_audio_sensors.core.acoustics import (
     free_field_environment,
     shoebox_environment,
 )
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.io.traces import (
     append_frame_jsonl,
     frame_from_trace_dict,
 )
-from isaac_audio_sensors.core.io.waveforms import FrameWaveformWriter
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.core.microphone_array import microphone_layout
 from isaac_audio_sensors.core.types import AcousticEnvironmentSpec, AudioSensorFrame
@@ -43,14 +41,13 @@ from isaac_audio_sensors.isaac.stage_audio import (
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 from isaac_audio_sensors.isaac.viz.overlays import debug_primitives_to_dicts
 
-REQUIRED_BACKENDS = ("geometry_only", "tdoa_synthetic", "analytic_acoustics")
-OPTIONAL_BACKENDS = ("room_acoustics",)
+REQUIRED_BACKENDS = ("analytic_acoustics",)
+OPTIONAL_BACKENDS: tuple[str, ...] = ()
 SMOKE_PHASES = (
     ("before", 0.0),
     ("moved", 0.1),
     ("inactive", 0.5),
 )
-WAVEFORM_EVIDENCE_DIR = Path("build/validation/isaac_audio_sensors/live_waveforms")
 
 
 class _AnalyticOcclusionTransitionRaycaster:
@@ -155,32 +152,7 @@ def main() -> int:
             _validate_backend_result(result)
             backend_results[backend_id] = result
 
-        room_available = RoomAcousticsBackend.is_available()
-        evidence["room_acoustics_available"] = room_available
-        if room_available:
-            result, trace_record_index = _run_backend_smoke(
-                stage=stage,
-                backend_id="room_acoustics",
-                binding_cfg=binding_cfg,
-                environment_spec=environment_spec,
-                frame_trace_path=frame_trace_path,
-                config_path=config_path,
-                start_record_index=trace_record_index,
-                evidence=evidence,
-            )
-            _validate_backend_result(result)
-            backend_results["room_acoustics"] = result
-        else:
-            backend_results["room_acoustics"] = {
-                "status": "skipped",
-                "skip_reason": (
-                    "pyroomacoustics is not importable in this Isaac Python "
-                    "runtime; room_acoustics is optional for Task 6."
-                ),
-            }
-
         trace_summary = _validate_jsonl_frames(frame_trace_path)
-        room_result = backend_results["room_acoustics"]
         evidence.update(
             {
                 "status": "passed",
@@ -227,8 +199,6 @@ def main() -> int:
                     backend_results,
                     "debug_primitive_labels",
                 ),
-                "room_acoustics_status": room_result["status"],
-                "room_acoustics_skip_reason": room_result.get("skip_reason"),
             }
         )
     except BaseException as exc:  # noqa: BLE001 - smoke evidence records exact error.
@@ -307,11 +277,6 @@ def _run_backend_smoke(
         max_events=1,
         environment=resolved_environment,
         debug_draw=True,
-        waveform_sink=(
-            FrameWaveformWriter(WAVEFORM_EVIDENCE_DIR)
-            if backend_id == "room_acoustics"
-            else None
-        ),
         occlusion_enabled=backend_id == "analytic_acoustics",
         occlusion_raycaster=(
             _AnalyticOcclusionTransitionRaycaster()
@@ -486,13 +451,6 @@ def _summarize_backend(
             for phase, frame in frames.items()
         },
     }
-    if backend_id == "tdoa_synthetic" and moved_detection is not None:
-        result["tdoa_diagnostics_present"] = bool(
-            moved_detection.per_mic_delay_s
-            and moved_detection.diagnostics.get("tdoa_matrix_s")
-        )
-        result["tdoa_matrix_s"] = moved_detection.diagnostics.get("tdoa_matrix_s")
-        result["per_mic_delay_s"] = moved_detection.per_mic_delay_s
     if backend_id == "analytic_acoustics" and moved_detection is not None:
         result["analytic_solver"] = moved_detection.diagnostics.get(
             "analytic_solver"
@@ -508,98 +466,7 @@ def _summarize_backend(
             "moved_occluded": moved_detection.occluded,
             "moved_factor": moved_occlusion.get("occlusion_factor"),
         }
-    if backend_id == "room_acoustics" and moved_detection is not None:
-        environment_keys = (
-            "environment_config",
-            "pyroomacoustics_version",
-            "estimated_tdoa_matrix_s",
-            "gcc_phat_peaks",
-            "direct_path_delay_s",
-            "per_mic_rms",
-            "rir_length_samples",
-            "rir_peak_delay_s",
-            "waveform_sample_count",
-        )
-        result["environment_diagnostics_present"] = all(
-            key in moved_detection.diagnostics for key in environment_keys
-        )
-        result["environment_frame_diagnostics_present"] = bool(
-            moved.diagnostics.get("physical_waveform")
-            and moved.diagnostics.get("environment_config")
-            and moved.diagnostics.get("per_source_rir_summary")
-        )
-        result["environment_config"] = moved.diagnostics.get("environment_config")
-        result["pyroomacoustics_version"] = moved.diagnostics.get(
-            "pyroomacoustics_version"
-        )
-        result["rir_length_samples"] = moved_detection.diagnostics.get(
-            "rir_length_samples"
-        )
-        result["rir_peak_delay_s"] = moved_detection.diagnostics.get("rir_peak_delay_s")
-        result["waveform_sample_count"] = moved_detection.diagnostics.get(
-            "waveform_sample_count"
-        )
-    if backend_id == "room_acoustics":
-        result["waveform_roundtrip"] = _waveform_roundtrip_evidence(frames)
     return result
-
-
-def _waveform_roundtrip_evidence(
-    frames: dict[str, AudioSensorFrame],
-) -> dict[str, Any]:
-    """Prove each room frame wrote a WAV that round-trips through soundfile."""
-
-    try:
-        import numpy as np
-        import soundfile as sf  # type: ignore
-    except ImportError as exc:
-        raise RuntimeError(
-            "room_acoustics live smoke requires soundfile for waveform "
-            "round-trip evidence; install the 'room' extra in the Isaac "
-            "Python environment."
-        ) from exc
-    evidence: dict[str, Any] = {}
-    for phase, frame in frames.items():
-        if not frame.waveform_paths:
-            raise RuntimeError(
-                f"room_acoustics frame for phase {phase!r} has empty waveform_paths."
-            )
-        path = Path(frame.waveform_paths[0])
-        if not path.is_file():
-            raise RuntimeError(
-                f"room_acoustics waveform file {str(path)!r} is missing for "
-                f"phase {phase!r}."
-            )
-        data, rate = sf.read(path, always_2d=True)
-        mic_count = len(frame.aggregate_per_mic_rms)
-        window_sample_count = int(frame.diagnostics.get("window_sample_count", 0))
-        if int(rate) != int(frame.sample_rate_hz or 0):
-            raise RuntimeError(
-                f"waveform sample rate {rate} does not match frame rate "
-                f"{frame.sample_rate_hz} for phase {phase!r}."
-            )
-        if data.shape[1] != mic_count:
-            raise RuntimeError(
-                f"waveform channel count {data.shape[1]} does not match "
-                f"{mic_count} microphones for phase {phase!r}."
-            )
-        if data.shape[0] < window_sample_count:
-            raise RuntimeError(
-                f"waveform sample count {data.shape[0]} is shorter than the "
-                f"window ({window_sample_count}) for phase {phase!r}."
-            )
-        if not np.all(np.isfinite(data)):
-            raise RuntimeError(
-                f"waveform for phase {phase!r} contains non-finite samples."
-            )
-        evidence[phase] = {
-            "path": str(path),
-            "sample_rate_hz": int(rate),
-            "channels": int(data.shape[1]),
-            "sample_count": int(data.shape[0]),
-            "window_sample_count": window_sample_count,
-        }
-    return evidence
 
 
 def _validate_backend_result(result: dict[str, Any]) -> None:
@@ -645,8 +512,6 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
             f"{backend_id} did not record required debug primitive labels: "
             f"{missing_label_prefixes}."
         )
-    if backend_id == "tdoa_synthetic" and not result.get("tdoa_diagnostics_present"):
-        raise RuntimeError("tdoa_synthetic did not expose TDOA diagnostics.")
     if backend_id == "analytic_acoustics" and result.get("analytic_solver") != {
         "solver_id": "free_field_direct",
         "provider": "core",
@@ -667,15 +532,6 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         raise RuntimeError(
             "analytic_acoustics did not prove the live blocked-to-clear "
             "occlusion transition."
-        )
-    if backend_id == "room_acoustics" and not (
-        result.get("environment_diagnostics_present")
-        and result.get("environment_frame_diagnostics_present")
-    ):
-        raise RuntimeError("room_acoustics did not expose environment/RIR diagnostics.")
-    if backend_id == "room_acoustics" and not result.get("waveform_roundtrip"):
-        raise RuntimeError(
-            "room_acoustics did not produce waveform round-trip evidence."
         )
 
 
@@ -1231,7 +1087,7 @@ def _write_config(
             ),
             "absorption": environment_spec.surfaces[0].absorption,
         },
-        "room_acoustics": {
+        "analytic_acoustics": {
             "max_order": 0,
             "air_absorption": False,
             "ray_tracing": False,
@@ -1272,11 +1128,6 @@ def _smallest_next_fix(exc: BaseException, evidence: dict[str, Any]) -> str:
         return (
             "Point ISAAC_SIM_COMMAND at an Isaac Sim Python that can import "
             "isaacsim.SimulationApp."
-        )
-    if evidence.get("room_acoustics_available") and "room_acoustics" in message:
-        return (
-            "Inspect the installed pyroomacoustics runtime and room diagnostics; "
-            "Task 6 requires L2 only when the optional dependency is present."
         )
     return "Inspect the recorded traceback and rerun the exact live target."
 

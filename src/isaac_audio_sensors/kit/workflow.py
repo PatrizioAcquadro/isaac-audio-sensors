@@ -94,6 +94,7 @@ class SafePreset:
                 "update_period_s": values["update_period_s"],
                 "max_events": values["max_events"],
                 "ambiguity_policy": values["ambiguity_policy"],
+                "doa_estimator": values["doa_estimator"],
             },
         }
 
@@ -106,10 +107,10 @@ SAFE_PRESETS = (
         label="XVF3800 quad demo",
         summary=(
             "48 kHz quad_front array with the first deterministic demo source "
-            "and tdoa_synthetic backend."
+            "and the analytic_acoustics backend."
         ),
         values={
-            "backend": "tdoa_synthetic",
+            "backend": "analytic_acoustics",
             "array_prim_path": "/World/Rig/AudioArray",
             "array_id": "rig_front",
             "layout_name": "quad_front",
@@ -130,17 +131,21 @@ SAFE_PRESETS = (
             "update_period_s": 0.05,
             "max_events": 8,
             "ambiguity_policy": "none",
+            "doa_estimator": "tdoa_least_squares",
         },
     ),
     SafePreset(
         preset_id="minimal_single_source",
         label="Minimal single source",
-        summary="One mono array and one generated impulse source using geometry_only.",
+        summary=(
+            "One two-microphone array and one generated impulse source using "
+            "analytic_acoustics."
+        ),
         values={
-            "backend": "geometry_only",
+            "backend": "analytic_acoustics",
             "array_prim_path": "/World/AudioArray",
             "array_id": "minimal_array",
-            "layout_name": "mono",
+            "layout_name": "two_mic_y",
             "sample_rate_hz": 48000,
             "coordinate_convention": _CONVENTION,
             "array_position_world": (0.0, 0.0, 0.0),
@@ -157,7 +162,8 @@ SAFE_PRESETS = (
             "source_directivity": "omni",
             "update_period_s": 0.05,
             "max_events": 8,
-            "ambiguity_policy": "none",
+            "ambiguity_policy": "front_hemisphere",
+            "doa_estimator": "tdoa_least_squares",
         },
     ),
 )

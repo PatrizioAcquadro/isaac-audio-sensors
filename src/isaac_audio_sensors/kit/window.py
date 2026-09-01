@@ -478,7 +478,7 @@ class OmniReferenceWindow:
             self._set_label(
                 "waveform",
                 "No waveform yet. Enable WAV Export and use the "
-                "room_acoustics backend.",
+                "analytic_acoustics backend.",
             )
             return
         latest = paths[-1]

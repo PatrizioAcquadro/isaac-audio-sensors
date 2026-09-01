@@ -322,7 +322,7 @@ def main() -> int:
         extension.on_startup(startup_ext_id)
         controller = extension.controller
         controller.ext_id = startup_ext_id
-        controller.state.backend = "tdoa_synthetic"
+        controller.state.backend = "analytic_acoustics"
         controller.state.jsonl_trace_path = str(frame_trace_path)
         controller.state.latest_frame_export_path = str(latest_frame_path)
         controller.state.config_export_path = str(config_path)
@@ -539,7 +539,7 @@ def _run_object_attach_scenario(
     _update_kit_once(evidence)
 
     controller.close_sensor()
-    controller.state.backend = "tdoa_synthetic"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.trace_enabled = True
     controller.state.jsonl_trace_path = str(artifacts["frame_trace_path"])
@@ -1296,7 +1296,11 @@ def _probe_dependency_origins(extension_path: Path) -> dict[str, Any]:
     report = discover_capabilities()
     record["capabilities"] = {
         name: report.get(name).origin
-        for name in ("L2", "room_acoustics", "waveform_export_flac")
+        for name in (
+            "L2",
+            "analytic_acoustics_closed_rooms",
+            "waveform_export_flac",
+        )
     }
     if not packaged:
         record["status"] = "passed"
@@ -2563,9 +2567,9 @@ def _collect_audio_output_evidence(
     stage: Any,
     flac_destination: Path,
 ) -> dict[str, Any]:
-    """Exercise room audio, panel preview, and FLAC replay."""
+    """Exercise analytic closed-room audio, panel preview, and FLAC replay."""
 
-    record: dict[str, Any] = {"requested_backend": "room_acoustics"}
+    record: dict[str, Any] = {"requested_backend": "analytic_acoustics"}
     try:
         import pyroomacoustics  # type: ignore # noqa: F401
         import soundfile  # type: ignore # noqa: F401
@@ -2584,7 +2588,7 @@ def _collect_audio_output_evidence(
                 controller.detach_source_from_object(stage=stage)
             controller.state.source_attached_to_object = False
             controller.state.attached_object_prim_path = ""
-        controller.state.backend = "room_acoustics"
+        controller.state.backend = "analytic_acoustics"
         controller.state.environment_resolution_mode = "anchor"
         controller.state.environment_anchor_prim_path = "/World/IasAcousticEnvironment"
         controller.state.replicator_enabled = False
@@ -2593,20 +2597,22 @@ def _collect_audio_output_evidence(
         controller.state.waveform_mode = "per_frame"
         if controller.configure_sensor(stage=stage) is None:
             raise RuntimeError(
-                controller.state.error_message or "room sensor configure failed"
+                controller.state.error_message or "analytic sensor configure failed"
             )
         if controller.start_sensor(stage=stage) is None:
             raise RuntimeError(
-                controller.state.error_message or "room sensor start failed"
+                controller.state.error_message or "analytic sensor start failed"
             )
         if controller.update_sensor(force=True) is None:
             raise RuntimeError(
-                controller.state.error_message or "room sensor update failed"
+                controller.state.error_message or "analytic sensor update failed"
             )
         paths = controller.state.latest_waveform_paths
         record["waveform_paths"] = list(paths)
         if not paths:
-            raise RuntimeError("room_acoustics update produced no waveform_paths")
+            raise RuntimeError(
+                "analytic_acoustics update produced no waveform_paths"
+            )
         from isaac_audio_sensors.core.io.wave_read import read_wav
 
         data = read_wav(paths[-1])

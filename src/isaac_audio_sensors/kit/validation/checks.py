@@ -14,6 +14,7 @@ from collections.abc import Iterable
 from typing import Protocol
 
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
+from isaac_audio_sensors.core.constants import DOA_ESTIMATOR_IDS
 from isaac_audio_sensors.core.directivity import (
     DirectivityPattern,
     resolve_directivity_pattern,
@@ -39,11 +40,12 @@ class ValidationState(Protocol):
 
     backend: str
     ambiguity_policy: str
+    doa_estimator: str
     update_period_s: float
     max_events: int
-    room_acoustics_max_order: int
-    room_acoustics_air_absorption: bool
-    room_acoustics_ray_tracing: bool
+    analytic_max_order: int
+    analytic_air_absorption: bool
+    analytic_ray_tracing: bool
     array_prim_path: str
     robot_base_prim_path: str
     audio_asset_path: str
@@ -130,6 +132,12 @@ def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]
             f"Ambiguity policy {state.ambiguity_policy!r} is not supported.",
             "ambiguity_policy",
         )
+    if state.doa_estimator not in DOA_ESTIMATOR_IDS:
+        return _error(
+            "doa_estimator_supported",
+            f"DOA estimator {state.doa_estimator!r} is not supported.",
+            "doa_estimator",
+        )
     if state.update_period_s <= 0.0 or not math.isfinite(state.update_period_s):
         return _error(
             "update_period_positive_finite",
@@ -150,26 +158,26 @@ def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]
     if environment_findings:
         return environment_findings
     if (
-        isinstance(state.room_acoustics_max_order, bool)
-        or not isinstance(state.room_acoustics_max_order, int)
-        or state.room_acoustics_max_order < 0
+        isinstance(state.analytic_max_order, bool)
+        or not isinstance(state.analytic_max_order, int)
+        or state.analytic_max_order < 0
     ):
         return _error(
-            "room_acoustics_max_order_non_negative",
-            "room_acoustics_max_order must be a non-negative integer.",
-            "room_acoustics_max_order",
+            "analytic_max_order_non_negative",
+            "analytic_max_order must be a non-negative integer.",
+            "analytic_max_order",
         )
-    if not isinstance(state.room_acoustics_air_absorption, bool):
+    if not isinstance(state.analytic_air_absorption, bool):
         return _error(
-            "room_acoustics_air_absorption_boolean",
-            "room_acoustics_air_absorption must be a boolean.",
-            "room_acoustics_air_absorption",
+            "analytic_air_absorption_boolean",
+            "analytic_air_absorption must be a boolean.",
+            "analytic_air_absorption",
         )
-    if not isinstance(state.room_acoustics_ray_tracing, bool):
+    if not isinstance(state.analytic_ray_tracing, bool):
         return _error(
-            "room_acoustics_ray_tracing_boolean",
-            "room_acoustics_ray_tracing must be a boolean.",
-            "room_acoustics_ray_tracing",
+            "analytic_ray_tracing_boolean",
+            "analytic_ray_tracing must be a boolean.",
+            "analytic_ray_tracing",
         )
     if state.array_prim_path.strip():
         findings = check_abs_prim_path(state.array_prim_path, "array_prim_path")
@@ -602,11 +610,11 @@ def check_environment_resolution(
 
 
 def check_config_schema_version(value: object) -> tuple[ValidationFinding, ...]:
-    if value != "ias.omni_extension_binding.v3":
+    if value != "ias.omni_extension_binding.v4":
         return _error(
             "config_schema_version_supported",
-            "Config import requires schema_version 'ias.omni_extension_binding.v3'; "
-            "v2 has no compatibility path.",
+            "Config import requires schema_version 'ias.omni_extension_binding.v4'; "
+            "older bindings have no compatibility path.",
             "schema_version",
         )
     return ()

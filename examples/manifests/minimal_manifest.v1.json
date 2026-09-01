@@ -14,13 +14,13 @@
     "xvf3800_array"
   ],
   "creation": {
-    "backend_id": "room_acoustics",
+    "backend_id": "analytic_acoustics",
     "estimator_id": "tdoa_least_squares",
     "isaac_lab_version": "3.0.0",
     "isaac_sim_version": "6.0.1-rc.7",
     "kit_version": "108.0",
     "tool_name": "ias_fixture_generator",
-    "tool_version": "1.8.0"
+    "tool_version": "3.0.0"
   },
   "creation_timestamp_ms": 0,
   "dataset_id": "minimal_fixture",

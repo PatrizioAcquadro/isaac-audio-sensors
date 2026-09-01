@@ -273,7 +273,7 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.config_export_path = str(tmp_path / "binding.json")
 
@@ -346,8 +346,8 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     assert imported.state.applied_array_rig_profile["profile_id"] == ("stereo_y_100mm")
 
     legacy_payload = {
-        "schema_version": "ias.omni_extension_binding.v2",
-        "backend": "geometry_only",
+        "schema_version": "ias.omni_extension_binding.v3",
+        "backend": "analytic_acoustics",
         "array": {"prim_path": "/World/Rig/AudioArray", "array_id": "legacy_rig"},
         "source": {"prim_path": "/World/Sources/SpeakerA"},
     }
@@ -358,8 +358,8 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     )
     assert legacy.import_config_summary(legacy_path) is None
     assert legacy.state.error_message is not None
-    assert "ias.omni_extension_binding.v3" in legacy.state.error_message
-    assert "v2 has no compatibility path" in legacy.state.error_message
+    assert "ias.omni_extension_binding.v4" in legacy.state.error_message
+    assert "older bindings have no compatibility path" in legacy.state.error_message
     assert legacy.state.array_id == "rig_front"
 
 
@@ -378,7 +378,7 @@ def test_extension_controller_object_local_offset_and_config_roundtrip(tmp_path)
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.config_export_path = str(tmp_path / "binding.json")
     controller.state.source_local_offset_x_m = 0.0
@@ -445,7 +445,7 @@ def test_extension_controller_waveform_settings_flow_to_sensor_and_config(
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "tdoa_synthetic"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.waveform_enabled = True
     controller.state.waveform_dir = "wavs"

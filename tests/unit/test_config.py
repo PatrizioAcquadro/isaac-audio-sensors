@@ -214,16 +214,15 @@ def test_config_rejects_boolean_nominal_gain(entity: str) -> None:
 
 def test_tdoa_config_requires_two_microphones():
     raw = _raw_config()
-    raw["audio"]["default_backend"] = "tdoa_synthetic"
     raw["arrays"]["rig"]["microphones"] = raw["arrays"]["rig"]["microphones"][:1]
 
-    with pytest.raises(ValueError, match="requires at least two microphones"):
+    with pytest.raises(ValueError, match="requires at least 2 microphones"):
         validate_audio_config(raw)
 
 
 def test_two_microphone_tdoa_config_requires_explicit_ambiguity_policy():
     raw = _raw_config()
-    raw["audio"]["default_backend"] = "tdoa_synthetic"
+    raw["audio"].pop("tdoa_ambiguity_policy")
 
     with pytest.raises(ValueError, match="ambiguity policy"):
         validate_audio_config(raw)
@@ -301,26 +300,6 @@ def test_training_profile_rejects_waveform_export():
             "polygon_prism",
             6,
         ),
-        (
-            {
-                "environment_id": "surfaces",
-                "kind": "surface_set",
-                "surfaces": [
-                    {
-                        "surface_id": "floor",
-                        "role": "floor",
-                        "vertices_local_m": [
-                            [0.0, 0.0, 0.0],
-                            [2.0, 0.0, 0.0],
-                            [0.0, 2.0, 0.0],
-                        ],
-                        "absorption": 0.4,
-                    }
-                ],
-            },
-            "surface_set",
-            1,
-        ),
     ),
 )
 def test_config_parses_all_environment_topologies(
@@ -340,11 +319,9 @@ def test_config_parses_all_environment_topologies(
     assert scene.environment == config.environment
 
 
-def test_config_parses_room_acoustics_solver_settings() -> None:
+def test_config_parses_analytic_acoustics_solver_settings() -> None:
     raw = _raw_config()
-    raw["audio"]["default_backend"] = "room_acoustics"
-    raw["audio"]["tdoa_ambiguity_policy"] = "none"
-    raw["audio"]["room_acoustics"] = {
+    raw["audio"]["analytic_acoustics"] = {
         "max_order": 4,
         "air_absorption": True,
         "ray_tracing": True,
@@ -354,12 +331,17 @@ def test_config_parses_room_acoustics_solver_settings() -> None:
         "kind": "shoebox",
         "dimensions_m": [6.0, 5.0, 3.0],
     }
+    raw["environment"] = {
+        "environment_id": "box",
+        "kind": "shoebox",
+        "dimensions_m": [6.0, 5.0, 3.0],
+    }
 
     config = validate_audio_config(raw)
 
-    assert config.room_acoustics_max_order == 4
-    assert config.room_acoustics_air_absorption is True
-    assert config.room_acoustics_ray_tracing is True
+    assert config.analytic_max_order == 4
+    assert config.analytic_air_absorption is True
+    assert config.analytic_ray_tracing is True
 
 
 @pytest.mark.parametrize(
@@ -372,12 +354,12 @@ def test_config_parses_room_acoustics_solver_settings() -> None:
         ({"unknown": 1}, "unknown keys"),
     ),
 )
-def test_config_rejects_invalid_room_acoustics_solver_settings(
+def test_config_rejects_invalid_analytic_acoustics_solver_settings(
     settings,
     message,
 ) -> None:
     raw = _raw_config()
-    raw["audio"]["room_acoustics"] = settings
+    raw["audio"]["analytic_acoustics"] = settings
 
     with pytest.raises(ConfigValidationError, match=message):
         validate_audio_config(raw)
@@ -399,14 +381,31 @@ def test_config_rejects_removed_room_table_and_environment_legacy_keys() -> None
     with pytest.raises(ConfigValidationError, match="unknown keys.*out_of_bounds"):
         validate_audio_config(raw)
 
-
-def test_room_backend_rejects_reserved_r8_topology() -> None:
     raw = _raw_config()
-    raw["audio"]["default_backend"] = "room_acoustics"
-    raw["audio"]["tdoa_ambiguity_policy"] = "none"
-    raw["environment"] = {"environment_id": "free", "kind": "free_field"}
+    raw["audio"]["room_acoustics"] = {"max_order": 1}
+    with pytest.raises(ConfigValidationError, match="removed by R8.3"):
+        validate_audio_config(raw)
 
-    with pytest.raises(ConfigValidationError, match="kind='shoebox'.*R7.1"):
+
+def test_analytic_backend_rejects_surface_set_topology() -> None:
+    raw = _raw_config()
+    raw["environment"] = {
+        "environment_id": "surfaces",
+        "kind": "surface_set",
+        "surfaces": [
+            {
+                "surface_id": "floor",
+                "role": "floor",
+                "vertices_local_m": [
+                    [0.0, 0.0, 0.0],
+                    [2.0, 0.0, 0.0],
+                    [0.0, 2.0, 0.0],
+                ],
+            }
+        ],
+    }
+
+    with pytest.raises(ConfigValidationError, match="GeometryAcoustics"):
         validate_audio_config(raw)
 
 
@@ -458,7 +457,7 @@ def test_analytic_config_accepts_routed_topologies(
     raw["audio"].update(
         default_backend="analytic_acoustics",
         tdoa_ambiguity_policy="none",
-        room_acoustics={"max_order": max_order},
+        analytic_acoustics={"max_order": max_order},
     )
     raw["environment"] = environment
 
@@ -466,7 +465,7 @@ def test_analytic_config_accepts_routed_topologies(
 
     assert config.default_backend == "analytic_acoustics"
     assert config.environment.kind == solver
-    assert config.room_acoustics_max_order == max_order
+    assert config.analytic_max_order == max_order
 
 
 @pytest.mark.parametrize(
@@ -522,7 +521,7 @@ def test_analytic_config_rejects_unsupported_solver_combinations(
     raw["audio"].update(
         default_backend="analytic_acoustics",
         tdoa_ambiguity_policy="none",
-        room_acoustics=settings,
+        analytic_acoustics=settings,
     )
     raw["environment"] = environment
 
@@ -538,9 +537,10 @@ def test_toml_surface_set_and_nested_solver_table_round_trip(tmp_path) -> None:
 scene_id = "toml_surface_set"
 
 [audio]
-default_backend = "geometry_only"
+default_backend = "analytic_acoustics"
+tdoa_ambiguity_policy = "none"
 
-[audio.room_acoustics]
+[audio.analytic_acoustics]
 max_order = 2
 air_absorption = true
 ray_tracing = false
@@ -569,20 +569,18 @@ absorption = 0.3
         encoding="utf-8",
     )
 
-    config = load_audio_config(path)
-
-    assert config.environment is not None
-    assert config.environment.kind == "surface_set"
-    assert config.room_acoustics_max_order == 2
-    assert config.room_acoustics_air_absorption is True
-    assert config.room_acoustics_ray_tracing is False
+    with pytest.raises(ConfigValidationError, match="GeometryAcoustics"):
+        load_audio_config(path)
 
 
 def _raw_config() -> dict:
     return deepcopy(
         {
             "scene": {"scene_id": "fixture"},
-            "audio": {"default_backend": "geometry_only"},
+            "audio": {
+                "default_backend": "analytic_acoustics",
+                "tdoa_ambiguity_policy": "none",
+            },
             "environment": {
                 "environment_id": "fixture_free_field",
                 "kind": "free_field",

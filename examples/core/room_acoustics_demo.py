@@ -1,9 +1,9 @@
-"""Optional room-acoustics backend example."""
+"""Optional closed-room AnalyticAcoustics example."""
 
 from __future__ import annotations
 
 from isaac_audio_sensors.core.acoustics import shoebox_environment
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.types import (
@@ -18,7 +18,7 @@ array = create_microphone_array(
     layout_name="quad_front",
 )
 scene = AudioSceneSnapshot(
-    stage_id="room_acoustics_example",
+    stage_id="analytic_acoustics_example",
     timestamp_ms=0,
     sources=(
         AudioSourceSpec(
@@ -44,7 +44,7 @@ scene = AudioSceneSnapshot(
     ),
 )
 try:
-    frame = RoomAcousticsBackend(max_order=2).simulate(
+    frame = AnalyticAcoustics(max_order=2).simulate(
         scene,
         array.array_id,
         AudioTimeWindow(
@@ -55,7 +55,7 @@ try:
         ),
     )
 except OptionalDependencyUnavailable as exc:
-    print(f"room_acoustics skipped: {exc}")
+    print(f"analytic_acoustics closed-room solver skipped: {exc}")
 else:
     print(
         {

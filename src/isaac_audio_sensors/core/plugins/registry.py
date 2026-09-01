@@ -242,36 +242,10 @@ def _import_dependencies(dependencies: tuple[str, ...]) -> PluginAvailability:
     return PluginAvailability(not missing, tuple(missing))
 
 
-def _lazy_geometry_backend(**kwargs: object) -> object:
-    from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-
-    return GeometryBackend(**kwargs)
-
-
-def _lazy_tdoa_backend(**kwargs: object) -> object:
-    from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
-
-    return TdoaSyntheticBackend(**kwargs)
-
-
 def _lazy_analytic_backend(**kwargs: object) -> object:
     from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 
     return AnalyticAcoustics(**kwargs)
-
-
-def _lazy_room_backend(**kwargs: object) -> object:
-    from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
-
-    return RoomAcousticsBackend(**kwargs)
-
-
-def _lazy_room_srp_backend(**kwargs: object) -> object:
-    from isaac_audio_sensors.core.backends.room_acoustics import (
-        RoomAcousticsSrpBackend,
-    )
-
-    return RoomAcousticsSrpBackend(**kwargs)
 
 
 def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], ...]:
@@ -279,36 +253,6 @@ def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], .
     backend_contract = {"shape": "AudioSensorFrame", "dtype": "AudioSensorFrame"}
     doa_contract = {"shape": (), "dtype": "DoaEstimate"}
     return (
-        (
-            PluginDeclaration(
-                plugin_id="geometry_only",
-                kind="propagation_backend",
-                fidelity_level="L0",
-                required_dependencies=(),
-                supported_devices=("cpu",),
-                supported_profiles=both_profiles,
-                deterministic=True,
-                output_contract=backend_contract,
-                description="Deterministic geometry-only bearing baseline.",
-                provenance="isaac_audio_sensors.core.backends.geometry",
-            ),
-            _lazy_geometry_backend,
-        ),
-        (
-            PluginDeclaration(
-                plugin_id="tdoa_synthetic",
-                kind="propagation_backend",
-                fidelity_level="L1",
-                required_dependencies=(),
-                supported_devices=("cpu",),
-                supported_profiles=both_profiles,
-                deterministic=True,
-                output_contract=backend_contract,
-                description="Seeded deterministic synthetic direct-path TDOA.",
-                provenance="isaac_audio_sensors.core.backends.tdoa",
-            ),
-            _lazy_tdoa_backend,
-        ),
         (
             PluginDeclaration(
                 plugin_id="analytic_acoustics",
@@ -326,38 +270,6 @@ def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], .
                 provenance="isaac_audio_sensors.core.backends.analytic",
             ),
             _lazy_analytic_backend,
-        ),
-        (
-            PluginDeclaration(
-                plugin_id="room_acoustics",
-                kind="propagation_backend",
-                fidelity_level="L2",
-                required_dependencies=("pyroomacoustics",),
-                supported_devices=("cpu",),
-                supported_profiles=("waveform_fidelity",),
-                deterministic=True,
-                output_contract=backend_contract,
-                description=(
-                    "Seed-stable optional shoebox room acoustics with GCC-PHAT."
-                ),
-                provenance="isaac_audio_sensors.core.backends.room_acoustics",
-            ),
-            _lazy_room_backend,
-        ),
-        (
-            PluginDeclaration(
-                plugin_id="room_acoustics_srp",
-                kind="propagation_backend",
-                fidelity_level="L2",
-                required_dependencies=("pyroomacoustics",),
-                supported_devices=("cpu",),
-                supported_profiles=("waveform_fidelity",),
-                deterministic=True,
-                output_contract=backend_contract,
-                description="Seed-stable optional room acoustics with SRP-PHAT DOA.",
-                provenance="isaac_audio_sensors.core.backends.room_acoustics",
-            ),
-            _lazy_room_srp_backend,
         ),
         (
             PluginDeclaration(

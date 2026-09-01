@@ -38,26 +38,14 @@ def simulate_from_config(
         "effects": config.effects,
         "runtime_profile": config.runtime_profile,
     }
-    if selected_backend in {
-        "analytic_acoustics",
-        "tdoa_synthetic",
-        "room_acoustics",
-        "room_acoustics_srp",
-    }:
-        backend_kwargs.update(
-            speed_of_sound_mps=config.speed_of_sound_mps,
-            ambiguity_policy=config.tdoa_ambiguity_policy,
-        )
-    if selected_backend in {
-        "analytic_acoustics",
-        "room_acoustics",
-        "room_acoustics_srp",
-    }:
-        backend_kwargs.update(
-            max_order=config.room_acoustics_max_order,
-            air_absorption=config.room_acoustics_air_absorption,
-            ray_tracing=config.room_acoustics_ray_tracing,
-        )
+    backend_kwargs.update(
+        speed_of_sound_mps=config.speed_of_sound_mps,
+        ambiguity_policy=config.tdoa_ambiguity_policy,
+        doa_estimator=config.doa_estimator,
+        max_order=config.analytic_max_order,
+        air_absorption=config.analytic_air_absorption,
+        ray_tracing=config.analytic_ray_tracing,
+    )
     backend = get_backend(selected_backend, **backend_kwargs)
     return backend.simulate(scene, selected_array, time_window)
 

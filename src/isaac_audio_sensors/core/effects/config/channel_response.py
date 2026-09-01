@@ -114,16 +114,15 @@ def validate_channel_response(
                 )
     if response.enabled:
         for mic_id, mic_config in (microphones or {}).items():
-            if mic_config.frequency_response is not None and (
-                backend_id in {"geometry_only", "tdoa_synthetic"}
-                or runtime_profile != "waveform_fidelity"
+            if (
+                mic_config.frequency_response is not None
+                and runtime_profile != "waveform_fidelity"
             ):
                 raise UnsupportedEffectError(
                     "audio.effects.channel_response.microphones."
                     f"{mic_id}.frequency_response is waveform-only and unsupported "
                     f"by backend {backend_id!r} at profile {runtime_profile!r}; "
-                    "supported envelope is metadata gain/delay/polarity on L0/L1 "
-                    "or magnitude response on an L2/L3 waveform backend."
+                    "frequency response requires the waveform_fidelity profile."
                 )
 
 

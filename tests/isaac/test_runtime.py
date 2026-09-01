@@ -93,7 +93,7 @@ def test_reference_backend_resolves_selected_array_from_each_snapshot() -> None:
     snapshot = replace(_snapshot(selected, ()), arrays=(first, selected))
 
     reference = ReferenceBackend(
-        backend_id="geometry_only",
+        backend_id="analytic_acoustics",
         ambiguity_policy="none",
         effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         snapshots=(snapshot,),
@@ -113,7 +113,7 @@ def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:
 
     with pytest.raises(KeyError, match="AudioSceneSnapshot has no array 'missing'"):
         ReferenceBackend(
-            backend_id="geometry_only",
+            backend_id="analytic_acoustics",
             ambiguity_policy="none",
             effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
             snapshots=(_snapshot(array, ()),),

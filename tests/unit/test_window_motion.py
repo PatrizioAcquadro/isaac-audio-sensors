@@ -7,9 +7,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.effects import EffectsConfig, MotionEffectsConfig
 from isaac_audio_sensors.core.effects.validation import (
     UnsupportedEffectError,
@@ -102,7 +100,7 @@ def test_segments_greater_than_window_reject_before_backend_output():
             _motion_effects(8),
             microphone_orders=(("left", "right"),),
             sample_rate_hz=SAMPLE_RATE_HZ,
-            backend_id="room_acoustics",
+            backend_id="analytic_acoustics",
             runtime_profile="waveform_fidelity",
             sample_count=7,
         )
@@ -142,22 +140,15 @@ def test_circular_speed_dependent_error_obeys_frozen_bound():
     assert held <= 0.0751953135
 
 
-@pytest.mark.parametrize("backend", [GeometryBackend, TdoaSyntheticBackend])
-def test_l0_l1_explicitly_reject_multiple_segments_before_output(backend):
-    scene, array, window = motion_room_fixture()
-    with pytest.raises(UnsupportedEffectError, match="segments_per_window"):
-        backend(effects=_motion_effects(2)).simulate(scene, array.array_id, window)
-
-
 def test_segments_one_is_byte_identical_to_default_motion_config(monkeypatch):
     install_fake_pyroom(monkeypatch)
     scene, array, window = motion_room_fixture()
-    absent = RoomAcousticsBackend(
+    absent = AnalyticAcoustics(
         effects=EffectsConfig(
             motion=MotionEffectsConfig(derive_velocity_from_poses=True)
         )
     ).simulate(scene, array.array_id, window)
-    explicit = RoomAcousticsBackend(effects=_motion_effects(1)).simulate(
+    explicit = AnalyticAcoustics(effects=_motion_effects(1)).simulate(
         scene, array.array_id, window
     )
     absent_bytes = json.dumps(
@@ -178,7 +169,7 @@ def test_piecewise_room_assembles_exact_window_and_segment_diagnostics(monkeypat
         (20.0, 0.0, 0.0),
     )
     sink = CaptureSink()
-    frame = RoomAcousticsBackend(
+    frame = AnalyticAcoustics(
         effects=_motion_effects(MOTION_SEGMENTS),
         window_motion=plan,
         waveform_writer=sink,
@@ -206,7 +197,7 @@ def test_piecewise_room_occlusion_recombines_only_direct_stems(monkeypatch):
 
     def render(max_order, selected_scene):
         sink = CaptureSink()
-        RoomAcousticsBackend(
+        AnalyticAcoustics(
             max_order=max_order,
             effects=_motion_effects(MOTION_SEGMENTS),
             window_motion=plan,
@@ -268,7 +259,7 @@ def test_policy_absent_segments_hold_current_pose_and_use_exact_unity(monkeypatc
         window_sample_count=WINDOW_SAMPLE_COUNT,
         segments_per_window=MOTION_SEGMENTS,
     )
-    frame = RoomAcousticsBackend(
+    frame = AnalyticAcoustics(
         effects=_motion_effects(MOTION_SEGMENTS), window_motion=plan
     ).simulate(scene, array.array_id, window)
     for row in frame.diagnostics["motion"]["segments"]:

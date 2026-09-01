@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from isaac_audio_sensors.core.constants import DOA_ESTIMATOR_IDS
 from isaac_audio_sensors.core.directivity import (
     DirectivityPattern,
     resolve_directivity_pattern,
@@ -143,7 +144,7 @@ class ConfigurationService(ControllerService):
         )
         return _json_ready(
             {
-                "schema_version": "ias.omni_extension_binding.v3",
+                "schema_version": "ias.omni_extension_binding.v4",
                 "backend": state.backend,
                 "environment": {
                     "mode": state.environment_resolution_mode,
@@ -157,10 +158,10 @@ class ConfigurationService(ControllerService):
                     ),
                     "resolved": state.latest_environment_summary,
                 },
-                "room_acoustics": {
-                    "max_order": state.room_acoustics_max_order,
-                    "air_absorption": state.room_acoustics_air_absorption,
-                    "ray_tracing": state.room_acoustics_ray_tracing,
+                "analytic_acoustics": {
+                    "max_order": state.analytic_max_order,
+                    "air_absorption": state.analytic_air_absorption,
+                    "ray_tracing": state.analytic_ray_tracing,
                 },
                 "device": {
                     "device_id": state.device_id,
@@ -291,6 +292,7 @@ class ConfigurationService(ControllerService):
                     "update_period_s": state.update_period_s,
                     "max_events": state.max_events,
                     "ambiguity_policy": state.ambiguity_policy,
+                    "doa_estimator": state.doa_estimator,
                     "debug_overlay_enabled": state.debug_overlay_enabled,
                     "occlusion_enabled": state.occlusion_enabled,
                     "writer_enabled": state.trace_enabled,
@@ -352,7 +354,7 @@ class ConfigurationService(ControllerService):
         binding = dict(payload.get("stage_binding", {}))
         lifecycle = dict(payload.get("lifecycle", {}))
         environment = dict(payload.get("environment", {}))
-        room_acoustics = dict(payload.get("room_acoustics", {}))
+        analytic_acoustics = dict(payload.get("analytic_acoustics", {}))
         device = dict(payload.get("device", {}))
         calibration = dict(payload.get("calibration", {}))
         recording = dict(payload.get("recording", {}))
@@ -585,6 +587,9 @@ class ConfigurationService(ControllerService):
         self.state.ambiguity_policy = str(
             lifecycle.get("ambiguity_policy", self.state.ambiguity_policy)
         )
+        self.state.doa_estimator = str(
+            lifecycle.get("doa_estimator", self.state.doa_estimator)
+        )
         self.state.debug_overlay_enabled = bool(
             lifecycle.get(
                 "debug_overlay_enabled",
@@ -648,22 +653,22 @@ class ConfigurationService(ControllerService):
             if isinstance(environment_summary, Mapping)
             else None
         )
-        self.state.room_acoustics_max_order = int(
-            room_acoustics.get(
+        self.state.analytic_max_order = int(
+            analytic_acoustics.get(
                 "max_order",
-                self.state.room_acoustics_max_order,
+                self.state.analytic_max_order,
             )
         )
-        self.state.room_acoustics_air_absorption = bool(
-            room_acoustics.get(
+        self.state.analytic_air_absorption = bool(
+            analytic_acoustics.get(
                 "air_absorption",
-                self.state.room_acoustics_air_absorption,
+                self.state.analytic_air_absorption,
             )
         )
-        self.state.room_acoustics_ray_tracing = bool(
-            room_acoustics.get(
+        self.state.analytic_ray_tracing = bool(
+            analytic_acoustics.get(
                 "ray_tracing",
-                self.state.room_acoustics_ray_tracing,
+                self.state.analytic_ray_tracing,
             )
         )
         self.state.trace_enabled = bool(
@@ -777,8 +782,18 @@ class ConfigurationService(ControllerService):
         }.intersection(lifecycle)
         if legacy_keys:
             raise ValueError(
-                "R7.2 binding v3 rejects legacy room lifecycle keys: "
+                "R8.3 binding v4 rejects legacy room lifecycle keys: "
                 f"{sorted(legacy_keys)!r}."
+            )
+        if "room_acoustics" in payload:
+            raise ValueError(
+                "R8.3 binding v4 removed room_acoustics; use analytic_acoustics."
+            )
+        doa_estimator = lifecycle.get("doa_estimator")
+        if doa_estimator not in DOA_ESTIMATOR_IDS:
+            raise ValueError(
+                "lifecycle.doa_estimator must be one of "
+                f"{sorted(DOA_ESTIMATOR_IDS)}."
             )
         environment = payload.get("environment")
         if not isinstance(environment, Mapping):
@@ -825,30 +840,36 @@ class ConfigurationService(ControllerService):
         resolved = environment.get("resolved")
         if resolved is not None and not isinstance(resolved, Mapping):
             raise ValueError("environment.resolved must be null or a JSON object.")
-        room_acoustics = payload.get("room_acoustics", {})
-        if not isinstance(room_acoustics, Mapping):
-            raise ValueError("room_acoustics must be a JSON object.")
-        unknown_solver_keys = set(room_acoustics) - {
+        analytic_acoustics = payload.get("analytic_acoustics")
+        if not isinstance(analytic_acoustics, Mapping):
+            raise ValueError("analytic_acoustics must be a JSON object.")
+        unknown_solver_keys = set(analytic_acoustics) - {
             "max_order",
             "air_absorption",
             "ray_tracing",
         }
         if unknown_solver_keys:
             raise ValueError(
-                f"room_acoustics contains unknown keys {sorted(unknown_solver_keys)!r}."
+                "analytic_acoustics contains unknown keys "
+                f"{sorted(unknown_solver_keys)!r}."
             )
-        max_order = room_acoustics.get(
+        max_order = analytic_acoustics.get(
             "max_order",
-            self.state.room_acoustics_max_order,
+            self.state.analytic_max_order,
         )
         if type(max_order) is not int or max_order < 0:
-            raise ValueError("room_acoustics.max_order must be non-negative integer.")
+            raise ValueError(
+                "analytic_acoustics.max_order must be non-negative integer."
+            )
         for field_name in ("air_absorption", "ray_tracing"):
-            value = room_acoustics.get(
-                field_name, getattr(self.state, f"room_acoustics_{field_name}")
+            value = analytic_acoustics.get(
+                field_name,
+                getattr(self.state, f"analytic_{field_name}"),
             )
             if type(value) is not bool:
-                raise ValueError(f"room_acoustics.{field_name} must be a boolean.")
+                raise ValueError(
+                    f"analytic_acoustics.{field_name} must be a boolean."
+                )
         source = payload.get("source", {})
         if not isinstance(source, Mapping):
             raise ValueError("source must be a JSON object.")

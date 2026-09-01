@@ -8,15 +8,11 @@ import pytest
 
 from isaac_audio_sensors.core.acoustics import (
     environment_to_world_point,
-    free_field_environment,
-    half_space_environment,
-    polygon_prism_environment,
     shoebox_environment,
     shoebox_environment_from_bounds,
-    surface_set_environment,
     world_to_environment_point,
 )
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.math_utils import quaternion_from_euler_deg
 from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
@@ -24,7 +20,6 @@ from isaac_audio_sensors.core.microphone_array import (
 )
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
-    AcousticSurfaceSpec,
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
@@ -100,7 +95,7 @@ def test_world_aligned_environment_preserves_stage_distances(monkeypatch) -> Non
     environment = _environment()
     array = _array()
 
-    frame = RoomAcousticsBackend(max_order=1).simulate(
+    frame = AnalyticAcoustics(max_order=1).simulate(
         _scene(environment, array=array),
         array.array_id,
         _window(),
@@ -157,7 +152,7 @@ def test_rotated_and_inclined_shoebox_uses_environment_local_coordinates(
     )
     source = _source(environment_to_world_point(environment, source_local))
 
-    frame = RoomAcousticsBackend().simulate(
+    frame = AnalyticAcoustics().simulate(
         _scene(environment, source=source, array=array),
         array.array_id,
         _window(),
@@ -192,7 +187,7 @@ def test_out_of_bounds_positions_always_error(
     install_fake_pyroom(monkeypatch)
 
     with pytest.raises(ValueError) as excinfo:
-        RoomAcousticsBackend().simulate(scene, "rig", _window())
+        AnalyticAcoustics().simulate(scene, "rig", _window())
 
     message = str(excinfo.value)
     assert offending_id in message
@@ -200,48 +195,8 @@ def test_out_of_bounds_positions_always_error(
     assert "bounded_environment" in message
 
 
-@pytest.mark.parametrize(
-    "environment",
-    (
-        free_field_environment(environment_id="free"),
-        half_space_environment(environment_id="half"),
-        polygon_prism_environment(
-            environment_id="prism",
-            floor_vertices_local_m=(
-                (0.0, 0.0, 0.0),
-                (3.0, 0.0, 0.0),
-                (0.0, 3.0, 0.0),
-            ),
-            height_m=2.5,
-        ),
-        surface_set_environment(
-            environment_id="surfaces",
-            surfaces=(
-                AcousticSurfaceSpec(
-                    surface_id="floor",
-                    role="floor",
-                    vertices_local_m=(
-                        (0.0, 0.0, 0.0),
-                        (3.0, 0.0, 0.0),
-                        (0.0, 3.0, 0.0),
-                    ),
-                ),
-            ),
-        ),
-    ),
-)
-def test_room_backend_reserves_non_shoebox_topologies_for_r8(
-    monkeypatch,
-    environment,
-) -> None:
-    install_fake_pyroom(monkeypatch)
-
-    with pytest.raises(ValueError, match="requires environment.kind='shoebox'.*R8"):
-        RoomAcousticsBackend().simulate(_scene(environment), "rig", _window())
-
-
 def test_room_backend_requires_environment(monkeypatch) -> None:
     install_fake_pyroom(monkeypatch)
 
     with pytest.raises(ValueError, match="AudioSceneSnapshot.environment"):
-        RoomAcousticsBackend().simulate(_scene(None), "rig", _window())
+        AnalyticAcoustics().simulate(_scene(None), "rig", _window())

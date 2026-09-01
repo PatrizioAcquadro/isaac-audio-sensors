@@ -7,9 +7,7 @@ import numpy as np
 import pytest
 
 import isaac_audio_sensors.core.effects.electronics as electronics_module
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.config import validate_audio_config
 from isaac_audio_sensors.core.effects import (
     AgcConfig,
@@ -20,7 +18,6 @@ from isaac_audio_sensors.core.effects import (
     NoiseConfig,
     NoiseLevelSpecConfig,
     SelfNoiseConfig,
-    UnsupportedEffectError,
 )
 from isaac_audio_sensors.core.effects.electronics import (
     apply_agc,
@@ -31,7 +28,6 @@ from isaac_audio_sensors.core.effects.parsing import parse_effects_config
 from isaac_audio_sensors.core.effects.streams import named_stream_descriptor
 from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
-from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from tests.helpers import (
     MOTION_SEGMENTS,
     SAMPLE_RATE_HZ,
@@ -87,7 +83,7 @@ def _apply(
         mic_ids=MIC_IDS[: samples.shape[0]],
         sample_rate_hz=SAMPLE_RATE_HZ,
         frame_id=frame_id,
-        backend_id="room_acoustics",
+        backend_id="analytic_acoustics",
     )
 
 
@@ -96,7 +92,7 @@ def _validate(config: EffectsConfig) -> None:
         config,
         microphone_orders=(MIC_IDS,),
         sample_rate_hz=SAMPLE_RATE_HZ,
-        backend_id="room_acoustics",
+        backend_id="analytic_acoustics",
         runtime_profile="waveform_fidelity",
         sample_count=16,
     )
@@ -106,7 +102,7 @@ def _base_raw() -> dict[str, object]:
     return {
         "scene": {"scene_id": "electronics_config"},
         "audio": {
-            "default_backend": "room_acoustics",
+            "default_backend": "analytic_acoustics",
             "runtime_profile": "waveform_fidelity",
             "sample_rate_hz": SAMPLE_RATE_HZ,
             "effects": {
@@ -537,18 +533,6 @@ def test_empty_dc_nonfinite_and_enabled_agc_empty_edge_rules(monkeypatch):
     assert original.tobytes() == before
 
 
-@pytest.mark.parametrize("backend", [GeometryBackend, TdoaSyntheticBackend])
-def test_enabled_electronics_is_typed_unsupported_on_l0_l1(backend):
-    array = create_microphone_array(
-        array_id="rig",
-        prim_path="/World/Rig/AudioArray",
-        layout_name="quad_front",
-    )
-    scene = room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array)
-    with pytest.raises(UnsupportedEffectError, match="electronics"):
-        backend(effects=_effects()).simulate(scene, array.array_id, time_window())
-
-
 def _primary_premix(_room, *, source_count: int, mic_count: int):
     n = np.arange(48_000, dtype=np.float64)
     frequencies = (997.0, 1_499.0, 2_203.0, 3_301.0)
@@ -595,7 +579,7 @@ def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch
             array=array,
         )
         sink = CaptureSink()
-        frame = RoomAcousticsBackend(
+        frame = AnalyticAcoustics(
             waveform_writer=sink,
             effects=_effects(dither=True, agc=_agc()),
         ).simulate(scene, array.array_id, time_window())
@@ -610,7 +594,7 @@ def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch
 
     replay_sinks = (CaptureSink(), CaptureSink())
     replay_frames = tuple(
-        RoomAcousticsBackend(
+        AnalyticAcoustics(
             waveform_writer=sink,
             effects=_effects(dither=True, agc=_agc()),
         ).simulate(
@@ -647,7 +631,7 @@ def test_segmented_room_noise_and_electronics_compose_once(monkeypatch):
             segments_per_window=MOTION_SEGMENTS,
         ),
     )
-    frame = RoomAcousticsBackend(effects=effects, window_motion=plan).simulate(
+    frame = AnalyticAcoustics(effects=effects, window_motion=plan).simulate(
         scene, array.array_id, window
     )
     assert frame.diagnostics["motion"]["segments_per_window"] == MOTION_SEGMENTS
@@ -669,7 +653,7 @@ def test_off_state_identity_backend_has_no_effects_key(monkeypatch):
     install_fake_pyroom(monkeypatch)
     array = quad_array()
     sink = CaptureSink()
-    frame = RoomAcousticsBackend(waveform_writer=sink).simulate(
+    frame = AnalyticAcoustics(waveform_writer=sink).simulate(
         room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
         array.array_id,
         time_window(),

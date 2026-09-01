@@ -96,7 +96,7 @@ def test_extension_controller_manual_profile_apply_authors_source_metadata():
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.source_prim_path = "/World/Sources/SinkSpeaker"
     controller.state.source_position_x_m = 1.5
@@ -194,7 +194,7 @@ def test_extension_controller_profile_apply_preserves_attachment_and_frame_metad
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
@@ -267,7 +267,7 @@ def test_extension_controller_source_position_read_apply_presets_and_drag_update
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
@@ -304,7 +304,7 @@ def test_extension_controller_source_position_read_apply_presets_and_drag_update
     assert right_frame is not None
     right_detection = right_frame.detections[0]
     assert right_detection.source_pose.position_m == (0.0, 2.0, 0.0)
-    assert abs(right_detection.doa.estimated_bearing_deg - 90.0) <= 1e-6
+    assert right_detection.doa.estimated_bearing_deg == pytest.approx(90.0, abs=0.5)
     assert right_detection.doa.bearing_sector == "right"
 
     source.attributes["xformOp:translate"] = (0.0, -2.0, 0.0)
@@ -336,7 +336,7 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
@@ -374,7 +374,7 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
     assert first_detection.source_pose.position_m == (2.0, 0.0, 0.0)
     assert first_detection.doa.bearing_sector == "straight"
     assert moved_detection.source_pose.position_m == (0.0, 2.0, 0.0)
-    assert moved_detection.doa.estimated_bearing_deg == 90.0
+    assert moved_detection.doa.estimated_bearing_deg == pytest.approx(90.0, abs=0.5)
     assert moved_detection.doa.bearing_sector == "right"
     assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
     assert controller.state.latest_source_prim_path == "/World/Oven/SpeakerA"
@@ -421,7 +421,7 @@ def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
@@ -449,7 +449,9 @@ def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
     rotated_frame = controller.update_sensor()
     assert rotated_frame is not None
     rotated_detection = rotated_frame.detections[0]
-    assert rotated_detection.doa.estimated_bearing_deg == pytest.approx(270.0)
+    assert rotated_detection.doa.estimated_bearing_deg == pytest.approx(
+        270.0, abs=0.5
+    )
     assert rotated_detection.doa.bearing_sector == "left"
     assert rotated_frame.aggregate_per_mic_rms != front_frame.aggregate_per_mic_rms
     assert rotated_frame.array_pose is not None
@@ -517,7 +519,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
@@ -648,7 +650,7 @@ def test_extension_controller_missing_attached_object_is_readable(tmp_path):
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.config_export_path = str(tmp_path / "binding.json")
 

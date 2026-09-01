@@ -89,15 +89,10 @@ def validate_effects_config(
                 "audio.effects.motion.segments_per_window>1 requires "
                 "derive_velocity_from_poses=true."
             )
-        if backend_id not in {
-            "analytic_acoustics",
-            "room_acoustics",
-            "room_acoustics_srp",
-        }:
+        if backend_id != "analytic_acoustics":
             raise UnsupportedEffectError(
                 "audio.effects.motion.segments_per_window>1 is unsupported by "
-                f"backend {backend_id!r}; use analytic_acoustics, "
-                "room_acoustics, or room_acoustics_srp."
+                f"backend {backend_id!r}; use analytic_acoustics."
             )
         if runtime_profile != "waveform_fidelity":
             raise UnsupportedEffectError(

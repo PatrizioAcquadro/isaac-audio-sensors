@@ -6,11 +6,15 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
-from isaac_audio_sensors.core.constants import TDOA_AMBIGUITY_POLICIES
+from isaac_audio_sensors.core.constants import (
+    DOA_ESTIMATOR_IDS,
+    TDOA_AMBIGUITY_POLICIES,
+)
 from isaac_audio_sensors.core.directivity import DirectivityPattern
 
 BACKEND_CHOICES = registered_backend_ids()
 AMBIGUITY_POLICY_CHOICES = tuple(sorted(TDOA_AMBIGUITY_POLICIES))
+DOA_ESTIMATOR_CHOICES = tuple(sorted(DOA_ESTIMATOR_IDS))
 DIRECTIVITY_CHOICES = tuple(pattern.value for pattern in DirectivityPattern)
 LAYOUT_CHOICES = (
     "quad_front",

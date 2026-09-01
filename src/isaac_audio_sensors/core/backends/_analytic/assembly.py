@@ -1,18 +1,18 @@
-"""Diagnostics, waveform export, and frame assembly for room acoustics."""
+"""Diagnostics, waveform export, and analytic frame assembly."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
+from isaac_audio_sensors.core.backends._analytic.diagnostics import (
     _environment_material_resolution,
     _environment_state_hash,
     _occluder_material_evidence,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.preparation import (
+from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.rendering import RenderedRoom
+from isaac_audio_sensors.core.backends._analytic.rendering import RenderedRoom
 from isaac_audio_sensors.core.doa.gcc_phat import rms_by_channel
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
 from isaac_audio_sensors.core.motion import (
@@ -54,7 +54,7 @@ def assemble_frame(
         "physical_waveform": True,
         "environment_id": environment.environment_id,
         "environment_config": prepared.environment_config,
-        "room_acoustics_options": {
+        "analytic_acoustics_options": {
             "max_order": prepared.max_order,
             "air_absorption": prepared.air_absorption,
             "ray_tracing": prepared.ray_tracing,

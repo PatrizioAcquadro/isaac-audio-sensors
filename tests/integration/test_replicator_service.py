@@ -25,7 +25,7 @@ def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "tdoa_synthetic"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.update_period_s = 10.0
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
@@ -66,7 +66,7 @@ def test_extension_controller_replicator_lifecycle_and_payload(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.ext_id = "test.ext"
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
     controller.state.replicator_enabled = True
@@ -96,7 +96,7 @@ def test_extension_controller_replicator_lifecycle_and_payload(
     assert payload["replicator"]["annotator_name"] == (
         controller.state.replicator_annotator_name
     )
-    assert payload["summary"]["backend_id"] == "geometry_only"
+    assert payload["summary"]["backend_id"] == "analytic_acoustics"
     assert payload["summary"]["detection_count"] == 1
     assert payload["metadata"]["extension_id"] == "test.ext"
     assert (tmp_path / "replicator" / "audio_sensor_frames.jsonl").exists()
@@ -115,7 +115,7 @@ def test_extension_controller_writer_and_replicator_paths_use_output_root_env(
     controller = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    controller.state.backend = "geometry_only"
+    controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = "manual/frames.jsonl"
     controller.state.replicator_output_dir = "manual/replicator"

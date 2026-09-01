@@ -8,7 +8,10 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from isaac_audio_sensors.core.backends.base import get_backend
-from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
+from isaac_audio_sensors.core.constants import (
+    DEFAULT_SPEED_OF_SOUND_MPS,
+    DOA_ESTIMATOR_IDS,
+)
 from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.effects.validation import (
     UnsupportedEffectError,
@@ -70,14 +73,14 @@ class IsaacAudioArraySensor:
     array_id: str
     stage: Any
     environment: AcousticEnvironmentSpec
-    backend: str = "tdoa_synthetic"
+    backend: str = "analytic_acoustics"
     effects: EffectsConfig = field(default_factory=EffectsConfig)
     environment_resolution_cfg: IsaacEnvironmentResolutionCfg = field(
         default_factory=lambda: IsaacEnvironmentResolutionCfg(mode="manual")
     )
-    room_acoustics_max_order: int = 0
-    room_acoustics_air_absorption: bool = False
-    room_acoustics_ray_tracing: bool = False
+    analytic_max_order: int = 0
+    analytic_air_absorption: bool = False
+    analytic_ray_tracing: bool = False
     array_prim_path: str | None = None
     source_prim_path: str | None = None
     robot_base_prim_path: str | None = None
@@ -88,6 +91,7 @@ class IsaacAudioArraySensor:
     max_events: int | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     ambiguity_policy: str = "none"
+    doa_estimator: str = "tdoa_least_squares"
     waveform_sink: WaveformSink | None = None
     debug_draw_enabled: bool = False
     debug_drawer: IsaacDebugDrawer | None = None
@@ -138,16 +142,25 @@ class IsaacAudioArraySensor:
             raise ValueError(
                 "environment_resolution_cfg must be an IsaacEnvironmentResolutionCfg."
             )
+        if self.backend != "analytic_acoustics":
+            raise ConfigValidationError(
+                "IsaacAudioArraySensor.backend must be 'analytic_acoustics'; "
+                f"received {self.backend!r}."
+            )
+        if self.doa_estimator not in DOA_ESTIMATOR_IDS:
+            raise ConfigValidationError(
+                f"doa_estimator must be one of {sorted(DOA_ESTIMATOR_IDS)}."
+            )
         if (
-            isinstance(self.room_acoustics_max_order, bool)
-            or not isinstance(self.room_acoustics_max_order, int)
-            or self.room_acoustics_max_order < 0
+            isinstance(self.analytic_max_order, bool)
+            or not isinstance(self.analytic_max_order, int)
+            or self.analytic_max_order < 0
         ):
-            raise ValueError("room_acoustics_max_order must be a non-negative integer.")
-        if not isinstance(self.room_acoustics_air_absorption, bool):
-            raise ValueError("room_acoustics_air_absorption must be a boolean.")
-        if not isinstance(self.room_acoustics_ray_tracing, bool):
-            raise ValueError("room_acoustics_ray_tracing must be a boolean.")
+            raise ValueError("analytic_max_order must be a non-negative integer.")
+        if not isinstance(self.analytic_air_absorption, bool):
+            raise ValueError("analytic_air_absorption must be a boolean.")
+        if not isinstance(self.analytic_ray_tracing, bool):
+            raise ValueError("analytic_ray_tracing must be a boolean.")
         self._occlusion_state = LiveOcclusionState(
             enabled=self.occlusion_enabled,
             max_attenuation_db=self.occlusion_max_attenuation_db,
@@ -162,20 +175,12 @@ class IsaacAudioArraySensor:
                     "audio.effects.motion.segments_per_window>1 requires "
                     "derive_velocity_from_poses=true."
                 )
-            analytic_closed_room = (
-                self.backend == "analytic_acoustics"
-                and self.environment.kind in {"shoebox", "polygon_prism"}
-            )
-            if self.backend not in {
-                "room_acoustics",
-                "room_acoustics_srp",
-            } and not analytic_closed_room:
+            if self.environment.kind not in {"shoebox", "polygon_prism"}:
                 raise UnsupportedEffectError(
                     "audio.effects.motion.segments_per_window>1 requires "
                     "a PyRoom analytic closed-room solver."
                 )
-        if self.backend == "analytic_acoustics":
-            self._validate_analytic_options()
+        self._validate_analytic_options()
         if self.effects.motion.derive_velocity_from_poses:
             self._pose_history = PoseHistory(
                 teleport_speed_threshold_mps=(
@@ -210,17 +215,17 @@ class IsaacAudioArraySensor:
                 "analytic_acoustics does not support surface_set; "
                 "use GeometryAcoustics when it becomes available."
             )
-        if kind == "free_field" and self.room_acoustics_max_order != 0:
+        if kind == "free_field" and self.analytic_max_order != 0:
             raise UnsupportedEffectError(
                 "free_field analytic propagation requires max_order=0."
             )
-        if kind == "half_space" and self.room_acoustics_max_order not in {0, 1}:
+        if kind == "half_space" and self.analytic_max_order not in {0, 1}:
             raise UnsupportedEffectError(
                 "half_space analytic propagation supports max_order 0 or 1."
             )
         if kind in {"free_field", "half_space"} and (
-            self.room_acoustics_air_absorption
-            or self.room_acoustics_ray_tracing
+            self.analytic_air_absorption
+            or self.analytic_ray_tracing
         ):
             raise UnsupportedEffectError(
                 "air_absorption and ray_tracing are available only for PyRoom "
@@ -234,7 +239,7 @@ class IsaacAudioArraySensor:
         array_prim_path: str,
         environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
         source_prim_path: str | None = None,
-        backend: str = "tdoa_synthetic",
+        backend: str = "analytic_acoustics",
         timestamp_ms: int = 0,
         robot_base_prim_path: str | None = None,
         usd_time_code_scale: float | None = None,
@@ -243,10 +248,11 @@ class IsaacAudioArraySensor:
         max_events: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
+        doa_estimator: str = "tdoa_least_squares",
         environment: AcousticEnvironmentSpec | None = None,
-        room_acoustics_max_order: int = 0,
-        room_acoustics_air_absorption: bool = False,
-        room_acoustics_ray_tracing: bool = False,
+        analytic_max_order: int = 0,
+        analytic_air_absorption: bool = False,
+        analytic_ray_tracing: bool = False,
         debug_draw: bool = False,
         occlusion_enabled: bool = False,
         occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
@@ -279,9 +285,9 @@ class IsaacAudioArraySensor:
             effects=EffectsConfig() if effects is None else effects,
             environment=snapshot.environment,
             environment_resolution_cfg=environment_resolution_cfg,
-            room_acoustics_max_order=room_acoustics_max_order,
-            room_acoustics_air_absorption=room_acoustics_air_absorption,
-            room_acoustics_ray_tracing=room_acoustics_ray_tracing,
+            analytic_max_order=analytic_max_order,
+            analytic_air_absorption=analytic_air_absorption,
+            analytic_ray_tracing=analytic_ray_tracing,
             array_prim_path=array_prim_path,
             source_prim_path=source_prim_path,
             robot_base_prim_path=robot_base_prim_path,
@@ -291,6 +297,7 @@ class IsaacAudioArraySensor:
             max_events=max_events,
             speed_of_sound_mps=speed_of_sound_mps,
             ambiguity_policy=ambiguity_policy,
+            doa_estimator=doa_estimator,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
             occlusion_max_attenuation_db=occlusion_max_attenuation_db,
@@ -307,7 +314,7 @@ class IsaacAudioArraySensor:
         stage: Any,
         environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
         binding_cfg: IsaacAudioSceneBindingCfg | None = None,
-        backend: str = "tdoa_synthetic",
+        backend: str = "analytic_acoustics",
         timestamp_ms: int = 0,
         usd_time_code: Any | None = None,
         usd_time_code_scale: float | None = None,
@@ -316,10 +323,11 @@ class IsaacAudioArraySensor:
         max_events: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
+        doa_estimator: str = "tdoa_least_squares",
         environment: AcousticEnvironmentSpec | None = None,
-        room_acoustics_max_order: int = 0,
-        room_acoustics_air_absorption: bool = False,
-        room_acoustics_ray_tracing: bool = False,
+        analytic_max_order: int = 0,
+        analytic_air_absorption: bool = False,
+        analytic_ray_tracing: bool = False,
         debug_draw: bool = False,
         occlusion_enabled: bool = False,
         occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
@@ -359,9 +367,9 @@ class IsaacAudioArraySensor:
             effects=EffectsConfig() if effects is None else effects,
             environment=resolved_environment,
             environment_resolution_cfg=environment_resolution_cfg,
-            room_acoustics_max_order=room_acoustics_max_order,
-            room_acoustics_air_absorption=room_acoustics_air_absorption,
-            room_acoustics_ray_tracing=room_acoustics_ray_tracing,
+            analytic_max_order=analytic_max_order,
+            analytic_air_absorption=analytic_air_absorption,
+            analytic_ray_tracing=analytic_ray_tracing,
             array_prim_path=result.selected_array.spec.prim_path,
             robot_base_prim_path=binding.robot_base_prim_path,
             scene_binding_cfg=binding,
@@ -371,6 +379,7 @@ class IsaacAudioArraySensor:
             max_events=max_events,
             speed_of_sound_mps=speed_of_sound_mps,
             ambiguity_policy=ambiguity_policy,
+            doa_estimator=doa_estimator,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
             occlusion_max_attenuation_db=occlusion_max_attenuation_db,
@@ -623,33 +632,16 @@ class IsaacAudioArraySensor:
         window_motion: WindowMotionPlan | None = None
         if self.effects.motion.segments_per_window > 1:
             window_motion = self._build_window_motion(scene, sensor, time_window)
-        kwargs: dict[str, Any] = {}
-        if self.backend in {
-            "analytic_acoustics",
-            "tdoa_synthetic",
-            "room_acoustics",
-            "room_acoustics_srp",
-        }:
-            kwargs = {
-                "speed_of_sound_mps": self.speed_of_sound_mps,
-                "ambiguity_policy": self.ambiguity_policy,
-            }
-        if (
-            self.backend
-            in {"analytic_acoustics", "room_acoustics", "room_acoustics_srp"}
-            and self.waveform_sink is not None
-        ):
+        kwargs: dict[str, Any] = {
+            "speed_of_sound_mps": self.speed_of_sound_mps,
+            "ambiguity_policy": self.ambiguity_policy,
+            "doa_estimator": self.doa_estimator,
+            "max_order": self.analytic_max_order,
+            "air_absorption": self.analytic_air_absorption,
+            "ray_tracing": self.analytic_ray_tracing,
+        }
+        if self.waveform_sink is not None:
             kwargs["waveform_writer"] = self.waveform_sink
-        if self.backend in {
-            "analytic_acoustics",
-            "room_acoustics",
-            "room_acoustics_srp",
-        }:
-            kwargs.update(
-                max_order=self.room_acoustics_max_order,
-                air_absorption=self.room_acoustics_air_absorption,
-                ray_tracing=self.room_acoustics_ray_tracing,
-            )
         if not self.effects.all_disabled:
             kwargs["effects"] = self.effects
         if window_motion is not None:

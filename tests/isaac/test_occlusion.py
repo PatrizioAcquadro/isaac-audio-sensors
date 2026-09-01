@@ -5,7 +5,7 @@ from dataclasses import replace
 import pytest
 
 from isaac_audio_sensors.core.acoustics import free_field_environment
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 from isaac_audio_sensors.core.io.traces import (
@@ -266,7 +266,7 @@ def test_debug_primitives_color_bearing_rays_by_occlusion(
         arrays=(array,),
         occlusion=None if record is None else (record,),
     )
-    frame = GeometryBackend().simulate(scene, "rig_front", _window())
+    frame = AnalyticAcoustics().simulate(scene, "rig_front", _window())
     primitives = build_debug_primitives(
         frame=frame,
         scene=scene,
@@ -324,7 +324,7 @@ def _fake_stage() -> FakeUsdStage:
 def _live_sensor(
     stage,
     *,
-    backend: str = "geometry_only",
+    backend: str = "analytic_acoustics",
     **kwargs,
 ) -> IsaacAudioArraySensor:
     return IsaacAudioArraySensor.from_stage(
@@ -486,7 +486,7 @@ def test_occlusion_diagnostics_round_trip_new_fields():
             "right": (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
         },
     )
-    frame = GeometryBackend().simulate(
+    frame = AnalyticAcoustics().simulate(
         _scene(occlusion=(record,)), "rig_front", _window()
     )
 

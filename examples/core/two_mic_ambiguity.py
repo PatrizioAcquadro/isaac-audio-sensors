@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from isaac_audio_sensors.core.acoustics import free_field_environment
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
@@ -35,7 +35,7 @@ scene = AudioSceneSnapshot(
     arrays=(array,),
     environment=free_field_environment(environment_id="ambiguity_free_field"),
 )
-frame = TdoaSyntheticBackend(ambiguity_policy="none").simulate(
+frame = AnalyticAcoustics(ambiguity_policy="none").simulate(
     scene,
     array.array_id,
     AudioTimeWindow(

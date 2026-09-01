@@ -34,65 +34,10 @@ class AcousticFidelityMetadata:
 
 ACOUSTIC_FIDELITY_LADDER = (
     AcousticFidelityMetadata(
-        level=AcousticFidelityLevel.L0,
-        public_name="geometry_only",
-        lifecycle_status="stable_v1",
-        backend_ids=("geometry_only",),
-        backend_family="geometry_only",
-        models=(
-            "deterministic bearing from scene geometry",
-            "source distance",
-            "eight-sector labels",
-            "analytical 1/distance RMS with source and microphone nominal gain",
-            "first-order omni, cardioid, supercardioid, and figure_eight source "
-            "and microphone directivity with magnitude-only RMS",
-        ),
-        does_not_model=(
-            "acoustic propagation",
-            "waveforms",
-            "reverberation",
-            "occlusion",
-            "physical microphone response",
-        ),
-        optional_dependencies=(),
-        frame_contract="emits AudioSensorFrame v1 records",
-        runtime_selectable_v1=True,
-    ),
-    AcousticFidelityMetadata(
-        level=AcousticFidelityLevel.L1,
-        public_name="tdoa_synthetic",
-        lifecycle_status="stable_v1",
-        backend_ids=("tdoa_synthetic",),
-        backend_family="tdoa_synthetic",
-        models=(
-            "direct-path per-microphone delay",
-            "analytical 1/distance RMS with source and microphone nominal gain",
-            "first-order omni, cardioid, supercardioid, and figure_eight source "
-            "and microphone directivity with magnitude-only RMS",
-            "per-microphone self-noise floors in aggregate RMS",
-            "seeded Gaussian delay-noise, clock-jitter, and gain-mismatch stress",
-            "optional broadband air-absorption attenuation",
-            "two-microphone ambiguity metadata",
-        ),
-        does_not_model=(
-            "reverberant rooms",
-            "hardware microphone response",
-            "calibrated noise",
-            "speech recognition",
-        ),
-        optional_dependencies=(),
-        frame_contract="emits AudioSensorFrame v1 records",
-        runtime_selectable_v1=True,
-    ),
-    AcousticFidelityMetadata(
         level=AcousticFidelityLevel.L2,
         public_name="analytic_acoustics",
         lifecycle_status="supported_optional_v1",
-        backend_ids=(
-            "analytic_acoustics",
-            "room_acoustics",
-            "room_acoustics_srp",
-        ),
+        backend_ids=("analytic_acoustics",),
         backend_family="analytic_acoustics",
         models=(
             "Core direct-path free-field propagation",

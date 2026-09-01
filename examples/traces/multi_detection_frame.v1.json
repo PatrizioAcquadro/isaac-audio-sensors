@@ -1,9 +1,9 @@
 {
   "aggregate_per_mic_rms": {
-    "front": 0.301896820233322,
-    "left": 0.29867637977958433,
-    "rear": 0.2933312000416706,
-    "right": 0.2965786690079123
+    "front": 0.05188827957978697,
+    "left": 0.1020485644796998,
+    "rear": 0.06661058325300523,
+    "right": 0.06128238090893769
   },
   "array_id": "rig_front",
   "array_pose": {
@@ -21,16 +21,34 @@
       0.0
     ]
   },
-  "backend_id": "geometry_only",
+  "backend_id": "analytic_acoustics",
   "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
   "detections": [
     {
       "audio_asset_path": "generated://impulse",
       "class_label": "Speech",
-      "detection_id": "geometry_only_demo_audio_lab_single_source_rig_front_500_0_speaker_front_right_00",
+      "detection_id": "analytic_acoustics_demo_audio_lab_single_source_rig_front_500_0_speaker_front_right_00",
       "detection_mode": "scheduled_known_source",
       "diagnostics": {
-        "backend": "geometry_only",
+        "analytic_acoustics_options": {
+          "air_absorption": false,
+          "max_order": 2,
+          "ray_tracing": false
+        },
+        "analytic_solver": {
+          "environment_kind": "shoebox",
+          "provider": "pyroomacoustics",
+          "solver_id": "pyroom_shoebox"
+        },
+        "array_geometry_rank_xy": 2,
+        "array_geometry_rank_xyz": 2,
+        "backend": "analytic_acoustics",
+        "direct_path_delay_s": {
+          "front": 0.012830108491638546,
+          "left": 0.013144259175375273,
+          "rear": 0.013247320649481448,
+          "right": 0.01293567311847188
+        },
         "directivity": {
           "microphone_patterns": {
             "front": "omni",
@@ -41,42 +59,190 @@
           "mode": "per_pair_direct_path",
           "source_pattern": "omni"
         },
-        "forward_component_m": 4.0,
-        "horizontal_distance_m": 4.47213595499958,
+        "doa_estimator": "tdoa_least_squares",
+        "environment_config": {
+          "absorption": {
+            "ceiling": 0.35,
+            "floor": 0.35,
+            "wall_x_max": 0.35,
+            "wall_x_min": 0.35,
+            "wall_y_max": 0.35,
+            "wall_y_min": 0.35
+          },
+          "dimensions_m": [
+            5.0,
+            6.0,
+            2.7
+          ],
+          "environment_id": "lab_room_a",
+          "kind": "shoebox",
+          "orientation_world_quat": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_world": [
+            -0.5,
+            -3.5,
+            -0.5
+          ],
+          "surface_count": 6
+        },
+        "environment_dimensions_m": [
+          5.0,
+          6.0,
+          2.7
+        ],
+        "environment_id": "lab_room_a",
+        "environment_microphone_positions_m": {
+          "front": [
+            0.58,
+            3.5,
+            0.5
+          ],
+          "left": [
+            0.5,
+            3.42,
+            0.5
+          ],
+          "rear": [
+            0.42,
+            3.5,
+            0.5
+          ],
+          "right": [
+            0.5,
+            3.58,
+            0.5
+          ]
+        },
+        "environment_source_position_m": [
+          4.5,
+          5.5,
+          0.5
+        ],
+        "estimated_tdoa_matrix_s": {
+          "front->front": 0.0,
+          "front->left": -0.0003125,
+          "front->rear": 0.0,
+          "front->right": -0.00010677083333333334,
+          "left->front": 0.0003125,
+          "left->left": 0.0,
+          "left->rear": 0.0003046875,
+          "left->right": 0.00017447916666666667,
+          "rear->front": 0.0,
+          "rear->left": -0.0003046875,
+          "rear->rear": 0.0,
+          "rear->right": 0.00030989583333333336,
+          "right->front": 0.00010677083333333334,
+          "right->left": -0.00017447916666666667,
+          "right->rear": -0.00030989583333333336,
+          "right->right": 0.0
+        },
+        "gcc_phat_peak": {
+          "front->front": 1.0,
+          "front->left": 0.042049234395451496,
+          "front->rear": 0.034716524052649834,
+          "front->right": 0.022851562455559676,
+          "left->front": 0.042049234395451496,
+          "left->left": 1.0,
+          "left->rear": 0.02495142293137115,
+          "left->right": 0.028559915548938185,
+          "rear->front": 0.034716524052649834,
+          "rear->left": 0.02495142293137115,
+          "rear->rear": 1.0,
+          "rear->right": 0.039816435695007694,
+          "right->front": 0.022851562455559676,
+          "right->left": 0.028559915548938185,
+          "right->rear": 0.039816435695007694,
+          "right->right": 1.0
+        },
+        "gcc_phat_peaks": {
+          "front->front": 1.0,
+          "front->left": 0.042049234395451496,
+          "front->rear": 0.034716524052649834,
+          "front->right": 0.022851562455559676,
+          "left->front": 0.042049234395451496,
+          "left->left": 1.0,
+          "left->rear": 0.02495142293137115,
+          "left->right": 0.028559915548938185,
+          "rear->front": 0.034716524052649834,
+          "rear->left": 0.02495142293137115,
+          "rear->rear": 1.0,
+          "rear->right": 0.039816435695007694,
+          "right->front": 0.022851562455559676,
+          "right->left": 0.028559915548938185,
+          "right->rear": 0.039816435695007694,
+          "right->right": 1.0
+        },
         "microphone_nominal_gain_db": {
           "front": 0.0,
           "left": 0.0,
           "rear": 0.0,
           "right": 0.0
         },
-        "physical_waveform": false,
-        "right_component_m": 2.0,
+        "oracle_bearing_error_deg": 29.245705141392193,
+        "oracle_elevation_error_deg": null,
+        "per_mic_rms": {
+          "front": 0.046285614050837295,
+          "left": 0.1006977044775254,
+          "rear": 0.06292032240312308,
+          "right": 0.05709176690636364
+        },
+        "physical_waveform": true,
+        "pyroomacoustics_version": "0.10.1",
+        "rir_length_samples": {
+          "front": 2117,
+          "left": 2131,
+          "rear": 2123,
+          "right": 2109
+        },
+        "rir_peak_delay_s": {
+          "front": 0.013666666666666667,
+          "left": 0.016625,
+          "rear": 0.014083333333333333,
+          "right": 0.013770833333333333
+        },
+        "sample_rate_hz": 48000,
+        "scheduled_content_sample_count": 24000,
+        "scheduled_start_offset_samples": 0,
         "source_nominal_gain_db": 0.0,
-        "up_component_m": 0.0
+        "source_waveform_mode": "generated://impulse",
+        "speed_of_sound_mps": 343.0,
+        "waveform_sample_count": {
+          "front": 26210,
+          "left": 26210,
+          "rear": 26210,
+          "right": 26210
+        }
       },
       "doa": {
         "ambiguity_class": null,
         "ambiguity_reason": null,
-        "bearing_confidence": 1.0,
+        "bearing_confidence": 0.2737266510236328,
         "bearing_sector": "straight_right",
         "candidate_bearing_deg": [
-          26.56505117707799
+          55.810756318470176
         ],
-        "candidate_elevation_deg": [
-          0.0
-        ],
-        "estimated_bearing_deg": 26.56505117707799,
-        "estimated_elevation_deg": 0.0
+        "candidate_elevation_deg": [],
+        "estimated_bearing_deg": 55.810756318470176,
+        "estimated_elevation_deg": null
       },
       "ground_truth_bearing_deg": 26.56505117707799,
       "ground_truth_elevation_deg": 0.0,
       "occluded": false,
-      "per_mic_delay_s": {},
+      "per_mic_delay_s": {
+        "front": 0.0,
+        "left": 0.0003125,
+        "rear": 0.0,
+        "right": 0.00010677083333333334
+      },
       "per_mic_rms": {
-        "front": 0.227235170843937,
-        "left": 0.22180420030864878,
-        "rear": 0.22007860851151467,
-        "right": 0.22538076436706841
+        "front": 0.046285614050837295,
+        "left": 0.1006977044775254,
+        "rear": 0.06292032240312308,
+        "right": 0.05709176690636364
       },
       "source_distance_m": 4.47213595499958,
       "source_id": "speaker_front_right",
@@ -95,10 +261,28 @@
     {
       "audio_asset_path": "generated://pulse",
       "class_label": "Footsteps",
-      "detection_id": "geometry_only_demo_audio_lab_single_source_rig_front_500_0_speaker_left_01",
+      "detection_id": "analytic_acoustics_demo_audio_lab_single_source_rig_front_500_0_speaker_left_01",
       "detection_mode": "scheduled_known_source",
       "diagnostics": {
-        "backend": "geometry_only",
+        "analytic_acoustics_options": {
+          "air_absorption": false,
+          "max_order": 2,
+          "ray_tracing": false
+        },
+        "analytic_solver": {
+          "environment_kind": "shoebox",
+          "provider": "pyroomacoustics",
+          "solver_id": "pyroom_shoebox"
+        },
+        "array_geometry_rank_xy": 2,
+        "array_geometry_rank_xyz": 2,
+        "backend": "analytic_acoustics",
+        "direct_path_delay_s": {
+          "front": 0.010384248685473467,
+          "left": 0.010318558193923567,
+          "rear": 0.010642956873126868,
+          "right": 0.010706657207719348
+        },
         "directivity": {
           "microphone_patterns": {
             "front": "omni",
@@ -109,42 +293,190 @@
           "mode": "per_pair_direct_path",
           "source_pattern": "omni"
         },
-        "forward_component_m": 2.0,
-        "horizontal_distance_m": 3.605551275463989,
+        "doa_estimator": "tdoa_least_squares",
+        "environment_config": {
+          "absorption": {
+            "ceiling": 0.35,
+            "floor": 0.35,
+            "wall_x_max": 0.35,
+            "wall_x_min": 0.35,
+            "wall_y_max": 0.35,
+            "wall_y_min": 0.35
+          },
+          "dimensions_m": [
+            5.0,
+            6.0,
+            2.7
+          ],
+          "environment_id": "lab_room_a",
+          "kind": "shoebox",
+          "orientation_world_quat": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "position_world": [
+            -0.5,
+            -3.5,
+            -0.5
+          ],
+          "surface_count": 6
+        },
+        "environment_dimensions_m": [
+          5.0,
+          6.0,
+          2.7
+        ],
+        "environment_id": "lab_room_a",
+        "environment_microphone_positions_m": {
+          "front": [
+            0.58,
+            3.5,
+            0.5
+          ],
+          "left": [
+            0.5,
+            3.42,
+            0.5
+          ],
+          "rear": [
+            0.42,
+            3.5,
+            0.5
+          ],
+          "right": [
+            0.5,
+            3.58,
+            0.5
+          ]
+        },
+        "environment_source_position_m": [
+          2.5,
+          0.5,
+          0.5
+        ],
+        "estimated_tdoa_matrix_s": {
+          "front->front": 0.0,
+          "front->left": 6.25e-05,
+          "front->rear": -0.0002578125,
+          "front->right": -0.00031510416666666666,
+          "left->front": -6.25e-05,
+          "left->left": 0.0,
+          "left->rear": -0.00031510416666666666,
+          "left->right": -0.0003802083333333333,
+          "rear->front": 0.0002578125,
+          "rear->left": 0.00031510416666666666,
+          "rear->rear": 0.0,
+          "rear->right": -5.989583333333333e-05,
+          "right->front": 0.00031510416666666666,
+          "right->left": 0.0003802083333333333,
+          "right->rear": 5.989583333333333e-05,
+          "right->right": 0.0
+        },
+        "gcc_phat_peak": {
+          "front->front": 1.0,
+          "front->left": 0.03155130154667106,
+          "front->rear": 0.030168415017873228,
+          "front->right": 0.039290705666967685,
+          "left->front": 0.03155130154667106,
+          "left->left": 1.0,
+          "left->rear": 0.03817656026439695,
+          "left->right": 0.029286014833485915,
+          "rear->front": 0.030168415017873228,
+          "rear->left": 0.03817656026439695,
+          "rear->rear": 1.0,
+          "rear->right": 0.031955891601879394,
+          "right->front": 0.039290705666967685,
+          "right->left": 0.029286014833485915,
+          "right->rear": 0.031955891601879394,
+          "right->right": 1.0
+        },
+        "gcc_phat_peaks": {
+          "front->front": 1.0,
+          "front->left": 0.03155130154667106,
+          "front->rear": 0.030168415017873228,
+          "front->right": 0.039290705666967685,
+          "left->front": 0.03155130154667106,
+          "left->left": 1.0,
+          "left->rear": 0.03817656026439695,
+          "left->right": 0.029286014833485915,
+          "rear->front": 0.030168415017873228,
+          "rear->left": 0.03817656026439695,
+          "rear->rear": 1.0,
+          "rear->right": 0.031955891601879394,
+          "right->front": 0.039290705666967685,
+          "right->left": 0.029286014833485915,
+          "right->rear": 0.031955891601879394,
+          "right->right": 1.0
+        },
         "microphone_nominal_gain_db": {
           "front": 0.0,
           "left": 0.0,
           "rear": 0.0,
           "right": 0.0
         },
-        "physical_waveform": false,
-        "right_component_m": -3.0,
+        "oracle_bearing_error_deg": 0.45351912595799604,
+        "oracle_elevation_error_deg": null,
+        "per_mic_rms": {
+          "front": 0.023635902985937415,
+          "left": 0.01681366190145495,
+          "rear": 0.021932652953258726,
+          "right": 0.022117390282473705
+        },
+        "physical_waveform": true,
+        "pyroomacoustics_version": "0.10.1",
+        "rir_length_samples": {
+          "front": 2199,
+          "left": 2189,
+          "rear": 2202,
+          "right": 2211
+        },
+        "rir_peak_delay_s": {
+          "front": 0.011208333333333334,
+          "left": 0.011145833333333334,
+          "rear": 0.011479166666666667,
+          "right": 0.011541666666666667
+        },
+        "sample_rate_hz": 48000,
+        "scheduled_content_sample_count": 24000,
+        "scheduled_start_offset_samples": 0,
         "source_nominal_gain_db": -3.0,
-        "up_component_m": 0.0
+        "source_waveform_mode": "generated://pulse",
+        "speed_of_sound_mps": 343.0,
+        "waveform_sample_count": {
+          "front": 26210,
+          "left": 26210,
+          "rear": 26210,
+          "right": 26210
+        }
       },
       "doa": {
         "ambiguity_class": null,
         "ambiguity_reason": null,
-        "bearing_confidence": 1.0,
+        "bearing_confidence": 0.8821498670149474,
         "bearing_sector": "straight_left",
         "candidate_bearing_deg": [
-          303.69006752597977
+          304.14358665193777
         ],
-        "candidate_elevation_deg": [
-          0.0
-        ],
-        "estimated_bearing_deg": 303.69006752597977,
-        "estimated_elevation_deg": 0.0
+        "candidate_elevation_deg": [],
+        "estimated_bearing_deg": 304.14358665193777,
+        "estimated_elevation_deg": null
       },
       "ground_truth_bearing_deg": 303.69006752597977,
       "ground_truth_elevation_deg": 0.0,
       "occluded": false,
-      "per_mic_delay_s": {},
+      "per_mic_delay_s": {
+        "front": 0.0,
+        "left": -6.25e-05,
+        "rear": 0.0002578125,
+        "right": 0.00031510416666666666
+      },
       "per_mic_rms": {
-        "front": 0.1987608291352134,
-        "left": 0.200026189694448,
-        "rear": 0.1939293659906154,
-        "right": 0.19277556371029178
+        "front": 0.023635902985937415,
+        "left": 0.01681366190145495,
+        "rear": 0.021932652953258726,
+        "right": 0.022117390282473705
       },
       "source_distance_m": 3.605551275463989,
       "source_id": "speaker_left",
@@ -163,16 +495,205 @@
   ],
   "diagnostics": {
     "active_source_count": 2,
-    "backend": "geometry_only",
-    "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
-    "source_count": 2
+    "ambiguity_policy": "none",
+    "analytic_acoustics_options": {
+      "air_absorption": false,
+      "max_order": 2,
+      "ray_tracing": false
+    },
+    "analytic_solver": {
+      "environment_kind": "shoebox",
+      "provider": "pyroomacoustics",
+      "solver_id": "pyroom_shoebox"
+    },
+    "backend": "analytic_acoustics",
+    "directivity": {
+      "microphone_patterns": {
+        "front": "omni",
+        "left": "omni",
+        "rear": "omni",
+        "right": "omni"
+      },
+      "mode": "per_pair_direct_path",
+      "source_pattern": {
+        "speaker_front_right": "omni",
+        "speaker_left": "omni"
+      }
+    },
+    "doa_estimator": "tdoa_least_squares",
+    "environment_config": {
+      "absorption": {
+        "ceiling": 0.35,
+        "floor": 0.35,
+        "wall_x_max": 0.35,
+        "wall_x_min": 0.35,
+        "wall_y_max": 0.35,
+        "wall_y_min": 0.35
+      },
+      "dimensions_m": [
+        5.0,
+        6.0,
+        2.7
+      ],
+      "environment_id": "lab_room_a",
+      "kind": "shoebox",
+      "orientation_world_quat": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "position_world": [
+        -0.5,
+        -3.5,
+        -0.5
+      ],
+      "surface_count": 6
+    },
+    "environment_id": "lab_room_a",
+    "max_events": 2,
+    "microphone_nominal_gain_db": {
+      "front": 0.0,
+      "left": 0.0,
+      "rear": 0.0,
+      "right": 0.0
+    },
+    "per_source_rir_length_samples": {
+      "speaker_front_right": {
+        "front": 2117,
+        "left": 2131,
+        "rear": 2123,
+        "right": 2109
+      },
+      "speaker_left": {
+        "front": 2199,
+        "left": 2189,
+        "rear": 2202,
+        "right": 2211
+      }
+    },
+    "per_source_rir_summary": {
+      "speaker_front_right": {
+        "environment_microphone_positions_m": {
+          "front": [
+            0.58,
+            3.5,
+            0.5
+          ],
+          "left": [
+            0.5,
+            3.42,
+            0.5
+          ],
+          "rear": [
+            0.42,
+            3.5,
+            0.5
+          ],
+          "right": [
+            0.5,
+            3.58,
+            0.5
+          ]
+        },
+        "environment_source_position_m": [
+          4.5,
+          5.5,
+          0.5
+        ],
+        "rir_length_samples": {
+          "front": 2117,
+          "left": 2131,
+          "rear": 2123,
+          "right": 2109
+        },
+        "rir_peak_delay_s": {
+          "front": 0.013666666666666667,
+          "left": 0.016625,
+          "rear": 0.014083333333333333,
+          "right": 0.013770833333333333
+        },
+        "source_waveform_mode": "generated://impulse",
+        "waveform_sample_count": {
+          "front": 26210,
+          "left": 26210,
+          "rear": 26210,
+          "right": 26210
+        }
+      },
+      "speaker_left": {
+        "environment_microphone_positions_m": {
+          "front": [
+            0.58,
+            3.5,
+            0.5
+          ],
+          "left": [
+            0.5,
+            3.42,
+            0.5
+          ],
+          "rear": [
+            0.42,
+            3.5,
+            0.5
+          ],
+          "right": [
+            0.5,
+            3.58,
+            0.5
+          ]
+        },
+        "environment_source_position_m": [
+          2.5,
+          0.5,
+          0.5
+        ],
+        "rir_length_samples": {
+          "front": 2199,
+          "left": 2189,
+          "rear": 2202,
+          "right": 2211
+        },
+        "rir_peak_delay_s": {
+          "front": 0.011208333333333334,
+          "left": 0.011145833333333334,
+          "rear": 0.011479166666666667,
+          "right": 0.011541666666666667
+        },
+        "source_waveform_mode": "generated://pulse",
+        "waveform_sample_count": {
+          "front": 26210,
+          "left": 26210,
+          "rear": 26210,
+          "right": 26210
+        }
+      }
+    },
+    "physical_waveform": true,
+    "pyroomacoustics_version": "0.10.1",
+    "sample_rate_hz": 48000,
+    "scheduled_source_ids": [
+      "speaker_front_right",
+      "speaker_left"
+    ],
+    "source_nominal_gain_db": {
+      "speaker_front_right": 0.0,
+      "speaker_left": -3.0
+    },
+    "speed_of_sound_mps": 343.0,
+    "time_window_s": [
+      0.5,
+      1.0
+    ],
+    "window_sample_count": 24000
   },
-  "end_time_s": 0.75,
-  "frame_id": "geometry_only_demo_audio_lab_single_source_rig_front_500_0",
+  "end_time_s": 1.0,
+  "frame_id": "analytic_acoustics_demo_audio_lab_single_source_rig_front_500_0",
   "frame_index": 0,
-  "frame_name": "demo_audio_lab_single_source/rig_front/geometry_only/frame0_t500ms",
-  "max_events": null,
-  "provenance": "synthetic/core",
+  "frame_name": "demo_audio_lab_single_source/rig_front/analytic_acoustics/frame0_t500ms",
+  "max_events": 2,
+  "provenance": "room_acoustics",
   "sample_rate_hz": 48000,
   "schema_version": "ias.audio_sensor_frame.v1",
   "start_time_s": 0.5,

@@ -17,22 +17,22 @@ from isaac_audio_sensors.core.acoustics.materials import (
     MATERIAL_BAND_CENTERS_HZ,
     resolve_material_coefficients,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.assembly import assemble_frame
-from isaac_audio_sensors.core.backends.room_acoustics.detections import (
+from isaac_audio_sensors.core.backends._analytic.assembly import assemble_frame
+from isaac_audio_sensors.core.backends._analytic.detections import (
     assemble_detections,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.preparation import (
+from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
     prepare_room_frame,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.rendering import (
+from isaac_audio_sensors.core.backends._analytic.rendering import (
     RenderedRoom,
     _apply_band_attenuation,
     _apply_entity_directivity_to_premix,
     apply_room_effects,
     render_room,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.signals import (
+from isaac_audio_sensors.core.backends._analytic.signals import (
     _doppler_resampled_signal,
     _scheduled_window_signal,
 )
@@ -180,6 +180,9 @@ class AnalyticAcoustics:
             rendered = _render_core(
                 prepared,
                 speed_of_sound_mps=self.speed_of_sound_mps,
+                force_doppler_diagnostics=(
+                    self.effects.motion.derive_velocity_from_poses
+                ),
             )
         else:
             rendered = render_room(
@@ -227,7 +230,7 @@ class AnalyticAcoustics:
         if environment.kind == "surface_set":
             raise UnsupportedEffectError(
                 "analytic_acoustics does not support environment.kind='surface_set' "
-                "in R8.1; use GeometryAcoustics when it becomes available."
+                "in R8.3; use GeometryAcoustics when it becomes available."
             )
         try:
             return ANALYTIC_SOLVER_BY_ENVIRONMENT[environment.kind]
@@ -265,6 +268,7 @@ def _render_core(
     prepared: PreparedRoomFrame,
     *,
     speed_of_sound_mps: float,
+    force_doppler_diagnostics: bool,
 ) -> RenderedRoom:
     mic_count = len(prepared.mic_ids)
     mixture = np.zeros((mic_count, prepared.window_sample_count), dtype=float)
@@ -310,6 +314,8 @@ def _render_core(
             prepared.sensor,
             speed_of_sound_mps=speed_of_sound_mps,
         )
+        if factor is None and force_doppler_diagnostics:
+            factor = 1.0
         if factor is not None:
             doppler_factors[source.source_id] = factor
             if abs(factor - 1.0) > 1e-9:

@@ -282,17 +282,6 @@ def validate_noise(
                 runtime_profile=runtime_profile,
             )
 
-    if (
-        config.enabled
-        and backend_id in {"geometry_only", "tdoa_synthetic"}
-        and (self_noise is not None or ambient is not None)
-    ):
-        feature = "self_noise" if self_noise is not None else "ambient"
-        raise UnsupportedEffectError(
-            f"{table}.{feature} is waveform-only and unsupported by backend "
-            f"{backend_id!r} at profile {runtime_profile!r}; supported envelope "
-            "on L0/L1 is additive clock jitter/drift delay metadata."
-        )
     if nonzero_stochastic and config.seed is None:
         raise ConfigValidationError(
             f"{table}.seed is required for every nonzero stochastic noise setting; "

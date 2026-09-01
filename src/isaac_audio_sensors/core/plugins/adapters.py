@@ -41,7 +41,9 @@ class GccPhatLeastSquaresEstimator:
             microphone_positions_m,
             sample_rate_hz,
         )
-        from isaac_audio_sensors.core.backends.tdoa import estimate_doa_from_delays
+        from isaac_audio_sensors.core.backends._analytic.doa import (
+            estimate_doa_from_delays,
+        )
         from isaac_audio_sensors.core.doa.gcc_phat import (
             estimate_tdoa_diagnostics,
             relative_delays_from_tdoa_matrix,

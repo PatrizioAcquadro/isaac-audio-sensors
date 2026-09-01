@@ -1,4 +1,4 @@
-"""Frame preparation for the room-acoustics backend pipeline."""
+"""Frame preparation for the analytic-acoustics pipeline."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
+from isaac_audio_sensors.core.backends._analytic.diagnostics import (
     _environment_config_summary,
 )
 from isaac_audio_sensors.core.directivity import microphone_world_orientation
@@ -75,9 +75,7 @@ def prepare_room_frame(
 ) -> PreparedRoomFrame:
     """Validate one capture window and normalize its shared frame state."""
 
-    if (backend_id == "room_acoustics_srp" or require_three_mics) and len(
-        sensor.microphones
-    ) == 2:
+    if require_three_mics and len(sensor.microphones) < 3:
         raise UnsupportedEffectError(
             f"{backend_id} requires at least three microphones for an "
             "unambiguous localization claim"
@@ -94,8 +92,8 @@ def prepare_room_frame(
                 f"{scene.environment.kind!r}."
             )
         raise ValueError(
-            "R7.1 room_acoustics requires environment.kind='shoebox'; "
-            f"received {scene.environment.kind!r}. Other solver routing belongs to R8."
+            f"{backend_id} requires environment.kind='shoebox'; "
+            f"received {scene.environment.kind!r}."
         )
     segments_per_window = effects.motion.segments_per_window
     if segments_per_window > 1 and window_motion is None:

@@ -4,7 +4,7 @@ import builtins
 
 import pytest
 
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.traces import append_frame_jsonl, frame_from_trace_dict
 from isaac_audio_sensors.core.io.waveforms import (
@@ -25,7 +25,7 @@ def test_room_backend_exports_mixture_and_trace_path(monkeypatch, tmp_path):
     install_fake_pyroom(monkeypatch)
     array = quad_array()
     sink = CaptureSink()
-    frame = RoomAcousticsBackend(waveform_writer=sink).simulate(
+    frame = AnalyticAcoustics(waveform_writer=sink).simulate(
         room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
         array.array_id,
         time_window(),

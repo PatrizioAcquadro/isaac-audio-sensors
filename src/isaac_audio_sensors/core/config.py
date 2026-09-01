@@ -24,6 +24,7 @@ from isaac_audio_sensors.core.constants import (
     DEFAULT_RUNTIME_PROFILE,
     DEFAULT_SAMPLE_RATE_HZ,
     DEFAULT_SPEED_OF_SOUND_MPS,
+    DOA_ESTIMATOR_IDS,
     RUNTIME_PROFILES,
     TDOA_AMBIGUITY_POLICIES,
 )
@@ -59,12 +60,13 @@ class AudioSensorConfig:
     write_waveforms: bool
     waveform_dir: str | None
     tdoa_ambiguity_policy: str
+    doa_estimator: str = "tdoa_least_squares"
     sources: tuple[AudioSourceSpec, ...]
     arrays: dict[str, MicrophoneArraySpec]
     environment: AcousticEnvironmentSpec
-    room_acoustics_max_order: int
-    room_acoustics_air_absorption: bool
-    room_acoustics_ray_tracing: bool
+    analytic_max_order: int
+    analytic_air_absorption: bool
+    analytic_ray_tracing: bool
 
 
 def load_audio_config(path: str | Path) -> AudioSensorConfig:
@@ -86,6 +88,11 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             )
         scene = _required_table(raw, "scene")
         audio = _required_table(raw, "audio")
+        if "room_acoustics" in audio:
+            raise ConfigValidationError(
+                "[audio.room_acoustics] was removed by R8.3; use "
+                "[audio.analytic_acoustics]."
+            )
         scene_id = _required_str(scene, "scene_id", table="scene")
         stage_units = str(scene.get("stage_units", "meters"))
         up_axis = str(scene.get("up_axis", "z")).lower()
@@ -97,7 +104,7 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         sample_rate_hz = int(audio.get("sample_rate_hz", DEFAULT_SAMPLE_RATE_HZ))
         if sample_rate_hz <= 0:
             raise ConfigValidationError("audio.sample_rate_hz must be positive.")
-        default_backend = str(audio.get("default_backend", "geometry_only"))
+        default_backend = str(audio.get("default_backend", "analytic_acoustics"))
         backend_ids = registered_backend_ids()
         if default_backend not in backend_ids:
             raise ConfigValidationError(
@@ -125,6 +132,11 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         if ambiguity_policy not in TDOA_AMBIGUITY_POLICIES:
             raise ConfigValidationError(
                 "audio.tdoa_ambiguity_policy must be 'none' or 'front_hemisphere'."
+            )
+        doa_estimator = str(audio.get("doa_estimator", "tdoa_least_squares"))
+        if doa_estimator not in DOA_ESTIMATOR_IDS:
+            raise ConfigValidationError(
+                f"audio.doa_estimator must be one of {sorted(DOA_ESTIMATOR_IDS)}."
             )
 
         sources = _parse_sources(raw.get("sources"))
@@ -168,19 +180,19 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         )
         environment = _parse_environment(raw.get("environment"))
         (
-            room_acoustics_max_order,
-            room_acoustics_air_absorption,
-            room_acoustics_ray_tracing,
-        ) = _parse_room_acoustics_options(audio.get("room_acoustics"))
+            analytic_max_order,
+            analytic_air_absorption,
+            analytic_ray_tracing,
+        ) = _parse_analytic_acoustics_options(audio.get("analytic_acoustics"))
         _validate_backend_requirements(
-            default_backend=default_backend,
             arrays=arrays,
             ambiguity_policy=ambiguity_policy,
             ambiguity_policy_explicit=ambiguity_policy_explicit,
+            doa_estimator=doa_estimator,
             environment=environment,
-            max_order=room_acoustics_max_order,
-            air_absorption=room_acoustics_air_absorption,
-            ray_tracing=room_acoustics_ray_tracing,
+            max_order=analytic_max_order,
+            air_absorption=analytic_air_absorption,
+            ray_tracing=analytic_ray_tracing,
         )
         return AudioSensorConfig(
             scene_id=scene_id,
@@ -196,12 +208,13 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
                 else str(audio["waveform_dir"])
             ),
             tdoa_ambiguity_policy=ambiguity_policy,
+            doa_estimator=doa_estimator,
             sources=sources,
             arrays=arrays,
             environment=environment,
-            room_acoustics_max_order=room_acoustics_max_order,
-            room_acoustics_air_absorption=room_acoustics_air_absorption,
-            room_acoustics_ray_tracing=room_acoustics_ray_tracing,
+            analytic_max_order=analytic_max_order,
+            analytic_air_absorption=analytic_air_absorption,
+            analytic_ray_tracing=analytic_ray_tracing,
         )
     except KeyError as exc:
         raise ConfigValidationError(
@@ -467,73 +480,59 @@ def _parse_environment(raw_environment: Any) -> AcousticEnvironmentSpec:
     )
 
 
-def _parse_room_acoustics_options(raw_options: Any) -> tuple[int, bool, bool]:
+def _parse_analytic_acoustics_options(raw_options: Any) -> tuple[int, bool, bool]:
     if raw_options is None:
         return 0, False, False
     if not isinstance(raw_options, dict):
-        raise ConfigValidationError("[audio.room_acoustics] must be a table.")
+        raise ConfigValidationError("[audio.analytic_acoustics] must be a table.")
     _reject_unknown_keys(
         raw_options,
         {"max_order", "air_absorption", "ray_tracing"},
-        table="audio.room_acoustics",
+        table="audio.analytic_acoustics",
     )
     max_order = raw_options.get("max_order", 0)
     if type(max_order) is not int or max_order < 0:
         raise ConfigValidationError(
-            "audio.room_acoustics.max_order must be a non-negative integer."
+            "audio.analytic_acoustics.max_order must be a non-negative integer."
         )
     air_absorption = raw_options.get("air_absorption", False)
     ray_tracing = raw_options.get("ray_tracing", False)
     if type(air_absorption) is not bool:
         raise ConfigValidationError(
-            "audio.room_acoustics.air_absorption must be a boolean."
+            "audio.analytic_acoustics.air_absorption must be a boolean."
         )
     if type(ray_tracing) is not bool:
         raise ConfigValidationError(
-            "audio.room_acoustics.ray_tracing must be a boolean."
+            "audio.analytic_acoustics.ray_tracing must be a boolean."
         )
     return max_order, air_absorption, ray_tracing
 
 
 def _validate_backend_requirements(
     *,
-    default_backend: str,
     arrays: dict[str, MicrophoneArraySpec],
     ambiguity_policy: str,
     ambiguity_policy_explicit: bool,
+    doa_estimator: str,
     environment: AcousticEnvironmentSpec,
     max_order: int,
     air_absorption: bool,
     ray_tracing: bool,
 ) -> None:
-    if default_backend == "geometry_only":
-        return
     for array in arrays.values():
-        if default_backend in {
-            "analytic_acoustics",
-            "tdoa_synthetic",
-            "room_acoustics",
-        }:
-            if len(array.microphones) < 2:
-                raise ConfigValidationError(
-                    f"{default_backend} requires at least two microphones "
-                    f"for array {array.array_id!r}."
-                )
-            if len(array.microphones) == 2 and (
-                not ambiguity_policy_explicit
-                or ambiguity_policy not in TDOA_AMBIGUITY_POLICIES
-            ):
-                raise ConfigValidationError(
-                    "2-mic TDOA configs must select an ambiguity policy."
-                )
-    if default_backend in {"room_acoustics", "room_acoustics_srp"} and (
-        environment.kind != "shoebox"
-    ):
-        raise ConfigValidationError(
-            f"{default_backend} requires environment.kind='shoebox' in R7.1."
-        )
-    if default_backend != "analytic_acoustics":
-        return
+        minimum = 3 if doa_estimator == "srp_phat" else 2
+        if len(array.microphones) < minimum:
+            raise ConfigValidationError(
+                f"{doa_estimator} requires at least {minimum} microphones "
+                f"for array {array.array_id!r}."
+            )
+        if len(array.microphones) == 2 and (
+            not ambiguity_policy_explicit
+            or ambiguity_policy not in TDOA_AMBIGUITY_POLICIES
+        ):
+            raise ConfigValidationError(
+                "2-mic TDOA configs must select an ambiguity policy."
+            )
     if environment.kind == "surface_set":
         raise ConfigValidationError(
             "analytic_acoustics does not support environment.kind='surface_set' "

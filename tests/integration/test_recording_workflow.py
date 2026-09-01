@@ -46,7 +46,7 @@ class _FakeSensor:
         self.frames = list(frames)
         self.latest_frame: AudioSensorFrame | None = None
         self.latest_debug_primitives: tuple[object, ...] = ()
-        self.backend = "tdoa_synthetic"
+        self.backend = "analytic_acoustics"
         self.array_id = "rig_front"
         self.array_prim_path = "/World/Rig/AudioArray"
         self.source_prim_path: str | None = None
@@ -94,7 +94,7 @@ def _frame(
     return AudioSensorFrame(
         frame_id=f"guided_frame_{index:03d}",
         timestamp_ms=index * 10,
-        backend_id="tdoa_synthetic",
+        backend_id="analytic_acoustics",
         array_id="rig_front",
         start_time_s=index / 100.0,
         end_time_s=index / 100.0 + 0.001,
@@ -212,7 +212,7 @@ def test_each_safe_preset_drives_controller_to_validator_clean_state(
 def test_xvf3800_preset_matches_demo_config_claims() -> None:
     preset = SAFE_PRESET_LIBRARY["xvf3800_quad_demo"]
 
-    assert preset.values["backend"] == "tdoa_synthetic"
+    assert preset.values["backend"] == "analytic_acoustics"
     assert preset.values["sample_rate_hz"] == 48000
     assert preset.values["layout_name"] == "quad_front"
     assert preset.values["array_prim_path"] == "/World/Rig/AudioArray"
@@ -323,7 +323,7 @@ def test_guided_inspect_gates_summarizes_and_requires_user_mark(
         "latest_frame_id": "guided_frame_000",
         "latest_timestamp_ms": 0,
         "detection_count": 0,
-        "backend": "tdoa_synthetic",
+        "backend": "analytic_acoustics",
         "capability_generation": 2,
     }
     assert controller.guided_workflow.status(GuidedStage.INSPECT) is (

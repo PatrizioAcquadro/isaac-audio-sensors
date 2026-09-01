@@ -87,7 +87,7 @@ def test_manual_capture_and_update_throttling():
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
-        backend="geometry_only",
+        backend="analytic_acoustics",
         update_period_s=UPDATE_PERIOD_S,
     )
     manual = sensor.capture(timestamp_ms=0)
@@ -146,7 +146,7 @@ def test_non_monotonic_time_preserves_latest_frame():
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
-        backend="geometry_only",
+        backend="analytic_acoustics",
     ).start()
     first = sensor.update(sim_time_s=1.0)
     with pytest.raises(ValueError, match="non-monotonic"):
@@ -206,7 +206,7 @@ def test_update_subscription_timeline_reset_and_close(monkeypatch, event_name):
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
-        backend="geometry_only",
+        backend="analytic_acoustics",
         effects=EffectsConfig(
             motion=MotionEffectsConfig(derive_velocity_from_poses=True)
         ),

@@ -7,9 +7,7 @@ from types import MappingProxyType
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.config import validate_audio_config
 from isaac_audio_sensors.core.effects import (
     AmbientNoiseConfig,
@@ -20,7 +18,6 @@ from isaac_audio_sensors.core.effects import (
     NoiseLevelSpecConfig,
     NoiseSpectrumPointConfig,
     SelfNoiseConfig,
-    UnsupportedEffectError,
 )
 from isaac_audio_sensors.core.effects.noise import (
     apply_clock_drift,
@@ -36,7 +33,6 @@ from isaac_audio_sensors.core.effects.streams import (
 )
 from isaac_audio_sensors.core.effects.validation import validate_effects_config
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
-from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from tests.helpers import (
     MOTION_SEGMENTS,
     SAMPLE_RATE_HZ,
@@ -86,7 +82,7 @@ def _apply(config: EffectsConfig, samples: np.ndarray, *, frame_id=FRAME_ID):
         mic_ids=MIC_IDS[: samples.shape[0]],
         sample_rate_hz=SAMPLE_RATE_HZ,
         frame_id=frame_id,
-        backend_id="room_acoustics",
+        backend_id="analytic_acoustics",
     )
 
 
@@ -141,7 +137,7 @@ def _base_raw() -> dict[str, object]:
     return {
         "scene": {"scene_id": "noise_config"},
         "audio": {
-            "default_backend": "room_acoustics",
+            "default_backend": "analytic_acoustics",
             "runtime_profile": "waveform_fidelity",
             "sample_rate_hz": SAMPLE_RATE_HZ,
         },
@@ -214,7 +210,7 @@ def test_frozen_noise_records_toml_immutability_precedence_and_scalar_map_forms(
         mic_ids=("front", "right"),
         sample_rate_hz=SAMPLE_RATE_HZ,
         frame_id=FRAME_ID,
-        backend_id="room_acoustics",
+        backend_id="analytic_acoustics",
         microphone_self_noise_db={"front": -10.0, "right": -10.0},
     )
     assert abs(_rms_db(output[0]) + 30.0) <= 0.15
@@ -336,7 +332,7 @@ def test_noise_fail_closed_ranges_types_ids_and_spectra(config, match):
             EffectsConfig(noise=config),
             microphone_orders=(MIC_IDS,),
             sample_rate_hz=SAMPLE_RATE_HZ,
-            backend_id="room_acoustics",
+            backend_id="analytic_acoustics",
             runtime_profile="waveform_fidelity",
             sample_count=48_000,
         )
@@ -699,10 +695,10 @@ def test_room_noise_is_dispatched_once_on_equal_summed_mixtures(monkeypatch):
         scene = room_scene(*sources, array=array)
         baseline_sink = CaptureSink()
         effected_sink = CaptureSink()
-        RoomAcousticsBackend(waveform_writer=baseline_sink).simulate(
+        AnalyticAcoustics(waveform_writer=baseline_sink).simulate(
             scene, array.array_id, time_window()
         )
-        effected = RoomAcousticsBackend(
+        effected = AnalyticAcoustics(
             waveform_writer=effected_sink,
             effects=noise,
         ).simulate(scene, array.array_id, time_window())
@@ -738,7 +734,7 @@ def test_self_noise_metadata_fallback_requires_seed_before_room_synthesis(
 
     effects = _noise_effects(self_noise=SelfNoiseConfig())
     with pytest.raises(ConfigValidationError, match="seed"):
-        RoomAcousticsBackend(effects=effects).simulate(
+        AnalyticAcoustics(effects=effects).simulate(
             scene, array.array_id, time_window()
         )
 
@@ -768,7 +764,7 @@ def test_segmented_room_paths_compose_with_one_mixture_noise_dispatch(monkeypatc
     )
     sinks = (CaptureSink(), CaptureSink())
     frames = tuple(
-        RoomAcousticsBackend(
+        AnalyticAcoustics(
             effects=effects,
             window_motion=plan,
             waveform_writer=sink,
@@ -783,86 +779,12 @@ def test_segmented_room_paths_compose_with_one_mixture_noise_dispatch(monkeypatc
     )
 
 
-@pytest.mark.parametrize("q0", [0, 4096])
-@pytest.mark.parametrize(
-    "stress",
-    [
-        {},
-        {
-            "noise_std_s": 1e-6,
-            "clock_jitter_s": 2e-6,
-            "gain_mismatch_db": 2.0,
-            "seed": 33,
-        },
-    ],
-)
-def test_l1_timing_adapter_exact_and_legacy_rng_unchanged(q0, stress):
-    array = create_microphone_array(
-        array_id="rig",
-        prim_path="/World/Rig/AudioArray",
-        layout_name="quad_front",
-        sample_rate_hz=SAMPLE_RATE_HZ,
-    )
-    scene = room_scene(
-        source("speaker", (3.0, 0.0, 0.0)),
-        array=array,
-    )
-    start = q0 / SAMPLE_RATE_HZ
-    window = time_window(start_time_s=start, end_time_s=start + 1.0)
-    baseline_backend = TdoaSyntheticBackend(**stress)
-    baseline = baseline_backend.simulate(scene, array.array_id, window)
-    sigmas = dict(zip(MIC_IDS, (10e-6, 20e-6, 30e-6, 40e-6), strict=True))
-    drift = dict(zip(MIC_IDS, (125.0, -80.0, 0.0, 37.5), strict=True))
-    effects = _noise_effects(
-        seed=SEED,
-        clock_jitter_std_s=sigmas,
-        clock_drift_ppm=drift,
-    )
-    effected_backend = TdoaSyntheticBackend(effects=effects, **stress)
-    effected = effected_backend.simulate(scene, array.array_id, window)
-    q_mid = q0 + (48_000 - 1) / 2.0
-    for mic_id in MIC_IDS:
-        jitter = float(
-            named_generator(
-                SEED,
-                domain="noise",
-                frame_id=effected.frame_id,
-                mic_id=mic_id,
-                effect="clock_jitter",
-            ).normal(0.0, sigmas[mic_id])
-        )
-        expected = jitter + (
-            float(drift_delay_samples(q_mid, drift[mic_id])) / SAMPLE_RATE_HZ
-        )
-        observed = (
-            effected.detections[0].per_mic_delay_s[mic_id]
-            - baseline.detections[0].per_mic_delay_s[mic_id]
-        )
-        assert abs(observed - expected) <= 1e-12
-
-
-@pytest.mark.parametrize("backend", [GeometryBackend, TdoaSyntheticBackend])
-def test_l0_l1_waveform_noise_is_typed_unsupported(backend):
-    effects = _noise_effects(
-        seed=SEED,
-        self_noise=SelfNoiseConfig(default=NoiseLevelSpecConfig(level_db=-48.0)),
-    )
-    array = create_microphone_array(
-        array_id="rig",
-        prim_path="/World/Rig/AudioArray",
-        layout_name="quad_front",
-    )
-    scene = room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array)
-    with pytest.raises(UnsupportedEffectError, match="waveform-only"):
-        backend(effects=effects).simulate(scene, array.array_id, time_window())
-
-
 def test_backend_off_state_and_enabled_determinism(monkeypatch):
     install_fake_pyroom(monkeypatch)
     array = quad_array()
     scene = room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array)
     baseline_sink = CaptureSink()
-    baseline = RoomAcousticsBackend(waveform_writer=baseline_sink).simulate(
+    baseline = AnalyticAcoustics(waveform_writer=baseline_sink).simulate(
         scene, array.array_id, time_window()
     )
     assert baseline_sink.calls[0]["mixture"].size > 0
@@ -876,7 +798,7 @@ def test_backend_off_state_and_enabled_determinism(monkeypatch):
     )
     sinks = (CaptureSink(), CaptureSink())
     frames = tuple(
-        RoomAcousticsBackend(waveform_writer=sink, effects=effects).simulate(
+        AnalyticAcoustics(waveform_writer=sink, effects=effects).simulate(
             scene, array.array_id, time_window()
         )
         for sink in sinks
@@ -914,6 +836,6 @@ def test_minimum_windows_nonfinite_and_timing_history_fail_closed():
             mic_ids=("front",),
             sample_rate_hz=SAMPLE_RATE_HZ,
             frame_id=FRAME_ID,
-            backend_id="room_acoustics",
+            backend_id="analytic_acoustics",
             nominal_window_start_sample=30 * 86_400 * SAMPLE_RATE_HZ,
         )

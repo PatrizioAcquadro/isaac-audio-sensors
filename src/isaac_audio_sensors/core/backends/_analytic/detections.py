@@ -1,4 +1,4 @@
-"""Waveform localization and detection assembly for room acoustics."""
+"""Waveform localization and analytic detection assembly."""
 
 from __future__ import annotations
 
@@ -10,20 +10,20 @@ from isaac_audio_sensors.core.acoustics.occlusion import (
     occlusion_detection_diagnostics,
     occlusion_flag,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
+from isaac_audio_sensors.core.backends._analytic.diagnostics import (
     _ground_truth_bearing,
     _ground_truth_elevation,
     _rir_lengths,
     _rir_peak_delays,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.preparation import (
+from isaac_audio_sensors.core.backends._analytic.doa import estimate_doa_from_delays
+from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
 )
-from isaac_audio_sensors.core.backends.room_acoustics.rendering import (
+from isaac_audio_sensors.core.backends._analytic.rendering import (
     RenderedRoom,
     _max_microphone_spacing,
 )
-from isaac_audio_sensors.core.backends.tdoa import estimate_doa_from_delays
 from isaac_audio_sensors.core.directivity import DIRECTIVITY_MODE
 from isaac_audio_sensors.core.doa.gcc_phat import (
     estimate_tdoa_diagnostics,
@@ -195,7 +195,7 @@ def assemble_detections(
                     "environment_id": environment.environment_id,
                     "environment_config": prepared.environment_config,
                     "environment_dimensions_m": (environment.dimensions_m),
-                    "room_acoustics_options": {
+                    "analytic_acoustics_options": {
                         "max_order": prepared.max_order,
                         "air_absorption": prepared.air_absorption,
                         "ray_tracing": prepared.ray_tracing,

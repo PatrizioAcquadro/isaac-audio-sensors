@@ -14,10 +14,10 @@ from isaac_audio_sensors.core.acoustics.environments import (
     shoebox_environment,
     surface_set_environment,
 )
-from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
-from isaac_audio_sensors.core.backends.room_acoustics.rendering import (
+from isaac_audio_sensors.core.backends._analytic.rendering import (
     _apply_band_attenuation,
 )
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.effects.validation import UnsupportedEffectError
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable

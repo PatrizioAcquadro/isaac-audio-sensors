@@ -10,39 +10,27 @@ from isaac_audio_sensors.core.fidelity import (
 )
 
 
-def test_ladder_exposes_exact_five_v1_levels_in_order():
+def test_ladder_exposes_current_levels_in_order():
     assert tuple(item.level for item in ACOUSTIC_FIDELITY_LADDER) == (
-        AcousticFidelityLevel.L0,
-        AcousticFidelityLevel.L1,
         AcousticFidelityLevel.L2,
         AcousticFidelityLevel.L3,
         AcousticFidelityLevel.L4,
     )
     assert tuple(item.public_name for item in ACOUSTIC_FIDELITY_LADDER) == (
-        "geometry_only",
-        "tdoa_synthetic",
         "analytic_acoustics",
         "advanced_realism",
         "sim_real_calibration",
     )
 
 
-def test_implemented_l0_l1_l2_map_to_stable_backend_ids():
+def test_implemented_l2_maps_to_the_canonical_backend():
     by_level = _ladder_by_level()
 
-    assert by_level[AcousticFidelityLevel.L0].lifecycle_status == "stable_v1"
-    assert by_level[AcousticFidelityLevel.L1].lifecycle_status == "stable_v1"
     assert (
         by_level[AcousticFidelityLevel.L2].lifecycle_status == "supported_optional_v1"
     )
 
-    assert by_level[AcousticFidelityLevel.L0].backend_ids == ("geometry_only",)
-    assert by_level[AcousticFidelityLevel.L1].backend_ids == ("tdoa_synthetic",)
-    assert by_level[AcousticFidelityLevel.L2].backend_ids == (
-        "analytic_acoustics",
-        "room_acoustics",
-        "room_acoustics_srp",
-    )
+    assert by_level[AcousticFidelityLevel.L2].backend_ids == ("analytic_acoustics",)
     assert by_level[AcousticFidelityLevel.L2].optional_dependencies == (
         "room",
         "pyroomacoustics",
@@ -50,24 +38,16 @@ def test_implemented_l0_l1_l2_map_to_stable_backend_ids():
         "soundfile",
     )
 
-    for metadata in (
-        by_level[AcousticFidelityLevel.L0],
-        by_level[AcousticFidelityLevel.L1],
-        by_level[AcousticFidelityLevel.L2],
-    ):
+    for metadata in (by_level[AcousticFidelityLevel.L2],):
         assert metadata.runtime_selectable_v1 is True
         assert "AudioSensorFrame v1" in metadata.frame_contract
         for backend_id in metadata.backend_ids:
             assert fidelity_level_for_backend(backend_id) is metadata
 
 
-def test_implemented_levels_name_all_canonical_directivity_families():
+def test_implemented_level_names_all_canonical_directivity_families():
     by_level = _ladder_by_level()
-    for level in (
-        AcousticFidelityLevel.L0,
-        AcousticFidelityLevel.L1,
-        AcousticFidelityLevel.L2,
-    ):
+    for level in (AcousticFidelityLevel.L2,):
         modeled = " ".join(by_level[level].models)
         for family in ("omni", "cardioid", "supercardioid", "figure_eight"):
             assert family in modeled

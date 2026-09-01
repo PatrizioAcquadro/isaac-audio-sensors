@@ -10,12 +10,6 @@ import pytest
 
 from isaac_audio_sensors.core.acoustics.environments import shoebox_environment
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import (
-    RoomAcousticsBackend,
-    RoomAcousticsSrpBackend,
-)
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.types import (
@@ -78,19 +72,7 @@ def _window(
     )
 
 
-@pytest.mark.parametrize(
-    "backend_type",
-    (
-        GeometryBackend,
-        TdoaSyntheticBackend,
-        AnalyticAcoustics,
-        RoomAcousticsBackend,
-        RoomAcousticsSrpBackend,
-    ),
-)
-def test_backends_select_canonical_array_state_from_snapshot(
-    monkeypatch, backend_type
-) -> None:
+def test_backend_selects_canonical_array_state_from_snapshot(monkeypatch) -> None:
     install_fake_pyroom(monkeypatch)
     first = create_microphone_array(
         array_id="first",
@@ -111,26 +93,14 @@ def test_backends_select_canonical_array_state_from_snapshot(
         arrays=(first, selected),
     )
 
-    frame = backend_type().simulate(scene, "selected", _window(end_time_s=0.1))
+    frame = AnalyticAcoustics().simulate(scene, "selected", _window(end_time_s=0.1))
 
     assert frame.array_id == "selected"
     assert frame.array_pose is not None
     assert frame.array_pose.position_m == selected.position_world
 
 
-@pytest.mark.parametrize(
-    "backend_type",
-    (
-        GeometryBackend,
-        TdoaSyntheticBackend,
-        AnalyticAcoustics,
-        RoomAcousticsBackend,
-        RoomAcousticsSrpBackend,
-    ),
-)
-def test_backends_reject_array_id_absent_from_snapshot(
-    monkeypatch, backend_type
-) -> None:
+def test_backend_rejects_array_id_absent_from_snapshot(monkeypatch) -> None:
     install_fake_pyroom(monkeypatch)
     array = create_microphone_array(
         array_id="rig",
@@ -143,7 +113,7 @@ def test_backends_reject_array_id_absent_from_snapshot(
     )
 
     with pytest.raises(KeyError, match="AudioSceneSnapshot has no array 'missing'"):
-        backend_type().simulate(scene, "missing", _window(end_time_s=0.1))
+        AnalyticAcoustics().simulate(scene, "missing", _window(end_time_s=0.1))
 
 
 def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch) -> None:
@@ -158,10 +128,10 @@ def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch) -> None:
         array=array,
     )
 
-    frame = RoomAcousticsBackend(max_order=1).simulate(scene, array.array_id, _window())
+    frame = AnalyticAcoustics(max_order=1).simulate(scene, array.array_id, _window())
     detection = frame.detections[0]
 
-    assert frame.backend_id == "room_acoustics"
+    assert frame.backend_id == "analytic_acoustics"
     assert frame.diagnostics["physical_waveform"] is True
     assert frame.diagnostics["pyroomacoustics_version"] == "fake-test"
     assert frame.diagnostics["scheduled_source_ids"] == ("speaker",)
@@ -169,12 +139,19 @@ def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch) -> None:
         "environment_id": "unit_room",
         "kind": "shoebox",
         "dimensions_m": (6.0, 5.0, 3.0),
-        "absorption": 0.35,
+        "absorption": {
+            "floor": 0.35,
+            "ceiling": 0.35,
+            "wall_x_min": 0.35,
+            "wall_x_max": 0.35,
+            "wall_y_min": 0.35,
+            "wall_y_max": 0.35,
+        },
         "position_world": (-1.5, -1.0, -1.5),
         "orientation_world_quat": (0.0, 0.0, 0.0, 1.0),
         "surface_count": 6,
     }
-    assert frame.diagnostics["room_acoustics_options"] == {
+    assert frame.diagnostics["analytic_acoustics_options"] == {
         "max_order": 1,
         "air_absorption": False,
         "ray_tracing": False,
@@ -225,7 +202,7 @@ def test_room_acoustics_schedules_multiple_sources(monkeypatch) -> None:
         _source("future", (0.0, -3.0, 0.0), start_time_s=1.0, duration_s=0.5),
         array=array,
     )
-    backend = RoomAcousticsBackend()
+    backend = AnalyticAcoustics()
     window = _window(max_events=2)
 
     first = backend.simulate(scene, array.array_id, window)
@@ -253,10 +230,10 @@ def test_room_acoustics_schedules_multiple_sources(monkeypatch) -> None:
     }
     assert len(first.detections) == first.max_events == 2
     assert first.detections[0].detection_id == (
-        "room_acoustics_room_backend_test_rig_0_a_first_00"
+        "analytic_acoustics_room_backend_test_rig_0_a_first_00"
     )
     assert first.detections[1].detection_id == (
-        "room_acoustics_room_backend_test_rig_0_b_second_01"
+        "analytic_acoustics_room_backend_test_rig_0_b_second_01"
     )
     assert (
         first.detections[0].diagnostics["environment_microphone_positions_m"]
@@ -280,7 +257,7 @@ def test_room_acoustics_occlusion_replaces_only_the_affected_source_stem(
 
     def render(selected_scene, max_order):
         sink = CaptureSink()
-        RoomAcousticsBackend(
+        AnalyticAcoustics(
             max_order=max_order,
             waveform_writer=sink,
         ).simulate(selected_scene, array.array_id, window)
@@ -329,20 +306,10 @@ def test_room_acoustics_occlusion_replaces_only_the_affected_source_stem(
     )
 def test_room_acoustics_rejects_unknown_doa_estimator() -> None:
     with pytest.raises(ValueError, match="doa_estimator"):
-        RoomAcousticsBackend(doa_estimator="music")
+        AnalyticAcoustics(doa_estimator="music")
 
 
-def test_room_acoustics_srp_backend_pins_estimator(monkeypatch) -> None:
-    install_fake_pyroom(monkeypatch)
-    backend = RoomAcousticsSrpBackend()
-
-    assert backend.backend_id == "room_acoustics_srp"
-    assert backend.doa_estimator == "srp_phat"
-    with pytest.raises(ValueError, match="pins doa_estimator"):
-        RoomAcousticsSrpBackend(doa_estimator="tdoa_least_squares")
-
-
-def test_room_acoustics_srp_emits_frames(monkeypatch) -> None:
+def test_analytic_srp_emits_frames(monkeypatch) -> None:
     install_fake_pyroom(monkeypatch)
     array = create_microphone_array(
         array_id="rig",
@@ -353,12 +320,12 @@ def test_room_acoustics_srp_emits_frames(monkeypatch) -> None:
         _source("speaker", (3.0, 0.0, 0.0)),
         array=array,
     )
-    backend = RoomAcousticsSrpBackend()
+    backend = AnalyticAcoustics(doa_estimator="srp_phat")
 
     frame = backend.simulate(scene, array.array_id, _window())
     detection = frame.detections[0]
 
-    assert frame.backend_id == "room_acoustics_srp"
+    assert frame.backend_id == "analytic_acoustics"
     assert frame.provenance == "room_acoustics"
     assert frame.diagnostics["doa_estimator"] == "srp_phat"
     assert detection.diagnostics["doa_estimator"] == "srp_phat"
@@ -391,7 +358,7 @@ def test_room_acoustics_rejects_non_public_file_asset_paths(
     scene = _room_scene_with_sources(source, array=array)
 
     with pytest.raises(ValueError, match="relative public package path"):
-        RoomAcousticsBackend().simulate(scene, array.array_id, _window())
+        AnalyticAcoustics().simulate(scene, array.array_id, _window())
 
 
 def test_room_acoustics_rejects_malformed_pyroom_signals(monkeypatch) -> None:
@@ -405,13 +372,23 @@ def test_room_acoustics_rejects_malformed_pyroom_signals(monkeypatch) -> None:
     scene = _room_scene_with_sources(_source("speaker", (3.0, 0.0, 0.0)), array=array)
 
     with pytest.raises(ValueError, match="unexpected mic signal shape"):
-        RoomAcousticsBackend().simulate(scene, array.array_id, _window())
+        AnalyticAcoustics().simulate(scene, array.array_id, _window())
 
 
 def test_room_acoustics_unavailable_error_is_clear(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "pyroomacoustics", None)
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig/AudioArray",
+        layout_name="quad_front",
+    )
+    scene = _room_scene_with_sources(
+        _source("speaker", (3.0, 0.0, 0.0)),
+        array=array,
+    )
+
     with pytest.raises(OptionalDependencyUnavailable, match="room"):
-        RoomAcousticsBackend()
+        AnalyticAcoustics().simulate(scene, array.array_id, _window())
 
 
 class _MalformedSignalShoeBox(FakeShoeBox):

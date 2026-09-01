@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from isaac_audio_sensors.core.backends.room_acoustics.signals import (
+from isaac_audio_sensors.core.backends._analytic.signals import (
     _file_source_content,
 )
 

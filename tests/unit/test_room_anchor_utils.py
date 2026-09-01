@@ -5,7 +5,7 @@ import pytest
 from isaac_audio_sensors.core.acoustics.environments import (
     shoebox_environment_from_bounds,
 )
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
@@ -20,7 +20,7 @@ from isaac_audio_sensors.isaac.viz.overlays import (
     build_debug_primitives,
     environment_outline_points,
 )
-from tests.helpers import FakeUsdPrim
+from tests.helpers import FakeUsdPrim, install_fake_pyroom
 
 ENVIRONMENT_MIN_WORLD = (2.0, 1.0, 0.0)
 ENVIRONMENT_MAX_WORLD = (8.0, 5.0, 3.0)
@@ -130,7 +130,8 @@ def test_environment_absorption_precedence() -> None:
         )
 
 
-def test_environment_outline_and_debug_primitive() -> None:
+def test_environment_outline_and_debug_primitive(monkeypatch) -> None:
+    install_fake_pyroom(monkeypatch)
     environment = _environment()
     points = environment_outline_points(environment)
     assert len(points) == 16
@@ -154,7 +155,7 @@ def test_environment_outline_and_debug_primitive() -> None:
         arrays=(array,),
         environment=environment,
     )
-    frame = GeometryBackend().simulate(
+    frame = AnalyticAcoustics().simulate(
         scene,
         array.array_id,
         AudioTimeWindow(

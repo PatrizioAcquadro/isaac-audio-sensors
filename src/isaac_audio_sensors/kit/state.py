@@ -151,11 +151,12 @@ class ExtensionUiState:
 
     robot_base_prim_path: str = ""
     discovery_roots_text: str = "/World"
-    backend: str = "tdoa_synthetic"
+    backend: str = "analytic_acoustics"
     device_id: str = "isaac_sim"
     compute_device: str = "cpu"
     calibration_profile_path: str = ""
     ambiguity_policy: str = "none"
+    doa_estimator: str = "tdoa_least_squares"
     update_period_s: float = 0.05
     max_events: int = 8
     debug_overlay_enabled: bool = True
@@ -173,9 +174,9 @@ class ExtensionUiState:
     environment_resolution_mode: str = "unconfigured"
     environment_anchor_prim_path: str = ""
     environment_containment_tolerance_m: float = 0.001
-    room_acoustics_max_order: int = 0
-    room_acoustics_air_absorption: bool = False
-    room_acoustics_ray_tracing: bool = False
+    analytic_max_order: int = 0
+    analytic_air_absorption: bool = False
+    analytic_ray_tracing: bool = False
     latest_environment_summary: dict[str, Any] | None = None
     latest_frame_export_path: str = DEFAULT_LATEST_FRAME_FILENAME
     config_export_path: str = DEFAULT_CONFIG_FILENAME

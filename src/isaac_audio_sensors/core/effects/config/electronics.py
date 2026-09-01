@@ -149,12 +149,6 @@ def validate_electronics(
             "be an exact integer in [-2**63, 2**63 - 1]; received "
             f"{noise.seed!r}, backend={backend_id!r}, profile={runtime_profile!r}."
         )
-    if config.enabled and backend_id in {"geometry_only", "tdoa_synthetic"}:
-        raise UnsupportedEffectError(
-            f"{table}.enabled=true is waveform-only and unsupported by backend "
-            f"{backend_id!r} at profile {runtime_profile!r}; electronics has no "
-            "L0/L1 metadata representation."
-        )
     if config.enabled and runtime_profile != "waveform_fidelity":
         raise UnsupportedEffectError(
             f"{table}.enabled=true requires runtime profile 'waveform_fidelity'; "

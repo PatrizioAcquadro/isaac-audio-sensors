@@ -17,8 +17,7 @@ from isaac_audio_sensors.core.acoustics import (
     free_field_environment,
     shoebox_environment,
 )
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
 from isaac_audio_sensors.core.io.waveforms import WaveformWriteResult
@@ -94,7 +93,11 @@ class _StatefulShoeBox:
         type(self).compute_rir_calls += 1
         assert self.mic_array is not None
         material = getattr(self.materials, "absorption", self.materials)
-        material_bytes = json.dumps(material, sort_keys=True, default=list).encode()
+        material_bytes = json.dumps(
+            material,
+            sort_keys=True,
+            default=lambda value: value.absorption,
+        ).encode()
         geometry = sum(sum(position) for position, _signal in self.sources) + float(
             np.sum(self.mic_array.R)
         )
@@ -229,7 +232,7 @@ def _render(fake_room, record=None, environment=None):
         occlusion=None if record is None else (record,),
     )
     sink = _CaptureSink()
-    frame = RoomAcousticsBackend(max_order=1, waveform_writer=sink).simulate(
+    frame = AnalyticAcoustics(max_order=1, waveform_writer=sink).simulate(
         scene, array.array_id, _window()
     )
     return frame, sink.mixtures[0]
@@ -366,7 +369,7 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
         environment=_environment(),
     )
     array_sink = _CaptureSink()
-    array_frame = RoomAcousticsBackend(waveform_writer=array_sink).simulate(
+    array_frame = AnalyticAcoustics(waveform_writer=array_sink).simulate(
         array_scene,
         array.array_id,
         _window(),
@@ -377,7 +380,7 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
         arrays=(_array(),),
     )
     source_sink = _CaptureSink()
-    source_frame = RoomAcousticsBackend(waveform_writer=source_sink).simulate(
+    source_frame = AnalyticAcoustics(waveform_writer=source_sink).simulate(
         source_scene,
         source_scene.arrays[0].array_id,
         _window(),
@@ -513,7 +516,7 @@ def test_live_sensor_preserves_static_environment_without_anchor():
         stage=_Stage(),
         array_prim_path=ARRAY_PATH,
         environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
-        backend="geometry_only",
+        backend="analytic_acoustics",
         environment=environment,
     ).start()
 
@@ -550,7 +553,7 @@ def test_auto_resolution_switches_marked_volume_when_complete_array_moves():
         stage=stage,
         array_prim_path=ARRAY_PATH,
         environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="auto"),
-        backend="geometry_only",
+        backend="analytic_acoustics",
     ).start()
 
     sensor.update(sim_time_s=0.0, force=True)
@@ -558,11 +561,12 @@ def test_auto_resolution_switches_marked_volume_when_complete_array_moves():
     assert sensor.environment.environment_id == "room_a"
 
     stage.prims[ARRAY_PATH].attributes["ias:position_world"] = (10.0, 0.0, 1.0)
+    stage.prims[SOURCE_PATH].attributes["ias:position_world"] = (11.0, 0.0, 1.0)
     sensor.update(sim_time_s=0.1, force=True)
 
     assert sensor.environment.environment_id == "room_b"
     assert sensor.latest_scene is not None
-    assert sensor.latest_scene.sources[0].position_world == (4.0, 0.0, 1.0)
+    assert sensor.latest_scene.sources[0].position_world == (11.0, 0.0, 1.0)
     assert stage.traversals == warm_traversals
     sensor.close()
 
@@ -577,7 +581,7 @@ def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_st
             mode="anchor",
             anchor_prim_path=ENVIRONMENT_PATH,
         ),
-        backend="geometry_only",
+        backend="analytic_acoustics",
         occlusion_enabled=True,
         occlusion_raycaster=raycaster,
         update_period_s=0.05,
@@ -640,7 +644,7 @@ def test_anchor_deletion_fails_before_backend_frame_and_keeps_reason_pending():
             mode="anchor",
             anchor_prim_path=ENVIRONMENT_PATH,
         ),
-        backend="geometry_only",
+        backend="analytic_acoustics",
     ).start()
     sensor.update(sim_time_s=0.0, force=True)
     stage.prims.pop(ENVIRONMENT_PATH)
@@ -667,8 +671,8 @@ def test_off_state_frame_has_no_acoustics_namespace_and_is_byte_deterministic():
         arrays=(array,),
         environment=free_field_environment(environment_id="off_free_field"),
     )
-    first = GeometryBackend().simulate(scene, array.array_id, _window())
-    second = GeometryBackend().simulate(scene, array.array_id, _window())
+    first = AnalyticAcoustics().simulate(scene, array.array_id, _window())
+    second = AnalyticAcoustics().simulate(scene, array.array_id, _window())
     assert "acoustics_state" not in first.diagnostics
     first_bytes = json.dumps(frame_to_trace_dict(first), sort_keys=True).encode()
     second_bytes = json.dumps(frame_to_trace_dict(second), sort_keys=True).encode()

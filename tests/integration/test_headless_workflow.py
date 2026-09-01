@@ -24,7 +24,7 @@ class _FakeSensor:
         self.frames = list(frames)
         self.latest_frame: AudioSensorFrame | None = None
         self.latest_debug_primitives: tuple[object, ...] = ()
-        self.backend = "geometry_only"
+        self.backend = "analytic_acoustics"
         self.array_id = "minimal_array"
         self.array_prim_path = "/World/AudioArray"
         self.source_prim_path: str | None = None
@@ -62,7 +62,7 @@ def _frame(index: int) -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id=f"guided_frame_{index:03d}",
         timestamp_ms=timestamp,
-        backend_id="geometry_only",
+        backend_id="analytic_acoustics",
         array_id="minimal_array",
         start_time_s=index / 100.0,
         end_time_s=index / 100.0 + 0.001,

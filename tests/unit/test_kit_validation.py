@@ -31,22 +31,16 @@ def _capability_report(*, room_available: bool) -> CapabilityReport:
     return CapabilityReport(
         fidelity_levels=(
             _capability(
-                "L0",
+                "L2",
                 kind="fidelity_level",
-                fidelity_level="L0",
+                fidelity_level="L2",
                 available=True,
             ),
         ),
         optional_features=(
             _capability(
-                "room_acoustics",
-                kind="backend",
-                fidelity_level="L2",
-                available=room_available,
-            ),
-            _capability(
-                "room_acoustics_srp",
-                kind="backend",
+                "analytic_acoustics_closed_rooms",
+                kind="backend_feature",
                 fidelity_level="L2",
                 available=room_available,
             ),
@@ -77,7 +71,9 @@ def test_capability_cache_refreshes_once_after_invalidation(monkeypatch) -> None
     assert validation.capability_state is second
 
 
-def test_backend_validation_uses_refreshed_capability_state(monkeypatch) -> None:
+def test_backend_validation_keeps_core_analytic_available_without_pyroom(
+    monkeypatch,
+) -> None:
     reports = iter(
         (
             _capability_report(room_available=True),
@@ -93,17 +89,15 @@ def test_backend_validation_uses_refreshed_capability_state(monkeypatch) -> None
     validation.refresh_capabilities()
     validation.invalidate()
 
-    report = validation.validate_backend_available("room_acoustics")
+    report = validation.validate_backend_available("analytic_acoustics")
 
-    assert not report.ok
-    assert report.findings[0].check_id == "backend_available"
-    assert "Install isaac-audio-sensors[room]." in report.findings[0].message
+    assert report.ok
 
 
 def test_backend_device_is_evaluated_on_every_call() -> None:
     validation = ValidationController()
-    assert validation.validate_backend_device("tdoa_synthetic", "cpu").ok
-    report = validation.validate_backend_device("tdoa_synthetic", "cuda")
+    assert validation.validate_backend_device("analytic_acoustics", "cpu").ok
+    report = validation.validate_backend_device("analytic_acoustics", "cuda")
     assert not report.ok
     assert report.findings[0].check_id == "backend_device_supported"
 

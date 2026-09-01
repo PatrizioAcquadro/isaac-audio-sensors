@@ -5,8 +5,7 @@ from dataclasses import replace
 import pytest
 
 from isaac_audio_sensors.core.acoustics import free_field_environment
-from isaac_audio_sensors.core.backends.geometry import GeometryBackend
-from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
+from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.types import AudioSceneSnapshot, SourceOcclusion
 from tests.helpers import quad_array, source, time_window
@@ -93,10 +92,10 @@ def test_scene_rejects_duplicate_occlusion_records_and_resolves_valid_pair():
         _scene(occlusion=(mismatched,))
 
 
-def test_geometry_backend_applies_per_mic_attenuation_independently():
+def test_analytic_backend_applies_per_mic_attenuation_independently():
     array = quad_array()
-    baseline = GeometryBackend().simulate(_scene(), array.array_id, time_window())
-    attenuated = GeometryBackend().simulate(
+    baseline = AnalyticAcoustics().simulate(_scene(), array.array_id, time_window())
+    attenuated = AnalyticAcoustics().simulate(
         _scene(occlusion=(_record(),)), array.array_id, time_window()
     )
 
@@ -107,9 +106,9 @@ def test_geometry_backend_applies_per_mic_attenuation_independently():
         assert attenuated_rms[mic_id] == pytest.approx(baseline_rms[mic_id])
 
 
-def test_tdoa_backend_attenuates_rms_without_changing_delays_or_bearing():
+def test_analytic_backend_attenuates_rms_without_changing_delays_or_bearing():
     array = quad_array()
-    backend = TdoaSyntheticBackend(ambiguity_policy="front_hemisphere")
+    backend = AnalyticAcoustics(ambiguity_policy="front_hemisphere")
     baseline = backend.simulate(_scene(), array.array_id, time_window()).detections[0]
     attenuated = backend.simulate(
         _scene(occlusion=(_record(),)), array.array_id, time_window()

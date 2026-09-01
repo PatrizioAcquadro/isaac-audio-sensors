@@ -25,7 +25,7 @@ def _base_raw() -> dict[str, object]:
     return {
         "scene": {"scene_id": "effects_config"},
         "audio": {
-            "default_backend": "room_acoustics",
+            "default_backend": "analytic_acoustics",
             "runtime_profile": "waveform_fidelity",
             "sample_rate_hz": SAMPLE_RATE_HZ,
         },

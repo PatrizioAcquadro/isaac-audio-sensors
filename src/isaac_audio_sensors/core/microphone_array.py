@@ -121,9 +121,9 @@ def validate_tdoa_array(array: MicrophoneArraySpec) -> None:
     """Validate minimum geometry for the synthetic TDOA backend."""
 
     if len(array.microphones) < 2:
-        raise ValueError("tdoa_synthetic requires at least two microphones.")
+        raise ValueError("TDOA localization requires at least two microphones.")
     if _layout_rank_xy(array) < 1:
-        raise ValueError("tdoa_synthetic microphone layout is degenerate.")
+        raise ValueError("TDOA microphone layout is degenerate.")
 
 
 def layout_rank_xy(array: MicrophoneArraySpec) -> int:
