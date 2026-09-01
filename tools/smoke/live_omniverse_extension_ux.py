@@ -3020,7 +3020,7 @@ def _run_capture_awaitable(awaitable: Any) -> Any:
     return loop.run_until_complete(awaitable)
 
 
-def _wait_for_screenshot_file(path: Path, *, max_updates: int = 120) -> dict[str, Any]:
+def _wait_for_screenshot_file(path: Path, *, max_updates: int = 240) -> dict[str, Any]:
     if _png_info(path) is not None:
         return {"status": "ready", "updates": 0}
     try:
