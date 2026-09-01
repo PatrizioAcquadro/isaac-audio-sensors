@@ -439,12 +439,30 @@ def test_pyroom_uses_requested_sound_speed_and_fails_closed(monkeypatch) -> None
     assert module.ShoeBox.instances[-1].c == 300.0
     assert frame.diagnostics["speed_of_sound_mps"] == 300.0
 
-    class NoSoundSpeedShoeBox(FakeShoeBox):
+    class ConstructorOnlySoundSpeedShoeBox(FakeShoeBox):
         set_sound_speed = None
 
-    module.ShoeBox = NoSoundSpeedShoeBox
+    module.ShoeBox = ConstructorOnlySoundSpeedShoeBox
+    frame = AnalyticAcoustics(
+        max_order=1,
+        speed_of_sound_mps=300.0,
+    ).simulate(scene, "rig", WINDOW)
+    assert module.ShoeBox.instances[-1].c == 300.0
+    assert frame.diagnostics["speed_of_sound_mps"] == 300.0
+
+    class IgnoredSoundSpeedShoeBox(FakeShoeBox):
+        set_sound_speed = None
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.c = 343.0
+
+    module.ShoeBox = IgnoredSoundSpeedShoeBox
     with pytest.raises(ValueError, match="cannot apply speed_of_sound_mps"):
-        AnalyticAcoustics(max_order=1).simulate(scene, "rig", WINDOW)
+        AnalyticAcoustics(
+            max_order=1,
+            speed_of_sound_mps=300.0,
+        ).simulate(scene, "rig", WINDOW)
 
 
 def test_closed_room_import_error_is_actionable(monkeypatch) -> None:

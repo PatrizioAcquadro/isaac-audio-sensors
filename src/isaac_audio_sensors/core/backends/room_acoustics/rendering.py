@@ -824,12 +824,8 @@ def _set_pyroom_sound_speed(room: Any, speed_of_sound_mps: float) -> None:
     """Set one room's sound speed without mutating PyRoom global state."""
 
     setter = getattr(room, "set_sound_speed", None)
-    if not callable(setter):
-        raise ValueError(
-            "The selected PyRoom provider cannot apply speed_of_sound_mps via "
-            "Room.set_sound_speed()."
-        )
-    setter(float(speed_of_sound_mps))
+    if callable(setter):
+        setter(float(speed_of_sound_mps))
     actual = getattr(room, "c", None)
     if actual is None or not np.isclose(
         float(actual),
@@ -838,7 +834,8 @@ def _set_pyroom_sound_speed(room: Any, speed_of_sound_mps: float) -> None:
         atol=1e-12,
     ):
         raise ValueError(
-            "The selected PyRoom provider did not preserve speed_of_sound_mps."
+            "The selected PyRoom provider cannot apply speed_of_sound_mps via "
+            "Room.set_sound_speed() or its room constructor."
         )
 
 
