@@ -421,3 +421,11 @@ Recorded the minimal Core occlusion record, uncapped acoustic-partition transmis
 ## 2026-09-01 — lint: R8.4 occlusion contract and transmission closeout
 
 Verified the complete host and Isaac suites, optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, clean-source release artifacts, unchanged SquadBot, byte-identical v1 schemas, canonical wiki links and index coverage, Ruff, version synchronization, and whitespace.
+
+## 2026-09-01 — update: Final R7/R8 cleanup
+
+Made the maintained quickstart Core-only, removed obsolete amplitude, Lab geometry, and duplicate PyRoom internals, replaced private-helper test coupling with public spectral assertions, and consolidated R7/R8 documentation without changing public contracts or v1 schemas.
+
+## 2026-09-01 — lint: Final R7/R8 cleanup
+
+Verified Python 3.10/3.12 host gates, real optional audio, configuration and fixture workflows, byte-identical schemas, 100 Isaac-runtime tests, RTX 4090 Isaac Sim/Lab/Kit smokes, 4096-environment Lab performance, 373-pass SquadBot compatibility, clean-source release artifacts, canonical wiki links, Ruff, version synchronization, and whitespace.

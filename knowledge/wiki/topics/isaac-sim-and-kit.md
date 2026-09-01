@@ -128,9 +128,7 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 
 ## Version Notes
 
-- 2026-09-01: Completed R7.2 with mandatory environments, `manual`/`anchor`/`auto` Isaac resolution, full-array containment, marked shoebox/floor discovery, cache-aware refresh, fail-closed Kit modes, and `ias.omni_extension_binding.v3` with no v2 parser.
-- 2026-09-01: Completed R8.3 backend consolidation, analytic field naming, and `ias.omni_extension_binding.v4` with no v3 parser; the RTX 4090 live workflow passes all 38 maintained steps.
-- 2026-09-01: Migrated the live sensor, cache, anchor refresh, overlays, and Kit controls to `AcousticEnvironmentSpec`; binding/configuration is now `ias.omni_extension_binding.v2`, while the temporary no-anchor shoebox remains through R7.1.
+- 2026-09-01: Completed R7/R8 environment resolution, analytic backend consolidation, and occlusion transmission. The current configuration is `ias.omni_extension_binding.v4`; v2/v3 were migration formats and have no runtime parser.
 - 2026-08-27: Made source and child-microphone directivity enum-backed and fail-closed, aligned native gain conversion, and removed the effects-owned directivity path for v3.
 - 2026-08-26: Removed dead Kit internals and dynamic sibling-service lookup while preserving the controller, UI, configuration, and runtime contracts.
 - 2026-08-26: Clarified direct Replicator writer updates and retained the v1 annotator name as metadata without registering a runtime annotator.
