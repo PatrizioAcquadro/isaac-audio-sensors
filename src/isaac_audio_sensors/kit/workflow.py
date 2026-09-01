@@ -84,6 +84,12 @@ class SafePreset:
                 "robot_base_prim_path": None,
                 "discovery_roots": ("/World",),
             },
+            "environment": {
+                "mode": "manual_free_field",
+                "anchor_prim_path": None,
+                "containment_tolerance_m": 0.001,
+                "resolved": None,
+            },
             "lifecycle": {
                 "update_period_s": values["update_period_s"],
                 "max_events": values["max_events"],
@@ -215,6 +221,7 @@ class RecordingStatus:
     @property
     def byte_count(self) -> int:
         return self.bytes_written
+
 
 @dataclass(frozen=True, slots=True)
 class ExportStatus:

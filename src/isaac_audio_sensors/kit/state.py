@@ -170,7 +170,9 @@ class ExtensionUiState:
     live_sync_source_pose: bool = False
     usd_debug_enabled: bool = False
     usd_debug_root: str = "/World/IasAudioDebug"
+    environment_resolution_mode: str = "unconfigured"
     environment_anchor_prim_path: str = ""
+    environment_containment_tolerance_m: float = 0.001
     room_acoustics_max_order: int = 0
     room_acoustics_air_absorption: bool = False
     room_acoustics_ray_tracing: bool = False

@@ -203,6 +203,7 @@ def test_each_safe_preset_drives_controller_to_validator_clean_state(
     controller = _controller(stage_box)
 
     assert controller.guided_apply_preset(preset.preset_id) is preset
+    assert controller.state.environment_resolution_mode == "manual_free_field"
     assert controller.guided_workflow.status(GuidedStage.SETUP) is StageStatus.COMPLETE
     assert controller.guided_advance()
     assert controller.guided_validate().ok
@@ -251,9 +252,7 @@ def test_invalid_field_maps_to_recovery_and_unblocks(
         item
         for item in controller.guided_workflow.current_findings
         if item.field == field
-    ] == [
-        item for item in report.findings if item.field == field
-    ]
+    ] == [item for item in report.findings if item.field == field]
     action = controller.guided_workflow.recovery_action(finding)
     assert action.label == action_label
     action()

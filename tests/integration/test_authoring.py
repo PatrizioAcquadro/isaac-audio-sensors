@@ -97,6 +97,7 @@ def test_extension_controller_manual_profile_apply_authors_source_metadata():
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.source_prim_path = "/World/Sources/SinkSpeaker"
     controller.state.source_position_x_m = 1.5
     controller.state.source_position_y_m = 0.25
@@ -194,6 +195,7 @@ def test_extension_controller_profile_apply_preserves_attachment_and_frame_metad
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
     assert controller.author_array(stage=stage) is not None
@@ -266,6 +268,7 @@ def test_extension_controller_source_position_read_apply_presets_and_drag_update
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
     assert controller.author_array(stage=stage) is not None
@@ -334,6 +337,7 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
     assert controller.author_array(stage=stage) is not None
@@ -418,6 +422,7 @@ def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
     assert controller.author_array(stage=stage) is not None
@@ -513,6 +518,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
 
     assert controller.author_array(stage=stage) is not None
@@ -643,6 +649,7 @@ def test_extension_controller_missing_attached_object_is_readable(tmp_path):
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.config_export_path = str(tmp_path / "binding.json")
 
     assert controller.author_array(stage=stage) is not None

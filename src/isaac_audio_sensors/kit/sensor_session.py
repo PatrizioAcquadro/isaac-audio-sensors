@@ -6,6 +6,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
+from isaac_audio_sensors.core.acoustics.environments import free_field_environment
 from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 from isaac_audio_sensors.core.io.traces import append_frame_jsonl, write_frame_trace
 from isaac_audio_sensors.core.io.waveforms import (
@@ -21,12 +22,14 @@ from isaac_audio_sensors.core.microphone_array import (
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioSceneBindingCfg,
 )
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+)
 from isaac_audio_sensors.isaac.frame_registry import (
     clear_latest_frames,
     publish_latest_frame,
 )
 from isaac_audio_sensors.isaac.pose_resolver import (
-    IsaacStagePoseResolver,
     quat_from_any,
     vec3_from_any,
 )
@@ -38,11 +41,7 @@ from isaac_audio_sensors.isaac.viz.usd_debug import UsdDebugGeometryAuthor
 
 from ._service import ControllerService, _raise_first
 from .audition import AuditionPlayer
-from .constants import (
-    DEFAULT_ENVIRONMENT_ABSORPTION,
-    DEFAULT_ENVIRONMENT_DIMENSIONS_M,
-    DEFAULT_ENVIRONMENT_ID,
-)
+from .constants import DEFAULT_FREE_FIELD_ENVIRONMENT_ID
 from .formatting import (
     _aggregate_rms_from_frame,
     _frame_is_new,
@@ -51,13 +50,11 @@ from .instruments import append_detection_history
 from .paths import _resolve_gui_output_path
 from .stage_context import (
     _stage_has_prim,
-    _stage_prim_at_path,
 )
 from .state import (
     ExtensionActionError,
 )
 from .validation.checks import (
-    check_environment_anchor_exists,
     check_runtime_state,
     check_stage_present,
 )
@@ -138,6 +135,7 @@ class SensorSession(ControllerService):
         """Configure if needed, then start the live sensor."""
 
         try:
+            self._validate_runtime_state()
             if self.sensor is None and self.configure_sensor(stage=stage) is None:
                 return None
             self._validate_backend_available()
@@ -277,82 +275,73 @@ class SensorSession(ControllerService):
             self.state.latest_usd_debug_prim_paths = ()
             self._record_error("USD debug authoring failed", exc)
 
-    def _environment_spec_or_none(self, stage: Any) -> Any | None:
-        """Return the R7.1 anchor-derived or temporary fallback environment."""
+    def _environment_inputs(
+        self,
+    ) -> tuple[IsaacEnvironmentResolutionCfg, Any | None]:
+        """Translate the explicit Kit mode to the Isaac resolution contract."""
 
         state = self.state
         state.latest_environment_summary = None
-        if state.backend not in {"room_acoustics", "room_acoustics_srp"}:
-            return None
-        from isaac_audio_sensors.core.acoustics.environments import (
-            shoebox_environment,
-            shoebox_environment_from_bounds,
-        )
-        from isaac_audio_sensors.isaac.usd_bounds import (
-            DEFAULT_SEMANTIC_ABSORPTION,
-            resolve_environment_absorption,
-            world_aligned_bbox,
-        )
-
-        anchor_path = state.environment_anchor_prim_path.strip()
-        if anchor_path:
-            prim = _stage_prim_at_path(stage, anchor_path)
-            _raise_first(
-                ValidationReport(
-                    check_environment_anchor_exists(
-                        anchor_path,
-                        prim is not None,
-                    )
-                )
-            )
-            assert prim is not None
-            minimum, maximum = world_aligned_bbox(prim, prim_path=anchor_path)
-            absorption, absorption_provenance = resolve_environment_absorption(
-                prim,
-                semantic_absorption=dict(DEFAULT_SEMANTIC_ABSORPTION),
-                default=DEFAULT_ENVIRONMENT_ABSORPTION,
-            )
-            environment = shoebox_environment_from_bounds(
-                min_world=minimum,
-                max_world=maximum,
-                environment_id=DEFAULT_ENVIRONMENT_ID,
-                absorption=absorption,
-            )
-        else:
-            # R7.1 fallback: one explicit shoebox centered on the selected array.
-            array_position = self._host._authoring._array_position_from_state()
-            with suppress(Exception):
-                pose = IsaacStagePoseResolver(stage).resolve_world_pose(
-                    state.array_prim_path,
-                    field_name="environment placement array",
-                )
-                array_position = tuple(float(value) for value in pose.position_world)
-            dimensions = DEFAULT_ENVIRONMENT_DIMENSIONS_M
-            environment = shoebox_environment(
-                environment_id=DEFAULT_ENVIRONMENT_ID,
-                dimensions_m=dimensions,
-                absorption=DEFAULT_ENVIRONMENT_ABSORPTION,
-                position_world=tuple(
-                    array_position[axis] - dimensions[axis] / 2.0 for axis in range(3)
+        tolerance = state.environment_containment_tolerance_m
+        if state.environment_resolution_mode == "manual_free_field":
+            return (
+                IsaacEnvironmentResolutionCfg(
+                    mode="manual",
+                    containment_tolerance_m=tolerance,
+                ),
+                free_field_environment(
+                    environment_id=DEFAULT_FREE_FIELD_ENVIRONMENT_ID
                 ),
             )
-            absorption_provenance = "config"
+        if state.environment_resolution_mode == "anchor":
+            return (
+                IsaacEnvironmentResolutionCfg(
+                    mode="anchor",
+                    anchor_prim_path=state.environment_anchor_prim_path.strip(),
+                    containment_tolerance_m=tolerance,
+                ),
+                None,
+            )
+        return (
+            IsaacEnvironmentResolutionCfg(
+                mode=state.environment_resolution_mode,
+                candidate_roots=self._host._authoring._discovery_roots(),
+                containment_tolerance_m=tolerance,
+            ),
+            None,
+        )
+
+    def _record_environment_summary(self, sensor: IsaacAudioArraySensor) -> None:
+        state = self.state
+        environment = sensor.environment
+        diagnostics = sensor._latest_stage_diagnostics or {}
+        resolution = dict(diagnostics.get("environment_resolution", {}))
         state.latest_environment_summary = {
+            "mode": state.environment_resolution_mode,
             "environment_id": environment.environment_id,
             "kind": environment.kind,
             "dimensions_m": environment.dimensions_m,
             "position_world": environment.world_pose.position_m,
             "orientation_world_quat": environment.world_pose.orientation_xyzw,
-            "absorption": environment.surfaces[0].absorption,
-            "absorption_provenance": absorption_provenance,
-            "anchor_prim_path": anchor_path or None,
+            "absorption": (
+                environment.surfaces[0].absorption if environment.surfaces else None
+            ),
+            "absorption_provenance": resolution.get("absorption_provenance"),
+            "anchor_prim_path": (
+                state.environment_anchor_prim_path.strip()
+                if state.environment_resolution_mode == "anchor"
+                else None
+            ),
+            "selected_prim_path": resolution.get("selected_prim_path"),
+            "priority": resolution.get("priority"),
+            "candidate_count": resolution.get("candidate_count", 0),
+            "containment_tolerance_m": (state.environment_containment_tolerance_m),
             "room_acoustics": {
                 "max_order": state.room_acoustics_max_order,
                 "air_absorption": state.room_acoustics_air_absorption,
                 "ray_tracing": state.room_acoustics_ray_tracing,
             },
         }
-        return environment
 
     def update_sensor(self, *, force: bool = True) -> Any | None:
         """Force one frame and update UI/export state."""
@@ -372,6 +361,8 @@ class SensorSession(ControllerService):
                 else None
             )
             frame = self.sensor.update(force=force)
+            if isinstance(self.sensor, IsaacAudioArraySensor):
+                self._record_environment_summary(self.sensor)
             is_new = _frame_is_new(previous_frame, frame)
             if self.state.trace_enabled and is_new:
                 append_frame_jsonl(
@@ -418,8 +409,7 @@ class SensorSession(ControllerService):
     def _build_sensor(self, stage: Any) -> IsaacAudioArraySensor:
         state = self.state
         self._validate_runtime_state()
-        environment = self._environment_spec_or_none(stage)
-        environment_anchor = state.environment_anchor_prim_path.strip() or None
+        environment_resolution_cfg, environment = self._environment_inputs()
         explicit_array_available = bool(
             state.array_prim_path.strip()
         ) and _stage_has_prim(stage, state.array_prim_path)
@@ -441,7 +431,7 @@ class SensorSession(ControllerService):
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,
-                environment_anchor_prim_path=environment_anchor,
+                environment_resolution_cfg=environment_resolution_cfg,
                 room_acoustics_max_order=state.room_acoustics_max_order,
                 room_acoustics_air_absorption=(state.room_acoustics_air_absorption),
                 room_acoustics_ray_tracing=state.room_acoustics_ray_tracing,
@@ -465,7 +455,7 @@ class SensorSession(ControllerService):
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,
-                environment_anchor_prim_path=environment_anchor,
+                environment_resolution_cfg=environment_resolution_cfg,
                 room_acoustics_max_order=state.room_acoustics_max_order,
                 room_acoustics_air_absorption=(state.room_acoustics_air_absorption),
                 room_acoustics_ray_tracing=state.room_acoustics_ray_tracing,
@@ -474,6 +464,7 @@ class SensorSession(ControllerService):
         if sensor.array_prim_path:
             state.array_prim_path = sensor.array_prim_path
         state.array_id = sensor.array_id
+        self._record_environment_summary(sensor)
         return sensor
 
     def _validate_runtime_state(self) -> None:

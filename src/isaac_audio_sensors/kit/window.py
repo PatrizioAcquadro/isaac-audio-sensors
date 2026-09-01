@@ -325,15 +325,16 @@ class OmniReferenceWindow:
                 f"dims={_optional_vec3_text(environment.get('dimensions_m'))} | "
                 f"position={_optional_vec3_text(environment.get('position_world'))} | "
                 f"absorption={environment.get('absorption')} "
-                f"({environment.get('absorption_provenance', 'config')}) | "
-                f"anchor={environment.get('anchor_prim_path') or 'centered on array'}",
+                f"({environment.get('absorption_provenance') or 'none'}) | "
+                f"mode={environment.get('mode', 'unknown')} | "
+                f"prim={environment.get('selected_prim_path') or 'manual'}",
             )
         else:
             self._set_label(
                 "environment",
-                "Environment: inactive | "
-                f"anchor={state.environment_anchor_prim_path or 'centered on array'} | "
-                "used by the room_acoustics backend",
+                "Environment: unresolved | "
+                f"mode={state.environment_resolution_mode} | "
+                "configuration is blocked while unconfigured",
             )
         self.refresh_instruments()
         self.refresh_audio_panel()

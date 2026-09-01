@@ -21,11 +21,13 @@ LAYOUT_CHOICES = (
     "mono",
 )
 WAVEFORM_MODE_CHOICES = ("per_frame", "session")
-# Default shoebox used by the room_acoustics backend when no anchor prim is
-# designated; R7.1 keeps this temporary fallback until R7.2 input resolution.
-DEFAULT_ENVIRONMENT_ID = "ias_gui_default_environment"
-DEFAULT_ENVIRONMENT_DIMENSIONS_M = (6.0, 6.0, 3.0)
-DEFAULT_ENVIRONMENT_ABSORPTION = 0.35
+ENVIRONMENT_MODE_CHOICES = (
+    "unconfigured",
+    "manual_free_field",
+    "anchor",
+    "auto",
+)
+DEFAULT_FREE_FIELD_ENVIRONMENT_ID = "ias_kit_free_field"
 SOURCE_POSITION_PRESETS: Mapping[str, tuple[float, float, float]] = {
     "front": (2.0, 0.0, 0.0),
     "right": (0.0, 2.0, 0.0),

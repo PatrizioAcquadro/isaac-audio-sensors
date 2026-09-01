@@ -224,6 +224,7 @@ class IsaacAudioArraySensor:
     ) -> IsaacAudioArraySensor:
         """Create a live sensor from a real or duck-typed Isaac stage."""
 
+        diagnostics: dict[str, Any] = {}
         snapshot = build_stage_snapshot(
             stage,
             timestamp_ms=timestamp_ms,
@@ -232,13 +233,14 @@ class IsaacAudioArraySensor:
             array_prim_path=array_prim_path,
             source_prim_path=source_prim_path,
             robot_base_prim_path=robot_base_prim_path,
+            diagnostics_out=diagnostics,
         )
         if len(snapshot.arrays) != 1:
             raise ValueError(
                 f"Expected exactly one array at {array_prim_path!r}, "
                 f"found {len(snapshot.arrays)}."
             )
-        return cls(
+        sensor = cls(
             array_id=snapshot.arrays[0].array_id,
             stage=stage,
             backend=backend,
@@ -263,6 +265,8 @@ class IsaacAudioArraySensor:
             occlusion_raycaster=occlusion_raycaster,
             waveform_sink=waveform_sink,
         )
+        sensor._latest_stage_diagnostics = diagnostics
+        return sensor
 
     @classmethod
     def from_discovered_stage(
@@ -306,6 +310,7 @@ class IsaacAudioArraySensor:
         )
         if result.selected_array is None:
             raise ValueError("No microphone array was discovered for stage binding.")
+        environment_diagnostics: dict[str, Any] = {}
         resolved_environment = resolve_stage_environment(
             stage,
             result.selected_array.spec,
@@ -313,8 +318,9 @@ class IsaacAudioArraySensor:
             manual_environment=environment,
             time_code=usd_time_code,
             prims=prims,
+            diagnostics_out=environment_diagnostics,
         )
-        return cls(
+        sensor = cls(
             array_id=result.selected_array.spec.array_id,
             stage=stage,
             backend=backend,
@@ -339,6 +345,11 @@ class IsaacAudioArraySensor:
             occlusion_raycaster=occlusion_raycaster,
             waveform_sink=waveform_sink,
         )
+        sensor._latest_stage_diagnostics = dict(result.diagnostics)
+        sensor._latest_stage_diagnostics["environment_resolution"] = (
+            environment_diagnostics
+        )
+        return sensor
 
     def start(
         self,

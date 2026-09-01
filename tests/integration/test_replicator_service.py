@@ -26,6 +26,7 @@ def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "tdoa_synthetic"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.update_period_s = 10.0
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
     controller.state.replicator_enabled = True
@@ -66,6 +67,7 @@ def test_extension_controller_replicator_lifecycle_and_payload(
     )
     controller.ext_id = "test.ext"
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
     controller.state.replicator_enabled = True
     controller.state.replicator_output_dir = str(tmp_path / "replicator")
@@ -114,6 +116,7 @@ def test_extension_controller_writer_and_replicator_paths_use_output_root_env(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.jsonl_trace_path = "manual/frames.jsonl"
     controller.state.replicator_output_dir = "manual/replicator"
 

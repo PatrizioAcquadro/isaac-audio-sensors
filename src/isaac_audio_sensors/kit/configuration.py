@@ -47,6 +47,7 @@ from .state import (
 )
 from .validation.checks import (
     check_config_schema_version,
+    check_environment_resolution,
     check_object_profile_mapping_known,
     check_object_profile_mappings_mapping,
     check_object_profile_mappings_non_empty,
@@ -142,10 +143,18 @@ class ConfigurationService(ControllerService):
         )
         return _json_ready(
             {
-                "schema_version": "ias.omni_extension_binding.v2",
+                "schema_version": "ias.omni_extension_binding.v3",
                 "backend": state.backend,
                 "environment": {
-                    "anchor_prim_path": state.environment_anchor_prim_path or None,
+                    "mode": state.environment_resolution_mode,
+                    "anchor_prim_path": (
+                        state.environment_anchor_prim_path or None
+                        if state.environment_resolution_mode == "anchor"
+                        else None
+                    ),
+                    "containment_tolerance_m": (
+                        state.environment_containment_tolerance_m
+                    ),
                     "resolved": state.latest_environment_summary,
                 },
                 "room_acoustics": {
@@ -617,12 +626,21 @@ class ConfigurationService(ControllerService):
             lifecycle.get("usd_debug_root", self.state.usd_debug_root)
             or self.state.usd_debug_root
         )
+        self.state.environment_resolution_mode = str(
+            environment.get("mode", self.state.environment_resolution_mode)
+        )
         anchor_path = environment.get(
             "anchor_prim_path",
             self.state.environment_anchor_prim_path,
         )
         self.state.environment_anchor_prim_path = (
             "" if anchor_path is None else str(anchor_path)
+        )
+        self.state.environment_containment_tolerance_m = float(
+            environment.get(
+                "containment_tolerance_m",
+                self.state.environment_containment_tolerance_m,
+            )
         )
         environment_summary = environment.get("resolved")
         self.state.latest_environment_summary = (
@@ -759,12 +777,33 @@ class ConfigurationService(ControllerService):
         }.intersection(lifecycle)
         if legacy_keys:
             raise ValueError(
-                "R7.1 binding v2 rejects legacy room lifecycle keys: "
+                "R7.2 binding v3 rejects legacy room lifecycle keys: "
                 f"{sorted(legacy_keys)!r}."
             )
-        environment = payload.get("environment", {})
+        environment = payload.get("environment")
         if not isinstance(environment, Mapping):
             raise ValueError("environment must be a JSON object.")
+        required_environment_keys = {
+            "mode",
+            "anchor_prim_path",
+            "containment_tolerance_m",
+            "resolved",
+        }
+        missing_environment_keys = required_environment_keys - set(environment)
+        if missing_environment_keys:
+            raise ValueError(
+                "environment is missing required R7.2 keys "
+                f"{sorted(missing_environment_keys)!r}."
+            )
+        unknown_environment_keys = set(environment) - required_environment_keys
+        if unknown_environment_keys:
+            raise ValueError(
+                "environment contains unknown keys "
+                f"{sorted(unknown_environment_keys)!r}."
+            )
+        mode = environment.get("mode")
+        if not isinstance(mode, str):
+            raise ValueError("environment.mode must be a string.")
         anchor_path = environment.get("anchor_prim_path")
         if anchor_path is not None and (
             not isinstance(anchor_path, str) or not anchor_path.startswith("/")
@@ -772,6 +811,20 @@ class ConfigurationService(ControllerService):
             raise ValueError(
                 "environment.anchor_prim_path must be null or an absolute USD path."
             )
+        tolerance = environment.get("containment_tolerance_m")
+        _raise_first(
+            ValidationReport(
+                check_environment_resolution(
+                    mode,
+                    "" if anchor_path is None else anchor_path,
+                    tolerance,
+                    allow_unconfigured=True,
+                )
+            )
+        )
+        resolved = environment.get("resolved")
+        if resolved is not None and not isinstance(resolved, Mapping):
+            raise ValueError("environment.resolved must be null or a JSON object.")
         room_acoustics = payload.get("room_acoustics", {})
         if not isinstance(room_acoustics, Mapping):
             raise ValueError("room_acoustics must be a JSON object.")

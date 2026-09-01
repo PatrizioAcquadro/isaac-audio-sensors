@@ -153,7 +153,7 @@ class RecordingWorkflow(ControllerService):
                 self._host._sensor_session._calibration_array_facts(),
             ),
         ]
-        if state.environment_anchor_prim_path:
+        if state.environment_resolution_mode == "anchor":
             reports.append(
                 ValidationReport(
                     check_environment_anchor_exists(

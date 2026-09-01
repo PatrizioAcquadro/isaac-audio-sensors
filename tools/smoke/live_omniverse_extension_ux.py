@@ -540,6 +540,7 @@ def _run_object_attach_scenario(
 
     controller.close_sensor()
     controller.state.backend = "tdoa_synthetic"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.trace_enabled = True
     controller.state.jsonl_trace_path = str(artifacts["frame_trace_path"])
     controller.state.latest_frame_export_path = str(artifacts["latest_frame_path"])
@@ -945,6 +946,7 @@ def _ensure_audio_seed_prims(stage: Any, *, source_prim_path: str) -> None:
         (ARRAY_MOUNT_PRIM_PATH, "Xform"),
         ("/World/Sources", "Xform"),
         (source_prim_path, "Sound"),
+        ("/World/IasAcousticEnvironment", "Cube"),
     ):
         if not _stage_has_prim(stage, path):
             stage.DefinePrim(path, prim_type)
@@ -952,6 +954,11 @@ def _ensure_audio_seed_prims(stage: Any, *, source_prim_path: str) -> None:
     _set_translate(source, (2.0, 0.0, 0.0))
     mount = _require_stage_prim(stage, ARRAY_MOUNT_PRIM_PATH)
     _set_translate(mount, ARRAY_MOUNT_POSITION_BEFORE)
+    with suppress(Exception):
+        from pxr import UsdGeom  # type: ignore
+
+        environment = _require_stage_prim(stage, "/World/IasAcousticEnvironment")
+        UsdGeom.Cube(environment).CreateSizeAttr(12.0)
 
 
 def _require_stage_prim(stage: Any, path: str) -> Any:
@@ -2390,6 +2397,7 @@ def _run_error_checks(stage: Any) -> dict[str, Any]:
     controller.author_array(stage=stage)
     checks["invalid_prim_path"] = controller.state.error_message
     controller.state.array_prim_path = "/World/Rig/AudioArray"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.backend = "invalid_backend"
     controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
     checks["invalid_backend"] = controller.state.error_message
@@ -2566,6 +2574,8 @@ def _collect_audio_output_evidence(
         record["reason"] = f"room extra unavailable: {exc}"
         return record
     previous_backend = controller.state.backend
+    previous_environment_mode = controller.state.environment_resolution_mode
+    previous_environment_anchor = controller.state.environment_anchor_prim_path
     try:
         controller.stop_sensor()
         if controller.state.source_attached_to_object:
@@ -2575,6 +2585,8 @@ def _collect_audio_output_evidence(
             controller.state.source_attached_to_object = False
             controller.state.attached_object_prim_path = ""
         controller.state.backend = "room_acoustics"
+        controller.state.environment_resolution_mode = "anchor"
+        controller.state.environment_anchor_prim_path = "/World/IasAcousticEnvironment"
         controller.state.replicator_enabled = False
         controller.state.waveform_enabled = True
         controller.state.waveform_dir = "live_waveforms_gui"
@@ -2652,6 +2664,8 @@ def _collect_audio_output_evidence(
         with suppress(Exception):
             controller.close_sensor()
         controller.state.backend = previous_backend
+        controller.state.environment_resolution_mode = previous_environment_mode
+        controller.state.environment_anchor_prim_path = previous_environment_anchor
         controller.state.waveform_enabled = False
     return record
 

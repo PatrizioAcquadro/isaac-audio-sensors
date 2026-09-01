@@ -19,6 +19,7 @@ from isaac_audio_sensors.core.directivity import (
     resolve_directivity_pattern,
 )
 from isaac_audio_sensors.core.gain import db_to_amplitude_gain
+from isaac_audio_sensors.kit.constants import ENVIRONMENT_MODE_CHOICES
 
 from .results import ValidationFinding
 
@@ -74,6 +75,9 @@ class ValidationState(Protocol):
     device_id: str
     compute_device: str
     calibration_profile_path: str
+    environment_resolution_mode: str
+    environment_anchor_prim_path: str
+    environment_containment_tolerance_m: float
 
 
 def _error(
@@ -138,6 +142,13 @@ def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]
             "max_events must be non-negative.",
             "max_events",
         )
+    environment_findings = check_environment_resolution(
+        state.environment_resolution_mode,
+        state.environment_anchor_prim_path,
+        state.environment_containment_tolerance_m,
+    )
+    if environment_findings:
+        return environment_findings
     if (
         isinstance(state.room_acoustics_max_order, bool)
         or not isinstance(state.room_acoustics_max_order, int)
@@ -548,11 +559,54 @@ def check_environment_anchor_exists(
     return ()
 
 
+def check_environment_resolution(
+    mode: str,
+    anchor_path: str,
+    containment_tolerance_m: float,
+    *,
+    allow_unconfigured: bool = False,
+) -> tuple[ValidationFinding, ...]:
+    """Validate the fail-closed Kit environment selection."""
+
+    if mode not in ENVIRONMENT_MODE_CHOICES:
+        return _error(
+            "environment_resolution_mode_supported",
+            f"Environment mode {mode!r} is not supported.",
+            "environment_resolution_mode",
+        )
+    if mode == "unconfigured" and not allow_unconfigured:
+        return _error(
+            "environment_resolution_configured",
+            "Select an acoustic environment mode before configuring the sensor.",
+            "environment_resolution_mode",
+        )
+    try:
+        tolerance = float(containment_tolerance_m)
+    except (TypeError, ValueError):
+        tolerance = float("nan")
+    if not math.isfinite(tolerance) or tolerance < 0.0:
+        return _error(
+            "environment_containment_tolerance_valid",
+            "Environment containment tolerance must be finite and non-negative.",
+            "environment_containment_tolerance_m",
+        )
+    if mode == "anchor" and (
+        not anchor_path.strip() or not anchor_path.startswith("/")
+    ):
+        return _error(
+            "environment_anchor_absolute",
+            "Anchor mode requires an absolute environment prim path.",
+            "environment_anchor_prim_path",
+        )
+    return ()
+
+
 def check_config_schema_version(value: object) -> tuple[ValidationFinding, ...]:
-    if value != "ias.omni_extension_binding.v2":
+    if value != "ias.omni_extension_binding.v3":
         return _error(
             "config_schema_version_supported",
-            "Config import requires schema_version 'ias.omni_extension_binding.v2'.",
+            "Config import requires schema_version 'ias.omni_extension_binding.v3'; "
+            "v2 has no compatibility path.",
             "schema_version",
         )
     return ()
@@ -855,6 +909,7 @@ __all__ = [
     "check_rig_profile_library_present",
     "check_rig_profile_library_sequence",
     "check_environment_anchor_exists",
+    "check_environment_resolution",
     "check_runtime_state",
     "check_selection",
     "check_source_attach_target_exists",

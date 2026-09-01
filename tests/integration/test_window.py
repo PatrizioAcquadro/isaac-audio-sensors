@@ -30,3 +30,11 @@ def test_kit_window_builds_and_refreshes(monkeypatch) -> None:
     assert choices == ("omni", "cardioid", "supercardioid", "figure_eight")
     directivity_widget.model.set_value(3)
     assert controller.state.source_directivity is DirectivityPattern.FIGURE_EIGHT
+
+    _, environment_choices = window._combo_fields["environment_resolution_mode"]
+    assert environment_choices == (
+        "unconfigured",
+        "manual_free_field",
+        "anchor",
+        "auto",
+    )

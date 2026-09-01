@@ -202,6 +202,55 @@ def test_config_import_rejects_boolean_gain_before_mutating_state(tmp_path) -> N
     assert "gain_db" in str(controller.state.error_message)
 
 
+@pytest.mark.parametrize(
+    ("environment", "message"),
+    (
+        (
+            {
+                "mode": "unsupported",
+                "anchor_prim_path": None,
+                "containment_tolerance_m": 0.001,
+                "resolved": None,
+            },
+            "not supported",
+        ),
+        (
+            {
+                "mode": "anchor",
+                "anchor_prim_path": None,
+                "containment_tolerance_m": 0.001,
+                "resolved": None,
+            },
+            "absolute environment prim path",
+        ),
+        (
+            {
+                "mode": "auto",
+                "anchor_prim_path": None,
+                "containment_tolerance_m": -0.001,
+                "resolved": None,
+            },
+            "finite and non-negative",
+        ),
+    ),
+)
+def test_binding_v3_rejects_invalid_environment_resolution_before_mutation(
+    tmp_path,
+    environment,
+    message,
+) -> None:
+    controller = ExtensionController()
+    payload = controller.config_summary_dict()
+    payload["array"]["array_id"] = "must_not_apply"
+    payload["environment"] = environment
+    path = tmp_path / "invalid_environment.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert controller.import_config_summary(path) is None
+    assert controller.state.array_id == "rig_front"
+    assert message in str(controller.state.error_message)
+
+
 def test_config_roundtrip_preserves_non_omni_source_orientation(tmp_path) -> None:
     controller = ExtensionController()
     controller.state.source_directivity = DirectivityPattern.FIGURE_EIGHT
@@ -225,6 +274,7 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.config_export_path = str(tmp_path / "binding.json")
 
     assert controller.author_array(stage=stage) is not None
@@ -296,7 +346,7 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     assert imported.state.applied_array_rig_profile["profile_id"] == ("stereo_y_100mm")
 
     legacy_payload = {
-        "schema_version": "ias.omni_extension_binding.v1",
+        "schema_version": "ias.omni_extension_binding.v2",
         "backend": "geometry_only",
         "array": {"prim_path": "/World/Rig/AudioArray", "array_id": "legacy_rig"},
         "source": {"prim_path": "/World/Sources/SpeakerA"},
@@ -308,7 +358,8 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     )
     assert legacy.import_config_summary(legacy_path) is None
     assert legacy.state.error_message is not None
-    assert "ias.omni_extension_binding.v2" in legacy.state.error_message
+    assert "ias.omni_extension_binding.v3" in legacy.state.error_message
+    assert "v2 has no compatibility path" in legacy.state.error_message
     assert legacy.state.array_id == "rig_front"
 
 
@@ -328,6 +379,7 @@ def test_extension_controller_object_local_offset_and_config_roundtrip(tmp_path)
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "geometry_only"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.config_export_path = str(tmp_path / "binding.json")
     controller.state.source_local_offset_x_m = 0.0
     controller.state.source_local_offset_y_m = 1.0
@@ -394,6 +446,7 @@ def test_extension_controller_waveform_settings_flow_to_sensor_and_config(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "tdoa_synthetic"
+    controller.state.environment_resolution_mode = "manual_free_field"
     controller.state.waveform_enabled = True
     controller.state.waveform_dir = "wavs"
     controller.state.waveform_mode = "session"
@@ -404,7 +457,7 @@ def test_extension_controller_waveform_settings_flow_to_sensor_and_config(
     assert sensor is not None
     assert sensor.waveform_sink is sink
 
-    assert sensor.environment is None  # R7.1 fallback applies only to room backends
+    assert sensor.environment.kind == "free_field"
 
     controller.state.config_export_path = str(tmp_path / "config.json")
     assert controller.export_config_summary() is not None

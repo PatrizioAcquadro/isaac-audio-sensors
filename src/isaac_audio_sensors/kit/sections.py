@@ -8,6 +8,7 @@ from .constants import (
     AMBIGUITY_POLICY_CHOICES,
     BACKEND_CHOICES,
     DIRECTIVITY_CHOICES,
+    ENVIRONMENT_MODE_CHOICES,
     LAYOUT_CHOICES,
     SOURCE_POSITION_PRESETS,
     WAVEFORM_MODE_CHOICES,
@@ -750,13 +751,22 @@ def build_control_section(window: OmniReferenceWindow) -> None:
 def build_environment_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
     with window._subsection("Acoustic Environment"):
+        window._combo_row(
+            "Mode",
+            "environment_resolution_mode",
+            ENVIRONMENT_MODE_CHOICES,
+        )
         window._string_row("Anchor Prim", "environment_anchor_prim_path")
+        window._float_row(
+            "Containment Tolerance m",
+            "environment_containment_tolerance_m",
+        )
         window._int_row("Max Order", "room_acoustics_max_order")
         window._bool_row("Air Absorption", "room_acoustics_air_absorption")
         window._bool_row("Ray Tracing", "room_acoustics_ray_tracing")
         ui.Label(
-            "R7.1: an anchor derives a shoebox from the prim's world bounds; "
-            "empty keeps the temporary array-centered fallback.",
+            "R7.2 is fail-closed: select explicit free field, an anchor, or "
+            "marked USD environment auto-discovery before configuring.",
             word_wrap=True,
         )
         window._readonly_label("environment")
