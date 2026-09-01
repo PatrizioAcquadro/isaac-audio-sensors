@@ -158,14 +158,17 @@ class LiveOcclusionState:
         state = dict(backend_state) if isinstance(backend_state, dict) else {}
         if self._frame_state is not None:
             live_materials = self._frame_state.get("material_evidence")
-            room_materials = state.get("material_evidence")
+            environment_materials = state.get("material_evidence")
             merged_materials: dict[str, Any] = {}
-            if isinstance(room_materials, dict) and "room" in room_materials:
-                merged_materials["room"] = room_materials["room"]
-            for mapping in (room_materials, live_materials):
+            if (
+                isinstance(environment_materials, dict)
+                and "environment" in environment_materials
+            ):
+                merged_materials["environment"] = environment_materials["environment"]
+            for mapping in (environment_materials, live_materials):
                 if isinstance(mapping, dict):
                     for key in sorted(mapping):
-                        if key != "room":
+                        if key != "environment":
                             merged_materials[key] = mapping[key]
             if merged_materials:
                 state["material_evidence"] = merged_materials

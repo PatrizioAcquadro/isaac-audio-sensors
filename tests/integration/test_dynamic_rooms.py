@@ -1,4 +1,4 @@
-"""Dynamic-room, moving-occluder, and consistency tests."""
+"""Dynamic-environment, moving-occluder, and consistency tests."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from isaac_audio_sensors.core.acoustics import shoebox_environment
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
@@ -23,7 +24,6 @@ from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
-    RoomAcousticsSpec,
     SourceOcclusion,
 )
 from isaac_audio_sensors.isaac.occlusion import OcclusionHit
@@ -34,7 +34,7 @@ SAMPLE_RATE_HZ = 48_000
 MIC_IDS = ("front", "right", "rear", "left")
 SOURCE_PATH = "/World/Source"
 ARRAY_PATH = "/World/Array"
-ROOM_PATH = "/World/Room"
+ENVIRONMENT_PATH = "/World/Environment"
 WALL_PATH = "/World/Wall"
 
 
@@ -156,17 +156,18 @@ def _source(position=(4.0, 0.0, 1.0)):
     )
 
 
-def _room(absorption="pra.rough_concrete", **changes):
-    room = RoomAcousticsSpec(
-        room_id="dynamic_room",
-        dimensions_m=(6.0, 6.0, 3.0),
-        origin_m=(-1.0, -3.0, 0.0),
+def _environment(
+    absorption="pra.rough_concrete",
+    *,
+    dimensions_m=(6.0, 6.0, 3.0),
+    position_world=(-1.0, -3.0, 0.0),
+):
+    return shoebox_environment(
+        environment_id="dynamic_environment",
+        dimensions_m=dimensions_m,
+        position_world=position_world,
         absorption=absorption,
-        max_order=1,
-        air_absorption=False,
-        ray_tracing=False,
     )
-    return replace(room, **changes) if changes else room
 
 
 def _window():
@@ -210,18 +211,18 @@ def _record(blocked, bands=None, flat_db=0.0, material=None):
     )
 
 
-def _render(fake_room, record=None, room=None):
+def _render(fake_room, record=None, environment=None):
     array = _array()
     scene = AudioSceneSnapshot(
         stage_id="dynamic_room_fixture",
         timestamp_ms=0,
         sources=(_source(),),
         arrays=(array,),
-        room=room or _room(),
+        environment=environment or _environment(),
         occlusion=None if record is None else (record,),
     )
     sink = _CaptureSink()
-    frame = RoomAcousticsBackend(waveform_writer=sink).simulate(
+    frame = RoomAcousticsBackend(max_order=1, waveform_writer=sink).simulate(
         scene, array.array_id, _window()
     )
     return frame, sink.mixtures[0]
@@ -317,22 +318,24 @@ def test_five_frame_moving_wall_sequence_is_fresh_and_deterministic(fake_room):
             assert abs(measured - expected) <= 1e-6
 
 
-def test_room_hash_and_output_diverge_for_geometry_and_material_mutations(fake_room):
+def test_environment_hash_and_output_diverge_for_geometry_and_material_mutations(
+    fake_room,
+):
     base_frame, base_wave = _render(fake_room)
     translated_frame, translated_wave = _render(
         fake_room,
-        room=_room(origin_m=(-0.75, -3.0, 0.0)),
+        environment=_environment(position_world=(-0.75, -3.0, 0.0)),
     )
     dimension_frame, dimension_wave = _render(
         fake_room,
-        room=_room(dimensions_m=(7.0, 6.0, 3.0)),
+        environment=_environment(dimensions_m=(7.0, 6.0, 3.0)),
     )
     material_frame, material_wave = _render(
         fake_room,
-        room=_room(absorption="pra.carpet_cotton"),
+        environment=_environment(absorption="pra.carpet_cotton"),
     )
     hashes = {
-        frame.diagnostics["acoustics_state"]["room_state_hash"]
+        frame.diagnostics["acoustics_state"]["environment_state_hash"]
         for frame in (base_frame, translated_frame, dimension_frame, material_frame)
     }
     assert len(hashes) == 4
@@ -341,8 +344,8 @@ def test_room_hash_and_output_diverge_for_geometry_and_material_mutations(fake_r
     assert not np.array_equal(base_wave, material_wave)
     assert _StatefulShoeBox.compute_rir_calls == 4
     evidence = material_frame.diagnostics["acoustics_state"]["material_evidence"]
-    assert evidence["room"]["evidence"] == "measured"
-    assert "citation" in evidence["room"]
+    assert evidence["environment"]["evidence"] == "measured"
+    assert "citation" in evidence["environment"]
 
 
 def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake_room):
@@ -353,7 +356,7 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
         timestamp_ms=0,
         sources=(_source(),),
         arrays=(array,),
-        room=_room(),
+        environment=_environment(),
     )
     array_sink = _CaptureSink()
     array_frame = RoomAcousticsBackend(waveform_writer=array_sink).simulate(
@@ -413,12 +416,12 @@ class _Stage:
                     "ias:orientation_world_quat": (0.0, 0.0, 0.0, 1.0),
                 },
             ),
-            ROOM_PATH: _Prim(
-                ROOM_PATH,
+            ENVIRONMENT_PATH: _Prim(
+                ENVIRONMENT_PATH,
                 "Xform",
                 {
-                    "ias:room_min_world": (-1.0, -3.0, 0.0),
-                    "ias:room_max_world": (5.0, 3.0, 3.0),
+                    "ias:environment_min_world": (-1.0, -3.0, 0.0),
+                    "ias:environment_max_world": (5.0, 3.0, 3.0),
                     "ias:acoustic_material_id": "pra.rough_concrete",
                 },
             ),
@@ -446,18 +449,18 @@ def _notice(*paths, resynced=()):
 
 def test_stage_cache_reason_taxonomy_order_and_actions():
     stage = _Stage()
-    cache = StageAudioCache(stage, room_anchor_prim_path=ROOM_PATH)
+    cache = StageAudioCache(stage, environment_anchor_prim_path=ENVIRONMENT_PATH)
     cache.snapshot(timestamp_ms=0, array_prim_path=ARRAY_PATH)
     baseline_traversals = stage.traversals
     cache._on_objects_changed(
         _notice(
-            f"{ROOM_PATH}.xformOp:translate",
-            f"{ROOM_PATH}.ias:acoustic_material_id",
+            f"{ENVIRONMENT_PATH}.xformOp:translate",
+            f"{ENVIRONMENT_PATH}.ias:acoustic_material_id",
         ),
         None,
     )
     assert cache.current_acoustic_refresh_reasons == (
-        "room_geometry_changed",
+        "environment_geometry_changed",
         "material_changed",
     )
     cache.snapshot(timestamp_ms=1, array_prim_path=ARRAY_PATH)
@@ -473,7 +476,7 @@ def test_stage_cache_reason_taxonomy_order_and_actions():
     assert cache._dirty is False
     assert cache.current_acoustic_refresh_reasons == ("occluder_moved",)
     assert cache._cache_diagnostics(hit=True)["acoustic_refresh_reasons"] == (
-        "room_geometry_changed",
+        "environment_geometry_changed",
         "material_changed",
         "occluder_moved",
     )
@@ -489,32 +492,33 @@ class _MovingRaycaster:
         return OcclusionHit(prim_path=WALL_PATH, distance_m=2.0)
 
 
-def test_live_sensor_preserves_static_room_without_anchor():
-    room = _room()
+def test_live_sensor_preserves_static_environment_without_anchor():
+    environment = _environment()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=_Stage(),
         array_prim_path=ARRAY_PATH,
         backend="geometry_only",
-        room=room,
+        environment=environment,
     ).start()
 
     sensor.update(sim_time_s=0.0, force=True)
 
-    assert sensor.room == room
+    assert sensor.environment == environment
     assert sensor.latest_scene is not None
-    assert sensor.latest_scene.room == room
+    assert sensor.latest_scene.environment == environment
     sensor.close()
 
 
 def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_state():
     stage = _Stage()
     raycaster = _MovingRaycaster()
-    room = replace(_room(), anchor_prim_path=ROOM_PATH)
+    environment = _environment()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path=ARRAY_PATH,
         backend="geometry_only",
-        room=room,
+        environment=environment,
+        environment_anchor_prim_path=ENVIRONMENT_PATH,
         occlusion_enabled=True,
         occlusion_raycaster=raycaster,
         update_period_s=0.05,
@@ -534,22 +538,35 @@ def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_st
     assert sensor._stage_cache.full_discovery_count == full_before
     assert first.detections[0].occluded is False
     assert second.detections[0].occluded is True
-    stage.prims[ROOM_PATH].attributes["ias:room_min_world"] = (-0.75, -3.0, 0.0)
-    stage.prims[ROOM_PATH].attributes["ias:acoustic_material_id"] = "pra.carpet_cotton"
+    stage.prims[ENVIRONMENT_PATH].attributes["ias:environment_min_world"] = (
+        -0.75,
+        -3.0,
+        0.0,
+    )
+    stage.prims[ENVIRONMENT_PATH].attributes["ias:acoustic_material_id"] = (
+        "pra.carpet_cotton"
+    )
     sensor._stage_cache._on_objects_changed(
         _notice(
-            f"{ROOM_PATH}.ias:room_min_world",
-            f"{ROOM_PATH}.ias:acoustic_material_id",
+            f"{ENVIRONMENT_PATH}.ias:environment_min_world",
+            f"{ENVIRONMENT_PATH}.ias:acoustic_material_id",
         ),
         None,
     )
     third = sensor.update(sim_time_s=0.2, force=True)
     assert sensor.latest_scene is not None
-    assert sensor.latest_scene.room is not None
-    assert sensor.latest_scene.room.origin_m == (-0.75, -3.0, 0.0)
-    assert sensor.latest_scene.room.absorption == "pra.carpet_cotton"
+    assert sensor.latest_scene.environment is not None
+    assert sensor.latest_scene.environment.world_pose.position_m == (
+        -0.75,
+        -3.0,
+        0.0,
+    )
+    assert all(
+        surface.absorption == "pra.carpet_cotton"
+        for surface in sensor.latest_scene.environment.surfaces
+    )
     assert third.diagnostics["acoustics_state"]["refresh_reasons"] == [
-        "room_geometry_changed",
+        "environment_geometry_changed",
         "material_changed",
     ]
     sensor.close()
@@ -557,22 +574,26 @@ def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_st
 
 def test_anchor_deletion_fails_before_backend_frame_and_keeps_reason_pending():
     stage = _Stage()
-    room = replace(_room(), anchor_prim_path=ROOM_PATH)
+    environment = _environment()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path=ARRAY_PATH,
         backend="geometry_only",
-        room=room,
+        environment=environment,
+        environment_anchor_prim_path=ENVIRONMENT_PATH,
     ).start()
     sensor.update(sim_time_s=0.0, force=True)
-    stage.prims.pop(ROOM_PATH)
+    stage.prims.pop(ENVIRONMENT_PATH)
     sensor._stage_cache._on_objects_changed(
-        _notice(resynced=(ROOM_PATH,)),
+        _notice(resynced=(ENVIRONMENT_PATH,)),
         None,
     )
-    with pytest.raises(ValueError, match="Room anchor.*missing.*previous room"):
+    with pytest.raises(
+        ValueError,
+        match="Environment anchor.*missing.*previous environment",
+    ):
         sensor.update(sim_time_s=0.1, force=True)
-    assert "room_geometry_changed" in (
+    assert "environment_geometry_changed" in (
         sensor._stage_cache.current_acoustic_refresh_reasons
     )
 

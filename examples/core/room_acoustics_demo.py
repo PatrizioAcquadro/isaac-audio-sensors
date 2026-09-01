@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from isaac_audio_sensors.core.acoustics import shoebox_environment
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
@@ -9,7 +10,6 @@ from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
-    RoomAcousticsSpec,
 )
 
 array = create_microphone_array(
@@ -34,18 +34,17 @@ scene = AudioSceneSnapshot(
         ),
     ),
     arrays=(array,),
-    room=RoomAcousticsSpec(
-        room_id="shoebox",
+    environment=shoebox_environment(
+        environment_id="shoebox",
         dimensions_m=(5.0, 4.0, 2.7),
         absorption=0.35,
-        max_order=2,
-        # World placement of the room's minimum corner: the array sits at the
-        # origin and the speaker at (3, 2, 1), both inside the room.
-        origin_m=(-1.0, -1.0, -0.5),
+        # World placement of the environment's local origin: the array and
+        # speaker both remain inside the shoebox.
+        position_world=(-1.0, -1.0, -0.5),
     ),
 )
 try:
-    frame = RoomAcousticsBackend().simulate(
+    frame = RoomAcousticsBackend(max_order=2).simulate(
         scene,
         array.array_id,
         AudioTimeWindow(
@@ -63,7 +62,7 @@ else:
             "backend": frame.backend_id,
             "active_source_count": frame.diagnostics["active_source_count"],
             "pyroomacoustics_version": frame.diagnostics["pyroomacoustics_version"],
-            "room_config": frame.diagnostics["room_config"],
+            "environment_config": frame.diagnostics["environment_config"],
             "rir_summary": frame.diagnostics["per_source_rir_summary"],
         }
     )

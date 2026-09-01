@@ -174,7 +174,6 @@ EXPECTED_COMBO_FIELDS = (
     "ambiguity_policy",
     "backend",
     "layout_name",
-    "room_out_of_bounds",
     "selected_profile_id",
     "selected_rig_profile_id",
     "waveform_mode",
@@ -1622,9 +1621,7 @@ def _capture_advanced_error_evidence(
         record = {
             "footer": footer,
             "advanced_open": not bool(getattr(advanced, "collapsed", True)),
-            "audio_source_open": not bool(
-                getattr(audio_source, "collapsed", True)
-            ),
+            "audio_source_open": not bool(getattr(audio_source, "collapsed", True)),
             "duration_style": getattr(duration, "style", None),
             "screenshot": screenshot,
         }
@@ -2471,9 +2468,7 @@ def _collect_instruments_evidence(
             window._scrolling_frame.scroll_y = 0
         window.refresh_labels()
         _settle_kit_ui()
-        record["guided_collapsed_at_capture"] = bool(
-            getattr(guided, "collapsed", True)
-        )
+        record["guided_collapsed_at_capture"] = bool(getattr(guided, "collapsed", True))
         record["footer_at_capture"] = getattr(
             window._labels.get("status"),
             "text",
@@ -2624,8 +2619,7 @@ def _collect_audio_output_evidence(
         from isaac_audio_sensors.recording import export_session_flac, replay_session
 
         source_session = (
-            Path(__file__).resolve().parents[2]
-            / "tests/fixtures/recording/session"
+            Path(__file__).resolve().parents[2] / "tests/fixtures/recording/session"
         )
         exported = export_session_flac(
             source_session,
@@ -2753,8 +2747,7 @@ def _collect_kit_audio_mix_evidence(
             and record["listener_removed"]
             and record["capture_released"]
             and record["listener_state_released"]
-            and record["active_listener_after"]
-            == record["previous_listener_path"]
+            and record["active_listener_after"] == record["previous_listener_path"]
         )
         record["status"] = "passed" if passed else "failed"
         return record
@@ -3244,8 +3237,7 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
             )
     if profile_application.get("prim_type") != "OmniSound":
         raise RuntimeError(
-            f"{name} profile apply did not migrate to OmniSound: "
-            f"{profile_application}"
+            f"{name} profile apply did not migrate to OmniSound: {profile_application}"
         )
     if profile_application.get("file_path_authored") is not False:
         raise RuntimeError(

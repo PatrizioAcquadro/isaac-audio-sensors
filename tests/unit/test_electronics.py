@@ -127,6 +127,11 @@ def _base_raw() -> dict[str, object]:
                 },
             },
         },
+        "environment": {
+            "environment_id": "electronics_environment",
+            "kind": "shoebox",
+            "dimensions_m": [6.0, 6.0, 3.0],
+        },
         "arrays": {
             "rig": {
                 "prim_path": "/World/Rig",

@@ -87,8 +87,11 @@ relative_position_m = [0.0, 0.08, 0.0]
 gain_db = 0.0
 directivity = "omni"
 
-[room]
-room_id = "lab_room_a"
+[environment]
+environment_id = "lab_room_a"
+kind = "shoebox"
 dimensions_m = [5.0, 4.0, 2.7]
 absorption = 0.35
+
+[audio.room_acoustics]
 max_order = 2

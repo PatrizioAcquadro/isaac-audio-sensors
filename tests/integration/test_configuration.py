@@ -7,9 +7,6 @@ import pytest
 from isaac_audio_sensors.core.directivity import DirectivityPattern
 from isaac_audio_sensors.kit import ExtensionController
 from isaac_audio_sensors.kit.constants import OUTPUT_ROOT_ENV_VAR
-from isaac_audio_sensors.kit.microphone_rig_profiles import (
-    default_microphone_rig_profiles,
-)
 from isaac_audio_sensors.kit.paths import _gui_output_root, _resolve_gui_output_path
 from isaac_audio_sensors.kit.sensor_session import SensorSession
 from isaac_audio_sensors.kit.state import CurrentStageContext
@@ -84,7 +81,7 @@ def test_extension_controller_config_paths_use_output_root_env(
     assert controller.export_config_summary() == absolute_path
 
 
-def test_extension_controller_profile_config_roundtrip_legacy_and_errors(tmp_path):
+def test_extension_controller_profile_config_roundtrip_omissions_and_errors(tmp_path):
     controller = ExtensionController()
     controller.state.config_export_path = str(tmp_path / "profiles_config.json")
     controller.state.object_prim_path = "/World/Oven"
@@ -125,13 +122,13 @@ def test_extension_controller_profile_config_roundtrip_legacy_and_errors(tmp_pat
     assert imported.state.object_profile_mappings["oven"] == "oven_stove"
     assert imported.state.applied_source_profile["source_id"] == "oven_source"
 
-    legacy = dict(summary)
-    legacy.pop("sound_profiles")
-    legacy_path = tmp_path / "legacy_config.json"
-    legacy_path.write_text(json.dumps(legacy), encoding="utf-8")
-    legacy_imported = ExtensionController()
-    assert legacy_imported.import_config_summary(legacy_path) == legacy_path
-    assert legacy_imported.state.selected_profile_id == "speech_generic"
+    omitted = dict(summary)
+    omitted.pop("sound_profiles")
+    omitted_path = tmp_path / "omitted_profiles_config.json"
+    omitted_path.write_text(json.dumps(omitted), encoding="utf-8")
+    omitted_imported = ExtensionController()
+    assert omitted_imported.import_config_summary(omitted_path) == omitted_path
+    assert omitted_imported.state.selected_profile_id == "speech_generic"
 
     unknown = dict(summary)
     unknown["sound_profiles"] = dict(summary["sound_profiles"])
@@ -309,13 +306,10 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     legacy = ExtensionController(
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
-    assert legacy.import_config_summary(legacy_path) == legacy_path
-    assert legacy.state.error_message is None
-    assert legacy.state.array_id == "legacy_rig"
-    assert legacy.state.array_attached_to_object is False
-    assert [item.profile_id for item in legacy.state.rig_profile_library] == [
-        item.profile_id for item in default_microphone_rig_profiles()
-    ]
+    assert legacy.import_config_summary(legacy_path) is None
+    assert legacy.state.error_message is not None
+    assert "ias.omni_extension_binding.v2" in legacy.state.error_message
+    assert legacy.state.array_id == "rig_front"
 
 
 def test_extension_controller_object_local_offset_and_config_roundtrip(tmp_path):
@@ -410,7 +404,7 @@ def test_extension_controller_waveform_settings_flow_to_sensor_and_config(
     assert sensor is not None
     assert sensor.waveform_sink is sink
 
-    assert sensor.room is None  # default shoebox only applies to room_acoustics
+    assert sensor.environment is None  # R7.1 fallback applies only to room backends
 
     controller.state.config_export_path = str(tmp_path / "config.json")
     assert controller.export_config_summary() is not None

@@ -46,8 +46,8 @@ from .validation.checks import (
     check_array_geometry,
     check_attached_array_target,
     check_attached_source_target,
+    check_environment_anchor_exists,
     check_layout,
-    check_room_anchor_exists,
     check_runtime_state,
     check_source_geometry,
     check_source_metadata,
@@ -153,13 +153,16 @@ class RecordingWorkflow(ControllerService):
                 self._host._sensor_session._calibration_array_facts(),
             ),
         ]
-        if state.room_anchor_prim_path:
+        if state.environment_anchor_prim_path:
             reports.append(
                 ValidationReport(
-                    check_room_anchor_exists(
-                        state.room_anchor_prim_path,
+                    check_environment_anchor_exists(
+                        state.environment_anchor_prim_path,
                         stage is not None
-                        and _stage_has_prim(stage, state.room_anchor_prim_path),
+                        and _stage_has_prim(
+                            stage,
+                            state.environment_anchor_prim_path,
+                        ),
                     )
                 )
             )

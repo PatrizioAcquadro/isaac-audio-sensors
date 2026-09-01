@@ -1,7 +1,7 @@
-"""World-aligned room bounds and tags from USD-compatible prims.
+"""World-aligned environment bounds and tags from USD-compatible prims.
 
 Real USD prims use ``UsdGeom.BBoxCache``. Compatible hosts may provide explicit
-world bounds or a room size centered on the prim position.
+world bounds or an environment size centered on the prim position.
 """
 
 from __future__ import annotations
@@ -12,15 +12,15 @@ from typing import Any
 from isaac_audio_sensors.core.math_utils import Vector3
 from isaac_audio_sensors.isaac.pose_resolver import vec3_from_any
 
-ROOM_MIN_WORLD_ATTR = "ias:room_min_world"
-ROOM_MAX_WORLD_ATTR = "ias:room_max_world"
-ROOM_SIZE_ATTR = "ias:room_size_m"
+ENVIRONMENT_MIN_WORLD_ATTR = "ias:environment_min_world"
+ENVIRONMENT_MAX_WORLD_ATTR = "ias:environment_max_world"
+ENVIRONMENT_SIZE_ATTR = "ias:environment_size_m"
 ABSORPTION_ATTR = "ias:absorption"
 MATERIAL_ATTR = "ias:material"
 _SEMANTIC_DATA_SUFFIX = ":semanticData"
 
 # Broadband energy-absorption coefficients for common wall labels, used when
-# a room prim carries a material/semantic tag instead of an explicit
+# an environment prim carries a material/semantic tag instead of an explicit
 # ias:absorption value.
 DEFAULT_SEMANTIC_ABSORPTION: tuple[tuple[str, float], ...] = (
     ("concrete", 0.05),
@@ -50,11 +50,11 @@ def world_aligned_bbox(
     if pxr_bbox is not None:
         return pxr_bbox
     attrs = prim_attributes(prim, time_code=time_code)
-    minimum = _optional_vec3(attrs.get(ROOM_MIN_WORLD_ATTR))
-    maximum = _optional_vec3(attrs.get(ROOM_MAX_WORLD_ATTR))
+    minimum = _optional_vec3(attrs.get(ENVIRONMENT_MIN_WORLD_ATTR))
+    maximum = _optional_vec3(attrs.get(ENVIRONMENT_MAX_WORLD_ATTR))
     if minimum is not None and maximum is not None:
         return minimum, maximum
-    size = _optional_vec3(attrs.get(ROOM_SIZE_ATTR))
+    size = _optional_vec3(attrs.get(ENVIRONMENT_SIZE_ATTR))
     center = _optional_vec3(
         attrs.get("ias:position_world", attrs.get("xformOp:translate"))
     )
@@ -65,21 +65,21 @@ def world_aligned_bbox(
             tuple(center[axis] + half[axis] for axis in range(3)),
         )
     raise ValueError(
-        f"Room prim {prim_path!r} has no computable world-aligned bounding "
+        f"Environment prim {prim_path!r} has no computable world-aligned bounding "
         f"box. Expected USD geometry (UsdGeom.BBoxCache), "
-        f"{ROOM_MIN_WORLD_ATTR}/{ROOM_MAX_WORLD_ATTR} attributes, or "
-        f"{ROOM_SIZE_ATTR} with a world position."
+        f"{ENVIRONMENT_MIN_WORLD_ATTR}/{ENVIRONMENT_MAX_WORLD_ATTR} attributes, or "
+        f"{ENVIRONMENT_SIZE_ATTR} with a world position."
     )
 
 
-def resolve_room_absorption(
+def resolve_environment_absorption(
     prim: Any,
     *,
     semantic_absorption: Mapping[str, float],
     default: float | dict[str, float],
     time_code: Any | None = None,
 ) -> tuple[float | dict[str, float], str]:
-    """Resolve a room's absorption coefficient and its provenance.
+    """Resolve an environment's absorption coefficient and its provenance.
 
     Precedence: explicit ``ias:absorption`` attribute on the prim, then a
     material/semantic label looked up (case-insensitively) in

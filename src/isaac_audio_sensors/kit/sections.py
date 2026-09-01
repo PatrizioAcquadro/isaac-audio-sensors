@@ -9,7 +9,6 @@ from .constants import (
     BACKEND_CHOICES,
     DIRECTIVITY_CHOICES,
     LAYOUT_CHOICES,
-    ROOM_OUT_OF_BOUNDS_CHOICES,
     SOURCE_POSITION_PRESETS,
     WAVEFORM_MODE_CHOICES,
 )
@@ -530,7 +529,7 @@ def build_advanced_section(window: OmniReferenceWindow) -> None:
     build_array_section(window)
     build_source_section(window)
     build_control_section(window)
-    build_room_section(window)
+    build_environment_section(window)
     build_audio_output_section(window)
     build_kit_audio_section(window)
     build_replicator_section(window)
@@ -748,21 +747,19 @@ def build_control_section(window: OmniReferenceWindow) -> None:
         window._readonly_label("diagnostic")
 
 
-def build_room_section(window: OmniReferenceWindow) -> None:
+def build_environment_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
-    with window._subsection("Room Acoustics"):
-        window._string_row("Anchor Prim", "room_anchor_prim_path")
-        window._combo_row(
-            "Out Of Bounds",
-            "room_out_of_bounds",
-            ROOM_OUT_OF_BOUNDS_CHOICES,
-        )
+    with window._subsection("Acoustic Environment"):
+        window._string_row("Anchor Prim", "environment_anchor_prim_path")
+        window._int_row("Max Order", "room_acoustics_max_order")
+        window._bool_row("Air Absorption", "room_acoustics_air_absorption")
+        window._bool_row("Ray Tracing", "room_acoustics_ray_tracing")
         ui.Label(
-            "Anchor derives the room from the prim's world bounding box; "
-            "leave empty to center the default room on the array.",
+            "R7.1: an anchor derives a shoebox from the prim's world bounds; "
+            "empty keeps the temporary array-centered fallback.",
             word_wrap=True,
         )
-        window._readonly_label("room")
+        window._readonly_label("environment")
 
 
 def build_replicator_section(window: OmniReferenceWindow) -> None:

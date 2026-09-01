@@ -55,7 +55,7 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     trace_lines = (tmp_path / "frames.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(trace_lines) == 1
     summary = json.loads(config_path.read_text(encoding="utf-8"))
-    assert summary["schema_version"] == "ias.omni_extension_binding.v1"
+    assert summary["schema_version"] == "ias.omni_extension_binding.v2"
     assert summary["array"]["prim_path"] == "/World/Rig/AudioArray"
     assert summary["source"]["prim_path"] == "/World/Sources/SpeakerA"
     assert summary["source"]["position_world"] == [2.0, 0.0, 0.0]
@@ -74,6 +74,8 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert imported.state.source_position_y_m == 0.0
     assert imported.state.source_position_z_m == 0.0
     assert imported.state.jsonl_trace_path.endswith("frames.jsonl")
+    assert imported.state.environment_anchor_prim_path == ""
+    assert imported.state.room_acoustics_max_order == 0
 
 
 def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
@@ -193,7 +195,7 @@ def test_extension_controller_authors_persistent_usd_debug_geometry(tmp_path):
     assert stage.GetPrimAtPath("/World/IasAudioDebug") is None
 
 
-def test_extension_controller_room_backend_gets_default_shoebox(tmp_path):
+def test_extension_controller_room_backend_gets_r71_default_shoebox(tmp_path):
     stage = _FakeStage(
         (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
     )
@@ -203,30 +205,30 @@ def test_extension_controller_room_backend_gets_default_shoebox(tmp_path):
     controller.state.backend = "room_acoustics"
     assert controller.author_array(stage=stage) is not None
     assert controller.configure_sensor(stage=stage) is not None
-    room = controller.sensor.room
-    assert room is not None
-    assert room.room_id == "ias_gui_default_room"
-    assert room.dimensions_m == (6.0, 6.0, 3.0)
-    # Without an anchor prim, the default room is explicitly centered on the
+    environment = controller.sensor.environment
+    assert environment is not None
+    assert environment.environment_id == "ias_gui_default_environment"
+    assert environment.dimensions_m == (6.0, 6.0, 3.0)
+    # Without an anchor prim, the temporary R7.1 shoebox is centered on the
     # array (authored at the origin) instead of refitting per frame.
-    assert room.origin_m == (-3.0, -3.0, -1.5)
-    assert room.anchor_prim_path is None
-    summary = controller.state.latest_room_summary
+    assert environment.world_pose.position_m == (-3.0, -3.0, -1.5)
+    assert controller.sensor.environment_anchor_prim_path is None
+    summary = controller.state.latest_environment_summary
     assert summary is not None
-    assert summary["origin_m"] == (-3.0, -3.0, -1.5)
+    assert summary["position_world"] == (-3.0, -3.0, -1.5)
     assert summary["absorption_provenance"] == "config"
 
 
-def test_extension_controller_room_anchors_to_designated_prim():
+def test_extension_controller_environment_anchors_to_designated_prim():
     stage = _FakeStage(
         (
             _FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),
             _FakePrim(
-                "/World/Room",
+                "/World/Environment",
                 "Xform",
                 {
-                    "ias:room_min_world": (-2.0, -3.0, 0.0),
-                    "ias:room_max_world": (6.0, 3.0, 3.0),
+                    "ias:environment_min_world": (-2.0, -3.0, 0.0),
+                    "ias:environment_max_world": (6.0, 3.0, 3.0),
                     "ias:material": "carpet",
                 },
             ),
@@ -236,23 +238,23 @@ def test_extension_controller_room_anchors_to_designated_prim():
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "room_acoustics"
-    controller.state.room_anchor_prim_path = "/World/Room"
-    controller.state.room_out_of_bounds = "clamp"
+    controller.state.environment_anchor_prim_path = "/World/Environment"
+    controller.state.room_acoustics_max_order = 2
     assert controller.author_array(stage=stage) is not None
     assert controller.configure_sensor(stage=stage) is not None
-    room = controller.sensor.room
-    assert room is not None
-    assert room.dimensions_m == (8.0, 6.0, 3.0)
-    assert room.origin_m == (-2.0, -3.0, 0.0)
-    assert room.anchor_prim_path == "/World/Room"
-    assert room.absorption == 0.30  # carpet via the default semantic table
-    assert room.out_of_bounds == "clamp"
-    summary = controller.state.latest_room_summary
+    environment = controller.sensor.environment
+    assert environment is not None
+    assert environment.dimensions_m == (8.0, 6.0, 3.0)
+    assert environment.world_pose.position_m == (-2.0, -3.0, 0.0)
+    assert controller.sensor.environment_anchor_prim_path == "/World/Environment"
+    assert environment.surfaces[0].absorption == 0.30
+    summary = controller.state.latest_environment_summary
     assert summary is not None
     assert summary["absorption_provenance"] == "semantic:carpet"
+    assert summary["room_acoustics"]["max_order"] == 2
 
 
-def test_extension_controller_room_anchor_missing_prim_records_error():
+def test_extension_controller_environment_anchor_missing_prim_records_error():
     stage = _FakeStage(
         (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
     )
@@ -260,11 +262,11 @@ def test_extension_controller_room_anchor_missing_prim_records_error():
         stage_context_provider=lambda: CurrentStageContext(stage, ())
     )
     controller.state.backend = "room_acoustics"
-    controller.state.room_anchor_prim_path = "/World/MissingRoom"
+    controller.state.environment_anchor_prim_path = "/World/MissingEnvironment"
     assert controller.author_array(stage=stage) is not None
 
     assert controller.configure_sensor(stage=stage) is None
 
     assert controller.sensor is None
     assert controller.state.error_message is not None
-    assert "/World/MissingRoom" in controller.state.error_message
+    assert "/World/MissingEnvironment" in controller.state.error_message

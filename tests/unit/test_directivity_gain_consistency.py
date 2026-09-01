@@ -6,6 +6,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
+from isaac_audio_sensors.core.acoustics import shoebox_environment
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import (
     RoomAcousticsBackend,
@@ -34,7 +35,6 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     MicrophoneArraySpec,
     MicrophoneSpec,
-    RoomAcousticsSpec,
     SourceOcclusion,
 )
 from tests.helpers import CaptureSink, install_fake_pyroom
@@ -378,12 +378,11 @@ def _scene(
         sources=(source,),
         arrays=(array,),
         occlusion=occlusion,
-        room=RoomAcousticsSpec(
-            room_id="room",
+        environment=shoebox_environment(
+            environment_id="room",
             dimensions_m=(6.0, 5.0, 3.0),
-            origin_m=(-1.0, -2.5, -1.5),
+            position_world=(-1.0, -2.5, -1.5),
             absorption=0.35,
-            max_order=0,
         ),
     )
 

@@ -21,14 +21,11 @@ LAYOUT_CHOICES = (
     "mono",
 )
 WAVEFORM_MODE_CHOICES = ("per_frame", "session")
-ROOM_OUT_OF_BOUNDS_CHOICES = ("error", "clamp")
 # Default shoebox used by the room_acoustics backend when no anchor prim is
-# designated; it is centered on the array at configure time since rooms no
-# longer refit themselves to the scene.
-DEFAULT_ROOM_ID = "ias_gui_default_room"
-DEFAULT_ROOM_DIMENSIONS_M = (6.0, 6.0, 3.0)
-DEFAULT_ROOM_ABSORPTION = 0.35
-DEFAULT_ROOM_MAX_ORDER = 0
+# designated; R7.1 keeps this temporary fallback until R7.2 input resolution.
+DEFAULT_ENVIRONMENT_ID = "ias_gui_default_environment"
+DEFAULT_ENVIRONMENT_DIMENSIONS_M = (6.0, 6.0, 3.0)
+DEFAULT_ENVIRONMENT_ABSORPTION = 0.35
 SOURCE_POSITION_PRESETS: Mapping[str, tuple[float, float, float]] = {
     "front": (2.0, 0.0, 0.0),
     "right": (0.0, 2.0, 0.0),

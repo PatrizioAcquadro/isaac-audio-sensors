@@ -5,14 +5,16 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
+from isaac_audio_sensors.core.acoustics.environments import (
+    shoebox_environment_from_bounds,
+)
 from isaac_audio_sensors.core.acoustics.materials import resolve_material
-from isaac_audio_sensors.core.acoustics.rooms import room_spec_from_bounds
 from isaac_audio_sensors.core.effects.config import MotionEffectsConfig
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.motion import PoseHistory, validate_pose_observation
 from isaac_audio_sensors.core.types import (
+    AcousticEnvironmentSpec,
     AudioSceneSnapshot,
-    RoomAcousticsSpec,
 )
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioDiscoveryCfg,
@@ -24,7 +26,7 @@ from isaac_audio_sensors.isaac.usd_bounds import (
     DEFAULT_SEMANTIC_ABSORPTION,
     MATERIAL_ATTR,
     prim_attributes,
-    resolve_room_absorption,
+    resolve_environment_absorption,
     world_aligned_bbox,
 )
 
@@ -151,32 +153,34 @@ def snapshot_from_discovery(
             else tuple(source.spec for source in result.sources)
         ),
         arrays=tuple(array.spec for array in result.arrays),
-        room=None,
+        environment=None,
     )
 
 
-def refresh_anchored_room(
+def refresh_anchored_environment(
     stage: Any,
-    template: RoomAcousticsSpec | None,
+    template: AcousticEnvironmentSpec | None,
     *,
+    anchor_prim_path: str | None,
     refresh_reasons: tuple[str, ...],
     time_code: Any | None,
-) -> RoomAcousticsSpec | None:
-    """Refresh a USD-anchored room after geometry or material invalidation."""
+) -> AcousticEnvironmentSpec | None:
+    """Refresh a USD-anchored environment after geometry/material invalidation."""
 
-    if template is None or template.anchor_prim_path is None:
+    if template is None or anchor_prim_path is None:
         return template
-    if not {"room_geometry_changed", "material_changed"}.intersection(
+    if not {"environment_geometry_changed", "material_changed"}.intersection(
         refresh_reasons
     ):
         return template
-    anchor_path = template.anchor_prim_path
+    anchor_path = anchor_prim_path
     get_prim = getattr(stage, "GetPrimAtPath", None)
     prim = get_prim(anchor_path) if callable(get_prim) else None
     if prim is None or (hasattr(prim, "IsValid") and not prim.IsValid()):
         raise ValueError(
-            f"Room anchor {anchor_path!r} is missing after "
-            "room_geometry_changed/material_changed; the previous room cannot "
+            f"Environment anchor {anchor_path!r} is missing after "
+            "environment_geometry_changed/material_changed; the previous "
+            "environment cannot "
             "be reused."
         )
     minimum, maximum = world_aligned_bbox(
@@ -184,23 +188,24 @@ def refresh_anchored_room(
         prim_path=anchor_path,
         time_code=time_code,
     )
-    return room_spec_from_bounds(
+    return shoebox_environment_from_bounds(
         min_world=minimum,
         max_world=maximum,
-        room_id=template.room_id,
-        absorption=_anchor_absorption(prim, template=template, time_code=time_code),
-        max_order=template.max_order,
-        out_of_bounds=template.out_of_bounds,
-        anchor_prim_path=anchor_path,
-        air_absorption=template.air_absorption,
-        ray_tracing=template.ray_tracing,
+        environment_id=template.environment_id,
+        absorption=_anchor_absorption(
+            prim,
+            template=template,
+            anchor_prim_path=anchor_path,
+            time_code=time_code,
+        ),
     )
 
 
 def _anchor_absorption(
     prim: Any,
     *,
-    template: RoomAcousticsSpec,
+    template: AcousticEnvironmentSpec,
+    anchor_prim_path: str,
     time_code: Any | None,
 ) -> float | dict[str, float] | str:
     attrs = prim_attributes(prim, time_code=time_code)
@@ -213,21 +218,21 @@ def _anchor_absorption(
     if acoustic_id is not None:
         return resolve_material(
             str(acoustic_id),
-            application=f"room anchor {template.anchor_prim_path!r}",
+            application=f"environment anchor {anchor_prim_path!r}",
         ).material_id
     material_id = attrs.get(MATERIAL_ATTR)
     if material_id is not None and str(material_id).strip():
         try:
             return resolve_material(
                 str(material_id),
-                application=f"room anchor {template.anchor_prim_path!r}",
+                application=f"environment anchor {anchor_prim_path!r}",
             ).material_id
         except ValueError:
             pass
-    absorption, _provenance = resolve_room_absorption(
+    absorption, _provenance = resolve_environment_absorption(
         prim,
         semantic_absorption=dict(DEFAULT_SEMANTIC_ABSORPTION),
-        default=template.absorption,
+        default=template.surfaces[0].absorption,
         time_code=time_code,
     )
     return absorption

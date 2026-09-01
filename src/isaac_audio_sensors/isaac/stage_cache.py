@@ -68,15 +68,15 @@ _DISCOVERY_ALIAS_PROPERTY_NAMES = frozenset(
 )
 
 _ACOUSTIC_REFRESH_REASONS = (
-    "room_geometry_changed",
+    "environment_geometry_changed",
     "material_changed",
     "occluder_moved",
 )
-_ROOM_GEOMETRY_PROPERTIES = frozenset(
+_ENVIRONMENT_GEOMETRY_PROPERTIES = frozenset(
     {
-        "ias:room_min_world",
-        "ias:room_max_world",
-        "ias:room_size_m",
+        "ias:environment_min_world",
+        "ias:environment_max_world",
+        "ias:environment_size_m",
         "size",
         "extent",
     }
@@ -101,7 +101,7 @@ class StageAudioCache:
         stage: Any,
         *,
         rediscover_each_update: bool = False,
-        room_anchor_prim_path: str | None = None,
+        environment_anchor_prim_path: str | None = None,
     ) -> None:
         if stage is None or not hasattr(stage, "Traverse"):
             raise ValueError("stage must provide a Traverse method.")
@@ -111,10 +111,10 @@ class StageAudioCache:
         self.cached_tick_count = 0
         self.invalidation_reasons: list[str] = []
         self.acoustic_refresh_reasons: list[str] = []
-        self.room_anchor_prim_path = (
+        self.environment_anchor_prim_path = (
             None
-            if room_anchor_prim_path is None
-            else str(room_anchor_prim_path).rstrip("/")
+            if environment_anchor_prim_path is None
+            else str(environment_anchor_prim_path).rstrip("/")
         )
         self._cached: _CachedDiscovery | None = None
         self._dirty = False
@@ -415,7 +415,7 @@ class StageAudioCache:
             timestamp_ms=timestamp_ms,
             sources=sources,
             arrays=tuple(spec for _, spec in array_specs),
-            room=None,
+            environment=None,
         )
 
     def _cached_selection_diagnostics(
@@ -516,18 +516,18 @@ class StageAudioCache:
             info_only = tuple(notice.GetChangedInfoOnlyPaths())
         except Exception:  # noqa: BLE001 - notice variants without the API.
             info_only = ()
-        room_geometry_changed = any(
-            self._resync_changes_room(path) for path in resynced
-        ) or any(self._property_changes_room(path) for path in info_only)
+        environment_geometry_changed = any(
+            self._resync_changes_environment(path) for path in resynced
+        ) or any(self._property_changes_environment(path) for path in info_only)
         material_changed = any(
             self._property_changes_material(path) for path in info_only
         )
-        if room_geometry_changed:
-            self.invalidate("room_geometry_changed")
+        if environment_geometry_changed:
+            self.invalidate("environment_geometry_changed")
         if material_changed:
             self.invalidate("material_changed")
         for path in info_only:
-            if not _is_pose_property(path) or self._property_changes_room(path):
+            if not _is_pose_property(path) or self._property_changes_environment(path):
                 continue
             prim_path = _property_prim_path(path)
             if self._is_audio_path(prim_path):
@@ -537,7 +537,7 @@ class StageAudioCache:
         if resynced:
             self.invalidate("usd_objects_changed_resync")
             return
-        acoustic_names = _ROOM_GEOMETRY_PROPERTIES | _MATERIAL_PROPERTIES
+        acoustic_names = _ENVIRONMENT_GEOMETRY_PROPERTIES | _MATERIAL_PROPERTIES
         if any(
             _discovery_relevant_property(path)
             and _property_name(path) not in acoustic_names
@@ -545,22 +545,22 @@ class StageAudioCache:
         ):
             self.invalidate("usd_info_only_discovery_attr")
 
-    def _resync_changes_room(self, path: Any) -> bool:
-        anchor = self.room_anchor_prim_path
+    def _resync_changes_environment(self, path: Any) -> bool:
+        anchor = self.environment_anchor_prim_path
         if anchor is None:
             return False
         changed = str(path).rstrip("/")
         return _paths_overlap(changed, anchor)
 
-    def _property_changes_room(self, path: Any) -> bool:
-        anchor = self.room_anchor_prim_path
+    def _property_changes_environment(self, path: Any) -> bool:
+        anchor = self.environment_anchor_prim_path
         if anchor is None:
             return False
         prim_path = _property_prim_path(path)
         name = _property_name(path)
         if name.startswith("xformOp:"):
             return _path_is_same_or_ancestor(prim_path, anchor)
-        return name in _ROOM_GEOMETRY_PROPERTIES and _paths_overlap(
+        return name in _ENVIRONMENT_GEOMETRY_PROPERTIES and _paths_overlap(
             prim_path,
             anchor,
         )
@@ -579,7 +579,7 @@ class StageAudioCache:
         if _property_name(path) not in _MATERIAL_PROPERTIES:
             return False
         prim_path = _property_prim_path(path)
-        anchor = self.room_anchor_prim_path
+        anchor = self.environment_anchor_prim_path
         if anchor is not None and _paths_overlap(prim_path, anchor):
             return True
         return not self._is_audio_path(prim_path)

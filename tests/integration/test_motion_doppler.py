@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from isaac_audio_sensors.core.acoustics import shoebox_environment
 from isaac_audio_sensors.core.backends.tdoa import TdoaSyntheticBackend
 from isaac_audio_sensors.core.effects import EffectsConfig, MotionEffectsConfig
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
@@ -13,7 +14,6 @@ from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
-    RoomAcousticsSpec,
 )
 from isaac_audio_sensors.isaac.stage_snapshot import enrich_snapshot_motion
 
@@ -46,45 +46,44 @@ def _source(position):
     )
 
 
-def _scene(position, *, room=False):
+def _scene(position, *, environment=False):
     array = _array()
     return AudioSceneSnapshot(
         stage_id="motion_teleport",
         timestamp_ms=0,
         sources=(_source(position),),
         arrays=(array,),
-        room=(
-            RoomAcousticsSpec(
-                room_id="motion_room",
+        environment=(
+            shoebox_environment(
+                environment_id="motion_environment",
                 dimensions_m=(8.0, 5.0, 3.0),
                 absorption=0.35,
-                max_order=0,
             )
-            if room
+            if environment
             else None
         ),
     )
 
 
-def _teleport_snapshot(*, room=False):
+def _teleport_snapshot(*, environment=False):
     history = PoseHistory()
     config = _effects().motion
     first, _ = enrich_snapshot_motion(
-        _scene((2.0, 1.0, 1.0), room=room),
+        _scene((2.0, 1.0, 1.0), environment=environment),
         selected_array_id="rig",
         time_s=1.0,
         pose_history=history,
         motion_config=config,
     )
     second, _ = enrich_snapshot_motion(
-        _scene((2.0, 1.0, 1.0), room=room),
+        _scene((2.0, 1.0, 1.0), environment=environment),
         selected_array_id="rig",
         time_s=1.05,
         pose_history=history,
         motion_config=config,
     )
     teleport, diagnostics = enrich_snapshot_motion(
-        _scene((5.0, 1.0, 1.0), room=room),
+        _scene((5.0, 1.0, 1.0), environment=environment),
         selected_array_id="rig",
         time_s=1.10,
         pose_history=history,

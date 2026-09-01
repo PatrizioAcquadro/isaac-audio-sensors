@@ -142,8 +142,17 @@ class ConfigurationService(ControllerService):
         )
         return _json_ready(
             {
-                "schema_version": "ias.omni_extension_binding.v1",
+                "schema_version": "ias.omni_extension_binding.v2",
                 "backend": state.backend,
+                "environment": {
+                    "anchor_prim_path": state.environment_anchor_prim_path or None,
+                    "resolved": state.latest_environment_summary,
+                },
+                "room_acoustics": {
+                    "max_order": state.room_acoustics_max_order,
+                    "air_absorption": state.room_acoustics_air_absorption,
+                    "ray_tracing": state.room_acoustics_ray_tracing,
+                },
                 "device": {
                     "device_id": state.device_id,
                     "compute_device": state.compute_device,
@@ -285,9 +294,6 @@ class ConfigurationService(ControllerService):
                     "live_sync_source_pose": state.live_sync_source_pose,
                     "usd_debug_enabled": state.usd_debug_enabled,
                     "usd_debug_root": state.usd_debug_root,
-                    "room_anchor_prim_path": state.room_anchor_prim_path,
-                    "room_out_of_bounds": state.room_out_of_bounds,
-                    "room_summary": state.latest_room_summary,
                     "runtime_options": {
                         "subscribe_to_update_stream_default": True,
                         "import_safe_outside_isaac": True,
@@ -336,6 +342,8 @@ class ConfigurationService(ControllerService):
         array_binding = dict(payload.get("array_binding", {}))
         binding = dict(payload.get("stage_binding", {}))
         lifecycle = dict(payload.get("lifecycle", {}))
+        environment = dict(payload.get("environment", {}))
+        room_acoustics = dict(payload.get("room_acoustics", {}))
         device = dict(payload.get("device", {}))
         calibration = dict(payload.get("calibration", {}))
         recording = dict(payload.get("recording", {}))
@@ -430,9 +438,7 @@ class ConfigurationService(ControllerService):
             array.get("coordinate_convention", self.state.coordinate_convention)
         )
         if array.get("position_world") is not None:
-            self._host._authoring._set_array_pose_state(
-                array["position_world"], None
-            )
+            self._host._authoring._set_array_pose_state(array["position_world"], None)
         if array.get("orientation_world_quat") is not None:
             (
                 self.state.array_roll_deg,
@@ -488,9 +494,7 @@ class ConfigurationService(ControllerService):
             source.get("audio_asset_path", self.state.audio_asset_path)
         )
         if source.get("position_world") is not None:
-            self._host._authoring._set_source_position_state(
-                source["position_world"]
-            )
+            self._host._authoring._set_source_position_state(source["position_world"])
         source_orientation = source.get("orientation_world_quat")
         self.state.source_orientation_world_quat = (
             None if source_orientation is None else quat_from_any(source_orientation)
@@ -548,9 +552,7 @@ class ConfigurationService(ControllerService):
                 else ""
             )
         )
-        roots = binding.get(
-            "discovery_roots", self._host._authoring._discovery_roots()
-        )
+        roots = binding.get("discovery_roots", self._host._authoring._discovery_roots())
         self.state.discovery_roots_text = ", ".join(str(root) for root in roots)
         self.state.selected_prim_paths = _normalize_paths(
             binding.get("selected_prim_paths", ())
@@ -615,19 +617,36 @@ class ConfigurationService(ControllerService):
             lifecycle.get("usd_debug_root", self.state.usd_debug_root)
             or self.state.usd_debug_root
         )
-        self.state.room_anchor_prim_path = str(
-            lifecycle.get(
-                "room_anchor_prim_path",
-                self.state.room_anchor_prim_path,
+        anchor_path = environment.get(
+            "anchor_prim_path",
+            self.state.environment_anchor_prim_path,
+        )
+        self.state.environment_anchor_prim_path = (
+            "" if anchor_path is None else str(anchor_path)
+        )
+        environment_summary = environment.get("resolved")
+        self.state.latest_environment_summary = (
+            dict(environment_summary)
+            if isinstance(environment_summary, Mapping)
+            else None
+        )
+        self.state.room_acoustics_max_order = int(
+            room_acoustics.get(
+                "max_order",
+                self.state.room_acoustics_max_order,
             )
         )
-        self.state.room_out_of_bounds = str(
-            lifecycle.get("room_out_of_bounds", self.state.room_out_of_bounds)
-            or self.state.room_out_of_bounds
+        self.state.room_acoustics_air_absorption = bool(
+            room_acoustics.get(
+                "air_absorption",
+                self.state.room_acoustics_air_absorption,
+            )
         )
-        room_summary = lifecycle.get("room_summary")
-        self.state.latest_room_summary = (
-            dict(room_summary) if isinstance(room_summary, Mapping) else None
+        self.state.room_acoustics_ray_tracing = bool(
+            room_acoustics.get(
+                "ray_tracing",
+                self.state.room_acoustics_ray_tracing,
+            )
         )
         self.state.trace_enabled = bool(
             package_recording.get(
@@ -730,6 +749,53 @@ class ConfigurationService(ControllerService):
 
         if not isinstance(payload, Mapping):
             raise ValueError("Config summary must be a JSON object.")
+        lifecycle = payload.get("lifecycle", {})
+        if not isinstance(lifecycle, Mapping):
+            raise ValueError("lifecycle must be a JSON object.")
+        legacy_keys = {
+            "room_anchor_prim_path",
+            "room_out_of_bounds",
+            "room_summary",
+        }.intersection(lifecycle)
+        if legacy_keys:
+            raise ValueError(
+                "R7.1 binding v2 rejects legacy room lifecycle keys: "
+                f"{sorted(legacy_keys)!r}."
+            )
+        environment = payload.get("environment", {})
+        if not isinstance(environment, Mapping):
+            raise ValueError("environment must be a JSON object.")
+        anchor_path = environment.get("anchor_prim_path")
+        if anchor_path is not None and (
+            not isinstance(anchor_path, str) or not anchor_path.startswith("/")
+        ):
+            raise ValueError(
+                "environment.anchor_prim_path must be null or an absolute USD path."
+            )
+        room_acoustics = payload.get("room_acoustics", {})
+        if not isinstance(room_acoustics, Mapping):
+            raise ValueError("room_acoustics must be a JSON object.")
+        unknown_solver_keys = set(room_acoustics) - {
+            "max_order",
+            "air_absorption",
+            "ray_tracing",
+        }
+        if unknown_solver_keys:
+            raise ValueError(
+                f"room_acoustics contains unknown keys {sorted(unknown_solver_keys)!r}."
+            )
+        max_order = room_acoustics.get(
+            "max_order",
+            self.state.room_acoustics_max_order,
+        )
+        if type(max_order) is not int or max_order < 0:
+            raise ValueError("room_acoustics.max_order must be non-negative integer.")
+        for field_name in ("air_absorption", "ray_tracing"):
+            value = room_acoustics.get(
+                field_name, getattr(self.state, f"room_acoustics_{field_name}")
+            )
+            if type(value) is not bool:
+                raise ValueError(f"room_acoustics.{field_name} must be a boolean.")
         source = payload.get("source", {})
         if not isinstance(source, Mapping):
             raise ValueError("source must be a JSON object.")
@@ -794,9 +860,7 @@ class ConfigurationService(ControllerService):
         )
         _raise_first(
             ValidationReport(
-                check_object_profile_mappings_mapping(
-                    isinstance(raw_mappings, Mapping)
-                )
+                check_object_profile_mappings_mapping(isinstance(raw_mappings, Mapping))
             )
         )
         _raise_first(
@@ -862,9 +926,7 @@ class ConfigurationService(ControllerService):
         )
         raw_library = payload.get("rig_library")
         _raise_first(
-            ValidationReport(
-                check_rig_profile_library_present(raw_library is not None)
-            )
+            ValidationReport(check_rig_profile_library_present(raw_library is not None))
         )
         _raise_first(
             ValidationReport(

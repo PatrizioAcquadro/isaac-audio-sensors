@@ -6,9 +6,13 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from isaac_audio_sensors.core.acoustics.environments import (
+    environment_to_world_point,
+)
 from isaac_audio_sensors.core.math_utils import add, basis_from_quaternion, scale
 from isaac_audio_sensors.core.microphone_array import microphone_world_positions
 from isaac_audio_sensors.core.types import (
+    AcousticEnvironmentSpec,
     AudioDetection,
     AudioSceneSnapshot,
     AudioSensorFrame,
@@ -18,7 +22,7 @@ from isaac_audio_sensors.core.types import (
 CLEAR_BEARING_RAY_COLOR = (0.05, 0.9, 0.35, 1.0)
 PARTIAL_OCCLUSION_BEARING_RAY_COLOR = (1.0, 0.65, 0.05, 1.0)
 OCCLUDED_BEARING_RAY_COLOR = (0.95, 0.15, 0.1, 1.0)
-ROOM_OUTLINE_COLOR = (0.95, 0.85, 0.1, 1.0)
+ENVIRONMENT_OUTLINE_COLOR = (0.95, 0.85, 0.1, 1.0)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -43,25 +47,8 @@ def build_debug_primitives(
     """Build deterministic debug primitives for a frame without Isaac imports."""
 
     primitives: list[DebugPrimitive] = []
-    if scene.room is not None:
-        primitives.append(
-            DebugPrimitive(
-                kind="room_outline",
-                label=f"room:{scene.room.room_id}",
-                points_world=room_outline_points(
-                    origin_m=scene.room.origin_m,
-                    dimensions_m=scene.room.dimensions_m,
-                ),
-                color_rgba=ROOM_OUTLINE_COLOR,
-                radius_m=0.02,
-                metadata={
-                    "room_id": scene.room.room_id,
-                    "dimensions_m": scene.room.dimensions_m,
-                    "origin_m": scene.room.origin_m,
-                    "anchor_prim_path": scene.room.anchor_prim_path,
-                },
-            )
-        )
+    if scene.environment is not None:
+        primitives.extend(_environment_primitives(scene.environment))
     for mic_id, position in microphone_world_positions(sensor).items():
         primitives.append(
             DebugPrimitive(
@@ -135,22 +122,27 @@ def build_debug_primitives(
     return tuple(primitives)
 
 
-def room_outline_points(
-    *,
-    origin_m: tuple[float, float, float],
-    dimensions_m: tuple[float, float, float],
+def environment_outline_points(
+    environment: AcousticEnvironmentSpec,
 ) -> tuple[tuple[float, float, float], ...]:
-    """Trace all 12 edges of the room box as one connected polyline.
+    """Trace all 12 edges of one shoebox environment in world coordinates.
 
     A box has eight odd-degree corners, so a single stroke must retrace
     three edges; retraced segments overdraw invisibly.
     """
 
+    if environment.kind != "shoebox" or environment.dimensions_m is None:
+        raise ValueError("environment_outline_points requires a shoebox environment.")
+    dimensions_m = environment.dimensions_m
+
     def corner(x_max: bool, y_max: bool, z_max: bool) -> tuple[float, float, float]:
-        return (
-            origin_m[0] + (dimensions_m[0] if x_max else 0.0),
-            origin_m[1] + (dimensions_m[1] if y_max else 0.0),
-            origin_m[2] + (dimensions_m[2] if z_max else 0.0),
+        return environment_to_world_point(
+            environment,
+            (
+                dimensions_m[0] if x_max else 0.0,
+                dimensions_m[1] if y_max else 0.0,
+                dimensions_m[2] if z_max else 0.0,
+            ),
         )
 
     a = corner(False, False, False)
@@ -179,6 +171,60 @@ def room_outline_points(
         d_top,
         d,
     )
+
+
+def _environment_primitives(
+    environment: AcousticEnvironmentSpec,
+) -> tuple[DebugPrimitive, ...]:
+    metadata = {
+        "environment_id": environment.environment_id,
+        "kind": environment.kind,
+        "dimensions_m": environment.dimensions_m,
+        "position_world": environment.world_pose.position_m,
+        "orientation_world_quat": environment.world_pose.orientation_xyzw,
+    }
+    if environment.kind == "shoebox":
+        return (
+            DebugPrimitive(
+                kind="environment_outline",
+                label=f"environment:{environment.environment_id}",
+                points_world=environment_outline_points(environment),
+                color_rgba=ENVIRONMENT_OUTLINE_COLOR,
+                radius_m=0.02,
+                metadata=metadata,
+            ),
+        )
+    primitives = []
+    for surface in environment.surfaces:
+        local_vertices = surface.vertices_local_m
+        if surface.infinite:
+            local_vertices = (
+                (-2.0, -2.0, 0.0),
+                (2.0, -2.0, 0.0),
+                (2.0, 2.0, 0.0),
+                (-2.0, 2.0, 0.0),
+            )
+        points = tuple(
+            environment_to_world_point(environment, vertex) for vertex in local_vertices
+        )
+        if points:
+            points = (*points, points[0])
+        primitives.append(
+            DebugPrimitive(
+                kind="environment_surface",
+                label=f"environment:{environment.environment_id}:{surface.surface_id}",
+                points_world=points,
+                color_rgba=ENVIRONMENT_OUTLINE_COLOR,
+                radius_m=0.02,
+                metadata={
+                    **metadata,
+                    "surface_id": surface.surface_id,
+                    "role": surface.role,
+                    "infinite": surface.infinite,
+                },
+            )
+        )
+    return tuple(primitives)
 
 
 def debug_primitives_to_dicts(

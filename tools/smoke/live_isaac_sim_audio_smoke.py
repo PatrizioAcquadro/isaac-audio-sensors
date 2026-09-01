@@ -15,6 +15,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from isaac_audio_sensors.core.acoustics import shoebox_environment
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.io.traces import (
     append_frame_jsonl,
@@ -23,7 +24,7 @@ from isaac_audio_sensors.core.io.traces import (
 from isaac_audio_sensors.core.io.waveforms import FrameWaveformWriter
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.core.microphone_array import microphone_layout
-from isaac_audio_sensors.core.types import AudioSensorFrame, RoomAcousticsSpec
+from isaac_audio_sensors.core.types import AcousticEnvironmentSpec, AudioSensorFrame
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
@@ -42,9 +43,7 @@ SMOKE_PHASES = (
     ("moved", 0.1),
     ("inactive", 0.5),
 )
-WAVEFORM_EVIDENCE_DIR = Path(
-    "build/validation/isaac_audio_sensors/live_waveforms"
-)
+WAVEFORM_EVIDENCE_DIR = Path("build/validation/isaac_audio_sensors/live_waveforms")
 
 
 def main() -> int:
@@ -52,9 +51,7 @@ def main() -> int:
     parser.add_argument(
         "--out",
         type=Path,
-        default=Path(
-            "build/validation/isaac_audio_sensors/isaac_sim_live_smoke.json"
-        ),
+        default=Path("build/validation/isaac_audio_sensors/isaac_sim_live_smoke.json"),
     )
     args = parser.parse_args()
 
@@ -100,13 +97,13 @@ def main() -> int:
         _update_kit_once(evidence)
 
         binding_cfg = _binding_cfg()
-        room_spec = _room_spec()
+        environment_spec = _environment_spec()
         config = _write_config(
             evidence_path=args.out,
             config_path=config_path,
             frame_trace_path=frame_trace_path,
             binding_cfg=binding_cfg,
-            room_spec=room_spec,
+            environment_spec=environment_spec,
         )
         evidence["config"] = config
 
@@ -128,7 +125,7 @@ def main() -> int:
                 stage=stage,
                 backend_id=backend_id,
                 binding_cfg=binding_cfg,
-                room_spec=None,
+                environment_spec=None,
                 frame_trace_path=frame_trace_path,
                 config_path=config_path,
                 start_record_index=trace_record_index,
@@ -144,7 +141,7 @@ def main() -> int:
                 stage=stage,
                 backend_id="room_acoustics",
                 binding_cfg=binding_cfg,
-                room_spec=room_spec,
+                environment_spec=environment_spec,
                 frame_trace_path=frame_trace_path,
                 config_path=config_path,
                 start_record_index=trace_record_index,
@@ -252,17 +249,14 @@ def _binding_cfg() -> IsaacAudioSceneBindingCfg:
     )
 
 
-def _room_spec() -> RoomAcousticsSpec:
-    return RoomAcousticsSpec(
-        room_id="isaac_sim_live_smoke_room",
+def _environment_spec() -> AcousticEnvironmentSpec:
+    return shoebox_environment(
+        environment_id="isaac_sim_live_smoke_environment",
         dimensions_m=(6.0, 6.0, 3.0),
         absorption=0.35,
-        max_order=0,
-        air_absorption=False,
-        ray_tracing=False,
         # Explicit placement: the robot moves to x=1 and the source between
-        # (4,0,0) and (0,4,0); the room must contain both endpoints.
-        origin_m=(-1.0, -1.0, -1.5),
+        # (4,0,0) and (0,4,0); the environment contains both endpoints.
+        position_world=(-1.0, -1.0, -1.5),
     )
 
 
@@ -271,7 +265,7 @@ def _run_backend_smoke(
     stage: Any,
     backend_id: str,
     binding_cfg: IsaacAudioSceneBindingCfg,
-    room_spec: RoomAcousticsSpec | None,
+    environment_spec: AcousticEnvironmentSpec | None,
     frame_trace_path: Path,
     config_path: Path,
     start_record_index: int,
@@ -286,7 +280,7 @@ def _run_backend_smoke(
         usd_time_code_scale=1.0,
         update_period_s=0.05,
         max_events=1,
-        room=room_spec,
+        environment=environment_spec,
         debug_draw=True,
         waveform_sink=(
             FrameWaveformWriter(WAVEFORM_EVIDENCE_DIR)
@@ -469,8 +463,8 @@ def _summarize_backend(
         result["tdoa_matrix_s"] = moved_detection.diagnostics.get("tdoa_matrix_s")
         result["per_mic_delay_s"] = moved_detection.per_mic_delay_s
     if backend_id == "room_acoustics" and moved_detection is not None:
-        room_keys = (
-            "room_config",
+        environment_keys = (
+            "environment_config",
             "pyroomacoustics_version",
             "estimated_tdoa_matrix_s",
             "gcc_phat_peaks",
@@ -480,15 +474,15 @@ def _summarize_backend(
             "rir_peak_delay_s",
             "waveform_sample_count",
         )
-        result["room_diagnostics_present"] = all(
-            key in moved_detection.diagnostics for key in room_keys
+        result["environment_diagnostics_present"] = all(
+            key in moved_detection.diagnostics for key in environment_keys
         )
-        result["room_frame_diagnostics_present"] = bool(
+        result["environment_frame_diagnostics_present"] = bool(
             moved.diagnostics.get("physical_waveform")
-            and moved.diagnostics.get("room_config")
+            and moved.diagnostics.get("environment_config")
             and moved.diagnostics.get("per_source_rir_summary")
         )
-        result["room_config"] = moved.diagnostics.get("room_config")
+        result["environment_config"] = moved.diagnostics.get("environment_config")
         result["pyroomacoustics_version"] = moved.diagnostics.get(
             "pyroomacoustics_version"
         )
@@ -522,8 +516,7 @@ def _waveform_roundtrip_evidence(
     for phase, frame in frames.items():
         if not frame.waveform_paths:
             raise RuntimeError(
-                f"room_acoustics frame for phase {phase!r} has empty "
-                "waveform_paths."
+                f"room_acoustics frame for phase {phase!r} has empty waveform_paths."
             )
         path = Path(frame.waveform_paths[0])
         if not path.is_file():
@@ -609,10 +602,10 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
     if backend_id == "tdoa_synthetic" and not result.get("tdoa_diagnostics_present"):
         raise RuntimeError("tdoa_synthetic did not expose TDOA diagnostics.")
     if backend_id == "room_acoustics" and not (
-        result.get("room_diagnostics_present")
-        and result.get("room_frame_diagnostics_present")
+        result.get("environment_diagnostics_present")
+        and result.get("environment_frame_diagnostics_present")
     ):
-        raise RuntimeError("room_acoustics did not expose room/RIR diagnostics.")
+        raise RuntimeError("room_acoustics did not expose environment/RIR diagnostics.")
     if backend_id == "room_acoustics" and not result.get("waveform_roundtrip"):
         raise RuntimeError(
             "room_acoustics did not produce waveform round-trip evidence."
@@ -1118,7 +1111,7 @@ def _write_config(
     config_path: Path,
     frame_trace_path: Path,
     binding_cfg: IsaacAudioSceneBindingCfg,
-    room_spec: RoomAcousticsSpec,
+    environment_spec: AcousticEnvironmentSpec,
 ) -> dict[str, Any]:
     config: dict[str, Any] = {
         "stage": {
@@ -1161,13 +1154,20 @@ def _write_config(
             "max_events": 1,
             "debug_draw": True,
         },
+        "environment": {
+            "environment_id": environment_spec.environment_id,
+            "kind": environment_spec.kind,
+            "dimensions_m": list(environment_spec.dimensions_m or ()),
+            "position_world": list(environment_spec.world_pose.position_m),
+            "orientation_world_quat": list(
+                environment_spec.world_pose.orientation_xyzw or ()
+            ),
+            "absorption": environment_spec.surfaces[0].absorption,
+        },
         "room_acoustics": {
-            "room_id": room_spec.room_id,
-            "dimensions_m": list(room_spec.dimensions_m),
-            "absorption": room_spec.absorption,
-            "max_order": room_spec.max_order,
-            "air_absorption": room_spec.air_absorption,
-            "ray_tracing": room_spec.ray_tracing,
+            "max_order": 0,
+            "air_absorption": False,
+            "ray_tracing": False,
         },
         "outputs": {
             "evidence_json": str(evidence_path),

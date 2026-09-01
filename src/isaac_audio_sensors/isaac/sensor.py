@@ -27,11 +27,11 @@ from isaac_audio_sensors.core.motion import (
     validate_pose_observation,
 )
 from isaac_audio_sensors.core.types import (
+    AcousticEnvironmentSpec,
     AudioSceneSnapshot,
     AudioSensorFrame,
     AudioTimeWindow,
     MicrophoneArraySpec,
-    RoomAcousticsSpec,
 )
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioSceneBindingCfg,
@@ -51,7 +51,7 @@ from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
 from isaac_audio_sensors.isaac.stage_snapshot import (
     build_stage_snapshot,
     enrich_snapshot_motion,
-    refresh_anchored_room,
+    refresh_anchored_environment,
 )
 from isaac_audio_sensors.isaac.viz.debug_draw import IsaacDebugDrawer
 from isaac_audio_sensors.isaac.viz.overlays import (
@@ -68,7 +68,11 @@ class IsaacAudioArraySensor:
     stage: Any
     backend: str = "tdoa_synthetic"
     effects: EffectsConfig = field(default_factory=EffectsConfig)
-    room: RoomAcousticsSpec | None = None
+    environment: AcousticEnvironmentSpec | None = None
+    environment_anchor_prim_path: str | None = None
+    room_acoustics_max_order: int = 0
+    room_acoustics_air_absorption: bool = False
+    room_acoustics_ray_tracing: bool = False
     array_prim_path: str | None = None
     source_prim_path: str | None = None
     robot_base_prim_path: str | None = None
@@ -108,7 +112,10 @@ class IsaacAudioArraySensor:
     _pose_history: PoseHistory | None = field(default=None, init=False)
     _pose_history_stage: Any | None = field(default=None, init=False)
     _motion_entity_paths: dict[str, str] = field(default_factory=dict, init=False)
-    _anchor_room_template: RoomAcousticsSpec | None = field(default=None, init=False)
+    _anchor_environment_template: AcousticEnvironmentSpec | None = field(
+        default=None,
+        init=False,
+    )
     _occlusion_state: LiveOcclusionState = field(init=False)
     _reset_listeners: list[Callable[[], None]] = field(
         default_factory=list,
@@ -119,8 +126,29 @@ class IsaacAudioArraySensor:
     def __post_init__(self) -> None:
         if self.stage is None:
             raise ValueError("IsaacAudioArraySensor requires a live stage.")
-        if self.room is not None and self.room.anchor_prim_path is not None:
-            self._anchor_room_template = self.room
+        if self.environment_anchor_prim_path is not None:
+            anchor_path = str(self.environment_anchor_prim_path).rstrip("/")
+            self.environment_anchor_prim_path = anchor_path or None
+        if self.environment_anchor_prim_path is not None:
+            if not self.environment_anchor_prim_path.startswith("/"):
+                raise ValueError(
+                    "environment_anchor_prim_path must be an absolute USD path."
+                )
+            if self.environment is None or self.environment.kind != "shoebox":
+                raise ValueError(
+                    "environment_anchor_prim_path requires a shoebox environment."
+                )
+            self._anchor_environment_template = self.environment
+        if (
+            isinstance(self.room_acoustics_max_order, bool)
+            or not isinstance(self.room_acoustics_max_order, int)
+            or self.room_acoustics_max_order < 0
+        ):
+            raise ValueError("room_acoustics_max_order must be a non-negative integer.")
+        if not isinstance(self.room_acoustics_air_absorption, bool):
+            raise ValueError("room_acoustics_air_absorption must be a boolean.")
+        if not isinstance(self.room_acoustics_ray_tracing, bool):
+            raise ValueError("room_acoustics_ray_tracing must be a boolean.")
         self._occlusion_state = LiveOcclusionState(
             enabled=self.occlusion_enabled,
             max_attenuation_db=self.occlusion_max_attenuation_db,
@@ -183,7 +211,11 @@ class IsaacAudioArraySensor:
         max_events: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
-        room: RoomAcousticsSpec | None = None,
+        environment: AcousticEnvironmentSpec | None = None,
+        environment_anchor_prim_path: str | None = None,
+        room_acoustics_max_order: int = 0,
+        room_acoustics_air_absorption: bool = False,
+        room_acoustics_ray_tracing: bool = False,
         debug_draw: bool = False,
         occlusion_enabled: bool = False,
         occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
@@ -210,7 +242,11 @@ class IsaacAudioArraySensor:
             stage=stage,
             backend=backend,
             effects=EffectsConfig() if effects is None else effects,
-            room=room,
+            environment=environment,
+            environment_anchor_prim_path=environment_anchor_prim_path,
+            room_acoustics_max_order=room_acoustics_max_order,
+            room_acoustics_air_absorption=room_acoustics_air_absorption,
+            room_acoustics_ray_tracing=room_acoustics_ray_tracing,
             array_prim_path=array_prim_path,
             source_prim_path=source_prim_path,
             robot_base_prim_path=robot_base_prim_path,
@@ -242,7 +278,11 @@ class IsaacAudioArraySensor:
         max_events: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
-        room: RoomAcousticsSpec | None = None,
+        environment: AcousticEnvironmentSpec | None = None,
+        environment_anchor_prim_path: str | None = None,
+        room_acoustics_max_order: int = 0,
+        room_acoustics_air_absorption: bool = False,
+        room_acoustics_ray_tracing: bool = False,
         debug_draw: bool = False,
         occlusion_enabled: bool = False,
         occlusion_max_attenuation_db: float = DEFAULT_OCCLUSION_MAX_ATTENUATION_DB,
@@ -268,7 +308,11 @@ class IsaacAudioArraySensor:
             stage=stage,
             backend=backend,
             effects=EffectsConfig() if effects is None else effects,
-            room=room,
+            environment=environment,
+            environment_anchor_prim_path=environment_anchor_prim_path,
+            room_acoustics_max_order=room_acoustics_max_order,
+            room_acoustics_air_absorption=room_acoustics_air_absorption,
+            room_acoustics_ray_tracing=room_acoustics_ray_tracing,
             array_prim_path=result.selected_array.spec.prim_path,
             robot_base_prim_path=binding.robot_base_prim_path,
             scene_binding_cfg=binding,
@@ -536,6 +580,12 @@ class IsaacAudioArraySensor:
             and self.waveform_sink is not None
         ):
             kwargs["waveform_writer"] = self.waveform_sink
+        if self.backend in {"room_acoustics", "room_acoustics_srp"}:
+            kwargs.update(
+                max_order=self.room_acoustics_max_order,
+                air_absorption=self.room_acoustics_air_absorption,
+                ray_tracing=self.room_acoustics_ray_tracing,
+            )
         if not self.effects.all_disabled:
             kwargs["effects"] = self.effects
         if window_motion is not None:
@@ -645,9 +695,7 @@ class IsaacAudioArraySensor:
             self._stage_cache = StageAudioCache(
                 self.stage,
                 rediscover_each_update=rediscover_each_update,
-                room_anchor_prim_path=(
-                    None if self.room is None else self.room.anchor_prim_path
-                ),
+                environment_anchor_prim_path=self.environment_anchor_prim_path,
             )
         return self._stage_cache
 
@@ -687,16 +735,17 @@ class IsaacAudioArraySensor:
                 diagnostics_out=diagnostics,
             )
         self._latest_stage_diagnostics = diagnostics
-        if self._anchor_room_template is not None:
-            self.room = refresh_anchored_room(
+        if self._anchor_environment_template is not None:
+            self.environment = refresh_anchored_environment(
                 self.stage,
-                self._anchor_room_template,
+                self._anchor_environment_template,
+                anchor_prim_path=self.environment_anchor_prim_path,
                 refresh_reasons=cache.current_acoustic_refresh_reasons,
                 time_code=usd_time_code,
             )
 
-        if self.room is not None:
-            scene = replace(scene, room=self.room)
+        if self.environment is not None:
+            scene = replace(scene, environment=self.environment)
 
         if effective_source_prim_path is not None:
             sources = tuple(

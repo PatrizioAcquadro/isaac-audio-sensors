@@ -8,15 +8,16 @@ import pytest
 import torch
 from isaaclab.sensors import SensorBase, SensorBaseCfg
 
+from isaac_audio_sensors.core.acoustics import shoebox_environment
 from isaac_audio_sensors.core.directivity import DirectivityPattern
 from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
     microphone_layout,
 )
 from isaac_audio_sensors.core.types import (
+    AcousticEnvironmentSpec,
     AudioSceneSnapshot,
     AudioSourceSpec,
-    RoomAcousticsSpec,
 )
 from isaac_audio_sensors.lab import (
     AudioArraySensor,
@@ -62,14 +63,14 @@ def _snapshot(
     array,
     sources: tuple[AudioSourceSpec, ...],
     *,
-    room: RoomAcousticsSpec | None = None,
+    environment: AcousticEnvironmentSpec | None = None,
 ) -> AudioSceneSnapshot:
     return AudioSceneSnapshot(
         stage_id="reference",
         timestamp_ms=0,
         arrays=(array,),
         sources=sources,
-        room=room,
+        environment=environment,
     )
 
 
@@ -533,14 +534,13 @@ def _reference_mode_rms(
         duration_s=1.0,
         gain_db=source_gain_db,
     )
-    room = None
+    environment = None
     if backend_id.startswith("room_acoustics"):
-        room = RoomAcousticsSpec(
-            room_id="room",
+        environment = shoebox_environment(
+            environment_id="room",
             dimensions_m=(20.0, 20.0, 20.0),
-            origin_m=(-10.0, -10.0, -10.0),
+            position_world=(-10.0, -10.0, -10.0),
             absorption=0.2,
-            max_order=1,
         )
     reference = ReferenceBackend(
         backend_id=backend_id,
@@ -549,7 +549,7 @@ def _reference_mode_rms(
             prim_path="/World/Audio",
             backend=backend_id,
         ).effects,
-        snapshots=(_snapshot(array, (source,), room=room),),
+        snapshots=(_snapshot(array, (source,), environment=environment),),
         array_ids=(array.array_id,),
     )
     result = reference.observations(

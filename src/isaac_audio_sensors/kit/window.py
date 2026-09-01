@@ -168,9 +168,7 @@ class OmniReferenceWindow:
                 with ui.VStack(spacing=6, height=0):
                     self._build_body()
             else:
-                self._scrolling_frame = scrolling_frame(
-                    height=_ui_fraction(ui, 1)
-                )
+                self._scrolling_frame = scrolling_frame(height=_ui_fraction(ui, 1))
                 with self._scrolling_frame, ui.VStack(spacing=6, height=0):
                     self._build_body()
             with ui.ZStack(height=32):
@@ -315,27 +313,26 @@ class OmniReferenceWindow:
         self._set_label("live_detections", str(state.latest_detection_count))
         self._set_label(
             "live_waveform",
-            "Available"
-            if state.latest_waveform_paths
-            else "None yet",
+            "Available" if state.latest_waveform_paths else "None yet",
         )
-        room = state.latest_room_summary
-        if room:
+        environment = state.latest_environment_summary
+        if environment:
             self._set_label(
-                "room",
-                "Room: "
-                f"{room.get('room_id', 'unknown')} | "
-                f"dims={_optional_vec3_text(room.get('dimensions_m'))} | "
-                f"origin={_optional_vec3_text(room.get('origin_m'))} | "
-                f"absorption={room.get('absorption')} "
-                f"({room.get('absorption_provenance', 'config')}) | "
-                f"anchor={room.get('anchor_prim_path') or 'centered on array'}",
+                "environment",
+                "Environment: "
+                f"{environment.get('environment_id', 'unknown')} | "
+                f"kind={environment.get('kind', 'unknown')} | "
+                f"dims={_optional_vec3_text(environment.get('dimensions_m'))} | "
+                f"position={_optional_vec3_text(environment.get('position_world'))} | "
+                f"absorption={environment.get('absorption')} "
+                f"({environment.get('absorption_provenance', 'config')}) | "
+                f"anchor={environment.get('anchor_prim_path') or 'centered on array'}",
             )
         else:
             self._set_label(
-                "room",
-                "Room: inactive | "
-                f"anchor={state.room_anchor_prim_path or 'centered on array'} | "
+                "environment",
+                "Environment: inactive | "
+                f"anchor={state.environment_anchor_prim_path or 'centered on array'} | "
                 "used by the room_acoustics backend",
             )
         self.refresh_instruments()
@@ -638,8 +635,7 @@ class OmniReferenceWindow:
     def _editable_state_snapshot(self) -> dict[str, Any]:
         state = self.controller.state
         return {
-            attr_name: getattr(state, attr_name)
-            for attr_name in self._field_metadata
+            attr_name: getattr(state, attr_name) for attr_name in self._field_metadata
         }
 
     def _mark_auto_filled_changes(
@@ -960,9 +956,7 @@ class OmniReferenceWindow:
                 callback,
                 action_label=label,
                 section=(
-                    self._active_subsection
-                    or self._active_section
-                    or "Advanced Tools"
+                    self._active_subsection or self._active_section or "Advanced Tools"
                 ),
             ),
             "height": 28,
@@ -1033,6 +1027,7 @@ class OmniReferenceWindow:
         attr_name: str | None = None,
     ) -> None:
         if hasattr(model, "add_value_changed_fn"):
+
             def _changed(changed_model: Any) -> None:
                 callback(changed_model)
                 if attr_name is not None:

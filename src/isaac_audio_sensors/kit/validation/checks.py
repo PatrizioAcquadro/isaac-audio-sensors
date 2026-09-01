@@ -40,6 +40,9 @@ class ValidationState(Protocol):
     ambiguity_policy: str
     update_period_s: float
     max_events: int
+    room_acoustics_max_order: int
+    room_acoustics_air_absorption: bool
+    room_acoustics_ray_tracing: bool
     array_prim_path: str
     robot_base_prim_path: str
     audio_asset_path: str
@@ -134,6 +137,28 @@ def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]
             "max_events_non_negative",
             "max_events must be non-negative.",
             "max_events",
+        )
+    if (
+        isinstance(state.room_acoustics_max_order, bool)
+        or not isinstance(state.room_acoustics_max_order, int)
+        or state.room_acoustics_max_order < 0
+    ):
+        return _error(
+            "room_acoustics_max_order_non_negative",
+            "room_acoustics_max_order must be a non-negative integer.",
+            "room_acoustics_max_order",
+        )
+    if not isinstance(state.room_acoustics_air_absorption, bool):
+        return _error(
+            "room_acoustics_air_absorption_boolean",
+            "room_acoustics_air_absorption must be a boolean.",
+            "room_acoustics_air_absorption",
+        )
+    if not isinstance(state.room_acoustics_ray_tracing, bool):
+        return _error(
+            "room_acoustics_ray_tracing_boolean",
+            "room_acoustics_ray_tracing must be a boolean.",
+            "room_acoustics_ray_tracing",
         )
     if state.array_prim_path.strip():
         findings = check_abs_prim_path(state.array_prim_path, "array_prim_path")
@@ -504,33 +529,30 @@ def check_profile_match(
     if profile_id is None:
         return _error(
             "sound_profile_match_available",
-            "No sound profile matches object labels: "
-            + ", ".join(label_tuple)
-            + ".",
+            "No sound profile matches object labels: " + ", ".join(label_tuple) + ".",
             "selected_profile_id",
         )
     return ()
 
 
-def check_room_anchor_exists(
+def check_environment_anchor_exists(
     anchor_path: str,
     exists: bool,
 ) -> tuple[ValidationFinding, ...]:
     if not exists:
         return _error(
-            "room_anchor_exists",
-            f"Room anchor prim not found at {anchor_path!r}.",
-            "room_anchor_prim_path",
+            "environment_anchor_exists",
+            f"Environment anchor prim not found at {anchor_path!r}.",
+            "environment_anchor_prim_path",
         )
     return ()
 
 
 def check_config_schema_version(value: object) -> tuple[ValidationFinding, ...]:
-    if value != "ias.omni_extension_binding.v1":
+    if value != "ias.omni_extension_binding.v2":
         return _error(
             "config_schema_version_supported",
-            "Config import requires schema_version "
-            "'ias.omni_extension_binding.v1'.",
+            "Config import requires schema_version 'ias.omni_extension_binding.v2'.",
             "schema_version",
         )
     return ()
@@ -554,8 +576,7 @@ def check_object_profile_mapping_known(
         )
     return _error(
         "object_profile_mapping_known",
-        "Object profile mapping "
-        f"{label!r} references unknown profile {profile_id!r}.",
+        f"Object profile mapping {label!r} references unknown profile {profile_id!r}.",
         "object_profile_mappings",
     )
 
@@ -833,7 +854,7 @@ __all__ = [
     "check_rig_profile_id_present",
     "check_rig_profile_library_present",
     "check_rig_profile_library_sequence",
-    "check_room_anchor_exists",
+    "check_environment_anchor_exists",
     "check_runtime_state",
     "check_selection",
     "check_source_attach_target_exists",

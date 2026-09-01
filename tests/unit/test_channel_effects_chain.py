@@ -29,6 +29,11 @@ def _base_raw() -> dict[str, object]:
             "runtime_profile": "waveform_fidelity",
             "sample_rate_hz": SAMPLE_RATE_HZ,
         },
+        "environment": {
+            "environment_id": "effects_environment",
+            "kind": "shoebox",
+            "dimensions_m": [6.0, 6.0, 3.0],
+        },
         "arrays": {
             "rig": {
                 "prim_path": "/World/Rig",
