@@ -452,9 +452,7 @@ def _summarize_backend(
         },
     }
     if backend_id == "analytic_acoustics" and moved_detection is not None:
-        result["analytic_solver"] = moved_detection.diagnostics.get(
-            "analytic_solver"
-        )
+        result["analytic_solver"] = moved_detection.diagnostics.get("analytic_solver")
         before_occlusion = (
             {} if before_detection is None else before_detection.diagnostics
         ).get("occlusion", {})
@@ -520,9 +518,7 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         raise RuntimeError(
             "analytic_acoustics did not expose the free-field solver diagnostic."
         )
-    if backend_id == "analytic_acoustics" and result.get(
-        "occlusion_transition"
-    ) != {
+    if backend_id == "analytic_acoustics" and result.get("occlusion_transition") != {
         "raycaster": "deterministic_live_lifecycle_fixture",
         "before_occluded": True,
         "before_factor": 1.0,
@@ -744,7 +740,7 @@ def _ensure_isaac_runtime(
             "Could not import isaacsim.SimulationApp from the requested Python runtime."
         ) from exc
 
-    simulation_app = SimulationApp({"headless": headless})
+    simulation_app = SimulationApp({"headless": headless, "width": 1280, "height": 720})
     evidence["simulation_app_bootstrap"] = "created"
     import omni.kit.app  # type: ignore
 
