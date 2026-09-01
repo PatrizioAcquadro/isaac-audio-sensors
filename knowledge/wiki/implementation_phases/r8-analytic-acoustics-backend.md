@@ -4,7 +4,7 @@
 
 Implement one fast, deterministic `AnalyticAcoustics` backend over the [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]]. It is the pure-Core path for tests, non-Isaac use, and large Isaac Lab workloads.
 
-The target public propagation surface contains only `AnalyticAcoustics` and `GeometryAcoustics`. After active consumers migrate, `geometry_only`, `tdoa_synthetic`, `room_acoustics`, and `room_acoustics_srp` are removed as backend identifiers and implementations; their useful direct-geometry, TDOA, and PyRoom behavior becomes internal `AnalyticAcoustics` solver logic, not compatibility aliases or duplicate backend paths.
+The current public propagation surface contains only `AnalyticAcoustics`; future `GeometryAcoustics` remains outside R8. `geometry_only`, `tdoa_synthetic`, `room_acoustics`, and `room_acoustics_srp` were removed as runtime identifiers and implementations after active consumers migrated. Their useful direct-geometry, TDOA, and PyRoom behavior is internal `AnalyticAcoustics` logic, not compatibility aliases or duplicate backend paths.
 
 GCC-PHAT, TDOA least-squares, and SRP-PHAT remain separate DOA-estimation algorithms selected after propagation. They are not propagation backends and are not removed by the two-backend consolidation.
 
@@ -25,7 +25,7 @@ The Core solvers implement fractional direct-path delay and spherical spreading;
 
 The closed-room paths use `pyroomacoustics.ShoeBox` or `Room.from_corners(...).extrude(...)`. They preserve per-surface materials, validate the complete prism footprint, wall-edge mapping, vertical extrusion, and containment before simulation, and never clamp an out-of-bounds source or microphone. PyRoom is imported only after a closed topology is selected, so `free_field` and `half_space` work with the Core install; a missing `room` extra fails actionably only for `shoebox` and `polygon_prism`.
 
-The backend reuses the maintained source scheduler, gain, directivity, effects, GCC/SRP estimators, waveform writer, detection builder, and frame assembly. Every frame and detection reports `analytic_solver = {solver_id, provider, environment_kind}` without changing the v1 serialized schemas. `free_field` requires `max_order=0`; `half_space` accepts order zero or one; `air_absorption` and `ray_tracing` are reserved for the PyRoom routes. Existing `[audio.room_acoustics]` settings remain the temporary configuration surface.
+The backend reuses the maintained source scheduler, gain, directivity, effects, GCC/SRP estimators, waveform writer, detection builder, and frame assembly. Every frame and detection reports `analytic_solver = {solver_id, provider, environment_kind}` without changing the v1 serialized schemas. `free_field` requires `max_order=0`; `half_space` accepts order zero or one; `air_absorption` and `ray_tracing` are reserved for the PyRoom routes. R8.1 temporarily reused `[audio.room_acoustics]`; R8.3 replaced it with `[audio.analytic_acoustics]` without a legacy parser.
 
 The caller chooses the environment, not the solver. The selected solver is reported in diagnostics. Unsupported topology fails clearly and directs the caller to `GeometryAcoustics`; it is never silently approximated by an invented enclosure.
 
@@ -69,22 +69,34 @@ Absolute SPL is not a package default. Source power, microphone sensitivity, mea
 
 #### Problems / Limitations
 
-Analytic surfaces cannot reproduce arbitrary objects, full scattering, general pathing, reflected-path occlusion, or diffraction. Those limitations are deliberate and handled by R10 rather than hidden. `surface_set` and entity-batched analytic Isaac Lab execution remain unsupported. The old room-specific backend structure is retained only for the staged R8 consumer migration, not as the final product architecture.
+Analytic surfaces cannot reproduce arbitrary objects, full scattering, general pathing, reflected-path occlusion, or diffraction. Those limitations are deliberate and handled by R10 rather than hidden. `surface_set` remains unsupported. R8.3 resolved the entity-batched Lab and room-specific backend-structure limitations described at the R8.2 cutoff.
 
 ## Subphase R8.3 — Isaac Lab Scale
 
 #### Implementation
 
-Use `AnalyticAcoustics` as the scalable path for mass-parallel Isaac Lab workloads. Geometry-backend results may later define bounded parameter distributions and domain randomization for the analytic model without making the high-fidelity geometry provider run in every environment.
+`AudioArraySensorCfg` now defaults to `analytic_acoustics`. Entity binding requires one explicit `AcousticEnvironmentSpec` and initially accepts only `free_field`. It resolves array, microphone, and source poses from the official scene tensors and computes direct delay as `distance / speed_of_sound_mps`, `1/d` spreading, source and microphone gain/directivity, TDOA least-squares, confidence, scheduling, active-event compaction, and the six fixed-shape public tensors entirely with Torch on `sensor.device`. There are no per-environment loops or device-to-host transfers in this path.
+
+`per_mic_rms` is a relative direct-path feature; it is not waveform RMS, calibrated SPL, reverberation, or occlusion output. Entity mode requires at least three microphones, `doa_estimator="tdoa_least_squares"`, identity effects, order-zero free-field options, and valid non-degenerate TDOA geometry. Two-microphone ambiguity, `srp_phat`, PyRoom, half-space, shoebox, and polygon-prism execution remain available through scalar `bind_reference`.
+
+`AudioArraySensorCfg` exposes `speed_of_sound_mps`, `doa_estimator`, and analytic solver options shared with reference binding. Entity/reference parity covers presence, bearing, confidence, sectors, ambiguity, and per-microphone RMS ratios; scheduling, truncation, directivity/gain, device placement, partial reset, and failure modes remain deterministic.
+
+Runtime consolidation leaves only `analytic_acoustics` in the propagation registry. The four legacy classes, modules, registry entries, capability records, validation branches, and runtime configuration identifiers were removed without aliases. Maintained PyRoom implementation lives under `core/backends/_analytic/`; direct geometry and TDOA are internal Core/Lab computation. DOA selection is independent through `doa_estimator = "tdoa_least_squares" | "srp_phat"`.
+
+TOML uses `[audio.analytic_acoustics]` for `max_order`, `air_absorption`, and `ray_tracing`; the old room table fails clearly. Core, CLI, Isaac, Kit, examples, and live smokes use the analytic backend. Python and Kit room-prefixed fields were renamed to analytic equivalents, and Kit configuration is `ias.omni_extension_binding.v4` with no v3 parser. The three v1 serialized schemas are unchanged: historical frames and manifests retain their recorded backend identifiers for replay, but those identifiers cannot select a runtime backend.
+
+SquadBot migrated its active code, configuration, and deterministic tests to `AnalyticAcoustics.simulate(scene, array_id, window)`. Its Phase 6A oracle is now a project-owned canonical-geometry oracle with identity `squadbot_phase6a_geometry_oracle`; the sensor remains `AnalyticAcoustics`. Authenticated artifacts, historical phase documents, and the unrelated downstream `TODO.md` were not changed.
 
 #### Key Decisions
 
 - Large-batch training and high-fidelity geometry simulation are separate operating paths.
 - Geometry-derived parameterization is not absolute hardware or room calibration.
+- Propagation backend and DOA estimator are independent choices.
+- Historical serialized identifiers are replay data, not runtime aliases.
 
 #### Problems / Limitations
 
-The scalable analytic model approximates the distribution of geometry-aware behavior; it does not reproduce every advanced scene path per environment.
+The scalable analytic model is intentionally free-field and feature-only. It does not generate waveforms, reverberation, occlusion, calibrated SPL, half-space reflections, closed-room propagation, or per-environment acoustic randomization. Future geometry-derived distributions must be motivated and bounded before they are added.
 
 ## Subphase R8.4 — Occlusion Contract and Transmission Closeout
 
@@ -100,7 +112,7 @@ Remove the fixed `60 dB` total-loss clamp. Retain `max_hits_per_ray` only as a b
 
 #### Key Decisions
 
-- R8.3 closes before this contract cleanup begins; its in-progress scale work is not reopened or expanded.
+- R8.3 closed before this contract cleanup begins; its scale and consolidation work is not reopened or expanded.
 - Core stores the attenuation needed by analytic propagation, while Isaac owns transient ray, hit, and material-resolution detail.
 - One acoustic partition may own many visual or collision prims; fragmentation must not increase attenuation.
 - Sequential partition losses add in dB, while alternative propagation paths remain separate signals.
@@ -118,18 +130,21 @@ R8.1 includes deterministic routing and propagation tests, fake-provider coverag
 
 R8.2 adds deterministic `a * D + R` coverage for all four supported analytic topologies, broadband and banded attenuation, no-attenuation byte equality, timing, polarity, distance, air absorption, materials, directivity, motion segmentation, multiple sources, multi-hit caps/provenance, and clear/partial/full occlusion. The closure gate passes 551 host tests, 216 focused integration tests, 57 release tests, 111 Isaac tests, real optional PyRoom/SciPy/SoundFile execution, and live RTX 4090 Isaac Sim, Isaac Lab, and 38-step Kit workflows. Live analytic evidence records `occlusion_factor` changing from `1.0` blocked to `0.0` clear. Temporary source, wheel, and Kit artifacts pass the release audit; all three serialized v1 schemas remain byte-identical. The unchanged SquadBot suite has the exact same 31-test failure set as baseline `3a8b078`.
 
-R8.3 is in implementation. R8.4 remains future work after the R8.3 closure.
+R8.3 adds deterministic host coverage, 90 Isaac-runtime tests, optional PyRoom/SciPy/SoundFile execution, and RTX 4090 live gates. Isaac Sim passes three analytic lifecycle frames; Isaac Lab passes entity/reference parity, partial reset, CUDA tensor contracts, and 50 steps over 4096 environments at 2.213 ms/step mean against the 20 ms budget; Kit passes all 38 workflow steps with binding v4, a four-channel analytic waveform, and a non-silent qualitative device mix. The migrated SquadBot suite passes 373 tests with 10 expected skips and no removed-API failures. Clean-source `3.0.0` sdist, universal wheel, and Kit ZIP pass their local audit. The three serialized v1 schemas and authenticated downstream artifacts remain unchanged. R8.4 remains future work.
 
 ## Files
 
 - `src/isaac_audio_sensors/core/backends/analytic.py`
-- `src/isaac_audio_sensors/core/backends/room_acoustics/`
+- `src/isaac_audio_sensors/core/backends/_analytic/`
 - `src/isaac_audio_sensors/core/types.py`
 - `src/isaac_audio_sensors/core/acoustics/occlusion.py`
 - `src/isaac_audio_sensors/core/plugins/registry.py`
 - `src/isaac_audio_sensors/core/config.py`
 - `src/isaac_audio_sensors/isaac/sensor.py`
 - `src/isaac_audio_sensors/isaac/occlusion.py`
+- `src/isaac_audio_sensors/lab/audio_array_sensor_cfg.py`
+- `src/isaac_audio_sensors/lab/entity_binding.py`
+- `src/isaac_audio_sensors/lab/batched_backend.py`
 - `src/isaac_audio_sensors/lab/reference_backend.py`
 - `tests/integration/test_analytic_acoustics.py`
 - `tests/isaac/test_occlusion.py`
@@ -138,3 +153,4 @@ R8.3 is in implementation. R8.4 remains future work after the R8.3 closure.
 
 - 2026-09-01: Implemented R8.1 solver routing while retaining the four legacy backend identifiers and all three serialized v1 schemas.
 - 2026-09-01: Implemented R8.2 direct/indirect propagation and direct-path-only occlusion while preserving the public combined waveform and all three serialized v1 schemas.
+- 2026-09-01: Implemented R8.3 mass-parallel free-field Isaac Lab execution, consolidated runtime propagation on `AnalyticAcoustics`, migrated SquadBot, introduced Kit binding v4, and preserved historical v1 replay contracts without runtime aliases.

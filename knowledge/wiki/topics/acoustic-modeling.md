@@ -14,11 +14,11 @@ Two microphones have an explicit front/back ambiguity unless an additional prior
 
 The public ladder describes modeled behavior and missing physics; it is not a claim that simulation matches a physical room or microphone.
 
-L0 `geometry_only` is stable and deterministic: it computes source distance, bearing, eight-sector labels, and analytical per-microphone RMS without waveforms.
+L0 direct geometry is stable deterministic behavior internal to `analytic_acoustics`: it computes source distance, bearing, eight-sector labels, and analytical per-microphone relative RMS without requiring waveforms.
 
-L1 `tdoa_synthetic` is stable and deterministic: it computes direct-path per-microphone delay, analytical amplitude diagnostics, first-order entity directivity, optional air absorption, self-noise floors, seeded stress controls, and ambiguity metadata without reverberation.
+L1 analytic TDOA is stable deterministic behavior internal to `analytic_acoustics`: it computes direct-path per-microphone delay, analytical amplitude diagnostics, first-order entity directivity, optional air absorption, self-noise floors, seeded stress controls, and ambiguity metadata without reverberation.
 
-L2 `analytic_acoustics` is the topology-routed backend. Its free-field and half-space solvers are deterministic Core capabilities; its shoebox and polygon-prism solvers use optional PyRoom. The legacy `room_acoustics` and `room_acoustics_srp` shoebox backends remain available during the staged R8 migration.
+L2 `analytic_acoustics` is the only runtime propagation backend. Its free-field and half-space solvers are deterministic Core capabilities; its shoebox and polygon-prism solvers use optional PyRoom. TDOA least-squares and SRP-PHAT are estimator choices rather than separate propagation backends.
 
 L3 is provisional advanced realism: the shipped capability is opt-in Isaac raycast occlusion and material-aware transmission, not a complete advanced-acoustics backend.
 
@@ -30,7 +30,7 @@ L4 is experimental calibration tooling direction and does not claim automatic ha
 
 Every backend and both Isaac Lab binding modes use `per_pair_direct_path`: source and microphone factors are evaluated from their resolved orientations and multiplied for each direct source/microphone pair. Unknown values and non-omni entities without the required orientation fail; there is no implicit omni fallback.
 
-L0/L1 report the magnitude of that pair factor in RMS. L2 applies its signed value to the complete PyRoom-convolved pair stem, so negative lobes invert waveform polarity while RMS remains magnitude-only. The model does not evaluate a separate angle for each reflection.
+Direct feature paths report the magnitude of that pair factor in RMS. Waveform paths apply its signed value to the complete PyRoom-convolved pair stem, so negative lobes invert waveform polarity while RMS remains magnitude-only. The model does not evaluate a separate angle for each reflection.
 
 Directivity is not an audio effect. The removed `audio.effects.directivity` tables, pattern sets, and `frequency_points` have no v3 alias or parser. Former directivity frequency points are not migrated because they represented frequency response independently of angle. A maintained microphone response must be authored manually under `audio.effects.channel_response.<mic>.frequency_response`.
 
@@ -40,11 +40,11 @@ Every scalar nominal or delta `gain_db` is an amplitude gain using `10 ** (gain_
 
 Generated and file-backed source samples keep the amplitude encoded by the asset. Source nominal gain is applied exactly once after content selection and before propagation; `gain_db = 0` is unity and WAV input is never peak- or RMS-normalized automatically.
 
-L0/L1 order is asset reference, source nominal gain, source/microphone directivity magnitude, analytical `1/d` with the existing floor and optional air absorption, occlusion loss, microphone nominal gain, optional TDOA gain-mismatch stress, then channel-response gain correction. R8.2 analytic order is original samples, source nominal gain and Doppler, propagation into direct `D` and indirect `R` stems, signed pair directivity, direct-only broadband or banded occlusion, `a * D + R` recombination, microphone nominal gain, channel-response processing, source summation, then noise/electronics. Closed analytic and retained room routes use PyRoom RIRs and never apply a second manual distance loss. An unattenuated pair uses the original full premix directly.
+The direct-feature order is asset reference, source nominal gain, source/microphone directivity magnitude, analytical `1/d` with the existing floor and optional air absorption, occlusion loss where supported, microphone nominal gain, optional TDOA gain-mismatch stress, then channel-response gain correction. The analytic waveform order is original samples, source nominal gain and Doppler, propagation into direct `D` and indirect `R` stems, signed pair directivity, direct-only broadband or banded occlusion, `a * D + R` recombination, microphone nominal gain, channel-response processing, source summation, then noise/electronics. Closed analytic routes use PyRoom RIRs and never apply a second manual distance loss. An unattenuated pair uses the original full premix directly.
 
 Channel-response gain is a configured per-channel correction delta, TDOA gain mismatch is a seeded stress delta, and occlusion is a non-positive propagation-loss delta. Diagnostics keep them distinct from source and microphone nominal gains. Calibration-profile gain is stored data only and is never applied automatically.
 
-Cross-backend validation concerns relative amplitude: a `+20*log10(2)` dB change yields a factor of two and the negative change yields one half. It does not require equal absolute RMS across L0/L1 and L2 and does not claim dB SPL.
+Cross-path validation concerns relative amplitude: a `+20*log10(2)` dB change yields a factor of two and the negative change yields one half. It does not require equal absolute RMS across feature and waveform paths and does not claim dB SPL.
 
 ## Acoustic Environments and Room Acoustics
 
@@ -54,13 +54,13 @@ Cross-backend validation concerns relative amplitude: a `+20*log10(2)` dB change
 
 `AnalyticAcoustics` selects its solver only from environment topology. `free_field_direct` uses Core direct propagation; `half_space_image_source` optionally adds one material-aware local-floor reflection; `pyroom_shoebox` and `pyroom_polygon_prism` use lazy PyRoom construction with per-surface materials. Every route reports its solver ID, provider, and environment kind on the frame and each detection.
 
-Reflection order, air absorption, and ray tracing remain solver settings supplied to backend construction or `[audio.room_acoustics]`, not environment properties. Free field requires order zero, half space accepts zero or one, and air absorption or ray tracing is available only on PyRoom routes. Source and microphone containment is environment-local and fail-closed with no clamping. A polygon prism is validated as a simple extruded footprint with exactly one wall per floor edge before room construction. The retained `room_acoustics` and `room_acoustics_srp` identifiers continue to accept only `shoebox`.
+Reflection order, air absorption, and ray tracing remain solver settings supplied to backend construction or `[audio.analytic_acoustics]`, not environment properties. Free field requires order zero, half space accepts zero or one, and air absorption or ray tracing is available only on PyRoom routes. Source and microphone containment is environment-local and fail-closed with no clamping. A polygon prism is validated as a simple extruded footprint with exactly one wall per floor edge before room construction. The removed `[audio.room_acoustics]` table and legacy backend identifiers fail instead of selecting an alias.
 
 Isaac resolves the same Core contract from a manual environment, an explicit anchor, or marked USD candidates. Automatic discovery accepts marked shoebox volumes and half-space floors, tests every microphone with a 1 mm default tolerance, and fails on malformed or unresolved ambiguity; it never guesses from unmarked geometry. Kit uses the explicit `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes and has no implicit shoebox fallback. `polygon_prism` and `surface_set` remain manual Python/TOML inputs until R10.
 
-The analytic and legacy room backends schedule all active sources into one shared microphone mixture, preserve sample timing, compute per-source and aggregate diagnostics, and can export per-frame or continuous multichannel waveforms.
+The analytic backend schedules all active sources into one shared microphone mixture, preserves sample timing, computes per-source and aggregate diagnostics, and can export per-frame or continuous multichannel waveforms.
 
-`AnalyticAcoustics` reuses the explicit `prepare -> render -> effects -> detections -> frame` room pipeline, including scheduling, Doppler, gain, directivity, effects, waveform export, GCC/SRP estimation, and frame assembly. Only solver selection and propagation construction differ.
+`AnalyticAcoustics` owns the explicit `prepare -> render -> effects -> detections -> frame` pipeline, including scheduling, Doppler, gain, directivity, effects, waveform export, GCC/SRP estimation, and frame assembly. Only solver selection and propagation construction differ by topology.
 
 The analytic model does not implement arbitrary geometry, `surface_set`, diffraction, connected rooms, a complete wave solver, calibrated materials, diffuse-field coherence, or production beamforming.
 
@@ -84,7 +84,7 @@ Diagnostics retain applied settings and observable outputs so a consumer can dis
 
 ## Occlusion and Materials
 
-The Isaac layer can raycast each source-to-microphone direct path, aggregate multiple hits up to the configured cap, and derive flat or octave-band transmission loss from authored values or nominal presets. `SourceOcclusion` carries exact per-microphone blocked and attenuation state plus optional aligned band rows, hit paths, and material provenance. Analytic and retained room propagation apply that loss exactly once to `D` and preserve `R`; geometry-only and synthetic TDOA remain direct-only. Obstacle loss has no source-obstacle-distance multiplier. Detection state and the UI factor are derived from the blocked map rather than stored as duplicate aggregate authorities.
+The Isaac layer can raycast each source-to-microphone direct path, aggregate multiple hits up to the configured cap, and derive flat or octave-band transmission loss from authored values or nominal presets. `SourceOcclusion` carries exact per-microphone blocked and attenuation state plus optional aligned band rows, hit paths, and material provenance. Analytic waveform propagation applies that loss exactly once to `D` and preserves `R`; the mass-parallel Lab path intentionally excludes occlusion. Obstacle loss has no source-obstacle-distance multiplier. Detection state and the UI factor are derived from the blocked map rather than stored as duplicate aggregate authorities.
 
 Environment-surface absorption may use measured provenance, but transmission presets remain nominal unless independently measured; the system does not claim diffraction, edge bending, thickness-derived transmission, or reflected-path occlusion.
 

@@ -22,7 +22,7 @@ The SDK-facing source arguments stay in ergonomic units. `spatial` maps to `aura
 
 Real audio assets author both native `filePath` and `ias:audio_asset_path`. SDK-generated identifiers such as `generated://pulse` author only `ias:audio_asset_path` because Kit Audio cannot play them as files. Discovery applies configurable `ias`, native USD, and default precedence, converts native time codes, loop count, and linear gain back into the portable contract, treats negative native `startTime` as disabled, and rejects non-positive native gain when no finite `ias:gain_db` value takes precedence. `auralMode=nonSpatial` sources are omitted from physical-sensor discovery with an explicit diagnostic, including during strict candidate scans, because they do not represent spatial emitters whose poses should propagate to individual microphones. Explicitly selecting one as a physical source remains an error.
 
-For the room-acoustics backend, a file-backed source repeats its decoded content up to the requested `loop_count` within the authoritative `duration_s` derived from `endTime`; any remaining finite window is silent. Infinite loops fill that window and therefore remain bounded. `generated://` sources stay duration-driven and do not acquire file-loop semantics.
+For closed-topology `analytic_acoustics`, a file-backed source repeats its decoded content up to the requested `loop_count` within the authoritative `duration_s` derived from `endTime`; any remaining finite window is silent. Infinite loops fill that window and therefore remain bounded. `generated://` sources stay duration-driven and do not acquire file-loop semantics.
 
 The Kit extension declares `omni.usd.schema.audio` directly. Discovery-cache invalidation includes `auralMode`, `loopCount`, and `endTime`, and `discovery.py` is the sole stage-to-source reader.
 
@@ -98,7 +98,7 @@ Advanced Tools contains the specialist controls for stage and selection, array, 
 
 Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. Source directivity is the shared four-value enum selector rather than free text. Saved configuration and sound-profile directivity/gain are validated before UI state or USD is mutated. Color styling distinguishes editable, action-populated, read-only, and invalid fields. Preset, binding, transform-read, and config-import changes are tracked only as transient window state; a manual edit restores the normal editable style. Invalid fields remain highlighted until a valid correction, without opening or changing accordions automatically. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
 
-Replicator controls the optional Omniverse writer; Export writes the latest frame, JSONL streams, and reusable `ias.omni_extension_binding.v3` configuration. Binding v3 includes environment mode, anchor, tolerance, resolved result, and provenance; v2 is rejected without a compatibility parser.
+Replicator controls the optional Omniverse writer; Export writes the latest frame, JSONL streams, and reusable `ias.omni_extension_binding.v4` configuration. Binding v4 includes `analytic_acoustics`, analytic solver options, environment mode, anchor, tolerance, resolved result, and provenance; v2/v3 are rejected without compatibility parsers.
 
 Viewport follow-selection and live pose synchronization let manipulator edits update the selected stage entities without copying transforms into task-specific code.
 
@@ -129,6 +129,7 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 ## Version Notes
 
 - 2026-09-01: Completed R7.2 with mandatory environments, `manual`/`anchor`/`auto` Isaac resolution, full-array containment, marked shoebox/floor discovery, cache-aware refresh, fail-closed Kit modes, and `ias.omni_extension_binding.v3` with no v2 parser.
+- 2026-09-01: Completed R8.3 backend consolidation, analytic field naming, and `ias.omni_extension_binding.v4` with no v3 parser; the RTX 4090 live workflow passes all 38 maintained steps.
 - 2026-09-01: Migrated the live sensor, cache, anchor refresh, overlays, and Kit controls to `AcousticEnvironmentSpec`; binding/configuration is now `ias.omni_extension_binding.v2`, while the temporary no-anchor shoebox remains through R7.1.
 - 2026-08-27: Made source and child-microphone directivity enum-backed and fail-closed, aligned native gain conversion, and removed the effects-owned directivity path for v3.
 - 2026-08-26: Removed dead Kit internals and dynamic sibling-service lookup while preserving the controller, UI, configuration, and runtime contracts.

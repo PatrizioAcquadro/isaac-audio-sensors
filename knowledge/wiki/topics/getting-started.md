@@ -46,16 +46,18 @@ Validate the maintained example configuration:
 isaac-audio-sensors validate-config examples/configs/isaac_audio_sensors_demo.toml
 ```
 
-Generate a deterministic geometry frame:
+Generate a deterministic analytic frame:
 
 ```bash
-isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend geometry_only --array-id rig_front
+isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front
 ```
 
-Export a synthetic TDOA trace and the public frame schema:
+The maintained configuration uses a shoebox environment. Simulation therefore requires the optional `room` extra, while validation remains core-only; neither command needs Isaac or a GPU.
+
+Export an analytic trace and the public frame schema:
 
 ```bash
-isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend tdoa_synthetic --array-id rig_front --out build/validation/isaac_audio_sensors/tdoa_trace.json
+isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front --out build/validation/isaac_audio_sensors/analytic_trace.json
 isaac-audio-sensors export-schema --out build/validation/isaac_audio_sensors/audio_sensor_frame.v1.schema.json
 ```
 

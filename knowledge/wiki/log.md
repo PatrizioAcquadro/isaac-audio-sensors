@@ -405,3 +405,11 @@ Added the planned R8.4 lean occlusion and partition-transmission closeout, expan
 ## 2026-09-01 — lint: Post-R8.3 occlusion and geometry-provider plan
 
 Verified phase ordering, subphase structure, index coverage, internal documentation links, Markdown whitespace, stable-schema boundaries, simulation-only scope, and preservation of the in-progress R8.3 worktree.
+
+## 2026-09-01 — update: R8.3 Isaac Lab scale and backend consolidation
+
+Recorded the CUDA-native free-field Lab path, single `analytic_acoustics` runtime backend, separate DOA estimator choice, analytic configuration and Kit binding v4, historical v1 replay boundary, migrated SquadBot geometry oracle, and completed R8.3 validation.
+
+## 2026-09-01 — lint: R8.3 Isaac Lab scale and backend consolidation
+
+Verified 457 unit/contract tests, 200 integration tests, 57 release tests, 90 Isaac tests, optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, 4096-environment performance, 373-pass SquadBot validation, clean-source artifact audits, registry consolidation, resolved wiki links, index coverage, and whitespace.

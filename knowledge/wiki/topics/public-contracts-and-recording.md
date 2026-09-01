@@ -6,7 +6,7 @@
 
 Every frame identifies its backend, array, time window, sample rate, frame index, coordinate convention, units, provenance, event bound, detections, aggregate microphone RMS values, waveform paths, and diagnostics.
 
-Allowed provenance values are `synthetic/core`, `room_acoustics`, `isaac_live`, and `replay/trace`.
+Allowed provenance values remain `synthetic/core`, `room_acoustics`, `isaac_live`, and `replay/trace`. `room_acoustics` is historical serialized provenance, not a selectable runtime backend.
 
 The coordinate convention is `x_forward_y_right_z_up_clockwise_bearing`: local `+X` is array forward, local `+Y` is right, local `+Z` is up, positions use meters, orientations use XYZW quaternions, and bearing is clockwise degrees from array forward.
 
@@ -26,11 +26,11 @@ Package upgrades may preserve an existing schema version when serialized meaning
 
 ## Configuration and Runtime Profiles
 
-`AudioSensorConfig` validates simulator-independent scene, audio, source, array, room, backend, runtime-profile, and effects settings from TOML before simulation. It validates meters and Z-up without storing fixed-value convention fields. Isaac Lab configuration belongs to `isaac_audio_sensors.lab.AudioArraySensorCfg`.
+`AudioSensorConfig` validates simulator-independent scene, audio, source, array, environment, backend, runtime-profile, analytic-solver, and effects settings from TOML before simulation. `[audio.analytic_acoustics]` owns `max_order`, `air_absorption`, and `ray_tracing`; the removed `[audio.room_acoustics]` table has no parser. It validates meters and Z-up without storing fixed-value convention fields. Isaac Lab configuration belongs to `isaac_audio_sensors.lab.AudioArraySensorCfg`.
 
 Sources and microphones own their directivity. TOML accepts only `omni`, `cardioid`, `supercardioid`, and `figure_eight`; non-omni sources require world orientation and non-omni microphones require relative orientation. `[audio.effects.directivity]` is an unknown key in v3 rather than a deprecated alias.
 
-`waveform_fidelity` is the default runtime profile and permits waveform-producing behavior; `training_features` is a constrained feature-oriented profile and rejects incompatible waveform export.
+`waveform_fidelity` is the default runtime profile and permits waveform-producing behavior; `training_features` is a constrained feature-oriented profile and rejects incompatible waveform export. `doa_estimator` selects `tdoa_least_squares` or `srp_phat` independently from the propagation backend.
 
 Unknown backends, profiles, coordinate conventions, invalid time windows, invalid array geometry, and unsupported combinations fail closed.
 
@@ -44,15 +44,15 @@ Capability declarations record identifiers, profiles, device support, `PluginDec
 
 Registry resolution rejects duplicate declarations, unknown identifiers, unavailable dependencies, unsupported devices/profiles, factory results that do not satisfy `PropagationBackend`, and mismatched `backend_id` values. Dependency and capability checks occur before backend construction.
 
-`discover_capabilities()` reports each maintained level and optional feature as `bundled`, `external`, or `absent`. Standard Python resolves room and FLAC dependencies from the `room` extra; the packaged Kit extension resolves them from its internal `_bundled` directory.
+The built-in propagation registry contains only `analytic_acoustics`; legacy identifiers are unknown at resolution time and have no aliases. `discover_capabilities()` reports each maintained level and optional feature as `bundled`, `external`, or `absent`. Standard Python resolves room and FLAC dependencies from the `room` extra; the packaged Kit extension resolves them from its internal `_bundled` directory.
 
 ## Trace IO
 
 JSON frame files and JSONL streams use deterministic serialization and round-trip through the public frame model.
 
-Readers accept documented absent optional v1 fields and restore their canonical defaults; writers emit the current complete compatible v1 shape. In particular, legacy frames may omit the additive `units.elevation` entry.
+Readers accept documented absent optional v1 fields and restore their canonical defaults; writers emit the current complete compatible v1 shape. In particular, legacy frames may omit the additive `units.elevation` entry and may retain historical backend identifiers. Those identifiers round-trip for replay and provenance but cannot select a current runtime backend.
 
-Tracked examples under `examples/traces/` cover minimal, multi-detection, ambiguity, and diagnostic/provenance-rich records.
+Tracked examples under `examples/traces/` cover minimal, multi-detection, ambiguity, and diagnostic/provenance-rich records. The JSON examples are current `AnalyticAcoustics` outputs. `diagnostics_provenance_sequence.v1.ndjson` is the explicitly historical replay/provenance fixture and intentionally retains its recorded legacy backend identity.
 
 ## Dataset Sessions
 
@@ -86,10 +86,10 @@ Exported waveforms and recordings are runtime outputs, not tracked product sourc
 
 Package `3.0.0` is a breaking directivity and gain consistency release. Import sensor contracts from `core`, dataset contracts from `recording`, and schema generators from `schemas.generate`.
 
-Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Construct `SourceOcclusion` from its required per-microphone maps rather than removed aggregate fields. Call propagation backends with the snapshot array identifier instead of a `MicrophoneArraySpec`, and bind Lab reference mode with `array_ids` instead of `array_specs`. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
+Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Construct `SourceOcclusion` from its required per-microphone maps rather than removed aggregate fields. Call `AnalyticAcoustics.simulate()` with the snapshot array identifier instead of a `MicrophoneArraySpec`, and bind Lab reference mode with `array_ids` instead of `array_specs`. Replace legacy backend choices with `analytic_acoustics`, move solver options to `[audio.analytic_acoustics]`, and choose the estimator separately. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
 
-The frame, dataset-manifest, and calibration-profile schemas remain v1 because their serialized meanings did not change. The v3 package does not retain v2 aliases or parallel runtime paths for the removed Python/configuration surfaces, backend sensor-object argument, or Lab `array_specs` reference binding.
+The frame, dataset-manifest, and calibration-profile schemas remain v1 because their serialized meanings did not change. The v3 package does not retain v2 aliases or parallel runtime paths for the removed Python/configuration surfaces, four legacy propagation backends, backend sensor-object argument, or Lab `array_specs` reference binding.
 
-Stable serialized v1 fields, units, provenance, coordinate meaning, ambiguity representation, backend identifiers, sector mapping, and named diagnostic namespaces cannot be removed or redefined in a compatible release.
+Stable serialized v1 fields, units, provenance, coordinate meaning, ambiguity representation, recorded backend identifiers, sector mapping, and named diagnostic namespaces cannot be removed or redefined in a compatible release. This serialized compatibility does not require preserving an old identifier as a runtime selection surface.
 
 Additive optional fields, diagnostics, capabilities, and bug fixes are compatible when older readers can ignore them and current readers preserve older records.

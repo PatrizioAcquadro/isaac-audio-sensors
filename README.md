@@ -10,7 +10,7 @@ Current package release: `3.0.0`. This release is not yet published.
 
 ## What It Provides
 
-- Simulator-independent, versioned contracts for sources, arrays, five analytic acoustic environments, sensor frames, calibration, and datasets, with deterministic topology-routed analytic propagation and per-microphone direct-path occlusion plus the retained geometry, synthetic TDOA, and optional room backends.
+- Simulator-independent, versioned contracts for sources, arrays, five analytic acoustic environments, sensor frames, calibration, and datasets, with one topology-routed `analytic_acoustics` backend for direct, TDOA, optional room, and per-microphone direct-path occlusion behavior.
 - Entity-owned source and microphone directivity with four first-order families, plus one amplitude-gain convention shared by Core, Isaac Sim, Isaac Lab, and Kit.
 - Generic multichannel recording, validation, sharded datasets, deterministic splits, statistics, FLAC export, and read-only replay.
 - Lazy Isaac Sim and Isaac Lab integrations for live stages and fixed-shape, batched observations without making NVIDIA runtimes core dependencies.
@@ -41,14 +41,14 @@ From a source checkout, validate the maintained configuration and generate a det
 
 ```bash
 isaac-audio-sensors validate-config examples/configs/isaac_audio_sensors_demo.toml
-isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend geometry_only --array-id rig_front
+isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front
 ```
 
-These commands require only the core package; no Isaac runtime or GPU is needed.
+Neither command needs Isaac or a GPU. The maintained configuration uses a shoebox environment, so simulation also needs the optional `room` extra; configuration validation remains core-only.
 
 ## Limitations
 
-- `analytic_acoustics` supports Core free field and half space plus optional PyRoom shoebox and polygon prisms. Occlusion attenuates only the direct source-to-microphone path; it does not model diffraction or reflected-path blocking. `surface_set` and mass-parallel Isaac Lab routing remain future work, and none of these controlled models is a complete wave solver or calibrated acoustic twin.
+- `analytic_acoustics` supports Core free field and half space plus optional PyRoom shoebox and polygon prisms. Its mass-parallel Isaac Lab path is free-field, feature-only, and requires at least three microphones with `tdoa_least_squares`; scalar reference binding retains two-microphone, SRP-PHAT, PyRoom, and closed-topology support. Occlusion attenuates only the direct source-to-microphone path; `surface_set`, diffraction, and reflected-path blocking remain outside this backend, and none of these controlled models is a complete wave solver or calibrated acoustic twin.
 - Software and GPU validation do not establish hardware calibration, physical acoustic fidelity, downstream task success, or sim-to-real transfer.
 - This SDK does not provide robot-specific tasks or policies and is not a safety-critical perception component.
 
