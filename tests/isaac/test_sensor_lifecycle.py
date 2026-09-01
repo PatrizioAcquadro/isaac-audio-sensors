@@ -6,11 +6,17 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.effects import EffectsConfig, MotionEffectsConfig
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+)
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from tests.helpers import motion_stage
 
 UPDATE_PERIOD_S = 0.05
+MANUAL_ENVIRONMENT = free_field_environment(environment_id="lifecycle_free_field")
+MANUAL_RESOLUTION = IsaacEnvironmentResolutionCfg(mode="manual")
 
 
 def _segmented_sensor(monkeypatch):
@@ -24,6 +30,7 @@ def _segmented_sensor(monkeypatch):
     sensor = IsaacAudioArraySensor(
         array_id="array",
         stage=object(),
+        environment=MANUAL_ENVIRONMENT,
         update_period_s=UPDATE_PERIOD_S,
     )
     sensor.effects = EffectsConfig(
@@ -77,6 +84,8 @@ def test_manual_capture_and_update_throttling():
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         backend="geometry_only",
         update_period_s=UPDATE_PERIOD_S,
@@ -112,6 +121,8 @@ def test_non_monotonic_time_preserves_latest_frame():
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         backend="geometry_only",
     ).start()
@@ -170,6 +181,8 @@ def test_update_subscription_timeline_reset_and_close(monkeypatch, event_name):
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         backend="geometry_only",
         effects=EffectsConfig(

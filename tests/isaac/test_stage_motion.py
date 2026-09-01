@@ -20,12 +20,18 @@ from isaac_audio_sensors.core.types import (
     AudioSourceSpec,
     AudioTimeWindow,
 )
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+)
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_snapshot import (
     build_stage_snapshot,
     enrich_snapshot_motion,
 )
 from tests.helpers import FakeUsdPrim, motion_stage
+
+MANUAL_ENVIRONMENT = free_field_environment(environment_id="stage_motion_free_field")
+MANUAL_RESOLUTION = IsaacEnvironmentResolutionCfg(mode="manual")
 
 
 def _motion(enabled: bool = True, **kwargs) -> MotionEffectsConfig:
@@ -143,6 +149,8 @@ def test_fake_stage_snapshot_seam_uses_explicit_simulation_time_not_time_code():
     first = build_stage_snapshot(
         stage,
         timestamp_ms=1_000,
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         array_prim_path="/World/Rig",
         source_prim_path="/World/Speaker",
         usd_time_code=123.0,
@@ -162,6 +170,8 @@ def test_fake_stage_snapshot_seam_uses_explicit_simulation_time_not_time_code():
     second = build_stage_snapshot(
         stage,
         timestamp_ms=9_999,
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         array_prim_path="/World/Rig",
         source_prim_path="/World/Speaker",
         usd_time_code=-50.0,
@@ -185,6 +195,8 @@ def test_enabled_stage_snapshot_requires_finite_explicit_simulation_time():
         build_stage_snapshot(
             stage,
             timestamp_ms=0,
+            environment_resolution_cfg=MANUAL_RESOLUTION,
+            environment=MANUAL_ENVIRONMENT,
             array_prim_path="/World/Rig",
             source_prim_path="/World/Speaker",
             motion_config=_motion(),
@@ -194,6 +206,8 @@ def test_enabled_stage_snapshot_requires_finite_explicit_simulation_time():
         build_stage_snapshot(
             stage,
             timestamp_ms=0,
+            environment_resolution_cfg=MANUAL_RESOLUTION,
+            environment=MANUAL_ENVIRONMENT,
             array_prim_path="/World/Rig",
             source_prim_path="/World/Speaker",
             motion_config=_motion(),
@@ -210,9 +224,7 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
         timestamp_ms=0,
         sources=(),
         arrays=(array,),
-        environment=free_field_environment(
-            environment_id="empty_motion_free_field"
-        ),
+        environment=free_field_environment(environment_id="empty_motion_free_field"),
     )
     enriched, diagnostics = enrich_snapshot_motion(
         scene,
@@ -242,6 +254,8 @@ def test_live_extension_enriches_frame_diagnostics_and_rediscovery_keeps_history
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         backend="tdoa_synthetic",
         update_period_s=0.05,
@@ -284,6 +298,8 @@ def test_live_direct_capture_requires_explicit_motion_time():
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         effects=EffectsConfig(motion=_motion()),
     )
@@ -298,6 +314,8 @@ def test_stage_replacement_clears_history_before_new_stage_sample():
     sensor = IsaacAudioArraySensor.from_stage(
         stage=first_stage,
         array_prim_path="/World/Rig",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         backend="geometry_only",
         effects=EffectsConfig(motion=_motion()),
@@ -336,6 +354,8 @@ def test_entity_removal_and_same_id_new_prim_purges_only_removed_history():
     stage.add(second_source)
     sensor = IsaacAudioArraySensor.from_discovered_stage(
         stage=stage,
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         backend="geometry_only",
         effects=EffectsConfig(motion=_motion()),
     ).start()

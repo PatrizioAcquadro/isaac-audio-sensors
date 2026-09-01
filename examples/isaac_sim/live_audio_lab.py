@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.isaac import (
     IsaacAudioArraySensor,
     IsaacAudioSceneBindingCfg,
+    IsaacEnvironmentResolutionCfg,
 )
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
@@ -42,6 +44,8 @@ def build_discovered_sensor(stage) -> IsaacAudioArraySensor:
 
     return IsaacAudioArraySensor.from_discovered_stage(
         stage=stage,
+        environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
+        environment=free_field_environment(environment_id="example_free_field"),
         binding_cfg=IsaacAudioSceneBindingCfg(
             discovery_roots=("/World",),
             preferred_array="rig_front",

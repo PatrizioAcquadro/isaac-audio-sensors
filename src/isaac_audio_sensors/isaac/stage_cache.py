@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from isaac_audio_sensors.core.types import AudioSceneSnapshot
+from isaac_audio_sensors.core.types import AcousticEnvironmentSpec, AudioSceneSnapshot
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioDiscoveryCfg,
     _array_spec_from_prim,
@@ -29,11 +29,12 @@ from isaac_audio_sensors.isaac.discovery import (
     _source_spec_from_prim,
     discover_stage_audio,
 )
-from isaac_audio_sensors.isaac.pose_resolver import IsaacStagePoseResolver
+from isaac_audio_sensors.isaac.pose_resolver import IsaacStagePoseResolver, prim_path
 from isaac_audio_sensors.isaac.stage_snapshot import (
     effective_discovery_cfg,
     snapshot_from_discovery,
 )
+from isaac_audio_sensors.isaac.usd_bounds import prim_attributes
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -77,6 +78,9 @@ _ENVIRONMENT_GEOMETRY_PROPERTIES = frozenset(
         "ias:environment_min_world",
         "ias:environment_max_world",
         "ias:environment_size_m",
+        "ias:environment_kind",
+        "ias:environment_id",
+        "ias:environment_priority",
         "size",
         "extent",
     }
@@ -102,6 +106,7 @@ class StageAudioCache:
         *,
         rediscover_each_update: bool = False,
         environment_anchor_prim_path: str | None = None,
+        environment_candidate_roots: tuple[str, ...] = (),
     ) -> None:
         if stage is None or not hasattr(stage, "Traverse"):
             raise ValueError("stage must provide a Traverse method.")
@@ -115,6 +120,9 @@ class StageAudioCache:
             None
             if environment_anchor_prim_path is None
             else str(environment_anchor_prim_path).rstrip("/")
+        )
+        self.environment_candidate_roots = tuple(
+            str(root).rstrip("/") or "/" for root in environment_candidate_roots
         )
         self._cached: _CachedDiscovery | None = None
         self._dirty = False
@@ -146,6 +154,12 @@ class StageAudioCache:
         """Reasons awaiting successful publication by the current capture."""
 
         return tuple(self._current_acoustic_refresh_reasons)
+
+    @property
+    def cached_prims(self) -> tuple[Any, ...] | None:
+        """Return the current prim cache for zero-Traverse environment refresh."""
+
+        return None if self._cached is None else self._cached.prims
 
     @property
     def pending_non_audio_pose_paths(self) -> tuple[str, ...]:
@@ -201,6 +215,7 @@ class StageAudioCache:
         self,
         *,
         timestamp_ms: int,
+        environment: AcousticEnvironmentSpec,
         stage_id: str | None = None,
         array_prim_path: str | None = None,
         robot_base_prim_path: str | None = None,
@@ -247,6 +262,7 @@ class StageAudioCache:
                 return self._cached_snapshot(
                     cached,
                     timestamp_ms=timestamp_ms,
+                    environment=environment,
                     array_prim_path=array_prim_path,
                     source_prim_path=source_prim_path,
                     preferred_array=preferred_array,
@@ -259,6 +275,7 @@ class StageAudioCache:
             key=key,
             cfg=cfg,
             timestamp_ms=timestamp_ms,
+            environment=environment,
             stage_id=stage_id,
             array_prim_path=array_prim_path,
             source_prim_path=source_prim_path,
@@ -274,6 +291,7 @@ class StageAudioCache:
         key: tuple[Any, ...],
         cfg: IsaacAudioDiscoveryCfg,
         timestamp_ms: int,
+        environment: AcousticEnvironmentSpec,
         stage_id: str | None,
         array_prim_path: str | None,
         source_prim_path: str | None,
@@ -331,6 +349,7 @@ class StageAudioCache:
             result,
             timestamp_ms=timestamp_ms,
             preferred_source=preferred_source,
+            environment=environment,
         )
 
     def _cached_snapshot(
@@ -338,6 +357,7 @@ class StageAudioCache:
         cached: _CachedDiscovery,
         *,
         timestamp_ms: int,
+        environment: AcousticEnvironmentSpec,
         array_prim_path: str | None,
         source_prim_path: str | None,
         preferred_array: str | None,
@@ -415,7 +435,7 @@ class StageAudioCache:
             timestamp_ms=timestamp_ms,
             sources=sources,
             arrays=tuple(spec for _, spec in array_specs),
-            environment=None,
+            environment=environment,
         )
 
     def _cached_selection_diagnostics(
@@ -547,22 +567,41 @@ class StageAudioCache:
 
     def _resync_changes_environment(self, path: Any) -> bool:
         anchor = self.environment_anchor_prim_path
-        if anchor is None:
-            return False
         changed = str(path).rstrip("/")
-        return _paths_overlap(changed, anchor)
+        if anchor is not None:
+            return _paths_overlap(changed, anchor)
+        if any(
+            _paths_overlap(changed, candidate)
+            for candidate in self._auto_environment_paths()
+        ):
+            return True
+        get_prim = getattr(self.stage, "GetPrimAtPath", None)
+        prim = get_prim(changed) if callable(get_prim) else None
+        return prim is not None and self._is_marked_environment_prim(prim)
 
     def _property_changes_environment(self, path: Any) -> bool:
         anchor = self.environment_anchor_prim_path
-        if anchor is None:
-            return False
-        prim_path = _property_prim_path(path)
+        changed_prim_path = _property_prim_path(path)
         name = _property_name(path)
+        if anchor is not None:
+            if name.startswith("xformOp:"):
+                return _path_is_same_or_ancestor(changed_prim_path, anchor)
+            return name in _ENVIRONMENT_GEOMETRY_PROPERTIES and _paths_overlap(
+                changed_prim_path,
+                anchor,
+            )
+        if name == "ias:environment_kind" and self._path_in_candidate_roots(
+            changed_prim_path
+        ):
+            return True
+        candidates = self._auto_environment_paths()
         if name.startswith("xformOp:"):
-            return _path_is_same_or_ancestor(prim_path, anchor)
-        return name in _ENVIRONMENT_GEOMETRY_PROPERTIES and _paths_overlap(
-            prim_path,
-            anchor,
+            return any(
+                _path_is_same_or_ancestor(changed_prim_path, candidate)
+                for candidate in candidates
+            )
+        return name in _ENVIRONMENT_GEOMETRY_PROPERTIES and any(
+            _paths_overlap(changed_prim_path, candidate) for candidate in candidates
         )
 
     def _is_audio_path(self, path: str) -> bool:
@@ -582,7 +621,34 @@ class StageAudioCache:
         anchor = self.environment_anchor_prim_path
         if anchor is not None and _paths_overlap(prim_path, anchor):
             return True
+        if any(
+            _paths_overlap(prim_path, candidate)
+            for candidate in self._auto_environment_paths()
+        ):
+            return True
         return not self._is_audio_path(prim_path)
+
+    def _auto_environment_paths(self) -> tuple[str, ...]:
+        cached = self._cached
+        if cached is None or not self.environment_candidate_roots:
+            return ()
+        return tuple(
+            prim_path(prim)
+            for prim in cached.prims
+            if self._is_marked_environment_prim(prim)
+        )
+
+    def _is_marked_environment_prim(self, prim: Any) -> bool:
+        path = prim_path(prim)
+        return self._path_in_candidate_roots(path) and (
+            "ias:environment_kind" in prim_attributes(prim)
+        )
+
+    def _path_in_candidate_roots(self, path: str) -> bool:
+        return any(
+            root == "/" or path == root or path.startswith(f"{root}/")
+            for root in self.environment_candidate_roots
+        )
 
 
 def _discovery_relevant_property(path: Any) -> bool:

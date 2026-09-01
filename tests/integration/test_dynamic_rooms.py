@@ -29,6 +29,9 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     SourceOcclusion,
 )
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+)
 from isaac_audio_sensors.isaac.occlusion import OcclusionHit
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
@@ -453,7 +456,11 @@ def _notice(*paths, resynced=()):
 def test_stage_cache_reason_taxonomy_order_and_actions():
     stage = _Stage()
     cache = StageAudioCache(stage, environment_anchor_prim_path=ENVIRONMENT_PATH)
-    cache.snapshot(timestamp_ms=0, array_prim_path=ARRAY_PATH)
+    cache.snapshot(
+        timestamp_ms=0,
+        environment=_environment(),
+        array_prim_path=ARRAY_PATH,
+    )
     baseline_traversals = stage.traversals
     cache._on_objects_changed(
         _notice(
@@ -466,7 +473,11 @@ def test_stage_cache_reason_taxonomy_order_and_actions():
         "environment_geometry_changed",
         "material_changed",
     )
-    cache.snapshot(timestamp_ms=1, array_prim_path=ARRAY_PATH)
+    cache.snapshot(
+        timestamp_ms=1,
+        environment=_environment(),
+        array_prim_path=ARRAY_PATH,
+    )
     assert stage.traversals == baseline_traversals + 1
     cache.consume_acoustic_refresh_reasons()
     cache._on_objects_changed(
@@ -500,6 +511,7 @@ def test_live_sensor_preserves_static_environment_without_anchor():
     sensor = IsaacAudioArraySensor.from_stage(
         stage=_Stage(),
         array_prim_path=ARRAY_PATH,
+        environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
         backend="geometry_only",
         environment=environment,
     ).start()
@@ -512,16 +524,59 @@ def test_live_sensor_preserves_static_environment_without_anchor():
     sensor.close()
 
 
-def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_state():
+def test_auto_resolution_switches_marked_volume_when_complete_array_moves():
     stage = _Stage()
-    raycaster = _MovingRaycaster()
-    environment = _environment()
+    stage.prims[ENVIRONMENT_PATH].attributes.update(
+        {
+            "ias:environment_kind": "shoebox",
+            "ias:environment_id": "room_a",
+            "ias:environment_priority": 0,
+        }
+    )
+    room_b_path = "/World/EnvironmentB"
+    stage.prims[room_b_path] = _Prim(
+        room_b_path,
+        "Xform",
+        {
+            "ias:environment_kind": "shoebox",
+            "ias:environment_id": "room_b",
+            "ias:environment_priority": 0,
+            "ias:environment_min_world": (9.0, -2.0, 0.0),
+            "ias:environment_max_world": (12.0, 2.0, 3.0),
+        },
+    )
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path=ARRAY_PATH,
+        environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="auto"),
         backend="geometry_only",
-        environment=environment,
-        environment_anchor_prim_path=ENVIRONMENT_PATH,
+    ).start()
+
+    sensor.update(sim_time_s=0.0, force=True)
+    warm_traversals = stage.traversals
+    assert sensor.environment.environment_id == "room_a"
+
+    stage.prims[ARRAY_PATH].attributes["ias:position_world"] = (10.0, 0.0, 1.0)
+    sensor.update(sim_time_s=0.1, force=True)
+
+    assert sensor.environment.environment_id == "room_b"
+    assert sensor.latest_scene is not None
+    assert sensor.latest_scene.sources[0].position_world == (4.0, 0.0, 1.0)
+    assert stage.traversals == warm_traversals
+    sensor.close()
+
+
+def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_state():
+    stage = _Stage()
+    raycaster = _MovingRaycaster()
+    sensor = IsaacAudioArraySensor.from_stage(
+        stage=stage,
+        array_prim_path=ARRAY_PATH,
+        environment_resolution_cfg=IsaacEnvironmentResolutionCfg(
+            mode="anchor",
+            anchor_prim_path=ENVIRONMENT_PATH,
+        ),
+        backend="geometry_only",
         occlusion_enabled=True,
         occlusion_raycaster=raycaster,
         update_period_s=0.05,
@@ -577,13 +632,14 @@ def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_st
 
 def test_anchor_deletion_fails_before_backend_frame_and_keeps_reason_pending():
     stage = _Stage()
-    environment = _environment()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path=ARRAY_PATH,
+        environment_resolution_cfg=IsaacEnvironmentResolutionCfg(
+            mode="anchor",
+            anchor_prim_path=ENVIRONMENT_PATH,
+        ),
         backend="geometry_only",
-        environment=environment,
-        environment_anchor_prim_path=ENVIRONMENT_PATH,
     ).start()
     sensor.update(sim_time_s=0.0, force=True)
     stage.prims.pop(ENVIRONMENT_PATH)

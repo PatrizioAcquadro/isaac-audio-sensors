@@ -201,8 +201,8 @@ def _entity_scene(torch, robot_positions, source_positions):
 
 
 def _reference_scenes():
-    from isaac_audio_sensors.core.microphone_array import create_microphone_array
     from isaac_audio_sensors.core.acoustics import free_field_environment
+    from isaac_audio_sensors.core.microphone_array import create_microphone_array
     from isaac_audio_sensors.core.types import AudioSceneSnapshot, AudioSourceSpec
 
     arrays = tuple(

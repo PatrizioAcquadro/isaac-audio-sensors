@@ -20,6 +20,9 @@ from isaac_audio_sensors.core.types import (
     MicrophoneSpec,
     SourceOcclusion,
 )
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+)
 from isaac_audio_sensors.isaac.occlusion import (
     DEFAULT_MATERIAL_TRANSMISSION_DB,
     OcclusionHit,
@@ -282,6 +285,8 @@ def _live_sensor(stage, **kwargs) -> IsaacAudioArraySensor:
     return IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path=ARRAY_PRIM_PATH,
+        environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
+        environment=free_field_environment(environment_id="live_occlusion_free_field"),
         backend="geometry_only",
         update_period_s=0.1,
         **kwargs,

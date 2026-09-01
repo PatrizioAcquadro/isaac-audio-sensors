@@ -17,6 +17,7 @@ from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
 from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.math_utils import as_quaternion_xyzw, as_vector3
 from isaac_audio_sensors.core.types import MicrophoneSpec
+from isaac_audio_sensors.isaac.environment_resolution import USD_ENVIRONMENT_KINDS
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -437,6 +438,34 @@ def attach_microphone_array_attrs(
         position=position_world,
         orientation=orientation_world_quat,
     )
+    return attrs
+
+
+def attach_acoustic_environment_attrs(
+    prim: Any,
+    *,
+    environment_id: str,
+    kind: str,
+    priority: int = 0,
+) -> dict[str, object]:
+    """Mark one USD prim for deterministic R7.2 environment resolution."""
+
+    identifier = str(environment_id).strip()
+    if not identifier:
+        raise ValueError("environment_id must be non-empty.")
+    if kind not in USD_ENVIRONMENT_KINDS:
+        raise ValueError(
+            f"kind must be one of {sorted(USD_ENVIRONMENT_KINDS)} for USD resolution."
+        )
+    if isinstance(priority, bool) or not isinstance(priority, int):
+        raise ValueError("priority must be an integer.")
+    attrs: dict[str, object] = {
+        "ias:environment_id": identifier,
+        "ias:environment_kind": kind,
+        "ias:environment_priority": priority,
+    }
+    for name, value in attrs.items():
+        _set_attr(prim, name, value)
     return attrs
 
 

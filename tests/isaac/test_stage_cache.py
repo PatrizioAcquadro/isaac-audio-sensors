@@ -4,11 +4,18 @@ from types import SimpleNamespace
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+)
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 from tests.helpers import FakeUsdPrim, FakeUsdStage
+
+MANUAL_ENVIRONMENT = free_field_environment(environment_id="cache_free_field")
+MANUAL_RESOLUTION = IsaacEnvironmentResolutionCfg(mode="manual")
 
 
 def _source_prim(path: str = "/World/Sources/SpeakerA") -> FakeUsdPrim:
@@ -68,12 +75,16 @@ def _live_sensor(
     if discovered:
         return IsaacAudioArraySensor.from_discovered_stage(
             stage=stage,
+            environment_resolution_cfg=MANUAL_RESOLUTION,
+            environment=MANUAL_ENVIRONMENT,
             backend="geometry_only",
             update_period_s=0.1,
         ).start()
     return IsaacAudioArraySensor.from_stage(
         stage=stage,
         array_prim_path="/World/Rig/AudioArray",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         backend="geometry_only",
         update_period_s=0.1,
     ).start()
@@ -116,6 +127,8 @@ def test_cached_snapshot_matches_full_discovery_snapshot():
     fresh_scene = build_stage_snapshot(
         stage,
         timestamp_ms=200,
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         array_prim_path="/World/Rig/AudioArray",
         usd_time_code=0.2,
     )
@@ -223,6 +236,8 @@ def test_rediscover_each_update_forces_full_discovery_every_capture():
     stage, _source = _counting_stage()
     sensor = IsaacAudioArraySensor.from_discovered_stage(
         stage=stage,
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
         binding_cfg=IsaacAudioSceneBindingCfg(rediscover_each_update=True),
         backend="geometry_only",
         update_period_s=0.1,

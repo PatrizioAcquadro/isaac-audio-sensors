@@ -5,10 +5,6 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
-from isaac_audio_sensors.core.acoustics.environments import (
-    shoebox_environment_from_bounds,
-)
-from isaac_audio_sensors.core.acoustics.materials import resolve_material
 from isaac_audio_sensors.core.effects.config import MotionEffectsConfig
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.motion import PoseHistory, validate_pose_observation
@@ -21,13 +17,9 @@ from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioDiscoveryResult,
     discover_stage_audio,
 )
-from isaac_audio_sensors.isaac.usd_bounds import (
-    ABSORPTION_ATTR,
-    DEFAULT_SEMANTIC_ABSORPTION,
-    MATERIAL_ATTR,
-    prim_attributes,
-    resolve_environment_absorption,
-    world_aligned_bbox,
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+    resolve_stage_environment,
 )
 
 
@@ -35,6 +27,8 @@ def build_stage_snapshot(
     stage: Any,
     *,
     timestamp_ms: int,
+    environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
+    environment: AcousticEnvironmentSpec | None = None,
     stage_id: str | None = None,
     array_prim_path: str | None = None,
     robot_base_prim_path: str | None = None,
@@ -65,6 +59,7 @@ def build_stage_snapshot(
         source_prim_path=source_prim_path,
         default_class_label=default_class_label,
     )
+    prims = tuple(stage.Traverse())
     result = discover_stage_audio(
         stage,
         cfg=cfg,
@@ -76,12 +71,29 @@ def build_stage_snapshot(
         explicit_source_prim_path=source_prim_path,
         preferred_array=preferred_array,
         preferred_source=preferred_source,
+        prims=prims,
     )
     diagnostics = dict(result.diagnostics)
+    if result.selected_array is None:
+        raise ValueError(
+            "Acoustic-environment resolution requires one selected microphone array."
+        )
+    environment_diagnostics: dict[str, Any] = {}
+    resolved_environment = resolve_stage_environment(
+        stage,
+        result.selected_array.spec,
+        cfg=environment_resolution_cfg,
+        manual_environment=environment,
+        time_code=usd_time_code if time_code is None else time_code,
+        prims=prims,
+        diagnostics_out=environment_diagnostics,
+    )
+    diagnostics["environment_resolution"] = environment_diagnostics
     snapshot = snapshot_from_discovery(
         result,
         timestamp_ms=timestamp_ms,
         preferred_source=preferred_source,
+        environment=resolved_environment,
     )
     if motion_config is not None and motion_config.derive_velocity_from_poses:
         if pose_history is None or simulation_time_s is None:
@@ -141,6 +153,7 @@ def snapshot_from_discovery(
     *,
     timestamp_ms: int,
     preferred_source: str | None,
+    environment: AcousticEnvironmentSpec,
 ) -> AudioSceneSnapshot:
     """Assemble the core snapshot from one discovery result."""
 
@@ -153,89 +166,8 @@ def snapshot_from_discovery(
             else tuple(source.spec for source in result.sources)
         ),
         arrays=tuple(array.spec for array in result.arrays),
-        environment=None,
+        environment=environment,
     )
-
-
-def refresh_anchored_environment(
-    stage: Any,
-    template: AcousticEnvironmentSpec | None,
-    *,
-    anchor_prim_path: str | None,
-    refresh_reasons: tuple[str, ...],
-    time_code: Any | None,
-) -> AcousticEnvironmentSpec | None:
-    """Refresh a USD-anchored environment after geometry/material invalidation."""
-
-    if template is None or anchor_prim_path is None:
-        return template
-    if not {"environment_geometry_changed", "material_changed"}.intersection(
-        refresh_reasons
-    ):
-        return template
-    anchor_path = anchor_prim_path
-    get_prim = getattr(stage, "GetPrimAtPath", None)
-    prim = get_prim(anchor_path) if callable(get_prim) else None
-    if prim is None or (hasattr(prim, "IsValid") and not prim.IsValid()):
-        raise ValueError(
-            f"Environment anchor {anchor_path!r} is missing after "
-            "environment_geometry_changed/material_changed; the previous "
-            "environment cannot "
-            "be reused."
-        )
-    minimum, maximum = world_aligned_bbox(
-        prim,
-        prim_path=anchor_path,
-        time_code=time_code,
-    )
-    return shoebox_environment_from_bounds(
-        min_world=minimum,
-        max_world=maximum,
-        environment_id=template.environment_id,
-        absorption=_anchor_absorption(
-            prim,
-            template=template,
-            anchor_prim_path=anchor_path,
-            time_code=time_code,
-        ),
-    )
-
-
-def _anchor_absorption(
-    prim: Any,
-    *,
-    template: AcousticEnvironmentSpec,
-    anchor_prim_path: str,
-    time_code: Any | None,
-) -> float | dict[str, float] | str:
-    attrs = prim_attributes(prim, time_code=time_code)
-    explicit = attrs.get(ABSORPTION_ATTR)
-    if explicit is not None:
-        if isinstance(explicit, dict):
-            return {str(key): float(value) for key, value in explicit.items()}
-        return float(explicit)
-    acoustic_id = attrs.get("ias:acoustic_material_id")
-    if acoustic_id is not None:
-        return resolve_material(
-            str(acoustic_id),
-            application=f"environment anchor {anchor_prim_path!r}",
-        ).material_id
-    material_id = attrs.get(MATERIAL_ATTR)
-    if material_id is not None and str(material_id).strip():
-        try:
-            return resolve_material(
-                str(material_id),
-                application=f"environment anchor {anchor_prim_path!r}",
-            ).material_id
-        except ValueError:
-            pass
-    absorption, _provenance = resolve_environment_absorption(
-        prim,
-        semantic_absorption=dict(DEFAULT_SEMANTIC_ABSORPTION),
-        default=template.surfaces[0].absorption,
-        time_code=time_code,
-    )
-    return absorption
 
 
 def enrich_snapshot_motion(

@@ -15,7 +15,10 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.core.acoustics import shoebox_environment
+from isaac_audio_sensors.core.acoustics import (
+    free_field_environment,
+    shoebox_environment,
+)
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
 from isaac_audio_sensors.core.io.traces import (
     append_frame_jsonl,
@@ -26,6 +29,9 @@ from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.core.microphone_array import microphone_layout
 from isaac_audio_sensors.core.types import AcousticEnvironmentSpec, AudioSensorFrame
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+)
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
     attach_microphone_array_attrs,
@@ -111,6 +117,8 @@ def main() -> int:
         initial_snapshot = build_stage_snapshot(
             stage,
             timestamp_ms=0,
+            environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
+            environment=environment_spec,
             stage_id="isaac_sim_live_smoke",
             robot_base_prim_path="/World/RobotBase",
             usd_time_code=0.0,
@@ -271,8 +279,12 @@ def _run_backend_smoke(
     start_record_index: int,
     evidence: dict[str, Any],
 ) -> tuple[dict[str, Any], int]:
+    resolved_environment = environment_spec or free_field_environment(
+        environment_id=f"{backend_id}_live_smoke_free_field"
+    )
     sensor = IsaacAudioArraySensor.from_discovered_stage(
         stage=stage,
+        environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
         binding_cfg=binding_cfg,
         backend=backend_id,
         timestamp_ms=0,
@@ -280,7 +292,7 @@ def _run_backend_smoke(
         usd_time_code_scale=1.0,
         update_period_s=0.05,
         max_events=1,
-        environment=environment_spec,
+        environment=resolved_environment,
         debug_draw=True,
         waveform_sink=(
             FrameWaveformWriter(WAVEFORM_EVIDENCE_DIR)

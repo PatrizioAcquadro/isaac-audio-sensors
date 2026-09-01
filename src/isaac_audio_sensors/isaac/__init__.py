@@ -10,6 +10,10 @@ from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioSceneBindingCfg,
     discover_stage_audio,
 )
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+    resolve_stage_environment,
+)
 from isaac_audio_sensors.isaac.pose_resolver import (
     IsaacStagePoseResolver,
     StagePose,
@@ -24,6 +28,7 @@ from isaac_audio_sensors.isaac.replicator import (
 )
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_audio import (
+    attach_acoustic_environment_attrs,
     attach_microphone_array_attrs,
     attach_microphone_attrs,
     attach_sound_source_attrs,
@@ -41,11 +46,13 @@ __all__ = [
     "IsaacAudioDiscoveryCfg",
     "IsaacAudioDiscoveryResult",
     "IsaacAudioSceneBindingCfg",
+    "IsaacEnvironmentResolutionCfg",
     "IsaacStagePoseResolver",
     "ReplicatorIntegrationError",
     "ReplicatorRecorderStatus",
     "StagePose",
     "audio_sensor_frame_replicator_payload",
+    "attach_acoustic_environment_attrs",
     "attach_microphone_array_attrs",
     "attach_microphone_attrs",
     "attach_sound_source_attrs",
@@ -56,4 +63,5 @@ __all__ = [
     "require_isaac_usd",
     "require_replicator_core",
     "resolve_world_pose",
+    "resolve_stage_environment",
 ]

@@ -37,6 +37,10 @@ from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioSceneBindingCfg,
     discover_stage_audio,
 )
+from isaac_audio_sensors.isaac.environment_resolution import (
+    IsaacEnvironmentResolutionCfg,
+    resolve_stage_environment,
+)
 from isaac_audio_sensors.isaac.lifecycle import (
     current_timeline_time_s,
     subscribe_to_timeline_resets,
@@ -51,7 +55,6 @@ from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
 from isaac_audio_sensors.isaac.stage_snapshot import (
     build_stage_snapshot,
     enrich_snapshot_motion,
-    refresh_anchored_environment,
 )
 from isaac_audio_sensors.isaac.viz.debug_draw import IsaacDebugDrawer
 from isaac_audio_sensors.isaac.viz.overlays import (
@@ -66,10 +69,12 @@ class IsaacAudioArraySensor:
 
     array_id: str
     stage: Any
+    environment: AcousticEnvironmentSpec
     backend: str = "tdoa_synthetic"
     effects: EffectsConfig = field(default_factory=EffectsConfig)
-    environment: AcousticEnvironmentSpec | None = None
-    environment_anchor_prim_path: str | None = None
+    environment_resolution_cfg: IsaacEnvironmentResolutionCfg = field(
+        default_factory=lambda: IsaacEnvironmentResolutionCfg(mode="manual")
+    )
     room_acoustics_max_order: int = 0
     room_acoustics_air_absorption: bool = False
     room_acoustics_ray_tracing: bool = False
@@ -112,10 +117,6 @@ class IsaacAudioArraySensor:
     _pose_history: PoseHistory | None = field(default=None, init=False)
     _pose_history_stage: Any | None = field(default=None, init=False)
     _motion_entity_paths: dict[str, str] = field(default_factory=dict, init=False)
-    _anchor_environment_template: AcousticEnvironmentSpec | None = field(
-        default=None,
-        init=False,
-    )
     _occlusion_state: LiveOcclusionState = field(init=False)
     _reset_listeners: list[Callable[[], None]] = field(
         default_factory=list,
@@ -126,19 +127,17 @@ class IsaacAudioArraySensor:
     def __post_init__(self) -> None:
         if self.stage is None:
             raise ValueError("IsaacAudioArraySensor requires a live stage.")
-        if self.environment_anchor_prim_path is not None:
-            anchor_path = str(self.environment_anchor_prim_path).rstrip("/")
-            self.environment_anchor_prim_path = anchor_path or None
-        if self.environment_anchor_prim_path is not None:
-            if not self.environment_anchor_prim_path.startswith("/"):
-                raise ValueError(
-                    "environment_anchor_prim_path must be an absolute USD path."
-                )
-            if self.environment is None or self.environment.kind != "shoebox":
-                raise ValueError(
-                    "environment_anchor_prim_path requires a shoebox environment."
-                )
-            self._anchor_environment_template = self.environment
+        if not isinstance(self.environment, AcousticEnvironmentSpec):
+            raise ValueError(
+                "IsaacAudioArraySensor.environment must be an AcousticEnvironmentSpec."
+            )
+        if not isinstance(
+            self.environment_resolution_cfg,
+            IsaacEnvironmentResolutionCfg,
+        ):
+            raise ValueError(
+                "environment_resolution_cfg must be an IsaacEnvironmentResolutionCfg."
+            )
         if (
             isinstance(self.room_acoustics_max_order, bool)
             or not isinstance(self.room_acoustics_max_order, int)
@@ -201,6 +200,7 @@ class IsaacAudioArraySensor:
         *,
         stage: Any,
         array_prim_path: str,
+        environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
         source_prim_path: str | None = None,
         backend: str = "tdoa_synthetic",
         timestamp_ms: int = 0,
@@ -212,7 +212,6 @@ class IsaacAudioArraySensor:
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
         environment: AcousticEnvironmentSpec | None = None,
-        environment_anchor_prim_path: str | None = None,
         room_acoustics_max_order: int = 0,
         room_acoustics_air_absorption: bool = False,
         room_acoustics_ray_tracing: bool = False,
@@ -228,6 +227,8 @@ class IsaacAudioArraySensor:
         snapshot = build_stage_snapshot(
             stage,
             timestamp_ms=timestamp_ms,
+            environment_resolution_cfg=environment_resolution_cfg,
+            environment=environment,
             array_prim_path=array_prim_path,
             source_prim_path=source_prim_path,
             robot_base_prim_path=robot_base_prim_path,
@@ -242,8 +243,8 @@ class IsaacAudioArraySensor:
             stage=stage,
             backend=backend,
             effects=EffectsConfig() if effects is None else effects,
-            environment=environment,
-            environment_anchor_prim_path=environment_anchor_prim_path,
+            environment=snapshot.environment,
+            environment_resolution_cfg=environment_resolution_cfg,
             room_acoustics_max_order=room_acoustics_max_order,
             room_acoustics_air_absorption=room_acoustics_air_absorption,
             room_acoustics_ray_tracing=room_acoustics_ray_tracing,
@@ -268,6 +269,7 @@ class IsaacAudioArraySensor:
         cls,
         *,
         stage: Any,
+        environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
         binding_cfg: IsaacAudioSceneBindingCfg | None = None,
         backend: str = "tdoa_synthetic",
         timestamp_ms: int = 0,
@@ -279,7 +281,6 @@ class IsaacAudioArraySensor:
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         ambiguity_policy: str = "none",
         environment: AcousticEnvironmentSpec | None = None,
-        environment_anchor_prim_path: str | None = None,
         room_acoustics_max_order: int = 0,
         room_acoustics_air_absorption: bool = False,
         room_acoustics_ray_tracing: bool = False,
@@ -293,6 +294,7 @@ class IsaacAudioArraySensor:
         """Create a live sensor by discovering arrays and sources on a stage."""
 
         binding = binding_cfg or IsaacAudioSceneBindingCfg()
+        prims = tuple(stage.Traverse())
         result = discover_stage_audio(
             stage,
             cfg=binding.to_discovery_cfg(),
@@ -300,16 +302,25 @@ class IsaacAudioArraySensor:
             usd_time_code=usd_time_code,
             preferred_array=binding.preferred_array,
             preferred_source=binding.preferred_source,
+            prims=prims,
         )
         if result.selected_array is None:
             raise ValueError("No microphone array was discovered for stage binding.")
+        resolved_environment = resolve_stage_environment(
+            stage,
+            result.selected_array.spec,
+            cfg=environment_resolution_cfg,
+            manual_environment=environment,
+            time_code=usd_time_code,
+            prims=prims,
+        )
         return cls(
             array_id=result.selected_array.spec.array_id,
             stage=stage,
             backend=backend,
             effects=EffectsConfig() if effects is None else effects,
-            environment=environment,
-            environment_anchor_prim_path=environment_anchor_prim_path,
+            environment=resolved_environment,
+            environment_resolution_cfg=environment_resolution_cfg,
             room_acoustics_max_order=room_acoustics_max_order,
             room_acoustics_air_absorption=room_acoustics_air_absorption,
             room_acoustics_ray_tracing=room_acoustics_ray_tracing,
@@ -695,7 +706,16 @@ class IsaacAudioArraySensor:
             self._stage_cache = StageAudioCache(
                 self.stage,
                 rediscover_each_update=rediscover_each_update,
-                environment_anchor_prim_path=self.environment_anchor_prim_path,
+                environment_anchor_prim_path=(
+                    self.environment_resolution_cfg.anchor_prim_path
+                    if self.environment_resolution_cfg.mode == "anchor"
+                    else None
+                ),
+                environment_candidate_roots=(
+                    self.environment_resolution_cfg.candidate_roots
+                    if self.environment_resolution_cfg.mode == "auto"
+                    else ()
+                ),
             )
         return self._stage_cache
 
@@ -715,6 +735,7 @@ class IsaacAudioArraySensor:
             binding = self.scene_binding_cfg
             scene = cache.snapshot(
                 timestamp_ms=timestamp_ms,
+                environment=self.environment,
                 robot_base_prim_path=binding.robot_base_prim_path,
                 source_prim_path=effective_source_prim_path,
                 usd_time_code=usd_time_code,
@@ -728,24 +749,30 @@ class IsaacAudioArraySensor:
         else:
             scene = cache.snapshot(
                 timestamp_ms=timestamp_ms,
+                environment=self.environment,
                 array_prim_path=self.array_prim_path,
                 robot_base_prim_path=self.robot_base_prim_path,
                 source_prim_path=effective_source_prim_path,
                 usd_time_code=usd_time_code,
                 diagnostics_out=diagnostics,
             )
+        environment_diagnostics: dict[str, Any] = {}
+        self.environment = resolve_stage_environment(
+            self.stage,
+            scene.array_by_id(self.array_id),
+            cfg=self.environment_resolution_cfg,
+            manual_environment=(
+                self.environment
+                if self.environment_resolution_cfg.mode == "manual"
+                else None
+            ),
+            time_code=usd_time_code,
+            prims=cache.cached_prims,
+            diagnostics_out=environment_diagnostics,
+        )
+        diagnostics["environment_resolution"] = environment_diagnostics
         self._latest_stage_diagnostics = diagnostics
-        if self._anchor_environment_template is not None:
-            self.environment = refresh_anchored_environment(
-                self.stage,
-                self._anchor_environment_template,
-                anchor_prim_path=self.environment_anchor_prim_path,
-                refresh_reasons=cache.current_acoustic_refresh_reasons,
-                time_code=usd_time_code,
-            )
-
-        if self.environment is not None:
-            scene = replace(scene, environment=self.environment)
+        scene = replace(scene, environment=self.environment)
 
         if effective_source_prim_path is not None:
             sources = tuple(
