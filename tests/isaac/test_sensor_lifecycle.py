@@ -116,6 +116,28 @@ def test_manual_capture_and_update_throttling():
     sensor.close()
 
 
+def test_live_sensor_recognizes_analytic_core_backend() -> None:
+    stage, _, _ = motion_stage()
+    sensor = IsaacAudioArraySensor.from_stage(
+        stage=stage,
+        array_prim_path="/World/Rig",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
+        source_prim_path="/World/Speaker",
+        backend="analytic_acoustics",
+    )
+
+    frame = sensor.capture(timestamp_ms=0)
+
+    assert frame.backend_id == "analytic_acoustics"
+    assert frame.provenance == "isaac_live"
+    assert frame.diagnostics["analytic_solver"] == {
+        "solver_id": "free_field_direct",
+        "provider": "core",
+        "environment_kind": "free_field",
+    }
+
+
 def test_non_monotonic_time_preserves_latest_frame():
     stage, _, _ = motion_stage()
     sensor = IsaacAudioArraySensor.from_stage(

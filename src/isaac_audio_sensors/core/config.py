@@ -178,6 +178,9 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             ambiguity_policy=ambiguity_policy,
             ambiguity_policy_explicit=ambiguity_policy_explicit,
             environment=environment,
+            max_order=room_acoustics_max_order,
+            air_absorption=room_acoustics_air_absorption,
+            ray_tracing=room_acoustics_ray_tracing,
         )
         return AudioSensorConfig(
             scene_id=scene_id,
@@ -499,11 +502,18 @@ def _validate_backend_requirements(
     ambiguity_policy: str,
     ambiguity_policy_explicit: bool,
     environment: AcousticEnvironmentSpec,
+    max_order: int,
+    air_absorption: bool,
+    ray_tracing: bool,
 ) -> None:
     if default_backend == "geometry_only":
         return
     for array in arrays.values():
-        if default_backend in {"tdoa_synthetic", "room_acoustics"}:
+        if default_backend in {
+            "analytic_acoustics",
+            "tdoa_synthetic",
+            "room_acoustics",
+        }:
             if len(array.microphones) < 2:
                 raise ConfigValidationError(
                     f"{default_backend} requires at least two microphones "
@@ -521,6 +531,29 @@ def _validate_backend_requirements(
     ):
         raise ConfigValidationError(
             f"{default_backend} requires environment.kind='shoebox' in R7.1."
+        )
+    if default_backend != "analytic_acoustics":
+        return
+    if environment.kind == "surface_set":
+        raise ConfigValidationError(
+            "analytic_acoustics does not support environment.kind='surface_set' "
+            "in R8.1; use GeometryAcoustics when it becomes available."
+        )
+    if environment.kind == "free_field" and max_order != 0:
+        raise ConfigValidationError(
+            "free_field analytic propagation requires max_order=0."
+        )
+    if environment.kind == "half_space" and max_order not in {0, 1}:
+        raise ConfigValidationError(
+            "half_space analytic propagation supports max_order 0 or 1."
+        )
+    if environment.kind in {"free_field", "half_space"} and air_absorption:
+        raise ConfigValidationError(
+            "air_absorption is available only for PyRoom analytic solvers in R8.1."
+        )
+    if environment.kind in {"free_field", "half_space"} and ray_tracing:
+        raise ConfigValidationError(
+            "ray_tracing is available only for PyRoom analytic solvers."
         )
 
 

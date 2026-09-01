@@ -179,7 +179,8 @@ class AudioArraySensor(SensorBase):
         if self._entity_binding is not None:
             if self.cfg.backend not in {"geometry_only", "tdoa_synthetic"}:
                 raise ValueError(
-                    "Entity binding supports only geometry_only and tdoa_synthetic."
+                    "Entity binding supports only geometry_only and tdoa_synthetic; "
+                    "analytic_acoustics mass-parallel routing belongs to R8.3."
                 )
             if self.cfg.effects != EffectsConfig():
                 raise ValueError("Entity binding requires effects to be disabled.")

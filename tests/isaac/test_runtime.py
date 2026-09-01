@@ -370,6 +370,21 @@ def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
         binding.pose_batch(torch.tensor([0]), device="cuda:0")
 
 
+def test_entity_binding_excludes_analytic_backend_until_r8_3() -> None:
+    sensor = SimpleNamespace(
+        _entity_binding=object(),
+        _reference_backend=None,
+        cfg=SimpleNamespace(
+            backend="analytic_acoustics",
+            effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
+        ),
+        is_initialized=False,
+    )
+
+    with pytest.raises(ValueError, match="belongs to R8.3"):
+        AudioArraySensor._validate_bound_runtime(sensor)
+
+
 @pytest.mark.parametrize("backend_id", ["geometry_only", "tdoa_synthetic"])
 @pytest.mark.parametrize(
     ("gain_target", "gain_db", "expected_ratio"),
@@ -401,6 +416,7 @@ def test_entity_modes_apply_source_and_microphone_gain_once(
     [
         "geometry_only",
         "tdoa_synthetic",
+        "analytic_acoustics",
         "room_acoustics",
         "room_acoustics_srp",
     ],
@@ -421,7 +437,7 @@ def test_reference_mode_preserves_relative_gain_ratios(
     gain_db: float,
     expected_ratio: float,
 ) -> None:
-    if backend_id.startswith("room_acoustics"):
+    if backend_id == "analytic_acoustics" or backend_id.startswith("room_acoustics"):
         install_fake_pyroom(monkeypatch)
     baseline = _reference_mode_rms(backend_id)
     changed = _reference_mode_rms(

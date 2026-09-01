@@ -410,6 +410,126 @@ def test_room_backend_rejects_reserved_r8_topology() -> None:
         validate_audio_config(raw)
 
 
+@pytest.mark.parametrize(
+    ("environment", "solver", "max_order"),
+    (
+        (
+            {"environment_id": "free", "kind": "free_field"},
+            "free_field",
+            0,
+        ),
+        (
+            {"environment_id": "half", "kind": "half_space"},
+            "half_space",
+            1,
+        ),
+        (
+            {
+                "environment_id": "box",
+                "kind": "shoebox",
+                "dimensions_m": [6.0, 5.0, 3.0],
+            },
+            "shoebox",
+            2,
+        ),
+        (
+            {
+                "environment_id": "prism",
+                "kind": "polygon_prism",
+                "floor_vertices_local_m": [
+                    [0.0, 0.0, 0.0],
+                    [4.0, 0.0, 0.0],
+                    [4.0, 3.0, 0.0],
+                    [0.0, 3.0, 0.0],
+                ],
+                "height_m": 2.5,
+            },
+            "polygon_prism",
+            2,
+        ),
+    ),
+)
+def test_analytic_config_accepts_routed_topologies(
+    environment,
+    solver,
+    max_order,
+) -> None:
+    raw = _raw_config()
+    raw["audio"].update(
+        default_backend="analytic_acoustics",
+        tdoa_ambiguity_policy="none",
+        room_acoustics={"max_order": max_order},
+    )
+    raw["environment"] = environment
+
+    config = validate_audio_config(raw)
+
+    assert config.default_backend == "analytic_acoustics"
+    assert config.environment.kind == solver
+    assert config.room_acoustics_max_order == max_order
+
+
+@pytest.mark.parametrize(
+    ("environment", "settings", "message"),
+    (
+        (
+            {"environment_id": "free", "kind": "free_field"},
+            {"max_order": 1},
+            "requires max_order=0",
+        ),
+        (
+            {"environment_id": "half", "kind": "half_space"},
+            {"max_order": 2},
+            "supports max_order 0 or 1",
+        ),
+        (
+            {"environment_id": "free", "kind": "free_field"},
+            {"air_absorption": True},
+            "only for PyRoom",
+        ),
+        (
+            {"environment_id": "half", "kind": "half_space"},
+            {"ray_tracing": True},
+            "only for PyRoom",
+        ),
+        (
+            {
+                "environment_id": "surfaces",
+                "kind": "surface_set",
+                "surfaces": [
+                    {
+                        "surface_id": "floor",
+                        "role": "floor",
+                        "vertices_local_m": [
+                            [0.0, 0.0, 0.0],
+                            [1.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                        ],
+                    }
+                ],
+            },
+            {},
+            "GeometryAcoustics",
+        ),
+    ),
+)
+def test_analytic_config_rejects_unsupported_solver_combinations(
+    environment,
+    settings,
+    message,
+) -> None:
+    raw = _raw_config()
+    raw["audio"].update(
+        default_backend="analytic_acoustics",
+        tdoa_ambiguity_policy="none",
+        room_acoustics=settings,
+    )
+    raw["environment"] = environment
+
+    with pytest.raises(ConfigValidationError, match=message):
+        validate_audio_config(raw)
+
+
 def test_toml_surface_set_and_nested_solver_table_round_trip(tmp_path) -> None:
     path = tmp_path / "surface_set.toml"
     path.write_text(

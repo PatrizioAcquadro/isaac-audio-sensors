@@ -162,11 +162,20 @@ class IsaacAudioArraySensor:
                     "audio.effects.motion.segments_per_window>1 requires "
                     "derive_velocity_from_poses=true."
                 )
-            if self.backend not in {"room_acoustics", "room_acoustics_srp"}:
+            analytic_closed_room = (
+                self.backend == "analytic_acoustics"
+                and self.environment.kind in {"shoebox", "polygon_prism"}
+            )
+            if self.backend not in {
+                "room_acoustics",
+                "room_acoustics_srp",
+            } and not analytic_closed_room:
                 raise UnsupportedEffectError(
                     "audio.effects.motion.segments_per_window>1 requires "
-                    "room_acoustics or room_acoustics_srp."
+                    "a PyRoom analytic closed-room solver."
                 )
+        if self.backend == "analytic_acoustics":
+            self._validate_analytic_options()
         if self.effects.motion.derive_velocity_from_poses:
             self._pose_history = PoseHistory(
                 teleport_speed_threshold_mps=(
@@ -192,6 +201,34 @@ class IsaacAudioArraySensor:
         ):
             raise ValueError(
                 "occlusion_max_attenuation_db must be finite and non-negative."
+            )
+
+    def _validate_analytic_options(self) -> None:
+        kind = self.environment.kind
+        if kind == "surface_set":
+            raise UnsupportedEffectError(
+                "analytic_acoustics does not support surface_set in R8.1; "
+                "use GeometryAcoustics when it becomes available."
+            )
+        if kind == "free_field" and self.room_acoustics_max_order != 0:
+            raise UnsupportedEffectError(
+                "free_field analytic propagation requires max_order=0."
+            )
+        if kind == "half_space" and self.room_acoustics_max_order not in {0, 1}:
+            raise UnsupportedEffectError(
+                "half_space analytic propagation supports max_order 0 or 1."
+            )
+        if kind in {"free_field", "half_space"} and (
+            self.room_acoustics_air_absorption
+            or self.room_acoustics_ray_tracing
+        ):
+            raise UnsupportedEffectError(
+                "air_absorption and ray_tracing are available only for PyRoom "
+                "analytic solvers."
+            )
+        if self.occlusion_enabled:
+            raise UnsupportedEffectError(
+                "analytic_acoustics rejects SourceOcclusion during R8.1."
             )
 
     @classmethod
@@ -592,17 +629,27 @@ class IsaacAudioArraySensor:
         if self.effects.motion.segments_per_window > 1:
             window_motion = self._build_window_motion(scene, sensor, time_window)
         kwargs: dict[str, Any] = {}
-        if self.backend in {"tdoa_synthetic", "room_acoustics", "room_acoustics_srp"}:
+        if self.backend in {
+            "analytic_acoustics",
+            "tdoa_synthetic",
+            "room_acoustics",
+            "room_acoustics_srp",
+        }:
             kwargs = {
                 "speed_of_sound_mps": self.speed_of_sound_mps,
                 "ambiguity_policy": self.ambiguity_policy,
             }
         if (
-            self.backend in {"room_acoustics", "room_acoustics_srp"}
+            self.backend
+            in {"analytic_acoustics", "room_acoustics", "room_acoustics_srp"}
             and self.waveform_sink is not None
         ):
             kwargs["waveform_writer"] = self.waveform_sink
-        if self.backend in {"room_acoustics", "room_acoustics_srp"}:
+        if self.backend in {
+            "analytic_acoustics",
+            "room_acoustics",
+            "room_acoustics_srp",
+        }:
             kwargs.update(
                 max_order=self.room_acoustics_max_order,
                 air_absorption=self.room_acoustics_air_absorption,

@@ -42,7 +42,7 @@ from isaac_audio_sensors.isaac.stage_audio import (
 from isaac_audio_sensors.isaac.stage_snapshot import build_stage_snapshot
 from isaac_audio_sensors.isaac.viz.overlays import debug_primitives_to_dicts
 
-REQUIRED_BACKENDS = ("geometry_only", "tdoa_synthetic")
+REQUIRED_BACKENDS = ("geometry_only", "tdoa_synthetic", "analytic_acoustics")
 OPTIONAL_BACKENDS = ("room_acoustics",)
 SMOKE_PHASES = (
     ("before", 0.0),
@@ -474,6 +474,10 @@ def _summarize_backend(
         )
         result["tdoa_matrix_s"] = moved_detection.diagnostics.get("tdoa_matrix_s")
         result["per_mic_delay_s"] = moved_detection.per_mic_delay_s
+    if backend_id == "analytic_acoustics" and moved_detection is not None:
+        result["analytic_solver"] = moved_detection.diagnostics.get(
+            "analytic_solver"
+        )
     if backend_id == "room_acoustics" and moved_detection is not None:
         environment_keys = (
             "environment_config",
@@ -613,6 +617,14 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         )
     if backend_id == "tdoa_synthetic" and not result.get("tdoa_diagnostics_present"):
         raise RuntimeError("tdoa_synthetic did not expose TDOA diagnostics.")
+    if backend_id == "analytic_acoustics" and result.get("analytic_solver") != {
+        "solver_id": "free_field_direct",
+        "provider": "core",
+        "environment_kind": "free_field",
+    }:
+        raise RuntimeError(
+            "analytic_acoustics did not expose the free-field solver diagnostic."
+        )
     if backend_id == "room_acoustics" and not (
         result.get("environment_diagnostics_present")
         and result.get("environment_frame_diagnostics_present")

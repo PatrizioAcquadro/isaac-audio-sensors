@@ -51,6 +51,7 @@ class ReferenceBackend:
         self.num_mics = mic_counts.pop()
         kwargs: dict[str, object] = {"effects": effects}
         if backend_id in {
+            "analytic_acoustics",
             "tdoa_synthetic",
             "room_acoustics",
             "room_acoustics_srp",
