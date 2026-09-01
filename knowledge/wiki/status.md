@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-08-27. Package version: `3.0.0`.
+Updated: 2026-09-01. Package version: `3.0.0`.
 
 ## Product Boundary
 
@@ -15,9 +15,13 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.
 - One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
 - Snapshot-authoritative propagation through `simulate(scene, array_id, time_window)`, with no parallel backend sensor object or Lab reference `array_specs` state.
+- R7.1 `AcousticSurfaceSpec` and `AcousticEnvironmentSpec` with fail-closed builders for `free_field`, `half_space`, `shoebox`, `polygon_prism`, and `surface_set`, complete world/environment quaternion transforms, and canonical optional `AudioSceneSnapshot.environment` ownership.
+- One `[environment]` TOML model, with an `environment.surfaces` array of tables for surface sets and solver-only `[audio.room_acoustics]`; legacy `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, `[room]`, clamping, and old diagnostic names have no compatibility path.
+- Current `room_acoustics` and `room_acoustics_srp` identifiers retained through R8, with PyRoom restricted to shoebox environments and all other R7.1 topologies rejected clearly until their analytic propagation exists.
 - Atomic generic recording, verified sharded sessions, codecs, validation, statistics, deterministic splits, and read-only replay.
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
+- Isaac/Kit environment anchors kept separate from the Core contract, dynamic environment refresh and overlays, the temporary R7.1 Kit fallback shoebox, and exact `ias.omni_extension_binding.v2` import/export with no v1 parser.
 - Current NVIDIA `OmniSound` and `OmniListener` authoring with schema-native timing, gain, finite/infinite loop, spatial, and listener-orientation semantics; non-spatial sources are excluded with diagnostics even during strict scans unless explicitly selected, and deprecated `Sound` and `Listener` remain read-compatible.
 - Separate Kit scene audition and qualitative device-mix capture from a compatible direct array-child listener, creating a session-layer child when needed, with verified WAV metadata, lifecycle cleanup, manual-listener override preservation, and no path into microphone-array frames, datasets, or Isaac Lab observations.
 - Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, explicit entity/reference binding, fixed-shape tensor observations, partial reset, and fail-closed device validation.
@@ -107,6 +111,8 @@ The v3 directivity-and-gain consistency gate passes 502 unit/contract tests, 172
 
 The snapshot-authoritative backend-contract gate passes 503 unit/contract tests, 180 integration tests, 57 release tests, and 103 Isaac tests. Exact signatures, snapshot-only multi-array selection, missing-ID failure, Core/Isaac/Lab consumers, the CLI quickstart, and optional audio pass while package `3.0.0` and the serialized v1 schemas remain unchanged. On the RTX 4090, live Isaac Sim passes geometry, TDOA, and room acoustics; live Isaac Lab passes entity/reference parity, partial reset, and 50 steps over 4096 environments at 2.322 ms/step mean against the 20 ms budget; and Kit passes all 38 workflow steps. The scope remained repository-local: no downstream checkout was modified or validated.
 
+The R7.1 acoustic-environment gate passes the complete 528-test host suite, 186 focused integration tests, 57 release tests, optional PyRoom/SciPy/SoundFile execution, and a temporary `3.0.0` sdist plus universal wheel with a fresh installed-wheel environment import. The RTX 4090 passes 103 Isaac tests, live Isaac Sim geometry/TDOA/room-acoustics execution, live Isaac Lab parity, partial reset, and 50 steps over 4096 environments at 2.786 ms/step mean against the 20 ms budget, and all 38 live Kit workflow steps with binding v2. The migrated SquadBot contract test passes 8 tests; its full suite reports 341 pass, 32 remaining non-R7 failures, and 9 skips, with those failures confined to unauthorized consumers still calling the older backend signature or the clean-upstream provenance gate.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -124,7 +130,7 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 ## Limits
 
 - Isaac tests require a compatible user-managed runtime and visible GPU; required GPU checks do not use CPU fallback.
-- Standard Python room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. The model remains an approximate shoebox simulation.
+- Standard Python room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. PyRoom remains an approximate shoebox simulation and rejects the other four R7.1 topologies until R8.
 - Raycast occlusion and nominal transmission do not model diffraction or establish measured material behavior.
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
@@ -132,4 +138,4 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-The published `2.0.0` Community Registry crawler closeout remains separate historical release work. Review and publish `3.0.0` only under separate authorization; this implementation does not push, tag, or publish.
+R7.2 must make environments mandatory and add explicit/manual USD input resolution before R8 propagates every analytic topology. The published `2.0.0` Community Registry crawler closeout remains separate historical release work. Review and publish `3.0.0` only under separate authorization; this implementation does not push, tag, or publish.

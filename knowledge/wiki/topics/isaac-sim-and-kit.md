@@ -10,7 +10,7 @@ Source `ias:directivity` resolves into `AudioSourceSpec.directivity`; child-micr
 
 The pose resolver prefers `UsdGeom` world-transform APIs and falls back to authored `ias:` positions, orientations, and simple `xformOp` parent stacks for import-safe tests and duck-typed stages.
 
-Import-safe world bounds and room-absorption helpers live in `isaac_audio_sensors.isaac.usd_bounds` and are shared by Isaac Sim, Isaac Lab, and Kit.
+Import-safe world bounds and environment-absorption helpers live in `isaac_audio_sensors.isaac.usd_bounds` and are shared by the Isaac sensor and Kit.
 
 Each emitted frame can carry `stage_snapshot` diagnostics for selected prims, discovery reasons, pose provenance, time code, source/array/microphone transforms, and optional object/base context.
 
@@ -34,7 +34,7 @@ Steady-state updates reuse discovered prim identities and re-read their current 
 
 Pose history derives bounded velocities and resets on lifecycle discontinuities, stale timestamps, or teleport-like changes according to configured policy.
 
-Lazy timeline time, update subscriptions, and reset subscriptions share one Isaac lifecycle helper. Anchored-room refresh belongs to stage-snapshot helpers, while occlusion pair comparison, refresh reasons, and material diagnostics stay inside the occlusion module.
+Lazy timeline time, update subscriptions, and reset subscriptions share one Isaac lifecycle helper. R7.1 environment-anchor refresh belongs to stage-snapshot helpers, while occlusion pair comparison, refresh reasons, and material diagnostics stay inside the occlusion module.
 
 ## Occlusion and Visualization
 
@@ -78,7 +78,7 @@ The fixed status strip remains visible below the scrollable content. Its priorit
 
 The guided path is `Setup -> Validate -> Run -> Inspect -> Record -> Export`. Six non-interactive indicators distinguish completed, current, blocked, and upcoming steps, while one concise instruction states the next required action.
 
-Only the current step is expanded. It exposes one primary action, with Back and recovery actions secondary. Setup applies a maintained safe preset and stage bindings; Validate runs stage, backend, device, source, array, room, attachment, calibration, and capability checks; Run and Inspect reuse the same canonical sensor control as Live Monitor; Record exposes Start Recording, then Stop & Finalize, with Cancel separate; Export validates, splits when requested, and inventories the result. Capability validation refreshes stale cached facts within the same pass.
+Only the current step is expanded. It exposes one primary action, with Back and recovery actions secondary. Setup applies a maintained safe preset and stage bindings; Validate runs stage, backend, device, source, array, environment anchor, attachment, calibration, and capability checks; Run and Inspect reuse the same canonical sensor control as Live Monitor; Record exposes Start Recording, then Stop & Finalize, with Cancel separate; Export validates, splits when requested, and inventories the result. Capability validation refreshes stale cached facts within the same pass.
 
 Guided is open by default and stores its local collapse preference at `/persistent/exts/isaac_audio_sensors.omni/ui/guided_collapsed`. Missing `carb.settings` falls back safely to the default. `guided_mode_enabled=False` still removes Guided completely, and the local preference is not part of exported configuration.
 
@@ -94,7 +94,7 @@ The live instruments separate bearing, sector, confidence, and occlusion below t
 
 ## Advanced Tools
 
-Advanced Tools contains the specialist controls for stage and selection, array, source, sensor settings and debug, room, Sensor WAV output, Kit scene audition, Replicator, export, and configuration. Stage binding uses one `Bind selection as` selector and `Bind Selected`; position authoring uses a preset selector and `Apply Position Preset`. Known profiles and rigs are selected with combo boxes and validated by Apply rather than duplicate selection buttons.
+Advanced Tools contains the specialist controls for stage and selection, array, source, sensor settings and debug, acoustic environment, Sensor WAV output, Kit scene audition, Replicator, export, and configuration. The environment section accepts an optional explicit anchor and the three PyRoom solver settings; an empty anchor retains only the temporary R7.1 array-centered fallback. Stage binding uses one `Bind selection as` selector and `Bind Selected`; position authoring uses a preset selector and `Apply Position Preset`. Known profiles and rigs are selected with combo boxes and validated by Apply rather than duplicate selection buttons.
 
 Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. Source directivity is the shared four-value enum selector rather than free text. Saved configuration and sound-profile directivity/gain are validated before UI state or USD is mutated. Color styling distinguishes editable, action-populated, read-only, and invalid fields. Preset, binding, transform-read, and config-import changes are tracked only as transient window state; a manual edit restores the normal editable style. Invalid fields remain highlighted until a valid correction, without opening or changing accordions automatically. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
 
@@ -118,7 +118,7 @@ If there is no stage or selection, create/open a stage and refresh before author
 
 If discovery is empty, verify the selected roots and authored metadata, then run rediscovery; if a moved prim does not change a frame, verify live pose sync, cache invalidation, and the stage time code.
 
-If start/update fails, read the exact validation finding for backend, dependency, device, array geometry, source, room, or output path instead of changing unrelated settings.
+If start/update fails, read the exact validation finding for backend, dependency, device, array geometry, source, environment anchor, or output path instead of changing unrelated settings.
 
 If overlays or OmniGraph are unavailable, distinguish optional Kit-service absence from sensor failure; frame JSON and structured diagnostics remain the primary contract.
 
@@ -128,6 +128,7 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 
 ## Version Notes
 
+- 2026-09-01: Migrated the live sensor, cache, anchor refresh, overlays, and Kit controls to `AcousticEnvironmentSpec`; binding/configuration is now `ias.omni_extension_binding.v2`, while the temporary no-anchor shoebox remains through R7.1.
 - 2026-08-27: Made source and child-microphone directivity enum-backed and fail-closed, aligned native gain conversion, and removed the effects-owned directivity path for v3.
 - 2026-08-26: Removed dead Kit internals and dynamic sibling-service lookup while preserving the controller, UI, configuration, and runtime contracts.
 - 2026-08-26: Clarified direct Replicator writer updates and retained the v1 annotator name as metadata without registering a runtime annotator.

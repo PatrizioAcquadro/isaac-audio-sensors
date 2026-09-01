@@ -8,11 +8,11 @@ The design keeps simulator-independent contracts below optional simulator adapte
 
 ## Core Layer
 
-`isaac_audio_sensors.core` owns typed scene, source, pose, array, room, time-window, detection, DOA, occlusion, and frame models; canonical directivity and gain utilities; configuration; microphone geometry; deterministic DSP and effects; acoustic backends; plugins; calibration; trace IO; and waveform helpers. Its package root exports the fundamental models plus `DirectivityPattern`; the other APIs remain public from their canonical modules.
+`isaac_audio_sensors.core` owns typed scene, source, pose, array, acoustic-surface/environment, time-window, detection, DOA, occlusion, and frame models; canonical directivity and gain utilities; configuration; microphone geometry; deterministic DSP and effects; acoustic backends; plugins; calibration; trace IO; and waveform helpers. Its package root exports the fundamental models plus `DirectivityPattern`; environment builders and transforms are public from `core.acoustics`.
 
-All propagation backends implement `simulate(scene, array_id, time_window) -> AudioSensorFrame`. `AudioSceneSnapshot` owns the complete canonical state of every microphone array, and `array_id` only selects which array observes that scene; each backend resolves it through `scene.array_by_id(array_id)` and fails if it is absent. Plugin declarations own backend inventory and capability metadata. `AudioSourceSpec` and `MicrophoneSpec` are the directivity and nominal-gain authorities; `core.directivity` owns the one enum/coefficient model and `core.gain` owns fail-closed scalar dB conversion. Effects keep their immutable records at `core.effects.config`, while domain modules own channel-response, noise, electronics, and motion parsing and validation. Room acoustics coordinates explicit preparation, rendering, effects, detection, diagnostics, and frame-assembly stages without changing their physical model.
+All propagation backends implement `simulate(scene, array_id, time_window) -> AudioSensorFrame`. `AudioSceneSnapshot` owns the complete canonical state of every microphone array and its optional `environment`; `array_id` only selects which array observes that scene. Each backend resolves it through `scene.array_by_id(array_id)` and fails if it is absent. Plugin declarations own backend inventory and capability metadata. `AudioSourceSpec` and `MicrophoneSpec` are the directivity and nominal-gain authorities; `core.directivity` owns the one enum/coefficient model and `core.gain` owns fail-closed scalar dB conversion. Effects keep their immutable records at `core.effects.config`, while domain modules own channel-response, noise, electronics, and motion parsing and validation. Room acoustics coordinates explicit preparation, rendering, effects, detection, diagnostics, and frame assembly and accepts only R7.1 shoebox environments until R8.
 
-Motion owns Doppler and pose/window state; acoustics owns materials, occlusion interpretation, and room construction; DOA owns the numerical least-squares solver as well as GCC-PHAT, SRP-PHAT, ambiguity, and sector mapping. Fundamental data contracts remain centralized in `core.types`.
+Motion owns Doppler and pose/window state; acoustics owns environment builders and transforms, materials, and occlusion interpretation; DOA owns the numerical least-squares solver as well as GCC-PHAT, SRP-PHAT, ambiguity, and sector mapping. Fundamental data contracts remain centralized in `core.types`.
 
 This layer imports no other package subsystem. Importing the core package root loads no NumPy, recording, concrete backend/effect, Isaac, Omniverse, Isaac Lab, Kit, CUDA, Torch, or downstream module.
 
@@ -34,13 +34,13 @@ Dataset-manifest constants, models, and canonical JSON serializers are recording
 
 `isaac_audio_sensors.isaac` owns lazy stage discovery, metadata authoring, pose resolution, stage snapshots, live sensor lifecycle, occlusion queries, frame publication, Replicator integration, and visualization records.
 
-The layer turns live USD state into pure core dataclasses before backend computation. Its sensor has no offline config path or application persistence: consumers inject an optional core waveform sink, and required Isaac APIs resolve lazily with explicit errors.
+The layer turns live USD state into pure core dataclasses before backend computation. A manually designated USD anchor remains an Isaac-layer concern separate from `AcousticEnvironmentSpec`; R7.1 derives and refreshes an axis-aligned shoebox from its world bounds. The sensor has no offline config path or application persistence: consumers inject an optional core waveform sink, and required Isaac APIs resolve lazily with explicit errors.
 
 ## Isaac Lab Layer
 
 `isaac_audio_sensors.lab` is import-safe at its package root and resolves direct Isaac Lab `SensorBaseCfg` and `SensorBase` subclasses only after `AppLauncher` initialization.
 
-Its entity path converts official scene root/body pose tensors directly into batched fixed-shape observations. Its separate reference path converts pure core snapshots through scalar backends and accepts only one array identifier per snapshot; it owns no parallel array specifications. USD discovery, stage poses, and room anchoring remain in the Isaac Sim layer; Lab owns no stage adapter or device fallback.
+Its entity path converts official scene root/body pose tensors directly into batched fixed-shape observations. Its separate reference path converts pure core snapshots through scalar backends and accepts only one array identifier per snapshot; it owns no parallel array specifications. USD discovery, stage poses, and environment anchoring remain in the Isaac Sim layer; Lab owns no stage adapter or device fallback.
 
 ## Kit and Extension Layers
 

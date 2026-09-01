@@ -6,12 +6,14 @@ Define one explicit, simulator-independent description of the simplified acousti
 
 ## Subphase R7.1 — Unified Environment Model
 
+Status: implemented on 2026-09-01.
+
 #### Implementation
 
-Introduce one pure-data analytic environment contract with a world pose and acoustically meaningful surfaces in environment-local coordinates. Sources and microphones remain world-frame entities and are transformed into the environment frame before propagation.
+Introduce one pure-data analytic environment contract with a world pose and acoustically meaningful surfaces in environment-local coordinates.
+Sources and microphones remain world-frame entities and are transformed into the environment frame before propagation.
 
 The contract supports five concise configurations without a public class hierarchy:
-
 - `free_field`: explicitly no surfaces;
 - `half_space`: one floor plane without walls or ceiling;
 - `shoebox`: a closed rectangular enclosure;
@@ -19,6 +21,8 @@ The contract supports five concise configurations without a public class hierarc
 - `surface_set`: a bounded set of floor, wall, or ceiling surfaces for simple open environments.
 
 Common configurations use builders or presets. `dimensions_m` is a shoebox convenience, while general shapes use local surface vertices. The environment world pose handles translated, rotated, or inclined configurations without encoding world coordinates into reusable local geometry.
+
+R7.1 keeps `AudioSceneSnapshot.environment` optional until R7.2. The current PyRoom backends accept only `shoebox`; they reject the other four topologies reserved for R8, take propagation settings from backend construction or `[audio.room_acoustics]`, and fail when a source or microphone lies outside the shoebox. Kit temporarily retains its explicit array-centered shoebox when no anchor is selected.
 
 The new contract replaces `RoomAcousticsSpec` outright. R7 migrates `AudioSceneSnapshot.room`, configuration, schemas, Isaac, Kit, examples, and every active consumer to one canonical environment field, then removes the old type and room-only configuration surface. It does not retain a wrapper, alias, parallel `room`/`environment` fields, or compatibility parser once the migration is complete.
 
@@ -29,6 +33,8 @@ The new contract replaces `RoomAcousticsSpec` outright. R7 migrates `AudioSceneS
 - A floor-only scene is half-space, not free field.
 - An L-shaped room is one polygon prism, not overlapping shoeboxes.
 - Separate real rooms are not merged into one analytic box.
+- Isaac anchors remain simulator-layer inputs and are not stored in the Core contract.
+- `room_acoustics` and `room_acoustics_srp` remain backend identifiers until R8.
 
 #### Problems / Limitations
 
@@ -60,8 +66,16 @@ Containment identifies the array's local acoustic volume but does not solve prop
 
 ## Artifacts
 
-This page is the R7 phase specification. No R7 implementation artifacts exist yet.
+R7.1 provides the two immutable Core specs; public builders for all five topologies and shoebox bounds; world/environment quaternion transforms; one fail-closed TOML model; migrated PyRoom, Isaac, Kit, examples, smokes, and downstream contract coverage; and Kit binding schema `ias.omni_extension_binding.v2`.
+
+The frame, dataset-manifest, and calibration-profile schemas remain v1 because they do not serialize the scene. R7.2 input resolution and environment mandatory-state work remain future scope.
 
 ## Files
 
-No source files are changed by this planning step.
+- `src/isaac_audio_sensors/core/types.py`
+- `src/isaac_audio_sensors/core/acoustics/environments.py`
+- `src/isaac_audio_sensors/core/config.py`
+- `src/isaac_audio_sensors/core/backends/room_acoustics/`
+- `src/isaac_audio_sensors/isaac/`
+- `src/isaac_audio_sensors/kit/`
+- `tests/contract/`, `tests/unit/`, `tests/integration/`, and `tests/isaac/`

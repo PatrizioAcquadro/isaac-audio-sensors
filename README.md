@@ -10,7 +10,7 @@ Current package release: `3.0.0`. This release is not yet published.
 
 ## What It Provides
 
-- Simulator-independent, versioned contracts for scenes, microphone arrays, sensor frames, calibration, and dataset manifests, with deterministic geometry and synthetic TDOA backends plus optional room acoustics.
+- Simulator-independent, versioned contracts for sources, arrays, five analytic acoustic environments, sensor frames, calibration, and datasets, with deterministic geometry and synthetic TDOA plus optional shoebox room acoustics.
 - Entity-owned source and microphone directivity with four first-order families, plus one amplitude-gain convention shared by Core, Isaac Sim, Isaac Lab, and Kit.
 - Generic multichannel recording, validation, sharded datasets, deterministic splits, statistics, FLAC export, and read-only replay.
 - Lazy Isaac Sim and Isaac Lab integrations for live stages and fixed-shape, batched observations without making NVIDIA runtimes core dependencies.
@@ -27,7 +27,7 @@ python -m pip install --upgrade pip
 python -m pip install isaac-audio-sensors
 ```
 
-Install the optional shoebox-room backend only when needed:
+Install the optional PyRoom shoebox backend only when needed:
 
 ```bash
 python -m pip install "isaac-audio-sensors[room]"
@@ -48,7 +48,7 @@ These commands require only the core package; no Isaac runtime or GPU is needed.
 
 ## Limitations
 
-- The geometry, synthetic TDOA, and shoebox-room backends are controlled models, not a complete wave solver or calibrated acoustic twin.
+- The geometry, synthetic TDOA, and current shoebox PyRoom backends are controlled models, not a complete wave solver or calibrated acoustic twin; the other R7.1 environment topologies await R8 propagation.
 - Software and GPU validation do not establish hardware calibration, physical acoustic fidelity, downstream task success, or sim-to-real transfer.
 - This SDK does not provide robot-specific tasks or policies and is not a safety-critical perception component.
 

@@ -51,7 +51,7 @@ The sensor uses the current Isaac Lab lifecycle unchanged: `update(dt, force_rec
 
 ## Ownership and Validation
 
-USD discovery, pose resolution, room anchoring, occlusion, and live stage state belong to `isaac_audio_sensors.isaac`. Legacy trace diagnostics remain readable but are not part of Lab observation state.
+USD discovery, pose resolution, environment anchoring, occlusion, and live stage state belong to `isaac_audio_sensors.isaac`. Legacy trace diagnostics remain readable but are not part of Lab observation state.
 
 `make test-isaac` covers deterministic imports, contracts, parity, scheduling, compaction, frame transforms, reset, and failure behavior. `make smoke-isaac-lab` is the required live RTX 4090 gate for true `SensorBase` lifecycle, CUDA device placement, entity/reference parity, partial reset, and mean 4096-environment step time below 20 ms. CPU execution is not a substitute for that live gate.
 

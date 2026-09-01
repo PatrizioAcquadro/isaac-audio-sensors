@@ -365,3 +365,11 @@ Clarified removal of all four legacy propagation backends, migration of their us
 ## 2026-08-27 — lint: Two-backend and DOA boundary
 
 Verified phase ownership, index coverage, legacy-backend removal wording, DOA-estimator separation, internal links, immutable raw content, and Markdown whitespace.
+
+## 2026-09-01 — update: R7.1 acoustic environment contract
+
+Replaced the room-only scene contract with five fail-closed analytic environment topologies, local surfaces and world poses, migrated TOML/PyRoom/Isaac/Kit consumers, removed clamping and legacy parsers, introduced Kit binding v2, and preserved the R8 backend boundary plus the three serialized v1 schemas.
+
+## 2026-09-01 — lint: R7.1 acoustic environment contract
+
+Verified 528 host tests, 186 focused integration tests, 57 release tests, optional audio, temporary sdist/wheel build and installed import, 103 Isaac tests, RTX 4090 Isaac Sim/Lab/Kit smokes, the focused downstream contract, canonical wiki boundaries, Ruff, version synchronization, and whitespace.

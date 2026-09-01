@@ -10,14 +10,14 @@ Robot-specific mounts, assets, adapters, policies, task orchestration, acceptanc
 
 ## Current Compatibility Line
 
-The current package is `3.0.0` on the v3 compatibility line. R5.0 previously removed the v1 root convenience imports; v3 keeps that semantic subsystem boundary, makes entity-owned directivity and amplitude-gain semantics authoritative, and makes `AudioSceneSnapshot` the sole propagation-backend array-state authority without compatibility shims.
+The current package is `3.0.0` on the v3 compatibility line. R5.0 previously removed the v1 root convenience imports; v3 keeps that semantic subsystem boundary, makes entity-owned directivity and amplitude-gain semantics authoritative, makes `AudioSceneSnapshot` the sole propagation-backend array-state authority, and replaces the room-only scene contract with one analytic acoustic-environment contract without compatibility shims.
 
 The root exposes only `__version__`; contracts and services live under their owning modules. The CLI composes those public services without becoming a dependency of lower components.
 
 The curated v3 entrypoint inventory is:
 
 - `isaac_audio_sensors`: `__version__`.
-- `isaac_audio_sensors.core`: `AudioDetection`, `AudioSceneSnapshot`, `AudioSensorFrame`, `AudioSourceSpec`, `AudioTimeWindow`, `DirectivityPattern`, `DoaEstimate`, `MicrophoneArraySpec`, `MicrophoneSpec`, `Pose3D`, `RoomAcousticsSpec`, and `SourceOcclusion`.
+- `isaac_audio_sensors.core`: `AcousticEnvironmentSpec`, `AcousticSurfaceSpec`, `AudioDetection`, `AudioSceneSnapshot`, `AudioSensorFrame`, `AudioSourceSpec`, `AudioTimeWindow`, `DirectivityPattern`, `DoaEstimate`, `MicrophoneArraySpec`, `MicrophoneSpec`, `Pose3D`, and `SourceOcclusion`.
 - `isaac_audio_sensors.recording`: `AppendFrameResult`, `AudioDatasetManifest`, `CreationProvenance`, `DatasetLayoutError`, `DatasetSplitError`, `DeviceProvenance`, `Finding`, `LoadedFrame`, `ReplayEvent`, `SessionDataset`, `SessionRecorder`, `SessionRecorderError`, `SplitPlan`, `Statistics`, `ValidationReport`, `apply_split_plan`, `build_split_plan`, `export_session_flac`, `manifest_from_dict`, `manifest_to_dict`, `read_dataset_manifest`, `read_split_plan`, `replay_session`, `validate_dataset`, `write_dataset_manifest`, and `write_split_plan`.
 - `isaac_audio_sensors.isaac`: `AudioSensorReplicatorRecorder`, `DiscoveredAudioArray`, `DiscoveredAudioSource`, `IsaacAudioArraySensor`, `IsaacAudioDiscoveryCfg`, `IsaacAudioDiscoveryResult`, `IsaacAudioSceneBindingCfg`, `IsaacStagePoseResolver`, `ReplicatorIntegrationError`, `ReplicatorRecorderStatus`, `StagePose`, `audio_sensor_frame_replicator_payload`, `attach_microphone_array_attrs`, `attach_microphone_attrs`, `attach_sound_source_attrs`, `build_stage_snapshot`, `create_listener_prim`, `create_sound_prim`, `discover_stage_audio`, `require_isaac_usd`, `require_replicator_core`, and `resolve_world_pose`.
 - `isaac_audio_sensors.lab`: `AudioArraySensor`, `AudioArraySensorCfg`, `AudioArraySensorData`, `EntityBindingCfg`, and `SourceEntityCfg`.
@@ -49,7 +49,7 @@ Optional Replicator, room-acoustics, Isaac, Kit, GPU, and pack capabilities do n
 
 Removing or renaming stable public fields, changing their semantics, changing units/provenance/coordinates/ambiguity/sector meaning, or silently changing a v1 serialized shape is breaking and requires a new schema or major compatibility decision.
 
-Version 3 intentionally removes `audio.effects.directivity`, its pattern/frequency-point records, and Lab `microphone_relative_offsets_m`. Consumers must migrate to `AudioSourceSpec.directivity`, `MicrophoneSpec.directivity`, and `EntityBindingCfg.microphones`. No alias, fallback parser, or parallel runtime implementation is retained. The package major changes while the three serialized schemas remain v1 because their serialized meanings are preserved.
+Version 3 intentionally removes `audio.effects.directivity`, its pattern/frequency-point records, Lab `microphone_relative_offsets_m`, `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, and `[room]`. Consumers must migrate to entity-owned directivity, `EntityBindingCfg.microphones`, `AcousticEnvironmentSpec`, `AudioSceneSnapshot.environment`, and `[environment]`. No alias, fallback parser, or parallel runtime implementation is retained. The package major changes while the three serialized schemas remain v1 because they do not serialize the scene and their meanings are preserved.
 
 Experimental or private names may change with clear release notes, but downstream project-specific surfaces are not preserved through permanent shims.
 

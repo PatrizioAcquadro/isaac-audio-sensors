@@ -46,11 +46,15 @@ Channel-response gain is a configured per-channel correction delta, TDOA gain mi
 
 Cross-backend validation concerns relative amplitude: a `+20*log10(2)` dB change yields a factor of two and the negative change yields one half. It does not require equal absolute RMS across L0/L1 and L2 and does not claim dB SPL.
 
-## Room Acoustics
+## Acoustic Environments and Room Acoustics
 
-A room has a fixed world origin and dimensions, absorption configuration, reflection order, and `error` or `clamp` behavior for out-of-bounds sources and microphones.
+`AcousticEnvironmentSpec` provides one world pose and canonical local `AcousticSurfaceSpec` values for `free_field`, `half_space`, `shoebox`, `polygon_prism`, and bounded non-empty `surface_set` topologies. Public builders validate surfaces, materials, complete poses, simple polygons, positive dimensions, and topology invariants; quaternion transforms map source and microphone points between world and environment coordinates.
 
-Rooms may be anchored to scene geometry, but they do not refit around each frame; invalid or degenerate extents fail before simulation.
+`AudioSceneSnapshot.environment` remains optional through R7.1. TOML uses one `[environment]` table, with the `environment.surfaces` array of tables for `surface_set`; `[room]` and obsolete room keys fail explicitly.
+
+The current `room_acoustics` and `room_acoustics_srp` backends accept only `kind="shoebox"` until R8. Reflection order, air absorption, and ray tracing are solver settings supplied to backend construction or `[audio.room_acoustics]`, not environment properties. Any source or microphone outside the local shoebox fails; clamping is removed.
+
+Isaac may derive a shoebox from one manually designated anchor's world bounds, but the anchor remains outside the simulator-independent Core contract. Kit keeps a temporary array-centered shoebox only for R7.1 when a room backend has no anchor; automatic USD resolution and mandatory environments belong to R7.2.
 
 The backend schedules all active sources into one shared microphone mixture, preserves sample timing, computes per-source and aggregate diagnostics, and can export per-frame or continuous multichannel waveforms.
 
@@ -80,7 +84,7 @@ Diagnostics retain applied settings and observable outputs so a consumer can dis
 
 The Isaac layer can raycast each source-to-microphone path, aggregate multiple hits, derive flat or octave-band transmission loss from authored values or nominal presets, apply the resulting non-positive propagation-loss delta once, and mark detections as occluded.
 
-Room absorption may use measured provenance, but transmission presets remain nominal unless independently measured; the system does not claim diffraction, edge bending, thickness-derived transmission, or reflected-path occlusion.
+Environment-surface absorption may use measured provenance, but transmission presets remain nominal unless independently measured; the system does not claim diffraction, edge bending, thickness-derived transmission, or reflected-path occlusion.
 
 ## DOA and Confidence
 

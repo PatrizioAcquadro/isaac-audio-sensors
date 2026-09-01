@@ -2,6 +2,10 @@
 
 ## 3.0.0 - Unreleased
 
+- Breaking: replaced `RoomAcousticsSpec` and `AudioSceneSnapshot.room` with `AcousticSurfaceSpec`, `AcousticEnvironmentSpec`, and `AudioSceneSnapshot.environment`; no alias, parallel field, or legacy `[room]` parser remains.
+- Added fail-closed `free_field`, `half_space`, `shoebox`, `polygon_prism`, and `surface_set` builders, complete world/environment quaternion transforms, and one `[environment]` TOML surface. Shoebox sources and microphones outside the environment now always fail instead of clamping.
+- Moved PyRoom solver options to `[audio.room_acoustics]` and backend construction, restricted the current room backends to `shoebox` until R8, and renamed public room diagnostics and hashes to `environment_*`.
+- Migrated Isaac and Kit to the environment contract with a separate explicit anchor, dynamic refresh and overlays, the temporary R7.1 Kit shoebox fallback, and breaking `ias.omni_extension_binding.v2` configuration.
 - Breaking: made `AudioSourceSpec.directivity` and `MicrophoneSpec.directivity` the only runtime authorities, backed by public `DirectivityPattern` values `omni`, `cardioid`, `supercardioid`, and `figure_eight` and one canonical coefficient table.
 - Breaking: removed `audio.effects.directivity`, all pattern-set and frequency-point records, and `EntityBindingCfg.microphone_relative_offsets_m` without aliases or compatibility runtime paths. Lab custom microphones now use `EntityBindingCfg.microphones` with `MicrophoneSpec` values.
 - Breaking: changed `PropagationBackend.simulate()` to `(scene, array_id, time_window)` and Isaac Lab reference binding to `(snapshots, array_ids)`. `AudioSceneSnapshot` is now the sole array-state authority; no sensor-object or `array_specs` compatibility path remains.
