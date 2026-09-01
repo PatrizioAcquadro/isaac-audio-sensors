@@ -2,10 +2,12 @@
 
 ## 3.0.0 - Unreleased
 
+- Added public `AnalyticAcoustics`/`analytic_acoustics` with environment-only routing to Core free-field and half-space solvers or lazy PyRoom shoebox and polygon-prism solvers, including per-surface materials, fail-closed containment, and solver diagnostics on frames and detections.
+- Integrated `analytic_acoustics` with CLI/TOML, Isaac, Kit, and scalar Isaac Lab reference binding while explicitly deferring `surface_set`, direct-stem-only occlusion, and entity-batched Lab execution to R8.2/R8.3. The four legacy backend identifiers remain unchanged during R8.1.
 - Breaking: replaced `RoomAcousticsSpec` and `AudioSceneSnapshot.room` with `AcousticSurfaceSpec`, `AcousticEnvironmentSpec`, and `AudioSceneSnapshot.environment`; no alias, parallel field, or legacy `[room]` parser remains.
 - Breaking: made `AudioSceneSnapshot.environment` and the TOML `[environment]` table mandatory for every backend; all Python, CLI, Isaac, Kit, example, smoke, and active downstream fixtures now provide or resolve one explicit `AcousticEnvironmentSpec`.
 - Added fail-closed `free_field`, `half_space`, `shoebox`, `polygon_prism`, and `surface_set` builders, complete world/environment quaternion transforms, and one `[environment]` TOML surface. Shoebox sources and microphones outside the environment always fail instead of clamping.
-- Moved PyRoom solver options to `[audio.room_acoustics]` and backend construction, restricted the current room backends to `shoebox` until R8, and renamed public room diagnostics and hashes to `environment_*`.
+- Moved PyRoom solver options to `[audio.room_acoustics]` and backend construction, retained the legacy room backends as shoebox-only during staged R8 migration, and renamed public room diagnostics and hashes to `environment_*`.
 - Added fail-closed Isaac `manual`, `anchor`, and `auto` resolution with full-array containment, 1 mm default tolerance, marked shoebox/floor discovery, priority/volume ambiguity rules, and cache refresh on relevant array or USD changes.
 - Removed the implicit Kit shoebox, added `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes, made safe presets explicitly free-field, and introduced breaking `ias.omni_extension_binding.v3` configuration with no v2 parser.
 - Breaking: made `AudioSourceSpec.directivity` and `MicrophoneSpec.directivity` the only runtime authorities, backed by public `DirectivityPattern` values `omni`, `cardioid`, `supercardioid`, and `figure_eight` and one canonical coefficient table.

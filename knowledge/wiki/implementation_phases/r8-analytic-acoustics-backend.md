@@ -12,7 +12,20 @@ GCC-PHAT, TDOA least-squares, and SRP-PHAT remain separate DOA-estimation algori
 
 #### Implementation
 
-Select the internal solver deterministically from validated environment topology. Explicit free field uses direct propagation, one floor uses a half-space model, a rectangular enclosure uses `pyroomacoustics.ShoeBox`, and a supported closed polygon uses the general PyRoom room construction. A small supported open surface set may use bounded direct and early-specular propagation.
+R8.1 adds the public `AnalyticAcoustics` class and `analytic_acoustics` backend identifier. The backend selects exactly one internal solver from `scene.environment.kind`:
+
+| Environment kind | Diagnostic solver ID | Provider |
+|---|---|---|
+| `free_field` | `free_field_direct` | Core |
+| `half_space` | `half_space_image_source` | Core |
+| `shoebox` | `pyroom_shoebox` | PyRoom |
+| `polygon_prism` | `pyroom_polygon_prism` | PyRoom |
+
+The Core solvers implement fractional direct-path delay and spherical spreading; half-space order one adds the floor image source with the authored floor absorption. They transform all points into environment-local coordinates, including rotated or inclined environment poses, and reject points below the local floor instead of clamping.
+
+The closed-room paths use `pyroomacoustics.ShoeBox` or `Room.from_corners(...).extrude(...)`. They preserve per-surface materials, validate the complete prism footprint, wall-edge mapping, vertical extrusion, and containment before simulation, and never clamp an out-of-bounds source or microphone. PyRoom is imported only after a closed topology is selected, so `free_field` and `half_space` work with the Core install; a missing `room` extra fails actionably only for `shoebox` and `polygon_prism`.
+
+The backend reuses the maintained source scheduler, gain, directivity, effects, GCC/SRP estimators, waveform writer, detection builder, and frame assembly. Every frame and detection reports `analytic_solver = {solver_id, provider, environment_kind}` without changing the v1 serialized schemas. `free_field` requires `max_order=0`; `half_space` accepts order zero or one; `air_absorption` and `ray_tracing` are reserved for the PyRoom routes. Existing `[audio.room_acoustics]` settings remain the temporary configuration surface.
 
 The caller chooses the environment, not the solver. The selected solver is reported in diagnostics. Unsupported topology fails clearly and directs the caller to `GeometryAcoustics`; it is never silently approximated by an invented enclosure.
 
@@ -21,10 +34,13 @@ The caller chooses the environment, not the solver. The selected solver is repor
 - PyRoom remains the maintained provider for closed analytic rooms.
 - Small project-owned formulas are limited to direct and bounded simple-surface propagation.
 - The backend does not grow into an arbitrary-mesh acoustic engine.
+- `geometry_only`, `tdoa_synthetic`, `room_acoustics`, and `room_acoustics_srp` remain unchanged public identifiers during this staged subphase; no downstream migration is part of R8.1.
+- `SourceOcclusion` is rejected by `analytic_acoustics` until R8.2 can apply it to the direct stem without attenuating reflections.
+- CLI, TOML, Isaac, Kit, and scalar Isaac Lab reference binding recognize the new backend. Entity-batched Isaac Lab execution remains excluded until R8.3.
 
 #### Problems / Limitations
 
-Open surface collections receive only explicitly supported bounded behavior. Complex topology, connected rooms, and robust around-corner propagation remain outside this backend.
+`surface_set` fails closed and points to the future `GeometryAcoustics` provider. Complex topology, connected rooms, robust around-corner propagation, direct/reflected stem separation, and mass-parallel analytic execution remain outside R8.1.
 
 ## Subphase R8.2 — Relative Propagation and Occlusion
 
@@ -66,8 +82,20 @@ The scalable analytic model approximates the distribution of geometry-aware beha
 
 ## Artifacts
 
-This page is the R8 phase specification. No R8 implementation artifacts exist yet.
+R8.1 includes deterministic routing and propagation tests, fake-provider coverage for both closed-room routes, real PyRoom 0.10.1 smoke execution for shoebox and a concave prism, CLI/config and Isaac reference coverage, legacy-backend regression coverage, and an updated live Isaac Sim smoke requirement for the Core free-field route.
+
+R8.2 and R8.3 remain future work.
 
 ## Files
 
-No source files are changed by this planning step.
+- `src/isaac_audio_sensors/core/backends/analytic.py`
+- `src/isaac_audio_sensors/core/backends/room_acoustics/`
+- `src/isaac_audio_sensors/core/plugins/registry.py`
+- `src/isaac_audio_sensors/core/config.py`
+- `src/isaac_audio_sensors/isaac/sensor.py`
+- `src/isaac_audio_sensors/lab/reference_backend.py`
+- `tests/integration/test_analytic_acoustics.py`
+
+## Version Notes
+
+- 2026-09-01: Implemented R8.1 solver routing while retaining the four legacy backend identifiers and all three serialized v1 schemas.

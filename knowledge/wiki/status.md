@@ -11,13 +11,15 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 ## Verified Capabilities
 
 - Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the frame, dataset-manifest, and calibration-profile schemas remain v1.
-- Deterministic geometry and synthetic TDOA backends plus optional room acoustics, SRP-PHAT, motion, Doppler, channel response, noise, electronics, and material/occlusion behavior.
+- Deterministic geometry and synthetic TDOA backends plus R8.1 `analytic_acoustics`, optional room acoustics, SRP-PHAT, motion, Doppler, channel response, noise, electronics, and material behavior.
 - Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.
 - One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
 - Snapshot-authoritative propagation through `simulate(scene, array_id, time_window)`, with no parallel backend sensor object or Lab reference `array_specs` state.
 - R7 `AcousticSurfaceSpec` and `AcousticEnvironmentSpec` with fail-closed builders for `free_field`, `half_space`, `shoebox`, `polygon_prism`, and `surface_set`, complete world/environment quaternion transforms, and mandatory `AudioSceneSnapshot.environment` ownership.
 - One required `[environment]` TOML model for every backend, with an `environment.surfaces` array of tables for surface sets and solver-only `[audio.room_acoustics]`; legacy `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, `[room]`, missing environments, clamping, and old diagnostic names have no compatibility path.
-- Current `room_acoustics` and `room_acoustics_srp` identifiers retained through R8, with PyRoom restricted to shoebox environments and all other R7.1 topologies rejected clearly until their analytic propagation exists.
+- Public R8.1 `AnalyticAcoustics` routing selected only from `scene.environment.kind`: Core direct propagation for `free_field`, Core floor image source for `half_space`, PyRoom `ShoeBox` for `shoebox`, and PyRoom polygon extrusion for `polygon_prism`, with solver/provider/topology diagnostics on frames and detections.
+- Core analytic routes require no `room` extra; closed-room routes import PyRoom lazily, preserve per-surface materials and local containment, and fail actionably when the extra is absent. `surface_set` and `SourceOcclusion` fail closed pending R8.2.
+- `geometry_only`, `tdoa_synthetic`, `room_acoustics`, and `room_acoustics_srp` remain unchanged public identifiers in R8.1. CLI, TOML, Isaac, Kit, and scalar Lab reference binding recognize `analytic_acoustics`; entity-batched Lab routing remains future R8.3 work.
 - Atomic generic recording, verified sharded sessions, codecs, validation, statistics, deterministic splits, and read-only replay.
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
@@ -116,6 +118,8 @@ The R7.1 acoustic-environment gate passes the complete 528-test host suite, 186 
 
 The R7.2 mandatory-environment gate passes 539 unit/contract tests, 192 integration tests, 57 release tests, configuration and README quickstarts, and optional audio with pyroomacoustics 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. A temporary clean-source `3.0.0` sdist and universal wheel pass package audits and `twine check`; nothing was published. The RTX 4090 passes 103 Isaac tests, live Isaac Sim, live Isaac Lab parity/partial reset and 50 steps over 4096 environments at 2.372 ms/step against the 20 ms budget, and all 38 live Kit workflow steps with binding v3. The migrated SquadBot suite reports 342 pass, the same 32 pre-existing backend-signature failures, and 9 skips: zero new R7.2 regressions. Package `3.0.0` remains unreleased and the frame, manifest, and calibration schemas remain v1.
 
+The R8.1 focused implementation gate passes deterministic Core, fake-provider, legacy-regression, CLI/config, Isaac sensor, and scalar Lab reference tests. The optional smoke executes `pyroom_shoebox` and `pyroom_polygon_prism` with pyroomacoustics 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. Complete host, live GPU, Kit, package-install, and downstream gates are recorded only after the closure run.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -133,7 +137,8 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 ## Limits
 
 - Isaac tests require a compatible user-managed runtime and visible GPU; required GPU checks do not use CPU fallback.
-- Standard Python room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. PyRoom remains an approximate shoebox simulation and rejects the other four R7.1 topologies until R8.
+- Standard Python closed-room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. R8.1 Core free-field and half-space routes do not require it. PyRoom shoebox and polygon-prism simulation remains approximate.
+- `analytic_acoustics` does not accept `surface_set` or `SourceOcclusion` in R8.1, and its entity-batched Isaac Lab path is not implemented.
 - Raycast occlusion and nominal transmission do not model diffraction or establish measured material behavior.
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
@@ -141,4 +146,4 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-R8 is next: it must propagate every analytic topology through the maintained analytic backend boundary. The published `2.0.0` Community Registry crawler closeout remains separate historical release work. Review and publish `3.0.0` only under separate authorization; this implementation does not push, tag, or publish.
+R8.2 is next: it must separate direct and reflected stems before applying analytic occlusion and complete the relative-propagation contract. R8.3 then owns mass-parallel Isaac Lab execution. The published `2.0.0` Community Registry crawler closeout remains separate historical release work. Review and publish `3.0.0` only under separate authorization; this implementation does not push, tag, or publish.

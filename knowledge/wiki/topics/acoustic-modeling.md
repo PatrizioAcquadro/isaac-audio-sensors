@@ -18,7 +18,7 @@ L0 `geometry_only` is stable and deterministic: it computes source distance, bea
 
 L1 `tdoa_synthetic` is stable and deterministic: it computes direct-path per-microphone delay, analytical amplitude diagnostics, first-order entity directivity, optional air absorption, self-noise floors, seeded stress controls, and ambiguity metadata without reverberation.
 
-L2 `room_acoustics` and `room_acoustics_srp` are supported optional backends: they use approximate shoebox impulse responses, multichannel mixtures, GCC-PHAT diagnostics, and either GCC-based or SRP-PHAT DOA when the `room` dependencies are installed.
+L2 `analytic_acoustics` is the topology-routed backend. Its free-field and half-space solvers are deterministic Core capabilities; its shoebox and polygon-prism solvers use optional PyRoom. The legacy `room_acoustics` and `room_acoustics_srp` shoebox backends remain available during R8.1.
 
 L3 is provisional advanced realism: the shipped capability is opt-in Isaac raycast occlusion and material-aware transmission, not a complete advanced-acoustics backend.
 
@@ -40,7 +40,7 @@ Every scalar nominal or delta `gain_db` is an amplitude gain using `10 ** (gain_
 
 Generated and file-backed source samples keep the amplitude encoded by the asset. Source nominal gain is applied exactly once after content selection and before propagation; `gain_db = 0` is unity and WAV input is never peak- or RMS-normalized automatically.
 
-L0/L1 order is asset reference, source nominal gain, source/microphone directivity magnitude, analytical `1/d` with the existing floor and optional air absorption, occlusion loss, microphone nominal gain, optional TDOA gain-mismatch stress, then channel-response gain correction. L2 order is original samples, source nominal gain, PyRoom RIR, signed pair directivity, occlusion, microphone nominal gain, channel-response FIR/gain/polarity/delay, source summation, then noise/electronics. PyRoom owns L2 propagation distance and reflections; no second manual `1/d` is applied.
+L0/L1 order is asset reference, source nominal gain, source/microphone directivity magnitude, analytical `1/d` with the existing floor and optional air absorption, occlusion loss, microphone nominal gain, optional TDOA gain-mismatch stress, then channel-response gain correction. R8.1 analytic Core order is original samples, source nominal gain, fractional propagation delay with `1/(4*pi*distance)` pressure spreading, optional floor reflection, signed pair directivity, microphone nominal gain, channel-response processing, source summation, then noise/electronics. Closed analytic and legacy room routes use the PyRoom RIR in the propagation position and never apply a second manual distance loss. `analytic_acoustics` rejects occlusion until R8.2 separates direct and reflected stems.
 
 Channel-response gain is a configured per-channel correction delta, TDOA gain mismatch is a seeded stress delta, and occlusion is a non-positive propagation-loss delta. Diagnostics keep them distinct from source and microphone nominal gains. Calibration-profile gain is stored data only and is never applied automatically.
 
@@ -52,21 +52,23 @@ Cross-backend validation concerns relative amplitude: a `+20*log10(2)` dB change
 
 `AudioSceneSnapshot.environment` is mandatory for every backend. TOML likewise requires one `[environment]` table, with the `environment.surfaces` array of tables for `surface_set`; `[room]`, obsolete room keys, and missing environments fail explicitly.
 
-The current `room_acoustics` and `room_acoustics_srp` backends accept only `kind="shoebox"` until R8. Reflection order, air absorption, and ray tracing are solver settings supplied to backend construction or `[audio.room_acoustics]`, not environment properties. Any source or microphone outside the local shoebox fails; clamping is removed.
+`AnalyticAcoustics` selects its solver only from environment topology. `free_field_direct` uses Core direct propagation; `half_space_image_source` optionally adds one material-aware local-floor reflection; `pyroom_shoebox` and `pyroom_polygon_prism` use lazy PyRoom construction with per-surface materials. Every route reports its solver ID, provider, and environment kind on the frame and each detection.
+
+Reflection order, air absorption, and ray tracing remain solver settings supplied to backend construction or `[audio.room_acoustics]`, not environment properties. Free field requires order zero, half space accepts zero or one, and air absorption or ray tracing is available only on PyRoom routes. Source and microphone containment is environment-local and fail-closed with no clamping. A polygon prism is validated as a simple extruded footprint with exactly one wall per floor edge before room construction. The retained `room_acoustics` and `room_acoustics_srp` identifiers continue to accept only `shoebox`.
 
 Isaac resolves the same Core contract from a manual environment, an explicit anchor, or marked USD candidates. Automatic discovery accepts marked shoebox volumes and half-space floors, tests every microphone with a 1 mm default tolerance, and fails on malformed or unresolved ambiguity; it never guesses from unmarked geometry. Kit uses the explicit `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes and has no implicit shoebox fallback. `polygon_prism` and `surface_set` remain manual Python/TOML inputs until R10.
 
-The backend schedules all active sources into one shared microphone mixture, preserves sample timing, computes per-source and aggregate diagnostics, and can export per-frame or continuous multichannel waveforms.
+The analytic and legacy room backends schedule all active sources into one shared microphone mixture, preserve sample timing, compute per-source and aggregate diagnostics, and can export per-frame or continuous multichannel waveforms.
 
-Its implementation uses an explicit `prepare -> render -> effects -> detections -> frame` pipeline around separate signal, rendering, diagnostic, and assembly modules. This organization does not alter formulas, source ordering, phase cursors, effect placement, or numerical output.
+`AnalyticAcoustics` reuses the explicit `prepare -> render -> effects -> detections -> frame` room pipeline, including scheduling, Doppler, gain, directivity, effects, waveform export, GCC/SRP estimation, and frame assembly. Only solver selection and propagation construction differ.
 
-The model remains a shoebox approximation and does not implement arbitrary geometry, diffraction, a complete wave solver, calibrated materials, diffuse-field coherence, or production beamforming.
+The analytic model does not implement arbitrary geometry, `surface_set`, diffraction, connected rooms, a complete wave solver, calibrated materials, diffuse-field coherence, or production beamforming.
 
 ## Motion and Doppler
 
 Source and array velocity may be authored or derived from pose history with explicit first-sample, stale-time, teleport, smoothing, and reset handling.
 
-Motion windows can be segmented so Doppler, pair geometry, RIR rendering, and session time gaps follow bounded intra-window state instead of one unlabelled static approximation.
+Motion windows can be segmented so Doppler, pair geometry, RIR rendering, and session time gaps follow bounded intra-window state instead of one unlabelled static approximation. R8.1 supports segmented motion on the PyRoom routes; its Core free-field and half-space routes reject more than one segment.
 
 L1 records direct-path frequency-ratio behavior; L2 can resample waveform sources across motion segments.
 
@@ -82,7 +84,7 @@ Diagnostics retain applied settings and observable outputs so a consumer can dis
 
 ## Occlusion and Materials
 
-The Isaac layer can raycast each source-to-microphone path, aggregate multiple hits, derive flat or octave-band transmission loss from authored values or nominal presets, apply the resulting non-positive propagation-loss delta once, and mark detections as occluded.
+The Isaac layer can raycast each source-to-microphone path for the legacy backends, aggregate multiple hits, derive flat or octave-band transmission loss from authored values or nominal presets, apply the resulting non-positive propagation-loss delta once, and mark detections as occluded. `analytic_acoustics` rejects `SourceOcclusion` in R8.1 because applying it to the combined direct and reflected signal would be incorrect; direct-stem-only application belongs to R8.2.
 
 Environment-surface absorption may use measured provenance, but transmission presets remain nominal unless independently measured; the system does not claim diffraction, edge bending, thickness-derived transmission, or reflected-path occlusion.
 

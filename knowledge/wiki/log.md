@@ -381,3 +381,7 @@ Recorded mandatory Core and TOML environments, fail-closed Isaac manual/anchor/a
 ## 2026-09-01 — lint: R7.2 mandatory environment resolution
 
 Verified 539 unit/contract tests, 192 integration tests, 57 release tests, configuration and README quickstarts, optional audio, temporary sdist/wheel audits, 103 Isaac tests, RTX 4090 Isaac Sim/Lab/Kit smokes, zero new SquadBot regressions, canonical wiki links and index coverage, version synchronization, Ruff, and whitespace.
+
+## 2026-09-01 — update: R8.1 analytic solver routing
+
+Recorded the public `AnalyticAcoustics` backend, environment-only Core/PyRoom solver routing, per-surface and containment behavior, lazy optional dependencies, runtime bindings, retained legacy identifiers, preserved v1 schemas, and explicit R8.2/R8.3 boundaries.

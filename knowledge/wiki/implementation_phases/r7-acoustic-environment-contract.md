@@ -34,7 +34,7 @@ The new contract replaces `RoomAcousticsSpec` outright. R7 migrates `AudioSceneS
 - An L-shaped room is one polygon prism, not overlapping shoeboxes.
 - Separate real rooms are not merged into one analytic box.
 - Isaac anchors remain simulator-layer inputs and are not stored in the Core contract.
-- `room_acoustics` and `room_acoustics_srp` remain backend identifiers until R8.
+- `room_acoustics` and `room_acoustics_srp` remain backend identifiers during the staged R8 migration; R8.1 adds `analytic_acoustics` without removing them.
 
 #### Problems / Limitations
 
