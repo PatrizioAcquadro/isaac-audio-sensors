@@ -11,6 +11,13 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10.
     import tomli as tomllib
 
+from isaac_audio_sensors.core.acoustics.environments import (
+    free_field_environment,
+    half_space_environment,
+    polygon_prism_environment,
+    shoebox_environment,
+    surface_set_environment,
+)
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
@@ -30,11 +37,12 @@ from isaac_audio_sensors.core.effects.validation import (
 )
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.types import (
+    AcousticEnvironmentSpec,
+    AcousticSurfaceSpec,
     AudioSceneSnapshot,
     AudioSourceSpec,
     MicrophoneArraySpec,
     MicrophoneSpec,
-    RoomAcousticsSpec,
 )
 
 
@@ -53,7 +61,10 @@ class AudioSensorConfig:
     tdoa_ambiguity_policy: str
     sources: tuple[AudioSourceSpec, ...]
     arrays: dict[str, MicrophoneArraySpec]
-    room: RoomAcousticsSpec | None
+    environment: AcousticEnvironmentSpec | None
+    room_acoustics_max_order: int
+    room_acoustics_air_absorption: bool
+    room_acoustics_ray_tracing: bool
 
 
 def load_audio_config(path: str | Path) -> AudioSensorConfig:
@@ -69,6 +80,10 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
     """Validate raw TOML data and return typed config records."""
 
     try:
+        if "room" in raw:
+            raise ConfigValidationError(
+                "[room] was removed by R7.1; use the canonical [environment] table."
+            )
         scene = _required_table(raw, "scene")
         audio = _required_table(raw, "audio")
         scene_id = _required_str(scene, "scene_id", table="scene")
@@ -151,12 +166,18 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             runtime_profile=runtime_profile,
             microphone_self_noise_db=microphone_self_noise_db,
         )
-        room = _parse_room(raw.get("room"))
+        environment = _parse_environment(raw.get("environment"))
+        (
+            room_acoustics_max_order,
+            room_acoustics_air_absorption,
+            room_acoustics_ray_tracing,
+        ) = _parse_room_acoustics_options(audio.get("room_acoustics"))
         _validate_backend_requirements(
             default_backend=default_backend,
             arrays=arrays,
             ambiguity_policy=ambiguity_policy,
             ambiguity_policy_explicit=ambiguity_policy_explicit,
+            environment=environment,
         )
         return AudioSensorConfig(
             scene_id=scene_id,
@@ -174,13 +195,16 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             tdoa_ambiguity_policy=ambiguity_policy,
             sources=sources,
             arrays=arrays,
-            room=room,
+            environment=environment,
+            room_acoustics_max_order=room_acoustics_max_order,
+            room_acoustics_air_absorption=room_acoustics_air_absorption,
+            room_acoustics_ray_tracing=room_acoustics_ray_tracing,
         )
     except KeyError as exc:
         raise ConfigValidationError(
             f"Missing required config key {exc.args[0]!r}."
         ) from exc
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
         if isinstance(exc, ConfigValidationError):
             raise
         raise ConfigValidationError(str(exc)) from exc
@@ -198,7 +222,7 @@ def build_scene_snapshot(
         timestamp_ms=timestamp_ms,
         sources=config.sources,
         arrays=tuple(config.arrays.values()),
-        room=config.room,
+        environment=config.environment,
     )
 
 
@@ -306,21 +330,166 @@ def _parse_microphones(raw_microphones: Any) -> tuple[MicrophoneSpec, ...]:
     return tuple(microphones)
 
 
-def _parse_room(raw_room: Any) -> RoomAcousticsSpec | None:
-    if raw_room is None:
+def _parse_environment(raw_environment: Any) -> AcousticEnvironmentSpec | None:
+    if raw_environment is None:
         return None
-    if not isinstance(raw_room, dict):
-        raise ConfigValidationError("[room] must be a table.")
-    return RoomAcousticsSpec(
-        room_id=_required_str(raw_room, "room_id", table="room"),
-        dimensions_m=tuple(raw_room["dimensions_m"]),
-        absorption=raw_room.get("absorption", 0.35),
-        max_order=int(raw_room.get("max_order", 0)),
-        air_absorption=bool(raw_room.get("air_absorption", False)),
-        ray_tracing=bool(raw_room.get("ray_tracing", False)),
-        origin_m=tuple(raw_room.get("origin_m", (0.0, 0.0, 0.0))),
-        out_of_bounds=str(raw_room.get("out_of_bounds", "error")),
+    if not isinstance(raw_environment, dict):
+        raise ConfigValidationError("[environment] must be a table.")
+    environment_id = _required_str(
+        raw_environment,
+        "environment_id",
+        table="environment",
     )
+    kind = _required_str(raw_environment, "kind", table="environment")
+    position = tuple(raw_environment.get("position_world", (0.0, 0.0, 0.0)))
+    orientation = tuple(
+        raw_environment.get("orientation_world_quat", (0.0, 0.0, 0.0, 1.0))
+    )
+    common = {
+        "environment_id",
+        "kind",
+        "position_world",
+        "orientation_world_quat",
+    }
+    if kind == "free_field":
+        _reject_unknown_keys(raw_environment, common, table="environment")
+        return free_field_environment(
+            environment_id=environment_id,
+            position_world=position,
+            orientation_world_quat=orientation,
+        )
+    if kind == "half_space":
+        _reject_unknown_keys(
+            raw_environment,
+            common | {"absorption"},
+            table="environment",
+        )
+        return half_space_environment(
+            environment_id=environment_id,
+            absorption=raw_environment.get("absorption", 0.35),
+            position_world=position,
+            orientation_world_quat=orientation,
+        )
+    if kind == "shoebox":
+        _reject_unknown_keys(
+            raw_environment,
+            common | {"dimensions_m", "absorption"},
+            table="environment",
+        )
+        try:
+            dimensions = tuple(raw_environment["dimensions_m"])
+        except KeyError as exc:
+            raise ConfigValidationError(
+                "environment.dimensions_m is required for kind='shoebox'."
+            ) from exc
+        return shoebox_environment(
+            environment_id=environment_id,
+            dimensions_m=dimensions,
+            absorption=raw_environment.get("absorption", 0.35),
+            position_world=position,
+            orientation_world_quat=orientation,
+        )
+    if kind == "polygon_prism":
+        _reject_unknown_keys(
+            raw_environment,
+            common | {"floor_vertices_local_m", "height_m", "absorption"},
+            table="environment",
+        )
+        try:
+            floor_vertices = tuple(
+                tuple(vertex) for vertex in raw_environment["floor_vertices_local_m"]
+            )
+            height_m = raw_environment["height_m"]
+        except KeyError as exc:
+            raise ConfigValidationError(
+                "polygon_prism requires environment.floor_vertices_local_m and "
+                "environment.height_m."
+            ) from exc
+        return polygon_prism_environment(
+            environment_id=environment_id,
+            floor_vertices_local_m=floor_vertices,
+            height_m=height_m,
+            absorption=raw_environment.get("absorption", 0.35),
+            position_world=position,
+            orientation_world_quat=orientation,
+        )
+    if kind == "surface_set":
+        _reject_unknown_keys(
+            raw_environment,
+            common | {"surfaces"},
+            table="environment",
+        )
+        raw_surfaces = raw_environment.get("surfaces")
+        if not isinstance(raw_surfaces, list) or not raw_surfaces:
+            raise ConfigValidationError(
+                "[[environment.surfaces]] must define at least one surface."
+            )
+        surfaces: list[AcousticSurfaceSpec] = []
+        for index, raw_surface in enumerate(raw_surfaces):
+            if not isinstance(raw_surface, dict):
+                raise ConfigValidationError(
+                    "Each [[environment.surfaces]] entry must be a table."
+                )
+            table = f"environment.surfaces[{index}]"
+            _reject_unknown_keys(
+                raw_surface,
+                {"surface_id", "role", "vertices_local_m", "absorption"},
+                table=table,
+            )
+            try:
+                vertices = tuple(
+                    tuple(vertex) for vertex in raw_surface["vertices_local_m"]
+                )
+            except KeyError as exc:
+                raise ConfigValidationError(
+                    f"{table}.vertices_local_m is required."
+                ) from exc
+            surfaces.append(
+                AcousticSurfaceSpec(
+                    surface_id=_required_str(raw_surface, "surface_id", table=table),
+                    role=_required_str(raw_surface, "role", table=table),
+                    vertices_local_m=vertices,
+                    absorption=raw_surface.get("absorption", 0.35),
+                )
+            )
+        return surface_set_environment(
+            environment_id=environment_id,
+            surfaces=surfaces,
+            position_world=position,
+            orientation_world_quat=orientation,
+        )
+    raise ConfigValidationError(
+        "environment.kind must be free_field, half_space, shoebox, "
+        "polygon_prism, or surface_set."
+    )
+
+
+def _parse_room_acoustics_options(raw_options: Any) -> tuple[int, bool, bool]:
+    if raw_options is None:
+        return 0, False, False
+    if not isinstance(raw_options, dict):
+        raise ConfigValidationError("[audio.room_acoustics] must be a table.")
+    _reject_unknown_keys(
+        raw_options,
+        {"max_order", "air_absorption", "ray_tracing"},
+        table="audio.room_acoustics",
+    )
+    max_order = raw_options.get("max_order", 0)
+    if type(max_order) is not int or max_order < 0:
+        raise ConfigValidationError(
+            "audio.room_acoustics.max_order must be a non-negative integer."
+        )
+    air_absorption = raw_options.get("air_absorption", False)
+    ray_tracing = raw_options.get("ray_tracing", False)
+    if type(air_absorption) is not bool:
+        raise ConfigValidationError(
+            "audio.room_acoustics.air_absorption must be a boolean."
+        )
+    if type(ray_tracing) is not bool:
+        raise ConfigValidationError(
+            "audio.room_acoustics.ray_tracing must be a boolean."
+        )
+    return max_order, air_absorption, ray_tracing
 
 
 def _validate_backend_requirements(
@@ -329,6 +498,7 @@ def _validate_backend_requirements(
     arrays: dict[str, MicrophoneArraySpec],
     ambiguity_policy: str,
     ambiguity_policy_explicit: bool,
+    environment: AcousticEnvironmentSpec | None,
 ) -> None:
     if default_backend == "geometry_only":
         return
@@ -346,6 +516,12 @@ def _validate_backend_requirements(
                 raise ConfigValidationError(
                     "2-mic TDOA configs must select an ambiguity policy."
                 )
+    if default_backend in {"room_acoustics", "room_acoustics_srp"} and (
+        environment is None or environment.kind != "shoebox"
+    ):
+        raise ConfigValidationError(
+            f"{default_backend} requires environment.kind='shoebox' in R7.1."
+        )
 
 
 def _required_table(raw: dict[str, Any], key: str) -> dict[str, Any]:
@@ -360,3 +536,14 @@ def _required_str(raw: dict[str, Any], key: str, *, table: str) -> str:
     if not isinstance(value, str) or value.strip() == "":
         raise ConfigValidationError(f"{table}.{key} must be a non-empty string.")
     return value
+
+
+def _reject_unknown_keys(
+    raw: dict[str, Any],
+    allowed: set[str],
+    *,
+    table: str,
+) -> None:
+    unknown = sorted(set(raw) - allowed)
+    if unknown:
+        raise ConfigValidationError(f"{table} contains unknown keys {unknown!r}.")

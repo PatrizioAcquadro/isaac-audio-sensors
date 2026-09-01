@@ -4,7 +4,11 @@ from copy import deepcopy
 
 import pytest
 
-from isaac_audio_sensors.core.config import build_scene_snapshot, validate_audio_config
+from isaac_audio_sensors.core.config import (
+    build_scene_snapshot,
+    load_audio_config,
+    validate_audio_config,
+)
 from isaac_audio_sensors.core.effects import MotionEffectsConfig
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 
@@ -248,6 +252,202 @@ def test_training_profile_rejects_waveform_export():
 
     with pytest.raises(ConfigValidationError, match="incompatible.*write_waveforms"):
         validate_audio_config(raw)
+
+
+@pytest.mark.parametrize(
+    ("environment", "kind", "surface_count"),
+    (
+        ({"environment_id": "free", "kind": "free_field"}, "free_field", 0),
+        (
+            {
+                "environment_id": "half",
+                "kind": "half_space",
+                "absorption": 0.2,
+            },
+            "half_space",
+            1,
+        ),
+        (
+            {
+                "environment_id": "box",
+                "kind": "shoebox",
+                "dimensions_m": [6.0, 5.0, 3.0],
+                "position_world": [1.0, 2.0, 0.5],
+                "orientation_world_quat": [0.0, 0.0, 0.70710678, 0.70710678],
+            },
+            "shoebox",
+            6,
+        ),
+        (
+            {
+                "environment_id": "prism",
+                "kind": "polygon_prism",
+                "floor_vertices_local_m": [
+                    [0.0, 0.0, 0.0],
+                    [4.0, 0.0, 0.0],
+                    [4.0, 2.0, 0.0],
+                    [0.0, 2.0, 0.0],
+                ],
+                "height_m": 3.0,
+            },
+            "polygon_prism",
+            6,
+        ),
+        (
+            {
+                "environment_id": "surfaces",
+                "kind": "surface_set",
+                "surfaces": [
+                    {
+                        "surface_id": "floor",
+                        "role": "floor",
+                        "vertices_local_m": [
+                            [0.0, 0.0, 0.0],
+                            [2.0, 0.0, 0.0],
+                            [0.0, 2.0, 0.0],
+                        ],
+                        "absorption": 0.4,
+                    }
+                ],
+            },
+            "surface_set",
+            1,
+        ),
+    ),
+)
+def test_config_parses_all_environment_topologies(
+    environment,
+    kind,
+    surface_count,
+) -> None:
+    raw = _raw_config()
+    raw["environment"] = environment
+
+    config = validate_audio_config(raw)
+    scene = build_scene_snapshot(config, timestamp_ms=9)
+
+    assert config.environment is not None
+    assert config.environment.kind == kind
+    assert len(config.environment.surfaces) == surface_count
+    assert scene.environment == config.environment
+
+
+def test_config_parses_room_acoustics_solver_settings() -> None:
+    raw = _raw_config()
+    raw["audio"]["default_backend"] = "room_acoustics"
+    raw["audio"]["tdoa_ambiguity_policy"] = "none"
+    raw["audio"]["room_acoustics"] = {
+        "max_order": 4,
+        "air_absorption": True,
+        "ray_tracing": True,
+    }
+    raw["environment"] = {
+        "environment_id": "box",
+        "kind": "shoebox",
+        "dimensions_m": [6.0, 5.0, 3.0],
+    }
+
+    config = validate_audio_config(raw)
+
+    assert config.room_acoustics_max_order == 4
+    assert config.room_acoustics_air_absorption is True
+    assert config.room_acoustics_ray_tracing is True
+
+
+@pytest.mark.parametrize(
+    ("settings", "message"),
+    (
+        ({"max_order": True}, "max_order"),
+        ({"max_order": -1}, "max_order"),
+        ({"air_absorption": 1}, "air_absorption"),
+        ({"ray_tracing": "yes"}, "ray_tracing"),
+        ({"unknown": 1}, "unknown keys"),
+    ),
+)
+def test_config_rejects_invalid_room_acoustics_solver_settings(
+    settings,
+    message,
+) -> None:
+    raw = _raw_config()
+    raw["audio"]["room_acoustics"] = settings
+
+    with pytest.raises(ConfigValidationError, match=message):
+        validate_audio_config(raw)
+
+
+def test_config_rejects_removed_room_table_and_environment_legacy_keys() -> None:
+    raw = _raw_config()
+    raw["room"] = {"room_id": "legacy", "dimensions_m": [4.0, 4.0, 3.0]}
+    with pytest.raises(ConfigValidationError, match=r"\[room\] was removed"):
+        validate_audio_config(raw)
+
+    raw = _raw_config()
+    raw["environment"] = {
+        "environment_id": "box",
+        "kind": "shoebox",
+        "dimensions_m": [4.0, 4.0, 3.0],
+        "out_of_bounds": "clamp",
+    }
+    with pytest.raises(ConfigValidationError, match="unknown keys.*out_of_bounds"):
+        validate_audio_config(raw)
+
+
+def test_room_backend_rejects_reserved_r8_topology() -> None:
+    raw = _raw_config()
+    raw["audio"]["default_backend"] = "room_acoustics"
+    raw["audio"]["tdoa_ambiguity_policy"] = "none"
+    raw["environment"] = {"environment_id": "free", "kind": "free_field"}
+
+    with pytest.raises(ConfigValidationError, match="kind='shoebox'.*R7.1"):
+        validate_audio_config(raw)
+
+
+def test_toml_surface_set_and_nested_solver_table_round_trip(tmp_path) -> None:
+    path = tmp_path / "surface_set.toml"
+    path.write_text(
+        """
+[scene]
+scene_id = "toml_surface_set"
+
+[audio]
+default_backend = "geometry_only"
+
+[audio.room_acoustics]
+max_order = 2
+air_absorption = true
+ray_tracing = false
+
+[arrays.rig]
+prim_path = "/World/Rig"
+
+[[arrays.rig.microphones]]
+mic_id = "left"
+relative_position_m = [0.0, -0.05, 0.0]
+
+[[arrays.rig.microphones]]
+mic_id = "right"
+relative_position_m = [0.0, 0.05, 0.0]
+
+[environment]
+environment_id = "open"
+kind = "surface_set"
+
+[[environment.surfaces]]
+surface_id = "floor"
+role = "floor"
+vertices_local_m = [[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [0.0, 2.0, 0.0]]
+absorption = 0.3
+""",
+        encoding="utf-8",
+    )
+
+    config = load_audio_config(path)
+
+    assert config.environment is not None
+    assert config.environment.kind == "surface_set"
+    assert config.room_acoustics_max_order == 2
+    assert config.room_acoustics_air_absorption is True
+    assert config.room_acoustics_ray_tracing is False
 
 
 def _raw_config() -> dict:

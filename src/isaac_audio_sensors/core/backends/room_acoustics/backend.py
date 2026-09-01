@@ -49,6 +49,9 @@ class RoomAcousticsBackend:
         gcc_phat_interp: int = 8,
         waveform_writer: WaveformSink | None = None,
         doa_estimator: str = "tdoa_least_squares",
+        max_order: int = 0,
+        air_absorption: bool = False,
+        ray_tracing: bool = False,
         effects: EffectsConfig | None = None,
         runtime_profile: str = "waveform_fidelity",
         window_motion: WindowMotionPlan | None = None,
@@ -61,12 +64,23 @@ class RoomAcousticsBackend:
             raise ValueError(
                 f"doa_estimator must be one of {sorted(DOA_ESTIMATOR_IDS)}."
             )
+        if isinstance(max_order, bool) or not isinstance(max_order, int):
+            raise TypeError("max_order must be an integer.")
+        if max_order < 0:
+            raise ValueError("max_order must be non-negative.")
+        if not isinstance(air_absorption, bool):
+            raise TypeError("air_absorption must be a boolean.")
+        if not isinstance(ray_tracing, bool):
+            raise TypeError("ray_tracing must be a boolean.")
         _import_pyroomacoustics()
         self.speed_of_sound_mps = float(speed_of_sound_mps)
         self.ambiguity_policy = ambiguity_policy
         self.gcc_phat_interp = int(gcc_phat_interp)
         self.waveform_writer = waveform_writer
         self.doa_estimator = doa_estimator
+        self.max_order = max_order
+        self.air_absorption = air_absorption
+        self.ray_tracing = ray_tracing
         self.effects = EffectsConfig() if effects is None else effects
         self.runtime_profile = runtime_profile
         self.window_motion = window_motion
@@ -96,6 +110,9 @@ class RoomAcousticsBackend:
             backend_id=self.backend_id,
             effects=self.effects,
             runtime_profile=self.runtime_profile,
+            max_order=self.max_order,
+            air_absorption=self.air_absorption,
+            ray_tracing=self.ray_tracing,
             window_motion=self.window_motion,
             import_pyroomacoustics=_import_pyroomacoustics,
         )

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from types import MappingProxyType
 
 import pytest
 
+from isaac_audio_sensors.core.acoustics.environments import shoebox_environment
 from isaac_audio_sensors.core.acoustics.materials import (
     LEGACY_MATERIAL_ALIASES,
     MATERIAL_BAND_CENTERS_HZ,
@@ -16,7 +16,6 @@ from isaac_audio_sensors.core.acoustics.materials import (
     resolve_material_coefficients,
 )
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
-from isaac_audio_sensors.core.types import RoomAcousticsSpec
 from isaac_audio_sensors.isaac.occlusion import (
     DEFAULT_MATERIAL_TRANSMISSION_DB,
     UsdTransmissionLossResolver,
@@ -114,16 +113,21 @@ def test_family_resolution_propagates_evidence_without_promotion():
         )
 
 
-def test_room_spec_accepts_only_resolvable_absorption_material_ids():
-    room = RoomAcousticsSpec(
-        room_id="material_room",
+def test_environment_accepts_only_resolvable_absorption_material_ids():
+    environment = shoebox_environment(
+        environment_id="material_room",
         dimensions_m=(6.0, 6.0, 3.0),
         absorption="pra.rough_concrete",
-        max_order=1,
     )
-    assert room.absorption == "pra.rough_concrete"
+    assert {surface.absorption for surface in environment.surfaces} == {
+        "pra.rough_concrete"
+    }
     with pytest.raises(ValueError, match="Unknown material id 'missing'"):
-        replace(room, absorption="missing")
+        shoebox_environment(
+            environment_id="material_room",
+            dimensions_m=(6.0, 6.0, 3.0),
+            absorption="missing",
+        )
 
 
 class _Prim:

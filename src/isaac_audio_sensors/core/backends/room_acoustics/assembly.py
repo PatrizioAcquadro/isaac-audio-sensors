@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
+    _environment_material_resolution,
+    _environment_state_hash,
     _occluder_material_evidence,
-    _room_material_resolution,
-    _room_state_hash,
 )
 from isaac_audio_sensors.core.backends.room_acoustics.preparation import (
     PreparedRoomFrame,
@@ -44,15 +44,20 @@ def assemble_frame(
             for mic_index, mic_id in enumerate(prepared.mic_ids)
         }
     )
+    environment = prepared.scene.environment
+    assert environment is not None
     frame_diagnostics: dict[str, Any] = {
         "backend": backend_id,
         "active_source_count": len(detections),
-        "scheduled_source_ids": tuple(
-            source.source_id for source in prepared.active
-        ),
+        "scheduled_source_ids": tuple(source.source_id for source in prepared.active),
         "physical_waveform": True,
-        "room_id": prepared.scene.room.room_id,
-        "room_config": prepared.room_config,
+        "environment_id": environment.environment_id,
+        "environment_config": prepared.environment_config,
+        "room_acoustics_options": {
+            "max_order": prepared.max_order,
+            "air_absorption": prepared.air_absorption,
+            "ray_tracing": prepared.ray_tracing,
+        },
         "pyroomacoustics_version": getattr(
             prepared.pra,
             "__version__",
@@ -68,21 +73,23 @@ def assemble_frame(
         ),
         "window_sample_count": prepared.window_sample_count,
         "doa_estimator": doa_estimator,
-        "room_clamped_position_ids": rendered.clamped_position_ids,
         "per_source_rir_summary": per_source_rir_summary,
         "per_source_rir_length_samples": {
             source_id: summary["rir_length_samples"]
             for source_id, summary in per_source_rir_summary.items()
         },
     }
-    if isinstance(prepared.scene.room.absorption, str) or prepared.scene.occlusion:
-        room_resolution = _room_material_resolution(prepared.scene.room)
+    if (
+        any(isinstance(surface.absorption, str) for surface in environment.surfaces)
+        or prepared.scene.occlusion
+    ):
+        environment_resolution = _environment_material_resolution(environment)
         material_evidence = {
-            "room": room_resolution[1],
+            "environment": environment_resolution[1],
             **_occluder_material_evidence(prepared.scene),
         }
         frame_diagnostics["acoustics_state"] = {
-            "room_state_hash": _room_state_hash(prepared.scene.room),
+            "environment_state_hash": _environment_state_hash(environment),
             "material_evidence": material_evidence,
         }
     effect_diagnostics = dict(rendered.effect_diagnostics)

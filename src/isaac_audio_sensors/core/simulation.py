@@ -38,10 +38,20 @@ def simulate_from_config(
         "effects": config.effects,
         "runtime_profile": config.runtime_profile,
     }
-    if selected_backend in {"tdoa_synthetic", "room_acoustics"}:
+    if selected_backend in {
+        "tdoa_synthetic",
+        "room_acoustics",
+        "room_acoustics_srp",
+    }:
         backend_kwargs.update(
             speed_of_sound_mps=config.speed_of_sound_mps,
             ambiguity_policy=config.tdoa_ambiguity_policy,
+        )
+    if selected_backend in {"room_acoustics", "room_acoustics_srp"}:
+        backend_kwargs.update(
+            max_order=config.room_acoustics_max_order,
+            air_absorption=config.room_acoustics_air_absorption,
+            ray_tracing=config.room_acoustics_ray_tracing,
         )
     backend = get_backend(selected_backend, **backend_kwargs)
     return backend.simulate(scene, selected_array, time_window)

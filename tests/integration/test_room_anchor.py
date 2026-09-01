@@ -1,4 +1,4 @@
-"""Scene-anchored room derivation, placement, and out-of-bounds policy."""
+"""Environment-frame placement and fail-closed room-backend tests."""
 
 from __future__ import annotations
 
@@ -6,38 +6,44 @@ import math
 
 import pytest
 
-from isaac_audio_sensors.core.acoustics.rooms import room_spec_from_bounds
+from isaac_audio_sensors.core.acoustics import (
+    environment_to_world_point,
+    free_field_environment,
+    half_space_environment,
+    polygon_prism_environment,
+    shoebox_environment,
+    shoebox_environment_from_bounds,
+    surface_set_environment,
+    world_to_environment_point,
+)
 from isaac_audio_sensors.core.backends.room_acoustics import RoomAcousticsBackend
-from isaac_audio_sensors.core.constants import ROOM_CLAMP_MARGIN_M
+from isaac_audio_sensors.core.math_utils import quaternion_from_euler_deg
 from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
     microphone_world_positions,
 )
 from isaac_audio_sensors.core.types import (
+    AcousticEnvironmentSpec,
+    AcousticSurfaceSpec,
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
-    RoomAcousticsSpec,
 )
-from tests.helpers import (
-    FakeShoeBox as _FakeShoeBox,
-)
-from tests.helpers import (
-    install_fake_pyroom as _install_fake_pyroom,
-)
+from tests.helpers import FakeShoeBox, install_fake_pyroom
 
-ROOM_MIN_WORLD = (2.0, 1.0, 0.0)
-ROOM_MAX_WORLD = (8.0, 5.0, 3.0)
+ENVIRONMENT_MIN_WORLD = (2.0, 1.0, 0.0)
+ENVIRONMENT_MAX_WORLD = (8.0, 5.0, 3.0)
 ARRAY_POSITION = (4.0, 3.0, 1.5)
 SOURCE_POSITION = (6.0, 2.0, 1.0)
 
 
-def _array(position=ARRAY_POSITION):
+def _array(position=ARRAY_POSITION, orientation=(0.0, 0.0, 0.0, 1.0)):
     return create_microphone_array(
         array_id="rig",
         prim_path="/World/Rig/AudioArray",
         layout_name="quad_front",
         position_world=position,
+        orientation_world_quat=orientation,
     )
 
 
@@ -55,26 +61,28 @@ def _source(position=SOURCE_POSITION) -> AudioSourceSpec:
     )
 
 
-def _anchored_room(*, out_of_bounds: str = "error") -> RoomAcousticsSpec:
-    return room_spec_from_bounds(
-        min_world=ROOM_MIN_WORLD,
-        max_world=ROOM_MAX_WORLD,
-        room_id="anchored_room",
+def _environment() -> AcousticEnvironmentSpec:
+    return shoebox_environment_from_bounds(
+        min_world=ENVIRONMENT_MIN_WORLD,
+        max_world=ENVIRONMENT_MAX_WORLD,
+        environment_id="bounded_environment",
         absorption=0.35,
-        max_order=1,
-        out_of_bounds=out_of_bounds,
-        anchor_prim_path="/World/Room",
     )
 
 
-def _scene(room: RoomAcousticsSpec, source=None) -> AudioSceneSnapshot:
-    array = _array()
+def _scene(
+    environment: AcousticEnvironmentSpec | None,
+    *,
+    source: AudioSourceSpec | None = None,
+    array=None,
+) -> AudioSceneSnapshot:
+    selected_array = _array() if array is None else array
     return AudioSceneSnapshot(
-        stage_id="room_anchor_test",
+        stage_id="environment_backend_test",
         timestamp_ms=0,
-        sources=(source or _source(),),
-        arrays=(array,),
-        room=room,
+        sources=((_source() if source is None else source),),
+        arrays=(selected_array,),
+        environment=environment,
     )
 
 
@@ -87,71 +95,153 @@ def _window() -> AudioTimeWindow:
     )
 
 
-def test_room_anchored_mic_wall_distances_match_stage_geometry(monkeypatch):
-    """Room-space positions must preserve true distances to the stage walls."""
-
-    _install_fake_pyroom(monkeypatch)
-    room = _anchored_room()
+def test_world_aligned_environment_preserves_stage_distances(monkeypatch) -> None:
+    install_fake_pyroom(monkeypatch)
+    environment = _environment()
     array = _array()
-    scene = _scene(room)
 
-    frame = RoomAcousticsBackend().simulate(scene, array.array_id, _window())
+    frame = RoomAcousticsBackend(max_order=1).simulate(
+        _scene(environment, array=array),
+        array.array_id,
+        _window(),
+    )
 
-    shoebox = _FakeShoeBox.instances[-1]
+    shoebox = FakeShoeBox.instances[-1]
     assert tuple(shoebox.dimensions) == (6.0, 4.0, 3.0)
     detection = frame.detections[0]
-    mic_room = detection.diagnostics["room_microphone_positions_m"]
+    mic_local = detection.diagnostics["environment_microphone_positions_m"]
     for mic_id, world in microphone_world_positions(array).items():
         for axis in range(3):
-            room_position = mic_room[mic_id][axis]
-            # The distance to the low/high wall on each axis must equal the
-            # mic's true distance to the stage-authored bounding planes.
-            assert room_position == pytest.approx(world[axis] - ROOM_MIN_WORLD[axis])
-            assert room.dimensions_m[axis] - room_position == pytest.approx(
-                ROOM_MAX_WORLD[axis] - world[axis]
+            local_position = mic_local[mic_id][axis]
+            assert local_position == pytest.approx(
+                world[axis] - ENVIRONMENT_MIN_WORLD[axis]
             )
-    source_room = detection.diagnostics["room_source_position_m"]
+            assert environment.dimensions_m[axis] - local_position == pytest.approx(
+                ENVIRONMENT_MAX_WORLD[axis] - world[axis]
+            )
+    source_local = detection.diagnostics["environment_source_position_m"]
     for axis in range(3):
-        assert source_room[axis] == pytest.approx(
-            SOURCE_POSITION[axis] - ROOM_MIN_WORLD[axis]
+        assert source_local[axis] == pytest.approx(
+            SOURCE_POSITION[axis] - ENVIRONMENT_MIN_WORLD[axis]
         )
     for mic_id, world in microphone_world_positions(array).items():
         expected_delay = math.dist(SOURCE_POSITION, world) / 343.0
-        assert detection.diagnostics["direct_path_delay_s"][mic_id] == (
-            pytest.approx(expected_delay)
+        assert detection.diagnostics["direct_path_delay_s"][mic_id] == pytest.approx(
+            expected_delay
         )
-    assert frame.diagnostics["room_clamped_position_ids"] == ()
-    room_config = frame.diagnostics["room_config"]
-    assert room_config["origin_m"] == ROOM_MIN_WORLD
-    assert room_config["anchor_prim_path"] == "/World/Room"
-    assert room_config["out_of_bounds"] == "error"
+    assert frame.diagnostics["environment_config"]["position_world"] == (
+        ENVIRONMENT_MIN_WORLD
+    )
 
 
-def test_room_out_of_bounds_error_names_offending_prim(monkeypatch):
-    _install_fake_pyroom(monkeypatch)
-    scene = _scene(_anchored_room(), source=_source((9.0, 2.0, 1.0)))
+def test_rotated_and_inclined_shoebox_uses_environment_local_coordinates(
+    monkeypatch,
+) -> None:
+    install_fake_pyroom(monkeypatch)
+    orientation = quaternion_from_euler_deg(
+        roll_deg=20.0,
+        pitch_deg=-15.0,
+        yaw_deg=55.0,
+    )
+    environment = shoebox_environment(
+        environment_id="posed",
+        dimensions_m=(7.0, 5.0, 3.0),
+        position_world=(3.0, -2.0, 1.0),
+        orientation_world_quat=orientation,
+    )
+    array_local = (2.0, 2.0, 1.2)
+    source_local = (5.0, 2.0, 1.2)
+    array = _array(
+        position=environment_to_world_point(environment, array_local),
+        orientation=orientation,
+    )
+    source = _source(environment_to_world_point(environment, source_local))
+
+    frame = RoomAcousticsBackend().simulate(
+        _scene(environment, source=source, array=array),
+        array.array_id,
+        _window(),
+    )
+
+    detection = frame.detections[0]
+    assert detection.diagnostics["environment_source_position_m"] == pytest.approx(
+        source_local
+    )
+    expected_mics = {
+        mic_id: world_to_environment_point(environment, position)
+        for mic_id, position in microphone_world_positions(array).items()
+    }
+    actual_mics = detection.diagnostics["environment_microphone_positions_m"]
+    for mic_id, expected in expected_mics.items():
+        assert actual_mics[mic_id] == pytest.approx(expected)
+    assert tuple(FakeShoeBox.instances[-1].sources[0][0]) == pytest.approx(source_local)
+
+
+@pytest.mark.parametrize(
+    ("scene", "offending_id"),
+    (
+        (_scene(_environment(), source=_source((9.0, 2.0, 1.0))), "source:speaker"),
+        (_scene(_environment(), array=_array(position=(9.0, 3.0, 1.5))), "mic:"),
+    ),
+)
+def test_out_of_bounds_positions_always_error(
+    monkeypatch,
+    scene,
+    offending_id,
+) -> None:
+    install_fake_pyroom(monkeypatch)
 
     with pytest.raises(ValueError) as excinfo:
         RoomAcousticsBackend().simulate(scene, "rig", _window())
 
     message = str(excinfo.value)
-    assert "source:speaker" in message
-    assert "(9.0, 2.0, 1.0)" in message
-    assert "anchored_room" in message
-    assert "/World/Room" in message
+    assert offending_id in message
+    assert "outside shoebox environment" in message
+    assert "bounded_environment" in message
 
 
-def test_room_out_of_bounds_clamp_pulls_inside_and_reports(monkeypatch):
-    _install_fake_pyroom(monkeypatch)
-    scene = _scene(
-        _anchored_room(out_of_bounds="clamp"),
-        source=_source((9.0, 2.0, 1.0)),
-    )
+@pytest.mark.parametrize(
+    "environment",
+    (
+        free_field_environment(environment_id="free"),
+        half_space_environment(environment_id="half"),
+        polygon_prism_environment(
+            environment_id="prism",
+            floor_vertices_local_m=(
+                (0.0, 0.0, 0.0),
+                (3.0, 0.0, 0.0),
+                (0.0, 3.0, 0.0),
+            ),
+            height_m=2.5,
+        ),
+        surface_set_environment(
+            environment_id="surfaces",
+            surfaces=(
+                AcousticSurfaceSpec(
+                    surface_id="floor",
+                    role="floor",
+                    vertices_local_m=(
+                        (0.0, 0.0, 0.0),
+                        (3.0, 0.0, 0.0),
+                        (0.0, 3.0, 0.0),
+                    ),
+                ),
+            ),
+        ),
+    ),
+)
+def test_room_backend_reserves_non_shoebox_topologies_for_r8(
+    monkeypatch,
+    environment,
+) -> None:
+    install_fake_pyroom(monkeypatch)
 
-    frame = RoomAcousticsBackend().simulate(scene, "rig", _window())
+    with pytest.raises(ValueError, match="requires environment.kind='shoebox'.*R8"):
+        RoomAcousticsBackend().simulate(_scene(environment), "rig", _window())
 
-    assert frame.diagnostics["room_clamped_position_ids"] == ("source:speaker",)
-    source_room = frame.detections[0].diagnostics["room_source_position_m"]
-    assert source_room[0] == pytest.approx(6.0 - ROOM_CLAMP_MARGIN_M)
-    assert source_room[1] == pytest.approx(1.0)
-    assert source_room[2] == pytest.approx(1.0)
+
+def test_room_backend_requires_environment(monkeypatch) -> None:
+    install_fake_pyroom(monkeypatch)
+
+    with pytest.raises(ValueError, match="scene.environment"):
+        RoomAcousticsBackend().simulate(_scene(None), "rig", _window())

@@ -67,9 +67,11 @@ def assemble_detections(
     if not prepared.active:
         return detections, per_source_rir_summary
 
+    environment = prepared.scene.environment
+    assert environment is not None
     assert rendered.room is not None
     max_delay = (
-        _max_microphone_spacing(rendered.microphone_room_positions)
+        _max_microphone_spacing(rendered.microphone_environment_positions)
         / speed_of_sound_mps
         + 0.002
     )
@@ -78,9 +80,7 @@ def assemble_detections(
             mic_id: rendered.premix[index, mic_index]
             for mic_index, mic_id in enumerate(prepared.mic_ids)
         }
-        signals_active = all(
-            np.any(waveform) for waveform in source_waveforms.values()
-        )
+        signals_active = all(np.any(waveform) for waveform in source_waveforms.values())
         if signals_active:
             tdoa_matrix, gcc_peaks = estimate_tdoa_diagnostics(
                 source_waveforms,
@@ -102,7 +102,7 @@ def assemble_detections(
             gcc_peaks = {key: 0.0 for key in tdoa_matrix}
             per_mic_delay_s = {mic_id: 0.0 for mic_id in prepared.mic_ids}
         per_mic_rms = rms_by_channel(source_waveforms)
-        source_room = rendered.source_room_positions[source.source_id]
+        source_environment = rendered.source_environment_positions[source.source_id]
         rir_length_samples = _rir_lengths(
             rendered.room,
             prepared.mic_ids,
@@ -120,8 +120,8 @@ def assemble_detections(
         direct_path_delay_s = {
             mic_id: norm(
                 subtract(
-                    source_room,
-                    rendered.microphone_room_positions[mic_id],
+                    source_environment,
+                    rendered.microphone_environment_positions[mic_id],
                 )
             )
             / speed_of_sound_mps
@@ -157,8 +157,7 @@ def assemble_detections(
         )
         oracle_elevation_error = (
             None
-            if doa.estimated_elevation_deg is None
-            or ground_truth_elevation is None
+            if doa.estimated_elevation_deg is None or ground_truth_elevation is None
             else abs(doa.estimated_elevation_deg - ground_truth_elevation)
         )
         occlusion = prepared.scene.occlusion_for(
@@ -193,13 +192,14 @@ def assemble_detections(
                 diagnostics={
                     "backend": backend_id,
                     "physical_waveform": True,
-                    "room_id": prepared.scene.room.room_id,
-                    "room_config": prepared.room_config,
-                    "room_dimensions_m": prepared.scene.room.dimensions_m,
-                    "absorption": prepared.scene.room.absorption,
-                    "max_order": prepared.scene.room.max_order,
-                    "air_absorption": prepared.scene.room.air_absorption,
-                    "ray_tracing": prepared.scene.room.ray_tracing,
+                    "environment_id": environment.environment_id,
+                    "environment_config": prepared.environment_config,
+                    "environment_dimensions_m": (environment.dimensions_m),
+                    "room_acoustics_options": {
+                        "max_order": prepared.max_order,
+                        "air_absorption": prepared.air_absorption,
+                        "ray_tracing": prepared.ray_tracing,
+                    },
                     "pyroomacoustics_version": getattr(
                         prepared.pra,
                         "__version__",
@@ -253,9 +253,9 @@ def assemble_detections(
                         if source.source_id in rendered.doppler_factors
                         else {}
                     ),
-                    "room_source_position_m": source_room,
-                    "room_microphone_positions_m": (
-                        rendered.microphone_room_positions
+                    "environment_source_position_m": source_environment,
+                    "environment_microphone_positions_m": (
+                        rendered.microphone_environment_positions
                     ),
                     **occlusion_detection_diagnostics(occlusion, prepared.mic_ids),
                 },
@@ -266,8 +266,10 @@ def assemble_detections(
             "rir_peak_delay_s": rir_peak_delay_s,
             "waveform_sample_count": waveform_sample_count,
             "source_waveform_mode": rendered.scheduled[index].mode,
-            "room_source_position_m": source_room,
-            "room_microphone_positions_m": rendered.microphone_room_positions,
+            "environment_source_position_m": source_environment,
+            "environment_microphone_positions_m": (
+                rendered.microphone_environment_positions
+            ),
         }
     return detections, per_source_rir_summary
 

@@ -25,6 +25,8 @@ ALLOWED_DEPENDENCIES = {
 PUBLIC_API_V3 = {
     "isaac_audio_sensors": ("__version__",),
     "isaac_audio_sensors.core": (
+        "AcousticEnvironmentSpec",
+        "AcousticSurfaceSpec",
         "AudioDetection",
         "AudioSceneSnapshot",
         "AudioSensorFrame",
@@ -35,7 +37,6 @@ PUBLIC_API_V3 = {
         "MicrophoneArraySpec",
         "MicrophoneSpec",
         "Pose3D",
-        "RoomAcousticsSpec",
         "SourceOcclusion",
     ),
     "isaac_audio_sensors.recording": (

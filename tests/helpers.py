@@ -5,6 +5,7 @@ import types
 
 import numpy as np
 
+from isaac_audio_sensors.core.acoustics.environments import shoebox_environment
 from isaac_audio_sensors.core.io.waveforms import WaveformWriteResult
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.motion import (
@@ -16,7 +17,6 @@ from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
-    RoomAcousticsSpec,
 )
 
 SAMPLE_RATE_HZ = 48_000
@@ -182,12 +182,11 @@ def room_scene(*sources: AudioSourceSpec, array):
         timestamp_ms=0,
         sources=sources,
         arrays=(array,),
-        room=RoomAcousticsSpec(
-            room_id="unit_room",
+        environment=shoebox_environment(
+            environment_id="unit_room",
             dimensions_m=(6.0, 5.0, 3.0),
             absorption=0.35,
-            max_order=1,
-            origin_m=(-1.5, -1.0, -1.5),
+            position_world=(-1.5, -1.0, -1.5),
         ),
     )
 
@@ -249,11 +248,10 @@ def motion_room_fixture():
         timestamp_ms=0,
         sources=(source("source", (2.0, 2.0, 1.0)),),
         arrays=(array,),
-        room=RoomAcousticsSpec(
-            room_id="room",
+        environment=shoebox_environment(
+            environment_id="room",
             dimensions_m=(8.0, 6.0, 3.0),
             absorption=0.35,
-            max_order=0,
         ),
     )
     window = AudioTimeWindow(

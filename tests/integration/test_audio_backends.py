@@ -8,6 +8,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
+from isaac_audio_sensors.core.acoustics.environments import shoebox_environment
 from isaac_audio_sensors.core.backends.geometry import GeometryBackend
 from isaac_audio_sensors.core.backends.room_acoustics import (
     RoomAcousticsBackend,
@@ -20,7 +21,6 @@ from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
-    RoomAcousticsSpec,
 )
 from tests.helpers import FakeShoeBox, install_fake_pyroom
 
@@ -52,12 +52,11 @@ def _room_scene_with_sources(*sources: AudioSourceSpec, array):
         timestamp_ms=0,
         sources=sources,
         arrays=(array,),
-        room=RoomAcousticsSpec(
-            room_id="unit_room",
+        environment=shoebox_environment(
+            environment_id="unit_room",
             dimensions_m=(6.0, 5.0, 3.0),
             absorption=0.35,
-            max_order=1,
-            origin_m=(-1.5, -1.0, -1.5),
+            position_world=(-1.5, -1.0, -1.5),
         ),
     )
 
@@ -155,29 +154,34 @@ def test_room_acoustics_fake_pyroom_path_uses_waveforms(monkeypatch) -> None:
         array=array,
     )
 
-    frame = RoomAcousticsBackend().simulate(scene, array.array_id, _window())
+    frame = RoomAcousticsBackend(max_order=1).simulate(scene, array.array_id, _window())
     detection = frame.detections[0]
 
     assert frame.backend_id == "room_acoustics"
     assert frame.diagnostics["physical_waveform"] is True
     assert frame.diagnostics["pyroomacoustics_version"] == "fake-test"
     assert frame.diagnostics["scheduled_source_ids"] == ("speaker",)
-    assert frame.diagnostics["room_config"] == {
-        "room_id": "unit_room",
+    assert frame.diagnostics["environment_config"] == {
+        "environment_id": "unit_room",
+        "kind": "shoebox",
         "dimensions_m": (6.0, 5.0, 3.0),
         "absorption": 0.35,
+        "position_world": (-1.5, -1.0, -1.5),
+        "orientation_world_quat": (0.0, 0.0, 0.0, 1.0),
+        "surface_count": 6,
+    }
+    assert frame.diagnostics["room_acoustics_options"] == {
         "max_order": 1,
         "air_absorption": False,
         "ray_tracing": False,
-        "origin_m": (-1.5, -1.0, -1.5),
-        "out_of_bounds": "error",
-        "anchor_prim_path": None,
     }
-    assert frame.diagnostics["room_clamped_position_ids"] == ()
     assert frame.diagnostics["per_source_rir_summary"]["speaker"]["rir_length_samples"]
     assert detection.diagnostics["physical_waveform"] is True
     assert detection.diagnostics["pyroomacoustics_version"] == "fake-test"
-    assert detection.diagnostics["room_config"] == frame.diagnostics["room_config"]
+    assert (
+        detection.diagnostics["environment_config"]
+        == (frame.diagnostics["environment_config"])
+    )
     assert detection.diagnostics["source_waveform_mode"] == "generated://impulse"
     assert set(detection.diagnostics["rir_length_samples"]) == {
         "front",
@@ -251,8 +255,8 @@ def test_room_acoustics_schedules_multiple_sources(monkeypatch) -> None:
         "room_acoustics_room_backend_test_rig_0_b_second_01"
     )
     assert (
-        first.detections[0].diagnostics["room_microphone_positions_m"]
-        == first.detections[1].diagnostics["room_microphone_positions_m"]
+        first.detections[0].diagnostics["environment_microphone_positions_m"]
+        == first.detections[1].diagnostics["environment_microphone_positions_m"]
     )
 
 

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
-    _room_config_summary,
+    _environment_config_summary,
 )
 from isaac_audio_sensors.core.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.config import EffectsConfig
@@ -46,7 +46,10 @@ class PreparedRoomFrame:
     window_sample_count: int
     pra: Any
     active: tuple[AudioSourceSpec, ...]
-    room_config: dict[str, object]
+    environment_config: dict[str, object]
+    max_order: int
+    air_absorption: bool
+    ray_tracing: bool
     microphone_positions_world: dict[str, Vector3]
     segments_per_window: int
     segment_factor_rows: tuple[dict[str, float], ...]
@@ -60,6 +63,9 @@ def prepare_room_frame(
     backend_id: str,
     effects: EffectsConfig,
     runtime_profile: str,
+    max_order: int,
+    air_absorption: bool,
+    ray_tracing: bool,
     window_motion: WindowMotionPlan | None,
     import_pyroomacoustics: Callable[[], Any],
 ) -> PreparedRoomFrame:
@@ -71,8 +77,13 @@ def prepare_room_frame(
             "unambiguous localization claim"
         )
     validate_tdoa_array(sensor)
-    if scene.room is None:
-        raise ValueError("room_acoustics requires scene.room to be configured.")
+    if scene.environment is None:
+        raise ValueError("room_acoustics requires scene.environment to be configured.")
+    if scene.environment.kind != "shoebox":
+        raise ValueError(
+            "R7.1 room_acoustics requires environment.kind='shoebox'; "
+            f"received {scene.environment.kind!r}. Other solver routing belongs to R8."
+        )
     segments_per_window = effects.motion.segments_per_window
     if segments_per_window > 1 and window_motion is None:
         raise UnsupportedEffectError(
@@ -88,12 +99,9 @@ def prepare_room_frame(
     )
     mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
     sample_rate_hz = time_window.sample_rate_hz
-    nominal_window_start_sample = int(
-        round(time_window.start_time_s * sample_rate_hz)
-    )
+    nominal_window_start_sample = int(round(time_window.start_time_s * sample_rate_hz))
     microphone_self_noise_db = {
-        microphone.mic_id: microphone.self_noise_db
-        for microphone in sensor.microphones
+        microphone.mic_id: microphone.self_noise_db for microphone in sensor.microphones
     }
     microphone_orientations = {
         microphone.mic_id: microphone_world_orientation(
@@ -105,9 +113,7 @@ def prepare_room_frame(
     window_sample_count = max(
         1,
         int(
-            round(
-                (time_window.end_time_s - time_window.start_time_s) * sample_rate_hz
-            )
+            round((time_window.end_time_s - time_window.start_time_s) * sample_rate_hz)
         ),
     )
     if effects != EffectsConfig() or effects.motion.segments_per_window != 1:
@@ -150,7 +156,10 @@ def prepare_room_frame(
         window_sample_count=window_sample_count,
         pra=pra,
         active=active,
-        room_config=_room_config_summary(scene.room),
+        environment_config=_environment_config_summary(scene.environment),
+        max_order=max_order,
+        air_absorption=air_absorption,
+        ray_tracing=ray_tracing,
         microphone_positions_world=microphone_world_positions(sensor),
         segments_per_window=segments_per_window,
         segment_factor_rows=segment_factor_rows,

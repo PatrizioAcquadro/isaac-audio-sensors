@@ -21,23 +21,24 @@ from isaac_audio_sensors.core.math_utils import (
     subtract,
 )
 from isaac_audio_sensors.core.types import (
+    AcousticEnvironmentSpec,
     AudioSceneSnapshot,
     MicrophoneArraySpec,
-    RoomAcousticsSpec,
 )
 
 
-def _room_config_summary(room_spec: RoomAcousticsSpec) -> dict[str, object]:
+def _environment_config_summary(
+    environment: AcousticEnvironmentSpec,
+) -> dict[str, object]:
+    orientation = environment.world_pose.orientation_xyzw
     return {
-        "room_id": room_spec.room_id,
-        "dimensions_m": room_spec.dimensions_m,
-        "absorption": _absorption_summary(room_spec.absorption),
-        "max_order": room_spec.max_order,
-        "air_absorption": room_spec.air_absorption,
-        "ray_tracing": room_spec.ray_tracing,
-        "origin_m": room_spec.origin_m,
-        "out_of_bounds": room_spec.out_of_bounds,
-        "anchor_prim_path": room_spec.anchor_prim_path,
+        "environment_id": environment.environment_id,
+        "kind": environment.kind,
+        "dimensions_m": environment.dimensions_m,
+        "position_world": environment.world_pose.position_m,
+        "orientation_world_quat": orientation,
+        "surface_count": len(environment.surfaces),
+        "absorption": _absorption_summary(_uniform_environment_absorption(environment)),
     }
 
 
@@ -51,28 +52,28 @@ def _absorption_summary(
     return float(absorption)
 
 
-def _room_material_resolution(
-    room_spec: RoomAcousticsSpec,
+def _environment_material_resolution(
+    environment: AcousticEnvironmentSpec,
 ) -> tuple[
     float | dict[str, float] | tuple[float, ...],
     dict[str, str],
     MaterialResolution | None,
 ]:
-    """Return the applied room absorption and its frozen evidence record."""
+    """Return the applied uniform shoebox absorption and evidence record."""
 
-    absorption = room_spec.absorption
+    absorption = _uniform_environment_absorption(environment)
     if isinstance(absorption, str):
         resolution = resolve_material_coefficients(
             absorption,
             "absorption",
-            application=f"room {room_spec.room_id!r}",
+            application=f"environment {environment.environment_id!r}",
         )
         return resolution.values, resolution.evidence_record(), resolution
     if isinstance(absorption, dict):
         return (
             absorption,
             {
-                "material_id": "inline_room_absorption:mapping",
+                "material_id": "inline_environment_absorption:mapping",
                 "coefficient": "absorption",
                 "evidence": "nominal",
             },
@@ -81,7 +82,7 @@ def _room_material_resolution(
     return (
         float(absorption),
         {
-            "material_id": "inline_room_absorption:scalar",
+            "material_id": "inline_environment_absorption:scalar",
             "coefficient": "absorption",
             "evidence": "nominal",
         },
@@ -89,10 +90,10 @@ def _room_material_resolution(
     )
 
 
-def _room_state_hash(room_spec: RoomAcousticsSpec) -> str:
-    """Hash the complete canonical room state."""
+def _environment_state_hash(environment: AcousticEnvironmentSpec) -> str:
+    """Hash the complete canonical acoustic-environment state."""
 
-    applied, evidence, resolution = _room_material_resolution(room_spec)
+    applied, evidence, resolution = _environment_material_resolution(environment)
     if isinstance(applied, dict):
         absorption_payload: object = {
             str(key): float(value) for key, value in sorted(applied.items())
@@ -102,18 +103,24 @@ def _room_state_hash(room_spec: RoomAcousticsSpec) -> str:
     else:
         absorption_payload = [float(applied)] * 6
     state = (
-        room_spec.room_id,
-        room_spec.dimensions_m,
-        room_spec.origin_m,
-        room_spec.out_of_bounds,
-        room_spec.anchor_prim_path,
+        environment.environment_id,
+        environment.kind,
+        environment.world_pose.position_m,
+        environment.world_pose.orientation_xyzw,
+        environment.dimensions_m,
+        tuple(
+            (
+                surface.surface_id,
+                surface.role,
+                surface.vertices_local_m,
+                surface.infinite,
+            )
+            for surface in environment.surfaces
+        ),
         absorption_payload,
         evidence["material_id"],
         evidence["evidence"],
         None if resolution is None else resolution.citation,
-        room_spec.max_order,
-        room_spec.air_absorption,
-        room_spec.ray_tracing,
     )
     encoded = json.dumps(
         state,
@@ -123,6 +130,26 @@ def _room_state_hash(room_spec: RoomAcousticsSpec) -> str:
         allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _uniform_environment_absorption(
+    environment: AcousticEnvironmentSpec,
+) -> float | dict[str, float] | str:
+    if not environment.surfaces:
+        raise ValueError(
+            f"Environment {environment.environment_id!r} has no acoustic surfaces."
+        )
+    absorption = environment.surfaces[0].absorption
+    summary = _absorption_summary(absorption)
+    if any(
+        _absorption_summary(surface.absorption) != summary
+        for surface in environment.surfaces[1:]
+    ):
+        raise ValueError(
+            "R7.1 room_acoustics supports uniform shoebox absorption only; "
+            "per-surface solver routing belongs to R8."
+        )
+    return absorption
 
 
 def _occluder_material_evidence(

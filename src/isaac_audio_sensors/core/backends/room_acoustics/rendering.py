@@ -8,6 +8,9 @@ from typing import Any
 
 import numpy as np
 
+from isaac_audio_sensors.core.acoustics.environments import (
+    world_to_environment_point,
+)
 from isaac_audio_sensors.core.acoustics.materials import (
     MATERIAL_BAND_CENTERS_HZ,
 )
@@ -16,7 +19,7 @@ from isaac_audio_sensors.core.acoustics.occlusion import (
     occlusion_per_mic_extra_gain_db,
 )
 from isaac_audio_sensors.core.backends.room_acoustics.diagnostics import (
-    _room_material_resolution,
+    _environment_material_resolution,
 )
 from isaac_audio_sensors.core.backends.room_acoustics.preparation import (
     PreparedRoomFrame,
@@ -26,9 +29,6 @@ from isaac_audio_sensors.core.backends.room_acoustics.signals import (
     _piecewise_phase_signal,
     _scheduled_window_signal,
     _ScheduledSignal,
-)
-from isaac_audio_sensors.core.constants import (
-    ROOM_CLAMP_MARGIN_M,
 )
 from isaac_audio_sensors.core.directivity import (
     DIRECTIVITY_MODE,
@@ -51,10 +51,10 @@ from isaac_audio_sensors.core.motion import (
 )
 from isaac_audio_sensors.core.motion.doppler import source_doppler_factor
 from isaac_audio_sensors.core.types import (
+    AcousticEnvironmentSpec,
     AudioSourceSpec,
     AudioTimeWindow,
     MicrophoneArraySpec,
-    RoomAcousticsSpec,
 )
 
 
@@ -63,9 +63,8 @@ class _PiecewiseRoomResult:
     premix: np.ndarray
     scheduled: tuple[_ScheduledSignal, ...]
     last_room: Any
-    source_room_positions: dict[str, tuple[float, float, float]]
-    microphone_room_positions: dict[str, tuple[float, float, float]]
-    clamped_position_ids: tuple[str, ...]
+    source_environment_positions: dict[str, tuple[float, float, float]]
+    microphone_environment_positions: dict[str, tuple[float, float, float]]
     doppler_factor_by_segment: tuple[dict[str, float], ...]
 
 
@@ -78,9 +77,8 @@ class RenderedRoom:
     doppler_factors: dict[str, float]
     premix: np.ndarray
     mixture: np.ndarray
-    source_room_positions: dict[str, tuple[float, float, float]]
-    microphone_room_positions: dict[str, tuple[float, float, float]]
-    clamped_position_ids: tuple[str, ...]
+    source_environment_positions: dict[str, tuple[float, float, float]]
+    microphone_environment_positions: dict[str, tuple[float, float, float]]
     effect_diagnostics: dict[str, Any]
     segment_factor_rows: tuple[dict[str, float], ...]
 
@@ -108,9 +106,8 @@ def render_room(
                 dtype=float,
             ),
             mixture=mixture,
-            source_room_positions={},
-            microphone_room_positions={},
-            clamped_position_ids=(),
+            source_environment_positions={},
+            microphone_environment_positions={},
             effect_diagnostics={},
             segment_factor_rows=prepared.segment_factor_rows,
         )
@@ -120,20 +117,22 @@ def render_room(
         assert window_motion is not None
         piecewise = _simulate_piecewise_room(
             pra=prepared.pra,
-            room_spec=prepared.scene.room,
+            environment=prepared.scene.environment,
             active=prepared.active,
             sensor=prepared.sensor,
             time_window=prepared.time_window,
             plan=window_motion,
             speed_of_sound_mps=speed_of_sound_mps,
+            max_order=prepared.max_order,
+            air_absorption=prepared.air_absorption,
+            ray_tracing=prepared.ray_tracing,
         )
         room = piecewise.last_room
         scheduled = piecewise.scheduled
         doppler_factors: dict[str, float] = {}
         premix = piecewise.premix
-        source_room_positions = piecewise.source_room_positions
-        microphone_room_positions = piecewise.microphone_room_positions
-        clamped_position_ids = piecewise.clamped_position_ids
+        source_environment_positions = piecewise.source_environment_positions
+        microphone_environment_positions = piecewise.microphone_environment_positions
         segment_factor_rows = piecewise.doppler_factor_by_segment
     else:
         source_positions = {
@@ -144,22 +143,26 @@ def render_room(
             f"mic:{mic_id}": position
             for mic_id, position in prepared.microphone_positions_world.items()
         }
-        room_positions, clamped_position_ids = _world_to_room_positions(
-            room_spec=prepared.scene.room,
+        environment_positions = _world_to_environment_positions(
+            environment=prepared.scene.environment,
             positions={**source_positions, **microphone_positions},
         )
-        source_room_positions = {
-            source.source_id: room_positions[f"source:{source.source_id}"]
+        source_environment_positions = {
+            source.source_id: environment_positions[f"source:{source.source_id}"]
             for source in prepared.active
         }
-        microphone_room_positions = {
-            mic_id: room_positions[f"mic:{mic_id}"] for mic_id in prepared.mic_ids
+        microphone_environment_positions = {
+            mic_id: environment_positions[f"mic:{mic_id}"]
+            for mic_id in prepared.mic_ids
         }
         room = _build_shoebox_room(
             pra=prepared.pra,
-            room_spec=prepared.scene.room,
+            environment=prepared.scene.environment,
             sample_rate_hz=prepared.sample_rate_hz,
             speed_of_sound_mps=speed_of_sound_mps,
+            max_order=prepared.max_order,
+            air_absorption=prepared.air_absorption,
+            ray_tracing=prepared.ray_tracing,
         )
         scheduled_list: list[_ScheduledSignal] = []
         doppler_factors = {}
@@ -184,15 +187,12 @@ def render_room(
                     )
             scheduled_list.append(signal)
             room.add_source(
-                source_room_positions[source.source_id],
+                source_environment_positions[source.source_id],
                 signal=signal.signal,
             )
         scheduled = tuple(scheduled_list)
         mic_matrix = np.asarray(
-            [
-                microphone_room_positions[mic_id]
-                for mic_id in prepared.mic_ids
-            ],
+            [microphone_environment_positions[mic_id] for mic_id in prepared.mic_ids],
             dtype=float,
         ).T
         _add_microphone_array(
@@ -237,9 +237,8 @@ def render_room(
         doppler_factors=doppler_factors,
         premix=premix,
         mixture=mixture,
-        source_room_positions=source_room_positions,
-        microphone_room_positions=microphone_room_positions,
-        clamped_position_ids=clamped_position_ids,
+        source_environment_positions=source_environment_positions,
+        microphone_environment_positions=microphone_environment_positions,
         effect_diagnostics=effect_diagnostics,
         segment_factor_rows=segment_factor_rows,
     )
@@ -351,12 +350,15 @@ def apply_room_effects(
 def _simulate_piecewise_room(
     *,
     pra: Any,
-    room_spec: RoomAcousticsSpec,
+    environment: AcousticEnvironmentSpec,
     active: tuple[AudioSourceSpec, ...],
     sensor: MicrophoneArraySpec,
     time_window: AudioTimeWindow,
     plan: WindowMotionPlan,
     speed_of_sound_mps: float,
+    max_order: int,
+    air_absorption: bool,
+    ray_tracing: bool,
 ) -> _PiecewiseRoomResult:
     """Simulate segment midpoint geometry and overlap-add every RIR tail."""
 
@@ -412,10 +414,9 @@ def _simulate_piecewise_room(
         (len(active), len(mic_ids), plan.window_sample_count),
         dtype=float,
     )
-    clamped: set[str] = set()
     last_room: Any = None
-    last_source_room: dict[str, tuple[float, float, float]] = {}
-    last_mic_room: dict[str, tuple[float, float, float]] = {}
+    last_source_environment: dict[str, tuple[float, float, float]] = {}
+    last_mic_environment: dict[str, tuple[float, float, float]] = {}
     for segment in plan.segments:
         array_position = segment.entities[sensor.array_id].midpoint_position_world_m
         segment_sensor = replace(sensor, position_world=array_position)
@@ -439,30 +440,36 @@ def _simulate_piecewise_room(
         microphone_positions = {
             f"mic:{mic_id}": position for mic_id, position in mic_world.items()
         }
-        room_positions, clamped_ids = _world_to_room_positions(
-            room_spec=room_spec,
+        environment_positions = _world_to_environment_positions(
+            environment=environment,
             positions={**source_positions, **microphone_positions},
         )
-        clamped.update(clamped_ids)
-        source_room = {
-            source.source_id: room_positions[f"source:{source.source_id}"]
+        source_environment = {
+            source.source_id: environment_positions[f"source:{source.source_id}"]
             for source in active
         }
-        mic_room = {mic_id: room_positions[f"mic:{mic_id}"] for mic_id in mic_ids}
+        mic_environment = {
+            mic_id: environment_positions[f"mic:{mic_id}"] for mic_id in mic_ids
+        }
         room = _build_shoebox_room(
             pra=pra,
-            room_spec=room_spec,
+            environment=environment,
             sample_rate_hz=plan.sample_rate_hz,
             speed_of_sound_mps=speed_of_sound_mps,
+            max_order=max_order,
+            air_absorption=air_absorption,
+            ray_tracing=ray_tracing,
         )
         for source in active:
             room.add_source(
-                source_room[source.source_id],
+                source_environment[source.source_id],
                 signal=rendered[source.source_id][
                     segment.start_sample : segment.end_sample
                 ],
             )
-        mic_matrix = np.asarray([mic_room[mic_id] for mic_id in mic_ids], dtype=float).T
+        mic_matrix = np.asarray(
+            [mic_environment[mic_id] for mic_id in mic_ids], dtype=float
+        ).T
         _add_microphone_array(
             pra,
             room,
@@ -495,15 +502,14 @@ def _simulate_piecewise_room(
             segment.start_sample : required,
         ] += segment_premix
         last_room = room
-        last_source_room = source_room
-        last_mic_room = mic_room
+        last_source_environment = source_environment
+        last_mic_environment = mic_environment
     return _PiecewiseRoomResult(
         premix=assembled,
         scheduled=scheduled,
         last_room=last_room,
-        source_room_positions=last_source_room,
-        microphone_room_positions=last_mic_room,
-        clamped_position_ids=tuple(sorted(clamped)),
+        source_environment_positions=last_source_environment,
+        microphone_environment_positions=last_mic_environment,
         doppler_factor_by_segment=tuple(factor_rows),
     )
 
@@ -553,11 +559,15 @@ def _import_pyroomacoustics() -> Any:
 def _build_shoebox_room(
     *,
     pra: Any,
-    room_spec: RoomAcousticsSpec,
+    environment: AcousticEnvironmentSpec,
     sample_rate_hz: int,
     speed_of_sound_mps: float,
+    max_order: int,
+    air_absorption: bool,
+    ray_tracing: bool,
 ) -> Any:
-    absorption, _evidence, resolution = _room_material_resolution(room_spec)
+    authored_absorption = environment.surfaces[0].absorption
+    absorption, _evidence, resolution = _environment_material_resolution(environment)
     if resolution is not None:
         absorption = {
             "description": resolution.description,
@@ -568,18 +578,19 @@ def _build_shoebox_room(
     kwargs: dict[str, Any] = {
         "fs": sample_rate_hz,
         "materials": materials,
-        "max_order": room_spec.max_order,
-        "air_absorption": room_spec.air_absorption,
-        "ray_tracing": room_spec.ray_tracing,
+        "max_order": max_order,
+        "air_absorption": air_absorption,
+        "ray_tracing": ray_tracing,
         "c": speed_of_sound_mps,
     }
     while True:
         try:
-            return pra.ShoeBox(room_spec.dimensions_m, **kwargs)
+            assert environment.dimensions_m is not None
+            return pra.ShoeBox(environment.dimensions_m, **kwargs)
         except TypeError as exc:
             removed = False
             optional_keys = ("c", "ray_tracing", "air_absorption")
-            if not isinstance(room_spec.absorption, str):
+            if not isinstance(authored_absorption, str):
                 optional_keys = (*optional_keys, "materials")
             for optional_key in optional_keys:
                 if optional_key in kwargs:
@@ -647,59 +658,36 @@ def _simulate_premix(
     return premix
 
 
-def _world_to_room_positions(
+def _world_to_environment_positions(
     *,
-    room_spec: RoomAcousticsSpec,
+    environment: AcousticEnvironmentSpec,
     positions: dict[str, tuple[float, float, float]],
-) -> tuple[dict[str, tuple[float, float, float]], tuple[str, ...]]:
-    """Translate world positions into the room's corner-origin frame.
+) -> dict[str, tuple[float, float, float]]:
+    """Transform world positions into the shoebox-local solver frame."""
 
-    The room is anchored in world space at ``room_spec.origin_m``; positions
-    outside ``[origin, origin + dimensions]`` follow the spec's out-of-bounds
-    policy: ``"error"`` raises naming the offending entity, ``"clamp"`` pulls
-    it just inside the nearest wall and reports it.
-    """
-
-    dimensions = room_spec.dimensions_m
-    origin = room_spec.origin_m
-    room_positions: dict[str, tuple[float, float, float]] = {}
-    clamped_ids: list[str] = []
+    dimensions = environment.dimensions_m
+    assert dimensions is not None
+    environment_positions: dict[str, tuple[float, float, float]] = {}
     for key, position in positions.items():
-        room_position = [float(position[axis] - origin[axis]) for axis in range(3)]
+        environment_position = world_to_environment_point(environment, position)
         out_of_bounds = any(
-            room_position[axis] < 0.0 or room_position[axis] > dimensions[axis]
+            environment_position[axis] < 0.0
+            or environment_position[axis] > dimensions[axis]
             for axis in range(3)
         )
         if out_of_bounds:
-            if room_spec.out_of_bounds == "clamp":
-                room_position = [
-                    min(
-                        max(room_position[axis], ROOM_CLAMP_MARGIN_M),
-                        dimensions[axis] - ROOM_CLAMP_MARGIN_M,
-                    )
-                    for axis in range(3)
-                ]
-                clamped_ids.append(key)
-            else:
-                anchor = (
-                    f" (room anchored to {room_spec.anchor_prim_path!r})"
-                    if room_spec.anchor_prim_path is not None
-                    else ""
-                )
-                max_corner = tuple(origin[axis] + dimensions[axis] for axis in range(3))
-                raise ValueError(
-                    f"room_acoustics position {key!r} at world "
-                    f"{tuple(float(value) for value in position)} is outside "
-                    f"room {room_spec.room_id!r} world bounds "
-                    f"[{room_spec.origin_m}, {max_corner}]{anchor}. Move the "
-                    "prim inside the room or set out_of_bounds='clamp'."
-                )
-        room_positions[key] = (
-            room_position[0],
-            room_position[1],
-            room_position[2],
+            raise ValueError(
+                f"room_acoustics position {key!r} at world "
+                f"{tuple(float(value) for value in position)} maps to local "
+                f"{environment_position}, outside shoebox environment "
+                f"{environment.environment_id!r} bounds [(0, 0, 0), {dimensions}]."
+            )
+        environment_positions[key] = (
+            environment_position[0],
+            environment_position[1],
+            environment_position[2],
         )
-    return room_positions, tuple(clamped_ids)
+    return environment_positions
 
 
 def _max_microphone_spacing(

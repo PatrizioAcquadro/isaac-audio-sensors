@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from isaac_audio_sensors.core.directivity import DirectivityPattern
 from isaac_audio_sensors.core.types import (
+    AcousticEnvironmentSpec,
+    AcousticSurfaceSpec,
     AudioDetection,
     AudioSceneSnapshot,
     AudioSensorFrame,
@@ -13,11 +15,12 @@ from isaac_audio_sensors.core.types import (
     MicrophoneArraySpec,
     MicrophoneSpec,
     Pose3D,
-    RoomAcousticsSpec,
     SourceOcclusion,
 )
 
 __all__ = [
+    "AcousticEnvironmentSpec",
+    "AcousticSurfaceSpec",
     "AudioDetection",
     "AudioSceneSnapshot",
     "AudioSensorFrame",
@@ -28,6 +31,5 @@ __all__ = [
     "MicrophoneArraySpec",
     "MicrophoneSpec",
     "Pose3D",
-    "RoomAcousticsSpec",
     "SourceOcclusion",
 ]
