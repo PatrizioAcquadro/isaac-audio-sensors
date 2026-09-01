@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -38,7 +37,6 @@ from isaac_audio_sensors.core.directivity import (
 )
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import EffectsConfig
-from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.gain import db_to_amplitude_gain
 from isaac_audio_sensors.core.math_utils import (
     norm,
@@ -702,16 +700,6 @@ def _apply_entity_directivity_to_premix(
             )
             output[source_index, mic_index] *= gain
     return output
-
-
-def _import_pyroomacoustics() -> Any:
-    try:
-        return importlib.import_module("pyroomacoustics")
-    except ImportError as exc:
-        raise OptionalDependencyUnavailable(
-            "analytic_acoustics closed-room solvers require the optional 'room' extra "
-            "(pyroomacoustics, scipy, and soundfile)."
-        ) from exc
 
 
 def _build_shoebox_room(

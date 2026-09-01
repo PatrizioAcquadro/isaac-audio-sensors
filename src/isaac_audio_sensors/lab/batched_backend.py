@@ -6,7 +6,6 @@ from dataclasses import dataclass
 
 import torch
 
-from isaac_audio_sensors.core.backends.amplitude import DISTANCE_FLOOR_M
 from isaac_audio_sensors.core.constants import (
     DEFAULT_SPEED_OF_SOUND_MPS,
     EPSILON,
@@ -14,6 +13,8 @@ from isaac_audio_sensors.core.constants import (
 )
 from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 from isaac_audio_sensors.lab.entity_binding import EntityPoseTensorBatch
+
+_DISTANCE_FLOOR_M = 0.1
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -121,7 +122,7 @@ def _source_amplitudes(
     amplitude = (
         batch.static.source_gain_scale.view(1, -1, 1)
         * directivity
-        / torch.clamp(distance, min=DISTANCE_FLOOR_M)
+        / torch.clamp(distance, min=_DISTANCE_FLOOR_M)
         * batch.static.mic_gain_scale.view(1, 1, -1)
     )
     return amplitude
@@ -138,31 +139,6 @@ def _quat_mul(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
             lw * rw - lx * rx - ly * ry - lz * rz,
         ),
         dim=-1,
-    )
-
-
-def geometry_observations(batch: EntityPoseTensorBatch) -> BatchedObservations:
-    basis = basis_from_quat_xyzw(batch.array_quats_xyzw)
-    delta = batch.source_positions - batch.array_positions.unsqueeze(1)
-    components = torch.einsum("nsd,nkd->nsk", delta, basis)
-    forward = components[..., 0]
-    right = components[..., 1]
-    distance = torch.linalg.vector_norm(delta, dim=-1)
-    horizontal = torch.hypot(forward, right)
-    bearing, valid = _bearing(forward, right)
-    confidence = torch.where(
-        valid & (distance > 0.0),
-        horizontal / torch.clamp(distance, min=EPSILON),
-        torch.zeros_like(distance),
-    )
-    mic_world = _mic_world_positions(
-        batch.array_positions, basis, batch.static.mic_offsets_local
-    )
-    return BatchedObservations(
-        bearing_deg=bearing,
-        confidence=confidence,
-        ambiguity=torch.zeros_like(valid),
-        per_mic_rms=_source_amplitudes(batch, mic_world),
     )
 
 

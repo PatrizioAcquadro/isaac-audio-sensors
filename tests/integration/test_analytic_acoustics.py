@@ -14,9 +14,6 @@ from isaac_audio_sensors.core.acoustics.environments import (
     shoebox_environment,
     surface_set_environment,
 )
-from isaac_audio_sensors.core.backends._analytic.rendering import (
-    _apply_band_attenuation,
-)
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.effects.validation import UnsupportedEffectError
@@ -402,19 +399,25 @@ def test_pyroom_band_occlusion_filters_only_the_direct_stem(monkeypatch) -> None
     direct = _pad_samples(direct, sample_count)
     full = _pad_samples(full, sample_count)
     occluded = _pad_samples(occluded, sample_count)
-    expected = np.stack(
-        [
-            _apply_band_attenuation(
-                direct[mic_index],
-                sample_rate_hz=SAMPLE_RATE_HZ,
-                band_centers_hz=OCCLUSION_BAND_CENTERS_HZ,
-                band_attenuation_db=bands,
-            )
-            + (full[mic_index] - direct[mic_index])
-            for mic_index in range(direct.shape[0])
-        ]
-    )
-    np.testing.assert_allclose(occluded, expected, rtol=0.0, atol=1e-15)
+    frequencies = np.fft.rfftfreq(sample_count, d=1.0 / SAMPLE_RATE_HZ)
+    direct_spectrum = np.fft.rfft(direct, axis=1)
+    full_spectrum = np.fft.rfft(full, axis=1)
+    occluded_spectrum = np.fft.rfft(occluded, axis=1)
+    centers = np.asarray(OCCLUSION_BAND_CENTERS_HZ)
+    for center_hz in centers:
+        bin_index = int(np.argmin(np.abs(frequencies - center_hz)))
+        frequency_hz = frequencies[bin_index]
+        expected_loss_db = np.interp(
+            np.log2(frequency_hz), np.log2(centers), bands
+        )
+        expected = (
+            direct_spectrum[:, bin_index] * 10.0 ** (-expected_loss_db / 20.0)
+            + full_spectrum[:, bin_index]
+            - direct_spectrum[:, bin_index]
+        )
+        np.testing.assert_allclose(
+            occluded_spectrum[:, bin_index], expected, rtol=1e-12, atol=1e-12
+        )
 
 
 def test_pyroom_uses_requested_sound_speed_and_fails_closed(monkeypatch) -> None:
