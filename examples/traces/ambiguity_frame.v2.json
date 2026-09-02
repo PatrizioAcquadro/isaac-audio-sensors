@@ -157,8 +157,8 @@
       },
       "doa": {
         "ambiguity_class": "ambiguous_front_back",
-        "ambiguity_reason": "Two-mic linear TDOA cannot distinguish mirrored front/back bearings without an explicit prior.",
-        "bearing_confidence": 0.35,
+        "ambiguity_reason": "Two-microphone TDOA has two azimuth bearings mirrored across the microphone baseline.",
+        "bearing_confidence": 0.0,
         "bearing_sector": null,
         "candidate_bearing_deg": [
           21.964973704480506,
@@ -195,7 +195,6 @@
   ],
   "diagnostics": {
     "active_source_count": 1,
-    "ambiguity_policy": "none",
     "analytic_acoustics_options": {
       "air_absorption": false,
       "max_order": 2,

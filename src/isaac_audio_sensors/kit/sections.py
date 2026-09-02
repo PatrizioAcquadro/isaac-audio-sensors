@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .constants import (
-    AMBIGUITY_POLICY_CHOICES,
     BACKEND_CHOICES,
     DIRECTIVITY_CHOICES,
     DOA_ESTIMATOR_CHOICES,
@@ -723,7 +722,6 @@ def build_control_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
     with window._subsection("Sensor Settings & Debug"):
         window._combo_row("Backend", "backend", BACKEND_CHOICES)
-        window._combo_row("Ambiguity", "ambiguity_policy", AMBIGUITY_POLICY_CHOICES)
         window._combo_row("DOA Estimator", "doa_estimator", DOA_ESTIMATOR_CHOICES)
         window._float_row("Period s", "update_period_s")
         window._int_row("Max Detections", "max_detections")

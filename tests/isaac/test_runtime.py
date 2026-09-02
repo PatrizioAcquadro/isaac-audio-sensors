@@ -94,7 +94,6 @@ def test_reference_backend_resolves_selected_array_from_each_snapshot() -> None:
 
     reference = ReferenceBackend(
         backend_id="analytic_acoustics",
-        ambiguity_policy="none",
         max_detections=8,
         effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         snapshots=(snapshot,),
@@ -115,7 +114,6 @@ def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:
     with pytest.raises(KeyError, match="AudioSceneSnapshot has no array 'missing'"):
         ReferenceBackend(
             backend_id="analytic_acoustics",
-            ambiguity_policy="none",
             max_detections=8,
             effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
             snapshots=(_snapshot(array, ()),),
@@ -274,7 +272,6 @@ def test_analytic_entity_and_reference_paths_match_with_rms_selection():
     )
     reference = ReferenceBackend(
         backend_id=backend_id,
-        ambiguity_policy="none",
         max_detections=1,
         effects=AudioArraySensorCfg(
             prim_path="/World/Audio", backend=backend_id
@@ -625,7 +622,6 @@ def _reference_mode_rms(
         )
     reference = ReferenceBackend(
         backend_id=backend_id,
-        ambiguity_policy="none",
         max_detections=1,
         effects=AudioArraySensorCfg(
             prim_path="/World/Audio",

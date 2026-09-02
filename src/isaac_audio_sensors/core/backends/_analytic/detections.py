@@ -57,7 +57,6 @@ def assemble_detections(
     *,
     backend_id: str,
     speed_of_sound_mps: float,
-    ambiguity_policy: str,
     gcc_phat_interp: int,
     doa_estimator: str,
 ) -> tuple[list[AudioDetection], dict[str, dict[str, object]]]:
@@ -145,7 +144,6 @@ def assemble_detections(
             signals_active=signals_active,
             doa_estimator=doa_estimator,
             speed_of_sound_mps=speed_of_sound_mps,
-            ambiguity_policy=ambiguity_policy,
             gcc_phat_interp=gcc_phat_interp,
         )
         oracle_bearing_error = (
@@ -311,7 +309,6 @@ def _estimate_source_doa(
     signals_active: bool,
     doa_estimator: str,
     speed_of_sound_mps: float,
-    ambiguity_policy: str,
     gcc_phat_interp: int,
 ) -> tuple[DoaEstimate, dict[str, Any]]:
     """Dispatch the configured waveform-domain DOA estimator."""
@@ -358,7 +355,6 @@ def _estimate_source_doa(
             sensor=sensor,
             per_mic_delay_s=per_mic_delay_s,
             speed_of_sound_mps=speed_of_sound_mps,
-            ambiguity_policy=ambiguity_policy,
         ),
         diagnostics,
     )

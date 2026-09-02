@@ -19,12 +19,10 @@ class GccPhatLeastSquaresEstimator:
         self,
         *,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-        ambiguity_policy: str = "none",
         interp: int = 8,
         max_delay_margin_s: float = 0.002,
     ) -> None:
         self.speed_of_sound_mps = float(speed_of_sound_mps)
-        self.ambiguity_policy = ambiguity_policy
         self.interp = int(interp)
         self.max_delay_margin_s = float(max_delay_margin_s)
 
@@ -65,7 +63,6 @@ class GccPhatLeastSquaresEstimator:
             sensor=sensor,
             per_mic_delay_s=per_mic_delay_s,
             speed_of_sound_mps=self.speed_of_sound_mps,
-            ambiguity_policy=self.ambiguity_policy,
         )
         return result, {
             "doa_estimator": "tdoa_least_squares",

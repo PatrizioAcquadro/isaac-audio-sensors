@@ -57,8 +57,8 @@ def srp_phat_direction(
     """
 
     mic_ids = tuple(waveforms)
-    if len(mic_ids) < 2:
-        raise ValueError("srp_phat requires at least two microphones.")
+    if len(mic_ids) < 3:
+        raise ValueError("srp_phat requires at least three microphones.")
     missing = [mic_id for mic_id in mic_ids if mic_id not in mic_positions_m]
     if missing:
         raise ValueError(f"mic_positions_m is missing microphone ids {missing}.")
@@ -79,6 +79,11 @@ def srp_phat_direction(
         mic_id: np.asarray(mic_positions_m[mic_id], dtype=float)
         for mic_id in mic_ids
     }
+    xy = np.asarray([positions[mic_id][:2] for mic_id in mic_ids], dtype=float)
+    if int(np.linalg.matrix_rank(xy[1:] - xy[0])) < 2:
+        raise ValueError(
+            "srp_phat requires at least three non-collinear microphones in local XY."
+        )
     demeaned: dict[str, np.ndarray] = {}
     for mic_id in mic_ids:
         wave = np.asarray(waveforms[mic_id], dtype=float).reshape(-1)

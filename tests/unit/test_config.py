@@ -232,12 +232,44 @@ def test_tdoa_config_requires_two_microphones():
         validate_audio_config(raw)
 
 
-def test_two_microphone_tdoa_config_requires_explicit_ambiguity_policy():
+def test_two_microphone_tdoa_config_needs_no_contextual_policy():
     raw = _raw_config()
-    raw["audio"].pop("tdoa_ambiguity_policy")
 
-    with pytest.raises(ValueError, match="ambiguity policy"):
+    config = validate_audio_config(raw)
+
+    assert len(config.arrays["rig"].microphones) == 2
+    assert not hasattr(config, "tdoa_ambiguity_policy")
+
+
+def test_removed_tdoa_ambiguity_policy_fails_explicitly():
+    raw = _raw_config()
+    raw["audio"]["tdoa_ambiguity_policy"] = "front_hemisphere"
+
+    with pytest.raises(ConfigValidationError, match="was removed"):
         validate_audio_config(raw)
+
+
+def test_unique_azimuth_config_rejects_collinear_three_mic_array():
+    raw = _raw_config()
+    raw["arrays"]["rig"]["microphones"].append(
+        {"mic_id": "far_right", "relative_position_m": [0.0, 0.16, 0.0]}
+    )
+
+    with pytest.raises(ConfigValidationError, match="non-collinear"):
+        validate_audio_config(raw)
+
+
+def test_srp_config_requires_three_non_collinear_microphones():
+    raw = _raw_config()
+    raw["audio"]["doa_estimator"] = "srp_phat"
+
+    with pytest.raises(ConfigValidationError, match="at least 3 microphones"):
+        validate_audio_config(raw)
+
+    raw["arrays"]["rig"]["microphones"].append(
+        {"mic_id": "front", "relative_position_m": [0.08, 0.0, 0.0]}
+    )
+    assert validate_audio_config(raw).doa_estimator == "srp_phat"
 
 
 def test_runtime_profile_defaults_to_waveform_fidelity():
@@ -468,7 +500,6 @@ def test_analytic_config_accepts_routed_topologies(
     raw = _raw_config()
     raw["audio"].update(
         default_backend="analytic_acoustics",
-        tdoa_ambiguity_policy="none",
         analytic_acoustics={"max_order": max_order},
     )
     raw["environment"] = environment
@@ -532,7 +563,6 @@ def test_analytic_config_rejects_unsupported_solver_combinations(
     raw = _raw_config()
     raw["audio"].update(
         default_backend="analytic_acoustics",
-        tdoa_ambiguity_policy="none",
         analytic_acoustics=settings,
     )
     raw["environment"] = environment
@@ -550,7 +580,6 @@ scene_id = "toml_surface_set"
 
 [audio]
 default_backend = "analytic_acoustics"
-tdoa_ambiguity_policy = "none"
 
 [audio.analytic_acoustics]
 max_order = 2
@@ -591,7 +620,6 @@ def _raw_config() -> dict:
             "scene": {"scene_id": "fixture"},
             "audio": {
                 "default_backend": "analytic_acoustics",
-                "tdoa_ambiguity_policy": "none",
             },
             "environment": {
                 "environment_id": "fixture_free_field",

@@ -24,7 +24,6 @@ from isaac_audio_sensors.kit.constants import ENVIRONMENT_MODE_CHOICES
 
 from .results import ValidationFinding
 
-_AMBIGUITY_POLICY_CHOICES = ("front_hemisphere", "none")
 _LAYOUT_CHOICES = (
     "quad_front",
     "quad_cross",
@@ -39,7 +38,6 @@ class ValidationState(Protocol):
     """Structural subset of ``ExtensionUiState`` consumed by the checks."""
 
     backend: str
-    ambiguity_policy: str
     doa_estimator: str
     update_period_s: float
     max_detections: int
@@ -125,12 +123,6 @@ def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]
             "backend_supported",
             f"Backend {state.backend!r} is not an implemented v1 backend.",
             "backend",
-        )
-    if state.ambiguity_policy not in _AMBIGUITY_POLICY_CHOICES:
-        return _error(
-            "ambiguity_policy_supported",
-            f"Ambiguity policy {state.ambiguity_policy!r} is not supported.",
-            "ambiguity_policy",
         )
     if state.doa_estimator not in DOA_ESTIMATOR_IDS:
         return _error(
@@ -610,10 +602,10 @@ def check_environment_resolution(
 
 
 def check_config_schema_version(value: object) -> tuple[ValidationFinding, ...]:
-    if value != "ias.omni_extension_binding.v4":
+    if value != "ias.omni_extension_binding.v5":
         return _error(
             "config_schema_version_supported",
-            "Config import requires schema_version 'ias.omni_extension_binding.v4'; "
+            "Config import requires schema_version 'ias.omni_extension_binding.v5'; "
             "older bindings have no compatibility path.",
             "schema_version",
         )

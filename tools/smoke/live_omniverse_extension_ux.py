@@ -171,7 +171,6 @@ EXPECTED_BOOL_FIELDS = (
     "waveform_enabled",
 )
 EXPECTED_COMBO_FIELDS = (
-    "ambiguity_policy",
     "backend",
     "layout_name",
     "selected_profile_id",

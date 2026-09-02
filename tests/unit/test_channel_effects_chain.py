@@ -38,10 +38,10 @@ def _base_raw() -> dict[str, object]:
                 "prim_path": "/World/Rig",
                 "sample_rate_hz": SAMPLE_RATE_HZ,
                 "microphones": [
-                    {"mic_id": "front"},
-                    {"mic_id": "right"},
-                    {"mic_id": "rear"},
-                    {"mic_id": "left"},
+                    {"mic_id": "front", "relative_position_m": [0.05, 0.0, 0.0]},
+                    {"mic_id": "right", "relative_position_m": [0.0, 0.05, 0.0]},
+                    {"mic_id": "rear", "relative_position_m": [-0.05, 0.0, 0.0]},
+                    {"mic_id": "left", "relative_position_m": [0.0, -0.05, 0.0]},
                 ],
             }
         },

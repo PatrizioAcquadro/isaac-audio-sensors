@@ -26,7 +26,6 @@
   "detections": [],
   "diagnostics": {
     "active_source_count": 0,
-    "ambiguity_policy": "none",
     "analytic_acoustics_options": {
       "air_absorption": false,
       "max_order": 2,

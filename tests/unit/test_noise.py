@@ -150,7 +150,21 @@ def _base_raw() -> dict[str, object]:
                 "prim_path": "/World/Rig",
                 "sample_rate_hz": SAMPLE_RATE_HZ,
                 "microphones": [
-                    {"mic_id": mic_id, "self_noise_db": -54.0} for mic_id in MIC_IDS
+                    {
+                        "mic_id": mic_id,
+                        "self_noise_db": -54.0,
+                        "relative_position_m": position,
+                    }
+                    for mic_id, position in zip(
+                        MIC_IDS,
+                        (
+                            [0.05, 0.0, 0.0],
+                            [0.0, 0.05, 0.0],
+                            [-0.05, 0.0, 0.0],
+                            [0.0, -0.05, 0.0],
+                        ),
+                        strict=True,
+                    )
                 ],
             }
         },

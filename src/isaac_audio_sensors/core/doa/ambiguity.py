@@ -77,18 +77,5 @@ def two_mic_candidate_bearings(
     return deduplicate_candidate_bearings(tuple(candidates))
 
 
-def choose_front_hemisphere_candidate(candidates: tuple[float, ...]) -> float | None:
-    """Choose the candidate in the local front hemisphere when available."""
-
-    if not candidates:
-        return None
-    front = [
-        candidate for candidate in candidates if candidate <= 90.0 or candidate >= 270.0
-    ]
-    if not front:
-        return candidates[0]
-    return min(front, key=lambda candidate: min(candidate, 360.0 - candidate))
-
-
 def _angular_distance(left: float, right: float) -> float:
     return abs((left - right + 180.0) % 360.0 - 180.0)

@@ -118,12 +118,22 @@ def microphone_world_positions(
 
 
 def validate_tdoa_array(array: MicrophoneArraySpec) -> None:
-    """Validate minimum geometry for the synthetic TDOA backend."""
+    """Validate physically observable azimuth geometry for TDOA localization."""
 
     if len(array.microphones) < 2:
         raise ValueError("TDOA localization requires at least two microphones.")
-    if _layout_rank_xy(array) < 1:
-        raise ValueError("TDOA microphone layout is degenerate.")
+    rank_xy = _layout_rank_xy(array)
+    if len(array.microphones) == 2:
+        if rank_xy < 1:
+            raise ValueError(
+                "Two-microphone TDOA requires distinct positions in local XY."
+            )
+        return
+    if rank_xy < 2:
+        raise ValueError(
+            "Unique azimuth TDOA requires at least three non-collinear "
+            "microphones in local XY."
+        )
 
 
 def layout_rank_xy(array: MicrophoneArraySpec) -> int:

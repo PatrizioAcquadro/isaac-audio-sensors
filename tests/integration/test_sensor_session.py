@@ -56,7 +56,7 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     trace_lines = (tmp_path / "frames.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(trace_lines) == 1
     summary = json.loads(config_path.read_text(encoding="utf-8"))
-    assert summary["schema_version"] == "ias.omni_extension_binding.v4"
+    assert summary["schema_version"] == "ias.omni_extension_binding.v5"
     assert summary["environment"]["mode"] == "manual_free_field"
     assert summary["environment"]["resolved"]["kind"] == "free_field"
     assert summary["array"]["prim_path"] == "/World/Rig/AudioArray"

@@ -90,7 +90,6 @@ class IsaacAudioArraySensor:
     update_period_s: float = 0.05
     max_detections: int | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
-    ambiguity_policy: str = "none"
     doa_estimator: str = "tdoa_least_squares"
     waveform_sink: WaveformSink | None = None
     debug_draw_enabled: bool = False
@@ -247,7 +246,6 @@ class IsaacAudioArraySensor:
         update_period_s: float = 0.05,
         max_detections: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-        ambiguity_policy: str = "none",
         doa_estimator: str = "tdoa_least_squares",
         environment: AcousticEnvironmentSpec | None = None,
         analytic_max_order: int = 0,
@@ -295,7 +293,6 @@ class IsaacAudioArraySensor:
             update_period_s=update_period_s,
             max_detections=max_detections,
             speed_of_sound_mps=speed_of_sound_mps,
-            ambiguity_policy=ambiguity_policy,
             doa_estimator=doa_estimator,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
@@ -320,7 +317,6 @@ class IsaacAudioArraySensor:
         update_period_s: float = 0.05,
         max_detections: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-        ambiguity_policy: str = "none",
         doa_estimator: str = "tdoa_least_squares",
         environment: AcousticEnvironmentSpec | None = None,
         analytic_max_order: int = 0,
@@ -375,7 +371,6 @@ class IsaacAudioArraySensor:
             update_period_s=update_period_s,
             max_detections=max_detections,
             speed_of_sound_mps=speed_of_sound_mps,
-            ambiguity_policy=ambiguity_policy,
             doa_estimator=doa_estimator,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
@@ -615,7 +610,6 @@ class IsaacAudioArraySensor:
             window_motion = self._build_window_motion(scene, sensor, time_window)
         kwargs: dict[str, Any] = {
             "speed_of_sound_mps": self.speed_of_sound_mps,
-            "ambiguity_policy": self.ambiguity_policy,
             "doa_estimator": self.doa_estimator,
             "max_order": self.analytic_max_order,
             "air_absorption": self.analytic_air_absorption,

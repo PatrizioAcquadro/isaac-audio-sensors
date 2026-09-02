@@ -120,10 +120,26 @@ def test_srp_phat_rejects_degenerate_inputs():
     positions = _layout_positions("quad_front")
     waveforms = _plane_wave_waveforms(positions, bearing_deg=0.0, elevation_deg=0.0)
 
-    with pytest.raises(ValueError, match="at least two microphones"):
+    with pytest.raises(ValueError, match="at least three microphones"):
         srp_phat_direction(
             {"front": waveforms["front"]},
             mic_positions_m=positions,
+            sample_rate_hz=SAMPLE_RATE_HZ,
+        )
+    collinear_positions = {
+        "left": (0.0, -0.05, 0.0),
+        "center": (0.0, 0.0, 0.0),
+        "right": (0.0, 0.05, 0.0),
+    }
+    collinear_waveforms = _plane_wave_waveforms(
+        collinear_positions,
+        bearing_deg=0.0,
+        elevation_deg=0.0,
+    )
+    with pytest.raises(ValueError, match="non-collinear"):
+        srp_phat_direction(
+            collinear_waveforms,
+            mic_positions_m=collinear_positions,
             sample_rate_hz=SAMPLE_RATE_HZ,
         )
     with pytest.raises(ValueError, match="missing microphone ids"):

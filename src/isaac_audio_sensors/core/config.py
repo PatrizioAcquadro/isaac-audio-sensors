@@ -26,7 +26,6 @@ from isaac_audio_sensors.core.constants import (
     DEFAULT_SPEED_OF_SOUND_MPS,
     DOA_ESTIMATOR_IDS,
     RUNTIME_PROFILES,
-    TDOA_AMBIGUITY_POLICIES,
 )
 from isaac_audio_sensors.core.effects.config import (
     EffectsConfig,
@@ -37,6 +36,7 @@ from isaac_audio_sensors.core.effects.validation import (
     validate_effects_config,
 )
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
+from isaac_audio_sensors.core.microphone_array import layout_rank_xy
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
     AcousticSurfaceSpec,
@@ -58,7 +58,6 @@ class AudioSensorConfig:
     speed_of_sound_mps: float
     write_waveforms: bool
     waveform_dir: str | None
-    tdoa_ambiguity_policy: str
     doa_estimator: str = "tdoa_least_squares"
     sources: tuple[AudioSourceSpec, ...]
     arrays: dict[str, MicrophoneArraySpec]
@@ -97,6 +96,11 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
                 "audio.sample_rate_hz was removed; configure "
                 "arrays.*.sample_rate_hz."
             )
+        if "tdoa_ambiguity_policy" in audio:
+            raise ConfigValidationError(
+                "audio.tdoa_ambiguity_policy was removed; contextual DOA "
+                "disambiguation belongs in downstream consumers."
+            )
         scene_id = _required_str(scene, "scene_id", table="scene")
         stage_units = str(scene.get("stage_units", "meters"))
         up_axis = str(scene.get("up_axis", "z")).lower()
@@ -128,12 +132,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         )
         if speed_of_sound <= 0.0:
             raise ConfigValidationError("audio.speed_of_sound_mps must be positive.")
-        ambiguity_policy_explicit = "tdoa_ambiguity_policy" in audio
-        ambiguity_policy = str(audio.get("tdoa_ambiguity_policy", "none"))
-        if ambiguity_policy not in TDOA_AMBIGUITY_POLICIES:
-            raise ConfigValidationError(
-                "audio.tdoa_ambiguity_policy must be 'none' or 'front_hemisphere'."
-            )
         doa_estimator = str(audio.get("doa_estimator", "tdoa_least_squares"))
         if doa_estimator not in DOA_ESTIMATOR_IDS:
             raise ConfigValidationError(
@@ -180,8 +178,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         ) = _parse_analytic_acoustics_options(audio.get("analytic_acoustics"))
         _validate_backend_requirements(
             arrays=arrays,
-            ambiguity_policy=ambiguity_policy,
-            ambiguity_policy_explicit=ambiguity_policy_explicit,
             doa_estimator=doa_estimator,
             environment=environment,
             max_order=analytic_max_order,
@@ -200,7 +196,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
                 if audio.get("waveform_dir") is None
                 else str(audio["waveform_dir"])
             ),
-            tdoa_ambiguity_policy=ambiguity_policy,
             doa_estimator=doa_estimator,
             sources=sources,
             arrays=arrays,
@@ -498,8 +493,6 @@ def _parse_analytic_acoustics_options(raw_options: Any) -> tuple[int, bool, bool
 def _validate_backend_requirements(
     *,
     arrays: dict[str, MicrophoneArraySpec],
-    ambiguity_policy: str,
-    ambiguity_policy_explicit: bool,
     doa_estimator: str,
     environment: AcousticEnvironmentSpec,
     max_order: int,
@@ -513,12 +506,16 @@ def _validate_backend_requirements(
                 f"{doa_estimator} requires at least {minimum} microphones "
                 f"for array {array.array_id!r}."
             )
-        if len(array.microphones) == 2 and (
-            not ambiguity_policy_explicit
-            or ambiguity_policy not in TDOA_AMBIGUITY_POLICIES
-        ):
+        rank_xy = layout_rank_xy(array)
+        if len(array.microphones) == 2 and rank_xy < 1:
             raise ConfigValidationError(
-                "2-mic TDOA configs must select an ambiguity policy."
+                f"Two-microphone array {array.array_id!r} requires distinct "
+                "microphone positions in local XY."
+            )
+        if len(array.microphones) >= 3 and rank_xy < 2:
+            raise ConfigValidationError(
+                f"{doa_estimator} requires at least three non-collinear "
+                f"microphones in local XY for array {array.array_id!r}."
             )
     if environment.kind == "surface_set":
         raise ConfigValidationError(

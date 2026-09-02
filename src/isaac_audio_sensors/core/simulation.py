@@ -36,7 +36,6 @@ def simulate_from_config(
     }
     backend_kwargs.update(
         speed_of_sound_mps=config.speed_of_sound_mps,
-        ambiguity_policy=config.tdoa_ambiguity_policy,
         doa_estimator=config.doa_estimator,
         max_order=config.analytic_max_order,
         air_absorption=config.analytic_air_absorption,

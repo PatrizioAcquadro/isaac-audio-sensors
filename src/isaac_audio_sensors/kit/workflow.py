@@ -93,7 +93,6 @@ class SafePreset:
             "lifecycle": {
                 "update_period_s": values["update_period_s"],
                 "max_detections": values["max_detections"],
-                "ambiguity_policy": values["ambiguity_policy"],
                 "doa_estimator": values["doa_estimator"],
             },
         }
@@ -130,7 +129,6 @@ SAFE_PRESETS = (
             "source_directivity": "omni",
             "update_period_s": 0.05,
             "max_detections": 8,
-            "ambiguity_policy": "none",
             "doa_estimator": "tdoa_least_squares",
         },
     ),
@@ -162,7 +160,6 @@ SAFE_PRESETS = (
             "source_directivity": "omni",
             "update_period_s": 0.05,
             "max_detections": 8,
-            "ambiguity_policy": "front_hemisphere",
             "doa_estimator": "tdoa_least_squares",
         },
     ),

@@ -121,7 +121,7 @@ def test_analytic_backend_applies_per_mic_attenuation_independently():
 
 def test_analytic_backend_attenuates_rms_without_changing_delays_or_bearing():
     array = quad_array()
-    backend = AnalyticAcoustics(ambiguity_policy="front_hemisphere")
+    backend = AnalyticAcoustics()
     baseline = backend.simulate(_scene(), array.array_id, time_window()).detections[0]
     attenuated = backend.simulate(
         _scene(occlusion=(_record(),)), array.array_id, time_window()

@@ -78,7 +78,6 @@ class AnalyticAcoustics:
         self,
         *,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-        ambiguity_policy: str = "none",
         gcc_phat_interp: int = 8,
         waveform_writer: WaveformSink | None = None,
         doa_estimator: str = "tdoa_least_squares",
@@ -92,8 +91,6 @@ class AnalyticAcoustics:
     ) -> None:
         if speed_of_sound_mps <= 0.0 or not math.isfinite(speed_of_sound_mps):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
-        if ambiguity_policy not in {"none", "front_hemisphere"}:
-            raise ValueError("ambiguity_policy must be 'none' or 'front_hemisphere'.")
         if doa_estimator not in DOA_ESTIMATOR_IDS:
             raise ValueError(
                 f"doa_estimator must be one of {sorted(DOA_ESTIMATOR_IDS)}."
@@ -111,7 +108,6 @@ class AnalyticAcoustics:
         ):
             raise ValueError("max_detections must be a non-negative integer.")
         self.speed_of_sound_mps = float(speed_of_sound_mps)
-        self.ambiguity_policy = ambiguity_policy
         self.gcc_phat_interp = int(gcc_phat_interp)
         self.waveform_writer = waveform_writer
         self.doa_estimator = doa_estimator
@@ -212,7 +208,6 @@ class AnalyticAcoustics:
             rendered,
             backend_id=self.backend_id,
             speed_of_sound_mps=self.speed_of_sound_mps,
-            ambiguity_policy=self.ambiguity_policy,
             gcc_phat_interp=self.gcc_phat_interp,
             doa_estimator=self.doa_estimator,
         )
@@ -227,7 +222,6 @@ class AnalyticAcoustics:
             per_source_rir_summary,
             backend_id=self.backend_id,
             speed_of_sound_mps=self.speed_of_sound_mps,
-            ambiguity_policy=self.ambiguity_policy,
             doa_estimator=self.doa_estimator,
             waveform_writer=self.waveform_writer,
             window_motion=self.window_motion,

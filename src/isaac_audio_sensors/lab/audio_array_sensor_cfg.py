@@ -11,7 +11,6 @@ from isaac_audio_sensors.core.backends.base import registered_backend_ids
 from isaac_audio_sensors.core.constants import (
     DEFAULT_SPEED_OF_SOUND_MPS,
     DOA_ESTIMATOR_IDS,
-    TDOA_AMBIGUITY_POLICIES,
 )
 from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.lab.audio_array_sensor import AudioArraySensor
@@ -24,7 +23,6 @@ class AudioArraySensorCfg(SensorBaseCfg):
     class_type: type[AudioArraySensor] = AudioArraySensor
     backend: str = "analytic_acoustics"
     max_detections: int = 8
-    ambiguity_policy: str = "none"
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     doa_estimator: str = "tdoa_least_squares"
     analytic_max_order: int = 0
@@ -45,8 +43,6 @@ class AudioArraySensorCfg(SensorBaseCfg):
             raise TypeError("max_detections must be an integer.")
         if self.max_detections < 0:
             raise ValueError("max_detections must be non-negative.")
-        if self.ambiguity_policy not in TDOA_AMBIGUITY_POLICIES:
-            raise ValueError(f"Unknown ambiguity policy {self.ambiguity_policy!r}.")
         if (
             not math.isfinite(float(self.speed_of_sound_mps))
             or self.speed_of_sound_mps <= 0.0

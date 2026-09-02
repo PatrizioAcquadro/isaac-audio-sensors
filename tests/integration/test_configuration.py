@@ -358,9 +358,22 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     )
     assert legacy.import_config_summary(legacy_path) is None
     assert legacy.state.error_message is not None
-    assert "ias.omni_extension_binding.v4" in legacy.state.error_message
+    assert "ias.omni_extension_binding.v5" in legacy.state.error_message
     assert "older bindings have no compatibility path" in legacy.state.error_message
     assert legacy.state.array_id == "rig_front"
+
+
+def test_binding_v5_rejects_removed_ambiguity_policy_before_mutation(tmp_path):
+    controller = ExtensionController()
+    payload = controller.config_summary_dict()
+    payload["array"]["array_id"] = "must_not_apply"
+    payload["lifecycle"]["ambiguity_policy"] = "front_hemisphere"
+    path = tmp_path / "removed_ambiguity_policy.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert controller.import_config_summary(path) is None
+    assert controller.state.array_id == "rig_front"
+    assert "ambiguity_policy" in str(controller.state.error_message)
 
 
 def test_extension_controller_object_local_offset_and_config_roundtrip(tmp_path):

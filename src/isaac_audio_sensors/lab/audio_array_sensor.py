@@ -69,7 +69,6 @@ class AudioArraySensor(SensorBase):
             )
         self._reference_backend = ReferenceBackend(
             backend_id=self.cfg.backend,
-            ambiguity_policy=self.cfg.ambiguity_policy,
             speed_of_sound_mps=float(self.cfg.speed_of_sound_mps),
             doa_estimator=self.cfg.doa_estimator,
             analytic_max_order=int(self.cfg.analytic_max_order),

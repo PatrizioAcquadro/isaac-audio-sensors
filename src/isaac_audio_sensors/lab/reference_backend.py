@@ -24,7 +24,6 @@ class ReferenceBackend:
         self,
         *,
         backend_id: str,
-        ambiguity_policy: str,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         doa_estimator: str = "tdoa_least_squares",
         analytic_max_order: int = 0,
@@ -58,7 +57,6 @@ class ReferenceBackend:
         self.max_detections = max_detections
         kwargs: dict[str, object] = {
             "effects": effects,
-            "ambiguity_policy": ambiguity_policy,
             "speed_of_sound_mps": speed_of_sound_mps,
             "doa_estimator": doa_estimator,
             "max_order": analytic_max_order,

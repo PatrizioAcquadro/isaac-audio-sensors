@@ -144,7 +144,7 @@ class ConfigurationService(ControllerService):
         )
         return _json_ready(
             {
-                "schema_version": "ias.omni_extension_binding.v4",
+                "schema_version": "ias.omni_extension_binding.v5",
                 "backend": state.backend,
                 "environment": {
                     "mode": state.environment_resolution_mode,
@@ -291,7 +291,6 @@ class ConfigurationService(ControllerService):
                 "lifecycle": {
                     "update_period_s": state.update_period_s,
                     "max_detections": state.max_detections,
-                    "ambiguity_policy": state.ambiguity_policy,
                     "doa_estimator": state.doa_estimator,
                     "debug_overlay_enabled": state.debug_overlay_enabled,
                     "occlusion_enabled": state.occlusion_enabled,
@@ -586,9 +585,6 @@ class ConfigurationService(ControllerService):
         self.state.max_detections = int(
             lifecycle.get("max_detections", self.state.max_detections)
         )
-        self.state.ambiguity_policy = str(
-            lifecycle.get("ambiguity_policy", self.state.ambiguity_policy)
-        )
         self.state.doa_estimator = str(
             lifecycle.get("doa_estimator", self.state.doa_estimator)
         )
@@ -784,12 +780,17 @@ class ConfigurationService(ControllerService):
         }.intersection(lifecycle)
         if legacy_keys:
             raise ValueError(
-                "R8.3 binding v4 rejects legacy room lifecycle keys: "
+                "Binding v5 rejects legacy room lifecycle keys: "
                 f"{sorted(legacy_keys)!r}."
+            )
+        if "ambiguity_policy" in lifecycle:
+            raise ValueError(
+                "Binding v5 removed lifecycle.ambiguity_policy; contextual DOA "
+                "disambiguation belongs in downstream consumers."
             )
         if "room_acoustics" in payload:
             raise ValueError(
-                "R8.3 binding v4 removed room_acoustics; use analytic_acoustics."
+                "Binding v5 removed room_acoustics; use analytic_acoustics."
             )
         doa_estimator = lifecycle.get("doa_estimator")
         if doa_estimator not in DOA_ESTIMATOR_IDS:

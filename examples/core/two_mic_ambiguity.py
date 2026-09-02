@@ -34,7 +34,7 @@ scene = AudioSceneSnapshot(
     arrays=(array,),
     environment=free_field_environment(environment_id="ambiguity_free_field"),
 )
-frame = AnalyticAcoustics(ambiguity_policy="none").simulate(
+frame = AnalyticAcoustics().simulate(
     scene,
     array.array_id,
     AudioTimeWindow(

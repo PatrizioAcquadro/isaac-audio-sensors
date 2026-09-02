@@ -135,7 +135,6 @@ class ReplicatorService(ControllerService):
                     "selected_prim_paths": self.state.selected_prim_paths,
                     "update_period_s": self.state.update_period_s,
                     "max_detections": self.state.max_detections,
-                    "ambiguity_policy": self.state.ambiguity_policy,
                     "debug_overlay_enabled": self.state.debug_overlay_enabled,
                     "occlusion_enabled": self.state.occlusion_enabled,
                 },

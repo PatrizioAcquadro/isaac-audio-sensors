@@ -155,7 +155,6 @@ class ExtensionUiState:
     device_id: str = "isaac_sim"
     compute_device: str = "cpu"
     calibration_profile_path: str = ""
-    ambiguity_policy: str = "none"
     doa_estimator: str = "tdoa_least_squares"
     update_period_s: float = 0.05
     max_detections: int = 8

@@ -30,7 +30,6 @@ def assemble_frame(
     *,
     backend_id: str,
     speed_of_sound_mps: float,
-    ambiguity_policy: str,
     doa_estimator: str,
     waveform_writer: WaveformSink | None,
     window_motion: WindowMotionPlan | None,
@@ -66,7 +65,6 @@ def assemble_frame(
         ),
         "speed_of_sound_mps": speed_of_sound_mps,
         "sample_rate_hz": prepared.sample_rate_hz,
-        "ambiguity_policy": ambiguity_policy,
         "max_detections": max_detections,
         "time_window_s": (
             prepared.time_window.start_time_s,

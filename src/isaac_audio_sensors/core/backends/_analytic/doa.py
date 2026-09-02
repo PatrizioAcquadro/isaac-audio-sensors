@@ -7,7 +7,6 @@ import math
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS, EPSILON
 from isaac_audio_sensors.core.doa.ambiguity import (
     TWO_MIC_ENDPOINT_TOLERANCE,
-    choose_front_hemisphere_candidate,
     deduplicate_candidate_bearings,
     two_mic_candidate_bearings,
 )
@@ -22,7 +21,6 @@ def estimate_doa_from_delays(
     sensor: MicrophoneArraySpec,
     per_mic_delay_s: dict[str, float],
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-    ambiguity_policy: str = "none",
 ) -> DoaEstimate:
     """Estimate direction from direct-path per-microphone delays."""
 
@@ -31,7 +29,6 @@ def estimate_doa_from_delays(
             sensor,
             per_mic_delay_s,
             speed_of_sound_mps=speed_of_sound_mps,
-            ambiguity_policy=ambiguity_policy,
         )
     result = least_squares_direction(
         sensor,
@@ -75,7 +72,6 @@ def _estimate_two_mic(
     per_mic_delay_s: dict[str, float],
     *,
     speed_of_sound_mps: float,
-    ambiguity_policy: str,
 ) -> DoaEstimate:
     first, second = sensor.microphones
     baseline = (
@@ -106,30 +102,23 @@ def _estimate_two_mic(
         projection=clamp(projection, -1.0, 1.0),
     )
     if len(candidates) <= 1:
+        bearing = candidates[0] if candidates else None
         return DoaEstimate(
-            estimated_bearing_deg=candidates[0] if candidates else None,
+            estimated_bearing_deg=bearing,
             candidate_bearing_deg=candidates,
-            bearing_confidence=0.9,
-        )
-    if ambiguity_policy == "front_hemisphere":
-        return DoaEstimate(
-            estimated_bearing_deg=choose_front_hemisphere_candidate(candidates),
-            candidate_bearing_deg=candidates,
-            bearing_confidence=0.65,
-            ambiguity_class="front_hemisphere_prior",
-            ambiguity_reason=(
-                "Two-mic TDOA is front/back ambiguous; selected a bearing using "
-                "the explicit front_hemisphere prior."
+            bearing_sector=(
+                None if bearing is None else bearing_deg_to_sector_name(bearing)
             ),
+            bearing_confidence=0.9 if bearing is not None else 0.0,
         )
     return DoaEstimate(
         estimated_bearing_deg=None,
         candidate_bearing_deg=candidates,
-        bearing_confidence=0.35,
+        bearing_confidence=0.0,
         ambiguity_class="ambiguous_front_back",
         ambiguity_reason=(
-            "Two-mic linear TDOA cannot distinguish mirrored front/back bearings "
-            "without an explicit prior."
+            "Two-microphone TDOA has two azimuth bearings mirrored across the "
+            "microphone baseline."
         ),
     )
 

@@ -270,7 +270,7 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics(
             },
         )
     )
-    backend = AnalyticAcoustics(ambiguity_policy="none", effects=effects)
+    backend = AnalyticAcoustics(effects=effects)
     scene = replace(
         _scene(source, array, occlusion=(occlusion,)),
         environment=free_field_environment(environment_id="gain_free_field"),
