@@ -46,31 +46,19 @@ Crossing sources, silence, reverberation, and robot motion can create track swit
 
 Evaluate speech VAD, ODAS, multi-peak localization, beamforming, and source separation as optional plugins when a real use case requires them. Preserve the same final-mixture input boundary and do not make specialized native runtimes mandatory for generic activity and dominant-direction sensing.
 
+For every capability eventually authorized, select the smallest supported implementation and remove rejected experiments, unused models or plugins, placeholders, and their supporting surfaces. Do not retain semantic or multi-source code only for tests or possible future use.
+
 #### Key Decisions
 
 - Speech-focused detection does not replace generic acoustic activity.
 - ODAS is a candidate for optional localization, tracking, and separation rather than a mandatory Core dependency.
 - Multi-source output is added only with honest observability, association, and evaluation semantics.
 - Active ultrasound remains a separate product capability.
+- Each retained future component requires a concrete application and measured value.
 
 #### Problems / Limitations
 
-Semantic and multi-source models add training data, native dependencies, compute, and maintenance. They require separate value evidence rather than inheriting approval from the base perception work.
-
-## Subphase 11.4 — Activated Capability Consolidation and Cleanup
-
-#### Implementation
-
-For each authorized future capability, select the smallest supported implementation and remove rejected experiments, unused models or plugins, placeholders, and their supporting surfaces. Do not retain classifier, tracker, speech, ODAS, beamforming, or separation code only for tests or possible future use.
-
-#### Key Decisions
-
-- Each future component requires a concrete application and measured value.
-- Deferred and experimental capabilities stay outside the production package.
-
-#### Problems / Limitations
-
-Temporary research candidates remain bounded to evaluation and leave production after selection.
+Semantic and multi-source models add data, native dependencies, compute, and maintenance. They require separate value evidence; temporary research candidates remain bounded to evaluation and leave production after selection.
 
 ## Artifacts
 

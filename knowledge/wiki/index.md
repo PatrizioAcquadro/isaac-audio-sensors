@@ -13,7 +13,7 @@
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — align observations and truth without leakage or overlapping maintained dataset models.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — unify simulation and physical capture behind one signal contract and remove duplicate domain paths.
 - [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — migrate to observed fixed tensors and retain execution paths only for distinct validated scale roles.
-- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — sequence reference for implementing canonical R10.1 through R10.4.
+- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — sequence reference for implementing canonical R10.1 through R10.3.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — retain only evidence-backed signal variation with measurable application value.
 - [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate behavior and finish with a consumer-proven minimal, maintainable repository surface.
 - [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] — add no placeholders and retain future semantic capabilities only after application-backed qualification.

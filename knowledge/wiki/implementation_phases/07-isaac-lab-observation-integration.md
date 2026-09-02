@@ -4,67 +4,52 @@ Status: Planned after the scalar observed-perception contract and learning datas
 
 ## Objective
 
-Expose observed activity and direction to robot policies through fixed-shape Isaac Lab tensors without reintroducing scheduled-source truth, source-conditioned RMS, or hidden contextual direction choices. Preserve a scalable training path while retaining scalar waveform perception as the semantic reference.
+Expose observed activity and direction to policies through fixed-shape Isaac Lab tensors without scheduled-source truth, source-conditioned RMS, or hidden direction choices. Preserve scale while keeping scalar waveform perception as the semantic reference.
 
-Plan 07 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: the Lab migration replaces the source-conditioned contract directly and retains multiple execution paths only for distinct validated scale roles.
+Plan 07 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: the Lab migration directly replaces the source-conditioned contract and retains multiple execution paths only for distinct validated roles.
 
 ## Subphase 07.1 — Observation-to-Tensor Contract
 
 #### Implementation
 
-Adapt variable-length `AudioObservation` values into fixed-capacity tensors with explicit validity, optional-DOA, ambiguity, and truncation semantics. Start with one dominant observation per environment so the tensor contract reflects the maintained perception capability rather than pretending to support resolved multi-source audition.
+Adapt variable-length `AudioObservation` values into fixed-capacity tensors with explicit validity, optional-DOA, ambiguity, and truncation semantics. Start with `max_observations = 1` so the tensor reflects dominant-event perception rather than unsupported multi-source resolution.
 
-Policy tensors derive only from observations. Truth events are available to rewards, curricula, and evaluation only through explicit privileged channels owned by the training task.
+Policy tensors derive only from observations. Truth may reach rewards, curricula, or evaluation only through explicit task-owned privileged channels.
 
 #### Key Decisions
 
-- `max_observations = 1` is the initial practical contract.
-- Padding and masks represent missing observations and missing DOA separately.
-- Ground truth never appears in ordinary sensor observation tensors.
-- Any privileged training input is named and configured explicitly outside the sensor observation.
+- Padding and masks distinguish absent observations from absent DOA.
+- Ground truth never enters ordinary sensor observation tensors.
+- Privileged training inputs are explicit and outside the sensor observation.
 
 #### Problems / Limitations
 
-The existing Lab tensors are source-conditioned and include per-source RMS. They require a breaking semantic migration rather than a field rename.
+Existing source-conditioned Lab tensors require a breaking semantic migration, not a field rename.
 
-## Subphase 07.2 — Reference and Scalable Paths
+## Subphase 07.2 — Reference, Scalable, and Stateful Paths
 
 #### Implementation
 
-Use scalar waveform perception as the reference path for semantic correctness. Maintain a CUDA-native scalable path only where it approximates the same observed contract and is required for thousands of environments. Geometry-derived or real-data-derived bounded distributions may substitute for expensive online waveform propagation, but they must not provide exact source truth as if it were sensed.
+Use scalar waveform perception as the semantic reference. Maintain a CUDA-native scalable approximation only where thousands of environments require it, with explicit limits and randomized inputs. Geometry- or real-data-derived distributions may replace expensive online propagation but never appear as exact sensed truth.
+
+Carry detector and DOA context per environment with correct partial reset. Reset only selected environments, prevent cross-environment state leakage, keep latency explicit, and retain temporal buffers on the intended device.
 
 #### Key Decisions
 
 - Reference parity compares observable meaning, not internal algorithms.
-- A scalable approximation is acceptable when its limits and randomized inputs are explicit.
-- CPU fallback does not establish the supported GPU training path.
-- Geometry Acoustics is not required to run independently in every parallel environment.
+- CPU fallback does not validate the supported GPU path.
+- Geometry Acoustics need not run in every parallel environment.
+- Stateful context follows episode lifecycle independently per environment.
 
 #### Problems / Limitations
 
-Mass-parallel feature synthesis may never reproduce the full waveform detector. The policy claim must distinguish feature-domain training from waveform-domain evaluation.
+Feature-domain scale may not reproduce full waveform perception. Context length must balance policy value, memory, latency, and GPU cost.
 
-## Subphase 07.3 — Stateful Reset and Temporal Context
-
-#### Implementation
-
-Carry activity and DOA context per environment while preserving partial reset. Reset noise-floor estimates, rolling windows, and detector state only for selected environments. Keep update latency, device placement, and environment independence explicit.
-
-#### Key Decisions
-
-- Perception state follows Isaac Lab episode lifecycle.
-- One environment cannot contaminate another environment's detector context.
-- Temporal buffers remain on the intended device when the scalable implementation supports them.
-
-#### Problems / Limitations
-
-Stateful signal processing increases memory pressure at scale. Supported context length must balance policy value, latency, and GPU cost.
-
-## Subphase 07.4 — Lab Migration and Cleanup
+## Subphase 07.3 — Lab Migration and Cleanup
 
 #### Implementation
 
-Migrate maintained Isaac Lab consumers to the observed-only tensor contract. Then remove source-conditioned tensors, per-source sensing fields, obsolete bindings, duplicate conversions, compatibility paths, and their unused supporting surfaces. Retain scalar reference and CUDA-native paths only for their distinct correctness and scale roles.
+Migrate maintained Lab consumers to the observed-only contract. Remove source-conditioned tensors, per-source sensing fields, obsolete bindings, duplicate conversions, compatibility paths, and their unused supporting surfaces. Retain scalar and CUDA-native paths only for their distinct correctness and scale roles.
 
 #### Key Decisions
 
@@ -77,7 +62,7 @@ Keep privileged reward or curriculum data only in explicit task-owned channels.
 
 ## Artifacts
 
-Expected artifacts are an observed-only fixed tensor contract, scalar reference semantics, a justified scalable approximation with correct reset behavior, migrated consumers, and removal of the source-conditioned Lab sensor surface.
+Expected artifacts are an observed-only tensor contract, scalar reference semantics, a justified scalable path with correct reset, migrated consumers, and removal of the source-conditioned sensor surface.
 
 ## Files
 

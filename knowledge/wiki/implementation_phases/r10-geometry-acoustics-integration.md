@@ -1,6 +1,6 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: Planned after provider selection and the shared signal and observed-perception migration. [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]] references the R10.1–R10.4 execution order but adds no technical requirements. This page is the sole authority for the geometry integration.
+Status: Planned after provider selection and the shared signal and observed-perception migration. [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]] references the R10.1–R10.3 execution order but adds no technical requirements. This page is the sole authority for the geometry integration.
 
 ## Objective
 
@@ -59,7 +59,7 @@ When the provider exposes ray, path, or interaction diagnostics, adapt them opti
 
 The provider's supported physics define the advanced-fidelity ceiling. Unsupported effects must remain explicit rather than being replaced with undocumented heuristics. Diagnostics retain only actionable provenance, limitations, and observable sensor state; they do not preserve obsolete internal structures for their own sake. A missing provider path-visualization API remains a declared diagnostic limitation rather than a reason to duplicate ray traversal.
 
-## Subphase R10.3 — Operating Boundary
+## Subphase R10.3 — Operating Integration and Cleanup
 
 #### Implementation
 
@@ -69,10 +69,13 @@ Target high-quality operation for one or a few Isaac environments. Expose geomet
 
 Export provider- and scenario-versioned bounded distributions for broadband and banded transmission, blocked-path fraction, sequential-partition count, direct-to-indirect ratio, dominant indirect delay/level, and changes caused by doors or dynamic occluders. Consume those distributions offline through the scalable analytic path completed in R8.3; do not introduce an online geometry-provider dependency into mass-parallel execution. Label the parameters as geometry-derived simulation data rather than measured physical calibration.
 
+After validating the selected provider, remove unselected integrations, temporary R9 scaffolding, redundant geometry, material, or occlusion paths, and their unused supporting surfaces. Retain only the selected geometry integration, the distinct scalable analytic path, and essential requalification tools. Do not keep provider-specific public observations or test-only runtime shortcuts.
+
 #### Key Decisions
 
 - `GeometryAcoustics` is the primary daily high-fidelity Isaac path.
 - `AnalyticAcoustics` remains the scalable Isaac Lab path.
+- One selected geometry provider is the maintained high-fidelity integration.
 - Provider-specific controls remain behind the provider capability boundary.
 - Public perception and dataset contracts remain signal-producer-independent.
 - Geometry-derived distributions transfer bounded behavior, not provider implementation details or raw path traces, into the analytic path.
@@ -80,22 +83,7 @@ Export provider- and scenario-versioned bounded distributions for broadband and 
 
 #### Problems / Limitations
 
-The geometry backend is not required to scale directly to thousands of simultaneous Isaac Lab environments. Transferred distributions approximate the provider's simulated scenario family and do not claim broader physical calibration.
-
-## Subphase R10.4 — Provider Consolidation and Cleanup
-
-#### Implementation
-
-After validating the selected provider, remove unselected integrations, temporary R9 scaffolding, redundant geometry, material, or occlusion paths, and their unused supporting surfaces. Retain only the selected geometry integration, the distinct scalable analytic path, and essential requalification tools. Do not keep provider-specific public observations or test-only runtime shortcuts.
-
-#### Key Decisions
-
-- Keep one high-fidelity geometry-provider integration.
-- Keep `AnalyticAcoustics` only for its distinct mass-parallel role.
-
-#### Problems / Limitations
-
-Preserve only the minimum probes and resources required to operate or revalidate the selected provider.
+The geometry backend is not required to scale directly to thousands of simultaneous Isaac Lab environments. Transferred distributions apply only to the provider's simulated scenario family. Preserve only the minimum probes and resources required to operate or revalidate the selected provider.
 
 ## Artifacts
 

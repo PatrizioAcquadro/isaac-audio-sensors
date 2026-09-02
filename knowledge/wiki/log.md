@@ -494,6 +494,14 @@ Reduced the shared maintainability decision and each plan's final cleanup phase 
 
 Verified all eleven plan references, concise cleanup phases, canonical R9/R10 ownership, index and status synchronization, documentation boundary tests, internal wiki links, and Markdown whitespace.
 
+## 2026-09-02 — update: Consolidated observed-audio plan subphases
+
+Kept Plan 01 as two R9 references and reduced Plans 02–11 plus canonical R10 to three coherent outcomes by merging dependent contract, operating, integration, validation, and cleanup work. Cleanup remains mandatory inside each final functional outcome, and Plan 08 remains a sequence-only reference to R10.
+
+## 2026-09-02 — lint: Consolidated observed-audio plan subphases
+
+Verified the two-step Plan 01, three-step Plans 02–11 and R10, removal of obsolete subphase references, preserved architecture and dataset decisions, reference-only Plan 08 ownership, documentation boundary tests, internal wiki links, and Markdown whitespace.
+
 ## 2026-09-02 — update: Core type module split
 
 Split the simulator-independent public dataclasses into private scene, environment, snapshot, frame, and shared-validation modules behind the unchanged `core.types` facade, without changing consumers, schemas, or runtime behavior.

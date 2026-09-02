@@ -38,29 +38,15 @@ This reference adds no requirements beyond R10.2.
 
 #### Implementation
 
-After R10.2 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.3 — Operating Boundary|R10.3 Operating Boundary]].
+After R10.2 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.3 — Operating Integration and Cleanup|R10.3 Operating Integration and Cleanup]].
 
 #### Key Decisions
 
-- This plan defines only that R10.3 follows R10.2 and precedes R10.4; R10.3 remains authoritative for its execution.
+- This plan defines only that R10.3 follows R10.2; R10.3 remains authoritative for its execution.
 
 #### Problems / Limitations
 
 This reference adds no requirements beyond R10.3.
-
-## Subphase 08.4 — Implement R10.4
-
-#### Implementation
-
-After R10.3 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.4 — Provider Consolidation and Cleanup|R10.4 Provider Consolidation and Cleanup]].
-
-#### Key Decisions
-
-- This plan defines only that R10.4 follows R10.3; R10.4 remains authoritative for its execution.
-
-#### Problems / Limitations
-
-This reference adds no requirements beyond R10.4.
 
 ## Artifacts
 

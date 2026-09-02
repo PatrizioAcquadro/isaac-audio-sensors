@@ -182,4 +182,6 @@ The subsequent plans deliberately separate final microphone-signal production fr
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 
+The plan structure is intentionally compact: Plan 01 references the two remaining R9 subphases, while Plans 02–11 use three coherent outcomes each. Cleanup is part of the final functional outcome rather than a separate administrative phase; implementation agents may still use smaller internal tasks and atomic commits.
+
 These pages are plans, not implemented behavior. Current executable truth remains the verified capability and limit sections above. Publication of `3.0.0` remains a separate future action, and the published `2.0.0` Community Registry crawler closeout remains separate historical release work.
