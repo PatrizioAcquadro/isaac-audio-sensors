@@ -453,3 +453,11 @@ Removed sensor-side ambiguity policies, preserved all compatible two-microphone 
 ## 2026-09-02 — lint: R9.1.2 physically honest DOA ambiguity
 
 Verified 504 unit/contract tests, 207 integration tests, 57 release tests, 101 Isaac-runtime tests, configuration and byte-identical schema workflows, real optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, 386 SquadBot tests and both active demos, historical fixture hashes, canonical wiki links, Ruff, version synchronization, and whitespace.
+
+## 2026-09-02 — update: Ordered observed-audio implementation plans
+
+Added the post-R9.1 sequence for provider qualification, signal/perception separation, Auditok activity detection, mixture-only PyRoom DOA, learning truth, simulation/hardware parity, Isaac Lab observations, Geometry Acoustics, practical realism, closeout, and deferred semantic perception. Retained the frame as the sensor-window contract while avoiding standalone frame and truth assembler services.
+
+## 2026-09-02 — lint: Ordered observed-audio implementation plans
+
+Verified the allowed wiki tree, complete index coverage, resolved internal links, planned-versus-current boundaries, R9/R10 cross-links, immutable raw content, and Markdown whitespace for all eleven ordered plans.

@@ -1,5 +1,7 @@
 # Phase R10 — Geometry Acoustics Integration
 
+Status: Planned. [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]] is the ordered high-level entry point after the shared signal and observed-perception migration; this page remains the detailed geometry-integration specification.
+
 ## Objective
 
 Integrate the provider selected by [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] as the primary high-fidelity Isaac backend for one or a few passive-audio environments.

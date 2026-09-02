@@ -2,6 +2,8 @@
 
 Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 completed on 2026-09-02; R9.2 and R9.3 are planned.
 
+The remaining R9.2/R9.3 execution order is summarized by [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]]. This page remains the detailed authority for the existing provider contract and qualification semantics.
+
 ## Objective
 
 Select the existing acoustic engine that can satisfy the passive-audio requirements before building a maintained Isaac integration. This phase owns provider qualification and the final provider decision; R10 owns product integration.
