@@ -48,7 +48,7 @@ Neither command needs Isaac, a GPU, or the optional `room` extra. Closed-room ex
 
 ## Limitations
 
-- `analytic_acoustics` supports Core free field and half space plus optional PyRoom shoebox and polygon prisms. Its mass-parallel Isaac Lab path is free-field, feature-only, and requires at least three microphones with `tdoa_least_squares`; scalar reference binding retains two-microphone, SRP-PHAT, PyRoom, and closed-topology support. Occlusion attenuates only the direct source-to-microphone path; `surface_set`, diffraction, and reflected-path blocking remain outside this backend, and none of these controlled models is a complete wave solver or calibrated acoustic twin.
+- `analytic_acoustics` supports Core free field and half space plus optional PyRoom shoebox and polygon prisms. Two-microphone least-squares reports both compatible azimuths instead of guessing; unique 360-degree least-squares and SRP-PHAT require at least three microphones with rank-2 XY geometry, with four non-collinear microphones recommended for practical redundancy. The mass-parallel Isaac Lab path is free-field and feature-only; scalar reference binding retains the honest two-microphone least-squares case, PyRoom, and closed-topology support. Occlusion attenuates only the direct source-to-microphone path; `surface_set`, diffraction, and reflected-path blocking remain outside this backend, and none of these controlled models is a complete wave solver or calibrated acoustic twin.
 - Software and GPU validation do not establish hardware calibration, physical acoustic fidelity, downstream task success, or sim-to-real transfer.
 - This SDK does not provide robot-specific tasks or policies and is not a safety-critical perception component.
 

@@ -445,3 +445,11 @@ Recorded the three-field time window, array-authoritative sample rate, derived f
 ## 2026-09-01 — lint: R9.1.1 Core capture contract cleanup
 
 Verified 494 unit/contract tests, 206 integration tests, 57 release tests, 101 Isaac-runtime tests, config and frame-v2 schema workflows, real optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, clean-source release artifacts, canonical wiki links and index coverage, Ruff, version synchronization, and whitespace.
+
+## 2026-09-02 — update: R9.1.2 physically honest DOA ambiguity
+
+Removed sensor-side ambiguity policies, preserved all compatible two-microphone azimuth candidates, required rank-2 geometry for unique least-squares and SRP-PHAT, introduced Kit binding v5, and moved the active Phase 6A front assumption into the SquadBot consumer without changing frame v2 or historical fixtures.
+
+## 2026-09-02 — lint: R9.1.2 physically honest DOA ambiguity
+
+Verified 504 unit/contract tests, 207 integration tests, 57 release tests, 101 Isaac-runtime tests, configuration and byte-identical schema workflows, real optional audio, RTX 4090 Isaac Sim/Lab/Kit gates, 386 SquadBot tests and both active demos, historical fixture hashes, canonical wiki links, Ruff, version synchronization, and whitespace.

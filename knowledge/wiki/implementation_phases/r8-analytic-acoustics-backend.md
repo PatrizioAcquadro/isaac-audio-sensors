@@ -43,7 +43,7 @@ Entity mode requires explicit free-field environment state, at least three micro
 
 - R8.1 introduced `AnalyticAcoustics`, topology routing, lazy PyRoom, and solver diagnostics while legacy identifiers still existed at that staging boundary.
 - R8.2 introduced private direct/indirect stems and direct-only broadband or spectral occlusion. Its larger temporary `SourceOcclusion` shape was subsequently reduced.
-- R8.3 removed the four legacy runtimes and configuration paths, added the CUDA-native Lab route, migrated SquadBot, and introduced `ias.omni_extension_binding.v4`.
+- R8.3 removed the four legacy runtimes and configuration paths, added the CUDA-native Lab route, migrated SquadBot, and introduced the then-current `ias.omni_extension_binding.v4`; R9.1.2 later replaced it directly with v5.
 - R8.4 finalized the minimal occlusion record, partition-based uncapped transmission, explicit unknown-material fallback, and optional transient debug traces.
 
 At the R8 closeout, historical frame identifiers remained readable replay data but could not select a runtime backend, and all three schemas remained v1. R9.1.1 later removed frame v1 reading and replaced only the frame contract with v2.

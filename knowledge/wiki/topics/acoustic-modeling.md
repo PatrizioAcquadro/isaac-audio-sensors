@@ -6,9 +6,11 @@ Built-in local layouts are `mono`, `stereo_y`/`two_mic_y`, `quad_front`/`quad_cr
 
 Named layouts use a positive finite spacing, with `tetrahedral` as the built-in rank-3 geometry that permits elevation estimation.
 
-World microphone positions are produced from the array XYZW orientation and its forward/right/up basis; TDOA requires at least two non-coincident microphones and useful azimuth or elevation depends on the layout rank.
+World microphone positions are produced from the array XYZW orientation and its forward/right/up basis. Exactly two microphones are supported only by TDOA least-squares and require distinct XY positions. Least-squares with three or more microphones and all SRP-PHAT use require at least three microphones whose centered XY coordinates have rank two. Four non-collinear microphones remain the recommended practical configuration for redundancy and robustness, not a mandatory minimum.
 
-Two microphones have an explicit front/back ambiguity unless an additional prior such as `front_hemisphere` is selected; the package never hides that ambiguity as a confident unique estimate.
+For two microphones, the public azimuth model returns every normalized, deduplicated bearing compatible with the measured delay in `candidate_bearing_deg`. The ordinary result has `estimated_bearing_deg`, `bearing_sector`, and elevation unset, confidence zero, and `ambiguity_class="ambiguous_front_back"`. Only a delay at the physical baseline endpoint, where the two candidates coincide, produces one unique bearing. Core accepts no contextual prior; assumptions such as “the source is in front” belong to downstream consumers.
+
+Three non-collinear microphones are the minimum geometry for a unique 360-degree azimuth estimate, not a guarantee against noise, reverberation, or spatial aliasing. Collinear arrays with three or more microphones fail explicitly instead of falling back to a linear-array model. Rank-three geometry is still required when elevation itself must be resolved.
 
 ## Fidelity Ladder
 

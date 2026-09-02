@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-09-01. Package version: `3.0.0`.
+Updated: 2026-09-02. Package version: `3.0.0`.
 
 ## Product Boundary
 
@@ -16,6 +16,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
 - Snapshot-authoritative propagation through `simulate(scene, array_id, time_window)`, with no parallel backend sensor object or Lab reference `array_specs` state.
 - R9.1.1 capture semantics with a three-field `AudioTimeWindow`, array-authoritative sample rate, derived-only frame timestamp, all-source rendering, and output-only RMS-prioritized `max_detections`; frame v1 and the removed parallel inputs have no compatibility path.
+- R9.1.2 physically honest DOA semantics: two-microphone least-squares exposes every compatible azimuth with no selected estimate or confidence except at a physical endpoint; unique least-squares and all SRP-PHAT require at least three microphones with rank-2 XY geometry. Core, plugins, Isaac, Lab, and Kit carry no contextual ambiguity policy; four non-collinear microphones are the practical recommendation.
 - R7 `AcousticSurfaceSpec` and `AcousticEnvironmentSpec` with fail-closed builders for `free_field`, `half_space`, `shoebox`, `polygon_prism`, and `surface_set`, complete world/environment quaternion transforms, and mandatory `AudioSceneSnapshot.environment` ownership.
 - One required `[environment]` TOML model, with an `environment.surfaces` array of tables for surface sets and solver-only `[audio.analytic_acoustics]`; legacy `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, `[room]`, `[audio.room_acoustics]`, missing environments, clamping, and old diagnostic names have no compatibility path.
 - Public `AnalyticAcoustics` routing selected only from `scene.environment.kind`: Core direct propagation for `free_field`, Core floor image source for `half_space`, PyRoom `ShoeBox` for `shoebox`, and PyRoom polygon extrusion for `polygon_prism`, with solver/provider/topology diagnostics on frames and detections.
@@ -28,10 +29,10 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
 - Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
 - Isaac `manual`, `anchor`, and `auto` environment resolution kept separate from the Core contract, with 1 mm default full-array containment, marked shoebox/floor discovery, deterministic priority/volume selection, explicit ambiguity, and cache refresh after relevant array or USD changes.
-- Kit `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes with fail-closed validation/start, explicit free-field safe presets, no implicit shoebox, and exact `ias.omni_extension_binding.v4` import/export with no v2/v3 parser.
+- Kit `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes with fail-closed validation/start, explicit free-field safe presets, no implicit shoebox, and exact `ias.omni_extension_binding.v5` import/export with no v2-v4 parser or ambiguity-policy state.
 - Current NVIDIA `OmniSound` and `OmniListener` authoring with schema-native timing, gain, finite/infinite loop, spatial, and listener-orientation semantics; non-spatial sources are excluded with diagnostics even during strict scans unless explicitly selected, and deprecated `Sound` and `Listener` remain read-compatible.
 - Separate Kit scene audition and qualitative device-mix capture from a compatible direct array-child listener, creating a session-layer child when needed, with verified WAV metadata, lifecycle cleanup, manual-listener override preservation, and no path into microphone-array frames, datasets, or Isaac Lab observations.
-- Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, fixed-shape tensor observations, partial reset, and fail-closed device validation. Entity binding is a fully Torch/device-vectorized `analytic_acoustics` free-field path with explicit environment, at least three microphones, TDOA least-squares, identity effects, relative direct-path RMS, scheduling, and compaction; scalar reference binding retains all supported analytic topologies, two-microphone ambiguity, SRP-PHAT, and PyRoom.
+- Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, fixed-shape tensor observations, partial reset, and fail-closed device validation. Entity binding is a fully Torch/device-vectorized `analytic_acoustics` free-field path with explicit environment, at least three microphones with rank-2 XY geometry, TDOA least-squares, identity effects, relative direct-path RMS, scheduling, and compaction; scalar reference binding retains honest two-microphone least-squares ambiguity while unique least-squares and SRP-PHAT require rank-2 geometry.
 - Python source and universal wheel distributions plus a self-contained Kit Community Registry archive with audited room/FLAC dependencies.
 - Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
 - R5.1 core root limited to eleven fundamental models, simulator-independent config, quaternion-authoritative array pose, one propagation protocol, and generator-authoritative schemas.
@@ -51,7 +52,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.6 one exact two-artifact audit derived from source and locked wheels, including isolated offline wheel installation and packaged dependency provenance.
 - R6.7 complete host, RTX 4090, packaged Kit, artifact, and downstream-consumer closeout without publication.
 - R6.8 exact source distribution, Python 3.10–3.12 CI, and verified tokenless TestPyPI/PyPI publication with isolated OIDC permissions.
-- R9.1 internal fail-closed `GeometryAcoustics` provider qualification with an exact criterion inventory, typed evidence, derived `qualified`/`rejected`/`incomplete` outcomes, and non-blocking path-diagnostic limitations. No provider or runtime backend is selected.
+- R9.1 internal fail-closed `GeometryAcoustics` provider qualification with an exact criterion inventory, typed evidence, derived `qualified`/`rejected`/`incomplete` outcomes, and non-blocking path-diagnostic limitations. R9.1.2 closes the sensor-side DOA ambiguity cleanup without selecting a provider or adding a runtime backend.
 
 ## Documentation State
 
@@ -119,7 +120,7 @@ The v3 directivity-and-gain consistency gate passes 502 unit/contract tests, 172
 
 The snapshot-authoritative backend-contract gate passes 503 unit/contract tests, 180 integration tests, 57 release tests, and 103 Isaac tests. Exact signatures, snapshot-only multi-array selection, missing-ID failure, Core/Isaac/Lab consumers, the CLI quickstart, and optional audio pass while package `3.0.0` and the serialized v1 schemas remain unchanged. On the RTX 4090, live Isaac Sim passes geometry, TDOA, and room acoustics; live Isaac Lab passes entity/reference parity, partial reset, and 50 steps over 4096 environments at 2.322 ms/step mean against the 20 ms budget; and Kit passes all 38 workflow steps. The scope remained repository-local: no downstream checkout was modified or validated.
 
-R7/R8 are complete. The final surface has one mandatory five-topology environment contract, fail-closed Isaac `manual`/`anchor`/`auto` resolution, one `analytic_acoustics` runtime, direct-only `a * D + R` occlusion, partition-based uncapped transmission, Kit binding v4, and a CUDA-native free-field Lab path. Legacy runtime backends, room configuration, temporary occlusion provenance, and compatibility parsers are absent; historical backend identifiers remain replay data only.
+R7/R8 are complete. The current surface has one mandatory five-topology environment contract, fail-closed Isaac `manual`/`anchor`/`auto` resolution, one `analytic_acoustics` runtime, direct-only `a * D + R` occlusion, partition-based uncapped transmission, Kit binding v5, and a CUDA-native free-field Lab path. Legacy runtime backends, room configuration, sensor-side ambiguity policy, temporary occlusion provenance, and compatibility parsers are absent; historical backend identifiers remain replay data only.
 
 The final R7/R8 cleanup gate passes 460 unit/contract tests, 197 Core-only integration tests with two expected optional-audio skips, and 57 release tests on both Python 3.10 and 3.12. The maintained CLI quickstart runs through `free_field` without PyRoom; the optional lane passes 12 codec/panel tests plus real shoebox and polygon-prism execution with pyroomacoustics 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. The RTX 4090 passes 100 Isaac-runtime tests, live Isaac Sim, 4096-environment Lab parity/reset/performance at 2.336 ms/step, and all 38 Kit workflow steps. The unchanged SquadBot checkout passes 373 tests with 10 expected skips, the complete clean-source release audit passes, and all three v1 schemas regenerate byte-identically. Package `3.0.0` remains unreleased; nothing was tagged or published.
 
@@ -137,6 +138,17 @@ entity/reference parity and partial reset across 4096 environments at 2.041
 ms/step mean against the 20 ms budget. A content-equivalent clean-source build
 passes the exact sdist, wheel, and Kit ZIP audit. No downstream checkout was
 changed or validated, and nothing was pushed, tagged, or published.
+
+The R9.1.2 gate passes 504 unit/contract tests, 207 integration tests, 57
+release tests, and 101 tests in the supported Isaac runtime. Configuration,
+optional PyRoom/codec execution, exact frame-v2 schema regeneration, Kit v5
+round-trip and old-key rejection, and the unchanged serialized frame shape
+pass. The RTX 4090 passes the Isaac Sim, Isaac Lab, and Kit live smokes; Lab
+preserves entity/reference parity and partial reset across 4096 environments
+at 2.164 ms/step mean against the 20 ms budget. The migrated SquadBot checkout
+passes 386 tests plus both active demos against the sibling SDK, while its
+historical Phase 6A handoff retains SHA-256
+`f97ae9e0d5ad06a613c3840e6201ea9ac5469b899d9e3e305bec76a8b09a0dd5`.
 
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
@@ -164,8 +176,8 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-R9.1 and the intervening R9.1.1 Core capture cleanup are complete. R9.2 is
-next and owns measured `GeometryAcoustics`
+R9.1, R9.1.1, and the intervening R9.1.2 DOA ambiguity cleanup are complete.
+R9.2 is next and owns measured `GeometryAcoustics`
 candidate qualification through temporary adapters and shared fixtures; R9.3
 owns the provider decision. R10 geometry integration, per-environment acoustic
 randomization, and publication of `3.0.0` remain separate future work. The

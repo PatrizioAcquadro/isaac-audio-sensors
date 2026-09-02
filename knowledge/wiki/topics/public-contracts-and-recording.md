@@ -12,6 +12,8 @@ The coordinate convention is `x_forward_y_right_z_up_clockwise_bearing`: local `
 
 Detections keep source identity and class, known source pose and oracle geometry when available, DOA estimates, ambiguity, per-microphone delay/RMS, audio asset reference, occlusion state, and diagnostics distinct. They do not duplicate the frame timestamp.
 
+`DoaEstimate.candidate_bearing_deg`, `ambiguity_class`, and `ambiguity_reason` preserve physically compatible direction evidence for downstream use. A two-microphone least-squares result normally carries both azimuth candidates, no selected bearing or sector, and zero confidence; the serialized frame v2 shape is unchanged. Core configuration and APIs expose no ambiguity policy or contextual prior.
+
 `AudioTimeWindow` contains only required `start_time_s`, `end_time_s`, and `frame_index`. `MicrophoneArraySpec.sample_rate_hz`, defaulting to 48 kHz, is the sole runtime sample-rate authority. `AudioSensorFrame.sample_rate_hz` is the output projection of the selected array value; neither `AudioTimeWindow`, `AudioSensorConfig`, nor `[audio]` carries another sample-rate field.
 
 Every source overlapping the half-open window contributes to rendering and localization. Deterministic source order is `(start_time_s, source_id)` and exists only for reproducibility. `max_detections` is an output-only limit applied afterward: detections sort by descending `sqrt(mean(per_mic_rms^2))`, then by `source_id`, or by `detection_id` when no source identifier exists. `None` is unlimited and zero keeps the complete waveform and aggregate RMS while emitting no detections. Direct Core configures the limit on `AnalyticAcoustics`; Core, CLI, and Isaac default to unlimited while the fixed Lab and Kit buffers default to eight. A frame validates producer compliance instead of truncating its detections. Frame diagnostics retain active-source counts, scheduled identifiers, and RIR summaries for every rendered source regardless of the detection cap.
@@ -36,7 +38,7 @@ Sources and microphones own their directivity. TOML accepts only `omni`, `cardio
 
 `waveform_fidelity` is the default runtime profile and permits waveform-producing behavior; `training_features` is a constrained feature-oriented profile and rejects incompatible waveform export. `doa_estimator` selects `tdoa_least_squares` or `srp_phat` independently from the propagation backend.
 
-Unknown backends, profiles, coordinate conventions, invalid time windows, invalid array geometry, and unsupported combinations fail closed.
+Unknown backends, profiles, coordinate conventions, removed `tdoa_ambiguity_policy`, invalid time windows, invalid array geometry, and unsupported combinations fail closed. Exactly two microphones are accepted only for least-squares ambiguity output; unique least-squares and SRP-PHAT require at least three microphones with rank-2 XY geometry.
 
 ## Plugins and Capabilities
 

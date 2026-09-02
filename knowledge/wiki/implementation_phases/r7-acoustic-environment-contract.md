@@ -32,7 +32,7 @@ Automatic candidates require non-empty `ias:environment_kind` and `ias:environme
 
 The stage cache re-resolves after array motion or relevant bounds, transform, marker, material, or partition changes and reuses the result otherwise. Resolution never clamps or moves sources.
 
-Kit exposes `unconfigured`, `manual_free_field`, `anchor`, and `auto`. `unconfigured` blocks validation and sensor start. R7 introduced bindings v2 and v3 during migration; R8 completed the current `ias.omni_extension_binding.v4`. Older binding versions have no runtime parser.
+Kit exposes `unconfigured`, `manual_free_field`, `anchor`, and `auto`. `unconfigured` blocks validation and sensor start. R7 introduced bindings v2 and v3 during migration; R8 completed the then-current `ias.omni_extension_binding.v4`, later replaced directly by v5 in R9.1.2. Older binding versions have no runtime parser.
 
 ## Historical Subphases
 

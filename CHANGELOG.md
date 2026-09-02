@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Breaking (R9.1.2): removed every Core, backend, plugin, Isaac, Lab, Kit, and TOML ambiguity-policy input. Two-microphone least-squares now returns all physically compatible azimuth candidates with no unique estimate or confidence, except at a deduplicated physical endpoint; contextual selection belongs to downstream consumers.
+- Breaking (R9.1.2): least-squares arrays with three or more microphones and all SRP-PHAT arrays now require at least three microphones with rank-2 XY geometry. Kit configuration is `ias.omni_extension_binding.v5`; v4 and `lifecycle.ambiguity_policy` have no compatibility parser.
 - Breaking (R9.1.1): reduced `AudioTimeWindow` to required start, end, and frame-index fields; removed independent timestamps from scene snapshots, time windows, and detections; and made frame timestamps derived exclusively from frame start time.
 - Breaking (R9.1.1): made each `MicrophoneArraySpec.sample_rate_hz` the sole runtime rate authority, removed the parallel Core and `[audio]` rate inputs, and projected the selected array rate into `AudioSensorFrame`.
 - Breaking (R9.1.1): removed `max_events` and pre-render source truncation. All active sources now contribute to waveform and aggregate RMS; output-only `max_detections` selects localized detections afterward by descending array RMS with deterministic identifier tie-breaking.

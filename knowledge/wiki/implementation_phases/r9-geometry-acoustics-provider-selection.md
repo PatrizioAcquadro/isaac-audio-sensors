@@ -1,6 +1,6 @@
 # Phase R9 — Geometry Acoustics Provider Selection
 
-Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.2 and R9.3 are planned.
+Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 completed on 2026-09-02; R9.2 and R9.3 are planned.
 
 ## Objective
 
@@ -110,6 +110,29 @@ Frame v1 traces are intentionally not accepted by the current frame reader.
 physical source contribution. R9.1.1 does not qualify a provider, add a new
 backend, or begin R10 integration.
 
+## Subphase R9.1.2 — Physically Honest DOA Ambiguity
+
+#### Implementation
+
+R9.1.2 removes `front_hemisphere` and the complete ambiguity-policy surface from Core, propagation construction, plugins, Isaac Sim, Isaac Lab, Kit state/UI, and TOML. Removed Python arguments have no aliases; old TOML and Kit keys fail explicitly. The Kit binding advances directly to `ias.omni_extension_binding.v5`, and v4 has no compatibility reader.
+
+Exactly two microphones remain supported for `tdoa_least_squares`. The estimate returns every normalized, deduplicated azimuth compatible with the delay, leaves bearing, sector, and elevation unset, reports zero confidence, and records purely geometric front/back ambiguity. When the delay lies at the physical endpoint and both candidates coincide on the baseline axis, the single candidate becomes the unique estimate.
+
+Least-squares with three or more microphones and all SRP-PHAT estimation require at least three microphones whose centered XY positions have rank two. Configuration, runtime binding, and public estimation fail on collinear geometry instead of selecting a symmetric peak or adding a special linear-array model. Four non-collinear microphones are documented as the practical recommendation for redundancy and robustness.
+
+The v2 frame contract remains unchanged: `candidate_bearing_deg`, `ambiguity_class`, and `ambiguity_reason` preserve the evidence needed by downstream consumers, and Isaac Lab retains `ambiguity_mask`. No learning, motion-based resolution, tracking, privileged geometry, or multimodal fusion enters Core. The active SquadBot adapter owns its explicit front-hemisphere context and does not mutate the source `DoaEstimate`; historical Phase 6A/6B fixtures remain immutable.
+
+#### Key Decisions
+
+- Sensor output represents what the array geometry can observe, not a contextual guess.
+- Three rank-2 microphones are the minimum for unique 360-degree azimuth; four are recommended but not required.
+- Consumer priors may select among candidates only outside the SDK and must preserve their decision origin.
+- Frame v2 already carries sufficient ambiguity evidence, so no schema change or new representation is needed.
+
+#### Problems / Limitations
+
+The two-microphone contract represents the compatible azimuths in the public 2D model, not the continuous 3D cone. A geometrically unique estimate can still be degraded by noise, reverberation, finite sampling, or spatial aliasing. R9.1.2 does not add an advanced disambiguation technique, qualify a provider, or begin R10 integration.
+
 ## Subphase R9.2 — Candidate Qualification
 
 #### Implementation
@@ -154,7 +177,9 @@ If no candidate meets passive, per-microphone, dynamic-geometry, and distributio
 
 R9.1 provides the internal qualification validator and its deterministic unit
 and CLI tests. R9.1.1 provides the simplified Core capture contract and v2
-frame artifacts. No candidate report or provider decision exists yet.
+frame artifacts. R9.1.2 provides physically honest DOA ambiguity, rank-2 array
+validation, and Kit binding v5 without changing frame v2. No candidate report
+or provider decision exists yet.
 
 ## Files
 
@@ -162,4 +187,8 @@ frame artifacts. No candidate report or provider decision exists yet.
 - `tests/unit/test_geometry_acoustics_contract.py`
 - `src/isaac_audio_sensors/core/types.py`
 - `src/isaac_audio_sensors/core/backends/analytic.py`
+- `src/isaac_audio_sensors/core/doa/ambiguity.py`
+- `src/isaac_audio_sensors/core/doa/srp_phat.py`
+- `src/isaac_audio_sensors/lab/audio_array_sensor.py`
+- `src/isaac_audio_sensors/kit/configuration.py`
 - `src/isaac_audio_sensors/schemas/audio_sensor_frame.v2.schema.json`

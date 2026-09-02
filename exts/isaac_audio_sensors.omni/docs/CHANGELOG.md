@@ -2,8 +2,9 @@
 
 ## 3.0.0 - Unreleased
 
+- Breaking: remove sensor-side DOA ambiguity policy state and import/export `ias.omni_extension_binding.v5`; v4 and saved `lifecycle.ambiguity_policy` inputs are rejected without compatibility parsing.
 - Breaking: require explicit environment resolution before validation or sensor start, with `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes and no implicit array-centered shoebox.
-- Export and import `ias.omni_extension_binding.v4` with `analytic_acoustics`, analytic solver options, environment mode, anchor, tolerance, resolved result, and provenance; v2/v3 have no compatibility parser.
+- Export and import the analytic backend, solver options, environment mode, anchor, tolerance, resolved result, and provenance without any contextual direction prior.
 - Breaking: removed all four legacy backend choices and renamed room-specific UI/configuration fields to their analytic equivalents.
 - Breaking: replaced free-form source directivity with the shared four-value `DirectivityPattern` selector and removed the obsolete effects-owned directivity configuration without compatibility aliases.
 - Validate source directivity, orientation, nominal gain, saved configuration, sound profiles, and child-microphone `ias:directivity` metadata before authoring mutations.

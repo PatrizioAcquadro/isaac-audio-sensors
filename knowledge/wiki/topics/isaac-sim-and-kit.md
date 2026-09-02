@@ -98,7 +98,7 @@ Advanced Tools contains the specialist controls for stage and selection, array, 
 
 Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. Source directivity is the shared four-value enum selector rather than free text. Saved configuration and sound-profile directivity/gain are validated before UI state or USD is mutated. Color styling distinguishes editable, action-populated, read-only, and invalid fields. Preset, binding, transform-read, and config-import changes are tracked only as transient window state; a manual edit restores the normal editable style. Invalid fields remain highlighted until a valid correction, without opening or changing accordions automatically. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
 
-Replicator controls the optional Omniverse writer; Export writes the latest frame, JSONL streams, and reusable `ias.omni_extension_binding.v4` configuration. Binding v4 includes `analytic_acoustics`, analytic solver options, environment mode, anchor, tolerance, resolved result, and provenance; v2/v3 are rejected without compatibility parsers.
+Replicator controls the optional Omniverse writer; Export writes the latest frame, JSONL streams, and reusable `ias.omni_extension_binding.v5` configuration. Binding v5 includes `analytic_acoustics`, analytic solver options, environment mode, anchor, tolerance, resolved result, and provenance, with no ambiguity-policy state; v2-v4 are rejected without compatibility parsers.
 
 Viewport follow-selection and live pose synchronization let manipulator edits update the selected stage entities without copying transforms into task-specific code.
 
@@ -128,7 +128,8 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 
 ## Version Notes
 
-- 2026-09-01: Completed R7/R8 environment resolution, analytic backend consolidation, and occlusion transmission. The current configuration is `ias.omni_extension_binding.v4`; v2/v3 were migration formats and have no runtime parser.
+- 2026-09-02: Removed sensor-side ambiguity policy and introduced `ias.omni_extension_binding.v5`; v2-v4 have no runtime parser.
+- 2026-09-01: Completed R7/R8 environment resolution, analytic backend consolidation, and occlusion transmission with the then-current v4 binding.
 - 2026-08-27: Made source and child-microphone directivity enum-backed and fail-closed, aligned native gain conversion, and removed the effects-owned directivity path for v3.
 - 2026-08-26: Removed dead Kit internals and dynamic sibling-service lookup while preserving the controller, UI, configuration, and runtime contracts.
 - 2026-08-26: Clarified direct Replicator writer updates and retained the v1 annotator name as metadata without registering a runtime annotator.
