@@ -195,7 +195,7 @@ or provider decision exists yet.
 
 - `tools/qualification/geometry_acoustics_contract.py`
 - `tests/unit/test_geometry_acoustics_contract.py`
-- `src/isaac_audio_sensors/core/types.py`
+- `src/isaac_audio_sensors/core/types/`
 - `src/isaac_audio_sensors/core/backends/analytic.py`
 - `src/isaac_audio_sensors/core/doa/ambiguity.py`
 - `src/isaac_audio_sensors/core/doa/srp_phat.py`

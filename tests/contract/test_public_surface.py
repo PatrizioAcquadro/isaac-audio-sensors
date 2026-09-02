@@ -39,6 +39,20 @@ PUBLIC_API_V3 = {
         "Pose3D",
         "SourceOcclusion",
     ),
+    "isaac_audio_sensors.core.types": (
+        "AcousticEnvironmentSpec",
+        "AcousticSurfaceSpec",
+        "AudioDetection",
+        "AudioSceneSnapshot",
+        "AudioSensorFrame",
+        "AudioSourceSpec",
+        "AudioTimeWindow",
+        "DoaEstimate",
+        "MicrophoneArraySpec",
+        "MicrophoneSpec",
+        "Pose3D",
+        "SourceOcclusion",
+    ),
     "isaac_audio_sensors.recording": (
         "AppendFrameResult",
         "AudioDatasetManifest",
@@ -190,6 +204,15 @@ def test_cli_import_is_lazy():
     assert completed.stderr == ""
 
 
+def test_core_and_types_share_public_contract_objects():
+    import isaac_audio_sensors.core as core
+    import isaac_audio_sensors.core.types as core_types
+
+    assert all(
+        getattr(core, name) is getattr(core_types, name) for name in core_types.__all__
+    )
+
+
 def test_semantic_packages_follow_the_r5_dependency_graph():
     for package, allowed in ALLOWED_DEPENDENCIES.items():
         assert _package_dependencies(package) <= allowed
@@ -220,7 +243,10 @@ def test_curated_v3_exports_in_fresh_process(module_name, exports):
             assert not any(
                 name.startswith("isaac_audio_sensors.") for name in sys.modules
             )
-        if {module_name!r} == "isaac_audio_sensors.core":
+        if {module_name!r} in (
+            "isaac_audio_sensors.core",
+            "isaac_audio_sensors.core.types",
+        ):
             forbidden = (
                 "numpy",
                 "isaac_audio_sensors.recording",

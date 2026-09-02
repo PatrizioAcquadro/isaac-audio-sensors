@@ -477,3 +477,11 @@ Specified the two-value `ObservationOrigin`, `detector_id`, optional `detection_
 ## 2026-09-02 — lint: Observation migration and maintainability closeout
 
 Verified exact former-mode ownership, observation field semantics, consumer and protected-evidence boundaries, estimator-removal criteria, index and status synchronization, documentation boundary tests, internal wiki links, and Markdown whitespace.
+
+## 2026-09-02 — update: Core type module split
+
+Split the simulator-independent public dataclasses into private scene, environment, snapshot, frame, and shared-validation modules behind the unchanged `core.types` facade, without changing consumers, schemas, or runtime behavior.
+
+## 2026-09-02 — lint: Core type module split
+
+Verified AST-equivalent dataclass and validation behavior, exact facade exports and object identity, isolated imports, 506 unit/contract tests, 207 integration tests, 57 release tests, Ruff, version synchronization, documentation boundaries, built wheel contents, clean installed-wheel imports, and whitespace.
