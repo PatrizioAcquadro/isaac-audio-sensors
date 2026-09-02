@@ -73,20 +73,16 @@ Short impulses and continuous background machinery may require different tempora
 
 #### Implementation
 
-After qualification, retain `auditok` only if it satisfies the supported activity contract; otherwise retain the smallest qualified alternative. Keep multiple detectors only when each has a distinct measured operating role and maintained consumer.
-
-Remove rejected or duplicate detector adapters, algorithms, configuration choices, registry entries, dependencies, examples, tests, fixtures, and documentation after migrating consumers to the selected path. Do not retain a legacy energy detector, a second threshold path, or a runtime shortcut solely for comparison or test convenience. Shared signal utilities remain only when another maintained component uses them.
+After qualification, retain `auditok` or the smallest qualified alternative as the maintained detector. Remove rejected, duplicate, legacy-energy, and test-only detector paths together with their unused supporting surfaces. Keep another detector only for a distinct necessary role.
 
 #### Key Decisions
 
-- Generic activity has one canonical maintained detector path by default.
-- Additional detectors require non-overlapping product roles and evidence.
-- Qualification scaffolding does not become permanent runtime surface.
-- Tests validate the selected production detector rather than preserving obsolete implementations.
+- Generic activity has one canonical detector path by default.
+- Qualification scaffolding and obsolete tests do not become permanent production surface.
 
 #### Problems / Limitations
 
-A detector that performs differently under a genuinely distinct latency, dependency, or noise regime may justify a separate profile. That role must be measured and documented before retaining another implementation.
+Retain an additional detector only when its distinct value is verified and documented.
 
 ## Artifacts
 

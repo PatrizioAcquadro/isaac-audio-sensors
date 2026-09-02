@@ -64,20 +64,16 @@ Stateful signal processing increases memory pressure at scale. Supported context
 
 #### Implementation
 
-Migrate maintained Isaac Lab tasks, adapters, configuration, data containers, reset handling, examples, and tests to the observed-only tensor contract. Then remove source-conditioned tensors, per-source RMS observation fields, scheduled-source bindings used only for sensing, obsolete configuration and registry entries, compatibility aliases, duplicate conversion kernels, fixtures, documentation, and dependencies without a remaining Lab role.
-
-Retain scalar reference and CUDA-native scalable implementations only because they serve distinct correctness and mass-parallel roles. They must share one observable semantic contract and common validation where practical; any additional CPU, fallback, mock, or synthetic runtime path requires a supported deployment role rather than test convenience.
+Migrate maintained Isaac Lab consumers to the observed-only tensor contract. Then remove source-conditioned tensors, per-source sensing fields, obsolete bindings, duplicate conversions, compatibility paths, and their unused supporting surfaces. Retain scalar reference and CUDA-native paths only for their distinct correctness and scale roles.
 
 #### Key Decisions
 
-- The old and new Lab observation contracts do not coexist after consumer migration.
-- Reference and scalable paths may differ internally but cannot duplicate public meaning or drift semantically.
-- A path survives only with a current task, validation, or deployment role.
-- Test-only kernels, sensor modes, and runtime branches are not part of the maintained package.
+- Old and new Lab observation contracts do not coexist.
+- Additional kernels, fallbacks, or sensor modes require a real deployment role, not test convenience.
 
 #### Problems / Limitations
 
-Downstream tasks may depend on privileged source information for rewards or curricula. Preserve that data only through explicitly privileged task-owned channels; it does not justify retaining the obsolete sensor observation path.
+Keep privileged reward or curriculum data only in explicit task-owned channels.
 
 ## Artifacts
 

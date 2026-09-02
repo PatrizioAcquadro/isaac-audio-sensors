@@ -486,6 +486,14 @@ Added one canonical repository-quality decision and applied it explicitly to Pla
 
 Verified all eleven plan links, reference-only Plan 01/R9 and Plan 08/R10 ownership, R10.4 ordering, plan-specific removal boundaries, protected evidence and downstream exclusions, complete index coverage, resolved wiki links, documentation boundary tests, and Markdown whitespace.
 
+## 2026-09-02 — update: Concise repository quality guidance
+
+Reduced the shared maintainability decision and each plan's final cleanup phase to the essential objective, removal rule, plan-specific scope, and consumer-safety boundary without changing the required cleanup outcome.
+
+## 2026-09-02 — lint: Concise repository quality guidance
+
+Verified all eleven plan references, concise cleanup phases, canonical R9/R10 ownership, index and status synchronization, documentation boundary tests, internal wiki links, and Markdown whitespace.
+
 ## 2026-09-02 — update: Core type module split
 
 Split the simulator-independent public dataclasses into private scene, environment, snapshot, frame, and shared-validation modules behind the unchanged `core.types` facade, without changing consumers, schemas, or runtime behavior.

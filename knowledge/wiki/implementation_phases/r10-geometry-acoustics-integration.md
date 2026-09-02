@@ -86,22 +86,16 @@ The geometry backend is not required to scale directly to thousands of simultane
 
 #### Implementation
 
-After validating the selected provider path, audit qualification adapters, backend registration, USD translation, scene caches, material resolution, source and array adaptation, occlusion, diagnostics, Kit configuration, packaging, optional dependencies, examples, and tests. Retain the selected geometry provider, the separately justified scalable analytic path, and only the shared infrastructure each maintained consumer needs.
-
-Remove unselected candidate integrations, temporary R9 scaffolding, redundant geometry wrappers, duplicate material or occlusion application, obsolete provider configuration and registry entries, dedicated dependencies and assets, diagnostic capture paths, examples, fixtures, tests, and documentation without a current product or requalification role. Do not retain provider-specific public observation fields, parallel frame-producing backends, or runtime geometry shortcuts created only for tests.
-
-Qualification reports remain evidence rather than runtime surface. Reusable probes remain only when they are the maintained way to revalidate installation, licensing, performance, or the selected provider contract.
+After validating the selected provider, remove unselected integrations, temporary R9 scaffolding, redundant geometry, material, or occlusion paths, and their unused supporting surfaces. Retain only the selected geometry integration, the distinct scalable analytic path, and essential requalification tools. Do not keep provider-specific public observations or test-only runtime shortcuts.
 
 #### Key Decisions
 
-- One selected geometry-provider integration is the maintained high-fidelity path.
-- `AnalyticAcoustics` remains only because it has a distinct mass-parallel role, not as duplicate geometry-provider functionality.
-- Provider-native capabilities replace repository-owned duplication when they satisfy the required contract.
-- Temporary candidate and test scaffolding is removed after its evidence purpose is complete.
+- Keep one high-fidelity geometry-provider integration.
+- Keep `AnalyticAcoustics` only for its distinct mass-parallel role.
 
 #### Problems / Limitations
 
-Provider SDK installation and licensing may require small maintained probes or user-managed resources. Retain only the minimum operational support required for the selected provider and distinguish it from abandoned candidate integration code.
+Preserve only the minimum probes and resources required to operate or revalidate the selected provider.
 
 ## Artifacts
 

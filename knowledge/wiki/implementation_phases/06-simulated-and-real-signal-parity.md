@@ -64,20 +64,16 @@ A small physical dataset supports only the tested array, mounting, rooms, and no
 
 #### Implementation
 
-After both domains emit the common block, audit simulated producers, device capture, calibration lookup, channel mapping, buffering, normalization, recording, and perception entrypoints. Consolidate shared validation and conversion logic where ownership is identical while keeping unavoidable provider and driver lifecycle code behind narrow producer adapters.
-
-Remove superseded simulation-to-frame paths, hardware-specific observation paths, duplicate channel or timing conversion, obsolete capture wrappers, device configuration, registry entries, dependencies, examples, tests, fixtures, and documentation that no maintained producer requires. Do not retain separate detector or DOA implementations for simulated and physical signals, and do not add fake production devices or runtime shortcuts solely for tests.
+After simulation and hardware share `MicrophoneSignalBlock`, consolidate common signal handling and remove superseded frame paths, hardware-specific perception, duplicate conversions, obsolete capture wrappers, and their unused supporting surfaces. Keep producer-specific code only for real provider or device differences, never only for tests.
 
 #### Key Decisions
 
-- Simulation and physical capture share one public signal meaning and one downstream perception implementation.
-- Producer-specific code survives only where provider or hardware behavior genuinely differs.
-- Common behavior has one owner rather than mirrored simulation and hardware implementations.
-- Optional hardware dependencies remain isolated and justified by a supported capture path.
+- Shared behavior has one owner and one downstream perception path.
+- Producer-specific code and dependencies require a supported simulation or hardware role.
 
 #### Problems / Limitations
 
-Similar-looking capture code may encode real driver or clock differences. Consolidate semantics without hiding those differences, and remove an adapter only after checking supported devices, package extras, and recorded-data consumers.
+Check supported devices and recorded-data consumers before consolidating driver-specific behavior.
 
 ## Artifacts
 

@@ -62,23 +62,16 @@ Provider licensing or redistribution limits may require user-managed installatio
 
 #### Implementation
 
-Perform a repository-wide consumer, dependency, registry, configuration, schema, package-content, and documentation audit after the migration. Confirm that active code contains no remaining `AudioDetection`, `DetectionMode`, former `detection_mode` values, source-conditioned perception, obsolete frame-producing backend path, redundant DOA implementation, compatibility fallback, orphan adapter, or unused optional dependency unless a current supported consumer and distinct product role are documented.
-
-Remove obsolete modules, types, fields, schema versions, serializers, configuration keys, registry entries, algorithms, dependencies, examples, fixtures, tests, generated tracked artifacts, and documentation after proving they are outside the maintained consumer and protected-evidence boundary. Keep the smallest clear implementation for each capability and consolidate repeated lifecycle, validation, and adaptation logic when doing so reduces ownership ambiguity without creating speculative abstraction.
-
-Verify that production code contains no API, runtime switch, mock path, synthetic shortcut, or alternate implementation that exists only for tests. Tests may provide their own fixtures and fakes, but must exercise the same production contracts used by real consumers. Inspect built packages as well as the source tree so removed functionality is not retained accidentally through package data, optional extras, or stale generated resources.
+Perform the final repository-wide check. Verify consumers, remove or simplify remaining unused, obsolete, duplicate, compatibility-only, speculative, and test-only production surfaces, and confirm that source and built packages contain only the necessary maintained system.
 
 #### Key Decisions
 
-- Maintainability, clarity, and a minimal supported surface are release criteria, not optional cleanup work.
-- Every retained file, public symbol, configuration option, dependency, and algorithm requires a current product responsibility or maintained consumer.
-- One canonical implementation per semantic role is preferred; multiple implementations require distinct measured operating roles.
-- Obsolete tests are updated or removed with obsolete behavior and never justify retaining dead production code.
-- Frozen historical evidence is preserved when required but does not remain connected to current runtime contracts.
+- Code quality, clarity, efficiency, elegance, and maintainability are completion criteria.
+- Keep only necessary functionality and distinct justified implementations; obsolete tests do not preserve dead code.
 
 #### Problems / Limitations
 
-Removal must remain consumer-first: apparent dead code may support packaging, external integration, or protected historical evidence. Verify those boundaries before deletion, record any intentionally retained exception, and do not use cleanup as authority to remove out-of-scope downstream artifacts.
+Verify packaging, external consumers, and protected evidence before removal.
 
 ## Artifacts
 

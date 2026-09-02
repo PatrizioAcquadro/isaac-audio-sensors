@@ -131,22 +131,16 @@ Changing the propagation protocol affects Core, CLI, Isaac, Kit, recording, repl
 
 #### Implementation
 
-Audit every maintained in-scope consumer before removal, including Core, CLI, schemas, recording and replay, Isaac Sim, Isaac Lab, Kit, OmniGraph, Replicator, examples, tests, and packaging. Migrate them together to `MicrophoneSignalBlock`, `AudioObservation`, the two-value `ObservationOrigin`, and `detector_id`.
-
-After consumer migration, delete the superseded `AudioDetection` and `DetectionMode` surfaces, source-conditioned backend detection paths, obsolete observation fields, legacy serializers and schema keys, configuration options, registry entries, adapters, fallbacks, examples, tests, fixtures, documentation, and dependencies that no maintained behavior still requires. Do not preserve production code solely so obsolete tests continue to pass; update or remove those tests to validate the active production contract instead.
-
-Do not add runtime branches, public hooks, configuration switches, or alternate implementations that exist only for tests. Tests should exercise production interfaces with test-owned fixtures, fakes, or adapters. Preserve deliberately frozen historical evidence when required, but keep it outside active schemas, readers, registries, and runtime paths.
+Migrate every maintained consumer to the new signal and observation contracts. Then remove the superseded `AudioDetection`, `DetectionMode`, source-conditioned detection paths, and their unused schema, configuration, adapter, dependency, test, and documentation surfaces. Do not retain production paths only for obsolete tests.
 
 #### Key Decisions
 
-- The breaking migration must leave one maintained signal-to-observation path, not old and new paths in parallel.
-- Every retained public type, module, option, dependency, and algorithm requires a current product role or maintained consumer.
-- Tests are validation evidence, not sufficient justification for otherwise unused production functionality.
-- Prefer deletion and direct consumer migration over compatibility aliases, speculative abstractions, or duplicate implementations.
+- Leave one maintained signal-to-observation path, without legacy aliases or parallel implementations.
+- Tests follow the active production contract and do not justify unused production functionality.
 
 #### Problems / Limitations
 
-Deadness must be demonstrated through consumer and package-surface inspection rather than inferred from naming. Any protected historical artifact or explicitly supported external contract that cannot migrate in the same milestone must be identified and handled without restoring the obsolete runtime design.
+Verify consumer, package, and protected-evidence boundaries before removal.
 
 ## Artifacts
 

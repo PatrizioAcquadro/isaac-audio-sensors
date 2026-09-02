@@ -42,7 +42,7 @@
 
 ## Key Decisions
 
-- [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] — consumer-first implementation, direct migration, immediate cleanup, and no dead, duplicate, speculative, or test-only production functionality.
+- [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] — final cleanup and maintainability rule shared by all implementation plans.
 - [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — current v2 promises, exclusions, and compatibility rules.
 
 ## Experiments

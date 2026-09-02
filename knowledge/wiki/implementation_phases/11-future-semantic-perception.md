@@ -61,20 +61,16 @@ Semantic and multi-source models add training data, native dependencies, compute
 
 #### Implementation
 
-For each capability that is eventually authorized, qualify candidate models or libraries behind the existing observed-signal boundary, select the smallest supported implementation, migrate its real consumers, and remove rejected experiments and superseded paths before calling the capability maintained.
-
-Delete unused model wrappers, checkpoints, taxonomies, track representations, plugin registrations, native dependencies, configuration, adapters, examples, tests, fixtures, and documentation. Do not retain generic placeholder fields or permanent multi-source abstractions for capabilities that remain deferred, and do not keep a classifier, tracker, speech path, ODAS adapter, beamformer, or separator only because a test or experiment exercises it.
+For each authorized future capability, select the smallest supported implementation and remove rejected experiments, unused models or plugins, placeholders, and their supporting surfaces. Do not retain classifier, tracker, speech, ODAS, beamforming, or separation code only for tests or possible future use.
 
 #### Key Decisions
 
-- Future capability approval is granular; one activated feature does not approve the others.
-- Each maintained semantic or multi-source component requires a concrete application consumer and measured value.
-- Experimental artifacts remain outside the production package until selection.
-- The base generic activity and dominant-DOA path stays simpler when advanced capabilities are inactive.
+- Each future component requires a concrete application and measured value.
+- Deferred and experimental capabilities stay outside the production package.
 
 #### Problems / Limitations
 
-Research comparisons may require temporary candidate code and artifacts. Keep them bounded to the authorized evaluation and remove them from the production surface after the decision unless they become the selected maintained path.
+Temporary research candidates remain bounded to evaluation and leave production after selection.
 
 ## Artifacts
 

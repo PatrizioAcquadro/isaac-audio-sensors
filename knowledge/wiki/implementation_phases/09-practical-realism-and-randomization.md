@@ -66,20 +66,16 @@ Transferred behavior applies only to the scenario family used to derive it and m
 
 #### Implementation
 
-After evaluating downstream value, retain only acoustic effects, randomization parameters, profiles, samplers, calibration inputs, and geometry-derived distributions that improve a supported detector, DOA, policy, or validation claim. Give each retained control one clear owner, unit, provenance, range, and consumer.
-
-Remove effects with no measurable application benefit, redundant parameterizations, overlapping profile formats, arbitrary knobs, obsolete defaults, duplicate samplers, unused configuration, dependencies, assets, generated data, examples, tests, fixtures, and documentation. Do not keep expensive fidelity branches, hidden heuristics, or synthetic production shortcuts solely to increase feature count or satisfy isolated tests.
+Retain only effects, parameters, profiles, and distributions with demonstrated value for a supported detector, DOA, policy, or validation claim. Remove ineffective or redundant realism features, arbitrary knobs, overlapping formats, and their unused supporting surfaces. Do not keep expensive or test-only fidelity paths.
 
 #### Key Decisions
 
-- Practical realism optimizes downstream value per implementation, runtime, and maintenance cost.
-- One canonical representation owns each retained physical or randomized quantity.
-- Multiple fidelity profiles remain only for distinct validated operating regimes.
-- Excluded effects stay documented as boundaries rather than partially implemented dormant code.
+- Practical realism balances downstream value with implementation, runtime, and maintenance cost.
+- Keep one clear representation per quantity and only distinct validated fidelity profiles.
 
 #### Problems / Limitations
 
-Absence of measured benefit in a narrow dataset does not prove universal irrelevance. Remove unsupported production machinery while preserving concise evidence and reconsider the effect only when a concrete application supplies new requirements.
+Preserve concise exclusion evidence so a concrete future requirement can justify reconsideration.
 
 ## Artifacts
 

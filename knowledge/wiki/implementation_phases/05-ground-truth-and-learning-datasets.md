@@ -72,20 +72,16 @@ Variable-length observations and truth events require masks or collation rules f
 
 #### Implementation
 
-After migrating recorders, replay, validators, loaders, schema generators, and learning adapters, remove superseded mixed observation/truth fields, duplicate truth serializers, orphan annotation paths, unused dataset wrappers, compatibility readers, schema resources, configuration, fixtures, examples, and tests. Do not introduce a public `GroundTruthAssembler`, duplicate waveform storage, or another dataset container without a demonstrated consumer.
-
-Preserve frozen historical datasets and evidence when required, but keep their readers, schemas, or migration tools out of the active package unless they remain an explicitly supported contract. Production dataset code must not contain shortcuts or synthetic fields used only by tests.
+After migrating recording, replay, validation, and learning consumers, remove mixed observation/truth fields, duplicate serializers, unused dataset wrappers, compatibility readers, and their unused supporting surfaces. Do not add a public `GroundTruthAssembler`, duplicate waveform storage, or test-only dataset fields.
 
 #### Key Decisions
 
-- One canonical serialized ownership model serves current recording and learning consumers.
-- Historical evidence does not force obsolete runtime or package APIs to remain active.
-- Dataset integrity features are retained only when they address an explicit recording, transfer, release, or reproducibility requirement.
-- Tests follow the maintained schema and loader path.
+- Keep one canonical observation, truth, annotation, and recording model.
+- Preserve required historical evidence without retaining obsolete active APIs.
 
 #### Problems / Limitations
 
-Dataset removal requires checking packaged schemas, replay tools, and in-scope external consumers, not only Python imports. Required historical conversion is a bounded migration tool rather than a permanent parallel data model.
+Check packaged schemas, replay, and in-scope consumers before removal.
 
 ## Artifacts
 

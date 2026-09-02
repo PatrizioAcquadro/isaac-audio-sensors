@@ -173,7 +173,7 @@ Temporary candidate adapters may coexist during qualification, but the phase con
 
 Compare only candidates that satisfy the blocking contract. The decision weighs measured behavior, native capability coverage, maintenance burden, distribution viability, licensing, and intended-runtime performance against the practical-realism objective. Ecosystem preference or a successful availability probe is not sufficient evidence for selection.
 
-After the decision, remove unselected candidate adapters, integration scaffolding, build and packaging entries, provider-specific configuration, runtime registration, dedicated dependencies, examples, and tests that no maintained qualification or product path requires. Preserve qualification reports as evidence and retain reusable qualification tooling only when it remains the supported way to revalidate the selected provider or evaluate an authorized replacement. Do not keep candidate production code for comparison convenience or test coverage alone.
+After the decision, remove unselected candidate code and its unused configuration, dependencies, tests, and packaging surfaces. Preserve reports and only the tooling needed to revalidate the selected provider; comparison or test convenience does not justify candidate production code.
 
 #### Key Decisions
 
@@ -182,7 +182,6 @@ After the decision, remove unselected candidate adapters, integration scaffoldin
 - One maintainable primary geometry provider is preferred to several partial permanent backends.
 - The selected provider supplies microphone signals; it does not own activity detection, DOA semantics, observations, or learning labels.
 - Selection follows complete qualification evidence and is not predetermined by ecosystem preference.
-- Provider decision completion includes removal of unselected candidate surfaces after their evidence is recorded.
 
 #### Problems / Limitations
 
