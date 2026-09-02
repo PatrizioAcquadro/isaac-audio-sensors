@@ -62,9 +62,30 @@ Define confidence from observable estimator evidence. Peak prominence, geometric
 
 Longer context improves stability but increases latency and can smear fast motion. The supported operating point must be chosen from application evidence rather than maximum offline accuracy alone.
 
+## Subphase 04.4 — Estimator Consolidation and Removal
+
+#### Implementation
+
+After qualification, select one primary waveform DOA estimator and retain a lightweight baseline only when it has a distinct documented operating role and maintained consumer, such as dependency-free diagnostics or mass-parallel execution. Explicitly audit the existing least-squares, internal SRP-PHAT, PyRoom SRP, registry, configuration, adapter, and downstream consumer paths.
+
+Delete every non-selected or behaviorally duplicate estimator together with its construction branches, registry values, configuration options, adapters, dedicated dependencies, tests, fixtures, examples, and documentation when no maintained role remains. Do not keep two implementations of the same SRP profile for historical convenience or test coverage alone. Shared geometry and ambiguity primitives may remain only when the selected implementation or another current consumer uses them.
+
+`DoaEstimate` remains the estimator-independent result contract and is not tied to retaining any specific legacy algorithm. Tests must validate selected production estimators through their real public path; no estimator or runtime branch may exist only to make tests easier.
+
+#### Key Decisions
+
+- One primary implementation per supported DOA operating profile is the default.
+- A baseline survives only with a concrete, non-overlapping product role and maintained consumer.
+- Algorithm provenance remains visible without exposing redundant algorithms as permanent public surface.
+- Removal includes configuration, registration, dependency, test, example, and documentation surfaces, not only the estimator module.
+
+#### Problems / Limitations
+
+An apparently duplicate estimator may serve a materially different scale or dependency boundary. Preserve it only after that difference is measured and documented; otherwise remove it after consumer migration.
+
 ## Artifacts
 
-Expected artifacts are a mixture-only DOA path, one selected waveform estimator plus any justified baseline, and explicit latency, ambiguity, and confidence semantics.
+Expected artifacts are a mixture-only DOA path, one selected waveform estimator plus any justified distinct baseline, explicit latency, ambiguity, and confidence semantics, and removal of redundant estimator surfaces.
 
 ## Files
 

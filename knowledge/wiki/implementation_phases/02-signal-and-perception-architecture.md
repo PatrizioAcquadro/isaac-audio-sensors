@@ -73,15 +73,36 @@ The current serialized frame shape mixes privileged source information with obse
 
 Replace the overloaded detection record with a compact `AudioObservation` that represents only evidence produced from an observed signal or an external system. Its initial meaning covers observation identity, origin, detector identity, a clearly defined detector score when available, an optional `DoaEstimate`, and concise diagnostics.
 
+The initial public contract contains only:
+
+- `observation_id`, identifying this observation rather than a true source;
+- `origin`, represented by an `ObservationOrigin` enum with exactly `signal_derived` and `external_system` values;
+- `detector_id`, a non-empty string identifying the activity detector or external producer;
+- optional `detection_score`, whose unit and interpretation belong to the identified detector;
+- optional `doa`, containing a `DoaEstimate` only when localization was attempted;
+- concise diagnostics that remain observable or operational rather than privileged scene state.
+
 Do not reserve classifier or tracker fields before those components exist. Scene source identity, source pose, oracle geometry, asset references, occlusion truth, and per-source stem measurements leave the observation contract.
 
 After truth separation, observation origin needs only signal-derived and external-system values. Scheduled simulation activity and manual annotations belong to dataset truth or annotation records rather than the runtime origin enum.
+
+Migrate the four former `detection_mode` meanings directly:
+
+| Former `detection_mode` | New ownership |
+|---|---|
+| `signal_energy` | Replace with `origin=signal_derived`; `detector_id` names the selected signal activity detector. |
+| `external_metadata` | Replace with `origin=external_system`; `detector_id` names the external producer. |
+| `scheduled_known_source` | Remove from runtime observations; scheduled emission and source state belong to dataset ground truth. |
+| `manual_annotation` | Remove from runtime observations; manual labels belong to dataset annotation provenance. |
+
+Remove the `detection_mode` field and its closed enum after migrating consumers. Do not retain aliases that allow the old and new meanings to coexist.
 
 #### Key Decisions
 
 - `DoaEstimate` is optional because detection and localization are separate stages.
 - `None` means localization was not run; an unresolved `DoaEstimate` means it ran but could not select a unique valid direction.
-- Detector identity is extensible without expanding a closed mode enum for every algorithm.
+- `origin` identifies the evidence path, while `detector_id` identifies the concrete producer; neither field identifies a true source.
+- Detector identity remains extensible as a string without expanding a closed mode enum for every algorithm.
 - A score is not called confidence unless its semantics are calibrated and comparable.
 
 #### Problems / Limitations
@@ -104,9 +125,30 @@ Use one thin sensor orchestration path to obtain a signal block, run perception,
 
 Changing the propagation protocol affects Core, CLI, Isaac, Kit, recording, replay, and Isaac Lab reference consumers. The migration must remain one coherent contract change without parallel legacy paths.
 
+## Subphase 02.5 — Consumer Migration and Legacy Removal
+
+#### Implementation
+
+Audit every maintained in-scope consumer before removal, including Core, CLI, schemas, recording and replay, Isaac Sim, Isaac Lab, Kit, OmniGraph, Replicator, examples, tests, and packaging. Migrate them together to `MicrophoneSignalBlock`, `AudioObservation`, the two-value `ObservationOrigin`, and `detector_id`.
+
+After consumer migration, delete the superseded `AudioDetection` and `DetectionMode` surfaces, source-conditioned backend detection paths, obsolete observation fields, legacy serializers and schema keys, configuration options, registry entries, adapters, fallbacks, examples, tests, fixtures, documentation, and dependencies that no maintained behavior still requires. Do not preserve production code solely so obsolete tests continue to pass; update or remove those tests to validate the active production contract instead.
+
+Do not add runtime branches, public hooks, configuration switches, or alternate implementations that exist only for tests. Tests should exercise production interfaces with test-owned fixtures, fakes, or adapters. Preserve deliberately frozen historical evidence when required, but keep it outside active schemas, readers, registries, and runtime paths.
+
+#### Key Decisions
+
+- The breaking migration must leave one maintained signal-to-observation path, not old and new paths in parallel.
+- Every retained public type, module, option, dependency, and algorithm requires a current product role or maintained consumer.
+- Tests are validation evidence, not sufficient justification for otherwise unused production functionality.
+- Prefer deletion and direct consumer migration over compatibility aliases, speculative abstractions, or duplicate implementations.
+
+#### Problems / Limitations
+
+Deadness must be demonstrated through consumer and package-surface inspection rather than inferred from naming. Any protected historical artifact or explicitly supported external contract that cannot migrate in the same milestone must be identified and handled without restoring the obsolete runtime design.
+
 ## Artifacts
 
-This plan should result in the new signal, observation, and frame contracts plus one shared orchestration flow. It does not itself select activity or DOA algorithms.
+This plan should result in the new signal, observation, and frame contracts, one shared orchestration flow, directly migrated consumers, and removal of the superseded detection architecture. It does not itself select activity or DOA algorithms.
 
 ## Files
 

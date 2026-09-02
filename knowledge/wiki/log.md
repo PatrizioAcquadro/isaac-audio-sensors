@@ -469,3 +469,11 @@ Reduced Plans 01 and 08 to sequence-only references, moved their unique provider
 ## 2026-09-02 — lint: Canonical R9 and R10 plan ownership
 
 Verified sequence-to-phase mappings, sole-authority wording, removal of duplicated plan requirements, the common signal boundary, index and status synchronization, resolved wiki links, documentation boundary tests, and Markdown whitespace.
+
+## 2026-09-02 — update: Observation migration and maintainability closeout
+
+Specified the two-value `ObservationOrigin`, `detector_id`, optional `detection_score`, direct migration of all four former detection modes, consumer-first removal of the superseded detection architecture, evidence-based DOA estimator consolidation, and a repository-wide closeout against dead, duplicate, compatibility-only, and test-only production functionality.
+
+## 2026-09-02 — lint: Observation migration and maintainability closeout
+
+Verified exact former-mode ownership, observation field semantics, consumer and protected-evidence boundaries, estimator-removal criteria, index and status synchronization, documentation boundary tests, internal wiki links, and Markdown whitespace.

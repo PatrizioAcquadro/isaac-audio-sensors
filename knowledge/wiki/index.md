@@ -7,15 +7,15 @@
 ### Ordered Post-R9.1 Implementation Plans
 
 - [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] — sequence reference for implementing canonical R9.2 qualification followed by R9.3 selection.
-- [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — separate signal production from observed perception while retaining the minimal frame boundary.
+- [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — establish the minimal signal and observation contracts, migrate consumers directly, and remove the superseded detection architecture.
 - [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — qualify Auditok and produce generic signal-derived activity without scene leakage.
-- [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — qualify mixture-only PyRoom SRP-PHAT and preserve honest ambiguity, latency, and confidence.
+- [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — qualify mixture-only DOA, preserve honest ambiguity, and remove estimators without a distinct maintained role.
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — align observations, audio, and simulator truth without policy-input leakage.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — make simulation and physical capture interchangeable signal producers for one perception pipeline.
 - [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — map observed dominant-event semantics into fixed, reset-safe policy tensors.
 - [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — sequence reference for implementing canonical R10.1, R10.2, and R10.3.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — prioritize evidence-backed signal variation that improves application transfer.
-- [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate semantics, perception quality, runtime limits, datasets, and distributions.
+- [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate behavior and finish with a consumer-proven minimal, maintainable repository surface.
 - [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] — defer classification, tracking, speech focus, ODAS, and multi-source work until the base path is stable.
 
 ### Completed and Existing Phase Records

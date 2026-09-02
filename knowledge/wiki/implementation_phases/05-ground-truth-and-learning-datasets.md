@@ -14,11 +14,14 @@ Do not add a public runtime `GroundTruthAssembler` service. Produce truth throug
 
 The truth record contains zero or more true source events with source identity, true class when authored, pose, bearing, elevation, distance, emission state, received audibility evidence, occlusion or provider path state when meaningful, and source-asset provenance.
 
+Former `scheduled_known_source` information becomes scheduled emission and source truth in this dataset-owned record; it never creates a runtime observation by itself. Former `manual_annotation` information becomes a separate annotation record with annotator, method, timing, and label provenance as appropriate. Neither former mode remains serialized as `detection_mode`, and neither is accepted as an `AudioObservation.origin` value.
+
 #### Key Decisions
 
 - Ground truth is recorded beside a frame, never inside `AudioObservation`.
 - A separate record is still necessary because frames with zero observations or zero truth events are valid.
 - Truth extraction may use private stems and scene state because it is supervision, not sensor output.
+- Scheduled source state belongs to simulation truth rather than observed detection.
 - Manual annotations belong to dataset annotation provenance rather than detection origin.
 
 #### Problems / Limitations

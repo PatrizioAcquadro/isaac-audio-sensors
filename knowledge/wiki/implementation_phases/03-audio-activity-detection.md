@@ -10,7 +10,7 @@ Detect generic acoustic activity from the final multichannel microphone signal w
 
 #### Implementation
 
-Introduce an activity-detector plugin contract that consumes ordered microphone samples and sample-rate information, maintains explicit streaming state, and returns a bounded decision with algorithm provenance and score semantics. Reset behavior must cover episode changes, time discontinuities, array changes, and replay boundaries.
+Introduce an activity-detector plugin contract that consumes ordered microphone samples and sample-rate information, maintains explicit streaming state, and returns a bounded decision with a stable non-empty `detector_id` and explicit score semantics. Reset behavior must cover episode changes, time discontinuities, array changes, and replay boundaries.
 
 The detector operates after propagation, mixing, sensor noise, and relevant electronics. Its output describes acoustic activity rather than speech, source identity, class, or direction.
 
@@ -18,6 +18,7 @@ The detector operates after propagation, mixing, sensor noise, and relevant elec
 
 - Activity detection and DOA estimation are separate capabilities.
 - Detection presence is meaningful even when DOA is unavailable.
+- The detector identifies its implementation or supported profile through `detector_id`; it never identifies a scene source.
 - The contract supports multichannel evidence without assuming that all channels remain valid.
 - Temporal smoothing and event boundaries belong to detector state, not frame assembly.
 
@@ -48,7 +49,9 @@ Use a thin IAS adapter around the useful detector and tokenizer primitives rathe
 
 #### Implementation
 
-Emit no `AudioObservation` when activity is absent. When activity is present, create an observation with signal origin, the selected detector identifier, and a score only if its unit and interpretation are explicit. Energy, threshold, and margin may remain diagnostics when they are more honest than a normalized confidence value.
+Emit no `AudioObservation` when activity is absent. When activity is present, create an observation with `origin=signal_derived`, the selected detector's `detector_id`, and optional `detection_score` only if its unit and interpretation are explicit. Energy, threshold, and margin may remain diagnostics when they are more honest than a normalized confidence value.
+
+Do not recreate `signal_energy` as a detection mode. Energy may be an implementation detail or diagnostic of the selected detector, while `origin` and `detector_id` preserve the separate evidence-path and producer meanings defined by Plan 02.
 
 Initially support one dominant acoustic event per update. Activity detection does not invent source identity or class and does not use the number of active simulated sources.
 
@@ -56,6 +59,7 @@ Initially support one dominant acoustic event per update. Activity detection doe
 
 - Absence of an observation is the normal inactive result.
 - Detector score and DOA confidence are separate quantities.
+- `detection_score` is optional and remains meaningful only together with `detector_id`.
 - Generic activity is useful without classification.
 - The first maintained behavior prioritizes reliable dominant-event operation over unsupported multi-source claims.
 
