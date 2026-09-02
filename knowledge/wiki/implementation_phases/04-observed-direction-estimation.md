@@ -6,6 +6,8 @@ Status: Planned after generic activity detection.
 
 Estimate direction from the final multichannel mixture only when acoustic activity is present. Preserve physically honest ambiguity and invalidity while making the dominant-source case useful for live robots and learning datasets.
 
+Plan 04 applies the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision through explicit estimator qualification, role separation, consumer migration, and removal.
+
 ## Subphase 04.1 — Mixture-Only DOA Boundary
 
 #### Implementation

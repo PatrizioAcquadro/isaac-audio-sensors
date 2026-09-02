@@ -6,6 +6,8 @@ Status: Planned after the signal and perception boundary is established.
 
 Detect generic acoustic activity from the final multichannel microphone signal without using source schedules, private stems, scene identities, or oracle audibility. Provide a practical, stateful gate that decides when downstream localization should run.
 
+Plan 03 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: qualification must end with one maintained detector path and no rejected, duplicate, or test-only production surface.
+
 ## Subphase 03.1 — Activity Detector Contract
 
 #### Implementation
@@ -67,9 +69,28 @@ Initially support one dominant acoustic event per update. Activity detection doe
 
 Short impulses and continuous background machinery may require different temporal settings. One universal configuration is not expected to fit every application.
 
+## Subphase 03.4 — Detector Consolidation and Cleanup
+
+#### Implementation
+
+After qualification, retain `auditok` only if it satisfies the supported activity contract; otherwise retain the smallest qualified alternative. Keep multiple detectors only when each has a distinct measured operating role and maintained consumer.
+
+Remove rejected or duplicate detector adapters, algorithms, configuration choices, registry entries, dependencies, examples, tests, fixtures, and documentation after migrating consumers to the selected path. Do not retain a legacy energy detector, a second threshold path, or a runtime shortcut solely for comparison or test convenience. Shared signal utilities remain only when another maintained component uses them.
+
+#### Key Decisions
+
+- Generic activity has one canonical maintained detector path by default.
+- Additional detectors require non-overlapping product roles and evidence.
+- Qualification scaffolding does not become permanent runtime surface.
+- Tests validate the selected production detector rather than preserving obsolete implementations.
+
+#### Problems / Limitations
+
+A detector that performs differently under a genuinely distinct latency, dependency, or noise regime may justify a separate profile. That role must be measured and documented before retaining another implementation.
+
 ## Artifacts
 
-Expected artifacts are one qualified activity-detector adapter, documented operating limits, and signal-derived observations with no scene leakage.
+Expected artifacts are one qualified activity-detector path, documented operating limits, signal-derived observations with no scene leakage, and removal of rejected or redundant detector surfaces.
 
 ## Files
 

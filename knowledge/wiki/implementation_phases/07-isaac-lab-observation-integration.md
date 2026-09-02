@@ -6,6 +6,8 @@ Status: Planned after the scalar observed-perception contract and learning datas
 
 Expose observed activity and direction to robot policies through fixed-shape Isaac Lab tensors without reintroducing scheduled-source truth, source-conditioned RMS, or hidden contextual direction choices. Preserve a scalable training path while retaining scalar waveform perception as the semantic reference.
 
+Plan 07 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: the Lab migration replaces the source-conditioned contract directly and retains multiple execution paths only for distinct validated scale roles.
+
 ## Subphase 07.1 — Observation-to-Tensor Contract
 
 #### Implementation
@@ -58,9 +60,28 @@ Carry activity and DOA context per environment while preserving partial reset. R
 
 Stateful signal processing increases memory pressure at scale. Supported context length must balance policy value, latency, and GPU cost.
 
+## Subphase 07.4 — Lab Migration and Cleanup
+
+#### Implementation
+
+Migrate maintained Isaac Lab tasks, adapters, configuration, data containers, reset handling, examples, and tests to the observed-only tensor contract. Then remove source-conditioned tensors, per-source RMS observation fields, scheduled-source bindings used only for sensing, obsolete configuration and registry entries, compatibility aliases, duplicate conversion kernels, fixtures, documentation, and dependencies without a remaining Lab role.
+
+Retain scalar reference and CUDA-native scalable implementations only because they serve distinct correctness and mass-parallel roles. They must share one observable semantic contract and common validation where practical; any additional CPU, fallback, mock, or synthetic runtime path requires a supported deployment role rather than test convenience.
+
+#### Key Decisions
+
+- The old and new Lab observation contracts do not coexist after consumer migration.
+- Reference and scalable paths may differ internally but cannot duplicate public meaning or drift semantically.
+- A path survives only with a current task, validation, or deployment role.
+- Test-only kernels, sensor modes, and runtime branches are not part of the maintained package.
+
+#### Problems / Limitations
+
+Downstream tasks may depend on privileged source information for rewards or curricula. Preserve that data only through explicitly privileged task-owned channels; it does not justify retaining the obsolete sensor observation path.
+
 ## Artifacts
 
-Expected artifacts are an observed-only fixed tensor contract, scalar reference semantics, and a justified scalable approximation with correct reset behavior.
+Expected artifacts are an observed-only fixed tensor contract, scalar reference semantics, a justified scalable approximation with correct reset behavior, migrated consumers, and removal of the source-conditioned Lab sensor surface.
 
 ## Files
 

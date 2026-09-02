@@ -1,10 +1,12 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: Planned after provider selection and the shared signal and observed-perception migration. [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]] references the R10.1–R10.3 execution order but adds no technical requirements. This page is the sole authority for the geometry integration.
+Status: Planned after provider selection and the shared signal and observed-perception migration. [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]] references the R10.1–R10.4 execution order but adds no technical requirements. This page is the sole authority for the geometry integration.
 
 ## Objective
 
 Integrate the provider selected by [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] as the primary high-fidelity simulated signal producer for one or a few passive-audio Isaac environments. Its final microphone signals enter the same backend-independent observed-perception path used by analytic simulation and physical capture.
+
+R10 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: the selected integration must replace temporary, unselected, duplicate, and legacy geometry paths rather than adding another permanent layer beside them.
 
 ## Subphase R10.1 — USD Acoustic Scene
 
@@ -80,9 +82,30 @@ Export provider- and scenario-versioned bounded distributions for broadband and 
 
 The geometry backend is not required to scale directly to thousands of simultaneous Isaac Lab environments. Transferred distributions approximate the provider's simulated scenario family and do not claim broader physical calibration.
 
+## Subphase R10.4 — Provider Consolidation and Cleanup
+
+#### Implementation
+
+After validating the selected provider path, audit qualification adapters, backend registration, USD translation, scene caches, material resolution, source and array adaptation, occlusion, diagnostics, Kit configuration, packaging, optional dependencies, examples, and tests. Retain the selected geometry provider, the separately justified scalable analytic path, and only the shared infrastructure each maintained consumer needs.
+
+Remove unselected candidate integrations, temporary R9 scaffolding, redundant geometry wrappers, duplicate material or occlusion application, obsolete provider configuration and registry entries, dedicated dependencies and assets, diagnostic capture paths, examples, fixtures, tests, and documentation without a current product or requalification role. Do not retain provider-specific public observation fields, parallel frame-producing backends, or runtime geometry shortcuts created only for tests.
+
+Qualification reports remain evidence rather than runtime surface. Reusable probes remain only when they are the maintained way to revalidate installation, licensing, performance, or the selected provider contract.
+
+#### Key Decisions
+
+- One selected geometry-provider integration is the maintained high-fidelity path.
+- `AnalyticAcoustics` remains only because it has a distinct mass-parallel role, not as duplicate geometry-provider functionality.
+- Provider-native capabilities replace repository-owned duplication when they satisfy the required contract.
+- Temporary candidate and test scaffolding is removed after its evidence purpose is complete.
+
+#### Problems / Limitations
+
+Provider SDK installation and licensing may require small maintained probes or user-managed resources. Retain only the minimum operational support required for the selected provider and distinguish it from abandoned candidate integration code.
+
 ## Artifacts
 
-Expected artifacts are a provider-backed `MicrophoneSignalBlock` producer, USD acoustic mapping, bounded lifecycle and diagnostics, and unchanged perception semantics across analytic, geometry, and physical inputs. No R10 implementation artifacts exist yet.
+Expected artifacts are a provider-backed `MicrophoneSignalBlock` producer, USD acoustic mapping, bounded lifecycle and diagnostics, unchanged perception semantics across analytic, geometry, and physical inputs, and one consolidated maintained geometry-provider surface. No R10 implementation artifacts exist yet.
 
 ## Files
 

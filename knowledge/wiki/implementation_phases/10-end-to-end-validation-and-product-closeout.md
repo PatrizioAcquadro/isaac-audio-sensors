@@ -6,6 +6,8 @@ Status: Planned after the maintained signal producers, perception path, dataset 
 
 Establish that the redesigned system is correct, practical, maintainable, and honest across Core, Isaac Sim, Isaac Lab, Kit, recording, replay, packaging, and bounded physical comparison before closing the product milestone.
 
+Plan 10 enforces the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision across the complete repository. Its final audit catches residual complexity but does not replace the cleanup required inside each earlier milestone.
+
 ## Subphase 10.1 — Semantic and Leakage Validation
 
 #### Implementation

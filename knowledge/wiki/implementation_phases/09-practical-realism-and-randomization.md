@@ -6,6 +6,8 @@ Status: Planned after the observed pipeline works across analytic, geometry, and
 
 Improve the aspects of simulated audio that materially affect activity detection, DOA, and robot policy behavior while avoiding expensive physical detail that does not provide measurable application benefit.
 
+Plan 09 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: realism increases only where evidence justifies its implementation, configuration, runtime cost, and maintenance burden.
+
 ## Subphase 09.1 — Task-Relevant Realism Model
 
 #### Implementation
@@ -60,9 +62,28 @@ Extract bounded, provider-versioned acoustic behavior from representative Geomet
 
 Transferred behavior applies only to the scenario family used to derive it and must not be presented as universal acoustic calibration.
 
+## Subphase 09.4 — Realism Surface Consolidation and Cleanup
+
+#### Implementation
+
+After evaluating downstream value, retain only acoustic effects, randomization parameters, profiles, samplers, calibration inputs, and geometry-derived distributions that improve a supported detector, DOA, policy, or validation claim. Give each retained control one clear owner, unit, provenance, range, and consumer.
+
+Remove effects with no measurable application benefit, redundant parameterizations, overlapping profile formats, arbitrary knobs, obsolete defaults, duplicate samplers, unused configuration, dependencies, assets, generated data, examples, tests, fixtures, and documentation. Do not keep expensive fidelity branches, hidden heuristics, or synthetic production shortcuts solely to increase feature count or satisfy isolated tests.
+
+#### Key Decisions
+
+- Practical realism optimizes downstream value per implementation, runtime, and maintenance cost.
+- One canonical representation owns each retained physical or randomized quantity.
+- Multiple fidelity profiles remain only for distinct validated operating regimes.
+- Excluded effects stay documented as boundaries rather than partially implemented dormant code.
+
+#### Problems / Limitations
+
+Absence of measured benefit in a narrow dataset does not prove universal irrelevance. Remove unsupported production machinery while preserving concise evidence and reconsider the effect only when a concrete application supplies new requirements.
+
 ## Artifacts
 
-Expected artifacts are a bounded realism profile, evidence-backed randomization ranges, and documented exclusions tied to downstream relevance.
+Expected artifacts are a bounded realism profile, evidence-backed randomization ranges, documented exclusions tied to downstream relevance, and removal of realism surfaces without demonstrated value.
 
 ## Files
 

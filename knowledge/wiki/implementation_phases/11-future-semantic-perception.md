@@ -6,6 +6,8 @@ Status: Explicitly deferred until generic activity and observed DOA are stable a
 
 Extend the observed pipeline with classification, tracking, speech-focused detection, and optional multi-source processing only when concrete application requirements justify their contracts and runtime cost.
 
+Plan 11 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision. Deferred capabilities create no placeholder fields, dependencies, modules, configuration, registry entries, or test-only production hooks before a concrete application authorizes them.
+
 ## Subphase 11.1 — Sound Classification
 
 #### Implementation
@@ -55,9 +57,28 @@ Evaluate speech VAD, ODAS, multi-peak localization, beamforming, and source sepa
 
 Semantic and multi-source models add training data, native dependencies, compute, and maintenance. They require separate value evidence rather than inheriting approval from the base perception work.
 
+## Subphase 11.4 — Activated Capability Consolidation and Cleanup
+
+#### Implementation
+
+For each capability that is eventually authorized, qualify candidate models or libraries behind the existing observed-signal boundary, select the smallest supported implementation, migrate its real consumers, and remove rejected experiments and superseded paths before calling the capability maintained.
+
+Delete unused model wrappers, checkpoints, taxonomies, track representations, plugin registrations, native dependencies, configuration, adapters, examples, tests, fixtures, and documentation. Do not retain generic placeholder fields or permanent multi-source abstractions for capabilities that remain deferred, and do not keep a classifier, tracker, speech path, ODAS adapter, beamformer, or separator only because a test or experiment exercises it.
+
+#### Key Decisions
+
+- Future capability approval is granular; one activated feature does not approve the others.
+- Each maintained semantic or multi-source component requires a concrete application consumer and measured value.
+- Experimental artifacts remain outside the production package until selection.
+- The base generic activity and dominant-DOA path stays simpler when advanced capabilities are inactive.
+
+#### Problems / Limitations
+
+Research comparisons may require temporary candidate code and artifacts. Keep them bounded to the authorized evaluation and remove them from the production surface after the decision unless they become the selected maintained path.
+
 ## Artifacts
 
-No artifacts are required until a future application activates one of these capabilities.
+No artifacts or production placeholders are required until a future application activates one of these capabilities. An activated capability must leave one selected implementation and its evidence, not permanent candidate clutter.
 
 ## Files
 

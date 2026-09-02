@@ -4,7 +4,7 @@ Status: Planned as the first remaining activity after the completed R9.1 contrac
 
 ## Objective
 
-Record the execution order of the remaining R9 provider work. This page is a sequence reference only; [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] is the sole authority for requirements, decisions, limitations, evidence, and acceptance semantics.
+Record the execution order of the remaining R9 provider work. This page is a sequence reference only; [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] is the sole authority for requirements, decisions, limitations, evidence, acceptance semantics, and application of the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision.
 
 ## Subphase 01.1 — Implement R9.2
 

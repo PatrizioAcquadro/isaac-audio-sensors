@@ -478,6 +478,14 @@ Specified the two-value `ObservationOrigin`, `detector_id`, optional `detection_
 
 Verified exact former-mode ownership, observation field semantics, consumer and protected-evidence boundaries, estimator-removal criteria, index and status synchronization, documentation boundary tests, internal wiki links, and Markdown whitespace.
 
+## 2026-09-02 — update: Minimal maintained surface across all plans
+
+Added one canonical repository-quality decision and applied it explicitly to Plans 01–11. Added milestone-local detector, dataset, signal-producer, Isaac Lab, geometry-provider, realism, and future-capability consolidation so consumer migration and removal of dead, duplicate, speculative, compatibility-only, unused, and test-only production surfaces occur when each plan is implemented rather than only at final closeout.
+
+## 2026-09-02 — lint: Minimal maintained surface across all plans
+
+Verified all eleven plan links, reference-only Plan 01/R9 and Plan 08/R10 ownership, R10.4 ordering, plan-specific removal boundaries, protected evidence and downstream exclusions, complete index coverage, resolved wiki links, documentation boundary tests, and Markdown whitespace.
+
 ## 2026-09-02 — update: Core type module split
 
 Split the simulator-independent public dataclasses into private scene, environment, snapshot, frame, and shared-validation modules behind the unchanged `core.types` facade, without changing consumers, schemas, or runtime behavior.

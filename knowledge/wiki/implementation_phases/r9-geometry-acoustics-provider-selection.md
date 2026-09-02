@@ -8,6 +8,8 @@ The remaining R9.2/R9.3 execution order is referenced by [[implementation_phases
 
 Select the existing acoustic engine that can satisfy the passive-audio requirements before building a maintained Isaac integration. This phase owns provider qualification and the final provider decision; R10 owns product integration.
 
+R9 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: temporary candidate work may exist during qualification, but the completed decision retains no unselected provider integration or other surface without a current qualification or product role.
+
 ## Subphase R9.1 — Required Provider Contract
 
 #### Implementation
@@ -171,6 +173,8 @@ Temporary candidate adapters may coexist during qualification, but the phase con
 
 Compare only candidates that satisfy the blocking contract. The decision weighs measured behavior, native capability coverage, maintenance burden, distribution viability, licensing, and intended-runtime performance against the practical-realism objective. Ecosystem preference or a successful availability probe is not sufficient evidence for selection.
 
+After the decision, remove unselected candidate adapters, integration scaffolding, build and packaging entries, provider-specific configuration, runtime registration, dedicated dependencies, examples, and tests that no maintained qualification or product path requires. Preserve qualification reports as evidence and retain reusable qualification tooling only when it remains the supported way to revalidate the selected provider or evaluate an authorized replacement. Do not keep candidate production code for comparison convenience or test coverage alone.
+
 #### Key Decisions
 
 - Provider research and provider integration are separate phases.
@@ -178,6 +182,7 @@ Compare only candidates that satisfy the blocking contract. The decision weighs 
 - One maintainable primary geometry provider is preferred to several partial permanent backends.
 - The selected provider supplies microphone signals; it does not own activity detection, DOA semantics, observations, or learning labels.
 - Selection follows complete qualification evidence and is not predetermined by ecosystem preference.
+- Provider decision completion includes removal of unselected candidate surfaces after their evidence is recorded.
 
 #### Problems / Limitations
 

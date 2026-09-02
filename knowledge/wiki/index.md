@@ -8,15 +8,15 @@
 
 - [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] — sequence reference for implementing canonical R9.2 qualification followed by R9.3 selection.
 - [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — establish the minimal signal and observation contracts, migrate consumers directly, and remove the superseded detection architecture.
-- [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — qualify Auditok and produce generic signal-derived activity without scene leakage.
+- [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — qualify one maintained generic detector and remove rejected or duplicate detector surfaces.
 - [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — qualify mixture-only DOA, preserve honest ambiguity, and remove estimators without a distinct maintained role.
-- [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — align observations, audio, and simulator truth without policy-input leakage.
-- [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — make simulation and physical capture interchangeable signal producers for one perception pipeline.
-- [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — map observed dominant-event semantics into fixed, reset-safe policy tensors.
-- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — sequence reference for implementing canonical R10.1, R10.2, and R10.3.
-- [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — prioritize evidence-backed signal variation that improves application transfer.
+- [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — align observations and truth without leakage or overlapping maintained dataset models.
+- [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — unify simulation and physical capture behind one signal contract and remove duplicate domain paths.
+- [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — migrate to observed fixed tensors and retain execution paths only for distinct validated scale roles.
+- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — sequence reference for implementing canonical R10.1 through R10.4.
+- [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — retain only evidence-backed signal variation with measurable application value.
 - [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate behavior and finish with a consumer-proven minimal, maintainable repository surface.
-- [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] — defer classification, tracking, speech focus, ODAS, and multi-source work until the base path is stable.
+- [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] — add no placeholders and retain future semantic capabilities only after application-backed qualification.
 
 ### Completed and Existing Phase Records
 
@@ -28,7 +28,7 @@
 - [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]] — unified analytic environment meaning, configuration entry paths, and fail-closed Isaac resolution.
 - [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — completed topology routing, direct-stem occlusion, mass-parallel Isaac Lab execution, single-backend consolidation, and partition-transmission closeout.
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — semantic fixture qualification and selection of one existing passive microphone-array engine.
-- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — USD acoustic assemblies, provider-backed multichannel propagation, optional path review, and bounded analytic parameter transfer.
+- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — USD acoustic assemblies, provider-backed signals, bounded analytic transfer, and consolidation to one maintained geometry integration.
 
 ## Topics
 
@@ -42,6 +42,7 @@
 
 ## Key Decisions
 
+- [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] — consumer-first implementation, direct migration, immediate cleanup, and no dead, duplicate, speculative, or test-only production functionality.
 - [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — current v2 promises, exclusions, and compatibility rules.
 
 ## Experiments

@@ -6,6 +6,8 @@ Status: Planned after observed activity and DOA contracts are defined.
 
 Store sensor observations and simulation truth as aligned but independent dataset information. Prevent privileged scene state from leaking into robot-policy inputs while preserving the supervision needed for training, evaluation, and diagnosis.
 
+Plan 05 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: one clear observation, truth, annotation, and recording ownership model replaces overlapping dataset paths.
+
 ## Subphase 05.1 — Dataset-Only Truth Boundary
 
 #### Implementation
@@ -66,9 +68,28 @@ Preserve atomic alignment between audio samples, frame metadata, observations, r
 
 Variable-length observations and truth events require masks or collation rules for batched training. Those rules belong to the learning adapter rather than the serialized acoustic observation itself.
 
+## Subphase 05.4 — Dataset Surface Consolidation and Cleanup
+
+#### Implementation
+
+After migrating recorders, replay, validators, loaders, schema generators, and learning adapters, remove superseded mixed observation/truth fields, duplicate truth serializers, orphan annotation paths, unused dataset wrappers, compatibility readers, schema resources, configuration, fixtures, examples, and tests. Do not introduce a public `GroundTruthAssembler`, duplicate waveform storage, or another dataset container without a demonstrated consumer.
+
+Preserve frozen historical datasets and evidence when required, but keep their readers, schemas, or migration tools out of the active package unless they remain an explicitly supported contract. Production dataset code must not contain shortcuts or synthetic fields used only by tests.
+
+#### Key Decisions
+
+- One canonical serialized ownership model serves current recording and learning consumers.
+- Historical evidence does not force obsolete runtime or package APIs to remain active.
+- Dataset integrity features are retained only when they address an explicit recording, transfer, release, or reproducibility requirement.
+- Tests follow the maintained schema and loader path.
+
+#### Problems / Limitations
+
+Dataset removal requires checking packaged schemas, replay tools, and in-scope external consumers, not only Python imports. Required historical conversion is a bounded migration tool rather than a permanent parallel data model.
+
 ## Artifacts
 
-Expected artifacts are an aligned dataset truth record, explicit policy-input and supervision boundaries, and evaluation-owned observation matching.
+Expected artifacts are an aligned dataset truth record, explicit policy-input and supervision boundaries, evaluation-owned observation matching, and one minimal maintained dataset surface.
 
 ## Files
 

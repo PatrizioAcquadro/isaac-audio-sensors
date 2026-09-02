@@ -4,7 +4,7 @@ Status: Planned after Plans 01–07.
 
 ## Objective
 
-Record the execution order of the R10 geometry-integration work. This page is a sequence reference only; [[implementation_phases/r10-geometry-acoustics-integration|R10]] is the sole authority for requirements, decisions, limitations, artifacts, and acceptance semantics.
+Record the execution order of the R10 geometry-integration work. This page is a sequence reference only; [[implementation_phases/r10-geometry-acoustics-integration|R10]] is the sole authority for requirements, decisions, limitations, artifacts, acceptance semantics, and application of the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision.
 
 ## Subphase 08.1 — Implement R10.1
 
@@ -42,11 +42,25 @@ After R10.2 is complete, implement [[implementation_phases/r10-geometry-acoustic
 
 #### Key Decisions
 
-- This plan defines only that R10.3 follows R10.2; R10.3 remains authoritative for its execution.
+- This plan defines only that R10.3 follows R10.2 and precedes R10.4; R10.3 remains authoritative for its execution.
 
 #### Problems / Limitations
 
 This reference adds no requirements beyond R10.3.
+
+## Subphase 08.4 — Implement R10.4
+
+#### Implementation
+
+After R10.3 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.4 — Provider Consolidation and Cleanup|R10.4 Provider Consolidation and Cleanup]].
+
+#### Key Decisions
+
+- This plan defines only that R10.4 follows R10.3; R10.4 remains authoritative for its execution.
+
+#### Problems / Limitations
+
+This reference adds no requirements beyond R10.4.
 
 ## Artifacts
 
