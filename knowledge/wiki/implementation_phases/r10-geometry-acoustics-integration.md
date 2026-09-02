@@ -1,10 +1,10 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: Planned. [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]] is the ordered high-level entry point after the shared signal and observed-perception migration; this page remains the detailed geometry-integration specification.
+Status: Planned after provider selection and the shared signal and observed-perception migration. [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]] references the R10.1–R10.3 execution order but adds no technical requirements. This page is the sole authority for the geometry integration.
 
 ## Objective
 
-Integrate the provider selected by [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] as the primary high-fidelity Isaac backend for one or a few passive-audio environments.
+Integrate the provider selected by [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] as the primary high-fidelity simulated signal producer for one or a few passive-audio Isaac environments. Its final microphone signals enter the same backend-independent observed-perception path used by analytic simulation and physical capture.
 
 ## Subphase R10.1 — USD Acoustic Scene
 
@@ -32,21 +32,24 @@ Arbitrary visual detail may be acoustically irrelevant or too expensive. Geometr
 
 #### Implementation
 
-Map arbitrary passive source content, source pose and directivity, every microphone pose and response, and the selected acoustic scene into the provider. Preserve direct and reflected paths, material transmission, indirect pathing, and approximate diffraction, then return one phase-coherent waveform per microphone through the existing `AudioSensorFrame` contract.
+Map arbitrary passive source content, source pose and directivity, every microphone pose and response, and the selected acoustic scene into the provider. Preserve direct and reflected paths, material transmission, indirect pathing, and approximate diffraction, then return one phase-coherent final waveform per physical microphone through the common `MicrophoneSignalBlock` boundary.
 
-Isaac Audio Sensors owns provider lifecycle, source and array translation, per-channel effects, diagnostics, frame assembly, and public sensor semantics. The external engine owns mesh acceleration, ray traversal, multi-bounce reflection, scattering, indirect path search, and approximate diffraction.
+Isaac Audio Sensors owns source content, provider lifecycle, source and array translation, microphone semantics, signal effects not owned by the provider, diagnostics, and signal provenance. The external engine owns mesh acceleration, ray traversal, multi-bounce reflection, scattering, indirect path search, and approximate diffraction. `AudioPerceptionPipeline`, outside the geometry backend, owns activity detection, optional DOA estimation, `AudioObservation` creation, and `AudioSensorFrame` construction.
 
 The provider owns geometry-path occlusion and transmission exactly once. Isaac therefore does not run the legacy `SourceOcclusion` raycast-and-attenuation path for `GeometryAcoustics`, and the backend does not accept a precomputed `SourceOcclusion` record as another gain stage. Conflicting external attenuation input fails validation rather than being ignored or double-applied.
 
-Do not reconstruct `SourceOcclusion` solely to mirror legacy diagnostics. Expose only concise provider-derived occlusion state that remains meaningful to the public frame contract or an active consumer; do not duplicate provider path data without a concrete use. Legacy occlusion machinery remains only where R8 still needs direct-path analytic attenuation, and geometry-path wrappers or duplicate material resolution are removed after consumer migration.
+Do not reconstruct `SourceOcclusion` solely to mirror legacy diagnostics. Expose only concise provider-derived occlusion state that remains meaningful to signal provenance or an active diagnostic consumer; do not duplicate provider path data without a concrete use. Legacy occlusion machinery remains only where R8 still needs direct-path analytic attenuation, and geometry-path wrappers or duplicate material resolution are removed after consumer migration.
 
 When the provider exposes ray, path, or interaction diagnostics, adapt them optionally to the existing `DebugPrimitive` representation for live overlays, sidecar JSON, and review video. Preserve direct, transmitted, reflected, and indirect path distinctions when the provider reports them. Diagnostic capture is disabled by default, filterable by source, array, microphone, and path type, and must not add path fields to the stable frame schema or ordinary datasets. Do not reconstruct provider paths locally when no supported diagnostic API exists.
 
 #### Key Decisions
 
 - The backend simulates a robot-mounted microphone array, not a human listener or qualitative device mix.
+- `GeometryAcoustics` emits microphone signals, not detections, DOA estimates, observations, frames, or learning labels.
+- Activity detection and DOA estimation remain backend-independent and consume only the final microphone mixture.
 - Geometry-provider occlusion is applied once; `SourceOcclusion` is neither an additional attenuation stage nor a mandatory diagnostic artifact.
 - Provider-native path diagnostics are optional review outputs, not sensor observations or a second propagation implementation.
+- Provider-private stems or path contributions are optional diagnostics and never required by perception.
 - Relative physical coherence is required; absolute calibration remains deployment-specific and optional.
 - Structural vibration, a complete wave-equation solver, and active ultrasound are outside this phase.
 
@@ -58,6 +61,8 @@ The provider's supported physics define the advanced-fidelity ceiling. Unsupport
 
 #### Implementation
 
+Integrate the selected provider's lifecycle, static-scene caching, bounded dynamic updates, configuration, Kit workflow, diagnostics, and packaging behind its capability boundary. Maintain one selected geometry-provider integration rather than exposing redundant experimental backends or provider-specific scene state through Core observation contracts.
+
 Target high-quality operation for one or a few Isaac environments. Expose geometry-derived acoustic statistics or bounded parameters that can inform R8 randomization for mass-parallel Isaac Lab training without requiring the geometry provider in every environment.
 
 Export provider- and scenario-versioned bounded distributions for broadband and banded transmission, blocked-path fraction, sequential-partition count, direct-to-indirect ratio, dominant indirect delay/level, and changes caused by doors or dynamic occluders. Consume those distributions offline through the scalable analytic path completed in R8.3; do not introduce an online geometry-provider dependency into mass-parallel execution. Label the parameters as geometry-derived simulation data rather than measured physical calibration.
@@ -66,8 +71,10 @@ Export provider- and scenario-versioned bounded distributions for broadband and 
 
 - `GeometryAcoustics` is the primary daily high-fidelity Isaac path.
 - `AnalyticAcoustics` remains the scalable Isaac Lab path.
+- Provider-specific controls remain behind the provider capability boundary.
+- Public perception and dataset contracts remain signal-producer-independent.
 - Geometry-derived distributions transfer bounded behavior, not provider implementation details or raw path traces, into the analytic path.
-- Both paths preserve the same frame and downstream consumer boundary.
+- Geometry, analytic, and physical producers preserve the same `MicrophoneSignalBlock` input boundary and downstream perception contracts.
 
 #### Problems / Limitations
 
@@ -75,8 +82,8 @@ The geometry backend is not required to scale directly to thousands of simultane
 
 ## Artifacts
 
-This page is the R10 phase specification. No R10 implementation artifacts exist yet.
+Expected artifacts are a provider-backed `MicrophoneSignalBlock` producer, USD acoustic mapping, bounded lifecycle and diagnostics, and unchanged perception semantics across analytic, geometry, and physical inputs. No R10 implementation artifacts exist yet.
 
 ## Files
 
-No source files are changed by this planning step.
+Implementation files remain to be determined by the selected provider's adapter design.

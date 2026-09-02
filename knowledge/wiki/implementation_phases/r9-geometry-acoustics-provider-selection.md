@@ -2,7 +2,7 @@
 
 Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 completed on 2026-09-02; R9.2 and R9.3 are planned.
 
-The remaining R9.2/R9.3 execution order is summarized by [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]]. This page remains the detailed authority for the existing provider contract and qualification semantics.
+The remaining R9.2/R9.3 execution order is referenced by [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]]. That plan adds no technical requirements: this page is the sole authority for provider qualification, comparison, selection, evidence, limitations, and acceptance semantics.
 
 ## Objective
 
@@ -141,6 +141,8 @@ The two-microphone contract represents the compatible azimuths in the public 2D 
 
 Build only the temporary adapters needed to exercise each serious candidate in the intended Isaac runtime. Qualify provider behavior rather than recreating its propagation algorithms. Record runtime availability, license and distribution constraints, raw per-microphone output semantics, phase coherence, dynamic-scene update behavior, material inputs, and performance with diagnostics disabled and enabled.
 
+Qualification must establish that the provider can supply the final, separate, phase-coherent microphone signals later represented by the common `MicrophoneSignalBlock` boundary. Temporary adapters may expose those native signals for measurement, but they do not perform activity detection, DOA estimation, observation construction, learning-label generation, or maintained product integration.
+
 Use a common fixture matrix. One acoustic partition represented by one mesh and by several meshes must produce equivalent transmission. Two independent sequential partitions must compound transmission. A double-leaf construction must accept one authored whole-assembly frequency curve without requiring the SDK to simulate structural coupling. Door and opening cases must preserve alternative propagation rather than forcing all energy through the blocking wall. Moving doors, sources, arrays, and large objects must update bounded state without rebuilding unrelated static geometry.
 
 Verify that the candidate either exposes native path diagnostics or permits a thin optional adapter to the existing `DebugPrimitive` representation. Diagnostic absence is recorded explicitly and weighed against the complete provider contract; path data is never required in `AudioSensorFrame` or ordinary datasets. Reject hidden attenuation clamps, listener-only rendering, mixed-device output, non-phase-coherent channels, and any candidate that requires a permanent duplicate propagation implementation in this repository.
@@ -151,10 +153,11 @@ Verify that the candidate either exposes native path diagnostics or permits a th
 - Existing provider geometry, pathing, transmission, reflection, scattering, and diffraction facilities are reused through the thinnest maintainable adapter.
 - Temporary comparison adapters are deleted after the final provider decision unless they are part of the selected integration.
 - Whole-assembly transmission data is preferred over a repository-owned double-leaf or structural wall solver.
+- Provider qualification concerns signal production and propagation behavior, not backend-specific perception.
 
 #### Problems / Limitations
 
-A provider may meet propagation requirements while lacking a useful diagnostic API; that limitation must remain visible in the decision rather than causing path reconstruction in Core. Nominal provider material tables do not establish measured truth for a specific construction, and qualification does not add real-world calibration scope.
+A provider may meet propagation requirements while lacking a useful diagnostic API; that limitation must remain visible in the decision rather than causing path reconstruction in Core. Nominal provider material tables do not establish measured truth for a specific construction, and qualification does not add real-world calibration scope. Simulation evidence alone does not establish physical calibration or sim-to-real validity; later practical-realism work must bound those claims through domain randomization and comparison with physical signals.
 
 ## Subphase R9.3 — Candidate Decision
 
@@ -166,14 +169,19 @@ PyRoom remains the analytic provider and is not treated as the general arbitrary
 
 Temporary candidate adapters may coexist during qualification, but the phase concludes with one documented primary provider or an explicit no-provider result. It must not leave multiple redundant experimental backends as permanent public surface.
 
+Compare only candidates that satisfy the blocking contract. The decision weighs measured behavior, native capability coverage, maintenance burden, distribution viability, licensing, and intended-runtime performance against the practical-realism objective. Ecosystem preference or a successful availability probe is not sufficient evidence for selection.
+
 #### Key Decisions
 
 - Provider research and provider integration are separate phases.
 - The selected engine owns the mathematically complex propagation algorithms; the repository does not recreate them.
+- One maintainable primary geometry provider is preferred to several partial permanent backends.
+- The selected provider supplies microphone signals; it does not own activity detection, DOA semantics, observations, or learning labels.
+- Selection follows complete qualification evidence and is not predetermined by ecosystem preference.
 
 #### Problems / Limitations
 
-If no candidate meets passive, per-microphone, dynamic-geometry, and distribution requirements, R10 remains blocked rather than weakening the sensor semantics.
+If no candidate meets passive, per-microphone, dynamic-geometry, and distribution requirements, R10 remains blocked rather than weakening the sensor semantics. A qualified provider may also remain unsuitable for mass-parallel Isaac Lab execution; high-fidelity geometry propagation and scalable policy training are intentionally separate operating regimes.
 
 ## Artifacts
 

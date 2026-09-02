@@ -461,3 +461,11 @@ Added the post-R9.1 sequence for provider qualification, signal/perception separ
 ## 2026-09-02 — lint: Ordered observed-audio implementation plans
 
 Verified the allowed wiki tree, complete index coverage, resolved internal links, planned-versus-current boundaries, R9/R10 cross-links, immutable raw content, and Markdown whitespace for all eleven ordered plans.
+
+## 2026-09-02 — update: Canonical R9 and R10 plan ownership
+
+Reduced Plans 01 and 08 to sequence-only references, moved their unique provider and geometry requirements into canonical R9 and R10, and corrected R10 so geometry propagation emits `MicrophoneSignalBlock` values for backend-independent perception instead of constructing frames directly.
+
+## 2026-09-02 — lint: Canonical R9 and R10 plan ownership
+
+Verified sequence-to-phase mappings, sole-authority wording, removal of duplicated plan requirements, the common signal boundary, index and status synchronization, resolved wiki links, documentation boundary tests, and Markdown whitespace.

@@ -176,7 +176,7 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-R9.1, R9.1.1, and the intervening R9.1.2 DOA ambiguity cleanup are complete. The ordered post-R9.1 implementation sequence now begins with [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]], which owns the measured R9.2 comparison and R9.3 decision through temporary adapters and shared fixtures.
+R9.1, R9.1.1, and the intervening R9.1.2 DOA ambiguity cleanup are complete. The ordered post-R9.1 implementation sequence now begins with [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]], a sequence reference that points first to canonical R9.2 qualification and then to canonical R9.3 selection. The [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 phase page]] alone owns their requirements, evidence, decisions, and acceptance semantics.
 
 The subsequent plans deliberately separate final microphone-signal production from observed perception, replace source-conditioned detections with compact observations, qualify Auditok activity detection and mixture-only PyRoom DOA, keep learning truth in aligned dataset records, reuse perception across simulation and hardware, migrate Isaac Lab to observed semantics, and integrate the selected Geometry Acoustics provider only after the common signal boundary exists. [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] closes the maintained milestone; [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] keeps classification, tracking, speech focus, ODAS, and multi-source processing explicitly deferred.
 
