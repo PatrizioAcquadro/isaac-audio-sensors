@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Added public `MicrophoneSignalBlock` as the exact-window scene-to-signal result with ordered, copied, read-only `float32` samples, channel validity, producer provenance, concise diagnostics, and no source, geometry, perception, persistence, or serialized-schema fields.
+- Breaking (Plan 02.1): changed `PropagationBackend` and capability output contracts from scene-to-frame `simulate()` to scene-to-signal `propagate()`. `AnalyticAcoustics` now exposes the final effected mixture without DOA or waveform writes, while current Core, CLI, Isaac, Lab, and Kit frame behavior remains behind one temporary legacy bridge.
 - Breaking (R9.1.2): removed every Core, backend, plugin, Isaac, Lab, Kit, and TOML ambiguity-policy input. Two-microphone least-squares now returns all physically compatible azimuth candidates with no unique estimate or confidence, except at a deduplicated physical endpoint; contextual selection belongs to downstream consumers.
 - Breaking (R9.1.2): least-squares arrays with three or more microphones and all SRP-PHAT arrays now require at least three microphones with rank-2 XY geometry. Kit configuration is `ias.omni_extension_binding.v5`; v4 and `lifecycle.ambiguity_policy` have no compatibility parser.
 - Breaking (R9.1.1): reduced `AudioTimeWindow` to required start, end, and frame-index fields; removed independent timestamps from scene snapshots, time windows, and detections; and made frame timestamps derived exclusively from frame start time.
@@ -22,7 +24,7 @@
 - Removed the implicit Kit shoebox, added `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes, made safe presets explicitly free-field, and introduced breaking `ias.omni_extension_binding.v4` configuration with no v2/v3 parser.
 - Breaking: made `AudioSourceSpec.directivity` and `MicrophoneSpec.directivity` the only runtime authorities, backed by public `DirectivityPattern` values `omni`, `cardioid`, `supercardioid`, and `figure_eight` and one canonical coefficient table.
 - Breaking: removed `audio.effects.directivity`, all pattern-set and frequency-point records, and `EntityBindingCfg.microphone_relative_offsets_m` without aliases or compatibility runtime paths. Lab custom microphones now use `EntityBindingCfg.microphones` with `MicrophoneSpec` values.
-- Breaking: changed `PropagationBackend.simulate()` to `(scene, array_id, time_window)` and Isaac Lab reference binding to `(snapshots, array_ids)`. `AudioSceneSnapshot` is now the sole array-state authority; no sensor-object or `array_specs` compatibility path remains.
+- Breaking (R9.1.1): changed the former backend `simulate()` call to `(scene, array_id, time_window)` and Isaac Lab reference binding to `(snapshots, array_ids)`. `AudioSceneSnapshot` became the sole array-state authority; no sensor-object or `array_specs` compatibility path remains.
 - Added fail-closed directivity and orientation validation across Core TOML, USD discovery/authoring, Kit configuration and sound profiles, and Isaac Lab bindings. Child microphones use `ias:directivity`; the Kit source field is an enum-backed selector.
 - Standardized nominal `gain_db` as amplitude gain `10 ** (gain_db / 20)`. Source gain is applied once to generated or original-amplitude WAV assets before propagation; microphone gain is applied once after propagation in every frame and Lab path.
 - Preserved L0/L1 analytical `1/d` with the existing distance floor and L2 PyRoom RIR distance/reflection behavior without a second manual `1/d`. L2 waveform directivity remains signed while RMS uses magnitude.

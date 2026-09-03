@@ -1,6 +1,6 @@
 # Implementation Plan 02 — Signal and Perception Architecture
 
-Status: Planned breaking architecture change after provider qualification and before new observed perception is added.
+Status: In progress. Subphase 02.1 is implemented; Subphases 02.2 and 02.3 remain planned.
 
 ## Objective
 
@@ -31,20 +31,23 @@ The signal block remains separately available to recording and feature extractio
 
 #### Implementation
 
-Change propagation from a scene-to-frame operation into a scene-to-microphone-signal operation. A `MicrophoneSignalBlock` represents one time-aligned multichannel array block with ordered microphone channels, array identity, sample rate, time window, channel validity, and concise signal provenance.
+Propagation now has a public scene-to-signal operation: `PropagationBackend.propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`. The frozen block owns a copied, C-contiguous, read-only `float32` sample matrix shaped `[microphone, sample]`, ordered microphone identifiers, array identity, array-authoritative sample rate, the exact requested time window, per-channel validity, producer identity, provenance, and concise operational diagnostics. Its sample count is exactly `max(1, round(window_duration * sample_rate_hz))`.
 
-The propagation backend may use individual source signals and private stems internally because distinct positions require distinct propagation. Its public result contains only the combined microphone channels. Private stems remain optional truth or diagnostic material and are never an input to ordinary perception. Real hardware capture must be able to produce the same signal-block meaning without simulator or scene dependencies.
+`AnalyticAcoustics` renders source signals, private stems, occlusion, directivity, gain, and effects through one shared internal path. `propagate()` projects only the final combined mixture into the exact public window. It does not estimate DOA, construct detections or frames, or invoke a `WaveformSink`; analytic channels are all valid and follow `MicrophoneArraySpec` order. Propagation therefore supports mono arrays independently from the TDOA and SRP-PHAT geometry constraints that still apply to legacy perception.
+
+The existing `AnalyticAcoustics.simulate() -> AudioSensorFrame` behavior remains temporarily available through one explicitly legacy internal helper used by Core, CLI, Isaac, Lab, and Kit. It consumes the same private render and preserves current frames, diagnostics, waveform output, and full rendered tails until Subphases 02.2 and 02.3 migrate those consumers. No frame-v2 field, schema, CLI output, package version, or consumer-facing observation changed in this subphase.
 
 #### Key Decisions
 
 - Public signal channels represent microphones, never sources.
-- The final observed block includes the effects that a physical detector would receive.
-- The backend owns propagation only and does not emit observations.
-- Private stems are never required by the public contract or ordinary perception.
+- The exact-window block contains the final mixture after propagation and enabled physical effects.
+- The propagation plugin contract produces signals only; DOA, detections, frames, and persistence remain outside `propagate()`.
+- Private stems and source detail remain internal and are never required by the public contract or future ordinary perception.
+- The signal contract is a Python runtime boundary, not a new serialized schema.
 
 #### Problems / Limitations
 
-Some providers expose no source-separated output, so the public contract cannot require it. Simulator-specific path diagnostics remain outside ordinary sensor observations.
+The public block intentionally omits a rendered tail beyond the requested window; the temporary legacy waveform writer still receives the complete render. Cross-window orchestration, perception ownership, recording migration, and removal of the legacy frame bridge remain unresolved until Subphases 02.2 and 02.3. No physical-capture producer or Geometry Acoustics producer exists yet.
 
 ## Subphase 02.2 — Perception, Frame, and Observation Contracts
 
@@ -103,8 +106,16 @@ The breaking migration spans Core, CLI, recording/replay, Isaac Sim, Isaac Lab, 
 
 ## Artifacts
 
-Expected artifacts are the signal, observation, and frame contracts, one shared orchestration flow, migrated consumers, and removal of the superseded detection architecture. This plan does not select activity or DOA algorithms.
+Subphase 02.1 produced the public `MicrophoneSignalBlock`, the scene-to-signal propagation protocol, the analytic producer, and the temporary legacy frame bridge. Later subphases still own the observation/frame contracts, shared orchestration, consumer migration, and removal of the superseded detection architecture. This plan does not select activity or DOA algorithms.
 
 ## Files
 
-Exact source files and schemas are deferred to implementation. Current contract ownership is described by [[topics/public-contracts-and-recording|Public Contracts and Recording]].
+- `src/isaac_audio_sensors/core/types/_signal.py`
+- `src/isaac_audio_sensors/core/plugins/protocols.py`
+- `src/isaac_audio_sensors/core/backends/analytic.py`
+
+Current cross-cutting contract ownership is described by [[topics/public-contracts-and-recording|Public Contracts and Recording]].
+
+## Version Notes
+
+- 2026-09-03: Implemented Subphase 02.1 with the exact-window microphone-signal contract and analytic producer while retaining one temporary legacy frame bridge.

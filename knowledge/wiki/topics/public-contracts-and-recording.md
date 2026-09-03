@@ -1,5 +1,13 @@
 # Public Contracts and Recording
 
+## MicrophoneSignalBlock
+
+`MicrophoneSignalBlock` is the simulator-independent runtime output of a propagation or capture producer. It is public from both `isaac_audio_sensors.core` and `isaac_audio_sensors.core.types` without making either import NumPy eagerly.
+
+Every block contains a copied, C-contiguous, read-only `float32` matrix shaped `[microphone, sample]`; ordered, non-empty, unique `microphone_ids`; `array_id`; positive `sample_rate_hz`; an `AudioTimeWindow`; a Boolean `channel_validity` value for each microphone; `producer_id`; provenance; and concise operational diagnostics. The sample axis must equal `max(1, round((end_time_s - start_time_s) * sample_rate_hz))`, and every sample must be finite. The analytic producer follows `MicrophoneArraySpec` order and marks all simulated channels valid.
+
+The block is the final observed microphone mixture after propagation, directivity, occlusion, gain, and enabled effects. It has no source axis and contains no geometry, pose, source identity, detections, stems, waveform paths, or serialized-schema representation. Source signals and stems may exist only inside a producer's private render.
+
 ## AudioSensorFrame
 
 `AudioSensorFrame` is the package-native sensor and trace contract with schema version `ias.audio_sensor_frame.v2`, independent from the Python package version.
@@ -38,13 +46,15 @@ Sources and microphones own their directivity. TOML accepts only `omni`, `cardio
 
 `waveform_fidelity` is the default runtime profile and permits waveform-producing behavior; `training_features` is a constrained feature-oriented profile and rejects incompatible waveform export. `doa_estimator` selects `tdoa_least_squares` or `srp_phat` independently from the propagation backend.
 
-Unknown backends, profiles, coordinate conventions, removed `tdoa_ambiguity_policy`, invalid time windows, invalid array geometry, and unsupported combinations fail closed. Exactly two microphones are accepted only for least-squares ambiguity output; unique least-squares and SRP-PHAT require at least three microphones with rank-2 XY geometry.
+Unknown backends, profiles, coordinate conventions, removed `tdoa_ambiguity_policy`, invalid time windows, invalid array geometry, and unsupported combinations fail closed. Signal propagation itself supports mono arrays because it performs no localization. The temporary scene-to-frame perception path accepts exactly two microphones only for least-squares ambiguity output; unique least-squares and SRP-PHAT require at least three microphones with rank-2 XY geometry.
 
 ## Plugins and Capabilities
 
 Import-safe protocols define propagation backends, DOA estimators, and audio feature extractors.
 
-Every propagation backend implements `simulate(scene, array_id, time_window) -> AudioSensorFrame`. The snapshot is the only array-state authority; the identifier is a selector, and missing identifiers raise the clear `AudioSceneSnapshot.array_by_id()` error before simulation.
+Every propagation backend implements `propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`. The snapshot is the only array-state authority for simulated propagation; the identifier is a selector, and missing identifiers raise the clear `AudioSceneSnapshot.array_by_id()` error before rendering.
+
+`AnalyticAcoustics.simulate() -> AudioSensorFrame` remains temporarily outside the plugin protocol. One internal legacy helper uses it for current Core, CLI, Isaac, Lab, and Kit consumers until the perception and orchestration migration in Plan 02.2/02.3. The legacy path preserves current frames, diagnostics, detections, waveform persistence, and full-tail output; `propagate()` performs none of those operations.
 
 Capability declarations record identifiers, profiles, device support, `PluginDeclaration.output_contract`, determinism, dependencies, and provider provenance. `get_backend()` is the sole public propagation-backend resolver, while `registered_backend_ids()` is the authoritative built-in inventory.
 
@@ -90,9 +100,9 @@ Exported waveforms and recordings are runtime outputs, not tracked product sourc
 
 ## Compatibility
 
-Package `3.0.0` is a breaking directivity and gain consistency release. Import sensor contracts from `core`, dataset contracts from `recording`, and schema generators from `schemas.generate`.
+Package `3.0.0` is a breaking directivity, gain-consistency, and signal-producer-boundary release. Import sensor contracts from `core`, dataset contracts from `recording`, and schema generators from `schemas.generate`.
 
-Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Construct `SourceOcclusion` from its required per-microphone maps and optional band rows; removed aggregate, model, hit-path, and material fields have no aliases. Rename Isaac fallback configuration to `unknown_material_loss_db` and remove any total-loss cap argument. Call `AnalyticAcoustics.simulate()` with the snapshot array identifier instead of a `MicrophoneArraySpec`, and bind Lab reference mode with `array_ids` instead of `array_specs`. Replace legacy backend choices with `analytic_acoustics`, move solver options to `[audio.analytic_acoustics]`, and choose the estimator separately. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
+Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Construct `SourceOcclusion` from its required per-microphone maps and optional band rows; removed aggregate, model, hit-path, and material fields have no aliases. Rename Isaac fallback configuration to `unknown_material_loss_db` and remove any total-loss cap argument. Propagation plugins now implement `propagate(scene, array_id, time_window)` and return `MicrophoneSignalBlock`; the concrete analytic `simulate()` path is temporary consumer compatibility, not the propagation plugin contract. Bind Lab reference mode with `array_ids` instead of `array_specs`. Replace legacy backend choices with `analytic_acoustics`, move solver options to `[audio.analytic_acoustics]`, and choose the estimator separately. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
 
 The frame schema is v2 because R9.1.1 intentionally changed its serialized shape. Dataset-manifest and calibration-profile schemas remain v1 because their wrapper contracts did not change; dataset records embed the current v2 frame. The v3 package does not retain aliases or parallel runtime paths for the removed Python/configuration surfaces, frame v1, four legacy propagation backends, backend sensor-object argument, or Lab `array_specs` reference binding.
 

@@ -540,3 +540,16 @@ release tests, the retained Steam runner import, exact outcomes from both
 preserved rev2 reports, unchanged hashes for all 95 local R9 evidence files,
 Ruff, version synchronization, documentation boundaries, internal wikilinks,
 and whitespace.
+
+## 2026-09-03 — update: Plan 02.1 signal producer boundary
+
+Recorded the public exact-window `MicrophoneSignalBlock`, scene-to-signal
+propagation protocol, analytic mixture producer, mono-safe propagation, and the
+temporary legacy frame bridge that preserves current consumers and frame v2.
+
+## 2026-09-03 — lint: Plan 02.1 signal producer boundary
+
+Verified 74 focused tests, the complete host `make check` gate with 533
+unit/contract, 210 integration, and 57 release tests, 101 tests in the supported
+Isaac runtime on the RTX 4090, unchanged package and frame-schema versions,
+documentation boundaries, internal wikilinks, Ruff, and whitespace.
