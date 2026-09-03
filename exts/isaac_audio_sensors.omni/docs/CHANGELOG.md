@@ -2,6 +2,7 @@
 
 ## 3.0.0 - Unreleased
 
+- Bundle and runtime-check Auditok 0.5.2 as the qualified fixed-threshold activity detector while retaining the extension's zero-observation default until Plan 03.3.
 - Breaking: migrate sensor state, configuration, Replicator, OmniGraph, export, instruments, and recording summaries from detections/backend naming to frame-v3 observations/producer naming.
 - Show valid waveform and RMS output with an explicit empty-observation state until Phase 03; do not derive compass, timeline, source identity, or occlusion events from USD source truth.
 - Breaking: remove sensor-side DOA ambiguity policy state and import/export `ias.omni_extension_binding.v5`; v4 and saved `lifecycle.ambiguity_policy` inputs are rejected without compatibility parsing.

@@ -12,6 +12,7 @@ Current package release: `3.0.0`. This release is not yet published.
 
 - Simulator-independent, versioned contracts for sources, arrays, five analytic acoustic environments, sensor frames, calibration, and datasets, with one topology-routed `analytic_acoustics` backend for direct, TDOA, optional room, and per-microphone direct-path occlusion behavior.
 - Entity-owned source and microphone directivity with four first-order families, plus one amplitude-gain convention shared by Core, Isaac Sim, Isaac Lab, and Kit.
+- A qualified fixed-threshold Auditok detector plugin with causal multichannel activity decisions, explicit dBFS configuration, and deterministic reset.
 - Generic multichannel recording, validation, sharded datasets, deterministic splits, statistics, FLAC export, and read-only replay.
 - Lazy Isaac Sim and Isaac Lab integrations for live stages and fixed-shape, batched observations without making NVIDIA runtimes core dependencies.
 - Audited Python source/wheel distributions plus a reference, self-contained Kit archive.
@@ -50,6 +51,7 @@ Neither command needs Isaac, a GPU, or the optional `room` extra. Closed-room ex
 
 - `analytic_acoustics` supports Core free field and half space plus optional PyRoom shoebox and polygon prisms. Two-microphone least-squares reports both compatible azimuths instead of guessing; unique 360-degree least-squares and SRP-PHAT require at least three microphones with rank-2 XY geometry, with four non-collinear microphones recommended for practical redundancy. The mass-parallel Isaac Lab path is free-field and feature-only; scalar reference binding retains the honest two-microphone least-squares case, PyRoom, and closed-topology support. Occlusion attenuates only the direct source-to-microphone path; `surface_set`, diffraction, and reflected-path blocking remain outside this backend, and none of these controlled models is a complete wave solver or calibrated acoustic twin.
 - Software and GPU validation do not establish hardware calibration, physical acoustic fidelity, downstream task success, or sim-to-real transfer.
+- Auditok requires an application-specific fixed threshold. Initial calibration is not yet a streaming mode, and low SNR, changing noise floors, contaminated calibration, or short impulses can limit energy-based detection.
 - This SDK does not provide robot-specific tasks or policies and is not a safety-critical perception component.
 
 ## Documentation

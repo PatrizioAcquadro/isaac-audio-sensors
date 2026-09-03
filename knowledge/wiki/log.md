@@ -650,3 +650,17 @@ Verified 555 unit/contract tests, 213 integration tests, 57 release tests,
 version synchronization, Ruff, schema stability, lazy Core imports, internal
 wiki links, documentation boundaries, and whitespace without adding a detector
 dependency or changing frame schema v3.
+
+## 2026-09-03 — update: Subphase 03.2 Auditok qualification
+
+Recorded the qualified fixed-threshold Auditok 0.5.2 adapter, exact float32 and
+dBFS boundary, causal current-block and reset semantics, separate non-blocking
+calibration verdict, Core and six-wheel Kit packaging, operating limits, and
+unchanged consumer defaults until Subphase 03.3.
+
+## 2026-09-03 — lint: Subphase 03.2 Auditok qualification
+
+Verified 576 unit/contract tests, 213 integration tests, 58 release tests,
+Python 3.10/3.12 and Isaac-runtime detection, exact six-wheel hashes, complete
+sdist/wheel/Kit audits, extracted-ZIP Auditok and first-party origins, resolved
+wiki links, unchanged schemas and raw knowledge, Ruff, and whitespace.

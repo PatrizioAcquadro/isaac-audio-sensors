@@ -61,7 +61,7 @@ isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --ba
 isaac-audio-sensors export-schema --out build/validation/isaac_audio_sensors/audio_sensor_frame.v3.schema.json
 ```
 
-Each configured array owns its `sample_rate_hz`; the selected array determines the frame rate and sample count. Use `--max-observations` to limit only the observed output after perception. Omitting it is unlimited, and `--max-observations 0` still renders the complete soundscape and aggregate RMS. Subphase 03.1 defines the detector contract but registers no implementation, so default commands intentionally emit zero observations. The removed `[audio].sample_rate_hz`, `--max-events`, `--max-detections`, and `--timestamp-ms` inputs are rejected rather than translated.
+Each configured array owns its `sample_rate_hz`; the selected array determines the frame rate and sample count. Use `--max-observations` to limit only the observed output after perception. Omitting it is unlimited, and `--max-observations 0` still renders the complete soundscape and aggregate RMS. Subphase 03.2 registers the fixed-threshold Auditok detector, but default commands do not select it until 03.3 and therefore intentionally emit zero observations. The removed `[audio].sample_rate_hz`, `--max-events`, `--max-detections`, and `--timestamp-ms` inputs are rejected rather than translated.
 
 The CLI also exposes capability reporting, dataset validation/statistics/splitting, and the guided headless workflow; run `isaac-audio-sensors --help` and the relevant subcommand help for the current arguments.
 

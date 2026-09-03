@@ -14,7 +14,7 @@ All propagation backends implement `propagate(scene, array_id, time_window) -> M
 
 `AnalyticAcoustics` is the only registered runtime propagation backend. It routes from the environment kind to Core direct or half-space propagation, or to lazy PyRoom shoebox or polygon-prism construction. Direct and indirect pair stems remain internal, `SourceOcclusion` applies only to the direct stem, and the public signal block is the recombined multichannel result. Analytic internals own scheduling, rendering, effects, and concise signal diagnostics, but not observed perception, frame assembly, or persistence. Removed geometry, synthetic-TDOA, and room backend behavior survives only as internal logic or historical v1 replay data, never as runtime aliases.
 
-Motion owns Doppler and pose/window state; acoustics owns environment builders and transforms, materials, and occlusion interpretation; activity-detector plugins own streaming activity and event state; DOA owns the numerical least-squares solver as well as GCC-PHAT, SRP-PHAT, physical ambiguity, and sector mapping. `ActivityDecision` fixes an optional `[0, 1]` acoustic-activity probability while detector-specific energy values remain diagnostics. Core returns compatible direction evidence and never applies contextual priors; consumers own assumptions such as a front hemisphere. Fundamental data contracts remain centralized in `core.types`.
+Motion owns Doppler and pose/window state; acoustics owns environment builders and transforms, materials, and occlusion interpretation; activity-detector plugins own streaming activity and event state; DOA owns the numerical least-squares solver as well as GCC-PHAT, SRP-PHAT, physical ambiguity, and sector mapping. `ActivityDecision` fixes an optional `[0, 1]` acoustic-activity probability while detector-specific energy values remain diagnostics. `AuditokActivityDetector` is the qualified generic implementation: it adapts ordered IAS float32 samples to Auditok 0.5.2, retains bounded causal context, applies an explicit fixed threshold, and reports no synthetic probability. Core returns compatible direction evidence and never applies contextual priors; consumers own assumptions such as a front hemisphere. Fundamental data contracts remain centralized in `core.types`.
 
 This layer imports no other package subsystem. Importing the core package root loads no NumPy, recording, concrete backend/effect, Isaac, Omniverse, Isaac Lab, Kit, CUDA, Torch, or downstream module.
 
@@ -42,7 +42,7 @@ The layer turns live USD state into pure core dataclasses before backend computa
 
 `isaac_audio_sensors.lab` is import-safe at its package root and resolves direct Isaac Lab `SensorBaseCfg` and `SensorBase` subclasses only after `AppLauncher` initialization.
 
-Its entity path resolves official scene root/body pose tensors and allocates the fixed-shape observation contract directly on the sensor device without per-environment loops. It deliberately returns padded zero-observation tensors and does not invent a signal block. The separate reference path executes scalar Core snapshots with one array identifier and one persistent perception pipeline per environment; partial reset touches only selected environments. Both paths remain zero-observation until a concrete detector is qualified and integrated in 03.2–03.3, and neither derives activity, direction, confidence, ambiguity, or per-observation RMS from source state. USD discovery, stage poses, and environment anchoring remain in the Isaac Sim layer; Lab owns no stage adapter, contextual direction policy, or device fallback.
+Its entity path resolves official scene root/body pose tensors and allocates the fixed-shape observation contract directly on the sensor device without per-environment loops. It deliberately returns padded zero-observation tensors and does not invent a signal block. The separate reference path executes scalar Core snapshots with one array identifier and one persistent perception pipeline per environment; partial reset touches only selected environments. Both paths remain zero-observation until the qualified detector is integrated in 03.3, and neither derives activity, direction, confidence, ambiguity, or per-observation RMS from source state. USD discovery, stage poses, and environment anchoring remain in the Isaac Sim layer; Lab owns no stage adapter, contextual direction policy, or device fallback.
 
 ## Kit and Extension Layers
 
@@ -54,7 +54,7 @@ The guided headless service receives an `ExtensionController` explicitly. `exts/
 
 ## Data Flow
 
-Configuration or live stage/entity state produces an authoritative `AudioSceneSnapshot`; an array identifier selects the observer and a propagation backend emits `MicrophoneSignalBlock`. `core.simulation.simulate_frame()` calls propagation once and combines that same block with exact array geometry, persistent `AudioPerceptionPipeline` state, optional typed external observations, and an optional waveform sink to produce `AudioSensorFrame`. The pipeline accepts the typed `ActivityDetector` seam, but maintained defaults emit zero observations because 03.1 registers no implementation. Lifecycle owners explicitly reset detector state at stream boundaries. The same block may feed session recording directly, Isaac Lab projects the bounded observation contract into fixed tensors, and downstream projects adapt those outputs outside this repository.
+Configuration or live stage/entity state produces an authoritative `AudioSceneSnapshot`; an array identifier selects the observer and a propagation backend emits `MicrophoneSignalBlock`. `core.simulation.simulate_frame()` calls propagation once and combines that same block with exact array geometry, persistent `AudioPerceptionPipeline` state, optional typed external observations, and an optional waveform sink to produce `AudioSensorFrame`. The built-in plugin registry exposes the qualified Auditok detector, but maintained pipelines still require explicit injection and therefore keep their zero-observation defaults through 03.2. Lifecycle owners explicitly reset detector state at stream boundaries. The same block may feed session recording directly, Isaac Lab projects the bounded observation contract into fixed tensors, and downstream projects adapt those outputs outside this repository.
 
 Privileged source pose, geometry, isolated-signal, or simulator state must remain distinguishable from observed waveform and estimator outputs so training supervision does not become an unlabelled runtime dependency.
 
@@ -64,11 +64,11 @@ The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> 
 
 The package root exports only `__version__`. Public types and services are imported from their semantic subsystem.
 
-Core runtime dependencies are NumPy and TOML support for Python versions that need it. JSON Schema validation is development-only.
+Core runtime dependencies are NumPy, Auditok 0.5.x, and TOML support for Python versions that need it. Auditok is imported only when its detector executes; JSON Schema validation is development-only.
 
 The `room` extra provides `pyroomacoustics`, SciPy, and SoundFile; Isaac, Kit, CUDA, Torch, and Replicator remain environment capabilities resolved lazily.
 
-The Kit archive build extracts locked `pyroomacoustics`, SciPy, SoundFile, CFFI, and pycparser wheels into `isaac_audio_sensors/_bundled`. The extension uses that tree without downloading packages and leaves NumPy and `typing_extensions` owned by Kit. The universal Python wheel never contains `_bundled`.
+The Kit archive build extracts locked Auditok, `pyroomacoustics`, SciPy, SoundFile, CFFI, and pycparser wheels into `isaac_audio_sensors/_bundled`. The extension uses that tree without downloading packages and leaves NumPy and `typing_extensions` owned by Kit. The universal Python wheel never contains `_bundled`.
 
 Optional absence is a supported state for pure functionality, but a requested optional capability must fail with a precise error rather than degrade silently.
 

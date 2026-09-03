@@ -188,6 +188,8 @@ The TestPyPI rehearsal and production workflow complete successfully through the
 
 On 2026-08-25, later maintenance removed manual TestPyPI publication and duplicate artifact rechecks. Production publishing remains isolated behind a matching non-prerelease GitHub Release and the protected `pypi` environment; one matrix now owns all public-index installation checks.
 
+On 2026-09-03, Subphase 03.2 extended the current Kit lock and exact archive audit from five to six distributions by adding the pure-Python Auditok 0.5.2 wheel, metadata, and MIT license. Historical R6 closeout counts above remain phase-specific; current release truth is maintained in [[topics/validation-and-release|Validation and Release]].
+
 ## Artifacts
 
 R6.1 retains no generated artifact. R6.2 adds the ignored universal wheel and R6.3–R6.4 add the self-contained Community Registry ZIP. R6.8 supersedes the two-file outbox with the exact sdist, wheel, and Kit ZIP; all staging remains temporary.
