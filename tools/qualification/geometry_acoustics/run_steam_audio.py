@@ -1,4 +1,4 @@
-"""Run Steam Audio R9.2 qualification inside the selected Python runtime."""
+"""Requalify the selected Steam Audio provider in the intended Python runtime."""
 
 from __future__ import annotations
 

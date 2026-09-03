@@ -7,9 +7,6 @@ import zipfile
 import numpy as np
 import pytest
 
-from tools.qualification.geometry_acoustics.evaluation import (
-    reevaluate_nvidia_rtx_acoustic,
-)
 from tools.qualification.geometry_acoustics.fixtures import (
     BLOCK_SAMPLES,
     MICROPHONE_IDS,
@@ -21,10 +18,6 @@ from tools.qualification.geometry_acoustics.fixtures import (
     generated_multitone,
     surface_points,
     write_fixture_assets,
-)
-from tools.qualification.geometry_acoustics.gmo import (
-    classify_acoustic_gmo,
-    expand_signal_way_ids,
 )
 from tools.qualification.geometry_acoustics.metrics import (
     dynamic_update_passes,
@@ -44,7 +37,6 @@ from tools.qualification.geometry_acoustics.reporting import (
     CriterionObservation,
     Evidence,
     QualificationReportBuilder,
-    build_coverage_summary,
     derive_status,
     deterministic_json,
     write_deterministic_npz,
@@ -206,28 +198,6 @@ def test_fixture_status_is_not_hardcoded_by_fixture_id() -> None:
     assert "compatible=True" in source
 
 
-def test_gmo_is_active_signal_ways_and_detects_noncontiguous_duplicates() -> None:
-    result = classify_acoustic_gmo([0, 0, 1, 0], [1, 1, 2, 1], [0, 0, 0, 0])
-    assert result.semantic == "active_transmitter_receiver_signal_ways"
-    assert not result.is_passive_microphone_pcm
-    assert result.signal_ways[0].sample_count == 3
-    assert result.duplicate_keys == ((0, 1, 0),)
-
-
-def test_gmo_signal_way_metadata_prefix_expands_to_waveform_samples() -> None:
-    tx, rx, channel = expand_signal_way_ids(
-        [0, 0, 0, 0, 99],
-        [0, 1, 2, 3, 99],
-        [4, 4, 4, 4, 99],
-        signal_way_count=4,
-        samples_per_way=320,
-    )
-    assert tx.shape == rx.shape == channel.shape == (1280,)
-    assert [int(rx[index * 320]) for index in range(4)] == [0, 1, 2, 3]
-    result = classify_acoustic_gmo(tx, rx, channel)
-    assert [way.sample_count for way in result.signal_ways] == [320] * 4
-
-
 def test_native_diagnostics_are_bounded_per_source_mic_frame() -> None:
     items = tuple(
         DebugPathSample("source", "front", 0, ((float(index), 0.0, 0.0),))
@@ -239,39 +209,6 @@ def test_native_diagnostics_are_bounded_per_source_mic_frame() -> None:
     bounded = bounded_diagnostics(items)
     assert len(bounded) == 266
     assert sum(item.microphone_id == "front" for item in bounded) == 256
-
-
-def _evidence(criterion_id: str) -> Evidence:
-    if criterion_id == "licensing":
-        return Evidence("official_license", "documentation", "LICENSE", "Evidence.")
-    if criterion_id == "packaging":
-        return Evidence("packaging_probe", "provider_native", "build.log", "Evidence.")
-    if criterion_id in {"passive_audible_content", "isaac_runtime", "path_diagnostics"}:
-        return Evidence("runtime_probe", "provider_native", "run.log", "Evidence.")
-    return Evidence("runtime_measurement", "mixed", "measurements.json", "Evidence.")
-
-
-def _built_report(candidate_id: str, failed: str | None = None) -> dict[str, object]:
-    builder = QualificationReportBuilder(
-        candidate_id=candidate_id,
-        candidate_version="1.0.0",
-        runtime={
-            "hardware": "test host",
-            "isaac_sim_version": "6.0.1-rc.7",
-            "kit_version": "110.1.2",
-            "platform": "linux-x86_64",
-        },
-    )
-    for criterion in CRITERIA:
-        builder.record(
-            CriterionObservation(
-                criterion.criterion_id,
-                criterion.criterion_id != failed,
-                "Measured result.",
-                (_evidence(criterion.criterion_id),),
-            )
-        )
-    return builder.build()
 
 
 def test_report_status_distinguishes_executed_fail_from_unexercised_block() -> None:
@@ -286,46 +223,52 @@ def test_report_status_distinguishes_executed_fail_from_unexercised_block() -> N
         derive_status(CriterionObservation("isaac_runtime", None, "Unknown.", evidence))
 
 
-def test_summary_preserves_two_outcomes_without_ranking_or_selection() -> None:
-    steam = _built_report("steam_audio", failed="acoustic_assembly_identity")
-    rtx = _built_report("nvidia_rtx_acoustic", failed="passive_audible_content")
-    summary = build_coverage_summary([rtx, steam])
-    assert summary["reports_valid"] is True
-    assert [row["candidate"]["id"] for row in summary["candidates"]] == [
-        "steam_audio",
-        "nvidia_rtx_acoustic",
-    ]
-    assert summary["candidates"][0]["core_integration_outcome"] == "qualified"
-    assert summary["candidates"][0]["full_r10_outcome"] == "rejected"
-    assert "selection" not in summary
-    assert "ranking" not in summary
-
-
-def test_rtx_rev2_is_derived_from_reused_evidence_without_rerun() -> None:
-    rev1 = {
-        "candidate": {"id": "nvidia_rtx_acoustic", "version": "3.0.0"},
-        "contract_version": "r9.1",
-        "runtime": {
-            "hardware": "RTX 4090",
-            "isaac_sim_version": "6.0.0",
+def test_selected_provider_report_keeps_core_and_full_outcomes_separate() -> None:
+    builder = QualificationReportBuilder(
+        candidate_id="steam_audio",
+        candidate_version="4.8.1",
+        runtime={
+            "hardware": "test host",
+            "isaac_sim_version": "6.0.1-rc.7",
             "kit_version": "110.1.2",
             "platform": "linux-x86_64",
         },
-    }
-    result = reevaluate_nvidia_rtx_acoustic(
-        rev1_report=rev1,
-        rev1_measurements_reference="build/validation/r9/nvidia/measurements.json",
-        rev1_provenance_reference="build/validation/r9/nvidia/provenance.json",
     )
-    evaluation = evaluate_report(result.report)
-    assert result.provenance["rerun"] is False
-    assert evaluation.core_integration_outcome == "rejected"
-    assert "audio_block_performance" in evaluation.core_blocked_gates
-    assert any(
-        evidence["origin"] == "provider_native"
-        for criterion in result.report["criteria"]
-        for evidence in criterion["evidence"]
-    )
+    for criterion in CRITERIA:
+        if criterion.criterion_id == "licensing":
+            evidence = Evidence(
+                "official_license", "documentation", "LICENSE", "Evidence."
+            )
+        elif criterion.criterion_id == "packaging":
+            evidence = Evidence(
+                "packaging_probe", "provider_native", "build.log", "Evidence."
+            )
+        elif criterion.criterion_id in {
+            "passive_audible_content",
+            "isaac_runtime",
+            "path_diagnostics",
+        }:
+            evidence = Evidence(
+                "runtime_probe", "provider_native", "run.log", "Evidence."
+            )
+        else:
+            evidence = Evidence(
+                "runtime_measurement", "mixed", "measurements.json", "Evidence."
+            )
+        builder.record(
+            CriterionObservation(
+                criterion.criterion_id,
+                criterion.criterion_id != "frequency_dependent_transmission",
+                "Measured result.",
+                (evidence,),
+            )
+        )
+
+    evaluation = evaluate_report(builder.build())
+    assert evaluation.candidate_id == "steam_audio"
+    assert evaluation.core_integration_outcome == "qualified"
+    assert evaluation.full_r10_outcome == "rejected"
+    assert evaluation.full_r10_failed_gates == ("frequency_dependent_transmission",)
 
 
 def test_json_and_npz_serialization_are_byte_deterministic(tmp_path) -> None:

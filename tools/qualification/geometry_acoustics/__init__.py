@@ -1,4 +1,4 @@
-"""Internal R9.2 geometry-acoustics qualification harness."""
+"""Internal qualification harness for the selected Steam Audio provider."""
 
 from .fixtures import (
     BLOCK_SAMPLES,

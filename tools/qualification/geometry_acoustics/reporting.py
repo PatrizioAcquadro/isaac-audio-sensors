@@ -1,4 +1,4 @@
-"""Deterministic R9.2 report construction and local evidence bundles."""
+"""Deterministic selected-provider reports and local evidence bundles."""
 
 from __future__ import annotations
 
@@ -17,8 +17,6 @@ from tools.qualification.geometry_acoustics_contract import (
     CRITERIA,
     evaluate_report,
 )
-
-_CANDIDATE_ORDER = ("steam_audio", "nvidia_rtx_acoustic")
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,42 +160,3 @@ def write_candidate_bundle(
     write_deterministic_npz(output_dir / "signals.npz", arrays)
     write_json(output_dir / "provenance.json", provenance)
     (output_dir / "run.log").write_text("\n".join(log_lines) + "\n", encoding="utf-8")
-
-
-def build_coverage_summary(
-    reports: Sequence[Mapping[str, object]],
-) -> dict[str, object]:
-    """Compare criterion coverage without ranking or selecting a provider."""
-
-    evaluations = {
-        evaluation.candidate_id: evaluation
-        for evaluation in map(evaluate_report, reports)
-    }
-    if set(evaluations) != set(_CANDIDATE_ORDER):
-        raise ValueError(f"reports must cover exactly {list(_CANDIDATE_ORDER)}")
-    rows = []
-    for candidate_id in _CANDIDATE_ORDER:
-        evaluation = evaluations[candidate_id]
-        rows.append(
-            {
-                "candidate": {
-                    "id": candidate_id,
-                    "version": evaluation.candidate_version,
-                },
-                "criteria": {
-                    result.criterion_id: result.status for result in evaluation.results
-                },
-                "core_integration_outcome": evaluation.core_integration_outcome,
-                "full_r10_outcome": evaluation.full_r10_outcome,
-                "gates": evaluation.to_dict()["gates"],
-            }
-        )
-    return {
-        "candidates": rows,
-        "all_criteria_conclusive": all(
-            not row["gates"]["full_r10"]["blocked"] for row in rows
-        ),
-        "contract_version": "r9.2-coverage-rev2",
-        "reports_valid": True,
-        "scope": "coverage comparison only; no ranking or provider selection",
-    }

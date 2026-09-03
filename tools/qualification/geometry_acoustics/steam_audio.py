@@ -1,4 +1,4 @@
-"""Temporary Steam Audio 4.8.1 adapter for corrected R9.2 qualification."""
+"""Internal Steam Audio 4.8.1 adapter for selected-provider requalification."""
 
 from __future__ import annotations
 
@@ -382,7 +382,7 @@ def _finite_rms_db(samples: np.ndarray) -> float:
 
 
 class SteamAudioAdapter:
-    """Exercise ``libphonon.so`` through a thin, temporary IAS bridge."""
+    """Exercise ``libphonon.so`` through the qualified minimal IAS bridge."""
 
     candidate_id = "steam_audio"
     candidate_version = "4.8.1"
