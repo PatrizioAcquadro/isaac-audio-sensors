@@ -79,7 +79,7 @@ def test_forced_duplicate_or_overlap_preserves_latest_frame(monkeypatch, next_ti
     assert len(captures) == 1
 
 
-def test_manual_capture_and_update_throttling():
+def test_manual_capture_and_update_throttling(monkeypatch):
     stage, _, _ = motion_stage()
     sensor = IsaacAudioArraySensor.from_stage(
         stage=stage,
@@ -92,6 +92,8 @@ def test_manual_capture_and_update_throttling():
     )
     manual = sensor.capture()
     assert manual.provenance == "isaac_live"
+    assert sensor.latest_signal_block is not None
+    assert sensor.latest_signal_block.array_id == manual.array_id
 
     sensor.start()
     first = sensor.update(sim_time_s=0.0)
@@ -109,11 +111,20 @@ def test_manual_capture_and_update_throttling():
 
     sensor.add_reset_listener(listener)
     sensor.add_reset_listener(listener)
+    perception_resets = []
+    monkeypatch.setattr(
+        sensor.perception_pipeline,
+        "reset",
+        lambda: perception_resets.append("reset"),
+    )
     sensor.reset()
     assert reset_events == ["reset"]
+    assert perception_resets == ["reset"]
+    assert sensor.latest_signal_block is None
     assert sensor.latest_scene is None
     assert sensor.latest_array_spec is None
     sensor.close()
+    assert perception_resets == ["reset", "reset"]
 
 
 def test_live_sensor_recognizes_analytic_core_backend() -> None:
@@ -135,6 +146,7 @@ def test_live_sensor_recognizes_analytic_core_backend() -> None:
     assert frame.diagnostics["analytic_solver"] == {
         "solver_id": "free_field_direct",
         "provider": "core",
+        "provider_version": "core",
         "environment_kind": "free_field",
     }
 

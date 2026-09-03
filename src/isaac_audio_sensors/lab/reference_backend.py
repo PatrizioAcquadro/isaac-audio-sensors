@@ -6,12 +6,11 @@ from collections.abc import Sequence
 
 import torch
 
-from isaac_audio_sensors.core.backends.base import (
-    _simulate_legacy_frame,
-    get_backend,
-)
+from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.effects import EffectsConfig
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
+from isaac_audio_sensors.core.simulation import simulate_frame
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioTimeWindow,
@@ -62,9 +61,12 @@ class ReferenceBackend:
             "max_order": analytic_max_order,
             "air_absorption": analytic_air_absorption,
             "ray_tracing": analytic_ray_tracing,
-            "max_observations": max_observations,
         }
         self._backend = get_backend(backend_id, **kwargs)
+        self._perception = tuple(
+            AudioPerceptionPipeline(max_observations=max_observations)
+            for _ in self.snapshots
+        )
 
     @property
     def num_envs(self) -> int:
@@ -92,7 +94,7 @@ class ReferenceBackend:
             start_s = float(timestamps_s[row].item())
             snapshot = self.snapshots[env_id]
             array_id = self.array_ids[env_id]
-            _simulate_legacy_frame(
+            simulate_frame(
                 self._backend,
                 snapshot,
                 array_id,
@@ -101,5 +103,12 @@ class ReferenceBackend:
                     end_time_s=start_s + window_s,
                     frame_index=int(frame_indices[row].item()),
                 ),
+                perception=self._perception[env_id],
             )
         return result
+
+    def reset(self, env_ids: torch.Tensor) -> None:
+        """Reset perception state for the selected environments."""
+
+        for env_id in env_ids.tolist():
+            self._perception[int(env_id)].reset()

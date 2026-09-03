@@ -13,10 +13,14 @@ from isaac_audio_sensors.core.motion import (
     PoseHistory,
     build_window_motion,
 )
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
+from isaac_audio_sensors.core.simulation import simulate_frame
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
+    AudioSensorFrame,
     AudioSourceSpec,
     AudioTimeWindow,
+    MicrophoneSignalBlock,
 )
 
 SAMPLE_RATE_HZ = 48_000
@@ -120,22 +124,20 @@ class CaptureSink:
         self.calls: list[dict[str, object]] = []
         self.closed = False
 
-    def write_frame_mixture(
+    def write_signal_block(
         self,
         *,
         frame_id,
-        mixture,
-        sample_rate_hz,
-        mic_ids,
-        window_sample_count,
+        block,
     ) -> WaveformWriteResult:
         self.calls.append(
             {
                 "frame_id": frame_id,
-                "mixture": np.asarray(mixture).copy(),
-                "sample_rate_hz": sample_rate_hz,
-                "mic_ids": mic_ids,
-                "window_sample_count": window_sample_count,
+                "block": block,
+                "mixture": np.asarray(block.samples).copy(),
+                "sample_rate_hz": block.sample_rate_hz,
+                "mic_ids": block.microphone_ids,
+                "window_sample_count": block.samples.shape[1],
             }
         )
         return WaveformWriteResult(
@@ -145,6 +147,46 @@ class CaptureSink:
 
     def close(self) -> None:
         self.closed = True
+
+
+def run_frame_pipeline(
+    backend,
+    scene,
+    array_id,
+    time_window,
+    *,
+    waveform_sink=None,
+    max_observations=None,
+):
+    """Run the maintained block-to-frame path for test composition."""
+
+    return simulate_frame(
+        backend,
+        scene,
+        array_id,
+        time_window,
+        perception=AudioPerceptionPipeline(max_observations=max_observations),
+        waveform_sink=waveform_sink,
+    )
+
+
+def signal_block_for_frame(frame: AudioSensorFrame, samples) -> MicrophoneSignalBlock:
+    """Build the recorder input matching one frame's signal contract."""
+
+    return MicrophoneSignalBlock(
+        samples=samples,
+        microphone_ids=tuple(frame.channel_validity),
+        array_id=frame.array_id,
+        sample_rate_hz=frame.sample_rate_hz,
+        time_window=AudioTimeWindow(
+            start_time_s=frame.start_time_s,
+            end_time_s=frame.end_time_s,
+            frame_index=frame.frame_index,
+        ),
+        channel_validity=tuple(frame.channel_validity.values()),
+        producer_id=frame.producer_id,
+        provenance=frame.provenance,
+    )
 
 
 def quad_array():

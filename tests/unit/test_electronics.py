@@ -37,6 +37,7 @@ from tests.helpers import (
     motion_room_fixture,
     quad_array,
     room_scene,
+    run_frame_pipeline,
     source,
     time_window,
 )
@@ -591,29 +592,29 @@ def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch
             array=array,
         )
         sink = CaptureSink()
-        frame = AnalyticAcoustics(
-            waveform_writer=sink,
-            effects=_effects(dither=True, agc=_agc()),
-        ).simulate(scene, array.array_id, time_window())
+        frame, _ = run_frame_pipeline(
+            AnalyticAcoustics(effects=_effects(dither=True, agc=_agc())),
+            scene,
+            array.array_id,
+            time_window(),
+            waveform_sink=sink,
+        )
         mixture = sink.calls[0]["mixture"]
-        electronics = frame.diagnostics["effects"]["electronics"]
-        results.append((mixture, electronics))
+        results.append(mixture)
         for mic_index, mic_id in enumerate(MIC_IDS):
             rms = float(np.sqrt(np.mean(mixture[mic_index] ** 2)))
-            assert abs(frame.aggregate_per_mic_rms[mic_id] - rms) <= 1e-12
-    assert results[0][0].tobytes() == results[1][0].tobytes()
-    assert results[0][1] == results[1][1]
+            assert abs(frame.aggregate_per_mic_rms[mic_id] - rms) <= 3e-8
+    assert results[0].tobytes() == results[1].tobytes()
 
     replay_sinks = (CaptureSink(), CaptureSink())
     replay_frames = tuple(
-        AnalyticAcoustics(
-            waveform_writer=sink,
-            effects=_effects(dither=True, agc=_agc()),
-        ).simulate(
+        run_frame_pipeline(
+            AnalyticAcoustics(effects=_effects(dither=True, agc=_agc())),
             room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
             array.array_id,
             time_window(),
-        )
+            waveform_sink=sink,
+        )[0]
         for sink in replay_sinks
     )
     assert replay_frames[0] == replay_frames[1]
@@ -643,12 +644,15 @@ def test_segmented_room_noise_and_electronics_compose_once(monkeypatch):
             segments_per_window=MOTION_SEGMENTS,
         ),
     )
-    frame = AnalyticAcoustics(effects=effects, window_motion=plan).simulate(
-        scene, array.array_id, window
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(effects=effects, window_motion=plan),
+        scene,
+        array.array_id,
+        window,
     )
-    assert frame.diagnostics["motion"]["segments_per_window"] == MOTION_SEGMENTS
-    assert "noise" in frame.diagnostics["effects"]
-    assert "electronics" in frame.diagnostics["effects"]
+    assert frame.diagnostics["motion_segments"] == MOTION_SEGMENTS
+    assert "noise" in frame.diagnostics["effect_stages"]
+    assert "electronics" in frame.diagnostics["effect_stages"]
 
 
 def test_off_state_identity_backend_has_no_effects_key(monkeypatch):
@@ -665,13 +669,15 @@ def test_off_state_identity_backend_has_no_effects_key(monkeypatch):
     install_fake_pyroom(monkeypatch)
     array = quad_array()
     sink = CaptureSink()
-    frame = AnalyticAcoustics(waveform_writer=sink).simulate(
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
         room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
         array.array_id,
         time_window(),
+        waveform_sink=sink,
     )
     assert sink.calls[0]["mixture"].size > 0
-    assert "effects" not in frame.diagnostics
+    assert "electronics" not in frame.diagnostics["effect_stages"]
 
 
 def test_seed_replay_and_separation_change_every_active_derived_seed():

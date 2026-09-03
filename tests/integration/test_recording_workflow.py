@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import sys
-import wave
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -11,7 +10,11 @@ import numpy as np
 import pytest
 
 import isaac_audio_sensors.kit.recording_workflow as recording_workflow_module
-from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.core.types import (
+    AudioSensorFrame,
+    AudioTimeWindow,
+    MicrophoneSignalBlock,
+)
 from isaac_audio_sensors.kit.controller import ExtensionController
 from isaac_audio_sensors.kit.state import (
     CurrentStageContext,
@@ -45,6 +48,7 @@ class _FakeSensor:
     def __init__(self, frames: list[AudioSensorFrame]) -> None:
         self.frames = list(frames)
         self.latest_frame: AudioSensorFrame | None = None
+        self.latest_signal_block: MicrophoneSignalBlock | None = None
         self.latest_debug_primitives: tuple[object, ...] = ()
         self.backend = "analytic_acoustics"
         self.array_id = "rig_front"
@@ -67,9 +71,12 @@ class _FakeSensor:
 
     def close(self) -> None:
         self.running = False
+        self.latest_frame = None
+        self.latest_signal_block = None
 
     def reset(self) -> None:
         self.latest_frame = None
+        self.latest_signal_block = None
         for listener in tuple(self.reset_listeners):
             listener()
 
@@ -82,13 +89,13 @@ class _FakeSensor:
             assert self.latest_frame is not None
             return self.latest_frame
         self.latest_frame = self.frames.pop(0)
+        self.latest_signal_block = _signal_block(self.latest_frame)
         return self.latest_frame
 
 
 def _frame(
     index: int,
     *,
-    waveform_path: Path | None = None,
     sample_rate_hz: int = 8_000,
 ) -> AudioSensorFrame:
     return AudioSensorFrame(
@@ -111,22 +118,28 @@ def _frame(
             "rear": 0.3,
             "left": 0.4,
         },
-        waveform_paths=(() if waveform_path is None else (str(waveform_path),)),
+        waveform_paths=(),
         diagnostics={"window_sample_count": 8},
     )
 
 
-def _waveform(path: Path, index: int) -> Path:
+def _signal_block(frame: AudioSensorFrame) -> MicrophoneSignalBlock:
     samples = np.arange(32, dtype=np.float32).reshape(4, 8)
-    samples = samples / np.float32(64.0) + np.float32(index / 128.0)
-    pcm = np.clip(np.rint(samples.T * 32767.0), -32768, 32767).astype("<i2")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(path), "wb") as stream:
-        stream.setnchannels(4)
-        stream.setsampwidth(2)
-        stream.setframerate(8_000)
-        stream.writeframes(pcm.tobytes())
-    return path
+    samples = samples / np.float32(64.0) + np.float32(frame.frame_index / 128.0)
+    return MicrophoneSignalBlock(
+        samples=samples,
+        microphone_ids=tuple(frame.channel_validity),
+        array_id=frame.array_id,
+        sample_rate_hz=frame.sample_rate_hz,
+        time_window=AudioTimeWindow(
+            start_time_s=frame.start_time_s,
+            end_time_s=frame.end_time_s,
+            frame_index=frame.frame_index,
+        ),
+        channel_validity=tuple(frame.channel_validity.values()),
+        producer_id=frame.producer_id,
+        provenance=frame.provenance,
+    )
 
 
 def _run_ready_controller(
@@ -353,19 +366,9 @@ def test_guided_recording_end_to_end_validates_and_reports_progress(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    waveform_paths = [
-        _waveform(tmp_path / "waveforms" / f"frame_{index}.wav", index)
-        for index in range(1, 4)
-    ]
-    controller, _sensor = _run_ready_controller(
+    controller, sensor = _run_ready_controller(
         monkeypatch,
-        [
-            _frame(0),
-            *[
-                _frame(index, waveform_path=waveform_paths[index - 1])
-                for index in range(1, 4)
-            ],
-        ],
+        [_frame(index) for index in range(4)],
     )
     _enter_record_stage(controller)
     session = tmp_path / "session"
@@ -383,6 +386,18 @@ def test_guided_recording_end_to_end_validates_and_reports_progress(
         )
         is not None
     )
+    recorder = controller._recording._guided_recorder
+    assert recorder is not None
+    real_append = recorder.append_frame
+    delivered = []
+
+    def capture_append(frame, signal_block, **kwargs):
+        delivered.append(
+            (signal_block, sensor.latest_signal_block, frame.waveform_paths)
+        )
+        return real_append(frame, signal_block, **kwargs)
+
+    monkeypatch.setattr(recorder, "append_frame", capture_append)
     for _ in range(3):
         assert controller.update_sensor() is not None
 
@@ -392,6 +407,8 @@ def test_guided_recording_end_to_end_validates_and_reports_progress(
     assert active.shards_promoted == 1
     assert active.bytes_written > 0
     assert active.current_episode == "episode_00000"
+    assert all(block is latest for block, latest, _paths in delivered)
+    assert all(paths == () for _block, _latest, paths in delivered)
 
     assert controller.guided_stop_recording() is not None
 
@@ -410,11 +427,7 @@ def test_guided_recording_marks_sensor_and_detected_simulator_resets(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    recorded = (
-        _frame(5, waveform_path=_waveform(tmp_path / "reset/5.wav", 5)),
-        _frame(6, waveform_path=_waveform(tmp_path / "reset/6.wav", 6)),
-        _frame(0, waveform_path=_waveform(tmp_path / "reset/0.wav", 0)),
-    )
+    recorded = (_frame(5), _frame(6), _frame(0))
     controller, sensor = _run_ready_controller(
         monkeypatch,
         [_frame(0), *recorded],
@@ -461,8 +474,8 @@ def test_equal_frame_identity_after_sensor_reset_is_not_a_duplicate(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    before = _frame(5, waveform_path=_waveform(tmp_path / "equal/before.wav", 5))
-    after = _frame(5, waveform_path=_waveform(tmp_path / "equal/after.wav", 6))
+    before = _frame(5)
+    after = _frame(5)
     controller, sensor = _run_ready_controller(
         monkeypatch,
         [_frame(0), before, after],
@@ -514,10 +527,7 @@ def test_isaac_post_reset_lifecycle_resets_sensor_and_notifies_recorder(
         "isaacsim.core.simulation_manager",
         simulation,
     )
-    frames = (
-        _frame(5, waveform_path=_waveform(tmp_path / "lifecycle/5.wav", 5)),
-        _frame(6, waveform_path=_waveform(tmp_path / "lifecycle/6.wav", 6)),
-    )
+    frames = (_frame(5), _frame(6))
     controller, sensor = _run_ready_controller(
         monkeypatch,
         [_frame(0), *frames],
@@ -651,18 +661,11 @@ def _finalized_guided_controller(
     *,
     groups: tuple[str, ...] = ("scene_a",),
 ) -> tuple[ExtensionController, Path]:
-    waveform_paths = [
-        _waveform(tmp_path / "export_waveforms" / f"frame_{index}.wav", index)
-        for index in range(1, len(groups) + 1)
-    ]
     controller, _sensor = _run_ready_controller(
         monkeypatch,
         [
             _frame(0),
-            *(
-                _frame(index, waveform_path=waveform_paths[index - 1])
-                for index in range(1, len(groups) + 1)
-            ),
+            *(_frame(index) for index in range(1, len(groups) + 1)),
         ],
     )
     _enter_record_stage(controller)

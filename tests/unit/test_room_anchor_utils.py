@@ -20,7 +20,7 @@ from isaac_audio_sensors.isaac.viz.overlays import (
     build_debug_primitives,
     environment_outline_points,
 )
-from tests.helpers import FakeUsdPrim, install_fake_pyroom
+from tests.helpers import FakeUsdPrim, install_fake_pyroom, run_frame_pipeline
 
 ENVIRONMENT_MIN_WORLD = (2.0, 1.0, 0.0)
 ENVIRONMENT_MAX_WORLD = (8.0, 5.0, 3.0)
@@ -154,7 +154,8 @@ def test_environment_outline_and_debug_primitive(monkeypatch) -> None:
         arrays=(array,),
         environment=environment,
     )
-    frame = AnalyticAcoustics().simulate(
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
         scene,
         array.array_id,
         AudioTimeWindow(

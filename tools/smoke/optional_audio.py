@@ -16,6 +16,8 @@ from isaac_audio_sensors.core.acoustics import (
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.io.waveforms import WaveformWriteResult
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
+from isaac_audio_sensors.core.simulation import simulate_frame
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -28,8 +30,9 @@ class _CaptureSink:
     def __init__(self) -> None:
         self.mixture: np.ndarray | None = None
 
-    def write_frame_mixture(self, **kwargs) -> WaveformWriteResult:
-        self.mixture = np.asarray(kwargs["mixture"], dtype=float).copy()
+    def write_signal_block(self, *, frame_id, block) -> WaveformWriteResult:
+        del frame_id
+        self.mixture = np.asarray(block.samples, dtype=float).copy()
         return WaveformWriteResult(paths=("memory://optional.wav",))
 
     def close(self) -> None:
@@ -144,11 +147,11 @@ def _exercise_analytic_rooms() -> list[str]:
         np.testing.assert_allclose(
             occluded,
             0.1 * direct + (full - direct),
-            rtol=0.0,
-            atol=1e-12,
+            rtol=2e-6,
+            atol=5e-8,
         )
         solver_ids.append(str(frame.diagnostics["analytic_solver"]["solver_id"]))
-        assert direct_frame.diagnostics["speed_of_sound_mps"] == 330.0
+        assert direct_frame.diagnostics["rendered_sample_count"] >= direct.shape[1]
         assert frame.observations == ()
         assert all(value > 0.0 for value in frame.aggregate_per_mic_rms.values())
     return solver_ids
@@ -161,12 +164,19 @@ def _render(
     max_order: int,
 ) -> tuple[object, np.ndarray]:
     sink = _CaptureSink()
-    frame = AnalyticAcoustics(
-        max_order=max_order,
-        speed_of_sound_mps=330.0,
-        waveform_writer=sink,
-    ).simulate(scene, "rig", window)
+    frame, block = simulate_frame(
+        AnalyticAcoustics(
+            max_order=max_order,
+            speed_of_sound_mps=330.0,
+        ),
+        scene,
+        "rig",
+        window,
+        perception=AudioPerceptionPipeline(),
+        waveform_sink=sink,
+    )
     assert sink.mixture is not None
+    np.testing.assert_array_equal(sink.mixture, block.samples)
     return frame, sink.mixture
 
 

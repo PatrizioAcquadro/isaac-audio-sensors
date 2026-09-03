@@ -65,6 +65,18 @@ class AudioPerceptionPipeline:
         self._doa_estimator = doa_estimator
         self.max_observations = max_observations
 
+    def reset(self) -> None:
+        """Reset each injected stateful perception component once."""
+
+        seen: set[int] = set()
+        for component in (self._activity_detector, self._doa_estimator):
+            if component is None or id(component) in seen:
+                continue
+            seen.add(id(component))
+            reset = getattr(component, "reset", None)
+            if callable(reset):
+                reset()
+
     def process(
         self,
         block: MicrophoneSignalBlock,
@@ -195,7 +207,10 @@ class AudioPerceptionPipeline:
                 for index, microphone_id in enumerate(block.microphone_ids)
             },
             waveform_paths=(),
-            diagnostics={"perception": perception_diagnostics},
+            diagnostics={
+                **block.diagnostics,
+                "perception": perception_diagnostics,
+            },
         )
 
     @staticmethod

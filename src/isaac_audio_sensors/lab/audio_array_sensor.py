@@ -87,6 +87,12 @@ class AudioArraySensor(SensorBase):
             self._data.reset(mask_torch)
         if self._reference_frame_indices is not None:
             self._reference_frame_indices[mask_torch] = 0
+        if self._reference_backend is not None:
+            env_ids_torch = torch.nonzero(
+                mask_torch,
+                as_tuple=False,
+            ).squeeze(-1)
+            self._reference_backend.reset(env_ids_torch)
 
     def _initialize_impl(self) -> None:
         super()._initialize_impl()

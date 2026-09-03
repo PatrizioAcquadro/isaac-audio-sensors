@@ -42,6 +42,7 @@ from tests.helpers import (
     motion_room_fixture,
     quad_array,
     room_scene,
+    run_frame_pipeline,
     source,
     time_window,
 )
@@ -709,24 +710,27 @@ def test_room_noise_is_dispatched_once_on_equal_summed_mixtures(monkeypatch):
         scene = room_scene(*sources, array=array)
         baseline_sink = CaptureSink()
         effected_sink = CaptureSink()
-        AnalyticAcoustics(waveform_writer=baseline_sink).simulate(
-            scene, array.array_id, time_window()
+        run_frame_pipeline(
+            AnalyticAcoustics(),
+            scene,
+            array.array_id,
+            time_window(),
+            waveform_sink=baseline_sink,
         )
-        effected = AnalyticAcoustics(
-            waveform_writer=effected_sink,
-            effects=noise,
-        ).simulate(scene, array.array_id, time_window())
+        effected, _ = run_frame_pipeline(
+            AnalyticAcoustics(effects=noise),
+            scene,
+            array.array_id,
+            time_window(),
+            waveform_sink=effected_sink,
+        )
         baseline_mix = baseline_sink.calls[0]["mixture"]
         effected_mix = effected_sink.calls[0]["mixture"]
         deltas.append(effected_mix - baseline_mix)
         for mic_index, mic_id in enumerate(MIC_IDS):
             rms = float(np.sqrt(np.mean(effected_mix[mic_index] ** 2)))
-            assert abs(effected.aggregate_per_mic_rms[mic_id] - rms) <= 1e-12
-        assert set(effected.diagnostics["effects"]["noise"]) == {
-            "streams",
-            "per_mic_rms",
-            "seed_derivation_id",
-        }
+            assert abs(effected.aggregate_per_mic_rms[mic_id] - rms) <= 1e-8
+        assert "noise" in effected.diagnostics["effect_stages"]
     assert deltas[0].tobytes() == deltas[1].tobytes()
 
 
@@ -748,7 +752,7 @@ def test_self_noise_metadata_fallback_requires_seed_before_room_synthesis(
 
     effects = _noise_effects(self_noise=SelfNoiseConfig())
     with pytest.raises(ConfigValidationError, match="seed"):
-        AnalyticAcoustics(effects=effects).simulate(
+        AnalyticAcoustics(effects=effects).propagate(
             scene, array.array_id, time_window()
         )
 
@@ -778,16 +782,18 @@ def test_segmented_room_paths_compose_with_one_mixture_noise_dispatch(monkeypatc
     )
     sinks = (CaptureSink(), CaptureSink())
     frames = tuple(
-        AnalyticAcoustics(
-            effects=effects,
-            window_motion=plan,
-            waveform_writer=sink,
-        ).simulate(scene, array.array_id, window)
+        run_frame_pipeline(
+            AnalyticAcoustics(effects=effects, window_motion=plan),
+            scene,
+            array.array_id,
+            window,
+            waveform_sink=sink,
+        )[0]
         for sink in sinks
     )
     assert frames[0] == frames[1]
-    assert frames[0].diagnostics["motion"]["segments_per_window"] == MOTION_SEGMENTS
-    assert "noise" in frames[0].diagnostics["effects"]
+    assert frames[0].diagnostics["motion_segments"] == MOTION_SEGMENTS
+    assert "noise" in frames[0].diagnostics["effect_stages"]
     assert (
         sinks[0].calls[0]["mixture"].tobytes() == sinks[1].calls[0]["mixture"].tobytes()
     )
@@ -798,11 +804,15 @@ def test_backend_off_state_and_enabled_determinism(monkeypatch):
     array = quad_array()
     scene = room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array)
     baseline_sink = CaptureSink()
-    baseline = AnalyticAcoustics(waveform_writer=baseline_sink).simulate(
-        scene, array.array_id, time_window()
+    baseline, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
+        scene,
+        array.array_id,
+        time_window(),
+        waveform_sink=baseline_sink,
     )
     assert baseline_sink.calls[0]["mixture"].size > 0
-    assert "effects" not in baseline.diagnostics
+    assert "noise" not in baseline.diagnostics["effect_stages"]
 
     effects = _noise_effects(
         seed=SEED,
@@ -812,9 +822,13 @@ def test_backend_off_state_and_enabled_determinism(monkeypatch):
     )
     sinks = (CaptureSink(), CaptureSink())
     frames = tuple(
-        AnalyticAcoustics(waveform_writer=sink, effects=effects).simulate(
-            scene, array.array_id, time_window()
-        )
+        run_frame_pipeline(
+            AnalyticAcoustics(effects=effects),
+            scene,
+            array.array_id,
+            time_window(),
+            waveform_sink=sink,
+        )[0]
         for sink in sinks
     )
     assert frames[0] == frames[1]

@@ -6,9 +6,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from isaac_audio_sensors.core.backends._analytic.diagnostics import (
-    _environment_config_summary,
-)
 from isaac_audio_sensors.core.directivity import microphone_world_orientation
 from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.effects.validation import (
@@ -48,7 +45,6 @@ class PreparedRoomFrame:
     window_sample_count: int
     pra: Any
     active: tuple[AudioSourceSpec, ...]
-    environment_config: dict[str, object]
     max_order: int
     air_absorption: bool
     ray_tracing: bool
@@ -162,10 +158,6 @@ def prepare_room_frame(
         window_sample_count=window_sample_count,
         pra=pra,
         active=active,
-        environment_config=_environment_config_summary(
-            scene.environment,
-            per_surface_materials=per_surface_materials,
-        ),
         max_order=max_order,
         air_absorption=air_absorption,
         ray_tracing=ray_tracing,

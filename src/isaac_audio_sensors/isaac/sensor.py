@@ -7,10 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from isaac_audio_sensors.core.backends.base import (
-    _simulate_legacy_frame,
-    get_backend,
-)
+from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.effects.validation import (
@@ -29,12 +26,15 @@ from isaac_audio_sensors.core.motion import (
     build_window_motion,
     validate_pose_observation,
 )
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
+from isaac_audio_sensors.core.simulation import simulate_frame
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
     AudioSceneSnapshot,
     AudioSensorFrame,
     AudioTimeWindow,
     MicrophoneArraySpec,
+    MicrophoneSignalBlock,
 )
 from isaac_audio_sensors.isaac.discovery import (
     IsaacAudioSceneBindingCfg,
@@ -89,6 +89,7 @@ class IsaacAudioArraySensor:
     usd_time_code_offset: float = 0.0
     update_period_s: float = 0.05
     max_observations: int | None = None
+    perception_pipeline: AudioPerceptionPipeline | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     waveform_sink: WaveformSink | None = None
     debug_draw_enabled: bool = False
@@ -98,6 +99,10 @@ class IsaacAudioArraySensor:
     occlusion_raycaster: Any | None = None
     occlusion_transmission_resolver: Any | None = None
     latest_frame: AudioSensorFrame | None = field(default=None, init=False)
+    latest_signal_block: MicrophoneSignalBlock | None = field(
+        default=None,
+        init=False,
+    )
     latest_debug_primitives: tuple[DebugPrimitive, ...] = field(
         default_factory=tuple,
         init=False,
@@ -189,6 +194,16 @@ class IsaacAudioArraySensor:
             type(self.max_observations) is not int or self.max_observations < 0
         ):
             raise ValueError("max_observations must be a non-negative integer.")
+        if self.perception_pipeline is None:
+            self.perception_pipeline = AudioPerceptionPipeline(
+                max_observations=self.max_observations
+            )
+        elif not isinstance(self.perception_pipeline, AudioPerceptionPipeline):
+            raise TypeError("perception_pipeline must be an AudioPerceptionPipeline.")
+        elif self.perception_pipeline.max_observations != self.max_observations:
+            raise ValueError(
+                "perception_pipeline.max_observations must match max_observations."
+            )
         if self.usd_time_code_scale is not None and not math.isfinite(
             float(self.usd_time_code_scale)
         ):
@@ -250,6 +265,7 @@ class IsaacAudioArraySensor:
         unknown_material_loss_db: float = DEFAULT_UNKNOWN_MATERIAL_LOSS_DB,
         occlusion_raycaster: Any | None = None,
         waveform_sink: WaveformSink | None = None,
+        perception_pipeline: AudioPerceptionPipeline | None = None,
         effects: EffectsConfig | None = None,
     ) -> IsaacAudioArraySensor:
         """Create a live sensor from a real or duck-typed Isaac stage."""
@@ -292,6 +308,7 @@ class IsaacAudioArraySensor:
             unknown_material_loss_db=unknown_material_loss_db,
             occlusion_raycaster=occlusion_raycaster,
             waveform_sink=waveform_sink,
+            perception_pipeline=perception_pipeline,
         )
         sensor._latest_stage_diagnostics = diagnostics
         return sensor
@@ -319,6 +336,7 @@ class IsaacAudioArraySensor:
         unknown_material_loss_db: float = DEFAULT_UNKNOWN_MATERIAL_LOSS_DB,
         occlusion_raycaster: Any | None = None,
         waveform_sink: WaveformSink | None = None,
+        perception_pipeline: AudioPerceptionPipeline | None = None,
         effects: EffectsConfig | None = None,
     ) -> IsaacAudioArraySensor:
         """Create a live sensor by discovering arrays and sources on a stage."""
@@ -368,6 +386,7 @@ class IsaacAudioArraySensor:
             unknown_material_loss_db=unknown_material_loss_db,
             occlusion_raycaster=occlusion_raycaster,
             waveform_sink=waveform_sink,
+            perception_pipeline=perception_pipeline,
         )
         sensor._latest_stage_diagnostics = dict(result.diagnostics)
         sensor._latest_stage_diagnostics["environment_resolution"] = (
@@ -435,6 +454,7 @@ class IsaacAudioArraySensor:
         self._frame_index = 0
         self._last_update_time_s = None
         self.latest_frame = None
+        self.latest_signal_block = None
         self.latest_debug_primitives = ()
         self._latest_scene = None
         self._latest_sensor = None
@@ -444,6 +464,8 @@ class IsaacAudioArraySensor:
         if self._pose_history is not None:
             self._pose_history.reset()
             self._motion_entity_paths.clear()
+        assert self.perception_pipeline is not None
+        self.perception_pipeline.reset()
         for listener in tuple(self._reset_listeners):
             listener()
 
@@ -466,6 +488,10 @@ class IsaacAudioArraySensor:
             self._pose_history = None
             self._motion_entity_paths.clear()
             self._pose_history_stage = None
+        if self.perception_pipeline is not None:
+            self.perception_pipeline.reset()
+        self.latest_frame = None
+        self.latest_signal_block = None
         self.latest_debug_primitives = ()
         self._closed = True
 
@@ -604,16 +630,21 @@ class IsaacAudioArraySensor:
             "max_order": self.analytic_max_order,
             "air_absorption": self.analytic_air_absorption,
             "ray_tracing": self.analytic_ray_tracing,
-            "max_observations": self.max_observations,
         }
-        if self.waveform_sink is not None:
-            kwargs["waveform_writer"] = self.waveform_sink
         if not self.effects.all_disabled:
             kwargs["effects"] = self.effects
         if window_motion is not None:
             kwargs["window_motion"] = window_motion
         backend = get_backend(self.backend, **kwargs)
-        frame = _simulate_legacy_frame(backend, scene, self.array_id, time_window)
+        assert self.perception_pipeline is not None
+        frame, signal_block = simulate_frame(
+            backend,
+            scene,
+            self.array_id,
+            time_window,
+            perception=self.perception_pipeline,
+            waveform_sink=self.waveform_sink,
+        )
         frame = self._merge_acoustics_state(frame)
         stage_diagnostics = dict(self._latest_stage_diagnostics or {})
         motion_diagnostics = stage_diagnostics.pop("motion", None)
@@ -634,6 +665,7 @@ class IsaacAudioArraySensor:
         )
         self._latest_scene = scene
         self._latest_sensor = sensor
+        self.latest_signal_block = signal_block
         return frame
 
     def _build_window_motion(

@@ -8,7 +8,7 @@ from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.types import AudioSceneSnapshot, SourceOcclusion
-from tests.helpers import quad_array, source, time_window
+from tests.helpers import quad_array, run_frame_pipeline, source, time_window
 
 
 def _scene(*, occlusion=None) -> AudioSceneSnapshot:
@@ -107,13 +107,21 @@ def test_scene_rejects_duplicate_occlusion_records_and_resolves_valid_pair():
 
 def test_analytic_backend_applies_per_mic_attenuation_independently():
     array = quad_array()
-    baseline = AnalyticAcoustics().simulate(_scene(), array.array_id, time_window())
-    attenuated = AnalyticAcoustics().simulate(
+    baseline = AnalyticAcoustics().propagate(
+        _scene(), array.array_id, time_window()
+    )
+    attenuated = AnalyticAcoustics().propagate(
         _scene(occlusion=(_record(),)), array.array_id, time_window()
     )
 
-    baseline_rms = baseline.aggregate_per_mic_rms
-    attenuated_rms = attenuated.aggregate_per_mic_rms
+    baseline_rms = {
+        mic_id: float((baseline.samples[index] ** 2).mean() ** 0.5)
+        for index, mic_id in enumerate(baseline.microphone_ids)
+    }
+    attenuated_rms = {
+        mic_id: float((attenuated.samples[index] ** 2).mean() ** 0.5)
+        for index, mic_id in enumerate(attenuated.microphone_ids)
+    }
     assert attenuated_rms["front"] == pytest.approx(0.1 * baseline_rms["front"])
     for mic_id in set(baseline_rms) - {"front"}:
         assert attenuated_rms[mic_id] == pytest.approx(baseline_rms[mic_id])
@@ -122,8 +130,11 @@ def test_analytic_backend_applies_per_mic_attenuation_independently():
 def test_analytic_backend_attenuates_rms_without_oracle_observations():
     array = quad_array()
     backend = AnalyticAcoustics()
-    baseline = backend.simulate(_scene(), array.array_id, time_window())
-    attenuated = backend.simulate(
+    baseline, _ = run_frame_pipeline(
+        backend, _scene(), array.array_id, time_window()
+    )
+    attenuated, _ = run_frame_pipeline(
+        backend,
         _scene(occlusion=(_record(),)), array.array_id, time_window()
     )
 

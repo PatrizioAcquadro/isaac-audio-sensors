@@ -308,11 +308,11 @@ def _assert_contract(
         if value.device.type != "cuda":
             raise RuntimeError(f"{name} is not on the sensor CUDA device.")
     if data.event_presence.any():
-        raise RuntimeError("Phase 02.2 Lab output must contain zero observations.")
+        raise RuntimeError("Phase 02.3 Lab output must contain zero observations.")
     if data.confidence.any() or data.per_mic_rms.any() or data.sector_onehot.any():
-        raise RuntimeError("Phase 02.2 Lab observation payload must be zero-filled.")
+        raise RuntimeError("Phase 02.3 Lab observation payload must be zero-filled.")
     if not torch.isnan(data.bearing_deg).all():
-        raise RuntimeError("Phase 02.2 Lab bearing padding must remain NaN.")
+        raise RuntimeError("Phase 02.3 Lab bearing padding must remain NaN.")
 
 
 if __name__ == "__main__":

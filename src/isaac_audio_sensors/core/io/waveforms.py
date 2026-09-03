@@ -10,6 +10,7 @@ from typing import Any, Protocol
 import numpy as np
 
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
+from isaac_audio_sensors.core.types import MicrophoneSignalBlock
 
 WAVEFORM_WAV_SUBTYPE = "FLOAT"
 
@@ -58,18 +59,15 @@ class WaveformWriteResult:
 
 
 class WaveformSink(Protocol):
-    """Destination for per-frame microphone mixtures rendered by a backend."""
+    """Destination for exact-window microphone signal blocks."""
 
-    def write_frame_mixture(
+    def write_signal_block(
         self,
         *,
         frame_id: str,
-        mixture: np.ndarray,
-        sample_rate_hz: int,
-        mic_ids: tuple[str, ...],
-        window_sample_count: int,
+        block: MicrophoneSignalBlock,
     ) -> WaveformWriteResult:
-        """Persist one frame's ``(n_mics, n_samples)`` mixture."""
+        """Persist one frame's exact immutable signal block."""
 
     def close(self) -> None:
         """Flush and release any held resources."""
@@ -83,33 +81,30 @@ class FrameWaveformWriter:
         self.output_dir = Path(output_dir)
         self._closed = False
 
-    def write_frame_mixture(
+    def write_signal_block(
         self,
         *,
         frame_id: str,
-        mixture: np.ndarray,
-        sample_rate_hz: int,
-        mic_ids: tuple[str, ...],
-        window_sample_count: int,
+        block: MicrophoneSignalBlock,
     ) -> WaveformWriteResult:
-        """Write ``mixture`` to ``{output_dir}/{frame_id}.wav`` deterministically."""
+        """Write ``block`` to ``{output_dir}/{frame_id}.wav`` deterministically."""
 
         if self._closed:
             raise RuntimeError("FrameWaveformWriter is closed.")
-        data = _validated_mixture(mixture, mic_ids=mic_ids)
+        _require_signal_block(block)
         path = write_multichannel_wav(
             self.output_dir / f"{waveform_safe_filename(frame_id)}.wav",
-            data,
-            sample_rate_hz=sample_rate_hz,
+            block.samples,
+            sample_rate_hz=block.sample_rate_hz,
         )
         return WaveformWriteResult(
             paths=(str(path),),
             diagnostics={
                 "mode": "per_frame",
-                "channel_mic_ids": list(mic_ids),
-                "sample_count": int(data.shape[1]),
-                "window_sample_count": int(window_sample_count),
-                "sample_rate_hz": int(sample_rate_hz),
+                "channel_mic_ids": list(block.microphone_ids),
+                "sample_count": int(block.samples.shape[1]),
+                "window_sample_count": int(block.samples.shape[1]),
+                "sample_rate_hz": block.sample_rate_hz,
                 "subtype": WAVEFORM_WAV_SUBTYPE,
             },
         )
@@ -121,39 +116,24 @@ class FrameWaveformWriter:
 
 
 class ContinuousWaveformWriter:
-    """Append window-exact chunks to one growing session WAV.
-
-    Each frame contributes exactly ``window_sample_count`` samples to the
-    stream; the convolution/reverb tail past the window is carried and
-    overlap-added into subsequent chunks, so concatenated windows stay
-    gapless and energy-conserving. ``close()`` flushes the remaining tail.
-
-    Doppler is not applied here: the room backend resamples each source's
-    window signal by its per-window Doppler factor (from the optional
-    ``velocity_world_mps`` spec fields) before simulation, so the frame
-    mixtures this writer consumes already carry the frequency shift.
-    """
+    """Append exact signal blocks to one growing session WAV."""
 
     def __init__(self, path: str | Path) -> None:
         self._soundfile = _import_soundfile()
         self.path = Path(path)
         self._file: Any | None = None
-        self._carry: np.ndarray | None = None
         self._cursor = 0
         self._sample_rate_hz: int | None = None
         self._mic_ids: tuple[str, ...] | None = None
         self._closed = False
 
-    def write_frame_mixture(
+    def write_signal_block(
         self,
         *,
         frame_id: str,
-        mixture: np.ndarray,
-        sample_rate_hz: int,
-        mic_ids: tuple[str, ...],
-        window_sample_count: int,
+        block: MicrophoneSignalBlock,
     ) -> WaveformWriteResult:
-        """Append one frame's window to the session stream.
+        """Append one exact signal block to the session stream.
 
         Returns the session path plus the frame's half-open
         ``[start_sample, end_sample)`` slice of the stream.
@@ -162,37 +142,15 @@ class ContinuousWaveformWriter:
         del frame_id
         if self._closed:
             raise RuntimeError("ContinuousWaveformWriter is closed.")
-        data = _validated_mixture(mixture, mic_ids=mic_ids)
-        window = int(window_sample_count)
-        if window <= 0:
-            raise ValueError("window_sample_count must be positive.")
+        _require_signal_block(block)
+        window = int(block.samples.shape[1])
         self._ensure_session(
-            sample_rate_hz=int(sample_rate_hz),
-            mic_ids=tuple(mic_ids),
+            sample_rate_hz=block.sample_rate_hz,
+            mic_ids=block.microphone_ids,
         )
-
-        chunk = np.zeros((len(mic_ids), window), dtype=float)
-        head = data[:, :window]
-        chunk[:, : head.shape[1]] = head
-        carry = (
-            self._carry
-            if self._carry is not None
-            else np.zeros((len(mic_ids), 0), dtype=float)
-        )
-        overlap = min(carry.shape[1], window)
-        chunk[:, :overlap] += carry[:, :overlap]
-        leftover = carry[:, overlap:]
-        tail = data[:, window:]
-        new_carry = np.zeros(
-            (len(mic_ids), max(leftover.shape[1], tail.shape[1])),
-            dtype=float,
-        )
-        new_carry[:, : leftover.shape[1]] += leftover
-        new_carry[:, : tail.shape[1]] += tail
-        self._carry = new_carry
 
         assert self._file is not None
-        self._file.write(chunk.T)
+        self._file.write(block.samples.T)
         start_sample = self._cursor
         self._cursor += window
         return WaveformWriteResult(
@@ -202,24 +160,20 @@ class ContinuousWaveformWriter:
                 "path": str(self.path),
                 "start_sample": start_sample,
                 "end_sample": self._cursor,
-                "channel_mic_ids": list(mic_ids),
-                "sample_rate_hz": int(sample_rate_hz),
+                "channel_mic_ids": list(block.microphone_ids),
+                "sample_rate_hz": block.sample_rate_hz,
                 "window_sample_count": window,
                 "subtype": WAVEFORM_WAV_SUBTYPE,
             },
         )
 
     def close(self) -> None:
-        """Flush the carried tail and close the session file."""
+        """Close the session file without synthesizing additional samples."""
 
         if self._closed:
             return
         self._closed = True
         if self._file is not None:
-            if self._carry is not None and self._carry.shape[1] > 0:
-                self._file.write(self._carry.T)
-                self._cursor += self._carry.shape[1]
-            self._carry = None
             self._file.close()
             self._file = None
 
@@ -254,12 +208,6 @@ def waveform_safe_filename(name: str) -> str:
     return _UNSAFE_FILENAME_CHARS.sub("_", name)
 
 
-def _validated_mixture(
-    mixture: np.ndarray,
-    *,
-    mic_ids: tuple[str, ...],
-) -> np.ndarray:
-    data = np.asarray(mixture, dtype=float)
-    if data.ndim != 2 or data.shape[0] != len(mic_ids):
-        raise ValueError("Waveform mixture must have shape (n_mics, n_samples).")
-    return data
+def _require_signal_block(block: MicrophoneSignalBlock) -> None:
+    if not isinstance(block, MicrophoneSignalBlock):
+        raise TypeError("block must be a MicrophoneSignalBlock.")

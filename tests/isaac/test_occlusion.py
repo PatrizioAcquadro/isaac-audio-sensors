@@ -35,7 +35,7 @@ from isaac_audio_sensors.isaac.viz.overlays import (
     build_debug_primitives,
     debug_primitives_to_dicts,
 )
-from tests.helpers import FakeUsdPrim, FakeUsdStage
+from tests.helpers import FakeUsdPrim, FakeUsdStage, run_frame_pipeline
 
 ARRAY_PRIM_PATH = "/World/Rig/AudioArray"
 SOURCE_PRIM_PATH = "/World/Sources/SpeakerA"
@@ -231,7 +231,9 @@ def test_compute_scene_occlusion_degenerate_short_ray_is_clear():
 def test_default_frame_does_not_draw_oracle_bearing_rays():
     array = _quad_array()
     scene = _scene(arrays=(array,), occlusion=(_occlusion_record(),))
-    frame = AnalyticAcoustics().simulate(scene, "rig_front", _window())
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(), scene, "rig_front", _window()
+    )
     primitives = build_debug_primitives(
         frame=frame,
         scene=scene,
@@ -620,7 +622,8 @@ def test_occlusion_diagnostics_round_trip_new_fields():
             "right": (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
         },
     )
-    frame = AnalyticAcoustics().simulate(
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
         _scene(occlusion=(record,)), "rig_front", _window()
     )
 

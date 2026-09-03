@@ -467,7 +467,7 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
             f"{backend_id} did not prove live movement changes: {missing}."
         )
     if any(result.get("observation_counts", {}).values()):
-        raise RuntimeError(f"{backend_id} emitted oracle observations in Phase 02.2.")
+        raise RuntimeError(f"{backend_id} emitted oracle observations in Phase 02.3.")
     if int(result.get("debug_primitive_count", 0)) <= 0:
         raise RuntimeError(f"{backend_id} did not produce debug primitives.")
     debug_kinds = set(result.get("debug_primitive_kinds", ()))
@@ -497,6 +497,7 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
     if backend_id == "analytic_acoustics" and result.get("analytic_solver") != {
         "solver_id": "free_field_direct",
         "provider": "core",
+        "provider_version": "core",
         "environment_kind": "free_field",
     }:
         raise RuntimeError(

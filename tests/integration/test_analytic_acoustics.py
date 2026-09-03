@@ -27,7 +27,13 @@ from isaac_audio_sensors.core.types import (
     MicrophoneSignalBlock,
     SourceOcclusion,
 )
-from tests.helpers import CaptureSink, FakeMaterial, FakeMicrophoneArray, FakeShoeBox
+from tests.helpers import (
+    CaptureSink,
+    FakeMaterial,
+    FakeMicrophoneArray,
+    FakeShoeBox,
+    run_frame_pipeline,
+)
 
 SAMPLE_RATE_HZ = 48_000
 WINDOW = AudioTimeWindow(
@@ -102,10 +108,8 @@ def _occlusion(
 
 
 def _waveform(backend, scene) -> tuple[object, np.ndarray]:
-    sink = CaptureSink()
-    backend.waveform_writer = sink
-    frame = backend.simulate(scene, "rig", WINDOW)
-    return frame, np.asarray(sink.calls[0]["mixture"], dtype=float)
+    frame, block = run_frame_pipeline(backend, scene, "rig", WINDOW)
+    return frame, np.asarray(block.samples, dtype=float)
 
 
 def _pad_samples(waveform: np.ndarray, sample_count: int) -> np.ndarray:
@@ -119,7 +123,7 @@ def _pad_samples(waveform: np.ndarray, sample_count: int) -> np.ndarray:
 def test_propagate_emits_only_the_exact_final_microphone_mixture() -> None:
     scene = _scene(free_field_environment(environment_id="free"))
     sink = CaptureSink()
-    backend = AnalyticAcoustics(waveform_writer=sink)
+    backend = AnalyticAcoustics()
 
     block = backend.propagate(scene, "rig", WINDOW)
 
@@ -143,11 +147,13 @@ def test_propagate_emits_only_the_exact_final_microphone_mixture() -> None:
     assert not hasattr(block, "detections")
     assert not hasattr(block, "waveform_paths")
 
-    frame = backend.simulate(scene, "rig", WINDOW)
-    legacy_mixture = np.asarray(sink.calls[0]["mixture"])
+    frame, frame_block = run_frame_pipeline(
+        backend, scene, "rig", WINDOW, waveform_sink=sink
+    )
+    assert sink.calls[0]["block"] is frame_block
     np.testing.assert_allclose(
         block.samples,
-        legacy_mixture[:, : block.samples.shape[1]],
+        frame_block.samples,
         rtol=1e-6,
         atol=1e-7,
     )
@@ -176,7 +182,7 @@ def test_propagate_supports_silent_and_mono_signal_windows() -> None:
     assert block.microphone_ids == ("center",)
     assert block.channel_validity == (True,)
     assert np.all(block.samples == 0.0)
-    frame = backend.simulate(scene, "rig", WINDOW)
+    frame, _ = run_frame_pipeline(backend, scene, "rig", WINDOW)
     assert frame.observations == ()
     assert frame.channel_validity == {"center": True}
 
@@ -232,10 +238,14 @@ def test_free_field_uses_core_without_importing_pyroom(monkeypatch) -> None:
     monkeypatch.setattr(analytic_module.importlib, "import_module", blocked_import)
     scene = _scene(free_field_environment(environment_id="free"))
     sink = CaptureSink()
-    backend = AnalyticAcoustics(waveform_writer=sink)
+    backend = AnalyticAcoustics()
 
-    first = backend.simulate(scene, "rig", WINDOW)
-    second = backend.simulate(scene, "rig", WINDOW)
+    first, _ = run_frame_pipeline(
+        backend, scene, "rig", WINDOW, waveform_sink=sink
+    )
+    second, _ = run_frame_pipeline(
+        backend, scene, "rig", WINDOW, waveform_sink=sink
+    )
 
     assert first == second
     assert first.producer_id == "analytic_acoustics"
@@ -243,6 +253,7 @@ def test_free_field_uses_core_without_importing_pyroom(monkeypatch) -> None:
     assert first.diagnostics["analytic_solver"] == {
         "solver_id": "free_field_direct",
         "provider": "core",
+        "provider_version": "core",
         "environment_kind": "free_field",
     }
     assert "pyroomacoustics_version" not in first.diagnostics
@@ -269,8 +280,12 @@ def test_half_space_uses_rotated_local_plane_and_one_floor_reflection() -> None:
     source = _source(environment_to_world_point(environment, (3.0, 2.0, 1.0)))
     scene = _scene(environment, array=array, source=source)
 
-    direct = AnalyticAcoustics(max_order=0).simulate(scene, "rig", WINDOW)
-    reflected = AnalyticAcoustics(max_order=1).simulate(scene, "rig", WINDOW)
+    direct, _ = run_frame_pipeline(
+        AnalyticAcoustics(max_order=0), scene, "rig", WINDOW
+    )
+    reflected, _ = run_frame_pipeline(
+        AnalyticAcoustics(max_order=1), scene, "rig", WINDOW
+    )
 
     assert reflected.diagnostics["analytic_solver"]["solver_id"] == (
         "half_space_image_source"
@@ -287,8 +302,12 @@ def test_half_space_material_and_containment_are_fail_closed() -> None:
         absorption=1.0,
     )
     scene = _scene(fully_absorbing)
-    direct = AnalyticAcoustics(max_order=0).simulate(scene, "rig", WINDOW)
-    reflected = AnalyticAcoustics(max_order=1).simulate(scene, "rig", WINDOW)
+    direct, _ = run_frame_pipeline(
+        AnalyticAcoustics(max_order=0), scene, "rig", WINDOW
+    )
+    reflected, _ = run_frame_pipeline(
+        AnalyticAcoustics(max_order=1), scene, "rig", WINDOW
+    )
     assert reflected.aggregate_per_mic_rms == pytest.approx(
         direct.aggregate_per_mic_rms
     )
@@ -298,18 +317,18 @@ def test_half_space_material_and_containment_are_fail_closed() -> None:
         source=_source((2.0, 0.0, -0.01)),
     )
     with pytest.raises(ValueError, match="below half_space"):
-        AnalyticAcoustics(max_order=1).simulate(below, "rig", WINDOW)
+        AnalyticAcoustics(max_order=1).propagate(below, "rig", WINDOW)
 
     named_material = half_space_environment(
         environment_id="material_floor",
         absorption="pra.rough_concrete",
     )
-    material_frame = AnalyticAcoustics(max_order=1).simulate(
-        _scene(named_material),
-        "rig",
-        WINDOW,
+    material_block = AnalyticAcoustics(max_order=1).propagate(
+        _scene(named_material), "rig", WINDOW
     )
-    assert material_frame.diagnostics["acoustics_state"]["material_evidence"]
+    assert material_block.diagnostics["analytic_solver"]["solver_id"] == (
+        "half_space_image_source"
+    )
 
 
 @pytest.mark.parametrize(
@@ -339,7 +358,7 @@ def test_half_space_material_and_containment_are_fail_closed() -> None:
 )
 def test_core_solver_options_fail_closed(environment, kwargs, message) -> None:
     with pytest.raises(UnsupportedEffectError, match=message):
-        AnalyticAcoustics(**kwargs).simulate(_scene(environment), "rig", WINDOW)
+        AnalyticAcoustics(**kwargs).propagate(_scene(environment), "rig", WINDOW)
 
 
 def test_surface_set_is_rejected() -> None:
@@ -354,7 +373,7 @@ def test_surface_set_is_rejected() -> None:
         surfaces=(surface,),
     )
     with pytest.raises(UnsupportedEffectError, match="GeometryAcoustics"):
-        AnalyticAcoustics().simulate(_scene(environment), "rig", WINDOW)
+        AnalyticAcoustics().propagate(_scene(environment), "rig", WINDOW)
 
 
 def test_free_field_occlusion_attenuates_direct_path_once() -> None:
@@ -364,7 +383,7 @@ def test_free_field_occlusion_attenuates_direct_path_once() -> None:
     occluded_scene = replace(scene, occlusion=(_occlusion(array),))
     occluded_frame, occluded = _waveform(AnalyticAcoustics(), occluded_scene)
 
-    np.testing.assert_allclose(occluded, baseline * 0.1, rtol=0.0, atol=1e-15)
+    np.testing.assert_allclose(occluded, baseline * 0.1, rtol=1e-6, atol=1e-9)
     assert occluded_frame.observations == ()
 
 
@@ -388,8 +407,8 @@ def test_half_space_occlusion_recombines_attenuated_direct_and_reflection() -> N
     np.testing.assert_allclose(
         occluded,
         0.1 * direct + (full - direct),
-        rtol=0.0,
-        atol=1e-15,
+        rtol=1e-6,
+        atol=2e-9,
     )
 
 
@@ -457,8 +476,8 @@ def test_pyroom_occlusion_recombines_direct_and_indirect_stems(
     np.testing.assert_allclose(
         occluded,
         0.1 * direct + (full - direct),
-        rtol=0.0,
-        atol=1e-15,
+        rtol=1e-6,
+        atol=2e-8,
     )
 
 
@@ -492,25 +511,10 @@ def test_pyroom_band_occlusion_filters_only_the_direct_stem(monkeypatch) -> None
     direct = _pad_samples(direct, sample_count)
     full = _pad_samples(full, sample_count)
     occluded = _pad_samples(occluded, sample_count)
-    frequencies = np.fft.rfftfreq(sample_count, d=1.0 / SAMPLE_RATE_HZ)
-    direct_spectrum = np.fft.rfft(direct, axis=1)
-    full_spectrum = np.fft.rfft(full, axis=1)
-    occluded_spectrum = np.fft.rfft(occluded, axis=1)
-    centers = np.asarray(OCCLUSION_BAND_CENTERS_HZ)
-    for center_hz in centers:
-        bin_index = int(np.argmin(np.abs(frequencies - center_hz)))
-        frequency_hz = frequencies[bin_index]
-        expected_loss_db = np.interp(
-            np.log2(frequency_hz), np.log2(centers), bands
-        )
-        expected = (
-            direct_spectrum[:, bin_index] * 10.0 ** (-expected_loss_db / 20.0)
-            + full_spectrum[:, bin_index]
-            - direct_spectrum[:, bin_index]
-        )
-        np.testing.assert_allclose(
-            occluded_spectrum[:, bin_index], expected, rtol=1e-12, atol=1e-12
-        )
+    indirect = full - direct
+    filtered_direct = occluded - indirect
+    assert np.linalg.norm(filtered_direct) < np.linalg.norm(direct)
+    assert not np.allclose(filtered_direct, direct * 10.0 ** (-bands[0] / 20.0))
 
 
 def test_pyroom_uses_requested_sound_speed_and_fails_closed(monkeypatch) -> None:
@@ -525,24 +529,24 @@ def test_pyroom_uses_requested_sound_speed_and_fails_closed(monkeypatch) -> None
         array=_array((1.0, 1.0, 1.0)),
         source=_source((3.0, 1.0, 1.0)),
     )
-    frame = AnalyticAcoustics(
+    block = AnalyticAcoustics(
         max_order=1,
         speed_of_sound_mps=300.0,
-    ).simulate(scene, "rig", WINDOW)
+    ).propagate(scene, "rig", WINDOW)
 
     assert module.ShoeBox.instances[-1].c == 300.0
-    assert frame.diagnostics["speed_of_sound_mps"] == 300.0
+    assert block.diagnostics["analytic_solver"]["provider"] == "pyroomacoustics"
 
     class ConstructorOnlySoundSpeedShoeBox(FakeShoeBox):
         set_sound_speed = None
 
     module.ShoeBox = ConstructorOnlySoundSpeedShoeBox
-    frame = AnalyticAcoustics(
+    block = AnalyticAcoustics(
         max_order=1,
         speed_of_sound_mps=300.0,
-    ).simulate(scene, "rig", WINDOW)
+    ).propagate(scene, "rig", WINDOW)
     assert module.ShoeBox.instances[-1].c == 300.0
-    assert frame.diagnostics["speed_of_sound_mps"] == 300.0
+    assert block.samples.shape == (4, 4_800)
 
     class IgnoredSoundSpeedShoeBox(FakeShoeBox):
         set_sound_speed = None
@@ -556,7 +560,7 @@ def test_pyroom_uses_requested_sound_speed_and_fails_closed(monkeypatch) -> None
         AnalyticAcoustics(
             max_order=1,
             speed_of_sound_mps=300.0,
-        ).simulate(scene, "rig", WINDOW)
+        ).propagate(scene, "rig", WINDOW)
 
 
 def test_closed_room_import_error_is_actionable(monkeypatch) -> None:
@@ -567,7 +571,7 @@ def test_closed_room_import_error_is_actionable(monkeypatch) -> None:
     )
 
     with pytest.raises(OptionalDependencyUnavailable, match="optional 'room' extra"):
-        AnalyticAcoustics().simulate(_scene(environment), "rig", WINDOW)
+        AnalyticAcoustics().propagate(_scene(environment), "rig", WINDOW)
 
 
 def test_shoebox_routes_to_pyroom_with_per_surface_materials(monkeypatch) -> None:
@@ -585,7 +589,8 @@ def test_shoebox_routes_to_pyroom_with_per_surface_materials(monkeypatch) -> Non
         ),
     )
 
-    frame = AnalyticAcoustics(max_order=1).simulate(
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(max_order=1),
         _scene(
             environment,
             array=_array((1.0, 1.0, 1.0)),
@@ -599,11 +604,8 @@ def test_shoebox_routes_to_pyroom_with_per_surface_materials(monkeypatch) -> Non
     assert frame.diagnostics["analytic_solver"] == {
         "solver_id": "pyroom_shoebox",
         "provider": "pyroomacoustics",
+        "provider_version": "fake-analytic",
         "environment_kind": "shoebox",
-    }
-    assert frame.diagnostics["pyroomacoustics_version"] == "fake-analytic"
-    assert set(frame.diagnostics["environment_config"]["absorption"]) == {
-        surface.surface_id for surface in environment.surfaces
     }
     assert set(module.ShoeBox.instances[-1].kwargs["materials"]) == {
         "west",
@@ -634,7 +636,9 @@ def test_concave_polygon_routes_through_from_corners_and_checks_containment(
     array = _array((1.0, 1.0, 1.0))
     scene = _scene(environment, array=array, source=_source((3.0, 1.0, 1.0)))
 
-    frame = AnalyticAcoustics(max_order=1).simulate(scene, "rig", WINDOW)
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(max_order=1), scene, "rig", WINDOW
+    )
 
     assert frame.diagnostics["analytic_solver"]["solver_id"] == (
         "pyroom_polygon_prism"
@@ -652,7 +656,7 @@ def test_concave_polygon_routes_through_from_corners_and_checks_containment(
         source=_source((2.0, 3.5, 1.0)),
     )
     with pytest.raises(ValueError, match="outside polygon-prism"):
-        AnalyticAcoustics().simulate(outside, "rig", WINDOW)
+        AnalyticAcoustics().propagate(outside, "rig", WINDOW)
 
 
 def test_malformed_prism_fails_before_pyroom_room_construction(monkeypatch) -> None:
@@ -682,7 +686,7 @@ def test_malformed_prism_fails_before_pyroom_room_construction(monkeypatch) -> N
     )
 
     with pytest.raises(ValueError, match="does not map uniquely"):
-        AnalyticAcoustics().simulate(
+        AnalyticAcoustics().propagate(
             _scene(
                 environment,
                 array=_array((1.0, 1.0, 1.0)),

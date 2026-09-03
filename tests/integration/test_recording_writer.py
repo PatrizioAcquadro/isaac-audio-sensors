@@ -5,12 +5,13 @@ from __future__ import annotations
 import subprocess
 import sys
 import textwrap
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.core.types import AudioSensorFrame, AudioTimeWindow
 from isaac_audio_sensors.recording import (
     CreationProvenance,
     DeviceProvenance,
@@ -18,6 +19,7 @@ from isaac_audio_sensors.recording import (
     SessionRecorder,
     validate_dataset,
 )
+from tests.helpers import signal_block_for_frame
 
 
 def _configuration(*, aligned: bool, dataset_id: str = "recording_test") -> dict:
@@ -64,7 +66,7 @@ def _frame(global_index: int, local_index: int) -> AudioSensorFrame:
         frame_id=f"producer_{local_index}",
         frame_name=f"frame_{global_index}",
         start_time_s=local_index / 1_000,
-        end_time_s=local_index / 1_000 + 0.001,
+        end_time_s=local_index / 1_000 + 6 / 48_000,
         sample_rate_hz=48_000,
         frame_index=local_index,
         producer_id="tdoa_synthetic",
@@ -87,9 +89,10 @@ def _record(root: Path, *, aligned: bool) -> None:
         scene = "scene"
         recorder.begin_episode(scene, f"env_{episode}", scene)
         for local_index in range(count):
+            frame = _frame(global_index, local_index)
             assert recorder.append_frame(
-                _frame(global_index, local_index),
-                _audio(global_index),
+                frame,
+                signal_block_for_frame(frame, _audio(global_index)),
                 is_reset=local_index == 0,
             ).accepted
             global_index += 1
@@ -122,7 +125,10 @@ def test_cancel_publishes_only_verified_shards(tmp_path):
     )
     recorder.begin_episode("scene", "env", "scene")
     for index in range(4):
-        assert recorder.append_frame(_frame(index, index), _audio(index)).accepted
+        frame = _frame(index, index)
+        assert recorder.append_frame(
+            frame, signal_block_for_frame(frame, _audio(index))
+        ).accepted
     manifest = recorder.cancel()
 
     assert manifest.completion_state == "incomplete"
@@ -130,6 +136,74 @@ def test_cancel_publishes_only_verified_shards(tmp_path):
     assert (
         validate_dataset(tmp_path / "cancel", allow_incomplete=True).status == "passed"
     )
+
+
+@pytest.mark.parametrize(
+    ("mismatch", "message"),
+    (
+        ("array", "array_id"),
+        ("producer", "producer_id"),
+        ("sample_rate", "sample_rate_hz"),
+        ("time_window", "time_window"),
+        ("microphones", "microphone_ids"),
+        ("validity", "channel_validity"),
+    ),
+)
+def test_recorder_rejects_signal_block_mismatches_and_accounts_drop(
+    tmp_path, mismatch, message
+):
+    recorder = SessionRecorder(
+        tmp_path / mismatch, _configuration(aligned=False), **_kwargs()
+    )
+    recorder.begin_episode("scene", "env", "scene")
+    frame = _frame(0, 0)
+    block = signal_block_for_frame(frame, _audio(0))
+    if mismatch == "array":
+        block = replace(block, array_id="other")
+    elif mismatch == "producer":
+        block = replace(block, producer_id="other")
+    elif mismatch == "sample_rate":
+        block = replace(
+            block,
+            sample_rate_hz=24_000,
+            time_window=AudioTimeWindow(
+                start_time_s=frame.start_time_s,
+                end_time_s=frame.start_time_s + 6 / 24_000,
+                frame_index=frame.frame_index,
+            ),
+        )
+    elif mismatch == "time_window":
+        block = replace(
+            block,
+            time_window=AudioTimeWindow(
+                start_time_s=0.5,
+                end_time_s=0.5 + 6 / 48_000,
+                frame_index=frame.frame_index,
+            ),
+        )
+    elif mismatch == "microphones":
+        block = replace(block, microphone_ids=("rear", "front"))
+    else:
+        block = replace(block, channel_validity=(False, True))
+
+    result = recorder.append_frame(frame, block)
+
+    assert result.accepted is False
+    assert message in (result.reason or "")
+    assert recorder._pending_drop_count == 1
+
+
+def test_recorder_allows_frame_and_block_provenance_to_differ(tmp_path):
+    recorder = SessionRecorder(
+        tmp_path / "provenance", _configuration(aligned=False), **_kwargs()
+    )
+    recorder.begin_episode("scene", "env", "scene")
+    frame = replace(_frame(0, 0), provenance="isaac_live")
+    block = signal_block_for_frame(
+        replace(frame, provenance="synthetic/core"), _audio(0)
+    )
+
+    assert recorder.append_frame(frame, block).accepted
 
 
 def test_resume_after_process_crash_matches_control(tmp_path):
@@ -141,11 +215,13 @@ def test_resume_after_process_crash_matches_control(tmp_path):
         from tests.integration.test_recording_writer import (
             _audio, _configuration, _frame, _kwargs
         )
+        from tests.helpers import signal_block_for_frame
         root = sys.argv[1]
         recorder = SessionRecorder(root, _configuration(aligned=False), **_kwargs())
         recorder.begin_episode('scene', 'env', 'scene')
         for i in range(4):
-            recorder.append_frame(_frame(i, i), _audio(i))
+            frame = _frame(i, i)
+            recorder.append_frame(frame, signal_block_for_frame(frame, _audio(i)))
         os._exit(0)
         """
     )
@@ -161,7 +237,10 @@ def test_resume_after_process_crash_matches_control(tmp_path):
     )
     assert recorder.next_dataset_frame_index == 3
     for index in range(3, 5):
-        assert recorder.append_frame(_frame(index, index), _audio(index)).accepted
+        frame = _frame(index, index)
+        assert recorder.append_frame(
+            frame, signal_block_for_frame(frame, _audio(index))
+        ).accepted
     recorder.end_episode()
     recorder.finalize()
     assert [
@@ -174,7 +253,8 @@ def test_finalization_recovery_never_exposes_false_complete(tmp_path, monkeypatc
     recorder = SessionRecorder(root, _configuration(aligned=False), **_kwargs())
     recorder.begin_episode("scene", "env", "scene")
     for index in range(3):
-        recorder.append_frame(_frame(index, index), _audio(index))
+        frame = _frame(index, index)
+        recorder.append_frame(frame, signal_block_for_frame(frame, _audio(index)))
     recorder.end_episode()
 
     import isaac_audio_sensors.recording.recorder as recorder_module

@@ -12,14 +12,12 @@ from isaac_audio_sensors.core.acoustics.environments import (
 )
 from isaac_audio_sensors.core.acoustics.materials import (
     MATERIAL_BAND_CENTERS_HZ,
+    MaterialResolution,
     resolve_material_coefficients,
 )
 from isaac_audio_sensors.core.acoustics.occlusion import (
     occlusion_band_attenuation_db,
     occlusion_per_mic_extra_gain_db,
-)
-from isaac_audio_sensors.core.backends._analytic.diagnostics import (
-    _environment_material_resolution,
 )
 from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
@@ -738,9 +736,7 @@ def _build_shoebox_room(
             }.items()
         }
     else:
-        absorption, _evidence, resolution = _environment_material_resolution(
-            environment
-        )
+        absorption, resolution = _environment_material_resolution(environment)
         if resolution is not None:
             absorption = {
                 "description": resolution.description,
@@ -966,6 +962,34 @@ def _pyroom_material(pra: Any, absorption: object, *, application: str) -> Any:
     else:
         value = float(absorption)
     return pra.Material(value) if hasattr(pra, "Material") else value
+
+
+def _environment_material_resolution(
+    environment: AcousticEnvironmentSpec,
+) -> tuple[
+    float | dict[str, float] | tuple[float, ...],
+    MaterialResolution | None,
+]:
+    """Resolve the uniform room material needed by the renderer."""
+
+    if not environment.surfaces:
+        raise ValueError(
+            f"Environment {environment.environment_id!r} has no acoustic surfaces."
+        )
+    absorption = environment.surfaces[0].absorption
+    if any(surface.absorption != absorption for surface in environment.surfaces[1:]):
+        raise ValueError(
+            "analytic_acoustics supports uniform shoebox absorption only; "
+            "per-surface solver routing belongs to R8."
+        )
+    if isinstance(absorption, str):
+        resolution = resolve_material_coefficients(
+            absorption,
+            "absorption",
+            application=f"environment {environment.environment_id!r}",
+        )
+        return resolution.values, resolution
+    return absorption, None
 
 
 def _signed_polygon_area_xy(

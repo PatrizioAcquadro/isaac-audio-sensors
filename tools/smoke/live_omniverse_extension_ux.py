@@ -3266,7 +3266,7 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
     before = result.get("frame_before_parent_move", {})
     after = result.get("frame_after_parent_move", {})
     if before.get("observation_count") != 0 or after.get("observation_count") != 0:
-        raise RuntimeError(f"{name} emitted oracle observations in Phase 02.2.")
+        raise RuntimeError(f"{name} emitted oracle observations in Phase 02.3.")
     offset_before = result.get("source_transform_before_local_offset_change", {})
     offset_after = result.get("source_transform_after_local_offset_change", {})
     if offset_before.get("position_world") == offset_after.get("position_world"):

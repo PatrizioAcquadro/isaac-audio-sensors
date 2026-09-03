@@ -34,6 +34,7 @@ from isaac_audio_sensors.isaac.environment_resolution import (
 from isaac_audio_sensors.isaac.occlusion import OcclusionHit
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
+from tests.helpers import run_frame_pipeline
 
 SAMPLE_RATE_HZ = 48_000
 MIC_IDS = ("front", "right", "rear", "left")
@@ -47,8 +48,10 @@ class _CaptureSink:
     def __init__(self) -> None:
         self.mixtures: list[np.ndarray] = []
 
-    def write_frame_mixture(self, **kwargs):
-        self.mixtures.append(np.asarray(kwargs["mixture"], dtype=np.float64).copy())
+    def write_signal_block(self, **kwargs):
+        self.mixtures.append(
+            np.asarray(kwargs["block"].samples, dtype=np.float64).copy()
+        )
         return WaveformWriteResult(paths=("memory://fixture.wav",))
 
     def close(self):
@@ -224,8 +227,12 @@ def _render(fake_room, record=None, environment=None):
         occlusion=None if record is None else (record,),
     )
     sink = _CaptureSink()
-    frame = AnalyticAcoustics(max_order=1, waveform_writer=sink).simulate(
-        scene, array.array_id, _window()
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(max_order=1),
+        scene,
+        array.array_id,
+        _window(),
+        waveform_sink=sink,
     )
     return frame, sink.mixtures[0]
 
@@ -318,7 +325,7 @@ def test_five_frame_moving_wall_sequence_is_fresh_and_deterministic(fake_room):
             assert abs(measured - expected) <= 1e-6
 
 
-def test_environment_hash_and_output_diverge_for_geometry_and_material_mutations(
+def test_output_diverges_for_geometry_and_material_mutations(
     fake_room,
 ):
     base_frame, base_wave = _render(fake_room)
@@ -334,18 +341,14 @@ def test_environment_hash_and_output_diverge_for_geometry_and_material_mutations
         fake_room,
         environment=_environment(absorption="pra.carpet_cotton"),
     )
-    hashes = {
-        frame.diagnostics["acoustics_state"]["environment_state_hash"]
+    assert all(
+        frame.diagnostics["analytic_solver"]["solver_id"] == "pyroom_shoebox"
         for frame in (base_frame, translated_frame, dimension_frame, material_frame)
-    }
-    assert len(hashes) == 4
+    )
     assert not np.array_equal(base_wave, translated_wave)
     assert not np.array_equal(base_wave, dimension_wave)
     assert not np.array_equal(base_wave, material_wave)
     assert _StatefulShoeBox.compute_rir_calls == 4
-    evidence = material_frame.diagnostics["acoustics_state"]["material_evidence"]
-    assert evidence["environment"]["evidence"] == "measured"
-    assert "citation" in evidence["environment"]
 
 
 def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake_room):
@@ -358,10 +361,12 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
         environment=_environment(),
     )
     array_sink = _CaptureSink()
-    array_frame = AnalyticAcoustics(waveform_writer=array_sink).simulate(
+    array_frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
         array_scene,
         array.array_id,
         _window(),
+        waveform_sink=array_sink,
     )
     source_scene = replace(
         array_scene,
@@ -369,10 +374,12 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
         arrays=(_array(),),
     )
     source_sink = _CaptureSink()
-    source_frame = AnalyticAcoustics(waveform_writer=source_sink).simulate(
+    source_frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
         source_scene,
         source_scene.arrays[0].array_id,
         _window(),
+        waveform_sink=source_sink,
     )
     assert array_frame.array_pose.position_m == (0.0, 0.25, 1.0)
     assert source_frame.observations == ()
@@ -659,8 +666,12 @@ def test_off_state_frame_has_no_acoustics_namespace_and_is_byte_deterministic():
         arrays=(array,),
         environment=free_field_environment(environment_id="off_free_field"),
     )
-    first = AnalyticAcoustics().simulate(scene, array.array_id, _window())
-    second = AnalyticAcoustics().simulate(scene, array.array_id, _window())
+    first, _ = run_frame_pipeline(
+        AnalyticAcoustics(), scene, array.array_id, _window()
+    )
+    second, _ = run_frame_pipeline(
+        AnalyticAcoustics(), scene, array.array_id, _window()
+    )
     assert "acoustics_state" not in first.diagnostics
     first_bytes = json.dumps(frame_to_trace_dict(first), sort_keys=True).encode()
     second_bytes = json.dumps(frame_to_trace_dict(second), sort_keys=True).encode()

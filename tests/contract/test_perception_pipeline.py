@@ -45,6 +45,22 @@ class FakeEstimator:
         return self.result, {"localization": "fake"}
 
 
+class StatefulPerceptionComponent:
+    def __init__(self) -> None:
+        self.reset_count = 0
+
+    def __call__(self, samples, sample_rate_hz):
+        del samples, sample_rate_hz
+        return False, None, {}
+
+    def estimate(self, samples, microphone_positions_m, sample_rate_hz):
+        del samples, microphone_positions_m, sample_rate_hz
+        return DoaEstimate(estimated_bearing_deg=0.0), {}
+
+    def reset(self) -> None:
+        self.reset_count += 1
+
+
 def test_inactive_and_detector_free_frames_have_no_observations() -> None:
     detector = FakeDetector(False)
     inactive = AudioPerceptionPipeline(
@@ -58,6 +74,31 @@ def test_inactive_and_detector_free_frames_have_no_observations() -> None:
     assert detector_free.observations == ()
     assert len(detector.calls) == 1
     assert detector_free.waveform_paths == ()
+
+
+def test_reset_reaches_each_stateful_component_once_by_identity() -> None:
+    shared = StatefulPerceptionComponent()
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=shared,
+        detector_id="stateful",
+        doa_estimator=shared,
+    )
+
+    pipeline.reset()
+
+    assert shared.reset_count == 1
+
+
+def test_block_diagnostics_are_copied_beside_perception_namespace() -> None:
+    block = _block(diagnostics={"analytic_solver": {"solver_id": "test"}})
+    frame = AudioPerceptionPipeline().process(
+        block, _array(), frame_id="diagnostics"
+    )
+
+    assert frame.diagnostics["analytic_solver"] == {"solver_id": "test"}
+    assert frame.diagnostics["perception"]["activity_ran"] is False
+    assert frame.diagnostics is not block.diagnostics
+    assert "perception" not in block.diagnostics
 
 
 def test_active_signal_creates_one_observation_and_preserves_unresolved_doa() -> None:

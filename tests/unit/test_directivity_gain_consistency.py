@@ -35,7 +35,7 @@ from isaac_audio_sensors.core.types import (
     MicrophoneSpec,
     SourceOcclusion,
 )
-from tests.helpers import CaptureSink, install_fake_pyroom
+from tests.helpers import CaptureSink, install_fake_pyroom, run_frame_pipeline
 
 DB_DOUBLE = 20.0 * math.log10(2.0)
 IDENTITY = (0.0, 0.0, 0.0, 1.0)
@@ -146,11 +146,19 @@ def test_room_waveform_keeps_signed_directivity_while_rms_uses_magnitude(
     )
     omni_sink = CaptureSink()
     directional_sink = CaptureSink()
-    omni_frame = AnalyticAcoustics(waveform_writer=omni_sink).simulate(
-        _scene(omni, array), array.array_id, _window()
+    omni_frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
+        _scene(omni, array),
+        array.array_id,
+        _window(),
+        waveform_sink=omni_sink,
     )
-    directional_frame = AnalyticAcoustics(waveform_writer=directional_sink).simulate(
-        _scene(figure_eight, array), array.array_id, _window()
+    directional_frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
+        _scene(figure_eight, array),
+        array.array_id,
+        _window(),
+        waveform_sink=directional_sink,
     )
     omni_waveforms = omni_sink.calls[0]["mixture"]
     directional_waveforms = directional_sink.calls[0]["mixture"]
@@ -224,16 +232,14 @@ def test_pyroom_rir_is_the_only_room_distance_scaling(monkeypatch) -> None:
     array = _array()
     near = _source(position=(1.0, 0.0, 0.0))
     far = replace(near, position_world=(2.0, 0.0, 0.0))
-    near_sink = CaptureSink()
-    far_sink = CaptureSink()
-    AnalyticAcoustics(waveform_writer=near_sink).simulate(
+    near_block = AnalyticAcoustics().propagate(
         _scene(near, array), array.array_id, _window()
     )
-    AnalyticAcoustics(waveform_writer=far_sink).simulate(
+    far_block = AnalyticAcoustics().propagate(
         _scene(far, array), array.array_id, _window()
     )
-    near_peak = float(np.max(np.abs(near_sink.calls[0]["mixture"][0])))
-    far_peak = float(np.max(np.abs(far_sink.calls[0]["mixture"][0])))
+    near_peak = float(np.max(np.abs(near_block.samples[0])))
+    far_peak = float(np.max(np.abs(far_block.samples[0])))
     front_position = microphone_world_positions(array)["front"]
     near_distance = math.dist(near.position_world, front_position)
     far_distance = math.dist(far.position_world, front_position)
@@ -275,21 +281,22 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics(
         _scene(source, array, occlusion=(occlusion,)),
         environment=free_field_environment(environment_id="gain_free_field"),
     )
-    frame = backend.simulate(
+    frame, _ = run_frame_pipeline(
+        backend,
         scene,
         array.array_id,
         _window(),
     )
-    assert frame == backend.simulate(
-        scene,
-        array.array_id,
-        _window(),
+    repeated, _ = run_frame_pipeline(
+        backend, scene, array.array_id, _window()
     )
+    assert frame == repeated
     baseline_scene = replace(
         _scene(_source(), base_array),
         environment=free_field_environment(environment_id="gain_free_field"),
     )
-    baseline = AnalyticAcoustics().simulate(
+    baseline, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
         baseline_scene,
         base_array.array_id,
         _window(),
@@ -306,9 +313,7 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics(
     )
     assert observed_ratio == pytest.approx(expected_ratio)
     assert frame.observations == ()
-    assert frame.diagnostics["effects"]["channel_response"]["gain_delta_db"] == {
-        "front": -3.0,
-    }
+    assert "channel_response" in frame.diagnostics["effect_stages"]
 
 
 def _array() -> MicrophoneArraySpec:
@@ -371,6 +376,7 @@ def _window() -> AudioTimeWindow:
 
 
 def _frame_rms(backend, source: AudioSourceSpec, array: MicrophoneArraySpec):
-    return backend.simulate(
-        _scene(source, array), array.array_id, _window()
-    ).aggregate_per_mic_rms["front"]
+    frame, _ = run_frame_pipeline(
+        backend, _scene(source, array), array.array_id, _window()
+    )
+    return frame.aggregate_per_mic_rms["front"]

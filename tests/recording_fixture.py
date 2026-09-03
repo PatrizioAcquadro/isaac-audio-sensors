@@ -16,6 +16,7 @@ from isaac_audio_sensors.recording import (
     SessionRecorder,
     validate_dataset,
 )
+from tests.helpers import signal_block_for_frame
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_DIR = REPO_ROOT / "tests/fixtures/recording/session"
@@ -107,9 +108,10 @@ def regenerate_reference_dataset(output_dir: str | Path = REFERENCE_DIR) -> Path
     for episode, (scene_id, frame_count) in enumerate(specs):
         recorder.begin_episode(scene_id, f"environment_{scene_id}", scene_id)
         for index in range(frame_count):
+            frame = _frame(episode, index, index * 5)
             result = recorder.append_frame(
-                _frame(episode, index, index * 5),
-                _audio(episode, index),
+                frame,
+                signal_block_for_frame(frame, _audio(episode, index)),
                 is_reset=index == 0,
             )
             if not result.accepted:

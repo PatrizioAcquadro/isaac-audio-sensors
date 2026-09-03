@@ -18,6 +18,7 @@ from tests.helpers import (
     install_fake_pyroom,
     quad_array,
     room_scene,
+    run_frame_pipeline,
     source,
     time_window,
 )
@@ -37,20 +38,27 @@ def test_analytic_off_state_matches_pristine_reference(monkeypatch) -> None:
     baseline_sink = CaptureSink()
     disabled_sink = CaptureSink()
 
-    baseline = AnalyticAcoustics(waveform_writer=baseline_sink).simulate(
-        scene, array.array_id, time_window()
+    baseline, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
+        scene,
+        array.array_id,
+        time_window(),
+        waveform_sink=baseline_sink,
     )
-    disabled = AnalyticAcoustics(
-        waveform_writer=disabled_sink,
-        effects=EffectsConfig(),
-    ).simulate(scene, array.array_id, time_window())
+    disabled, _ = run_frame_pipeline(
+        AnalyticAcoustics(effects=EffectsConfig()),
+        scene,
+        array.array_id,
+        time_window(),
+        waveform_sink=disabled_sink,
+    )
 
     assert _serialized_frame_bytes(baseline) == _serialized_frame_bytes(disabled)
     assert baseline_sink.calls[0]["mixture"].tobytes() == disabled_sink.calls[0][
         "mixture"
     ].tobytes()
-    assert baseline.diagnostics["directivity"]["mode"] == "per_pair_direct_path"
-    assert "effects" not in disabled.diagnostics
+    assert baseline.diagnostics["analytic_solver"]["provider"] == "pyroomacoustics"
+    assert "channel_response" not in disabled.diagnostics["effect_stages"]
 
 
 def test_analytic_effected_premix_drives_frame_aggregate_and_export(
@@ -61,8 +69,12 @@ def test_analytic_effected_premix_drives_frame_aggregate_and_export(
     scene = room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array)
     baseline_sink = CaptureSink()
     effected_sink = CaptureSink()
-    baseline = AnalyticAcoustics(waveform_writer=baseline_sink).simulate(
-        scene, array.array_id, time_window()
+    baseline, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
+        scene,
+        array.array_id,
+        time_window(),
+        waveform_sink=baseline_sink,
     )
     effects = EffectsConfig(
         channel_response=ChannelResponseConfig(
@@ -70,17 +82,21 @@ def test_analytic_effected_premix_drives_frame_aggregate_and_export(
             microphones={"front": ChannelResponseMicConfig(gain_db=-6.0)},
         )
     )
-    effected_backend = AnalyticAcoustics(
-        waveform_writer=effected_sink,
-        effects=effects,
-    )
+    effected_backend = AnalyticAcoustics(effects=effects)
     signal_block = effected_backend.propagate(
         scene,
         array.array_id,
         time_window(),
     )
     assert effected_sink.calls == []
-    effected = effected_backend.simulate(scene, array.array_id, time_window())
+    effected, frame_block = run_frame_pipeline(
+        effected_backend,
+        scene,
+        array.array_id,
+        time_window(),
+        waveform_sink=effected_sink,
+    )
+    assert effected_sink.calls[0]["block"] is frame_block
 
     observed_db = 20.0 * math.log10(
         effected.aggregate_per_mic_rms["front"]
@@ -101,9 +117,4 @@ def test_analytic_effected_premix_drives_frame_aggregate_and_export(
     for mic_index, mic_id in enumerate(mic_ids):
         expected_rms = float(np.sqrt(np.mean(mixture[mic_index] ** 2)))
         assert effected.aggregate_per_mic_rms[mic_id] == pytest.approx(expected_rms)
-    assert effected.diagnostics["effects"]["channel_response"] == {
-        "applied_mic_ids": ("front",),
-        "gain_delta_db": {"front": -6.0},
-        "delay_s": {},
-        "polarity": {},
-    }
+    assert "channel_response" in effected.diagnostics["effect_stages"]

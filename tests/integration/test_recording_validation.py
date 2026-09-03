@@ -20,6 +20,7 @@ from isaac_audio_sensors.recording import (
     SessionRecorder,
     validate_dataset,
 )
+from tests.helpers import signal_block_for_frame
 
 REFERENCE = Path("tests/fixtures/recording/session")
 
@@ -77,7 +78,7 @@ def _frame(index: int, *, diagnostic_path_count: int = 0) -> AudioSensorFrame:
         frame_id=f"producer_{index}",
         frame_name=f"frame_{index}",
         start_time_s=index / 100.0,
-        end_time_s=index / 100.0 + 0.01,
+        end_time_s=index / 100.0 + 6 / 48_000,
         sample_rate_hz=48_000,
         frame_index=index,
         producer_id="tdoa_synthetic",
@@ -136,9 +137,10 @@ def _record_session(
     recorder.begin_episode("scene", "environment", "scene")
     for index in range(frame_count):
         audio = np.full((2, 6), index / 32.0, dtype=np.float32)
+        frame = _frame(index, diagnostic_path_count=diagnostic_path_count)
         result = recorder.append_frame(
-            _frame(index, diagnostic_path_count=diagnostic_path_count),
-            audio,
+            frame,
+            signal_block_for_frame(frame, audio),
             is_reset=index == 0,
         )
         assert result.accepted

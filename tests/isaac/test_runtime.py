@@ -115,6 +115,36 @@ def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:
         )
 
 
+def test_reference_backend_resets_only_selected_environment_pipelines(
+    monkeypatch,
+) -> None:
+    array = create_microphone_array(
+        array_id="array",
+        prim_path="/World/Array",
+        layout_name="quad_front",
+    )
+    reference = ReferenceBackend(
+        backend_id="analytic_acoustics",
+        max_observations=1,
+        effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
+        snapshots=tuple(_snapshot(array, ()) for _ in range(3)),
+        array_ids=("array", "array", "array"),
+    )
+    reset_counts = [0, 0, 0]
+    for index, pipeline in enumerate(reference._perception):
+        monkeypatch.setattr(
+            pipeline,
+            "reset",
+            lambda selected=index: reset_counts.__setitem__(
+                selected, reset_counts[selected] + 1
+            ),
+        )
+
+    reference.reset(torch.tensor([2, 0]))
+
+    assert reset_counts == [1, 0, 1]
+
+
 def test_runtime_uses_real_isaac_lab_bases():
     assert issubclass(AudioArraySensor, SensorBase)
     assert issubclass(AudioArraySensorCfg, SensorBaseCfg)

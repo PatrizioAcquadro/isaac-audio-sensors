@@ -22,7 +22,7 @@ from isaac_audio_sensors.core.types import (
     AudioSourceSpec,
     AudioTimeWindow,
 )
-from tests.helpers import FakeShoeBox, install_fake_pyroom
+from tests.helpers import FakeShoeBox, install_fake_pyroom, run_frame_pipeline
 
 ENVIRONMENT_MIN_WORLD = (2.0, 1.0, 0.0)
 ENVIRONMENT_MAX_WORLD = (8.0, 5.0, 3.0)
@@ -91,7 +91,8 @@ def test_world_aligned_environment_preserves_stage_distances(monkeypatch) -> Non
     environment = _environment()
     array = _array()
 
-    frame = AnalyticAcoustics(max_order=1).simulate(
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(max_order=1),
         _scene(environment, array=array),
         array.array_id,
         _window(),
@@ -115,9 +116,7 @@ def test_world_aligned_environment_preserves_stage_distances(monkeypatch) -> Non
         assert source_local[axis] == pytest.approx(
             SOURCE_POSITION[axis] - ENVIRONMENT_MIN_WORLD[axis]
         )
-    assert frame.diagnostics["environment_config"]["position_world"] == (
-        ENVIRONMENT_MIN_WORLD
-    )
+    assert environment.world_pose.position_m == ENVIRONMENT_MIN_WORLD
 
 
 def test_rotated_and_inclined_shoebox_uses_environment_local_coordinates(
@@ -143,7 +142,8 @@ def test_rotated_and_inclined_shoebox_uses_environment_local_coordinates(
     )
     source = _source(environment_to_world_point(environment, source_local))
 
-    frame = AnalyticAcoustics().simulate(
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(),
         _scene(environment, source=source, array=array),
         array.array_id,
         _window(),
@@ -179,7 +179,7 @@ def test_out_of_bounds_positions_always_error(
     install_fake_pyroom(monkeypatch)
 
     with pytest.raises(ValueError) as excinfo:
-        AnalyticAcoustics().simulate(scene, "rig", _window())
+        AnalyticAcoustics().propagate(scene, "rig", _window())
 
     message = str(excinfo.value)
     assert offending_id in message
@@ -191,4 +191,4 @@ def test_room_backend_requires_environment(monkeypatch) -> None:
     install_fake_pyroom(monkeypatch)
 
     with pytest.raises(ValueError, match="AudioSceneSnapshot.environment"):
-        AnalyticAcoustics().simulate(_scene(None), "rig", _window())
+        AnalyticAcoustics().propagate(_scene(None), "rig", _window())

@@ -48,6 +48,7 @@ def test_core_commands_render_service_results(tmp_path, capsys):
     assert frame["diagnostics"]["analytic_solver"] == {
         "solver_id": "free_field_direct",
         "provider": "core",
+        "provider_version": "core",
         "environment_kind": "free_field",
     }
 

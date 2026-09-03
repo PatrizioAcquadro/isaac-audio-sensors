@@ -15,7 +15,7 @@ import numpy as np
 
 from isaac_audio_sensors import __version__
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
-from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.core.types import AudioSensorFrame, MicrophoneSignalBlock
 from isaac_audio_sensors.recording._atomic import (
     JsonlShardFile,
     StagedFile,
@@ -408,7 +408,7 @@ class SessionRecorder:
     def append_frame(
         self,
         frame: AudioSensorFrame,
-        audio_block: np.ndarray | None,
+        signal_block: MicrophoneSignalBlock | None,
         *,
         is_reset: bool = False,
     ) -> AppendFrameResult:
@@ -423,11 +423,11 @@ class SessionRecorder:
         gap_plan: TimeGapPlan | None = None
         if self.preserve_time_gaps:
             payload, block, gap_plan, reason = self._validated_gap_append_inputs(
-                frame, audio_block, timestamp_ms, is_reset
+                frame, signal_block, timestamp_ms, is_reset
             )
         else:
             payload, block, reason = self._validated_append_inputs(
-                frame, audio_block, timestamp_ms, is_reset
+                frame, signal_block, timestamp_ms, is_reset
             )
         if reason is not None:
             self._record_drop(frame)
@@ -500,7 +500,7 @@ class SessionRecorder:
     def _validated_append_inputs(
         self,
         frame: AudioSensorFrame | dict[str, Any],
-        audio_block: np.ndarray | None,
+        signal_block: MicrophoneSignalBlock | None,
         timestamp_ms: int,
         is_reset: bool,
     ) -> tuple[dict[str, Any] | None, np.ndarray | None, str | None]:
@@ -538,18 +538,49 @@ class SessionRecorder:
             ):
                 raise ValueError("duplicate producer frame_id within the episode")
             block: np.ndarray | None = None
-            if audio_block is not None:
-                if not isinstance(audio_block, np.ndarray):
-                    raise ValueError("audio_block must be a numpy ndarray or None")
-                if audio_block.dtype != np.float32:
-                    raise ValueError("audio_block dtype must be float32")
-                if audio_block.ndim != 2 or audio_block.shape[0] != self.channels:
+            if signal_block is not None:
+                if not isinstance(signal_block, MicrophoneSignalBlock):
                     raise ValueError(
-                        f"audio_block must have shape ({self.channels}, samples)"
+                        "signal_block must be a MicrophoneSignalBlock or None"
                     )
-                if not np.isfinite(audio_block).all():
-                    raise ValueError("audio_block must contain finite samples")
-                block = np.ascontiguousarray(audio_block)
+                if signal_block.array_id != payload["array_id"]:
+                    raise ValueError("signal_block.array_id disagrees with frame")
+                if signal_block.producer_id != payload["producer_id"]:
+                    raise ValueError("signal_block.producer_id disagrees with frame")
+                if signal_block.sample_rate_hz != payload["sample_rate_hz"]:
+                    raise ValueError("signal_block.sample_rate_hz disagrees with frame")
+                time_window = signal_block.time_window
+                if (
+                    time_window.start_time_s != payload["start_time_s"]
+                    or time_window.end_time_s != payload["end_time_s"]
+                    or time_window.frame_index != payload["frame_index"]
+                ):
+                    raise ValueError("signal_block.time_window disagrees with frame")
+                frame_validity = frame.channel_validity
+                if not isinstance(frame_validity, dict):
+                    raise ValueError("frame.channel_validity must be an object")
+                channel_order = tuple(self.configuration["channel_order"])
+                if signal_block.microphone_ids != channel_order:
+                    raise ValueError(
+                        "signal_block.microphone_ids disagrees with configuration"
+                    )
+                if tuple(frame_validity) != signal_block.microphone_ids:
+                    raise ValueError(
+                        "signal_block.microphone_ids disagrees with frame channel order"
+                    )
+                if tuple(frame_validity.values()) != signal_block.channel_validity:
+                    raise ValueError(
+                        "signal_block.channel_validity disagrees with frame"
+                    )
+                if signal_block.samples.shape != (
+                    self.channels,
+                    self.window_sample_count,
+                ):
+                    raise ValueError(
+                        "signal_block.samples must have exact shape "
+                        f"({self.channels}, {self.window_sample_count})"
+                    )
+                block = signal_block.samples
             return payload, block, None
         except (DatasetLayoutError, KeyError, TypeError, ValueError) as exc:
             return None, None, str(exc)
@@ -557,7 +588,7 @@ class SessionRecorder:
     def _validated_gap_append_inputs(
         self,
         frame: AudioSensorFrame | dict[str, Any],
-        audio_block: np.ndarray | None,
+        signal_block: MicrophoneSignalBlock | None,
         timestamp_ms: int,
         is_reset: bool,
     ) -> tuple[
@@ -567,7 +598,7 @@ class SessionRecorder:
         str | None,
     ]:
         payload, block, reason = self._validated_append_inputs(
-            frame, audio_block, timestamp_ms, is_reset
+            frame, signal_block, timestamp_ms, is_reset
         )
         if reason is not None:
             if "timestamp_ms is non-monotonic" in reason:
@@ -582,7 +613,7 @@ class SessionRecorder:
                 self.window_sample_count,
             ):
                 raise ValueError(
-                    "audio_block must be finite float32 with exact shape "
+                    "signal_block.samples must be finite float32 with exact shape "
                     f"({self.channels}, {self.window_sample_count})"
                 )
             if 4 * self.channels > 1_048_576:

@@ -28,7 +28,7 @@ from isaac_audio_sensors.isaac.stage_snapshot import (
     build_stage_snapshot,
     enrich_snapshot_motion,
 )
-from tests.helpers import FakeUsdPrim, motion_stage
+from tests.helpers import FakeUsdPrim, motion_stage, run_frame_pipeline
 
 MANUAL_ENVIRONMENT = free_field_environment(environment_id="stage_motion_free_field")
 MANUAL_RESOLUTION = IsaacEnvironmentResolutionCfg(mode="manual")
@@ -229,7 +229,8 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
     )
     assert diagnostics == {"rig": "none:first_sample"}
     assert enriched.sources == ()
-    frame = AnalyticAcoustics(effects=EffectsConfig(motion=_motion())).simulate(
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(effects=EffectsConfig(motion=_motion())),
         enriched,
         "rig",
         AudioTimeWindow(

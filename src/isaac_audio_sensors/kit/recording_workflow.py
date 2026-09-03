@@ -756,7 +756,7 @@ class RecordingWorkflow(ControllerService):
             return
         try:
             first_recorded_frame = self._guided_last_recorded_timestamp_ms is None
-            audio_block = self._guided_audio_block_for_frame(frame, recorder)
+            signal_block = getattr(self._host.sensor, "latest_signal_block", None)
             if reset_boundary and not first_recorded_frame:
                 recorder.end_episode()
                 request = self._guided_recording_request or {}
@@ -782,7 +782,7 @@ class RecordingWorkflow(ControllerService):
             recording_frame = replace(frame, waveform_paths=())
             result = recorder.append_frame(
                 recording_frame,
-                audio_block,
+                signal_block,
                 is_reset=first_recorded_frame or reset_boundary,
             )
             if result.accepted:
@@ -818,30 +818,6 @@ class RecordingWorkflow(ControllerService):
         self.guided_notify_simulator_reset()
         if self._host.sensor is not None:
             self._host.sensor.reset()
-
-    @staticmethod
-    def _guided_audio_block_for_frame(
-        frame: Any,
-        recorder: SessionRecorder,
-    ) -> Any | None:
-        paths = tuple(str(path) for path in (frame.waveform_paths or ()))
-        if not paths:
-            return None
-        from isaac_audio_sensors.core.io.wave_read import read_wav
-
-        data = read_wav(paths[-1])
-        if data.sample_rate_hz != recorder.sample_rate_hz:
-            raise ValueError(
-                "waveform sample rate disagrees with guided recording config"
-            )
-        if data.channel_count != recorder.channels:
-            raise ValueError(
-                "waveform channel count disagrees with guided recording config"
-            )
-        samples = data.samples
-        if samples.shape[1] > recorder.window_sample_count:
-            samples = samples[:, -recorder.window_sample_count :]
-        return samples
 
     @staticmethod
     def _guided_session_bytes(root: Path) -> int:

@@ -17,7 +17,6 @@ from isaac_audio_sensors.core.acoustics.materials import (
     MATERIAL_BAND_CENTERS_HZ,
     resolve_material_coefficients,
 )
-from isaac_audio_sensors.core.backends._analytic.assembly import assemble_frame
 from isaac_audio_sensors.core.backends._analytic.block import assemble_signal_block
 from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
@@ -40,14 +39,12 @@ from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.effects.validation import UnsupportedEffectError
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
-from isaac_audio_sensors.core.io.waveforms import WaveformSink
 from isaac_audio_sensors.core.math_utils import norm, subtract
 from isaac_audio_sensors.core.motion import WindowMotionPlan
 from isaac_audio_sensors.core.motion.doppler import source_doppler_factor
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
     AudioSceneSnapshot,
-    AudioSensorFrame,
     AudioTimeWindow,
     MicrophoneSignalBlock,
 )
@@ -71,14 +68,12 @@ class AnalyticAcoustics:
         self,
         *,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-        waveform_writer: WaveformSink | None = None,
         max_order: int = 0,
         air_absorption: bool = False,
         ray_tracing: bool = False,
         effects: EffectsConfig | None = None,
         runtime_profile: str = "waveform_fidelity",
         window_motion: WindowMotionPlan | None = None,
-        max_observations: int | None = None,
     ) -> None:
         if speed_of_sound_mps <= 0.0 or not math.isfinite(speed_of_sound_mps):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
@@ -90,19 +85,13 @@ class AnalyticAcoustics:
             raise TypeError("air_absorption must be a boolean.")
         if not isinstance(ray_tracing, bool):
             raise TypeError("ray_tracing must be a boolean.")
-        if max_observations is not None and (
-            type(max_observations) is not int or max_observations < 0
-        ):
-            raise ValueError("max_observations must be a non-negative integer.")
         self.speed_of_sound_mps = float(speed_of_sound_mps)
-        self.waveform_writer = waveform_writer
         self.max_order = max_order
         self.air_absorption = air_absorption
         self.ray_tracing = ray_tracing
         self.effects = EffectsConfig() if effects is None else effects
         self.runtime_profile = runtime_profile
         self.window_motion = window_motion
-        self.max_observations = max_observations
         self.effects_chain = ChannelEffectsChain(self.effects)
 
     @staticmethod
@@ -141,33 +130,6 @@ class AnalyticAcoustics:
             solver_id=solver_id,
             core_solver=solver_id in _CORE_SOLVERS,
         )
-
-    def simulate(
-        self,
-        scene: AudioSceneSnapshot,
-        array_id: str,
-        time_window: AudioTimeWindow,
-    ) -> AudioSensorFrame:
-        """Temporarily preserve the pre-02.1 scene-to-frame consumer path."""
-
-        prepared, rendered, solver_id = self._render_signal(
-            scene,
-            array_id,
-            time_window,
-        )
-        frame = assemble_frame(
-            prepared,
-            rendered,
-            backend_id=self.backend_id,
-            speed_of_sound_mps=self.speed_of_sound_mps,
-            waveform_writer=self.waveform_writer,
-            window_motion=self.window_motion,
-            max_observations=self.max_observations,
-            provenance=(
-                "synthetic/core" if solver_id in _CORE_SOLVERS else "room_acoustics"
-            ),
-        )
-        return _with_solver_diagnostics(frame, solver_id=solver_id)
 
     def _render_signal(
         self,
@@ -565,28 +527,6 @@ def _validate_half_space_positions(
                 f"{position}, below half_space environment "
                 f"{environment.environment_id!r}."
             )
-
-
-def _with_solver_diagnostics(
-    frame: AudioSensorFrame,
-    *,
-    solver_id: str,
-) -> AudioSensorFrame:
-    environment_kind = frame.diagnostics["environment_config"]["kind"]
-    provider = "core" if solver_id in _CORE_SOLVERS else "pyroomacoustics"
-    solver = {
-        "solver_id": solver_id,
-        "provider": provider,
-        "environment_kind": environment_kind,
-    }
-    frame_diagnostics = dict(frame.diagnostics)
-    frame_diagnostics["analytic_solver"] = solver
-    if provider == "core":
-        frame_diagnostics.pop("pyroomacoustics_version", None)
-    return replace(
-        frame,
-        diagnostics=frame_diagnostics,
-    )
 
 
 def _import_pyroomacoustics() -> Any:

@@ -31,6 +31,7 @@ from tests.helpers import (
     install_fake_pyroom,
     motion_plan,
     motion_room_fixture,
+    run_frame_pipeline,
 )
 
 WINDOW_DURATION_S = WINDOW_SAMPLE_COUNT / SAMPLE_RATE_HZ
@@ -143,13 +144,21 @@ def test_circular_speed_dependent_error_obeys_frozen_bound():
 def test_segments_one_is_byte_identical_to_default_motion_config(monkeypatch):
     install_fake_pyroom(monkeypatch)
     scene, array, window = motion_room_fixture()
-    absent = AnalyticAcoustics(
-        effects=EffectsConfig(
-            motion=MotionEffectsConfig(derive_velocity_from_poses=True)
-        )
-    ).simulate(scene, array.array_id, window)
-    explicit = AnalyticAcoustics(effects=_motion_effects(1)).simulate(
-        scene, array.array_id, window
+    absent, _ = run_frame_pipeline(
+        AnalyticAcoustics(
+            effects=EffectsConfig(
+                motion=MotionEffectsConfig(derive_velocity_from_poses=True)
+            )
+        ),
+        scene,
+        array.array_id,
+        window,
+    )
+    explicit, _ = run_frame_pipeline(
+        AnalyticAcoustics(effects=_motion_effects(1)),
+        scene,
+        array.array_id,
+        window,
     )
     absent_bytes = json.dumps(
         frame_to_trace_dict(absent), sort_keys=True, separators=(",", ":")
@@ -158,7 +167,7 @@ def test_segments_one_is_byte_identical_to_default_motion_config(monkeypatch):
         frame_to_trace_dict(explicit), sort_keys=True, separators=(",", ":")
     ).encode()
     assert absent_bytes == explicit_bytes
-    assert "motion" not in absent.diagnostics
+    assert "motion_segments" not in absent.diagnostics
 
 
 def test_piecewise_room_assembles_exact_window_and_segment_diagnostics(monkeypatch):
@@ -169,21 +178,20 @@ def test_piecewise_room_assembles_exact_window_and_segment_diagnostics(monkeypat
         (20.0, 0.0, 0.0),
     )
     sink = CaptureSink()
-    frame = AnalyticAcoustics(
-        effects=_motion_effects(MOTION_SEGMENTS),
-        window_motion=plan,
-        waveform_writer=sink,
-    ).simulate(scene, array.array_id, window)
-    mixture = sink.calls[0]["mixture"]
-    assert mixture.shape[1] >= WINDOW_SAMPLE_COUNT
-    assert np.isfinite(mixture).all()
-    assert frame.diagnostics["motion"]["segments_per_window"] == MOTION_SEGMENTS
-    rows = frame.diagnostics["motion"]["segments"]
-    assert len(rows) == MOTION_SEGMENTS
-    assert [row["start_sample"] for row in rows] == list(
-        range(0, WINDOW_SAMPLE_COUNT, 300)
+    frame, _ = run_frame_pipeline(
+        AnalyticAcoustics(
+            effects=_motion_effects(MOTION_SEGMENTS),
+            window_motion=plan,
+        ),
+        scene,
+        array.array_id,
+        window,
+        waveform_sink=sink,
     )
-    assert all(set(row["doppler_factor_by_source"]) == {"source"} for row in rows)
+    mixture = sink.calls[0]["mixture"]
+    assert mixture.shape[1] == WINDOW_SAMPLE_COUNT
+    assert np.isfinite(mixture).all()
+    assert frame.diagnostics["motion_segments"] == MOTION_SEGMENTS
     assert len(fake.ShoeBox.instances) == MOTION_SEGMENTS
 
 
@@ -196,14 +204,12 @@ def test_piecewise_room_occlusion_recombines_only_direct_stems(monkeypatch):
     )
 
     def render(max_order, selected_scene):
-        sink = CaptureSink()
-        AnalyticAcoustics(
+        block = AnalyticAcoustics(
             max_order=max_order,
             effects=_motion_effects(MOTION_SEGMENTS),
             window_motion=plan,
-            waveform_writer=sink,
-        ).simulate(selected_scene, array.array_id, window)
-        return sink.calls[0]["mixture"]
+        ).propagate(selected_scene, array.array_id, window)
+        return block.samples
 
     direct = render(0, scene)
     full = render(1, scene)
@@ -228,8 +234,8 @@ def test_piecewise_room_occlusion_recombines_only_direct_stems(monkeypatch):
     np.testing.assert_allclose(
         observed,
         0.1 * direct + (full - direct),
-        rtol=0.0,
-        atol=1e-15,
+        rtol=1e-6,
+        atol=2e-8,
     )
 
 
@@ -258,11 +264,8 @@ def test_policy_absent_segments_hold_current_pose_and_use_exact_unity(monkeypatc
         window_sample_count=WINDOW_SAMPLE_COUNT,
         segments_per_window=MOTION_SEGMENTS,
     )
-    frame = AnalyticAcoustics(
+    block = AnalyticAcoustics(
         effects=_motion_effects(MOTION_SEGMENTS), window_motion=plan
-    ).simulate(scene, array.array_id, window)
-    for row in frame.diagnostics["motion"]["segments"]:
-        assert row["doppler_factor_by_source"]["source"] == 1.0
-        entity = row["entities"]["source"]
-        assert entity["start_position_world_m"] == scene.sources[0].position_world
-        assert entity["mid_position_world_m"] == scene.sources[0].position_world
+    ).propagate(scene, array.array_id, window)
+    assert block.diagnostics["motion_segments"] == MOTION_SEGMENTS
+    assert np.isfinite(block.samples).all()

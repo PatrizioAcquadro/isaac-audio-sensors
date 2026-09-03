@@ -16,6 +16,7 @@ from isaac_audio_sensors.recording import (
     SessionRecorder,
     validate_dataset,
 )
+from tests.helpers import signal_block_for_frame
 
 
 def _configuration() -> dict:
@@ -79,9 +80,12 @@ def _record(root: Path) -> SessionRecorder:
     recorder = SessionRecorder(root, _configuration(), **_kwargs())
     recorder.begin_episode("scene", "env", "scene")
     for index, timestamp in enumerate((0, 4, 12)):
+        frame = _frame(index, timestamp)
         assert recorder.append_frame(
-            _frame(index, timestamp),
-            np.ones((1, 6), dtype=np.float32),
+            frame,
+            signal_block_for_frame(
+                frame, np.ones((1, 6), dtype=np.float32)
+            ),
             is_reset=index == 0,
         ).accepted
     recorder.end_episode()
@@ -110,8 +114,11 @@ def test_reset_starts_a_new_time_lattice(tmp_path):
     recorder = SessionRecorder(root, _configuration(), **_kwargs())
     for episode in range(2):
         recorder.begin_episode("scene", f"env_{episode}", "scene")
+        frame = _frame(episode, 0)
         assert recorder.append_frame(
-            _frame(episode, 0), np.ones((1, 6), np.float32), is_reset=True
+            frame,
+            signal_block_for_frame(frame, np.ones((1, 6), np.float32)),
+            is_reset=True,
         ).accepted
         recorder.end_episode()
     recorder.finalize()

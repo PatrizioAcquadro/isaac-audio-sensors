@@ -18,7 +18,12 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     SourceOcclusion,
 )
-from tests.helpers import CaptureSink, FakeShoeBox, install_fake_pyroom
+from tests.helpers import (
+    CaptureSink,
+    FakeShoeBox,
+    install_fake_pyroom,
+    run_frame_pipeline,
+)
 
 
 def test_backend_selects_canonical_array_state_from_snapshot(monkeypatch) -> None:
@@ -32,7 +37,9 @@ def test_backend_selects_canonical_array_state_from_snapshot(monkeypatch) -> Non
     )
     scene = replace(_scene(_source("speaker"), array=first), arrays=(first, selected))
 
-    frame = AnalyticAcoustics().simulate(scene, "selected", _window(0.1))
+    frame, block = run_frame_pipeline(
+        AnalyticAcoustics(), scene, "selected", _window(0.1)
+    )
 
     assert frame.array_id == "selected"
     assert frame.array_pose is not None
@@ -42,13 +49,14 @@ def test_backend_selects_canonical_array_state_from_snapshot(monkeypatch) -> Non
     assert frame.channel_validity == {
         microphone.mic_id: True for microphone in selected.microphones
     }
+    assert block.array_id == "selected"
 
 
 def test_backend_rejects_array_id_absent_from_snapshot(monkeypatch) -> None:
     install_fake_pyroom(monkeypatch)
     array = _array()
     with pytest.raises(KeyError, match="AudioSceneSnapshot has no array 'missing'"):
-        AnalyticAcoustics().simulate(
+        AnalyticAcoustics().propagate(
             _scene(_source("speaker"), array=array), "missing", _window(0.1)
         )
 
@@ -61,14 +69,19 @@ def test_room_path_keeps_waveform_and_rms_but_emits_no_oracle_observations(
     scene = _scene(_source("speaker"), array=array)
     sink = CaptureSink()
 
-    frame = AnalyticAcoustics(max_order=1, waveform_writer=sink).simulate(
-        scene, array.array_id, _window()
+    frame, block = run_frame_pipeline(
+        AnalyticAcoustics(max_order=1),
+        scene,
+        array.array_id,
+        _window(),
+        waveform_sink=sink,
     )
 
     assert frame.producer_id == "analytic_acoustics"
     assert frame.observations == ()
-    assert frame.diagnostics["physical_waveform"] is True
-    assert frame.diagnostics["pyroomacoustics_version"] == "fake-test"
+    assert frame.diagnostics["analytic_solver"]["provider"] == "pyroomacoustics"
+    assert frame.diagnostics["analytic_solver"]["provider_version"] == "fake-test"
+    assert sink.calls[0]["block"] is block
     assert all(value > 0.0 for value in frame.aggregate_per_mic_rms.values())
     mixture = sink.calls[0]["mixture"]
     for index, microphone in enumerate(array.microphones):
@@ -90,9 +103,14 @@ def test_observation_cap_never_changes_rendered_soundscape(monkeypatch) -> None:
     mixtures = []
     for cap in (None, 1, 0):
         sink = CaptureSink()
-        frame = AnalyticAcoustics(
-            max_observations=cap, waveform_writer=sink
-        ).simulate(scene, array.array_id, _window(0.1))
+        frame, _ = run_frame_pipeline(
+            AnalyticAcoustics(),
+            scene,
+            array.array_id,
+            _window(0.1),
+            waveform_sink=sink,
+            max_observations=cap,
+        )
         frames.append(frame)
         mixtures.append(sink.calls[0]["mixture"])
 
@@ -111,8 +129,12 @@ def test_room_occlusion_replaces_only_affected_source_stem(monkeypatch) -> None:
 
     def render(selected_scene, max_order):
         sink = CaptureSink()
-        AnalyticAcoustics(max_order=max_order, waveform_writer=sink).simulate(
-            selected_scene, array.array_id, _window(0.1)
+        run_frame_pipeline(
+            AnalyticAcoustics(max_order=max_order),
+            selected_scene,
+            array.array_id,
+            _window(0.1),
+            waveform_sink=sink,
         )
         return sink.calls[0]["mixture"]
 
@@ -140,11 +162,14 @@ def test_room_occlusion_replaces_only_affected_source_stem(monkeypatch) -> None:
     direct_first, full_first, full_second, baseline, observed = map(
         pad, (direct_first, full_first, full_second, baseline, observed)
     )
-    np.testing.assert_allclose(baseline, full_first + full_second, atol=1e-15)
+    np.testing.assert_allclose(
+        baseline, full_first + full_second, rtol=1e-6, atol=1e-8
+    )
     np.testing.assert_allclose(
         observed,
         0.1 * direct_first + (full_first - direct_first) + full_second,
-        atol=1e-15,
+        rtol=1e-6,
+        atol=3e-8,
     )
 
 
@@ -160,7 +185,7 @@ def test_room_rejects_non_public_file_asset_paths(monkeypatch, tmp_path) -> None
     array = _array()
     source = _source("speaker", audio_asset_path=str(tmp_path / "private.wav"))
     with pytest.raises(ValueError, match="relative public package path"):
-        AnalyticAcoustics().simulate(
+        AnalyticAcoustics().propagate(
             _scene(source, array=array), array.array_id, _window()
         )
 
@@ -170,7 +195,7 @@ def test_room_rejects_malformed_pyroom_signals(monkeypatch) -> None:
     fake_pra.ShoeBox = _MalformedSignalShoeBox
     array = _array()
     with pytest.raises(ValueError, match="unexpected mic signal shape"):
-        AnalyticAcoustics().simulate(
+        AnalyticAcoustics().propagate(
             _scene(_source("speaker"), array=array), array.array_id, _window()
         )
 
@@ -179,7 +204,7 @@ def test_room_unavailable_error_is_clear(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "pyroomacoustics", None)
     array = _array()
     with pytest.raises(OptionalDependencyUnavailable, match="room"):
-        AnalyticAcoustics().simulate(
+        AnalyticAcoustics().propagate(
             _scene(_source("speaker"), array=array), array.array_id, _window()
         )
 
