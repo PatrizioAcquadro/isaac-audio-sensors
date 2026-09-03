@@ -110,7 +110,7 @@ The node publishes the latest frame ID, timestamp, observation count, first obse
 
 Replicator integration is a lazy Isaac bridge used by the extension; core frames, package JSON/JSONL writers, the base sensor capture path, and Isaac Lab do not require it. The registered writer receives frames directly from extension updates. The v1 payload and configuration retain `annotator_name` as compatibility metadata, but no runtime annotator is registered.
 
-Kit services own profile libraries, validation, output paths, and application persistence. The sensor-session service appends JSONL only for new frames and injects a constructed core `WaveformSink`; the live sensor uses and closes that sink without knowing UI paths or output modes.
+Kit services own profile libraries, validation, output paths, and application persistence. The sensor-session service appends JSONL only for new frames and may inject a constructed core `WaveformSink`; the live sensor uses and closes that sink without knowing UI paths or output modes. The sensor also retains the exact latest signal block independently. Guided dataset recording consumes that block directly, so it neither rereads a WAV nor depends on Sensor WAV output being enabled.
 
 ## Troubleshooting
 
@@ -128,6 +128,7 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 
 ## Version Notes
 
+- 2026-09-03: Added persistent sensor perception and latest-block ownership; guided dataset recording now consumes that block without depending on WAV output.
 - 2026-09-02: Removed sensor-side ambiguity policy and introduced `ias.omni_extension_binding.v5`; v2-v4 have no runtime parser.
 - 2026-09-01: Completed R7/R8 environment resolution, analytic backend consolidation, and occlusion transmission with the then-current v4 binding.
 - 2026-08-27: Made source and child-microphone directivity enum-backed and fail-closed, aligned native gain conversion, and removed the effects-owned directivity path for v3.

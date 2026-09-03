@@ -39,7 +39,7 @@ The current zero-observation path allocates and scatters fixed-shape tensors on 
 
 ## Reference Binding
 
-`bind_reference(snapshots, array_ids)` accepts equal non-empty sequences of pure `AudioSceneSnapshot` values and string selectors. Each selected array must exist in its corresponding snapshot, and selected arrays must share one microphone count. The temporary reference bridge still executes the selected Core backend per environment but intentionally returns the same zero-observation tensors until Phase 03.
+`bind_reference(snapshots, array_ids)` accepts equal non-empty sequences of pure `AudioSceneSnapshot` values and string selectors. Each selected array must exist in its corresponding snapshot, and selected arrays must share one microphone count. The reference path executes the selected Core backend through `simulate_frame()` with one persistent perception pipeline per environment and resets only selected environments. It intentionally returns zero-observation tensors until Phase 03.
 
 This path remains a scalar lifecycle/debug boundary rather than an oracle reference. It does not inspect a USD stage, accept a scene/provider object, retain parallel `MicrophoneArraySpec` inputs, or turn snapshot source data into activity or direction labels.
 

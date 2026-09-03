@@ -594,3 +594,46 @@ Verified 549 unit/contract tests, 205 integration tests, 57 release tests, 90
 tests in the supported Isaac runtime, optional audio, byte-identical schemas,
 documentation boundaries and links, unchanged raw knowledge, Ruff, whitespace,
 and the Isaac Sim, Isaac Lab, and Kit live GPU smokes on the RTX 4090.
+
+## 2026-09-03 — update: Plan 02.3 orchestration and cleanup
+
+Recorded the single `simulate_frame()` composition path, direct immutable-block
+waveform and dataset recording, lifecycle-owned perception reset, persistent
+Isaac and per-environment Lab state, and removal of the analytic frame bridge.
+Kept default perception empty until Phase 03 and recorded the pending SquadBot
+application and live GPU closeout without claiming sandbox execution.
+
+## 2026-09-03 — lint: Plan 02.3 repository-local implementation
+
+Verified 552 unit/contract tests, 213 integration tests, 57 release tests, 91
+tests in the supported Isaac runtime, optional PyRoom and codec execution,
+byte-identical schemas, the complete clean-source artifact audit, documentation
+boundaries and links, Ruff, whitespace, and the unchanged 113-file R9 evidence
+hash. Live Isaac Sim, Lab, Kit, and
+4096-environment validation remain blocked by sandbox-hidden CUDA/NVML and
+unwritable runtime caches; the validated SquadBot patch remains unapplied until
+explicit sibling-write permission is granted.
+
+## 2026-09-03 — update: Plan 02.3 downstream and runtime closeout
+
+Recorded the applied SquadBot frame-v3 migration, project-owned Phase 6A oracle
+isolation, empty default sensor behavior, live RTX 4090 completion, and the
+unchanged historical handoff. Marked Plan 02 complete without selecting an
+activity detector or DOA estimator.
+
+## 2026-09-03 — lint: Plan 02.3 complete closeout
+
+Verified the complete host and clean-source artifact gates, 91 Isaac tests, live
+Isaac Sim and Kit, Lab entity/reference parity and selective reset, and 50 steps
+over 4096 environments at 0.132 ms/step against the 20 ms budget. Verified the
+SquadBot functional suite, Ruff, active demos, strict oracle separation, exact
+historical handoff hash, internal wiki links, documentation boundaries, and
+unchanged R9 evidence.
+
+## 2026-09-03 — lint: Plan 02.3 final clean checkouts
+
+Verified all 382 SquadBot tests with clean committed IAS provenance, Ruff, the
+frame-v3 and replay demos, and the active Phase 6A front and unknown contexts.
+Both contexts emit zero sensor observations, cues, packets, and graph events;
+each retains five records only under `oracle_ground_truth` with v3 trace and
+metric formats.

@@ -15,26 +15,26 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.
 - One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
 - Public snapshot-authoritative propagation through `propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`, with exact-window, ordered, immutable `float32` microphone mixtures and no source, perception, persistence, or serialized-schema fields.
-- `AnalyticAcoustics.propagate()` supports silent, mono, and multi-source windows, includes final gain/directivity/occlusion/effects, marks simulated channels valid, and never runs DOA or writes waveforms. One explicit internal bridge emits frame v3 with aggregate RMS and zero observations until Plan 02.3 replaces scene-to-frame orchestration.
+- `AnalyticAcoustics.propagate()` supports silent, mono, and multi-source windows, includes final gain/directivity/occlusion/effects, marks simulated channels valid, and never runs DOA, assembles frames, or writes waveforms. `core.simulation.simulate_frame()` calls propagation once, resolves the exact snapshot array, runs an explicit perception pipeline, optionally gives the same block to a waveform sink, and returns both frame and block.
 - Public `ObservationOrigin`, `AudioObservation`, and `AudioPerceptionPipeline` own observed-only perception. The injected detector sees only valid channels in array order; inactive or fully invalid blocks emit no signal observation; optional DOA requires at least two valid channels; external observations remain typed and ordered after the signal result; and `max_observations` caps only the final deterministic sequence.
 - Frame-v3 capture semantics retain the three-field `AudioTimeWindow`, array-authoritative sample rate, derived-only frame timestamp, array pose, channel validity, aggregate RMS, provenance, diagnostics, and recording-owned waveform references. `producer_id`, `observations`, and `max_observations` replace the backend/detection fields without a v2 parser.
 - R9.1.2 physically honest DOA semantics: two-microphone least-squares exposes every compatible azimuth with no selected estimate or confidence except at a physical endpoint; unique least-squares and all SRP-PHAT require at least three microphones with rank-2 XY geometry. Core, plugins, Isaac, Lab, and Kit carry no contextual ambiguity policy; four non-collinear microphones are the practical recommendation.
 - R7 `AcousticSurfaceSpec` and `AcousticEnvironmentSpec` with fail-closed builders for `free_field`, `half_space`, `shoebox`, `polygon_prism`, and `surface_set`, complete world/environment quaternion transforms, and mandatory `AudioSceneSnapshot.environment` ownership.
 - One required `[environment]` TOML model, with an `environment.surfaces` array of tables for surface sets and solver-only `[audio.analytic_acoustics]`; legacy `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, `[room]`, `[audio.room_acoustics]`, missing environments, clamping, and old diagnostic names have no compatibility path.
-- Public `AnalyticAcoustics` routing selected only from `scene.environment.kind`: Core direct propagation for `free_field`, Core floor image source for `half_space`, PyRoom `ShoeBox` for `shoebox`, and PyRoom polygon extrusion for `polygon_prism`, with solver/provider/topology diagnostics on signal blocks and temporary bridge frames.
+- Public `AnalyticAcoustics` routing selected only from `scene.environment.kind`: Core direct propagation for `free_field`, Core floor image source for `half_space`, PyRoom `ShoeBox` for `shoebox`, and PyRoom polygon extrusion for `polygon_prism`, with concise solver/provider/topology diagnostics copied from signal blocks into perception frames.
 - Core and PyRoom routes separate direct and indirect pair stems internally, apply broadband or banded `SourceOcclusion` exactly once as `a * D + R`, and keep the public output as one combined multichannel waveform. The unoccluded path reuses the original full premix byte-for-byte.
 - Minimal `SourceOcclusion` records contain only array/source identity, exact blocked and broadband-attenuation maps, and optional aligned spectral rows. Model, geometry, and material fields were removed without aliases; occlusion affects the observed waveform/RMS and is not copied into observations as oracle truth.
 - Isaac raycast occlusion accumulates one authored curve per optional `ias:acoustic_partition_id` or implicit prim-path partition, adds distinct sequential partitions without a fixed loss clamp, reports unknown-material fallback applications under frame `acoustics_state`, and fails closed on conflicts or hit limits. Existing `debug_draw` can emit transient ray/hit `DebugPrimitive` records without adding geometry to stable frames or datasets.
 - Core analytic routes require no `room` extra; closed-room routes import PyRoom lazily, preserve per-surface materials and local containment, configure and verify custom sound speed, and fail actionably when the dependency or requested capability is absent. `surface_set` remains unsupported.
 - `analytic_acoustics` is the only registered propagation backend. The four legacy identifiers, classes, modules, capability records, configuration paths, and runtime validation branches were removed without aliases. Recorded producer identifiers remain provenance only and cannot select a runtime backend; current frame replay requires v3.
-- Atomic generic recording, verified sharded sessions, codecs, validation, statistics, deterministic splits, and read-only replay.
+- Atomic generic recording, verified sharded sessions, codecs, validation, statistics, deterministic splits, and read-only replay. Waveform sinks and dataset sessions consume exact immutable signal blocks; continuous WAV close adds no private render tail, while dataset hop/overlap carry remains recorder-owned.
 - Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
-- Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows.
+- Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows. Each live sensor owns persistent perception state and its latest signal block; guided recording consumes that block directly and is independent from optional WAV export.
 - Isaac `manual`, `anchor`, and `auto` environment resolution kept separate from the Core contract, with 1 mm default full-array containment, marked shoebox/floor discovery, deterministic priority/volume selection, explicit ambiguity, and cache refresh after relevant array or USD changes.
 - Kit `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes with fail-closed validation/start, explicit free-field safe presets, no implicit shoebox, and exact `ias.omni_extension_binding.v5` import/export with no v2-v4 parser or ambiguity-policy state.
 - Current NVIDIA `OmniSound` and `OmniListener` authoring with schema-native timing, gain, finite/infinite loop, spatial, and listener-orientation semantics; non-spatial sources are excluded with diagnostics even during strict scans unless explicitly selected, and deprecated `Sound` and `Listener` remain read-compatible.
 - Separate Kit scene audition and qualitative device-mix capture from a compatible direct array-child listener, creating a session-layer child when needed, with verified WAV metadata, lifecycle cleanup, manual-listener override preservation, and no path into microphone-array frames, datasets, or Isaac Lab observations.
-- Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, fixed-shape tensor observations, partial reset, and fail-closed device validation. Entity and scalar reference bindings currently return valid zero-observation tensors until Phase 03 provides observed activity; they do not derive source-conditioned presence, bearing, confidence, sector, ambiguity, or per-observation RMS.
+- Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, fixed-shape tensor observations, partial reset, and fail-closed device validation. The scalar reference path owns one resettable perception pipeline per environment; the entity path invents no signal block. Both currently return valid zero-observation tensors until Phase 03 provides observed activity and do not derive source-conditioned presence, bearing, confidence, sector, ambiguity, or per-observation RMS.
 - Python source and universal wheel distributions plus a self-contained Kit Community Registry archive with audited room/FLAC dependencies.
 - Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
 - R5.1 core root limited to eleven fundamental models, simulator-independent config, quaternion-authoritative array pose, one propagation protocol, and generator-authoritative schemas.
@@ -210,6 +210,23 @@ environments at 0.131 ms/step mean against the 20 ms budget. Package `3.0.0`
 remains unchanged; no downstream checkout, publication, tag, or push is part of
 the subphase.
 
+The Plan 02.3 implementation passes the complete `make check`
+gate with 552 unit/contract tests, 213 isolated integration tests, and 57
+release tests. The optional-audio smoke passes real shoebox and polygon-prism
+execution with pyroomacoustics 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. All
+91 tests pass in the supported Isaac runtime, and all three checked schemas
+regenerate byte-identically. A content-equivalent clean temporary Git checkout
+passes the complete sdist, universal-wheel, and Kit-ZIP build and artifact audit.
+On the RTX 4090, live Isaac Sim and Kit pass, and the Lab smoke preserves
+zero-observation entity/reference parity plus selective reset while completing
+50 steps over 4096 environments at 0.132 ms/step mean against the 20 ms budget.
+SquadBot commit `ff9006f` migrates the active adapter, replay, live bridge, and
+Phase 6A demo to strict frame-v3 observations. Its complete clean-upstream suite
+passes all 382 tests; Ruff, the empty default sensor graph, the `Unknown` replay
+candidate, and both Phase 6A contexts pass.
+The historical Phase 6A handoff remains byte-identical at SHA-256
+`f97ae9e0d5ad06a613c3840e6201ea9ac5469b899d9e3e305bec76a8b09a0dd5`.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -237,14 +254,13 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 ## Next Work
 
-R9.1 through R9.4 and Plan 02.1–02.2 are complete. Work now resumes at Plan
-02.3, which must route maintained consumers through signal-block perception and
-remove the temporary scene-to-frame bridge without restoring source-conditioned
-events.
+R9.1 through R9.4 and Plan 02 are complete. Plan 02.3 routes maintained consumers
+through signal-block perception, removes the temporary scene-to-frame bridge,
+and migrates SquadBot without restoring source-conditioned events.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-The subsequent plans retain the completed separation between final microphone signals and observed perception. Phase 03 qualifies concrete activity detection; later phases add observed DOA, dataset truth, signal parity, Lab semantics, and the selected Geometry Acoustics provider without reintroducing runtime source truth.
+Work now proceeds to Phase 03, which qualifies concrete activity detection. Later phases add observed DOA, dataset truth, signal parity, Lab semantics, and the selected Geometry Acoustics provider without reintroducing runtime source truth.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 
