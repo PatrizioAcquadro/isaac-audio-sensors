@@ -1,6 +1,6 @@
 # Phase R9 — Geometry Acoustics Provider Selection
 
-Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 completed on 2026-09-02; R9.2 and R9.3 are planned.
+Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 and R9.2 completed on 2026-09-02; R9.3 is planned.
 
 The remaining R9.2/R9.3 execution order is referenced by [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]]. That plan adds no technical requirements: this page is the sole authority for provider qualification, comparison, selection, evidence, limitations, and acceptance semantics.
 
@@ -141,13 +141,70 @@ The two-microphone contract represents the compatible azimuths in the public 2D 
 
 #### Implementation
 
-Build only the temporary adapters needed to exercise each serious candidate in the intended Isaac runtime. Qualify provider behavior rather than recreating its propagation algorithms. Record runtime availability, license and distribution constraints, raw per-microphone output semantics, phase coherence, dynamic-scene update behavior, material inputs, and performance with diagnostics disabled and enabled.
+R9.2 qualified exactly Steam Audio `4.8.1` and NVIDIA RTX Acoustic
+`3.0.0`. The internal harness under
+`tools/qualification/geometry_acoustics/` provides common deterministic USD and
+signal fixtures, metrics, report construction, and temporary candidate
+adapters. Its private adapter boundary exposes `probe_runtime()`,
+`run_fixture(...)`, `run_performance(...)`, and `close()`. Signal-producing
+runs use internal `[microphone, sample]` blocks with microphone IDs, sample
+rate, and component timings; no public `MicrophoneSignalBlock`, backend,
+schema, frame, package, or release surface was added.
 
-Qualification must establish that the provider can supply the final, separate, phase-coherent microphone signals later represented by the common `MicrophoneSignalBlock` boundary. Temporary adapters may expose those native signals for measurement, but they do not perform activity detection, DOA estimation, observation construction, learning-label generation, or maintained product integration.
+Both candidates ran through `/home/pacquadr/IsaacLab/isaaclab.sh -p` against
+Isaac Sim `6.0.1-rc.7` and Kit `110.1.2`. The common matrix uses 48 kHz,
+960-sample blocks, the 0.16 m `quad_front` array, deterministic impulse and WAV
+multitone inputs, five repetitions, separated propagation and assembly cases,
+dynamic updates, and 20 warm-ups plus 200 measured blocks for one and four
+environments. Provider-native diagnostics are bounded to 256 records per
+source, microphone, and frame and remain outside frames and datasets.
 
-Use a common fixture matrix. One acoustic partition represented by one mesh and by several meshes must produce equivalent transmission. Two independent sequential partitions must compound transmission. A double-leaf construction must accept one authored whole-assembly frequency curve without requiring the SDK to simulate structural coupling. Door and opening cases must preserve alternative propagation rather than forcing all energy through the blocking wall. Moving doors, sources, arrays, and large objects must update bounded state without rebuilding unrelated static geometry.
+Steam Audio was built from official tag `v4.8.1`, resolved to commit
+`0da18255cca520771f363ee01f100572b39a308e`, as a shared Release library with
+Embree enabled and benchmarks, samples, and tests disabled. AVX was disabled
+after the optional AVX source failed with the qualification host compiler; the
+initial FlatBuffers warning-as-error and AVX build failures remain in the local
+evidence. `libphonon.so` was loaded through `ctypes` in the Isaac interpreter.
+The adapter used native Embree scenes, static meshes, `IPLInstancedMesh`,
+materials, simulator direct output, and direct effects; reflection and path
+entry points were probed but did not yield a qualifying unbaked indirect/path
+signal.
 
-Verify that the candidate either exposes native path diagnostics or permits a thin optional adapter to the existing `DebugPrimitive` representation. Diagnostic absence is recorded explicitly and weighed against the complete provider contract; path data is never required in `AudioSensorFrame` or ordinary datasets. Reject hidden attenuation clamps, listener-only rendering, mixed-device output, non-phase-coherent channels, and any candidate that requires a permanent duplicate propagation implementation in this repository.
+Steam Audio is conclusively `rejected`: 6 criteria pass, 7 fail, and none are
+blocked. Passive content, scene dynamics, relative amplitude, Isaac execution,
+packaging, and licensing pass. Free-field distance drops are -6.26 dB and
+-6.14 dB. Independent point receivers return zero measured inter-channel lag
+where geometry predicts 8.92 to 21.96 samples. Native 12 dB assembly input
+produces about 36 dB output loss, two such partitions produce about 60 dB, and
+the IAS reference curve misses all three tone tolerances. Complete
+reflection/path output, connected-space indirect energy, phase coherence,
+assembly identity, transmission, performance, and bounded path diagnostics
+therefore fail. Diagnostics-off direct-only p95 is 1.11 ms for one environment
+and 3.09 ms for four, but those timings cannot pass the complete-block gate
+without the missing qualifying output.
+
+RTX Acoustic ran with Motion BVH on the runtime-visible NVIDIA GeForce RTX
+4090. The exact installed `3.0.0` manifest was checked, and an event-driven
+Replicator `Writer` captured GMO without duplicate callbacks. One observed GMO
+frame contains four 320-sample transmitter-to-receiver signal ways. The
+provider's `CHIRP` and `AM` modes are active acoustic returns, not arbitrary
+passive PCM or raw microphone channels, and the adapter does not reinterpret
+them.
+
+RTX Acoustic is conclusively `rejected`: 2 criteria pass, 11 fail, and none are
+blocked. Isaac execution and exact installed packaging pass. Passive content,
+raw phase-coherent microphones, the passive geometry/material gates,
+distribution licensing, complete-block performance, and path diagnostics
+fail. Diagnostics-off active-update p95 is 18.40 ms for one environment and
+30.87 ms for four, so the four-environment result also exceeds 20 ms before the
+unavailable passive microphone block is considered. The runtime itself
+reported the RTX 4090; no CPU fallback was used.
+
+Both reports satisfy the unchanged R9.1 schema, and no blocking criterion has
+status `blocked`.
+The derived coverage summary is therefore complete even though both candidates
+are rejected. It compares coverage only and contains no ranking or provider
+selection.
 
 #### Key Decisions
 
@@ -156,10 +213,25 @@ Verify that the candidate either exposes native path diagnostics or permits a th
 - Temporary comparison adapters are deleted after the final provider decision unless they are part of the selected integration.
 - Whole-assembly transmission data is preferred over a repository-owned double-leaf or structural wall solver.
 - Provider qualification concerns signal production and propagation behavior, not backend-specific perception.
+- A rejected candidate with a valid report and no blocking criterion in `blocked` status is a complete R9.2 result.
+- Native semantics are preserved: R9.2 adds neither IAS attenuation compensation nor passive-PCM reinterpretation of active RTX signal ways.
+- R9.3 remains the only subphase authorized to select a provider or record an explicit no-provider decision.
 
 #### Problems / Limitations
 
-A provider may meet propagation requirements while lacking a useful diagnostic API; that limitation must remain visible in the decision rather than causing path reconstruction in Core. Nominal provider material tables do not establish measured truth for a specific construction, and qualification does not add real-world calibration scope. Simulation evidence alone does not establish physical calibration or sim-to-real validity; later practical-realism work must bound those claims through domain randomization and comparison with physical signals.
+Neither evaluated candidate satisfies the blocking passive microphone contract.
+Steam Audio lacks qualifying per-receiver propagation delay, complete indirect
+and path output in this adapter path, and compatible assembly-transmission
+behavior without repository-owned compensation. RTX Acoustic exposes an active
+transmitter-receiver model rather than passive audible microphone PCM; its
+installed proprietary license does not itself grant redistribution rights for
+the open-source SDK. These are failed capabilities, not external blockers.
+
+The qualification adapters remain temporary pending R9.3. Full source, binary,
+measurement, NPZ, log, crash/build-failure, and provenance evidence is local
+and ignored under `build/`; it is not a release artifact and can be removed by
+`make clean`. Simulation evidence does not establish physical calibration or
+sim-to-real validity.
 
 ## Subphase R9.3 — Candidate Decision
 
@@ -192,13 +264,22 @@ If no candidate meets passive, per-microphone, dynamic-geometry, and distributio
 R9.1 provides the internal qualification validator and its deterministic unit
 and CLI tests. R9.1.1 provides the simplified Core capture contract and v2
 frame artifacts. R9.1.2 provides physically honest DOA ambiguity, rank-2 array
-validation, and Kit binding v5 without changing frame v2. No candidate report
-or provider decision exists yet.
+validation, and Kit binding v5 without changing frame v2.
+
+R9.2 produces ignored local bundles under
+`build/validation/r9/{steam_audio,nvidia_rtx_acoustic}/`, each containing the
+R9.1 report, derived evaluation, measurements, NPZ signals, run log, and
+provenance. `build/validation/r9/summary.json` records complete two-candidate
+coverage without ranking or selection. The Steam source/build and failed build
+attempts remain under `build/qualification/r9/steam-audio` and the Steam
+validation bundle. No provider decision exists yet.
 
 ## Files
 
 - `tools/qualification/geometry_acoustics_contract.py`
 - `tests/unit/test_geometry_acoustics_contract.py`
+- `tools/qualification/geometry_acoustics/`
+- `tests/unit/test_geometry_acoustics_qualification.py`
 - `src/isaac_audio_sensors/core/types/`
 - `src/isaac_audio_sensors/core/backends/analytic.py`
 - `src/isaac_audio_sensors/core/doa/ambiguity.py`

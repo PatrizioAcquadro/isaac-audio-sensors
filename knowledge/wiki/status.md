@@ -52,7 +52,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.6 one exact two-artifact audit derived from source and locked wheels, including isolated offline wheel installation and packaged dependency provenance.
 - R6.7 complete host, RTX 4090, packaged Kit, artifact, and downstream-consumer closeout without publication.
 - R6.8 exact source distribution, Python 3.10–3.12 CI, and verified tokenless TestPyPI/PyPI publication with isolated OIDC permissions.
-- R9.1 internal fail-closed `GeometryAcoustics` provider qualification with an exact criterion inventory, typed evidence, derived `qualified`/`rejected`/`incomplete` outcomes, and non-blocking path-diagnostic limitations. R9.1.2 closes the sensor-side DOA ambiguity cleanup without selecting a provider or adding a runtime backend.
+- R9.1 internal fail-closed `GeometryAcoustics` provider qualification with an exact criterion inventory, typed evidence, derived `qualified`/`rejected`/`incomplete` outcomes, and non-blocking path-diagnostic limitations. R9.1.2 closes the sensor-side DOA ambiguity cleanup. R9.2 records conclusive Isaac-runtime qualification for Steam Audio `4.8.1` and NVIDIA RTX Acoustic `3.0.0`: both are rejected with no blocked criteria, and no provider is selected or registered.
 
 ## Documentation State
 
@@ -150,6 +150,17 @@ passes 386 tests plus both active demos against the sibling SDK, while its
 historical Phase 6A handoff retains SHA-256
 `f97ae9e0d5ad06a613c3840e6201ea9ac5469b899d9e3e305bec76a8b09a0dd5`.
 
+The R9.2 gate passes 519 unit/contract tests, 207 integration tests, 57 release
+tests, Ruff, version synchronization, documentation boundaries, and whitespace.
+Runtime qualification validates 22 common USD fixtures in Isaac Sim
+`6.0.1-rc.7` / Kit `110.1.2`, 110 fixture repetitions per candidate, and 20
+warm-ups plus 200 measured blocks for one and four environments. Steam Audio
+`4.8.1` passes 6 criteria and fails 7; RTX Acoustic `3.0.0` passes 2 and fails
+11. Neither report contains a blocked criterion. RTX execution verifies the
+RTX 4090 inside the intended runtime without CPU fallback. The two reports,
+measurements, NPZ data, logs, provenance, and non-ranking summary remain local
+and ignored under `build/validation/r9/`.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -173,10 +184,11 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
 - Retained scientific evidence is local, ignored, protected, and excluded from distributions.
+- R9.2 added only temporary qualification tooling. Both evaluated candidates fail the passive geometry-acoustics contract, and no Geometry Acoustics provider or public microphone-signal API exists yet.
 
 ## Next Work
 
-R9.1, R9.1.1, and the intervening R9.1.2 DOA ambiguity cleanup are complete. The ordered post-R9.1 implementation sequence now begins with [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]], a sequence reference that points first to canonical R9.2 qualification and then to canonical R9.3 selection. The [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 phase page]] alone owns their requirements, evidence, decisions, and acceptance semantics.
+R9.1, R9.1.1, R9.1.2, and R9.2 are complete. [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] now proceeds to canonical R9.3. Only R9.3 may turn the two rejected candidate reports into a provider decision or explicit no-provider result; R9.2 made no selection. The [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 phase page]] alone owns the requirements, evidence, decisions, and acceptance semantics.
 
 The subsequent plans deliberately separate final microphone-signal production from observed perception and replace source-conditioned detections with a compact `AudioObservation`. Its two-value `origin` distinguishes `signal_derived` from `external_system`, while `detector_id` identifies the concrete producer; scheduled source information and manual annotations move to dataset truth and annotation provenance. The sequence qualifies Auditok activity detection and mixture-only PyRoom DOA, removes detection and estimator surfaces without a distinct maintained role, keeps learning truth in aligned dataset records, reuses perception across simulation and hardware, migrates Isaac Lab to observed semantics, and integrates the selected Geometry Acoustics provider only after the common signal boundary exists.
 

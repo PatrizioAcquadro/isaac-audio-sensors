@@ -509,3 +509,11 @@ Split the simulator-independent public dataclasses into private scene, environme
 ## 2026-09-02 — lint: Core type module split
 
 Verified AST-equivalent dataclass and validation behavior, exact facade exports and object identity, isolated imports, 506 unit/contract tests, 207 integration tests, 57 release tests, Ruff, version synchronization, documentation boundaries, built wheel contents, clean installed-wheel imports, and whitespace.
+
+## 2026-09-02 — update: R9.2 candidate qualification
+
+Recorded the common qualification harness and conclusive Isaac-runtime reports for Steam Audio 4.8.1 and NVIDIA RTX Acoustic 3.0.0. Both candidates are rejected without blocked criteria; R9.2 makes no provider selection and leaves that decision to R9.3.
+
+## 2026-09-02 — lint: R9.2 candidate qualification
+
+Verified 519 unit/contract tests, 207 integration tests, 57 release tests, 22 common USD fixtures in the Isaac interpreter, both exact-version R9.1 reports and local bundles, RTX 4090 execution without CPU fallback, the non-ranking summary, canonical wiki links, Ruff, version synchronization, and whitespace.
