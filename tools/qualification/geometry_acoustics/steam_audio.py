@@ -1,29 +1,39 @@
-"""Temporary Steam Audio 4.8.1 adapter for R9.2 qualification."""
+"""Temporary Steam Audio 4.8.1 adapter for corrected R9.2 qualification."""
 
 from __future__ import annotations
 
 import ctypes
+import math
 import os
 import resource
 import time
 import wave
+from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 
+from isaac_audio_sensors.core.effects.channel_response import fractional_delay
+
 from .fixtures import (
     BLOCK_SAMPLES,
+    IAS_TRANSMISSION_FREQUENCIES_HZ,
     MICROPHONE_IDS,
     QUAD_FRONT_OFFSETS_M,
     SAMPLE_RATE_HZ,
+    STEAM_AUDIO_BAND_FREQUENCIES_HZ,
+    AcousticSurfaceSpec,
     FixtureSpec,
     common_fixtures,
     generated_impulse,
+    surface_points,
 )
 from .metrics import (
-    interpolate_transmission_energy,
+    interpolate_transmission_amplitude,
+    rms_db,
     tone_losses_db,
-    transmission_loss_db_to_energy,
+    transmission_loss_db_to_amplitude,
 )
 from .models import FixtureRun, PerformanceRun, RuntimeProbe, SignalBlock
 
@@ -32,6 +42,7 @@ _STATUS_SUCCESS = 0
 _SIMD_AVX2 = 3
 _CONTEXT_VALIDATION = 1
 _SCENE_EMBREE = 1
+_REFLECTION_CONVOLUTION = 0
 _DIRECT_APPLY_DISTANCE = 1 << 0
 _DIRECT_APPLY_OCCLUSION = 1 << 3
 _DIRECT_APPLY_TRANSMISSION = 1 << 4
@@ -39,7 +50,14 @@ _DIRECT_SIMULATE_DISTANCE = 1 << 0
 _DIRECT_SIMULATE_OCCLUSION = 1 << 3
 _DIRECT_SIMULATE_TRANSMISSION = 1 << 4
 _SIMULATE_DIRECT = 1 << 0
-_TRANSMISSION_FREQUENCY_DEPENDENT = 1
+_SIMULATE_REFLECTIONS = 1 << 1
+_NUM_TRANSMISSION_SURFACES = 8
+_REFLECTION_RAYS = 4096
+_REFLECTION_BOUNCES = 8
+_REFLECTION_DURATION_S = 0.1
+_REFLECTION_ORDER = 0
+_SOUND_SPEED_M_S = 343.0
+_SERIALIZABLE_FLOOR_DB = -200.0
 
 
 class _Vector3(ctypes.Structure):
@@ -259,6 +277,14 @@ class _SimulationSharedInputs(ctypes.Structure):
     ]
 
 
+class _ReflectionEffectSettings(ctypes.Structure):
+    _fields_ = [
+        ("effect_type", ctypes.c_int),
+        ("ir_size", ctypes.c_int32),
+        ("num_channels", ctypes.c_int32),
+    ]
+
+
 class _ReflectionEffectParams(ctypes.Structure):
     _fields_ = [
         ("effect_type", ctypes.c_int),
@@ -291,6 +317,27 @@ class _SimulationOutputs(ctypes.Structure):
         ("reflections", _ReflectionEffectParams),
         ("pathing", _PathEffectParams),
     ]
+
+
+@dataclass(slots=True)
+class _ReceiverState:
+    simulator: ctypes.c_void_p
+    source: ctypes.c_void_p
+    direct_effect: ctypes.c_void_p
+    reflection_effect: ctypes.c_void_p
+    microphone_xyz_m: tuple[float, float, float]
+    outputs: _SimulationOutputs = field(default_factory=_SimulationOutputs)
+
+
+@dataclass(slots=True)
+class _FixtureSession:
+    fixture: FixtureSpec
+    scene: ctypes.c_void_p
+    sub_scenes: list[ctypes.c_void_p]
+    instances: list[tuple[str, ctypes.c_void_p]]
+    receivers: list[_ReceiverState]
+    source_xyz_m: tuple[float, float, float]
+    array_xyz_m: tuple[float, float, float]
 
 
 def _check(status: int, operation: str) -> None:
@@ -330,8 +377,12 @@ def _translation_matrix(xyz_m: tuple[float, float, float]) -> _Matrix4x4:
     return matrix
 
 
+def _finite_rms_db(samples: np.ndarray) -> float:
+    return max(rms_db(samples), _SERIALIZABLE_FLOOR_DB)
+
+
 class SteamAudioAdapter:
-    """Load and exercise ``libphonon.so`` directly through ``ctypes``."""
+    """Exercise ``libphonon.so`` through a thin, temporary IAS bridge."""
 
     candidate_id = "steam_audio"
     candidate_version = "4.8.1"
@@ -358,7 +409,7 @@ class SteamAudioAdapter:
         self._signal_root = signal_root or (
             Path(signal_override)
             if signal_override
-            else Path.cwd() / "build/validation/r9/common/signals"
+            else Path.cwd() / "build/validation/r9/rev2/common/signals"
         )
         self._runtime = runtime or {
             "hardware": "CPU/Embree qualification host",
@@ -369,8 +420,8 @@ class SteamAudioAdapter:
         self._library: ctypes.CDLL | None = None
         self._context = ctypes.c_void_p()
         self._embree_device = ctypes.c_void_p()
-        self._effects: list[ctypes.c_void_p] = []
         self._geometry_probe: dict[str, object] = {}
+        self._counters: defaultdict[str, int] = defaultdict(int)
 
     def _find_library(self) -> Path:
         candidates = (
@@ -379,10 +430,7 @@ class SteamAudioAdapter:
             self._source_root / "core/bin/linux-x64/libphonon.so",
             self._source_root / "bin/linux-x64/libphonon.so",
         )
-        for candidate in candidates:
-            if candidate.is_file():
-                return candidate
-        return candidates[0]
+        return next((path for path in candidates if path.is_file()), candidates[0])
 
     def _bind(self) -> None:
         assert self._library is not None
@@ -447,13 +495,23 @@ class SteamAudioAdapter:
         library.iplDirectEffectApply.restype = ctypes.c_int
         library.iplDirectEffectRelease.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
         library.iplDirectEffectReset.argtypes = [ctypes.c_void_p]
-        library.iplDistanceAttenuationCalculate.argtypes = [
+        library.iplReflectionEffectCreate.argtypes = [
             ctypes.c_void_p,
-            _Vector3,
-            _Vector3,
-            ctypes.POINTER(_DistanceAttenuationModel),
+            ctypes.POINTER(_AudioSettings),
+            ctypes.POINTER(_ReflectionEffectSettings),
+            ctypes.POINTER(ctypes.c_void_p),
         ]
-        library.iplDistanceAttenuationCalculate.restype = ctypes.c_float
+        library.iplReflectionEffectCreate.restype = ctypes.c_int
+        library.iplReflectionEffectApply.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(_ReflectionEffectParams),
+            ctypes.POINTER(_AudioBuffer),
+            ctypes.POINTER(_AudioBuffer),
+            ctypes.c_void_p,
+        ]
+        library.iplReflectionEffectApply.restype = ctypes.c_int
+        library.iplReflectionEffectRelease.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+        library.iplReflectionEffectReset.argtypes = [ctypes.c_void_p]
         library.iplSimulatorCreate.argtypes = [
             ctypes.c_void_p,
             ctypes.POINTER(_SimulationSettings),
@@ -469,6 +527,7 @@ class SteamAudioAdapter:
         ]
         library.iplSimulatorCommit.argtypes = [ctypes.c_void_p]
         library.iplSimulatorRunDirect.argtypes = [ctypes.c_void_p]
+        library.iplSimulatorRunReflections.argtypes = [ctypes.c_void_p]
         library.iplSourceCreate.argtypes = [
             ctypes.c_void_p,
             ctypes.POINTER(_SourceSettings),
@@ -503,43 +562,21 @@ class SteamAudioAdapter:
             ),
             "iplContextCreate",
         )
-        embree_settings = _EmbreeDeviceSettings()
         _check(
             self._library.iplEmbreeDeviceCreate(
                 self._context,
-                ctypes.byref(embree_settings),
+                ctypes.byref(_EmbreeDeviceSettings()),
                 ctypes.byref(self._embree_device),
             ),
             "iplEmbreeDeviceCreate",
         )
         self._geometry_probe = self._probe_scene_and_instance()
-        audio_settings = _AudioSettings(SAMPLE_RATE_HZ, BLOCK_SAMPLES)
-        effect_settings = _DirectEffectSettings(1)
-        for _ in MICROPHONE_IDS:
-            effect = ctypes.c_void_p()
-            _check(
-                self._library.iplDirectEffectCreate(
-                    self._context,
-                    ctypes.byref(audio_settings),
-                    ctypes.byref(effect_settings),
-                    ctypes.byref(effect),
-                ),
-                "iplDirectEffectCreate",
-            )
-            self._effects.append(effect)
 
     def _create_embree_scene(self) -> ctypes.c_void_p:
         assert self._library is not None
         scene = ctypes.c_void_p()
         settings = _SceneSettings(
-            _SCENE_EMBREE,
-            None,
-            None,
-            None,
-            None,
-            None,
-            self._embree_device.value,
-            None,
+            _SCENE_EMBREE, None, None, None, None, None, self._embree_device.value, None
         )
         _check(
             self._library.iplSceneCreate(
@@ -547,6 +584,7 @@ class SteamAudioAdapter:
             ),
             "iplSceneCreate",
         )
+        self._counters["scene_create"] += 1
         return scene
 
     def _load_signal(self, signal_id: str) -> np.ndarray:
@@ -565,104 +603,111 @@ class SteamAudioAdapter:
         return np.asarray(samples, dtype=np.float32) / 32767.0
 
     @staticmethod
-    def _box_vertices(size_xyz_m: tuple[float, float, float]) -> tuple[_Vector3, ...]:
-        half_x, half_y, half_z = (value / 2.0 for value in size_xyz_m)
-        return tuple(
-            _steam_vector((x, y, z))
-            for x, y, z in (
-                (-half_x, -half_y, -half_z),
-                (half_x, -half_y, -half_z),
-                (half_x, half_y, -half_z),
-                (-half_x, half_y, -half_z),
-                (-half_x, -half_y, half_z),
-                (half_x, -half_y, half_z),
-                (half_x, half_y, half_z),
-                (-half_x, half_y, half_z),
-            )
+    def _native_material(surface: AcousticSurfaceSpec) -> _Material:
+        transmission = interpolate_transmission_amplitude(
+            IAS_TRANSMISSION_FREQUENCIES_HZ,
+            surface.transmission_loss_db,
+            STEAM_AUDIO_BAND_FREQUENCIES_HZ,
+        )
+        return _Material(
+            (ctypes.c_float * 3)(*surface.absorption),
+            surface.scattering,
+            (ctypes.c_float * 3)(*map(float, transmission)),
         )
 
-    def _add_barrier_instance(
-        self, parent_scene: ctypes.c_void_p, barrier: object
+    def _add_assembly_instance(
+        self,
+        parent_scene: ctypes.c_void_p,
+        assembly_id: str,
+        surfaces: tuple[AcousticSurfaceSpec, ...],
     ) -> tuple[ctypes.c_void_p, ctypes.c_void_p]:
         assert self._library is not None
-        library = self._library
         sub_scene = self._create_embree_scene()
         static_mesh = ctypes.c_void_p()
         instance = ctypes.c_void_p()
-        vertices = (_Vector3 * 8)(*self._box_vertices(barrier.size_xyz_m))
-        triangle_indices = (
-            (0, 2, 1),
-            (0, 3, 2),
-            (4, 5, 6),
-            (4, 6, 7),
-            (0, 1, 5),
-            (0, 5, 4),
-            (1, 2, 6),
-            (1, 6, 5),
-            (2, 3, 7),
-            (2, 7, 6),
-            (3, 0, 4),
-            (3, 4, 7),
-        )
-        triangles = (_Triangle * 12)(
-            *(_Triangle(indices) for indices in triangle_indices)
-        )
-        material_indices = (ctypes.c_int32 * 12)(*([0] * 12))
-        transmission = interpolate_transmission_energy(
-            (125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0),
-            barrier.transmission_loss_db,
-            (400.0, 2500.0, 15000.0),
-        )
-        materials = (_Material * 1)(
-            _Material(
-                (ctypes.c_float * 3)(0.1, 0.1, 0.1),
-                0.05,
-                (ctypes.c_float * 3)(*map(float, transmission)),
+        vertex_values = [
+            _steam_vector(point)
+            for surface in surfaces
+            for point in surface_points(surface)
+        ]
+        triangle_values = []
+        for index in range(len(surfaces)):
+            offset = index * 4
+            triangle_values.extend(
+                (
+                    _Triangle((offset, offset + 1, offset + 2)),
+                    _Triangle((offset, offset + 2, offset + 3)),
+                )
             )
+        vertices = (_Vector3 * len(vertex_values))(*vertex_values)
+        triangles = (_Triangle * len(triangle_values))(*triangle_values)
+        material_indices = (ctypes.c_int32 * len(triangle_values))(
+            *(index for index in range(len(surfaces)) for _ in range(2))
         )
-        settings = _StaticMeshSettings(
-            8, 12, 1, vertices, triangles, material_indices, materials
+        materials = (_Material * len(surfaces))(
+            *(self._native_material(surface) for surface in surfaces)
+        )
+        mesh_settings = _StaticMeshSettings(
+            len(vertex_values),
+            len(triangle_values),
+            len(surfaces),
+            vertices,
+            triangles,
+            material_indices,
+            materials,
         )
         try:
             _check(
-                library.iplStaticMeshCreate(
-                    sub_scene, ctypes.byref(settings), ctypes.byref(static_mesh)
+                self._library.iplStaticMeshCreate(
+                    sub_scene, ctypes.byref(mesh_settings), ctypes.byref(static_mesh)
                 ),
                 "iplStaticMeshCreate",
             )
-            library.iplStaticMeshAdd(static_mesh, sub_scene)
-            library.iplSceneCommit(sub_scene)
+            self._counters["static_mesh_create"] += 1
+            self._library.iplStaticMeshAdd(static_mesh, sub_scene)
+            self._library.iplSceneCommit(sub_scene)
+            self._counters["scene_commit"] += 1
             instance_settings = _InstancedMeshSettings(
-                sub_scene.value, _translation_matrix(barrier.center_xyz_m)
+                sub_scene.value, _identity_matrix()
             )
             _check(
-                library.iplInstancedMeshCreate(
+                self._library.iplInstancedMeshCreate(
                     parent_scene,
                     ctypes.byref(instance_settings),
                     ctypes.byref(instance),
                 ),
                 "iplInstancedMeshCreate",
             )
-            library.iplInstancedMeshAdd(instance, parent_scene)
+            self._counters["instance_create"] += 1
+            self._library.iplInstancedMeshAdd(instance, parent_scene)
         finally:
             if static_mesh.value:
-                library.iplStaticMeshRelease(ctypes.byref(static_mesh))
+                self._library.iplStaticMeshRelease(ctypes.byref(static_mesh))
         return sub_scene, instance
 
     def _create_fixture_scene(
         self, fixture: FixtureSpec
-    ) -> tuple[ctypes.c_void_p, list[ctypes.c_void_p], list[ctypes.c_void_p]]:
+    ) -> tuple[
+        ctypes.c_void_p,
+        list[ctypes.c_void_p],
+        list[tuple[str, ctypes.c_void_p]],
+    ]:
         assert self._library is not None
         scene = self._create_embree_scene()
         sub_scenes: list[ctypes.c_void_p] = []
-        instances: list[ctypes.c_void_p] = []
-        barriers = () if fixture.door_open else fixture.barriers
+        instances: list[tuple[str, ctypes.c_void_p]] = []
+        grouped: dict[str, list[AcousticSurfaceSpec]] = {}
+        for surface in fixture.surfaces:
+            grouped.setdefault(surface.assembly_id, []).append(surface)
         try:
-            for barrier in barriers:
-                sub_scene, instance = self._add_barrier_instance(scene, barrier)
+            for assembly_id, surfaces in grouped.items():
+                sub_scene, instance = self._add_assembly_instance(
+                    scene, assembly_id, tuple(surfaces)
+                )
                 sub_scenes.append(sub_scene)
-                instances.append(instance)
+                instances.append((assembly_id, instance))
             self._library.iplSceneCommit(scene)
+            self._counters["scene_commit"] += 1
         except Exception:
             self._release_fixture_scene(scene, sub_scenes, instances)
             raise
@@ -672,10 +717,10 @@ class SteamAudioAdapter:
         self,
         scene: ctypes.c_void_p,
         sub_scenes: list[ctypes.c_void_p],
-        instances: list[ctypes.c_void_p],
+        instances: list[tuple[str, ctypes.c_void_p]],
     ) -> None:
         assert self._library is not None
-        for instance in reversed(instances):
+        for _, instance in reversed(instances):
             self._library.iplInstancedMeshRemove(instance, scene)
             self._library.iplInstancedMeshRelease(ctypes.byref(instance))
         for sub_scene in reversed(sub_scenes):
@@ -683,24 +728,64 @@ class SteamAudioAdapter:
         if scene.value:
             self._library.iplSceneRelease(ctypes.byref(scene))
 
-    def _create_simulator(
-        self, scene: ctypes.c_void_p
-    ) -> tuple[ctypes.c_void_p, ctypes.c_void_p]:
+    @staticmethod
+    def _simulation_inputs(
+        source_xyz_m: tuple[float, float, float], *, reflections: bool
+    ) -> _SimulationInputs:
+        flags = _SIMULATE_DIRECT | (_SIMULATE_REFLECTIONS if reflections else 0)
+        return _SimulationInputs(
+            flags,
+            _DIRECT_SIMULATE_DISTANCE
+            | _DIRECT_SIMULATE_OCCLUSION
+            | _DIRECT_SIMULATE_TRANSMISSION,
+            _coordinate_space(source_xyz_m),
+            _DistanceAttenuationModel(0, 1.0, None, None, 0),
+            _AirAbsorptionModel(0, (ctypes.c_float * 3)(0.0, 0.0, 0.0), None, None, 0),
+            _Directivity(0.0, 1.0, None, None),
+            0,
+            0.1,
+            1,
+            (ctypes.c_float * 3)(1.0, 1.0, 1.0),
+            1.0,
+            0.25,
+            0,
+            _BakedDataIdentifier(0, 0, _Sphere(_Vector3(), 0.0)),
+            None,
+            0.0,
+            0.0,
+            0.0,
+            0,
+            0,
+            0,
+            _NUM_TRANSMISSION_SURFACES,
+            None,
+        )
+
+    def _create_receiver(
+        self,
+        scene: ctypes.c_void_p,
+        microphone_xyz_m: tuple[float, float, float],
+        *,
+        reflections: bool,
+    ) -> _ReceiverState:
         assert self._library is not None
+        flags = _SIMULATE_DIRECT | (_SIMULATE_REFLECTIONS if reflections else 0)
         simulator = ctypes.c_void_p()
         source = ctypes.c_void_p()
+        direct_effect = ctypes.c_void_p()
+        reflection_effect = ctypes.c_void_p()
         settings = _SimulationSettings(
-            _SIMULATE_DIRECT,
+            flags,
             _SCENE_EMBREE,
-            0,
+            _REFLECTION_CONVOLUTION,
             32,
+            _REFLECTION_RAYS,
+            32,
+            _REFLECTION_DURATION_S,
+            _REFLECTION_ORDER,
             1,
             1,
-            0.02,
-            0,
-            1,
-            1,
-            1,
+            16,
             1,
             SAMPLE_RATE_HZ,
             BLOCK_SAMPLES,
@@ -714,162 +799,387 @@ class SteamAudioAdapter:
             ),
             "iplSimulatorCreate",
         )
+        self._counters["simulator_create"] += 1
         try:
             self._library.iplSimulatorSetScene(simulator, scene)
-            source_settings = _SourceSettings(_SIMULATE_DIRECT)
             _check(
                 self._library.iplSourceCreate(
-                    simulator, ctypes.byref(source_settings), ctypes.byref(source)
+                    simulator,
+                    ctypes.byref(_SourceSettings(flags)),
+                    ctypes.byref(source),
                 ),
                 "iplSourceCreate",
             )
+            self._counters["source_create"] += 1
             self._library.iplSourceAdd(source, simulator)
             self._library.iplSimulatorCommit(simulator)
+            audio_settings = _AudioSettings(SAMPLE_RATE_HZ, BLOCK_SAMPLES)
+            _check(
+                self._library.iplDirectEffectCreate(
+                    self._context,
+                    ctypes.byref(audio_settings),
+                    ctypes.byref(_DirectEffectSettings(1)),
+                    ctypes.byref(direct_effect),
+                ),
+                "iplDirectEffectCreate",
+            )
+            if reflections:
+                reflection_settings = _ReflectionEffectSettings(
+                    _REFLECTION_CONVOLUTION,
+                    math.ceil(_REFLECTION_DURATION_S * SAMPLE_RATE_HZ),
+                    1,
+                )
+                _check(
+                    self._library.iplReflectionEffectCreate(
+                        self._context,
+                        ctypes.byref(audio_settings),
+                        ctypes.byref(reflection_settings),
+                        ctypes.byref(reflection_effect),
+                    ),
+                    "iplReflectionEffectCreate",
+                )
         except Exception:
+            if reflection_effect.value:
+                self._library.iplReflectionEffectRelease(
+                    ctypes.byref(reflection_effect)
+                )
+            if direct_effect.value:
+                self._library.iplDirectEffectRelease(ctypes.byref(direct_effect))
             if source.value:
                 self._library.iplSourceRelease(ctypes.byref(source))
             self._library.iplSimulatorRelease(ctypes.byref(simulator))
             raise
-        return simulator, source
-
-    @staticmethod
-    def _simulation_inputs(
-        source_xyz_m: tuple[float, float, float],
-    ) -> _SimulationInputs:
-        return _SimulationInputs(
-            _SIMULATE_DIRECT,
-            _DIRECT_SIMULATE_DISTANCE
-            | _DIRECT_SIMULATE_OCCLUSION
-            | _DIRECT_SIMULATE_TRANSMISSION,
-            _coordinate_space(source_xyz_m),
-            _DistanceAttenuationModel(0, 1.0, None, None, 0),
-            _AirAbsorptionModel(0, (ctypes.c_float * 3)(0.0, 0.0, 0.0), None, None, 0),
-            _Directivity(0.0, 1.0, None, None),
-            0,
-            0.1,
-            1,
-            (ctypes.c_float * 3)(1.0, 1.0, 1.0),
-            0.0,
-            0.0,
-            0,
-            _BakedDataIdentifier(0, 0, _Sphere(_Vector3(), 0.0)),
-            None,
-            0.0,
-            0.0,
-            0.0,
-            0,
-            0,
-            0,
-            16,
-            None,
+        return _ReceiverState(
+            simulator,
+            source,
+            direct_effect,
+            reflection_effect,
+            microphone_xyz_m,
         )
 
-    def _simulate_direct_params(
-        self,
-        simulator: ctypes.c_void_p,
-        source: ctypes.c_void_p,
-        source_xyz_m: tuple[float, float, float],
-        array_xyz_m: tuple[float, float, float],
-    ) -> tuple[list[_DirectEffectParams], float]:
+    def _create_session(self, fixture: FixtureSpec) -> _FixtureSession:
+        scene, sub_scenes, instances = self._create_fixture_scene(fixture)
+        receivers: list[_ReceiverState] = []
+        try:
+            for offset in QUAD_FRONT_OFFSETS_M:
+                microphone_xyz = tuple(
+                    coordinate + delta
+                    for coordinate, delta in zip(
+                        fixture.array_xyz_m, offset, strict=True
+                    )
+                )
+                receivers.append(
+                    self._create_receiver(
+                        scene, microphone_xyz, reflections=fixture.reflections
+                    )
+                )
+        except Exception:
+            temporary = _FixtureSession(
+                fixture,
+                scene,
+                sub_scenes,
+                instances,
+                receivers,
+                fixture.source_xyz_m,
+                fixture.array_xyz_m,
+            )
+            self._close_session(temporary)
+            raise
+        return _FixtureSession(
+            fixture,
+            scene,
+            sub_scenes,
+            instances,
+            receivers,
+            fixture.source_xyz_m,
+            fixture.array_xyz_m,
+        )
+
+    def _refresh_session(self, session: _FixtureSession) -> float:
         assert self._library is not None
-        params: list[_DirectEffectParams] = []
+        flags = _SIMULATE_DIRECT | (
+            _SIMULATE_REFLECTIONS if session.fixture.reflections else 0
+        )
         start = time.perf_counter_ns()
-        for offset in QUAD_FRONT_OFFSETS_M:
+        for receiver, offset in zip(
+            session.receivers, QUAD_FRONT_OFFSETS_M, strict=True
+        ):
             microphone_xyz = tuple(
-                position + delta
-                for position, delta in zip(array_xyz_m, offset, strict=True)
+                coordinate + delta
+                for coordinate, delta in zip(session.array_xyz_m, offset, strict=True)
             )
+            receiver.microphone_xyz_m = microphone_xyz
             shared = _SimulationSharedInputs(
-                _coordinate_space(microphone_xyz), 1, 1, 0.02, 0, 1.0, None, None
+                _coordinate_space(microphone_xyz),
+                _REFLECTION_RAYS,
+                _REFLECTION_BOUNCES,
+                _REFLECTION_DURATION_S,
+                _REFLECTION_ORDER,
+                1.0,
+                None,
+                None,
             )
-            inputs = self._simulation_inputs(source_xyz_m)
+            inputs = self._simulation_inputs(
+                session.source_xyz_m, reflections=session.fixture.reflections
+            )
             self._library.iplSimulatorSetSharedInputs(
-                simulator, _SIMULATE_DIRECT, ctypes.byref(shared)
+                receiver.simulator, flags, ctypes.byref(shared)
             )
             self._library.iplSourceSetInputs(
-                source, _SIMULATE_DIRECT, ctypes.byref(inputs)
+                receiver.source, flags, ctypes.byref(inputs)
             )
-            self._library.iplSimulatorRunDirect(simulator)
+            self._library.iplSimulatorRunDirect(receiver.simulator)
+            self._counters["direct_run"] += 1
+            if session.fixture.reflections:
+                self._library.iplSimulatorRunReflections(receiver.simulator)
+                self._counters["reflection_run"] += 1
             outputs = _SimulationOutputs()
+            outputs.reflections.effect_type = _REFLECTION_CONVOLUTION
             self._library.iplSourceGetOutputs(
-                source, _SIMULATE_DIRECT, ctypes.byref(outputs)
+                receiver.source, flags, ctypes.byref(outputs)
             )
-            params.append(outputs.direct)
-        return params, (time.perf_counter_ns() - start) / 1e6
+            receiver.outputs = outputs
+        return (time.perf_counter_ns() - start) / 1e6
+
+    @staticmethod
+    def _mono_buffer(samples: np.ndarray) -> tuple[_AudioBuffer, object]:
+        values = np.ascontiguousarray(samples, dtype=np.float32)
+        float_pointer = ctypes.POINTER(ctypes.c_float)
+        channels = (float_pointer * 1)(values.ctypes.data_as(float_pointer))
+        return _AudioBuffer(1, values.size, channels), (values, channels)
+
+    def _process_direct(
+        self,
+        effect: ctypes.c_void_p,
+        samples: np.ndarray,
+        params: _DirectEffectParams,
+        *,
+        reset: bool,
+    ) -> np.ndarray:
+        assert self._library is not None
+        input_buffer, input_keepalive = self._mono_buffer(samples)
+        output = np.zeros(BLOCK_SAMPLES, dtype=np.float32)
+        output_buffer, output_keepalive = self._mono_buffer(output)
+        if reset:
+            self._library.iplDirectEffectReset(effect)
+        self._library.iplDirectEffectApply(
+            effect,
+            ctypes.byref(params),
+            ctypes.byref(input_buffer),
+            ctypes.byref(output_buffer),
+        )
+        self._counters["direct_effect_apply"] += 1
+        return np.asarray(output_keepalive[0], dtype=np.float32).copy()
+
+    def _process_reflections(
+        self,
+        effect: ctypes.c_void_p,
+        samples: np.ndarray,
+        params: _ReflectionEffectParams,
+        *,
+        reset: bool,
+    ) -> np.ndarray:
+        assert self._library is not None
+        input_buffer, input_keepalive = self._mono_buffer(samples)
+        output = np.zeros(BLOCK_SAMPLES, dtype=np.float32)
+        output_buffer, output_keepalive = self._mono_buffer(output)
+        if reset:
+            self._library.iplReflectionEffectReset(effect)
+        self._library.iplReflectionEffectApply(
+            effect,
+            ctypes.byref(params),
+            ctypes.byref(input_buffer),
+            ctypes.byref(output_buffer),
+            None,
+        )
+        self._counters["reflection_effect_apply"] += 1
+        return np.asarray(output_keepalive[0], dtype=np.float32).copy()
+
+    @staticmethod
+    def _delay_direct_path(
+        samples: np.ndarray,
+        source_xyz_m: tuple[float, float, float],
+        microphone_xyz_m: tuple[float, float, float],
+    ) -> np.ndarray:
+        distance_m = float(
+            np.linalg.norm(
+                np.asarray(source_xyz_m, dtype=np.float64)
+                - np.asarray(microphone_xyz_m, dtype=np.float64)
+            )
+        )
+        return np.asarray(
+            fractional_delay(
+                samples,
+                delay_s=distance_m / _SOUND_SPEED_M_S,
+                sample_rate_hz=SAMPLE_RATE_HZ,
+            ),
+            dtype=np.float32,
+        )
+
+    def _render_session(
+        self,
+        session: _FixtureSession,
+        signal: np.ndarray,
+        *,
+        reset: bool,
+        include_reference: bool,
+    ) -> tuple[dict[str, np.ndarray], float]:
+        start = time.perf_counter_ns()
+        native_direct: list[np.ndarray] = []
+        bridged_direct: list[np.ndarray] = []
+        reflected: list[np.ndarray] = []
+        references: list[np.ndarray] = []
+        for receiver in session.receivers:
+            params = receiver.outputs.direct
+            params.flags = (
+                _DIRECT_APPLY_DISTANCE
+                | _DIRECT_APPLY_OCCLUSION
+                | _DIRECT_APPLY_TRANSMISSION
+            )
+            params.transmission_type = 1
+            native = self._process_direct(
+                receiver.direct_effect, signal, params, reset=reset
+            )
+            native_direct.append(native)
+            bridged_direct.append(
+                self._delay_direct_path(
+                    native, session.source_xyz_m, receiver.microphone_xyz_m
+                )
+            )
+            if session.fixture.reflections:
+                reflected.append(
+                    self._process_reflections(
+                        receiver.reflection_effect,
+                        signal,
+                        receiver.outputs.reflections,
+                        reset=reset,
+                    )
+                )
+            else:
+                reflected.append(np.zeros_like(signal, dtype=np.float32))
+            if include_reference:
+                reference_params = _DirectEffectParams(
+                    _DIRECT_APPLY_DISTANCE,
+                    0,
+                    params.distance_attenuation,
+                    (ctypes.c_float * 3)(1.0, 1.0, 1.0),
+                    1.0,
+                    1.0,
+                    (ctypes.c_float * 3)(1.0, 1.0, 1.0),
+                )
+                reference_native = self._process_direct(
+                    receiver.direct_effect, signal, reference_params, reset=True
+                )
+                references.append(
+                    self._delay_direct_path(
+                        reference_native,
+                        session.source_xyz_m,
+                        receiver.microphone_xyz_m,
+                    )
+                )
+        native_array = np.stack(native_direct)
+        direct_array = np.stack(bridged_direct)
+        reflection_array = np.stack(reflected)
+        components = {
+            "native_direct": native_array,
+            "bridged_direct": direct_array,
+            "reflections": reflection_array,
+            "combined": direct_array + reflection_array,
+        }
+        if references:
+            components["distance_baseline"] = np.stack(references)
+        return components, (time.perf_counter_ns() - start) / 1e6
+
+    def _move_assembly(
+        self,
+        session: _FixtureSession,
+        assembly_id: str,
+        translation_xyz_m: tuple[float, float, float],
+    ) -> float:
+        assert self._library is not None
+        instance = next(
+            (item for name, item in session.instances if name == assembly_id), None
+        )
+        if instance is None:
+            raise ValueError(f"fixture has no dynamic assembly {assembly_id!r}")
+        start = time.perf_counter_ns()
+        self._library.iplInstancedMeshUpdateTransform(
+            instance, session.scene, _translation_matrix(translation_xyz_m)
+        )
+        self._counters["instance_transform_update"] += 1
+        self._library.iplSceneCommit(session.scene)
+        self._counters["scene_commit"] += 1
+        for receiver in session.receivers:
+            self._library.iplSimulatorCommit(receiver.simulator)
+        return (time.perf_counter_ns() - start) / 1e6
+
+    def _counter_snapshot(self) -> dict[str, int]:
+        return dict(sorted(self._counters.items()))
+
+    @staticmethod
+    def _counter_delta(before: dict[str, int], after: dict[str, int]) -> dict[str, int]:
+        return {
+            key: after.get(key, 0) - before.get(key, 0)
+            for key in sorted(set(before) | set(after))
+            if after.get(key, 0) != before.get(key, 0)
+        }
+
+    def _close_session(self, session: _FixtureSession) -> None:
+        assert self._library is not None
+        for receiver in reversed(session.receivers):
+            if receiver.reflection_effect.value:
+                self._library.iplReflectionEffectRelease(
+                    ctypes.byref(receiver.reflection_effect)
+                )
+            if receiver.direct_effect.value:
+                self._library.iplDirectEffectRelease(
+                    ctypes.byref(receiver.direct_effect)
+                )
+            if receiver.source.value:
+                self._library.iplSourceRemove(receiver.source, receiver.simulator)
+                self._library.iplSourceRelease(ctypes.byref(receiver.source))
+            if receiver.simulator.value:
+                self._library.iplSimulatorRelease(ctypes.byref(receiver.simulator))
+        self._release_fixture_scene(
+            session.scene, session.sub_scenes, session.instances
+        )
 
     def _probe_scene_and_instance(self) -> dict[str, object]:
-        assert self._library is not None
-        library = self._library
-        parent_scene = self._create_embree_scene()
-        sub_scene = self._create_embree_scene()
-        static_mesh = ctypes.c_void_p()
-        instance = ctypes.c_void_p()
-        vertices = (_Vector3 * 4)(
-            _Vector3(0.0, -1.0, -1.0),
-            _Vector3(0.0, 1.0, -1.0),
-            _Vector3(0.0, 1.0, 1.0),
-            _Vector3(0.0, -1.0, 1.0),
+        fixture = FixtureSpec(
+            "runtime_probe",
+            "probe",
+            (1.0, 0.0, 1.0),
+            (0.0, 0.0, 1.0),
+            (
+                AcousticSurfaceSpec(
+                    "probe_surface",
+                    (0.5, 0.0, 1.0),
+                    (0.0, 2.0, 2.0),
+                    (12.0,) * 6,
+                ),
+            ),
         )
-        triangles = (_Triangle * 2)(
-            _Triangle((0, 1, 2)),
-            _Triangle((0, 2, 3)),
-        )
-        material_indices = (ctypes.c_int32 * 2)(0, 0)
-        transmission = transmission_loss_db_to_energy([12.0] * 3)
-        materials = (_Material * 1)(
-            _Material(
-                (ctypes.c_float * 3)(0.1, 0.1, 0.1),
-                0.05,
-                (ctypes.c_float * 3)(*map(float, transmission)),
-            )
-        )
-        mesh_settings = _StaticMeshSettings(
-            4, 2, 1, vertices, triangles, material_indices, materials
-        )
+        scene, sub_scenes, instances = self._create_fixture_scene(fixture)
         try:
-            _check(
-                library.iplStaticMeshCreate(
-                    sub_scene, ctypes.byref(mesh_settings), ctypes.byref(static_mesh)
-                ),
-                "iplStaticMeshCreate",
-            )
-            library.iplStaticMeshAdd(static_mesh, sub_scene)
-            library.iplSceneCommit(sub_scene)
-            instance_settings = _InstancedMeshSettings(
-                sub_scene.value, _identity_matrix()
-            )
-            _check(
-                library.iplInstancedMeshCreate(
-                    parent_scene,
-                    ctypes.byref(instance_settings),
-                    ctypes.byref(instance),
-                ),
-                "iplInstancedMeshCreate",
-            )
-            library.iplInstancedMeshAdd(instance, parent_scene)
-            library.iplSceneCommit(parent_scene)
-            moved = _identity_matrix()
-            moved.elements[0][3] = 0.25
             start = time.perf_counter_ns()
-            library.iplInstancedMeshUpdateTransform(instance, parent_scene, moved)
-            library.iplSceneCommit(parent_scene)
-            update_ms = (time.perf_counter_ns() - start) / 1e6
+            assert self._library is not None
+            self._library.iplInstancedMeshUpdateTransform(
+                instances[0][1], scene, _translation_matrix((0.0, 0.25, 0.0))
+            )
+            self._counters["instance_transform_update"] += 1
+            self._library.iplSceneCommit(scene)
+            self._counters["scene_commit"] += 1
             return {
                 "embree_scene": True,
                 "instanced_mesh": True,
-                "static_mesh": True,
-                "instance_update_ms": update_ms,
-                "transmission_energy": transmission.tolist(),
+                "planar_static_mesh": True,
+                "instance_update_ms": (time.perf_counter_ns() - start) / 1e6,
+                "transmission_amplitude": transmission_loss_db_to_amplitude(
+                    [12.0] * 3
+                ).tolist(),
             }
         finally:
-            if instance.value:
-                library.iplInstancedMeshRemove(instance, parent_scene)
-                library.iplInstancedMeshRelease(ctypes.byref(instance))
-            if static_mesh.value:
-                library.iplStaticMeshRemove(static_mesh, sub_scene)
-                library.iplStaticMeshRelease(ctypes.byref(static_mesh))
-            library.iplSceneRelease(ctypes.byref(sub_scene))
-            library.iplSceneRelease(ctypes.byref(parent_scene))
+            self._release_fixture_scene(scene, sub_scenes, instances)
 
     def probe_runtime(self) -> RuntimeProbe:
         required_symbols = (
@@ -879,10 +1189,8 @@ class SteamAudioAdapter:
             "iplInstancedMeshCreate",
             "iplSimulatorRunDirect",
             "iplSimulatorRunReflections",
-            "iplSimulatorRunPathing",
             "iplDirectEffectApply",
             "iplReflectionEffectApply",
-            "iplPathEffectApply",
         )
         try:
             self._initialize()
@@ -905,43 +1213,23 @@ class SteamAudioAdapter:
                 "direct_effect": symbols["iplDirectEffectApply"],
                 "embree_scene": bool(self._geometry_probe.get("embree_scene")),
                 "instanced_mesh": bool(self._geometry_probe.get("instanced_mesh")),
-                "path_effect": symbols["iplPathEffectApply"],
-                "reflection_effect": symbols["iplReflectionEffectApply"],
+                "realtime_reflections": symbols["iplReflectionEffectApply"],
             },
             details={
                 "api_version": _API_VERSION,
                 "geometry_probe": self._geometry_probe,
+                "global_num_transmission_surfaces": _NUM_TRANSMISSION_SURFACES,
                 "library_path": str(self._library_path),
+                "reflection_configuration": {
+                    "bounces": _REFLECTION_BOUNCES,
+                    "duration_s": _REFLECTION_DURATION_S,
+                    "order": _REFLECTION_ORDER,
+                    "rays": _REFLECTION_RAYS,
+                },
                 "source_root": str(self._source_root),
                 "symbols": symbols,
             },
         )
-
-    def _process_mono(
-        self,
-        effect: ctypes.c_void_p,
-        samples: np.ndarray,
-        params: _DirectEffectParams,
-    ) -> np.ndarray:
-        assert self._library is not None
-        input_samples = np.ascontiguousarray(samples, dtype=np.float32)
-        output_samples = np.zeros_like(input_samples)
-        float_pointer = ctypes.POINTER(ctypes.c_float)
-        input_channels = (float_pointer * 1)(
-            input_samples.ctypes.data_as(float_pointer)
-        )
-        output_channels = (float_pointer * 1)(
-            output_samples.ctypes.data_as(float_pointer)
-        )
-        input_buffer = _AudioBuffer(1, input_samples.size, input_channels)
-        output_buffer = _AudioBuffer(1, output_samples.size, output_channels)
-        self._library.iplDirectEffectApply(
-            effect,
-            ctypes.byref(params),
-            ctypes.byref(input_buffer),
-            ctypes.byref(output_buffer),
-        )
-        return output_samples
 
     def run_fixture(
         self, fixture: FixtureSpec, *, repetition: int, diagnostics: bool = False
@@ -949,185 +1237,208 @@ class SteamAudioAdapter:
         self._initialize()
         if repetition < 0:
             raise ValueError("repetition must be non-negative.")
-        assert self._library is not None
+        session = self._create_session(fixture)
         signal = self._load_signal(fixture.signal)
-        scene, sub_scenes, instances = self._create_fixture_scene(fixture)
-        simulator = ctypes.c_void_p()
-        source = ctypes.c_void_p()
         try:
-            simulator, source = self._create_simulator(scene)
-            direct_params, simulation_ms = self._simulate_direct_params(
-                simulator, source, fixture.source_xyz_m, fixture.array_xyz_m
+            simulation_ms = self._refresh_session(session)
+            baseline_components, effects_ms = self._render_session(
+                session, signal, reset=True, include_reference=True
             )
-            baseline_params = direct_params
+            components = dict(baseline_components)
             update_ms = 0.0
+            update_counters: dict[str, int] = {}
             if fixture.dynamic_target:
-                source_xyz = fixture.source_xyz_m
-                array_xyz = fixture.array_xyz_m
-                update_start = time.perf_counter_ns()
+                before_update = self._counter_snapshot()
                 if fixture.dynamic_target == "source":
-                    source_xyz = (
+                    session.source_xyz_m = (
                         fixture.source_xyz_m[0] + 0.5,
-                        fixture.source_xyz_m[1],
+                        fixture.source_xyz_m[1] + 0.5,
                         fixture.source_xyz_m[2],
                     )
                 elif fixture.dynamic_target == "array":
-                    array_xyz = (
+                    session.array_xyz_m = (
                         fixture.array_xyz_m[0],
                         fixture.array_xyz_m[1] + 0.5,
                         fixture.array_xyz_m[2],
                     )
-                elif instances:
-                    barrier = fixture.barriers[0]
-                    moved_xyz = (
-                        barrier.center_xyz_m[0],
-                        barrier.center_xyz_m[1] + 6.0,
-                        barrier.center_xyz_m[2],
+                else:
+                    update_ms += self._move_assembly(
+                        session, fixture.dynamic_target, (0.0, 6.0, 0.0)
                     )
-                    self._library.iplInstancedMeshUpdateTransform(
-                        instances[0], scene, _translation_matrix(moved_xyz)
+                simulation_ms += self._refresh_session(session)
+                updated_components, updated_effects_ms = self._render_session(
+                    session, signal, reset=True, include_reference=True
+                )
+                effects_ms += updated_effects_ms
+                update_counters = self._counter_delta(
+                    before_update, self._counter_snapshot()
+                )
+                components = {
+                    **{f"before_{key}": value for key, value in components.items()},
+                    **updated_components,
+                }
+
+            output = components["combined"]
+            direct = components["bridged_direct"]
+            reflections = components["reflections"]
+            reference = components["distance_baseline"]
+            measurements: dict[str, object] = {
+                "assembly_instance_count": len(session.instances),
+                "assembly_surface_counts": {
+                    assembly_id: sum(
+                        surface.assembly_id == assembly_id
+                        for surface in fixture.surfaces
                     )
-                    self._library.iplSceneCommit(scene)
-                    self._library.iplSimulatorCommit(simulator)
-                update_ms = (time.perf_counter_ns() - update_start) / 1e6
-                direct_params, second_simulation_ms = self._simulate_direct_params(
-                    simulator, source, source_xyz, array_xyz
-                )
-                simulation_ms += second_simulation_ms
-
-            outputs: list[np.ndarray] = []
-            references: list[np.ndarray] = []
-            effect_start = time.perf_counter_ns()
-            for effect, params in zip(self._effects, direct_params, strict=True):
-                params.flags = (
-                    _DIRECT_APPLY_DISTANCE
-                    | _DIRECT_APPLY_OCCLUSION
-                    | _DIRECT_APPLY_TRANSMISSION
-                )
-                params.transmission_type = _TRANSMISSION_FREQUENCY_DEPENDENT
-                self._library.iplDirectEffectReset(effect)
-                self._process_mono(effect, np.zeros_like(signal), params)
-                outputs.append(self._process_mono(effect, signal, params))
-
-                reference_params = _DirectEffectParams(
-                    _DIRECT_APPLY_DISTANCE,
-                    0,
-                    params.distance_attenuation,
-                    (ctypes.c_float * 3)(1.0, 1.0, 1.0),
-                    1.0,
-                    1.0,
-                    (ctypes.c_float * 3)(1.0, 1.0, 1.0),
-                )
-                self._library.iplDirectEffectReset(effect)
-                self._process_mono(effect, np.zeros_like(signal), reference_params)
-                references.append(self._process_mono(effect, signal, reference_params))
-            effects_ms = (time.perf_counter_ns() - effect_start) / 1e6
-            changed = any(
-                abs(before.distance_attenuation - after.distance_attenuation) > 1e-6
-                or abs(before.occlusion - after.occlusion) > 1e-6
-                or any(
-                    abs(before.transmission[index] - after.transmission[index]) > 1e-6
-                    for index in range(3)
-                )
-                for before, after in zip(baseline_params, direct_params, strict=True)
-            )
-            unsupported_indirect = fixture.fixture_id in {
-                "reflection",
-                "l_corner",
-                "connected_rooms_closed",
-                "connected_rooms_open",
+                    for assembly_id, _ in session.instances
+                },
+                "counter_snapshot": self._counter_snapshot(),
+                "diagnostics_enabled": False,
+                "diagnostics_requested": diagnostics,
+                "direct_loss_db": _finite_rms_db(reference[0])
+                - _finite_rms_db(direct[0]),
+                "distance_attenuation": [
+                    float(receiver.outputs.direct.distance_attenuation)
+                    for receiver in session.receivers
+                ],
+                "native_receiver_count": len(session.receivers),
+                "num_transmission_surfaces": _NUM_TRANSMISSION_SURFACES,
+                "occlusion": [
+                    float(receiver.outputs.direct.occlusion)
+                    for receiver in session.receivers
+                ],
+                "post_alignment_samples": 0,
+                "reflection_rms_db": [
+                    _finite_rms_db(channel) for channel in reflections
+                ],
+                "scene_geometry_applied_to_audio": bool(fixture.surfaces),
+                "static_geometry_recreated_during_update": bool(
+                    update_counters.get("static_mesh_create", 0)
+                ),
+                "transmission_amplitude": [
+                    [float(value) for value in receiver.outputs.direct.transmission]
+                    for receiver in session.receivers
+                ],
+                "update_counter_delta": update_counters,
             }
-            compatible = not unsupported_indirect and (
-                not fixture.dynamic_target or changed
-            )
+            if fixture.signal == "multitone":
+                measurements["tone_loss_db"] = tone_losses_db(reference[0], direct[0])
+            if fixture.dynamic_target:
+                before_direct = components["before_bridged_direct"]
+                before_reflections = components["before_reflections"]
+                before_combined = components["before_combined"]
+                measurements["dynamic_level_delta_db"] = {
+                    "combined": _finite_rms_db(output[0])
+                    - _finite_rms_db(before_combined[0]),
+                    "direct": _finite_rms_db(direct[0])
+                    - _finite_rms_db(before_direct[0]),
+                    "reflections": _finite_rms_db(reflections[0])
+                    - _finite_rms_db(before_reflections[0]),
+                }
+                before_distance = float(
+                    np.linalg.norm(
+                        np.asarray(fixture.source_xyz_m)
+                        - np.asarray(fixture.array_xyz_m)
+                    )
+                )
+                after_distance = float(
+                    np.linalg.norm(
+                        np.asarray(session.source_xyz_m)
+                        - np.asarray(session.array_xyz_m)
+                    )
+                )
+                measurements["geometric_distance_delta_m"] = (
+                    after_distance - before_distance
+                )
             block = SignalBlock(
-                np.stack(outputs),
+                output,
                 MICROPHONE_IDS,
                 SAMPLE_RATE_HZ,
                 {
-                    "complete_block": update_ms + simulation_ms + effects_ms,
+                    "complete_block": effects_ms,
                     "effects": effects_ms,
-                    "simulation": simulation_ms,
+                    "simulation_refresh": simulation_ms,
                     "update": update_ms,
                 },
             )
-            measurements: dict[str, object] = {
-                "diagnostics_requested": diagnostics,
-                "distance_attenuation": [
-                    float(params.distance_attenuation) for params in direct_params
-                ],
-                "dynamic_output_changed": changed,
-                "native_receiver_calls": len(MICROPHONE_IDS),
-                "occlusion": [float(params.occlusion) for params in direct_params],
-                "post_alignment_samples": 0,
-                "scene_geometry_applied_to_audio": bool(fixture.barriers),
-                "static_geometry_recreated_during_update": False,
-                "transmission_energy": [
-                    [float(value) for value in params.transmission]
-                    for params in direct_params
-                ],
-            }
-            if fixture.signal == "multitone":
-                measurements["tone_loss_db"] = tone_losses_db(references[0], outputs[0])
             return FixtureRun(
                 fixture.fixture_id,
                 repetition,
                 block,
                 measurements,
-                compatible=compatible,
-                incompatibility=(
-                    "The direct simulator has no qualifying unbaked indirect/path "
-                    "microphone output for this fixture."
-                    if unsupported_indirect
-                    else (
-                        "The native dynamic update did not change direct output."
-                        if fixture.dynamic_target and not changed
-                        else None
-                    )
-                ),
+                {
+                    key: np.asarray(value, dtype=np.float32)
+                    for key, value in components.items()
+                },
+                compatible=True,
             )
         finally:
-            if source.value:
-                self._library.iplSourceRemove(source, simulator)
-                self._library.iplSourceRelease(ctypes.byref(source))
-            if simulator.value:
-                self._library.iplSimulatorRelease(ctypes.byref(simulator))
-            self._release_fixture_scene(scene, sub_scenes, instances)
+            self._close_session(session)
 
     def run_performance(
         self, *, environment_count: int, diagnostics: bool
     ) -> PerformanceRun:
         if environment_count not in (1, 4):
             raise ValueError("environment_count must be one or four.")
+        if diagnostics:
+            raise ValueError(
+                "Steam path/ray diagnostics are not enabled by this harness."
+            )
+        self._initialize()
         fixture = next(
-            item for item in common_fixtures() if item.fixture_id == "direct_path"
+            item for item in common_fixtures() if item.fixture_id == "move_large_object"
         )
-        for index in range(20):
-            for _ in range(environment_count):
-                self.run_fixture(fixture, repetition=index, diagnostics=diagnostics)
-        block_ms: list[float] = []
-        for index in range(200):
-            start = time.perf_counter_ns()
-            for _ in range(environment_count):
-                self.run_fixture(fixture, repetition=index, diagnostics=diagnostics)
-            block_ms.append((time.perf_counter_ns() - start) / 1e6)
-        peak_memory_mib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
-        return PerformanceRun(
-            environment_count,
-            diagnostics,
-            20,
-            200,
-            tuple(block_ms),
-            peak_memory_mib,
-            (float(self._geometry_probe.get("instance_update_ms", 0.0)),),
-        )
+        signal = self._load_signal("impulse")
+        sessions = [self._create_session(fixture) for _ in range(environment_count)]
+        try:
+            for session in sessions:
+                self._refresh_session(session)
+            for _ in range(20):
+                for session in sessions:
+                    self._render_session(
+                        session, signal, reset=False, include_reference=False
+                    )
+            block_ms: list[float] = []
+            for _ in range(200):
+                start = time.perf_counter_ns()
+                for session in sessions:
+                    self._render_session(
+                        session, signal, reset=False, include_reference=False
+                    )
+                block_ms.append((time.perf_counter_ns() - start) / 1e6)
+
+            for index in range(10):
+                translation = (0.0, 6.0 if index % 2 == 0 else 0.0, 0.0)
+                for session in sessions:
+                    self._move_assembly(session, "large_object", translation)
+                    self._refresh_session(session)
+            update_ms: list[float] = []
+            for index in range(50):
+                translation = (0.0, 6.0 if index % 2 == 0 else 0.0, 0.0)
+                start = time.perf_counter_ns()
+                for session in sessions:
+                    self._move_assembly(session, "large_object", translation)
+                    self._refresh_session(session)
+                update_ms.append((time.perf_counter_ns() - start) / 1e6)
+            peak_memory_mib = (
+                resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+            )
+            return PerformanceRun(
+                environment_count,
+                False,
+                20,
+                200,
+                tuple(block_ms),
+                peak_memory_mib,
+                tuple(update_ms),
+                10,
+            )
+        finally:
+            for session in reversed(sessions):
+                self._close_session(session)
 
     def close(self) -> None:
         if self._library is None:
             return
-        for effect in reversed(self._effects):
-            self._library.iplDirectEffectRelease(ctypes.byref(effect))
-        self._effects.clear()
         if self._embree_device.value:
             self._library.iplEmbreeDeviceRelease(ctypes.byref(self._embree_device))
         if self._context.value:

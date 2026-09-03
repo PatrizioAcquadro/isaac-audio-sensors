@@ -12,7 +12,11 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import ArrayLike
 
-from tools.qualification.geometry_acoustics_contract import CRITERIA, evaluate_report
+from tools.qualification.geometry_acoustics_contract import (
+    CONTRACT_VERSION,
+    CRITERIA,
+    evaluate_report,
+)
 
 _CANDIDATE_ORDER = ("steam_audio", "nvidia_rtx_acoustic")
 
@@ -20,6 +24,7 @@ _CANDIDATE_ORDER = ("steam_audio", "nvidia_rtx_acoustic")
 @dataclass(frozen=True, slots=True)
 class Evidence:
     kind: str
+    origin: str
     reference: str
     summary: str
 
@@ -30,13 +35,13 @@ class CriterionObservation:
     compatible: bool | None
     summary: str
     evidence: tuple[Evidence, ...]
-    external_blocker: str | None = None
+    blocker: str | None = None
 
 
 def derive_status(observation: CriterionObservation) -> str:
-    """Map only external access failures to blocked; incompatibility is fail."""
+    """Map unexercised or inaccessible criteria to blocked, never to fail."""
 
-    if observation.external_blocker:
+    if observation.blocker:
         return "blocked"
     if observation.compatible is None:
         raise ValueError(
@@ -47,7 +52,7 @@ def derive_status(observation: CriterionObservation) -> str:
 
 
 class QualificationReportBuilder:
-    """Build an ordered report accepted by the unchanged R9.1 validator."""
+    """Build an ordered report accepted by the R9.1 rev2 validator."""
 
     def __init__(
         self,
@@ -64,7 +69,7 @@ class QualificationReportBuilder:
     def record(self, observation: CriterionObservation) -> None:
         known = {criterion.criterion_id for criterion in CRITERIA}
         if observation.criterion_id not in known:
-            raise ValueError(f"unknown R9.1 criterion: {observation.criterion_id}")
+            raise ValueError(f"unknown R9.1 rev2 criterion: {observation.criterion_id}")
         if observation.criterion_id in self._observations:
             raise ValueError(f"duplicate criterion: {observation.criterion_id}")
         if not observation.evidence:
@@ -78,10 +83,10 @@ class QualificationReportBuilder:
             if criterion.criterion_id not in self._observations
         ]
         if missing:
-            raise ValueError(f"missing R9.1 criteria: {missing}")
+            raise ValueError(f"missing R9.1 rev2 criteria: {missing}")
         report = {
             "candidate": {"id": self._candidate_id, "version": self._candidate_version},
-            "contract_version": "r9.1",
+            "contract_version": CONTRACT_VERSION,
             "criteria": [
                 _observation_payload(self._observations[criterion.criterion_id])
                 for criterion in CRITERIA
@@ -94,13 +99,14 @@ class QualificationReportBuilder:
 
 def _observation_payload(observation: CriterionObservation) -> dict[str, object]:
     summary = observation.summary
-    if observation.external_blocker:
-        summary = f"{summary} External blocker: {observation.external_blocker}"
+    if observation.blocker:
+        summary = f"{summary} Blocker: {observation.blocker}"
     return {
         "criterion_id": observation.criterion_id,
         "evidence": [
             {
                 "kind": item.kind,
+                "origin": item.origin,
                 "reference": item.reference,
                 "summary": item.summary,
             }
@@ -150,7 +156,7 @@ def write_candidate_bundle(
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     evaluation = evaluate_report(report)
-    write_json(output_dir / "r9.1-report.json", report)
+    write_json(output_dir / "r9.1-rev2-report.json", report)
     write_json(output_dir / "evaluation.json", evaluation.to_dict())
     write_json(output_dir / "measurements.json", measurements)
     write_deterministic_npz(output_dir / "signals.npz", arrays)
@@ -174,7 +180,6 @@ def build_coverage_summary(
         evaluation = evaluations[candidate_id]
         rows.append(
             {
-                "blocked_gates": list(evaluation.blocked_gates),
                 "candidate": {
                     "id": candidate_id,
                     "version": evaluation.candidate_version,
@@ -182,13 +187,17 @@ def build_coverage_summary(
                 "criteria": {
                     result.criterion_id: result.status for result in evaluation.results
                 },
-                "failed_gates": list(evaluation.failed_gates),
-                "outcome": evaluation.outcome,
+                "core_integration_outcome": evaluation.core_integration_outcome,
+                "full_r10_outcome": evaluation.full_r10_outcome,
+                "gates": evaluation.to_dict()["gates"],
             }
         )
     return {
         "candidates": rows,
-        "complete": all(not row["blocked_gates"] for row in rows),
-        "contract_version": "r9.2-coverage-v1",
+        "all_criteria_conclusive": all(
+            not row["gates"]["full_r10"]["blocked"] for row in rows
+        ),
+        "contract_version": "r9.2-coverage-rev2",
+        "reports_valid": True,
         "scope": "coverage comparison only; no ranking or provider selection",
     }

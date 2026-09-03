@@ -91,6 +91,7 @@ class FixtureRun:
     repetition: int
     block: SignalBlock | None
     measurements: Mapping[str, object]
+    component_samples: Mapping[str, NDArray[np.float32]] = field(default_factory=dict)
     diagnostics: tuple[DebugPathSample, ...] = ()
     compatible: bool = True
     incompatibility: str | None = None
@@ -107,6 +108,7 @@ class PerformanceRun:
     block_ms: tuple[float, ...]
     peak_memory_mib: float
     update_ms: tuple[float, ...] = ()
+    update_warmups: int = 0
 
     def __post_init__(self) -> None:
         if self.environment_count not in (1, 4):
@@ -115,6 +117,8 @@ class PerformanceRun:
             raise ValueError("performance block counts are invalid.")
         if len(self.block_ms) != self.measured_blocks:
             raise ValueError("block_ms must contain every measured block.")
+        if self.update_warmups < 0:
+            raise ValueError("update_warmups must be non-negative.")
 
 
 class CandidateAdapter(Protocol):

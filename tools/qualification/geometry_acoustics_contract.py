@@ -1,4 +1,4 @@
-"""Validate R9.1 geometry-acoustics provider qualification reports."""
+"""Validate corrected R9.1 geometry-acoustics qualification reports."""
 
 from __future__ import annotations
 
@@ -10,8 +10,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-CONTRACT_VERSION = "r9.1"
+CONTRACT_VERSION = "r9.1-rev2"
 RESULT_STATUSES = ("pass", "fail", "blocked")
+EVIDENCE_ORIGINS = frozenset(
+    {"provider_native", "ias_bridge", "mixed", "documentation"}
+)
 EVIDENCE_KINDS = frozenset(
     {
         "artifact",
@@ -25,24 +28,26 @@ EVIDENCE_KINDS = frozenset(
 
 
 class QualificationContractError(ValueError):
-    """Raised when a candidate report does not satisfy the R9.1 format."""
+    """Raised when a candidate report does not satisfy R9.1 rev2."""
 
 
 @dataclass(frozen=True, slots=True)
 class CriterionDefinition:
-    """One canonical R9.1 qualification criterion."""
+    """One canonical R9.1 rev2 qualification criterion."""
 
     criterion_id: str
     title: str
-    blocking: bool
+    profile: str
     pass_evidence_kinds: frozenset[str]
+    fail_evidence_kinds: frozenset[str]
 
 
 @dataclass(frozen=True, slots=True)
 class EvidenceRecord:
-    """One typed reference supporting a criterion result."""
+    """One typed and attributed reference supporting a criterion result."""
 
     kind: str
+    origin: str
     reference: str
     summary: str
 
@@ -59,30 +64,42 @@ class CriterionResult:
 
 @dataclass(frozen=True, slots=True)
 class QualificationEvaluation:
-    """Computed qualification outcome; reports cannot declare this value."""
+    """Computed core and full-R10 outcomes; reports cannot declare them."""
 
     candidate_id: str
     candidate_version: str
     runtime: Mapping[str, str]
-    outcome: str
+    core_integration_outcome: str
+    full_r10_outcome: str
     results: tuple[CriterionResult, ...]
-    failed_gates: tuple[str, ...]
-    blocked_gates: tuple[str, ...]
+    core_failed_gates: tuple[str, ...]
+    core_blocked_gates: tuple[str, ...]
+    full_r10_failed_gates: tuple[str, ...]
+    full_r10_blocked_gates: tuple[str, ...]
     diagnostic_limitations: tuple[str, ...]
 
     def to_dict(self) -> dict[str, object]:
         counts = Counter(result.status for result in self.results)
         return {
-            "blocked_gates": list(self.blocked_gates),
             "candidate": {
                 "id": self.candidate_id,
                 "version": self.candidate_version,
             },
             "contract_version": CONTRACT_VERSION,
+            "core_integration_outcome": self.core_integration_outcome,
             "counts": {status: counts[status] for status in RESULT_STATUSES},
             "diagnostic_limitations": list(self.diagnostic_limitations),
-            "failed_gates": list(self.failed_gates),
-            "outcome": self.outcome,
+            "full_r10_outcome": self.full_r10_outcome,
+            "gates": {
+                "core_integration": {
+                    "blocked": list(self.core_blocked_gates),
+                    "failed": list(self.core_failed_gates),
+                },
+                "full_r10": {
+                    "blocked": list(self.full_r10_blocked_gates),
+                    "failed": list(self.full_r10_failed_gates),
+                },
+            },
             "runtime": dict(self.runtime),
         }
 
@@ -94,79 +111,106 @@ CRITERIA = (
     CriterionDefinition(
         "passive_audible_content",
         "Arbitrary file-backed and generated passive audible content",
-        True,
+        "core",
+        _RUNTIME_OR_MEASUREMENT,
         _RUNTIME_OR_MEASUREMENT,
     ),
     CriterionDefinition(
-        "raw_phase_coherent_microphones",
-        "Separate phase-coherent raw output for every physical microphone",
-        True,
+        "phase_coherent_microphone_signals",
+        "Separate phase-coherent signal output for every physical microphone",
+        "core",
         _MEASUREMENT,
+        _RUNTIME_OR_MEASUREMENT,
     ),
     CriterionDefinition(
         "scene_geometry_and_dynamics",
-        "Relevant materials, geometry, static objects, and dynamic objects",
-        True,
-        _RUNTIME_OR_MEASUREMENT,
-    ),
-    CriterionDefinition(
-        "geometry_propagation",
-        "Occlusion, reflection, transmission, indirect pathing, and diffraction",
-        True,
+        "Relevant static materials and runtime geometry changes",
+        "core",
+        _MEASUREMENT,
         _MEASUREMENT,
     ),
     CriterionDefinition(
-        "connected_space_propagation",
-        "Propagation through connected rooms, corridors, doors, and openings",
-        True,
+        "direct_occlusion_transmission",
+        "Direct-path distance, opaque occlusion, and material transmission",
+        "core",
+        _MEASUREMENT,
+        _MEASUREMENT,
+    ),
+    CriterionDefinition(
+        "indirect_nlos_propagation",
+        "Provider-native reflected or pathed non-line-of-sight propagation",
+        "core",
+        _MEASUREMENT,
         _MEASUREMENT,
     ),
     CriterionDefinition(
         "relative_amplitude_coherence",
         "Physically coherent relative amplitudes without universal SPL calibration",
-        True,
+        "core",
         _MEASUREMENT,
-    ),
-    CriterionDefinition(
-        "acoustic_assembly_identity",
-        "One physical barrier is invariant to mesh or collider fragmentation",
-        True,
-        _MEASUREMENT,
-    ),
-    CriterionDefinition(
-        "frequency_dependent_transmission",
-        "Authored assembly transmission has no undocumented total-loss clamp",
-        True,
         _MEASUREMENT,
     ),
     CriterionDefinition(
         "isaac_runtime",
         "Viable execution path in the intended Isaac runtime",
-        True,
+        "core",
+        _RUNTIME_OR_MEASUREMENT,
         _RUNTIME_OR_MEASUREMENT,
     ),
     CriterionDefinition(
         "packaging",
-        "Viable maintainable packaging and distribution path",
-        True,
+        "Maintainable build and distribution path for the intended integration",
+        "core",
+        frozenset({"packaging_probe"}),
         frozenset({"packaging_probe"}),
     ),
     CriterionDefinition(
         "licensing",
         "License permits the intended open-source and Isaac distribution path",
-        True,
+        "core",
+        frozenset({"official_license"}),
         frozenset({"official_license"}),
     ),
     CriterionDefinition(
-        "performance",
-        "Measured performance is viable for one or a few Isaac environments",
-        True,
+        "audio_block_performance",
+        "Persistent complete four-microphone audio rendering meets its deadline",
+        "core",
+        _MEASUREMENT,
+        _MEASUREMENT,
+    ),
+    CriterionDefinition(
+        "connected_space_propagation",
+        "Propagation through real rooms, walls, doors, and openings",
+        "full_r10",
+        _MEASUREMENT,
+        _MEASUREMENT,
+    ),
+    CriterionDefinition(
+        "acoustic_assembly_identity",
+        "One physical barrier is invariant to mesh or collider fragmentation",
+        "full_r10",
+        _MEASUREMENT,
+        _MEASUREMENT,
+    ),
+    CriterionDefinition(
+        "frequency_dependent_transmission",
+        "Authored assembly transmission is reproduced across provider bands",
+        "full_r10",
+        _MEASUREMENT,
+        _MEASUREMENT,
+    ),
+    CriterionDefinition(
+        "acoustic_refresh_performance",
+        "Direct, reflections, and dynamic-geometry refresh meets its budget",
+        "full_r10",
+        _MEASUREMENT,
         _MEASUREMENT,
     ),
     CriterionDefinition(
         "path_diagnostics",
         "Bounded optional provider-native path or ray diagnostics",
-        False,
+        "diagnostic",
+        _RUNTIME_OR_MEASUREMENT,
         _RUNTIME_OR_MEASUREMENT,
     ),
 )
@@ -176,15 +220,34 @@ _CANDIDATE_FIELDS = frozenset({"id", "version"})
 _RUNTIME_FIELDS = frozenset(
     {"hardware", "isaac_sim_version", "kit_version", "platform"}
 )
-_REPORT_FIELDS = frozenset(
-    {"candidate", "contract_version", "criteria", "runtime"}
-)
+_REPORT_FIELDS = frozenset({"candidate", "contract_version", "criteria", "runtime"})
 _RESULT_FIELDS = frozenset({"criterion_id", "evidence", "status", "summary"})
-_EVIDENCE_FIELDS = frozenset({"kind", "reference", "summary"})
+_EVIDENCE_FIELDS = frozenset({"kind", "origin", "reference", "summary"})
+
+
+def _derive_outcome(
+    results: tuple[CriterionResult, ...], profiles: frozenset[str]
+) -> tuple[str, tuple[str, ...], tuple[str, ...]]:
+    scoped = tuple(
+        result
+        for result in results
+        if _CRITERIA_BY_ID[result.criterion_id].profile in profiles
+    )
+    failed = tuple(result.criterion_id for result in scoped if result.status == "fail")
+    blocked = tuple(
+        result.criterion_id for result in scoped if result.status == "blocked"
+    )
+    if failed:
+        outcome = "rejected"
+    elif blocked:
+        outcome = "incomplete"
+    else:
+        outcome = "qualified"
+    return outcome, failed, blocked
 
 
 def evaluate_report(payload: object) -> QualificationEvaluation:
-    """Validate a report and derive its qualification outcome."""
+    """Validate a report and independently derive core and full-R10 outcomes."""
 
     report = _require_mapping(payload, "report")
     _require_exact_fields(report, _REPORT_FIELDS, "report")
@@ -210,45 +273,35 @@ def evaluate_report(payload: object) -> QualificationEvaluation:
     if not isinstance(criteria_payload, list):
         raise QualificationContractError("criteria must be a list.")
     results = tuple(
-        _parse_result(item, index=index)
-        for index, item in enumerate(criteria_payload)
+        _parse_result(item, index=index) for index, item in enumerate(criteria_payload)
     )
     _validate_inventory(results)
     for result in results:
-        _validate_pass_evidence(result)
+        _validate_status_evidence(result)
 
-    failed_gates = tuple(
-        result.criterion_id
-        for result in results
-        if _CRITERIA_BY_ID[result.criterion_id].blocking
-        and result.status == "fail"
+    core_outcome, core_failed, core_blocked = _derive_outcome(
+        results, frozenset({"core"})
     )
-    blocked_gates = tuple(
-        result.criterion_id
-        for result in results
-        if _CRITERIA_BY_ID[result.criterion_id].blocking
-        and result.status == "blocked"
+    full_outcome, full_failed, full_blocked = _derive_outcome(
+        results, frozenset({"core", "full_r10"})
     )
     diagnostic_limitations = tuple(
         result.criterion_id
         for result in results
-        if not _CRITERIA_BY_ID[result.criterion_id].blocking
+        if _CRITERIA_BY_ID[result.criterion_id].profile == "diagnostic"
         and result.status != "pass"
     )
-    if failed_gates:
-        outcome = "rejected"
-    elif blocked_gates:
-        outcome = "incomplete"
-    else:
-        outcome = "qualified"
     return QualificationEvaluation(
         candidate_id=candidate_id,
         candidate_version=candidate_version,
         runtime=runtime,
-        outcome=outcome,
+        core_integration_outcome=core_outcome,
+        full_r10_outcome=full_outcome,
         results=results,
-        failed_gates=failed_gates,
-        blocked_gates=blocked_gates,
+        core_failed_gates=core_failed,
+        core_blocked_gates=core_blocked,
+        full_r10_failed_gates=full_failed,
+        full_r10_blocked_gates=full_blocked,
         diagnostic_limitations=diagnostic_limitations,
     )
 
@@ -291,8 +344,14 @@ def _parse_evidence(
         raise QualificationContractError(
             f"{location}.kind must be one of {sorted(EVIDENCE_KINDS)}."
         )
+    origin = _require_text(evidence["origin"], f"{location}.origin")
+    if origin not in EVIDENCE_ORIGINS:
+        raise QualificationContractError(
+            f"{location}.origin must be one of {sorted(EVIDENCE_ORIGINS)}."
+        )
     return EvidenceRecord(
         kind=kind,
+        origin=origin,
         reference=_require_text(evidence["reference"], f"{location}.reference"),
         summary=_require_text(evidence["summary"], f"{location}.summary"),
     )
@@ -317,27 +376,29 @@ def _validate_inventory(results: tuple[CriterionResult, ...]) -> None:
         )
     if ids != expected:
         raise QualificationContractError(
-            "criteria must follow canonical R9.1 order: " f"{list(expected)}."
+            f"criteria must follow canonical R9.1 rev2 order: {list(expected)}."
         )
 
 
-def _validate_pass_evidence(result: CriterionResult) -> None:
-    if result.status != "pass":
+def _validate_status_evidence(result: CriterionResult) -> None:
+    if result.status == "blocked":
         return
     definition = _CRITERIA_BY_ID[result.criterion_id]
+    required = (
+        definition.pass_evidence_kinds
+        if result.status == "pass"
+        else definition.fail_evidence_kinds
+    )
     actual_kinds = {evidence.kind for evidence in result.evidence}
-    if not actual_kinds & definition.pass_evidence_kinds:
+    if not actual_kinds & required:
         raise QualificationContractError(
-            f"criterion {result.criterion_id!r} cannot pass without at least one "
-            f"of {sorted(definition.pass_evidence_kinds)}; received "
-            f"{sorted(actual_kinds)}."
+            f"criterion {result.criterion_id!r} cannot {result.status} without "
+            f"at least one of {sorted(required)}; received {sorted(actual_kinds)}."
         )
 
 
 def _require_mapping(value: object, location: str) -> Mapping[str, object]:
-    if not isinstance(value, Mapping) or any(
-        not isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, Mapping) or any(not isinstance(key, str) for key in value):
         raise QualificationContractError(f"{location} must be an object.")
     return value
 
@@ -365,9 +426,7 @@ def _require_text(value: object, location: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "report",
-        type=Path,
-        help="Candidate qualification JSON report.",
+        "report", type=Path, help="Candidate qualification JSON report."
     )
     args = parser.parse_args(argv)
     try:
@@ -388,7 +447,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
     print(json.dumps(evaluation.to_dict(), indent=2, sort_keys=True))
-    return 0 if evaluation.outcome == "qualified" else 1
+    return 0 if evaluation.full_r10_outcome == "qualified" else 1
 
 
 if __name__ == "__main__":

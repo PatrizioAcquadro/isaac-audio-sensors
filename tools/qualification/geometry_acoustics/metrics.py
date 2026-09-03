@@ -25,6 +25,7 @@ BLOCK_P95_MS = 20.0
 
 @dataclass(frozen=True, slots=True)
 class PhaseMetrics:
+    microphone_pairs: tuple[str, ...]
     measured_lags_samples: tuple[int, ...]
     expected_lags_samples: tuple[float, ...]
     lag_errors_samples: tuple[float, ...]
@@ -32,21 +33,21 @@ class PhaseMetrics:
     passed: bool
 
 
-def transmission_loss_db_to_energy(loss_db: ArrayLike) -> NDArray[np.float64]:
-    """Convert transmission loss in dB to native sound-energy fractions."""
+def transmission_loss_db_to_amplitude(loss_db: ArrayLike) -> NDArray[np.float64]:
+    """Convert authored transmission loss to Direct Effect waveform gains."""
 
     loss = np.asarray(loss_db, dtype=np.float64)
     if np.any(~np.isfinite(loss)) or np.any(loss < 0.0):
         raise ValueError("transmission loss must contain finite non-negative dB.")
-    return np.power(10.0, -loss / 10.0)
+    return np.power(10.0, -loss / 20.0)
 
 
-def interpolate_transmission_energy(
+def interpolate_transmission_amplitude(
     source_frequencies_hz: ArrayLike,
     source_loss_db: ArrayLike,
     target_frequencies_hz: ArrayLike,
 ) -> NDArray[np.float64]:
-    """Interpolate loss on log frequency, then convert it to energy."""
+    """Interpolate loss on log frequency, then convert it to amplitude."""
 
     source_frequencies = np.asarray(source_frequencies_hz, dtype=np.float64)
     source_loss = np.asarray(source_loss_db, dtype=np.float64)
@@ -62,7 +63,7 @@ def interpolate_transmission_energy(
     interpolated_db = np.interp(
         np.log10(targets), np.log10(source_frequencies), source_loss
     )
-    return transmission_loss_db_to_energy(interpolated_db)
+    return transmission_loss_db_to_amplitude(interpolated_db)
 
 
 def expected_tdoa_samples(
@@ -93,35 +94,65 @@ def _normalized_aligned_correlation(
     return float(np.dot(ref_segment, signal_segment) / denominator)
 
 
+def _fractional_shift(
+    samples: NDArray[np.float64], shift_samples: float
+) -> NDArray[np.float64]:
+    if shift_samples == 0.0:
+        return samples.copy()
+    guard = math.ceil(abs(shift_samples)) + 64
+    padded = np.pad(samples, (guard, guard), mode="constant")
+    transform_size = 1 << (int(padded.size) - 1).bit_length()
+    cycles_per_sample = np.fft.rfftfreq(transform_size)
+    phase = np.exp(-2j * np.pi * cycles_per_sample * shift_samples)
+    shifted = np.fft.irfft(
+        np.fft.rfft(padded, n=transform_size) * phase,
+        n=transform_size,
+    )
+    return np.asarray(shifted[guard : guard + samples.size], dtype=np.float64)
+
+
 def phase_metrics(
-    samples: ArrayLike, expected_lags_samples: Sequence[float]
+    samples: ArrayLike,
+    expected_lags_samples: Sequence[float],
+    microphone_ids: Sequence[str] | None = None,
 ) -> PhaseMetrics:
-    """Measure per-channel lag and correlation without modifying provider output."""
+    """Measure all microphone-pair lags without modifying provider output."""
 
     channels = np.asarray(samples, dtype=np.float64)
     if channels.ndim != 2 or channels.shape[0] != len(expected_lags_samples):
         raise ValueError("samples and expected lags must describe the same channels.")
-    reference = channels[0]
+    ids = tuple(microphone_ids or (str(index) for index in range(channels.shape[0])))
+    if len(ids) != channels.shape[0] or len(set(ids)) != len(ids):
+        raise ValueError("microphone_ids must match channels and be unique.")
+    pairs: list[str] = []
     measured: list[int] = []
+    expected: list[float] = []
     correlations: list[float] = []
-    for channel in channels:
-        cross_correlation = np.correlate(channel, reference, mode="full")
-        lag = int(np.argmax(cross_correlation) - (reference.size - 1))
-        measured.append(lag)
-        correlations.append(_normalized_aligned_correlation(reference, channel, lag))
+    for left in range(channels.shape[0]):
+        for right in range(left + 1, channels.shape[0]):
+            reference = channels[left]
+            channel = channels[right]
+            cross_correlation = np.correlate(channel, reference, mode="full")
+            lag = int(np.argmax(cross_correlation) - (reference.size - 1))
+            pairs.append(f"{ids[left]}->{ids[right]}")
+            measured.append(lag)
+            expected.append(
+                float(expected_lags_samples[right] - expected_lags_samples[left])
+            )
+            aligned = _fractional_shift(channel, -expected[-1])
+            correlations.append(_normalized_aligned_correlation(reference, aligned, 0))
     errors = tuple(
         abs(float(measured_lag) - float(expected_lag))
-        for measured_lag, expected_lag in zip(
-            measured, expected_lags_samples, strict=True
-        )
+        for measured_lag, expected_lag in zip(measured, expected, strict=True)
     )
     passed = (
         max(errors, default=math.inf) <= TDOA_TOLERANCE_SAMPLES
         and min(correlations, default=0.0) >= MIN_ALIGNED_CORRELATION
     )
     return PhaseMetrics(
+        microphone_pairs=tuple(pairs),
         measured_lags_samples=tuple(measured),
-        expected_lags_samples=tuple(float(value) for value in expected_lags_samples),
+        expected_lags_samples=tuple(expected),
         lag_errors_samples=errors,
         aligned_correlations=tuple(correlations),
         passed=passed,
@@ -186,7 +217,7 @@ def tone_levels_db(
     samples: ArrayLike,
     *,
     sample_rate_hz: int,
-    frequencies_hz: Sequence[float] = (250.0, 1000.0, 4000.0),
+    frequencies_hz: Sequence[float] = (400.0, 2500.0, 15000.0),
 ) -> dict[str, float]:
     """Measure deterministic fixture tones at their exact FFT bins."""
 
@@ -205,9 +236,18 @@ def tone_levels_db(
     return levels
 
 
-def tone_losses_db(reference: ArrayLike, observed: ArrayLike) -> dict[str, float]:
-    reference_levels = tone_levels_db(reference, sample_rate_hz=48_000)
-    observed_levels = tone_levels_db(observed, sample_rate_hz=48_000)
+def tone_losses_db(
+    reference: ArrayLike,
+    observed: ArrayLike,
+    *,
+    frequencies_hz: Sequence[float] = (400.0, 2500.0, 15000.0),
+) -> dict[str, float]:
+    reference_levels = tone_levels_db(
+        reference, sample_rate_hz=48_000, frequencies_hz=frequencies_hz
+    )
+    observed_levels = tone_levels_db(
+        observed, sample_rate_hz=48_000, frequencies_hz=frequencies_hz
+    )
     return {
         band: float(reference_levels[band] - observed_levels[band])
         for band in reference_levels

@@ -17,7 +17,7 @@ from tools.qualification.geometry_acoustics_contract import evaluate_report
 
 
 def _default_root() -> Path:
-    return Path(os.environ.get("IAS_R9_OUTPUT_ROOT", "build/validation/r9"))
+    return Path(os.environ.get("IAS_R9_OUTPUT_ROOT", "build/validation/r9/rev2"))
 
 
 def _cache_values(source_root: Path) -> dict[str, object]:
@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         evaluation = evaluate_report(result.report)
         print(json.dumps(evaluation.to_dict(), indent=2, sort_keys=True))
-        return 0 if not evaluation.blocked_gates else 1
+        return 0 if not evaluation.full_r10_blocked_gates else 1
     finally:
         adapter.close()
 

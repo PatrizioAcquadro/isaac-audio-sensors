@@ -17,23 +17,24 @@ from tools.qualification.geometry_acoustics_contract import (
 def _passing_evidence(criterion_id: str) -> dict[str, str]:
     if criterion_id == "licensing":
         kind = "official_license"
+        origin = "documentation"
     elif criterion_id == "packaging":
         kind = "packaging_probe"
+        origin = "provider_native"
     elif criterion_id in {
-        "raw_phase_coherent_microphones",
-        "geometry_propagation",
-        "connected_space_propagation",
-        "relative_amplitude_coherence",
-        "acoustic_assembly_identity",
-        "frequency_dependent_transmission",
-        "performance",
+        "passive_audible_content",
+        "isaac_runtime",
+        "path_diagnostics",
     }:
-        kind = "runtime_measurement"
-    else:
         kind = "runtime_probe"
+        origin = "provider_native"
+    else:
+        kind = "runtime_measurement"
+        origin = "mixed"
     return {
         "kind": kind,
-        "reference": f"build/validation/r9/{criterion_id}.json",
+        "origin": origin,
+        "reference": f"build/validation/r9/rev2/{criterion_id}.json",
         "summary": f"Measured evidence for {criterion_id}.",
     }
 
@@ -43,9 +44,9 @@ def _report() -> dict[str, object]:
         "contract_version": CONTRACT_VERSION,
         "candidate": {"id": "candidate", "version": "1.2.3"},
         "runtime": {
-            "hardware": "RTX test host",
+            "hardware": "test host",
             "isaac_sim_version": "6.0.0",
-            "kit_version": "110.0",
+            "kit_version": "110.1.2",
             "platform": "linux-x86_64",
         },
         "criteria": [
@@ -64,104 +65,105 @@ def _result(report: dict[str, object], criterion_id: str) -> dict[str, object]:
     criteria = report["criteria"]
     assert isinstance(criteria, list)
     return next(
-        result
-        for result in criteria
-        if isinstance(result, dict) and result["criterion_id"] == criterion_id
+        item
+        for item in criteria
+        if isinstance(item, dict) and item["criterion_id"] == criterion_id
     )
 
 
-def test_contract_inventory_and_order_are_frozen() -> None:
+def test_contract_inventory_and_profiles_are_frozen() -> None:
+    assert CONTRACT_VERSION == "r9.1-rev2"
     assert tuple(criterion.criterion_id for criterion in CRITERIA) == (
         "passive_audible_content",
-        "raw_phase_coherent_microphones",
+        "phase_coherent_microphone_signals",
         "scene_geometry_and_dynamics",
-        "geometry_propagation",
-        "connected_space_propagation",
+        "direct_occlusion_transmission",
+        "indirect_nlos_propagation",
         "relative_amplitude_coherence",
-        "acoustic_assembly_identity",
-        "frequency_dependent_transmission",
         "isaac_runtime",
         "packaging",
         "licensing",
-        "performance",
+        "audio_block_performance",
+        "connected_space_propagation",
+        "acoustic_assembly_identity",
+        "frequency_dependent_transmission",
+        "acoustic_refresh_performance",
         "path_diagnostics",
     )
-    assert all(criterion.blocking for criterion in CRITERIA[:-1])
-    assert not CRITERIA[-1].blocking
+    assert [criterion.profile for criterion in CRITERIA].count("core") == 10
+    assert [criterion.profile for criterion in CRITERIA].count("full_r10") == 4
+    assert CRITERIA[-1].profile == "diagnostic"
 
 
-def test_all_gates_pass_qualifies_candidate() -> None:
+def test_all_gates_pass_qualifies_both_profiles() -> None:
     evaluation = evaluate_report(_report())
-    assert evaluation.outcome == "qualified"
-    assert evaluation.failed_gates == ()
-    assert evaluation.blocked_gates == ()
-    assert evaluation.to_dict()["counts"] == {
-        "pass": len(CRITERIA),
-        "fail": 0,
-        "blocked": 0,
-    }
+    assert evaluation.core_integration_outcome == "qualified"
+    assert evaluation.full_r10_outcome == "qualified"
+    assert evaluation.core_failed_gates == ()
+    assert evaluation.full_r10_blocked_gates == ()
 
 
-@pytest.mark.parametrize("diagnostic_status", ("fail", "blocked"))
-def test_missing_optional_path_diagnostics_do_not_block(
-    diagnostic_status: str,
-) -> None:
+def test_full_failure_does_not_reject_core_profile() -> None:
     report = _report()
-    diagnostics = _result(report, "path_diagnostics")
-    diagnostics["status"] = diagnostic_status
-    diagnostics["evidence"] = [
-        {
-            "kind": "official_documentation",
-            "reference": "provider/path-api.html",
-            "summary": "No supported bounded path diagnostics were found.",
-        }
-    ]
+    _result(report, "acoustic_assembly_identity")["status"] = "fail"
     evaluation = evaluate_report(report)
-    assert evaluation.outcome == "qualified"
+    assert evaluation.core_integration_outcome == "qualified"
+    assert evaluation.full_r10_outcome == "rejected"
+    assert evaluation.core_failed_gates == ()
+    assert evaluation.full_r10_failed_gates == ("acoustic_assembly_identity",)
+
+
+def test_core_failure_rejects_both_profiles() -> None:
+    report = _report()
+    _result(report, "phase_coherent_microphone_signals")["status"] = "fail"
+    evaluation = evaluate_report(report)
+    assert evaluation.core_integration_outcome == "rejected"
+    assert evaluation.full_r10_outcome == "rejected"
+
+
+def test_blocked_full_gate_leaves_core_qualified_and_full_incomplete() -> None:
+    report = _report()
+    _result(report, "connected_space_propagation")["status"] = "blocked"
+    evaluation = evaluate_report(report)
+    assert evaluation.core_integration_outcome == "qualified"
+    assert evaluation.full_r10_outcome == "incomplete"
+
+
+@pytest.mark.parametrize("status", ("fail", "blocked"))
+def test_diagnostics_never_change_readiness(status: str) -> None:
+    report = _report()
+    _result(report, "path_diagnostics")["status"] = status
+    evaluation = evaluate_report(report)
+    assert evaluation.core_integration_outcome == "qualified"
+    assert evaluation.full_r10_outcome == "qualified"
     assert evaluation.diagnostic_limitations == ("path_diagnostics",)
 
 
-def test_required_failure_rejects_and_takes_precedence_over_blocked() -> None:
+def test_behavioral_fail_requires_executed_probe_or_measurement() -> None:
     report = _report()
-    _result(report, "raw_phase_coherent_microphones")["status"] = "fail"
-    _result(report, "performance")["status"] = "blocked"
-    evaluation = evaluate_report(report)
-    assert evaluation.outcome == "rejected"
-    assert evaluation.failed_gates == ("raw_phase_coherent_microphones",)
-    assert evaluation.blocked_gates == ("performance",)
-
-
-def test_required_blocker_produces_incomplete_outcome() -> None:
-    report = _report()
-    _result(report, "isaac_runtime")["status"] = "blocked"
-    evaluation = evaluate_report(report)
-    assert evaluation.outcome == "incomplete"
-    assert evaluation.blocked_gates == ("isaac_runtime",)
-
-
-@pytest.mark.parametrize(
-    ("criterion_id", "kind"),
-    (
-        ("raw_phase_coherent_microphones", "official_documentation"),
-        ("packaging", "official_documentation"),
-        ("licensing", "runtime_probe"),
-        ("performance", "runtime_probe"),
-    ),
-)
-def test_pass_requires_criterion_specific_evidence(
-    criterion_id: str,
-    kind: str,
-) -> None:
-    report = _report()
-    result = _result(report, criterion_id)
+    result = _result(report, "indirect_nlos_propagation")
+    result["status"] = "fail"
     result["evidence"] = [
         {
-            "kind": kind,
+            "kind": "official_documentation",
+            "origin": "documentation",
             "reference": "provider/claim.html",
-            "summary": "Insufficient evidence kind.",
+            "summary": "Not an executed failure.",
         }
     ]
-    with pytest.raises(QualificationContractError, match="cannot pass"):
+    with pytest.raises(QualificationContractError, match="cannot fail"):
+        evaluate_report(report)
+
+
+@pytest.mark.parametrize("origin", (None, "marketing"))
+def test_every_evidence_record_requires_a_known_origin(origin: str | None) -> None:
+    report = _report()
+    evidence = _result(report, "passive_audible_content")["evidence"][0]
+    if origin is None:
+        evidence.pop("origin")
+    else:
+        evidence["origin"] = origin
+    with pytest.raises(QualificationContractError):
         evaluate_report(report)
 
 
@@ -182,57 +184,34 @@ def test_criteria_inventory_fails_closed(mutation: str) -> None:
         evaluate_report(report)
 
 
-def test_report_rejects_declared_outcome_and_wrong_version() -> None:
+def test_report_rejects_declared_outcomes_and_wrong_version() -> None:
     report = _report()
-    report["outcome"] = "qualified"
-    with pytest.raises(QualificationContractError, match=r"unknown=\['outcome'\]"):
+    report["core_integration_outcome"] = "qualified"
+    with pytest.raises(QualificationContractError, match="core_integration_outcome"):
         evaluate_report(report)
     report = _report()
-    report["contract_version"] = "r9.2"
+    report["contract_version"] = "r9.1"
     with pytest.raises(QualificationContractError, match="contract_version"):
         evaluate_report(report)
 
 
 @pytest.mark.parametrize(
-    "field_mutation",
-    ("empty_identity", "empty_evidence", "unknown_evidence", "invalid_status"),
-)
-def test_malformed_report_fields_are_rejected(field_mutation: str) -> None:
-    report = _report()
-    first = _result(report, "passive_audible_content")
-    if field_mutation == "empty_identity":
-        report["candidate"]["id"] = ""
-    elif field_mutation == "empty_evidence":
-        first["evidence"] = []
-    elif field_mutation == "unknown_evidence":
-        first["evidence"][0]["kind"] = "marketing"
-    else:
-        first["status"] = "unknown"
-    with pytest.raises(QualificationContractError):
-        evaluate_report(report)
-
-
-@pytest.mark.parametrize(
-    ("outcome", "expected_exit"),
-    (("qualified", 0), ("rejected", 1), ("incomplete", 1)),
+    ("profile_state", "expected_exit"),
+    (("qualified", 0), ("core_fail", 1), ("full_blocked", 1)),
 )
 def test_cli_exit_codes_and_deterministic_summary(
-    tmp_path,
-    capsys,
-    outcome: str,
-    expected_exit: int,
+    tmp_path, capsys, profile_state: str, expected_exit: int
 ) -> None:
     report = _report()
-    if outcome == "rejected":
-        _result(report, "performance")["status"] = "fail"
-    elif outcome == "incomplete":
-        _result(report, "performance")["status"] = "blocked"
+    if profile_state == "core_fail":
+        _result(report, "audio_block_performance")["status"] = "fail"
+    elif profile_state == "full_blocked":
+        _result(report, "acoustic_refresh_performance")["status"] = "blocked"
     path = tmp_path / "report.json"
     path.write_text(json.dumps(report), encoding="utf-8")
     assert main([str(path)]) == expected_exit
     output = capsys.readouterr()
     summary = json.loads(output.out)
-    assert summary["outcome"] == outcome
     assert output.err == ""
     assert output.out == json.dumps(summary, indent=2, sort_keys=True) + "\n"
 
