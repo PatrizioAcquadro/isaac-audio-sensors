@@ -18,6 +18,7 @@ from isaac_audio_sensors.core.plugins.declarations import (
     PluginDeclaration,
 )
 from isaac_audio_sensors.core.plugins.protocols import (
+    ActivityDetector,
     AudioFeatureExtractor,
     DoaEstimator,
     PropagationBackend,
@@ -206,6 +207,18 @@ def _validate_instance(declaration: PluginDeclaration, instance: object) -> None
             raise ConfigValidationError(
                 f"Plugin {declaration.plugin_id!r} factory produced backend id "
                 f"{instance.backend_id!r}."
+            )
+        return
+    if declaration.kind == "activity_detector":
+        if not isinstance(instance, ActivityDetector):
+            raise ConfigValidationError(
+                f"Plugin {declaration.plugin_id!r} does not satisfy "
+                "ActivityDetector."
+            )
+        if instance.detector_id != declaration.plugin_id:
+            raise ConfigValidationError(
+                f"Plugin {declaration.plugin_id!r} factory produced detector id "
+                f"{instance.detector_id!r}."
             )
         return
     if declaration.kind == "doa_estimator":

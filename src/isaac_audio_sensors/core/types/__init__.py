@@ -5,6 +5,7 @@ from isaac_audio_sensors.core.types._environment import (
     AcousticSurfaceSpec,
 )
 from isaac_audio_sensors.core.types._frame import (
+    ActivityDecision,
     AudioObservation,
     AudioSensorFrame,
     DoaEstimate,
@@ -26,6 +27,7 @@ from isaac_audio_sensors.core.types._snapshot import (
 __all__ = [
     "AcousticEnvironmentSpec",
     "AcousticSurfaceSpec",
+    "ActivityDecision",
     "AudioObservation",
     "AudioSceneSnapshot",
     "AudioSensorFrame",

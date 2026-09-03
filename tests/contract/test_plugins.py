@@ -9,6 +9,7 @@ from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.backends.base import get_backend, registered_backend_ids
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.plugins import (
+    ActivityDetector,
     AudioFeatureExtractor,
     DoaEstimator,
     PluginDeclaration,
@@ -16,6 +17,22 @@ from isaac_audio_sensors.core.plugins import (
     PropagationBackend,
     get_default_registry,
 )
+from isaac_audio_sensors.core.types import ActivityDecision
+
+
+class _ActivityDetector:
+    detector_id = "test_activity"
+
+    def detect(self, samples, sample_rate_hz):
+        del samples, sample_rate_hz
+        return ActivityDecision(active=False)
+
+    def reset(self) -> None:
+        pass
+
+
+class _WrongDetectorId(_ActivityDetector):
+    detector_id = "different"
 
 
 class _MeanFeatureExtractor:
@@ -69,8 +86,24 @@ def _propagation_declaration(plugin_id: str) -> PluginDeclaration:
     )
 
 
+def _activity_declaration(plugin_id: str = "test_activity") -> PluginDeclaration:
+    return PluginDeclaration(
+        plugin_id=plugin_id,
+        kind="activity_detector",
+        fidelity_level=None,
+        required_dependencies=(),
+        supported_devices=("cpu",),
+        supported_profiles=("waveform_fidelity",),
+        deterministic=True,
+        output_contract={"shape": (), "dtype": "ActivityDecision"},
+        description="Test activity detector.",
+        provenance="tests.contract.test_plugins",
+    )
+
+
 def test_protocols_and_canonical_signature() -> None:
     assert isinstance(AnalyticAcoustics(), PropagationBackend)
+    assert isinstance(_ActivityDetector(), ActivityDetector)
     assert isinstance(_MeanFeatureExtractor(), AudioFeatureExtractor)
     assert tuple(inspect.signature(AnalyticAcoustics.propagate).parameters) == (
         "self",
@@ -84,6 +117,24 @@ def test_protocols_and_canonical_signature() -> None:
         DoaEstimator,
     )
     assert isinstance(registry.resolve("doa_estimator", "srp_phat"), DoaEstimator)
+
+
+def test_activity_detector_declaration_and_registry_contract() -> None:
+    registry = PluginRegistry()
+    declaration = _activity_declaration()
+    registry.register(declaration, _ActivityDetector)
+
+    assert registry.resolve("activity_detector", "test_activity").detector_id == (
+        "test_activity"
+    )
+    assert dict(declaration.output_contract) == {
+        "shape": (),
+        "dtype": "ActivityDecision",
+    }
+    with pytest.raises(ConfigValidationError, match="produced detector id"):
+        mismatch = _activity_declaration("mismatch")
+        registry.register(mismatch, _WrongDetectorId)
+        registry.resolve("activity_detector", "mismatch")
 
 
 def test_registry_validation_and_dependency_errors() -> None:
@@ -140,6 +191,7 @@ def test_default_registry_exposes_only_analytic_runtime_backend() -> None:
         ("doa_estimator", "tdoa_least_squares"),
         ("doa_estimator", "srp_phat"),
     }
+    assert get_default_registry().declarations("activity_detector") == ()
     analytic = declarations[("propagation_backend", "analytic_acoustics")]
     assert analytic.fidelity_level == "L2"
     assert analytic.required_dependencies == ()

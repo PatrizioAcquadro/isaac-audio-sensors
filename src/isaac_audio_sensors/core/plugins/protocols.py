@@ -7,11 +7,29 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 
 from isaac_audio_sensors.core.types import (
+    ActivityDecision,
     AudioSceneSnapshot,
     AudioTimeWindow,
     DoaEstimate,
     MicrophoneSignalBlock,
 )
+
+
+@runtime_checkable
+class ActivityDetector(Protocol):
+    """Detect generic activity from ordered valid-channel waveforms."""
+
+    detector_id: str
+
+    def detect(
+        self,
+        samples: np.ndarray,
+        sample_rate_hz: int,
+    ) -> ActivityDecision:
+        """Return one bounded decision and update detector streaming state."""
+
+    def reset(self) -> None:
+        """Clear all temporal and event state at an explicit stream boundary."""
 
 
 @runtime_checkable
@@ -66,6 +84,7 @@ class AudioFeatureExtractor(Protocol):
 
 
 __all__ = [
+    "ActivityDetector",
     "AudioFeatureExtractor",
     "DoaEstimator",
     "PropagationBackend",

@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from isaac_audio_sensors.core import (
+    ActivityDecision,
     AudioObservation,
     AudioPerceptionPipeline,
     AudioTimeWindow,
@@ -18,16 +19,28 @@ from isaac_audio_sensors.core import (
 
 
 class FakeDetector:
-    def __init__(self, active: bool, score: float | None = 2.5) -> None:
-        self.active = active
-        self.score = score
-        self.calls: list[tuple[np.ndarray, int]] = []
+    detector_id = "fake"
 
-    def __call__(
-        self, samples: np.ndarray, sample_rate_hz: int
-    ) -> tuple[bool, float | None, dict[str, object]]:
+    def __init__(self, active: bool, probability: float | None = 0.75) -> None:
+        self.active = active
+        self.probability = probability
+        self.calls: list[tuple[np.ndarray, int]] = []
+        self.reset_count = 0
+
+    def detect(
+        self,
+        samples: np.ndarray,
+        sample_rate_hz: int,
+    ) -> ActivityDecision:
         self.calls.append((samples, sample_rate_hz))
-        return self.active, self.score, {"activity": "fake"}
+        return ActivityDecision(
+            active=self.active,
+            activity_probability=self.probability,
+            diagnostics={"activity": "fake"},
+        )
+
+    def reset(self) -> None:
+        self.reset_count += 1
 
 
 class FakeEstimator:
@@ -46,12 +59,14 @@ class FakeEstimator:
 
 
 class StatefulPerceptionComponent:
+    detector_id = "stateful"
+
     def __init__(self) -> None:
         self.reset_count = 0
 
-    def __call__(self, samples, sample_rate_hz):
+    def detect(self, samples, sample_rate_hz):
         del samples, sample_rate_hz
-        return False, None, {}
+        return ActivityDecision(active=False)
 
     def estimate(self, samples, microphone_positions_m, sample_rate_hz):
         del samples, microphone_positions_m, sample_rate_hz
@@ -63,9 +78,9 @@ class StatefulPerceptionComponent:
 
 def test_inactive_and_detector_free_frames_have_no_observations() -> None:
     detector = FakeDetector(False)
-    inactive = AudioPerceptionPipeline(
-        activity_detector=detector, detector_id="fake"
-    ).process(_block(), _array(), frame_id="inactive")
+    inactive = AudioPerceptionPipeline(activity_detector=detector).process(
+        _block(), _array(), frame_id="inactive"
+    )
     detector_free = AudioPerceptionPipeline().process(
         _block(), _array(), frame_id="detector_free"
     )
@@ -80,13 +95,55 @@ def test_reset_reaches_each_stateful_component_once_by_identity() -> None:
     shared = StatefulPerceptionComponent()
     pipeline = AudioPerceptionPipeline(
         activity_detector=shared,
-        detector_id="stateful",
         doa_estimator=shared,
     )
 
     pipeline.reset()
 
     assert shared.reset_count == 1
+
+
+def test_activity_decision_probability_and_diagnostics_are_bounded() -> None:
+    diagnostics = {"energy_dbfs": -24.0}
+    decision = ActivityDecision(
+        active=True,
+        activity_probability=0.0,
+        diagnostics=diagnostics,
+    )
+    diagnostics["energy_dbfs"] = -12.0
+
+    assert decision.activity_probability == 0.0
+    assert decision.diagnostics == {"energy_dbfs": -24.0}
+    assert ActivityDecision(active=True, activity_probability=1.0)
+    assert ActivityDecision(active=False).activity_probability is None
+    for invalid in (-0.01, 1.01, float("nan"), float("inf"), True):
+        with pytest.raises(ValueError, match="activity_probability"):
+            ActivityDecision(active=True, activity_probability=invalid)
+    with pytest.raises(ValueError, match="active"):
+        ActivityDecision(active=1)
+    with pytest.raises(TypeError, match="diagnostics"):
+        ActivityDecision(active=False, diagnostics=())
+
+
+def test_stream_boundaries_require_an_explicit_reset() -> None:
+    detector = FakeDetector(False)
+    pipeline = AudioPerceptionPipeline(activity_detector=detector)
+    pipeline.process(_block(), _array(), frame_id="before_gap")
+    pipeline.process(
+        _block(
+            time_window=AudioTimeWindow(
+                start_time_s=10.0,
+                end_time_s=11.0,
+                frame_index=99,
+            )
+        ),
+        _array(),
+        frame_id="after_gap",
+    )
+
+    assert detector.reset_count == 0
+    pipeline.reset()
+    assert detector.reset_count == 1
 
 
 def test_block_diagnostics_are_copied_beside_perception_namespace() -> None:
@@ -109,11 +166,10 @@ def test_active_signal_creates_one_observation_and_preserves_unresolved_doa() ->
         ambiguity_class="two_mic_front_back",
         ambiguity_reason="two compatible bearings",
     )
-    detector = FakeDetector(True, score=4.0)
+    detector = FakeDetector(True, probability=0.8)
     estimator = FakeEstimator(unresolved)
     frame = AudioPerceptionPipeline(
         activity_detector=detector,
-        detector_id="fake",
         doa_estimator=estimator,
     ).process(_block(), _array(), frame_id="active")
 
@@ -121,7 +177,7 @@ def test_active_signal_creates_one_observation_and_preserves_unresolved_doa() ->
     observation = frame.observations[0]
     assert observation.origin is ObservationOrigin.SIGNAL_DERIVED
     assert observation.detector_id == "fake"
-    assert observation.detection_score == 4.0
+    assert observation.detection_score == 0.8
     assert observation.doa is unresolved
     assert len(estimator.calls) == 1
 
@@ -140,7 +196,6 @@ def test_only_valid_channels_reach_detector_and_estimator_in_array_order() -> No
     )
     frame = AudioPerceptionPipeline(
         activity_detector=detector,
-        detector_id="fake",
         doa_estimator=estimator,
     ).process(block, _array(), frame_id="partial")
 
@@ -161,7 +216,6 @@ def test_fully_invalid_block_skips_all_perception() -> None:
     estimator = FakeEstimator(DoaEstimate(estimated_bearing_deg=0.0))
     frame = AudioPerceptionPipeline(
         activity_detector=detector,
-        detector_id="fake",
         doa_estimator=estimator,
     ).process(
         _block(channel_validity=(False, False)),
@@ -194,7 +248,6 @@ def test_external_observations_follow_signal_then_input_order_before_cap() -> No
     external_b = _external("external_b")
     frame = AudioPerceptionPipeline(
         activity_detector=FakeDetector(True),
-        detector_id="signal",
         max_observations=2,
     ).process(
         _block(),
@@ -208,7 +261,7 @@ def test_external_observations_follow_signal_then_input_order_before_cap() -> No
         ObservationOrigin.EXTERNAL_SYSTEM,
     ]
     assert [item.observation_id for item in frame.observations] == [
-        "ordered_signal_00",
+        "ordered_fake_00",
         "external_a",
     ]
 

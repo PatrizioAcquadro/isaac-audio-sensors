@@ -12,6 +12,7 @@ from isaac_audio_sensors.core.plugins.declarations import (
     PluginDeclaration,
 )
 from isaac_audio_sensors.core.plugins.protocols import (
+    ActivityDetector,
     AudioFeatureExtractor,
     DoaEstimator,
     PropagationBackend,
@@ -26,6 +27,7 @@ from isaac_audio_sensors.core.plugins.registry import (
 __all__ = [
     "PLUGIN_KINDS",
     "SUPPORTED_PLUGIN_DEVICES",
+    "ActivityDetector",
     "AudioFeatureExtractor",
     "DoaEstimator",
     "GccPhatLeastSquaresEstimator",

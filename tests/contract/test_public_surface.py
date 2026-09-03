@@ -27,6 +27,7 @@ PUBLIC_API_V3 = {
     "isaac_audio_sensors.core": (
         "AcousticEnvironmentSpec",
         "AcousticSurfaceSpec",
+        "ActivityDecision",
         "AudioObservation",
         "AudioPerceptionPipeline",
         "AudioSceneSnapshot",
@@ -45,6 +46,7 @@ PUBLIC_API_V3 = {
     "isaac_audio_sensors.core.types": (
         "AcousticEnvironmentSpec",
         "AcousticSurfaceSpec",
+        "ActivityDecision",
         "AudioObservation",
         "AudioSceneSnapshot",
         "AudioSensorFrame",

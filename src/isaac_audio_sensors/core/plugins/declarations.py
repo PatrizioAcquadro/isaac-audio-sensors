@@ -14,6 +14,7 @@ from isaac_audio_sensors.core.exceptions import ConfigValidationError
 
 PLUGIN_KINDS = (
     "propagation_backend",
+    "activity_detector",
     "doa_estimator",
     "audio_feature_extractor",
 )
@@ -27,9 +28,10 @@ class PluginDeclaration:
     """Fail-closed, immutable declaration of one plugin's capabilities.
 
     ``output_contract`` always documents ``shape`` and ``dtype``. Propagation
-    backends use the symbolic shape ``"MicrophoneSignalBlock"``. DOA estimators use
-    scalar shape ``()`` and dtype ``"DoaEstimate"``. Feature extractors use a
-    tuple of non-negative dimensions and a NumPy-compatible dtype name.
+    backends use the symbolic shape ``"MicrophoneSignalBlock"``. Activity
+    detectors and DOA estimators use scalar shape ``()`` with their public
+    result type. Feature extractors use a tuple of non-negative dimensions and
+    a NumPy-compatible dtype name.
     """
 
     plugin_id: str
@@ -180,15 +182,18 @@ def _validate_output_contract(kind: str, contract: dict[str, object]) -> None:
                 "Propagation backend output_contract dtype must be "
                 "'MicrophoneSignalBlock'."
             )
-    elif kind == "doa_estimator":
+    elif kind in {"activity_detector", "doa_estimator"}:
         if shape not in ((), []):
             raise ConfigValidationError(
-                "DOA estimator output_contract shape must be scalar ()."
+                f"{kind} output_contract shape must be scalar ()."
             )
         contract["shape"] = ()
-        if dtype != "DoaEstimate":
+        expected_dtype = (
+            "ActivityDecision" if kind == "activity_detector" else "DoaEstimate"
+        )
+        if dtype != expected_dtype:
             raise ConfigValidationError(
-                "DOA estimator output_contract dtype must be 'DoaEstimate'."
+                f"{kind} output_contract dtype must be {expected_dtype!r}."
             )
     else:
         if not isinstance(shape, (tuple, list)):

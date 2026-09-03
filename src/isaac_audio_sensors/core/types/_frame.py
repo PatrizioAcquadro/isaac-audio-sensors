@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -30,6 +31,42 @@ class ObservationOrigin(str, Enum):
 
     SIGNAL_DERIVED = "signal_derived"
     EXTERNAL_SYSTEM = "external_system"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ActivityDecision:
+    """Generic acoustic-activity decision for one ordered signal window.
+
+    ``activity_probability`` is the optional probability that the current
+    window contains acoustic activity. Detectors without a justified
+    probability return ``None`` and keep algorithm-specific values in
+    diagnostics.
+    """
+
+    active: bool
+    activity_probability: float | None = None
+    diagnostics: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if type(self.active) is not bool:
+            raise ValueError("ActivityDecision.active must be a bool.")
+        if self.activity_probability is not None:
+            if isinstance(self.activity_probability, bool):
+                raise ValueError(
+                    "ActivityDecision.activity_probability must be a probability."
+                )
+            require_probability(
+                self.activity_probability,
+                "ActivityDecision.activity_probability",
+            )
+            object.__setattr__(
+                self,
+                "activity_probability",
+                float(self.activity_probability),
+            )
+        if not isinstance(self.diagnostics, Mapping):
+            raise TypeError("ActivityDecision.diagnostics must be a mapping.")
+        object.__setattr__(self, "diagnostics", dict(self.diagnostics))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

@@ -7,6 +7,7 @@ from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
     AcousticSurfaceSpec,
+    ActivityDecision,
     AudioObservation,
     AudioSceneSnapshot,
     AudioSensorFrame,
@@ -24,6 +25,7 @@ from isaac_audio_sensors.core.types import (
 __all__ = [
     "AcousticEnvironmentSpec",
     "AcousticSurfaceSpec",
+    "ActivityDecision",
     "AudioObservation",
     "AudioPerceptionPipeline",
     "AudioSceneSnapshot",

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import math
-from collections.abc import Callable, Mapping, Sequence
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING
 
 from isaac_audio_sensors.core.types import (
+    ActivityDecision,
     AudioObservation,
     AudioSensorFrame,
     DoaEstimate,
@@ -17,10 +17,8 @@ from isaac_audio_sensors.core.types import (
 )
 from isaac_audio_sensors.core.types._validation import require_non_empty
 
-_ActivityDetector = Callable[
-    [Any, int],
-    tuple[bool, float | None, Mapping[str, object]],
-]
+if TYPE_CHECKING:
+    from isaac_audio_sensors.core.plugins.protocols import ActivityDetector
 
 
 class AudioPerceptionPipeline:
@@ -29,27 +27,26 @@ class AudioPerceptionPipeline:
     def __init__(
         self,
         *,
-        activity_detector: _ActivityDetector | None = None,
-        detector_id: str | None = None,
+        activity_detector: ActivityDetector | None = None,
         doa_estimator: object | None = None,
         max_observations: int | None = None,
     ) -> None:
         if activity_detector is None:
-            if detector_id is not None:
-                raise ValueError(
-                    "detector_id requires an injected activity_detector."
-                )
             if doa_estimator is not None:
                 raise ValueError(
                     "doa_estimator requires an injected activity_detector."
                 )
+            detector_id = None
         else:
-            if not callable(activity_detector):
-                raise TypeError("activity_detector must be callable.")
-            if detector_id is None:
-                raise ValueError(
-                    "detector_id is required with an injected activity_detector."
+            if not callable(getattr(activity_detector, "detect", None)):
+                raise TypeError(
+                    "activity_detector must provide a callable detect method."
                 )
+            if not callable(getattr(activity_detector, "reset", None)):
+                raise TypeError(
+                    "activity_detector must provide a callable reset method."
+                )
+            detector_id = getattr(activity_detector, "detector_id", None)
             require_non_empty(detector_id, "AudioPerceptionPipeline.detector_id")
         if doa_estimator is not None and not callable(
             getattr(doa_estimator, "estimate", None)
@@ -123,18 +120,25 @@ class AudioPerceptionPipeline:
         if valid_indices and self._activity_detector is not None:
             valid_samples = np.ascontiguousarray(block.samples[list(valid_indices)])
             valid_samples.setflags(write=False)
-            active, score, detector_diagnostics = _activity_result(
-                self._activity_detector(valid_samples, block.sample_rate_hz)
+            decision = self._activity_detector.detect(
+                valid_samples,
+                block.sample_rate_hz,
             )
+            if not isinstance(decision, ActivityDecision):
+                raise TypeError(
+                    "activity_detector.detect() must return an ActivityDecision."
+                )
+            detector_diagnostics = dict(decision.diagnostics)
             perception_diagnostics.update(
                 {
-                    "activity_detected": active,
+                    "activity_detected": decision.active,
+                    "activity_probability": decision.activity_probability,
                     "activity_ran": True,
                     "detector_id": self.detector_id,
                     "detector_diagnostics": detector_diagnostics,
                 }
             )
-            if active:
+            if decision.active:
                 observation_diagnostics: dict[str, object] = {
                     "activity_detector": detector_diagnostics,
                 }
@@ -167,7 +171,7 @@ class AudioPerceptionPipeline:
                         ),
                         origin=ObservationOrigin.SIGNAL_DERIVED,
                         detector_id=self.detector_id,
-                        detection_score=score,
+                        detection_score=decision.activity_probability,
                         doa=doa,
                         diagnostics=observation_diagnostics,
                     ),
@@ -236,28 +240,6 @@ class AudioPerceptionPipeline:
                 "MicrophoneSignalBlock.microphone_ids must exactly match the "
                 "MicrophoneArraySpec microphone order."
             )
-
-
-def _activity_result(
-    result: object,
-) -> tuple[bool, float | None, dict[str, object]]:
-    if not isinstance(result, tuple) or len(result) != 3:
-        raise TypeError(
-            "activity_detector must return (active, detection_score, diagnostics)."
-        )
-    active, score, diagnostics = result
-    if type(active) is not bool:
-        raise TypeError("activity_detector active result must be a bool.")
-    if score is not None:
-        if isinstance(score, bool):
-            raise ValueError("activity_detector score must be a finite number.")
-        numeric_score = float(score)
-        if not math.isfinite(numeric_score):
-            raise ValueError("activity_detector score must be finite.")
-        score = numeric_score
-    if not isinstance(diagnostics, Mapping):
-        raise TypeError("activity_detector diagnostics must be a mapping.")
-    return active, score, dict(diagnostics)
 
 
 def _doa_result(result: object) -> tuple[DoaEstimate, dict[str, object]]:
