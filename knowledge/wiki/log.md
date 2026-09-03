@@ -567,3 +567,17 @@ one production Steam integration.
 Verified the no-rollback Plan 02.1 boundary, R9/Plan 01/Plan 02/R10 status
 alignment, complete index coverage, resolved internal links, unchanged raw
 knowledge, all 57 release tests, Markdown whitespace, and the Git diff.
+
+## 2026-09-03 — update: R9.4 selected-provider risk retirement
+
+Recorded the live-confirmed Steam Audio 4.8.1 baseline, failed closed/paired
+transmission proxy, qualified baked pathing and alternate paths, continuous
+arrival scheduler, bounded diagnostics, operating costs, and capability-limited
+R10 scope without changing public product contracts.
+
+## 2026-09-03 — lint: R9.4 selected-provider risk retirement
+
+Verified the native Isaac-runtime bundle and derived report, 541 unit/contract
+tests, 210 integration tests, 57 release tests, R9/Plan 01/Plan 02/R10 status
+alignment, wiki links and index coverage, Markdown whitespace, unchanged raw
+knowledge, and the frozen hashes of all 95 pre-existing R9 evidence files.

@@ -1,7 +1,8 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: Planned after R9.4 selected-provider risk retirement and the shared
-signal and observed-perception migration. [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
+Status: Planned after the shared signal and observed-perception migration.
+R9.4 risk retirement is complete and constrains the supported R10 scope.
+[[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
 This page is the sole authority for the geometry integration.
 
@@ -21,50 +22,80 @@ Include acoustically relevant room surfaces, doors, openings, large objects, rob
 
 Represent acoustic partitions independently from visual or collision fragmentation. One wall, door, panel, or authored construction may own several meshes or colliders while resolving to one acoustic assembly and one material/transmission definition. Prefer the selected provider's native scene and material representation; introduce IAS-specific partition metadata only where the provider cannot express the required USD mapping directly.
 
-For Steam Audio, derive a dedicated acoustic proxy instead of passing arbitrary
-visual fragmentation through unchanged. If R9.4 qualifies the representation,
-one physical assembly becomes a closed or paired-face provider object matching
-Steam's hit-pair transmission assumption. A whole-assembly banded curve
-represents constructions such as double-leaf walls and is mapped with explicit
-provenance to Steam's supported transmission bands. IAS owns this
-USD-to-provider translation, not a structural solver or a post-render
-attenuation correction.
+Do not enable the R9.4 closed/paired-face transmission proxy. Although its
+oblique, thickness, and fragmentation variants were invariant, a 12 dB
+assembly measured 18 dB and distinct assemblies did not add from that measured
+baseline. R10 may expose only the previously qualified single planar-assembly
+mapping and must label distinct sequential-assembly transmission unsupported.
+It must not collapse several constructions into a route-dependent material or
+add post-render attenuation correction.
 
 #### Key Decisions
 
 - USD remains the scene authority, while acoustic inclusion and material meaning are explicit.
 - Visual prims, collision prims, and acoustic partitions are separate concerns; mesh count must not change transmission.
 - Provider-native assembly and material semantics are reused before adding IAS metadata or algorithms.
-- Only an acoustic-proxy representation qualified by R9.4 may be used to claim
-  predictable sequential-partition transmission.
+- The failed R9.4 paired proxy is excluded; R10 does not claim predictable
+  sequential-partition transmission.
 - Multiple rooms form one connected acoustic problem when sound can travel between them.
 - A selected local room aids containment and diagnostics but does not discard external sources.
 
 #### Problems / Limitations
 
-Arbitrary visual detail may be acoustically irrelevant or too expensive. Geometry selection and simplification must preserve meaningful propagation without treating every rendered triangle as necessary acoustic input. Assembly transmission still depends on authored or qualified coefficient data; the integration does not infer cavity resonance, thickness, or structural coupling from mesh layering. If the R9.4 proxy test fails, distinct sequential assemblies remain unsupported for direct transmission rather than being collapsed into a route-dependent synthetic material.
+Arbitrary visual detail may be acoustically irrelevant or too expensive.
+Geometry selection and simplification must preserve meaningful propagation
+without treating every rendered triangle as necessary acoustic input. Assembly
+transmission still depends on authored or qualified coefficient data; the
+integration does not infer cavity resonance, thickness, or structural coupling
+from mesh layering. Distinct sequential assemblies remain unsupported for
+direct transmission.
 
 ## Subphase R10.2 — Passive Microphone-Array Propagation
 
 #### Implementation
 
-Map arbitrary passive source content, source pose and directivity, every microphone pose and response, and the selected acoustic scene into the provider. Preserve qualified direct and reflected paths, material transmission, and functional indirect NLOS output, then return one phase-coherent final waveform per physical microphone through the common `MicrophoneSignalBlock` boundary. Enable Steam's baked pathing and UTD-based deviation behavior only if R9.4 qualifies their per-microphone signal semantics, dynamic validation, and operating cost; otherwise do not claim approximate diffraction as an implemented capability.
+Map arbitrary passive source content, source pose and directivity, every
+microphone pose and response, and the selected acoustic scene into the
+provider. Preserve qualified direct and reflected paths, bounded supported
+material transmission, and functional indirect NLOS output, then return one
+phase-coherent final waveform per physical microphone through the common
+`MicrophoneSignalBlock` boundary.
+
+Enable the R9.4-qualified baked pathing path: deterministic `DYNAMIC` probe
+batches, provider-default UTD deviation, one independent point receiver and
+`IPLPathEffect` per microphone, and the omnidirectional component of the
+non-spatialized Ambisonic field. Retain dynamic validation, alternate-path
+search, and bounded path-visualization callbacks. These capabilities support
+approximate pathing in the qualified scenario family; they do not establish
+general diffraction accuracy.
 
 Isaac Audio Sensors owns source content, provider lifecycle, source and array translation, microphone semantics, signal effects not owned by the provider, diagnostics, and signal provenance. The external engine owns mesh acceleration, ray traversal, multi-bounce reflection, scattering, and every enabled path-search or deviation algorithm. `AudioPerceptionPipeline`, outside the geometry backend, owns activity detection, optional DOA estimation, `AudioObservation` creation, and `AudioSensorFrame` construction.
 
 Prefer provider-native arrival-time rendering when a qualified stable Steam API
-supplies it. While the provider's audio effect does not apply physical direct
-arrival delay to PCM, the private Steam adapter owns geometry-derived
-fractional-delay scheduling on one shared source timeline. It must preserve
-cross-block continuity and microphone-relative timing and must not double-apply
-delay to direct or indirect output. Remove this bridge when a requalified
-provider release owns equivalent PCM timing.
+supplies it. Steam `4.8.1` direct and pathing effects do not apply physical
+arrival time to PCM, so the private Steam adapter owns the qualified continuous
+fractional-delay scheduler on one shared source timeline. Apply it once to
+direct and pathing; reflection IRs retain their provider-native timing and
+bypass it. Remove this bridge when a requalified provider release owns
+equivalent PCM timing.
 
-The provider owns geometry-path occlusion and transmission exactly once. Isaac therefore does not run the legacy `SourceOcclusion` raycast-and-attenuation path for `GeometryAcoustics`, and the backend does not accept a precomputed `SourceOcclusion` record as another gain stage. The R10.1 acoustic proxy and material-band mapping are input translation, not permission to correct measured output with an extra gain. Conflicting external attenuation input fails validation rather than being ignored or double-applied.
+The provider owns geometry-path occlusion and transmission exactly once. Isaac
+therefore does not run the legacy `SourceOcclusion` raycast-and-attenuation path
+for `GeometryAcoustics`, and the backend does not accept a precomputed
+`SourceOcclusion` record as another gain stage. Permitted R10.1 USD and material
+mapping is input translation, not permission to correct measured output with an
+extra gain. Conflicting external attenuation input fails validation rather than
+being ignored or double-applied.
 
 Do not reconstruct `SourceOcclusion` solely to mirror legacy diagnostics. Expose only concise provider-derived occlusion state that remains meaningful to signal provenance or an active diagnostic consumer; do not duplicate provider path data without a concrete use. Legacy occlusion machinery remains only where R8 still needs direct-path analytic attenuation, and geometry-path wrappers or duplicate material resolution are removed after consumer migration.
 
-When the provider exposes ray, path, or interaction diagnostics, adapt them optionally to the existing `DebugPrimitive` representation for live overlays, sidecar JSON, and review video. Preserve direct, transmitted, reflected, and indirect path distinctions when the provider reports them. Diagnostic capture is disabled by default, filterable by source, array, microphone, and path type, and must not add path fields to the stable frame schema or ordinary datasets. Do not reconstruct provider paths locally when no supported diagnostic API exists.
+Adapt the qualified path-visualization callback optionally to the existing
+`DebugPrimitive` representation for live overlays, sidecar JSON, and review
+video. Preserve direct, transmitted, reflected, and indirect path distinctions
+when the provider reports them. Diagnostic capture is disabled by default,
+filterable by source, array, microphone, frame, and path type, and must not add
+path fields to the stable frame schema or ordinary datasets. Do not reconstruct
+provider paths locally.
 
 #### Key Decisions
 
@@ -75,14 +106,18 @@ When the provider exposes ray, path, or interaction diagnostics, adapt them opti
 - Provider-native path diagnostics are optional review outputs, not sensor observations or a second propagation implementation.
 - Provider-private stems or path contributions are optional diagnostics and never required by perception.
 - Relative physical coherence is required; absolute calibration remains deployment-specific and optional.
-- Only R9.4-qualified pathing and deviation behavior enters the maintained
-  backend; failed advanced gates narrow the fidelity claim instead of causing a
-  local diffraction implementation.
+- R9.4-qualified baked pathing, default UTD deviation, arrival scheduling, and
+  bounded callbacks enter the maintained backend; the failed proxy does not.
 - Structural vibration, a complete wave-equation solver, and active ultrasound are outside this phase.
 
 #### Problems / Limitations
 
-The provider's supported physics define the advanced-fidelity ceiling. Unsupported effects must remain explicit rather than being replaced with undocumented heuristics. Steam pathing depends on baked probes and produces an Ambisonic path field, so its availability does not by itself prove raw microphone-array suitability or general diffraction accuracy. Diagnostics retain only actionable provenance, limitations, and observable sensor state; they do not preserve obsolete internal structures for their own sake. A missing provider path-visualization API remains a declared diagnostic limitation rather than a reason to duplicate ray traversal.
+The provider's supported physics define the advanced-fidelity ceiling.
+Unsupported effects remain explicit rather than being replaced with
+undocumented heuristics. Steam pathing depends on baked probes, produces an
+Ambisonic field, and is qualified only through the independent-receiver mapping
+measured in R9.4. Diagnostics retain actionable provenance, limitations, and
+observable sensor state rather than obsolete internal structures.
 
 ## Subphase R10.3 — Operating Integration and Cleanup
 
@@ -114,7 +149,11 @@ The geometry backend is not required to scale directly to thousands of simultane
 
 ## Artifacts
 
-Expected artifacts are a provider-backed `MicrophoneSignalBlock` producer, USD acoustic mapping, bounded lifecycle and diagnostics, unchanged perception semantics across analytic, geometry, and physical inputs, and one consolidated maintained geometry-provider surface. No R10 implementation artifacts exist yet.
+Expected artifacts are a provider-backed `MicrophoneSignalBlock` producer, USD
+acoustic mapping within the qualified transmission boundary, baked pathing,
+bounded lifecycle and diagnostics, unchanged perception semantics across
+analytic, geometry, and physical inputs, and one consolidated maintained
+geometry-provider surface. No R10 implementation artifacts exist yet.
 
 ## Files
 

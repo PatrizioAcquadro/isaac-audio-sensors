@@ -1,8 +1,7 @@
 # Implementation Plan 02 — Signal and Perception Architecture
 
-Status: In progress. Subphase 02.1 is implemented. The bounded R9.4
-selected-provider qualification runs next without reverting 02.1; Subphases
-02.2 and 02.3 then remain planned.
+Status: In progress. Subphase 02.1 and the bounded intervening R9.4
+qualification are complete. Subphases 02.2 and 02.3 remain planned.
 
 ## Objective
 
@@ -51,10 +50,9 @@ The existing `AnalyticAcoustics.simulate() -> AudioSensorFrame` behavior remains
 
 The public block intentionally omits a rendered tail beyond the requested window; the temporary legacy waveform writer still receives the complete render. Cross-window orchestration, perception ownership, recording migration, and removal of the legacy frame bridge remain unresolved until Subphases 02.2 and 02.3. No physical-capture producer or Geometry Acoustics producer exists yet.
 
-The completed 02.1 boundary remains the current executable contract while R9.4
-retires selected-provider risks. That qualification is independent of
-perception and introduces no production geometry backend. Plan 02 resumes
-directly at 02.2 afterward; no 02.1 commit is reverted or replayed.
+The completed 02.1 boundary remained unchanged through R9.4. That qualification
+was independent of perception and introduced no production geometry backend.
+Plan 02 now resumes directly at 02.2; no 02.1 commit was reverted or replayed.
 
 ## Subphase 02.2 — Perception, Frame, and Observation Contracts
 
@@ -127,3 +125,4 @@ Current cross-cutting contract ownership is described by [[topics/public-contrac
 
 - 2026-09-03: Implemented Subphase 02.1 with the exact-window microphone-signal contract and analytic producer while retaining one temporary legacy frame bridge.
 - 2026-09-03: Sequenced the bounded R9.4 selected-provider qualification after the completed 02.1 boundary and before 02.2 without changing executable behavior.
+- 2026-09-03: Completed R9.4 without changing the Plan 02 signal boundary; Plan 02 resumes at 02.2.

@@ -53,7 +53,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.6 one exact two-artifact audit derived from source and locked wheels, including isolated offline wheel installation and packaged dependency provenance.
 - R6.7 complete host, RTX 4090, packaged Kit, artifact, and downstream-consumer closeout without publication.
 - R6.8 exact source distribution, Python 3.10–3.12 CI, and verified tokenless TestPyPI/PyPI publication with isolated OIDC permissions.
-- R9 selects Steam Audio `4.8.1` as the primary provider for future passive Geometry Acoustics integration. Its corrected core profile is `qualified` through an explicit minimal IAS delay/grouping bridge; its full-R10 profile remains `rejected` on sequential-partition transmission. NVIDIA RTX Acoustic `3.0.0` remains rejected for the passive-microphone role and has no maintained candidate tooling. No geometry backend is registered yet.
+- R9 selects Steam Audio `4.8.1` as the primary provider for future passive Geometry Acoustics integration. R9.4 admits provider-native baked pathing, dynamic validation and alternate paths, one independently rendered omnidirectional signal per microphone, private continuous arrival scheduling, bounded path callbacks, and measured one/four-environment operating cost. The closed/paired transmission proxy fails and is excluded from R10. NVIDIA RTX Acoustic `3.0.0` remains rejected for the passive-microphone role and has no maintained candidate tooling. No geometry backend is registered yet.
 
 ## Documentation State
 
@@ -184,6 +184,22 @@ Live Isaac Sim, Lab, and Kit smokes were intentionally outside this subphase
 because no maintained Isaac consumer uses the new signal block yet. Package
 `3.0.0` and frame schema v2 remain unchanged.
 
+The R9.4 native qualification runs under the Isaac Sim `6.0.1-rc.7` / Kit
+`110.1.2` interpreter against the live-confirmed Steam Audio `v4.8.1` source,
+Release build, and Embree configuration. Six ordered gates pass, one measured
+gate fails, and none are blocked. Baked pathing is at least 129.32 dB above the
+disabled control in all microphone/repetition cases, with at most 0.391 samples
+of TDOA error and at least 0.99175 realigned correlation. Validation detects
+the occluded route and alternate-path output changes by 3.36 dB. Direct and
+pathing arrival errors remain below 0.5 samples, reflection IRs are unchanged,
+and split/continuous scheduling agrees exactly. Complete-block p95 is
+1.865/7.416 ms and path-update p95 is 5.786/10.923 ms for one/four
+environments. The 12 dB closed proxy instead measures 18 dB, with two/three
+assemblies at 30/42 dB; that capability is not admitted. The separate ignored
+`r9.4-v1` bundle contains the report, evaluation, measurements, signals,
+fixtures, provenance, and log. The final deterministic host gate passes 541
+unit/contract tests, 210 integration tests, and 57 release tests.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -207,11 +223,15 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
 - Retained scientific evidence is local, ignored, protected, and excluded from distributions.
-- Steam Audio is selected but not yet integrated. It passes the core profile only with the explicit IAS geometric-delay and assembly-grouping bridge; its sequential-partition transmission fails full R10, and native pathing, diffraction behavior, and path diagnostics remain unqualified. R9.4 will test provider-native closed or paired acoustic proxies, baked pathing, per-microphone timing, and operating cost. R10 may own documented USD proxy and material-band translation but must not add post-hoc attenuation compensation. The common microphone-signal API exists, but no public Geometry Acoustics or physical-capture producer uses it yet.
+- Steam Audio is selected but not yet integrated. Baked pathing, its per-microphone omnidirectional mapping, dynamic validation/alternate paths, private arrival scheduling, bounded diagnostics, and small-environment cost are qualified only for the measured R9.4 scenario family. General diffraction accuracy and mass-parallel scaling remain unproven. The closed/paired transmission proxy is rejected; R10 must not enable it, claim predictable sequential assemblies, or add post-hoc attenuation compensation. The common microphone-signal API exists, but no public Geometry Acoustics or physical-capture producer uses it yet.
 
 ## Next Work
 
-R9.1 through R9.3 and Plan 02.1 are complete. No rollback is required. Work now proceeds to [[implementation_phases/r9-geometry-acoustics-provider-selection#Subphase R9.4 — Selected-Provider R10 Risk Retirement|R9.4]], recorded as Plan 01.3, to retire Steam Audio assembly, pathing, timing, and diagnostics risks while the internal qualification adapter is current. Plan 02 then resumes at 02.2, where perception consumes the common signal block and owns observed frame construction before the temporary scene-to-frame bridge is removed in 02.3.
+R9.1 through R9.4 and Plan 02.1 are complete. Work now resumes at Plan 02.2,
+where perception consumes the common signal block and owns observed frame
+construction before the temporary scene-to-frame bridge is removed in 02.3.
+R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
+diagnostic behavior; the failed assembly proxy remains excluded.
 
 The subsequent plans deliberately separate final microphone-signal production from observed perception and replace source-conditioned detections with a compact `AudioObservation`. Its two-value `origin` distinguishes `signal_derived` from `external_system`, while `detector_id` identifies the concrete producer; scheduled source information and manual annotations move to dataset truth and annotation provenance. The sequence qualifies Auditok activity detection and mixture-only PyRoom DOA, removes detection and estimator surfaces without a distinct maintained role, keeps learning truth in aligned dataset records, reuses perception across simulation and hardware, migrates Isaac Lab to observed semantics, and integrates the selected Geometry Acoustics provider only after the common signal boundary exists.
 

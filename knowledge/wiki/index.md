@@ -6,8 +6,8 @@
 
 ### Ordered Post-R9.1 Implementation Plans
 
-- [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] — sequence reference for R9.2 qualification, R9.3 selection, and the bounded post-02.1 R9.4 risk-retirement follow-up.
-- [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — retain the completed signal boundary across R9.4, then establish observation contracts, migrate consumers, and remove the superseded detection architecture.
+- [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] — completed sequence reference for R9.2 qualification, R9.3 selection, and post-02.1 R9.4 risk retirement.
+- [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — continue from the completed signal boundary and R9.4 qualification into observation contracts, consumer migration, and detection-architecture removal.
 - [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — qualify one maintained generic detector and remove rejected or duplicate detector surfaces.
 - [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — qualify mixture-only DOA, preserve honest ambiguity, and remove estimators without a distinct maintained role.
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — align observations and truth without leakage or overlapping maintained dataset models.
@@ -27,8 +27,8 @@
 - [[implementation_phases/r6-packaging-and-release|R6 Packaging and Release]] — published Python source/wheel distributions, trusted publication, and self-contained Kit archive.
 - [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]] — unified analytic environment meaning, configuration entry paths, and fail-closed Isaac resolution.
 - [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — completed topology routing, direct-stem occlusion, mass-parallel Isaac Lab execution, single-backend consolidation, and partition-transmission closeout.
-- [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — Steam selection plus bounded native-assembly, pathing, timing, diagnostics, and version-risk qualification.
-- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — qualified USD acoustic proxies, provider-backed signals, bounded analytic transfer, and consolidation to one maintained Steam adapter.
+- [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — Steam selection plus qualified pathing, timing, diagnostics, operating cost, and a rejected paired transmission proxy.
+- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — planned provider-backed signals and analytic transfer constrained to R9-qualified capabilities, followed by one maintained Steam adapter.
 
 ## Topics
 

@@ -1,7 +1,7 @@
 # Implementation Plan 01 — Geometry Provider Qualification
 
-Status: 01.1 corrected and 01.2 completed on 2026-09-03. Subphase 01.3 is
-planned after the completed Plan 02.1 and before Plan 02.2.
+Status: 01.1 corrected and 01.2–01.3 completed on 2026-09-03. Subphase 01.3
+ran after Plan 02.1 and before Plan 02.2.
 
 ## Objective
 
@@ -49,10 +49,12 @@ This reference adds no requirements beyond R9.3.
 
 #### Implementation
 
-After the already completed Plan 02.1, implement
+After the already completed Plan 02.1,
 [[implementation_phases/r9-geometry-acoustics-provider-selection#Subphase R9.4 — Selected-Provider R10 Risk Retirement|R9.4 Selected-Provider R10 Risk Retirement]]
-before starting Plan 02.2. Preserve the two completed Plan 02.1 commits; no
-rollback or history rewrite is required.
+completed before Plan 02.2 without rollback or history rewrite. The result
+preserves Steam Audio `4.8.1`, admits baked pathing, private arrival scheduling,
+and bounded diagnostics to R10, and excludes the failed closed/paired
+transmission proxy.
 
 #### Key Decisions
 
@@ -62,8 +64,9 @@ rollback or history rewrite is required.
 
 #### Problems / Limitations
 
-R9.4 is a post-selection risk check, not a second provider competition or the
-start of R10 product integration.
+R9.4 is a completed post-selection risk check, not a second provider
+competition or the start of R10 product integration. Its failed proxy gate
+narrows R10 without revoking the R9.3 selection.
 
 ## Artifacts
 
