@@ -177,7 +177,14 @@ EXPECTED_COMBO_FIELDS = (
     "selected_rig_profile_id",
     "waveform_mode",
 )
-BUNDLED_DEPENDENCIES = ("pyroomacoustics", "scipy", "soundfile", "cffi", "pycparser")
+BUNDLED_DEPENDENCIES = (
+    "auditok",
+    "pyroomacoustics",
+    "scipy",
+    "soundfile",
+    "cffi",
+    "pycparser",
+)
 HOST_DEPENDENCIES = ("numpy", "typing_extensions")
 ARRAY_RIG_PROFILE_ID = "quad_cross_120mm"
 ARRAY_MOUNT_PRIM_PATH = "/World/Rig/RobotMount"
@@ -1301,8 +1308,33 @@ def _probe_dependency_origins(extension_path: Path) -> dict[str, Any]:
             "waveform_export_flac",
         )
     }
+    try:
+        import numpy as np
+
+        from isaac_audio_sensors.core.plugins import AuditokActivityDetector
+
+        detector = AuditokActivityDetector(
+            energy_threshold_dbfs=-20.0,
+            analysis_window_s=0.01,
+            min_activity_s=0.01,
+            max_silence_s=0.0,
+        )
+        decision = detector.detect(
+            np.full((1, 10), 0.2, dtype=np.float32),
+            1_000,
+        )
+        record["auditok_detector"] = {
+            "status": "passed" if decision.active else "failed",
+            "active": decision.active,
+            "version": decision.diagnostics.get("auditok_version"),
+        }
+    except Exception as exc:  # noqa: BLE001 - evidence records exact failure
+        record["auditok_detector"] = {
+            "status": "failed",
+            "error": f"{type(exc).__name__}: {exc}",
+        }
     if not packaged:
-        record["status"] = "passed"
+        record["status"] = record["auditok_detector"]["status"]
         return record
 
     bundled_ok = all(
@@ -1315,8 +1347,11 @@ def _probe_dependency_origins(extension_path: Path) -> dict[str, Any]:
         for name in HOST_DEPENDENCIES
     )
     capabilities_ok = set(record["capabilities"].values()) == {"bundled"}
+    detector_ok = record["auditok_detector"]["status"] == "passed"
     record["status"] = (
-        "passed" if bundled_ok and host_ok and capabilities_ok else "failed"
+        "passed"
+        if bundled_ok and host_ok and capabilities_ok and detector_ok
+        else "failed"
     )
     return record
 

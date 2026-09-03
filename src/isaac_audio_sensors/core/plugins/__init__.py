@@ -6,6 +6,7 @@ from isaac_audio_sensors.core.plugins.adapters import (
     GccPhatLeastSquaresEstimator,
     SrpPhatEstimator,
 )
+from isaac_audio_sensors.core.plugins.auditok import AuditokActivityDetector
 from isaac_audio_sensors.core.plugins.declarations import (
     PLUGIN_KINDS,
     SUPPORTED_PLUGIN_DEVICES,
@@ -28,6 +29,7 @@ __all__ = [
     "PLUGIN_KINDS",
     "SUPPORTED_PLUGIN_DEVICES",
     "ActivityDetector",
+    "AuditokActivityDetector",
     "AudioFeatureExtractor",
     "DoaEstimator",
     "GccPhatLeastSquaresEstimator",

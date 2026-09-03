@@ -261,6 +261,12 @@ def _lazy_analytic_backend(**kwargs: object) -> object:
     return AnalyticAcoustics(**kwargs)
 
 
+def _lazy_auditok_detector(**kwargs: object) -> object:
+    from isaac_audio_sensors.core.plugins.auditok import AuditokActivityDetector
+
+    return AuditokActivityDetector(**kwargs)
+
+
 def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], ...]:
     both_profiles = ("training_features", "waveform_fidelity")
     backend_contract = {
@@ -268,6 +274,7 @@ def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], .
         "dtype": "MicrophoneSignalBlock",
     }
     doa_contract = {"shape": (), "dtype": "DoaEstimate"}
+    activity_contract = {"shape": (), "dtype": "ActivityDecision"}
     return (
         (
             PluginDeclaration(
@@ -286,6 +293,21 @@ def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], .
                 provenance="isaac_audio_sensors.core.backends.analytic",
             ),
             _lazy_analytic_backend,
+        ),
+        (
+            PluginDeclaration(
+                plugin_id="auditok",
+                kind="activity_detector",
+                fidelity_level=None,
+                required_dependencies=("auditok",),
+                supported_devices=("cpu",),
+                supported_profiles=both_profiles,
+                deterministic=True,
+                output_contract=activity_contract,
+                description="Fixed-threshold generic acoustic activity detection.",
+                provenance="isaac_audio_sensors.core.plugins.auditok",
+            ),
+            _lazy_auditok_detector,
         ),
         (
             PluginDeclaration(

@@ -56,6 +56,11 @@ REQUIRED_MEMBERS = {
 }
 _BUNDLE_PREFIX = f"{BUNDLED_ROOT.as_posix()}/"
 _REQUIRED_BUNDLED_TEMPLATES = {
+    "auditok": (
+        "auditok/__init__.py",
+        "{dist_info}/METADATA",
+        "{dist_info}/licenses/LICENSE",
+    ),
     "cffi": (
         "cffi/__init__.py",
         "{dist_info}/METADATA",

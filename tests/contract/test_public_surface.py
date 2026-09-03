@@ -220,6 +220,19 @@ def test_core_and_types_share_public_contract_objects():
     )
 
 
+def test_auditok_detector_is_public_without_eager_dependency_import():
+    completed = _run_fresh_process(
+        """
+        import sys
+        from isaac_audio_sensors.core.plugins import AuditokActivityDetector
+
+        assert AuditokActivityDetector.detector_id == "auditok"
+        assert "auditok" not in sys.modules
+        """
+    )
+    assert completed.stderr == ""
+
+
 def test_semantic_packages_follow_the_r5_dependency_graph():
     for package, allowed in ALLOWED_DEPENDENCIES.items():
         assert _package_dependencies(package) <= allowed

@@ -54,6 +54,8 @@ Name: isaac-audio-sensors
 Version: {VERSION}
 License-Expression: Apache-2.0
 Requires-Python: >=3.10
+Requires-Dist: auditok<0.6,>=0.5.2
+Requires-Dist: numpy>=1.26
 Provides-Extra: room
 Requires-Dist: pyroomacoustics>=0.7; extra == "room"
 Requires-Dist: scipy>=1.11; extra == "room"
@@ -120,6 +122,8 @@ def _write_sdist(
         "Requires-Python: >=3.10\n"
         "License-File: LICENSE\n"
         "License-File: NOTICE\n"
+        "Requires-Dist: auditok<0.6,>=0.5.2\n"
+        "Requires-Dist: numpy>=1.26\n"
         "\n"
         "# Package\n"
     ).encode()
@@ -152,7 +156,7 @@ def _write_sdist(
         f"{egg_info}/entry_points.txt": (
             "[console_scripts]\nisaac-audio-sensors = isaac_audio_sensors.cli:main\n"
         ),
-        f"{egg_info}/requires.txt": "numpy>=1.26\n",
+        f"{egg_info}/requires.txt": "auditok<0.6,>=0.5.2\nnumpy>=1.26\n",
         f"{egg_info}/top_level.txt": f"{PACKAGE}\n",
     }
     entries.update(extra_entries or {})

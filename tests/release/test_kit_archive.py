@@ -146,6 +146,7 @@ def test_validate_wheelhouse_rejects_wrong_hash(tmp_path, monkeypatch):
 
 def test_required_bundled_members_use_lock_versions():
     versions = {
+        "auditok": "9.0",
         "cffi": "9.1",
         "pycparser": "9.2",
         "pyroomacoustics": "9.3",
@@ -194,10 +195,17 @@ def test_kit_audit_rejects_bundled_numpy(tmp_path, write_zip):
         _audit(archive, expected)
 
 
-def test_kit_audit_requires_critical_bundled_member(tmp_path, write_zip):
+@pytest.mark.parametrize(
+    "member",
+    (
+        "auditok-0.5.2.dist-info/licenses/LICENSE",
+        "cffi/__init__.py",
+    ),
+)
+def test_kit_audit_requires_critical_bundled_member(tmp_path, write_zip, member):
     entries = _valid_entries()
     prefix = f"{BUNDLED_ROOT.as_posix()}/"
-    del entries[f"{prefix}cffi/__init__.py"]
+    del entries[f"{prefix}{member}"]
     archive = write_zip(tmp_path / community_archive_name(VERSION), entries)
 
     with pytest.raises(ContentPolicyError, match="missing bundled dependency members"):

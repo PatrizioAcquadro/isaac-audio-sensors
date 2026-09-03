@@ -11,6 +11,7 @@ from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.plugins import (
     ActivityDetector,
     AudioFeatureExtractor,
+    AuditokActivityDetector,
     DoaEstimator,
     PluginDeclaration,
     PluginRegistry,
@@ -187,11 +188,30 @@ def test_default_registry_exposes_only_analytic_runtime_backend() -> None:
         for item in get_default_registry().declarations()
     }
     assert set(declarations) == {
+        ("activity_detector", "auditok"),
         ("propagation_backend", "analytic_acoustics"),
         ("doa_estimator", "tdoa_least_squares"),
         ("doa_estimator", "srp_phat"),
     }
-    assert get_default_registry().declarations("activity_detector") == ()
+    auditok = declarations[("activity_detector", "auditok")]
+    assert auditok.required_dependencies == ("auditok",)
+    assert auditok.supported_devices == ("cpu",)
+    assert auditok.supported_profiles == (
+        "training_features",
+        "waveform_fidelity",
+    )
+    assert dict(auditok.output_contract) == {
+        "shape": (),
+        "dtype": "ActivityDecision",
+    }
+    resolved = get_default_registry().resolve(
+        "activity_detector",
+        "auditok",
+        factory_kwargs={"energy_threshold_dbfs": -40.0},
+    )
+    assert isinstance(resolved, AuditokActivityDetector)
+    with pytest.raises(ConfigValidationError, match="energy_threshold_dbfs"):
+        get_default_registry().resolve("activity_detector", "auditok")
     analytic = declarations[("propagation_backend", "analytic_acoustics")]
     assert analytic.fidelity_level == "L2"
     assert analytic.required_dependencies == ()

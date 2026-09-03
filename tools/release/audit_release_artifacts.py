@@ -53,6 +53,7 @@ SCHEMAS = frozenset(
     }
 )
 ROOM_REQUIREMENTS = frozenset({"pyroomacoustics", "scipy", "soundfile"})
+CORE_REQUIREMENTS = frozenset({"auditok<0.6,>=0.5.2", "numpy>=1.26"})
 SDIST_ROOT_FILES = frozenset(
     {"LICENSE", "NOTICE", "PKG-INFO", "README.md", "pyproject.toml", "setup.cfg"}
 )
@@ -423,8 +424,11 @@ if ({PROJECT!r}, "isaac_audio_sensors.cli:main") not in entry_points:
     raise SystemExit("installed console entry point mismatch")
 
 room = set()
+core = set()
 for requirement in distribution.requires or ():
     marker = requirement.replace("'", '"')
+    if ";" not in requirement:
+        core.add(requirement.lower().replace("_", "-").replace(" ", ""))
     if 'extra == "room"' not in marker:
         continue
     match = re.match(r"[A-Za-z0-9_.-]+", requirement)
@@ -432,6 +436,8 @@ for requirement in distribution.requires or ():
         room.add(match.group(0).lower().replace("_", "-"))
 if room != {set(ROOM_REQUIREMENTS)!r}:
     raise SystemExit("installed room extra mismatch")
+if core != {set(CORE_REQUIREMENTS)!r}:
+    raise SystemExit("installed core requirements mismatch")
 
 schema_root = resources.files("isaac_audio_sensors.schemas")
 schemas = {{item.name for item in schema_root.iterdir() if item.name.endswith(".json")}}
