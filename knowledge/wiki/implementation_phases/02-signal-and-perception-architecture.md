@@ -1,7 +1,7 @@
 # Implementation Plan 02 — Signal and Perception Architecture
 
-Status: In progress. Subphase 02.1 and the bounded intervening R9.4
-qualification are complete. Subphases 02.2 and 02.3 remain planned.
+Status: In progress. Subphases 02.1 and 02.2 and the bounded intervening R9.4
+qualification are complete. Subphase 02.3 remains planned.
 
 ## Objective
 
@@ -34,7 +34,7 @@ The signal block remains separately available to recording and feature extractio
 
 Propagation now has a public scene-to-signal operation: `PropagationBackend.propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`. The frozen block owns a copied, C-contiguous, read-only `float32` sample matrix shaped `[microphone, sample]`, ordered microphone identifiers, array identity, array-authoritative sample rate, the exact requested time window, per-channel validity, producer identity, provenance, and concise operational diagnostics. Its sample count is exactly `max(1, round(window_duration * sample_rate_hz))`.
 
-`AnalyticAcoustics` renders source signals, private stems, occlusion, directivity, gain, and effects through one shared internal path. `propagate()` projects only the final combined mixture into the exact public window. It does not estimate DOA, construct detections or frames, or invoke a `WaveformSink`; analytic channels are all valid and follow `MicrophoneArraySpec` order. Propagation therefore supports mono arrays independently from the TDOA and SRP-PHAT geometry constraints that still apply to legacy perception.
+`AnalyticAcoustics` renders source signals, private stems, occlusion, directivity, gain, and effects through one shared internal path. `propagate()` projects only the final combined mixture into the exact public window. It does not estimate DOA, construct detections or frames, or invoke a `WaveformSink`; analytic channels are all valid and follow `MicrophoneArraySpec` order. Propagation therefore supports mono arrays independently from the geometry constraints enforced by individual perception estimators.
 
 The existing `AnalyticAcoustics.simulate() -> AudioSensorFrame` behavior remains temporarily available through one explicitly legacy internal helper used by Core, CLI, Isaac, Lab, and Kit. It consumes the same private render and preserves current frames, diagnostics, waveform output, and full rendered tails until Subphases 02.2 and 02.3 migrate those consumers. No frame-v2 field, schema, CLI output, package version, or consumer-facing observation changed in this subphase.
 
@@ -58,9 +58,9 @@ Plan 02 now resumes directly at 02.2; no 02.1 commit was reverted or replayed.
 
 #### Implementation
 
-Make `AudioPerceptionPipeline` own activity detection, optional DOA estimation, and construction of `AudioSensorFrame`. Keep the frame as one sensor update even when it has no observations: it carries shared time and array metadata once, preserves silent or invalid windows, anchors recording and dataset joins, and maps to one robot-learning step. Do not add a public `FrameAssembler`; a small private composition function is sufficient if useful.
+`AudioPerceptionPipeline` now owns activity detection, optional DOA estimation, and construction of `AudioSensorFrame`. Its injected activity-detector callable receives only valid channels in microphone order. No valid channel skips perception; inactive output emits no signal-derived observation; active output creates exactly one. Optional DOA runs only with at least two valid channels, and an unresolved `DoaEstimate` is retained unchanged. The pipeline verifies block/array identity, sample rate, microphone order, and array-owned geometry, computes aggregate RMS only from the observed block, performs no file IO, and initializes `waveform_paths=()`.
 
-Replace the overloaded detection record with `AudioObservation`, containing only:
+The public `AudioObservation` contains only:
 
 - `observation_id`;
 - `origin: ObservationOrigin`, with exactly `signal_derived` and `external_system`;
@@ -69,7 +69,13 @@ Replace the overloaded detection record with `AudioObservation`, containing only
 - optional `doa: DoaEstimate`;
 - concise non-privileged diagnostics.
 
-Scene source identity, source pose, oracle geometry, asset references, occlusion truth, and per-source measurements leave the observation contract. Do not reserve classifier or tracker fields before those components exist. `None` DOA means localization was not run; an unresolved `DoaEstimate` means it ran without a unique valid direction.
+Scene source identity, source pose, oracle geometry, asset references, occlusion truth, and per-source measurements have left the observation contract. No classifier or tracker fields are reserved. `None` DOA means localization was not run; an unresolved `DoaEstimate` means it ran without a unique valid direction.
+
+`AudioSensorFrame` now uses `ias.audio_sensor_frame.v3`: `producer_id`, `channel_validity`, `max_observations`, and `observations` replace the backend/detection surface while timing, array pose, aggregate RMS, provenance, diagnostics, and recorder-managed waveform references remain. Readers reject frame v2, and the checked schema and v3 JSON/NDJSON fixtures regenerate byte-identically. Dataset-manifest v1 and calibration-profile v1 remain unchanged while dataset records embed frame v3.
+
+External observations must already be typed with `origin=external_system`. IDs are checked for uniqueness before the cap; the signal-derived observation precedes external observations deterministically; and `max_observations` truncates only that final order without comparing scores from different producers.
+
+The temporary `simulate()` bridge now emits valid frame-v3 records with zero observations. Core, CLI, recording/replay, Replicator, Isaac, Lab, Kit, examples, and statistics use the new names. Until Phase 03 provides a concrete activity detector, all maintained default consumers intentionally produce waveform/RMS/frame output with zero observations and no oracle substitute.
 
 Migrate the former modes directly:
 
@@ -89,7 +95,7 @@ Migrate the former modes directly:
 
 #### Problems / Limitations
 
-External and signal-derived observations can have different evidence semantics. The schema migration must preserve that distinction without becoming a generic unvalidated dictionary.
+The temporary scene-to-frame bridge still owns rendering and legacy waveform persistence. Subphase 02.3 must replace that orchestration with signal-block-to-perception composition and remove the bridge. No concrete activity detector is registered yet, so zero default observations are expected rather than a missing capability fallback.
 
 ## Subphase 02.3 — Orchestration, Migration, and Cleanup
 
@@ -97,7 +103,7 @@ External and signal-derived observations can have different evidence semantics. 
 
 Use one thin orchestration path to obtain a signal block, run perception, return the frame, and pass the original block to recording when requested. Perception owns state and reset behavior; array geometry is explicit and never inferred from source truth.
 
-Migrate all maintained consumers together. Then remove `AudioDetection`, `DetectionMode`, `detection_mode`, source-conditioned detection, the public `FrameAssembler` concept, parallel legacy paths, and their unused schema, configuration, adapter, dependency, test, and documentation surfaces. Do not retain production paths only for obsolete tests.
+Replace the temporary frame-v3 `simulate()` bridge in Core, CLI, Isaac, Lab, and Kit without reintroducing the removed source-conditioned detection architecture. Remove only the bridge-specific assembly and waveform-tail path after every maintained consumer uses the signal block directly.
 
 #### Key Decisions
 
@@ -111,13 +117,16 @@ The breaking migration spans Core, CLI, recording/replay, Isaac Sim, Isaac Lab, 
 
 ## Artifacts
 
-Subphase 02.1 produced the public `MicrophoneSignalBlock`, the scene-to-signal propagation protocol, the analytic producer, and the temporary legacy frame bridge. Later subphases still own the observation/frame contracts, shared orchestration, consumer migration, and removal of the superseded detection architecture. This plan does not select activity or DOA algorithms.
+Subphase 02.1 produced the public `MicrophoneSignalBlock`, scene-to-signal propagation protocol, analytic producer, and temporary bridge. Subphase 02.2 produced `ObservationOrigin`, `AudioObservation`, `AudioPerceptionPipeline`, frame v3, the migrated consumers, and removal of source-conditioned detection assembly. Subphase 02.3 still owns shared signal-to-frame orchestration and final bridge removal. This plan does not select activity or DOA algorithms.
 
 ## Files
 
 - `src/isaac_audio_sensors/core/types/_signal.py`
+- `src/isaac_audio_sensors/core/types/_frame.py`
+- `src/isaac_audio_sensors/core/perception.py`
 - `src/isaac_audio_sensors/core/plugins/protocols.py`
 - `src/isaac_audio_sensors/core/backends/analytic.py`
+- `src/isaac_audio_sensors/schemas/audio_sensor_frame.v3.schema.json`
 
 Current cross-cutting contract ownership is described by [[topics/public-contracts-and-recording|Public Contracts and Recording]].
 
@@ -126,3 +135,4 @@ Current cross-cutting contract ownership is described by [[topics/public-contrac
 - 2026-09-03: Implemented Subphase 02.1 with the exact-window microphone-signal contract and analytic producer while retaining one temporary legacy frame bridge.
 - 2026-09-03: Sequenced the bounded R9.4 selected-provider qualification after the completed 02.1 boundary and before 02.2 without changing executable behavior.
 - 2026-09-03: Completed R9.4 without changing the Plan 02 signal boundary; Plan 02 resumes at 02.2.
+- 2026-09-03: Implemented Subphase 02.2 with perception-owned observed-only frames, frame schema v3, migrated consumers, and intentional zero default observations until Phase 03; Subphase 02.3 remains planned.

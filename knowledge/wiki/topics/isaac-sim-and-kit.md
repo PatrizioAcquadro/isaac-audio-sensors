@@ -88,9 +88,9 @@ The headless path is `isaac_audio_sensors.kit.headless.HeadlessGuidedSession`; c
 
 ## Live Monitor
 
-Live Monitor shows sensor state, backend, frame freshness, detection count, and waveform availability on separate rows. Frame freshness uses an internal monotonic UI receipt clock, while the full frame ID and simulated timestamp remain in Advanced Tools. One compact contextual button starts or stops the sensor.
+Live Monitor shows sensor state, producer, frame freshness, observation count, and waveform availability on separate rows. Frame freshness uses an internal monotonic UI receipt clock, while the full frame ID and simulated timestamp remain in Advanced Tools. One compact contextual button starts or stops the sensor.
 
-The live instruments separate bearing, sector, confidence, and occlusion below the compass. Up to eight microphone RMS meters use a native `-60 ... 0 dBFS` scale with adjacent values and no percentages. Recent detections occupy zero to three rows without an internal scroll area, and the empty states distinguish no frame from a valid frame with no detections.
+The live instruments separate observed bearing, sector, and confidence below the compass. Up to eight microphone RMS meters use a native `-60 ... 0 dBFS` scale with adjacent values and no percentages. Recent observations occupy zero to three rows without an internal scroll area, and the empty states distinguish no frame from a valid frame with no observations. Until Phase 03, default frames populate the RMS meters while compass and observation timeline remain empty.
 
 ## Advanced Tools
 
@@ -104,9 +104,9 @@ Viewport follow-selection and live pose synchronization let manipulator edits up
 
 ## OmniGraph and Replicator
 
-When `omni.graph.core` is available, the extension registers `isaac_audio_sensors.omni.IsaacAudioSensorFrame` version 1 through `og.register_node_type` without `.ogn` code generation.
+When `omni.graph.core` is available, the extension registers `isaac_audio_sensors.omni.IsaacAudioSensorFrame` version 2 through `og.register_node_type` without `.ogn` code generation.
 
-The node publishes the latest frame ID, timestamp, detection count, bearing, sector, microphone IDs/RMS, occlusion state, and JSON payload, optionally filtered by array key.
+The node publishes the latest frame ID, timestamp, observation count, first observed bearing/sector, microphone IDs/RMS, and JSON payload, optionally filtered by array key.
 
 Replicator integration is a lazy Isaac bridge used by the extension; core frames, package JSON/JSONL writers, the base sensor capture path, and Isaac Lab do not require it. The registered writer receives frames directly from extension updates. The v1 payload and configuration retain `annotator_name` as compatibility metadata, but no runtime annotator is registered.
 

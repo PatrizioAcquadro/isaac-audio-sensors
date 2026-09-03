@@ -581,3 +581,16 @@ Verified the native Isaac-runtime bundle and derived report, 541 unit/contract
 tests, 210 integration tests, 57 release tests, R9/Plan 01/Plan 02/R10 status
 alignment, wiki links and index coverage, Markdown whitespace, unchanged raw
 knowledge, and the frozen hashes of all 95 pre-existing R9 evidence files.
+
+## 2026-09-03 — update: Plan 02.2 perception and frame contracts
+
+Recorded the observed-only `AudioPerceptionPipeline`, `AudioObservation`, frame
+v3 migration, valid-channel behavior, and deliberate zero-observation default
+period until Phase 03. Marked Plan 02.2 complete and Plan 02.3 planned.
+
+## 2026-09-03 — lint: Plan 02.2 perception and frame contracts
+
+Verified 549 unit/contract tests, 205 integration tests, 57 release tests, 90
+tests in the supported Isaac runtime, optional audio, byte-identical schemas,
+documentation boundaries and links, unchanged raw knowledge, Ruff, whitespace,
+and the Isaac Sim, Isaac Lab, and Kit live GPU smokes on the RTX 4090.

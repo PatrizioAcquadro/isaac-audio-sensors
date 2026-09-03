@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Breaking: migrate sensor state, configuration, Replicator, OmniGraph, export, instruments, and recording summaries from detections/backend naming to frame-v3 observations/producer naming.
+- Show valid waveform and RMS output with an explicit empty-observation state until Phase 03; do not derive compass, timeline, source identity, or occlusion events from USD source truth.
 - Breaking: remove sensor-side DOA ambiguity policy state and import/export `ias.omni_extension_binding.v5`; v4 and saved `lifecycle.ambiguity_policy` inputs are rejected without compatibility parsing.
 - Breaking: require explicit environment resolution before validation or sensor start, with `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes and no implicit array-centered shoebox.
 - Export and import the analytic backend, solver options, environment mode, anchor, tolerance, resolved result, and provenance without any contextual direction prior.

@@ -8,7 +8,7 @@ After launch, `AudioArraySensorCfg` directly inherits `SensorBaseCfg` and `Audio
 
 ## Configuration
 
-`AudioArraySensorCfg` retains the inherited `prim_path`, `update_period`, and `debug_vis` fields plus `backend`, `max_detections`, `effects`, `speed_of_sound_mps`, `doa_estimator`, `analytic_max_order`, `analytic_air_absorption`, and `analytic_ray_tracing`. The backend defaults to `analytic_acoustics`; legacy backend identifiers and sensor-side ambiguity policies are rejected.
+`AudioArraySensorCfg` retains the inherited `prim_path`, `update_period`, and `debug_vis` fields plus `backend`, `max_observations`, `effects`, `speed_of_sound_mps`, `analytic_max_order`, `analytic_air_absorption`, and `analytic_ray_tracing`. The backend defaults to `analytic_acoustics`; legacy backend identifiers, `max_detections`, estimator selection, and sensor-side ambiguity policies are absent.
 
 The active `SimulationContext` is the only device authority. `debug_vis=True` fails explicitly because the sensor has no real visualization implementation.
 
@@ -23,7 +23,7 @@ The active `SimulationContext` is the only device authority. `debug_vis=True` fa
 - `per_mic_rms [N,E,M] float32`
 - `ambiguity_mask [N,E] bool`
 
-Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and RMS values. An ambiguous two-microphone reference result likewise exposes a `NaN` bearing, zero confidence, and a true `ambiguity_mask`; no candidate is selected inside Lab. All active sources are computed before output selection. Slots are filled by descending `sqrt(mean(per_mic_rms^2))`, with the deterministic source configuration order as the source-id tie-break; `max_detections` controls only the fixed observation capacity and zero produces a correctly padded empty observation.
+Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and RMS values. During the deliberate Plan 02.2-to-Phase 03 interval, all slots are unused because no concrete activity detector is registered. `max_observations` controls only fixed tensor capacity; neither entity nor reference binding derives presence, bearing, confidence, ambiguity, or per-observation RMS from scene source truth.
 
 ## Entity Binding
 
@@ -33,15 +33,15 @@ Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and 
 
 Inputs must already be rank-correct `float32` tensors on the sensor device. World positions receive no origin offset; environment-frame positions receive exactly one explicit origin offset. WXYZ state quaternions convert to the package XYZW convention before relative poses are composed.
 
-Entity mode supports only `analytic_acoustics` over explicit `free_field`, with at least three microphones whose XY geometry has rank two, `tdoa_least_squares`, order zero, disabled air absorption/ray tracing, and identity effects. It computes microphone/source pose, `distance / speed_of_sound_mps` delay, source and microphone gain/directivity magnitude, analytical `1/d`, TDOA least-squares, confidence, ambiguity, scheduling, RMS-prioritized selection, and padding on the sensor device. `per_mic_rms` is a relative direct-path feature, not waveform RMS or calibrated SPL. Unknown directivity, missing non-omni orientation, invalid gain, unsupported topology/estimator/options/effects/devices/shapes/dtypes/microphone counts, and degenerate or collinear TDOA geometry fail explicitly; there is no omni, linear-array, or CUDA-to-CPU fallback.
+Entity mode currently supports only `analytic_acoustics` over explicit `free_field`, order zero, disabled air absorption/ray tracing, and identity effects. It validates and resolves array/source entity state on the sensor device but returns a correctly padded zero-observation result. Source poses and schedules are not converted into observations. Invalid directivity, orientation, gain, topology, options, devices, shapes, or dtypes still fail explicitly; there is no CUDA-to-CPU fallback.
 
-The fast path uses tensor indexing, selection, batched linear algebra, compaction, and scatter operations. It does not loop over environments, transfer tensors to the CPU, or convert environment IDs through the host. It does not produce waveforms, reverberation, occlusion, SPL, calibration, closed-room behavior, or per-environment acoustic randomization.
+The current zero-observation path allocates and scatters fixed-shape tensors on the selected device. It does not loop over environments, transfer tensors to the CPU, or produce waveforms, reverberation, occlusion, SPL, calibration, closed-room behavior, or per-environment acoustic randomization.
 
 ## Reference Binding
 
-`bind_reference(snapshots, array_ids)` accepts equal non-empty sequences of pure `AudioSceneSnapshot` values and string selectors. Each selected array must exist in its corresponding snapshot, and selected arrays must share one microphone count. Lab derives sample rate, microphone order, gain, directivity, and geometry only from those snapshot-owned arrays before converting maintained core-backend frames into the same six observation tensors.
+`bind_reference(snapshots, array_ids)` accepts equal non-empty sequences of pure `AudioSceneSnapshot` values and string selectors. Each selected array must exist in its corresponding snapshot, and selected arrays must share one microphone count. The temporary reference bridge still executes the selected Core backend per environment but intentionally returns the same zero-observation tensors until Phase 03.
 
-This path is the scalar semantic reference and debug boundary. It consumes the same entity-owned directivity and nominal-gain values as Core and preserves relative amplitude ratios for all supported analytic topologies. It retains two-microphone ambiguity only for TDOA least-squares; both unique least-squares and SRP-PHAT require at least three microphones with rank-2 XY geometry. It also retains half-space, PyRoom shoebox/polygon-prism, and effect behavior. It does not inspect a USD stage, accept a scene/provider object, retain parallel `MicrophoneArraySpec` inputs, or apply a contextual direction prior.
+This path remains a scalar lifecycle/debug boundary rather than an oracle reference. It does not inspect a USD stage, accept a scene/provider object, retain parallel `MicrophoneArraySpec` inputs, or turn snapshot source data into activity or direction labels.
 
 ## Update and Reset
 
@@ -53,6 +53,6 @@ The sensor uses the current Isaac Lab lifecycle unchanged: `update(dt, force_rec
 
 USD discovery, pose resolution, environment anchoring, occlusion, and live stage state belong to `isaac_audio_sensors.isaac`. Legacy trace diagnostics remain readable but are not part of Lab observation state.
 
-`make test-isaac` covers deterministic imports, contracts, parity, scheduling, compaction, frame transforms, reset, and failure behavior. `make smoke-isaac-lab` is the required live RTX 4090 gate for true `SensorBase` lifecycle, CUDA device placement, entity/reference parity, partial reset, and mean 4096-environment step time below 20 ms. CPU execution is not a substitute for that live gate.
+`make test-isaac` covers deterministic imports, contracts, zero-observation parity, frame transforms, reset, and failure behavior. `make smoke-isaac-lab` is the required live RTX 4090 gate for true `SensorBase` lifecycle, CUDA device placement, entity/reference parity, partial reset, and mean 4096-environment step time below 20 ms. CPU execution is not a substitute for that live gate.
 
-The R8.3 closeout passes 90 Isaac-runtime tests and the live smoke on the RTX 4090. The analytic entity path matches reference presence, bearing, confidence, sector, ambiguity, and RMS-ratio features within GPU numerical tolerances; partial reset and all CUDA tensor contracts pass; and 50 steps over 4096 environments average 2.213 ms/step against the 20 ms budget.
+The Plan 02.2 closeout passes 90 Isaac-runtime tests and the live smoke on the RTX 4090. Entity/reference zero-observation parity, partial reset, and all CUDA tensor contracts pass; 50 steps over 4096 environments average 0.131 ms/step against the 20 ms budget.

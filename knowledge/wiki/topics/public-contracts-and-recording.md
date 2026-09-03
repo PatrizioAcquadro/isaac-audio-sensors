@@ -10,27 +10,29 @@ The block is the final observed microphone mixture after propagation, directivit
 
 ## AudioSensorFrame
 
-`AudioSensorFrame` is the package-native sensor and trace contract with schema version `ias.audio_sensor_frame.v2`, independent from the Python package version.
+`AudioSensorFrame` is the package-native sensor and trace contract with schema version `ias.audio_sensor_frame.v3`, independent from the Python package version.
 
-Every frame identifies its backend, array, required time window, selected-array sample rate, frame index, coordinate convention, units, provenance, output detection bound, detections, aggregate microphone RMS values, waveform paths, and diagnostics. Its serialized `timestamp_ms` is not an independent input: the model derives it exclusively as `int(round(start_time_s * 1000.0))`.
+Every frame identifies its producer, array, required time window, selected-array sample rate, ordered channel validity by microphone identifier, frame index, coordinate convention, units, provenance, output observation bound, observations, aggregate microphone RMS values, waveform paths, and diagnostics. Its serialized `timestamp_ms` is not an independent input: the model derives it exclusively as `int(round(start_time_s * 1000.0))`. `waveform_paths` contains references managed by recording services; perception itself writes no files and initializes the field empty.
 
 Allowed provenance values remain `synthetic/core`, `room_acoustics`, `isaac_live`, and `replay/trace`. `room_acoustics` is historical serialized provenance, not a selectable runtime backend.
 
 The coordinate convention is `x_forward_y_right_z_up_clockwise_bearing`: local `+X` is array forward, local `+Y` is right, local `+Z` is up, positions use meters, orientations use XYZW quaternions, and bearing is clockwise degrees from array forward.
 
-Detections keep source identity and class, known source pose and oracle geometry when available, DOA estimates, ambiguity, per-microphone delay/RMS, audio asset reference, occlusion state, and diagnostics distinct. They do not duplicate the frame timestamp.
+`AudioObservation` contains exactly `observation_id`, `origin`, `detector_id`, optional finite `detection_score`, optional `doa`, and non-privileged diagnostics. `ObservationOrigin` has only `signal_derived` and `external_system`. Observations contain no source identity, class, source pose, oracle geometry, asset reference, occlusion truth, or per-source delay/RMS. A missing DOA means localization was not run; a present unresolved `DoaEstimate` records that localization ran without a unique valid direction.
 
-`DoaEstimate.candidate_bearing_deg`, `ambiguity_class`, and `ambiguity_reason` preserve physically compatible direction evidence for downstream use. A two-microphone least-squares result normally carries both azimuth candidates, no selected bearing or sector, and zero confidence; the serialized frame v2 shape is unchanged. Core configuration and APIs expose no ambiguity policy or contextual prior.
+`DoaEstimate.candidate_bearing_deg`, `ambiguity_class`, and `ambiguity_reason` preserve physically compatible direction evidence for downstream use. A two-microphone result may carry both azimuth candidates, no selected bearing or sector, and zero confidence. Core configuration and APIs expose no ambiguity policy or contextual prior.
 
 `AudioTimeWindow` contains only required `start_time_s`, `end_time_s`, and `frame_index`. `MicrophoneArraySpec.sample_rate_hz`, defaulting to 48 kHz, is the sole runtime sample-rate authority. `AudioSensorFrame.sample_rate_hz` is the output projection of the selected array value; neither `AudioTimeWindow`, `AudioSensorConfig`, nor `[audio]` carries another sample-rate field.
 
-Every source overlapping the half-open window contributes to rendering and localization. Deterministic source order is `(start_time_s, source_id)` and exists only for reproducibility. `max_detections` is an output-only limit applied afterward: detections sort by descending `sqrt(mean(per_mic_rms^2))`, then by `source_id`, or by `detection_id` when no source identifier exists. `None` is unlimited and zero keeps the complete waveform and aggregate RMS while emitting no detections. Direct Core configures the limit on `AnalyticAcoustics`; Core, CLI, and Isaac default to unlimited while the fixed Lab and Kit buffers default to eight. A frame validates producer compliance instead of truncating its detections. Frame diagnostics retain active-source counts, scheduled identifiers, and RIR summaries for every rendered source regardless of the detection cap.
+`AudioPerceptionPipeline.process()` accepts a `MicrophoneSignalBlock`, its exact `MicrophoneArraySpec`, frame identity, and optional typed external observations. It validates array ID, sample rate, microphone order, and geometry; passes only valid channels to the injected activity detector in their original order; and skips perception when no channel is valid. Inactive output emits no observation. Active output emits one `signal_derived` observation and runs optional DOA only when at least two channels remain valid. Aggregate RMS always comes from the observed block, never scene/source truth.
 
-`SourceOcclusion` is the simulator-independent direct-path attenuation input. It requires array/source identity and exact blocked and broadband-attenuation maps for every microphone; optional spectral rows align with positive ordered band centers. Invalid identifiers, microphone coverage, non-finite or negative attenuation, inconsistent unblocked state, or row lengths fail closed. Per-record model, hit-path, and material fields were removed without v3 aliases. Producing-model and material-resolution diagnostics belong to the simulator integration, while `AudioDetection.occluded` and the UI `occlusion_factor` diagnostic are derived from the per-microphone blocked map.
+Signal-derived output precedes external observations in deterministic order. Observation IDs must be unique before `max_observations` is applied, and the cap never compares producer-specific scores. `None` is unlimited and zero preserves waveform and aggregate RMS while emitting no observations. Until Phase 03 introduces a concrete detector, maintained default consumers intentionally emit zero observations.
+
+`SourceOcclusion` is the simulator-independent direct-path attenuation input. It requires array/source identity and exact blocked and broadband-attenuation maps for every microphone; optional spectral rows align with positive ordered band centers. Invalid identifiers, microphone coverage, non-finite or negative attenuation, inconsistent unblocked state, or row lengths fail closed. Per-record model, hit-path, and material fields have no aliases. Occlusion affects the rendered signal and aggregate RMS but is not copied into an observation as oracle truth.
 
 ## Versioned Schemas
 
-The shipped schemas are `ias.audio_sensor_frame.v2`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1` under `src/isaac_audio_sensors/schemas/`.
+The shipped schemas are `ias.audio_sensor_frame.v3`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1` under `src/isaac_audio_sensors/schemas/`. Dataset records embed frame v3; the dataset and calibration wrapper meanings remain v1.
 
 The three Python generators are authoritative. Checked package resources and exports from `write_json_schema` must remain byte-identical deterministic JSON; schema export never reads documentation files.
 
@@ -44,9 +46,9 @@ Package upgrades may preserve an existing schema version when serialized meaning
 
 Sources and microphones own their directivity. TOML accepts only `omni`, `cardioid`, `supercardioid`, and `figure_eight`; non-omni sources require world orientation and non-omni microphones require relative orientation. `[audio.effects.directivity]` is an unknown key in v3 rather than a deprecated alias.
 
-`waveform_fidelity` is the default runtime profile and permits waveform-producing behavior; `training_features` is a constrained feature-oriented profile and rejects incompatible waveform export. `doa_estimator` selects `tdoa_least_squares` or `srp_phat` independently from the propagation backend.
+`waveform_fidelity` is the default runtime profile and permits waveform-producing behavior; `training_features` is a constrained feature-oriented profile and rejects incompatible waveform export. Core TOML no longer selects `doa_estimator`; an optional existing `DoaEstimator` is injected into `AudioPerceptionPipeline` with its detector.
 
-Unknown backends, profiles, coordinate conventions, removed `tdoa_ambiguity_policy`, invalid time windows, invalid array geometry, and unsupported combinations fail closed. Signal propagation itself supports mono arrays because it performs no localization. The temporary scene-to-frame perception path accepts exactly two microphones only for least-squares ambiguity output; unique least-squares and SRP-PHAT require at least three microphones with rank-2 XY geometry.
+Unknown backends, profiles, coordinate conventions, removed `tdoa_ambiguity_policy` or `doa_estimator` configuration, invalid time windows, invalid array geometry, and unsupported combinations fail closed. Signal propagation supports mono arrays because it performs no localization. Perception skips DOA below two valid channels; individual estimators retain their own geometry requirements.
 
 ## Plugins and Capabilities
 
@@ -54,7 +56,7 @@ Import-safe protocols define propagation backends, DOA estimators, and audio fea
 
 Every propagation backend implements `propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`. The snapshot is the only array-state authority for simulated propagation; the identifier is a selector, and missing identifiers raise the clear `AudioSceneSnapshot.array_by_id()` error before rendering.
 
-`AnalyticAcoustics.simulate() -> AudioSensorFrame` remains temporarily outside the plugin protocol. One internal legacy helper uses it for current Core, CLI, Isaac, Lab, and Kit consumers until the perception and orchestration migration in Plan 02.2/02.3. The legacy path preserves current frames, diagnostics, detections, waveform persistence, and full-tail output; `propagate()` performs none of those operations.
+`AnalyticAcoustics.simulate() -> AudioSensorFrame` remains temporarily outside the plugin protocol until Plan 02.3. Its bridge emits frame v3 with waveform references, aggregate RMS, and zero observations; it never reconstructs source-conditioned events. `propagate()` performs no frame construction or persistence.
 
 Capability declarations record identifiers, profiles, device support, `PluginDeclaration.output_contract`, determinism, dependencies, and provider provenance. `get_backend()` is the sole public propagation-backend resolver, while `registered_backend_ids()` is the authoritative built-in inventory.
 
@@ -66,9 +68,9 @@ The built-in propagation registry contains only `analytic_acoustics`; legacy ide
 
 JSON frame files and JSONL streams use deterministic serialization and round-trip through the public frame model.
 
-Readers require the exact v2 frame shape; writers emit that same deterministic shape. A reader reconstructs the frame from `start_time_s` and rejects any serialized `timestamp_ms` that does not equal the derived value. Frame v1 resources and compatibility parsing are absent from the current package. Recorded backend identifiers still describe provenance but do not become runtime selectors.
+Readers require the exact v3 frame shape; writers emit that same deterministic shape. A reader reconstructs the frame from `start_time_s` and rejects any serialized `timestamp_ms` that does not equal the derived value. Frame v1/v2 resources and compatibility parsing are absent from the current package. Recorded producer identifiers describe provenance but do not become runtime selectors.
 
-Tracked v2 examples under `examples/traces/` cover minimal, multi-detection, ambiguity, and diagnostic/provenance-rich records. The JSON examples are current `AnalyticAcoustics` outputs.
+Tracked v3 examples under `examples/traces/` cover a minimal zero-observation frame, one resolved observation, and external/unresolved observation records.
 
 ## Dataset Sessions
 
@@ -100,12 +102,12 @@ Exported waveforms and recordings are runtime outputs, not tracked product sourc
 
 ## Compatibility
 
-Package `3.0.0` is a breaking directivity, gain-consistency, and signal-producer-boundary release. Import sensor contracts from `core`, dataset contracts from `recording`, and schema generators from `schemas.generate`.
+Package `3.0.0` is a breaking directivity, gain-consistency, signal-producer, and observed-frame release. Import sensor contracts from `core`, dataset contracts from `recording`, and schema generators from `schemas.generate`.
 
 Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Construct `SourceOcclusion` from its required per-microphone maps and optional band rows; removed aggregate, model, hit-path, and material fields have no aliases. Rename Isaac fallback configuration to `unknown_material_loss_db` and remove any total-loss cap argument. Propagation plugins now implement `propagate(scene, array_id, time_window)` and return `MicrophoneSignalBlock`; the concrete analytic `simulate()` path is temporary consumer compatibility, not the propagation plugin contract. Bind Lab reference mode with `array_ids` instead of `array_specs`. Replace legacy backend choices with `analytic_acoustics`, move solver options to `[audio.analytic_acoustics]`, and choose the estimator separately. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
 
-The frame schema is v2 because R9.1.1 intentionally changed its serialized shape. Dataset-manifest and calibration-profile schemas remain v1 because their wrapper contracts did not change; dataset records embed the current v2 frame. The v3 package does not retain aliases or parallel runtime paths for the removed Python/configuration surfaces, frame v1, four legacy propagation backends, backend sensor-object argument, or Lab `array_specs` reference binding.
+The frame schema is v3 because Plan 02.2 intentionally replaced backend-owned detections with perception-owned observations and channel validity. Dataset-manifest and calibration-profile schemas remain v1 because their wrapper contracts did not change; dataset records embed the current v3 frame. The package does not retain aliases or parallel runtime paths for `AudioDetection`, detection fields, frame v1/v2, removed Python/configuration surfaces, four legacy propagation backends, the backend sensor-object argument, or Lab `array_specs` reference binding.
 
-Stable serialized v2 frame fields, units, provenance, coordinate meaning, ambiguity representation, recorded backend identifiers, sector mapping, and named diagnostic namespaces cannot be removed or redefined in a compatible release. This serialized compatibility does not require preserving an old identifier as a runtime selection surface.
+Stable serialized v3 frame fields, units, provenance, coordinate meaning, ambiguity representation, producer identifiers, sector mapping, and named diagnostic namespaces cannot be removed or redefined in a compatible release. This serialized compatibility does not require preserving an old identifier as a runtime selection surface.
 
-The frame v2 top-level and detection shapes are exact; changing them requires another explicit schema decision. Additive entries inside documented diagnostic maps, capability reporting, and bug fixes remain compatible when their existing meanings are preserved.
+The frame v3 top-level and observation shapes are exact; changing them requires another explicit schema decision. Additive entries inside documented diagnostic maps, capability reporting, and bug fixes remain compatible when their existing meanings are preserved.
