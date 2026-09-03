@@ -637,3 +637,16 @@ frame-v3 and replay demos, and the active Phase 6A front and unknown contexts.
 Both contexts emit zero sensor observations, cues, packets, and graph events;
 each retains five records only under `oracle_ground_truth` with v3 trace and
 metric formats.
+
+## 2026-09-03 — update: Subphase 03.1 activity detector contract
+
+Recorded the public bounded `ActivityDecision`, stateful `ActivityDetector`
+protocol, validated registry kind, typed perception-pipeline seam, explicit
+stream-boundary reset ownership, and unchanged zero-observation defaults.
+
+## 2026-09-03 — lint: Subphase 03.1 activity detector contract
+
+Verified 555 unit/contract tests, 213 integration tests, 57 release tests,
+version synchronization, Ruff, schema stability, lazy Core imports, internal
+wiki links, documentation boundaries, and whitespace without adding a detector
+dependency or changing frame schema v3.
