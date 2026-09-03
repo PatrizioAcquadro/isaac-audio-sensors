@@ -1,6 +1,6 @@
 # Implementation Plan 01 — Geometry Provider Qualification
 
-Status: 01.1 completed on 2026-09-02; 01.2 is next.
+Status: 01.1 corrected on 2026-09-03; 01.2 is next.
 
 ## Objective
 
@@ -10,7 +10,7 @@ Record the execution order of the remaining R9 provider work. This page is a seq
 
 #### Implementation
 
-[[implementation_phases/r9-geometry-acoustics-provider-selection#Subphase R9.2 — Candidate Qualification|R9.2 Candidate Qualification]] is complete. Both scoped candidates have valid, conclusive reports, and no blocking criterion has status `blocked`; this reference does not duplicate those results.
+[[implementation_phases/r9-geometry-acoustics-provider-selection#Subphase R9.2 — Candidate Qualification|R9.2 Candidate Qualification]] is complete with corrected rev2 reports and separate core-integration and full-R10 outcomes. This reference does not duplicate those results or select a provider.
 
 #### Key Decisions
 

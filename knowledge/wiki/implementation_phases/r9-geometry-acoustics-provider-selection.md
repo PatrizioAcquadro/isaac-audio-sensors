@@ -1,6 +1,6 @@
 # Phase R9 — Geometry Acoustics Provider Selection
 
-Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 and R9.2 completed on 2026-09-02; R9.3 is planned.
+Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 completed on 2026-09-02; R9.2 corrected on 2026-09-03; R9.3 is planned.
 
 The remaining R9.2/R9.3 execution order is referenced by [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]]. That plan adds no technical requirements: this page is the sole authority for provider qualification, comparison, selection, evidence, limitations, and acceptance semantics.
 
@@ -15,59 +15,51 @@ R9 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintai
 #### Implementation
 
 R9.1 is implemented as the repository-internal
-`tools/qualification/geometry_acoustics_contract.py` validator. It accepts one
-JSON report with exact `r9.1` contract version, candidate identity and version,
-the evaluated Isaac Sim/Kit runtime, and one result for every canonical
-criterion. It does not register a backend, change package configuration, or
-claim that a provider exists.
+`tools/qualification/geometry_acoustics_contract.py` validator. The corrected
+`r9.1-rev2` contract supersedes the original internal report schema. It accepts
+candidate identity, the evaluated Isaac Sim/Kit runtime, and one result for
+each of 15 canonical criteria. It does not register a backend, change package
+configuration, or claim that a provider exists.
 
-Each result uses `pass`, `fail`, or `blocked`, a non-empty explanation, and one
-or more typed evidence references. Behavioral passes require a runtime probe or
-measurement; phase coherence, propagation, relative amplitude, assembly,
-transmission, and performance require measurements. Packaging requires a
-packaging probe and licensing requires the official license. Documentation can
-support a result but cannot by itself pass a behavioral gate.
+Every result uses `pass`, `fail`, or `blocked`, a non-empty explanation, typed
+evidence references, and an evidence origin: `provider_native`, `ias_bridge`,
+`mixed`, or `documentation`. A behavioral `pass` or `fail` requires an executed
+runtime probe or measurement. A harness limitation is `blocked`, not a failed
+provider capability. Packaging requires a packaging probe and licensing
+requires the official license.
 
-The blocking contract requires the provider to support:
+The ten core-integration criteria are passive audible PCM, separate
+phase-coherent microphone signals, dynamic scene geometry, direct occlusion and
+transmission, indirect non-line-of-sight propagation, relative amplitude,
+Isaac-runtime execution, source-build packaging, licensing, and complete audio
+block performance. The four additional full-R10 criteria are connected spaces
+and doors, acoustic-assembly identity, frequency-dependent transmission, and
+acoustic-refresh performance. Provider path/ray diagnostics form a separate
+non-blocking diagnostic profile.
 
-- passive audible sources with arbitrary file-backed or generated content;
-- separate phase-coherent raw output for every physical microphone;
-- relevant scene geometry, materials, static objects, and dynamic objects;
-- direct occlusion, reflections, transmission, indirect pathing, and approximate around-edge or around-corner propagation;
-- connected rooms, corridors, doors, and openings without clamping remote sources into the array's room;
-- physically coherent relative amplitudes without requiring universal dB SPL calibration;
-- acoustic-partition or assembly semantics that do not multiply loss merely because one physical barrier uses several meshes or colliders;
-- authored frequency-dependent assembly transmission without undocumented total-loss clipping;
-- a viable Isaac runtime, packaging, licensing, and performance path.
-
-Bounded provider-native path or ray diagnostics are recorded as the one
-non-blocking criterion. Their absence remains an explicit limitation but does
-not reject an otherwise qualified provider or add path data to public sensor
-state.
-
-The validator derives the outcome: any failed gate is `rejected`; otherwise any
-blocked gate is `incomplete`; otherwise the candidate is `qualified`. A report
-cannot declare or override its outcome. Human-listener, binaural,
-device-speaker-mix, metadata-only, or active-ultrasound-only output does not
-satisfy the microphone-array contract.
+The validator independently derives `core_integration_outcome` from the core
+profile and `full_r10_outcome` from core plus full-R10 criteria. Within either
+profile, a failed gate produces `rejected`; otherwise a blocked gate produces
+`incomplete`; otherwise the result is `qualified`. A report cannot declare or
+override either outcome. A missing advanced R10 capability therefore does not
+erase a valid core-integration result.
 
 #### Key Decisions
 
-- Raw multichannel microphone output and passive audible content are non-negotiable gates.
-- Approximate pathing/diffraction is required; a complete wave solver is not.
+- Raw multichannel microphone output and passive audible content are non-negotiable core gates.
+- Functional indirect NLOS output through native reflections or pathing is sufficient; a dedicated pathing API or true diffraction solver is not mandatory.
+- Core-integration and full-R10 suitability are separate derived conclusions.
+- Missing harness coverage is recorded as `blocked`; only executed contrary evidence can fail a behavioral gate.
 - The maintained product should select one primary passive provider.
 - Native provider capabilities take precedence over repository-owned reimplementations when they satisfy the sensor contract and maintenance boundary.
-- `qualified` means only that the R9.1 gates have evidence; R9.3 still owns provider selection.
+- An outcome of `qualified` records only measured profile coverage; R9.3 still owns provider selection.
 
 #### Problems / Limitations
 
 No provider is selected by R9.1. The validator checks report completeness,
-evidence classes, and outcome semantics; it cannot establish that referenced
-evidence is true. R9.2 must produce the runtime measurements. Provider
-marketing or a plausible rendered signal remains insufficient. A provider that
-cannot represent one acoustic assembly across fragmented geometry, or that
-silently changes authored transmission values, does not satisfy the material
-contract.
+evidence classes, origins, and outcome semantics; it cannot establish that a
+referenced measurement is true. R9.2 must produce the runtime evidence.
+Provider marketing or a plausible rendered signal remains insufficient.
 
 ## Subphase R9.1.1 — Core Capture Contract Cleanup
 
@@ -141,91 +133,101 @@ The two-microphone contract represents the compatible azimuths in the public 2D 
 
 #### Implementation
 
-R9.2 qualified exactly Steam Audio `4.8.1` and NVIDIA RTX Acoustic
-`3.0.0`. The internal harness under
-`tools/qualification/geometry_acoustics/` provides common deterministic USD and
+The corrected R9.2 qualification supersedes the original candidate reports,
+which remain untouched as historical local evidence. New bundles use the
+`r9.1-rev2` contract under `build/validation/r9/rev2/`; no old artifact is
+silently replaced. The harness provides 23 deterministic planar-surface and
 signal fixtures, metrics, report construction, and temporary candidate
-adapters. Its private adapter boundary exposes `probe_runtime()`,
-`run_fixture(...)`, `run_performance(...)`, and `close()`. Signal-producing
-runs use internal `[microphone, sample]` blocks with microphone IDs, sample
-rate, and component timings; no public `MicrophoneSignalBlock`, backend,
-schema, frame, package, or release surface was added.
+adapters. Signal-producing runs use private `[microphone, sample]` blocks; no
+public backend, signal type, frame, schema, package dependency, or release
+artifact was added.
 
-Both candidates ran through `/home/pacquadr/IsaacLab/isaaclab.sh -p` against
-Isaac Sim `6.0.1-rc.7` and Kit `110.1.2`. The common matrix uses 48 kHz,
-960-sample blocks, the 0.16 m `quad_front` array, deterministic impulse and WAV
-multitone inputs, five repetitions, separated propagation and assembly cases,
-dynamic updates, and 20 warm-ups plus 200 measured blocks for one and four
-environments. Provider-native diagnostics are bounded to 256 records per
-source, microphone, and frame and remain outside frames and datasets.
+Steam Audio `4.8.1` was built from official tag `v4.8.1`, commit
+`0da18255cca520771f363ee01f100572b39a308e`, as a Release shared library with
+Embree enabled. The corrected adapter uses native `DIRECT` simulation and
+real-time `REFLECTIONS`, with one persistent simulator, source, direct effect,
+and reflection effect per physical point receiver. Planar acoustic boundaries
+replace volumetric boxes. Persistent benchmark sessions separately measure
+complete four-microphone audio blocks and acoustic refreshes for one and four
+environments.
 
-Steam Audio was built from official tag `v4.8.1`, resolved to commit
-`0da18255cca520771f363ee01f100572b39a308e`, as a shared Release library with
-Embree enabled and benchmarks, samples, and tests disabled. AVX was disabled
-after the optional AVX source failed with the qualification host compiler; the
-initial FlatBuffers warning-as-error and AVX build failures remain in the local
-evidence. `libphonon.so` was loaded through `ctypes` in the Isaac interpreter.
-The adapter used native Embree scenes, static meshes, `IPLInstancedMesh`,
-materials, simulator direct output, and direct effects; reflection and path
-entry points were probed but did not yield a qualifying unbaked indirect/path
-signal.
+The minimal IAS bridge contributes only geometric source-to-microphone
+fractional delay on a shared input timeline, separate microphone outputs, and
+grouping of fragments that identify the same acoustic assembly. It derives
+delay from geometry rather than measured-output alignment and implements no
+ray tracer, reflection model, or attenuation. Native Steam direct output is
+retained separately and remains zero-lag. With the bridge, both oblique source
+poses pass all six microphone pairs: maximum lag error is 0.393 samples and
+minimum realigned correlation is 0.99986.
 
-Steam Audio is conclusively `rejected`: 6 criteria pass, 7 fail, and none are
-blocked. Passive content, scene dynamics, relative amplitude, Isaac execution,
-packaging, and licensing pass. Free-field distance drops are -6.26 dB and
--6.14 dB. Independent point receivers return zero measured inter-channel lag
-where geometry predicts 8.92 to 21.96 samples. Native 12 dB assembly input
-produces about 36 dB output loss, two such partitions produce about 60 dB, and
-the IAS reference curve misses all three tone tolerances. Complete
-reflection/path output, connected-space indirect energy, phase coherence,
-assembly identity, transmission, performance, and bounded path diagnostics
-therefore fail. Diagnostics-off direct-only p95 is 1.11 ms for one environment
-and 3.09 ms for four, but those timings cannot pass the complete-block gate
-without the missing qualifying output.
+The provider natively passes the separated direct, opaque-occlusion,
+transmission, reflective-room, and L-corridor NLOS fixtures. Both indirect
+cases produce five valid repetitions with median energy more than 90 dB above
+the silent/numerical control. Opening the unchanged two-room door gains 61.30
+dB. Distance doubling produces -6.26 dB and -6.28 dB. Door, object, source,
+and array dynamics change the expected output without recreating static
+geometry.
 
-RTX Acoustic ran with Motion BVH on the runtime-visible NVIDIA GeForce RTX
-4090. The exact installed `3.0.0` manifest was checked, and an event-driven
-Replicator `Writer` captured GMO without duplicate callbacks. One observed GMO
-frame contains four 320-sample transmitter-to-receiver signal ways. The
-provider's `CHIRP` and `AM` modes are active acoustic returns, not arbitrary
-passive PCM or raw microphone channels, and the adapter does not reinterpret
-them.
+Transmission maps authored loss through `10^(-loss_db/20)` because the Direct
+Effect applies the three values as waveform EQ gains. The report also records
+the Scene API's distinct energy-fraction wording. One global transmission-ray
+configuration is used for all fixtures. Mono and equivalently fragmented
+assemblies both measure 12 dB loss and pass assembly identity. The
+400/2500/15000 Hz curve remains within the 4 dB per-band tolerance, and the
+12/60 dB controls expose 48 dB of dynamic range. However, two sequential 12 dB
+partitions measure 18 dB rather than the expected 24 dB, outside tolerance;
+this is the one measured full-R10 failure.
 
-RTX Acoustic is conclusively `rejected`: 2 criteria pass, 11 fail, and none are
-blocked. Isaac execution and exact installed packaging pass. Passive content,
-raw phase-coherent microphones, the passive geometry/material gates,
-distribution licensing, complete-block performance, and path diagnostics
-fail. Diagnostics-off active-update p95 is 18.40 ms for one environment and
-30.87 ms for four, so the four-environment result also exceeds 20 ms before the
-unavailable passive microphone block is considered. The runtime itself
-reported the RTX 4090; no CPU fallback was used.
+Complete audio-block p95 is 0.30 ms for one environment and 1.15 ms for four,
+against the 20 ms limit. Acoustic-refresh p95 is 11.40 ms and 42.44 ms,
+against the respective 100 ms and 250 ms limits. Each audio result uses 20
+warm-ups and 200 measured blocks; each refresh result uses 10 warm-ups and 50
+measurements. Path/ray diagnostics were not enabled and are correctly
+`blocked`, not failed.
 
-Both reports satisfy the unchanged R9.1 schema, and no blocking criterion has
-status `blocked`.
-The derived coverage summary is therefore complete even though both candidates
-are rejected. It compares coverage only and contains no ranking or provider
+Steam Audio therefore records 13 passes, one fail, and one blocked diagnostic.
+Its derived `core_integration_outcome` is `qualified`; its
+`full_r10_outcome` is `rejected` solely by frequency-dependent transmission's
+sequential-partition check. This is a qualification result, not a provider
 selection.
+
+NVIDIA RTX Acoustic `3.0.0` was not rerun. Its preserved runtime evidence was
+explicitly reused and reclassified under rev2: two criteria pass, seven fail,
+and six are blocked because the old harness did not exercise them. Both
+derived outcomes are `rejected`. Its active `CHIRP`/`AM`
+transmitter-receiver interface still fails the core passive-PCM and raw
+microphone semantics; unexercised advanced behavior and complete passive-block
+timing are no longer reported as false failures.
+
+Both rev2 reports validate, and the derived summary compares coverage only. It
+contains no ranking or provider selection.
 
 #### Key Decisions
 
 - Qualification uses shared semantic fixtures and measurable outputs, not subjective audition or marketing claims.
-- Existing provider geometry, pathing, transmission, reflection, scattering, and diffraction facilities are reused through the thinnest maintainable adapter.
+- Native provider direct and reflection models are reused through the thinnest maintainable adapter; functional NLOS output does not require a dedicated pathing API.
+- IAS may bridge geometric propagation delay and assembly identity but may not invent attenuation, reflections, pathing, or ray tracing.
+- Performance gates are independent of acoustic correctness gates and use persistent provider objects.
 - Temporary comparison adapters are deleted after the final provider decision unless they are part of the selected integration.
 - Whole-assembly transmission data is preferred over a repository-owned double-leaf or structural wall solver.
 - Provider qualification concerns signal production and propagation behavior, not backend-specific perception.
-- A rejected candidate with a valid report and no blocking criterion in `blocked` status is a complete R9.2 result.
-- Native semantics are preserved: R9.2 adds neither IAS attenuation compensation nor passive-PCM reinterpretation of active RTX signal ways.
+- Rev2 distinguishes provider-native, IAS-bridge, mixed, and documentation evidence for every result.
+- Preserved RTX evidence is reused explicitly; RTX is not rerun merely to populate the revised schema.
+- Native semantics are preserved: R9.2 adds no IAS attenuation compensation and does not reinterpret active RTX signal ways as passive PCM.
 - R9.3 remains the only subphase authorized to select a provider or record an explicit no-provider decision.
 
 #### Problems / Limitations
 
-Neither evaluated candidate satisfies the blocking passive microphone contract.
-Steam Audio lacks qualifying per-receiver propagation delay, complete indirect
-and path output in this adapter path, and compatible assembly-transmission
-behavior without repository-owned compensation. RTX Acoustic exposes an active
-transmitter-receiver model rather than passive audible microphone PCM; its
-installed proprietary license does not itself grant redistribution rights for
-the open-source SDK. These are failed capabilities, not external blockers.
+Steam Audio satisfies the corrected core-integration profile only with the
+explicit IAS geometric-delay and assembly-grouping bridge. Native direct output
+alone has no physical inter-microphone propagation delay. Its remaining
+measured full-R10 blocker is the non-additive sequential-partition transmission
+result. Native path/ray diagnostics remain unqualified.
+
+RTX Acoustic exposes an active transmitter-receiver model rather than passive
+audible microphone PCM. Its installed proprietary extension does not satisfy
+the source-build packaging or open-source redistribution path, and the reused
+evidence cannot qualify the advanced rev2 criteria that were never exercised.
 
 The qualification adapters remain temporary pending R9.3. Full source, binary,
 measurement, NPZ, log, crash/build-failure, and provenance evidence is local
@@ -266,13 +268,15 @@ and CLI tests. R9.1.1 provides the simplified Core capture contract and v2
 frame artifacts. R9.1.2 provides physically honest DOA ambiguity, rank-2 array
 validation, and Kit binding v5 without changing frame v2.
 
-R9.2 produces ignored local bundles under
-`build/validation/r9/{steam_audio,nvidia_rtx_acoustic}/`, each containing the
-R9.1 report, derived evaluation, measurements, NPZ signals, run log, and
-provenance. `build/validation/r9/summary.json` records complete two-candidate
-coverage without ranking or selection. The Steam source/build and failed build
-attempts remain under `build/qualification/r9/steam-audio` and the Steam
-validation bundle. No provider decision exists yet.
+The superseded R9.2 artifacts remain unchanged under
+`build/validation/r9/{steam_audio,nvidia_rtx_acoustic}/`. Corrected ignored
+bundles live under
+`build/validation/r9/rev2/{steam_audio,nvidia_rtx_acoustic}/`, each containing
+the `r9.1-rev2` report, derived evaluation, measurements, NPZ signals, run log,
+and provenance. `build/validation/r9/rev2/summary.json` records valid
+two-candidate coverage without ranking or selection. The Steam source/build
+remains under `build/qualification/r9/steam-audio`. No provider decision exists
+yet.
 
 ## Files
 

@@ -517,3 +517,11 @@ Recorded the common qualification harness and conclusive Isaac-runtime reports f
 ## 2026-09-02 — lint: R9.2 candidate qualification
 
 Verified 519 unit/contract tests, 207 integration tests, 57 release tests, 22 common USD fixtures in the Isaac interpreter, both exact-version R9.1 reports and local bundles, RTX 4090 execution without CPU fallback, the non-ranking summary, canonical wiki links, Ruff, version synchronization, and whitespace.
+
+## 2026-09-03 — update: Corrected R9.2 Steam Audio qualification
+
+Superseded the original local qualification reports with separate rev2 artifacts, corrected the contract and fixtures, exercised native Steam Audio direct and real-time reflection output, recorded the minimal IAS delay/grouping bridge, and derived a qualified core-integration outcome plus a full-R10 rejection limited to sequential-partition transmission. Reclassified preserved RTX evidence without rerunning the provider and made no provider selection.
+
+## 2026-09-03 — lint: Corrected R9.2 Steam Audio qualification
+
+Verified 36 focused tests, the complete deterministic host `make check` gate, 23 Steam fixtures and 115 repetitions in the Isaac interpreter, valid rev2 reports and evidence origins, explicitly reused RTX evidence, the non-ranking summary, canonical wiki links, Ruff, and whitespace.
