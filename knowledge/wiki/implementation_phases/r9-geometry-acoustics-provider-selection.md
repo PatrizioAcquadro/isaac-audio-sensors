@@ -1,9 +1,11 @@
 # Phase R9 — Geometry Acoustics Provider Selection
 
 Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 completed on
-2026-09-02; corrected R9.2 and R9.3 completed on 2026-09-03.
+2026-09-02; corrected R9.2 and R9.3 completed on 2026-09-03. R9.4 is planned
+after the completed Plan 02.1 and before Plan 02.2; it does not reopen the
+provider decision or require a history rollback.
 
-The completed R9.2/R9.3 execution order is referenced by
+The R9.2 through R9.4 execution order is referenced by
 [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]].
 That plan adds no technical requirements: this page is the sole authority for
 provider qualification, comparison, selection, evidence, limitations, and
@@ -296,15 +298,97 @@ active-acoustics backend remains a separate role.
 
 Steam's `full_r10_outcome` remains `rejected` solely because two sequential
 12 dB partitions measured 18 dB instead of the expected 24 dB. R10 must prefer
-one authored whole-assembly transmission curve, must not add IAS attenuation
-compensation, and must not claim additive sequential-partition behavior unless
-a future qualification passes it. Native path/ray diagnostics also remain
-unqualified.
+one authored whole-assembly transmission curve and must not add post-hoc IAS
+gain compensation. IAS may construct a provider-native acoustic proxy and map
+evidence-backed assembly coefficients into Steam's supported bands, but it must
+not hide a provider limitation with route-dependent attenuation. Additive
+sequential-partition behavior remains unclaimed unless R9.4 or a later
+requalification passes it. Native pathing, diffraction behavior, and path/ray
+diagnostics also remain unqualified.
 
 The selection targets one or a few high-fidelity Isaac environments, not
 mass-parallel Isaac Lab execution. R8's analytic path remains responsible for
 scalable policy training. Simulation evidence does not establish physical
 calibration or sim-to-real validity.
+
+## Subphase R9.4 — Selected-Provider R10 Risk Retirement
+
+#### Implementation
+
+Run a bounded post-selection qualification while the retained Steam harness is
+still current. R9.4 executes after the already completed Plan 02.1 and before
+Plan 02.2. Phase numbers express ownership rather than mandatory commit order:
+the completed signal boundary remains in place, no commit is reverted, and no
+public Geometry Acoustics backend, package dependency, schema, or configuration
+is introduced.
+
+Begin by checking the latest official stable Steam Audio release. On 2026-09-03,
+`v4.8.1` is still the latest published release and remains the reproducible
+baseline. An untagged development branch is diagnostic evidence only. If a
+newer stable tag exists when R9.4 runs, qualify its exact source commit before
+changing the selected baseline; a higher version number alone is not evidence
+that the measured limitations are fixed.
+
+First test provider-native acoustic assembly geometry. Steam's current direct
+transmission implementation takes the square root of the product of all hit
+surface coefficients because it assumes that the two faces of a solid wall are
+a pair. Represent each physical wall, door, or panel as one closed or otherwise
+paired provider acoustic proxy carrying one whole-assembly material definition.
+Verify one, two, and three distinct sequential assemblies, oblique incidence,
+thickness changes, and equivalent mesh fragmentation. The existing per-band
+tolerance applies. This path is accepted only if one assembly contributes its
+authored loss once and distinct assemblies accumulate predictably without
+post-render gain correction.
+
+Then exercise Steam's native baked pathing and `IPLPathEffect` with the default
+UTD-based deviation model. Use at least an L-corridor and connected rooms with
+an opening, compare pathing enabled and disabled, capture the supported path
+visualization callback, and exercise dynamic-path validation and alternate
+paths. The result must remain useful as one final phase-coherent signal per
+physical microphone rather than only as a listener-oriented qualitative mix.
+Measure bake time and storage separately from path update and complete audio
+block cost.
+
+Recheck direct-path timing through the public provider audio path. Prefer a
+provider-native PCM delay if a stable release exposes one. Otherwise retain a
+private Steam-adapter scheduler that applies geometry-derived fractional delay
+on one shared source timeline, and verify moving geometry, continuity across
+audio blocks, microphone-relative timing, and no double application to direct
+or indirect output. This is signal scheduling required by the microphone
+contract, not a replacement propagation model.
+
+Write a new versioned qualification bundle without modifying the R9.2 rev2
+evidence. Remove experiment-only helpers after the decision. Keep the selected
+R9 adapter only while it is the smallest active way to reproduce provider
+qualification; R10.3 must replace it with the production adapter and delete the
+duplicate.
+
+#### Key Decisions
+
+- R9.4 follows completed Plan 02.1 without rewriting Git history and precedes
+  Plan 02.2.
+- Stable tagged releases are selected; development-branch code is evidence,
+  not a production baseline.
+- Provider-native acoustic proxies and documented material-band mapping take
+  precedence over IAS attenuation algorithms.
+- IAS may schedule microphone arrival time when the provider does not render it
+  into PCM, but may not infer correction gains from measured provider errors.
+- Pathing and approximate diffraction enter R10 only with per-microphone,
+  signal-level evidence; a provider feature name is insufficient.
+- A failed advanced gate does not undo the R9.3 core-provider selection. It
+  narrows R10's supported fidelity and claims.
+
+#### Problems / Limitations
+
+Closed or paired acoustic proxies are a hypothesis derived from Steam's source
+behavior, not yet a qualified fix. They must not turn two independent barriers
+into one route-dependent synthetic material. Steam pathing uses precomputed
+probe data and renders an Ambisonic sound field, so storage, dynamic-scene
+behavior, microphone-array coherence, and update cost all require measurement.
+If either advanced path fails, R10 must state the limitation and use only the
+native direct, reflection, and functional NLOS behavior actually qualified. No
+simulation-only result establishes physical material calibration or general
+diffraction accuracy.
 
 ## Artifacts
 
@@ -324,6 +408,10 @@ historical evidence; no maintained generator remains. The selected Steam
 source/build remains under `build/qualification/r9/steam-audio`, and its
 internal adapter and runner remain available for requalification. No public
 geometry backend or R10 integration exists yet.
+
+R9.4 will add a separate versioned selected-provider bundle rather than rewrite
+those reports. Its implementation must leave only the minimum active
+requalification surface needed until the R10 production adapter replaces it.
 
 ## Files
 

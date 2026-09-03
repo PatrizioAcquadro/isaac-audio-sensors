@@ -1,11 +1,12 @@
 # Implementation Plan 01 — Geometry Provider Qualification
 
-Status: 01.1 corrected and 01.2 completed on 2026-09-03.
+Status: 01.1 corrected and 01.2 completed on 2026-09-03. Subphase 01.3 is
+planned after the completed Plan 02.1 and before Plan 02.2.
 
 ## Objective
 
-Record the completed execution order of the R9 provider work. This page is a
-sequence reference only;
+Record the execution order of the R9 provider work. This page is a sequence
+reference only;
 [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] is the
 sole authority for requirements, decisions, limitations, evidence, acceptance
 semantics, and application of the
@@ -44,9 +45,30 @@ has no maintained candidate tooling.
 
 This reference adds no requirements beyond R9.3.
 
+## Subphase 01.3 — Retire Selected-Provider R10 Risks
+
+#### Implementation
+
+After the already completed Plan 02.1, implement
+[[implementation_phases/r9-geometry-acoustics-provider-selection#Subphase R9.4 — Selected-Provider R10 Risk Retirement|R9.4 Selected-Provider R10 Risk Retirement]]
+before starting Plan 02.2. Preserve the two completed Plan 02.1 commits; no
+rollback or history rewrite is required.
+
+#### Key Decisions
+
+- This reference records the intentional R9.4-after-02.1 execution order; R9
+  remains authoritative for the qualification requirements and outcomes.
+- Plan 02 resumes at 02.2 after the bounded provider qualification.
+
+#### Problems / Limitations
+
+R9.4 is a post-selection risk check, not a second provider competition or the
+start of R10 product integration.
+
 ## Artifacts
 
-This reference produces no independent artifacts. R9 owns the qualification reports and provider decision.
+This reference produces no independent artifacts. R9 owns the qualification
+reports, provider decision, and selected-provider risk-retirement evidence.
 
 ## Files
 

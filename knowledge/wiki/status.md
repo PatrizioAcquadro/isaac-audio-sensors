@@ -207,18 +207,19 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
 - Retained scientific evidence is local, ignored, protected, and excluded from distributions.
-- Steam Audio is selected but not yet integrated. It passes the core profile only with the explicit IAS geometric-delay and assembly-grouping bridge; its sequential-partition transmission fails full R10, and native path diagnostics remain blocked. R10 must prefer whole-assembly transmission curves and must not add IAS attenuation compensation. The common microphone-signal API exists, but no public Geometry Acoustics or physical-capture producer uses it yet.
+- Steam Audio is selected but not yet integrated. It passes the core profile only with the explicit IAS geometric-delay and assembly-grouping bridge; its sequential-partition transmission fails full R10, and native pathing, diffraction behavior, and path diagnostics remain unqualified. R9.4 will test provider-native closed or paired acoustic proxies, baked pathing, per-microphone timing, and operating cost. R10 may own documented USD proxy and material-band translation but must not add post-hoc attenuation compensation. The common microphone-signal API exists, but no public Geometry Acoustics or physical-capture producer uses it yet.
 
 ## Next Work
 
-R9, [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]], and Plan 02.1 are complete. Steam Audio `4.8.1` is selected for future R10 integration with its full-R10 transmission limitation preserved. Work now proceeds to Plan 02.2: perception must consume the new common signal block and own observed frame construction before the temporary scene-to-frame bridge is removed in Plan 02.3.
+R9.1 through R9.3 and Plan 02.1 are complete. No rollback is required. Work now proceeds to [[implementation_phases/r9-geometry-acoustics-provider-selection#Subphase R9.4 — Selected-Provider R10 Risk Retirement|R9.4]], recorded as Plan 01.3, to retire Steam Audio assembly, pathing, timing, and diagnostics risks while the internal qualification adapter is current. Plan 02 then resumes at 02.2, where perception consumes the common signal block and owns observed frame construction before the temporary scene-to-frame bridge is removed in 02.3.
 
 The subsequent plans deliberately separate final microphone-signal production from observed perception and replace source-conditioned detections with a compact `AudioObservation`. Its two-value `origin` distinguishes `signal_derived` from `external_system`, while `detector_id` identifies the concrete producer; scheduled source information and manual annotations move to dataset truth and annotation provenance. The sequence qualifies Auditok activity detection and mixture-only PyRoom DOA, removes detection and estimator surfaces without a distinct maintained role, keeps learning truth in aligned dataset records, reuses perception across simulation and hardware, migrates Isaac Lab to observed semantics, and integrates the selected Geometry Acoustics provider only after the common signal boundary exists.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 
-The plan structure is intentionally compact: Plan 01 records the two completed
-R9 subphases, while Plans 02–11 use three coherent outcomes each. Cleanup is
+The plan structure is intentionally compact: Plan 01 records two completed R9
+subphases plus the bounded post-selection R9.4 follow-up, while Plans 02–11 use
+three coherent outcomes each. Cleanup is
 part of the final functional outcome rather than a separate administrative
 phase; implementation agents may still use smaller internal tasks and atomic
 commits.

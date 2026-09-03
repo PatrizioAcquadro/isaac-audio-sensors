@@ -553,3 +553,17 @@ Verified 74 focused tests, the complete host `make check` gate with 533
 unit/contract, 210 integration, and 57 release tests, 101 tests in the supported
 Isaac runtime on the RTX 4090, unchanged package and frame-schema versions,
 documentation boundaries, internal wikilinks, Ruff, and whitespace.
+
+## 2026-09-03 — update: Sequence R9.4 after Plan 02.1
+
+Preserved the completed signal-producer boundary and planned a bounded Steam
+Audio risk-retirement qualification before Plan 02.2. Refined R10 around
+native-first acoustic proxies, evidence-gated pathing and deviation behavior,
+private arrival-time scheduling, and replacement of the temporary R9 adapter by
+one production Steam integration.
+
+## 2026-09-03 — lint: R9.4 and R10 roadmap revision
+
+Verified the no-rollback Plan 02.1 boundary, R9/Plan 01/Plan 02/R10 status
+alignment, complete index coverage, resolved internal links, unchanged raw
+knowledge, all 57 release tests, Markdown whitespace, and the Git diff.
